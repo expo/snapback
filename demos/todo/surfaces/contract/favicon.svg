@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="194 282 865 865" role="img" aria-label="Snapback">
+  <title>Snapback</title>
+  <!-- Square, theme-adaptive favicon. The mark inherits `currentColor`, which the
+       embedded style switches between dark and light with prefers-color-scheme,
+       so the tab icon stays visible on both light and dark browser chrome. -->
+  <style>
+    svg { color: #111; }
+    @media (prefers-color-scheme: dark) { svg { color: #fff; } }
+  </style>
+  <defs>
+    <mask id="fav-knockout">
+      <rect x="194" y="282" width="865" height="865" fill="#fff"/>
+      <circle cx="354" cy="713" r="37.75" fill="none" stroke="#000" stroke-width="27.5"/>
+      <circle cx="546" cy="713" r="37.75" fill="none" stroke="#000" stroke-width="27.5"/>
+      <circle cx="901" cy="712" r="46" fill="#000"/>
+    </mask>
+  </defs>
+  <g fill="currentColor" mask="url(#fav-knockout)">
+    <rect x="212" y="592" width="534" height="244" rx="122"/>
+    <path d="M 714.66 592 L 919 592 A 122 122 0 0 1 919 836 L 714.66 836 A 152 152 0 0 0 714.66 592 Z"/>
+  </g>
+</svg>
