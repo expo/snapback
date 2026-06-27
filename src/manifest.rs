@@ -519,6 +519,7 @@ impl CapabilityManifest {
                 "host-plan-live-replace".to_owned(),
                 "ibex-ctx-db-single-table-eq".to_owned(),
                 "ibex-live-eq-replace".to_owned(),
+                "websocket-live-replace".to_owned(),
             ],
             portability_opt_outs: Vec::new(),
             resource_limits: vec![

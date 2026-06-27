@@ -7,18 +7,21 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use futures_util::StreamExt;
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext};
-use snapback::local::LocalSnapback;
+use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
-    FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-    HandlerPlan, IndexManifest, MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan,
-    SchemaManifest, SeedData, TableManifest, ValueExpr,
+    AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
+    FunctionRuntime, HandlerInput, HandlerPlan, IndexManifest, MutationPlan, MutationStep,
+    OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use tokio::net::TcpListener;
 use tokio::sync::Mutex;
+use tokio_tungstenite::connect_async;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -115,6 +118,59 @@ async fn function_runner_runs_query_and_mutation_with_read_write_sets() {
     assert_eq!(mutation["kind"], "Mutation");
     assert_eq!(mutation["writes"], json!(["todos"]));
     assert_eq!(mutation["changed_count"], 1);
+}
+
+#[tokio::test]
+async fn websocket_live_stream_pushes_existing_live_updates() {
+    let shared = Arc::new(Mutex::new(seeded_snapback()));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = snapback::server::app(AppState::detached(shared.clone()));
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let (mut stream, _) = connect_async(format!("ws://{addr}/live/client_ws/stream"))
+        .await
+        .unwrap();
+
+    {
+        let mut snapback = shared.lock().await;
+        let subscription = snapback
+            .subscribe_live(
+                "listTodos",
+                LiveSubscribeInput {
+                    connection_id: "client_ws".to_owned(),
+                    input: handler_input(json!({}), "user_1"),
+                },
+            )
+            .expect("subscribe live query");
+        assert_eq!(subscription.snapshot.rows.len(), 2);
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                handler_input(json!({ "title": "Pushed over ws" }), "user_1"),
+            )
+            .expect("create todo");
+    }
+
+    let message = tokio::time::timeout(Duration::from_secs(2), stream.next())
+        .await
+        .expect("websocket update timeout")
+        .expect("websocket closed")
+        .expect("websocket message");
+    let update: Value = serde_json::from_str(&message.into_text().unwrap()).unwrap();
+    assert_eq!(update["kind"], "live_replace");
+    assert_eq!(update["rows"].as_array().unwrap().len(), 3);
+    assert!(
+        update["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row["title"] == "Pushed over ws")
+    );
+
+    server.abort();
 }
 
 #[tokio::test]
@@ -317,6 +373,18 @@ fn post(uri: &str, body: Value) -> Request<Body> {
         .header("content-type", "application/json")
         .body(Body::from(body.to_string()))
         .unwrap()
+}
+
+fn handler_input(args: Value, user_id: &str) -> HandlerInput {
+    HandlerInput {
+        args,
+        auth: AuthInput {
+            principal: Some(user_id.to_owned()),
+            session_id: None,
+            user_id: Some(user_id.to_owned()),
+        },
+        read_set: Vec::new(),
+    }
 }
 
 async fn text(resp: axum::response::Response) -> String {

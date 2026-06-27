@@ -608,8 +608,8 @@ fn inspect_exposes_v0_runtime_and_capability_artifacts() {
     assert!(
         inspect
             .capability_manifest
-            .capability_gaps
-            .contains(&"websocket_push_transport".to_owned())
+            .supported_query_forms
+            .contains(&"websocket-live-replace".to_owned())
     );
     assert!(
         inspect

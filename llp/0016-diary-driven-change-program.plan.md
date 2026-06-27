@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Client integration, API, Runtime, Sync, Realtime, Security, Auth, Contract/Exact, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-06-27 (Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; see `llp/reviews/0020-core-authoring-surface.claude.md`)
+**Revised:** 2026-06-27 (Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, Diary 0001, Exact 0263, Exact 0265
 
 ## Summary
@@ -90,10 +90,10 @@ the detail Plan governs.
 | --- | --- | --- | --- | --- |
 | 0 — Freeze v0 contracts | — | Snapback core | LLP 0020 Phase 0 | Behaviors exist in the v0 server; not yet frozen as contracts |
 | 1 — Typed generated artifacts | Source-of-truth schema decision; `ContractDataManifest` spec | Snapback core | LLP 0020 Phase 1 (Snapback artifacts) + LLP 0021 Phase 1 (`ContractDataManifest`) | Foothold: todo demos emit typed Snapback artifacts plus generated Contract projection |
-| 2 — `ctx.db` handlers | LLP 0009 envelope | Snapback core | LLP 0020 Phase 2 | Foothold: todo handlers run through embedded Ibex `ctx.db`; read-set capture and isolation hardening remain |
-| 2′ — Read-set capture | Phase 2 | Snapback core | LLP 0020 Phase 3 | Folded into Phase 2 here; a standalone phase in LLP 0020 |
+| 2 — `ctx.db` handlers | LLP 0009 envelope | Snapback core | LLP 0020 Phase 2 | Foothold: todo handlers run through embedded Ibex `ctx.db`; resource-limit hardening remains |
+| 2′ — Read-set capture | Phase 2 | Snapback core | LLP 0020 Phase 3 | Foothold: handler-captured reads validate stale mutations; read-your-writes overlay remains |
 | 3 — Contract adapter | Phase 1 | Snapback adapters | LLP 0021 Phases 0, 2, 3, 4 | Foothold: todo demos import `packages/snapback-contract/`; todo/admin surfaces consume generated Contract bindings; admin consumes shared system-surface bridge machinery; Exact conformance and admin client/view-model consolidation remain |
-| 4 — App-grade realtime | Auth-aware matcher (LLP 0011); LLP 0008 | Snapback core | LLP 0020 Phase 4 | Not started (v0 outbox only) |
+| 4 — App-grade realtime | Auth-aware matcher (LLP 0011); LLP 0008 | Snapback core | LLP 0020 Phase 4 | Foothold: equality matcher plus WebSocket `live_replace` stream; permission epochs and range/non-equality matcher remain |
 | 5 — Contract data ergonomics | Phase 1 | Exact/Contract | LLP 0021 Phase 5 | Not started |
 | 6 — React/Expo pressure test | Phase 1 | Snapback adapters | This Plan (Change Program; no detail Plan yet) | Not started |
 | X — Authorized sync | LLP 0011 mechanics | Snapback core + LLP 0011 | LLP 0011 + LLP 0020 Phase 4 | Not sequenced; gates card-game slice |

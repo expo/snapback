@@ -74,6 +74,49 @@ export class SnapbackClient {
     return updates;
   }
 
+  openLiveStream(connectionId) {
+    const url = `${this.baseUrl.replace(/^http/, 'ws')}/live/${connectionId}/stream`;
+    const ws = new WebSocket(url);
+    const queue = [];
+    const waiters = [];
+    let streamError = null;
+    const fail = (error) => {
+      streamError = error;
+      while (waiters.length > 0) waiters.shift().reject(error);
+    };
+    ws.addEventListener('message', async (event) => {
+      try {
+        const update = JSON.parse(await websocketText(event.data));
+        const waiter = waiters.shift();
+        if (waiter) waiter.resolve(update);
+        else queue.push(update);
+      } catch (error) {
+        fail(error);
+      }
+    });
+    ws.addEventListener('error', () => fail(new Error(`Snapback live stream failed: ${url}`)), { once: true });
+    ws.addEventListener('close', () => {
+      if (waiters.length > 0) fail(new Error(`Snapback live stream closed: ${url}`));
+    });
+
+    return {
+      ready: new Promise((resolve, reject) => {
+        ws.addEventListener('open', resolve, { once: true });
+        ws.addEventListener('error', () => reject(new Error(`Snapback live stream failed: ${url}`)), { once: true });
+      }),
+      close: () => ws.close(),
+      nextUpdate: (timeoutMs = 2_000) => {
+        if (queue.length > 0) return Promise.resolve(queue.shift());
+        if (streamError) return Promise.reject(streamError);
+        return withTimeout(
+          new Promise((resolve, reject) => waiters.push({ resolve, reject })),
+          timeoutMs,
+          `timed out waiting for Snapback live stream update on ${connectionId}`,
+        );
+      },
+    };
+  }
+
   // The "current value + subscription" seam as a small live handle: holds the
   // latest rows, starting from the authoritative snapshot, and applies
   // live_replace deltas drained from the outbox.
@@ -103,4 +146,19 @@ function functionName(ref) {
   if (typeof ref === 'string') return ref;
   if (ref && typeof ref.name === 'string') return ref.name;
   throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
+}
+
+async function websocketText(data) {
+  if (typeof data === 'string') return data;
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+  if (data && typeof data.text === 'function') return data.text();
+  return String(data);
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }

@@ -4,16 +4,19 @@ use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, Subsc
 use crate::local::{InspectState, LiveSubscribeInput, LocalSnapback};
 use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
 use crate::runtime::CapabilityState;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
+use tokio::time::{Duration, interval};
 
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
 
@@ -51,6 +54,7 @@ fn core_routes() -> Router<AppState> {
         .route("/query/{name}", post(invoke_query))
         .route("/mutation/{name}", post(invoke_mutation))
         .route("/live/{name}/subscribe", post(subscribe_live))
+        .route("/live/{connection_id}/stream", get(stream_live))
         .route("/outbox/{connection_id}", get(drain_outbox))
         .route(
             "/ephemeral/collections",
@@ -156,6 +160,42 @@ async fn subscribe_live(
 ) -> Result<Json<crate::local::LiveSubscribeOutput>, ApiError> {
     let mut snapback = state.lock().await;
     Ok(Json(snapback.subscribe_live(&name, input)?))
+}
+
+async fn stream_live(
+    State(state): State<SharedSnapback>,
+    Path(connection_id): Path<String>,
+    ws: WebSocketUpgrade,
+) -> Response {
+    ws.on_upgrade(move |socket| live_stream(socket, state, connection_id))
+}
+
+async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: String) {
+    let (mut sender, mut receiver) = socket.split();
+    let mut ticks = interval(Duration::from_millis(25));
+
+    // @ref LLP 0020#phase-4-upgrade-realtime-from-v0-outbox-to-app-grade-live-delivery — WebSocket push is a transport over the existing ordered live queue; deterministic drain stays available for tests.
+    loop {
+        tokio::select! {
+            incoming = receiver.next() => {
+                match incoming {
+                    Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
+                    Some(Ok(_)) => {}
+                }
+            }
+            _ = ticks.tick() => {
+                let messages = {
+                    let mut snapback = state.lock().await;
+                    snapback.drain_live_stream(&connection_id)
+                };
+                for message in messages {
+                    if sender.send(Message::Text(message.into())).await.is_err() {
+                        return;
+                    }
+                }
+            }
+        }
+    }
 }
 
 async fn drain_outbox(

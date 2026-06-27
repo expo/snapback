@@ -11,6 +11,7 @@
     "liveSubscriptions": true,
     "syncableLiveQuery": true,
     "liveDependencyMatcher": "ibex-live-eq-replace",
+    "liveTransport": "websocket-live-replace",
     "mutationReadSetValidation": true,
     "handlerCapturedReadSets": true,
     "mutationRetryPolicy": "reject"
@@ -75,6 +76,7 @@
       "admin runner exposes captured handler read/write facts",
       "live subscription authoritative initial snapshot",
       "realtime update reaches a second client",
+      "websocket stream pushes live replace without outbox polling",
       "realtime matcher skips unrelated user-scoped mutations and records liveDelivery skip counts",
       "realtime matcher skips hidden row patch/delete changes without leaking existence",
       "realtime matcher uses captured equality predicates beyond auth scope",
@@ -107,7 +109,6 @@
     "assets",
     "cron",
     "notifications",
-    "websocket_push_transport",
     "precise_realtime_query_range_matcher",
     "react_adapter",
     "contract_design_mode_authoring"
@@ -118,6 +119,6 @@
     "full JavaScript handler coverage (list/create/setCompleted/delete use ctx.db; listTodosOnce/editTitle remain HostPlan fixture paths)",
     "automatic mutation retry (v0 rejects conflicts with a structured diagnostic)",
     "precise query-range matcher for realtime invalidation (current matcher covers table and equality predicates only)",
-    "push realtime transport (current live updates use deterministic drain/poll controls)"
+    "incremental delta transport (current websocket and deterministic drain paths both deliver live_replace payloads)"
   ]
 }

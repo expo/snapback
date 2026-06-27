@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (Phase 4 equality matcher slice; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-06-27 (Phase 4 equality matcher and WebSocket push slices; remaining dependency-vocabulary design; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
 
 ## Summary
@@ -322,10 +322,103 @@ matcher path. Change events carry changed field names so updates that touch
 predicate fields fall back to rerun instead of being skipped incorrectly. Deletes
 carry the deleted row into the in-memory change event so hidden-row deletes can
 be proved disjoint without leaking the row to clients. The delivery shape remains
-`live_replace` through the deterministic outbox, and `/inspect` exposes
-`liveDelivery` fan-out, delivery, and skip counts. Push transport, permission
-epochs, and a precise non-equality/range matcher over the full Phase 3 dependency
-vocabulary remain open.
+`live_replace`, now available over a local WebSocket stream as well as the
+deterministic outbox, and `/inspect` exposes `liveDelivery` fan-out, delivery,
+and skip counts. Permission epochs and a precise non-equality/range matcher over
+the full Phase 3 dependency vocabulary remain open.
+
+#### Remaining Phase 4 design: dependency vocabulary and auth epochs
+
+The next implementation slice must extend one shared dependency vocabulary rather
+than adding matcher-only facts. The same captured records should serve:
+
+- mutation conflict validation;
+- generated/static read-set summaries;
+- realtime invalidation and skip decisions;
+- later retained-sync resume checks.
+
+The v0 vocabulary adds these dependency facts:
+
+- `Row(table, id, version)` and `MissingRow(table, id, table_version)` for point
+  reads and absent rows;
+- `Query(table, index, predicate, order, limit, boundary, table_version, rows)`
+  for collected query ranges;
+- `Auth(field, value)` for direct auth facts such as `userId`;
+- `Permission(scope, epoch)` for authorization state the query depends on;
+- `MutationOverlay(table, ids, fields)` for reads that observe buffered writes
+  inside the same handler.
+
+`Query.predicate` is the analyzable subset. V0 extends beyond equality only where
+the manifest can express the operator and the matcher can prove disjointness. The
+first extension set is:
+
+- `Eq(field, value)`;
+- `In(field, values)`;
+- `Lt/Lte/Gt/Gte(field, value)`;
+- `Between(field, lower, upper, lower_inclusive, upper_inclusive)`;
+- `Prefix(field, value)` only for string fields with an explicitly portable
+  collation rule.
+
+Any unsupported operator, runtime value, computed expression, unknown collation,
+or missing old/new row data makes the query dependency conservative. The matcher
+may skip only when it proves that every changed row is disjoint from every
+captured query dependency. Otherwise it reruns and emits `live_replace`.
+
+Order and limit are boundary-sensitive. A limited query may be skipped only when
+the changed row is predicate-disjoint and cannot affect the ordering boundary.
+To make that check possible, captured query dependencies should include:
+
+- the ordered fields and directions;
+- the result count;
+- for limited non-empty results, the first and last returned sort key;
+- whether the result was known complete (`result_count < limit`) or boundary
+  truncated (`result_count == limit`).
+
+Until those facts exist, any insert/delete/update that matches the predicate for
+a limited query must rerun. Updates that touch a predicate field, order field, or
+system ordering field also rerun. Deletes need the deleted row in the in-memory
+change event; if the deleted row is unavailable, rerun.
+
+Permission changes follow LLP 0011's v1 answer: server-directed resubscribe, not
+arbitrary live remove deltas. The first local shape is:
+
+- permission-affecting writes are declared by function metadata or table
+  permission metadata; unknown permission impact is conservative;
+- each permission scope has a monotonically increasing `epoch`;
+- live subscriptions record the permission scopes and epochs captured while
+  computing their snapshot;
+- a mutation that advances one of those epochs enqueues a durable live message:
+
+```json
+{
+  "kind": "resync_required",
+  "reason": "permission_epoch_changed",
+  "subscription_id": "sub_1",
+  "scope": "user:user_ada",
+  "epoch": 42,
+  "clear_retained": true
+}
+```
+
+Clients must mark the affected result stale immediately. If `clear_retained` is
+true, they clear the retained rows before resubscribing. The fresh subscription
+snapshot is filtered through current permissions. Reconnect/resume compares the
+client's recorded permission epochs with the server's current epochs and
+resnapshots when any recorded epoch is stale.
+
+Implementation sequence for the remaining Phase 4 work:
+
+1. Extend manifest/runtime structs with the dependency vocabulary above, but keep
+   the capability gap until behavior is tested.
+2. Capture range/order/limit boundaries from `ctx.db.query(...).collect()` and
+   from `HostPlan` queries.
+3. Extend the matcher with skip-only-when-proven rules for `In`, range, and
+   boundary-sensitive limited queries.
+4. Add permission dependency capture, epoch state, and `resync_required`
+   delivery.
+5. Remove `precise_realtime_query_range_matcher` only after acceptance covers
+   disjoint range inserts, range-crossing updates, limited-query boundary
+   changes, permission-epoch resync, and reconnect with stale epochs.
 
 ## Demo Admission Rule
 
@@ -358,12 +451,13 @@ scaffolding it depends on and the capability class it is exercising.
 - Which schema definition is the single source of truth for Rust and TypeScript
   artifact generation, and does that source also own the shared
   `ContractDataManifest` schema or only the core manifests LLP 0012 names?
-- Is the first push transport SSE, WebSocket, or a pluggable abstraction with
-  one local implementation?
-- What is the v0 read-set representation for range queries, auth predicates,
-  and read-after-write dependencies — the one shared vocabulary the static
-  manifest summary, the mutation conflict check, and the live-query matcher all
-  consume? Define it before building any of the three.
+- What is the pluggable transport abstraction for non-local targets, now that
+  the first local push transport is WebSocket?
+- Which exact permission metadata syntax declares permission-affecting writes
+  and scopes for v0: table annotations, function metadata, or a dedicated
+  permission manifest?
+- Which range operators beyond `Eq`, `In`, numeric/string comparisons, `Between`,
+  and portable `Prefix` should enter the first analyzable subset?
 - Does the first stale-read behavior reject only, retry automatically for pure
   handlers, or expose both as target capabilities?
 - Which runtime resource limits can Ibex enforce in-process on the canonical
@@ -375,8 +469,9 @@ scaffolding it depends on and the capability class it is exercising.
 
 ## Status
 
-Draft. Phases 1 through 3 have landed as local slices, and Phase 4 has a
-conservative matcher/observability slice. Completion still requires the
-remaining Phase 4 transport, permission-change, and precise matcher work to pass
-the acceptance gates above, not merely the presence of partial implementation
-files.
+Draft. Phases 1 through 3 have landed as local slices, Phase 4 has conservative
+matcher, observability, and WebSocket push slices, and the remaining Phase 4
+dependency-vocabulary shape is now pinned in this Plan. Completion still
+requires implementing permission-change resync and the precise matcher work, then
+passing the acceptance gates above, not merely the presence of partial
+implementation files.

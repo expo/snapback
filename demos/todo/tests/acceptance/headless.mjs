@@ -72,7 +72,8 @@ try {
     assertEqual(state.runtime.ibex_ctx_db_host_bridge, 'Available', 'embedded ctx.db bridge capability');
     assert(!state.capability_gaps.includes('ibex_ctx_db_host_bridge'), 'ctx.db bridge should not be reported as a gap once wired');
     assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-eq-replace'), 'live matcher capability form');
-    assert(state.capabilityManifest.capabilityGaps.includes('websocket_push_transport'), 'push transport should still be a gap');
+    assert(state.capabilityManifest.supportedQueryForms.includes('websocket-live-replace'), 'websocket live replace capability form');
+    assert(!state.capabilityManifest.capabilityGaps.includes('websocket_push_transport'), 'push transport should not be a gap once wired');
     assert(state.capabilityManifest.capabilityGaps.includes('precise_realtime_query_range_matcher'), 'precise range matcher should still be a gap');
     return { functions: names, capability_gaps: state.capability_gaps, bridge: state.runtime.ibex_ctx_db_host_bridge, generatedRef: api.createTodo };
   });
@@ -147,6 +148,24 @@ try {
     assertEqual(rows.length, 4, 'b did not receive realtime update');
     assert(rows.some((r) => r.title === 'Added by another client'), 'new row missing');
     return { rows: rows.length };
+  });
+
+  await suite.check('websocket stream pushes live replace without outbox polling', async () => {
+    await db.reset();
+    await db.seed(seed);
+    const stream = db.openLiveStream('client_ws');
+    try {
+      await stream.ready;
+      const live = await db.subscribeLive(api.listTodos, { connectionId: 'client_ws', userId: ADA });
+      await db.mutate(api.createTodo, { args: { title: 'Pushed over WebSocket' }, userId: ADA });
+      const update = await stream.nextUpdate();
+      assertEqual(update.kind, 'live_replace', 'websocket update kind');
+      assertEqual(update.subscription_id, live.subscription_id, 'subscription id');
+      assert(update.rows.some((r) => r.title === 'Pushed over WebSocket'), 'pushed row missing');
+      return { version: update.version, rows: update.rows.length };
+    } finally {
+      stream.close();
+    }
   });
 
   await suite.check('realtime matcher skips unrelated user-scoped mutations', async () => {

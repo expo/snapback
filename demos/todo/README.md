@@ -85,7 +85,8 @@ with server-owned system fields, user-scoped
 auth filtering, an authoritative live-subscription snapshot, a realtime update
 reaching a second client, matcher skips for unrelated user-scoped mutations and
 hidden-row patch/delete changes, captured equality-predicate matching beyond
-auth scope, inspectable live-delivery skip/delivery counts, an ordinary query
+auth scope, WebSocket push delivery of `live_replace` updates, inspectable
+live-delivery skip/delivery counts, an ordinary query
 honestly reported as **not** syncable
 (`SNAPBACK_FUNCTION_NOT_LIVE`), admin-runner display of captured handler
 read/write facts, a read-set mutation conflict (`SNAPBACK_MUTATION_CONFLICT`),
@@ -110,9 +111,9 @@ integration (server-authoritative mutations with optimistic UI), **not**
 local-first/Parity: there is no local handler replay. This slice has an embedded
 Ibex `ctx.db` bridge for the todo live query plus create/toggle/delete handlers;
 it captures handler read dependencies at commit and rejects conflicts, but does
-not retry automatically, use a precise captured query-range matcher, push over
-WebSockets, enforce CPU/wall-clock budgets, or remove the remaining HostPlan
-fixture paths. Its realtime matcher is a conservative table/equality-predicate
-slice that still delivers `live_replace` updates through the deterministic
-outbox. See
+not retry automatically, use a precise captured query-range matcher, emit
+incremental deltas, enforce CPU/wall-clock budgets, or remove the remaining
+HostPlan fixture paths. Its realtime matcher is a conservative
+table/equality-predicate slice that delivers `live_replace` updates over the
+WebSocket stream and the deterministic outbox. See
 `demo.snapback.json` `capabilityGaps` / `notClaiming`.
