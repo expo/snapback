@@ -15,10 +15,10 @@
 // Facet palette 1:1. Swap these literals for `theme.colors.*` / `theme.space.*`
 // once the surface mounts under the facet theme provider.
 
-use listTodos from "./data/listTodos.query.ts"
-use createTodo from "./data/createTodo.mutation.ts"
-use setCompleted from "./data/setCompleted.mutation.ts"
-use deleteTodo from "./data/deleteTodo.mutation.ts"
+use listTodos from "../../snapback/generated/contract/listTodos.query.ts"
+use createTodo from "../../snapback/generated/contract/createTodo.mutation.ts"
+use setCompleted from "../../snapback/generated/contract/setCompleted.mutation.ts"
+use deleteTodo from "../../snapback/generated/contract/deleteTodo.mutation.ts"
 
 component TodoApp
   state draft = ""

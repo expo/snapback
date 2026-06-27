@@ -7,10 +7,13 @@
   "systems": ["API", "Storage", "Runtime", "Sync", "Realtime", "Developer experience", "Contract/Exact"],
   "requiredCapabilities": {
     "storageEngine": "sqlite",
-    "runtimeEngine": "host-plan",
+    "runtimeEngine": "ibex",
     "liveSubscriptions": true,
     "syncableLiveQuery": true,
-    "mutationReadSetValidation": true
+    "liveDependencyMatcher": "ibex-live-eq-replace",
+    "mutationReadSetValidation": true,
+    "handlerCapturedReadSets": true,
+    "mutationRetryPolicy": "reject"
   },
   "backend": {
     "source": "snapback/schema.mjs + snapback/functions.mjs",
@@ -18,8 +21,16 @@
     "generated": [
       "snapback/generated/schema.manifest.json",
       "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
       "snapback/generated/contract-data.manifest.json",
-      "snapback/generated/artifacts.json"
+      "snapback/generated/artifacts.json",
+      "snapback/generated/contract/runtime-links.ts",
+      "snapback/generated/contract/*.query.ts",
+      "snapback/generated/contract/*.mutation.ts",
+      "snapback/generated/contract/*.contract-meta.ts"
     ],
     "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
   },
@@ -39,7 +50,7 @@
       "requirement": "optional",
       "runner": "bun demos/todo/tests/acceptance/contract.mjs",
       "browserRunner": "SNAPBACK_TODO_API=http://127.0.0.1:4420 bun run --cwd demos/todo/surfaces/contract dev",
-      "expectedDiagnostic": "EXACT_MISSING",
+      "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "exact": {
         "requiredCapabilities": ["contractCompiler", "runtime", "dataBinding"],
         "resolver": "demos/_kit/exact-resolver.mjs (SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact | vendor/exact)",
@@ -60,11 +71,18 @@
       "generated function references load + inspectable",
       "deterministic reset + declarative seed",
       "user-scoped query isolation",
-      "create/toggle/edit/delete mutations with server-owned system fields",
+      "JavaScript ctx.db create/toggle/delete mutations plus HostPlan edit-title coverage",
+      "admin runner exposes captured handler read/write facts",
       "live subscription authoritative initial snapshot",
       "realtime update reaches a second client",
+      "realtime matcher skips unrelated user-scoped mutations and records liveDelivery skip counts",
+      "realtime matcher skips hidden row patch/delete changes without leaking existence",
+      "realtime matcher uses captured equality predicates beyond auth scope",
       "ordinary query reported NOT syncable (SNAPBACK_FUNCTION_NOT_LIVE)",
       "read-set mutation conflict (SNAPBACK_MUTATION_CONFLICT)",
+      "artifact version mismatch diagnostic (SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION)",
+      "handler ambient capability diagnostic (SNAPBACK_HANDLER_CAPABILITY_DENIED)",
+      "handler throw diagnostic (SNAPBACK_HANDLER_FAILED)",
       "invalid schema diagnostic (SNAPBACK_SCHEMA_SYSTEM_FIELD)",
       "invalid query diagnostic (SNAPBACK_UNKNOWN_FIELD)",
       "codegen fails closed (QUERY_UNKNOWN_FIELD)"
@@ -72,28 +90,34 @@
     "contract": [
       ".contract compiles against generated descriptors",
       "contract bindings resolve to generated Snapback descriptors",
+      "stale Contract data manifest diagnostic (SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH)",
       "mounts against live backend; renders live snapshot",
       "Contract action drives a Snapback mutation (optimistic update)",
       "Contract actions toggle completion and delete through Snapback mutations",
       "mutation is server-authoritative and visible to headless surface (cross-surface)",
-      "provider seam subscribe + mutate on live backend"
+      "provider seam subscribe + mutate on live backend",
+      "no demo-local Contract sidecars are required"
     ]
   },
   "capabilityGaps": [
     "offline_mutation_replay",
-    "ibex_ctx_db_host_bridge (JS ctx.db handlers; v0 uses declarative HostPlans)",
     "postgres",
     "cloudflare",
     "external_auth",
     "assets",
     "cron",
     "notifications",
+    "websocket_push_transport",
+    "precise_realtime_query_range_matcher",
     "react_adapter",
     "contract_design_mode_authoring"
   ],
   "notClaiming": [
     "offline-first / local handler replay (this is an Online-class integration)",
     "Partiful-scale throughput (this is a demo shape, not a benchmark)",
-    "JS handler execution (HostPlan declarative plans only in v0)"
+    "full JavaScript handler coverage (list/create/setCompleted/delete use ctx.db; listTodosOnce/editTitle remain HostPlan fixture paths)",
+    "automatic mutation retry (v0 rejects conflicts with a structured diagnostic)",
+    "precise query-range matcher for realtime invalidation (current matcher covers table and equality predicates only)",
+    "push realtime transport (current live updates use deterministic drain/poll controls)"
   ]
 }

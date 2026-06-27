@@ -173,3 +173,79 @@ to read-only and played it safe. Given a budget aimed at the UI and three labs
 read first, Contract reached parity without drama. The honest correction to 0002:
 the gap was ~90% fluency, ~10% medium — and the 10% is ergonomics, not
 expressiveness.
+
+## 2026-06-27 — LLP 0021 build recipe becomes a preset
+
+I moved the static/native build recipe out of `admin-ui/build.mjs` and into
+`packages/snapback-contract/build-preset.mjs`. The admin build file is now just
+the mount-specific invocation: root, `/_snapback/admin/` base path, `/src/main.ts`
+entry, route registry, and `mac` native target.
+
+This directly removed one diary-only workaround from the admin console. The
+sharp edges are still real — `configFile: false`, `exactVitePlugin` before
+`contractVitePlugin`, the route registry, the subdirectory entry, and the
+post-build base-path rewrite — but they now live in one product-shaped function
+with structured preflight diagnostics instead of an admin-only script comment.
+
+Running `./build.sh` still emits the browser bundle plus Exact static native
+artifacts. The build continues to print the existing Contract warnings about
+opaque theme imports; those are separate Exact/project-check ergonomics, not a
+regression from moving the recipe.
+
+## 2026-06-27 — Generated admin Contract bindings
+
+I replaced the admin console's hand-written `data/` binding files with a small
+source-of-truth list (`contract-bindings.mjs`) plus
+`generate-contract-bindings.mjs`. The generator now writes
+`generated/contract/`: the `use ... from` query/mutation modules, the
+`.contract-meta.ts` descriptor sidecars, and the runtime-link registry. The
+`.contract` file imports the generated modules, `main.ts` configures the
+generated links from the admin boundary, and `build.mjs` regenerates everything
+before running the shared build preset.
+
+This was a useful LLP 0021 migration, but only in a specific way. The generated
+runtime-link pattern made the work mechanical: one binding list, one generator,
+and no chance for `inspect.query.ts` to drift from `inspect.query.contract-meta.ts`
+or from `runtime-links.ts`. That is a real improvement over the original
+one-file-per-binding admin glue, and it is the same failure mode the todo v2
+exercise caught with `setPriority`.
+
+It did not erase the admin integration bridge. `admin-boundary.mjs` still owns
+the system-app shape: privileged `/_snapback/api/*` fetches, inspect flattening,
+dynamic table cells, function-runner shaping, and boundary publication. That
+still feels different from an ordinary generated app-table adapter, and LLP 0017
+says it should stay different unless we deliberately promote an admin-specific
+adapter. So the migration helped by shrinking the glue and making the remaining
+glue obvious. It did not make admin a normal app surface.
+
+`./build.sh` passed after the migration and emitted the same browser/native
+artifacts as before. It still prints the existing Contract warnings about opaque
+theme imports; those warnings were already present before this change.
+
+## 2026-06-27 — Pulling the bridge lifecycle into the adapter
+
+The next friction point was `admin-boundary.mjs`: after generated bindings, it
+still owned too much generic Contract ceremony — creating the mock boundary,
+storing single-row resources as iterable row collections, exposing query links,
+writing resource updates, tracking async commands, and deciding what HMR cleanup
+should dispose. I moved that into
+`packages/snapback-contract` as `createSnapbackSystemContractSurface`.
+
+That helper is intentionally not the ordinary app-table adapter. Admin is still
+a system app over `/_snapback/api/*`, so the admin file keeps the privileged
+client calls and the view-model shaping: inspect flattening, table-cell shaping,
+function-runner JSON parsing, and diagnostic display. But the generic lifecycle
+is now package code: resources in, generated links out, `publishOne`, `flush`,
+`pendingCount`, and `dispose`.
+
+This was the clearest LLP 0021 improvement so far. The code I had to reason
+about in the admin file shrank to "what does admin data look like?" instead of
+"how do Contract query resources work again?" I also added a smoke test that
+compares `contract-bindings.mjs` to the bridge links and exercises table/function
+publishing through a fake runtime. That test catches the exact class of drift the
+diary has been complaining about.
+
+The remaining glue is real but now better named: `admin-client.mjs` plus the
+view-model functions in `admin-boundary.mjs`. That may deserve an admin-client
+package later, especially if the embedded console and Contract console should
+share one client. It is no longer boundary/link glue.

@@ -1,0 +1,8 @@
+{
+  "name": "snapback-todo-v2-contract-surface",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cd ../../../../../exact && bun --bun node_modules/.bin/vite --config ../snapback/demos/todo-v2/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5175"
+  }
+}

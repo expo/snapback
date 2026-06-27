@@ -9,6 +9,7 @@
 use crate::diagnostic::SnapbackError;
 use crate::local::InspectState;
 use crate::manifest::{FunctionKind, HandlerInput};
+use crate::runtime::CapabilityState;
 use crate::server::{ApiError, HealthResponse, SharedSnapback};
 use axum::extract::{FromRef, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
@@ -344,9 +345,6 @@ async fn console_asset(
     State(ctx): State<Arc<ServerContext>>,
     Path(path): Path<String>,
 ) -> Response {
-    let Some(dist) = &ctx.admin_dist else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
     // Reject path traversal and empty segments before touching the filesystem.
     if path
         .split('/')
@@ -354,8 +352,22 @@ async fn console_asset(
     {
         return StatusCode::NOT_FOUND.into_response();
     }
+    let exact_artifact = crate::contract_exact::is_exact_static_artifact_path(&path);
+    let Some(dist) = &ctx.admin_dist else {
+        if exact_artifact {
+            return diagnostic_response(
+                StatusCode::BAD_REQUEST,
+                crate::contract_exact::native_artifacts_unavailable(&path),
+            );
+        }
+        return StatusCode::NOT_FOUND.into_response();
+    };
     match tokio::fs::read(dist.join(&path)).await {
         Ok(bytes) => ([(header::CONTENT_TYPE, content_type_for(&path))], bytes).into_response(),
+        Err(_) if exact_artifact => diagnostic_response(
+            StatusCode::BAD_REQUEST,
+            crate::contract_exact::native_artifact_missing(&path),
+        ),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }
@@ -377,6 +389,16 @@ fn content_type_for(path: &str) -> &'static str {
     }
 }
 
+fn diagnostic_response(status: StatusCode, error: SnapbackError) -> Response {
+    (
+        status,
+        Json(crate::server::ErrorResponse {
+            diagnostic: error.diagnostic,
+        }),
+    )
+        .into_response()
+}
+
 async fn admin_health(
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
@@ -389,7 +411,8 @@ async fn admin_health(
         ok: true,
         target: inspect.target,
         sqlite_version: inspect.storage.version,
-        ibex_available: inspect.runtime.ibex_cli.available,
+        ibex_available: inspect.runtime.ibex_cli.available
+            || inspect.runtime.ibex_ctx_db_host_bridge == CapabilityState::Available,
     }))
 }
 

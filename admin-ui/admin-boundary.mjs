@@ -1,76 +1,68 @@
 // Snapback admin ↔ Contract bridge.
 //
-// Mirrors the todo demo's snapback-contract-boundary, but over the *admin* API:
+// Mirrors the Snapback Contract adapter shape, but over the *admin* API:
 // it hydrates a reactive boundary from `/_snapback/api/inspect` and exposes the
 // link functions the .contract's `use ... from` targets delegate to. The inspect
 // payload is flattened into a `data.ui.*` view model here (in plain JS) so the
 // Contract template stays declarative — no formatting logic in the view.
 
+import { createSnapbackSystemContractSurface } from '../packages/snapback-contract/index.mjs';
+
 export async function createAdminSurface({ runtime, client }) {
-  // The boundary models each key as a row collection (iterable), so the single
-  // inspect view model is stored as a one-element array and selected back out.
-  const boundary = runtime.createContractMockQueryBoundary({
-    inspect: [await loadView(client)],
-    tableScan: [emptyScan()],
-    runResult: [emptyRun()],
+  return createSnapbackSystemContractSurface({
+    runtime,
+    targetSurface: 'Snapback admin Contract',
+    resources: {
+      inspect: async () => loadView(client),
+      tableScan: emptyScan,
+      runResult: emptyRun,
+    },
+    commands: {
+      refresh: async (_args, { publishOne }) => {
+        publishOne('inspect', await loadView(client));
+      },
+      // The data explorer's parameterized read: fetch a page, pre-shape rows
+      // into {key,text,sys} cells so the .contract uses static access, not
+      // row[col], and republish to the boundary.
+      loadTable: async ({ table, offset }, { publishOne }) => {
+        try {
+          const scan = await client.scanTable(table, PAGE, offset || 0);
+          publishOne('tableScan', shapeScan(scan));
+        } catch (error) {
+          publishOne('tableScan', { ...emptyScan(), loaded: true, table, error: error.message });
+        }
+      },
+      // The function runner: parse the args text, invoke through the admin API's
+      // normal function runner path, and republish a shaped result. Errors
+      // become displayable state.
+      runFunction: async ({ name, argsText, userId }, { publishOne }) => {
+        if (!name) return;
+        let args;
+        try {
+          args = argsText && argsText.trim() ? JSON.parse(argsText) : {};
+        } catch (error) {
+          publishOne('runResult', {
+            ...emptyRun(),
+            ran: true,
+            ok: false,
+            error: `Invalid JSON args: ${error.message}`,
+          });
+          return;
+        }
+        const user = userId && userId.trim() ? userId.trim() : null;
+        try {
+          const result = await client.runFunction(name, {
+            args,
+            auth: { principal: user, session_id: null, user_id: user },
+            read_set: [],
+          });
+          publishOne('runResult', shapeRun(result));
+        } catch (error) {
+          publishOne('runResult', { ...emptyRun(), ran: true, ok: false, error: error.message });
+        }
+      },
+    },
   });
-
-  const links = {
-    // `async … ready rows` consumes an iterable row collection, so return the
-    // array; the .contract iterates the single inspect row.
-    inspect: (_args) => boundary.query('inspect', (rows) => rows, { key: 'inspect' }),
-    // The Refresh action re-reads the admin contract and republishes it; the
-    // boundary write triggers a re-render.
-    refresh: async () => {
-      const fresh = await loadView(client);
-      boundary.write('inspect', () => [fresh]);
-    },
-    tableScan: (_args) => boundary.query('tableScan', (rows) => rows, { key: 'tableScan' }),
-    // The data explorer's parameterized read: fetch a page, pre-shape rows into
-    // {key,text,sys} cells (so the .contract uses static access, not row[col]),
-    // and republish to the boundary.
-    loadTable: async ({ table, offset }) => {
-      try {
-        const scan = await client.scanTable(table, PAGE, offset || 0);
-        boundary.write('tableScan', () => [shapeScan(scan)]);
-      } catch (error) {
-        boundary.write('tableScan', () => [
-          { ...emptyScan(), loaded: true, table, error: error.message },
-        ]);
-      }
-    },
-    runResult: (_args) => boundary.query('runResult', (rows) => rows, { key: 'runResult' }),
-    // The function runner: parse the args text, invoke through the admin API's
-    // function runner (the same normal invocation path), and republish a shaped
-    // result. Errors (bad JSON, runtime diagnostics) become displayable state.
-    runFunction: async ({ name, argsText, userId }) => {
-      if (!name) return;
-      let args;
-      try {
-        args = argsText && argsText.trim() ? JSON.parse(argsText) : {};
-      } catch (error) {
-        boundary.write('runResult', () => [
-          { ...emptyRun(), ran: true, ok: false, error: `Invalid JSON args: ${error.message}` },
-        ]);
-        return;
-      }
-      const user = userId && userId.trim() ? userId.trim() : null;
-      try {
-        const result = await client.runFunction(name, {
-          args,
-          auth: { principal: user, session_id: null, user_id: user },
-          read_set: [],
-        });
-        boundary.write('runResult', () => [shapeRun(result)]);
-      } catch (error) {
-        boundary.write('runResult', () => [
-          { ...emptyRun(), ran: true, ok: false, error: error.message },
-        ]);
-      }
-    },
-  };
-
-  return { boundary, links };
 }
 
 const PAGE = 50;

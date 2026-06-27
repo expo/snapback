@@ -1,38 +1,64 @@
 {
+  "appId": "todo",
+  "artifactKind": "artifactIndex",
   "artifacts": [
     "schema.manifest.json",
     "functions.manifest.json",
-    "contract-data.manifest.json"
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "contract/runtime-links.ts",
+    "contract/createTodo.mutation.ts",
+    "contract/createTodo.mutation.contract-meta.ts",
+    "contract/deleteTodo.mutation.ts",
+    "contract/deleteTodo.mutation.contract-meta.ts",
+    "contract/editTitle.mutation.ts",
+    "contract/editTitle.mutation.contract-meta.ts",
+    "contract/listTodos.query.ts",
+    "contract/listTodos.query.contract-meta.ts",
+    "contract/listTodosOnce.query.ts",
+    "contract/listTodosOnce.query.contract-meta.ts",
+    "contract/setCompleted.mutation.ts",
+    "contract/setCompleted.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:08c48c04aee9c87a",
+  "bundleHash": "sha256:1e02d0edbabb277c",
   "functions": [
     {
+      "id": "todo:createTodo",
       "kind": "Mutation",
       "name": "createTodo"
     },
     {
+      "id": "todo:deleteTodo",
       "kind": "Mutation",
       "name": "deleteTodo"
     },
     {
+      "id": "todo:editTitle",
       "kind": "Mutation",
       "name": "editTitle"
     },
     {
+      "id": "todo:listTodos",
       "kind": "LiveQuery",
       "name": "listTodos"
     },
     {
+      "id": "todo:listTodosOnce",
       "kind": "Query",
       "name": "listTodosOnce"
     },
     {
+      "id": "todo:setCompleted",
       "kind": "Mutation",
       "name": "setCompleted"
     }
   ],
-  "inputsHash": "08c48c04aee9c87af98546a0bf92b2ec07778282e01d3bfd947d51080330d7c5",
-  "schemaHash": "sha256:08c48c04aee9c87a",
+  "generatedAt": 0,
+  "inputsHash": "052521e4ab12cb7d7efba4a4f93c781c0066b6dac8d0045499425e808936e746",
+  "schemaHash": "sha256:8d0c00db95d693f6",
   "schemaVersion": "snapback.v0",
   "tables": [
     "todos"

@@ -11,13 +11,16 @@
 //   Contract surface is an explicit expected-missing skip with a structured
 //   diagnostic, never a silent pass.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { resolveExact, exactModulePaths } from '../../../_kit/exact-resolver.mjs';
-import { createSnapbackContractSurface } from '../../../_kit/snapback-contract-boundary.mjs';
+import {
+  createSnapbackContractSurface,
+  validateSnapbackContractArtifacts,
+} from '../../../../packages/snapback-contract/index.mjs';
 import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -28,6 +31,9 @@ const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'ut
 const demoManifest = JSON.parse(readFileSync(join(here, '..', '..', 'demo.snapback.json'), 'utf8'));
 
 const ADA = 'user_ada';
+const artifactIndex = gen('artifacts.json');
+const schemaManifest = gen('schema.manifest.json');
+const functionsManifest = gen('functions.manifest.json');
 const contractDataManifest = gen('contract-data.manifest.json');
 
 // --- Resolve Exact (capability-probed) --------------------------------------
@@ -37,7 +43,7 @@ if (exact.sourceKind === 'missing') {
   const report = {
     title: 'todo / contract',
     skipped: true,
-    reason: 'EXACT_MISSING',
+    reason: 'SNAPBACK_CAPABILITY_EXACT_MISSING',
     requirement: expected.requirement,
     expectedDiagnostic: expected.expectedDiagnostic,
     diagnostics: exact.diagnostics,
@@ -47,7 +53,7 @@ if (exact.sourceKind === 'missing') {
   // matches the manifest's expected missing-capability code.
   const valid =
     ['optional', 'expected_missing', 'blocked'].includes(expected.requirement) &&
-    expected.expectedDiagnostic === 'EXACT_MISSING';
+    expected.expectedDiagnostic === 'SNAPBACK_CAPABILITY_EXACT_MISSING';
   console.log(valid ? '\nSKIP (valid, expected_missing): todo / contract' : '\nFAIL: unexpected missing capability');
   process.exit(valid ? 0 : 1);
 }
@@ -91,8 +97,8 @@ const textUnder = (node) => {
 const settle = async () => { await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0)); };
 
 try {
-  await db.loadSchema(gen('schema.manifest.json'));
-  await db.loadFunctions(gen('functions.manifest.json'));
+  await db.loadSchema(schemaManifest);
+  await db.loadFunctions(functionsManifest);
   await db.reset();
   await db.seed(JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8')));
 
@@ -114,22 +120,51 @@ try {
     // The `use X from` import names ARE the generated descriptor names.
     const source = readFileSync(join(contractDir, 'todo.contract'), 'utf8');
     const used = [...source.matchAll(/^use (\w+) from/gm)].map((m) => m[1]);
-    assert(used.includes('listTodos'), 'missing listTodos import');
-    assert(used.includes('createTodo'), 'missing createTodo import');
-    assert(used.includes('setCompleted'), 'missing setCompleted import');
-    assert(used.includes('deleteTodo'), 'missing deleteTodo import');
+    for (const name of ['listTodos', 'createTodo', 'setCompleted', 'deleteTodo']) {
+      assert(used.includes(name), `missing ${name} import`);
+      assert(source.includes(`../../snapback/generated/contract/${name}.`), `${name} does not import generated Contract module`);
+    }
+    const localDataDir = join(contractDir, 'data');
+    const localBindingFiles = existsSync(localDataDir)
+      ? readdirSync(localDataDir).filter((name) => name.endsWith('.contract-meta.ts') || name.endsWith('.query.ts') || name.endsWith('.mutation.ts'))
+      : [];
+    assertEqual(localBindingFiles, [], 'demo-local Contract sidecars should be gone');
     assert(contractDataManifest.queries.listTodos, 'generated manifest lacks listTodos query');
     assert(contractDataManifest.mutations.createTodo, 'generated manifest lacks createTodo mutation');
     assert(contractDataManifest.mutations.setCompleted, 'generated manifest lacks setCompleted mutation');
     assert(contractDataManifest.mutations.deleteTodo, 'generated manifest lacks deleteTodo mutation');
     assertEqual(contractDataManifest.queries.listTodos.subscription, 'initial-snapshot', 'listTodos not syncable-live');
-    return { used, provider: contractDataManifest.provider };
+    return { used, provider: contractDataManifest.provider, localBindingFiles };
+  });
+
+  await suite.check('stale Contract data manifest produces a structured diagnostic', async () => {
+    const staleManifest = { ...contractDataManifest, inputsHash: 'stale-contract-data' };
+    const diagnostics = validateSnapbackContractArtifacts({
+      manifest: staleManifest,
+      artifactIndex,
+      schemaManifest,
+      functionManifest: functionsManifest,
+    });
+    const diagnostic = diagnostics.find((d) => d.code === 'SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH');
+    assert(diagnostic, `expected stale inputs hash diagnostic, got ${JSON.stringify(diagnostics)}`);
+    assertEqual(diagnostic.details.target_surface, 'Contract/Exact', 'target surface');
+    assertEqual(diagnostic.details.expectedInputsHash, artifactIndex.inputsHash, 'expected inputs hash');
+    assertEqual(diagnostic.details.actualInputsHash, 'stale-contract-data', 'actual inputs hash');
+    return { code: diagnostic.code, target_surface: diagnostic.details.target_surface };
   });
 
   let surface;
   let handle;
   await suite.check('mounts against the live Snapback backend; renders the live snapshot', async () => {
-    surface = await createSnapbackContractSurface({ runtime: runtimeMod, client: db, userId: ADA, manifest: contractDataManifest });
+    surface = await createSnapbackContractSurface({
+      runtime: runtimeMod,
+      client: db,
+      userId: ADA,
+      manifest: contractDataManifest,
+      artifactIndex,
+      schemaManifest,
+      functionManifest: functionsManifest,
+    });
     const component = runtimeMod.defineComponent(compiled, surface.links);
     handle = runtimeMod.mount(component);
     await settle();

@@ -185,7 +185,9 @@ list ([`demos/todo/`](./demos/todo)): one source-authored Snapback backend
 consumed by a required headless surface and an optional, working Contract/Exact
 surface. See [LLP 0015](./llp/0015-demo-application-suite.plan.md) for the plan
 and [`diaries/0001-todo-demo.diary.md`](./diaries/0001-todo-demo.diary.md) for the
-build record.
+build record. [`demos/todo-v2/`](./demos/todo-v2) is a comparison demo that adds
+priority and specifically exercises the LLP 0021 Contract/Exact hardening slice;
+see [`diaries/0004-todo-v2.diary.md`](./diaries/0004-todo-v2.diary.md).
 
 ```sh
 node demos/_kit/codegen.mjs demos/todo/snapback   # generate manifests from source

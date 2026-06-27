@@ -1,9 +1,9 @@
-// Snapback demo authoring kit: source-authored schema + handler plans.
+// Snapback demo authoring kit: source-authored schema + handlers.
 //
 // @ref LLP 0004#schema-api — schema/handlers are source-authored and codegen-friendly.
-// @ref LLP 0004#first-slice-api-decisions — handlers are declared as HostPlans (the
-//   v0 server runs manifest-backed plans, not JS ctx.db handlers, which remain a
-//   capability gap until the Ibex host-call bridge lands).
+// @ref LLP 0004#first-slice-api-decisions — source definitions codegen into
+//   manifest-backed handlers; HostPlan remains for narrow deterministic fixtures
+//   while JavaScript `ctx.db` handlers use the Ibex bridge.
 //
 // These builders are *executed* by codegen (demos/_kit/codegen.mjs) to produce the
 // generated manifests. Executing the definition module — rather than regex/AST
@@ -118,6 +118,31 @@ function queryDef(kind, spec) {
 export const defineLiveQuery = (spec) => queryDef('LiveQuery', spec);
 export const defineQuery = (spec) => queryDef('Query', spec);
 
+function jsQueryDef(kind, spec) {
+  assert(spec.source, `${kind} requires a handler source file`);
+  assert(spec.exportName, `${kind} requires exportName`);
+  assert(spec.reads && Array.isArray(spec.reads) && spec.reads.length > 0, `${kind} requires declared reads`);
+  return {
+    [FN]: true,
+    __kind: kind,
+    args: spec.args ?? {},
+    js: {
+      source: spec.source,
+      exportName: spec.exportName,
+      reads: spec.reads,
+      writes: [],
+      authScopeField: spec.authScopeField ?? null,
+      syncabilityClass: kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
+    },
+  };
+}
+
+/** JavaScript handler declarations bundle a source file into the function
+ * manifest. They are the Phase 2 bridge toward real `ctx.db` authoring; HostPlan
+ * stays available for deterministic fixture coverage. */
+export const defineJsLiveQuery = (spec) => jsQueryDef('LiveQuery', spec);
+export const defineJsQuery = (spec) => jsQueryDef('Query', spec);
+
 // ---------------------------------------------------------------------------
 // Mutation helpers
 // ---------------------------------------------------------------------------
@@ -141,6 +166,24 @@ export function defineMutation(spec) {
     __kind: 'Mutation',
     args: spec.args ?? {},
     plan: { steps, return_value: spec.returns ?? null },
+  };
+}
+
+export function defineJsMutation(spec) {
+  assert(spec.source, 'defineJsMutation requires a handler source file');
+  assert(spec.exportName, 'defineJsMutation requires exportName');
+  assert(spec.writes && Array.isArray(spec.writes) && spec.writes.length > 0, 'defineJsMutation requires declared writes');
+  return {
+    [FN]: true,
+    __kind: 'Mutation',
+    args: spec.args ?? {},
+    js: {
+      source: spec.source,
+      exportName: spec.exportName,
+      reads: spec.reads ?? [],
+      writes: spec.writes,
+      syncabilityClass: 'mutation',
+    },
   };
 }
 

@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, Client integration, Developer experience, Testing, Packaging, Admin console, Runtime
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, and diary-evidenced binding constraints)
+**Revised:** 2026-06-27 (review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, and provider-conformance discovery evidence)
 **Related:** LLP 0005, LLP 0012, LLP 0016, LLP 0017, LLP 0020, Diary 0001, Diary 0002, Diary 0003, Valet LLP 0088 (retired prior-art), Exact 0263, Exact 0265, Exact 0268
 
 ## Summary
@@ -411,6 +411,74 @@ code remains the compatibility event LLP 0012 defines.
 
 ## Status
 
-Draft. This Plan should be revised after the first Contract surface imports the
-adapter package and after the admin console build recipe is converted from a
-diary workaround into a repeatable preset or tool.
+Draft. Phase 0 now has an implementation foothold:
+[`docs/contract-exact-integration.md`](../docs/contract-exact-integration.md)
+inventories the current demo/admin glue, lifecycle, launch shapes, and
+static/native recipe; Snapback emits structured `SNAPBACK_CAPABILITY_EXACT_*`
+diagnostics when a native Exact shell requests artifacts from the embedded
+browser-only admin console or from a stale/browser-only dist.
+
+Phase 1 also has an implementation foothold:
+[`demos/_kit/codegen.mjs`](../demos/_kit/codegen.mjs) now projects Snapback demo
+artifacts into generated Contract binding modules under
+`snapback/generated/contract/`, including runtime links and per-binding
+descriptor sidecars. Both todo demos import generated Contract modules without
+ordinary demo-local sidecars, and the adapter now emits structured
+`SNAPBACK_STALE_CONTRACT_DATA_*` / `SNAPBACK_STALE_CONTRACT_DESCRIPTOR_SET`
+diagnostics for manifest/hash and descriptor-index mismatches.
+
+Phase 2 now has a package-equivalent foothold:
+[`packages/snapback-contract/`](../packages/snapback-contract) owns the shared
+Contract runtime adapter that previously lived in `demos/_kit/`: boundary
+hydration, manifest-derived runtime links, optimistic mutations, authoritative
+reconciliation, provider wiring, row sync state, pending mutation counts, and
+Online capability reporting. Todo v2 ([`demos/todo-v2/`](../demos/todo-v2))
+exercises both footholds by asserting manifest-derived runtime links include its
+extra `setPriority` mutation. The build notes are recorded in
+[`diaries/0004-todo-v2.diary.md`](../diaries/0004-todo-v2.diary.md).
+
+Phase 3 now has a static/native build-preset foothold:
+[`packages/snapback-contract/build-preset.mjs`](../packages/snapback-contract/build-preset.mjs)
+owns the programmatic Exact/Contract Vite build recipe, plugin ordering,
+route-registry and subdirectory-entry preflights, `mac` static native target,
+and Snapback admin base-path rewrite. [`admin-ui/build.mjs`](../admin-ui/build.mjs)
+is now only an admin-specific invocation of that preset, and `./build.sh` still
+emits the browser and native Exact artifacts under `admin-ui/dist/`.
+
+Phase 4 now has its first surface-migration footholds. The todo demos consume
+generated Contract modules from `snapback/generated/contract/`, and the admin
+surface now projects its system-app bindings from
+[`admin-ui/contract-bindings.mjs`](../admin-ui/contract-bindings.mjs) into
+[`admin-ui/generated/contract/`](../admin-ui/generated/contract). `app.contract`
+imports those generated query/mutation modules, `main.ts` configures the
+generated runtime links, and `admin-ui/build.mjs` regenerates the modules before
+calling the build preset. The old `admin-ui/data/` hand-written binding sidecars
+are no longer part of the admin Contract surface.
+
+The admin surface also now consumes package-owned system-surface bridge
+machinery:
+[`createSnapbackSystemContractSurface`](../packages/snapback-contract/index.mjs)
+owns Contract boundary creation, query-link generation, command tracking,
+publish helpers, flush, and dispose. [`admin-ui/admin-boundary.mjs`](../admin-ui/admin-boundary.mjs)
+is reduced to the admin-specific resource/command declarations and privileged
+`/_snapback/api/*` shaping, and
+[`admin-ui/tests/contract-bindings.mjs`](../admin-ui/tests/contract-bindings.mjs)
+guards that the generated admin binding list and bridge links stay in sync.
+
+Provider conformance discovery is now wired but does not close the Phase 2 gate.
+[`packages/snapback-contract/exact-conformance.mjs`](../packages/snapback-contract/exact-conformance.mjs)
+resolves the local Exact checkout, inspects `exact-verify.json` for the Exact
+0263 `data-provider-conformance` check, and searches known suite paths. As of
+2026-06-27, the local Exact checkout has runtime DataProvider primitives and the
+`contract-data-bindings` mock-boundary fixture, but no registered reusable
+provider conformance suite. The Snapback adapter should keep reporting
+`SNAPBACK_CAPABILITY_EXACT_PROVIDER_CONFORMANCE_MISSING` rather than treating
+its local todo/provider acceptance as Exact conformance.
+
+This Plan should be revised again after the first Contract surface imports the
+Exact-owned provider conformance suite or the probe reports it runnable, after
+Exact project checks can validate generated descriptor module contents rather
+than only Snapback's artifact index, and after the remaining admin-specific
+client/view-model shaping is either
+consolidated into a documented admin client package or deliberately kept as the
+system-app exception.

@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
+import api from '../../snapback/generated/api.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -29,16 +30,16 @@ try {
   await db.reset();
   await db.seed(JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8')));
 
-  const live = await db.liveQuery('listTodos', { connectionId: 'cli', userId: ADA });
+  const live = await db.liveQuery(api.listTodos, { connectionId: 'cli', userId: ADA });
   console.log(`Ada's todos (live snapshot, v${live.version}):\n${print(live.rows)}`);
 
   console.log('\n> createTodo "Ship the demo"');
-  await db.mutate('createTodo', { args: { title: 'Ship the demo' }, userId: ADA });
+  await db.mutate(api.createTodo, { args: { title: 'Ship the demo' }, userId: ADA });
   console.log(`Live query after mutation:\n${print(await live.poll())}`);
 
   const id = live.rows.find((r) => r.title === 'Ship the demo')._id;
   console.log('\n> setCompleted true');
-  await db.mutate('setCompleted', { args: { id, completed: true }, userId: ADA });
+  await db.mutate(api.setCompleted, { args: { id, completed: true }, userId: ADA });
   console.log(`Final:\n${print(await live.poll())}`);
 } finally {
   await server.stop();

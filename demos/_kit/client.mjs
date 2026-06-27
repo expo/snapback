@@ -43,15 +43,18 @@ export class SnapbackClient {
   reset() { return this.#req('POST', '/admin/reset'); }
   seed(seed) { return this.#req('POST', '/admin/seed', seed); }
 
-  query(name, { args = {}, userId, readSet = [] } = {}) {
+  query(ref, { args = {}, userId, readSet = [] } = {}) {
+    const name = functionName(ref);
     return this.#req('POST', `/query/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
   }
 
-  mutate(name, { args = {}, userId, readSet = [] } = {}) {
+  mutate(ref, { args = {}, userId, readSet = [] } = {}) {
+    const name = functionName(ref);
     return this.#req('POST', `/mutation/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
   }
 
-  async subscribeLive(name, { connectionId, args = {}, userId } = {}) {
+  async subscribeLive(ref, { connectionId, args = {}, userId } = {}) {
+    const name = functionName(ref);
     return this.#req('POST', `/live/${name}/subscribe`, {
       connection_id: connectionId,
       input: { args, auth: SnapbackClient.auth(userId), read_set: [] },
@@ -74,7 +77,8 @@ export class SnapbackClient {
   // The "current value + subscription" seam as a small live handle: holds the
   // latest rows, starting from the authoritative snapshot, and applies
   // live_replace deltas drained from the outbox.
-  async liveQuery(name, { connectionId, args = {}, userId } = {}) {
+  async liveQuery(ref, { connectionId, args = {}, userId } = {}) {
+    const name = functionName(ref);
     const sub = await this.subscribeLive(name, { connectionId, args, userId });
     const handle = {
       subscriptionId: sub.subscription_id,
@@ -93,4 +97,10 @@ export class SnapbackClient {
     };
     return handle;
   }
+}
+
+function functionName(ref) {
+  if (typeof ref === 'string') return ref;
+  if (ref && typeof ref.name === 'string') return ref.name;
+  throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
 }

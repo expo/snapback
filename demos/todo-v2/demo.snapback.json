@@ -1,0 +1,115 @@
+{
+  "id": "todo-v2",
+  "title": "Todo list v2",
+  "description": "A second todo reference app used to test LLP 0021 Phase 0/1: a richer row shape, a generated Contract binding surface with an extra mutation, and a wrong-native-server-shape capability diagnostic.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Sync", "Realtime", "Developer experience", "Contract/Exact"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "host-plan",
+    "liveSubscriptions": true,
+    "syncableLiveQuery": true,
+    "mutationReadSetValidation": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node demos/_kit/codegen.mjs demos/todo-v2/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json",
+      "snapback/generated/contract/runtime-links.ts",
+      "snapback/generated/contract/*.query.ts",
+      "snapback/generated/contract/*.mutation.ts",
+      "snapback/generated/contract/*.contract-meta.ts"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json",
+    "rows": { "todos": 4 },
+    "users": ["user_ada", "user_grace"]
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "runner": "node demos/todo-v2/tests/acceptance/headless.mjs",
+      "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server"
+    },
+    "contract": {
+      "requirement": "optional",
+      "runner": "bun demos/todo-v2/tests/acceptance/contract.mjs",
+      "browserRunner": "SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 bun run --cwd demos/todo-v2/surfaces/contract dev",
+      "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
+      "exact": {
+        "requiredCapabilities": ["contractCompiler", "runtime", "dataBinding"],
+        "resolver": "demos/_kit/exact-resolver.mjs (SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact | vendor/exact)",
+        "designModeRequired": false,
+        "mismatchPolicy": "skip-with-diagnostic-when-missing; run-and-fail-on-error-when-present",
+        "toolchain": "bun (to load Exact TS source)"
+      }
+    },
+    "react": {
+      "requirement": "blocked",
+      "expectedDiagnostic": "REACT_ADAPTER_NOT_BUILT",
+      "note": "React/Expo adapter is a capability gap in v0; the headless SnapbackClient is the framework-neutral core a React adapter would bind over."
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "schema load (no error diagnostics)",
+      "generated function references load + inspectable",
+      "deterministic reset + declarative seed",
+      "user-scoped query isolation",
+      "create/toggle/priority/delete mutations with server-owned system fields",
+      "live subscription authoritative initial snapshot",
+      "realtime update reaches a second client",
+      "ordinary query reported NOT syncable (SNAPBACK_FUNCTION_NOT_LIVE)",
+      "read-set mutation conflict (SNAPBACK_MUTATION_CONFLICT)",
+      "invalid schema diagnostic (SNAPBACK_SCHEMA_SYSTEM_FIELD)",
+      "invalid query diagnostic (SNAPBACK_UNKNOWN_FIELD)",
+      "wrong native Exact server shape diagnostic (SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE)",
+      "codegen fails closed (QUERY_UNKNOWN_FIELD)"
+    ],
+    "contract": [
+      ".contract compiles against generated descriptors",
+      "contract bindings resolve to generated Snapback descriptors",
+      "stale Contract data manifest diagnostic (SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH)",
+      "mounts against live backend; renders live snapshot",
+      "Contract action drives a Snapback mutation (optimistic update)",
+      "Contract actions toggle completion, change priority, and delete through Snapback mutations",
+      "mutation is server-authoritative and visible to headless surface (cross-surface)",
+      "provider seam subscribe + mutate on live backend",
+      "runtime links include the generated setPriority mutation",
+      "no demo-local Contract sidecars are required"
+    ]
+  },
+  "capabilityGaps": [
+    "offline_mutation_replay",
+    "ibex_ctx_db_host_bridge (JS ctx.db handlers; v0 uses declarative HostPlans)",
+    "postgres",
+    "cloudflare",
+    "external_auth",
+    "assets",
+    "cron",
+    "notifications",
+    "react_adapter",
+    "contract_design_mode_authoring"
+  ],
+  "llp0021Diagnostics": [
+    "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
+    "SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH"
+  ],
+  "notClaiming": [
+    "offline-first / local handler replay (this is an Online-class integration)",
+    "Partiful-scale throughput (this is a demo shape, not a benchmark)",
+    "JS handler execution (HostPlan declarative plans only in v0)"
+  ]
+}

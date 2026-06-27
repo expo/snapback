@@ -103,6 +103,11 @@ impl SnapbackError {
         Self::new(Diagnostic::error(code, subsystem, message))
     }
 
+    pub fn with_details(mut self, details: Value) -> Self {
+        self.diagnostic.details = details;
+        self
+    }
+
     pub fn sqlite(error: rusqlite::Error) -> Self {
         Self::new(
             Diagnostic::error(

@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-06-27 (Phase 4 equality matcher slice; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
 
 ## Summary
@@ -269,6 +269,12 @@ Acceptance gate:
 - the admin/function-runner surface can display the read/write facts for a
   successful mutation and the conflict facts for a rejected one.
 
+Implementation note, 2026-06-27: a first local slice records row, missing-row,
+query, and auth dependencies from Ibex `ctx.db` host calls, validates them at
+commit, and reports reject-only conflict diagnostics. Query dependencies are
+currently conservative table-version facts plus predicate details; Phase 4 still
+owns the precise realtime matcher, and read-your-writes overlay remains open.
+
 ### Phase 4: Upgrade realtime from v0 outbox to app-grade live delivery
 
 This phase should land before realtime-heavy demos are used as product evidence.
@@ -307,6 +313,19 @@ Acceptance gate:
 - fan-out cost is measured and recorded before any messaging, kanban, or
   collaboration demo is cited as scale evidence;
 - a target that only supports replace/poll reports that capability honestly.
+
+Implementation note, 2026-06-27: the local matcher now stores the captured
+`CapturedReadDependency::Query` facts from each live subscription and skips live
+query refreshes when table summaries or equality predicates prove a change is
+disjoint. The todo `userId` auth filter is one equality case, not a bespoke
+matcher path. Change events carry changed field names so updates that touch
+predicate fields fall back to rerun instead of being skipped incorrectly. Deletes
+carry the deleted row into the in-memory change event so hidden-row deletes can
+be proved disjoint without leaking the row to clients. The delivery shape remains
+`live_replace` through the deterministic outbox, and `/inspect` exposes
+`liveDelivery` fan-out, delivery, and skip counts. Push transport, permission
+epochs, and a precise non-equality/range matcher over the full Phase 3 dependency
+vocabulary remain open.
 
 ## Demo Admission Rule
 
@@ -356,7 +375,8 @@ scaffolding it depends on and the capability class it is exercising.
 
 ## Status
 
-Draft. This Plan should be revised when the first real `ctx.db` todo handlers
-land, or when a typed generated package settles the artifact source-of-truth
-question. Completion should be measured by the acceptance gates above, not by
-the presence of partial implementation files.
+Draft. Phases 1 through 3 have landed as local slices, and Phase 4 has a
+conservative matcher/observability slice. Completion still requires the
+remaining Phase 4 transport, permission-change, and precise matcher work to pass
+the acceptance gates above, not merely the presence of partial implementation
+files.

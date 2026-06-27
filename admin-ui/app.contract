@@ -7,12 +7,12 @@
 // renders inside `each s in rows` over that row; formatting lives in
 // admin-boundary.mjs's `data.ui.*` view model.
 
-use inspect from "./data/inspect.query.ts"
-use refresh from "./data/refresh.mutation.ts"
-use tableScan from "./data/tableScan.query.ts"
-use loadTable from "./data/loadTable.mutation.ts"
-use runResult from "./data/runResult.query.ts"
-use runFunction from "./data/runFunction.mutation.ts"
+use inspect from "./generated/contract/inspect.query.ts"
+use refresh from "./generated/contract/refresh.mutation.ts"
+use tableScan from "./generated/contract/tableScan.query.ts"
+use loadTable from "./generated/contract/loadTable.mutation.ts"
+use runResult from "./generated/contract/runResult.query.ts"
+use runFunction from "./generated/contract/runFunction.mutation.ts"
 use colors from "./theme.ts"
 use fonts from "./theme.ts"
 use tabNames from "./theme.ts"

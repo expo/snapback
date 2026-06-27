@@ -89,10 +89,10 @@ the detail Plan governs.
 | Phase | Depends on | Primary owner | Authoritative detail | Status |
 | --- | --- | --- | --- | --- |
 | 0 — Freeze v0 contracts | — | Snapback core | LLP 0020 Phase 0 | Behaviors exist in the v0 server; not yet frozen as contracts |
-| 1 — Typed generated artifacts | Source-of-truth schema decision; `ContractDataManifest` spec | Snapback core | LLP 0020 Phase 1 (Snapback artifacts) + LLP 0021 Phase 1 (`ContractDataManifest`) | Not started |
-| 2 — `ctx.db` handlers | LLP 0009 envelope | Snapback core | LLP 0020 Phase 2 | Not started (capability gap `ibex_ctx_db_host_bridge`) |
+| 1 — Typed generated artifacts | Source-of-truth schema decision; `ContractDataManifest` spec | Snapback core | LLP 0020 Phase 1 (Snapback artifacts) + LLP 0021 Phase 1 (`ContractDataManifest`) | Foothold: todo demos emit typed Snapback artifacts plus generated Contract projection |
+| 2 — `ctx.db` handlers | LLP 0009 envelope | Snapback core | LLP 0020 Phase 2 | Foothold: todo handlers run through embedded Ibex `ctx.db`; read-set capture and isolation hardening remain |
 | 2′ — Read-set capture | Phase 2 | Snapback core | LLP 0020 Phase 3 | Folded into Phase 2 here; a standalone phase in LLP 0020 |
-| 3 — Contract adapter | Phase 1 | Snapback adapters | LLP 0021 Phases 0, 2, 3, 4 | Not started (bridge is demo-local) |
+| 3 — Contract adapter | Phase 1 | Snapback adapters | LLP 0021 Phases 0, 2, 3, 4 | Foothold: todo demos import `packages/snapback-contract/`; todo/admin surfaces consume generated Contract bindings; admin consumes shared system-surface bridge machinery; Exact conformance and admin client/view-model consolidation remain |
 | 4 — App-grade realtime | Auth-aware matcher (LLP 0011); LLP 0008 | Snapback core | LLP 0020 Phase 4 | Not started (v0 outbox only) |
 | 5 — Contract data ergonomics | Phase 1 | Exact/Contract | LLP 0021 Phase 5 | Not started |
 | 6 — React/Expo pressure test | Phase 1 | Snapback adapters | This Plan (Change Program; no detail Plan yet) | Not started |
@@ -157,7 +157,7 @@ The diary findings should become product work in the following concrete places:
 | --- | --- | --- | --- |
 | Manifest shapes were derived from Rust source by hand. | Generate typed, versioned artifact packages from one schema source of truth. | Snapback core | A consuming app passes `tsc` without source aliases and a drift test fails when Rust/TS artifact schemas diverge. |
 | Public docs describe `ctx.db`, but the demo used `HostPlan`. | Wire Ibex host calls and handler-time read capture. | Snapback core | Todo CRUD handlers use JavaScript `ctx.db`; stale reads are rejected without caller-supplied read sets. |
-| Contract bridge code lived in `demos/_kit/`. | Ship a first-class Contract adapter. | Snapback adapter layer | Todo Contract imports the adapter package and deletes demo-local bridge code. |
+| Contract bridge code lived in `demos/_kit/`. | Ship a first-class Contract adapter. | Snapback adapter layer | Phase 2/4 foothold: both todo Contract surfaces import `packages/snapback-contract/`, todo/admin no longer carry per-binding hand-written sidecars, and admin boundary/link lifecycle lives in the package; finish requires Exact provider conformance and a product decision for the remaining admin client/view-model layer. |
 | Contract surface depended on local Exact source and `bun`. | Make Exact resolution capability-based and package-backed where possible. | Shared Snapback/Exact boundary | Missing or stale Exact capability reports a structured diagnostic; ordinary Snapback core tests do not require Exact. |
 | Live updates reran every subscription and drained by polling. | Add dependency matching plus a push transport while preserving deterministic test drains. | Snapback core | Kanban or messaging runs two clients without product-code polling, and unrelated mutations do not refresh provably disjoint subscriptions. |
 | Contract row data remained too implicit. | Make generated row shapes visible to Contract analysis and diagnostics. | Exact/Contract | A wrong generated row field fails in Contract diagnostics before browser smoke tests. |

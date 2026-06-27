@@ -12,7 +12,12 @@ import { installContractWebHost } from '@exact/renderer/web-host';
 import { AdminClient } from './admin-client.mjs';
 import { createAdminSurface } from './admin-boundary.mjs';
 import app from './app.contract';
-import { configureAdminLinks } from './data/runtime-links';
+import {
+  configureAdminContractLinks,
+  resetAdminContractLinks,
+} from './generated/contract/runtime-links';
+
+let currentSurface: { dispose: () => void } | null = null;
 
 function adminBaseUrl(): string {
   if (typeof location !== 'undefined' && location.origin) {
@@ -39,7 +44,8 @@ async function boot(): Promise<void> {
     runtime: contractRuntime,
     client,
   });
-  configureAdminLinks(surface.links);
+  currentSurface = surface;
+  configureAdminContractLinks(surface.links);
   mount(app);
 }
 
@@ -50,6 +56,9 @@ boot().catch((error) => {
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
+    currentSurface?.dispose();
+    currentSurface = null;
+    resetAdminContractLinks();
     reset();
   });
 }

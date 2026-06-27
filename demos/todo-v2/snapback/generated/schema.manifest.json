@@ -1,0 +1,47 @@
+{
+  "appId": "todo-v2",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "generatedAt": 0,
+  "inputsHash": "f3332534d5f42f86d04934fa61771fbc431e56b0d61e527f8e25bd97cf442168",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:f3332534d5f42f86",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "priority",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "completed",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "userId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        }
+      ],
+      "name": "todos",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

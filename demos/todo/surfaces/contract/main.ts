@@ -2,15 +2,20 @@ import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
-import { createSnapbackContractSurface } from '../../../_kit/snapback-contract-boundary.mjs';
+import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
+import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
 import app from './todo.contract';
-import { configureSnapbackContractLinks } from './data/runtime-links';
+import {
+  configureSnapbackContractLinks,
+  resetSnapbackContractLinks,
+} from '../../snapback/generated/contract/runtime-links';
 
 const ADA = 'user_ada';
+let activeSurface: { dispose?: () => void } | null = null;
 
 function snapbackBaseUrl(): string {
   const serverOrigin = (globalThis as { __exactServerOrigin?: string }).__exactServerOrigin;
@@ -82,7 +87,11 @@ async function boot(): Promise<void> {
     client,
     userId: ADA,
     manifest: contractDataManifest,
+    artifactIndex,
+    schemaManifest,
+    functionManifest: functionsManifest,
   });
+  activeSurface = surface;
   configureSnapbackContractLinks(surface.links);
   mount(app);
   status('Ready', 'ready');
@@ -96,6 +105,9 @@ boot().catch((error) => {
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
+    activeSurface?.dispose?.();
+    activeSurface = null;
+    resetSnapbackContractLinks();
     reset();
   });
 }

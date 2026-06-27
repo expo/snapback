@@ -52,12 +52,71 @@ pub struct ChangedRow {
     pub id: String,
     pub op: ChangeOp,
     pub row: Option<Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub changed_fields: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct MutationCommit {
     pub output: MutationOutput,
     pub changes: Vec<ChangedRow>,
+    #[serde(default)]
+    pub read_dependencies: Vec<CapturedReadDependency>,
+    #[serde(default)]
+    pub write_dependencies: Vec<CapturedWriteDependency>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CapturedReadDependency {
+    pub kind: CapturedReadKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub table: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub predicate: Option<Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rows: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CapturedReadKind {
+    Row,
+    MissingRow,
+    Query,
+    Auth,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CapturedWriteDependency {
+    pub table: String,
+    pub id: String,
+    pub op: ChangeOp,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum BufferedWrite {
+    Insert {
+        table: String,
+        id: String,
+        values: Map<String, Value>,
+    },
+    Patch {
+        table: String,
+        id: String,
+        values: Map<String, Value>,
+    },
+    Delete {
+        table: String,
+        id: String,
+    },
 }
 
 pub struct LocalDatabase {
@@ -227,6 +286,32 @@ impl LocalDatabase {
         })
     }
 
+    pub fn get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
+        let table = schema_table(&self.schema, table)?;
+        let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
+        let mut statement = self.conn.prepare(&sql)?;
+        let columns = statement
+            .column_names()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut rows = statement.query(params![id])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(row_to_document(row, table, &columns)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
+        let table = schema_table(&self.schema, table)?;
+        table_change_version_from_connection(&self.conn, &table.name)
+    }
+
+    pub fn generate_id(&self) -> String {
+        new_id()
+    }
+
     /// Read a page of a table for the admin data explorer.
     ///
     /// Schema-aware and read-only: the table must be a known schema table, rows
@@ -315,6 +400,7 @@ impl LocalDatabase {
                     }
 
                     let row = eval_value_map(values, input, &bindings, now_ms)?;
+                    let changed_fields = changed_field_names(&row);
                     let document = insert_document(&tx, table, &id, &row, next_version, now_ms)?;
                     record_change(
                         &tx,
@@ -330,6 +416,7 @@ impl LocalDatabase {
                         id,
                         op: ChangeOp::Insert,
                         row: Some(document),
+                        changed_fields,
                     });
                 }
                 MutationStep::Patch { table, id, values } => {
@@ -339,6 +426,7 @@ impl LocalDatabase {
                     }
                     let id = expect_string(eval_expr(id, input, &bindings, now_ms)?, "patch id")?;
                     let row = eval_value_map(values, input, &bindings, now_ms)?;
+                    let changed_fields = changed_field_names(&row);
                     if patch_document(&tx, table, &id, &row, next_version, now_ms)? {
                         let document = get_document_from_tx(&tx, table, &id)?;
                         record_change(
@@ -355,12 +443,14 @@ impl LocalDatabase {
                             id,
                             op: ChangeOp::Update,
                             row: document,
+                            changed_fields,
                         });
                     }
                 }
                 MutationStep::Delete { table, id } => {
                     let table = schema_table(&schema, table)?;
                     let id = expect_string(eval_expr(id, input, &bindings, now_ms)?, "delete id")?;
+                    let document = get_document_from_tx(&tx, table, &id)?;
                     if delete_document(&tx, table, &id)? {
                         record_change(
                             &tx,
@@ -375,7 +465,8 @@ impl LocalDatabase {
                             table: table.name.clone(),
                             id,
                             op: ChangeOp::Delete,
-                            row: None,
+                            row: document,
+                            changed_fields: Vec::new(),
                         });
                     }
                 }
@@ -410,7 +501,125 @@ impl LocalDatabase {
                 changed_count: changes.len(),
                 result,
             },
+            write_dependencies: captured_writes_from_changes(&changes),
             changes,
+            read_dependencies: Vec::new(),
+        })
+    }
+
+    pub fn commit_buffered_writes(
+        &mut self,
+        input: &HandlerInput,
+        writes: Vec<BufferedWrite>,
+        read_dependencies: Vec<CapturedReadDependency>,
+        result: Value,
+    ) -> SnapbackResult<MutationCommit> {
+        // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
+        let schema = self.schema.clone();
+        let now_ms = now_millis();
+        let current_version = self.current_version()?;
+        let next_version = current_version + 1;
+        let tx = self.conn.transaction()?;
+
+        validate_read_set(&tx, &schema, &input.read_set)?;
+        // @ref LLP 0020#phase-3-capture-read-sets-during-handler-execution — handler-captured dependencies are validated at commit so callers no longer own the read-set.
+        validate_captured_read_set(&tx, &schema, &read_dependencies)?;
+
+        let mut changes = Vec::new();
+        for write in writes {
+            match write {
+                BufferedWrite::Insert { table, id, values } => {
+                    let table = schema_table(&schema, &table)?;
+                    let changed_fields = changed_field_names(&values);
+                    let document = insert_document(&tx, table, &id, &values, next_version, now_ms)?;
+                    record_change(
+                        &tx,
+                        next_version,
+                        &table.name,
+                        &id,
+                        ChangeOp::Insert,
+                        Some(&document),
+                        now_ms,
+                    )?;
+                    changes.push(ChangedRow {
+                        table: table.name.clone(),
+                        id,
+                        op: ChangeOp::Insert,
+                        row: Some(document),
+                        changed_fields,
+                    });
+                }
+                BufferedWrite::Patch { table, id, values } => {
+                    let table = schema_table(&schema, &table)?;
+                    if values.is_empty() {
+                        continue;
+                    }
+                    let changed_fields = changed_field_names(&values);
+                    if patch_document(&tx, table, &id, &values, next_version, now_ms)? {
+                        let document = get_document_from_tx(&tx, table, &id)?;
+                        record_change(
+                            &tx,
+                            next_version,
+                            &table.name,
+                            &id,
+                            ChangeOp::Update,
+                            document.as_ref(),
+                            now_ms,
+                        )?;
+                        changes.push(ChangedRow {
+                            table: table.name.clone(),
+                            id,
+                            op: ChangeOp::Update,
+                            row: document,
+                            changed_fields,
+                        });
+                    }
+                }
+                BufferedWrite::Delete { table, id } => {
+                    let table = schema_table(&schema, &table)?;
+                    let document = get_document_from_tx(&tx, table, &id)?;
+                    if delete_document(&tx, table, &id)? {
+                        record_change(
+                            &tx,
+                            next_version,
+                            &table.name,
+                            &id,
+                            ChangeOp::Delete,
+                            None,
+                            now_ms,
+                        )?;
+                        changes.push(ChangedRow {
+                            table: table.name.clone(),
+                            id,
+                            op: ChangeOp::Delete,
+                            row: document,
+                            changed_fields: Vec::new(),
+                        });
+                    }
+                }
+            }
+        }
+
+        if !changes.is_empty() {
+            set_version(&tx, next_version)?;
+        }
+
+        let version = if changes.is_empty() {
+            current_version
+        } else {
+            next_version
+        };
+        tx.commit()?;
+
+        Ok(MutationCommit {
+            output: MutationOutput {
+                version,
+                changed_count: changes.len(),
+                result,
+            },
+            write_dependencies: captured_writes_from_changes(&changes),
+            changes,
+            read_dependencies,
         })
     }
 
@@ -710,6 +919,128 @@ fn validate_read_set(
     Ok(())
 }
 
+fn validate_captured_read_set(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    read_set: &[CapturedReadDependency],
+) -> SnapbackResult<()> {
+    for dependency in read_set {
+        match dependency.kind {
+            CapturedReadKind::Row => {
+                let table_name = dependency_table(dependency)?;
+                let id = dependency_id(dependency)?;
+                let expected = dependency.version.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_CAPTURED_READ_INVALID",
+                        "storage",
+                        "captured row dependency is missing a version",
+                    )
+                })?;
+                let table = schema_table(schema, table_name)?;
+                let current = get_row_version(tx, table, id)?;
+                if current != Some(expected) {
+                    return Err(captured_conflict(
+                        "captured row read changed before commit",
+                        dependency,
+                        json!({
+                            "kind": "row",
+                            "table": table_name,
+                            "id": id,
+                            "expected": expected,
+                            "actual": current,
+                        }),
+                        read_set,
+                    ));
+                }
+            }
+            CapturedReadKind::MissingRow => {
+                let table_name = dependency_table(dependency)?;
+                let id = dependency_id(dependency)?;
+                let table = schema_table(schema, table_name)?;
+                let current = get_row_version(tx, table, id)?;
+                let current_table_version = table_change_version_from_tx(tx, table_name)?;
+                if current.is_some() || dependency.version != Some(current_table_version) {
+                    return Err(captured_conflict(
+                        "captured missing-row read changed before commit",
+                        dependency,
+                        json!({
+                            "kind": "missingRow",
+                            "table": table_name,
+                            "id": id,
+                            "expected": dependency.version,
+                            "actual": current,
+                            "actualTableVersion": current_table_version,
+                        }),
+                        read_set,
+                    ));
+                }
+            }
+            CapturedReadKind::Query => {
+                let table_name = dependency_table(dependency)?;
+                let expected = dependency.version.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_CAPTURED_READ_INVALID",
+                        "storage",
+                        "captured query dependency is missing a table version",
+                    )
+                })?;
+                schema_table(schema, table_name)?;
+                let current = table_change_version_from_tx(tx, table_name)?;
+                if current != expected {
+                    return Err(captured_conflict(
+                        "captured query read changed before commit",
+                        dependency,
+                        json!({
+                            "kind": "query",
+                            "table": table_name,
+                            "expected": expected,
+                            "actual": current,
+                            "predicate": dependency.predicate,
+                            "rows": dependency.rows,
+                        }),
+                        read_set,
+                    ));
+                }
+            }
+            CapturedReadKind::Auth => {}
+        }
+    }
+    Ok(())
+}
+
+fn dependency_table(dependency: &CapturedReadDependency) -> SnapbackResult<&str> {
+    dependency.table.as_deref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_CAPTURED_READ_INVALID",
+            "storage",
+            "captured dependency is missing a table",
+        )
+    })
+}
+
+fn dependency_id(dependency: &CapturedReadDependency) -> SnapbackResult<&str> {
+    dependency.id.as_deref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_CAPTURED_READ_INVALID",
+            "storage",
+            "captured dependency is missing a row id",
+        )
+    })
+}
+
+fn captured_conflict(
+    message: &str,
+    dependency: &CapturedReadDependency,
+    details: Value,
+    read_set: &[CapturedReadDependency],
+) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_MUTATION_CONFLICT", "storage", message)
+        .with_detail("dependency", details)
+        .with_detail("capturedDependency", json!(dependency))
+        .with_detail("capturedReads", json!(read_set))
+        .with_detail("retryPolicy", "reject")
+}
+
 fn get_row_version(
     tx: &Transaction<'_>,
     table: &TableManifest,
@@ -726,6 +1057,41 @@ fn get_row_version(
         )
         .optional()?;
     Ok(version.map(|version| version as u64))
+}
+
+fn table_change_version_from_connection(conn: &Connection, table: &str) -> SnapbackResult<u64> {
+    let version: Option<i64> = conn.query_row(
+        "SELECT MAX(version) FROM _snapback_changes WHERE table_name = ?1",
+        params![table],
+        |row| row.get(0),
+    )?;
+    Ok(version.unwrap_or(0) as u64)
+}
+
+fn table_change_version_from_tx(tx: &Transaction<'_>, table: &str) -> SnapbackResult<u64> {
+    let version: Option<i64> = tx.query_row(
+        "SELECT MAX(version) FROM _snapback_changes WHERE table_name = ?1",
+        params![table],
+        |row| row.get(0),
+    )?;
+    Ok(version.unwrap_or(0) as u64)
+}
+
+fn captured_writes_from_changes(changes: &[ChangedRow]) -> Vec<CapturedWriteDependency> {
+    changes
+        .iter()
+        .map(|change| CapturedWriteDependency {
+            table: change.table.clone(),
+            id: change.id.clone(),
+            op: change.op.clone(),
+        })
+        .collect()
+}
+
+fn changed_field_names(values: &Map<String, Value>) -> Vec<String> {
+    let mut fields = values.keys().cloned().collect::<Vec<_>>();
+    fields.sort();
+    fields
 }
 
 fn eval_value_map(

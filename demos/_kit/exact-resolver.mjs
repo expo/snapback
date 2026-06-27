@@ -57,12 +57,16 @@ export function resolveExact({ repoRoot } = {}) {
     capabilities: {},
     diagnostics: [
       {
-        code: 'EXACT_MISSING',
+        code: 'SNAPBACK_CAPABILITY_EXACT_MISSING',
         severity: 'warning',
         subsystem: 'contract-integration',
         message:
           'No Exact checkout with the required Contract compiler + runtime + data-binding capability was found.',
-        details: { searched: candidates.map((c) => `${c.kind}:${c.path}`), probed },
+        details: {
+          target_surface: 'Contract/Exact',
+          searched: candidates.map((c) => `${c.kind}:${c.path}`),
+          probed,
+        },
         suggestedFix:
           'Set SNAPBACK_EXACT_ROOT, add .snapback/local.json {"exactRoot":"..."}, or place an Exact checkout at ../exact.',
       },

@@ -183,9 +183,11 @@ Required fields:
 - suggested next checks when safe to infer.
 
 The first stable code families are `SCHEMA_*`, `FUNCTION_*`, `QUERY_*`,
-`CAPABILITY_*`, `BUNDLE_*`, `RUNTIME_*`, `MUTATION_CONFLICT`, and `STALE_*`.
-Exact code names can grow during implementation, but changing an emitted code is
-a compatibility event.
+`CAPABILITY_*`, `BUNDLE_*`, `RUNTIME_*`, `HANDLER_*`, `MUTATION_CONFLICT`, and
+`STALE_*`. Exact code names can grow during implementation, but changing an
+emitted code is a compatibility event. `HANDLER_*` covers normalized JavaScript
+handler failures such as ambient capability denial and arbitrary handler throws,
+so adapters never receive raw runtime errors as the integration contract.
 
 ### V0 Runtime State
 

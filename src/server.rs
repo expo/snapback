@@ -3,6 +3,7 @@ use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, SubscribeRequest};
 use crate::local::{InspectState, LiveSubscribeInput, LocalSnapback};
 use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
+use crate::runtime::CapabilityState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -86,7 +87,8 @@ async fn health(State(state): State<SharedSnapback>) -> Result<Json<HealthRespon
         ok: true,
         target: inspect.target,
         sqlite_version: inspect.storage.version,
-        ibex_available: inspect.runtime.ibex_cli.available,
+        ibex_available: inspect.runtime.ibex_cli.available
+            || inspect.runtime.ibex_ctx_db_host_bridge == CapabilityState::Available,
     }))
 }
 

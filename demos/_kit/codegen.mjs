@@ -12,13 +12,15 @@
 // Exits non-zero (writing nothing) if any error diagnostic is produced.
 
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isFunctionDef } from './define.mjs';
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const SCHEMA_VERSION = 'snapback.v0';
+const TARGET_PROFILE = 'local-dev-sqlite-ibex';
 
 export async function generate(backendDir) {
   const diagnostics = [];
@@ -28,6 +30,7 @@ export async function generate(backendDir) {
   const schemaPath = join(backendDir, 'schema.mjs');
   const functionsPath = join(backendDir, 'functions.mjs');
   const seedPath = join(backendDir, 'seed.json');
+  const handlerSourceCache = new Map();
 
   const schemaModule = await import(pathToFileURL(schemaPath).href);
   const functionsModule = await import(pathToFileURL(functionsPath).href);
@@ -112,7 +115,34 @@ export async function generate(backendDir) {
       }
     };
 
-    if (def.__kind === 'Query' || def.__kind === 'LiveQuery') {
+    if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.js) {
+      const readTables = def.js.reads ?? [];
+      for (const table of readTables) {
+        if (!tables[table]) {
+          err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: handler declares unknown read table ${table}`, { function: name, table });
+        }
+      }
+      const handlerSource = loadHandlerSource(def.js.source, name);
+      functions.push({
+        name,
+        kind: def.__kind,
+        runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
+        declaredReads: readTables,
+        declaredWrites: [],
+        authScopeField: def.js.authScopeField ?? null,
+        syncabilityClass: def.js.syncabilityClass,
+      });
+      const primary = readTables[0];
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        result: { kind: 'list', row: rowDescriptor(tables[primary]) },
+        serverRunnable: true,
+        localRunnable: false,
+        subscription: def.__kind === 'LiveQuery' ? 'initial-snapshot' : 'none',
+      };
+    } else if (def.__kind === 'Query' || def.__kind === 'LiveQuery') {
       const t = def.plan.table;
       if (!tables[t]) {
         err('QUERY_UNKNOWN_TABLE', 'function', `${name}: unknown table ${t}`, { function: name, table: t });
@@ -132,15 +162,44 @@ export async function generate(backendDir) {
         name,
         kind: def.__kind,
         runtime: { HostPlan: { Query: serializeQueryPlan(def.plan) } },
+        declaredReads: [t],
+        declaredWrites: [],
+        syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
       });
       contractQueries[name] = {
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
+        reads: [t],
         result: { kind: 'list', row: rowDescriptor(tables[t]) },
         serverRunnable: true,
         localRunnable: false,
         subscription: def.__kind === 'LiveQuery' ? 'initial-snapshot' : 'none',
+      };
+    } else if (def.__kind === 'Mutation' && def.js) {
+      const reads = def.js.reads ?? [];
+      const writes = def.js.writes ?? [];
+      for (const table of [...reads, ...writes]) {
+        if (!tables[table]) {
+          err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: handler declares unknown table ${table}`, { function: name, table });
+        }
+      }
+      const handlerSource = loadHandlerSource(def.js.source, name);
+      functions.push({
+        name,
+        kind: 'Mutation',
+        runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
+        declaredReads: reads,
+        declaredWrites: writes,
+        syncabilityClass: 'mutation',
+      });
+      contractMutations[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        writes,
+        optimistic: false,
+        serverRunnable: true,
       };
     } else if (def.__kind === 'Mutation') {
       const writes = new Set();
@@ -177,12 +236,16 @@ export async function generate(backendDir) {
         name,
         kind: 'Mutation',
         runtime: { HostPlan: { Mutation: serializeMutationPlan(def.plan) } },
+        declaredReads: mutationReadTables(def.plan),
+        declaredWrites: [...writes],
+        syncabilityClass: 'mutation',
       });
       contractMutations[name] = {
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         writes: [...writes],
+        invalidates: [...writes],
         optimistic: false,
         serverRunnable: true,
       };
@@ -194,17 +257,94 @@ export async function generate(backendDir) {
   }
 
   // --- Hashes + emit ----------------------------------------------------------
-  const inputs = [readFileSync(schemaPath, 'utf8'), readFileSync(functionsPath, 'utf8')];
-  if (existsSync(seedPath)) inputs.push(readFileSync(seedPath, 'utf8'));
-  inputs.push(readFileSync(join(kitDir(), 'define.mjs'), 'utf8'));
-  const inputsHash = sha256(inputs.join(' '));
+  const schemaSource = readFileSync(schemaPath, 'utf8');
+  const functionsSource = readFileSync(functionsPath, 'utf8');
+  const seedSource = existsSync(seedPath) ? readFileSync(seedPath, 'utf8') : null;
+  const defineSource = readFileSync(join(kitDir(), 'define.mjs'), 'utf8');
+  const handlerInputs = [];
+  for (const [absolute, source] of [...handlerSourceCache.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    handlerInputs.push(absolute, source ?? '');
+  }
+  const inputs = [schemaSource, functionsSource, ...(seedSource === null ? [] : [seedSource]), defineSource, ...handlerInputs];
+  const inputsHash = sha256(inputs.join('\0'));
+  const schemaContentHash = sha256(schemaSource);
+  const bundleContentHash = sha256([functionsSource, defineSource, ...handlerInputs].join('\0'));
 
-  const schemaManifest = { schema_hash: `sha256:${inputsHash.slice(0, 16)}`, tables: Object.values(tables) };
-  const functionManifest = { bundle_hash: `sha256:${inputsHash.slice(0, 16)}`, functions };
+  const generatedAt = generatedAtMillis();
+  const appId = inferAppId(backendDir);
+  const schemaHash = `sha256:${schemaContentHash.slice(0, 16)}`;
+  const bundleHash = `sha256:${bundleContentHash.slice(0, 16)}`;
+  const schemaManifest = {
+    artifactKind: 'schemaManifest',
+    schemaVersion: SCHEMA_VERSION,
+    appId,
+    schemaHash,
+    inputsHash,
+    generatedAt,
+    targetProfile: TARGET_PROFILE,
+    portabilityFlags: [],
+    artifactDiagnostics: [],
+    tables: Object.values(tables),
+  };
+  const functionManifest = {
+    artifactKind: 'functionManifest',
+    schemaVersion: SCHEMA_VERSION,
+    appId,
+    bundleHash,
+    inputsHash,
+    generatedAt,
+    unsupportedDependencyDiagnostics: [],
+    functions: decorateFunctions(appId, functions),
+  };
+  const capabilityManifest = {
+    artifactKind: 'capabilityManifest',
+    schemaVersion: SCHEMA_VERSION,
+    targetProfileId: TARGET_PROFILE,
+    storageEngine: 'sqlite',
+    runtimeEngine: 'ibex',
+    localServerLifecycle: true,
+    liveSubscriptions: true,
+    syncableLiveQueries: true,
+    onlineOnlyQueries: true,
+    replaceOnlyQueries: true,
+    offlineRetention: false,
+    optimisticReplay: false,
+    mutationIsolationMode: 'handler-captured-read-set-validation',
+    authImpersonation: true,
+    permissionDiagnostics: false,
+    assetUpload: false,
+    outboundActions: false,
+    cron: false,
+    notifications: false,
+    supportedQueryForms: ['host-plan-single-table-eq', 'host-plan-live-replace', 'ibex-ctx-db-single-table-eq', 'ibex-live-eq-replace'],
+    portabilityOptOuts: [],
+    resourceLimits: [
+      { name: 'wall_clock_timeout', status: 'Missing' },
+      { name: 'cpu_budget', status: 'Missing' },
+      { name: 'maximum_result_size', status: 'Advisory' },
+      { name: 'maximum_subscription_count', status: 'Advisory' },
+    ],
+    capabilityGaps: [
+      'offline_mutation_replay',
+      'postgres',
+      'cloudflare',
+      'hosted_untrusted_code',
+      'external_auth',
+      'assets',
+      'cron',
+      'notifications',
+      'websocket_push_transport',
+      'precise_realtime_query_range_matcher',
+    ],
+  };
   const contractManifest = {
+    artifactKind: 'contractDataManifest',
+    schemaVersion: SCHEMA_VERSION,
     manifestVersion: 1,
     provider: 'snapback',
     inputsHash,
+    schemaHash,
+    bundleHash,
     capabilities: {
       localReplica: false,
       subscriptions: true,
@@ -221,24 +361,80 @@ export async function generate(backendDir) {
   };
 
   const outDir = join(backendDir, 'generated');
+  const contractOutDir = join(outDir, 'contract');
   mkdirSync(outDir, { recursive: true });
+  rmSync(contractOutDir, { recursive: true, force: true });
+  mkdirSync(contractOutDir, { recursive: true });
+  const apiModule = renderApiModule(appId, functionManifest.functions);
+  const apiTypes = renderApiTypes(functionManifest.functions, functionsModule);
+  const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule);
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
+  writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
+  writeFileSync(join(outDir, 'api.mjs'), apiModule);
+  writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
+  for (const module of contractModules) {
+    writeFileSync(join(contractOutDir, module.file), module.source);
+  }
+  writeFileSync(join(outDir, 'package.json'), stableJson({
+    type: 'module',
+    exports: {
+      '.': {
+        types: './api.d.ts',
+        import: './api.mjs',
+      },
+      './schema': './schema.manifest.json',
+      './functions': './functions.manifest.json',
+      './capabilities': './capability.manifest.json',
+      './contract/*': './contract/*',
+    },
+  }) + '\n');
+  const contractArtifactFiles = contractModules.map((module) => `contract/${module.file}`);
   writeFileSync(
     join(outDir, 'artifacts.json'),
     stableJson({
-      schemaVersion: 'snapback.v0',
+      artifactKind: 'artifactIndex',
+      schemaVersion: SCHEMA_VERSION,
+      appId,
       inputsHash,
-      schemaHash: schemaManifest.schema_hash,
-      bundleHash: functionManifest.bundle_hash,
-      artifacts: ['schema.manifest.json', 'functions.manifest.json', 'contract-data.manifest.json'],
+      generatedAt,
+      schemaHash,
+      bundleHash,
+      artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...contractArtifactFiles],
       tables: Object.keys(tables),
-      functions: functions.map((f) => ({ name: f.name, kind: f.kind })),
+      functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
     }) + '\n',
   );
 
-  return { ok: true, diagnostics, inputsHash, outDir, schemaManifest, functionManifest, contractManifest };
+  return { ok: true, diagnostics, inputsHash, outDir, schemaManifest, functionManifest, capabilityManifest, contractManifest };
+
+  function loadHandlerSource(sourcePath, functionName) {
+    const absolute = join(backendDir, sourcePath);
+    if (!handlerSourceCache.has(absolute)) {
+      let source = '';
+      try {
+        source = readFileSync(absolute, 'utf8');
+      } catch (error) {
+        err('BUNDLE_SOURCE_MISSING', 'bundle', `${functionName}: handler source ${sourcePath} could not be read`, { function: functionName, source: sourcePath, error: error.message });
+        handlerSourceCache.set(absolute, null);
+        return null;
+      }
+      const blocked = scanUnsupportedHandlerSource(source);
+      if (blocked.length > 0) {
+        for (const issue of blocked) {
+          err(issue.code, 'bundle', `${functionName}: ${issue.message}`, {
+            function: functionName,
+            source: sourcePath,
+            token: issue.token,
+            sourceSpan: { file: sourcePath, line: issue.line, column: issue.column },
+          });
+        }
+      }
+      handlerSourceCache.set(absolute, source);
+    }
+    return handlerSourceCache.get(absolute);
+  }
 }
 
 // --- serialization helpers ---------------------------------------------------
@@ -290,6 +486,16 @@ function serializeMutationPlan(plan) {
   return { steps, return_value };
 }
 
+function mutationReadTables(plan) {
+  const reads = new Set();
+  for (const step of plan.steps) {
+    const kind = Object.keys(step)[0];
+    const body = step[kind];
+    if (kind === 'Patch' || kind === 'Delete') reads.add(body.table);
+  }
+  return [...reads];
+}
+
 function argDescriptors(args) {
   const out = {};
   for (const [name, val] of Object.entries(args)) {
@@ -310,6 +516,350 @@ function rowDescriptor(table) {
     fields[f.name] = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
   }
   return { shape: 'object', fields };
+}
+
+function decorateFunctions(appId, functions) {
+  return functions.map((fn) => {
+    const reads = readSummary(fn);
+    const writes = writeSummary(fn);
+    return {
+      id: `${appId}:${fn.name}`,
+      name: fn.name,
+      exportedName: fn.name,
+      kind: fn.kind,
+      sourceSpan: null,
+      requiredCapabilities: requiredCapabilities(fn),
+      authRequirement: 'optional-user',
+      syncabilityClass: syncabilityClass(fn),
+      readSetSummary: reads,
+      writeSetSummary: writes,
+      bundleEntrypoint: fn.name,
+      runtime: fn.runtime,
+    };
+  });
+}
+
+function readSummary(fn) {
+  if (fn.declaredReads) {
+    return { mode: fn.runtime?.IbexModule ? 'handlerDeclared' : (fn.declaredReads.length ? 'singleTable' : 'none'), primaryTable: fn.declaredReads[0] ?? null, tables: fn.declaredReads, authScopeField: fn.authScopeField ?? null };
+  }
+  const plan = fn.runtime?.HostPlan;
+  if (plan?.Query) {
+    return { mode: 'singleTable', primaryTable: plan.Query.table, tables: [plan.Query.table] };
+  }
+  if (plan?.Mutation) {
+    const tables = new Set();
+    for (const step of plan.Mutation.steps ?? []) {
+      const kind = Object.keys(step)[0];
+      if (kind === 'Patch' || kind === 'Delete') tables.add(step[kind].table);
+    }
+    return { mode: tables.size ? 'pointWritePrecondition' : 'none', primaryTable: [...tables][0] ?? null, tables: [...tables] };
+  }
+  return { mode: 'opaque', primaryTable: null, tables: [] };
+}
+
+function writeSummary(fn) {
+  if (fn.declaredWrites) {
+    return { mode: fn.runtime?.IbexModule ? 'handlerDeclared' : (fn.declaredWrites.length ? 'mutationPlan' : 'none'), primaryTable: fn.declaredWrites[0] ?? null, tables: fn.declaredWrites };
+  }
+  const plan = fn.runtime?.HostPlan;
+  if (!plan?.Mutation) return { mode: 'none', primaryTable: null, tables: [] };
+  const tables = new Set();
+  for (const step of plan.Mutation.steps ?? []) {
+    const kind = Object.keys(step)[0];
+    tables.add(step[kind].table);
+  }
+  return { mode: 'mutationPlan', primaryTable: [...tables][0] ?? null, tables: [...tables] };
+}
+
+function requiredCapabilities(fn) {
+  const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
+  if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability];
+  if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation'];
+  return [runtimeCapability];
+}
+
+function syncabilityClass(fn) {
+  if (fn.syncabilityClass) return fn.syncabilityClass;
+  if (fn.kind === 'LiveQuery') return 'syncable-live';
+  if (fn.kind === 'Query') return 'online-only';
+  return 'mutation';
+}
+
+function scanUnsupportedHandlerSource(source) {
+  const searchable = maskCommentsAndStrings(source);
+  const checks = [
+    ['BUNDLE_UNSUPPORTED_IMPORT', /\bimport\s*(?:\(|[\w*{])/u, 'import'],
+    ['BUNDLE_UNSUPPORTED_EXPORT', /\bexport\s+/u, 'export'],
+    ['BUNDLE_UNSUPPORTED_REQUIRE', /\brequire\s*\(/u, 'require'],
+    ['BUNDLE_UNSUPPORTED_PROCESS', /\bprocess\b/u, 'process'],
+    ['BUNDLE_UNSUPPORTED_FETCH', /\bfetch\s*\(/u, 'fetch'],
+    ['BUNDLE_UNSUPPORTED_TIMER', /\bset(?:Timeout|Interval)\s*\(/u, 'timer'],
+    ['BUNDLE_UNSUPPORTED_RANDOM', /\bMath\.random\s*\(/u, 'Math.random'],
+    ['BUNDLE_UNSUPPORTED_TIME', /\b(?:Date\.now|new\s+Date)\b/u, 'Date'],
+  ];
+  return checks
+    .map(([code, pattern, token]) => {
+      const match = pattern.exec(searchable);
+      if (!match) return null;
+      return { code, token, message: `unsupported ambient dependency ${token}`, ...sourcePosition(source, match.index) };
+    })
+    .filter(Boolean);
+}
+
+function maskCommentsAndStrings(source) {
+  let out = '';
+  let i = 0;
+  while (i < source.length) {
+    const c = source[i];
+    const n = source[i + 1];
+    if (c === '/' && n === '/') {
+      out += '  ';
+      i += 2;
+      while (i < source.length && source[i] !== '\n') {
+        out += ' ';
+        i += 1;
+      }
+      continue;
+    }
+    if (c === '/' && n === '*') {
+      out += '  ';
+      i += 2;
+      while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) {
+        out += source[i] === '\n' ? '\n' : ' ';
+        i += 1;
+      }
+      if (i < source.length) {
+        out += '  ';
+        i += 2;
+      }
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c;
+      out += ' ';
+      i += 1;
+      while (i < source.length) {
+        const current = source[i];
+        out += current === '\n' ? '\n' : ' ';
+        if (current === '\\' && i + 1 < source.length) {
+          out += source[i + 1] === '\n' ? '\n' : ' ';
+          i += 2;
+          continue;
+        }
+        i += 1;
+        if (current === quote) break;
+      }
+      continue;
+    }
+    out += c;
+    i += 1;
+  }
+  return out;
+}
+
+function sourcePosition(source, offset) {
+  const prefix = source.slice(0, offset);
+  const lines = prefix.split('\n');
+  return { line: lines.length, column: lines.at(-1).length + 1 };
+}
+
+function renderApiModule(appId, functions) {
+  const refs = {};
+  for (const fn of functions) {
+    refs[fn.name] = {
+      artifactKind: 'functionReference',
+      schemaVersion: SCHEMA_VERSION,
+      appId,
+      id: fn.id,
+      name: fn.name,
+      kind: fn.kind,
+    };
+  }
+  return `// Generated by demos/_kit/codegen.mjs. Do not edit by hand.\n` +
+    `export const api = Object.freeze(${stableJson(refs)});\n` +
+    `export default api;\n`;
+}
+
+function renderApiTypes(functions, functionsModule) {
+  const lines = [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    "export type SchemaVersion = 'snapback.v0';",
+    "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery';",
+    'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {',
+    "  artifactKind: 'functionReference';",
+    '  schemaVersion: SchemaVersion;',
+    '  appId: string;',
+    '  id: string;',
+    '  name: Name;',
+    '  kind: Kind;',
+    '  readonly __args?: Args;',
+    '}',
+    'export interface GeneratedApi {',
+  ];
+  for (const fn of functions) {
+    const def = functionsModule[fn.name];
+    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${typeForArgs(def?.args ?? {})}>;`);
+  }
+  lines.push('}');
+  lines.push('export declare const api: GeneratedApi;');
+  lines.push('export default api;');
+  return lines.join('\n') + '\n';
+}
+
+function renderContractModules(contractManifest, functions, functionsModule) {
+  const modules = [
+    {
+      file: 'runtime-links.ts',
+      source: renderContractRuntimeLinks(functions, functionsModule),
+    },
+  ];
+
+  for (const fn of functions) {
+    if (fn.kind === 'Mutation') {
+      const binding = contractManifest.mutations[fn.name];
+      modules.push({
+        file: `${fn.name}.mutation.ts`,
+        source: renderContractBindingModule(fn, functionsModule[fn.name], 'mutation'),
+      });
+      modules.push({
+        file: `${fn.name}.mutation.contract-meta.ts`,
+        source: renderContractMutationMeta(fn.name, binding),
+      });
+    } else {
+      const binding = contractManifest.queries[fn.name];
+      modules.push({
+        file: `${fn.name}.query.ts`,
+        source: renderContractBindingModule(fn, functionsModule[fn.name], 'query'),
+      });
+      modules.push({
+        file: `${fn.name}.query.contract-meta.ts`,
+        source: renderContractQueryMeta(fn.name, binding),
+      });
+    }
+  }
+
+  return modules;
+}
+
+function renderContractRuntimeLinks(functions, functionsModule) {
+  const lines = [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    '// @ref LLP 0021#phase-1-specify-contractdatamanifest - Contract runtime links are projected from Snapback generated artifacts.',
+    '',
+    'export interface SnapbackContractLinks {',
+  ];
+  for (const fn of functions) {
+    const def = functionsModule[fn.name];
+    lines.push(`  ${fn.name}(args: ${typeForArgs(def?.args ?? {})}): unknown;`);
+  }
+  lines.push('}');
+  lines.push('');
+  lines.push('let links: SnapbackContractLinks | null = null;');
+  lines.push('');
+  lines.push('export function configureSnapbackContractLinks(next: SnapbackContractLinks): void {');
+  lines.push('  links = next;');
+  lines.push('}');
+  lines.push('');
+  lines.push('export function resetSnapbackContractLinks(): void {');
+  lines.push('  links = null;');
+  lines.push('}');
+  lines.push('');
+  lines.push('export function getSnapbackContractLinks(): SnapbackContractLinks {');
+  lines.push('  if (!links) {');
+  lines.push("    throw new Error('Snapback Contract links were used before the browser bridge was configured.');");
+  lines.push('  }');
+  lines.push('  return links;');
+  lines.push('}');
+  return lines.join('\n') + '\n';
+}
+
+function renderContractBindingModule(fn, def, kind) {
+  const argsType = typeForArgs(def?.args ?? {});
+  const lines = [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    '// @ref LLP 0021#phase-1-specify-contractdatamanifest - per-binding Contract modules import ordinary query/mutation symbols.',
+    '',
+    "import { getSnapbackContractLinks } from './runtime-links';",
+    '',
+    `export const descriptor = '${fn.name}';`,
+    `export type ${pascal(fn.name)}Args = ${argsType};`,
+    '',
+    `export function ${fn.name}(args: ${pascal(fn.name)}Args) {`,
+    `  return getSnapbackContractLinks().${fn.name}(args);`,
+    '}',
+  ];
+  if (kind === 'query') {
+    lines.splice(2, 0, `// Contract query binding for ${fn.id}.`);
+  } else {
+    lines.splice(2, 0, `// Contract mutation binding for ${fn.id}.`);
+  }
+  return lines.join('\n') + '\n';
+}
+
+function renderContractQueryMeta(name, binding) {
+  const reads = readTablesFromBinding(binding);
+  const readMode = binding?.subscription === 'initial-snapshot' ? 'sync' : 'async';
+  const cacheKey = reads[0] ?? name;
+  return [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    "import { defineContractModule, query } from '@exact/contract/exports';",
+    '',
+    `export default defineContractModule('./${name}.query.ts', {`,
+    `  ${name}: query({ reads: ${jsonLiteral(reads)}, readMode: '${readMode}', cacheKey: '${cacheKey}' }),`,
+    '});',
+    '',
+  ].join('\n');
+}
+
+function renderContractMutationMeta(name, binding) {
+  const writes = binding?.writes ?? [];
+  const effects = writes.map((table) => `${table}.write`);
+  return [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    "import { defineContractModule, mutation } from '@exact/contract/exports';",
+    '',
+    `export default defineContractModule('./${name}.mutation.ts', {`,
+    `  ${name}: mutation({ effects: ${jsonLiteral(effects)}, invalidates: ${jsonLiteral(writes)} }),`,
+    '});',
+    '',
+  ].join('\n');
+}
+
+function readTablesFromBinding(binding) {
+  return binding?.reads ?? [];
+}
+
+function typeForArgs(args) {
+  const entries = Object.entries(args);
+  if (entries.length === 0) return 'Record<string, never>';
+  return `{ ${entries.map(([name, val]) => `${name}: ${typeForValidator(val)}`).join('; ')} }`;
+}
+
+function typeForValidator(val) {
+  if (!val || !val.__validator) return 'unknown';
+  const type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
+  return val.optional ? `${type} | undefined` : type;
+}
+
+function pascal(value) {
+  return value
+    .replace(/(^|[^A-Za-z0-9])([A-Za-z0-9])/g, (_match, _sep, char) => char.toUpperCase())
+    .replace(/[^A-Za-z0-9]/g, '');
+}
+
+function jsonLiteral(value) {
+  return JSON.stringify(value);
+}
+
+function inferAppId(backendDir) {
+  return resolve(backendDir).split(/[\\/]/).slice(-2, -1)[0] || 'local-app';
+}
+
+function generatedAtMillis() {
+  if (process.env.SNAPBACK_GENERATED_AT_MS) return Number(process.env.SNAPBACK_GENERATED_AT_MS);
+  if (process.env.SOURCE_DATE_EPOCH) return Number(process.env.SOURCE_DATE_EPOCH) * 1000;
+  return 0;
 }
 
 // Deterministic JSON with recursively sorted object keys (stable diffs).

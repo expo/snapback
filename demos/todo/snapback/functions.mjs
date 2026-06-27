@@ -1,4 +1,4 @@
-// Todo demo functions — queries + mutations as HostPlans.
+// Todo demo functions — JavaScript ctx.db handlers plus one HostPlan fixture query.
 //
 // @ref LLP 0004#handler-api — queries are read-oriented, mutations write-oriented;
 //   server-owned _createdAt/_updatedAt mean handlers never set timestamps.
@@ -10,26 +10,23 @@ import {
   arg,
   asc,
   authUserId,
-  defineLiveQuery,
+  defineJsLiveQuery,
+  defineJsMutation,
   defineMutation,
   defineQuery,
-  del,
   eq,
-  insert,
-  lit,
   patch,
-  returnBinding,
   returnChangedCount,
   v,
 } from '../../_kit/define.mjs';
 
 // Syncable-live query: the current user's todos, oldest first, via by_user.
-export const listTodos = defineLiveQuery({
-  table: 'todos',
+export const listTodos = defineJsLiveQuery({
   args: {},
-  filter: [eq('userId', authUserId())],
-  order: [asc('_createdAt')],
-  index: 'by_user',
+  source: 'handlers.mjs',
+  exportName: 'listTodos',
+  reads: ['todos'],
+  authScopeField: 'userId',
 });
 
 // Ordinary callable query (NOT live). Exists to prove the capability distinction:
@@ -44,20 +41,19 @@ export const listTodosOnce = defineQuery({
   index: 'by_user',
 });
 
-export const createTodo = defineMutation({
+export const createTodo = defineJsMutation({
   args: { title: v.string() },
-  plan: insert(
-    'todos',
-    { title: arg('title'), completed: lit(false), userId: authUserId() },
-    { bindIdAs: 'todoId' },
-  ),
-  returns: returnBinding('todoId'),
+  source: 'handlers.mjs',
+  exportName: 'createTodo',
+  writes: ['todos'],
 });
 
-export const setCompleted = defineMutation({
+export const setCompleted = defineJsMutation({
   args: { id: v.string(), completed: v.boolean() },
-  plan: patch('todos', arg('id'), { completed: arg('completed') }),
-  returns: returnChangedCount(),
+  source: 'handlers.mjs',
+  exportName: 'setCompleted',
+  reads: ['todos'],
+  writes: ['todos'],
 });
 
 export const editTitle = defineMutation({
@@ -66,8 +62,10 @@ export const editTitle = defineMutation({
   returns: returnChangedCount(),
 });
 
-export const deleteTodo = defineMutation({
+export const deleteTodo = defineJsMutation({
   args: { id: v.string() },
-  plan: del('todos', arg('id')),
-  returns: returnChangedCount(),
+  source: 'handlers.mjs',
+  exportName: 'deleteTodo',
+  reads: ['todos'],
+  writes: ['todos'],
 });

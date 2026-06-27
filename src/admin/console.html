@@ -392,6 +392,9 @@ function card(title, rightNode, ...rows) {
   return el("div", { class: "card" }, head, el("div", { class: "body" }, ...rows));
 }
 function yn(b) { return el("span", { class: "badge " + (b ? "ok" : "") }, b ? "yes" : "no"); }
+function schemaHash(schema) { return schema.schemaHash || schema.schema_hash || "—"; }
+function bundleHash(functions) { return functions.bundleHash || functions.bundle_hash || ""; }
+function fieldType(field) { return field.fieldType || field.field_type; }
 
 /* ---------- Overview ---------- */
 function renderOverview(main) {
@@ -412,7 +415,7 @@ function renderOverview(main) {
       kv("SQLite path", s.storage.sqlite_path || "—", true),
       kv("Data version", s.storage.version, true),
       kv("Tables", s.storage.tables.length),
-      kv("Schema hash", s.schema.schema_hash || "—", true),
+      kv("Schema hash", schemaHash(s.schema), true),
     ),
     card("Runtime", null,
       kv("Canonical engine", r.canonical_engine),
@@ -448,7 +451,7 @@ function renderOverview(main) {
 function renderSchema(main) {
   const s = store.inspect;
   if (s.schema.tables.length === 0) { main.append(el("div", { class: "empty" }, "No schema loaded yet. Apply a schema manifest to populate tables.")); return; }
-  main.append(el("div", { class: "section-title" }, "Schema", s.schema.schema_hash ? el("span", { class: "badge mono" }, s.schema.schema_hash) : null));
+  main.append(el("div", { class: "section-title" }, "Schema", schemaHash(s.schema) !== "—" ? el("span", { class: "badge mono" }, schemaHash(s.schema)) : null));
   for (const t of s.schema.tables) {
     const right = el("span", {}, t.syncable ? el("span", { class: "badge accent" }, "syncable") : el("span", { class: "badge" }, "local"));
     const body = el("div", { class: "tablewrap", style: "margin:0 16px 14px" });
@@ -456,7 +459,7 @@ function renderSchema(main) {
     tbl.append(el("thead", {}, el("tr", {}, el("th", {}, "Field"), el("th", {}, "Type"), el("th", {}, "Optional"))));
     const tb = el("tbody");
     tb.append(el("tr", {}, el("td", { class: "sys" }, "_id"), el("td", {}, "String"), el("td", {}, "—")));
-    for (const f of t.fields) tb.append(el("tr", {}, el("td", {}, f.name), el("td", {}, el("span", { class: "badge" }, f.field_type)), el("td", {}, f.optional ? "yes" : "no")));
+    for (const f of t.fields) tb.append(el("tr", {}, el("td", {}, f.name), el("td", {}, el("span", { class: "badge" }, fieldType(f))), el("td", {}, f.optional ? "yes" : "no")));
     for (const sys of ["_version", "_createdAt", "_updatedAt"]) tb.append(el("tr", {}, el("td", { class: "sys" }, sys), el("td", {}, sys === "_version" ? "Integer" : "Integer"), el("td", {}, "—")));
     tbl.append(tb); body.append(tbl);
     const c = el("div", { class: "card" }, (() => { const h = el("h3", {}, t.name); h.append(right); return h; })(), body);
@@ -605,7 +608,7 @@ function renderFunctions(main) {
 
   // List
   main.append(el("div", { class: "section-title" }, "Loaded functions",
-    store.inspect.functions.bundle_hash ? el("span", { class: "badge mono" }, store.inspect.functions.bundle_hash) : null));
+    bundleHash(store.inspect.functions) ? el("span", { class: "badge mono" }, bundleHash(store.inspect.functions)) : null));
   main.append(el("div", { class: "muted", style: "margin:-4px 0 10px; font-size:12.5px" },
     "Click a function to see its code."));
   const list = el("div", { class: "card" });

@@ -264,3 +264,189 @@ capability diagnostic. Snapback's side did the right thing once reachable, and
 the headless suite stayed green, but the Exact/Snapback demo path still needs a
 clear "browser surface vs native Exact shell" command split and a structured
 diagnostic when the wrong server shape is loaded.
+
+## 2026-06-27 — LLP 0020 Phase 1 artifact buildout
+
+I replaced the hand-derived core manifest shape with a first versioned generated
+package slice. The todo backend now emits `artifactKind`/`schemaVersion`,
+`inputsHash`, explicit schema/bundle hashes, a capability manifest, generated
+function references (`api.mjs`), and TypeScript declarations (`api.d.ts`). The
+headless acceptance now calls Snapback through those generated refs rather than
+raw function-name strings, and it asserts a stale artifact version diagnostic
+(`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`).
+
+### Snapback: what felt better
+
+- **The missing typed package is less abstract now.** Even this tiny generated
+  package changes the demo feel: `api.createTodo` is a real generated fact with
+  id/name/kind/version, not a magic string. It is still small, but it is the
+  right product direction from LLP 0012 and LLP 0020.
+- **Runtime drift is now testable.** Rust tests deserialize the checked-in
+  generated manifests and round-trip them through the runtime structs, so adding
+  a v0 manifest field in codegen without teaching Rust about it fails as a test
+  gap instead of silently disappearing from `/inspect`.
+- **Capability honesty stayed intact.** The new capability manifest still
+  reports `ibex_ctx_db_host_bridge` as missing. Phase 1 did not paper over the
+  Phase 2 gap.
+
+### Snapback: what still feels unfinished
+
+- **The source of truth is still the demo generator, not a product package.**
+  This lands the shape in `demos/_kit/codegen.mjs` and Rust structs, but it is
+  not yet a published `@snapback/*` package or a general CLI.
+- **`HostPlan` is still visible.** Generated function refs are public-facing,
+  but the underlying function manifest still carries declarative HostPlans
+  because the real Ibex `ctx.db` bridge is not built.
+- **Type honesty is present but shallow.** `api.d.ts` gives typed function refs
+  and arg types, but there is not yet a dedicated TypeScript compile check in CI
+  for a consuming app. The next product step should make that check explicit.
+
+Compared with React + Convex, this closes one important gap: generated function
+refs now exist instead of being implied by docs. Convex is still far ahead on
+real handler execution and generated end-to-end types; Snapback's distinct win
+remains the machine-readable capability and diagnostic story.
+
+## 2026-06-27 — LLP 0020 Phase 2 ctx.db bridge slice
+
+I wired a narrow embedded Ibex handler path for the todo demo. `listTodos`,
+`createTodo`, `setCompleted`, and `deleteTodo` now run as JavaScript handlers
+through `ctx.db`; `listTodosOnce` and `editTitle` stay as HostPlan fixture paths.
+The generated function manifest bundles `handlers.mjs`, hashes it into the
+bundle freshness marker, and reports the bridge as available instead of listing
+`ibex_ctx_db_host_bridge` as a gap.
+
+### Snapback: what felt better
+
+- **The public authoring shape is finally less fictional.** The demo now has
+  real `async` JavaScript handlers using `ctx.db.query`, `ctx.db.insert`,
+  `ctx.db.patch`, and `ctx.db.delete`, and the same generated refs exercise those
+  handlers in headless acceptance.
+- **Capability errors are concrete.** A handler that calls `fetch` fails with
+  `SNAPBACK_HANDLER_CAPABILITY_DENIED`, and a thrown handler error becomes
+  `SNAPBACK_HANDLER_FAILED`; adapters have stable codes instead of raw engine
+  output.
+- **Hash scope is clearer.** `inputsHash` tracks the whole codegen input set,
+  `schemaHash` tracks the schema source, and `bundleHash` tracks functions plus
+  bundled handler source.
+
+### Snapback: what still feels unfinished
+
+- **The local Ibex dependency setup is still too manual.** This checkout's
+  vendored Ibex submodule did not have the macOS Hermes framework installed, so
+  verification needed `HERMES_LIB_DIR`, `HERMES_INCLUDE_DIR`,
+  `DYLD_FRAMEWORK_PATH`, and `EXACT_ALLOW_FALLBACK=1` pointing at a sibling Ibex
+  checkout. The product path needs a self-contained setup or a clearer doctor
+  diagnostic.
+- **Read sets are declared, not captured.** Phase 3 still needs runtime read
+  capture so mutation conflicts are based on what the handler actually observed,
+  not caller-supplied read sets.
+- **The bridge is minimal.** It covers the todo query/write forms, not full
+  dependency bundling, read-your-writes query overlays, CPU/wall-clock budgets,
+  or hosted-untrusted-code isolation.
+
+Compared with React + Convex, this is the first moment Snapback feels like it is
+using the same mental model: write a backend handler and call a generated ref.
+Convex still wins on polished local setup and mature isolation, but Snapback's
+capability manifest and explicit gap reporting made the partial state easier to
+describe honestly.
+
+## 2026-06-27 — LLP 0020 Phase 3 captured reads
+
+I added the first handler-captured dependency path. Ibex host calls now record
+row reads, missing-row reads, query predicates/table versions, returned row ids,
+and auth user facts while a handler runs. The buffered commit validates those
+captured dependencies before applying writes, so a stale row read can reject with
+`SNAPBACK_MUTATION_CONFLICT` even when the caller supplied no `read_set`.
+
+### Snapback: what felt better
+
+- **The isolation model moved into the runtime path.** `ctx.db.get` and
+  `ctx.db.query` are no longer just data access; they also produce the dependency
+  facts mutation commit needs.
+- **Admin output is more useful.** The generated-function runner now returns
+  `captured_reads` and `captured_writes`, so a successful `setCompleted` run can
+  show the row it relied on and the row it updated.
+- **Reject-only is explicit.** Conflict diagnostics include `retryPolicy:
+  "reject"` and the dependency details. That is not a polished retry story, but
+  it is an honest v0 policy.
+
+### Snapback: what still feels unfinished
+
+- **The HTTP acceptance server serializes mutations through one instance mutex.**
+  That is fine for the current API, but it means the stale-read interleaving is
+  proven by a file-backed Rust test with two SQLite connections rather than the
+  headless HTTP suite.
+- **Query dependencies are conservative.** Query reads capture the whole table's
+  change version plus the predicate details; Phase 4 still needs a proper matcher
+  so realtime invalidation and conflict checks can reuse those facts with less
+  over-invalidation.
+- **Read-your-writes overlay is still not complete.** Buffered writes commit
+  correctly, but reads during the same handler do not yet layer pending writes
+  over the snapshot.
+
+Compared with Convex, this closes a core correctness gap: the backend can now
+derive mutation conflict dependencies from handler execution instead of asking
+the client to echo them back. Convex still has the mature transaction/retry
+model; Snapback's current version is deliberately narrower and more explicit.
+## 2026-06-27 — LLP 0021 generated Contract bindings
+
+The original todo Contract surface now matches Todo v2's binding layout:
+`todo.contract` imports generated modules from `snapback/generated/contract/`,
+and the local `surfaces/contract/data/` sidecars are gone. Its Contract
+acceptance suite asserts both facts, so a future regression back to hand-written
+demo sidecars should fail loudly.
+
+This made the original demo feel less like a special first example and more like
+a normal generated Snapback app. The remaining Contract friction is no longer
+"copy these sidecar files into each demo"; it is the larger adapter and packaging
+work captured in LLP 0021.
+
+I also added the first stale Contract artifact diagnostic to the shared adapter:
+the acceptance suite now deliberately corrupts the generated Contract data
+manifest `inputsHash` and expects `SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH`.
+That moved one LLP 0021 acceptance point from prose into an executable check.
+
+## 2026-06-27 — LLP 0020 Phase 4 matcher slice
+
+I added the first live-query dependency matcher for the todo path. Live
+subscriptions no longer rerun for every mutation when Snapback can prove the
+change is irrelevant: table summaries skip disjoint functions, and captured
+`ctx.db.query` equality predicates skip rows outside the subscribed result. The
+todo `userId` auth filter is now just one equality predicate; a separate
+`completed == true` test proves the matcher is not only a user-scope shortcut.
+Hidden-row deletes carry the old row only in the internal change event so the
+matcher can prove invisibility without sending the row to the client.
+
+### Snapback: what felt better
+
+- **Fan-out cost is finally visible.** `/inspect` now includes `liveDelivery`
+  counters for attempted fanout, delivered replacements, and matcher skips. That
+  made the acceptance checks assert the runtime behavior directly instead of
+  inferring it only from an empty outbox.
+- **The v0 replace fallback stayed simple.** The matcher only decides whether
+  to rerun a subscription. When it cannot prove disjointness, the runtime still
+  sends a full `live_replace`, which keeps the correctness story easy to test.
+- **Auth mattered from the first matcher.** The slice is narrow, but it avoids
+  the worst product smell: notifying a user about a row they cannot see.
+- **The matcher now reuses captured query facts.** Live subscriptions store the
+  `CapturedReadDependency::Query` facts produced by the handler run, then refresh
+  those facts after each delivered `live_replace`.
+- **The required surface now proves the equality case.** The headless acceptance
+  suite temporarily loads a test-only `completed == true` live query and checks
+  both the skip and the later refresh when a row moves into the predicate.
+
+### Snapback: what still feels unfinished
+
+- **This is not a precise dependency matcher.** It handles table disjointness and
+  equality predicates, not range predicates, joins, aggregations, or permission
+  epochs.
+- **Transport is unchanged.** The headless demo still drains deterministic
+  outboxes. That is good for tests, but it is not WebSocket/SSE product push.
+- **Permission changes are not modeled yet.** There is no auth epoch or
+  server-directed resubscribe path for a permission change; this only handles
+  row-level visibility for normal mutations.
+
+Compared with Convex, this is still behind the mature live-query invalidation
+story, but it closes an important honesty gap: the demo can now prove that some
+irrelevant writes do not refresh subscribers, and it records the fan-out work it
+did.

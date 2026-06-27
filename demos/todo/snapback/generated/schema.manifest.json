@@ -1,5 +1,12 @@
 {
-  "schema_hash": "sha256:08c48c04aee9c87a",
+  "appId": "todo",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "generatedAt": 0,
+  "inputsHash": "052521e4ab12cb7d7efba4a4f93c781c0066b6dac8d0045499425e808936e746",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:8d0c00db95d693f6",
+  "schemaVersion": "snapback.v0",
   "tables": [
     {
       "fields": [
@@ -30,5 +37,6 @@
       "name": "todos",
       "syncable": true
     }
-  ]
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
 }

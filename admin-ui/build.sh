@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Build the Snapback admin Contract console to a static dist/.
 #
-# Delegates to build.mjs (programmatic Vite build, configFile:false) run under
-# bun — bun imports the Exact .ts plugin sources directly. The console is built
-# with contractVitePlugin (compiles .contract) + exactVitePlugin (emits the LLP
-# 0268 static platform manifest + mac native envelope for the macOS Exact shell).
+# Delegates to build.mjs run under bun — bun imports the Exact .ts plugin
+# sources directly. build.mjs regenerates generated Contract bindings, then
+# calls the shared Snapback Contract build preset, which owns the plugin
+# ordering, preflights, static platform manifest, and mac native envelope for
+# the macOS Exact shell.
 #
 # Output: admin-ui/dist/ — index.html + assets/* (web) and __exact/* (native
 # platform manifest + envelope + startup). Serve with:

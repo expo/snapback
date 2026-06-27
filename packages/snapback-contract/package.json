@@ -1,0 +1,10 @@
+{
+  "name": "@snapback/contract",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.mjs",
+    "./build-preset": "./build-preset.mjs",
+    "./exact-conformance": "./exact-conformance.mjs"
+  }
+}

@@ -1,0 +1,246 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:f3332534d5f42f86",
+  "capabilities": {
+    "branchableFixtures": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "inputsHash": "f3332534d5f42f86d04934fa61771fbc431e56b0d61e527f8e25bd97cf442168",
+  "manifestVersion": 1,
+  "mutations": {
+    "createTodo": {
+      "argOrder": [
+        "title",
+        "priority"
+      ],
+      "args": {
+        "priority": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "createTodo",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "deleteTodo": {
+      "argOrder": [
+        "id"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "deleteTodo",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "editTitle": {
+      "argOrder": [
+        "id",
+        "title"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "editTitle",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "setCompleted": {
+      "argOrder": [
+        "id",
+        "completed"
+      ],
+      "args": {
+        "completed": {
+          "name": "boolean",
+          "shape": "primitive"
+        },
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "setCompleted",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "setPriority": {
+      "argOrder": [
+        "id",
+        "priority"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "priority": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "setPriority",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "listTodos": {
+      "argOrder": [],
+      "args": {},
+      "localRunnable": false,
+      "name": "listTodos",
+      "reads": [
+        "todos"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "completed": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "priority": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot"
+    },
+    "listTodosOnce": {
+      "argOrder": [],
+      "args": {},
+      "localRunnable": false,
+      "name": "listTodosOnce",
+      "reads": [
+        "todos"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "completed": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "priority": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "none"
+    }
+  },
+  "schemaHash": "sha256:f3332534d5f42f86",
+  "schemaVersion": "snapback.v0"
+}

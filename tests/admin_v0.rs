@@ -178,6 +178,55 @@ async fn built_console_dist_is_served_when_configured() {
 }
 
 #[tokio::test]
+async fn native_exact_request_without_dist_returns_capability_diagnostic() {
+    let app = loopback_app(seeded_snapback());
+    let resp = app
+        .oneshot(get("/_snapback/admin/__exact/platform-manifest.json"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(content_type.starts_with("application/json"));
+
+    let body = json(resp).await;
+    assert_eq!(
+        body["diagnostic"]["code"],
+        "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE"
+    );
+    assert_eq!(
+        body["diagnostic"]["details"]["target_surface"],
+        "native Exact"
+    );
+}
+
+#[tokio::test]
+async fn native_exact_request_with_browser_only_dist_returns_capability_diagnostic() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("index.html"), b"<!doctype html>DIST-INDEX").unwrap();
+    let app = app_with_context(seeded_snapback(), dist_context(dir.path().to_path_buf()));
+
+    let resp = app
+        .oneshot(get(
+            "/_snapback/admin/__exact/native/mac-appkit-hermes/exact-native.json",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let body = json(resp).await;
+    assert_eq!(
+        body["diagnostic"]["code"],
+        "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING"
+    );
+    assert_eq!(body["diagnostic"]["details"]["admin_dist_configured"], true);
+}
+
+#[tokio::test]
 async fn embedded_console_is_the_fallback_without_a_dist() {
     // With no dist configured, the embedded single-file console is served.
     let app = loopback_app(seeded_snapback());
@@ -334,6 +383,7 @@ fn todo_schema() -> SchemaManifest {
             }],
             syncable: true,
         }],
+        ..SchemaManifest::default()
     }
 }
 
@@ -341,10 +391,10 @@ fn todo_functions() -> FunctionManifest {
     FunctionManifest {
         bundle_hash: Some("todo-functions-v0".to_owned()),
         functions: vec![
-            FunctionDefinition {
-                name: "listTodos".to_owned(),
-                kind: FunctionKind::LiveQuery,
-                runtime: FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            FunctionDefinition::new(
+                "listTodos",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
                     table: "todos".to_owned(),
                     filters: vec![],
                     order: vec![OrderExpr {
@@ -354,11 +404,11 @@ fn todo_functions() -> FunctionManifest {
                     limit: None,
                     indexed_by: None,
                 })),
-            },
-            FunctionDefinition {
-                name: "createTodo".to_owned(),
-                kind: FunctionKind::Mutation,
-                runtime: FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            ),
+            FunctionDefinition::new(
+                "createTodo",
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([
@@ -373,7 +423,8 @@ fn todo_functions() -> FunctionManifest {
                     }],
                     return_value: None,
                 })),
-            },
+            ),
         ],
+        ..FunctionManifest::default()
     }
 }

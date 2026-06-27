@@ -1,0 +1,10 @@
+{
+  "tables": {
+    "todos": [
+      { "_id": "seed_todo_1", "title": "Read the Snapback explainer", "priority": "low", "completed": true, "userId": "user_ada" },
+      { "_id": "seed_todo_2", "title": "Build Todo v2", "priority": "high", "completed": false, "userId": "user_ada" },
+      { "_id": "seed_todo_3", "title": "Record LLP 0021 notes", "priority": "normal", "completed": false, "userId": "user_ada" },
+      { "_id": "seed_todo_4", "title": "Plan the kanban demo", "priority": "normal", "completed": false, "userId": "user_grace" }
+    ]
+  }
+}
