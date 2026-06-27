@@ -1,7 +1,7 @@
 use crate::admin::AppState;
 use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, SubscribeRequest};
-use crate::local::{InspectState, LiveSubscribeInput, LocalSnapback};
+use crate::local::{InspectState, LiveResumeInput, LiveSubscribeInput, LocalSnapback};
 use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
 use crate::runtime::CapabilityState;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -54,6 +54,7 @@ fn core_routes() -> Router<AppState> {
         .route("/query/{name}", post(invoke_query))
         .route("/mutation/{name}", post(invoke_mutation))
         .route("/live/{name}/subscribe", post(subscribe_live))
+        .route("/live/{name}/resume", post(resume_live))
         .route("/live/{connection_id}/stream", get(stream_live))
         .route("/outbox/{connection_id}", get(drain_outbox))
         .route(
@@ -160,6 +161,15 @@ async fn subscribe_live(
 ) -> Result<Json<crate::local::LiveSubscribeOutput>, ApiError> {
     let mut snapback = state.lock().await;
     Ok(Json(snapback.subscribe_live(&name, input)?))
+}
+
+async fn resume_live(
+    State(state): State<SharedSnapback>,
+    Path(name): Path<String>,
+    Json(input): Json<LiveResumeInput>,
+) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
+    let mut snapback = state.lock().await;
+    Ok(Json(snapback.resume_live(&name, input)?))
 }
 
 async fn stream_live(

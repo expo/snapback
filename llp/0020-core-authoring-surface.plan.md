@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (Phase 4 equality, `In`, range/boundary matcher, WebSocket push, and permission-epoch resync slices; remaining reconnect/resume design; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-06-27 (Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
 
 ## Summary
@@ -426,10 +426,12 @@ Implementation sequence for the remaining Phase 4 work:
    disjoint range inserts, range-crossing updates, limited-query boundary
    changes, permission-epoch resync, and reconnect with stale epochs.
 
-Implementation note, 2026-06-27: steps 1 through 4 have landed for the local
-target. The capability gap intentionally remains until the retained reconnect
-path compares client-recorded permission epochs against current server epochs
-and forces a resnapshot when any recorded epoch is stale.
+Implementation note, 2026-06-27: steps 1 through 5 have landed for the local
+target. Retained live resume now carries client-recorded permission epochs,
+compares them against current server epochs, keeps matching subscriptions on the
+retained path, and forces an authorized resnapshot when any recorded epoch is
+stale. The `precise_realtime_query_range_matcher` capability gap is removed for
+the current local target on that basis.
 
 ## Demo Admission Rule
 
@@ -480,8 +482,9 @@ scaffolding it depends on and the capability class it is exercising.
 
 ## Status
 
-Draft. Phases 1 through 3 have landed as local slices, Phase 4 has conservative
-matcher, observability, WebSocket push, `In`, range, limited-boundary, and
-permission-epoch resync slices. Completion still requires retained
-reconnect/resume handling for stale permission epochs and passing the acceptance
-gates above, not merely the presence of partial implementation files.
+Draft. Phases 1 through 3 have landed as local slices. Phase 4's local
+replace-mode matcher now covers observability, WebSocket push, `In`, range,
+limited-boundary, permission-epoch resync, and retained reconnect/resume
+permission-epoch checks. Broader local-first work such as offline mutation
+replay and incremental delta transport remains outside this completed
+replace-mode matcher slice.

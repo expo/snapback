@@ -3,7 +3,7 @@ use snapback::ephemeral::{
     AuthContext, EphemeralCollection, EphemeralMessage, PublishRequest, RealtimeEnvelope, Scope,
     SubscribeRequest,
 };
-use snapback::local::{LiveSubscribeInput, LocalSnapback};
+use snapback::local::{LiveResumeInput, LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
@@ -587,6 +587,165 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
 }
 
 #[test]
+fn live_resume_resnapshots_when_recorded_permission_epoch_is_stale() {
+    let mut functions = ibex_todo_functions(TODO_HANDLER_SOURCE);
+    let mut permission_change = FunctionDefinition::new(
+        "touchPermissions",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: vec![MutationStep::Patch {
+                table: "todos".to_owned(),
+                id: ValueExpr::Arg("id".to_owned()),
+                values: BTreeMap::from([("title".to_owned(), ValueExpr::Arg("title".to_owned()))]),
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
+    permission_change.required_capabilities = vec!["permission_epoch_resync".to_owned()];
+    permission_change.permission_epoch_bumps = vec![PermissionScopeExpr::AuthUser];
+    permission_change.write_set_summary.primary_table = Some("todos".to_owned());
+    permission_change.write_set_summary.tables = vec!["todos".to_owned()];
+    functions.functions.push(permission_change);
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(functions);
+
+    let created = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(
+                json!({ "title": "Visible before permission change" }),
+                "user_1",
+            ),
+        )
+        .expect("create visible todo");
+    let todo_id = created.result.as_str().unwrap().to_owned();
+
+    let subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe live query");
+    assert_eq!(
+        subscription.snapshot.rows[0]["title"],
+        "Visible before permission change"
+    );
+    assert_eq!(subscription.permission_epochs.get("user:user_1"), Some(&0));
+
+    snapback
+        .invoke_mutation(
+            "touchPermissions",
+            input(
+                json!({ "id": todo_id, "title": "Changed with permission epoch" }),
+                "user_1",
+            ),
+        )
+        .expect("touch permission scope");
+
+    let messages = snapback.drain_outbox("client_a");
+    assert_eq!(messages.len(), 1);
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable resync message");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("resync json");
+    assert_eq!(update["kind"], "resync_required");
+
+    let resume = snapback
+        .resume_live(
+            "listTodos",
+            LiveResumeInput {
+                subscription_id: subscription.subscription_id.clone(),
+                connection_id: "client_reconnected".to_owned(),
+                recorded_permission_epochs: subscription.permission_epochs,
+            },
+        )
+        .expect("resume stale subscription");
+
+    assert_eq!(resume.subscription_id, subscription.subscription_id);
+    assert_eq!(resume.mode, "resnapshot");
+    assert_eq!(resume.reason.as_deref(), Some("permission_epoch_changed"));
+    assert_eq!(resume.permission_epochs.get("user:user_1"), Some(&1));
+    let snapshot = resume.snapshot.expect("stale resume returns snapshot");
+    assert_eq!(snapshot.rows.len(), 1);
+    assert_eq!(snapshot.rows[0]["title"], "Changed with permission epoch");
+
+    snapback
+        .invoke_mutation(
+            "setCompleted",
+            input(json!({ "id": todo_id, "completed": true }), "user_1"),
+        )
+        .expect("normal live update after resume");
+    let messages = snapback.drain_outbox("client_reconnected");
+    assert_eq!(messages.len(), 1);
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable live update after resume");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("live update json");
+    assert_eq!(update["kind"], "live_replace");
+    assert_eq!(update["subscription_id"], subscription.subscription_id);
+    assert_eq!(update["rows"][0]["completed"], true);
+}
+
+#[test]
+fn live_resume_retains_subscription_when_recorded_permission_epoch_is_current() {
+    let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
+    let subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe live query");
+
+    let resume = snapback
+        .resume_live(
+            "listTodos",
+            LiveResumeInput {
+                subscription_id: subscription.subscription_id.clone(),
+                connection_id: "client_reconnected".to_owned(),
+                recorded_permission_epochs: subscription.permission_epochs,
+            },
+        )
+        .expect("resume current subscription");
+
+    assert_eq!(resume.subscription_id, subscription.subscription_id);
+    assert_eq!(resume.mode, "retained");
+    assert_eq!(resume.reason, None);
+    assert_eq!(resume.snapshot, None);
+    assert_eq!(resume.permission_epochs.get("user:user_1"), Some(&0));
+
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(
+                json!({ "title": "Delivered after retained resume" }),
+                "user_1",
+            ),
+        )
+        .expect("create visible todo");
+    assert_eq!(snapback.drain_outbox("client_a"), Vec::new());
+    let messages = snapback.drain_outbox("client_reconnected");
+    assert_eq!(messages.len(), 1);
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable live update after retained resume");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("live update json");
+    assert_eq!(update["kind"], "live_replace");
+    assert_eq!(update["subscription_id"], subscription.subscription_id);
+    assert_eq!(
+        update["rows"][0]["title"],
+        "Delivered after retained resume"
+    );
+}
+
+#[test]
 fn function_runner_surfaces_captured_handler_read_and_write_facts() {
     let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
     let created = snapback.run_function(
@@ -841,7 +1000,7 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(functions.schema_version, "snapback.v0");
     assert_eq!(
         functions.bundle_hash.as_deref(),
-        Some("sha256:1e02d0edbabb277c")
+        Some("sha256:1b8135f2cb014d3c")
     );
 
     let list = functions
@@ -940,7 +1099,7 @@ fn inspect_exposes_v0_runtime_and_capability_artifacts() {
             .contains(&"websocket-live-replace".to_owned())
     );
     assert!(
-        inspect
+        !inspect
             .capability_manifest
             .capability_gaps
             .contains(&"precise_realtime_query_range_matcher".to_owned())

@@ -63,6 +63,32 @@ pub struct LiveSubscribeInput {
 pub struct LiveSubscribeOutput {
     pub subscription_id: String,
     pub snapshot: QueryOutput,
+    #[serde(default)]
+    pub permission_epochs: BTreeMap<String, u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LiveResumeInput {
+    pub subscription_id: String,
+    pub connection_id: String,
+    #[serde(
+        default,
+        rename = "recorded_permission_epochs",
+        alias = "recordedPermissionEpochs"
+    )]
+    pub recorded_permission_epochs: BTreeMap<String, u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LiveResumeOutput {
+    pub subscription_id: String,
+    pub mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<QueryOutput>,
+    #[serde(default)]
+    pub permission_epochs: BTreeMap<String, u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -252,7 +278,6 @@ impl LocalSnapback {
             "assets".to_owned(),
             "cron".to_owned(),
             "notifications".to_owned(),
-            "precise_realtime_query_range_matcher".to_owned(),
         ];
         if self.runtime.capabilities().ibex_cli.available {
             capability_gaps.retain(|gap| gap != "ibex_cli");
@@ -364,6 +389,7 @@ impl LocalSnapback {
 
         let subscription_input = input.input;
         let query = self.invoke_query_with_dependencies(name, subscription_input.clone())?;
+        let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
         self.next_subscription_id += 1;
         let subscription_id = format!("sub_{}", self.next_subscription_id);
         self.subscriptions.insert(
@@ -380,6 +406,70 @@ impl LocalSnapback {
         Ok(LiveSubscribeOutput {
             subscription_id,
             snapshot: query.output,
+            permission_epochs,
+        })
+    }
+
+    /// @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs — retained resume compares client-recorded permission epochs before trusting retained rows.
+    pub fn resume_live(
+        &mut self,
+        name: &str,
+        input: LiveResumeInput,
+    ) -> SnapbackResult<LiveResumeOutput> {
+        let subscription = self
+            .subscriptions
+            .get(&input.subscription_id)
+            .cloned()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_UNKNOWN_SUBSCRIPTION",
+                    "realtime",
+                    format!("unknown live subscription {}", input.subscription_id),
+                )
+            })?;
+        if subscription.function != name {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH",
+                "realtime",
+                format!(
+                    "subscription {} belongs to {}, not {name}",
+                    subscription.id, subscription.function
+                ),
+            ));
+        }
+
+        if self.resume_requires_resnapshot(&subscription, &input.recorded_permission_epochs) {
+            let query = self.invoke_query_with_dependencies(
+                &subscription.function,
+                subscription.input.clone(),
+            )?;
+            let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
+            if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
+                stored.connection_id = input.connection_id;
+                stored.read_dependencies = query.read_dependencies;
+            }
+            return Ok(LiveResumeOutput {
+                subscription_id: subscription.id,
+                mode: "resnapshot".to_owned(),
+                reason: Some("permission_epoch_changed".to_owned()),
+                snapshot: Some(query.output),
+                permission_epochs,
+            });
+        }
+
+        let permission_epochs =
+            current_permission_epochs_for_dependencies(&subscription.read_dependencies, |scope| {
+                self.permission_epoch(scope)
+            });
+        if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
+            stored.connection_id = input.connection_id;
+        }
+        Ok(LiveResumeOutput {
+            subscription_id: subscription.id,
+            mode: "retained".to_owned(),
+            reason: None,
+            snapshot: None,
+            permission_epochs,
         })
     }
 
@@ -746,6 +836,28 @@ impl LocalSnapback {
             })
     }
 
+    fn resume_requires_resnapshot(
+        &self,
+        subscription: &LiveSubscription,
+        recorded_permission_epochs: &BTreeMap<String, u64>,
+    ) -> bool {
+        subscription
+            .read_dependencies
+            .iter()
+            .filter(|dependency| dependency.kind == CapturedReadKind::Permission)
+            .any(|dependency| {
+                let Some(scope) = dependency.value.as_ref().and_then(Value::as_str) else {
+                    return true;
+                };
+                let Some(captured_epoch) = dependency.version else {
+                    return true;
+                };
+                let current_epoch = self.permission_epoch(scope);
+                recorded_permission_epochs.get(scope).copied() != Some(current_epoch)
+                    || current_epoch != captured_epoch
+            })
+    }
+
     fn record_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) {
         for diagnostic in diagnostics {
             if matches!(
@@ -765,6 +877,43 @@ impl LocalSnapback {
 
 fn user_permission_scope(user_id: &str) -> String {
     format!("user:{user_id}")
+}
+
+fn permission_epochs_from_dependencies(
+    dependencies: &[CapturedReadDependency],
+) -> BTreeMap<String, u64> {
+    let mut epochs = BTreeMap::new();
+    for dependency in dependencies
+        .iter()
+        .filter(|dependency| dependency.kind == CapturedReadKind::Permission)
+    {
+        let Some(scope) = dependency.value.as_ref().and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(epoch) = dependency.version else {
+            continue;
+        };
+        epochs.insert(scope.to_owned(), epoch);
+    }
+    epochs
+}
+
+fn current_permission_epochs_for_dependencies(
+    dependencies: &[CapturedReadDependency],
+    current_epoch: impl Fn(&str) -> u64,
+) -> BTreeMap<String, u64> {
+    let mut epochs = BTreeMap::new();
+    for dependency in dependencies
+        .iter()
+        .filter(|dependency| dependency.kind == CapturedReadKind::Permission)
+    {
+        let Some(scope) = dependency.value.as_ref().and_then(Value::as_str) else {
+            continue;
+        };
+        let epoch = dependency.version.unwrap_or_else(|| current_epoch(scope));
+        epochs.insert(scope.to_owned(), epoch);
+    }
+    epochs
 }
 
 fn evaluate_permission_scope(

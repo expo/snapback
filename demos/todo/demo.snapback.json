@@ -110,7 +110,6 @@
     "assets",
     "cron",
     "notifications",
-    "precise_realtime_query_range_matcher",
     "react_adapter",
     "contract_design_mode_authoring"
   ],
@@ -119,7 +118,6 @@
     "Partiful-scale throughput (this is a demo shape, not a benchmark)",
     "full JavaScript handler coverage (list/create/setCompleted/delete use ctx.db; listTodosOnce/editTitle remain HostPlan fixture paths)",
     "automatic mutation retry (v0 rejects conflicts with a structured diagnostic)",
-    "precise query-range matcher for realtime invalidation (current matcher covers table and equality predicates only)",
     "incremental delta transport (current websocket and deterministic drain paths both deliver live_replace payloads)"
   ]
 }

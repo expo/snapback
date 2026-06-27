@@ -77,7 +77,7 @@ try {
     assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-limited-boundary-replace'), 'live matcher limited-boundary capability form');
     assert(state.capabilityManifest.supportedQueryForms.includes('websocket-live-replace'), 'websocket live replace capability form');
     assert(!state.capabilityManifest.capabilityGaps.includes('websocket_push_transport'), 'push transport should not be a gap once wired');
-    assert(state.capabilityManifest.capabilityGaps.includes('precise_realtime_query_range_matcher'), 'precise range matcher should still be a gap');
+    assert(!state.capabilityManifest.capabilityGaps.includes('precise_realtime_query_range_matcher'), 'precise range matcher should not be a gap once reconnect epochs are covered');
     return { functions: names, capability_gaps: state.capability_gaps, bridge: state.runtime.ibex_ctx_db_host_bridge, generatedRef: api.createTodo };
   });
 

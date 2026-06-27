@@ -111,8 +111,7 @@ integration (server-authoritative mutations with optimistic UI), **not**
 local-first/Parity: there is no local handler replay. This slice has an embedded
 Ibex `ctx.db` bridge for the todo live query plus create/toggle/delete handlers;
 it captures handler read dependencies at commit and rejects conflicts, but does
-not retry automatically, remove the precise matcher capability gap, implement
-permission-epoch resync, emit incremental deltas, enforce CPU/wall-clock budgets,
+not retry automatically, emit incremental deltas, enforce CPU/wall-clock budgets,
 or remove the remaining HostPlan fixture paths. Its realtime matcher is a
 conservative table/equality, `In`, range, and limited-boundary slice that
 delivers `live_replace` updates over the WebSocket stream and the deterministic

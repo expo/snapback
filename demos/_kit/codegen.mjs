@@ -333,7 +333,6 @@ export async function generate(backendDir) {
       'assets',
       'cron',
       'notifications',
-      'precise_realtime_query_range_matcher',
     ],
   };
   const contractManifest = {

@@ -10,8 +10,7 @@
     "external_auth",
     "assets",
     "cron",
-    "notifications",
-    "precise_realtime_query_range_matcher"
+    "notifications"
   ],
   "cron": false,
   "liveSubscriptions": true,
