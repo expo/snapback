@@ -116,6 +116,26 @@ I tried a wrong fix first — making `Badge` a single text leaf instead of a
 (the row still collapsed), but I kept it: a text-leaf badge is simpler and the
 kernel measures text reliably, so it's a small robustness win regardless.
 
+**Update (2026-06-27, ENG-22214 verification):** the "layout kernel measures and
+writes explicit sizes; this isn't plain CSS" diagnosis above was *wrong*. The
+Contract web path **is** plain browser CSS flexbox (the `dom-mirror` web host);
+the real cause is a `flex-shrink` default mismatch. The mirror lowered
+`row`/`column`/`section`/`button` to RN-style container tags but left
+`flex-shrink` at the CSS default of `1`, while RN/Yoga (and the kernel/Taffy
+path) default it to `0`. So once a flex column's content overflows the available
+height — whether the content was published after first paint **or the window was
+resized shorter** — the bare rows shrink below their content (down to the
+`min-height:0` the mirror also sets) and collapse while their children paint
+full-size and overlap the next sibling. Exact fixed it by defaulting RN
+container tags to `flex-shrink:0` (Exact **ENG-22199** for this `dom-mirror`
+Contract path; ENG-22206 for the React-tier `web-primitives`). Verified with a
+headless-Chrome CDP differential: built against Exact `origin/main` (post-fix)
+the cards keep their size and the pane scrolls on resize; against the pre-fix
+tree they compress and overlap. The app-side `minHeight` / fixed-height `scroll`
+mitigations above still help and are harmless, but are no longer load-bearing
+once the build uses Exact ≥ ENG-22199. The resize manifestation was tracked as
+ENG-22214.
+
 ## Contract/Exact observations
 
 - **Type keyword is `boolean`, not `bool`.** A literal `mono=true` failed

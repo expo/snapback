@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Contract/Exact, Tooling, Testing
 **Author:** Claude (Opus 4.8)
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (review passes: GPT-5 clarified HMR verification, loopback proxy defaults, structured proxy failures, generated-binding lifecycle, and shared compile config; Claude hardened API-target resolution, non-fatal startup preflight, same-machine proxy risks, env naming, and Exact/bun prerequisites; GPT-5 re-review corrected memory-server port discovery and separated SSE from WebSocket proxy requirements)
+**Revised:** 2026-06-27 (review passes: GPT-5 clarified HMR verification, loopback proxy defaults, structured proxy failures, generated-binding lifecycle, and shared compile config; Claude hardened API-target resolution, non-fatal startup preflight, same-machine proxy risks, env naming, and Exact/bun prerequisites; GPT-5 re-review corrected memory-server port discovery and separated SSE from WebSocket proxy requirements; 2026-06-27 corrected the layout-bug characterization — a Contract `dom-mirror` `flex-shrink` default mismatch, not a kernel measurement bug — and recorded its upstream Exact fix, ENG-22199, verified under ENG-22214)
 **Related:** LLP 0017 (admin console; Serving Model), LLP 0021 (Contract/Exact integration hardening; the build preset), [diary 0005](../diaries/0005-admin-console-redesign.diary.md); Exact LLP 0268 (static platform manifests)
 
 ## Summary
@@ -29,9 +29,10 @@ console-development convenience" — an optional hot-reload mode, never a runtim
 dependency. That intent has not been turned into a concrete loop. Diary 0005 named
 the gap as the single biggest ergonomics tax of the rebuild: ~50 iterations of
 polish became ~10 because each one paid the rebuild + re-screenshot cost, and the
-layout-kernel measurement quirks (the post-paint relayout bug; see the Exact
-tracking issue referenced in diary 0005) are exactly the kind of thing a live loop
-surfaces immediately instead of after a full rebuild.
+Contract web-flexbox quirks (the post-paint / resize card overlap — which turned
+out to be an Exact `flex-shrink` default mismatch, not a measurement bug, fixed
+upstream in Exact ENG-22199; see diary 0005) are exactly the kind of thing a live
+loop surfaces immediately instead of after a full rebuild.
 
 The pieces already exist:
 
@@ -70,9 +71,11 @@ What is missing is a `serve`-mode entry that reuses that configuration.
   browser-only. Native shell iteration stays on the build path, and probing the
   dev server for native envelope artifacts should fail clearly rather than look
   like a malformed native app.
-- Fixing the layout-kernel post-paint measurement bug. That is an Exact-side issue
-  (tracked separately, see diary 0005); the dev loop only makes it cheaper to hit
-  and confirm.
+- Fixing the Contract web layout overlap (post-paint / resize). That was an
+  Exact-side issue — a `flex-shrink` default mismatch in the `dom-mirror` web host,
+  not a measurement bug — fixed upstream in Exact ENG-22199 (resize manifestation
+  verified under ENG-22214, see diary 0005); the dev loop only made it cheaper to
+  hit and confirm.
 
 ## Background: the current build path
 
