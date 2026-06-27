@@ -5,6 +5,8 @@
   "exports": {
     ".": "./index.mjs",
     "./build-preset": "./build-preset.mjs",
-    "./exact-conformance": "./exact-conformance.mjs"
+    "./exact-conformance": "./exact-conformance.mjs",
+    "./exact-package": "./exact-package.mjs",
+    "./exact-project-check": "./exact-project-check.mjs"
   }
 }

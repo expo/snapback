@@ -10,11 +10,11 @@ Product code today:
 - `src/contract_exact.rs` owns Snapback-side Contract/Exact capability diagnostics that core can emit without importing Exact.
 - `demos/_kit/client.mjs` is the framework-neutral online Snapback client used by headless and Contract acceptance.
 - `demos/_kit/codegen.mjs` projects Snapback demo artifacts into generated Contract binding modules under `snapback/generated/contract/`, including runtime links and per-query/per-mutation descriptor sidecars.
-- `packages/snapback-contract/` is the first package-equivalent Snapback Contract adapter: generated-artifact validation, boundary hydration, manifest-derived runtime links, optimistic mutations, reconciliation, provider seam, row sync state, Online capability reporting, and the shared system-surface boundary/link helper used by the admin console.
+- `packages/snapback-contract/` is the first package-equivalent Snapback Contract adapter: generated-artifact validation, boundary hydration, manifest-derived runtime links, quiet headless Contract mounting, optimistic mutations, reconciliation, provider seam, row sync state, Online capability reporting, and the shared system-surface boundary/link helper used by the admin console.
 - `packages/snapback-contract/build-preset.mjs` is the first build/dev-serve preset: it owns the shared Exact/Contract Vite plugin ordering, route-registry and entry preflights, static/native target selection, Snapback base-path rewrite, and the browser-only admin dev proxy shape.
 - `packages/snapback-contract/exact-conformance.mjs` discovers, requires, and can run the Exact-owned provider conformance gate. It resolves the local Exact checkout, inspects `exact-verify.json` for `data-provider-conformance`, searches known suite paths, reports structured diagnostics for stale/missing Exact capability, and invokes `bun scripts/exact-verify.mjs --check data-provider-conformance --json` when asked to run the Exact check.
-- `packages/snapback-contract/exact-package.mjs` imports `@exact/contract` compiler, runtime, and conformance exports through the package export map when installed, falling back to a configured Exact checkout package root while Snapback still runs from sibling source trees.
-- `packages/snapback-contract/exact-project-check.mjs` runs generated Contract descriptors through Exact project semantics: static descriptor-module resolution, Contract compilation, descriptor-use extraction, and Exact's data doctor.
+- `packages/snapback-contract/exact-package.mjs` imports `@exact/contract` compiler, runtime, and conformance exports through the package export map when installed, falling back to a configured Exact checkout package root while Snapback still runs from sibling source trees. It is exported as `@snapback/contract/exact-package`.
+- `packages/snapback-contract/exact-project-check.mjs` runs generated Contract descriptors through Exact project semantics: static descriptor-module resolution, Contract compilation, descriptor-use extraction, and Exact's data doctor. It is exported as `@snapback/contract/exact-project-check`.
 - `demos/todo-v2/tests/acceptance/adapter-semantics.mjs` is a no-server adapter semantics runner. It uses Exact runtime with an in-memory Snapback-like client to verify rejected optimistic mutations republish authoritative rows and runtime-link/provider mutations share one pending count.
 - `demos/todo-v2/tests/acceptance/contract-descriptors.mjs` validates Todo v2 generated descriptor modules without starting a Snapback server and proves a bad generated-row field read fails with Exact's `shape_unknown_member` diagnostic before browser smoke.
 - `demos/todo-v2/tests/acceptance/provider-conformance.mjs` imports Exact's reusable DataProvider conformance suite through the package-export resolver and points it at the live Snapback Todo v2 provider fixture.
@@ -37,9 +37,10 @@ The todo Contract surface follows this sequence:
 4. It queries Snapback for the authoritative initial `listTodos` rows.
 5. Exact runtime creates a mock query boundary hydrated with that snapshot.
 6. Runtime links expose the generated query/mutation set to Contract.
-7. Mutations optimistically edit the Contract boundary, then call Snapback mutations on the live server.
-8. Reconciliation re-queries Snapback and republishes authoritative rows into the boundary.
-9. Provider users call the same backend through `createBoundaryContractDataProvider`.
+7. Headless acceptance mounts compiled Contract components through `surface.mount()`, which delegates to Exact's `host: "headless"` mode and tracks the disposable mount handle.
+8. Mutations optimistically edit the Contract boundary, then call Snapback mutations on the live server.
+9. Reconciliation re-queries Snapback and republishes authoritative rows into the boundary.
+10. Provider users call the same backend through `createBoundaryContractDataProvider`.
 
 This is Online only. It does not run handlers locally, queue offline mutations, replay deterministically, or claim Parity.
 

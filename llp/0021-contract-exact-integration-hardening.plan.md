@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, Client integration, Developer experience, Testing, Packaging, Admin console, Runtime
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, and Exact project-check validation of generated descriptors and row shapes)
+**Revised:** 2026-06-27 (review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
 **Related:** LLP 0005, LLP 0012, LLP 0016, LLP 0017, LLP 0020, Diary 0001, Diary 0002, Diary 0003, Valet LLP 0088 (retired prior-art), Exact 0263, Exact 0265, Exact 0268
 
 ## Summary
@@ -483,6 +483,11 @@ Done:
   [`demos/todo-v2/tests/acceptance/adapter-semantics.mjs`](../demos/todo-v2/tests/acceptance/adapter-semantics.mjs).
 - [x] Runtime-link mutations and provider mutations use one shared pending set;
   `pendingCount()` is covered by the same no-server adapter semantics runner.
+- [x] `createSnapbackContractSurface` and
+  `createSnapbackSystemContractSurface` expose an adapter-owned `mount()`
+  helper that defaults to Exact's headless host mode and tracks disposable mount
+  handles, so headless Contract tests do not emit missing native-host dispatch
+  noise.
 
 Open:
 
@@ -509,6 +514,10 @@ Done:
   prefers installed `@exact/contract` package exports for compiler, runtime,
   and conformance imports, with a checkout package-root fallback while local
   integration still runs from sibling repos.
+- [x] `@snapback/contract` exposes package subpaths for the Exact package
+  resolver and generated descriptor project check:
+  `@snapback/contract/exact-package` and
+  `@snapback/contract/exact-project-check`.
 - [x] Provider conformance and descriptor project checks consume Exact helpers
   through that package-export resolver instead of absolute source-file imports.
 - [x] The shared demo server helper carries the resolved macOS Hermes framework

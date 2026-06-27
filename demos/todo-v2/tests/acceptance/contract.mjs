@@ -190,7 +190,7 @@ try {
 
   await suite.check('mounts against the live Snapback backend; renders priority snapshot', async () => {
     const component = runtimeMod.defineComponent(compiled, surface.links);
-    handle = runtimeMod.mount(component);
+    handle = surface.mount(component);
     await settle();
     const items = collectByTestId(handle.container, 'todo-item').map(textUnder);
     assertEqual(items, ['Read the Snapback explainer', 'Build Todo v2', 'Record LLP 0021 notes'], 'rendered live rows');
@@ -341,6 +341,7 @@ try {
     }
   });
 
+  surface?.dispose?.();
   runtimeMod.reset();
   const report = suite.finish();
   console.log('\n--- machine-readable report ---');

@@ -166,7 +166,7 @@ try {
       functionManifest: functionsManifest,
     });
     const component = runtimeMod.defineComponent(compiled, surface.links);
-    handle = runtimeMod.mount(component);
+    handle = surface.mount(component);
     await settle();
     const items = collectByTestId(handle.container, 'todo-item').map(textUnder);
     assertEqual(items, ['Read the Snapback explainer', 'Build the todo demo', 'Write the diary'], 'rendered live rows');
@@ -256,6 +256,7 @@ try {
     return { cells: cells.length };
   });
 
+  surface?.dispose?.();
   runtimeMod.reset();
   const report = suite.finish();
   console.log('\n--- machine-readable report ---');

@@ -10,6 +10,17 @@
 export const SNAPBACK_CONTRACT_ADAPTER_VERSION = 1;
 export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 
+export function mountSnapbackContractHeadless(runtime, component, options = {}) {
+  if (!runtime || typeof runtime.mount !== 'function') {
+    throw new Error('mountSnapbackContractHeadless requires a Contract runtime with mount().');
+  }
+  if (!component) {
+    throw new Error('mountSnapbackContractHeadless requires a compiled Contract component.');
+  }
+  const mountOptions = normalizeContractMountOptions(options);
+  return wrapMountHandle(runtime.mount(component, mountOptions), { runtime, mountOptions });
+}
+
 export function validateSnapbackContractArtifacts({
   manifest,
   contractDataManifest,
@@ -104,6 +115,7 @@ export async function createSnapbackContractSurface({
   optimisticReducers = defaultOptimisticReducers(),
 }) {
   const pending = new Set();
+  const mountedHandles = new Set();
   const diagnostics = validateSnapbackContractArtifacts({
     manifest,
     artifactIndex,
@@ -224,11 +236,19 @@ export async function createSnapbackContractSurface({
     pendingCount: () => pending.size,
     declaredQueries: queryNames,
     declaredMutations: mutationNames,
+    mount: (component, options = {}) => {
+      assertActive();
+      return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
+    },
     flush: async () => {
       await Promise.all([...pending]);
     },
     dispose: () => {
       disposed = true;
+      for (const handle of [...mountedHandles]) {
+        handle.dispose();
+      }
+      mountedHandles.clear();
       pending.clear();
     },
   };
@@ -254,6 +274,7 @@ export async function createSnapbackSystemContractSurface({
 
   const diagnostics = [];
   const pending = new Set();
+  const mountedHandles = new Set();
   let disposed = false;
   const initialRows = {};
 
@@ -341,13 +362,67 @@ export async function createSnapbackSystemContractSurface({
     publishOne,
     queryRows,
     pendingCount: () => pending.size,
+    mount: (component, options = {}) => {
+      assertActive();
+      return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
+    },
     flush: async () => {
       await Promise.all([...pending]);
     },
     dispose: () => {
       disposed = true;
+      for (const handle of [...mountedHandles]) {
+        handle.dispose();
+      }
+      mountedHandles.clear();
       pending.clear();
     },
+  };
+}
+
+function rememberMountHandle(mountedHandles, handle) {
+  if (!handle || typeof handle.dispose !== 'function') {
+    throw new Error('Contract runtime mount() did not return a disposable mount handle.');
+  }
+
+  let disposed = false;
+  const trackedHandle = {
+    ...handle,
+    dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      mountedHandles.delete(trackedHandle);
+      handle.dispose();
+    },
+  };
+  mountedHandles.add(trackedHandle);
+  return trackedHandle;
+}
+
+function wrapMountHandle(handle, { runtime = null, mountOptions = {} } = {}) {
+  if (!handle || typeof handle.dispose !== 'function') {
+    throw new Error('Contract runtime mount() did not return a disposable mount handle.');
+  }
+
+  let disposed = false;
+  return {
+    ...handle,
+    dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      if (!mountOptions.container && typeof runtime?.unmount === 'function') {
+        runtime.unmount(mountOptions.rootId ?? 0);
+      } else {
+        handle.dispose();
+      }
+    },
+  };
+}
+
+function normalizeContractMountOptions(options = {}) {
+  return {
+    ...options,
+    host: options.host ?? 'headless',
   };
 }
 
