@@ -1,0 +1,362 @@
+# LLP 0020: Core authoring surface buildout
+
+**Type:** Plan
+**Status:** Draft
+**Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-06-27
+**Revised:** 2026-06-27 (review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
+
+## Summary
+
+The first todo diary proved that Snapback's agent-facing facts are already
+valuable: stable diagnostics, honest capability gaps, deterministic seed state,
+and a subscription response that includes the authoritative initial result. It
+also showed that the core authoring path is still a bring-up surface, not the
+product surface promised by LLP 0004 and LLP 0012.
+
+This Plan turns the core-side negative findings from
+[`diaries/0001-todo-demo.diary.md`](../diaries/0001-todo-demo.diary.md) into a
+focused implementation sequence:
+
+- replace hand-derived manifest shapes with typed, versioned generated
+  packages;
+- wire real JavaScript `ctx.db` handlers through Ibex instead of authoring demo
+  CRUD as declarative `HostPlan`s;
+- capture handler reads during execution so mutation conflicts are not
+  caller-supplied — the same read-dependency capture the realtime matcher and
+  the static function manifest both consume;
+- upgrade realtime from correct v0 replace/poll semantics to an
+  authorization-aware, dependency-matched, push-capable path.
+
+LLP 0016 remains the umbrella diary-driven change program. This document narrows
+its core phases into the acceptance gates needed before the next demos can claim
+that Snapback's public authoring surface is real.
+
+## Motivation
+
+The todo diary's core complaint was not that the v0 local server failed. It was
+that the server worked through scaffolding that should not become the product
+mental model:
+
+- the documented authoring API is `defineQuery` / `defineMutation` handlers
+  using `ctx.db`, but the demo had to use declarative `HostPlan`s because the
+  Ibex host-call bridge was still a capability gap;
+- manifest JSON was derived from Rust source by hand, with no published
+  TypeScript type or package boundary;
+- all live subscriptions were rerun after every mutation, which is correct but
+  hides the future fan-out cost;
+- realtime delivery used deterministic poll/drain, useful for tests but not a
+  product transport;
+- read-set conflict checking was available only when the client supplied the
+  read set, rather than being captured from the handler's own reads.
+
+Those gaps cut across existing LLPs. LLP 0004 owns the application API. LLP 0008
+owns local-first sync and realtime semantics. LLP 0009 owns the handler
+execution security envelope. LLP 0010 owns acceptance. LLP 0012 owns generated
+artifacts, capability reporting, diagnostics, and adapter-facing facts. This
+Plan owns the sequence that turns those specs into the next concrete core
+milestone.
+
+## Scope
+
+This Plan owns:
+
+- the implementation order for the core authoring surface;
+- which v0 scaffolds may remain internal versus public;
+- acceptance gates for typed artifacts, handler execution, read-set capture,
+  and app-grade realtime;
+- the capability-reporting rules while those features are absent or partial.
+
+It does not own:
+
+- the application data API syntax, owned by LLP 0004 (which itself defers a
+  fixed spelling to a later Spec);
+- the detailed storage and transaction contract, owned by LLP 0003, and the
+  storage-portability contract, owned by LLP 0007 (LLP 0003 implements
+  portability but does not own the contract);
+- the detailed sync/realtime protocol, owned by LLP 0008;
+- the sandbox and resource-limit model, owned by LLP 0009;
+- the generated artifact schemas and adapter-facing contract, owned by
+  LLP 0012;
+- Contract/Exact adapter and tooling work, owned by LLP 0021.
+
+When this Plan conflicts with a subsystem spec, the subsystem spec owns the
+mechanics. This Plan owns sequencing, cutlines, and proof.
+
+## Constraints
+
+### Keep the agent-first wins
+
+Do not trade away the behavior that made the todo diary good. Stable diagnostic
+codes, `/inspect` capability gaps, deterministic reset/seed, one-source
+generated facts, and sleep-free test controls are product surfaces. New authoring
+ergonomics must preserve them.
+
+### `HostPlan` is an internal bridge
+
+`HostPlan` is useful for deterministic fixtures, bring-up, and maybe low-level
+tests. It must not be presented as the primary application authoring model after
+this Plan lands. Public examples should move to JavaScript handlers using
+`ctx.db`, generated function references, and generated clients.
+
+### Handler execution must stay inside the LLP 0009 envelope
+
+The first real handler path must not punch holes in the security model to reach
+ergonomics faster. The local target can honestly report missing hosted-grade
+resource limits, but it must still preserve the capability shape: no ambient
+SQLite, filesystem, network, environment, secrets, or native host access from
+query and mutation handlers.
+
+### Capability honesty is part of done
+
+A missing typed package, missing Ibex bridge, replace-only subscription, or
+poll-only transport is acceptable only when reported as a capability gap.
+Hidden fallbacks are regressions. Every phase that fills a gap adds a test
+asserting the capability is reported absent while missing and cleared once it
+exists — the `ibex_ctx_db_host_bridge` rule in Phase 2 generalized to all gaps.
+
+## Change Program
+
+Phase numbering is local to this Plan. LLP 0016 folds read-set capture into its
+own Phase 2, so this Plan's Phase 3 splits that work into its own phase; a
+cross-reference to "Phase 3" must name the document. This Plan owns the
+authoritative required-changes and acceptance gates for the core phases; LLP 0016
+is the umbrella tracker and now indexes these gates rather than restating them.
+The hard order is Phase 2 → Phase 3 (read capture
+needs a running handler) and Phase 3 → Phase 4 (the matcher reuses Phase 3's
+read-dependency substrate); Phase 1 can start in parallel with Phase 2, but its
+JavaScript function-manifest read-summary gate cannot fully close until the
+Phase 2 bundler has real handler bodies to analyze.
+
+### Phase 0: Freeze the good v0 facts
+
+Before replacing scaffolding, pin the behavior that already worked.
+
+Required changes:
+
+- keep stable diagnostic codes for the eight families LLP 0012 pins — schema,
+  function, query, capability, bundle, runtime, mutation-conflict, and
+  stale-artifact failures;
+- keep deterministic reset and seed that bypass handlers;
+- keep subscribe as one seam returning the current authorized result and
+  subscription id together;
+- keep deterministic outbox/flush controls for tests, even after a push
+  transport exists;
+- keep capability gaps machine-readable and visible through `/inspect` or its
+  LLP 0012 successor;
+- keep generated output carrying freshness information, such as an `inputsHash`.
+
+Acceptance gate:
+
+- the existing todo headless acceptance suite still passes without sleeps;
+- a deliberately missing capability is asserted as a structured fact, not
+  inferred from a failed request;
+- stale generated artifacts are visible in diagnostics or runtime state.
+
+### Phase 1: Ship typed generated artifacts
+
+This phase removes the need for app code or tests to derive wire shapes from
+Rust source.
+
+Required changes:
+
+- choose one source of truth for the v0 artifact schemas (resolves Open
+  Question 1);
+- generate TypeScript types for `schemaManifest`, `functionManifest`,
+  `capabilityManifest`, the target profile, diagnostics, runtime state,
+  generated function references, and the client call surface;
+- define the static read-set / primary-table summary LLP 0012 pins on each
+  function manifest as a typed field from the first generated package; when real
+  handler bodies exist, validate it against those bodies — the build-time
+  projection of the same read-dependency facts Phase 3 captures at runtime;
+- assign every artifact `artifactKind`, `schemaVersion`, and version-mismatch
+  diagnostics consistent with LLP 0012, plus hash/freshness fields whose scope
+  is explicit (codegen-inputs vs. handler-bundle vs. schema version), per
+  LLP 0012's caution against two undifferentiated hashes;
+- carry LLP 0010's no-silent-drops rule into codegen: validate manifest
+  completeness against what the runtime actually persists and fail closed, so no
+  field is silently omitted — the fail-closed property the todo diary credited;
+- expose a package entry point usable without Contract/Exact installed (Contract's
+  own data manifest, LLP 0021, generates from the same source of truth and shares
+  the freshness hash);
+- add a drift check so Rust runtime structs, generated TypeScript types, and
+  documented v0 artifact schemas cannot silently diverge;
+- make `tsc` honest in a consuming app: green must mean the generated package
+  resolves and types the app's functions.
+
+Acceptance gate:
+
+- no demo imports `src/manifest.rs` knowledge or redefines manifest JSON by
+  hand;
+- the todo headless client consumes generated function references and generated
+  types;
+- a deliberate artifact version mismatch produces a structured diagnostic;
+- a deliberate schema drift between runtime and generated bindings fails CI;
+- a field present in the runtime schema but dropped from codegen fails closed
+  rather than emitting an incomplete manifest.
+
+### Phase 2: Wire JavaScript `ctx.db` handlers
+
+This phase closes the largest docs-to-product gap.
+
+Required changes:
+
+- implement the Ibex host-call bridge for the minimal `ctx.db` read and write
+  API in LLP 0004;
+- bundle handler modules with hashed dependencies and reject unsupported dynamic
+  imports or ambient dependencies with source-span diagnostics;
+- drive async handlers to completion releasing the runtime lock between
+  microtask ticks and taking the storage write lock only at commit, never across
+  the handler's async duration (LLP 0003 §Execution and Write Semantics);
+- run handlers against LLP 0003's buffered host API: consistent snapshot reads
+  fixed at handler start, the handler's own writes layered over that snapshot
+  (read-your-writes), read-only `ctx.db` to queries and read-write `ctx.db` to
+  mutations;
+- use injected runtime APIs for ids and time;
+- keep writes buffered until one commit boundary per mutation;
+- normalize handler-thrown errors into a stable diagnostic family so an
+  arbitrary handler failure never escapes as an unstructured error; if handler
+  failures do not fit Phase 0's eight families, pin a new `HANDLER_*` family in
+  LLP 0012 as a schema event rather than emitting an ad-hoc code;
+- report the bridge as a precise capability gap when unavailable.
+
+Acceptance gate:
+
+- the todo app defines `listTodos`, `createTodo`, `setCompleted` or
+  `toggleTodo`, and `deleteTodo` as JavaScript handlers using `ctx.db`;
+- the same generated function references call those handlers from headless and
+  adapter surfaces;
+- a query or mutation handler that attempts ambient filesystem, network,
+  process, or direct SQLite access fails through the runtime boundary or a
+  structured diagnostic (the network ban is scoped to queries and mutations;
+  LLP 0009 reserves network for the actions class, which this Plan does not
+  build);
+- per-invocation state does not leak between handler calls — a fresh or
+  equivalently reset context per invocation, per LLP 0009 §Invocation Isolation;
+- a handler that throws produces a structured diagnostic with a stable code, not
+  an unstructured error or raw stack trace;
+- `ibex_ctx_db_host_bridge` disappears from capability gaps only when the bridge
+  actually exists.
+
+### Phase 3: Capture read sets during handler execution
+
+This phase makes mutation isolation a property of handler execution rather than
+a caller obligation. The read-dependency capture it builds is one substrate with
+three consumers: the static function-manifest summary (Phase 1), this mutation
+conflict check, and the Phase 4 realtime matcher. LLP 0003 §Execution is explicit
+— "build it once and both the mutation-isolation check and reactive invalidation
+share it"; LLP 0008 names the shape a *dependency summary*. Build one extractor,
+not three. That same buffered-handler-plus-captured-reads substrate is also what
+a propose → check → commit dry-run would run on (LLP 0019).
+
+Required changes:
+
+- record row ids, query ranges, indexes, predicates, and auth facts that a
+  handler read or relied on;
+- validate those dependencies at mutation commit;
+- reject stale mutations with a distinct conflict diagnostic;
+- expose the captured read/write facts in admin and doctor surfaces where safe;
+- define the first retry policy explicitly. Reject-only is acceptable for v0 if
+  reported honestly.
+
+Acceptance gate:
+
+- a stale toggle or equivalent read-before-write mutation is rejected without
+  the client manually supplying a `read_set`;
+- conflict diagnostics are stable enough for tests to assert code and details;
+- the admin/function-runner surface can display the read/write facts for a
+  successful mutation and the conflict facts for a rejected one.
+
+### Phase 4: Upgrade realtime from v0 outbox to app-grade live delivery
+
+This phase should land before realtime-heavy demos are used as product evidence.
+
+Required changes:
+
+- add a dependency matcher for analyzable syncable-live queries, using the
+  *dependency summary* shape from LLP 0008 — the same read-dependency facts
+  Phase 3 captures for mutations, not a second extractor;
+- keep a correct replace/resnapshot fallback for queries the matcher cannot
+  prove;
+- make the matcher authorization-aware from the first version, applying LLP 0011
+  visibility before any delta syncs; v0 may use server-directed resubscribe on
+  permission change rather than live per-row revocation deltas (LLP 0008);
+- keep ephemeral presence/cursor/typing state on the LLP 0013 carrier, not the
+  durable live-query path;
+- add a push transport (WebSocket locally; the transport is swappable behind
+  LLP 0008's ordered-changeset contract);
+- scope subscription ids and the observed version stream to one logical app per
+  LLP 0018, even though v0 is single-app, so a later multi-app instance need not
+  retrofit it;
+- retain deterministic drain/flush hooks for tests;
+- expose subscription state, queue/backpressure state, and recent delivery
+  errors in runtime state;
+- the matcher, the push transport, and the observability work are independently
+  shippable; sequence them but do not weld them into one all-or-nothing change.
+
+Acceptance gate:
+
+- two clients can observe live updates without product-code polling;
+- an unrelated mutation does not refresh a subscription when the matcher can
+  prove disjointness;
+- a mutation to a row a subscriber cannot see neither notifies that subscriber
+  nor leaks existence through runtime state;
+- tests can force delivery deterministically without sleeps;
+- fan-out cost is measured and recorded before any messaging, kanban, or
+  collaboration demo is cited as scale evidence;
+- a target that only supports replace/poll reports that capability honestly.
+
+## Demo Admission Rule
+
+This is the core-specific specialization of LLP 0016's demo admission rule, not
+a competing authority. A demo may claim the core authoring surface only when it
+uses:
+
+- generated typed artifacts rather than hand-authored manifest JSON;
+- JavaScript handlers using `ctx.db` rather than public `HostPlan` authoring;
+- handler-captured read sets for conflict detection;
+- an honestly reported realtime capability class.
+
+A demo may still run before all phases land, but its diary must name the exact
+scaffolding it depends on and the capability class it is exercising.
+
+## Non-Goals
+
+- Do not build Postgres, Cloudflare, external auth providers, assets, cron,
+  notifications, or hosted multi-tenant isolation as part of this Plan.
+- Do not claim offline/local-first parity until local handler execution,
+  offline queueing, deterministic replay, and rebase-on-reconnect exist — the
+  mechanics owned by LLP 0008's mutation-replay contract, the parity-capability
+  claim gated by LLP 0012.
+- Do not replace the typed generated API with direct client table writes.
+- Do not make Contract/Exact requirements create private backend semantics;
+  the adapter plan is LLP 0021.
+
+## Open Questions
+
+- Which schema definition is the single source of truth for Rust and TypeScript
+  artifact generation, and does that source also own the shared
+  `ContractDataManifest` schema or only the core manifests LLP 0012 names?
+- Is the first push transport SSE, WebSocket, or a pluggable abstraction with
+  one local implementation?
+- What is the v0 read-set representation for range queries, auth predicates,
+  and read-after-write dependencies — the one shared vocabulary the static
+  manifest summary, the mutation conflict check, and the live-query matcher all
+  consume? Define it before building any of the three.
+- Does the first stale-read behavior reject only, retry automatically for pure
+  handlers, or expose both as target capabilities?
+- Which runtime resource limits can Ibex enforce in-process on the canonical
+  local target, and which must be reported as missing until one of LLP 0009's
+  three paths exists — an engine watchdog, a killable process/isolate, or a V8
+  target?
+- How visible should `HostPlan` remain in public generated artifacts after real
+  handlers land?
+
+## Status
+
+Draft. This Plan should be revised when the first real `ctx.db` todo handlers
+land, or when a typed generated package settles the artifact source-of-truth
+question. Completion should be measured by the acceptance gates above, not by
+the presence of partial implementation files.

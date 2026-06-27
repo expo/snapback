@@ -1,0 +1,333 @@
+# LLP 0011: Auth and permissions
+
+**Type:** RFC
+**Status:** Draft
+**Systems:** Auth, Sync, Storage, API, Security, Client integration
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-06-25
+**Revised:** 2026-06-25
+**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010
+
+## Summary
+
+Snapback auth is first-class application data. The paved path should provide a
+built-in auth system whose users, accounts, sessions, and membership data live
+next to the rest of the app data, while still allowing projects to bring their
+own identity provider. Permissions must feed the query and sync layer so clients
+only receive data they are allowed to see.
+
+This RFC proposes a split between authentication, which establishes who the
+request is, and authorization, which decides what that identity can read, write,
+subscribe to, and sync.
+
+This revision also records a recommended v1 answer to the auth/sync direction
+call surfaced by review: use **server-directed resubscribe on permission
+changes**, backed by authorization epochs and fail-closed stale-result handling,
+instead of requiring universal live permission re-evaluation for every connected
+subscription in v1. Precise live `remove` deltas can be an optimization for
+analyzable rules later.
+
+## Motivation
+
+LLP 0000 treats auth as a v1 subsystem and explicitly wants auth data next to app
+data. The reference apps make authorization unavoidable:
+
+- messaging requires per-conversation visibility;
+- the card game requires different players to see different hidden state;
+- finance requires sensitive-data protection;
+- team chat requires membership and channel visibility;
+- Contract/Exact Design Mode needs permission diagnostics agents can understand.
+
+Auth cannot be a frontend-only feature or a provider webhook bolted onto the
+side. It must be part of the same data, sync, and diagnostics model as the rest
+of Snapback.
+
+## Goals
+
+- Provide a built-in auth path suitable for prototypes and real apps.
+- Keep auth data queryable, joinable, exportable, and portable.
+- Support external identity providers without making them the data owner.
+- Provide a stable `ctx.auth` shape for handlers.
+- Enforce read visibility before sync data reaches clients.
+- Give agents a way to test as a user, guest, admin, or denied session.
+
+## Non-Goals
+
+- Reimplement every identity provider feature.
+- Define payments, billing, or enterprise compliance.
+- Ship a full organization/team model before the base user/session/account model
+  works.
+- Let clients hide unauthorized data visually instead of preventing sync.
+
+## Authentication Model
+
+Snapback should model at least:
+
+- user: the application-level person or actor;
+- account: a provider-linked identity such as email, OAuth, passkey, or external
+  provider subject;
+- session: a current authenticated client session;
+- token or credential metadata, stored according to the security model;
+- optional membership records owned by app or future team abstractions.
+
+The built-in provider can own account creation and session lifecycle. Bring-your-
+own provider maps external identities into Snapback users and accounts.
+
+Provider-specific claims may be retained, but application code should normally
+depend on Snapback user ids and app-owned membership data rather than raw
+provider tokens.
+
+Valet built this model and its concrete shape is worth adopting
+(`[observed - Valet LLP 0006/0042]`): Snapback owns a **stable principal id**
+(`ctx.auth.userId` is always Snapback-issued), and external providers attach via
+**identity links** in an `_auth_identities` table mapping
+`(provider_key, external_subject) → principal`. First-login provisioning is
+**transactional from the verified request** — success must not depend on a webhook
+racing in first. Password hashing (Argon2) must run **outside the DB lock**
+(hash first, then take the lock only for the brief user/session write), because the
+single-writer model serializes everything held under that lock.
+
+This refines, and partly **contradicts**, "auth is first-class application data."
+Valet deliberately kept its core `_auth_*` tables (users, accounts, sessions,
+verification codes, identities) **server-authoritative, never synced to clients, and
+hidden from generated client types**, specifically to prevent accidental leaks; the
+app-facing layer was app-defined profile/membership tables keyed by
+`ctx.auth.userId` (`[observed - Valet LLP 0006/0042]`). Reconcile the two by
+distinguishing **(a) protected identity/session/credential state** — server-owned,
+not synced, hidden from client types — from **(b) app-queryable profile and
+membership data** keyed by `userId`, which is genuinely first-class and joinable.
+"Exportable/portable" follows the same line: Valet's bundle exported identity
+(`_auth_users`/`_auth_accounts`/`_auth_identities`) but **excluded** ephemeral
+sessions, verification codes, webhook-dedupe state, and secrets.
+
+## ctx.auth
+
+Handlers receive an auth context with a stable minimum shape:
+
+```ts
+type AuthContext = {
+  userId: string | null
+  sessionId: string | null
+  isAuthenticated: boolean
+  provider?: string
+  roles?: string[]
+}
+```
+
+The final generated type may be richer, but app code should not rely on raw
+provider tokens inside ordinary queries and mutations. Test and doctor tools
+must be able to construct explicit auth contexts for validation.
+
+`ctx.auth` must be available **offline/locally** and must **agree between the
+optimistic client run and the authoritative server replay**. In Valet, `ctx.auth`
+came only from a server handshake, so a cold-start offline app could not even run a
+user-scoped sync filter — adding a local auth identity was "the single biggest
+blocker to a real offline-first demo"; and once a local identity existed, server
+replay still saw no `ctx.auth.userId`, so the two executions disagreed and
+auth-dependent mutations behaved differently
+([LLP 0006](./0006-valet-retrospective.research.md),
+`[confirmed - Valet diaries, 2026-06-25]`). The replay environment
+([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Mutation Replay) must
+carry the auth context so the server reconstructs the same `ctx.auth` the client
+optimistically used, and a local identity must never be silently mistaken for
+server-verified identity. The server remains the authority on identity — `userId`
+is derived server-side, never trusted from a client-forged token.
+
+## Authorization Model
+
+Authorization has two layers:
+
+- function-level checks inside queries and mutations;
+- data-visibility rules that constrain what rows can be read, subscribed to, and
+  synced.
+
+The second layer is the critical one for local-first. If a row is not visible to
+the current auth context, it must not enter the initial snapshot, realtime delta,
+or retained local store for that client.
+
+Draft rule shape:
+
+- rules are source-authored and generated into a manifest;
+- rules are analyzable where they affect sync;
+- rules can reference auth context, row fields, query args, and declared
+  relationships;
+- unsupported or opaque rules make a query non-syncable unless a later Spec
+  defines a safe fallback.
+
+Valet's enforced RLS pins the safe defaults this Spec should state outright
+(`[observed - Valet LLP 0006/0019]`). Rules are enforced on **writes as well as
+reads**, and the write check is **two-sided**: insert requires the new document to
+match the policy; update requires both the existing row *and* the merged result to
+match (so an update cannot move a row out of — or into — a forbidden state); delete
+requires the existing row to match; otherwise the write is rejected. The model
+**fails closed**: a missing auth variable resolves to null, which matches no rows
+(the safe default), and a filter that references auth while the client is
+unauthenticated is rejected immediately rather than returning everything. Auth
+variables in a sync filter (`{$var: "auth.userId"}`) are resolved **once at subscribe
+time**, so the filter is a pure function of `(document, resolved filter)` — see the
+local-first implications below for what that means when auth changes mid-connection.
+
+## Permission Composition
+
+The effective permission for a live query should compose:
+
+- table visibility rules;
+- query filters and args;
+- function-level checks;
+- target capability gaps;
+- admin or test impersonation mode where explicitly requested.
+
+Permission denial should be explainable. A diagnostic should identify whether a
+request failed because the user is unauthenticated, lacks membership, references
+a forbidden row, uses an unsyncable rule, or requires a target capability that is
+not present.
+
+## Bring Your Own Provider
+
+External providers are identity sources, not replacements for Snapback's app
+authorization model.
+
+The BYOP boundary should support:
+
+- mapping provider subject to Snapback account;
+- linking multiple provider accounts to one user;
+- verifying sessions or tokens through provider-specific adapters;
+- storing provider metadata needed for audit and debugging;
+- keeping app permissions in Snapback-owned tables and rules.
+
+Provider-specific features can be exposed through adapter capabilities, but the
+paved path should keep application auth decisions portable.
+
+Valet implemented a swappable provider trait (built-in, JWKS, Clerk, WorkOS, and a
+hybrid) substantially end to end, so the abstraction is proven realistic, and it
+settled several decisions this Spec should adopt rather than re-open
+(`[observed - Valet LLP 0042]`):
+
+- **Account-link safety.** Linking two identities that share a verified email is
+  allowed *within* one provider, but **cross-provider email auto-linking must be
+  opt-in only** — it is the cross-provider account-takeover vector.
+- **Webhook verification belongs to the runtime, before the adapter.** The runtime
+  performs the canonical HMAC signature check (with a replay window — Valet used 5
+  minutes — and a body-size cap before JSON parse), so a malicious caller cannot
+  reach adapter parsing code without a valid signature.
+- **Admin operations are not implicitly authorized.** Creating or banning users
+  requires an explicit `requiresAdmin`/system-invoker marker; "any mutation can
+  create users" is a bug.
+- **A provider `UserDeleted` must not cascade-delete application data by default.**
+  Mark the identity link inactive and fire an app-level cleanup hook instead — the
+  cascade-vs-retain decision is the app's, and silently deleting data "becomes a
+  compliance emergency the day the first enterprise customer asks about it."
+
+## Local-First and Realtime Implications
+
+Permissions affect sync in both directions:
+
+- reads: clients receive only authorized rows;
+- writes: mutations run with `ctx.auth` and may reject unauthorized changes;
+- permission changes: clients must not keep trusting rows they could see before
+  but may no longer see;
+- reconnect: resumed changes must be filtered through current permissions, not
+  just historical visibility.
+
+**Recommended v1 answer: resubscribe on permission change, but make it
+server-directed and fail-closed.** Because Valet resolved a subscription's auth
+variables **once at subscribe time**, an auth/permission change did not
+retroactively re-filter a live subscription; the model required a resubscribe to
+pick up new visibility (`[observed - Valet LLP 0006/0019]`). Universal
+mid-connection re-evaluation — emitting precise `remove` deltas for rows a
+still-connected client may no longer see — is real work, especially for rules that
+depend on membership tables or opaque query functions. For v1, prefer a bounded
+contract:
+
+- rules declare the auth variables and permission tables/scopes they depend on;
+- a permission-affecting write advances an authorization epoch for that scope;
+- the server sends `resync_required` to affected subscriptions or clients;
+- clients immediately mark affected results stale and, for sensitive retained
+  slices, clear them before resubscribing;
+- the fresh subscription snapshot is filtered through current permissions;
+- reconnect/resume always compares the client's epoch with the server's current
+  epoch and resnapshots if it is stale.
+
+This is stricter than Valet's stale-until-manual-resubscribe behavior and cheaper
+than making the v1 matcher solve arbitrary permission dependency invalidation.
+Precise live `remove` deltas remain a later optimization for analyzable
+single-table or membership-filter cases, using the LLP 0008 membership matcher
+when the dependency graph is known.
+
+A user's local store can contain sensitive data. **On user switch, the client must
+wipe all local data, mutation queues, and subscriptions** before resubscribing as
+the new identity — Valet does exactly this when `auth_ok` returns a different
+`userId`, "to prevent cross-user data leakage" (`[observed - Valet LLP 0006/0008]`),
+which is the concrete answer to the open question about clearing local stores on
+sign-out. Adapters should expose sign-out, session-expiry, and local-store cleanup
+behavior. The exact storage policy is target-specific, but it must be visible in
+capability reports.
+
+## Admin, Tests, and Impersonation
+
+Agents need safe impersonation. The local doctor/sandbox path should run a query,
+mutation, or subscription check as:
+
+- unauthenticated;
+- a specific user;
+- a user with specific roles or memberships;
+- admin bypass, explicitly marked.
+
+Admin bypass must never be implicit. Diagnostics and logs should clearly show
+when a permission result came from bypass mode. Valet's dev mode is the model to
+copy: it accepted any string as a user id with no signature validation, but only
+when a `--dev` flag was set, and every use was logged with a warning
+(`[observed - Valet LLP 0006]`) — explicit, logged, never the default.
+
+## Security Considerations
+
+LLP 0009 owns the runtime security model. Auth depends on it:
+
+- secrets and provider credentials are not ordinary handler globals;
+- logs redact tokens and secret claims;
+- app code cannot bypass auth by reading raw database files;
+- hosted deployments isolate sessions, users, tenants, and apps.
+
+## Validation Requirements
+
+The first auth acceptance tests should prove:
+
+- built-in user/session creation or a stub that matches the final shape;
+- `ctx.auth` passed to query and mutation handlers;
+- unauthenticated denial;
+- per-user row visibility;
+- two clients subscribed to the same logical query receiving different results;
+- write-side RLS rejection on insert, update (pre- and post-merge), and delete;
+- a fail-closed case: an unauthenticated client subscribing to an auth-filtered
+  query is rejected, not served all rows;
+- `ctx.auth` available and identical across an optimistic client run and its server
+  replay (offline-first parity);
+- a user switch wipes all local data, queues, and subscriptions before resubscribing;
+- permission change advances an authorization epoch, emits `resync_required`,
+  clears affected stale retained data when required, and resubscribes to a fresh
+  authorized snapshot;
+- doctor output explaining an allow and a deny.
+
+## Open Questions
+
+- Which analyzable permission-rule subset should later graduate from
+  server-directed resubscribe to precise live `remove` deltas?
+- What built-in auth methods ship first: email code, magic link, password,
+  OAuth, passkey, or a local dev provider?
+- Are roles a core primitive or app-level data by default?
+- How are organizations and teams modeled?
+- What is the first source syntax for permission rules? (Valet used structured,
+  serializable filter expressions resolved at subscribe time; opaque rules are not
+  incrementally matchable — see [LLP 0008](./0008-local-first-sync-and-realtime.rfc.md).)
+- (Largely answered) Local stores are cleared by a full wipe on user switch /
+  sign-out; encryption-at-rest remains open.
+- Which BYOP provider should be the first adapter? Valet shipped Clerk and WorkOS
+  adapters, so either is a proven starting point.
+
+## Status
+
+Draft. Valet's auth/RLS record ([LLP 0006](./0006-valet-retrospective.research.md))
+is folded in — the stable-principal + identity-link model, write-side fail-closed
+RLS, user-switch wipe, and webhook/admin/deletion rules are grounded in a built
+system. This draft recommends server-directed resubscribe-on-permission-change for
+v1; the author should ratify or amend that call before sync hardens.

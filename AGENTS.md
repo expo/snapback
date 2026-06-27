@@ -34,6 +34,25 @@ keeps its own LLP corpus under [`llp/`](./llp/).
 - Run `./ref-check --verbose` to validate references and metadata. CI runs the
   same check on pushes and pull requests.
 
+## Demo application diaries
+
+- When building or substantially changing a demo application with Snapback,
+  create or update a diary in `diaries/`.
+- Diary files use the same numeric convention as LLP documents:
+  `NNNN-slug.diary.md`, for example `0001-todo-demo.diary.md`. Use the next
+  available number for a new demo; append dated entries to an existing diary
+  when continuing work on the same demo.
+- Each diary should capture the agent's concrete build experience: what felt
+  good or easy, what felt bad or hard, where Snapback was ergonomic or
+  surprising, and what workarounds were needed.
+- When the demo also uses Exact or Contract, include observations about those
+  tools separately from Snapback where useful.
+- Compare the experience against familiar alternatives when relevant, including
+  React plus Convex or Supabase, or any other applicable comparison. Call out
+  where Snapback, Exact, or Contract reduced friction, added friction, or
+  changed the shape of the work.
+- Land the diary update with the demo change that produced the observations.
+
 ## Agent skills
 
 <!-- BEGIN LLP SKILLS MANAGED BLOCK -->
