@@ -84,8 +84,8 @@ JavaScript `ctx.db` create/toggle/delete mutations, HostPlan edit-title coverage
 with server-owned system fields, user-scoped
 auth filtering, an authoritative live-subscription snapshot, a realtime update
 reaching a second client, matcher skips for unrelated user-scoped mutations and
-hidden-row patch/delete changes, captured equality-predicate matching beyond
-auth scope, WebSocket push delivery of `live_replace` updates, inspectable
+hidden-row patch/delete changes, captured equality and `In` predicate matching,
+WebSocket push delivery of `live_replace` updates, inspectable
 live-delivery skip/delivery counts, an ordinary query
 honestly reported as **not** syncable
 (`SNAPBACK_FUNCTION_NOT_LIVE`), admin-runner display of captured handler
@@ -113,7 +113,7 @@ Ibex `ctx.db` bridge for the todo live query plus create/toggle/delete handlers;
 it captures handler read dependencies at commit and rejects conflicts, but does
 not retry automatically, use a precise captured query-range matcher, emit
 incremental deltas, enforce CPU/wall-clock budgets, or remove the remaining
-HostPlan fixture paths. Its realtime matcher is a conservative
-table/equality-predicate slice that delivers `live_replace` updates over the
-WebSocket stream and the deterministic outbox. See
+HostPlan fixture paths. Its realtime matcher is a conservative table/equality
+and `In` predicate slice that delivers `live_replace` updates over the WebSocket
+stream and the deterministic outbox. See
 `demo.snapback.json` `capabilityGaps` / `notClaiming`.

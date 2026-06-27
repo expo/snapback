@@ -861,6 +861,35 @@ fn build_query_sql(
                 values.push(json_to_sql_value(&value, field_type)?);
                 where_parts.push(format!("{} = ?", quote_ident(&filter.field)?));
             }
+            FilterOp::In => {
+                let field_type = field_type(table, &filter.field);
+                let value = eval_expr(&filter.value, input, bindings, now_ms)?;
+                let Some(items) = value.as_array() else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+                        "query",
+                        format!(
+                            "query filter {}.{} In expects an array",
+                            table.name, filter.field
+                        ),
+                    )
+                    .with_detail("field", Value::String(filter.field.clone()))
+                    .with_detail("op", Value::String("In".to_owned()))
+                    .with_detail("value", value));
+                };
+                if items.is_empty() {
+                    where_parts.push("1 = 0".to_owned());
+                } else {
+                    for item in items {
+                        values.push(json_to_sql_value(item, field_type)?);
+                    }
+                    let placeholders = (0..items.len()).map(|_| "?").collect::<Vec<_>>().join(", ");
+                    where_parts.push(format!(
+                        "{} IN ({placeholders})",
+                        quote_ident(&filter.field)?
+                    ));
+                }
+            }
         }
     }
 

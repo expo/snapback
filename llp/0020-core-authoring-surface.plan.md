@@ -316,7 +316,7 @@ Acceptance gate:
 
 Implementation note, 2026-06-27: the local matcher now stores the captured
 `CapturedReadDependency::Query` facts from each live subscription and skips live
-query refreshes when table summaries or equality predicates prove a change is
+query refreshes when table summaries or `Eq`/`In` predicates prove a change is
 disjoint. The todo `userId` auth filter is one equality case, not a bespoke
 matcher path. Change events carry changed field names so updates that touch
 predicate fields fall back to rerun instead of being skipped incorrectly. Deletes
@@ -324,8 +324,8 @@ carry the deleted row into the in-memory change event so hidden-row deletes can
 be proved disjoint without leaking the row to clients. The delivery shape remains
 `live_replace`, now available over a local WebSocket stream as well as the
 deterministic outbox, and `/inspect` exposes `liveDelivery` fan-out, delivery,
-and skip counts. Permission epochs and a precise non-equality/range matcher over
-the full Phase 3 dependency vocabulary remain open.
+and skip counts. Permission epochs and a precise range/boundary matcher over the
+full Phase 3 dependency vocabulary remain open.
 
 #### Remaining Phase 4 design: dependency vocabulary and auth epochs
 
@@ -470,8 +470,9 @@ scaffolding it depends on and the capability class it is exercising.
 ## Status
 
 Draft. Phases 1 through 3 have landed as local slices, Phase 4 has conservative
-matcher, observability, and WebSocket push slices, and the remaining Phase 4
-dependency-vocabulary shape is now pinned in this Plan. Completion still
+matcher, observability, WebSocket push, and first `In` predicate slices, and the
+remaining Phase 4 dependency-vocabulary shape is now pinned in this Plan.
+Completion still
 requires implementing permission-change resync and the precise matcher work, then
 passing the acceptance gates above, not merely the presence of partial
 implementation files.

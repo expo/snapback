@@ -48,9 +48,12 @@
   "storageEngine": "sqlite",
   "supportedQueryForms": [
     "host-plan-single-table-eq",
+    "host-plan-single-table-in",
     "host-plan-live-replace",
     "ibex-ctx-db-single-table-eq",
+    "ibex-ctx-db-single-table-in",
     "ibex-live-eq-replace",
+    "ibex-live-in-replace",
     "websocket-live-replace"
   ],
   "syncableLiveQueries": true,

@@ -1,7 +1,7 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
-    FilterOp, FunctionDefinition, FunctionRuntime, HandlerInput, HandlerPlan, QueryOutput,
-    QueryPlan, ValueExpr,
+    FilterExpr, FilterOp, FunctionDefinition, FunctionRuntime, HandlerInput, HandlerPlan,
+    QueryOutput, QueryPlan, ValueExpr,
 };
 use crate::storage::{
     CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, LocalDatabase,
@@ -177,16 +177,23 @@ fn change_may_affect_query_plan(
 
 fn row_matches_query_filters(plan: &QueryPlan, input: &HandlerInput, row: &Value) -> Option<bool> {
     for filter in &plan.filters {
-        if filter.op != FilterOp::Eq {
-            return None;
-        }
-        let actual = row.get(&filter.field)?;
-        let expected = eval_match_expr(&filter.value, input)?;
-        if !values_equal(actual, &expected) {
+        if !filter_matches_row(filter, input, row)? {
             return Some(false);
         }
     }
     Some(true)
+}
+
+fn filter_matches_row(filter: &FilterExpr, input: &HandlerInput, row: &Value) -> Option<bool> {
+    let actual = row.get(&filter.field)?;
+    let expected = eval_match_expr(&filter.value, input)?;
+    match filter.op {
+        FilterOp::Eq => Some(values_equal(actual, &expected)),
+        FilterOp::In => {
+            let values = expected.as_array()?;
+            Some(values.iter().any(|value| values_equal(actual, value)))
+        }
+    }
 }
 
 fn update_may_have_changed_query_membership(plan: &QueryPlan, change: &ChangedRow) -> bool {

@@ -323,6 +323,7 @@ pub struct FilterExpr {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum FilterOp {
     Eq,
+    In,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -516,9 +517,12 @@ impl CapabilityManifest {
             notifications: false,
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
+                "host-plan-single-table-in".to_owned(),
                 "host-plan-live-replace".to_owned(),
                 "ibex-ctx-db-single-table-eq".to_owned(),
+                "ibex-ctx-db-single-table-in".to_owned(),
                 "ibex-live-eq-replace".to_owned(),
+                "ibex-live-in-replace".to_owned(),
                 "websocket-live-replace".to_owned(),
             ],
             portability_opt_outs: Vec::new(),

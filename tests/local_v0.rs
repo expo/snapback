@@ -289,6 +289,64 @@ fn live_matcher_uses_captured_equality_predicates_beyond_auth_scope() {
 }
 
 #[test]
+fn live_matcher_uses_captured_in_predicates() {
+    let mut functions = ibex_todo_functions(IN_TODOS_HANDLER_SOURCE);
+    let list = functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "listTodos")
+        .expect("listTodos function");
+    list.read_set_summary.auth_scope_field = None;
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(functions);
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe completed todos");
+
+    let created = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(
+                json!({ "title": "Still open", "completed": false }),
+                "user_1",
+            ),
+        )
+        .expect("create incomplete todo");
+    let todo_id = created.result.as_str().unwrap().to_owned();
+    assert_eq!(snapback.drain_outbox("client_a"), Vec::new());
+    let inspect = snapback.inspect().expect("inspect incomplete skip");
+    assert_eq!(inspect.live_delivery.last_deliveries, 0);
+    assert_eq!(inspect.live_delivery.last_skipped, 1);
+
+    snapback
+        .invoke_mutation(
+            "setCompleted",
+            input(json!({ "id": todo_id, "completed": true }), "user_1"),
+        )
+        .expect("complete todo");
+    let messages = snapback.drain_outbox("client_a");
+    assert_eq!(messages.len(), 1);
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable completion update");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("live update json");
+    assert_eq!(update["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(update["rows"][0]["_id"], todo_id);
+    assert_eq!(update["rows"][0]["completed"], true);
+    let inspect = snapback.inspect().expect("inspect completion delivery");
+    assert_eq!(inspect.live_delivery.last_deliveries, 1);
+    assert_eq!(inspect.live_delivery.last_skipped, 0);
+}
+
+#[test]
 fn function_runner_surfaces_captured_handler_read_and_write_facts() {
     let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
     let created = snapback.run_function(
@@ -603,7 +661,19 @@ fn inspect_exposes_v0_runtime_and_capability_artifacts() {
         inspect
             .capability_manifest
             .supported_query_forms
+            .contains(&"ibex-ctx-db-single-table-in".to_owned())
+    );
+    assert!(
+        inspect
+            .capability_manifest
+            .supported_query_forms
             .contains(&"ibex-live-eq-replace".to_owned())
+    );
+    assert!(
+        inspect
+            .capability_manifest
+            .supported_query_forms
+            .contains(&"ibex-live-in-replace".to_owned())
     );
     assert!(
         inspect
@@ -744,6 +814,40 @@ globalThis.__snapbackHandlers = {
     return await ctx.db
       .query('todos')
       .eq('completed', true)
+      .order('_createdAt', 'asc')
+      .collect();
+  },
+
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', {
+      title: args.title,
+      completed: args.completed,
+      userId: ctx.auth.userId,
+    });
+  },
+
+  async setCompleted(ctx, args) {
+    const todo = await ctx.db.get('todos', args.id);
+    if (!todo) return 0;
+    return (await ctx.db.patch('todos', args.id, {
+      completed: args.completed,
+    })) ? 1 : 0;
+  },
+
+  async deleteTodo(ctx, args) {
+    const todo = await ctx.db.get('todos', args.id);
+    if (!todo) return 0;
+    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;
+  }
+};
+"#;
+
+const IN_TODOS_HANDLER_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async listTodos(ctx) {
+    return await ctx.db
+      .query('todos')
+      .in('completed', [true])
       .order('_createdAt', 'asc')
       .collect();
   },

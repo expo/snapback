@@ -36,7 +36,7 @@ globalThis.__snapbackHandlers = {
     return await ctx.db
       .query('todos')
       .eq('userId', ctx.auth.userId)
-      .eq('completed', true)
+      .in('completed', [true])
       .order('_createdAt', 'asc')
       .collect();
   }
@@ -72,6 +72,7 @@ try {
     assertEqual(state.runtime.ibex_ctx_db_host_bridge, 'Available', 'embedded ctx.db bridge capability');
     assert(!state.capability_gaps.includes('ibex_ctx_db_host_bridge'), 'ctx.db bridge should not be reported as a gap once wired');
     assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-eq-replace'), 'live matcher capability form');
+    assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-in-replace'), 'live matcher In capability form');
     assert(state.capabilityManifest.supportedQueryForms.includes('websocket-live-replace'), 'websocket live replace capability form');
     assert(!state.capabilityManifest.capabilityGaps.includes('websocket_push_transport'), 'push transport should not be a gap once wired');
     assert(state.capabilityManifest.capabilityGaps.includes('precise_realtime_query_range_matcher'), 'precise range matcher should still be a gap');
@@ -198,7 +199,7 @@ try {
     return { hiddenId: hidden.result, liveDelivery: deleteState.liveDelivery };
   });
 
-  await suite.check('realtime matcher uses captured equality predicates beyond auth scope', async () => {
+  await suite.check('realtime matcher uses captured In predicates beyond auth scope', async () => {
     await db.loadFunctions(functionManifestWithCompletedLiveQuery());
     await db.reset();
     const completed = await db.liveQuery(completedLiveRef, { connectionId: 'client_completed', userId: ADA });

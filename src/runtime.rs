@@ -560,6 +560,10 @@ fn ctx_bootstrap_source() -> &'static str {
         plan.filters.push({ field: field, op: "Eq", value: literal(value) });
         return builder;
       },
+      in: function(field, values) {
+        plan.filters.push({ field: field, op: "In", value: literal(values) });
+        return builder;
+      },
       order: function(field, direction) {
         plan.order.push({ field: field, direction: normalizeDirection(direction) });
         return builder;
