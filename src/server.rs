@@ -12,7 +12,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
@@ -190,7 +190,13 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
             incoming = receiver.next() => {
                 match incoming {
                     Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
-                    Some(Ok(_)) => {}
+                    Some(Ok(Message::Text(text))) => {
+                        let response = handle_live_socket_text(&state, &text).await;
+                        if sender.send(Message::Text(response.into())).await.is_err() {
+                            return;
+                        }
+                    }
+                    Some(Ok(Message::Binary(_))) | Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => {}
                 }
             }
             _ = ticks.tick() => {
@@ -205,6 +211,118 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
                 }
             }
         }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum LiveSocketClientMessage {
+    EphemeralSubscribe {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+        request: SubscribeRequest,
+    },
+    EphemeralPublish {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+        request: PublishRequest,
+    },
+    EphemeralDelete {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+        request: DeleteRequest,
+    },
+}
+
+async fn handle_live_socket_text(state: &SharedSnapback, text: &str) -> String {
+    let message = match serde_json::from_str::<LiveSocketClientMessage>(text) {
+        Ok(message) => message,
+        Err(error) => {
+            return socket_error(
+                None,
+                "decode",
+                Diagnostic::error(
+                    "SNAPBACK_WEBSOCKET_MESSAGE_INVALID",
+                    "realtime",
+                    "WebSocket message could not be decoded",
+                )
+                .with_details(json!({ "error": error.to_string() })),
+            );
+        }
+    };
+
+    match message {
+        LiveSocketClientMessage::EphemeralSubscribe {
+            request_id,
+            request,
+        } => {
+            let outcome = {
+                let mut snapback = state.lock().await;
+                snapback.subscribe_ephemeral(request, now_millis())
+            };
+            match outcome {
+                Ok(message) => socket_ack(request_id, "subscribe", json!({ "message": message })),
+                Err(error) => {
+                    socket_error(request_id, "subscribe", diagnostic_from_ephemeral(error))
+                }
+            }
+        }
+        LiveSocketClientMessage::EphemeralPublish {
+            request_id,
+            request,
+        } => {
+            let outcome = {
+                let mut snapback = state.lock().await;
+                snapback.publish_ephemeral(request, now_millis())
+            };
+            match outcome {
+                Ok(outcome) => socket_ack(request_id, "publish", json!({ "outcome": outcome })),
+                Err(error) => socket_error(request_id, "publish", diagnostic_from_ephemeral(error)),
+            }
+        }
+        LiveSocketClientMessage::EphemeralDelete {
+            request_id,
+            request,
+        } => {
+            let outcome = {
+                let mut snapback = state.lock().await;
+                snapback.delete_ephemeral(request, now_millis())
+            };
+            match outcome {
+                Ok(message) => socket_ack(request_id, "delete", json!({ "message": message })),
+                Err(error) => socket_error(request_id, "delete", diagnostic_from_ephemeral(error)),
+            }
+        }
+    }
+}
+
+fn socket_ack(request_id: Option<String>, operation: &str, mut body: Value) -> String {
+    let mut envelope = json!({
+        "kind": "ephemeral_ack",
+        "requestId": request_id,
+        "operation": operation,
+    });
+    merge_json_object(&mut envelope, body.take());
+    serde_json::to_string(&envelope)
+        .unwrap_or_else(|_| "{\"kind\":\"ephemeral_error\",\"operation\":\"serialize\"}".to_owned())
+}
+
+fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnostic) -> String {
+    serde_json::to_string(&json!({
+        "kind": "ephemeral_error",
+        "requestId": request_id,
+        "operation": operation,
+        "diagnostic": diagnostic,
+    }))
+    .unwrap_or_else(|_| "{\"kind\":\"ephemeral_error\",\"operation\":\"serialize\"}".to_owned())
+}
+
+fn merge_json_object(target: &mut Value, source: Value) {
+    let (Some(target), Some(source)) = (target.as_object_mut(), source.as_object()) else {
+        return;
+    };
+    for (key, value) in source {
+        target.insert(key.clone(), value.clone());
     }
 }
 
@@ -278,14 +396,15 @@ pub struct ApiError(SnapbackError);
 
 impl ApiError {
     fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
-        let mut diagnostic = Diagnostic::error(
-            format!("SNAPBACK_EPHEMERAL_{:?}", error.code),
-            "ephemeral",
-            error.message,
-        );
-        diagnostic.details = json!({ "code": error.code });
-        Self(SnapbackError::new(diagnostic))
+        Self(SnapbackError::new(diagnostic_from_ephemeral(error)))
     }
+}
+
+fn diagnostic_from_ephemeral(error: crate::ephemeral::EphemeralError) -> Diagnostic {
+    let mut diagnostic =
+        Diagnostic::error(error.code.diagnostic_code(), "ephemeral", error.message);
+    diagnostic.details = json!({ "code": error.code });
+    diagnostic
 }
 
 impl From<SnapbackError> for ApiError {

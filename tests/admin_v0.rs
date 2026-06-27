@@ -40,7 +40,7 @@ async fn console_and_inspect_serve_from_one_server_without_vite() {
     assert!(ctype.starts_with("text/html"), "console served as HTML");
     let body = text(html).await;
     assert!(
-        body.contains("Snapback admin"),
+        body.contains("Snapback Admin Console"),
         "console bundle is embedded"
     );
 

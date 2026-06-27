@@ -12,6 +12,8 @@
 // never a field quietly missing from the persisted schema.
 
 const FN = Symbol('snapback.fn');
+const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
+const EPHEMERAL = Symbol('snapback.ephemeral');
 
 // ---------------------------------------------------------------------------
 // Validators (field + arg types). The vocabulary maps 1:1 onto the server's
@@ -29,7 +31,15 @@ export const v = {
   boolean: () => validator('Boolean', 'boolean'),
   integer: () => validator('Integer', 'number'),
   real: () => validator('Real', 'number'),
+  number: () => validator('Real', 'number'),
   json: () => validator('Json', 'unknown'),
+  object: (fields) => {
+    assert(fields && typeof fields === 'object' && !Array.isArray(fields), 'v.object() expects a fields object');
+    for (const [name, val] of Object.entries(fields)) {
+      assert(val && val.__validator, `object field ${name} must be a validator`);
+    }
+    return { __validator: true, fieldType: 'Json', primitive: 'object', fields, optional: false };
+  },
   optional: (inner) => {
     assert(inner && inner.__validator, 'v.optional() expects a validator');
     return { ...inner, optional: true };
@@ -70,12 +80,66 @@ export function defineTable(fields) {
   return new TableBuilder(fields);
 }
 
-export function defineSchema(tables) {
+export function defineSchema(tables, options = {}) {
   assert(tables && typeof tables === 'object', 'defineSchema expects a tables object');
   for (const [name, table] of Object.entries(tables)) {
     assert(table && table.__table, `table ${name} must be defineTable(...)`);
   }
-  return { __schema: true, tables };
+  const ephemeralDef = options.ephemeral ?? null;
+  if (ephemeralDef !== null) {
+    assert(ephemeralDef && ephemeralDef[EPHEMERAL], 'defineSchema option "ephemeral" must be defineEphemeral(...)');
+  }
+  return { __schema: true, tables, ephemeral: ephemeralDef };
+}
+
+// ---------------------------------------------------------------------------
+// Ephemeral realtime collections
+// ---------------------------------------------------------------------------
+// @ref LLP 0013#proposal — source-authored ephemeral collections are typed,
+// scoped, TTL-bounded latest-state maps rather than ad hoc realtime routes.
+
+export const allow = {
+  all: () => ({ __accessPolicy: true, kind: 'AllowAll' }),
+  roomPermission: (prefix) => {
+    assert(typeof prefix === 'string' && prefix.length > 0, 'allow.roomPermission() expects a prefix');
+    return { __accessPolicy: true, kind: 'RequireRoomPermission', prefix };
+  },
+};
+
+export const ephemeral = {
+  collection(spec) {
+    assert(spec && typeof spec === 'object', 'ephemeral.collection() expects a spec object');
+    assert(spec.scope && typeof spec.scope === 'object', 'ephemeral.collection() requires scope');
+    for (const [name, val] of Object.entries(spec.scope)) {
+      assert(val && val.__validator, `ephemeral scope ${name} must be a validator`);
+    }
+    assert(spec.value && spec.value.__validator, 'ephemeral.collection() requires a value validator');
+    return {
+      [EPHEMERAL_COLLECTION]: true,
+      scope: spec.scope,
+      routing: spec.routing ?? Object.keys(spec.scope),
+      key: spec.key ?? 'connection',
+      ttlMs: spec.ttlMs,
+      maxTtlMs: spec.maxTtlMs ?? 30_000,
+      maxValueBytes: spec.maxValueBytes ?? 1_024,
+      hardMaxValueBytes: spec.hardMaxValueBytes ?? 4_096,
+      publishRate: spec.publishRate ?? { sustainedHz: 20, burst: 60 },
+      delivery: spec.delivery ?? { mode: 'latest', dispatchMs: 33 },
+      publish: spec.publish,
+      subscribe: spec.subscribe,
+      value: spec.value,
+      targets: spec.targets ?? ['local-dev-sqlite-ibex'],
+      maxPendingEphemeralKeys: spec.maxPendingEphemeralKeys ?? 1_024,
+    };
+  },
+};
+
+export function defineEphemeral(collections) {
+  assert(collections && typeof collections === 'object', 'defineEphemeral expects a collections object');
+  for (const [name, collection] of Object.entries(collections)) {
+    assert(collection && collection[EPHEMERAL_COLLECTION], `ephemeral collection ${name} must be ephemeral.collection(...)`);
+  }
+  return { [EPHEMERAL]: true, collections };
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +255,10 @@ export function defineJsMutation(spec) {
 
 export function isFunctionDef(value) {
   return Boolean(value && value[FN]);
+}
+
+export function isEphemeralCollectionDef(value) {
+  return Boolean(value && value[EPHEMERAL_COLLECTION]);
 }
 
 export function assert(cond, message) {

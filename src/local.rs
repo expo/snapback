@@ -189,7 +189,9 @@ impl LocalSnapback {
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         manifest.validate_artifact()?;
+        let ephemeral_collections = manifest.ephemeral_collections.clone();
         let diagnostics = self.db.apply_schema(manifest)?;
+        self.ephemeral.replace_collections(ephemeral_collections);
         self.record_diagnostics(diagnostics.clone());
         Ok(diagnostics)
     }
@@ -226,6 +228,7 @@ impl LocalSnapback {
         self.db.reset()?;
         self.subscriptions.clear();
         self.permission_epochs.clear();
+        self.ephemeral.reset_runtime_state();
         self.live_delivery = LiveDeliveryStats::default();
         self.next_subscription_id = 0;
         Ok(())
@@ -278,6 +281,8 @@ impl LocalSnapback {
             "assets".to_owned(),
             "cron".to_owned(),
             "notifications".to_owned(),
+            "ephemeral_hosted_adapter".to_owned(),
+            "ephemeral_multi_instance_sticky_routing".to_owned(),
         ];
         if self.runtime.capabilities().ibex_cli.available {
             capability_gaps.retain(|gap| gap != "ibex_cli");

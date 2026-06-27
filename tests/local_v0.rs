@@ -1,7 +1,7 @@
 use serde_json::{Map, Value, json};
 use snapback::ephemeral::{
-    AuthContext, EphemeralCollection, EphemeralMessage, PublishRequest, RealtimeEnvelope, Scope,
-    SubscribeRequest,
+    AuthContext, ClientEphemeralOverlay, EphemeralCollection, EphemeralErrorCode, EphemeralMessage,
+    OverlayApply, PublishRequest, RealtimeEnvelope, Scope, SubscribeRequest,
 };
 use snapback::local::{LiveResumeInput, LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
@@ -976,6 +976,178 @@ fn local_snapback_reuses_in_memory_ephemeral_store() {
 }
 
 #[test]
+fn schema_manifest_registers_authorized_ephemeral_board_cursors() {
+    let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId")
+        .require_room_permission("boardMember");
+    collection.burst = 2;
+    collection.sustained_hz = 1;
+
+    let mut schema = todo_schema();
+    schema.ephemeral_collections = vec![collection];
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(schema).expect("apply schema");
+    let scope = Scope::from_pairs([("boardId", "board_1")]);
+    let member = AuthContext::default().with_room_permission("boardMember", &scope);
+    let non_member = AuthContext::default();
+
+    let denied = snapback
+        .subscribe_ephemeral(
+            SubscribeRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "intruder".to_owned(),
+                auth: non_member.clone(),
+            },
+            1_000,
+        )
+        .expect_err("non-member subscribe should fail");
+    assert_eq!(denied.code, EphemeralErrorCode::Unauthorized);
+
+    let snapshot = snapback
+        .subscribe_ephemeral(
+            SubscribeRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "observer".to_owned(),
+                auth: member.clone(),
+            },
+            1_000,
+        )
+        .expect("member subscribe");
+    assert!(matches!(snapshot, EphemeralMessage::Snapshot { .. }));
+
+    let denied_publish = snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "intruder".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: br#"{"x":0,"y":0}"#.to_vec(),
+                ttl_ms: None,
+                auth: non_member,
+            },
+            1_001,
+        )
+        .expect_err("non-member publish should fail");
+    assert_eq!(denied_publish.code, EphemeralErrorCode::Unauthorized);
+
+    snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "publisher".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: br#"{"x":1,"y":2}"#.to_vec(),
+                ttl_ms: Some(5_000),
+                auth: member.clone(),
+            },
+            1_002,
+        )
+        .expect("first publish");
+    assert_eq!(
+        snapback.inspect().expect("inspect").storage.version,
+        0,
+        "ephemeral publish must not advance durable storage"
+    );
+
+    let messages = snapback.drain_outbox("observer");
+    let RealtimeEnvelope::Ephemeral(first_upsert) = &messages[0] else {
+        panic!("expected ephemeral upsert");
+    };
+    let mut overlay = ClientEphemeralOverlay::default();
+    assert_eq!(overlay.apply(&snapshot), OverlayApply::Applied);
+    assert_eq!(overlay.apply(first_upsert), OverlayApply::Applied);
+    let room = match first_upsert {
+        EphemeralMessage::Upsert { room, .. } => room.clone(),
+        _ => panic!("expected upsert"),
+    };
+    assert_eq!(overlay.room_entries(&room).len(), 1);
+
+    snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "publisher".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: br#"{"x":2,"y":3}"#.to_vec(),
+                ttl_ms: None,
+                auth: member.clone(),
+            },
+            1_003,
+        )
+        .expect("second publish within burst");
+    let rate_limited = snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "publisher".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: br#"{"x":3,"y":4}"#.to_vec(),
+                ttl_ms: None,
+                auth: member.clone(),
+            },
+            1_003,
+        )
+        .expect_err("third publish at same instant should rate limit");
+    assert_eq!(rate_limited.code, EphemeralErrorCode::RateLimited);
+
+    let oversized = snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "oversized".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: vec![b'x'; 1_025],
+                ttl_ms: None,
+                auth: member.clone(),
+            },
+            1_004,
+        )
+        .expect_err("oversized publish should fail");
+    assert_eq!(oversized.code, EphemeralErrorCode::ValueTooLarge);
+
+    snapback.cleanup_ephemeral(6_003);
+    let expired = snapback.drain_outbox("observer");
+    assert!(
+        expired.iter().any(|message| {
+            matches!(
+                message,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Remove {
+                    reason: snapback::ephemeral::RemoveReason::Expired,
+                    ..
+                })
+            )
+        }),
+        "expected TTL expiry remove"
+    );
+
+    let inspect = snapback.inspect().expect("inspect ephemeral diagnostics");
+    assert_eq!(inspect.ephemeral.room_count, 1);
+    assert_eq!(inspect.ephemeral.entry_count, 0);
+    assert_eq!(inspect.ephemeral.rejected_publishes, 2);
+    assert!(inspect.ephemeral.rate_limited_publishes >= 1);
+    assert!(inspect.ephemeral.oversized_publishes >= 1);
+    assert!(inspect.ephemeral.unauthorized_requests >= 2);
+    assert_eq!(inspect.ephemeral.active_rooms[0].collection, "boardCursors");
+}
+
+#[test]
 fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     let schema: SchemaManifest = serde_json::from_str(include_str!(
         "../demos/todo/snapback/generated/schema.manifest.json"
@@ -1000,7 +1172,7 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(functions.schema_version, "snapback.v0");
     assert_eq!(
         functions.bundle_hash.as_deref(),
-        Some("sha256:1b8135f2cb014d3c")
+        Some("sha256:1adb2568952dc18f")
     );
 
     let list = functions

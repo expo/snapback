@@ -15,7 +15,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isFunctionDef } from './define.mjs';
+import { isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -94,6 +94,7 @@ export async function generate(backendDir) {
   }
 
   // --- Build + validate functions --------------------------------------------
+  const ephemeralCollections = buildEphemeralCollections(schemaDef.ephemeral, err);
   const functions = [];
   const contractQueries = {};
   const contractMutations = {};
@@ -284,6 +285,7 @@ export async function generate(backendDir) {
     targetProfile: TARGET_PROFILE,
     portabilityFlags: [],
     artifactDiagnostics: [],
+    ephemeralCollections,
     tables: Object.values(tables),
   };
   const functionManifest = {
@@ -307,6 +309,10 @@ export async function generate(backendDir) {
     syncableLiveQueries: true,
     onlineOnlyQueries: true,
     replaceOnlyQueries: true,
+    ephemeralRealtime: true,
+    ephemeralWebSocketPublish: true,
+    ephemeralLocalRoomAuthority: true,
+    ephemeralHostedAdapter: false,
     offlineRetention: false,
     optimisticReplay: false,
     mutationIsolationMode: 'handler-captured-read-set-validation',
@@ -316,13 +322,16 @@ export async function generate(backendDir) {
     outboundActions: false,
     cron: false,
     notifications: false,
-    supportedQueryForms: ['host-plan-single-table-eq', 'host-plan-single-table-in', 'host-plan-single-table-range', 'host-plan-live-replace', 'ibex-ctx-db-single-table-eq', 'ibex-ctx-db-single-table-in', 'ibex-ctx-db-single-table-range', 'ibex-live-eq-replace', 'ibex-live-in-replace', 'ibex-live-range-replace', 'ibex-live-limited-boundary-replace', 'websocket-live-replace'],
+    supportedQueryForms: ['host-plan-single-table-eq', 'host-plan-single-table-in', 'host-plan-single-table-range', 'host-plan-live-replace', 'ibex-ctx-db-single-table-eq', 'ibex-ctx-db-single-table-in', 'ibex-ctx-db-single-table-range', 'ibex-live-eq-replace', 'ibex-live-in-replace', 'ibex-live-range-replace', 'ibex-live-limited-boundary-replace', 'websocket-live-replace', 'ephemeral-latest-state-local', 'websocket-ephemeral-publish'],
     portabilityOptOuts: [],
     resourceLimits: [
       { name: 'wall_clock_timeout', status: 'Missing' },
       { name: 'cpu_budget', status: 'Missing' },
       { name: 'maximum_result_size', status: 'Advisory' },
       { name: 'maximum_subscription_count', status: 'Advisory' },
+      { name: 'ephemeral_value_size', status: 'Enforced' },
+      { name: 'ephemeral_publish_rate', status: 'Enforced' },
+      { name: 'ephemeral_durable_lane_priority', status: 'Enforced' },
     ],
     capabilityGaps: [
       'offline_mutation_replay',
@@ -333,6 +342,8 @@ export async function generate(backendDir) {
       'assets',
       'cron',
       'notifications',
+      'ephemeral_hosted_adapter',
+      'ephemeral_multi_instance_sticky_routing',
     ],
   };
   const contractManifest = {
@@ -363,8 +374,8 @@ export async function generate(backendDir) {
   mkdirSync(outDir, { recursive: true });
   rmSync(contractOutDir, { recursive: true, force: true });
   mkdirSync(contractOutDir, { recursive: true });
-  const apiModule = renderApiModule(appId, functionManifest.functions);
-  const apiTypes = renderApiTypes(functionManifest.functions, functionsModule);
+  const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
+  const apiTypes = renderApiTypes(functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule);
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
@@ -401,6 +412,7 @@ export async function generate(backendDir) {
       bundleHash,
       artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...contractArtifactFiles],
       tables: Object.keys(tables),
+      ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
       functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
     }) + '\n',
   );
@@ -433,6 +445,104 @@ export async function generate(backendDir) {
     }
     return handlerSourceCache.get(absolute);
   }
+}
+
+function buildEphemeralCollections(ephemeralDef, err) {
+  if (!ephemeralDef) return [];
+
+  // @ref LLP 0013#agent-and-developer-diagnostics — missing TTL/auth/routing
+  // and unsupported targets must be generated diagnostics, not silent drops.
+  const collections = [];
+  for (const [name, def] of Object.entries(ephemeralDef.collections ?? {})) {
+    if (!IDENT.test(name)) {
+      err('EPHEMERAL_INVALID_IDENTIFIER', 'ephemeral', `invalid ephemeral collection identifier ${name}`, { collection: name });
+      continue;
+    }
+    if (!isEphemeralCollectionDef(def)) {
+      err('EPHEMERAL_INVALID_COLLECTION', 'ephemeral', `${name} must be ephemeral.collection(...)`, { collection: name });
+      continue;
+    }
+
+    const scopeFields = Object.keys(def.scope ?? {});
+    if (scopeFields.length === 0) {
+      err('EPHEMERAL_EMPTY_SCOPE', 'ephemeral', `${name} needs at least one scope field`, { collection: name });
+    }
+    for (const field of scopeFields) {
+      if (!IDENT.test(field)) {
+        err('EPHEMERAL_INVALID_SCOPE_FIELD', 'ephemeral', `${name} has invalid scope field ${field}`, { collection: name, field });
+      }
+    }
+
+    const routingFields = def.routing ?? scopeFields;
+    if (!Array.isArray(routingFields) || routingFields.length === 0) {
+      err('EPHEMERAL_UNSAFE_ROUTING', 'ephemeral', `${name} needs at least one routing field`, { collection: name });
+    }
+    for (const field of routingFields) {
+      if (!scopeFields.includes(field)) {
+        err('EPHEMERAL_UNSAFE_ROUTING', 'ephemeral', `${name} routes by ${field}, which is not in its scope`, { collection: name, field, scopeFields });
+      }
+    }
+
+    if (!Number.isInteger(def.ttlMs) || def.ttlMs <= 0) {
+      err('EPHEMERAL_MISSING_TTL', 'ephemeral', `${name} needs a positive ttlMs`, { collection: name });
+    }
+    if (def.maxTtlMs < def.ttlMs) {
+      err('EPHEMERAL_INVALID_TTL', 'ephemeral', `${name} maxTtlMs is below ttlMs`, { collection: name, ttlMs: def.ttlMs, maxTtlMs: def.maxTtlMs });
+    }
+    if (def.maxValueBytes > def.hardMaxValueBytes || def.maxValueBytes > 4_096) {
+      err('EPHEMERAL_VALUE_BUDGET_TOO_LARGE', 'ephemeral', `${name} maxValueBytes exceeds the local hard cap`, {
+        collection: name,
+        maxValueBytes: def.maxValueBytes,
+        hardMaxValueBytes: def.hardMaxValueBytes,
+      });
+    }
+    if (!def.publish || !def.publish.__accessPolicy || !def.subscribe || !def.subscribe.__accessPolicy) {
+      err('EPHEMERAL_MISSING_AUTH', 'ephemeral', `${name} needs explicit publish and subscribe auth policies`, { collection: name });
+    }
+    for (const target of def.targets ?? []) {
+      if (target !== TARGET_PROFILE) {
+        err('EPHEMERAL_UNSUPPORTED_TARGET', 'ephemeral', `${name} declares unsupported ephemeral target ${target}`, { collection: name, target });
+      }
+    }
+    if (def.delivery?.mode !== 'latest') {
+      err('EPHEMERAL_UNSUPPORTED_DELIVERY_MODE', 'ephemeral', `${name} uses unsupported delivery mode ${def.delivery?.mode}`, { collection: name, mode: def.delivery?.mode });
+    }
+
+    collections.push({
+      name,
+      scopeFields,
+      keyMode: keyMode(def.key),
+      routingFields,
+      defaultTtlMs: def.ttlMs ?? 0,
+      maxTtlMs: def.maxTtlMs,
+      maxValueBytes: def.maxValueBytes,
+      hardMaxValueBytes: def.hardMaxValueBytes,
+      sustainedHz: def.publishRate?.sustainedHz ?? 20,
+      burst: def.publishRate?.burst ?? 60,
+      dispatchMs: def.delivery?.dispatchMs ?? 33,
+      publish: serializeAccessPolicy(def.publish),
+      subscribe: serializeAccessPolicy(def.subscribe),
+      maxPendingEphemeralKeys: def.maxPendingEphemeralKeys,
+    });
+  }
+  return collections;
+}
+
+function keyMode(key) {
+  return {
+    connection: 'Connection',
+    session: 'Session',
+    user: 'User',
+    custom: 'Custom',
+  }[key] ?? 'Connection';
+}
+
+function serializeAccessPolicy(policy) {
+  if (!policy || !policy.__accessPolicy) return 'AllowAll';
+  if (policy.kind === 'RequireRoomPermission') {
+    return { RequireRoomPermission: { prefix: policy.prefix } };
+  }
+  return 'AllowAll';
 }
 
 // --- serialization helpers ---------------------------------------------------
@@ -662,7 +772,7 @@ function sourcePosition(source, offset) {
   return { line: lines.length, column: lines.at(-1).length + 1 };
 }
 
-function renderApiModule(appId, functions) {
+function renderApiModule(appId, functions, ephemeralCollections) {
   const refs = {};
   for (const fn of functions) {
     refs[fn.name] = {
@@ -674,16 +784,36 @@ function renderApiModule(appId, functions) {
       kind: fn.kind,
     };
   }
+  const ephemeralRefs = {};
+  for (const collection of ephemeralCollections) {
+    ephemeralRefs[collection.name] = {
+      artifactKind: 'ephemeralCollectionReference',
+      schemaVersion: SCHEMA_VERSION,
+      appId,
+      id: `${appId}:ephemeral:${collection.name}`,
+      name: collection.name,
+      keyMode: collection.keyMode,
+      scopeFields: collection.scopeFields,
+      routingFields: collection.routingFields,
+      defaultTtlMs: collection.defaultTtlMs,
+      maxTtlMs: collection.maxTtlMs,
+      maxValueBytes: collection.maxValueBytes,
+      deliveryMode: 'latest',
+    };
+  }
+  refs.ephemeral = ephemeralRefs;
   return `// Generated by demos/_kit/codegen.mjs. Do not edit by hand.\n` +
+    `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
     `export const api = Object.freeze(${stableJson(refs)});\n` +
     `export default api;\n`;
 }
 
-function renderApiTypes(functions, functionsModule) {
+function renderApiTypes(functions, functionsModule, ephemeralCollections, schemaDef) {
   const lines = [
     '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
     "export type SchemaVersion = 'snapback.v0';",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery';",
+    "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {',
     "  artifactKind: 'functionReference';",
     '  schemaVersion: SchemaVersion;',
@@ -693,13 +823,39 @@ function renderApiTypes(functions, functionsModule) {
     '  kind: Kind;',
     '  readonly __args?: Args;',
     '}',
-    'export interface GeneratedApi {',
+    'export interface EphemeralCollectionReference<Name extends string, Scope, Value> {',
+    "  artifactKind: 'ephemeralCollectionReference';",
+    '  schemaVersion: SchemaVersion;',
+    '  appId: string;',
+    '  id: string;',
+    '  name: Name;',
+    '  keyMode: EphemeralKeyMode;',
+    '  scopeFields: readonly string[];',
+    '  routingFields: readonly string[];',
+    '  defaultTtlMs: number;',
+    '  maxTtlMs: number;',
+    '  maxValueBytes: number;',
+    "  deliveryMode: 'latest';",
+    '  readonly __scope?: Scope;',
+    '  readonly __value?: Value;',
+    '}',
+    'export interface GeneratedEphemeral {',
   ];
+  for (const collection of ephemeralCollections) {
+    const def = schemaDef.ephemeral?.collections?.[collection.name];
+    lines.push(`  ${collection.name}: EphemeralCollectionReference<'${collection.name}', ${typeForScope(def?.scope ?? {})}, ${typeForValidator(def?.value)}>;`);
+  }
+  lines.push(
+    '}',
+    'export interface GeneratedApi {',
+  );
   for (const fn of functions) {
     const def = functionsModule[fn.name];
     lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${typeForArgs(def?.args ?? {})}>;`);
   }
+  lines.push('  ephemeral: GeneratedEphemeral;');
   lines.push('}');
+  lines.push('export declare const ephemeral: GeneratedEphemeral;');
   lines.push('export declare const api: GeneratedApi;');
   lines.push('export default api;');
   return lines.join('\n') + '\n';
@@ -854,9 +1010,18 @@ function typeForArgs(args) {
   return `{ ${entries.map(([name, val]) => `${name}: ${typeForValidator(val)}`).join('; ')} }`;
 }
 
+function typeForScope(scope) {
+  const entries = Object.entries(scope);
+  if (entries.length === 0) return 'Record<string, never>';
+  return `{ ${entries.map(([name, val]) => `${name}: ${typeForValidator(val)}`).join('; ')} }`;
+}
+
 function typeForValidator(val) {
   if (!val || !val.__validator) return 'unknown';
-  const type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
+  let type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
+  if (val.primitive === 'object') {
+    type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForValidator(field).replace(/ \\| undefined$/, '')}`).join('; ')} }`;
+  }
   return val.optional ? `${type} | undefined` : type;
 }
 

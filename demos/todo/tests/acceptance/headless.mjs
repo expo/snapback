@@ -9,8 +9,8 @@
 // @ref LLP 0015#acceptance-rules — a demo is complete only when its required
 //   checks pass on its required surface (headless), with explicit results.
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
@@ -166,6 +166,181 @@ try {
       assertEqual(update.subscription_id, live.subscription_id, 'subscription id');
       assert(update.rows.some((r) => r.title === 'Pushed over WebSocket'), 'pushed row missing');
       return { version: update.version, rows: update.rows.length };
+    } finally {
+      stream.close();
+    }
+  });
+
+  await suite.check('generated ephemeral board cursors use product API and preserve durable lane', async () => {
+    const fixtureSourceDir = join(here, 'fixtures', 'ephemeral-backend');
+    const fixtureDir = mkdtempSync(join(here, 'fixtures', '.tmp-ephemeral-'));
+    cpSync(fixtureSourceDir, fixtureDir, { recursive: true });
+    let generated;
+    let cursorRef;
+    try {
+      generated = await generate(fixtureDir);
+      assert(generated.ok, `ephemeral codegen failed: ${JSON.stringify(generated.diagnostics)}`);
+      const { ephemeral } = await import(`${pathToFileURL(join(fixtureDir, 'generated', 'api.mjs')).href}?t=${Date.now()}`);
+      cursorRef = ephemeral.boardCursors;
+      assertEqual(cursorRef.artifactKind, 'ephemeralCollectionReference', 'ephemeral ref kind');
+      assertEqual(cursorRef.routingFields, ['boardId'], 'routing fields');
+    } finally {
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
+
+    const schemaWithCursors = {
+      ...schemaManifest,
+      schemaHash: 'sha256:todo-plus-board-cursors',
+      inputsHash: 'todo-plus-board-cursors',
+      ephemeralCollections: generated.schemaManifest.ephemeralCollections,
+    };
+    await db.loadSchema(schemaWithCursors);
+    await db.loadFunctions(functionManifest);
+    await db.reset();
+    await db.seed(seed);
+
+    const scope = { boardId: 'board_1' };
+    const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
+    await assertThrows(
+      () => db.subscribeEphemeral(cursorRef, { connectionId: 'blocked_sub', scope, userId: GRACE }),
+      'SNAPBACK_EPHEMERAL_UNAUTHORIZED',
+      'non-member subscribe should fail',
+    );
+    await assertThrows(
+      () => db.publishEphemeral(cursorRef, { connectionId: 'blocked_pub', scope, userId: GRACE, value: { x: 1, y: 1 } }),
+      'SNAPBACK_EPHEMERAL_UNAUTHORIZED',
+      'non-member publish should fail',
+    );
+
+    const durableBefore = (await db.inspect()).storage.version;
+    const overlay = await db.subscribeEphemeral(cursorRef, {
+      connectionId: 'cursor_observer',
+      scope,
+      userId: ADA,
+      permissions,
+    });
+    assertEqual(overlay.currentEntries(), [], 'initial cursor snapshot');
+    await overlay.publish({ x: 1, y: 2, color: 'red' }, {
+      connectionId: 'cursor_publisher',
+      userId: ADA,
+      permissions,
+    });
+    await overlay.drain();
+    assertEqual(overlay.currentEntries().map((entry) => entry.value), [{ x: 1, y: 2, color: 'red' }], 'cursor upsert');
+    assertEqual((await db.inspect()).storage.version, durableBefore, 'cursor publish must not advance durable version');
+
+    for (let i = 0; i < 6; i += 1) {
+      await db.publishEphemeral(cursorRef, {
+        connectionId: 'cursor_publisher',
+        scope,
+        userId: ADA,
+        permissions,
+        value: { x: i, y: i + 1 },
+      });
+    }
+    await overlay.drain();
+    assertEqual(overlay.currentEntries().map((entry) => entry.value), [{ x: 5, y: 6 }], 'coalesced latest cursor value');
+
+    await db.publishEphemeral(cursorRef, {
+      connectionId: 'cursor_gone',
+      scope,
+      userId: ADA,
+      permissions,
+      value: { x: 30, y: 40 },
+    });
+    await overlay.drain();
+    assert(overlay.currentEntries().some((entry) => entry.key === 'cursor_gone'), 'disconnect cursor missing before disconnect');
+    await db.disconnect('cursor_gone');
+    await overlay.drain();
+    assert(!overlay.currentEntries().some((entry) => entry.key === 'cursor_gone'), 'disconnect should remove connection-owned cursor');
+
+    const mixedOverlay = await db.subscribeEphemeral(cursorRef, {
+      connectionId: 'mixed_lane',
+      scope,
+      userId: ADA,
+      permissions,
+    });
+    await db.liveQuery(api.listTodos, { connectionId: 'mixed_lane', userId: ADA });
+    for (let i = 0; i < 6; i += 1) {
+      await db.publishEphemeral(cursorRef, {
+        connectionId: 'mixed_publisher',
+        scope,
+        userId: ADA,
+        permissions,
+        value: { x: 100 + i, y: 200 + i },
+      });
+    }
+    await db.mutate(api.createTodo, { args: { title: 'Durable during cursor flood' }, userId: ADA });
+    const mixedEnvelopes = await db.drainEnvelopes('mixed_lane');
+    assert(mixedEnvelopes[0]?.Durable, `first mixed-lane message was not durable: ${JSON.stringify(mixedEnvelopes[0])}`);
+    const durableUpdate = JSON.parse(Buffer.from(mixedEnvelopes[0].Durable.payload).toString('utf8'));
+    assert(durableUpdate.rows.some((row) => row.title === 'Durable during cursor flood'), 'durable update missing under cursor load');
+    for (const envelope of mixedEnvelopes.slice(1)) mixedOverlay.apply(envelope);
+    assert(mixedOverlay.currentEntries().some((entry) => entry.value.x === 105), 'mixed lane cursor latest value missing');
+
+    await assertThrows(
+      () => db.publishEphemeral(cursorRef, {
+        connectionId: 'oversized_cursor',
+        scope,
+        userId: ADA,
+        permissions,
+        value: 'x'.repeat(1_100),
+      }),
+      'SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE',
+      'oversized cursor should fail',
+    );
+    let rateLimited = 0;
+    for (let i = 0; i < 16; i += 1) {
+      try {
+        await db.publishEphemeral(cursorRef, {
+          connectionId: 'rate_cursor',
+          scope,
+          userId: ADA,
+          permissions,
+          value: { x: i, y: i },
+        });
+      } catch (error) {
+        if (error.diagnostic?.code === 'SNAPBACK_EPHEMERAL_RATE_LIMITED') rateLimited += 1;
+        else throw error;
+      }
+    }
+    assert(rateLimited > 0, 'expected at least one rate-limited cursor publish');
+
+    const stream = db.openLiveStream('ws_cursor');
+    try {
+      await stream.ready;
+      stream.sendJson({
+        type: 'ephemeral_subscribe',
+        requestId: 'sub-1',
+        request: {
+          collection: 'boardCursors',
+          scope,
+          connection_id: 'ws_cursor',
+          auth: SnapbackClient.auth(ADA, { permissions }),
+        },
+      });
+      const subAck = await stream.nextUpdate();
+      assertEqual(subAck.kind, 'ephemeral_ack', 'ws subscribe ack kind');
+      assertEqual(subAck.operation, 'subscribe', 'ws subscribe ack operation');
+      stream.sendJson({
+        type: 'ephemeral_publish',
+        requestId: 'pub-1',
+        request: {
+          collection: 'boardCursors',
+          scope,
+          connection_id: 'ws_cursor',
+          session_id: null,
+          user_id: null,
+          custom_key: null,
+          value: [...new TextEncoder().encode(JSON.stringify({ x: 7, y: 8 }))],
+          ttl_ms: null,
+          auth: SnapbackClient.auth(ADA, { permissions }),
+        },
+      });
+      const pubAck = await stream.nextUpdate();
+      assertEqual(pubAck.kind, 'ephemeral_ack', 'ws publish ack kind');
+      assertEqual(pubAck.operation, 'publish', 'ws publish ack operation');
+      return { coalesced: (await db.inspect()).ephemeral.coalesced_updates, rateLimited };
     } finally {
       stream.close();
     }

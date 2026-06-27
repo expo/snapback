@@ -1,4 +1,5 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+use crate::ephemeral::EphemeralCollection;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
@@ -60,6 +61,12 @@ pub struct SchemaManifest {
     pub target_profile: Option<String>,
     #[serde(default, rename = "portabilityFlags", alias = "portability_flags")]
     pub portability_flags: Vec<String>,
+    #[serde(
+        default,
+        rename = "ephemeralCollections",
+        alias = "ephemeral_collections"
+    )]
+    pub ephemeral_collections: Vec<EphemeralCollection>,
     pub tables: Vec<TableManifest>,
 }
 
@@ -76,6 +83,7 @@ impl Default for SchemaManifest {
             artifact_diagnostics: Vec::new(),
             target_profile: Some(TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()),
             portability_flags: Vec::new(),
+            ephemeral_collections: Vec::new(),
             tables: Vec::new(),
         }
     }
@@ -472,6 +480,26 @@ pub struct CapabilityManifest {
     pub online_only_queries: bool,
     #[serde(rename = "replaceOnlyQueries", alias = "replace_only_queries")]
     pub replace_only_queries: bool,
+    #[serde(default, rename = "ephemeralRealtime", alias = "ephemeral_realtime")]
+    pub ephemeral_realtime: bool,
+    #[serde(
+        default,
+        rename = "ephemeralWebSocketPublish",
+        alias = "ephemeral_websocket_publish"
+    )]
+    pub ephemeral_websocket_publish: bool,
+    #[serde(
+        default,
+        rename = "ephemeralLocalRoomAuthority",
+        alias = "ephemeral_local_room_authority"
+    )]
+    pub ephemeral_local_room_authority: bool,
+    #[serde(
+        default,
+        rename = "ephemeralHostedAdapter",
+        alias = "ephemeral_hosted_adapter"
+    )]
+    pub ephemeral_hosted_adapter: bool,
     #[serde(rename = "offlineRetention", alias = "offline_retention")]
     pub offline_retention: bool,
     #[serde(rename = "optimisticReplay", alias = "optimistic_replay")]
@@ -524,6 +552,10 @@ impl CapabilityManifest {
             syncable_live_queries: true,
             online_only_queries: true,
             replace_only_queries: true,
+            ephemeral_realtime: true,
+            ephemeral_websocket_publish: true,
+            ephemeral_local_room_authority: true,
+            ephemeral_hosted_adapter: false,
             offline_retention: false,
             optimistic_replay: false,
             mutation_isolation_mode: "handler-captured-read-set-validation".to_owned(),
@@ -546,6 +578,8 @@ impl CapabilityManifest {
                 "ibex-live-range-replace".to_owned(),
                 "ibex-live-limited-boundary-replace".to_owned(),
                 "websocket-live-replace".to_owned(),
+                "ephemeral-latest-state-local".to_owned(),
+                "websocket-ephemeral-publish".to_owned(),
             ],
             portability_opt_outs: Vec::new(),
             resource_limits: vec![
@@ -564,6 +598,18 @@ impl CapabilityManifest {
                 ResourceLimit {
                     name: "maximum_subscription_count".to_owned(),
                     status: ResourceLimitStatus::Advisory,
+                },
+                ResourceLimit {
+                    name: "ephemeral_value_size".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "ephemeral_publish_rate".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "ephemeral_durable_lane_priority".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
                 },
             ],
             capability_gaps,

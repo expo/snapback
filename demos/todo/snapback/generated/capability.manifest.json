@@ -10,9 +10,15 @@
     "external_auth",
     "assets",
     "cron",
-    "notifications"
+    "notifications",
+    "ephemeral_hosted_adapter",
+    "ephemeral_multi_instance_sticky_routing"
   ],
   "cron": false,
+  "ephemeralHostedAdapter": false,
+  "ephemeralLocalRoomAuthority": true,
+  "ephemeralRealtime": true,
+  "ephemeralWebSocketPublish": true,
   "liveSubscriptions": true,
   "localServerLifecycle": true,
   "mutationIsolationMode": "handler-captured-read-set-validation",
@@ -40,6 +46,18 @@
     {
       "name": "maximum_subscription_count",
       "status": "Advisory"
+    },
+    {
+      "name": "ephemeral_value_size",
+      "status": "Enforced"
+    },
+    {
+      "name": "ephemeral_publish_rate",
+      "status": "Enforced"
+    },
+    {
+      "name": "ephemeral_durable_lane_priority",
+      "status": "Enforced"
     }
   ],
   "runtimeEngine": "ibex",
@@ -57,7 +75,9 @@
     "ibex-live-in-replace",
     "ibex-live-range-replace",
     "ibex-live-limited-boundary-replace",
-    "websocket-live-replace"
+    "websocket-live-replace",
+    "ephemeral-latest-state-local",
+    "websocket-ephemeral-publish"
   ],
   "syncableLiveQueries": true,
   "targetProfileId": "local-dev-sqlite-ibex"

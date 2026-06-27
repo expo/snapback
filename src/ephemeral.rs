@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub type Millis = u64;
 pub type ConnectionId = String;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
 #[serde(transparent)]
 pub struct Scope(BTreeMap<String, String>);
 
@@ -114,29 +114,46 @@ impl AccessPolicy {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct EphemeralCollection {
     pub name: String,
+    #[serde(default, rename = "scopeFields", alias = "scope_fields")]
+    pub scope_fields: Vec<String>,
+    #[serde(rename = "keyMode", alias = "key_mode")]
     pub key_mode: KeyMode,
+    #[serde(rename = "routingFields", alias = "routing_fields")]
     pub routing_fields: Vec<String>,
+    #[serde(rename = "defaultTtlMs", alias = "default_ttl_ms")]
     pub default_ttl_ms: Millis,
+    #[serde(rename = "maxTtlMs", alias = "max_ttl_ms")]
     pub max_ttl_ms: Millis,
+    #[serde(rename = "maxValueBytes", alias = "max_value_bytes")]
     pub max_value_bytes: usize,
+    #[serde(rename = "hardMaxValueBytes", alias = "hard_max_value_bytes")]
     pub hard_max_value_bytes: usize,
+    #[serde(rename = "sustainedHz", alias = "sustained_hz")]
     pub sustained_hz: u32,
     pub burst: u32,
+    #[serde(rename = "dispatchMs", alias = "dispatch_ms")]
     pub dispatch_ms: Millis,
     pub publish: AccessPolicy,
     pub subscribe: AccessPolicy,
+    #[serde(
+        default = "default_max_pending_ephemeral_keys",
+        rename = "maxPendingEphemeralKeys",
+        alias = "max_pending_ephemeral_keys"
+    )]
     pub max_pending_ephemeral_keys: usize,
 }
 
 impl EphemeralCollection {
     pub fn local_cursor(name: impl Into<String>, routing_field: impl Into<String>) -> Self {
+        let routing_field = routing_field.into();
         Self {
             name: name.into(),
+            scope_fields: vec![routing_field.clone()],
             key_mode: KeyMode::Connection,
-            routing_fields: vec![routing_field.into()],
+            routing_fields: vec![routing_field],
             default_ttl_ms: 5_000,
             max_ttl_ms: 30_000,
             max_value_bytes: 1_024,
@@ -158,6 +175,10 @@ impl EphemeralCollection {
         self.subscribe = AccessPolicy::RequireRoomPermission { prefix };
         self
     }
+}
+
+fn default_max_pending_ephemeral_keys() -> usize {
+    1_024
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -211,6 +232,21 @@ pub enum EphemeralErrorCode {
     InvalidTtl,
     ValueTooLarge,
     RateLimited,
+}
+
+impl EphemeralErrorCode {
+    pub fn diagnostic_code(self) -> &'static str {
+        match self {
+            Self::UnknownCollection => "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
+            Self::Unauthorized => "SNAPBACK_EPHEMERAL_UNAUTHORIZED",
+            Self::InvalidScope => "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
+            Self::MissingKey => "SNAPBACK_EPHEMERAL_MISSING_KEY",
+            Self::MissingOwner => "SNAPBACK_EPHEMERAL_MISSING_OWNER",
+            Self::InvalidTtl => "SNAPBACK_EPHEMERAL_INVALID_TTL",
+            Self::ValueTooLarge => "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
+            Self::RateLimited => "SNAPBACK_EPHEMERAL_RATE_LIMITED",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -335,6 +371,10 @@ pub struct EphemeralDiagnostics {
     pub entry_count: usize,
     pub subscriber_count: usize,
     pub value_bytes: usize,
+    pub active_rooms: Vec<EphemeralRoomDiagnostics>,
+    pub pending_ephemeral_keys: usize,
+    pub pending_durable_messages: usize,
+    pub pending_resync_messages: usize,
     pub rejected_publishes: u64,
     pub rate_limited_publishes: u64,
     pub oversized_publishes: u64,
@@ -343,6 +383,17 @@ pub struct EphemeralDiagnostics {
     pub disconnected_entries: u64,
     pub coalesced_updates: u64,
     pub resync_required: u64,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct EphemeralRoomDiagnostics {
+    pub collection: String,
+    pub routing_key: String,
+    pub scope: Scope,
+    pub scope_epoch: u64,
+    pub entries: usize,
+    pub subscribers: usize,
+    pub value_bytes: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -549,6 +600,26 @@ impl LocalEphemeralBackend {
 
     pub fn register_collection(&mut self, collection: EphemeralCollection) {
         self.collections.insert(collection.name.clone(), collection);
+        self.refresh_counts();
+    }
+
+    pub fn replace_collections(&mut self, collections: Vec<EphemeralCollection>) {
+        let next = collections
+            .into_iter()
+            .map(|collection| (collection.name.clone(), collection))
+            .collect::<BTreeMap<_, _>>();
+        self.rooms.clear();
+        self.rate_buckets.clear();
+        self.outbox.clear();
+        self.collections = next;
+        self.refresh_counts();
+    }
+
+    pub fn reset_runtime_state(&mut self) {
+        self.rooms.clear();
+        self.rate_buckets.clear();
+        self.outbox.clear();
+        self.diagnostics = EphemeralDiagnostics::default();
         self.refresh_counts();
     }
 
@@ -769,6 +840,18 @@ impl LocalEphemeralBackend {
         collection: &EphemeralCollection,
         scope: &Scope,
     ) -> Result<RoomId, EphemeralError> {
+        for field in &collection.scope_fields {
+            if !scope.0.contains_key(field) {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::InvalidScope,
+                    format!(
+                        "scope is missing required field {field} for {}",
+                        collection.name
+                    ),
+                ));
+            }
+        }
+
         let routing_key = scope
             .routed_key(&collection.routing_fields)
             .ok_or_else(|| {
@@ -1060,6 +1143,32 @@ impl LocalEphemeralBackend {
             .flat_map(|room| room.entries.values())
             .map(|record| record.serialized_bytes)
             .sum();
+        self.diagnostics.active_rooms = self
+            .rooms
+            .iter()
+            .map(|(room_id, room)| EphemeralRoomDiagnostics {
+                collection: room_id.collection.clone(),
+                routing_key: room_id.routing_key.clone(),
+                scope: room_id.scope.clone(),
+                scope_epoch: room.scope_epoch,
+                entries: room.entries.len(),
+                subscribers: room.subscribers.len(),
+                value_bytes: room
+                    .entries
+                    .values()
+                    .map(|record| record.serialized_bytes)
+                    .sum(),
+            })
+            .collect();
+        self.diagnostics.pending_ephemeral_keys = self
+            .outbox
+            .values()
+            .map(|queue| queue.ephemeral.len())
+            .sum();
+        self.diagnostics.pending_durable_messages =
+            self.outbox.values().map(|queue| queue.durable.len()).sum();
+        self.diagnostics.pending_resync_messages =
+            self.outbox.values().map(|queue| queue.resync.len()).sum();
     }
 }
 
