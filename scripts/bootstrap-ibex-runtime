@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENDOR_IBEX="$ROOT/vendor/ibex"
+DEFAULT_PEER_IBEX="$(cd "$ROOT/.." && pwd)/ibex"
+PEER_IBEX="${SNAPBACK_IBEX_CHECKOUT:-$DEFAULT_PEER_IBEX}"
+TARGET_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+ARCH_RAW="$(uname -m)"
+
+case "$ARCH_RAW" in
+    arm64|aarch64) HERMES_ARCH="arm64" ;;
+    x86_64|amd64) HERMES_ARCH="x64" ;;
+    *) HERMES_ARCH="$ARCH_RAW" ;;
+esac
+
+RUN_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-1}"
+
+log() {
+    printf '[snapback-bootstrap] %s\n' "$*"
+}
+
+fail() {
+    printf '[snapback-bootstrap] error: %s\n' "$*" >&2
+    exit 1
+}
+
+copy_dir_contents() {
+    local src="$1"
+    local dst="$2"
+
+    mkdir -p "$dst"
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a "$src/" "$dst/"
+    else
+        cp -R "$src/." "$dst/"
+    fi
+}
+
+has_tool() {
+    local base="$1"
+    local tool="$2"
+    shift 2
+
+    local candidate
+    for candidate in "$@"; do
+        if [ -f "$base/tools/hermes/$candidate" ]; then
+            return 0
+        fi
+    done
+
+    log "$tool missing under $base/tools/hermes"
+    return 1
+}
+
+has_macos_framework() {
+    local base="$1"
+    local frameworks="$base/ios/Frameworks"
+    local candidate
+
+    for candidate in \
+        "$frameworks/hermes.framework/hermes" \
+        "$frameworks/hermes.framework/Versions/Current/hermes" \
+        "$frameworks/hermes.framework/Versions/1/hermes" \
+        "$frameworks/hermes.framework/Versions/0/hermes" \
+        "$frameworks/macosx/hermes.framework/hermes" \
+        "$frameworks/macosx/hermes.framework/Versions/Current/hermes" \
+        "$frameworks/macosx/hermes.framework/Versions/1/hermes" \
+        "$frameworks/macosx/hermes.framework/Versions/0/hermes" \
+        "$frameworks/hermesvm.framework/hermesvm" \
+        "$frameworks/hermesvm.framework/Versions/Current/hermesvm" \
+        "$frameworks/hermesvm.framework/Versions/1/hermesvm" \
+        "$frameworks/hermesvm.framework/Versions/0/hermesvm" \
+        "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermes.framework/hermes" \
+        "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermes.framework/Versions/Current/hermes" \
+        "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermesvm.framework/hermesvm" \
+        "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermesvm.framework/Versions/Current/hermesvm" \
+        "$frameworks/hermes.xcframework/macos-arm64/hermes.framework/hermes" \
+        "$frameworks/hermes.xcframework/macos-arm64/hermes.framework/Versions/Current/hermes" \
+        "$frameworks/hermes.xcframework/macos-arm64/hermesvm.framework/hermesvm" \
+        "$frameworks/hermes.xcframework/macos-arm64/hermesvm.framework/Versions/Current/hermesvm"
+    do
+        if [ -f "$candidate" ]; then
+            return 0
+        fi
+    done
+
+    log "macOS Hermes framework missing under $frameworks"
+    return 1
+}
+
+has_darwin_artifacts() {
+    local base="$1"
+    local frameworks="$base/ios/Frameworks"
+
+    [ -f "$frameworks/hermes-headers/hermes/hermes.h" ] || {
+        log "Hermes headers missing under $frameworks/hermes-headers"
+        return 1
+    }
+    [ -f "$frameworks/hermes-headers/jsi/jsi.h" ] || {
+        log "JSI headers missing under $frameworks/hermes-headers"
+        return 1
+    }
+    has_macos_framework "$base" || return 1
+    has_tool "$base" "hermesc" "hermesc-macos-$HERMES_ARCH" "hermesc" || return 1
+}
+
+has_linux_artifacts() {
+    local base="$1"
+
+    [ -f "$base/linux/hermes-headers/hermes/hermes.h" ] || {
+        log "Linux Hermes headers missing under $base/linux/hermes-headers/hermes"
+        return 1
+    }
+    [ -f "$base/linux/hermes-headers/jsi/jsi.h" ] || {
+        log "Linux JSI headers missing under $base/linux/hermes-headers/jsi"
+        return 1
+    }
+    [ -d "$base/linux/lib" ] || {
+        log "Linux Hermes lib dir missing under $base/linux/lib"
+        return 1
+    }
+    find "$base/linux/lib" -name 'libhermesvm*' -print -quit | grep -q . || {
+        log "libhermesvm missing under $base/linux/lib"
+        return 1
+    }
+    has_tool "$base" "hermesc" "hermesc-linux-$HERMES_ARCH" "hermesc" || return 1
+}
+
+has_target_artifacts() {
+    local base="$1"
+
+    case "$TARGET_OS" in
+        darwin) has_darwin_artifacts "$base" ;;
+        linux) has_linux_artifacts "$base" ;;
+        *)
+            fail "unsupported bootstrap host '$TARGET_OS'; use vendor/ibex platform setup directly"
+            ;;
+    esac
+}
+
+copy_peer_artifacts() {
+    [ -d "$PEER_IBEX" ] || return 1
+    has_target_artifacts "$PEER_IBEX" || return 1
+
+    log "copying prebuilt Ibex/Hermes artifacts from $PEER_IBEX"
+    case "$TARGET_OS" in
+        darwin)
+            copy_dir_contents "$PEER_IBEX/ios/Frameworks" "$VENDOR_IBEX/ios/Frameworks"
+            copy_dir_contents "$PEER_IBEX/tools/hermes" "$VENDOR_IBEX/tools/hermes"
+            ;;
+        linux)
+            copy_dir_contents "$PEER_IBEX/linux" "$VENDOR_IBEX/linux"
+            copy_dir_contents "$PEER_IBEX/tools/hermes" "$VENDOR_IBEX/tools/hermes"
+            ;;
+    esac
+
+    local peer_bin=""
+    if [ -x "$PEER_IBEX/target/debug/ibex" ]; then
+        peer_bin="$PEER_IBEX/target/debug/ibex"
+    elif [ -x "$PEER_IBEX/target/release/ibex" ]; then
+        peer_bin="$PEER_IBEX/target/release/ibex"
+    fi
+
+    if [ -n "$peer_bin" ] && [ ! -e "$VENDOR_IBEX/target/debug/ibex" ]; then
+        mkdir -p "$VENDOR_IBEX/target/debug"
+        ln -s "$peer_bin" "$VENDOR_IBEX/target/debug/ibex"
+        log "linked vendored Ibex CLI to $peer_bin"
+    fi
+}
+
+# @ref LLP 0010#native-runtime-bootstrap -- Snapback agents should consume
+# prepared Ibex/Hermes artifacts before attempting a native Hermes build.
+if has_target_artifacts "$VENDOR_IBEX"; then
+    log "vendored Ibex/Hermes artifacts are already usable"
+else
+    if copy_peer_artifacts; then
+        log "installed prebuilt artifacts from sibling Ibex checkout"
+    else
+        log "no complete sibling Ibex artifact set found at $PEER_IBEX"
+        log "running vendored Ibex Hermes bootstrap; this may download or build native artifacts"
+        "$VENDOR_IBEX/scripts/download-hermes.sh"
+    fi
+fi
+
+has_target_artifacts "$VENDOR_IBEX" || fail "Ibex/Hermes artifacts are still incomplete"
+
+if [ "$RUN_CHECK" != "0" ]; then
+    log "validating Snapback Rust build with cargo check"
+    (cd "$ROOT" && cargo check -q)
+fi
+
+log "Ibex runtime bootstrap complete"

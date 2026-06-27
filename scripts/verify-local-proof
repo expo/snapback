@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VERIFY_EXACT="${SNAPBACK_VERIFY_EXACT:-auto}"
+
+run() {
+    printf '\n[snapback-verify] $'
+    printf ' %q' "$@"
+    printf '\n'
+    "$@"
+}
+
+exact_available() {
+    command -v bun >/dev/null 2>&1 || return 1
+    if [ -n "${SNAPBACK_EXACT_ROOT:-}" ] && [ -d "$SNAPBACK_EXACT_ROOT" ]; then
+        return 0
+    fi
+    [ -d "$ROOT/../exact" ] || [ -d "$ROOT/vendor/exact" ]
+}
+
+case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
+    darwin)
+        export DYLD_FRAMEWORK_PATH="$ROOT/vendor/ibex/ios/Frameworks:$ROOT/vendor/ibex/ios/Frameworks/macosx${DYLD_FRAMEWORK_PATH:+:$DYLD_FRAMEWORK_PATH}"
+        ;;
+    linux)
+        export LD_LIBRARY_PATH="$ROOT/vendor/ibex/linux/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        ;;
+esac
+
+cd "$ROOT"
+
+run ./ref-check --verbose
+run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
+run cargo test
+run node demos/todo/tests/acceptance/headless.mjs
+run node demos/todo-v2/tests/acceptance/headless.mjs
+
+if [ "$VERIFY_EXACT" != "0" ]; then
+    if exact_available; then
+        run bun demos/todo/tests/acceptance/contract.mjs
+        run bun demos/todo-v2/tests/acceptance/contract.mjs
+        run bash -lc 'cd admin-ui && ./build.sh'
+    elif [ "$VERIFY_EXACT" = "1" ]; then
+        printf '[snapback-verify] error: SNAPBACK_VERIFY_EXACT=1 but bun or an Exact checkout is unavailable\n' >&2
+        exit 1
+    else
+        printf '\n[snapback-verify] skipping Exact-dependent Contract/admin checks; set SNAPBACK_VERIFY_EXACT=1 to require them\n'
+    fi
+fi
+
+printf '\n[snapback-verify] local proof checks complete\n'

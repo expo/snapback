@@ -125,6 +125,7 @@ the canonical Ibex runtime target:
 
 ```sh
 git submodule update --init --recursive
+scripts/bootstrap-ibex-runtime
 cargo test
 cargo run
 ```
@@ -165,8 +166,27 @@ Implemented now:
 The local runtime reports Ibex as the canonical engine and detects an installed
 `ibex` binary. Ibex is vendored as a git submodule at [`vendor/ibex`](./vendor/ibex);
 Snapback looks for `SNAPBACK_IBEX`, then `vendor/ibex/target/debug/ibex` or
-`vendor/ibex/target/release/ibex`, then `ibex` on `PATH`. Build the vendored
-runtime from the submodule once its Hermes prerequisites are installed:
+`vendor/ibex/target/release/ibex`, then `ibex` on `PATH`.
+
+A clean checkout needs Ibex's ignored Hermes artifacts before ordinary Cargo
+builds will work. For normal Snapback work, use the root bootstrap:
+
+```sh
+scripts/bootstrap-ibex-runtime
+```
+
+The script first reuses prepared artifacts from a sibling `../ibex` checkout
+when they are present, copying them into the ignored `vendor/ibex/ios`,
+`vendor/ibex/linux`, and `vendor/ibex/tools/hermes` locations that Ibex's
+`build.rs` already expects. If no complete sibling artifact set exists, it falls
+back to `vendor/ibex/scripts/download-hermes.sh`, which may download or build
+Hermes for the current platform. On macOS, this matters because the release
+Hermes xcframework does not contain the pure macOS framework Cargo links. Set
+`SNAPBACK_IBEX_CHECKOUT=/path/to/ibex` if your prepared checkout is not the
+sibling `../ibex` directory.
+
+If you specifically need to build the vendored runtime CLI rather than use the
+sibling prebuilt binary, run:
 
 ```sh
 cargo build --manifest-path vendor/ibex/Cargo.toml --bin ibex
@@ -194,6 +214,15 @@ node demos/_kit/codegen.mjs demos/todo/snapback   # generate manifests from sour
 node demos/todo/tests/acceptance/headless.mjs     # required surface (node)
 bun  demos/todo/tests/acceptance/contract.mjs     # Contract/Exact surface (needs ../exact)
 ```
+
+For the local proof lane that CI runs without requiring Exact, use:
+
+```sh
+SNAPBACK_VERIFY_EXACT=0 scripts/verify-local-proof
+```
+
+With a compatible Exact checkout and `bun` available, omit
+`SNAPBACK_VERIFY_EXACT=0` to also run the Contract/admin checks.
 
 ## Design docs (LLP)
 

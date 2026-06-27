@@ -71,6 +71,36 @@ these operations:
 If these operations are exposed through HTTP, CLI, MCP, or another tool surface,
 they should share the same underlying structured result schema.
 
+## Native Runtime Bootstrap
+
+The canonical local target depends on Ibex, and Snapback currently links the
+vendored `ibex-runtime` crate directly. That means an ordinary Rust build can
+fail before any Snapback code is checked if the ignored Hermes headers,
+frameworks, or compiler tools are missing under `vendor/ibex`. This is an
+agent-DX failure: the agent sees a native Hermes error and starts trying to build
+or repair Hermes, even though most Snapback work only needs prepared runtime
+artifacts.
+
+The Snapback bootstrap contract is:
+
+- Normal Snapback agents run `scripts/bootstrap-ibex-runtime` before `cargo
+  build`, `cargo test`, or `cargo run` on a clean checkout.
+- The bootstrap first validates the vendored Ibex artifact locations expected by
+  `vendor/ibex/build.rs`.
+- If those are incomplete, it prefers a sibling `../ibex` checkout with prepared
+  Hermes artifacts and an optional prebuilt `ibex` binary, copying/linking those
+  ignored artifacts into `vendor/ibex`.
+- Agents may point at a different prepared checkout with
+  `SNAPBACK_IBEX_CHECKOUT=/path/to/ibex`.
+- Only when no complete prepared artifact set exists should it fall back to
+  Ibex's platform setup scripts, which may download or build Hermes.
+- Agents should not start by building Hermes from source unless their task is
+  explicitly about Ibex, Hermes, or runtime packaging.
+
+This keeps the local target honest without making every Snapback agent rediscover
+Hermes packaging details. A failed bootstrap should point at the missing artifact
+class, not leave the next agent to infer it from a C++ build failure.
+
 Valet's local-dev orchestrator (a Vite plugin) already implemented most of this and
 is worth copying: spawn the server child process, codegen-on-save with debounced
 coalescing, hot-push schema/functions to a running server, a health check that

@@ -1,0 +1,37 @@
+name: local-proof
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  local-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install native build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
+
+      - name: Cache Hermes Linux build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/exact/hermes-linux
+            vendor/ibex/linux
+            vendor/ibex/tools/hermes
+          key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hermes-
+
+      - name: Verify Snapback local proof
+        env:
+          SNAPBACK_VERIFY_EXACT: "0"
+        run: scripts/verify-local-proof

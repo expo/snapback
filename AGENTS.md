@@ -87,3 +87,11 @@ them after normal checkout/merge operations in this local clone.
 - Prefer updating an existing LLP over creating a new one when the topic is
   already covered.
 - Land doc updates in the same commit as the code change that motivated them.
+- Before running `cargo build`, `cargo test`, or `cargo run` on a clean checkout,
+  run `scripts/bootstrap-ibex-runtime`. Snapback links the vendored
+  `ibex-runtime` crate, which needs ignored Hermes headers/frameworks and tools.
+  The bootstrap script first uses prepared artifacts from the sibling `../ibex`
+  checkout when available, then falls back to the vendored Ibex setup script.
+  Set `SNAPBACK_IBEX_CHECKOUT=/path/to/ibex` if the prepared checkout lives
+  somewhere else. Do not start by building Hermes from source unless you are
+  specifically changing Ibex or Hermes.
