@@ -5,8 +5,8 @@
 **Systems:** Developer experience, Runtime, Storage, Auth, Sync, Realtime, Tooling, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-26
-**Revised:** 2026-06-26
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0018
+**Revised:** 2026-06-27
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0018, LLP 0024
 
 ## Summary
 
@@ -76,11 +76,14 @@ and LLP 0017 reserves the admin console namespace (`/_snapback/admin/`) and an
 `/_snapback/api/...` admin / runtime-state API, names `/_snapback/api/inspect` as
 the route that should become canonical over time, and keeps the current local
 routes (`/health`, `/inspect`, `/admin/schema`, `/admin/functions`,
-`/admin/reset`, `/admin/seed`) as v0 aliases. What does not yet exist is a single
-ratified core that all tool surfaces project from.
+`/admin/reset`, `/admin/seed`) as v0 aliases. At the time this research was
+written, what did not yet exist was a single ratified core that all tool
+surfaces project from; [LLP 0024](./0024-agent-operating-surface.spec.md) is the
+first-cut Spec for that surface.
 
-**Recommendation (to be ratified elsewhere): one host-ops core, three
-projections.**
+**Recommendation (captured as a first-cut Spec in
+[LLP 0024](./0024-agent-operating-surface.spec.md)):
+one host-ops core, three projections.**
 
 1. **Host-ops core.** A single internal API implementing the LLP 0010
    operations and returning the LLP 0012 structured result schema (stable
@@ -349,9 +352,10 @@ anything beyond a trusted local box.
 
 ## Open questions
 
-1. **Surface ownership.** Does the host-ops core and its CLI/MCP projection live
-   in LLP 0010 (extended), or does it warrant its own RFC? The operating surface
-   may be large enough to deserve a dedicated spec.
+1. **Surface ownership.** Resolved for the first local implementation by
+   [LLP 0024](./0024-agent-operating-surface.spec.md), which owns the host-ops
+   operation ids, result envelope, CLI names, control-plane MCP tools, and
+   generated app-data MCP catalog.
 2. **Token model.** What is the concrete service-principal token shape — JWT with
    scoped claims, opaque capability tokens, or both — and how does it compose
    with the BYOP provider model in LLP 0011?

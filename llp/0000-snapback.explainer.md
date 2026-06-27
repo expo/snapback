@@ -7,7 +7,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
 **Revised:** 2026-06-27
-**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0022, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
+**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0022, LLP 0024, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
 
@@ -556,6 +556,9 @@ written) for at least:
 - A **headless integration contract** for Contract/Exact, React/Expo, tests, and
   agent tools. Drafted as
   [`0012-headless-integration-contract.spec.md`](./0012-headless-integration-contract.spec.md).
+- An **agent operating surface** for host operations, CLI/HTTP/MCP projections,
+  and generated app-data MCP tools. Drafted as
+  [`0024-agent-operating-surface.spec.md`](./0024-agent-operating-surface.spec.md).
 - A **Cloudflare strategy** — how to do Snapback well on Cloudflare, including
   whether to rearchitect around its model. Drafted as
   [`0014-cloudflare-strategy.rfc.md`](./0014-cloudflare-strategy.rfc.md).

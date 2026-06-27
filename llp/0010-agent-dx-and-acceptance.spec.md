@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
 **Revised:** 2026-06-27
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0024
 
 ## Summary
 
@@ -68,8 +68,10 @@ these operations:
 - explain query plans, index usage, permission decisions, and capability gaps;
 - run the acceptance suite.
 
-If these operations are exposed through HTTP, CLI, MCP, or another tool surface,
-they should share the same underlying structured result schema.
+The concrete v0 operation ids, CLI verbs, HTTP projection, control-plane MCP
+tools, and generated app-data MCP catalog are pinned in
+[LLP 0024](./0024-agent-operating-surface.spec.md). Any surface exposing these
+operations should share that underlying structured result schema.
 
 ## Native Runtime Bootstrap
 
@@ -480,9 +482,9 @@ under pressure; gate honestly when they are not yet built.
 
 ## Open Questions
 
-- What are the actual CLI names and package boundaries?
-- Should the doctor/sandbox surface be CLI-first, HTTP-first, MCP-first, or all
-  backed by one internal API?
+- What package boundaries should carry the pinned CLI/MCP implementation?
+- LLP 0024 answers the surface-shape question for v0: CLI, HTTP, and MCP are
+  all projections of one internal host-ops core.
 - Which diagnostic codes are stable enough for v1?
 - How much generated output should be committed versus built on demand?
 - Which pieces of the first Contract/Exact fixture depend on a stable external

@@ -5,8 +5,8 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-26
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017
+**Revised:** 2026-06-27
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024
 
 ## Summary
 
@@ -325,6 +325,11 @@ Diagnostics should include stable codes, severity, subsystem, source spans,
 generated artifact references, target profile, and structured details. Design
 Mode may present them richly; React may show them through dev tooling; agents may
 consume them directly.
+
+The host-ops result envelope in
+[LLP 0024](./0024-agent-operating-surface.spec.md) reuses this diagnostic schema
+and its code families. CLI, HTTP, and MCP projections must not add another
+diagnostic dialect for operation failures.
 
 ## Runtime State
 

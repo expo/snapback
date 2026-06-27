@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
 **Revised:** 2026-06-27
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024
 
 ## Summary
 
@@ -272,6 +272,12 @@ admin-originated edits should carry a stable diagnostic code family under LLP
 The first implementation can begin with `/inspect` plus narrowly-scoped new
 endpoints. Over time, `/_snapback/api/inspect` should become the canonical entry
 point and the old route can remain as a compatibility alias.
+
+The shared agent operating endpoint is
+`POST /_snapback/api/host-ops`, specified in
+[LLP 0024](./0024-agent-operating-surface.spec.md). It is the HTTP projection of
+the same host-ops core used by CLI and MCP; admin-console endpoints may call that
+core or present narrower UI-oriented views over its artifacts.
 
 ## Console Surfaces
 
