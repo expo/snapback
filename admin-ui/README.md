@@ -28,7 +28,7 @@ LLP 0017 *Static bundling and the native shell*.
 
 ```sh
 SNAPBACK_ADMIN_DIST="$(pwd)/dist" cargo run --manifest-path ../Cargo.toml -- --memory
-# then open http://127.0.0.1:4287/_snapback/admin
+# then open the printed admin console URL
 ```
 
 When `SNAPBACK_ADMIN_DIST` is unset, the server falls back to the embedded
@@ -44,7 +44,7 @@ mac-appkit-hermes/{exact-native.json, startup.js, startup.hbc}`, served under
 in `index.html`. Point the macOS shell at the served URL:
 
 ```sh
-EXACT_APP_CUSTOM_URL=http://127.0.0.1:4287/_snapback/admin   # then launch ExactAppMac
+EXACT_APP_CUSTOM_URL=<printed admin console URL>   # then launch ExactAppMac
 ```
 
 The emitted envelope is `mode: static`, omits the dev-only fields, and is

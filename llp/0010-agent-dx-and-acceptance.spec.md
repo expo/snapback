@@ -78,6 +78,14 @@ reuses an already-running server, a raw TCP probe to tell "nothing listening" fr
 "port owned by something else," and `SIGTERM`→`SIGKILL` teardown
 (`[observed - Valet LLP 0020]`). Two corrections for an agent-first product:
 
+The no-argument local server should also be collision-tolerant for ordinary
+development: try a stable Snapback local port range beginning at the canonical
+port `4287`, bind the first available port in that range, and print/report the
+actual bound address through the startup log and admin runtime state. Tooling
+that supplies an explicit `--port` is asking for a pinned address and should keep
+getting exact bind semantics, including an error if that port is owned by another
+process.
+
 - **Never silently serve stale bindings.** Valet's plugin, if codegen failed at
   startup but old generated output existed, continued with the **stale files** —
   resilient for a human, but it silently runs a wrong model. A codegen failure must

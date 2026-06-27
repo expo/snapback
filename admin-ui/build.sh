@@ -9,7 +9,7 @@
 # Output: admin-ui/dist/ — index.html + assets/* (web) and __exact/* (native
 # platform manifest + envelope + startup). Serve with:
 #   SNAPBACK_ADMIN_DIST=$(pwd)/admin-ui/dist cargo run -- --memory
-# then open http://127.0.0.1:4287/_snapback/admin
+# then open the printed admin console URL
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"

@@ -129,9 +129,11 @@ cargo test
 cargo run
 ```
 
-By default the server listens on `127.0.0.1:4287` and stores data in
-`.snapback/dev.sqlite3`. Use `--memory` for an in-memory database, or `--db` /
-`--port` to choose a different local database or port:
+By default the server tries `127.0.0.1:4287` and, if that port is busy, scans
+through `127.0.0.1:4387` until it finds an available local port. It stores data
+in `.snapback/dev.sqlite3` and prints the actual admin URL on startup. Use
+`--memory` for an in-memory database, or `--db` / `--port` to choose a different
+local database or pin an exact port:
 
 ```sh
 cargo run -- --port 9000 --db .snapback/other.sqlite3
