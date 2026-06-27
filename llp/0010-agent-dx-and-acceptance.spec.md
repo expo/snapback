@@ -86,6 +86,13 @@ that supplies an explicit `--port` is asking for a pinned address and should kee
 getting exact bind semantics, including an error if that port is owned by another
 process.
 
+Auto-selecting a port must not allow two local servers to own the same
+file-backed app database. A file-backed local server should acquire an exclusive
+sidecar lock for the resolved SQLite path before opening the database, keep it
+held for the server lifetime, and write enough owner metadata for a second
+startup attempt to report the owning PID and bound server URL. In-memory servers
+do not need this lock.
+
 - **Never silently serve stale bindings.** Valet's plugin, if codegen failed at
   startup but old generated output existed, continued with the **stale files** —
   resilient for a human, but it silently runs a wrong model. A codegen failure must

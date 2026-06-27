@@ -135,6 +135,11 @@ in `.snapback/dev.sqlite3` and prints the actual admin URL on startup. Use
 `--memory` for an in-memory database, or `--db` / `--port` to choose a different
 local database or pin an exact port:
 
+File-backed servers also take an exclusive sidecar lock next to the SQLite file,
+so a second server will not accidentally mutate the same app database from a
+different port. Use the already-running server, stop it, pass `--memory`, or
+choose a different `--db`.
+
 ```sh
 cargo run -- --port 9000 --db .snapback/other.sqlite3
 cargo build

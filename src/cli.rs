@@ -1,10 +1,11 @@
 use crate::admin::{AppState, ServerContext};
+use crate::instance_lock::DatabaseInstanceLock;
 use crate::local::LocalSnapback;
 use crate::server;
 use anyhow::Context;
 use clap::Parser;
 use std::io::ErrorKind;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
@@ -34,13 +35,19 @@ pub async fn run_from_env() -> anyhow::Result<()> {
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
+    let mut database_lock = None;
+    let mut database_path = None;
     let snapback = if args.memory {
         LocalSnapback::memory()?
     } else {
-        if let Some(parent) = args.db.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        LocalSnapback::open(&args.db)?
+        let db_path = prepare_database_path(&args.db)?;
+        // @ref LLP 0003#decision — one local server process owns the SQLite
+        // database and process-local runtime state for this app instance.
+        let lock = DatabaseInstanceLock::acquire(&db_path)?;
+        let snapback = LocalSnapback::open(&db_path)?;
+        database_path = Some(db_path);
+        database_lock = Some(lock);
+        snapback
     };
 
     let state = Arc::new(Mutex::new(snapback));
@@ -54,11 +61,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ServerContext::new(local_addr.ip().to_string(), local_addr.port(), loopback);
     let token_configured = server_context.admin_token.is_some();
     let app = server::app(AppState::new(state, server_context));
+    if let Some(lock) = database_lock.as_mut() {
+        lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
+    }
 
     println!("snapback listening on http://{local_addr}");
     println!("admin console: http://{local_addr}/_snapback/admin");
-    if !args.memory {
-        println!("sqlite database: {}", args.db.display());
+    if let Some(db_path) = database_path {
+        println!("sqlite database: {}", db_path.display());
     }
     // @ref LLP 0017#security-defaults — be explicit about how admin is gated.
     if !loopback && !token_configured {
@@ -71,8 +81,38 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         println!("admin: open on loopback (set SNAPBACK_ADMIN_TOKEN to require it for writes)");
     }
 
-    axum::serve(listener, app).await?;
+    let server_result = axum::serve(listener, app).await;
+    drop(database_lock);
+    server_result?;
     Ok(())
+}
+
+fn prepare_database_path(path: &Path) -> anyhow::Result<PathBuf> {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create database directory {}", parent.display()))?;
+    }
+    resolve_database_path(path)
+}
+
+fn resolve_database_path(path: &Path) -> anyhow::Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    let file_name = absolute
+        .file_name()
+        .context("database path must include a file name")?
+        .to_os_string();
+    let parent = absolute
+        .parent()
+        .context("database path must include a parent directory")?;
+    let parent = std::fs::canonicalize(parent)
+        .with_context(|| format!("failed to resolve database directory {}", parent.display()))?;
+    Ok(parent.join(file_name))
 }
 
 async fn bind_listener(host: &str, port: Option<u16>) -> anyhow::Result<TcpListener> {
