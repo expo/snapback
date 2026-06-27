@@ -38,9 +38,8 @@ export interface AdminColors {
   readonly errSoft: string;
   readonly info: string;
   readonly infoSoft: string;
-  // Brand mark
-  readonly markTrack: string;
-  readonly markKnob: string;
+  // Brand mark ink (the mark's knockout eyes/knob show the sidebar through)
+  readonly markInk: string;
   // Elevation
   readonly shadowCard: string;
   readonly shadowSidebar: string;
@@ -70,8 +69,7 @@ const LIGHT: AdminColors = {
   errSoft: '#fbe9e6',
   info: '#4a52c2',
   infoSoft: '#eceefb',
-  markTrack: '#16181d',
-  markKnob: '#ffffff',
+  markInk: '#16181d',
   shadowCard: '0 1px 2px rgba(18, 20, 26, 0.04), 0 1px 3px rgba(18, 20, 26, 0.05)',
   shadowSidebar: '1px 0 0 rgba(18, 20, 26, 0.04)',
 };
@@ -100,8 +98,7 @@ const DARK: AdminColors = {
   errSoft: '#2e1b19',
   info: '#aab0f7',
   infoSoft: '#20233a',
-  markTrack: '#e8eaf0',
-  markKnob: '#16181e',
+  markInk: '#e8eaf0',
   shadowCard: '0 1px 2px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.34)',
   shadowSidebar: '1px 0 0 rgba(0, 0, 0, 0.3)',
 };
