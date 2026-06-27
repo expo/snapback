@@ -103,6 +103,15 @@ fn resolve_database_path(path: &Path) -> anyhow::Result<PathBuf> {
     } else {
         std::env::current_dir()?.join(path)
     };
+    match std::fs::canonicalize(&absolute) {
+        Ok(resolved) => return Ok(resolved),
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!("failed to resolve database path {}", absolute.display())
+            });
+        }
+    }
     let file_name = absolute
         .file_name()
         .context("database path must include a file name")?
@@ -171,7 +180,7 @@ fn describe_ports(ports: &[u16]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{Args, bind_first_available, bind_listener};
+    use super::{Args, bind_first_available, bind_listener, prepare_database_path};
     use clap::Parser;
     use std::path::PathBuf;
     use tokio::net::TcpListener;
@@ -220,5 +229,31 @@ mod tests {
         let listener = bind_listener("127.0.0.1", Some(0)).await.unwrap();
 
         assert_ne!(listener.local_addr().unwrap().port(), 0);
+    }
+
+    #[test]
+    fn database_path_is_absolute_after_parent_creation() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("nested").join("snapback.db");
+
+        let resolved = prepare_database_path(&db_path).unwrap();
+
+        assert!(resolved.is_absolute());
+        assert_eq!(resolved.file_name().unwrap(), "snapback.db");
+        assert!(db_path.parent().unwrap().exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn existing_database_symlink_resolves_to_target() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let real_db = dir.path().join("real.sqlite3");
+        let link_db = dir.path().join("link.sqlite3");
+        std::fs::write(&real_db, b"").expect("write db placeholder");
+        std::os::unix::fs::symlink(&real_db, &link_db).expect("symlink db");
+
+        let resolved = super::resolve_database_path(&link_db).unwrap();
+
+        assert_eq!(resolved, std::fs::canonicalize(&real_db).unwrap());
     }
 }

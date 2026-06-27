@@ -1,11 +1,14 @@
 // Snapback admin — Contract console.
 //
 // A system app over the headless admin contract (/_snapback/api/*), authored in
-// Contract and statically built (see admin-ui/build.mjs + LLP 0017). Tabbed
-// inspector built from reusable components and `when` panels keyed off
-// `activeTab`. The single inspect read is a one-row collection, so the body
-// renders inside `each s in rows` over that row; formatting lives in
-// admin-boundary.mjs's `data.ui.*` view model.
+// Contract and statically built (admin-ui/build.mjs + LLP 0017). App-shell
+// layout: a fixed sidebar (brand, nav, light/dark toggle) beside a scrolling
+// content pane. The single inspect read is a one-row collection, so the body
+// renders inside `each s in rows`; all formatting lives in admin-boundary.mjs's
+// `data.ui.*` view model — the template only reads flat, statically-named fields.
+//
+// @ref LLP 0017#console-surfaces — the console composes the headless admin
+//   contract into views; the contract, not this file, is the source of truth.
 
 use inspect from "./generated/contract/inspect.query.ts"
 use refresh from "./generated/contract/refresh.mutation.ts"
@@ -13,13 +16,16 @@ use tableScan from "./generated/contract/tableScan.query.ts"
 use loadTable from "./generated/contract/loadTable.mutation.ts"
 use runResult from "./generated/contract/runResult.query.ts"
 use runFunction from "./generated/contract/runFunction.mutation.ts"
+use cleanup from "./generated/contract/cleanup.mutation.ts"
 use colors from "./theme.ts"
 use fonts from "./theme.ts"
-use tabNames from "./theme.ts"
+use navSections from "./theme.ts"
 use initialTab from "./theme.ts"
+use initialTheme from "./theme.ts"
 
 component AdminConsole
   state activeTab = initialTab()
+  state theme = initialTheme()
   state dataTable = ""
   state dataOffset = 0
   state runName = ""
@@ -32,14 +38,16 @@ component AdminConsole
   mutation reloadInspect = refresh
   mutation loadScan = loadTable
   mutation runMut = runFunction
+  mutation cleanupMut = cleanup
 
-  derive c = colors()
+  derive c = colors(theme)
   derive f = fonts()
-  derive tabs = tabNames()
+  derive nav = navSections()
   derive isOverview = activeTab == "Overview"
   derive isSchema = activeTab == "Schema"
   derive isData = activeTab == "Data"
   derive isFunctions = activeTab == "Functions"
+  derive isCapabilities = activeTab == "Capabilities"
   derive isRealtime = activeTab == "Realtime"
   derive isDiagnostics = activeTab == "Diagnostics"
 
@@ -47,6 +55,8 @@ component AdminConsole
     reloadInspect()
   action setTab(name) writes activeTab
     activeTab = name
+  action setTheme(mode) writes theme
+    theme = mode
   action openTable(name) writes dataTable, dataOffset mutates loadScan
     dataTable = name
     dataOffset = 0
@@ -54,7 +64,7 @@ component AdminConsole
   action pageBy(delta) writes dataOffset mutates loadScan
     dataOffset = dataOffset + delta
     loadScan({ table: dataTable, offset: dataOffset })
-  action selectFn(name) writes runName
+  action pickFn(name) writes runName
     runName = name
   action setArgs(value) writes runArgs
     runArgs = value
@@ -62,217 +72,394 @@ component AdminConsole
     runUser = value
   action runFn mutates runMut
     runMut({ name: runName, argsText: runArgs, userId: runUser })
+  action cleanupNow mutates cleanupMut
+    cleanupMut()
 
   view
-    column align="center" padding=20 background=c.bg minHeight="100vh" width="100%"
-      column gap=14 width="100%" maxWidth=980
-        row align="center" gap=12 width="100%"
-          column gap=2 flex=1 minWidth=0
-            text "Snapback admin" size=22 weight=800 color=c.text family=f.sans testId="title"
-            text "Contract console" size=12 color=c.textMuted family=f.sans
-          button press=reload testId="refresh" paddingTop=8 paddingBottom=8 paddingLeft=16 paddingRight=16 radius=8 background=c.accent borderWidth=0
-            text "Refresh" size=13 weight=600 color="#ffffff" family=f.sans
+    row width="100%" height="100vh" background=c.canvas
 
-        row gap=4 wrap="wrap" width="100%"
-          each name in tabs key=name
-            button press=setTab(name) testId=`tab-${name}` paddingTop=7 paddingBottom=7 paddingLeft=13 paddingRight=13 radius=8 borderWidth=0 background=activeTab == name ? c.accentSoft : "transparent"
-              text name size=13 color=activeTab == name ? c.accentText : c.textMuted family=f.sans weight=activeTab == name ? 700 : 500
+      column width=248 background=c.sidebar paddingTop=22 paddingBottom=20 paddingLeft=14 paddingRight=14 gap=22 boxShadow=c.shadowSidebar
+        row gap=11 align="center" paddingLeft=8 paddingRight=8
+          row width=42 height=24 radius=999 background=c.markTrack align="center" justify="flex-end" paddingLeft=3 paddingRight=3
+            column width=18 height=18 radius=999 background=c.markKnob
+          column gap=1 flex=1 minWidth=0
+            text "Snapback" size=16 weight=700 color=c.text family=f.sans letterSpacing=-0.2
+            text "ADMIN CONSOLE" size=9 weight=700 color=c.textFaint family=f.sans letterSpacing=1.4
 
-        async state
-          loading
-            text "Connecting to Snapback…" size=14 color=c.textMuted family=f.sans testId="loading"
-          error err
-            text err.message size=14 color=c.err family=f.sans testId="error"
-          ready rows
-            each s in rows key=s.id
+        column gap=2 width="100%"
+          each item in nav key=item.key
+            button press=setTab(item.key) testId=`nav-${item.key}` width="100%" radius=8 borderWidth=0 paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 background=activeTab == item.key ? c.accentSoft : "transparent"
+              text item.label size=13 weight=activeTab == item.key ? 600 : 500 color=activeTab == item.key ? c.accentText : c.textMuted family=f.sans
 
-              when isOverview
-                column gap=14 width="100%"
-                  row gap=14 wrap="wrap" width="100%" align="stretch"
-                    Card(title="SERVER", testId="card-server")
-                      Kv(k="Target", v=s.ui.target)
-                      Kv(k="Address", v=s.ui.address)
-                      Kv(k="Exposure", v=s.ui.exposure)
-                      Kv(k="Uptime", v=s.ui.uptime)
-                      Kv(k="PID", v=s.ui.pid)
-                    Card(title="STORAGE", testId="card-storage")
-                      Kv(k="Mode", v=s.ui.storageMode)
-                      Kv(k="SQLite path", v=s.ui.sqlitePath)
-                      Kv(k="Data version", v=s.ui.dataVersion)
-                      Kv(k="Schema hash", v=s.ui.schemaHash)
-                    Card(title="RUNTIME", testId="card-runtime")
-                      Kv(k="Engine", v=s.ui.engine)
-                      Kv(k="Ibex CLI", v=s.ui.ibex)
-                      Kv(k="Writes need token", v=s.ui.writesRequireToken)
-                  column gap=8 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
-                    text "Capability gaps" size=13 weight=700 color=c.text family=f.sans
-                    row gap=7 wrap="wrap"
-                      each g in s.ui.gaps key=g
-                        Chip(label=g, tone="warn")
+        spacer
 
-              when isSchema
-                column gap=10 width="100%"
-                  each t in s.ui.tables key=t.name
-                    Card(title=t.name, testId=`table-${t.name}`)
-                      each fld in t.fields key=fld.name
-                        FieldRow(name=fld.name, type=fld.type, sys=fld.sys)
-                      Kv(k="Indexes", v=t.indexes)
+        column gap=8 width="100%"
+          column height=1 background=c.border width="100%"
+          text "APPEARANCE" size=9 weight=700 color=c.textFaint family=f.sans letterSpacing=1.4 paddingLeft=8
+          row gap=4 padding=3 radius=10 background=c.surfaceRaised width="100%"
+            button press=setTheme("light") testId="theme-light" flex=1 radius=8 borderWidth=0 paddingTop=6 paddingBottom=6 background=theme == "light" ? c.accentSoft : "transparent"
+              text "Light" size=12 weight=600 color=theme == "light" ? c.accentText : c.textMuted family=f.sans textAlign="center"
+            button press=setTheme("dark") testId="theme-dark" flex=1 radius=8 borderWidth=0 paddingTop=6 paddingBottom=6 background=theme == "dark" ? c.accentSoft : "transparent"
+              text "Dark" size=12 weight=600 color=theme == "dark" ? c.accentText : c.textMuted family=f.sans textAlign="center"
 
-              when isData
-                column gap=12 width="100%"
-                  row gap=6 wrap="wrap" align="center"
-                    text "Table" size=12 color=c.textMuted family=f.sans
-                    each t in s.ui.tables key=t.name
-                      button press=openTable(t.name) testId=`pick-${t.name}` paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.border background=dataTable == t.name ? c.accentSoft : c.surface
-                        text t.name size=13 color=dataTable == t.name ? c.accentText : c.text family=f.sans weight=dataTable == t.name ? 700 : 500
-                  async scan
-                    ready scanRows
-                      each sv in scanRows key=sv.id
-                        when sv.loaded
-                          column gap=8 padding=12 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
-                            row gap=10 align="center" width="100%"
-                              text sv.rangeLabel size=12 color=c.textMuted family=f.sans flex=1 minWidth=0
-                              when sv.canPrev
-                                button press=pageBy(-50) testId="data-prev" paddingTop=5 paddingBottom=5 paddingLeft=11 paddingRight=11 radius=8 borderWidth=1 borderColor=c.border background=c.surface
-                                  text "‹ Prev" size=12 weight=600 color=c.textMuted family=f.sans
-                              when sv.canNext
-                                button press=pageBy(50) testId="data-next" paddingTop=5 paddingBottom=5 paddingLeft=11 paddingRight=11 radius=8 borderWidth=1 borderColor=c.border background=c.surface
-                                  text "Next ›" size=12 weight=600 color=c.textMuted family=f.sans
-                            row gap=8 paddingBottom=6 width="100%"
-                              each col in sv.columns key=col
-                                text col size=11 weight=700 color=c.textMuted family=f.mono flex=1 minWidth=0 numberOfLines=1
-                            each drow in sv.rows key=drow.id
-                              row gap=8 paddingTop=6 paddingBottom=6 width="100%"
-                                each cell in drow.cells key=cell.key
-                                  text cell.text size=12 color=cell.sys ? c.textFaint : c.text family=f.mono flex=1 minWidth=0 numberOfLines=1
-                        else
-                          column gap=4 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
-                            text "Select a table to browse rows." size=13 color=c.textMuted family=f.sans
+      scroll flex=1 minWidth=0 borderLeftWidth=1 borderLeftColor=c.border
+        column padding=28 gap=18 width="100%" maxWidth=1180
 
-              when isFunctions
-                column gap=12 width="100%"
-                  column gap=10 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
-                    text "Run a function" size=13 weight=700 color=c.text family=f.sans
+          async state
+            loading
+              column align="center" paddingTop=90 gap=10 width="100%"
+                text "Connecting to Snapback…" size=14 color=c.textMuted family=f.sans testId="loading"
+            error err
+              column paddingTop=40 width="100%"
+                column gap=8 padding=20 radius=12 background=c.errSoft width="100%" maxWidth=560
+                  text "Admin API unavailable" size=15 weight=700 color=c.err family=f.sans
+                  text err.message size=13 color=c.err family=f.mono testId="error"
+                  text "Reads are open on loopback; a non-loopback bind needs SNAPBACK_ADMIN_TOKEN." size=12 color=c.textMuted family=f.sans
+            ready rows
+              each s in rows key=s.id
+
+                row align="center" gap=16 width="100%"
+                  column gap=2 flex=1 minWidth=0
+                    text activeTab size=22 weight=700 color=c.text family=f.sans testId="title"
+                    text s.ui.target size=12 color=c.textFaint family=f.mono
+                  row gap=10 align="center"
+                    text s.ui.loadedAt size=12 color=c.textFaint family=f.sans
+                    button press=reload testId="refresh" paddingTop=8 paddingBottom=8 paddingLeft=16 paddingRight=16 radius=8 background=c.accent borderWidth=0
+                      text "Refresh" size=13 weight=600 color=c.onAccent family=f.sans
+
+                row gap=8 wrap="wrap" align="center" width="100%"
+                  Badge(c=c, label=s.ui.address, tone="default", mono=true)
+                  Badge(c=c, label=s.ui.exposureLabel, tone=s.ui.exposureTone)
+                  Badge(c=c, label=s.ui.storageLabel, tone="default")
+                  Badge(c=c, label=s.ui.tokenLabel, tone=s.ui.tokenTone)
+
+                column height=1 background=c.border width="100%"
+
+                when isOverview
+                  column gap=18 width="100%"
+                    row gap=12 wrap="wrap" width="100%"
+                      each t in s.ui.tiles key=t.key
+                        StatTile(c=c, label=t.label, value=t.value, alert=t.alert)
+                    row gap=14 wrap="wrap" align="stretch" width="100%"
+                      Card(c=c, title="SERVER")
+                        each kvi in s.ui.server key=kvi.key
+                          Kv(c=c, k=kvi.k, v=kvi.v, tone=kvi.tone, mono=kvi.mono)
+                      Card(c=c, title="STORAGE")
+                        each kvi in s.ui.storage key=kvi.key
+                          Kv(c=c, k=kvi.k, v=kvi.v, tone=kvi.tone, mono=kvi.mono)
+                      Card(c=c, title="RUNTIME")
+                        each kvi in s.ui.runtime key=kvi.key
+                          Kv(c=c, k=kvi.k, v=kvi.v, tone=kvi.tone, mono=kvi.mono)
+                    row gap=14 wrap="wrap" width="100%"
+                      Card(c=c, title="ADMIN CAPABILITIES")
+                        each cap in s.ui.adminCaps key=cap.key
+                          Kv(c=c, k=cap.k, v=cap.on ? "yes" : "no", tone=cap.on ? "ok" : "faint")
+                    when s.ui.hasGaps
+                      column gap=10 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                        text "CAPABILITY GAPS" size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans
+                        row gap=7 wrap="wrap"
+                          each g in s.ui.gaps key=g.key
+                            Badge(c=c, label=g.label, tone="warn", mono=true)
+
+                when isSchema
+                  column gap=14 width="100%"
                     row gap=8 align="center" wrap="wrap"
-                      text "Function" size=12 color=c.textMuted family=f.sans
-                      text runName == "" ? "select one below" : runName size=13 weight=600 color=runName == "" ? c.textFaint : c.accentText family=f.mono
-                    input label="Arguments (JSON)" value=runArgs change=setArgs submit=runFn testId="run-args" width="100%" paddingTop=8 paddingBottom=8 paddingLeft=10 paddingRight=10 radius=8 borderWidth=1 borderColor=c.border background=c.surface color=c.text size=13 family=f.mono
-                    row gap=8 align="center" wrap="wrap" width="100%"
-                      input label="auth user id (optional)" value=runUser change=setUser submit=runFn testId="run-user" flex=1 minWidth=200 paddingTop=8 paddingBottom=8 paddingLeft=10 paddingRight=10 radius=8 borderWidth=1 borderColor=c.border background=c.surface color=c.text size=13 family=f.sans
-                      button press=runFn testId="run-btn" paddingTop=8 paddingBottom=8 paddingLeft=18 paddingRight=18 radius=8 background=c.accent borderWidth=0
-                        text "Run" size=13 weight=600 color="#ffffff" family=f.sans
-                    async runResultQ
-                      ready runRows
-                        each rr in runRows key=rr.id
-                          when rr.ran
-                            column gap=6 paddingTop=4 width="100%"
-                              row gap=8 align="center" wrap="wrap"
-                                Chip(label=rr.ok ? "ok" : "failed", tone=rr.ok ? "ok" : "warn")
+                      text s.ui.tableSummary size=13 color=c.textMuted family=f.sans
+                      when s.ui.appId
+                        Badge(c=c, label=s.ui.appId, tone="accent")
+                      when s.ui.schemaHash
+                        Badge(c=c, label=s.ui.schemaHash, tone="default", mono=true)
+                    when s.ui.hasTables
+                      column gap=12 width="100%"
+                        each t in s.ui.tables key=t.name
+                          column gap=0 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                            row align="center" gap=10 width="100%" paddingBottom=8
+                              text t.name size=15 weight=700 color=c.text family=f.mono flex=1 minWidth=0
+                              text t.fieldSummary size=12 color=c.textFaint family=f.sans
+                              Badge(c=c, label=t.syncableLabel, tone=t.syncableTone)
+                            column height=1 background=c.border width="100%" marginBottom=2
+                            each fld in t.fields key=fld.key
+                              FieldRow(c=c, name=fld.name, type=fld.type, req=fld.req, sys=fld.sys)
+                            column height=1 background=c.border width="100%" marginTop=8 marginBottom=8
+                            row gap=10 align="center" width="100%"
+                              text "Indexes" size=12 color=c.textMuted family=f.sans flex=1 minWidth=0
+                              text t.indexesLabel size=12 color=c.text family=f.mono textAlign="right"
+                    else
+                      column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                        text "No schema loaded. Apply a schema manifest to populate tables." size=13 color=c.textMuted family=f.sans
+
+                when isData
+                  column gap=14 width="100%"
+                    text "Read-only, schema-aware row browsing through Snapback storage." size=13 color=c.textMuted family=f.sans
+                    row gap=6 wrap="wrap" align="center" width="100%"
+                      text "Table" size=12 color=c.textMuted family=f.sans
+                      each t in s.ui.tableNames key=t.key
+                        button press=openTable(t.name) testId=`pick-${t.name}` borderWidth=1 borderColor=c.border radius=8 paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 background=dataTable == t.name ? c.accentSoft : c.surface
+                          text t.name size=13 weight=dataTable == t.name ? 600 : 500 color=dataTable == t.name ? c.accentText : c.text family=f.mono
+                    async scan
+                      ready scanRows
+                        each sv in scanRows key=sv.id
+                          when sv.loaded
+                            column gap=0 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                              row gap=10 align="center" width="100%" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14
+                                text sv.table size=13 weight=700 color=c.text family=f.mono flex=1 minWidth=0
+                                text sv.rangeLabel size=12 color=c.textMuted family=f.sans
+                                button press=pageBy(-50) testId="data-prev" paddingTop=5 paddingBottom=5 paddingLeft=11 paddingRight=11 radius=8 borderWidth=1 borderColor=c.border background=c.surface opacity=sv.prevDisabled ? 0.4 : 1 disabled=sv.prevDisabled
+                                  text "‹ Prev" size=12 weight=600 color=c.textMuted family=f.sans
+                                button press=pageBy(50) testId="data-next" paddingTop=5 paddingBottom=5 paddingLeft=11 paddingRight=11 radius=8 borderWidth=1 borderColor=c.border background=c.surface opacity=sv.nextDisabled ? 0.4 : 1 disabled=sv.nextDisabled
+                                  text "Next ›" size=12 weight=600 color=c.textMuted family=f.sans
+                              when sv.error
+                                column padding=16 width="100%"
+                                  text sv.error size=12 color=c.err family=f.mono
+                              when sv.empty
+                                column padding=28 align="center" width="100%"
+                                  text "No rows in this table." size=13 color=c.textMuted family=f.sans
+                              else
+                                column gap=0 width="100%"
+                                  row gap=10 paddingTop=9 paddingBottom=9 paddingLeft=14 paddingRight=14 background=c.surfaceRaised width="100%" borderColor=c.border borderBottomWidth=1
+                                    each col in sv.columns key=col
+                                      text col size=11 weight=700 color=c.textMuted family=f.mono flex=1 minWidth=0 numberOfLines=1
+                                  each drow in sv.rows key=drow.id
+                                    row gap=10 paddingTop=8 paddingBottom=8 paddingLeft=14 paddingRight=14 width="100%" borderColor=c.border borderBottomWidth=1
+                                      each cell in drow.cells key=cell.key
+                                        text cell.text size=12 color=cell.sys ? c.textFaint : c.text family=f.mono flex=1 minWidth=0 numberOfLines=1
+                          else
+                            column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                              text "Select a table above to browse its rows." size=13 color=c.textMuted family=f.sans
+
+                when isFunctions
+                  column gap=16 width="100%"
+                    text "Run generated queries and mutations through the same path as clients." size=13 color=c.textMuted family=f.sans
+                    column gap=12 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                      row gap=8 align="center" wrap="wrap"
+                        text "Run a function" size=13 weight=700 color=c.text family=f.sans flex=1 minWidth=0
+                        text runName == "" ? "select a function below" : runName size=13 weight=600 color=runName == "" ? c.textFaint : c.accentText family=f.mono
+                      input label="Arguments (JSON)" value=runArgs change=setArgs submit=runFn multiline=true testId="run-args" width="100%" minHeight=70 paddingTop=10 paddingBottom=10 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surfaceRaised color=c.text size=13 family=f.mono
+                      row gap=8 align="center" wrap="wrap" width="100%"
+                        input label="auth user id" value=runUser change=setUser submit=runFn placeholder="auth user id (optional)" testId="run-user" flex=1 minWidth=200 paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surface color=c.text size=13 family=f.sans
+                        button press=runFn testId="run-btn" paddingTop=10 paddingBottom=10 paddingLeft=20 paddingRight=20 radius=8 background=c.accent borderWidth=0
+                          text "Run" size=13 weight=600 color=c.onAccent family=f.sans
+                      async runResultQ
+                        ready runRows
+                          each rr in runRows key=rr.id
+                            when rr.ran
+                              column gap=10 paddingTop=6 width="100%"
+                                row gap=8 align="center" minHeight=24
+                                  Badge(c=c, label=rr.statusLabel, tone=rr.ok ? "ok" : "err")
+                                  when rr.kindLabel
+                                    Badge(c=c, label=rr.kindLabel, tone="accent")
+                                  text rr.facts size=12 color=c.textMuted family=f.sans
                                 text rr.io size=12 color=c.textMuted family=f.mono
-                              when rr.facts
-                                text rr.facts size=12 color=c.textMuted family=f.sans
-                              when rr.error
-                                text rr.error size=12 color=c.err family=f.mono
-                              when rr.payload
-                                column padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
-                                  text rr.payload size=12 color=c.text family=f.mono
-                  column gap=0 padding=4 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
-                    each fn in s.ui.functions key=fn.name
-                      button press=selectFn(fn.name) testId=`fn-${fn.name}` width="100%" borderWidth=0 radius=8 background=runName == fn.name ? c.accentSoft : "transparent"
-                        FnRow(fn=fn)
+                                when rr.hasReads
+                                  row gap=6 align="center" minHeight=24
+                                    text "captured reads" size=11 color=c.textFaint family=f.sans
+                                    each cr in rr.reads key=cr.key
+                                      Badge(c=c, label=cr.label, tone="default", mono=true)
+                                when rr.hasWrites
+                                  row gap=6 align="center" minHeight=24
+                                    text "captured writes" size=11 color=c.textFaint family=f.sans
+                                    each cw in rr.writes key=cw.key
+                                      Badge(c=c, label=cw.label, tone="warn", mono=true)
+                                when rr.error
+                                  column padding=12 radius=8 background=c.errSoft width="100%"
+                                    text rr.error size=12 color=c.err family=f.mono
+                                when rr.hasPayload
+                                  scroll height=200 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
+                                    text rr.payload size=12 color=c.text family=f.mono
+                    column gap=8 width="100%"
+                      row gap=8 align="center" wrap="wrap"
+                        text s.ui.functionSummary size=13 color=c.textMuted family=f.sans flex=1 minWidth=0
+                        when s.ui.bundleHash
+                          Badge(c=c, label=s.ui.bundleHash, tone="default", mono=true)
+                      when s.ui.hasFunctions
+                        column gap=8 width="100%"
+                          each fn in s.ui.functions key=fn.name
+                            column gap=0 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                              button press=pickFn(fn.name) testId=`fn-${fn.name}` width="100%" borderWidth=0 radius=12 background=runName == fn.name ? c.accentSoft : "transparent"
+                                row gap=10 align="center" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 width="100%"
+                                  Badge(c=c, label=fn.kindLabel, tone=fn.kindTone)
+                                  text fn.name size=14 weight=600 color=c.text family=f.sans flex=1 minWidth=0 numberOfLines=1
+                                  text fn.io size=12 color=c.textMuted family=f.mono numberOfLines=1
+                              when runName == fn.name
+                                column gap=12 paddingTop=2 paddingBottom=14 paddingLeft=14 paddingRight=14 width="100%"
+                                  column height=1 background=c.border width="100%" marginBottom=2
+                                  row gap=28 align="flex-start" width="100%" minHeight=42
+                                    column gap=2
+                                      text "AUTH" size=9 weight=700 color=c.textFaint family=f.sans letterSpacing=0.8
+                                      text fn.auth size=13 color=c.text family=f.sans
+                                    column gap=2
+                                      text "SYNCABILITY" size=9 weight=700 color=c.textFaint family=f.sans letterSpacing=0.8
+                                      text fn.syncability size=13 color=c.text family=f.sans
+                                    column gap=2
+                                      text "RUNTIME" size=9 weight=700 color=c.textFaint family=f.sans letterSpacing=0.8
+                                      text fn.planLabel size=13 color=c.text family=f.sans
+                                  column gap=3 width="100%"
+                                    text "PLAN" size=9 weight=700 color=c.textFaint family=f.sans letterSpacing=0.8
+                                    text fn.planSummary size=13 color=c.text family=f.mono
+                                  when fn.hasCaps
+                                    row gap=6 align="center" minHeight=24
+                                      text "requires" size=11 color=c.textFaint family=f.sans
+                                      each cap in fn.caps key=cap.key
+                                        Badge(c=c, label=cap.label, tone="default", mono=true)
+                                  when fn.hasPlanJson
+                                    scroll height=220 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
+                                      text fn.planJson size=11 color=c.textMuted family=f.mono
+                                  when fn.isIbex
+                                    scroll height=220 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
+                                      text fn.source size=11 color=c.text family=f.mono
 
-              when isRealtime
-                column gap=14 width="100%"
-                  Card(title="EPHEMERAL ROOMS", testId="card-ephemeral")
-                    Kv(k="Rooms", v=s.ui.eph.rooms)
-                    Kv(k="Entries", v=s.ui.eph.entries)
-                    Kv(k="Subscribers", v=s.ui.eph.subscribers)
-                    Kv(k="Resync required", v=s.ui.eph.resync)
-                  text "Process-local memory, cleared on restart." size=12 color=c.textMuted family=f.sans
+                when isCapabilities
+                  column gap=14 width="100%"
+                    text "What this target profile can and cannot do — the capability manifest." size=13 color=c.textMuted family=f.sans
+                    row gap=14 wrap="wrap" align="stretch" width="100%"
+                      Card(c=c, title="ENGINE")
+                        Kv(c=c, k="Storage engine", v=s.ui.cap.storageEngine)
+                        Kv(c=c, k="Runtime engine", v=s.ui.cap.runtimeEngine)
+                        Kv(c=c, k="Mutation isolation", v=s.ui.cap.isolation)
+                      Card(c=c, title="FEATURES")
+                        each fl in s.ui.cap.flags key=fl.key
+                          Kv(c=c, k=fl.label, v=fl.on ? "yes" : "no", tone=fl.on ? "ok" : "faint")
+                    when s.ui.cap.hasForms
+                      column gap=10 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                        text "SUPPORTED QUERY FORMS" size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans
+                        row gap=7 wrap="wrap"
+                          each q in s.ui.cap.queryForms key=q.key
+                            Badge(c=c, label=q.label, tone="default", mono=true)
+                    row gap=14 wrap="wrap" width="100%"
+                      when s.ui.cap.hasLimits
+                        Card(c=c, title="RESOURCE LIMITS")
+                          each lim in s.ui.cap.limits key=lim.key
+                            Kv(c=c, k=lim.name, v=lim.status, tone=lim.tone, mono=true)
+                    when s.ui.cap.hasGaps
+                      column gap=10 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                        text "CAPABILITY GAPS" size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans
+                        row gap=7 wrap="wrap"
+                          each g in s.ui.cap.gaps key=g.key
+                            Badge(c=c, label=g.label, tone="warn", mono=true)
 
-              when isDiagnostics
-                column gap=0 padding=4 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
-                  each d in s.ui.diagnostics key=d.id
-                    DiagRow(d=d)
+                when isRealtime
+                  column gap=16 width="100%"
+                    text "Durable subscriptions and process-local ephemeral state. Ephemeral clears on restart." size=13 color=c.textMuted family=f.sans
+                    column gap=0 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                      row align="center" gap=8 paddingBottom=10 width="100%"
+                        text "DURABLE SUBSCRIPTIONS" size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans flex=1 minWidth=0
+                        Badge(c=c, label=s.ui.subCountLabel, tone="default")
+                      when s.ui.hasSubs
+                        column gap=0 width="100%"
+                          each sub in s.ui.subscriptions key=sub.key
+                            row gap=10 align="center" paddingTop=8 paddingBottom=8 width="100%" borderColor=c.border borderBottomWidth=1
+                              text sub.function size=13 weight=500 color=c.text family=f.sans flex=1 minWidth=0
+                              text sub.connection size=12 color=c.textFaint family=f.mono
+                              text sub.id size=12 color=c.textFaint family=f.mono
+                      else
+                        text "No active subscriptions." size=13 color=c.textMuted family=f.sans
+                    column gap=10 width="100%"
+                      text "LIVE DELIVERY" size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans
+                      row gap=12 wrap="wrap" width="100%"
+                        each st in s.ui.delivery key=st.key
+                          StatTile(c=c, label=st.label, value=st.value, alert=false)
+                    column gap=10 width="100%"
+                      row gap=8 align="center" width="100%"
+                        text "EPHEMERAL ROOMS" size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans flex=1 minWidth=0
+                        when s.ui.canCleanup
+                          button press=cleanupNow testId="ephemeral-cleanup" paddingTop=7 paddingBottom=7 paddingLeft=14 paddingRight=14 radius=8 borderWidth=1 borderColor=c.border background=c.surface
+                            text "Clean up expired" size=12 weight=600 color=c.textMuted family=f.sans
+                      row gap=12 wrap="wrap" width="100%"
+                        each st in s.ui.ephemeral key=st.key
+                          StatTile(c=c, label=st.label, value=st.value, alert=st.alert)
+
+                when isDiagnostics
+                  column gap=14 width="100%"
+                    text "Recent structured diagnostics emitted by the runtime." size=13 color=c.textMuted family=f.sans
+                    when s.ui.hasDiags
+                      column gap=0 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                        each d in s.ui.diagnostics key=d.key
+                          DiagRow(c=c, d=d)
+                    else
+                      column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                        text "No recent diagnostics." size=13 color=c.textMuted family=f.sans
 
 component Card
   props
+    c: object
     title: string
-    testId: string = null
-
-  derive c = colors()
   derive f = fonts()
-
   view
-    column gap=2 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border flex=1 minWidth=240 testId=testId
-      text title size=11 weight=700 letterSpacing=0.4 color=c.textMuted family=f.sans
-      column gap=0 paddingTop=4 width="100%"
+    column gap=0 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border flex=1 minWidth=260 boxShadow=c.shadowCard
+      text title size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans
+      column gap=0 paddingTop=6 width="100%"
         children
 
 component Kv
   props
+    c: object
     k: string
     v: string
-
-  derive c = colors()
+    tone: string = ""
+    mono: boolean = false
   derive f = fonts()
-
+  derive vColor = tone == "ok" ? c.ok : tone == "warn" ? c.warn : tone == "err" ? c.err : tone == "accent" ? c.accentText : tone == "faint" ? c.textFaint : c.text
   view
-    row gap=12 paddingTop=6 paddingBottom=6 width="100%"
+    row gap=12 align="center" paddingTop=7 paddingBottom=7 width="100%"
       text k size=13 color=c.textMuted family=f.sans flex=1 minWidth=0
-      text v size=13 weight=500 color=c.text family=f.sans
+      text v size=13 weight=500 color=vColor family=mono ? f.mono : f.sans textAlign="right"
 
-component Chip
+component StatTile
   props
+    c: object
+    label: string
+    value: string
+    alert: boolean = false
+  derive f = fonts()
+  view
+    column gap=4 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border flex=1 minWidth=150 boxShadow=c.shadowCard
+      text value size=26 weight=700 color=alert ? c.warn : c.text family=f.sans letterSpacing=-0.5
+      text label size=12 weight=500 color=c.textMuted family=f.sans
+
+component Badge
+  props
+    c: object
     label: string
     tone: string = "default"
-
-  derive c = colors()
+    mono: boolean = false
   derive f = fonts()
-  derive bg = tone == "warn" ? c.warnSoft : tone == "accent" ? c.accentSoft : tone == "ok" ? c.okSoft : c.surfaceRaised
-  derive fg = tone == "warn" ? c.warn : tone == "accent" ? c.accentText : tone == "ok" ? c.ok : c.textMuted
-
+  derive bg = tone == "ok" ? c.okSoft : tone == "warn" ? c.warnSoft : tone == "err" ? c.errSoft : tone == "accent" ? c.accentSoft : tone == "info" ? c.infoSoft : c.surfaceRaised
+  derive fg = tone == "ok" ? c.ok : tone == "warn" ? c.warn : tone == "err" ? c.err : tone == "accent" ? c.accentText : tone == "info" ? c.info : c.textMuted
   view
-    column paddingTop=2 paddingBottom=2 paddingLeft=9 paddingRight=9 radius=999 background=bg
-      text label size=12 weight=600 color=fg family=f.mono
+    // A single text leaf (not a column > text): the Exact layout kernel measures
+    // text nodes reliably, so badge-bearing rows get correct height even when the
+    // content is published into a boundary after the initial render.
+    text label size=12 weight=600 color=fg family=mono ? f.mono : f.sans background=bg radius=999 paddingTop=3 paddingBottom=3 paddingLeft=10 paddingRight=10
 
 component FieldRow
   props
+    c: object
     name: string
     type: string
-    sys: bool
-
-  derive c = colors()
+    req: string
+    sys: boolean
   derive f = fonts()
-
   view
-    row gap=12 paddingTop=5 paddingBottom=5 width="100%"
-      text name size=13 flex=1 minWidth=0 color=sys ? c.textFaint : c.text family=sys ? f.mono : f.sans
-      text type size=13 color=c.textMuted family=f.sans
-
-component FnRow
-  props
-    fn: object
-
-  derive c = colors()
-  derive f = fonts()
-
-  view
-    row gap=10 align="center" paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 width="100%"
-      text fn.kindLabel size=11 weight=600 color=c.accentText family=f.mono width=76
-      text fn.name size=13 weight=600 color=c.text family=f.sans flex=1 minWidth=0
-      text fn.io size=12 color=c.textMuted family=f.mono
+    row gap=12 align="center" paddingTop=6 paddingBottom=6 width="100%"
+      text name size=13 flex=1 minWidth=0 color=sys ? c.textFaint : c.text family=sys ? f.mono : f.sans numberOfLines=1
+      text type size=12 color=c.textMuted family=f.mono
+      text req size=11 color=c.textFaint family=f.sans
 
 component DiagRow
   props
+    c: object
     d: object
-
-  derive c = colors()
   derive f = fonts()
-
+  derive dotColor = d.sevTone == "err" ? c.err : d.sevTone == "warn" ? c.warn : c.info
   view
-    column gap=2 paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 width="100%"
-      row gap=8 align="center"
-        text d.code size=12 weight=700 color=c.text family=f.mono
-        text d.subsystem size=11 color=c.textMuted family=f.sans
-      text d.message size=12 color=c.textMuted family=f.sans
+    row gap=11 paddingTop=11 paddingBottom=11 paddingLeft=14 paddingRight=14 width="100%" align="flex-start" borderColor=c.border borderBottomWidth=1
+      column width=8 height=8 radius=999 background=dotColor marginTop=5
+      column gap=3 flex=1 minWidth=0
+        row gap=8 align="center" wrap="wrap"
+          text d.code size=13 weight=700 color=c.text family=f.mono
+          Badge(c=c, label=d.subsystem, tone="default")
+          Badge(c=c, label=d.sevLabel, tone=d.sevTone)
+        text d.message size=13 color=c.textMuted family=f.sans lineHeight=18
+        when d.hasDetails
+          scroll height=150 padding=10 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%" marginTop=2
+            text d.details size=11 color=c.textMuted family=f.mono

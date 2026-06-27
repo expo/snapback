@@ -1,7 +1,7 @@
 {
   "id": "todo-v2",
   "title": "Todo list v2",
-  "description": "A second todo reference app used to test LLP 0021 Phase 0/1: a richer row shape, a generated Contract binding surface with an extra mutation, and a wrong-native-server-shape capability diagnostic.",
+  "description": "A second todo reference app used to test LLP 0021 Phase 0-2: a richer row shape, a generated Contract binding surface with an extra mutation, Exact project checks for generated descriptors, a wrong-native-server-shape capability diagnostic, and an Exact-owned provider conformance fixture.",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
   "systems": ["API", "Storage", "Runtime", "Sync", "Realtime", "Developer experience", "Contract/Exact"],
@@ -46,6 +46,9 @@
     "contract": {
       "requirement": "optional",
       "runner": "bun demos/todo-v2/tests/acceptance/contract.mjs",
+      "descriptorRunner": "bun demos/todo-v2/tests/acceptance/contract-descriptors.mjs",
+      "adapterSemanticsRunner": "bun demos/todo-v2/tests/acceptance/adapter-semantics.mjs",
+      "providerConformanceRunner": "bun demos/todo-v2/tests/acceptance/provider-conformance.mjs",
       "browserRunner": "SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 bun run --cwd demos/todo-v2/surfaces/contract dev",
       "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "exact": {
@@ -53,7 +56,7 @@
         "resolver": "demos/_kit/exact-resolver.mjs (SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact | vendor/exact)",
         "designModeRequired": false,
         "mismatchPolicy": "skip-with-diagnostic-when-missing; run-and-fail-on-error-when-present",
-        "toolchain": "bun (to load Exact TS source)"
+        "toolchain": "bun (to load Exact package exports from an install or local checkout)"
       }
     },
     "react": {
@@ -80,6 +83,9 @@
     ],
     "contract": [
       ".contract compiles against generated descriptors",
+      "Exact project checks validate generated descriptor modules and row shapes",
+      "adapter rejected-mutation rollback republishes authoritative rows",
+      "adapter exposes one combined pending mutation count across runtime links and provider mutations",
       "contract bindings resolve to generated Snapback descriptors",
       "stale Contract data manifest diagnostic (SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH)",
       "mounts against live backend; renders live snapshot",
@@ -87,6 +93,7 @@
       "Contract actions toggle completion, change priority, and delete through Snapback mutations",
       "mutation is server-authoritative and visible to headless surface (cross-surface)",
       "provider seam subscribe + mutate on live backend",
+      "Exact-owned DataProvider conformance suite passes against the Snapback provider",
       "runtime links include the generated setPriority mutation",
       "no demo-local Contract sidecars are required"
     ]
@@ -105,6 +112,8 @@
   ],
   "llp0021Diagnostics": [
     "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
+    "SNAPBACK_CAPABILITY_EXACT_PACKAGE_EXPORT_MISSING",
+    "SNAPBACK_CAPABILITY_EXACT_PROVIDER_CONFORMANCE_MISSING",
     "SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH"
   ],
   "notClaiming": [

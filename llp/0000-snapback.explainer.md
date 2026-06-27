@@ -7,7 +7,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
 **Revised:** 2026-06-27
-**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
+**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0022, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
 
@@ -514,6 +514,9 @@ written) for at least:
   [`0001-prior-art.research.md`](./0001-prior-art.research.md); Valet is its
   deepest strand. A dedicated Valet recovery draft now lives at
   [`0006-valet-retrospective.research.md`](./0006-valet-retrospective.research.md).
+  The primary-source pass on the three closest living peers — ElectricSQL,
+  PowerSync, and Turso/libSQL — is
+  [`0022-electric-powersync-turso.research.md`](./0022-electric-powersync-turso.research.md).
 - The **agent DX and validation** model for agent-authored Snapback work.
   Drafted as
   [`0010-agent-dx-and-acceptance.spec.md`](./0010-agent-dx-and-acceptance.spec.md).

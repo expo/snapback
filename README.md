@@ -192,10 +192,9 @@ sibling prebuilt binary, run:
 cargo build --manifest-path vendor/ibex/Cargo.toml --bin ibex
 ```
 
-JavaScript handlers with `ctx.db` host calls are not wired yet. The first
-callable handler path is the restricted manifest-backed `HostPlan` runtime used
-by the tests; Ibex-backed handlers return a structured capability diagnostic
-until the host-call bridge lands.
+JavaScript handlers with `ctx.db` host calls now run through the embedded Ibex
+runtime. The older manifest-backed `HostPlan` runtime remains available for
+deterministic fixtures and bring-up.
 
 ## Demos
 

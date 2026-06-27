@@ -6,6 +6,8 @@
 //   stale output, and local tooling must exit cleanly.
 
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { isAbsolute, join, resolve } from 'node:path';
 
 export async function startServer({ port = 4399, db = ':memory:', cwd = process.cwd() } = {}) {
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -15,11 +17,17 @@ export async function startServer({ port = 4399, db = ':memory:', cwd = process.
     return { baseUrl, stop: async () => {}, reused: true };
   }
 
+  const runtimeEnv = preflightLocalRuntime({ cwd });
+
   const args = ['run', '--quiet', '--', '--port', String(port)];
   if (db === ':memory:') args.push('--memory');
   else args.push('--db', db);
 
-  const child = spawn('cargo', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn('cargo', args, {
+    cwd,
+    env: { ...process.env, ...runtimeEnv },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
   let log = '';
   child.stdout.on('data', (d) => { log += d; });
   child.stderr.on('data', (d) => { log += d; });
@@ -57,3 +65,101 @@ function stopChild(child) {
 }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+function preflightLocalRuntime({ cwd }) {
+  if (process.platform !== 'darwin') return {};
+
+  const ibexRoot = join(cwd, 'vendor', 'ibex');
+  if (!existsSync(join(ibexRoot, 'build.rs'))) return {};
+
+  const includeDir =
+    envPath('HERMES_INCLUDE_DIR', cwd) ?? join(ibexRoot, 'ios', 'Frameworks', 'hermes-headers');
+  const libDir = envPath('HERMES_LIB_DIR', cwd) ?? join(ibexRoot, 'ios', 'Frameworks');
+  const hermesc =
+    envPath('HERMESC', cwd) ??
+    envPath('HERMES_COMPILER', cwd) ??
+    defaultHermescPath(ibexRoot);
+
+  const missing = [];
+  if (!existsSync(join(includeDir, 'hermes', 'hermes.h')) || !existsSync(join(includeDir, 'jsi', 'jsi.h'))) {
+    missing.push(`Hermes headers at ${includeDir}`);
+  }
+  const framework = resolveMacosHermesFramework(libDir);
+  if (!framework) {
+    missing.push(`macOS Hermes framework under ${libDir}`);
+  }
+  if (!existsSync(hermesc)) {
+    missing.push(`hermesc at ${hermesc}`);
+  }
+
+  if (missing.length === 0) {
+    return {
+      DYLD_FRAMEWORK_PATH: withFrameworkPath(process.env, framework.searchDir),
+    };
+  }
+
+  const error = new Error([
+    'SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING: macOS Ibex/Hermes prerequisites are missing.',
+    '',
+    'Missing:',
+    ...missing.map((item) => `- ${item}`),
+    '',
+    'Run this once from the Snapback repo:',
+    '  vendor/ibex/scripts/download-hermes.sh',
+    '',
+    'Or point Cargo at an existing Ibex/Hermes checkout with:',
+    '  HERMES_INCLUDE_DIR=/path/to/ibex/ios/Frameworks/hermes-headers',
+    '  HERMES_LIB_DIR=/path/to/ibex/ios/Frameworks',
+    '  HERMESC=/path/to/hermesc',
+  ].join('\n'));
+  error.code = 'SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING';
+  throw error;
+}
+
+function envPath(name, cwd) {
+  const value = process.env[name];
+  if (!value) return null;
+  return isAbsolute(value) ? value : resolve(cwd, value);
+}
+
+function defaultHermescPath(ibexRoot) {
+  const arch = process.arch === 'x64' ? 'x64' : process.arch;
+  const toolsDir = join(ibexRoot, 'tools', 'hermes');
+  const bare = join(toolsDir, 'hermesc');
+  const suffixed = join(toolsDir, `hermesc-macos-${arch}`);
+  return !existsSync(bare) && existsSync(suffixed) ? suffixed : bare;
+}
+
+function resolveMacosHermesFramework(libRoot) {
+  const searchDirs = [
+    libRoot,
+    join(libRoot, 'macosx'),
+    join(libRoot, 'hermes.xcframework', 'macos-arm64_x86_64'),
+    join(libRoot, 'hermes.xcframework', 'macos-arm64'),
+  ];
+
+  for (const searchDir of searchDirs) {
+    for (const frameworkName of ['hermesvm', 'hermes']) {
+      if (findFrameworkBinary(join(searchDir, `${frameworkName}.framework`), frameworkName)) {
+        return { searchDir, frameworkName };
+      }
+    }
+  }
+  return null;
+}
+
+function withFrameworkPath(env, frameworkDir) {
+  const existing = env.DYLD_FRAMEWORK_PATH;
+  if (!existing) return frameworkDir;
+  const parts = existing.split(':').filter(Boolean);
+  return parts.includes(frameworkDir) ? existing : [frameworkDir, ...parts].join(':');
+}
+
+function findFrameworkBinary(frameworkDir, frameworkName) {
+  return [
+    join(frameworkDir, 'Versions', 'Current', frameworkName),
+    join(frameworkDir, 'Versions', '1', frameworkName),
+    join(frameworkDir, 'Versions', '0', frameworkName),
+    join(frameworkDir, frameworkName),
+  ].some((candidate) => existsSync(candidate));
+}

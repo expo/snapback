@@ -2,14 +2,18 @@
 
 Todo v2 lives alongside the original [`demos/todo`](../todo) demo. It keeps the
 same small product shape but exists for one narrower reason: test whether the
-LLP 0021 Phase 0/1 work makes a second Snapback+Contract surface less confusing.
+LLP 0021 Phase 0-2 work makes a second Snapback+Contract surface less confusing.
 
 Compared with the original, v2 adds a `priority` row field and a `setPriority`
 mutation, then verifies that the shared Contract bridge derives runtime links
 from the generated manifest instead of silently wiring only the original todo
 subset. It also imports generated Contract binding modules instead of
 demo-local descriptor sidecars, and adds an acceptance check for the new
-wrong-native-server-shape diagnostic from LLP 0021.
+wrong-native-server-shape diagnostic from LLP 0021. Its provider conformance
+runner imports Exact's reusable DataProvider conformance suite through package
+exports and points it at the live Snapback provider. Its descriptor runner uses
+Exact project checks to validate generated descriptor modules and row shapes
+without starting the Snapback server.
 
 ```
 todo/
@@ -33,7 +37,10 @@ todo/
     contract/main.ts          # browser-hosted Exact Contract dev surface
   tests/acceptance/
     headless.mjs              # required surface acceptance suite
-    contract.mjs             # Contract/Exact acceptance (needs Exact + bun)
+    contract.mjs              # Contract/Exact acceptance (needs Exact + bun)
+    contract-descriptors.mjs  # Exact project-check validation for generated descriptors
+    adapter-semantics.mjs     # no-server adapter rollback + pending-count checks
+    provider-conformance.mjs  # Exact-owned provider conformance fixture
 ```
 
 The shared client/codegen helpers live in [`demos/_kit/`](../_kit), and the
@@ -60,7 +67,16 @@ node demos/todo-v2/tests/acceptance/headless.mjs
 #    Exact is resolved via SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact.
 bun demos/todo-v2/tests/acceptance/contract.mjs
 
-# 5. Browser-hosted Contract surface (starts Vite; needs a running Snapback API).
+# 5. Exact project-check validation for generated Contract descriptors.
+bun demos/todo-v2/tests/acceptance/contract-descriptors.mjs
+
+# 6. No-server adapter semantics: rollback + combined pending count.
+bun demos/todo-v2/tests/acceptance/adapter-semantics.mjs
+
+# 7. Exact-owned DataProvider conformance against the Snapback provider.
+bun demos/todo-v2/tests/acceptance/provider-conformance.mjs
+
+# 8. Browser-hosted Contract surface (starts Vite; needs a running Snapback API).
 cargo run -- --port 4421 --memory
 SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 \
   bun run --cwd demos/todo-v2/surfaces/contract dev
@@ -70,6 +86,13 @@ The acceptance runners start an in-memory Snapback server on a dedicated port
 (reusing one if already healthy) and tear it down on exit.
 The browser surface proxies `/snapback` through Vite to the Snapback API and
 loads/resets/seeds the demo backend on page boot.
+
+On macOS, run `scripts/bootstrap-ibex-runtime` from the repo root first, or set
+`HERMES_INCLUDE_DIR`, `HERMES_LIB_DIR`, and `HERMESC` to a prepared Ibex
+checkout such as `/Users/ccheever/projects/ibex`. The acceptance runners add the
+resolved Hermes framework directory to `DYLD_FRAMEWORK_PATH` for the spawned
+Snapback server; direct `cargo run` shells still need the normal Ibex/Hermes
+runtime setup.
 
 ## What it proves
 
@@ -87,9 +110,14 @@ server-shape diagnostic
 generated descriptors, mounts against the **live** Snapback server, renders the
 live snapshot, drives Snapback mutations from Contract actions (optimistic
 create/toggle/priority/delete updates), rejects a deliberately stale Contract
-data manifest with `SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH`, and those
-mutations are server-authoritative and visible to the headless surface — two
-surfaces over one backend.
+data manifest with `SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH`, validates
+generated descriptor modules and row shapes through Exact project-check helpers,
+proves rejected optimistic mutations republish authoritative rows, proves one
+combined pending mutation count covers runtime links and provider mutations,
+and those mutations are server-authoritative and visible to the headless surface
+— two surfaces over one backend. The provider conformance runner also passes
+Exact's owned DataProvider suite against the Snapback provider for the Online
+capabilities Snapback claims.
 
 ## What it is NOT claiming
 

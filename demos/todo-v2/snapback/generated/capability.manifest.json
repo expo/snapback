@@ -10,12 +10,13 @@
     "external_auth",
     "assets",
     "cron",
-    "notifications"
+    "notifications",
+    "precise_realtime_query_range_matcher"
   ],
   "cron": false,
   "liveSubscriptions": true,
   "localServerLifecycle": true,
-  "mutationIsolationMode": "caller-read-set-validation",
+  "mutationIsolationMode": "handler-captured-read-set-validation",
   "notifications": false,
   "offlineRetention": false,
   "onlineOnlyQueries": true,
@@ -48,7 +49,9 @@
   "supportedQueryForms": [
     "host-plan-single-table-eq",
     "host-plan-live-replace",
-    "ibex-ctx-db-single-table-eq"
+    "ibex-ctx-db-single-table-eq",
+    "ibex-live-eq-replace",
+    "websocket-live-replace"
   ],
   "syncableLiveQueries": true,
   "targetProfileId": "local-dev-sqlite-ibex"

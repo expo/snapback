@@ -8,6 +8,7 @@ export interface AdminContractLinks {
   loadTable(args: { table: string; offset: number }): unknown;
   runResult(args: Record<string, never>): unknown;
   runFunction(args: { name: string; argsText: string; userId: string }): unknown;
+  cleanup(args: Record<string, never>): unknown;
 }
 
 let links: AdminContractLinks | null = null;

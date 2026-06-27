@@ -5,8 +5,8 @@
 **Systems:** Storage, Sync, Realtime, Runtime, Auth, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-25
-**Revised:** 2026-06-25
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, https://github.com/expo/valet
+**Revised:** 2026-06-27
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0022, https://github.com/expo/valet
 
 ## Summary
 
@@ -270,9 +270,13 @@ under one roof, designed together."
 ### Systems not yet surveyed (coverage gap)
 
 This survey omits several systems that sit *closer* to Snapback's exact bet than
-some it covers. They should get a primary-source pass before this document leaves
-`Draft`; named here so the gap is explicit, with only the **structural** reason
-each is on-point (the stable part — specifics move fast, so verify):
+some it covers. **The primary-source pass for the first three below — ElectricSQL,
+PowerSync, and Turso/libSQL — is now
+[LLP 0022](./0022-electric-powersync-turso.research.md); the entries here remain as
+the structural reason each was prioritized.** The rest (Cloudflare D1 + Durable
+Objects, Triplit/Ditto) still await a pass before this document leaves `Draft`;
+named here so the gap is explicit, with only the **structural** reason each is
+on-point (the stable part — specifics move fast, so verify):
 
 - **ElectricSQL** — Postgres↔SQLite sync with partial replication ("shapes") into
   a local SQLite store. Almost exactly Snapback's "SQLite local, Postgres at
@@ -298,10 +302,14 @@ each is on-point (the stable part — specifics move fast, so verify):
   queries and offline conflict handling; secondary, but useful additional data
   points for the query-result-vs-event-log question. [observed]
 
-*Influence:* ElectricSQL, PowerSync, and Turso are arguably higher-priority
-primary-source reads than re-verifying the platforms already surveyed, because
-each ships a part of Snapback's hardest combination — local SQLite, server
-Postgres, authorized partial sync, scale-to-zero — in production today. [inferred]
+*Influence:* ElectricSQL, PowerSync, and Turso were the highest-priority
+primary-source reads — each ships a part of Snapback's hardest combination (local
+SQLite, server Postgres, authorized partial sync, scale-to-zero) in production
+today — and that pass is now done in
+[LLP 0022](./0022-electric-powersync-turso.research.md). Its headline: none of the
+three validates generic bidirectional writes plus automatic semantic conflict
+resolution as the core abstraction, corroborating LLP 0008's server-authoritative
+model. [inferred]
 
 ## Synthesis — cross-cutting themes
 
@@ -349,11 +357,11 @@ Postgres, authorized partial sync, scale-to-zero — in production today. [infer
 - **Where does the Valet-shaped architecture bend at production scale?** The
   highest-value remaining unknowns are the SQLite single-writer breaking point,
   realtime fan-out ceiling, retention/matcher cost, and hosted isolation model.
-- **Which closer peers deserve the first primary-source pass?** ElectricSQL,
-  PowerSync, and Turso/libSQL each ship part of Snapback's exact bet
-  (Postgres↔SQLite partial sync; scale-to-zero SQLite) more directly than several
-  platforms surveyed above, and Cloudflare D1 + Durable Objects *are* the
-  privileged second target's primitives — see
+- **Which closer peers deserve the first primary-source pass?** Answered for
+  ElectricSQL, PowerSync, and Turso/libSQL in
+  [LLP 0022](./0022-electric-powersync-turso.research.md). Still open: Cloudflare
+  D1 + Durable Objects (the privileged second target's primitives, partly covered
+  by [LLP 0014](./0014-cloudflare-strategy.rfc.md)) and Triplit/Ditto — see
   [Systems not yet surveyed](#systems-not-yet-surveyed-coverage-gap).
 
 ## Next steps
@@ -362,8 +370,10 @@ Postgres, authorized partial sync, scale-to-zero — in production today. [infer
   first-hand corrections surface; promote new design-bounding findings into the
   owning subsystem LLPs.
 - **Verify the [observed] characterizations** against current primary sources
-  before any of this hardens into a decision. Add source links or citations for
-  each non-Valet system; this landscape moves quickly.
+  before any of this hardens into a decision; this landscape moves quickly.
+  [LLP 0022](./0022-electric-powersync-turso.research.md) does this for the three
+  closest peers — the same treatment is still owed to the other non-Valet systems
+  here.
 - **Feed findings into** the storage, local-first sync, realtime, migrations,
   auth, and DX follow-on LLPs as they evolve. LLP 0003 through LLP 0012 now
   consume the first Valet recovery pass; revisit them when production-scale

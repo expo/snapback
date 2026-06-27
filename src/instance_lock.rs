@@ -325,10 +325,13 @@ mod platform {
 #[cfg(not(any(unix, windows)))]
 mod platform {
     use std::fs::File;
-    use std::io;
+    use std::io::{self, ErrorKind};
 
     pub fn try_lock_exclusive(_file: &File) -> io::Result<()> {
-        Ok(())
+        Err(io::Error::new(
+            ErrorKind::Unsupported,
+            "Snapback database instance locks are not supported on this platform",
+        ))
     }
 
     pub fn unlock(_file: &File) -> io::Result<()> {

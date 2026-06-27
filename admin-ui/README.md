@@ -5,7 +5,19 @@ built** so the Rust server serves the snapshot with no Vite/Node/toolchain at
 runtime. It is a *system app*: it talks to the headless admin API
 (`/_snapback/api/*`), never to ordinary app tables, so it stays usable when the
 app's own schema/functions are broken. Governed by
-[LLP 0017](../llp/0017-admin-console-inspection-surface.rfc.md).
+[LLP 0017](../llp/0017-admin-console-inspection-surface.rfc.md); the 2026-06-27
+from-scratch redesign is logged in
+[diary 0005](../diaries/0005-admin-console-redesign.diary.md).
+
+It is an app-shell layout — a fixed sidebar (the Snapback toggle mark,
+navigation, and a built-in **light/dark** switch) beside a scrolling content
+pane — with seven surfaces: **Overview**, **Schema**, a paginated **Data**
+explorer, a **Functions** runner that shows captured read/write sets,
+**Capabilities** (the full capability manifest), **Realtime** (durable
+subscriptions, live-delivery stats, ephemeral counters), and **Diagnostics**.
+Every surface renders only what the admin API actually reports — no placeholder
+controls — and read-only operations stay open on loopback while writes honor
+`writes_require_token`.
 
 The build emits a single dist that loads in a **plain browser** and also carries
 the **Exact LLP 0268** static native artifacts, so the same `/_snapback/admin`
@@ -85,16 +97,24 @@ remaining verification.
 
 ## Layout
 
-- `app.contract` — the console UI: a tabbed inspector (Overview, Schema, a
-  paginated Data explorer, a Functions runner, Realtime, Diagnostics) built from
-  reusable components and `when` panels.
-- `theme.ts` — self-contained palette + font stack + tab list (dependency-free;
-  dark mode via `@exact/facet-contract` is a follow-up).
+- `app.contract` — the console UI: the app-shell sidebar + the seven surfaces,
+  built from reusable components (`Card`, `Kv`, `Badge`, `StatTile`, `FieldRow`,
+  `DiagRow`) and `when` panels. Code/JSON output (run payloads, host plans,
+  diagnostic details) renders in fixed-height `scroll` blocks so content
+  published *after* first paint measures deterministically — see diary 0005 for
+  the renderer post-paint relayout finding behind that choice.
+- `theme.ts` — self-contained design system: hand-tuned **light and dark**
+  palettes selected by `colors(mode)` (no `@exact/facet-contract` dependency),
+  font stack, nav model, and theme resolution from `?theme=` /
+  `prefers-color-scheme` / stored preference. The resolved palette is threaded
+  through the view and passed to child components as a `c` prop, so flipping the
+  theme re-renders the whole tree.
 - `contract-bindings.mjs` — the source list for the admin Contract query and
   mutation bindings.
 - `generate-contract-bindings.mjs` / `generated/contract/` — generated
   `use … from` targets, `.contract-meta.ts` semantics sidecars, and runtime
-  links for inspect/refresh, tableScan/loadTable, and runResult/runFunction.
+  links for inspect/refresh, tableScan/loadTable, runResult/runFunction, and the
+  ephemeral `cleanup` mutation.
 - `admin-client.mjs` — fetch client for `/_snapback/api/*`.
 - `admin-boundary.mjs` — declares the admin resources/commands and flattens the
   inspect payload into the `data.ui.*` view model the `.contract` renders; shared

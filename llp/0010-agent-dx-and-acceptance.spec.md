@@ -2,10 +2,10 @@
 
 **Type:** Spec
 **Status:** Draft
-**Systems:** Developer experience, Testing, API, Runtime, Sync, Client integration
+**Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-26
+**Revised:** 2026-06-27
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014
 
 ## Summary

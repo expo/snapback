@@ -143,9 +143,13 @@ export async function createSnapbackContractSurface({
   };
 
   const track = (promise) => {
-    pending.add(promise);
-    promise.finally(() => pending.delete(promise));
-    return promise;
+    const task = Promise.resolve(promise);
+    pending.add(task);
+    task.then(
+      () => pending.delete(task),
+      () => pending.delete(task),
+    );
+    return task;
   };
 
   const persistMutation = async (name, args) => {
@@ -155,6 +159,7 @@ export async function createSnapbackContractSurface({
     } catch (error) {
       publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
         mutation: name,
+        args,
       });
       await reconcile();
       throw error;
@@ -177,7 +182,7 @@ export async function createSnapbackContractSurface({
           reducer(rows, args, { userId, optimisticId: `optimistic_${++optimisticSeq}` }),
         );
       }
-      track(persistMutation(name, args));
+      return track(persistMutation(name, args));
     };
   }
 
@@ -189,9 +194,11 @@ export async function createSnapbackContractSurface({
   for (const name of mutationNames) {
     providerMutations[name] = async (args, qb) => {
       assertActive();
-      await client.mutate(name, { args, userId });
-      const rows = await reconcile();
-      qb.write(boundaryKey, () => rows);
+      await track((async () => {
+        await client.mutate(name, { args, userId });
+        const rows = await reconcile();
+        qb.write(boundaryKey, () => rows);
+      })());
     };
   }
 
@@ -202,7 +209,7 @@ export async function createSnapbackContractSurface({
       const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
       const row = rows.find((r) => r._id === rowId);
       return row
-        ? { syncedVersion: row._version, approxSyncedAt: null, pendingMutations: false }
+        ? { syncedVersion: row._version, approxSyncedAt: null, pendingMutations: pending.size > 0 }
         : null;
     },
   });
@@ -287,9 +294,13 @@ export async function createSnapbackSystemContractSurface({
   };
 
   const track = (promise) => {
-    pending.add(promise);
-    promise.finally(() => pending.delete(promise));
-    return promise;
+    const task = Promise.resolve(promise);
+    pending.add(task);
+    task.then(
+      () => pending.delete(task),
+      () => pending.delete(task),
+    );
+    return task;
   };
 
   const context = {

@@ -7,15 +7,22 @@
 //   adapter exposes the full generated mutation set, including setPriority.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import { resolveExact, exactModulePaths } from '../../../_kit/exact-resolver.mjs';
+import { resolveExact } from '../../../_kit/exact-resolver.mjs';
 import {
   createSnapbackContractSurface,
   validateSnapbackContractArtifacts,
 } from '../../../../packages/snapback-contract/index.mjs';
+import {
+  importExactContractCompiler,
+  importExactContractRuntime,
+} from '../../../../packages/snapback-contract/exact-package.mjs';
+import {
+  checkSnapbackContractDescriptors,
+} from '../../../../packages/snapback-contract/exact-project-check.mjs';
 import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -53,17 +60,8 @@ if (exact.sourceKind === 'missing') {
 console.log(`Exact resolved via ${exact.sourceKind}@${exact.path} (commit ${exact.commit ?? 'n/a'})`);
 console.log(`  capabilities: ${JSON.stringify(exact.capabilities)}`);
 
-const paths = exactModulePaths(exact.path);
-const compilerMod = await import(pathToFileURL(paths.compiler).href);
-const runtimeMod = await import(pathToFileURL(paths.runtime).href);
-
-const importSemantics = {
-  listTodos: { kind: 'query', reads: ['todos'], readMode: 'sync' },
-  createTodo: { kind: 'mutation', effects: ['todos.write'], invalidates: ['todos'] },
-  setCompleted: { kind: 'mutation', effects: ['todos.write'], invalidates: ['todos'] },
-  setPriority: { kind: 'mutation', effects: ['todos.write'], invalidates: ['todos'] },
-  deleteTodo: { kind: 'mutation', effects: ['todos.write'], invalidates: ['todos'] },
-};
+const compilerMod = await importExactContractCompiler({ exactRoot: exact.path });
+const runtimeMod = await importExactContractRuntime({ exactRoot: exact.path });
 
 const server = await startServer({ port: 4404, db: ':memory:', cwd: repoRoot });
 const db = new SnapbackClient(server.baseUrl);
@@ -96,16 +94,45 @@ try {
 
   let compiled;
   await suite.check('the .contract compiles against generated descriptors (honest compile)', async () => {
-    const source = readFileSync(join(contractDir, 'todo.contract'), 'utf8');
-    const { file, diagnostics } = compilerMod.compileContractSource(source, 'todo-v2.contract', {
-      importBoundaryMode: 'project',
-      importSemantics,
+    const contractFile = join(contractDir, 'todo.contract');
+    const projectCheck = checkSnapbackContractDescriptors({
+      compiler: compilerMod,
+      runtime: runtimeMod,
+      contractFile,
+      manifest: contractDataManifest,
+      expectedInputsHash: artifactIndex.inputsHash,
+      exactRoot: exact.path,
     });
-    const errors = diagnostics.filter((d) => d.severity === 'error');
+    const { file, diagnostics } = projectCheck.compiled;
+    const allDiagnostics = [
+      ...projectCheck.staticSemantics.diagnostics,
+      ...diagnostics,
+      ...projectCheck.doctorReport.diagnostics,
+    ];
+    const errors = allDiagnostics.filter((d) => d.severity === 'error');
     assertEqual(errors, [], `compile errors: ${JSON.stringify(errors)}`);
     compiled = file;
     const component = file.components[0];
-    return { queries: component.queries.map((q) => q.name), mutations: component.mutations.map((m) => m.name) };
+    return {
+      queries: component.queries.map((q) => q.name),
+      mutations: component.mutations.map((m) => m.name),
+      descriptorUses: projectCheck.descriptorUses,
+    };
+  });
+
+  await suite.check('Exact row-shape analysis catches generated descriptor field mistakes', async () => {
+    const contractFile = join(contractDir, 'todo.contract');
+    const source = readFileSync(contractFile, 'utf8').replace('todo.priority', 'todo.notAField');
+    const parsed = compilerMod.parseContractSource(source, contractFile);
+    const staticSemantics = compilerMod.resolveStaticContractImportSemantics(parsed, { rootDir: exact.path });
+    const { diagnostics } = compilerMod.compileContractSource(source, contractFile, {
+      diagnosticsMode: 'accumulate',
+      importBoundaryMode: 'project',
+      importSemantics: staticSemantics.descriptors,
+    });
+    const diagnostic = diagnostics.find((entry) => entry.code === 'shape_unknown_member');
+    assert(diagnostic, `expected shape_unknown_member, got ${JSON.stringify(diagnostics)}`);
+    return { code: diagnostic.code, message: diagnostic.message };
   });
 
   await suite.check('contract bindings resolve to generated Snapback descriptors', async () => {
@@ -262,6 +289,58 @@ try {
     return { cells: cells.length };
   });
 
+  await suite.check('rejected runtime-link mutation surfaces diagnostic and authoritative rows', async () => {
+    await surface.flush();
+    const title = 'Rejected missing priority from Contract';
+    const task = surface.links.createTodo({ title });
+
+    let rejected = null;
+    try {
+      await task;
+    } catch (error) {
+      rejected = error;
+    }
+    assert(rejected, 'expected createTodo without priority to reject');
+    await settle();
+
+    const items = collectByTestId(handle.container, 'todo-item').map(textUnder);
+    assert(!items.includes(title), `rejected optimistic row was not rolled back: ${JSON.stringify(items)}`);
+    const rows = (await db.query('listTodos', { userId: ADA })).rows;
+    assert(!rows.some((row) => row.title === title), 'rejected row persisted on server');
+    const diagnostic = surface.diagnostics.find(
+      (entry) => entry.code === 'SNAPBACK_CONTRACT_MUTATION_FAILED' && entry.details?.mutation === 'createTodo',
+    );
+    assert(diagnostic, `missing rejected mutation diagnostic: ${JSON.stringify(surface.diagnostics)}`);
+    assertEqual(surface.pendingCount(), 0, 'pending count after rejected mutation');
+    return { diagnostic: diagnostic.code, message: rejected.message };
+  });
+
+  await suite.check('adapter exposes one combined pending mutation count', async () => {
+    const gate = createMutationGate(db);
+    const pendingSurface = await createSnapbackContractSurface({
+      runtime: runtimeMod,
+      client: gate.client,
+      userId: ADA,
+      manifest: contractDataManifest,
+      artifactIndex,
+      schemaManifest,
+      functionManifest: functionsManifest,
+    });
+
+    try {
+      const linkTask = pendingSurface.links.setPriority({ id: 'seed_todo_1', priority: 'low' });
+      const providerTask = pendingSurface.provider.mutate('setPriority', { id: 'seed_todo_2', priority: 'normal' });
+      assertEqual(gate.pendingCount(), 2, 'held server mutations');
+      assertEqual(pendingSurface.pendingCount(), 2, 'combined pending count while held');
+      await gate.releaseAll();
+      await Promise.all([linkTask, providerTask]);
+      assertEqual(pendingSurface.pendingCount(), 0, 'combined pending count after release');
+      return { heldMutations: 2 };
+    } finally {
+      pendingSurface.dispose();
+    }
+  });
+
   runtimeMod.reset();
   const report = suite.finish();
   console.log('\n--- machine-readable report ---');
@@ -272,4 +351,28 @@ try {
   console.error('contract acceptance crashed:', error);
   await server.stop();
   process.exit(2);
+}
+
+function createMutationGate(client) {
+  const pending = [];
+  return {
+    client: {
+      query: (...args) => client.query(...args),
+      mutate: (...args) =>
+        new Promise((resolve, reject) => {
+          pending.push({ args, resolve, reject });
+        }),
+    },
+    pendingCount: () => pending.length,
+    async releaseAll() {
+      while (pending.length > 0) {
+        const job = pending.shift();
+        try {
+          job.resolve(await client.mutate(...job.args));
+        } catch (error) {
+          job.reject(error);
+        }
+      }
+    },
+  };
 }

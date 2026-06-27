@@ -1,7 +1,7 @@
 {
   "appId": "todo-v2",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:f3332534d5f42f86",
+  "bundleHash": "sha256:fdf604f6929c7ea8",
   "functions": [
     {
       "authRequirement": "optional-user",
@@ -11,6 +11,7 @@
       "kind": "Mutation",
       "name": "createTodo",
       "readSetSummary": {
+        "authScopeField": null,
         "mode": "none",
         "primaryTable": null,
         "tables": []
@@ -66,6 +67,7 @@
       "kind": "Mutation",
       "name": "deleteTodo",
       "readSetSummary": {
+        "authScopeField": null,
         "mode": "singleTable",
         "primaryTable": "todos",
         "tables": [
@@ -111,6 +113,7 @@
       "kind": "Mutation",
       "name": "editTitle",
       "readSetSummary": {
+        "authScopeField": null,
         "mode": "singleTable",
         "primaryTable": "todos",
         "tables": [
@@ -161,6 +164,7 @@
       "kind": "LiveQuery",
       "name": "listTodos",
       "readSetSummary": {
+        "authScopeField": null,
         "mode": "singleTable",
         "primaryTable": "todos",
         "tables": [
@@ -209,6 +213,7 @@
       "kind": "Query",
       "name": "listTodosOnce",
       "readSetSummary": {
+        "authScopeField": null,
         "mode": "singleTable",
         "primaryTable": "todos",
         "tables": [
@@ -256,6 +261,7 @@
       "kind": "Mutation",
       "name": "setCompleted",
       "readSetSummary": {
+        "authScopeField": null,
         "mode": "singleTable",
         "primaryTable": "todos",
         "tables": [
@@ -306,6 +312,7 @@
       "kind": "Mutation",
       "name": "setPriority",
       "readSetSummary": {
+        "authScopeField": null,
         "mode": "singleTable",
         "primaryTable": "todos",
         "tables": [
@@ -350,7 +357,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "f3332534d5f42f86d04934fa61771fbc431e56b0d61e527f8e25bd97cf442168",
+  "inputsHash": "5344b32ab33cddb77da78bd7806146e6dfd7de0b48043ec744cf588d2878c325",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

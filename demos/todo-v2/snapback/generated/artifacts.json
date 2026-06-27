@@ -25,7 +25,7 @@
     "contract/setPriority.mutation.ts",
     "contract/setPriority.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:f3332534d5f42f86",
+  "bundleHash": "sha256:fdf604f6929c7ea8",
   "functions": [
     {
       "id": "todo-v2:createTodo",
@@ -64,8 +64,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "f3332534d5f42f86d04934fa61771fbc431e56b0d61e527f8e25bd97cf442168",
-  "schemaHash": "sha256:f3332534d5f42f86",
+  "inputsHash": "5344b32ab33cddb77da78bd7806146e6dfd7de0b48043ec744cf588d2878c325",
+  "schemaHash": "sha256:d9f3b5fa3aede1f8",
   "schemaVersion": "snapback.v0",
   "tables": [
     "todos"

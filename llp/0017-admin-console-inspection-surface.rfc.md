@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-06-26
+**Revised:** 2026-06-27
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016
 
 ## Summary
@@ -149,6 +149,12 @@ A Vite-like server should exist only as a console-development convenience:
   dev UI may call the Snapback admin API directly with an explicit local admin
   token;
 - production or ordinary local inspection must work without starting Vite.
+
+The concrete dev-serve loop is proposed in
+[LLP 0023](./0023-admin-console-dev-serve-loop.rfc.md): a Vite `serve` mode that
+reuses the production plugin chain and proxies `/_snapback/api/*` to a running
+Snapback server, so the dev browser stays same-origin and no Rust change is
+needed.
 
 This is especially important for ephemeral state. The v1 ephemeral backend is
 process-local memory; a separate UI server cannot truthfully inspect rooms,
@@ -477,13 +483,30 @@ capability gaps, schema, functions with read/write sets, ephemeral counters, and
 diagnostics from `/_snapback/api/inspect`. It is the richer UI; the embedded
 single-file console is the baseline and fallback. The two do not yet share one
 admin client package (the Contract app has its own `AdminClient`, the embedded
-console its own inline fetch) — consolidating them is follow-on work. The Contract
-console now reaches UI parity with the embedded one — tabbed Overview, Schema, a
-paginated data explorer, a Functions runner with inline results, Realtime, and
-Diagnostics (see [diary 0003](../diaries/0003-admin-console-contract-parity.diary.md)).
-What it still defers: dark mode / a live theme (would come with
-`@exact/facet-contract`), the ephemeral mutating controls, and a multi-line args
-textarea.
+console its own inline fetch) — consolidating them is follow-on work.
+
+On 2026-06-27 the Contract console was **rebuilt from scratch** as an app-shell
+layout — a fixed sidebar (the Snapback toggle mark, navigation, light/dark
+switch) beside a scrolling content pane — and now meets or exceeds the embedded
+console (see [diary 0005](../diaries/0005-admin-console-redesign.diary.md)). It
+adds a dedicated **Capabilities** surface (the full `capabilityManifest`:
+engines, feature flags, supported query forms, resource limits, gaps), a richer
+**Realtime** surface (durable subscriptions, live-delivery stats, the complete
+ephemeral counter set), the function runner's **captured** read/write sets
+(`captured_reads`/`captured_writes`, not just the declared sets), and clears
+three deferrals from the prior parity work: **dark mode** (hand-tuned light/dark
+palettes, no `@exact/facet-contract`), a **multi-line args** input (the DSL
+`multiline` prop), and the token-gated **ephemeral cleanup** control wired into
+the UI. It deliberately still shows only what the `admin` capability block
+reports — no placeholder controls — so direct edits, raw SQL, and the remaining
+ephemeral mutating controls stay absent until the API exposes them.
+
+One renderer finding worth recording: the Exact layout kernel under-measures
+content **published into a boundary after first paint** — bare flex rows collapse
+to height 0 and tall multi-line text overflows its container, while the same
+markup measures correctly on initial render. The console works around it by
+giving dynamic rows an explicit `minHeight` and rendering code/JSON output in
+fixed-height `scroll` blocks; diary 0005 has the diagnosis.
 
 ## Validation Requirements
 
