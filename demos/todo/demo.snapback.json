@@ -80,6 +80,7 @@
       "realtime matcher skips unrelated user-scoped mutations and records liveDelivery skip counts",
       "realtime matcher skips hidden row patch/delete changes without leaking existence",
       "realtime matcher uses captured In predicates beyond auth scope",
+      "range and limited-boundary matcher capability forms are reported",
       "ordinary query reported NOT syncable (SNAPBACK_FUNCTION_NOT_LIVE)",
       "read-set mutation conflict (SNAPBACK_MUTATION_CONFLICT)",
       "artifact version mismatch diagnostic (SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION)",

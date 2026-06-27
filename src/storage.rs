@@ -83,6 +83,14 @@ pub struct CapturedReadDependency {
     pub field: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub boundary: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -889,6 +897,19 @@ fn build_query_sql(
                         quote_ident(&filter.field)?
                     ));
                 }
+            }
+            FilterOp::Lt | FilterOp::Lte | FilterOp::Gt | FilterOp::Gte => {
+                let field_type = field_type(table, &filter.field);
+                let value = eval_expr(&filter.value, input, bindings, now_ms)?;
+                values.push(json_to_sql_value(&value, field_type)?);
+                let op = match filter.op {
+                    FilterOp::Lt => "<",
+                    FilterOp::Lte => "<=",
+                    FilterOp::Gt => ">",
+                    FilterOp::Gte => ">=",
+                    FilterOp::Eq | FilterOp::In => unreachable!("handled above"),
+                };
+                where_parts.push(format!("{} {op} ?", quote_ident(&filter.field)?));
             }
         }
     }

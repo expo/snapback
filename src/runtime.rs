@@ -1,4 +1,5 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+use crate::live_matcher::query_dependency_metadata;
 use crate::manifest::{HandlerInput, IbexModule, QueryOutput, QueryPlan};
 use crate::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, LocalDatabase, MutationCommit,
@@ -315,6 +316,10 @@ impl<'a> IbexHostContext<'a> {
                 rows: Vec::new(),
                 field: None,
                 value: None,
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
             }
         } else {
             CapturedReadDependency {
@@ -326,6 +331,10 @@ impl<'a> IbexHostContext<'a> {
                 rows: Vec::new(),
                 field: None,
                 value: None,
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
             }
         };
         self.push_read_dependency(dependency);
@@ -356,9 +365,14 @@ impl<'a> IbexHostContext<'a> {
                     rows: Vec::new(),
                     field: None,
                     value: None,
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
                 });
             }
         }
+        let (order, limit, result_count, boundary) = query_dependency_metadata(plan, &output.rows)?;
         let predicate = serde_json::to_value(plan).map_err(|error| {
             SnapbackError::error(
                 "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
@@ -376,6 +390,10 @@ impl<'a> IbexHostContext<'a> {
             rows,
             field: None,
             value: None,
+            order,
+            limit,
+            result_count,
+            boundary,
         });
         Ok(())
     }
@@ -564,6 +582,22 @@ fn ctx_bootstrap_source() -> &'static str {
         plan.filters.push({ field: field, op: "In", value: literal(values) });
         return builder;
       },
+      lt: function(field, value) {
+        plan.filters.push({ field: field, op: "Lt", value: literal(value) });
+        return builder;
+      },
+      lte: function(field, value) {
+        plan.filters.push({ field: field, op: "Lte", value: literal(value) });
+        return builder;
+      },
+      gt: function(field, value) {
+        plan.filters.push({ field: field, op: "Gt", value: literal(value) });
+        return builder;
+      },
+      gte: function(field, value) {
+        plan.filters.push({ field: field, op: "Gte", value: literal(value) });
+        return builder;
+      },
       order: function(field, direction) {
         plan.order.push({ field: field, direction: normalizeDirection(direction) });
         return builder;
@@ -666,6 +700,10 @@ fn auth_dependencies(input: &HandlerInput) -> Vec<CapturedReadDependency> {
             rows: Vec::new(),
             field: Some("userId".to_owned()),
             value: Some(Value::String(user_id.clone())),
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
         });
     }
     reads

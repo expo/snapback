@@ -73,6 +73,8 @@ try {
     assert(!state.capability_gaps.includes('ibex_ctx_db_host_bridge'), 'ctx.db bridge should not be reported as a gap once wired');
     assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-eq-replace'), 'live matcher capability form');
     assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-in-replace'), 'live matcher In capability form');
+    assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-range-replace'), 'live matcher range capability form');
+    assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-limited-boundary-replace'), 'live matcher limited-boundary capability form');
     assert(state.capabilityManifest.supportedQueryForms.includes('websocket-live-replace'), 'websocket live replace capability form');
     assert(!state.capabilityManifest.capabilityGaps.includes('websocket_push_transport'), 'push transport should not be a gap once wired');
     assert(state.capabilityManifest.capabilityGaps.includes('precise_realtime_query_range_matcher'), 'precise range matcher should still be a gap');

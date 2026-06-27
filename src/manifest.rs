@@ -324,6 +324,10 @@ pub struct FilterExpr {
 pub enum FilterOp {
     Eq,
     In,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -518,11 +522,15 @@ impl CapabilityManifest {
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
                 "host-plan-single-table-in".to_owned(),
+                "host-plan-single-table-range".to_owned(),
                 "host-plan-live-replace".to_owned(),
                 "ibex-ctx-db-single-table-eq".to_owned(),
                 "ibex-ctx-db-single-table-in".to_owned(),
+                "ibex-ctx-db-single-table-range".to_owned(),
                 "ibex-live-eq-replace".to_owned(),
                 "ibex-live-in-replace".to_owned(),
+                "ibex-live-range-replace".to_owned(),
+                "ibex-live-limited-boundary-replace".to_owned(),
                 "websocket-live-replace".to_owned(),
             ],
             portability_opt_outs: Vec::new(),

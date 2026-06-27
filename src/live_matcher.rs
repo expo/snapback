@@ -1,12 +1,13 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     FilterExpr, FilterOp, FunctionDefinition, FunctionRuntime, HandlerInput, HandlerPlan,
-    QueryOutput, QueryPlan, ValueExpr,
+    OrderDirection, QueryOutput, QueryPlan, ValueExpr,
 };
 use crate::storage::{
     CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, LocalDatabase,
 };
 use serde_json::{Value, json};
+use std::cmp::Ordering;
 
 pub(crate) fn query_dependencies_from_plan(
     plan: &QueryPlan,
@@ -25,6 +26,10 @@ pub(crate) fn query_dependencies_from_plan(
             rows: Vec::new(),
             field: Some("userId".to_owned()),
             value: Some(Value::String(user_id.to_owned())),
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
         });
     }
 
@@ -42,11 +47,16 @@ pub(crate) fn query_dependencies_from_plan(
                     rows: Vec::new(),
                     field: None,
                     value: None,
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
                 });
             }
         }
     }
 
+    let (order, limit, result_count, boundary) = query_dependency_metadata(plan, &output.rows)?;
     let predicate = serde_json::to_value(plan).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
@@ -64,9 +74,37 @@ pub(crate) fn query_dependencies_from_plan(
         rows,
         field: None,
         value: None,
+        order,
+        limit,
+        result_count,
+        boundary,
     });
 
     Ok(dependencies)
+}
+
+pub(crate) fn query_dependency_metadata(
+    plan: &QueryPlan,
+    rows: &[Value],
+) -> SnapbackResult<(Option<Value>, Option<usize>, Option<usize>, Option<Value>)> {
+    let order = if plan.order.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_value(&plan.order).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
+                "runtime",
+                "query order dependency could not be serialized",
+            )
+            .with_details(json!({ "error": error.to_string() }))
+        })?)
+    };
+    Ok((
+        order,
+        plan.limit,
+        Some(rows.len()),
+        query_boundary(plan, rows),
+    ))
 }
 
 /// @ref LLP 0020#phase-4-upgrade-realtime-from-v0-outbox-to-app-grade-live-delivery — the realtime matcher reuses captured query dependencies and keeps a conservative replace fallback.
@@ -87,7 +125,7 @@ pub(crate) fn live_subscription_may_be_affected(
     match &definition.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => changes
             .iter()
-            .any(|change| change_may_affect_query_plan(plan, input, change)),
+            .any(|change| change_may_affect_query_plan(plan, input, change, None)),
         FunctionRuntime::IbexModule(_) => {
             let tables = &definition.read_set_summary.tables;
             let relevant = changes
@@ -154,13 +192,14 @@ fn query_dependency_change_may_affect(
     let Ok(plan) = serde_json::from_value::<QueryPlan>(predicate.clone()) else {
         return true;
     };
-    change_may_affect_query_plan(&plan, input, change)
+    change_may_affect_query_plan(&plan, input, change, Some(dependency))
 }
 
 fn change_may_affect_query_plan(
     plan: &QueryPlan,
     input: &HandlerInput,
     change: &ChangedRow,
+    dependency: Option<&CapturedReadDependency>,
 ) -> bool {
     if change.table != plan.table {
         return false;
@@ -170,7 +209,7 @@ fn change_may_affect_query_plan(
     };
     match row_matches_query_filters(plan, input, row) {
         None => true,
-        Some(true) => true,
+        Some(true) => matching_row_may_affect_query(plan, dependency, change, row),
         Some(false) => update_may_have_changed_query_membership(plan, change),
     }
 }
@@ -193,7 +232,50 @@ fn filter_matches_row(filter: &FilterExpr, input: &HandlerInput, row: &Value) ->
             let values = expected.as_array()?;
             Some(values.iter().any(|value| values_equal(actual, value)))
         }
+        FilterOp::Lt => {
+            json_value_cmp(actual, &expected).map(|ordering| ordering == Ordering::Less)
+        }
+        FilterOp::Lte => json_value_cmp(actual, &expected)
+            .map(|ordering| ordering == Ordering::Less || ordering == Ordering::Equal),
+        FilterOp::Gt => {
+            json_value_cmp(actual, &expected).map(|ordering| ordering == Ordering::Greater)
+        }
+        FilterOp::Gte => json_value_cmp(actual, &expected)
+            .map(|ordering| ordering == Ordering::Greater || ordering == Ordering::Equal),
     }
+}
+
+fn matching_row_may_affect_query(
+    plan: &QueryPlan,
+    dependency: Option<&CapturedReadDependency>,
+    change: &ChangedRow,
+    row: &Value,
+) -> bool {
+    matching_limited_row_may_affect_query(plan, dependency, change, row).unwrap_or(true)
+}
+
+fn matching_limited_row_may_affect_query(
+    plan: &QueryPlan,
+    dependency: Option<&CapturedReadDependency>,
+    change: &ChangedRow,
+    row: &Value,
+) -> Option<bool> {
+    plan.limit?;
+    if plan.order.is_empty() {
+        return None;
+    }
+    let dependency = dependency?;
+    if dependency.rows.iter().any(|id| id == &change.id) {
+        return Some(true);
+    }
+    let boundary = dependency.boundary.as_ref()?.as_object()?;
+    if boundary.get("complete")?.as_bool()? {
+        return Some(true);
+    }
+    let last = boundary.get("last")?;
+    let row_key = sort_key(plan, row)?;
+    let ordering = compare_sort_keys(plan, &row_key, last)?;
+    Some(ordering != Ordering::Greater)
 }
 
 fn update_may_have_changed_query_membership(plan: &QueryPlan, change: &ChangedRow) -> bool {
@@ -228,6 +310,46 @@ fn field_scope_change_is_disjoint(change: &ChangedRow, field: &str, expected: &V
     true
 }
 
+fn query_boundary(plan: &QueryPlan, rows: &[Value]) -> Option<Value> {
+    let limit = plan.limit?;
+    if plan.order.is_empty() || rows.is_empty() {
+        return None;
+    }
+    let first = sort_key(plan, rows.first()?)?;
+    let last = sort_key(plan, rows.last()?)?;
+    Some(json!({
+        "first": first,
+        "last": last,
+        "complete": rows.len() < limit,
+    }))
+}
+
+fn sort_key(plan: &QueryPlan, row: &Value) -> Option<Value> {
+    let mut values = Vec::with_capacity(plan.order.len());
+    for order in &plan.order {
+        values.push(row.get(&order.field)?.clone());
+    }
+    Some(Value::Array(values))
+}
+
+fn compare_sort_keys(plan: &QueryPlan, left: &Value, right: &Value) -> Option<Ordering> {
+    let left = left.as_array()?;
+    let right = right.as_array()?;
+    if left.len() != plan.order.len() || right.len() != plan.order.len() {
+        return None;
+    }
+    for ((left_value, right_value), order) in left.iter().zip(right.iter()).zip(plan.order.iter()) {
+        let mut ordering = json_value_cmp(left_value, right_value)?;
+        if order.direction == OrderDirection::Desc {
+            ordering = ordering.reverse();
+        }
+        if ordering != Ordering::Equal {
+            return Some(ordering);
+        }
+    }
+    Some(Ordering::Equal)
+}
+
 fn eval_match_expr(expr: &ValueExpr, input: &HandlerInput) -> Option<Value> {
     match expr {
         ValueExpr::Arg(name) => input.args.get(name).cloned(),
@@ -241,5 +363,29 @@ fn values_equal(actual: &Value, expected: &Value) -> bool {
     match (actual, expected) {
         (Value::Number(a), Value::Number(b)) => a.as_f64() == b.as_f64(),
         _ => actual == expected,
+    }
+}
+
+fn json_value_cmp(left: &Value, right: &Value) -> Option<Ordering> {
+    match (left, right) {
+        (Value::Null, Value::Null) => Some(Ordering::Equal),
+        (Value::Bool(left), Value::Bool(right)) => Some(left.cmp(right)),
+        (Value::Number(left), Value::Number(right)) => left.as_f64()?.partial_cmp(&right.as_f64()?),
+        (Value::String(left), Value::String(right)) => Some(left.cmp(right)),
+        _ => {
+            let left_rank = scalar_rank(left)?;
+            let right_rank = scalar_rank(right)?;
+            Some(left_rank.cmp(&right_rank))
+        }
+    }
+}
+
+fn scalar_rank(value: &Value) -> Option<u8> {
+    match value {
+        Value::Null => Some(0),
+        Value::Bool(_) => Some(1),
+        Value::Number(_) => Some(2),
+        Value::String(_) => Some(3),
+        Value::Array(_) | Value::Object(_) => None,
     }
 }

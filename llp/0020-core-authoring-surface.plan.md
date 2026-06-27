@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (Phase 4 equality matcher and WebSocket push slices; remaining dependency-vocabulary design; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-06-27 (Phase 4 equality, `In`, range/boundary matcher, and WebSocket push slices; remaining permission-epoch design; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
 
 ## Summary
@@ -316,16 +316,18 @@ Acceptance gate:
 
 Implementation note, 2026-06-27: the local matcher now stores the captured
 `CapturedReadDependency::Query` facts from each live subscription and skips live
-query refreshes when table summaries or `Eq`/`In` predicates prove a change is
-disjoint. The todo `userId` auth filter is one equality case, not a bespoke
-matcher path. Change events carry changed field names so updates that touch
-predicate fields fall back to rerun instead of being skipped incorrectly. Deletes
-carry the deleted row into the in-memory change event so hidden-row deletes can
-be proved disjoint without leaking the row to clients. The delivery shape remains
-`live_replace`, now available over a local WebSocket stream as well as the
-deterministic outbox, and `/inspect` exposes `liveDelivery` fan-out, delivery,
-and skip counts. Permission epochs and a precise range/boundary matcher over the
-full Phase 3 dependency vocabulary remain open.
+query refreshes when table summaries or `Eq`/`In`/range predicates prove a
+change is disjoint. Captured query dependencies now include optional order,
+limit, result-count, and first/last boundary facts, so limited ordered queries
+can skip changes that are known to sort after the retained boundary. The todo
+`userId` auth filter is one equality case, not a bespoke matcher path. Change
+events carry changed field names so updates that touch predicate fields fall back
+to rerun instead of being skipped incorrectly. Deletes carry the deleted row into
+the in-memory change event so hidden-row deletes can be proved disjoint without
+leaking the row to clients. The delivery shape remains `live_replace`, now
+available over a local WebSocket stream as well as the deterministic outbox, and
+`/inspect` exposes `liveDelivery` fan-out, delivery, and skip counts. Permission
+epochs and server-directed `resync_required` delivery remain open.
 
 #### Remaining Phase 4 design: dependency vocabulary and auth epochs
 
@@ -470,9 +472,7 @@ scaffolding it depends on and the capability class it is exercising.
 ## Status
 
 Draft. Phases 1 through 3 have landed as local slices, Phase 4 has conservative
-matcher, observability, WebSocket push, and first `In` predicate slices, and the
-remaining Phase 4 dependency-vocabulary shape is now pinned in this Plan.
-Completion still
-requires implementing permission-change resync and the precise matcher work, then
-passing the acceptance gates above, not merely the presence of partial
-implementation files.
+matcher, observability, WebSocket push, `In`, range, and limited-boundary slices,
+and the remaining permission-epoch shape is pinned in this Plan. Completion
+still requires implementing permission-change resync, then passing the acceptance
+gates above, not merely the presence of partial implementation files.

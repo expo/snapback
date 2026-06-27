@@ -316,7 +316,7 @@ export async function generate(backendDir) {
     outboundActions: false,
     cron: false,
     notifications: false,
-    supportedQueryForms: ['host-plan-single-table-eq', 'host-plan-single-table-in', 'host-plan-live-replace', 'ibex-ctx-db-single-table-eq', 'ibex-ctx-db-single-table-in', 'ibex-live-eq-replace', 'ibex-live-in-replace', 'websocket-live-replace'],
+    supportedQueryForms: ['host-plan-single-table-eq', 'host-plan-single-table-in', 'host-plan-single-table-range', 'host-plan-live-replace', 'ibex-ctx-db-single-table-eq', 'ibex-ctx-db-single-table-in', 'ibex-ctx-db-single-table-range', 'ibex-live-eq-replace', 'ibex-live-in-replace', 'ibex-live-range-replace', 'ibex-live-limited-boundary-replace', 'websocket-live-replace'],
     portabilityOptOuts: [],
     resourceLimits: [
       { name: 'wall_clock_timeout', status: 'Missing' },

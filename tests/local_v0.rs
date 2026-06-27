@@ -347,6 +347,164 @@ fn live_matcher_uses_captured_in_predicates() {
 }
 
 #[test]
+fn live_matcher_uses_captured_range_predicates() {
+    let mut functions = ibex_todo_functions(RANGE_TODOS_HANDLER_SOURCE);
+    let list = functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "listTodos")
+        .expect("listTodos function");
+    list.read_set_summary.auth_scope_field = None;
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(functions);
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe ranked todos");
+
+    let created = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "Too low", "rank": 5 }), "user_1"),
+        )
+        .expect("create below range");
+    let todo_id = created.result.as_str().unwrap().to_owned();
+    assert_eq!(snapback.drain_outbox("client_a"), Vec::new());
+    let inspect = snapback.inspect().expect("inspect range skip");
+    assert_eq!(inspect.live_delivery.last_deliveries, 0);
+    assert_eq!(inspect.live_delivery.last_skipped, 1);
+
+    snapback
+        .invoke_mutation(
+            "setCompleted",
+            input(
+                json!({ "id": todo_id, "completed": false, "rank": 12 }),
+                "user_1",
+            ),
+        )
+        .expect("move into range");
+    let messages = snapback.drain_outbox("client_a");
+    assert_eq!(messages.len(), 1);
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable range update");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("live update json");
+    assert_eq!(update["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(update["rows"][0]["_id"], todo_id);
+    assert_eq!(update["rows"][0]["rank"], 12);
+}
+
+#[test]
+fn live_matcher_uses_limited_order_boundaries() {
+    let mut functions = ibex_todo_functions(LIMITED_RANK_TODOS_HANDLER_SOURCE);
+    let list = functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "listTodos")
+        .expect("listTodos function");
+    list.read_set_summary.auth_scope_field = None;
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(functions);
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "One", "rank": 1 }), "user_1"),
+        )
+        .expect("create rank 1");
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "Two", "rank": 2 }), "user_1"),
+        )
+        .expect("create rank 2");
+    let outside = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "Outside", "rank": 4 }), "user_1"),
+        )
+        .expect("create rank 4");
+    let outside_id = outside.result.as_str().unwrap().to_owned();
+
+    let subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe limited ranked todos");
+    assert_eq!(
+        subscription
+            .snapshot
+            .rows
+            .iter()
+            .map(|row| row["rank"].as_i64().unwrap())
+            .collect::<Vec<_>>(),
+        vec![1, 2]
+    );
+
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "After boundary", "rank": 6 }), "user_1"),
+        )
+        .expect("create after boundary");
+    assert_eq!(snapback.drain_outbox("client_a"), Vec::new());
+    let inspect = snapback.inspect().expect("inspect boundary insert skip");
+    assert_eq!(inspect.live_delivery.last_deliveries, 0);
+    assert_eq!(inspect.live_delivery.last_skipped, 1);
+
+    snapback
+        .invoke_mutation(
+            "setCompleted",
+            input(
+                json!({ "id": outside_id, "completed": false, "rank": 5 }),
+                "user_1",
+            ),
+        )
+        .expect("move outside row farther after boundary");
+    assert_eq!(snapback.drain_outbox("client_a"), Vec::new());
+    let inspect = snapback.inspect().expect("inspect boundary update skip");
+    assert_eq!(inspect.live_delivery.last_deliveries, 0);
+    assert_eq!(inspect.live_delivery.last_skipped, 1);
+
+    snapback
+        .invoke_mutation(
+            "setCompleted",
+            input(
+                json!({ "id": outside_id, "completed": false, "rank": 0 }),
+                "user_1",
+            ),
+        )
+        .expect("move outside row before boundary");
+    let messages = snapback.drain_outbox("client_a");
+    assert_eq!(messages.len(), 1);
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable boundary update");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("live update json");
+    assert_eq!(
+        update["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["rank"].as_i64().unwrap())
+            .collect::<Vec<_>>(),
+        vec![0, 1]
+    );
+}
+
+#[test]
 fn function_runner_surfaces_captured_handler_read_and_write_facts() {
     let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
     let created = snapback.run_function(
@@ -667,6 +825,12 @@ fn inspect_exposes_v0_runtime_and_capability_artifacts() {
         inspect
             .capability_manifest
             .supported_query_forms
+            .contains(&"ibex-ctx-db-single-table-range".to_owned())
+    );
+    assert!(
+        inspect
+            .capability_manifest
+            .supported_query_forms
             .contains(&"ibex-live-eq-replace".to_owned())
     );
     assert!(
@@ -674,6 +838,18 @@ fn inspect_exposes_v0_runtime_and_capability_artifacts() {
             .capability_manifest
             .supported_query_forms
             .contains(&"ibex-live-in-replace".to_owned())
+    );
+    assert!(
+        inspect
+            .capability_manifest
+            .supported_query_forms
+            .contains(&"ibex-live-range-replace".to_owned())
+    );
+    assert!(
+        inspect
+            .capability_manifest
+            .supported_query_forms
+            .contains(&"ibex-live-limited-boundary-replace".to_owned())
     );
     assert!(
         inspect
@@ -876,6 +1052,72 @@ globalThis.__snapbackHandlers = {
 };
 "#;
 
+const RANGE_TODOS_HANDLER_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async listTodos(ctx) {
+    return await ctx.db
+      .query('todos')
+      .gte('rank', 10)
+      .order('rank', 'asc')
+      .collect();
+  },
+
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', {
+      title: args.title,
+      completed: args.completed === true,
+      rank: args.rank,
+      userId: ctx.auth.userId,
+    });
+  },
+
+  async setCompleted(ctx, args) {
+    const values = { completed: args.completed === true };
+    if (args.rank !== undefined) values.rank = args.rank;
+    return (await ctx.db.patch('todos', args.id, values)) ? 1 : 0;
+  },
+
+  async deleteTodo(ctx, args) {
+    const todo = await ctx.db.get('todos', args.id);
+    if (!todo) return 0;
+    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;
+  }
+};
+"#;
+
+const LIMITED_RANK_TODOS_HANDLER_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async listTodos(ctx) {
+    return await ctx.db
+      .query('todos')
+      .order('rank', 'asc')
+      .take(2)
+      .collect();
+  },
+
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', {
+      title: args.title,
+      completed: args.completed === true,
+      rank: args.rank,
+      userId: ctx.auth.userId,
+    });
+  },
+
+  async setCompleted(ctx, args) {
+    const values = { completed: args.completed === true };
+    if (args.rank !== undefined) values.rank = args.rank;
+    return (await ctx.db.patch('todos', args.id, values)) ? 1 : 0;
+  },
+
+  async deleteTodo(ctx, args) {
+    const todo = await ctx.db.get('todos', args.id);
+    if (!todo) return 0;
+    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;
+  }
+};
+"#;
+
 const CONFLICT_HANDLER_SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
   async createTodo(ctx, args) {
@@ -913,6 +1155,11 @@ fn todo_schema() -> SchemaManifest {
                     name: "completed".to_owned(),
                     field_type: FieldType::Boolean,
                     optional: false,
+                },
+                FieldManifest {
+                    name: "rank".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: true,
                 },
                 FieldManifest {
                     name: "userId".to_owned(),

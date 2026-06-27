@@ -49,11 +49,15 @@
   "supportedQueryForms": [
     "host-plan-single-table-eq",
     "host-plan-single-table-in",
+    "host-plan-single-table-range",
     "host-plan-live-replace",
     "ibex-ctx-db-single-table-eq",
     "ibex-ctx-db-single-table-in",
+    "ibex-ctx-db-single-table-range",
     "ibex-live-eq-replace",
     "ibex-live-in-replace",
+    "ibex-live-range-replace",
+    "ibex-live-limited-boundary-replace",
     "websocket-live-replace"
   ],
   "syncableLiveQueries": true,
