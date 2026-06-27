@@ -2,3 +2,11 @@
 	path = vendor/ibex
 	url = https://github.com/ccheever/ibex.git
 	branch = main
+[submodule "vendor/llp"]
+	path = vendor/llp
+	url = https://github.com/ccheever/llp.git
+	branch = main
+[submodule "vendor/ccheever-skills"]
+	path = vendor/ccheever-skills
+	url = https://github.com/ccheever/skills.git
+	branch = main

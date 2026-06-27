@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$root" ] || [ ! -x "$root/scripts/sync-agent-skills" ]; then
+  exit 0
+fi
+
+if ! "$root/scripts/sync-agent-skills" --quiet; then
+  printf 'warning: failed to refresh agent skills; run scripts/sync-agent-skills manually\n' >&2
+fi

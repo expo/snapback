@@ -6,7 +6,7 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-25
+**Revised:** 2026-06-27
 **Related:** https://github.com/ccheever/llp
 
 ## Summary
@@ -27,14 +27,20 @@ no tracked project files before scaffold creation]
 
 ## LLP Adoption
 
-This repository uses LLP directly, without a Git submodule. The adopted pieces
-are:
+This repository keeps its LLP corpus directly in `llp/`, without a submodule for
+the documents themselves. The adopted pieces are:
 
 - `llp/` for project-local LLP documents.
 - `AGENTS.md` for agent-facing LLP rules.
 - `ref-check` for deterministic LLP metadata and reference validation.
 - `.github/workflows/ref-check.yml` to run validation in CI.
-- `skills/llp-*` workflow skills copied from `ccheever/llp`.
+- `skills/` as a project skill aggregate; its entries are symlinks into
+  branch-tracking upstream submodules under `vendor/llp` and
+  `vendor/ccheever-skills`.
+- agent-local discovery symlinks from `.agents/skills`, `.claude/skills`,
+  `.cursor/skills`, `.pi/skills`, and `.opencode/skills` to `skills/`.
+- `scripts/sync-agent-skills` and `.githooks/` to refresh project skill links
+  after normal checkout/merge operations.
 
 ## Next Decisions To Capture
 

@@ -46,6 +46,20 @@ review loop scaled to stakes; adopt = set up LLP in any repo; maintain = drift,
 pre-PR, reconcile, and retirement checks.
 <!-- END LLP SKILLS MANAGED BLOCK -->
 
+Project skills are aggregated under `skills/` and mirrored into each agent's
+project-local skill discovery path:
+
+- Codex and shared Agent Skills: `.agents/skills`
+- Claude: `.claude/skills`
+- Cursor Agent: `.cursor/skills`
+- Pi: `.pi/skills`
+- OpenCode: `.opencode/skills`
+
+The aggregate entries are symlinks into `vendor/llp` and
+`vendor/ccheever-skills`. Run `scripts/sync-agent-skills` after pulling upstream
+skill changes; this repo also uses tracked Git hooks in `.githooks/` to refresh
+them after normal checkout/merge operations in this local clone.
+
 ## Working on this project
 
 - Read relevant LLP documents before implementing features or fixing bugs in

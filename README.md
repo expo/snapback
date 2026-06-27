@@ -197,8 +197,10 @@ numbered documents in [`llp/`](./llp/):
   LLP section.
 - Run `./ref-check --verbose` before pushing changes that touch LLP documents or
   referenced code (CI runs the same check).
-- Workflow skills live under [`skills/`](./skills/); agent-facing rules are in
-  [`AGENTS.md`](./AGENTS.md).
+- Workflow skills are exposed through [`skills/`](./skills/); the skill files
+  are symlinked from upstream repos under [`vendor/`](./vendor/) and refreshed
+  with [`scripts/sync-agent-skills`](./scripts/sync-agent-skills).
+- Agent-facing rules are in [`AGENTS.md`](./AGENTS.md).
 
 The LLP workflow itself comes from <https://github.com/ccheever/llp>.
 

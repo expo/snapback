@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fetch=1
+quiet=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --no-fetch)
+      fetch=0
+      ;;
+    --quiet)
+      quiet=1
+      ;;
+    *)
+      printf 'usage: %s [--no-fetch] [--quiet]\n' "$0" >&2
+      exit 2
+      ;;
+  esac
+done
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+
+if [ "$fetch" -eq 1 ]; then
+  git submodule update --init --remote vendor/llp vendor/ccheever-skills
+else
+  git submodule update --init vendor/llp vendor/ccheever-skills
+fi
+
+link() {
+  local target="$1"
+  local path="$2"
+  mkdir -p "$(dirname "$path")"
+  if [ -L "$path" ] || [ -e "$path" ]; then
+    rm -rf "$path"
+  fi
+  ln -s "$target" "$path"
+}
+
+mkdir -p skills
+for skill in llp-adopt llp-create llp-maintain llp-orient llp-review; do
+  link "../vendor/llp/skills/$skill" "skills/$skill"
+done
+link "../vendor/ccheever-skills/cdc-linear-do" "skills/cdc-linear-do"
+
+link ../skills .agents/skills
+link ../skills .claude/skills
+link ../skills .cursor/skills
+link ../skills .pi/skills
+link ../skills .opencode/skills
+
+if [ "$quiet" -eq 0 ]; then
+  printf 'Synced agent skills from vendor/llp and vendor/ccheever-skills.\n'
+fi
