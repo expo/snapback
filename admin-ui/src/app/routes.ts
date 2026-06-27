@@ -13,5 +13,5 @@
 import { defineRouteModule, defineRouteModules } from '@exact/router/types';
 
 export const appRouteModules = defineRouteModules({
-  'app/index.tsx': defineRouteModule({}, { screen: { title: 'Snapback admin' } }),
+  'app/index.tsx': defineRouteModule({}, { screen: { title: 'Snapback Admin Console' } }),
 });
