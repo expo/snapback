@@ -1,0 +1,34 @@
+{
+  "schema_hash": "sha256:08c48c04aee9c87a",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "completed",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "userId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        }
+      ],
+      "name": "todos",
+      "syncable": true
+    }
+  ]
+}

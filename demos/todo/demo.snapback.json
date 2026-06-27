@@ -1,0 +1,99 @@
+{
+  "id": "todo",
+  "title": "Todo list",
+  "description": "The floor reference app: single-table CRUD, user-scoped live query, realtime updates, reset/seed, and structured diagnostics, consumed by a headless surface and a Contract/Exact surface over one generated Snapback backend.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Sync", "Realtime", "Developer experience", "Contract/Exact"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "host-plan",
+    "liveSubscriptions": true,
+    "syncableLiveQuery": true,
+    "mutationReadSetValidation": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node demos/_kit/codegen.mjs demos/todo/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json",
+    "rows": { "todos": 4 },
+    "users": ["user_ada", "user_grace"]
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "runner": "node demos/todo/tests/acceptance/headless.mjs",
+      "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server"
+    },
+    "contract": {
+      "requirement": "optional",
+      "runner": "bun demos/todo/tests/acceptance/contract.mjs",
+      "browserRunner": "SNAPBACK_TODO_API=http://127.0.0.1:4420 bun run --cwd demos/todo/surfaces/contract dev",
+      "expectedDiagnostic": "EXACT_MISSING",
+      "exact": {
+        "requiredCapabilities": ["contractCompiler", "runtime", "dataBinding"],
+        "resolver": "demos/_kit/exact-resolver.mjs (SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact | vendor/exact)",
+        "designModeRequired": false,
+        "mismatchPolicy": "skip-with-diagnostic-when-missing; run-and-fail-on-error-when-present",
+        "toolchain": "bun (to load Exact TS source)"
+      }
+    },
+    "react": {
+      "requirement": "blocked",
+      "expectedDiagnostic": "REACT_ADAPTER_NOT_BUILT",
+      "note": "React/Expo adapter is a capability gap in v0; the headless SnapbackClient is the framework-neutral core a React adapter would bind over."
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "schema load (no error diagnostics)",
+      "generated function references load + inspectable",
+      "deterministic reset + declarative seed",
+      "user-scoped query isolation",
+      "create/toggle/edit/delete mutations with server-owned system fields",
+      "live subscription authoritative initial snapshot",
+      "realtime update reaches a second client",
+      "ordinary query reported NOT syncable (SNAPBACK_FUNCTION_NOT_LIVE)",
+      "read-set mutation conflict (SNAPBACK_MUTATION_CONFLICT)",
+      "invalid schema diagnostic (SNAPBACK_SCHEMA_SYSTEM_FIELD)",
+      "invalid query diagnostic (SNAPBACK_UNKNOWN_FIELD)",
+      "codegen fails closed (QUERY_UNKNOWN_FIELD)"
+    ],
+    "contract": [
+      ".contract compiles against generated descriptors",
+      "contract bindings resolve to generated Snapback descriptors",
+      "mounts against live backend; renders live snapshot",
+      "Contract action drives a Snapback mutation (optimistic update)",
+      "Contract actions toggle completion and delete through Snapback mutations",
+      "mutation is server-authoritative and visible to headless surface (cross-surface)",
+      "provider seam subscribe + mutate on live backend"
+    ]
+  },
+  "capabilityGaps": [
+    "offline_mutation_replay",
+    "ibex_ctx_db_host_bridge (JS ctx.db handlers; v0 uses declarative HostPlans)",
+    "postgres",
+    "cloudflare",
+    "external_auth",
+    "assets",
+    "cron",
+    "notifications",
+    "react_adapter",
+    "contract_design_mode_authoring"
+  ],
+  "notClaiming": [
+    "offline-first / local handler replay (this is an Online-class integration)",
+    "Partiful-scale throughput (this is a demo shape, not a benchmark)",
+    "JS handler execution (HostPlan declarative plans only in v0)"
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "capabilities": {
+    "branchableFixtures": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "inputsHash": "08c48c04aee9c87af98546a0bf92b2ec07778282e01d3bfd947d51080330d7c5",
+  "manifestVersion": 1,
+  "mutations": {
+    "createTodo": {
+      "argOrder": [
+        "title"
+      ],
+      "args": {
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "createTodo",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "deleteTodo": {
+      "argOrder": [
+        "id"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "deleteTodo",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "editTitle": {
+      "argOrder": [
+        "id",
+        "title"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "editTitle",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "setCompleted": {
+      "argOrder": [
+        "id",
+        "completed"
+      ],
+      "args": {
+        "completed": {
+          "name": "boolean",
+          "shape": "primitive"
+        },
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "setCompleted",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "listTodos": {
+      "argOrder": [],
+      "args": {},
+      "localRunnable": false,
+      "name": "listTodos",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "completed": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot"
+    },
+    "listTodosOnce": {
+      "argOrder": [],
+      "args": {},
+      "localRunnable": false,
+      "name": "listTodosOnce",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "completed": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "none"
+    }
+  }
+}

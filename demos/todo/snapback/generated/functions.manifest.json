@@ -1,0 +1,160 @@
+{
+  "bundle_hash": "sha256:08c48c04aee9c87a",
+  "functions": [
+    {
+      "kind": "Mutation",
+      "name": "createTodo",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "todoId"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "todoId",
+                  "table": "todos",
+                  "values": {
+                    "completed": {
+                      "Literal": false
+                    },
+                    "title": {
+                      "Arg": "title"
+                    },
+                    "userId": "AuthUserId"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "Mutation",
+      "name": "deleteTodo",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": "ChangedCount",
+            "steps": [
+              {
+                "Delete": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "todos"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "Mutation",
+      "name": "editTitle",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": "ChangedCount",
+            "steps": [
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "todos",
+                  "values": {
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "LiveQuery",
+      "name": "listTodos",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_user",
+            "limit": null,
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "todos"
+          }
+        }
+      }
+    },
+    {
+      "kind": "Query",
+      "name": "listTodosOnce",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_user",
+            "limit": null,
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "todos"
+          }
+        }
+      }
+    },
+    {
+      "kind": "Mutation",
+      "name": "setCompleted",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": "ChangedCount",
+            "steps": [
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "todos",
+                  "values": {
+                    "completed": {
+                      "Arg": "completed"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

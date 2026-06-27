@@ -1,0 +1,67 @@
+// Todo demo Contract surface.
+//
+// Styling uses the native Contract style attributes (column/row layout with
+// gap/padding/align, plus radius/background/borderColor/color/weight/
+// textDecoration). The color, spacing, and radius values are the Facet default
+// light-theme tokens (@exact/facet-core `lightTheme`) inlined as literals rather
+// than pulled in via the `use theme from "@exact/facet-contract"` capability.
+//
+// Why literals and not the live theme capability: the headless contract
+// acceptance harness compiles this file with `importSemantics` for the Snapback
+// data bindings, and the browser surface aliases just the @exact/contract +
+// @exact/renderer source. Inlining the palette keeps this one .contract
+// compiling identically in both places — no extra facet vite alias, no new
+// import for the acceptance compiler to resolve — while still matching the
+// Facet palette 1:1. Swap these literals for `theme.colors.*` / `theme.space.*`
+// once the surface mounts under the facet theme provider.
+
+use listTodos from "./data/listTodos.query.ts"
+use createTodo from "./data/createTodo.mutation.ts"
+use setCompleted from "./data/setCompleted.mutation.ts"
+use deleteTodo from "./data/deleteTodo.mutation.ts"
+
+component TodoApp
+  state draft = ""
+
+  query todos = listTodos({})
+  mutation addTodo = createTodo
+  mutation markDone = setCompleted
+  mutation removeTodo = deleteTodo
+
+  action setDraft(value) writes draft
+    draft = value
+
+  action submit writes draft mutates addTodo
+    addTodo({ title: draft.trim() })
+    draft = ""
+  action toggleTodo(id, completed) mutates markDone
+    markDone({ id: id, completed: completed })
+  action deleteItem(id) mutates removeTodo
+    removeTodo({ id: id })
+
+  view
+    column align="center" padding=28 background="#fbfbfc" width="100%" minHeight="100vh"
+      column gap=20 padding=24 radius=14 background="#ffffff" borderWidth=1 borderColor="#e4e4e9" width="100%" maxWidth=440
+        column gap=3
+          text "Todos" size=24 weight=800 color="#1c1d21"
+          text "Snapback + Contract demo" size=13 color="#5f636c"
+        row gap=10 align="center"
+          input label="New todo" value=draft change=setDraft submit=submit testId="todo-input" flex=1 paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 radius=8 borderWidth=1 borderColor="#e4e4e9" background="#ffffff" color="#1c1d21" size=14
+          button press=submit testId="todo-add" paddingTop=10 paddingBottom=10 paddingLeft=20 paddingRight=20 radius=8 background="#5e6ad2"
+            text "Add" size=14 weight=600 color="#ffffff"
+        async todos
+          loading
+            text "Loading…" size=14 color="#5f636c" testId="todos-loading"
+          error err
+            text err.message size=14 color="#c4392f" testId="todos-error"
+          empty
+            text "No todos yet" size=14 color="#5f636c" testId="todos-empty"
+          ready rows
+            column gap=8
+              each todo in rows key=todo._id
+                row gap=10 align="center" paddingTop=10 paddingBottom=10 paddingLeft=12 paddingRight=12 radius=10 background="#f3f3f5" borderWidth=1 borderColor="#e4e4e9" testId=`todo-row-${todo._id}`
+                  button press=toggleTodo(todo._id, !todo.completed) label=todo.completed ? "Mark incomplete" : "Mark complete" testId=`todo-toggle-${todo._id}` paddingTop=4 paddingBottom=4 paddingLeft=6 paddingRight=6 radius=6 background=todo.completed ? "#dff3e6" : "#ffffff" borderWidth=1 borderColor=todo.completed ? "#7bc492" : "#d2d4dc"
+                    text todo.completed ? "✓" : "○" testId=`todo-status-${todo._id}` size=15 weight=800 color=todo.completed ? "#2a8447" : "#5f636c"
+                  text todo.title testId="todo-item" flex=1 size=14 weight=todo.completed ? 400 : 600 color=todo.completed ? "#5f636c" : "#1c1d21" textDecoration=todo.completed ? "line-through" : "none"
+                  button press=deleteItem(todo._id) label="Delete" testId=`todo-delete-${todo._id}` paddingTop=4 paddingBottom=4 paddingLeft=8 paddingRight=8 radius=6 background="#f3f3f5"
+                    text "✕" size=15 weight=600 color="#a0a4ad"

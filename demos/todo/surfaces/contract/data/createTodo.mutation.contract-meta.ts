@@ -1,0 +1,5 @@
+import { defineContractModule, mutation } from '@exact/contract/exports';
+
+export default defineContractModule('./createTodo.mutation.ts', {
+  createTodo: mutation({ effects: ['todos.write'], invalidates: ['todos'] }),
+});

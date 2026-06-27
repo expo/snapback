@@ -1,0 +1,40 @@
+{
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "contract-data.manifest.json"
+  ],
+  "bundleHash": "sha256:08c48c04aee9c87a",
+  "functions": [
+    {
+      "kind": "Mutation",
+      "name": "createTodo"
+    },
+    {
+      "kind": "Mutation",
+      "name": "deleteTodo"
+    },
+    {
+      "kind": "Mutation",
+      "name": "editTitle"
+    },
+    {
+      "kind": "LiveQuery",
+      "name": "listTodos"
+    },
+    {
+      "kind": "Query",
+      "name": "listTodosOnce"
+    },
+    {
+      "kind": "Mutation",
+      "name": "setCompleted"
+    }
+  ],
+  "inputsHash": "08c48c04aee9c87af98546a0bf92b2ec07778282e01d3bfd947d51080330d7c5",
+  "schemaHash": "sha256:08c48c04aee9c87a",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "todos"
+  ]
+}
