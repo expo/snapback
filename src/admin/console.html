@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Snapback admin</title>
+<!-- @ref LLP 0017#serving-model — the packaged console is one self-contained file served by the Snapback server itself; no Vite, Node, or build step. -->
+<!-- @ref LLP 0017#console-surfaces — the console composes the headless admin contract into views; the contract, not this file, is the source of truth. -->
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --surface-2: #fafbfc;
+    --border: #e3e5ea;
+    --border-strong: #d4d7df;
+    --text: #1c1d21;
+    --muted: #6b7280;
+    --faint: #9aa1ad;
+    --accent: #5e6ad2;
+    --accent-soft: #eceefb;
+    --ok: #2a8447;
+    --ok-soft: #e7f3ea;
+    --warn: #b25e09;
+    --warn-soft: #fbf0e2;
+    --err: #c0362c;
+    --err-soft: #fbeae8;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(17, 20, 24, 0.04), 0 1px 3px rgba(17, 20, 24, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a;
+      --surface: #1d1f23;
+      --surface-2: #212327;
+      --border: #2c2f35;
+      --border-strong: #3a3e45;
+      --text: #e7e8ea;
+      --muted: #9aa1ad;
+      --faint: #6b7280;
+      --accent: #8b95ec;
+      --accent-soft: #262a44;
+      --ok: #5bbd78;
+      --ok-soft: #1e2c22;
+      --warn: #d98a3d;
+      --warn-soft: #2e2519;
+      --err: #e5736a;
+      --err-soft: #2e1d1c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; }
+  .brand .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .brand small { color: var(--muted); font-weight: 500; }
+  .topbar .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); }
+  .topbar .spacer { flex: 1; }
+  .topbar .controls { display: flex; align-items: center; gap: 10px; }
+  .topbar .updated { color: var(--faint); font-size: 12px; min-width: 0; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 550; line-height: 1.7;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+    white-space: nowrap;
+  }
+  .badge.ok { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+  .badge.err { background: var(--err-soft); border-color: transparent; color: var(--err); }
+  .badge.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+
+  button {
+    font-family: var(--sans); font-size: 13px; font-weight: 550;
+    padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    transition: background 0.12s, border-color 0.12s;
+  }
+  button:hover { background: var(--surface-2); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { filter: brightness(1.05); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.ghost { border-color: transparent; background: transparent; color: var(--muted); padding: 6px 8px; }
+  button.ghost:hover { background: var(--surface-2); }
+
+  label.toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; cursor: pointer; user-select: none; }
+
+  nav.tabs { display: flex; gap: 2px; padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  nav.tabs button {
+    border: none; background: none; border-radius: 0; color: var(--muted);
+    padding: 11px 14px; font-weight: 550; border-bottom: 2px solid transparent; white-space: nowrap;
+  }
+  nav.tabs button:hover { background: transparent; color: var(--text); }
+  nav.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  nav.tabs .count { color: var(--faint); font-weight: 500; margin-left: 5px; font-size: 12px; }
+
+  main { padding: 20px; max-width: 1180px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; animation: fade 0.15s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .card > h3 {
+    margin: 0; padding: 12px 16px; font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+    border-bottom: 1px solid var(--border); background: var(--surface-2);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .card .body { padding: 6px 16px 12px; }
+  .kv { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { text-align: right; font-weight: 500; word-break: break-word; }
+  .kv .v.mono { font-size: 12.5px; }
+
+  .section-title { font-size: 13px; font-weight: 650; margin: 22px 0 10px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .muted { color: var(--muted); }
+  .empty { padding: 28px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius); }
+
+  table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  table.data th, table.data td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.data th { position: sticky; top: 0; background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; }
+  table.data tbody tr { cursor: pointer; }
+  table.data tbody tr:hover { background: var(--surface-2); }
+  table.data td .cell { max-width: 320px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: bottom; }
+  td.sys { color: var(--faint); font-family: var(--mono); font-size: 12px; }
+
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  select, input[type=text], textarea {
+    font-family: var(--sans); font-size: 13px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 10px;
+  }
+  textarea { font-family: var(--mono); font-size: 12.5px; width: 100%; resize: vertical; min-height: 78px; }
+  input[type=text] { min-width: 160px; }
+  select:focus, input:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+  pre.json { margin: 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; font-family: var(--mono); font-size: 12px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+
+  .fn-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+  .fn-row:last-child { border-bottom: none; }
+  .fn-row .name { font-weight: 600; }
+  .fn-row .io { color: var(--muted); font-size: 12.5px; font-family: var(--mono); }
+  .io .arrow { color: var(--faint); margin: 0 6px; }
+  .fn-item { border-bottom: 1px solid var(--border); }
+  .fn-item:last-child { border-bottom: none; }
+  .fn-head { cursor: pointer; user-select: none; }
+  .fn-head:hover { background: var(--surface-2); }
+  .fn-caret { color: var(--faint); font-size: 11px; width: 10px; display: inline-block; flex: none; transition: transform 0.12s; }
+  .fn-detail { padding: 0 14px 14px 36px; }
+  .fn-detail .cap { color: var(--muted); font-size: 12.5px; margin: 0 0 6px; }
+  .fn-detail pre.json { white-space: pre; }
+  pre.code { margin: 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; font-family: var(--mono); font-size: 12px; line-height: 1.55; white-space: pre; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .stat .n { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
+  .stat .l { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .stat.alert .n { color: var(--warn); }
+
+  .diag { display: flex; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .diag:last-child { border-bottom: none; }
+  .diag .sev { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--muted); }
+  .diag .sev.Info { background: var(--accent); }
+  .diag .sev.Warning { background: var(--warn); }
+  .diag .sev.Error, .diag .sev.Fatal { background: var(--err); }
+  .diag .code { font-family: var(--mono); font-weight: 600; font-size: 12.5px; }
+  .diag .meta { color: var(--muted); font-size: 12px; margin: 1px 0 4px; }
+
+  .banner { margin: 12px 20px 0; padding: 12px 16px; border-radius: var(--radius); display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .banner.show { display: flex; }
+  .banner.err { background: var(--err-soft); color: var(--err); }
+  .banner .grow { flex: 1; min-width: 200px; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 13px;
+    opacity: 0; transition: all 0.2s; pointer-events: none; z-index: 50; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  details > summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="dot"></span> Snapback <small id="target">admin</small></div>
+  <div class="meta" id="topmeta"></div>
+  <div class="spacer"></div>
+  <div class="controls">
+    <span class="updated" id="updated"></span>
+    <label class="toggle"><input type="checkbox" id="auto" /> auto-refresh</label>
+    <button class="ghost" id="refresh" title="Refresh">↻ Refresh</button>
+  </div>
+</header>
+
+<div class="banner err" id="authbanner">
+  <span class="grow" id="authmsg">Admin API needs a token.</span>
+  <input type="text" id="tokenInput" placeholder="admin token" />
+  <button class="primary" id="tokenSave">Use token</button>
+</div>
+
+<nav class="tabs" id="tabs"></nav>
+<main id="main"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+const API = "/_snapback/api";
+const TABS = ["Overview", "Schema", "Data", "Functions", "Realtime", "Diagnostics"];
+
+const store = {
+  inspect: null,
+  token: localStorage.getItem("snapback_admin_token") || "",
+  tab: localStorage.getItem("snapback_admin_tab") || "Overview",
+  dataTable: null,
+  dataOffset: 0,
+  dataLimit: 50,
+  lastRun: null,
+  autoTimer: null,
+};
+
+/* ---------- helpers ---------- */
+const $ = (sel) => document.querySelector(sel);
+function el(tag, attrs = {}, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "html") node.innerHTML = v;
+    else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined && v !== false) node.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    node.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return node;
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function pretty(v) { try { return JSON.stringify(v, null, 2); } catch { return String(v); } }
+function fmtBytes(n) { if (n < 1024) return n + " B"; if (n < 1048576) return (n / 1024).toFixed(1) + " KB"; return (n / 1048576).toFixed(1) + " MB"; }
+function fmtDuration(ms) {
+  if (ms < 1000) return ms + " ms";
+  let s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400); s %= 86400;
+  const h = Math.floor(s / 3600); s %= 3600;
+  const m = Math.floor(s / 60); s %= 60;
+  const parts = [];
+  if (d) parts.push(d + "d"); if (h) parts.push(h + "h"); if (m) parts.push(m + "m");
+  parts.push(s + "s");
+  return parts.slice(0, 2).join(" ");
+}
+function fmtTime(ms) { try { return new Date(ms).toLocaleString(); } catch { return String(ms); } }
+
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+/* ---------- api ---------- */
+async function api(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers);
+  if (store.token) headers["x-snapback-admin-token"] = store.token;
+  if (opts.body !== undefined) headers["content-type"] = "application/json";
+  const res = await fetch(API + path, {
+    method: opts.method || "GET",
+    headers,
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+  });
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : null;
+  if (res.status === 401 || res.status === 403) {
+    showAuthBanner(json && json.diagnostic ? json.diagnostic.message : "Admin access denied.");
+    const err = new Error("auth"); err.handled = true; throw err;
+  }
+  if (!res.ok) {
+    const d = json && json.diagnostic ? json.diagnostic : { code: "HTTP_" + res.status, message: text };
+    const err = new Error(d.code + ": " + (d.message || "")); err.diagnostic = d; throw err;
+  }
+  return json;
+}
+
+function showAuthBanner(msg) {
+  $("#authmsg").textContent = msg || "Admin API needs a token.";
+  $("#tokenInput").value = store.token;
+  $("#authbanner").classList.add("show");
+}
+function hideAuthBanner() { $("#authbanner").classList.remove("show"); }
+
+/* ---------- refresh ---------- */
+async function refresh() {
+  try {
+    store.inspect = await api("/inspect");
+    hideAuthBanner();
+    $("#updated").textContent = "updated " + new Date().toLocaleTimeString();
+    renderTopbar();
+    renderTabs();
+    renderActive();
+  } catch (e) {
+    if (!e.handled) toast(e.message);
+  }
+}
+
+/* ---------- top bar + tabs ---------- */
+function renderTopbar() {
+  const s = store.inspect;
+  if (!s) return;
+  $("#target").textContent = s.target;
+  const meta = $("#topmeta"); meta.innerHTML = "";
+  meta.append(
+    el("span", { class: "badge mono" }, s.server.host + ":" + s.server.port),
+    s.server.loopback
+      ? el("span", { class: "badge ok" }, "loopback")
+      : el("span", { class: "badge warn" }, "exposed"),
+    el("span", { class: "badge" }, s.server.storage_mode === "memory" ? "in-memory" : "file"),
+    el("span", { class: "badge" }, "db v" + s.storage.version),
+    s.admin.token_configured
+      ? el("span", { class: "badge accent" }, "token set")
+      : el("span", { class: "badge" }, "no token"),
+  );
+}
+
+function renderTabs() {
+  const s = store.inspect;
+  const counts = {
+    Schema: s ? s.schema.tables.length : 0,
+    Functions: s ? s.functions.functions.length : 0,
+    Diagnostics: s ? s.recent_diagnostics.length : 0,
+  };
+  const nav = $("#tabs"); nav.innerHTML = "";
+  for (const name of TABS) {
+    const btn = el("button", {
+      class: name === store.tab ? "active" : "",
+      onclick: () => selectTab(name),
+    }, name);
+    if (counts[name]) btn.append(el("span", { class: "count" }, counts[name]));
+    nav.append(btn);
+  }
+}
+function selectTab(name) {
+  store.tab = name;
+  localStorage.setItem("snapback_admin_tab", name);
+  if (decodeURIComponent(location.hash.slice(1)) !== name) location.hash = name;
+  renderTabs();
+  renderActive();
+}
+
+function renderActive() {
+  const main = $("#main"); main.innerHTML = "";
+  if (!store.inspect) { main.append(el("div", { class: "empty" }, "Connecting…")); return; }
+  ({
+    Overview: renderOverview,
+    Schema: renderSchema,
+    Data: renderData,
+    Functions: renderFunctions,
+    Realtime: renderRealtime,
+    Diagnostics: renderDiagnostics,
+  })[store.tab](main);
+}
+
+/* ---------- kv card helper ---------- */
+function kv(k, v, mono) {
+  return el("div", { class: "kv" }, el("span", { class: "k" }, k), el("span", { class: "v" + (mono ? " mono" : "") }, v));
+}
+function card(title, rightNode, ...rows) {
+  const head = el("h3", {}, title);
+  if (rightNode) head.append(rightNode);
+  return el("div", { class: "card" }, head, el("div", { class: "body" }, ...rows));
+}
+function yn(b) { return el("span", { class: "badge " + (b ? "ok" : "") }, b ? "yes" : "no"); }
+
+/* ---------- Overview ---------- */
+function renderOverview(main) {
+  const s = store.inspect;
+  const r = s.runtime;
+  const grid = el("div", { class: "grid" });
+  grid.append(
+    card("Server", null,
+      kv("Target", s.target),
+      kv("Address", s.server.host + ":" + s.server.port, true),
+      kv("Exposure", s.server.loopback ? el("span", { class: "badge ok" }, "loopback only") : el("span", { class: "badge warn" }, "non-loopback")),
+      kv("PID", s.server.pid, true),
+      kv("Uptime", fmtDuration(s.server.uptime_ms)),
+      kv("Started", fmtTime(s.server.started_at_ms)),
+    ),
+    card("Storage", null,
+      kv("Mode", s.server.storage_mode === "memory" ? "in-memory" : "file-backed"),
+      kv("SQLite path", s.storage.sqlite_path || "—", true),
+      kv("Data version", s.storage.version, true),
+      kv("Tables", s.storage.tables.length),
+      kv("Schema hash", s.schema.schema_hash || "—", true),
+    ),
+    card("Runtime", null,
+      kv("Canonical engine", r.canonical_engine),
+      kv("Ibex CLI", r.ibex_cli.available ? el("span", { class: "badge ok" }, r.ibex_cli.version || "available") : el("span", { class: "badge warn" }, "unavailable")),
+      kv("Ibex submodule", yn(r.ibex_submodule.present)),
+      kv("Host-plan runtime", yn(r.host_plan_runtime)),
+      kv("Async handler", el("span", { class: "badge" }, r.async_handler_completion)),
+      kv("Lock across async", el("span", { class: "badge" }, r.sqlite_lock_held_across_async)),
+    ),
+    card("Admin", null,
+      kv("Console", yn(s.admin.console)),
+      kv("Data explorer", yn(s.admin.data_explorer)),
+      kv("Function runner", yn(s.admin.function_runner)),
+      kv("Direct row edit", yn(s.admin.direct_data_edit)),
+      kv("Raw SQL", yn(s.admin.raw_sql)),
+      kv("Writes require token", yn(s.admin.writes_require_token)),
+    ),
+  );
+  main.append(grid);
+
+  main.append(el("div", { class: "section-title" }, "Capability gaps",
+    el("span", { class: "muted", style: "font-weight:400" }, "— what this target does not do yet")));
+  if (s.capability_gaps.length === 0) {
+    main.append(el("div", { class: "empty" }, "No declared gaps."));
+  } else {
+    const chips = el("div", { class: "chips" });
+    for (const g of s.capability_gaps) chips.append(el("span", { class: "badge warn" }, g));
+    main.append(chips);
+  }
+}
+
+/* ---------- Schema ---------- */
+function renderSchema(main) {
+  const s = store.inspect;
+  if (s.schema.tables.length === 0) { main.append(el("div", { class: "empty" }, "No schema loaded yet. Apply a schema manifest to populate tables.")); return; }
+  main.append(el("div", { class: "section-title" }, "Schema", s.schema.schema_hash ? el("span", { class: "badge mono" }, s.schema.schema_hash) : null));
+  for (const t of s.schema.tables) {
+    const right = el("span", {}, t.syncable ? el("span", { class: "badge accent" }, "syncable") : el("span", { class: "badge" }, "local"));
+    const body = el("div", { class: "tablewrap", style: "margin:0 16px 14px" });
+    const tbl = el("table", { class: "data" });
+    tbl.append(el("thead", {}, el("tr", {}, el("th", {}, "Field"), el("th", {}, "Type"), el("th", {}, "Optional"))));
+    const tb = el("tbody");
+    tb.append(el("tr", {}, el("td", { class: "sys" }, "_id"), el("td", {}, "String"), el("td", {}, "—")));
+    for (const f of t.fields) tb.append(el("tr", {}, el("td", {}, f.name), el("td", {}, el("span", { class: "badge" }, f.field_type)), el("td", {}, f.optional ? "yes" : "no")));
+    for (const sys of ["_version", "_createdAt", "_updatedAt"]) tb.append(el("tr", {}, el("td", { class: "sys" }, sys), el("td", {}, sys === "_version" ? "Integer" : "Integer"), el("td", {}, "—")));
+    tbl.append(tb); body.append(tbl);
+    const c = el("div", { class: "card" }, (() => { const h = el("h3", {}, t.name); h.append(right); return h; })(), body);
+    if (t.indexes.length) {
+      const ix = el("div", { class: "body", style: "padding-top:0" }, el("div", { class: "kv" },
+        el("span", { class: "k" }, "Indexes"),
+        el("span", { class: "v" }, t.indexes.map((i) => i.name + " (" + i.fields.join(", ") + ")").join(", "))));
+      c.append(ix);
+    }
+    main.append(c);
+  }
+}
+
+/* ---------- Data ---------- */
+function renderData(main) {
+  const s = store.inspect;
+  const tables = s.schema.tables.map((t) => t.name);
+  if (tables.length === 0) { main.append(el("div", { class: "empty" }, "No tables to explore yet.")); return; }
+  if (!store.dataTable || !tables.includes(store.dataTable)) { store.dataTable = tables[0]; store.dataOffset = 0; }
+
+  const sel = el("select", { onchange: (e) => { store.dataTable = e.target.value; store.dataOffset = 0; loadData(); } });
+  for (const t of tables) sel.append(el("option", { value: t, selected: t === store.dataTable ? "selected" : false }, t));
+
+  main.append(el("div", { class: "toolbar" },
+    el("span", { class: "muted" }, "Table"), sel,
+    el("span", { class: "badge" }, "read-only"),
+    el("span", { class: "spacer", style: "flex:1" }),
+    el("div", { id: "pager" })));
+  main.append(el("div", { id: "datawrap" }, el("div", { class: "empty" }, "Loading…")));
+  main.append(el("div", { id: "rowdetail" }));
+  loadData();
+}
+
+async function loadData() {
+  const wrap = $("#datawrap"); if (!wrap) return;
+  try {
+    const scan = await api("/data/" + encodeURIComponent(store.dataTable) + "?limit=" + store.dataLimit + "&offset=" + store.dataOffset);
+    wrap.innerHTML = "";
+    if (scan.rows.length === 0) { wrap.append(el("div", { class: "empty" }, "No rows in " + scan.table + ".")); $("#pager").innerHTML = ""; return; }
+    const tw = el("div", { class: "tablewrap" });
+    const tbl = el("table", { class: "data" });
+    tbl.append(el("thead", {}, el("tr", {}, ...scan.columns.map((c) => el("th", {}, c)))));
+    const tb = el("tbody");
+    for (const row of scan.rows) {
+      const tr = el("tr", { onclick: () => showRow(row) });
+      for (const c of scan.columns) tr.append(el("td", { class: c.startsWith("_") ? "sys" : "" }, el("span", { class: "cell" }, cellText(row[c]))));
+      tb.append(tr);
+    }
+    tbl.append(tb); tw.append(tbl); wrap.append(tw);
+
+    const from = scan.total === 0 ? 0 : scan.offset + 1;
+    const to = scan.offset + scan.rows.length;
+    const pager = $("#pager"); pager.innerHTML = "";
+    pager.append(
+      el("span", { class: "muted", style: "margin-right:8px" }, from + "–" + to + " of " + scan.total),
+      el("button", { class: "ghost", disabled: scan.offset === 0 ? "disabled" : false, onclick: () => { store.dataOffset = Math.max(0, store.dataOffset - store.dataLimit); loadData(); } }, "‹ Prev"),
+      el("button", { class: "ghost", disabled: to >= scan.total ? "disabled" : false, onclick: () => { store.dataOffset += store.dataLimit; loadData(); } }, "Next ›"),
+    );
+  } catch (e) {
+    if (!e.handled) { wrap.innerHTML = ""; wrap.append(el("div", { class: "empty" }, e.message)); }
+  }
+}
+function cellText(v) {
+  if (v === null || v === undefined) return "∅";
+  if (typeof v === "object") return JSON.stringify(v);
+  if (typeof v === "boolean") return v ? "true" : "false";
+  return String(v);
+}
+function showRow(row) {
+  const d = $("#rowdetail"); d.innerHTML = "";
+  d.append(el("div", { class: "section-title" }, "Row detail",
+    el("button", { class: "ghost", onclick: () => { d.innerHTML = ""; } }, "✕ close")));
+  d.append(el("pre", { class: "json" }, pretty(row)));
+  d.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ---------- Functions ---------- */
+function planIo(fn) {
+  const rt = fn.runtime;
+  if (rt && rt.HostPlan) {
+    if (rt.HostPlan.Query) return { reads: [rt.HostPlan.Query.table], writes: [] };
+    if (rt.HostPlan.Mutation) {
+      const reads = new Set(), writes = new Set();
+      for (const step of rt.HostPlan.Mutation.steps || []) {
+        if (step.Insert) writes.add(step.Insert.table);
+        if (step.Patch) { reads.add(step.Patch.table); writes.add(step.Patch.table); }
+        if (step.Delete) { reads.add(step.Delete.table); writes.add(step.Delete.table); }
+      }
+      return { reads: [...reads], writes: [...writes] };
+    }
+  }
+  return { reads: [], writes: [] };
+}
+function kindBadge(kind) {
+  const cls = kind === "Mutation" ? "warn" : "accent";
+  const label = kind === "LiveQuery" ? "live query" : kind.toLowerCase();
+  return el("span", { class: "badge " + cls }, label);
+}
+
+// The "code" for a loaded function. In this slice a function's runtime is either
+// a HostPlan — a declarative query/mutation plan the Snapback host executes
+// natively (no JavaScript, no Hermes bytecode) — or an IbexModule that carries
+// JS source plus the export name. We render whichever is present; both already
+// arrive in the /inspect payload, so no extra request is needed.
+function functionCode(fn) {
+  const rt = fn.runtime || {};
+  const wrap = el("div", { class: "fn-detail" });
+  if (rt.HostPlan) {
+    const kind = rt.HostPlan.Query ? "query" : rt.HostPlan.Mutation ? "mutation" : "plan";
+    wrap.append(
+      el("div", { class: "cap" },
+        el("span", { class: "badge accent" }, "host plan"), " ",
+        "declarative " + kind + " — executed natively by the Snapback host"),
+      el("pre", { class: "json" }, pretty(rt.HostPlan)));
+  } else if (rt.IbexModule) {
+    wrap.append(
+      el("div", { class: "cap" },
+        el("span", { class: "badge" }, "ibex module"), " export ",
+        el("code", {}, rt.IbexModule.export || "default")),
+      el("pre", { class: "code" }, rt.IbexModule.source || "(no source captured)"));
+  } else {
+    wrap.append(el("pre", { class: "json" }, pretty(rt)));
+  }
+  return wrap;
+}
+
+function renderFunctions(main) {
+  const fns = store.inspect.functions.functions;
+  if (fns.length === 0) { main.append(el("div", { class: "empty" }, "No functions loaded yet.")); return; }
+
+  // Runner
+  main.append(el("div", { class: "section-title" }, "Run a function"));
+  const sel = el("select", { id: "runFn" });
+  for (const f of fns) sel.append(el("option", { value: f.name }, f.name + "  (" + f.kind + ")"));
+  if (store.lastRun) sel.value = store.lastRun;
+  const args = el("textarea", { id: "runArgs", spellcheck: "false" }, "{}");
+  const user = el("input", { type: "text", id: "runUser", placeholder: "auth user id (optional)" });
+  const runner = el("div", { class: "card" },
+    el("div", { class: "body", style: "padding-top:12px" },
+      el("div", { class: "toolbar" }, el("span", { class: "muted" }, "Function"), sel, user,
+        el("button", { class: "primary", onclick: runSelected }, "Run")),
+      el("div", { class: "muted", style: "margin:2px 0 6px; font-size:12.5px" }, "Arguments (JSON)"),
+      args,
+      el("div", { id: "runResult", style: "margin-top:12px" })));
+  main.append(runner);
+
+  // List
+  main.append(el("div", { class: "section-title" }, "Loaded functions",
+    store.inspect.functions.bundle_hash ? el("span", { class: "badge mono" }, store.inspect.functions.bundle_hash) : null));
+  main.append(el("div", { class: "muted", style: "margin:-4px 0 10px; font-size:12.5px" },
+    "Click a function to see its code."));
+  const list = el("div", { class: "card" });
+  for (const f of fns) {
+    const io = planIo(f);
+    const detail = functionCode(f);
+    detail.style.display = "none";
+    const caret = el("span", { class: "fn-caret" }, "▸");
+    const row = el("div", {
+      class: "fn-row fn-head",
+      onclick: () => {
+        const open = detail.style.display === "none";
+        detail.style.display = open ? "block" : "none";
+        caret.textContent = open ? "▾" : "▸";
+      },
+    },
+      caret,
+      kindBadge(f.kind),
+      el("span", { class: "name" }, f.name),
+      el("span", { class: "spacer", style: "flex:1" }),
+      el("span", { class: "io" },
+        "reads ", io.reads.length ? io.reads.join(", ") : "—",
+        el("span", { class: "arrow" }, "→"),
+        "writes ", io.writes.length ? io.writes.join(", ") : "—"),
+      el("button", { class: "ghost", onclick: (e) => { e.stopPropagation(); store.lastRun = f.name; selectTab("Functions"); } }, "use"));
+    list.append(el("div", { class: "fn-item" }, row, detail));
+  }
+  main.append(list);
+}
+
+async function runSelected() {
+  const name = $("#runFn").value;
+  store.lastRun = name;
+  const out = $("#runResult"); out.innerHTML = "";
+  let parsed;
+  try { parsed = JSON.parse($("#runArgs").value || "{}"); }
+  catch (e) { out.append(el("div", { class: "banner err show", style: "margin:0" }, "Invalid JSON args: " + e.message)); return; }
+  const userId = $("#runUser").value.trim() || null;
+  try {
+    const res = await api("/functions/" + encodeURIComponent(name) + "/run", {
+      method: "POST",
+      body: { args: parsed, auth: { principal: userId, session_id: null, user_id: userId }, read_set: [] },
+    });
+    renderRunResult(out, res);
+  } catch (e) {
+    if (!e.handled) out.append(el("div", { class: "banner err show", style: "margin:0" }, e.message));
+  }
+}
+
+function renderRunResult(out, res) {
+  const head = el("div", { class: "toolbar", style: "margin-bottom:8px" },
+    el("span", { class: "badge " + (res.ok ? "ok" : "err") }, res.ok ? "ok" : "failed"),
+    res.kind ? kindBadge(res.kind) : null,
+    el("span", { class: "io muted" }, "reads " + (res.reads.length ? res.reads.join(", ") : "—") + "  →  writes " + (res.writes.length ? res.writes.join(", ") : "—")),
+    el("span", { class: "spacer", style: "flex:1" }),
+    el("span", { class: "muted" }, res.elapsed_ms + " ms"));
+  out.append(head);
+  const facts = [];
+  if (res.version !== undefined) facts.push("version " + res.version);
+  if (res.changed_count !== undefined) facts.push(res.changed_count + " changed");
+  if (res.rows) facts.push(res.rows.length + " rows");
+  if (facts.length) out.append(el("div", { class: "muted", style: "margin-bottom:8px" }, facts.join(" · ")));
+  if (res.diagnostic) {
+    out.append(el("div", { class: "diag", style: "border:1px solid var(--border); border-radius:8px" },
+      el("span", { class: "sev " + res.diagnostic.severity }),
+      el("div", {},
+        el("div", { class: "code" }, res.diagnostic.code),
+        el("div", { class: "meta" }, res.diagnostic.subsystem + " — " + res.diagnostic.message),
+        hasDetails(res.diagnostic.details) ? el("pre", { class: "json" }, pretty(res.diagnostic.details)) : null)));
+  }
+  const payload = res.rows !== undefined && res.rows !== null ? res.rows : res.result;
+  if (payload !== undefined && payload !== null) out.append(el("pre", { class: "json" }, pretty(payload)));
+}
+function hasDetails(d) { return d && (typeof d !== "object" || Object.keys(d).length > 0); }
+
+/* ---------- Realtime ---------- */
+function renderRealtime(main) {
+  const s = store.inspect;
+  main.append(el("div", { class: "section-title" }, "Durable live subscriptions",
+    el("span", { class: "badge" }, s.subscriptions.length)));
+  if (s.subscriptions.length === 0) {
+    main.append(el("div", { class: "empty" }, "No active subscriptions."));
+  } else {
+    const tw = el("div", { class: "tablewrap" });
+    const tbl = el("table", { class: "data" });
+    tbl.append(el("thead", {}, el("tr", {}, el("th", {}, "Subscription"), el("th", {}, "Connection"), el("th", {}, "Function"))));
+    const tb = el("tbody");
+    for (const sub of s.subscriptions) tb.append(el("tr", {}, el("td", { class: "sys" }, sub.id), el("td", { class: "sys" }, sub.connection_id), el("td", {}, sub.function)));
+    tbl.append(tb); tw.append(tbl); main.append(tw);
+  }
+
+  const e = s.ephemeral;
+  main.append(el("div", { class: "section-title" }, "Ephemeral rooms",
+    el("span", { class: "muted", style: "font-weight:400" }, "— process-local memory, cleared on restart"),
+    el("span", { class: "spacer", style: "flex:1" }),
+    s.admin.ephemeral_cleanup ? el("button", { class: "ghost", onclick: cleanupEphemeral }, "Cleanup expired") : null));
+  const stats = [
+    ["Rooms", e.room_count], ["Entries", e.entry_count], ["Subscribers", e.subscriber_count],
+    ["Value bytes", fmtBytes(e.value_bytes)],
+    ["Coalesced", e.coalesced_updates], ["Resync required", e.resync_required, e.resync_required > 0],
+    ["Rejected", e.rejected_publishes, e.rejected_publishes > 0],
+    ["Rate-limited", e.rate_limited_publishes, e.rate_limited_publishes > 0],
+    ["Oversized", e.oversized_publishes, e.oversized_publishes > 0],
+    ["Unauthorized", e.unauthorized_requests, e.unauthorized_requests > 0],
+    ["Expired", e.expired_entries], ["Disconnected", e.disconnected_entries],
+  ];
+  const grid = el("div", { class: "stat-grid" });
+  for (const [l, n, alert] of stats) grid.append(el("div", { class: "stat" + (alert ? " alert" : "") }, el("div", { class: "n" }, n), el("div", { class: "l" }, l)));
+  main.append(grid);
+}
+
+async function cleanupEphemeral() {
+  try { await api("/ephemeral/cleanup", { method: "POST" }); toast("Expired entries cleaned up"); refresh(); }
+  catch (e) { if (!e.handled) toast(e.message); }
+}
+
+/* ---------- Diagnostics ---------- */
+function renderDiagnostics(main) {
+  const ds = store.inspect.recent_diagnostics;
+  if (ds.length === 0) { main.append(el("div", { class: "empty" }, "No recent diagnostics.")); return; }
+  main.append(el("div", { class: "section-title" }, "Recent diagnostics", el("span", { class: "badge" }, ds.length)));
+  const list = el("div", { class: "card" });
+  for (const d of ds) {
+    list.append(el("div", { class: "diag" },
+      el("span", { class: "sev " + d.severity }),
+      el("div", { style: "flex:1; min-width:0" },
+        el("div", {}, el("span", { class: "code" }, d.code), " ", el("span", { class: "badge", style: "margin-left:6px" }, d.subsystem)),
+        el("div", { class: "meta" }, d.message),
+        hasDetails(d.details) ? el("details", {}, el("summary", {}, "details"), el("pre", { class: "json", style: "margin-top:6px" }, pretty(d.details))) : null)));
+  }
+  main.append(list);
+}
+
+/* ---------- wiring ---------- */
+$("#refresh").addEventListener("click", refresh);
+$("#auto").addEventListener("change", (e) => {
+  clearInterval(store.autoTimer);
+  if (e.target.checked) store.autoTimer = setInterval(refresh, 3000);
+});
+$("#tokenSave").addEventListener("click", () => {
+  store.token = $("#tokenInput").value.trim();
+  localStorage.setItem("snapback_admin_token", store.token);
+  refresh();
+});
+$("#tokenInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#tokenSave").click(); });
+
+// Tabs are deep-linkable: /_snapback/admin#Data selects the Data tab, and the
+// hash stays in sync as you switch, so a view can be bookmarked or shared.
+const hashTab = decodeURIComponent(location.hash.slice(1));
+if (TABS.includes(hashTab)) store.tab = hashTab;
+window.addEventListener("hashchange", () => {
+  const t = decodeURIComponent(location.hash.slice(1));
+  if (TABS.includes(t) && t !== store.tab) selectTab(t);
+});
+
+renderTabs();
+refresh();
+</script>
+</body>
+</html>
