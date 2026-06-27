@@ -11,10 +11,11 @@ Product code today:
 - `demos/_kit/client.mjs` is the framework-neutral online Snapback client used by headless and Contract acceptance.
 - `demos/_kit/codegen.mjs` projects Snapback demo artifacts into generated Contract binding modules under `snapback/generated/contract/`, including runtime links and per-query/per-mutation descriptor sidecars.
 - `packages/snapback-contract/` is the first package-equivalent Snapback Contract adapter: generated-artifact validation, boundary hydration, manifest-derived runtime links, optimistic mutations, reconciliation, provider seam, row sync state, Online capability reporting, and the shared system-surface boundary/link helper used by the admin console.
-- `packages/snapback-contract/build-preset.mjs` is the first static/native build preset: it owns the Exact/Contract Vite plugin ordering, route-registry and entry preflights, native target selection, and Snapback base-path rewrite.
+- `packages/snapback-contract/build-preset.mjs` is the first build/dev-serve preset: it owns the shared Exact/Contract Vite plugin ordering, route-registry and entry preflights, static/native target selection, Snapback base-path rewrite, and the browser-only admin dev proxy shape.
 - `packages/snapback-contract/exact-conformance.mjs` discovers the Exact-owned provider conformance gate. It resolves the local Exact checkout, inspects `exact-verify.json` for `data-provider-conformance`, searches known suite paths, and reports a structured missing-capability diagnostic while the Exact suite is absent.
 - `admin-ui/contract-bindings.mjs` and `admin-ui/generate-contract-bindings.mjs` project the admin system-app bindings into generated Contract modules under `admin-ui/generated/contract/`, including runtime links and per-query/per-mutation descriptor sidecars.
-- `admin-ui/build.mjs` regenerates those admin Contract modules, then invokes the shared build preset.
+- `admin-ui/build.mjs` regenerates those admin Contract modules, then invokes the shared static/native build preset.
+- `admin-ui/dev.mjs` regenerates those admin Contract modules, then invokes the shared browser dev-serve preset and watches binding inputs for regeneration + reload.
 
 Prototype adapter or recipe code to retire under LLP 0021:
 
@@ -115,6 +116,32 @@ The preset requires and checks:
 
 The Snapback server serves the generated `dist/` snapshot under `/_snapback/admin/`. Without `SNAPBACK_ADMIN_DIST`, it serves the embedded single-file browser console from `src/admin/console.html`.
 
+## Admin Browser Dev Loop
+
+The admin dev path uses the same shared Exact/Contract Vite base config as the
+static build, but keeps static/native export concerns build-only:
+
+```sh
+cd admin-ui
+cargo run --manifest-path ../Cargo.toml -- --memory --port 4287
+bun run dev
+```
+
+`bun run dev` starts a loopback Vite server and proxies `/_snapback/api/*` to a
+running Snapback server. The default API target is `http://127.0.0.1:4287` only
+for the pinned-port loop above; when Snapback prints a different auto-scanned
+port, set `SNAPBACK_ADMIN_DEV_API` to that origin. The dev server performs a
+non-fatal startup preflight and returns `SNAPBACK_ADMIN_DEV_API_UNREACHABLE`
+from the proxy when the API target is down, so the browser sees a structured
+diagnostic instead of a blank screen or HTML proxy error.
+
+The dev proxy binds to `127.0.0.1` unless `SNAPBACK_ADMIN_DEV_HOST` is set and
+`SNAPBACK_ADMIN_DEV_ALLOW_NON_LOOPBACK=1` explicitly opts into exposing the
+privileged admin proxy. Browser requests for static native Exact artifacts such
+as `/__exact/platform-manifest.json` return
+`SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE`; native shell loading
+stays on the `./build.sh` + `SNAPBACK_ADMIN_DIST` path.
+
 ## Launch Shapes
 
 Browser baseline:
@@ -132,6 +159,13 @@ cd admin-ui
 SNAPBACK_ADMIN_DIST="$(pwd)/dist" cargo run --manifest-path ../Cargo.toml -- --memory
 # browser: open the printed admin console URL
 # native Exact shell: EXACT_APP_CUSTOM_URL=<printed admin console URL>
+```
+
+Admin Contract browser dev:
+
+```sh
+cargo run -- --memory --port 4287
+SNAPBACK_ADMIN_DEV_API=http://127.0.0.1:4287 bun run --cwd admin-ui dev
 ```
 
 Todo Contract browser dev:
@@ -155,5 +189,8 @@ Current structured diagnostics:
 - `SNAPBACK_STALE_CONTRACT_DATA_ARTIFACT_VERSION`, `SNAPBACK_STALE_CONTRACT_DATA_SCHEMA_HASH`, and `SNAPBACK_STALE_CONTRACT_DATA_BUNDLE_HASH`: Contract data manifest version/hash mismatches against generated Snapback artifacts.
 - `SNAPBACK_STALE_CONTRACT_DESCRIPTOR_SET`: generated Contract descriptor artifacts are missing from the generated artifact index.
 - `SNAPBACK_CAPABILITY_EXACT_ENTRY_MISSING`, `SNAPBACK_CAPABILITY_EXACT_ROUTE_REGISTRY_MISSING`, and `SNAPBACK_CAPABILITY_EXACT_BUILD_OUTPUT_MISSING`: static/native Contract build preset preflight failures.
+- `SNAPBACK_ADMIN_DEV_API_UNREACHABLE`: the admin browser dev proxy could not reach the configured Snapback API target.
+- `SNAPBACK_ADMIN_DEV_HOST_EXPOSED`: the admin browser dev proxy was configured for a non-loopback host without the explicit exposure opt-in.
+- `SNAPBACK_ADMIN_DEV_API_INVALID`, `SNAPBACK_ADMIN_DEV_PORT_INVALID`, and `SNAPBACK_ADMIN_DEV_PROXY_PATH_INVALID`: admin browser dev-server configuration errors.
 
 These diagnostics live under the LLP 0012 `CAPABILITY_*` / `STALE_*` families and include the target surface in `details.target_surface`.

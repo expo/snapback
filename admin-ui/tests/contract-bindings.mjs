@@ -5,9 +5,23 @@
 //   in sync.
 
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createAdminSurface } from '../admin-boundary.mjs';
 import { adminContractBindings } from '../contract-bindings.mjs';
+import { generateAdminContractBindings } from '../generate-contract-bindings.mjs';
+
+const adminRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+const generatedBefore = snapshotGeneratedBindings(adminRoot);
+await generateAdminContractBindings({ root: adminRoot, cacheBust: true });
+assert.deepEqual(
+  snapshotGeneratedBindings(adminRoot),
+  generatedBefore,
+  'admin Contract binding generation must be byte-idempotent',
+);
 
 const runtime = createFakeRuntime();
 const client = createFakeAdminClient();
@@ -38,6 +52,15 @@ surface.dispose();
 assert.throws(() => surface.links.inspect({}), /used after dispose/, 'disposed links fail closed');
 
 console.log('admin contract bindings smoke: ok');
+
+function snapshotGeneratedBindings(root) {
+  const generatedRoot = join(root, 'generated', 'contract');
+  return Object.fromEntries(
+    readdirSync(generatedRoot)
+      .sort()
+      .map((file) => [file, readFileSync(join(generatedRoot, file), 'utf8')]),
+  );
+}
 
 function createFakeRuntime() {
   return {

@@ -27,6 +27,36 @@ preflights, the LLP 0268 `mac` native envelope, and the post-build URL rewrite
 for the `/_snapback/admin/` mount. The current LLP 0021 inventory lives in
 [`docs/contract-exact-integration.md`](../docs/contract-exact-integration.md).
 
+## Dev Serve
+
+For browser UI iteration, run Snapback and the Vite dev server in two terminals:
+
+```sh
+# terminal 1: the Snapback server that owns the admin API and runtime state
+cargo run --manifest-path ../Cargo.toml -- --memory --port 4287
+
+# terminal 2: the Contract console served by Vite
+bun run dev
+```
+
+`bun run dev` runs `dev.sh`, which regenerates `generated/contract/*`, starts a
+loopback Vite server, and proxies `/_snapback/api/*` to the Snapback server. The
+default proxy target assumes the server is pinned to `http://127.0.0.1:4287`.
+If Snapback auto-scans to another port, set the printed URL explicitly:
+
+```sh
+SNAPBACK_ADMIN_DEV_API=http://127.0.0.1:4291 bun run dev
+```
+
+The dev proxy binds to `127.0.0.1` by default. To expose it on another interface
+you must opt in with both `SNAPBACK_ADMIN_DEV_HOST` and
+`SNAPBACK_ADMIN_DEV_ALLOW_NON_LOOPBACK=1`; that exposes privileged admin routes
+through the Vite process. `contract-bindings.mjs` and
+`generate-contract-bindings.mjs` are watched: edits regenerate
+`generated/contract/*` and trigger a browser reload. Native Exact artifacts are
+not served by this browser-only dev server; use `./build.sh` for native shell
+loading.
+
 ## Serve
 
 ```sh
@@ -76,3 +106,4 @@ remaining verification.
 - `src/main.ts` — the build entry (a subdir shim that runs `../main.ts`).
 - `src/app/routes.ts` — React-free route registry; the LLP 0268 exporter's unlock.
 - `build.mjs` / `build.sh` — regenerate bindings, then call the shared Snapback Contract static build preset.
+- `dev.mjs` / `dev.sh` — regenerate bindings, then call the shared Snapback Contract dev-serve preset with a loopback API proxy.

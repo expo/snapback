@@ -14,7 +14,7 @@ import { generateAdminContractBindings } from './generate-contract-bindings.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-generateAdminContractBindings({ root: here });
+await generateAdminContractBindings({ root: here });
 
 const result = await buildSnapbackContractStaticApp({
   root: here,

@@ -6,13 +6,18 @@
 
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import { adminContractBindings } from './contract-bindings.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-export function generateAdminContractBindings({ root = here } = {}) {
+export async function generateAdminContractBindings({
+  root = here,
+  bindings = null,
+  bindingsPath = join(resolve(root), 'contract-bindings.mjs'),
+  cacheBust = false,
+} = {}) {
+  const adminContractBindings = bindings ??
+    await loadAdminContractBindings({ bindingsPath, cacheBust });
   const outDir = join(resolve(root), 'generated', 'contract');
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
@@ -42,6 +47,18 @@ export function generateAdminContractBindings({ root = here } = {}) {
     writeFileSync(join(outDir, file), source);
   }
   return { outDir, files: files.map((entry) => entry.file) };
+}
+
+async function loadAdminContractBindings({ bindingsPath, cacheBust }) {
+  const url = pathToFileURL(resolve(bindingsPath));
+  if (cacheBust) {
+    url.searchParams.set('t', String(Date.now()));
+  }
+  const module = await import(url.href);
+  if (!Array.isArray(module.adminContractBindings)) {
+    throw new Error(`admin Contract binding list is missing from ${bindingsPath}`);
+  }
+  return module.adminContractBindings;
 }
 
 function renderRuntimeLinks(bindings) {
@@ -140,6 +157,6 @@ function jsonLiteral(value) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const result = generateAdminContractBindings();
+  const result = await generateAdminContractBindings();
   console.log(`admin-ui: generated Contract bindings -> ${result.outDir}`);
 }
