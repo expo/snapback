@@ -6,13 +6,13 @@ use crate::ephemeral::{
 use crate::live_matcher::{live_subscription_may_be_affected, query_dependencies_from_plan};
 use crate::manifest::{
     CapabilityManifest, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-    HandlerInput, HandlerPlan, MutationOutput, MutationStep, QueryOutput, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr, QueryOutput,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use crate::runtime::{RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
-    CapturedReadDependency, CapturedWriteDependency, ChangedRow, LocalDatabase, MutationCommit,
-    StorageInfo, TableScan,
+    CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow, LocalDatabase,
+    MutationCommit, StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -74,6 +74,16 @@ pub struct LiveUpdate {
     pub rows: Vec<Value>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LiveResyncRequired {
+    pub kind: String,
+    pub reason: String,
+    pub subscription_id: String,
+    pub scope: String,
+    pub epoch: u64,
+    pub clear_retained: bool,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct LiveDeliveryStats {
     pub total_fanout_attempts: u64,
@@ -122,6 +132,7 @@ pub struct LocalSnapback {
     runtime: RuntimeManager,
     ephemeral: LocalEphemeralBackend,
     subscriptions: BTreeMap<String, LiveSubscription>,
+    permission_epochs: BTreeMap<String, u64>,
     live_delivery: LiveDeliveryStats,
     recent_diagnostics: VecDeque<Diagnostic>,
     next_subscription_id: u64,
@@ -188,6 +199,7 @@ impl LocalSnapback {
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.db.reset()?;
         self.subscriptions.clear();
+        self.permission_epochs.clear();
         self.live_delivery = LiveDeliveryStats::default();
         self.next_subscription_id = 0;
         Ok(())
@@ -266,8 +278,9 @@ impl LocalSnapback {
                 FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
             ) => {
                 let output = self.db.query(plan, &input)?;
-                let read_dependencies =
+                let mut read_dependencies =
                     query_dependencies_from_plan(plan, &input, &output, &self.db)?;
+                self.add_permission_dependencies(&input, &mut read_dependencies);
                 Ok(QueryInvocation {
                     output,
                     read_dependencies,
@@ -277,12 +290,14 @@ impl LocalSnapback {
                 FunctionKind::Query | FunctionKind::LiveQuery,
                 FunctionRuntime::IbexModule(module),
             ) => {
-                let run = self
-                    .runtime
-                    .invoke_ibex_query_with_reads(module, input, &self.db)?;
+                let run =
+                    self.runtime
+                        .invoke_ibex_query_with_reads(module, input.clone(), &self.db)?;
+                let mut read_dependencies = run.read_dependencies;
+                self.add_permission_dependencies(&input, &mut read_dependencies);
                 Ok(QueryInvocation {
                     output: run.output,
-                    read_dependencies: run.read_dependencies,
+                    read_dependencies,
                 })
             }
             _ => Err(SnapbackError::error(
@@ -313,7 +328,7 @@ impl LocalSnapback {
             }
             (FunctionKind::Mutation, FunctionRuntime::IbexModule(module)) => self
                 .runtime
-                .invoke_ibex_mutation(module, input, &mut self.db)?,
+                .invoke_ibex_mutation(module, input.clone(), &mut self.db)?,
             _ => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_FUNCTION_KIND_MISMATCH",
@@ -323,6 +338,12 @@ impl LocalSnapback {
             }
         };
 
+        let permission_changes = if commit.output.changed_count > 0 {
+            self.advance_permission_epochs(&function, &input)?
+        } else {
+            Vec::new()
+        };
+        self.notify_permission_resyncs(&permission_changes)?;
         self.notify_live_subscriptions(&commit.changes)?;
         Ok(commit)
     }
@@ -531,6 +552,7 @@ impl LocalSnapback {
             runtime,
             ephemeral: LocalEphemeralBackend::new(),
             subscriptions: BTreeMap::new(),
+            permission_epochs: BTreeMap::new(),
             live_delivery: LiveDeliveryStats::default(),
             recent_diagnostics,
             next_subscription_id: 0,
@@ -564,6 +586,11 @@ impl LocalSnapback {
                 self.live_delivery.last_skipped += 1;
                 continue;
             };
+            if self.subscription_has_stale_permission(&subscription) {
+                self.live_delivery.total_skipped += 1;
+                self.live_delivery.last_skipped += 1;
+                continue;
+            }
             if !live_subscription_may_be_affected(
                 function,
                 &subscription.input,
@@ -605,6 +632,120 @@ impl LocalSnapback {
         Ok(())
     }
 
+    fn add_permission_dependencies(
+        &self,
+        input: &HandlerInput,
+        dependencies: &mut Vec<CapturedReadDependency>,
+    ) {
+        let Some(user_id) = input.auth.user_id.as_deref() else {
+            return;
+        };
+        let scope = user_permission_scope(user_id);
+        if dependencies.iter().any(|dependency| {
+            dependency.kind == CapturedReadKind::Permission
+                && dependency.value.as_ref().and_then(Value::as_str) == Some(scope.as_str())
+        }) {
+            return;
+        }
+        dependencies.push(CapturedReadDependency {
+            kind: CapturedReadKind::Permission,
+            table: None,
+            id: None,
+            version: Some(self.permission_epoch(&scope)),
+            predicate: None,
+            rows: Vec::new(),
+            field: Some("scope".to_owned()),
+            value: Some(Value::String(scope)),
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        });
+    }
+
+    fn permission_epoch(&self, scope: &str) -> u64 {
+        self.permission_epochs.get(scope).copied().unwrap_or(0)
+    }
+
+    fn advance_permission_epochs(
+        &mut self,
+        function: &FunctionDefinition,
+        input: &HandlerInput,
+    ) -> SnapbackResult<Vec<(String, u64)>> {
+        let mut scopes = BTreeSet::new();
+        for expr in &function.permission_epoch_bumps {
+            scopes.insert(evaluate_permission_scope(expr, input)?);
+        }
+
+        let mut changes = Vec::new();
+        for scope in scopes {
+            let epoch = self.permission_epochs.entry(scope.clone()).or_insert(0);
+            *epoch += 1;
+            changes.push((scope, *epoch));
+        }
+        Ok(changes)
+    }
+
+    fn notify_permission_resyncs(&mut self, changes: &[(String, u64)]) -> SnapbackResult<()> {
+        if changes.is_empty() || self.subscriptions.is_empty() {
+            return Ok(());
+        }
+
+        let subscriptions = self.subscriptions.values().cloned().collect::<Vec<_>>();
+        self.live_delivery.total_fanout_attempts += subscriptions.len() as u64;
+        self.live_delivery.last_fanout_subscriptions = subscriptions.len();
+        self.live_delivery.last_deliveries = 0;
+        self.live_delivery.last_skipped = 0;
+
+        for subscription in subscriptions {
+            let Some((scope, epoch)) = subscription_stale_permission_change(&subscription, changes)
+            else {
+                self.live_delivery.total_skipped += 1;
+                self.live_delivery.last_skipped += 1;
+                continue;
+            };
+
+            let payload = serde_json::to_vec(&LiveResyncRequired {
+                kind: "resync_required".to_owned(),
+                reason: "permission_epoch_changed".to_owned(),
+                subscription_id: subscription.id,
+                scope: scope.clone(),
+                epoch: *epoch,
+                clear_retained: true,
+            })
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                    "realtime",
+                    "live resync message could not be serialized",
+                )
+                .with_details(json!({ "error": error.to_string() }))
+            })?;
+            self.ephemeral
+                .enqueue_durable(subscription.connection_id, payload);
+            self.live_delivery.total_deliveries += 1;
+            self.live_delivery.last_deliveries += 1;
+        }
+
+        Ok(())
+    }
+
+    fn subscription_has_stale_permission(&self, subscription: &LiveSubscription) -> bool {
+        subscription
+            .read_dependencies
+            .iter()
+            .filter(|dependency| dependency.kind == CapturedReadKind::Permission)
+            .any(|dependency| {
+                let Some(scope) = dependency.value.as_ref().and_then(Value::as_str) else {
+                    return true;
+                };
+                let Some(captured_epoch) = dependency.version else {
+                    return true;
+                };
+                self.permission_epoch(scope) > captured_epoch
+            })
+    }
+
     fn record_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) {
         for diagnostic in diagnostics {
             if matches!(
@@ -620,6 +761,83 @@ impl LocalSnapback {
             }
         }
     }
+}
+
+fn user_permission_scope(user_id: &str) -> String {
+    format!("user:{user_id}")
+}
+
+fn evaluate_permission_scope(
+    expr: &PermissionScopeExpr,
+    input: &HandlerInput,
+) -> SnapbackResult<String> {
+    let scope = match expr {
+        PermissionScopeExpr::AuthUser => {
+            let Some(user_id) = input.auth.user_id.as_deref() else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_USER_MISSING",
+                    "runtime",
+                    "permission scope requires an authenticated user",
+                ));
+            };
+            user_permission_scope(user_id)
+        }
+        PermissionScopeExpr::Arg(path) => {
+            lookup_arg_string(&input.args, path).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_PERMISSION_SCOPE_MISSING",
+                    "runtime",
+                    "permission scope argument is missing or is not a string",
+                )
+                .with_details(json!({ "path": path }))
+            })?
+        }
+        PermissionScopeExpr::Literal(scope) => scope.clone(),
+    };
+
+    if scope.is_empty() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_PERMISSION_SCOPE_MISSING",
+            "runtime",
+            "permission scope is empty",
+        ));
+    }
+
+    Ok(scope)
+}
+
+fn lookup_arg_string(args: &Value, path: &str) -> Option<String> {
+    if path.is_empty() {
+        return None;
+    }
+
+    let mut current = args;
+    for segment in path.split('.') {
+        current = current.get(segment)?;
+    }
+    current.as_str().map(ToOwned::to_owned)
+}
+
+fn subscription_stale_permission_change<'a>(
+    subscription: &LiveSubscription,
+    changes: &'a [(String, u64)],
+) -> Option<(&'a String, &'a u64)> {
+    for dependency in subscription
+        .read_dependencies
+        .iter()
+        .filter(|dependency| dependency.kind == CapturedReadKind::Permission)
+    {
+        let Some(scope) = dependency.value.as_ref().and_then(Value::as_str) else {
+            continue;
+        };
+        let captured_epoch = dependency.version.unwrap_or_default();
+        for (changed_scope, epoch) in changes {
+            if changed_scope == scope && *epoch > captured_epoch {
+                return Some((changed_scope, epoch));
+            }
+        }
+    }
+    None
 }
 
 fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {

@@ -100,6 +100,7 @@ pub enum CapturedReadKind {
     MissingRow,
     Query,
     Auth,
+    Permission,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -1053,6 +1054,7 @@ fn validate_captured_read_set(
                 }
             }
             CapturedReadKind::Auth => {}
+            CapturedReadKind::Permission => {}
         }
     }
     Ok(())

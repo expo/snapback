@@ -228,6 +228,12 @@ pub struct FunctionDefinition {
     pub read_set_summary: DependencySummary,
     #[serde(default, rename = "writeSetSummary", alias = "write_set_summary")]
     pub write_set_summary: DependencySummary,
+    #[serde(
+        default,
+        rename = "permissionEpochBumps",
+        alias = "permission_epoch_bumps"
+    )]
+    pub permission_epoch_bumps: Vec<PermissionScopeExpr>,
     #[serde(default, rename = "bundleEntrypoint", alias = "bundle_entrypoint")]
     pub bundle_entrypoint: Option<String>,
     pub runtime: FunctionRuntime,
@@ -252,10 +258,18 @@ impl FunctionDefinition {
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
             write_set_summary: DependencySummary::default(),
+            permission_epoch_bumps: Vec::new(),
             bundle_entrypoint: Some(name),
             runtime,
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum PermissionScopeExpr {
+    AuthUser,
+    Arg(String),
+    Literal(String),
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]

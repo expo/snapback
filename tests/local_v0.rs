@@ -7,8 +7,8 @@ use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
-    MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan, ReadDependency, ReturnValue,
-    SchemaManifest, SeedData, TableManifest, ValueExpr,
+    MutationPlan, MutationStep, OrderDirection, OrderExpr, PermissionScopeExpr, QueryPlan,
+    ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use snapback::runtime::CapabilityState;
 use snapback::storage::{CapturedReadKind, ChangeOp};
@@ -502,6 +502,88 @@ fn live_matcher_uses_limited_order_boundaries() {
             .collect::<Vec<_>>(),
         vec![0, 1]
     );
+}
+
+#[test]
+fn permission_epoch_resync_suppresses_stale_live_replace() {
+    let mut functions = ibex_todo_functions(TODO_HANDLER_SOURCE);
+    let mut permission_change = FunctionDefinition::new(
+        "touchPermissions",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: vec![MutationStep::Patch {
+                table: "todos".to_owned(),
+                id: ValueExpr::Arg("id".to_owned()),
+                values: BTreeMap::from([("title".to_owned(), ValueExpr::Arg("title".to_owned()))]),
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
+    permission_change.required_capabilities = vec!["permission_epoch_resync".to_owned()];
+    permission_change.permission_epoch_bumps = vec![PermissionScopeExpr::AuthUser];
+    permission_change.write_set_summary.primary_table = Some("todos".to_owned());
+    permission_change.write_set_summary.tables = vec!["todos".to_owned()];
+    functions.functions.push(permission_change);
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(functions);
+
+    let created = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(
+                json!({ "title": "Visible before permission change" }),
+                "user_1",
+            ),
+        )
+        .expect("create visible todo");
+    let todo_id = created.result.as_str().unwrap().to_owned();
+
+    let subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe live query");
+    assert_eq!(subscription.snapshot.rows.len(), 1);
+    let other_subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_b".to_owned(),
+                input: input(json!({}), "user_2"),
+            },
+        )
+        .expect("subscribe other user");
+    assert_eq!(other_subscription.snapshot.rows.len(), 0);
+
+    snapback
+        .invoke_mutation(
+            "touchPermissions",
+            input(
+                json!({ "id": todo_id, "title": "Changed with permission epoch" }),
+                "user_1",
+            ),
+        )
+        .expect("touch permission scope");
+
+    let messages = snapback.drain_outbox("client_a");
+    assert_eq!(messages.len(), 1);
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable resync message");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("resync json");
+    assert_eq!(update["kind"], "resync_required");
+    assert_eq!(update["reason"], "permission_epoch_changed");
+    assert_eq!(update["subscription_id"], subscription.subscription_id);
+    assert_eq!(update["scope"], "user:user_1");
+    assert_eq!(update["epoch"], 1);
+    assert_eq!(update["clear_retained"], true);
+    assert_eq!(snapback.drain_outbox("client_b"), Vec::new());
 }
 
 #[test]

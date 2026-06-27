@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (Phase 4 equality, `In`, range/boundary matcher, and WebSocket push slices; remaining permission-epoch design; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-06-27 (Phase 4 equality, `In`, range/boundary matcher, WebSocket push, and permission-epoch resync slices; remaining reconnect/resume design; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
 
 ## Summary
@@ -327,7 +327,11 @@ the in-memory change event so hidden-row deletes can be proved disjoint without
 leaking the row to clients. The delivery shape remains `live_replace`, now
 available over a local WebSocket stream as well as the deterministic outbox, and
 `/inspect` exposes `liveDelivery` fan-out, delivery, and skip counts. Permission
-epochs and server-directed `resync_required` delivery remain open.
+epochs now use v0 function metadata (`permissionEpochBumps`) to advance
+`user:<id>` or declared scopes, live subscriptions capture
+`Permission(scope, epoch)` facts, and stale subscriptions receive durable
+`resync_required` messages instead of a `live_replace`. Reconnect/resume
+stale-epoch comparison remains open.
 
 #### Remaining Phase 4 design: dependency vocabulary and auth epochs
 
@@ -422,6 +426,11 @@ Implementation sequence for the remaining Phase 4 work:
    disjoint range inserts, range-crossing updates, limited-query boundary
    changes, permission-epoch resync, and reconnect with stale epochs.
 
+Implementation note, 2026-06-27: steps 1 through 4 have landed for the local
+target. The capability gap intentionally remains until the retained reconnect
+path compares client-recorded permission epochs against current server epochs
+and forces a resnapshot when any recorded epoch is stale.
+
 ## Demo Admission Rule
 
 This is the core-specific specialization of LLP 0016's demo admission rule, not
@@ -472,7 +481,7 @@ scaffolding it depends on and the capability class it is exercising.
 ## Status
 
 Draft. Phases 1 through 3 have landed as local slices, Phase 4 has conservative
-matcher, observability, WebSocket push, `In`, range, and limited-boundary slices,
-and the remaining permission-epoch shape is pinned in this Plan. Completion
-still requires implementing permission-change resync, then passing the acceptance
+matcher, observability, WebSocket push, `In`, range, limited-boundary, and
+permission-epoch resync slices. Completion still requires retained
+reconnect/resume handling for stale permission epochs and passing the acceptance
 gates above, not merely the presence of partial implementation files.
