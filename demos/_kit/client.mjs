@@ -43,6 +43,16 @@ export class SnapbackClient {
   health() { return this.#req('GET', '/health'); }
   inspect() { return this.#req('GET', '/inspect'); }
   loadSchema(manifest) { return this.#req('POST', '/admin/schema', manifest); }
+  ensureEphemeralCollections(manifestOrCollections) {
+    const collections = Array.isArray(manifestOrCollections)
+      ? manifestOrCollections
+      : manifestOrCollections?.ephemeralCollections ?? manifestOrCollections?.collections ?? [];
+    return this.#req('POST', '/ephemeral/collections/ensure', {
+      collections,
+      schemaHash: manifestOrCollections?.schemaHash ?? null,
+      inputsHash: manifestOrCollections?.inputsHash ?? null,
+    });
+  }
   loadFunctions(manifest) { return this.#req('POST', '/admin/functions', manifest); }
   reset() { return this.#req('POST', '/admin/reset'); }
   seed(seed) { return this.#req('POST', '/admin/seed', seed); }

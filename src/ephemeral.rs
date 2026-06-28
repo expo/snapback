@@ -232,6 +232,7 @@ pub enum EphemeralErrorCode {
     InvalidTtl,
     ValueTooLarge,
     RateLimited,
+    IncompatibleCollectionDefinition,
 }
 
 impl EphemeralErrorCode {
@@ -245,6 +246,9 @@ impl EphemeralErrorCode {
             Self::InvalidTtl => "SNAPBACK_EPHEMERAL_INVALID_TTL",
             Self::ValueTooLarge => "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
             Self::RateLimited => "SNAPBACK_EPHEMERAL_RATE_LIMITED",
+            Self::IncompatibleCollectionDefinition => {
+                "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+            }
         }
     }
 }
@@ -342,6 +346,13 @@ impl EphemeralMessage {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DurableMessage {
     pub payload: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CollectionEnsureOutcome {
+    pub collection_count: usize,
+    pub preserved_room_count: usize,
+    pub preserved_outbox_count: usize,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -608,11 +619,77 @@ impl LocalEphemeralBackend {
             .into_iter()
             .map(|collection| (collection.name.clone(), collection))
             .collect::<BTreeMap<_, _>>();
+
+        // @ref LLP 0025#store-feature-idempotent-collection-ensure — repeated
+        // app-definition loads with identical ephemeral definitions must not
+        // erase active cursor rooms or queued latest-state messages.
+        if self.collections == next {
+            self.refresh_counts();
+            return;
+        }
+
         self.rooms.clear();
         self.rate_buckets.clear();
         self.outbox.clear();
         self.collections = next;
         self.refresh_counts();
+    }
+
+    pub fn ensure_collections(
+        &mut self,
+        collections: Vec<EphemeralCollection>,
+    ) -> Result<CollectionEnsureOutcome, EphemeralError> {
+        let expected = collections
+            .into_iter()
+            .map(|collection| (collection.name.clone(), collection))
+            .collect::<BTreeMap<_, _>>();
+        let expected_names = expected.keys().cloned().collect::<BTreeSet<_>>();
+        let loaded_names = self.collections.keys().cloned().collect::<BTreeSet<_>>();
+
+        let missing = expected_names
+            .difference(&loaded_names)
+            .cloned()
+            .collect::<Vec<_>>();
+        if !missing.is_empty() {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::UnknownCollection,
+                format!(
+                    "ephemeral collection definitions are not loaded: {}",
+                    missing.join(", ")
+                ),
+            ));
+        }
+
+        let extra = loaded_names
+            .difference(&expected_names)
+            .cloned()
+            .collect::<Vec<_>>();
+        let mismatched = expected
+            .iter()
+            .filter_map(|(name, expected)| {
+                self.collections
+                    .get(name)
+                    .filter(|loaded| *loaded != expected)
+                    .map(|_| name.clone())
+            })
+            .collect::<Vec<_>>();
+        if !extra.is_empty() || !mismatched.is_empty() {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "loaded ephemeral collection definitions do not match generated artifacts (mismatched: [{}], extra: [{}])",
+                    mismatched.join(", "),
+                    extra.join(", ")
+                ),
+            ));
+        }
+
+        self.refresh_counts();
+        Ok(CollectionEnsureOutcome {
+            collection_count: expected.len(),
+            preserved_room_count: self.rooms.len(),
+            preserved_outbox_count: self.outbox.len(),
+        })
     }
 
     pub fn reset_runtime_state(&mut self) {

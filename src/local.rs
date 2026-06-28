@@ -1,7 +1,8 @@
 use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
-    DeleteRequest, EphemeralCollection, EphemeralDiagnostics, EphemeralMessage,
-    LocalEphemeralBackend, PublishOutcome, PublishRequest, RealtimeEnvelope, SubscribeRequest,
+    CollectionEnsureOutcome, DeleteRequest, EphemeralCollection, EphemeralDiagnostics,
+    EphemeralMessage, LocalEphemeralBackend, PublishOutcome, PublishRequest, RealtimeEnvelope,
+    SubscribeRequest,
 };
 use crate::live_matcher::{live_subscription_may_be_affected, query_dependencies_from_plan};
 use crate::manifest::{
@@ -589,6 +590,13 @@ impl LocalSnapback {
 
     pub fn register_ephemeral_collection(&mut self, collection: EphemeralCollection) {
         self.ephemeral.register_collection(collection);
+    }
+
+    pub fn ensure_ephemeral_collections(
+        &mut self,
+        collections: Vec<EphemeralCollection>,
+    ) -> Result<CollectionEnsureOutcome, crate::ephemeral::EphemeralError> {
+        self.ephemeral.ensure_collections(collections)
     }
 
     pub fn publish_ephemeral(

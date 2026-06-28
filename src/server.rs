@@ -6,10 +6,11 @@ use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
 use crate::runtime::CapabilityState;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, Method, Request, StatusCode, header};
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::{Json, Router, body::Body};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -61,6 +62,10 @@ fn core_routes() -> Router<AppState> {
             "/ephemeral/collections",
             post(register_ephemeral_collection),
         )
+        .route(
+            "/ephemeral/collections/ensure",
+            post(ensure_ephemeral_collections),
+        )
         .route("/ephemeral/publish", post(publish_ephemeral))
         .route("/ephemeral/subscribe", post(subscribe_ephemeral))
         .route("/ephemeral/delete", post(delete_ephemeral))
@@ -77,12 +82,57 @@ pub fn app(state: AppState) -> Router {
     core_routes()
         .merge(crate::admin::admin_routes())
         .with_state(state)
+        .layer(middleware::from_fn(local_dev_cors))
 }
 
 /// Backwards-compatible entry point: build the full app with a detached
 /// (loopback, address-unknown) server context.
 pub fn router(state: SharedSnapback) -> Router {
     app(AppState::detached(state))
+}
+
+async fn local_dev_cors(request: Request<Body>, next: Next) -> Response {
+    // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
+    // static/Vite origin while talking to the local Snapback server.
+    let allowed_origin = loopback_origin(request.headers().get(header::ORIGIN));
+    if request.method() == Method::OPTIONS {
+        return with_cors_headers(StatusCode::NO_CONTENT.into_response(), allowed_origin);
+    }
+    with_cors_headers(next.run(request).await, allowed_origin)
+}
+
+fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>) -> Response {
+    let headers = response.headers_mut();
+    if let Some(origin) = allowed_origin {
+        headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+        headers.insert(header::VARY, HeaderValue::from_static("Origin"));
+    }
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET, POST, OPTIONS"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("content-type, authorization, x-snapback-admin-token"),
+    );
+    response
+}
+
+fn loopback_origin(origin: Option<&HeaderValue>) -> Option<HeaderValue> {
+    let origin = origin?.to_str().ok()?;
+    let allowed = [
+        "http://127.0.0.1:",
+        "https://127.0.0.1:",
+        "http://localhost:",
+        "https://localhost:",
+        "http://[::1]:",
+        "https://[::1]:",
+    ];
+    allowed
+        .iter()
+        .any(|prefix| origin.starts_with(prefix))
+        .then(|| HeaderValue::from_str(origin).ok())
+        .flatten()
 }
 
 async fn health(State(state): State<SharedSnapback>) -> Result<Json<HealthResponse>, ApiError> {
@@ -185,7 +235,7 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
     let mut ticks = interval(Duration::from_millis(25));
 
     // @ref LLP 0020#phase-4-upgrade-realtime-from-v0-outbox-to-app-grade-live-delivery — WebSocket push is a transport over the existing ordered live queue; deterministic drain stays available for tests.
-    loop {
+    'stream: loop {
         tokio::select! {
             incoming = receiver.next() => {
                 match incoming {
@@ -193,7 +243,7 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
                     Some(Ok(Message::Text(text))) => {
                         let response = handle_live_socket_text(&state, &text).await;
                         if sender.send(Message::Text(response.into())).await.is_err() {
-                            return;
+                            break 'stream;
                         }
                     }
                     Some(Ok(Message::Binary(_))) | Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => {}
@@ -206,12 +256,15 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
                 };
                 for message in messages {
                     if sender.send(Message::Text(message.into())).await.is_err() {
-                        return;
+                        break 'stream;
                     }
                 }
             }
         }
     }
+
+    let mut snapback = state.lock().await;
+    snapback.disconnect(&connection_id, now_millis());
 }
 
 #[derive(Debug, Deserialize)]
@@ -341,6 +394,39 @@ async fn register_ephemeral_collection(
     let mut snapback = state.lock().await;
     snapback.register_ephemeral_collection(collection);
     StatusCode::NO_CONTENT
+}
+
+#[derive(Debug, Deserialize)]
+struct EnsureEphemeralCollectionsInput {
+    #[serde(default)]
+    collections: Vec<EphemeralCollection>,
+    #[serde(
+        default,
+        rename = "ephemeralCollections",
+        alias = "ephemeral_collections"
+    )]
+    ephemeral_collections: Vec<EphemeralCollection>,
+}
+
+impl EnsureEphemeralCollectionsInput {
+    fn into_collections(self) -> Vec<EphemeralCollection> {
+        if self.collections.is_empty() {
+            self.ephemeral_collections
+        } else {
+            self.collections
+        }
+    }
+}
+
+async fn ensure_ephemeral_collections(
+    State(state): State<SharedSnapback>,
+    Json(input): Json<EnsureEphemeralCollectionsInput>,
+) -> Result<Json<crate::ephemeral::CollectionEnsureOutcome>, ApiError> {
+    let mut snapback = state.lock().await;
+    snapback
+        .ensure_ephemeral_collections(input.into_collections())
+        .map(Json)
+        .map_err(ApiError::from_ephemeral)
 }
 
 async fn publish_ephemeral(

@@ -1,0 +1,69 @@
+{
+  "id": "cursors-web",
+  "title": "Web cursor presence",
+  "description": "A web-only cursor presence demo for LLP 0025: one generated ephemeral collection, a plain DOM page, WebSocket publish/subscribe, and two real browser clients seeing each other's latest cursor positions.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Demo apps", "Realtime", "Ephemeral state", "Web client", "Developer experience", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "ephemeralRealtime": true,
+    "ephemeralWebSocketPublish": true,
+    "ephemeralLocalRoomAuthority": true,
+    "capabilityClass": "Online"
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node demos/_kit/codegen.mjs demos/cursors-web/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; page boot calls ensureEphemeralCollections, not loadSchema"
+  },
+  "surfaces": {
+    "web": {
+      "requirement": "required",
+      "runner": "node demos/cursors-web/tests/acceptance/browser.mjs",
+      "toolchain": "node>=24, cargo, local Google Chrome with Chrome DevTools Protocol"
+    }
+  },
+  "acceptanceChecks": {
+    "web": [
+      "schema load happens once before browser clients connect",
+      "page boot uses non-destructive ephemeral collection ensure",
+      "two independent browser contexts connect to one Snapback instance",
+      "moving client A's pointer renders A in client B",
+      "moving client B's pointer renders B in client A",
+      "cursor publishes do not advance durable storage version",
+      "opening a second context does not clear the first context's room or outbox",
+      "incompatible generated collection definition returns SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
+      "closing one browser context removes its connection-owned cursor from the other"
+    ]
+  },
+  "capabilityGaps": [
+    "offline_mutation_replay",
+    "postgres",
+    "cloudflare",
+    "ephemeral_hosted_adapter",
+    "ephemeral_multi_instance_sticky_routing",
+    "external_auth"
+  ],
+  "notClaiming": [
+    "durable drawing or stroke storage",
+    "Contract/Exact surface",
+    "native app surface",
+    "offline/local-first presence",
+    "hosted multi-instance presence routing",
+    "scale benchmark"
+  ],
+  "temporaryPolicy": {
+    "auth": "allow-all local room policy for the v0 web-only demo"
+  }
+}

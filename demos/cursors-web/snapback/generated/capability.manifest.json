@@ -1,0 +1,84 @@
+{
+  "artifactKind": "capabilityManifest",
+  "assetUpload": false,
+  "authImpersonation": true,
+  "capabilityGaps": [
+    "offline_mutation_replay",
+    "postgres",
+    "cloudflare",
+    "hosted_untrusted_code",
+    "external_auth",
+    "assets",
+    "cron",
+    "notifications",
+    "ephemeral_hosted_adapter",
+    "ephemeral_multi_instance_sticky_routing"
+  ],
+  "cron": false,
+  "ephemeralHostedAdapter": false,
+  "ephemeralLocalRoomAuthority": true,
+  "ephemeralRealtime": true,
+  "ephemeralWebSocketPublish": true,
+  "liveSubscriptions": true,
+  "localServerLifecycle": true,
+  "mutationIsolationMode": "handler-captured-read-set-validation",
+  "notifications": false,
+  "offlineRetention": false,
+  "onlineOnlyQueries": true,
+  "optimisticReplay": false,
+  "outboundActions": false,
+  "permissionDiagnostics": false,
+  "portabilityOptOuts": [],
+  "replaceOnlyQueries": true,
+  "resourceLimits": [
+    {
+      "name": "wall_clock_timeout",
+      "status": "Missing"
+    },
+    {
+      "name": "cpu_budget",
+      "status": "Missing"
+    },
+    {
+      "name": "maximum_result_size",
+      "status": "Advisory"
+    },
+    {
+      "name": "maximum_subscription_count",
+      "status": "Advisory"
+    },
+    {
+      "name": "ephemeral_value_size",
+      "status": "Enforced"
+    },
+    {
+      "name": "ephemeral_publish_rate",
+      "status": "Enforced"
+    },
+    {
+      "name": "ephemeral_durable_lane_priority",
+      "status": "Enforced"
+    }
+  ],
+  "runtimeEngine": "ibex",
+  "schemaVersion": "snapback.v0",
+  "storageEngine": "sqlite",
+  "supportedQueryForms": [
+    "host-plan-single-table-eq",
+    "host-plan-single-table-in",
+    "host-plan-single-table-range",
+    "host-plan-live-replace",
+    "ibex-ctx-db-single-table-eq",
+    "ibex-ctx-db-single-table-in",
+    "ibex-ctx-db-single-table-range",
+    "ibex-live-eq-replace",
+    "ibex-live-in-replace",
+    "ibex-live-range-replace",
+    "ibex-live-limited-boundary-replace",
+    "websocket-live-replace",
+    "ephemeral-latest-state-local",
+    "websocket-ephemeral-publish"
+  ],
+  "syncableLiveQueries": true,
+  "targetProfileId": "local-dev-sqlite-ibex"
+}

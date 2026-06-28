@@ -1148,6 +1148,130 @@ fn schema_manifest_registers_authorized_ephemeral_board_cursors() {
 }
 
 #[test]
+fn repeated_matching_schema_load_preserves_ephemeral_rooms_and_outbox() {
+    let collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
+    let mut schema = todo_schema();
+    schema.ephemeral_collections = vec![collection];
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(schema.clone()).expect("first schema");
+
+    let scope = Scope::from_pairs([("boardId", "board_1")]);
+    let auth = AuthContext::default();
+    snapback
+        .subscribe_ephemeral(
+            SubscribeRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "observer_a".to_owned(),
+                auth: auth.clone(),
+            },
+            1_000,
+        )
+        .expect("first subscribe");
+    snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "publisher".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: br#"{"x":11,"y":22}"#.to_vec(),
+                ttl_ms: None,
+                auth: auth.clone(),
+            },
+            1_001,
+        )
+        .expect("publish cursor");
+
+    snapback
+        .apply_schema(schema)
+        .expect("matching schema reload");
+
+    let messages = snapback.drain_outbox("observer_a");
+    assert!(
+        messages.iter().any(|message| matches!(
+            message,
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { .. })
+        )),
+        "matching schema reload should not clear queued cursor updates"
+    );
+
+    let snapshot = snapback
+        .subscribe_ephemeral(
+            SubscribeRequest {
+                collection: "boardCursors".to_owned(),
+                scope,
+                connection_id: "observer_b".to_owned(),
+                auth,
+            },
+            1_002,
+        )
+        .expect("second subscribe");
+    assert!(
+        matches!(snapshot, EphemeralMessage::Snapshot { entries, .. } if entries.len() == 1),
+        "matching schema reload should preserve active cursor rooms"
+    );
+}
+
+#[test]
+fn ensure_ephemeral_collections_rejects_mismatch_without_clearing_room() {
+    let collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
+    let mut schema = todo_schema();
+    schema.ephemeral_collections = vec![collection.clone()];
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(schema).expect("schema");
+
+    let scope = Scope::from_pairs([("boardId", "board_1")]);
+    let auth = AuthContext::default();
+    snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "publisher".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: br#"{"x":5,"y":6}"#.to_vec(),
+                ttl_ms: None,
+                auth: auth.clone(),
+            },
+            1_000,
+        )
+        .expect("publish cursor");
+
+    let mut incompatible = collection;
+    incompatible.max_value_bytes = 512;
+    let error = snapback
+        .ensure_ephemeral_collections(vec![incompatible])
+        .expect_err("incompatible generated collection should fail");
+    assert_eq!(
+        error.code,
+        EphemeralErrorCode::IncompatibleCollectionDefinition
+    );
+
+    let snapshot = snapback
+        .subscribe_ephemeral(
+            SubscribeRequest {
+                collection: "boardCursors".to_owned(),
+                scope,
+                connection_id: "observer".to_owned(),
+                auth,
+            },
+            1_001,
+        )
+        .expect("subscribe after failed ensure");
+    assert!(
+        matches!(snapshot, EphemeralMessage::Snapshot { entries, .. } if entries.len() == 1),
+        "failed ensure must not clear existing live presence"
+    );
+}
+
+#[test]
 fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     let schema: SchemaManifest = serde_json::from_str(include_str!(
         "../demos/todo/snapback/generated/schema.manifest.json"

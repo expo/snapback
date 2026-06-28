@@ -5,8 +5,8 @@
 **Systems:** Demo apps, Reference apps, Contract/Exact, Client integration, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-06-26
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
+**Revised:** 2026-06-28 (linked LLP 0025's web-only cursor presence reset)
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, LLP 0025, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
 
 ## Summary
 
@@ -387,6 +387,12 @@ The demo ladder follows LLP 0010's acceptance ladder. The early order should be:
 Each new demo should start headless, then add the highest-value product surface.
 For app UI, the default surface is Contract/Exact unless the needed Exact or
 Contract capability is missing and recorded as a temporary exception.
+
+LLP 0025 adds a tactical cursor-presence demo reset before the broader
+realtime-heavy ladder claims product evidence. That demo is intentionally
+web-only and ephemeral-only: it proves cursor presence and the room lifecycle
+contract from LLP 0013, but it does not replace messaging, kanban, or the
+collaborative whiteboard reference app.
 
 ## Open Questions
 

@@ -1,0 +1,22 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:b44d58ff8e44b17f",
+  "capabilities": {
+    "branchableFixtures": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "inputsHash": "8e083f59f1cebd5cc21595e2e78ebec7bdbdb0b0eb52b39307b331b7ec74fe73",
+  "manifestVersion": 1,
+  "mutations": {},
+  "provider": "snapback",
+  "queries": {},
+  "schemaHash": "sha256:dc0bdf21b8afb2f5",
+  "schemaVersion": "snapback.v0"
+}

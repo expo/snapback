@@ -1,0 +1,34 @@
+{
+  "appId": "cursors-web",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [
+    {
+      "burst": 40,
+      "defaultTtlMs": 5000,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 30000,
+      "maxValueBytes": 1024,
+      "name": "webCursors",
+      "publish": "AllowAll",
+      "routingFields": [
+        "roomId"
+      ],
+      "scopeFields": [
+        "roomId"
+      ],
+      "subscribe": "AllowAll",
+      "sustainedHz": 20
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "8e083f59f1cebd5cc21595e2e78ebec7bdbdb0b0eb52b39307b331b7ec74fe73",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:dc0bdf21b8afb2f5",
+  "schemaVersion": "snapback.v0",
+  "tables": [],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

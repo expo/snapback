@@ -1,0 +1,10 @@
+{
+  "appId": "cursors-web",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:b44d58ff8e44b17f",
+  "functions": [],
+  "generatedAt": 0,
+  "inputsHash": "8e083f59f1cebd5cc21595e2e78ebec7bdbdb0b0eb52b39307b331b7ec74fe73",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}
