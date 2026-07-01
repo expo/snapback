@@ -25,6 +25,35 @@ use tokio_tungstenite::connect_async;
 use tower::ServiceExt;
 
 #[tokio::test]
+async fn root_path_serves_yaml_instance_status() {
+    let app = loopback_app(seeded_snapback());
+
+    let resp = app.oneshot(get("/")).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ctype = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(ctype.starts_with("text/yaml"), "root served as YAML");
+
+    let body = text(resp).await;
+    assert!(body.starts_with("schemaVersion: \"snapback.v0\""));
+    assert!(body.contains("statusKind: \"snapbackInstanceStatus\""));
+    assert!(body.contains("name: \"Snapback local server\""));
+    assert!(body.contains("target: \"local-dev-sqlite-ibex\""));
+    assert!(body.contains("  mode: \"memory\""));
+    assert!(body.contains("  loadedTables: 1"));
+    assert!(body.contains("  loadedFunctions: 2"));
+    assert!(body.contains("  adminConsole: \"/_snapback/admin\""));
+    assert!(body.contains("  healthJson: \"/_snapback/api/health\""));
+    assert!(body.contains("  inspectJson: \"/_snapback/api/inspect\""));
+    assert!(body.contains("Open on loopback"));
+}
+
+#[tokio::test]
 async fn console_and_inspect_serve_from_one_server_without_vite() {
     let app = loopback_app(seeded_snapback());
 
@@ -293,6 +322,16 @@ async fn embedded_console_is_the_fallback_without_a_dist() {
     assert_eq!(resp.status(), StatusCode::OK);
     // "auto-refresh" appears only in the embedded console, not a built bundle.
     assert!(text(resp).await.contains("auto-refresh"));
+}
+
+#[tokio::test]
+async fn root_path_reports_non_loopback_admin_state() {
+    let app = app_with_context(seeded_snapback(), exposed_context(None));
+
+    let resp = app.oneshot(get("/")).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = text(resp).await;
+    assert!(body.contains("Admin API disabled on this non-loopback bind"));
 }
 
 #[tokio::test]

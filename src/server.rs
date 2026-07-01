@@ -1,4 +1,4 @@
-use crate::admin::AppState;
+use crate::admin::{AppState, ServerContext};
 use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, SubscribeRequest};
 use crate::local::{InspectState, LiveResumeInput, LiveSubscribeInput, LocalSnapback};
@@ -47,6 +47,7 @@ pub struct ErrorResponse {
 /// @ref LLP 0017#serving-model — current local routes continue as v0 aliases beside the reserved `/_snapback/*` namespace.
 fn core_routes() -> Router<AppState> {
     Router::new()
+        .route("/", get(instance_home))
         .route("/health", get(health))
         .route("/inspect", get(inspect))
         .route("/admin/schema", post(apply_schema))
@@ -84,6 +85,177 @@ pub fn app(state: AppState) -> Router {
         .merge(crate::admin::admin_routes())
         .with_state(state)
         .layer(middleware::from_fn(local_dev_cors))
+}
+
+/// Browser-friendly default route for a running Snapback instance.
+///
+/// @ref LLP 0017#serving-model — system surfaces live under the reserved
+/// `/_snapback/*` namespace; the default route can point humans at them without
+/// becoming another privileged API.
+/// @ref LLP 0024#http-projection — agent operations remain admin API/MCP
+/// projections, not the root browser URL.
+async fn instance_home(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+) -> Result<Response, ApiError> {
+    let mut snapback = state.lock().await;
+    let inspect = snapback.inspect()?;
+    Ok((
+        [(header::CONTENT_TYPE, "text/yaml; charset=utf-8")],
+        instance_home_yaml(&inspect, &ctx),
+    )
+        .into_response())
+}
+
+fn instance_home_yaml(inspect: &InspectState, ctx: &ServerContext) -> String {
+    let bind = format!("{}:{}", ctx.host, ctx.port);
+    let storage_mode = if inspect.storage.sqlite_path.is_some() {
+        "file"
+    } else {
+        "memory"
+    };
+    let storage_detail = inspect
+        .storage
+        .sqlite_path
+        .as_ref()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| "in-memory database".to_owned());
+    let schema_hash = inspect
+        .schema
+        .schema_hash
+        .as_deref()
+        .unwrap_or("not loaded");
+    let bundle_hash = inspect
+        .functions
+        .bundle_hash
+        .as_deref()
+        .unwrap_or("not loaded");
+    let capability_summary = if inspect.capability_gaps.is_empty() {
+        "No reported capability gaps".to_owned()
+    } else {
+        format!(
+            "{} capability {} reported",
+            inspect.capability_gaps.len(),
+            if inspect.capability_gaps.len() == 1 {
+                "gap"
+            } else {
+                "gaps"
+            }
+        )
+    };
+    format!(
+        concat!(
+            "schemaVersion: {schema_version}\n",
+            "statusKind: {status_kind}\n",
+            "name: {name}\n",
+            "target: {target}\n",
+            "runtimeEngine: {runtime_engine}\n",
+            "storage:\n",
+            "  engine: {storage_engine}\n",
+            "  mode: {storage_mode}\n",
+            "  detail: {storage_detail}\n",
+            "  databaseVersion: {database_version}\n",
+            "server:\n",
+            "  bind: {bind}\n",
+            "  host: {host}\n",
+            "  port: {port}\n",
+            "  loopback: {loopback}\n",
+            "  uptimeMs: {uptime_ms}\n",
+            "  uptime: {uptime}\n",
+            "admin:\n",
+            "  access: {admin_access}\n",
+            "artifacts:\n",
+            "  schemaHash: {schema_hash}\n",
+            "  bundleHash: {bundle_hash}\n",
+            "counts:\n",
+            "  loadedTables: {table_count}\n",
+            "  loadedFunctions: {function_count}\n",
+            "  liveSubscriptions: {subscription_count}\n",
+            "  cronJobs: {cron_job_count}\n",
+            "  recentDiagnostics: {diagnostic_count}\n",
+            "capabilities:\n",
+            "  summary: {capability_summary}\n",
+            "  gaps: {capability_gaps}\n",
+            "links:\n",
+            "  adminConsole: {admin_console}\n",
+            "  healthJson: {health_json}\n",
+            "  inspectJson: {inspect_json}\n",
+        ),
+        schema_version = yaml_string(&inspect.schema_version),
+        status_kind = yaml_string("snapbackInstanceStatus"),
+        name = yaml_string("Snapback local server"),
+        target = yaml_string(&inspect.target),
+        runtime_engine = yaml_string(&inspect.capability_manifest.runtime_engine),
+        storage_engine = yaml_string(&inspect.capability_manifest.storage_engine),
+        storage_mode = yaml_string(storage_mode),
+        storage_detail = yaml_string(&storage_detail),
+        database_version = inspect.storage.version,
+        bind = yaml_string(&bind),
+        host = yaml_string(&ctx.host),
+        port = ctx.port,
+        loopback = ctx.loopback,
+        uptime_ms = ctx.uptime_ms(),
+        uptime = yaml_string(&format_duration(ctx.uptime_ms())),
+        admin_access = yaml_string(&admin_access_summary(ctx)),
+        schema_hash = yaml_string(schema_hash),
+        bundle_hash = yaml_string(bundle_hash),
+        table_count = inspect.storage.tables.len(),
+        function_count = inspect.functions.functions.len(),
+        subscription_count = inspect.subscriptions.len(),
+        cron_job_count = inspect.cron.jobs.len(),
+        diagnostic_count = inspect.recent_diagnostics.len(),
+        capability_summary = yaml_string(&capability_summary),
+        capability_gaps = yaml_string_list(&inspect.capability_gaps),
+        admin_console = yaml_string("/_snapback/admin"),
+        health_json = yaml_string("/_snapback/api/health"),
+        inspect_json = yaml_string("/_snapback/api/inspect"),
+    )
+}
+
+fn admin_access_summary(ctx: &ServerContext) -> String {
+    match (ctx.loopback, ctx.admin_token.is_some()) {
+        (true, false) => {
+            "Open on loopback; set SNAPBACK_ADMIN_TOKEN to require a token for writes".to_owned()
+        }
+        (true, true) => "Reads open on loopback; writes require SNAPBACK_ADMIN_TOKEN".to_owned(),
+        (false, false) => {
+            "Admin API disabled on this non-loopback bind until SNAPBACK_ADMIN_TOKEN is set"
+                .to_owned()
+        }
+        (false, true) => {
+            "Admin API requires SNAPBACK_ADMIN_TOKEN on this non-loopback bind".to_owned()
+        }
+    }
+}
+
+fn format_duration(ms: u64) -> String {
+    let seconds = ms / 1000;
+    if seconds < 60 {
+        format!("{seconds}s")
+    } else if seconds < 3600 {
+        format!("{}m {}s", seconds / 60, seconds % 60)
+    } else {
+        format!("{}h {}m", seconds / 3600, (seconds % 3600) / 60)
+    }
+}
+
+fn yaml_string(value: &str) -> String {
+    serde_json::to_string(value).expect("string serialization cannot fail")
+}
+
+fn yaml_string_list(values: &[String]) -> String {
+    if values.is_empty() {
+        "[]".to_owned()
+    } else {
+        format!(
+            "[{}]",
+            values
+                .iter()
+                .map(|value| yaml_string(value))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
 }
 
 /// Backwards-compatible entry point: build the full app with a detached
