@@ -5,8 +5,8 @@
 **Systems:** Demo apps, Reference apps, Contract/Exact, Client integration, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-06-28 (linked LLP 0025's web-only cursor presence reset)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, LLP 0025, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
+**Revised:** 2026-07-01 (updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, LLP 0025, LLP 0027, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
 
 ## Summary
 
@@ -393,6 +393,15 @@ realtime-heavy ladder claims product evidence. That demo is intentionally
 web-only and ephemeral-only: it proves cursor presence and the room lifecycle
 contract from LLP 0013, but it does not replace messaging, kanban, or the
 collaborative whiteboard reference app.
+
+LLP 0027 adds the All Aboard Caltrain "next train" demo, which extends the ladder
+along a new axis: **server-authored data that refreshes on demand or schedule and
+pushes to clients**. It is the forcing function for the scheduled/demand refresh
+subsystem and the outbound-HTTP/data-gateway seam (neither yet implemented), and
+the first demo to make Contract/Exact the required product surface from the start,
+leaning on its gesture and geolocation primitives. Per LLP 0016 it is phased so
+the UI and realtime path are proven on recorded data before live polling exists,
+with those capabilities reported as honest gaps.
 
 ## Open Questions
 

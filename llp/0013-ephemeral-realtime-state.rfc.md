@@ -5,8 +5,8 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-26 (store model expansion)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014
+**Revised:** 2026-06-29 (related LLP index updated for LLP 0026)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026
 
 ## Summary
 
