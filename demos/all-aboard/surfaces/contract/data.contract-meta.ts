@@ -8,6 +8,7 @@ import { defineContractModule, pure } from '@exact/contract/exports';
 export default defineContractModule('./data.ts', {
   getUserLocation: pure({ params: ['tick'], result: 'UserLocation', depends: 'args' }),
   locationSource: pure({ params: ['tick'], result: 'string', depends: 'args' }),
+  locationHint: pure({ params: ['tick'], result: 'string', depends: 'args' }),
   getSelectedStation: pure({ params: ['stationId', 'tick'], result: 'Station', depends: 'args' }),
   getStations: pure({ params: [], result: 'Station[]', depends: 'args' }),
   searchStations: pure({ params: ['query', 'tick'], result: 'Station[]', depends: 'args' }),

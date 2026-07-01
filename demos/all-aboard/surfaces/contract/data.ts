@@ -45,6 +45,17 @@ export function locationSource(_tick?: number): string {
   return getStoreState().locationSource;
 }
 
+// A friendly, on-card signal of whether the nearest station came from the device
+// or a fallback — so a denied/dismissed permission prompt is legible, not silent.
+export function locationHint(_tick?: number): string {
+  switch (getStoreState().locationSource) {
+    case 'device': return '📍 Using your location';
+    case 'denied': return 'Location blocked — showing a default stop';
+    case 'unavailable': return 'Location unavailable — showing a default stop';
+    default: return 'Allow location for your nearest stop';
+  }
+}
+
 export function getSelectedStation(stationId: string | null, _tick?: number) {
   return modelSelectedStation(stationId, getUserLocation());
 }

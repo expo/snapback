@@ -20,6 +20,7 @@ use getSelectedStation from "./data.ts"
 use searchStations from "./data.ts"
 use adjacentStationId from "./data.ts"
 use stationPhoto from "./data.ts"
+use locationHint from "./data.ts"
 use activeDirection from "./data.ts"
 use oppositeDirection from "./data.ts"
 use directionTitle from "./data.ts"
@@ -46,6 +47,7 @@ component AllAboard
 
   derive station = getSelectedStation(stationId, nowMs)
   derive photoUrl = stationPhoto(station.id)
+  derive locHint = locationHint(nowMs)
   derive activeDir = activeDirection(directionOverride, station)
   derive oppositeDir = oppositeDirection(activeDir)
   derive primaryBoard = getDirectionBoard(station.id, activeDir, nowMs, 4)
@@ -115,6 +117,7 @@ component AllAboard
                   button press=openStations label="Change station" testId="change-station" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 background="#ffffff" borderWidth=1 borderColor="#d7dce8"
                     text "Change station" size=12 weight=600 color="#5a6480"
               text walkBike size=13 color="#5a6480" testId="walk-bike"
+              text locHint size=12 color="#8b93ad" testId="location-hint"
               row justify="space-between" align="center"
                 text freshness size=12 color="#8b93ad" testId="freshness"
                 button press=doRefresh label="Refresh" testId="refresh" paddingTop=5 paddingBottom=5 paddingLeft=10 paddingRight=10 radius=7 background="#2f5fe0"
