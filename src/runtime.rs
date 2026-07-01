@@ -1,6 +1,7 @@
+use crate::cron::CronRunMetadata;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::live_matcher::query_dependency_metadata;
-use crate::manifest::{HandlerInput, IbexModule, QueryOutput, QueryPlan};
+use crate::manifest::{HandlerInput, IbexModule, MutationOutput, QueryOutput, QueryPlan};
 use crate::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, LocalDatabase, MutationCommit,
 };
@@ -55,6 +56,10 @@ pub struct RuntimeManager {
 pub struct IbexQueryRun {
     pub output: QueryOutput,
     pub read_dependencies: Vec<CapturedReadDependency>,
+}
+
+pub trait IbexActionHost {
+    fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput>;
 }
 
 impl RuntimeManager {
@@ -135,6 +140,18 @@ impl RuntimeManager {
         let result = run_ibex_handler_with_context(module, &mut invocation)?;
         db.commit_buffered_writes(&input, invocation.writes, invocation.reads, result)
     }
+
+    pub fn invoke_ibex_action(
+        &self,
+        module: &IbexModule,
+        input: HandlerInput,
+        db: *const LocalDatabase,
+        run: CronRunMetadata,
+        host: &mut dyn IbexActionHost,
+    ) -> SnapbackResult<Value> {
+        let mut invocation = IbexHostContext::new_action(db, input, run, host);
+        run_ibex_handler_with_context(module, &mut invocation)
+    }
 }
 
 #[repr(C)]
@@ -189,10 +206,12 @@ impl Drop for RuntimeGuard {
 struct IbexHostContext<'a> {
     db: *const LocalDatabase,
     input: HandlerInput,
-    writable: bool,
+    mode: IbexInvocationMode,
     writes: Vec<BufferedWrite>,
     reads: Vec<CapturedReadDependency>,
     now_ms: u64,
+    action_run: Option<CronRunMetadata>,
+    action_host: Option<&'a mut dyn IbexActionHost>,
     _marker: PhantomData<&'a LocalDatabase>,
 }
 
@@ -202,10 +221,36 @@ impl<'a> IbexHostContext<'a> {
         Self {
             db,
             input,
-            writable,
+            mode: if writable {
+                IbexInvocationMode::Mutation
+            } else {
+                IbexInvocationMode::Query
+            },
             writes: Vec::new(),
             reads,
             now_ms: now_millis(),
+            action_run: None,
+            action_host: None,
+            _marker: PhantomData,
+        }
+    }
+
+    fn new_action(
+        db: *const LocalDatabase,
+        input: HandlerInput,
+        run: CronRunMetadata,
+        host: &'a mut dyn IbexActionHost,
+    ) -> Self {
+        let reads = auth_dependencies(&input);
+        Self {
+            db,
+            input,
+            mode: IbexInvocationMode::Action,
+            writes: Vec::new(),
+            reads,
+            now_ms: run.due_at_ms,
+            action_run: Some(run),
+            action_host: Some(host),
             _marker: PhantomData,
         }
     }
@@ -281,6 +326,36 @@ impl<'a> IbexHostContext<'a> {
             }
             "runtime.now" => Ok(json!(self.now_ms)),
             "runtime.id" => Ok(Value::String(self.db().generate_id())),
+            "action.metadata" => serde_json::to_value(self.action_run.as_ref()).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ACTION_METADATA_SERIALIZE_FAILED",
+                    "runtime",
+                    "action run metadata could not be serialized",
+                )
+                .with_details(json!({ "error": error.to_string() }))
+            }),
+            "action.runMutation" => {
+                self.ensure_action("runMutation")?;
+                let name = required_string(&args, "name")?;
+                let mutation_args = args
+                    .get("args")
+                    .cloned()
+                    .unwrap_or(Value::Object(Map::new()));
+                let input = HandlerInput {
+                    args: mutation_args,
+                    auth: self.input.auth.clone(),
+                    read_set: Vec::new(),
+                };
+                let host = self.action_host.as_deref_mut().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ACTION_HOST_MISSING",
+                        "runtime",
+                        "action host call ran without an action host",
+                    )
+                })?;
+                let output = host.run_mutation(&name, input)?;
+                Ok(output.result)
+            }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
                 "runtime",
@@ -290,13 +365,24 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn ensure_writable(&self, op: &str) -> SnapbackResult<()> {
-        if self.writable {
+        if self.mode == IbexInvocationMode::Mutation {
             return Ok(());
         }
         Err(SnapbackError::error(
             "SNAPBACK_HANDLER_WRITE_IN_QUERY",
             "runtime",
             format!("query handler attempted ctx.db.{op}"),
+        ))
+    }
+
+    fn ensure_action(&self, op: &str) -> SnapbackResult<()> {
+        if self.mode == IbexInvocationMode::Action {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+            "runtime",
+            format!("ctx.{op} is only available to action handlers"),
         ))
     }
 
@@ -405,6 +491,13 @@ impl<'a> IbexHostContext<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum IbexInvocationMode {
+    Query,
+    Mutation,
+    Action,
+}
+
 thread_local! {
     static CURRENT_IBEX_HOST_CONTEXT: RefCell<*mut c_void> = const { RefCell::new(ptr::null_mut()) };
 }
@@ -414,7 +507,7 @@ fn run_ibex_handler_with_context(
     invocation: &mut IbexHostContext<'_>,
 ) -> SnapbackResult<Value> {
     let runtime = RuntimeGuard::create()?;
-    let source = invocation_source(module, &invocation.input, invocation.writable)?;
+    let source = invocation_source(module, invocation)?;
 
     CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
         *slot.borrow_mut() = invocation as *mut IbexHostContext<'_> as *mut c_void;
@@ -523,24 +616,34 @@ extern "C" fn snapback_host_call(op: *const c_char, args_json: *const c_char) ->
 
 fn invocation_source(
     module: &IbexModule,
-    input: &HandlerInput,
-    writable: bool,
+    invocation: &IbexHostContext<'_>,
 ) -> SnapbackResult<String> {
+    let input = &invocation.input;
     let args_json = serde_json::to_string(&input.args).map_err(handler_serialize_error)?;
     let auth_json = serde_json::to_string(&input.auth).map_err(handler_serialize_error)?;
     let export_json = serde_json::to_string(&module.export).map_err(handler_serialize_error)?;
     let args_literal = serde_json::to_string(&args_json).map_err(handler_serialize_error)?;
     let auth_literal = serde_json::to_string(&auth_json).map_err(handler_serialize_error)?;
+    let mode = match invocation.mode {
+        IbexInvocationMode::Query => "query",
+        IbexInvocationMode::Mutation => "mutation",
+        IbexInvocationMode::Action => "action",
+    };
+    let mode_json = serde_json::to_string(mode).map_err(handler_serialize_error)?;
+    let run_json =
+        serde_json::to_string(&invocation.action_run).map_err(handler_serialize_error)?;
+    let run_literal = serde_json::to_string(&run_json).map_err(handler_serialize_error)?;
 
     Ok(format!(
-        "{}\n{}\n{}\n(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
+        "{}\n{}\n{}\n(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
         ambient_restriction_source(),
         module.source,
         ctx_bootstrap_source(),
         export_json,
         args_literal,
         auth_literal,
-        if writable { "true" } else { "false" },
+        mode_json,
+        run_literal,
     ))
 }
 
@@ -617,9 +720,10 @@ fn ctx_bootstrap_source() -> &'static str {
   function readonlyDenied(op) {
     return function() { throw new Error("SNAPBACK_HANDLER_WRITE_IN_QUERY: " + op); };
   }
-  g.__snapbackInvoke = async function(name, argsJson, authJson, writable) {
+  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson) {
     var args = JSON.parse(argsJson || "{}");
     var auth = JSON.parse(authJson || "{}");
+    var run = runJson ? JSON.parse(runJson) : null;
     if (auth.user_id && !auth.userId) auth.userId = auth.user_id;
     var db = {
       get: function(table, id) { return host("db.get", { table: table, id: id }); },
@@ -628,10 +732,14 @@ fn ctx_bootstrap_source() -> &'static str {
       patch: function(table, id, values) { return host("db.patch", { table: table, id: id, values: values }); },
       delete: function(table, id) { return host("db.delete", { table: table, id: id }); }
     };
-    if (!writable) {
+    if (mode !== "mutation") {
       db.insert = readonlyDenied("insert");
       db.patch = readonlyDenied("patch");
       db.delete = readonlyDenied("delete");
+    }
+    if (mode === "action") {
+      db.get = readonlyDenied("get");
+      db.query = readonlyDenied("query");
     }
     var ctx = {
       auth: auth,
@@ -641,6 +749,17 @@ fn ctx_bootstrap_source() -> &'static str {
         id: function() { return host("runtime.id", {}); }
       }
     };
+    if (mode === "action") {
+      ctx.run = run || host("action.metadata", {});
+      ctx.cron = ctx.run;
+      ctx.runMutation = function(mutationName, mutationArgs) {
+        return host("action.runMutation", { name: mutationName, args: mutationArgs || {} });
+      };
+    } else {
+      ctx.runMutation = function() {
+        throw new Error("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE: runMutation");
+      };
+    }
     var handlers = g.__snapbackHandlers || {};
     var handler = handlers[name] || g[name];
     if (typeof handler !== "function") {

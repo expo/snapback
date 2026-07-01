@@ -12,6 +12,7 @@
 // never a field quietly missing from the persisted schema.
 
 const FN = Symbol('snapback.fn');
+const CRON = Symbol('snapback.cron');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 
@@ -252,9 +253,54 @@ export function defineJsMutation(spec) {
 }
 
 // ---------------------------------------------------------------------------
+// Actions and cron
+// ---------------------------------------------------------------------------
+
+export const runMutation = (name, args = {}, opts = {}) => ({
+  RunMutation: { name, args, bind_result_as: opts.bindResultAs ?? null },
+});
+
+export function defineAction(spec) {
+  if (spec.js) {
+    assert(spec.js.source, 'defineAction js.source is required');
+    assert(spec.js.exportName, 'defineAction js.exportName is required');
+    return {
+      [FN]: true,
+      __kind: 'Action',
+      args: spec.args ?? {},
+      js: {
+        source: spec.js.source,
+        exportName: spec.js.exportName,
+        reads: [],
+        writes: spec.writes ?? [],
+        syncabilityClass: 'action',
+      },
+    };
+  }
+  const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
+  assert(steps.length > 0, 'defineAction requires a plan or js handler');
+  return {
+    [FN]: true,
+    __kind: 'Action',
+    args: spec.args ?? {},
+    plan: { steps, return_value: spec.returns ?? null },
+    writes: spec.writes ?? [],
+  };
+}
+
+export function defineCron(jobs) {
+  assert(jobs && typeof jobs === 'object', 'defineCron expects a jobs object');
+  return { [CRON]: true, jobs };
+}
+
+// ---------------------------------------------------------------------------
 
 export function isFunctionDef(value) {
   return Boolean(value && value[FN]);
+}
+
+export function isCronDef(value) {
+  return Boolean(value && value[CRON]);
 }
 
 export function isEphemeralCollectionDef(value) {

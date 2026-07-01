@@ -155,6 +155,7 @@ pub struct AdminCapabilities {
     pub read_inspect: bool,
     pub data_explorer: bool,
     pub function_runner: bool,
+    pub cron_controls: bool,
     pub ephemeral_cleanup: bool,
     /// Not in this slice: direct row edits land only once they commit as ordinary
     /// changesets with validation and live notification.
@@ -197,6 +198,7 @@ impl AdminInspect {
             read_inspect: true,
             data_explorer: true,
             function_runner: true,
+            cron_controls: true,
             ephemeral_cleanup: true,
             direct_data_edit: false,
             raw_sql: false,
@@ -319,6 +321,8 @@ pub fn admin_routes() -> Router<AppState> {
             "/_snapback/api/functions/{name}/run",
             post(admin_run_function),
         )
+        .route("/_snapback/api/cron/tick", post(admin_cron_tick))
+        .route("/_snapback/api/cron/{name}/run", post(admin_run_cron_job))
         .route(
             "/_snapback/api/ephemeral/cleanup",
             post(admin_ephemeral_cleanup),
@@ -456,9 +460,33 @@ async fn admin_run_function(
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
     let mut snapback = snapback.lock().await;
     // A mutation is a write; a query (or unknown function) is a read.
-    let write = matches!(snapback.function_kind(&name), Some(FunctionKind::Mutation));
+    let write = matches!(
+        snapback.function_kind(&name),
+        Some(FunctionKind::Mutation | FunctionKind::Action)
+    );
     authorize(&ctx, &headers, write)?;
     Ok(Json(snapback.run_function(&name, input)))
+}
+
+async fn admin_cron_tick(
+    State(snapback): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::cron::CronRunRecord>>, ApiError> {
+    authorize(&ctx, &headers, true)?;
+    let mut snapback = snapback.lock().await;
+    Ok(Json(snapback.tick_cron(now_millis())?))
+}
+
+async fn admin_run_cron_job(
+    State(snapback): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+) -> Result<Json<crate::cron::CronRunRecord>, ApiError> {
+    authorize(&ctx, &headers, true)?;
+    let mut snapback = snapback.lock().await;
+    Ok(Json(snapback.run_cron_job_now(&name, now_millis())?))
 }
 
 async fn admin_ephemeral_cleanup(

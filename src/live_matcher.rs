@@ -150,7 +150,8 @@ pub(crate) fn live_subscription_may_be_affected(
             }
             true
         }
-        FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => true,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
+        | FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => true,
     }
 }
 

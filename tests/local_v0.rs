@@ -1,11 +1,14 @@
 use serde_json::{Map, Value, json};
+use snapback::cron::{CronActivationState, CronRunOutcome};
 use snapback::ephemeral::{
     AuthContext, ClientEphemeralOverlay, EphemeralCollection, EphemeralErrorCode, EphemeralMessage,
     OverlayApply, PublishRequest, RealtimeEnvelope, Scope, SubscribeRequest,
 };
 use snapback::local::{LiveResumeInput, LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
-    AuthInput, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
+    ActionPlan, ActionReturnValue, ActionStep, AuthInput, CronActivationKind, CronActivationPolicy,
+    CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
+    CronSchedule, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
     MutationPlan, MutationStep, OrderDirection, OrderExpr, PermissionScopeExpr, QueryPlan,
     ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
@@ -116,7 +119,7 @@ fn live_matcher_skips_user_scoped_disjoint_mutations() {
             "listTodos",
             LiveSubscribeInput {
                 connection_id: "ada_client".to_owned(),
-                input: input(json!({}), "user_1"),
+                input: input(json!({}), "cron"),
             },
         )
         .expect("ada subscribe");
@@ -786,9 +789,118 @@ fn ibex_handler_ambient_capability_denial_is_structured() {
     );
 
     let error = snapback
-        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .invoke_query("listTodos", input(json!({}), "cron"))
         .expect_err("fetch should be denied");
     assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_CAPABILITY_DENIED");
+}
+
+#[test]
+fn cron_tick_runs_host_action_through_mutation_and_live_delivery() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(todo_functions_with_cron(false));
+
+    let subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "cron"),
+            },
+        )
+        .expect("subscribe live query");
+    assert_eq!(subscription.snapshot.rows.len(), 0);
+
+    let runs = snapback.tick_cron(0).expect("tick cron at epoch");
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].job_name, "pollTodos");
+    assert_eq!(runs[0].outcome, CronRunOutcome::Succeeded);
+    assert_eq!(runs[0].scheduled_at_ms, Some(0));
+    assert_eq!(runs[0].due_at_ms, 0);
+    assert_eq!(runs[0].idempotency_key, "cron:pollTodos:scheduled:0");
+
+    let query = snapback
+        .invoke_query("listTodos", input(json!({}), "cron"))
+        .expect("query after cron");
+    assert_eq!(query.rows.len(), 1);
+    assert_eq!(query.rows[0]["title"], "From cron");
+    assert_eq!(query.rows[0]["userId"], "cron");
+
+    let messages = snapback.drain_outbox("client_a");
+    assert_eq!(messages.len(), 1, "cron mutation fans out like any write");
+
+    let inspect = snapback.inspect().expect("inspect cron state");
+    let job = inspect
+        .cron
+        .jobs
+        .iter()
+        .find(|job| job.name == "pollTodos")
+        .expect("cron job inspect");
+    assert_eq!(job.jitter_offset_ms, 0);
+    assert_eq!(job.next_nominal_at_ms, Some(60_000));
+    assert_eq!(job.next_due_at_ms, Some(60_000));
+    assert_eq!(job.last_outcome, Some(CronRunOutcome::Succeeded));
+    assert!(inspect.capability_manifest.cron);
+    assert!(!inspect.capability_gaps.contains(&"cron".to_owned()));
+}
+
+#[test]
+fn cron_demand_gating_and_default_jitter_are_visible_in_inspect() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(todo_functions_with_cron(true));
+
+    let inactive = snapback.tick_cron(0).expect("inactive demand tick");
+    assert!(inactive.is_empty());
+    let inspect = snapback.inspect().expect("inspect inactive cron");
+    let job = inspect
+        .cron
+        .jobs
+        .iter()
+        .find(|job| job.name == "pollTodos")
+        .expect("cron job inspect");
+    assert_eq!(job.activation_state, CronActivationState::InactiveNoDemand);
+    assert!(job.jitter_policy.enabled);
+    assert!(job.jitter_offset_ms <= 6_000);
+
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe activates demand-gated cron");
+    let runs = snapback.tick_cron(6_000).expect("armed demand tick");
+    assert_eq!(runs.len(), 1);
+    let inspect = snapback.inspect().expect("inspect armed cron");
+    let job = inspect
+        .cron
+        .jobs
+        .iter()
+        .find(|job| job.name == "pollTodos")
+        .expect("cron job inspect");
+    assert_eq!(job.activation_state, CronActivationState::Armed);
+}
+
+#[test]
+fn ibex_action_can_call_run_mutation_with_cron_metadata() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(ibex_action_cron_functions());
+
+    let record = snapback
+        .run_cron_job_now("pollTodos", 123_000)
+        .expect("manual cron run");
+    assert_eq!(record.outcome, CronRunOutcome::Succeeded);
+    assert_eq!(record.slot_key, "cron:pollTodos:manual:123000");
+
+    let query = snapback
+        .invoke_query("listTodos", input(json!({}), "cron"))
+        .expect("query after ibex action");
+    assert_eq!(query.rows.len(), 1);
+    assert_eq!(query.rows[0]["title"], "JS pollTodos");
 }
 
 #[test]
@@ -1296,7 +1408,7 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(functions.schema_version, "snapback.v0");
     assert_eq!(
         functions.bundle_hash.as_deref(),
-        Some("sha256:1adb2568952dc18f")
+        Some("sha256:e0f87e44f7d609b2")
     );
 
     let list = functions
@@ -1852,6 +1964,124 @@ fn todo_functions() -> FunctionManifest {
         ],
         ..FunctionManifest::default()
     }
+}
+
+fn todo_functions_with_cron(demand_gated: bool) -> FunctionManifest {
+    let mut manifest = todo_functions();
+    manifest.functions.push(system_todo_mutation());
+    manifest.functions.push(FunctionDefinition::new(
+        "pollTodosAction",
+        FunctionKind::Action,
+        FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+            steps: vec![ActionStep::RunMutation {
+                name: "createSystemTodo".to_owned(),
+                args: BTreeMap::from([(
+                    "title".to_owned(),
+                    ValueExpr::Literal(json!("From cron")),
+                )]),
+                bind_result_as: Some("created".to_owned()),
+            }],
+            return_value: Some(ActionReturnValue::Binding("created".to_owned())),
+        })),
+    ));
+    manifest.cron_jobs = vec![CronJobDefinition {
+        name: "pollTodos".to_owned(),
+        schedule: CronSchedule {
+            every_ms: Some(60_000),
+            cron: None,
+        },
+        action: "pollTodosAction".to_owned(),
+        enabled: true,
+        activation: if demand_gated {
+            CronActivationPolicy {
+                kind: CronActivationKind::WhileLive,
+                while_live: vec!["listTodos".to_owned()],
+            }
+        } else {
+            CronActivationPolicy::default()
+        },
+        jitter_policy: CronJitterPolicy {
+            enabled: demand_gated,
+            max_offset_ms: 0,
+        },
+        overlap_policy: CronOverlapPolicy::NoOverlap,
+        retry_policy: CronRetryPolicy {
+            mode: CronRetryMode::NextTick,
+        },
+        required_capabilities: vec!["cron".to_owned(), "cron_action_run_mutation".to_owned()],
+        target_wakeup: None,
+        source_span: None,
+    }];
+    manifest
+}
+
+fn ibex_action_cron_functions() -> FunctionManifest {
+    let mut manifest = todo_functions();
+    manifest.functions.push(system_todo_mutation());
+    manifest.functions.push(FunctionDefinition::new(
+        "pollTodosAction",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: r#"
+globalThis.__snapbackHandlers = {
+  async pollTodosAction(ctx) {
+    return await ctx.runMutation('createSystemTodo', {
+      title: 'JS ' + ctx.run.jobName,
+    });
+  }
+};
+"#
+            .to_owned(),
+            export: "pollTodosAction".to_owned(),
+        }),
+    ));
+    manifest.cron_jobs = vec![CronJobDefinition {
+        name: "pollTodos".to_owned(),
+        schedule: CronSchedule {
+            every_ms: Some(60_000),
+            cron: None,
+        },
+        action: "pollTodosAction".to_owned(),
+        enabled: true,
+        activation: CronActivationPolicy::default(),
+        jitter_policy: CronJitterPolicy {
+            enabled: false,
+            max_offset_ms: 0,
+        },
+        overlap_policy: CronOverlapPolicy::NoOverlap,
+        retry_policy: CronRetryPolicy {
+            mode: CronRetryMode::NextTick,
+        },
+        required_capabilities: vec!["cron".to_owned(), "cron_action_run_mutation".to_owned()],
+        target_wakeup: None,
+        source_span: None,
+    }];
+    manifest
+}
+
+fn system_todo_mutation() -> FunctionDefinition {
+    FunctionDefinition::new(
+        "createSystemTodo",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "todos".to_owned(),
+                values: BTreeMap::from([
+                    ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                    (
+                        "completed".to_owned(),
+                        ValueExpr::Literal(Value::Bool(false)),
+                    ),
+                    (
+                        "userId".to_owned(),
+                        ValueExpr::Literal(Value::String("cron".to_owned())),
+                    ),
+                ]),
+                bind_id_as: Some("todoId".to_owned()),
+            }],
+            return_value: Some(ReturnValue::Binding("todoId".to_owned())),
+        })),
+    )
 }
 
 fn input(args: Value, user_id: &str) -> HandlerInput {

@@ -52,8 +52,11 @@ async fn console_and_inspect_serve_from_one_server_without_vite() {
     assert_eq!(inspect["server"]["loopback"], true);
     assert_eq!(inspect["server"]["storage_mode"], "memory");
     assert_eq!(inspect["admin"]["function_runner"], true);
+    assert_eq!(inspect["admin"]["cron_controls"], true);
     assert_eq!(inspect["admin"]["direct_data_edit"], false);
     assert_eq!(inspect["admin"]["raw_sql"], false);
+    assert_eq!(inspect["cron"]["artifactKind"], "cronRuntimeState");
+    assert!(inspect["cron"]["jobs"].is_array());
 }
 
 #[tokio::test]

@@ -27,6 +27,10 @@ fn local_app_id() -> String {
     "local-app".to_owned()
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SchemaManifest {
     #[serde(
@@ -176,6 +180,8 @@ pub struct FunctionManifest {
     pub unsupported_dependency_diagnostics: Vec<Diagnostic>,
     #[serde(default)]
     pub functions: Vec<FunctionDefinition>,
+    #[serde(default, rename = "cronJobs", alias = "cron_jobs")]
+    pub cron_jobs: Vec<CronJobDefinition>,
 }
 
 impl Default for FunctionManifest {
@@ -189,6 +195,7 @@ impl Default for FunctionManifest {
             generated_at: None,
             unsupported_dependency_diagnostics: Vec::new(),
             functions: Vec::new(),
+            cron_jobs: Vec::new(),
         }
     }
 }
@@ -254,6 +261,7 @@ impl FunctionDefinition {
             FunctionKind::LiveQuery => "syncable-live",
             FunctionKind::Query => "online-only",
             FunctionKind::Mutation => "mutation",
+            FunctionKind::Action => "action",
         };
         Self {
             id: Some(format!("fn:{name}")),
@@ -304,6 +312,7 @@ pub enum FunctionKind {
     Query,
     Mutation,
     LiveQuery,
+    Action,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -322,6 +331,154 @@ pub struct IbexModule {
 pub enum HandlerPlan {
     Query(QueryPlan),
     Mutation(MutationPlan),
+    Action(ActionPlan),
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ActionPlan {
+    #[serde(default)]
+    pub steps: Vec<ActionStep>,
+    #[serde(default, rename = "returnValue", alias = "return_value")]
+    pub return_value: Option<ActionReturnValue>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum ActionStep {
+    RunMutation {
+        name: String,
+        #[serde(default)]
+        args: BTreeMap<String, ValueExpr>,
+        #[serde(default, rename = "bindResultAs", alias = "bind_result_as")]
+        bind_result_as: Option<String>,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum ActionReturnValue {
+    Literal(Value),
+    Binding(String),
+    LastMutationResult,
+    ChangedCount,
+}
+
+/// @ref LLP 0028#cron-job-definition — generated function manifests carry
+/// source-authored cron jobs beside query/mutation/action handlers.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CronJobDefinition {
+    pub name: String,
+    pub schedule: CronSchedule,
+    pub action: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub activation: CronActivationPolicy,
+    #[serde(default, rename = "jitterPolicy", alias = "jitter_policy")]
+    pub jitter_policy: CronJitterPolicy,
+    #[serde(default, rename = "overlapPolicy", alias = "overlap_policy")]
+    pub overlap_policy: CronOverlapPolicy,
+    #[serde(default, rename = "retryPolicy", alias = "retry_policy")]
+    pub retry_policy: CronRetryPolicy,
+    #[serde(
+        default,
+        rename = "requiredCapabilities",
+        alias = "required_capabilities"
+    )]
+    pub required_capabilities: Vec<String>,
+    #[serde(default, rename = "targetWakeup", alias = "target_wakeup")]
+    pub target_wakeup: Option<CronTargetWakeup>,
+    #[serde(default, rename = "sourceSpan", alias = "source_span")]
+    pub source_span: Option<SourceSpan>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CronSchedule {
+    #[serde(default, rename = "everyMs", alias = "every_ms")]
+    pub every_ms: Option<u64>,
+    #[serde(default)]
+    pub cron: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CronActivationPolicy {
+    pub kind: CronActivationKind,
+    #[serde(default, rename = "whileLive", alias = "while_live")]
+    pub while_live: Vec<String>,
+}
+
+impl Default for CronActivationPolicy {
+    fn default() -> Self {
+        Self {
+            kind: CronActivationKind::Always,
+            while_live: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum CronActivationKind {
+    Always,
+    WhileLive,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CronJitterPolicy {
+    pub enabled: bool,
+    #[serde(rename = "maxOffsetMs", alias = "max_offset_ms")]
+    pub max_offset_ms: u64,
+}
+
+impl Default for CronJitterPolicy {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_offset_ms: 0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum CronOverlapPolicy {
+    NoOverlap,
+    Allow,
+}
+
+impl Default for CronOverlapPolicy {
+    fn default() -> Self {
+        Self::NoOverlap
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CronRetryPolicy {
+    pub mode: CronRetryMode,
+}
+
+impl Default for CronRetryPolicy {
+    fn default() -> Self {
+        Self {
+            mode: CronRetryMode::NextTick,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum CronRetryMode {
+    NextTick,
+    Backoff,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CronTargetWakeup {
+    pub kind: CronTargetWakeupKind,
+    #[serde(default, rename = "needsDurableRunner", alias = "needs_durable_runner")]
+    pub needs_durable_runner: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum CronTargetWakeupKind {
+    IntervalMs,
+    CronExpression,
+    DynamicAlarm,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -563,7 +720,7 @@ impl CapabilityManifest {
             permission_diagnostics: false,
             asset_upload: false,
             outbound_actions: false,
-            cron: false,
+            cron: true,
             notifications: false,
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
@@ -580,6 +737,9 @@ impl CapabilityManifest {
                 "websocket-live-replace".to_owned(),
                 "ephemeral-latest-state-local".to_owned(),
                 "websocket-ephemeral-publish".to_owned(),
+                "cron-fixed-interval-local".to_owned(),
+                "cron-calendar-local".to_owned(),
+                "cron-action-run-mutation".to_owned(),
             ],
             portability_opt_outs: Vec::new(),
             resource_limits: vec![

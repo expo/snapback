@@ -9,12 +9,12 @@
     "hosted_untrusted_code",
     "external_auth",
     "assets",
-    "cron",
+    "outbound_actions",
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing"
   ],
-  "cron": false,
+  "cron": true,
   "ephemeralHostedAdapter": false,
   "ephemeralLocalRoomAuthority": true,
   "ephemeralRealtime": true,
@@ -77,7 +77,10 @@
     "ibex-live-limited-boundary-replace",
     "websocket-live-replace",
     "ephemeral-latest-state-local",
-    "websocket-ephemeral-publish"
+    "websocket-ephemeral-publish",
+    "cron-fixed-interval-local",
+    "cron-calendar-local",
+    "cron-action-run-mutation"
   ],
   "syncableLiveQueries": true,
   "targetProfileId": "local-dev-sqlite-ibex"

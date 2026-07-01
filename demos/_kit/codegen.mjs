@@ -15,7 +15,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
+import { isCronDef, isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -98,11 +98,16 @@ export async function generate(backendDir) {
   const functions = [];
   const contractQueries = {};
   const contractMutations = {};
+  const cronDefs = [];
 
   const fieldNames = (t) => new Set(tables[t]?.fields.map((f) => f.name) ?? []);
   const isKnownField = (t, f) => SYSTEM_FIELDS.includes(f) || fieldNames(t).has(f);
 
   for (const [name, def] of Object.entries(functionsModule)) {
+    if (isCronDef(def)) {
+      cronDefs.push({ exportName: name, def });
+      continue;
+    }
     if (!isFunctionDef(def)) continue;
     const argNames = new Set(Object.keys(def.args));
 
@@ -250,8 +255,42 @@ export async function generate(backendDir) {
         optimistic: false,
         serverRunnable: true,
       };
+    } else if (def.__kind === 'Action' && def.js) {
+      const writes = def.js.writes ?? [];
+      for (const table of writes) {
+        if (!tables[table]) {
+          err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: action declares unknown write table ${table}`, { function: name, table });
+        }
+      }
+      const handlerSource = loadHandlerSource(def.js.source, name);
+      functions.push({
+        name,
+        kind: 'Action',
+        runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
+        declaredReads: [],
+        declaredWrites: writes,
+        syncabilityClass: 'action',
+      });
+    } else if (def.__kind === 'Action') {
+      const writes = def.writes ?? [];
+      for (const table of writes) {
+        if (!tables[table]) {
+          err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: action declares unknown write table ${table}`, { function: name, table });
+        }
+      }
+      functions.push({
+        name,
+        kind: 'Action',
+        runtime: { HostPlan: { Action: serializeActionPlan(def.plan, name, err) } },
+        declaredReads: [],
+        declaredWrites: writes,
+        syncabilityClass: 'action',
+      });
     }
   }
+
+  validateActionPlans(functions, err);
+  const cronJobs = buildCronJobs(cronDefs, functions, err);
 
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -297,6 +336,7 @@ export async function generate(backendDir) {
     generatedAt,
     unsupportedDependencyDiagnostics: [],
     functions: decorateFunctions(appId, functions),
+    cronJobs,
   };
   const capabilityManifest = {
     artifactKind: 'capabilityManifest',
@@ -320,9 +360,9 @@ export async function generate(backendDir) {
     permissionDiagnostics: false,
     assetUpload: false,
     outboundActions: false,
-    cron: false,
+    cron: true,
     notifications: false,
-    supportedQueryForms: ['host-plan-single-table-eq', 'host-plan-single-table-in', 'host-plan-single-table-range', 'host-plan-live-replace', 'ibex-ctx-db-single-table-eq', 'ibex-ctx-db-single-table-in', 'ibex-ctx-db-single-table-range', 'ibex-live-eq-replace', 'ibex-live-in-replace', 'ibex-live-range-replace', 'ibex-live-limited-boundary-replace', 'websocket-live-replace', 'ephemeral-latest-state-local', 'websocket-ephemeral-publish'],
+    supportedQueryForms: ['host-plan-single-table-eq', 'host-plan-single-table-in', 'host-plan-single-table-range', 'host-plan-live-replace', 'ibex-ctx-db-single-table-eq', 'ibex-ctx-db-single-table-in', 'ibex-ctx-db-single-table-range', 'ibex-live-eq-replace', 'ibex-live-in-replace', 'ibex-live-range-replace', 'ibex-live-limited-boundary-replace', 'websocket-live-replace', 'ephemeral-latest-state-local', 'websocket-ephemeral-publish', 'cron-fixed-interval-local', 'cron-calendar-local', 'cron-action-run-mutation'],
     portabilityOptOuts: [],
     resourceLimits: [
       { name: 'wall_clock_timeout', status: 'Missing' },
@@ -340,7 +380,7 @@ export async function generate(backendDir) {
       'hosted_untrusted_code',
       'external_auth',
       'assets',
-      'cron',
+      'outbound_actions',
       'notifications',
       'ephemeral_hosted_adapter',
       'ephemeral_multi_instance_sticky_routing',
@@ -414,6 +454,7 @@ export async function generate(backendDir) {
       tables: Object.keys(tables),
       ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
       functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
+      cronJobs: cronJobs.map((job) => ({ name: job.name, action: job.action, enabled: job.enabled })),
     }) + '\n',
   );
 
@@ -594,6 +635,149 @@ function serializeMutationPlan(plan) {
   return { steps, return_value };
 }
 
+function serializeActionPlan(plan, functionName, err) {
+  if (!plan || !Array.isArray(plan.steps)) {
+    err('ACTION_INVALID_PLAN', 'function', `${functionName}: action plan must have steps`, { function: functionName });
+    return { steps: [], returnValue: null };
+  }
+  const steps = plan.steps.map((step) => {
+    const kind = Object.keys(step)[0];
+    const body = step[kind];
+    if (kind !== 'RunMutation') {
+      err('ACTION_UNSUPPORTED_STEP', 'function', `${functionName}: unsupported action step ${kind}`, { function: functionName, step: kind });
+      return null;
+    }
+    const args = {};
+    for (const [k, e] of Object.entries(body.args ?? {})) {
+      if (!e || !e.__expr) {
+        err('ACTION_INVALID_EXPR', 'function', `${functionName}: runMutation arg ${k} is not a value expression`, { function: functionName, arg: k });
+        continue;
+      }
+      args[k] = serializeExpr(e);
+    }
+    return { RunMutation: { name: body.name, args, bind_result_as: body.bind_result_as } };
+  }).filter(Boolean);
+  let return_value = null;
+  const rv = plan.return_value;
+  if (rv) {
+    if (rv.kind === 'ChangedCount') return_value = 'ChangedCount';
+    else if (rv.kind === 'LastMutationResult') return_value = 'LastMutationResult';
+    else if ('Binding' in rv) return_value = { Binding: rv.Binding };
+    else if ('Literal' in rv) return_value = { Literal: rv.Literal };
+  }
+  return { steps, returnValue: return_value };
+}
+
+function buildCronJobs(cronDefs, functions, err) {
+  const functionKinds = new Map(functions.map((fn) => [fn.name, fn.kind]));
+  const jobs = [];
+  const seen = new Set();
+  for (const { def } of cronDefs) {
+    for (const [name, spec] of Object.entries(def.jobs)) {
+      if (seen.has(name)) {
+        err('CRON_DUPLICATE_JOB', 'cron', `duplicate cron job ${name}`, { jobName: name });
+        continue;
+      }
+      seen.add(name);
+      if (!IDENT.test(name)) {
+        err('CRON_INVALID_IDENTIFIER', 'cron', `invalid cron job identifier ${name}`, { jobName: name });
+        continue;
+      }
+      const schedule = normalizeCronSchedule(name, spec.schedule, err);
+      const action = spec.action;
+      if (typeof action !== 'string' || action.length === 0) {
+        err('CRON_ACTION_MISSING', 'cron', `${name}: cron job requires an action`, { jobName: name });
+      } else if (!functionKinds.has(action)) {
+        err('CRON_ACTION_UNKNOWN', 'cron', `${name}: unknown action ${action}`, { jobName: name, action });
+      } else if (functionKinds.get(action) !== 'Action') {
+        err('CRON_ACTION_KIND_MISMATCH', 'cron', `${name}: ${action} is not an action`, { jobName: name, action, kind: functionKinds.get(action) });
+      }
+      jobs.push({
+        name,
+        schedule,
+        action,
+        enabled: spec.enabled ?? true,
+        activation: normalizeActivation(spec.activation),
+        jitterPolicy: normalizeJitterPolicy(spec.schedule, spec),
+        overlapPolicy: spec.overlapPolicy ?? 'NoOverlap',
+        retryPolicy: spec.retryPolicy ?? { mode: 'NextTick' },
+        requiredCapabilities: ['cron', 'cron_action_run_mutation'],
+        targetWakeup: normalizeTargetWakeup(schedule, spec.activation),
+        sourceSpan: null,
+      });
+    }
+  }
+  return jobs;
+}
+
+function normalizeCronSchedule(name, schedule, err) {
+  if (!schedule || typeof schedule !== 'object') {
+    err('CRON_INVALID_SCHEDULE', 'cron', `${name}: cron job requires a schedule object`, { jobName: name });
+    return {};
+  }
+  const hasEvery = Number.isInteger(schedule.everyMs);
+  const hasCron = typeof schedule.cron === 'string';
+  if (hasEvery === hasCron) {
+    err('CRON_INVALID_SCHEDULE', 'cron', `${name}: specify exactly one of schedule.everyMs or schedule.cron`, { jobName: name });
+    return {};
+  }
+  if (hasEvery) {
+    if (schedule.everyMs < 1_000) {
+      err('CRON_TARGET_CADENCE_UNSUPPORTED', 'cron', `${name}: local cron floor is 1000ms`, { jobName: name, everyMs: schedule.everyMs });
+    }
+    return { everyMs: schedule.everyMs };
+  }
+  if (!/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(schedule.cron.trim())) {
+    err('CRON_INVALID_EXPRESSION', 'cron', `${name}: cron expression must have five fields`, { jobName: name, cron: schedule.cron });
+  }
+  return { cron: schedule.cron.trim() };
+}
+
+function normalizeActivation(value) {
+  if (!value || value === 'always') {
+    return { kind: 'Always', whileLive: [] };
+  }
+  if (value.whileLive) {
+    return { kind: 'WhileLive', whileLive: [...value.whileLive] };
+  }
+  return { kind: 'Always', whileLive: [] };
+}
+
+function normalizeJitterPolicy(schedule, spec) {
+  const explicit = spec.jitter ?? schedule?.jitter;
+  const enabled = explicit === false ? false : true;
+  return { enabled, maxOffsetMs: spec.jitterMaxMs ?? 0 };
+}
+
+function normalizeTargetWakeup(schedule, activation) {
+  if (schedule.everyMs) {
+    return {
+      kind: schedule.everyMs < 60_000 || activation?.whileLive ? 'DynamicAlarm' : 'IntervalMs',
+      needsDurableRunner: true,
+    };
+  }
+  return { kind: 'CronExpression', needsDurableRunner: true };
+}
+
+function validateActionPlans(functions, err) {
+  const functionKinds = new Map(functions.map((fn) => [fn.name, fn.kind]));
+  for (const fn of functions) {
+    const steps = fn.runtime?.HostPlan?.Action?.steps ?? [];
+    for (const step of steps) {
+      const call = step.RunMutation;
+      if (!call) {
+        err('ACTION_UNSUPPORTED_STEP', 'function', `${fn.name}: unsupported action step`, { function: fn.name, step });
+        continue;
+      }
+      if (!functionKinds.has(call.name)) {
+        err('ACTION_MUTATION_UNKNOWN', 'function', `${fn.name}: unknown mutation ${call.name}`, { function: fn.name, mutation: call.name });
+      } else if (functionKinds.get(call.name) !== 'Mutation') {
+        err('ACTION_MUTATION_KIND_MISMATCH', 'function', `${fn.name}: ${call.name} is not a mutation`, { function: fn.name, mutation: call.name, kind: functionKinds.get(call.name) });
+      }
+    }
+  }
+}
+
 function mutationReadTables(plan) {
   const reads = new Set();
   for (const step of plan.steps) {
@@ -671,6 +855,7 @@ function writeSummary(fn) {
     return { mode: fn.runtime?.IbexModule ? 'handlerDeclared' : (fn.declaredWrites.length ? 'mutationPlan' : 'none'), primaryTable: fn.declaredWrites[0] ?? null, tables: fn.declaredWrites };
   }
   const plan = fn.runtime?.HostPlan;
+  if (plan?.Action) return { mode: 'actionRunMutation', primaryTable: null, tables: [] };
   if (!plan?.Mutation) return { mode: 'none', primaryTable: null, tables: [] };
   const tables = new Set();
   for (const step of plan.Mutation.steps ?? []) {
@@ -684,6 +869,7 @@ function requiredCapabilities(fn) {
   const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
   if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability];
   if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation'];
+  if (fn.kind === 'Action') return [runtimeCapability, 'cron_action_run_mutation'];
   return [runtimeCapability];
 }
 
@@ -691,6 +877,7 @@ function syncabilityClass(fn) {
   if (fn.syncabilityClass) return fn.syncabilityClass;
   if (fn.kind === 'LiveQuery') return 'syncable-live';
   if (fn.kind === 'Query') return 'online-only';
+  if (fn.kind === 'Action') return 'action';
   return 'mutation';
 }
 
@@ -812,7 +999,7 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
   const lines = [
     '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
     "export type SchemaVersion = 'snapback.v0';",
-    "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery';",
+    "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {',
     "  artifactKind: 'functionReference';",
@@ -870,6 +1057,7 @@ function renderContractModules(contractManifest, functions, functionsModule) {
   ];
 
   for (const fn of functions) {
+    if (fn.kind === 'Action') continue;
     if (fn.kind === 'Mutation') {
       const binding = contractManifest.mutations[fn.name];
       modules.push({
@@ -904,6 +1092,7 @@ function renderContractRuntimeLinks(functions, functionsModule) {
     'export interface SnapbackContractLinks {',
   ];
   for (const fn of functions) {
+    if (fn.kind === 'Action') continue;
     const def = functionsModule[fn.name];
     lines.push(`  ${fn.name}(args: ${typeForArgs(def?.args ?? {})}): unknown;`);
   }

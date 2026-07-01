@@ -17,6 +17,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tokio::time::{Duration, interval};
 
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
@@ -89,6 +90,17 @@ pub fn app(state: AppState) -> Router {
 /// (loopback, address-unknown) server context.
 pub fn router(state: SharedSnapback) -> Router {
     app(AppState::detached(state))
+}
+
+pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut ticks = interval(Duration::from_secs(1));
+        loop {
+            ticks.tick().await;
+            let mut snapback = state.lock().await;
+            let _ = snapback.tick_cron(now_millis());
+        }
+    })
 }
 
 async fn local_dev_cors(request: Request<Body>, next: Next) -> Response {
@@ -505,6 +517,7 @@ impl IntoResponse for ApiError {
             "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
                 StatusCode::NOT_FOUND
             }
+            "SNAPBACK_UNKNOWN_CRON_JOB" => StatusCode::NOT_FOUND,
             "SNAPBACK_MUTATION_CONFLICT" => StatusCode::CONFLICT,
             // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
             // (forbidden) from "needs the configured token" (unauthorized).

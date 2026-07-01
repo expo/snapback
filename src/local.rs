@@ -1,3 +1,7 @@
+use crate::cron::{
+    CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
+    LocalCronRuntime,
+};
 use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
     CollectionEnsureOutcome, DeleteRequest, EphemeralCollection, EphemeralDiagnostics,
@@ -6,20 +10,22 @@ use crate::ephemeral::{
 };
 use crate::live_matcher::{live_subscription_may_be_affected, query_dependencies_from_plan};
 use crate::manifest::{
-    CapabilityManifest, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-    HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr, QueryOutput,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    ActionPlan, ActionReturnValue, ActionStep, CapabilityManifest, FunctionDefinition,
+    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
+    MutationStep, PermissionScopeExpr, QueryOutput, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr,
 };
-use crate::runtime::{RuntimeCapabilities, RuntimeManager};
+use crate::runtime::{IbexActionHost, RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
     CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow, LocalDatabase,
     MutationCommit, StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::marker::PhantomData;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 
@@ -42,6 +48,7 @@ pub struct InspectState {
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
     pub ephemeral: EphemeralDiagnostics,
+    pub cron: CronInspectState,
     pub recent_diagnostics: Vec<Diagnostic>,
     pub capability_gaps: Vec<String>,
 }
@@ -158,6 +165,7 @@ pub struct LocalSnapback {
     functions: FunctionManifest,
     runtime: RuntimeManager,
     ephemeral: LocalEphemeralBackend,
+    cron: LocalCronRuntime,
     subscriptions: BTreeMap<String, LiveSubscription>,
     permission_epochs: BTreeMap<String, u64>,
     live_delivery: LiveDeliveryStats,
@@ -177,6 +185,21 @@ struct LiveSubscription {
 struct QueryInvocation {
     output: QueryOutput,
     read_dependencies: Vec<CapturedReadDependency>,
+}
+
+struct LocalIbexActionHost<'a> {
+    snapback: *mut LocalSnapback,
+    _marker: PhantomData<&'a mut LocalSnapback>,
+}
+
+impl IbexActionHost for LocalIbexActionHost<'_> {
+    fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
+        // @ref LLP 0028#execution-the-action-class — actions commit durable
+        // writes by invoking ordinary mutations, preserving the commit/fan-out path.
+        // The embedded runtime calls host functions synchronously on the same
+        // thread; this pointer is valid only for the duration of one action run.
+        unsafe { (&mut *self.snapback).invoke_mutation(name, input) }
+    }
 }
 
 impl LocalSnapback {
@@ -220,7 +243,11 @@ impl LocalSnapback {
             ));
         }
 
+        diagnostics.extend(self.cron.reconcile(&self.functions));
         diagnostics.extend(self.runtime.diagnostics());
+        if let Err(error) = self.persist_cron_state() {
+            diagnostics.push(error.diagnostic);
+        }
         self.record_diagnostics(diagnostics.clone());
         diagnostics
     }
@@ -230,8 +257,10 @@ impl LocalSnapback {
         self.subscriptions.clear();
         self.permission_epochs.clear();
         self.ephemeral.reset_runtime_state();
+        self.cron.reset_runtime_state(&self.functions);
         self.live_delivery = LiveDeliveryStats::default();
         self.next_subscription_id = 0;
+        self.persist_cron_state()?;
         Ok(())
     }
 
@@ -245,6 +274,10 @@ impl LocalSnapback {
         // @ref LLP 0010#v0-implementation-charter — missing non-v0 capabilities must be reported explicitly.
         let capability_gaps = self.capability_gaps();
         let capability_manifest = CapabilityManifest::local_v0(capability_gaps.clone());
+        let active_live_functions = self.active_live_functions();
+        let cron = self
+            .cron
+            .inspect(&self.functions, &active_live_functions, now_millis());
 
         Ok(InspectState {
             artifact_kind: "runtimeState".to_owned(),
@@ -267,6 +300,7 @@ impl LocalSnapback {
                 .collect(),
             live_delivery: self.live_delivery.clone(),
             ephemeral: self.ephemeral.diagnostics(),
+            cron,
             recent_diagnostics: self.recent_diagnostics.iter().cloned().collect(),
             capability_gaps,
         })
@@ -280,7 +314,7 @@ impl LocalSnapback {
             "hosted_untrusted_code".to_owned(),
             "external_auth".to_owned(),
             "assets".to_owned(),
-            "cron".to_owned(),
+            "outbound_actions".to_owned(),
             "notifications".to_owned(),
             "ephemeral_hosted_adapter".to_owned(),
             "ephemeral_multi_instance_sticky_routing".to_owned(),
@@ -577,6 +611,31 @@ impl LocalSnapback {
                     ..base
                 },
             },
+            FunctionKind::Action => {
+                let metadata = CronRunMetadata {
+                    job_name: format!("admin:{name}"),
+                    run_id: format!("admin:{name}:{}", now_millis()),
+                    scheduled_at_ms: None,
+                    due_at_ms: now_millis(),
+                    idempotency_key: format!("admin:{name}:manual"),
+                    slot_key: format!("admin:{name}:manual"),
+                    attempt: 1,
+                    trigger: CronRunTrigger::Manual,
+                };
+                match self.invoke_action(name, input, metadata) {
+                    Ok(result) => FunctionRunResult {
+                        elapsed_ms: elapsed_ms(started),
+                        result: Some(result),
+                        ..base
+                    },
+                    Err(error) => FunctionRunResult {
+                        ok: false,
+                        elapsed_ms: elapsed_ms(started),
+                        diagnostic: Some(error.diagnostic),
+                        ..base
+                    },
+                }
+            }
         }
     }
 
@@ -631,6 +690,28 @@ impl LocalSnapback {
         self.ephemeral.cleanup_expired(now_ms);
     }
 
+    pub fn tick_cron(&mut self, now_ms: u64) -> SnapbackResult<Vec<CronRunRecord>> {
+        let active_live_functions = self.active_live_functions();
+        let claims = self
+            .cron
+            .claim_due_runs(&self.functions, &active_live_functions, now_ms);
+        self.persist_cron_state()?;
+        self.execute_cron_claims(claims)
+    }
+
+    pub fn run_cron_job_now(&mut self, name: &str, now_ms: u64) -> SnapbackResult<CronRunRecord> {
+        let claim = self.cron.claim_manual_run(&self.functions, name, now_ms)?;
+        self.persist_cron_state()?;
+        let mut records = self.execute_cron_claims(vec![claim])?;
+        records.pop().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_CRON_RUN_RECORD_MISSING",
+                "cron",
+                format!("cron job {name} did not produce a run record"),
+            )
+        })
+    }
+
     pub fn drain_outbox(&mut self, connection_id: &str) -> Vec<RealtimeEnvelope> {
         self.ephemeral.drain_outbox(connection_id)
     }
@@ -644,6 +725,7 @@ impl LocalSnapback {
 
     fn from_database(db: LocalDatabase) -> SnapbackResult<Self> {
         let runtime = RuntimeManager::detect();
+        let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?);
         let mut recent_diagnostics = VecDeque::new();
         for diagnostic in runtime.diagnostics() {
             recent_diagnostics.push_back(diagnostic);
@@ -654,6 +736,7 @@ impl LocalSnapback {
             functions: FunctionManifest::default(),
             runtime,
             ephemeral: LocalEphemeralBackend::new(),
+            cron,
             subscriptions: BTreeMap::new(),
             permission_epochs: BTreeMap::new(),
             live_delivery: LiveDeliveryStats::default(),
@@ -670,6 +753,128 @@ impl LocalSnapback {
                 format!("unknown function {name}"),
             )
         })
+    }
+
+    fn execute_cron_claims(
+        &mut self,
+        claims: Vec<CronRunClaim>,
+    ) -> SnapbackResult<Vec<CronRunRecord>> {
+        let mut records = Vec::new();
+        for claim in claims {
+            let result = self
+                .invoke_action(
+                    &claim.job.action,
+                    HandlerInput {
+                        args: json!({
+                            "run": claim.metadata,
+                            "job": claim.job.name,
+                        }),
+                        auth: Default::default(),
+                        read_set: Vec::new(),
+                    },
+                    claim.metadata.clone(),
+                )
+                .map_err(|error| error.diagnostic);
+            let finished_at_ms = claim.started_at_ms;
+            let record = self.cron.finish_run(claim, finished_at_ms, result);
+            self.persist_cron_state()?;
+            if record.outcome == CronRunOutcome::Failed
+                && let Some(diagnostic) = &record.diagnostic
+            {
+                self.record_diagnostics(vec![diagnostic.clone()]);
+            }
+            records.push(record);
+        }
+        Ok(records)
+    }
+
+    fn invoke_action(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        metadata: CronRunMetadata,
+    ) -> SnapbackResult<Value> {
+        let function = self.function(name)?.clone();
+        match (&function.kind, &function.runtime) {
+            (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
+                self.invoke_action_plan(plan, input, metadata)
+            }
+            (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
+                let runtime = self.runtime.clone();
+                let db = &self.db as *const LocalDatabase;
+                let mut host = LocalIbexActionHost {
+                    snapback: self as *mut LocalSnapback,
+                    _marker: PhantomData,
+                };
+                runtime.invoke_ibex_action(module, input, db, metadata, &mut host)
+            }
+            _ => Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not an action"),
+            )),
+        }
+    }
+
+    fn invoke_action_plan(
+        &mut self,
+        plan: &ActionPlan,
+        input: HandlerInput,
+        metadata: CronRunMetadata,
+    ) -> SnapbackResult<Value> {
+        let mut bindings = BTreeMap::new();
+        let mut last_result = Value::Null;
+        let mut changed_count = 0usize;
+        for step in &plan.steps {
+            match step {
+                ActionStep::RunMutation {
+                    name,
+                    args,
+                    bind_result_as,
+                } => {
+                    let mutation_args = eval_action_args(args, &input, &bindings, &metadata, self)?;
+                    let output = self.invoke_mutation(
+                        name,
+                        HandlerInput {
+                            args: Value::Object(mutation_args),
+                            auth: input.auth.clone(),
+                            read_set: Vec::new(),
+                        },
+                    )?;
+                    changed_count += output.changed_count;
+                    last_result = output.result;
+                    if let Some(binding) = bind_result_as {
+                        bindings.insert(binding.clone(), last_result.clone());
+                    }
+                }
+            }
+        }
+        match &plan.return_value {
+            Some(ActionReturnValue::Literal(value)) => Ok(value.clone()),
+            Some(ActionReturnValue::Binding(name)) => {
+                bindings.get(name).cloned().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_BINDING_MISSING",
+                        "runtime",
+                        format!("action binding {name} was not available"),
+                    )
+                })
+            }
+            Some(ActionReturnValue::ChangedCount) => Ok(json!(changed_count)),
+            Some(ActionReturnValue::LastMutationResult) | None => Ok(last_result),
+        }
+    }
+
+    fn active_live_functions(&self) -> BTreeSet<String> {
+        self.subscriptions
+            .values()
+            .map(|subscription| subscription.function.clone())
+            .collect()
+    }
+
+    fn persist_cron_state(&mut self) -> SnapbackResult<()> {
+        let value = self.cron.persisted_value()?;
+        self.db.save_cron_state(&value)
     }
 
     fn notify_live_subscriptions(&mut self, changes: &[ChangedRow]) -> SnapbackResult<()> {
@@ -1002,6 +1207,71 @@ fn subscription_stale_permission_change<'a>(
     None
 }
 
+fn eval_action_args(
+    args: &BTreeMap<String, ValueExpr>,
+    input: &HandlerInput,
+    bindings: &BTreeMap<String, Value>,
+    metadata: &CronRunMetadata,
+    snapback: &LocalSnapback,
+) -> SnapbackResult<Map<String, Value>> {
+    let mut output = Map::new();
+    for (name, expr) in args {
+        output.insert(
+            name.clone(),
+            eval_action_expr(expr, input, bindings, metadata, snapback)?,
+        );
+    }
+    Ok(output)
+}
+
+fn eval_action_expr(
+    expr: &ValueExpr,
+    input: &HandlerInput,
+    bindings: &BTreeMap<String, Value>,
+    metadata: &CronRunMetadata,
+    snapback: &LocalSnapback,
+) -> SnapbackResult<Value> {
+    match expr {
+        ValueExpr::Arg(path) => lookup_path(&input.args, path).cloned().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ARG_MISSING",
+                "runtime",
+                format!("handler arg {path} was not provided"),
+            )
+        }),
+        ValueExpr::AuthUserId => input
+            .auth
+            .user_id
+            .clone()
+            .map(Value::String)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_USER_MISSING",
+                    "runtime",
+                    "handler requested auth.user_id but no user was supplied",
+                )
+            }),
+        ValueExpr::Binding(name) => bindings.get(name).cloned().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BINDING_MISSING",
+                "runtime",
+                format!("action binding {name} was not available"),
+            )
+        }),
+        ValueExpr::Literal(value) => Ok(value.clone()),
+        ValueExpr::RuntimeId => Ok(Value::String(snapback.db.generate_id())),
+        ValueExpr::RuntimeNow => Ok(json!(metadata.due_at_ms)),
+    }
+}
+
+fn lookup_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+    let mut current = value;
+    for segment in path.split('.') {
+        current = current.as_object()?.get(segment)?;
+    }
+    Some(current)
+}
+
 fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
     match &definition.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
@@ -1022,6 +1292,16 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
                 }
             }
             (reads.into_iter().collect(), writes.into_iter().collect())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::Action(plan)) => {
+            let writes = plan
+                .steps
+                .iter()
+                .map(|step| match step {
+                    ActionStep::RunMutation { name, .. } => name.clone(),
+                })
+                .collect();
+            (Vec::new(), writes)
         }
         FunctionRuntime::IbexModule(_) => (
             definition.read_set_summary.tables.clone(),
@@ -1050,4 +1330,11 @@ fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
 
 fn elapsed_ms(started: Instant) -> u64 {
     started.elapsed().as_millis() as u64
+}
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }

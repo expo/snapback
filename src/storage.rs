@@ -14,6 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 const META_SCHEMA_MANIFEST: &str = "schema_manifest";
+const META_CRON_STATE: &str = "cron_state";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct StorageInfo {
@@ -225,6 +226,47 @@ impl LocalDatabase {
         tx.execute("DELETE FROM _snapback_changes", [])?;
         tx.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
         tx.commit()?;
+        Ok(())
+    }
+
+    pub fn load_cron_state(&self) -> SnapbackResult<Option<Value>> {
+        let value: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![META_CRON_STATE],
+                |row| row.get(0),
+            )
+            .optional()?;
+
+        value
+            .map(|value| {
+                serde_json::from_str(&value).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_CRON_STATE_PARSE_FAILED",
+                        "cron",
+                        "stored cron runtime state could not be parsed",
+                    )
+                    .with_detail("error", error.to_string())
+                })
+            })
+            .transpose()
+    }
+
+    pub fn save_cron_state(&mut self, value: &Value) -> SnapbackResult<()> {
+        let state_json = serde_json::to_string(value).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_CRON_STATE_SERIALIZE_FAILED",
+                "cron",
+                "cron runtime state could not be serialized",
+            )
+            .with_detail("error", error.to_string())
+        })?;
+        self.conn.execute(
+            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![META_CRON_STATE, state_json],
+        )?;
         Ok(())
     }
 
