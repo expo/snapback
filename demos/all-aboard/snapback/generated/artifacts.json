@@ -1,0 +1,91 @@
+{
+  "appId": "all-aboard",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "contract/runtime-links.ts",
+    "contract/applyFeedTick.mutation.ts",
+    "contract/applyFeedTick.mutation.contract-meta.ts",
+    "contract/feedState.query.ts",
+    "contract/feedState.query.contract-meta.ts",
+    "contract/liveTrainStatus.query.ts",
+    "contract/liveTrainStatus.query.contract-meta.ts",
+    "contract/resetFeed.mutation.ts",
+    "contract/resetFeed.mutation.contract-meta.ts",
+    "contract/stationsQuery.query.ts",
+    "contract/stationsQuery.query.contract-meta.ts",
+    "contract/stopTimesByStation.query.ts",
+    "contract/stopTimesByStation.query.contract-meta.ts",
+    "contract/tripsQuery.query.ts",
+    "contract/tripsQuery.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:57b022ba9ff7ec76",
+  "cronJobs": [
+    {
+      "action": "refreshFeed",
+      "enabled": true,
+      "name": "warmPoll"
+    }
+  ],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "all-aboard:applyFeedTick",
+      "kind": "Mutation",
+      "name": "applyFeedTick"
+    },
+    {
+      "id": "all-aboard:feedState",
+      "kind": "LiveQuery",
+      "name": "feedState"
+    },
+    {
+      "id": "all-aboard:liveTrainStatus",
+      "kind": "LiveQuery",
+      "name": "liveTrainStatus"
+    },
+    {
+      "id": "all-aboard:refreshFeed",
+      "kind": "Action",
+      "name": "refreshFeed"
+    },
+    {
+      "id": "all-aboard:resetFeed",
+      "kind": "Mutation",
+      "name": "resetFeed"
+    },
+    {
+      "id": "all-aboard:stationsQuery",
+      "kind": "Query",
+      "name": "stationsQuery"
+    },
+    {
+      "id": "all-aboard:stopTimesByStation",
+      "kind": "Query",
+      "name": "stopTimesByStation"
+    },
+    {
+      "id": "all-aboard:tripsQuery",
+      "kind": "Query",
+      "name": "tripsQuery"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "c68db3e2bae79ec331b1117d255cbd2ad3a87a5745d4cabc25cebfd7dcdac7fe",
+  "schemaHash": "sha256:c7f25a2cc6da8499",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "stations",
+    "trips",
+    "stopTimes",
+    "trainStatus",
+    "feedRefreshState",
+    "feedTicks"
+  ]
+}

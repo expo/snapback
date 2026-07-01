@@ -182,8 +182,14 @@ struct RuntimeGuard(*mut HermesRuntimeOpaque);
 impl RuntimeGuard {
     fn create() -> SnapbackResult<Self> {
         // @ref LLP 0009#capability-model — static checks are defense-in-depth;
-        // the runtime host itself must deny ambient powers.
-        ibex_runtime::host::abi::install_host(ibex_runtime::host::Host::strict());
+        // the runtime host itself must deny ambient powers. The coarse
+        // network:fetch gate is opened only when outbound actions are enabled;
+        // the JS ambient layer still restricts fetch to the action class.
+        let host = ibex_runtime::host::Host::strict();
+        if outbound_actions_enabled() {
+            host.capabilities().grant("*", "network:fetch", None);
+        }
+        ibex_runtime::host::abi::install_host(host);
         let runtime = unsafe { ex_hermes_create() };
         if runtime.is_null() {
             return Err(SnapbackError::error(
@@ -634,9 +640,17 @@ fn invocation_source(
         serde_json::to_string(&invocation.action_run).map_err(handler_serialize_error)?;
     let run_literal = serde_json::to_string(&run_json).map_err(handler_serialize_error)?;
 
+    // Secrets are exposed only to actions (and are never client-visible).
+    let secrets_json = if matches!(invocation.mode, IbexInvocationMode::Action) {
+        action_secrets_json()
+    } else {
+        "{}".to_string()
+    };
+    let secrets_literal = serde_json::to_string(&secrets_json).map_err(handler_serialize_error)?;
+
     Ok(format!(
-        "{}\n{}\n{}\n(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
-        ambient_restriction_source(),
+        "{}\n{}\n{}\n(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
+        ambient_restriction_source(invocation.mode, outbound_actions_enabled()),
         module.source,
         ctx_bootstrap_source(),
         export_json,
@@ -644,23 +658,54 @@ fn invocation_source(
         auth_literal,
         mode_json,
         run_literal,
+        secrets_literal,
     ))
 }
 
-fn ambient_restriction_source() -> &'static str {
-    r#"
-(function(g) {
-  function deny(name) {
-    return function() { throw new Error("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED: " + name); };
-  }
-  try { Object.defineProperty(g, "process", { value: undefined, configurable: false, writable: false }); } catch (_) {}
+/// Outbound action egress is opt-in and off by default. When enabled, an ACTION
+/// (only) keeps `fetch` + timers and is granted `network:fetch`; queries and
+/// mutations stay fully denied. This is the [LLP 0027#external-data-and-action-egress]
+/// seam — sandbox-policy territory owned by [LLP 0009], so the default posture is
+/// unchanged (everything denied, strict).
+fn outbound_actions_enabled() -> bool {
+    matches!(
+        std::env::var("SNAPBACK_OUTBOUND_ACTIONS").ok().as_deref(),
+        Some("1") | Some("true") | Some("TRUE")
+    )
+}
+
+/// The scoped, never-client-visible secret pool exposed to actions as `ctx.secrets`
+/// (e.g. the rotating feed API keys). A JSON object; empty by default.
+fn action_secrets_json() -> String {
+    std::env::var("SNAPBACK_ACTION_SECRETS")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "{}".to_string())
+}
+
+// @ref LLP 0027#external-data-and-action-egress — un-deny fetch for the action
+//   execution class only; the transactional query/mutation path never gets network.
+// @ref LLP 0009#capability-model — the JS ambient layer gates ambient powers by
+//   handler kind; the coarse Ibex network:fetch grant is opened only for egress.
+fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) -> String {
+    let egress = outbound_enabled && matches!(mode, IbexInvocationMode::Action);
+    let mut denials = String::from(
+        r#"  try { Object.defineProperty(g, "process", { value: undefined, configurable: false, writable: false }); } catch (_) {}
   try { Object.defineProperty(g, "require", { value: undefined, configurable: false, writable: false }); } catch (_) {}
-  try { Object.defineProperty(g, "fetch", { value: deny("fetch"), configurable: false, writable: false }); } catch (_) {}
   try { Object.defineProperty(g, "WebSocket", { value: deny("WebSocket"), configurable: false, writable: false }); } catch (_) {}
+"#,
+    );
+    if !egress {
+        denials.push_str(
+            r#"  try { Object.defineProperty(g, "fetch", { value: deny("fetch"), configurable: false, writable: false }); } catch (_) {}
   try { Object.defineProperty(g, "setTimeout", { value: deny("setTimeout"), configurable: false, writable: false }); } catch (_) {}
   try { Object.defineProperty(g, "setInterval", { value: deny("setInterval"), configurable: false, writable: false }); } catch (_) {}
-})(globalThis);
-"#
+"#,
+        );
+    }
+    format!(
+        "(function(g) {{\n  function deny(name) {{\n    return function() {{ throw new Error(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED: \" + name); }};\n  }}\n{denials}}})(globalThis);\n"
+    )
 }
 
 fn ctx_bootstrap_source() -> &'static str {
@@ -720,7 +765,7 @@ fn ctx_bootstrap_source() -> &'static str {
   function readonlyDenied(op) {
     return function() { throw new Error("SNAPBACK_HANDLER_WRITE_IN_QUERY: " + op); };
   }
-  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson) {
+  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson) {
     var args = JSON.parse(argsJson || "{}");
     var auth = JSON.parse(authJson || "{}");
     var run = runJson ? JSON.parse(runJson) : null;
@@ -752,6 +797,7 @@ fn ctx_bootstrap_source() -> &'static str {
     if (mode === "action") {
       ctx.run = run || host("action.metadata", {});
       ctx.cron = ctx.run;
+      ctx.secrets = secretsJson ? JSON.parse(secretsJson) : {};
       ctx.runMutation = function(mutationName, mutationArgs) {
         return host("action.runMutation", { name: mutationName, args: mutationArgs || {} });
       };

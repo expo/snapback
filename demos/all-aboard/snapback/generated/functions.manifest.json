@@ -1,0 +1,363 @@
+{
+  "appId": "all-aboard",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:57b022ba9ff7ec76",
+  "cronJobs": [
+    {
+      "action": "refreshFeed",
+      "activation": {
+        "kind": "WhileLive",
+        "whileLive": [
+          "liveTrainStatus"
+        ]
+      },
+      "enabled": true,
+      "jitterPolicy": {
+        "enabled": true,
+        "maxOffsetMs": 0
+      },
+      "name": "warmPoll",
+      "overlapPolicy": "NoOverlap",
+      "requiredCapabilities": [
+        "cron",
+        "cron_action_run_mutation"
+      ],
+      "retryPolicy": {
+        "mode": "NextTick"
+      },
+      "schedule": {
+        "everyMs": 60000
+      },
+      "sourceSpan": null,
+      "targetWakeup": {
+        "kind": "DynamicAlarm",
+        "needsDurableRunner": true
+      }
+    }
+  ],
+  "functions": [
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "applyFeedTick",
+      "exportedName": "applyFeedTick",
+      "id": "all-aboard:applyFeedTick",
+      "kind": "Mutation",
+      "name": "applyFeedTick",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "feedRefreshState",
+        "tables": [
+          "feedRefreshState",
+          "feedTicks",
+          "trainStatus"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "applyFeedTick",
+          "source": "// All Aboard JavaScript ctx.db handlers (bundled as source into the function\n// manifest). Like every Snapback handler this file avoids imports, process/env,\n// timers, and network — the only backend power is the ctx surface.\n//\n// @ref LLP 0027#feed-refresh-and-cron — applyFeedTick is the single durable write\n//   path: it advances the recorded feed one tick and upserts trainStatus +\n//   feedRefreshState, so the realtime fan-out (mutation commit -> live delta) runs\n//   for free. refreshFeed is the ACTION cron invokes; it commits only via the\n//   mutation, keeping any future egress off the transactional path.\n\nglobalThis.__snapbackHandlers = {\n  async applyFeedTick(ctx, args) {\n    // Committed schedule patterns (stable seed ids). The refresh sets each\n    // pattern's delay from the current recorded tick; absent => on time.\n    const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];\n    const nowMs = ctx.runtime && ctx.runtime.now ? ctx.runtime.now() : 0;\n    const trigger = (args && args.trigger) || 'manual';\n\n    const state = await ctx.db.get('feedRefreshState', 'caltrain');\n    const tickCount = state && state.tickCount ? state.tickCount : 1;\n    const currentIndex = state && Number.isInteger(state.tickIndex) ? state.tickIndex : 0;\n    const nextIndex = (currentIndex + 1) % Math.max(1, tickCount);\n\n    const tick = await ctx.db.get('feedTicks', `tick-${nextIndex}`);\n    const delays = (tick && tick.delays) || {};\n\n    for (const patternId of PATTERN_IDS) {\n      const delaySeconds = Number(delays[patternId]) || 0;\n      const status = delaySeconds >= 120 ? 'delayed' : 'on-time';\n      await ctx.db.patch('trainStatus', patternId, { delaySeconds, status, observedAt: nowMs });\n    }\n\n    await ctx.db.patch('feedRefreshState', 'caltrain', {\n      fetchedAt: nowMs,\n      tickIndex: nextIndex,\n      lastSource: 'recorded',\n      lastRunTrigger: trigger,\n      lastError: '',\n    });\n\n    return { tickIndex: nextIndex, note: (tick && tick.note) || '' };\n  },\n\n  async resetFeed(ctx) {\n    const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];\n    const nowMs = ctx.runtime && ctx.runtime.now ? ctx.runtime.now() : 0;\n    for (const patternId of PATTERN_IDS) {\n      await ctx.db.patch('trainStatus', patternId, { delaySeconds: 0, status: 'on-time', observedAt: nowMs });\n    }\n    await ctx.db.patch('feedRefreshState', 'caltrain', {\n      fetchedAt: nowMs,\n      tickIndex: 0,\n      lastSource: 'reset',\n      lastRunTrigger: 'reset',\n      lastError: '',\n    });\n    return { tickIndex: 0 };\n  },\n\n  // The cron-invoked action. v0 advances the recorded feed; Phase 3 would fetch\n  // the live Caltrain feed here (egress) before committing through the mutation.\n  async refreshFeed(ctx, args) {\n    const trigger = (args && args.trigger) || 'cron';\n    return await ctx.runMutation('applyFeedTick', { trigger });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "trainStatus",
+        "tables": [
+          "trainStatus",
+          "feedRefreshState"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "feedState",
+      "exportedName": "feedState",
+      "id": "all-aboard:feedState",
+      "kind": "LiveQuery",
+      "name": "feedState",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "feedRefreshState",
+        "tables": [
+          "feedRefreshState"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "order": [],
+            "table": "feedRefreshState"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "liveTrainStatus",
+      "exportedName": "liveTrainStatus",
+      "id": "all-aboard:liveTrainStatus",
+      "kind": "LiveQuery",
+      "name": "liveTrainStatus",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "trainStatus",
+        "tables": [
+          "trainStatus"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_pattern",
+            "limit": null,
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "patternId"
+              }
+            ],
+            "table": "trainStatus"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "refreshFeed",
+      "exportedName": "refreshFeed",
+      "id": "all-aboard:refreshFeed",
+      "kind": "Action",
+      "name": "refreshFeed",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "refreshFeed",
+          "source": "// All Aboard JavaScript ctx.db handlers (bundled as source into the function\n// manifest). Like every Snapback handler this file avoids imports, process/env,\n// timers, and network — the only backend power is the ctx surface.\n//\n// @ref LLP 0027#feed-refresh-and-cron — applyFeedTick is the single durable write\n//   path: it advances the recorded feed one tick and upserts trainStatus +\n//   feedRefreshState, so the realtime fan-out (mutation commit -> live delta) runs\n//   for free. refreshFeed is the ACTION cron invokes; it commits only via the\n//   mutation, keeping any future egress off the transactional path.\n\nglobalThis.__snapbackHandlers = {\n  async applyFeedTick(ctx, args) {\n    // Committed schedule patterns (stable seed ids). The refresh sets each\n    // pattern's delay from the current recorded tick; absent => on time.\n    const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];\n    const nowMs = ctx.runtime && ctx.runtime.now ? ctx.runtime.now() : 0;\n    const trigger = (args && args.trigger) || 'manual';\n\n    const state = await ctx.db.get('feedRefreshState', 'caltrain');\n    const tickCount = state && state.tickCount ? state.tickCount : 1;\n    const currentIndex = state && Number.isInteger(state.tickIndex) ? state.tickIndex : 0;\n    const nextIndex = (currentIndex + 1) % Math.max(1, tickCount);\n\n    const tick = await ctx.db.get('feedTicks', `tick-${nextIndex}`);\n    const delays = (tick && tick.delays) || {};\n\n    for (const patternId of PATTERN_IDS) {\n      const delaySeconds = Number(delays[patternId]) || 0;\n      const status = delaySeconds >= 120 ? 'delayed' : 'on-time';\n      await ctx.db.patch('trainStatus', patternId, { delaySeconds, status, observedAt: nowMs });\n    }\n\n    await ctx.db.patch('feedRefreshState', 'caltrain', {\n      fetchedAt: nowMs,\n      tickIndex: nextIndex,\n      lastSource: 'recorded',\n      lastRunTrigger: trigger,\n      lastError: '',\n    });\n\n    return { tickIndex: nextIndex, note: (tick && tick.note) || '' };\n  },\n\n  async resetFeed(ctx) {\n    const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];\n    const nowMs = ctx.runtime && ctx.runtime.now ? ctx.runtime.now() : 0;\n    for (const patternId of PATTERN_IDS) {\n      await ctx.db.patch('trainStatus', patternId, { delaySeconds: 0, status: 'on-time', observedAt: nowMs });\n    }\n    await ctx.db.patch('feedRefreshState', 'caltrain', {\n      fetchedAt: nowMs,\n      tickIndex: 0,\n      lastSource: 'reset',\n      lastRunTrigger: 'reset',\n      lastError: '',\n    });\n    return { tickIndex: 0 };\n  },\n\n  // The cron-invoked action. v0 advances the recorded feed; Phase 3 would fetch\n  // the live Caltrain feed here (egress) before committing through the mutation.\n  async refreshFeed(ctx, args) {\n    const trigger = (args && args.trigger) || 'cron';\n    return await ctx.runMutation('applyFeedTick', { trigger });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "action",
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "trainStatus",
+        "tables": [
+          "trainStatus",
+          "feedRefreshState"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "resetFeed",
+      "exportedName": "resetFeed",
+      "id": "all-aboard:resetFeed",
+      "kind": "Mutation",
+      "name": "resetFeed",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "feedRefreshState",
+        "tables": [
+          "feedRefreshState",
+          "trainStatus"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "resetFeed",
+          "source": "// All Aboard JavaScript ctx.db handlers (bundled as source into the function\n// manifest). Like every Snapback handler this file avoids imports, process/env,\n// timers, and network — the only backend power is the ctx surface.\n//\n// @ref LLP 0027#feed-refresh-and-cron — applyFeedTick is the single durable write\n//   path: it advances the recorded feed one tick and upserts trainStatus +\n//   feedRefreshState, so the realtime fan-out (mutation commit -> live delta) runs\n//   for free. refreshFeed is the ACTION cron invokes; it commits only via the\n//   mutation, keeping any future egress off the transactional path.\n\nglobalThis.__snapbackHandlers = {\n  async applyFeedTick(ctx, args) {\n    // Committed schedule patterns (stable seed ids). The refresh sets each\n    // pattern's delay from the current recorded tick; absent => on time.\n    const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];\n    const nowMs = ctx.runtime && ctx.runtime.now ? ctx.runtime.now() : 0;\n    const trigger = (args && args.trigger) || 'manual';\n\n    const state = await ctx.db.get('feedRefreshState', 'caltrain');\n    const tickCount = state && state.tickCount ? state.tickCount : 1;\n    const currentIndex = state && Number.isInteger(state.tickIndex) ? state.tickIndex : 0;\n    const nextIndex = (currentIndex + 1) % Math.max(1, tickCount);\n\n    const tick = await ctx.db.get('feedTicks', `tick-${nextIndex}`);\n    const delays = (tick && tick.delays) || {};\n\n    for (const patternId of PATTERN_IDS) {\n      const delaySeconds = Number(delays[patternId]) || 0;\n      const status = delaySeconds >= 120 ? 'delayed' : 'on-time';\n      await ctx.db.patch('trainStatus', patternId, { delaySeconds, status, observedAt: nowMs });\n    }\n\n    await ctx.db.patch('feedRefreshState', 'caltrain', {\n      fetchedAt: nowMs,\n      tickIndex: nextIndex,\n      lastSource: 'recorded',\n      lastRunTrigger: trigger,\n      lastError: '',\n    });\n\n    return { tickIndex: nextIndex, note: (tick && tick.note) || '' };\n  },\n\n  async resetFeed(ctx) {\n    const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];\n    const nowMs = ctx.runtime && ctx.runtime.now ? ctx.runtime.now() : 0;\n    for (const patternId of PATTERN_IDS) {\n      await ctx.db.patch('trainStatus', patternId, { delaySeconds: 0, status: 'on-time', observedAt: nowMs });\n    }\n    await ctx.db.patch('feedRefreshState', 'caltrain', {\n      fetchedAt: nowMs,\n      tickIndex: 0,\n      lastSource: 'reset',\n      lastRunTrigger: 'reset',\n      lastError: '',\n    });\n    return { tickIndex: 0 };\n  },\n\n  // The cron-invoked action. v0 advances the recorded feed; Phase 3 would fetch\n  // the live Caltrain feed here (egress) before committing through the mutation.\n  async refreshFeed(ctx, args) {\n    const trigger = (args && args.trigger) || 'cron';\n    return await ctx.runMutation('applyFeedTick', { trigger });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "trainStatus",
+        "tables": [
+          "trainStatus",
+          "feedRefreshState"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "stationsQuery",
+      "exportedName": "stationsQuery",
+      "id": "all-aboard:stationsQuery",
+      "kind": "Query",
+      "name": "stationsQuery",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "stations",
+        "tables": [
+          "stations"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_order",
+            "limit": null,
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "orderIndex"
+              }
+            ],
+            "table": "stations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "stopTimesByStation",
+      "exportedName": "stopTimesByStation",
+      "id": "all-aboard:stopTimesByStation",
+      "kind": "Query",
+      "name": "stopTimesByStation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "stopTimes",
+        "tables": [
+          "stopTimes"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "stationId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "stationId"
+                }
+              }
+            ],
+            "indexed_by": "by_station",
+            "limit": null,
+            "order": [],
+            "table": "stopTimes"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "tripsQuery",
+      "exportedName": "tripsQuery",
+      "id": "all-aboard:tripsQuery",
+      "kind": "Query",
+      "name": "tripsQuery",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "trips",
+        "tables": [
+          "trips"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "patternId"
+              }
+            ],
+            "table": "trips"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "c68db3e2bae79ec331b1117d255cbd2ad3a87a5745d4cabc25cebfd7dcdac7fe",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

@@ -881,15 +881,23 @@ function syncabilityClass(fn) {
   return 'mutation';
 }
 
+// Outbound action egress (fetch/timers) is an opt-in DX relaxation that mirrors
+// the runtime's SNAPBACK_OUTBOUND_ACTIONS seam. The runtime — not codegen — is the
+// security boundary and still gates fetch by handler kind (LLP 0027 / LLP 0009).
+function egressAllowedAtCodegen() {
+  return /^(1|true)$/i.test(process.env.SNAPBACK_OUTBOUND_ACTIONS || '');
+}
+
 function scanUnsupportedHandlerSource(source) {
   const searchable = maskCommentsAndStrings(source);
+  const allowEgress = egressAllowedAtCodegen();
   const checks = [
     ['BUNDLE_UNSUPPORTED_IMPORT', /\bimport\s*(?:\(|[\w*{])/u, 'import'],
     ['BUNDLE_UNSUPPORTED_EXPORT', /\bexport\s+/u, 'export'],
     ['BUNDLE_UNSUPPORTED_REQUIRE', /\brequire\s*\(/u, 'require'],
     ['BUNDLE_UNSUPPORTED_PROCESS', /\bprocess\b/u, 'process'],
-    ['BUNDLE_UNSUPPORTED_FETCH', /\bfetch\s*\(/u, 'fetch'],
-    ['BUNDLE_UNSUPPORTED_TIMER', /\bset(?:Timeout|Interval)\s*\(/u, 'timer'],
+    ...(allowEgress ? [] : [['BUNDLE_UNSUPPORTED_FETCH', /\bfetch\s*\(/u, 'fetch']]),
+    ...(allowEgress ? [] : [['BUNDLE_UNSUPPORTED_TIMER', /\bset(?:Timeout|Interval)\s*\(/u, 'timer']]),
     ['BUNDLE_UNSUPPORTED_RANDOM', /\bMath\.random\s*\(/u, 'Math.random'],
     ['BUNDLE_UNSUPPORTED_TIME', /\b(?:Date\.now|new\s+Date)\b/u, 'Date'],
   ];

@@ -1,0 +1,271 @@
+{
+  "appId": "all-aboard",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "c68db3e2bae79ec331b1117d255cbd2ad3a87a5745d4cabc25cebfd7dcdac7fe",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:c7f25a2cc6da8499",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "stationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "shortName",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "orderIndex",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "minutesFromSf",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "zone",
+          "optional": false
+        },
+        {
+          "field_type": "Real",
+          "name": "lat",
+          "optional": false
+        },
+        {
+          "field_type": "Real",
+          "name": "lng",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "photoUrl",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "photoAttribution",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "orderIndex"
+          ],
+          "name": "by_order"
+        }
+      ],
+      "name": "stations",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "patternId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "direction",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "service",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "trainNumberBase",
+          "optional": false
+        },
+        {
+          "field_type": "Json",
+          "name": "minuteSlots",
+          "optional": false
+        },
+        {
+          "field_type": "Real",
+          "name": "speedFactor",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "originStationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "destinationStationId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "direction"
+          ],
+          "name": "by_direction"
+        }
+      ],
+      "name": "trips",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "patternId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "stationId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "offsetMinutes",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "stationId"
+          ],
+          "name": "by_station"
+        }
+      ],
+      "name": "stopTimes",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "patternId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "delaySeconds",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "observedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "patternId"
+          ],
+          "name": "by_pattern"
+        }
+      ],
+      "name": "trainStatus",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Integer",
+          "name": "fetchedAt",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "staleAfterMs",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "tickIndex",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "tickCount",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "lastSource",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "lastError",
+          "optional": true
+        },
+        {
+          "field_type": "String",
+          "name": "lastRunTrigger",
+          "optional": true
+        }
+      ],
+      "indexes": [],
+      "name": "feedRefreshState",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Integer",
+          "name": "tickIndex",
+          "optional": false
+        },
+        {
+          "field_type": "Json",
+          "name": "delays",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "note",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "tickIndex"
+          ],
+          "name": "by_index"
+        }
+      ],
+      "name": "feedTicks",
+      "syncable": false
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

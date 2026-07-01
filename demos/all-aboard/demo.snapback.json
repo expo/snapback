@@ -1,0 +1,121 @@
+{
+  "id": "all-aboard",
+  "title": "All Aboard",
+  "description": "Caltrain next-train demo: nearest station, next north/south trains, live positions pushed from recorded feed data via a demand-armed cron refresh. Contract/Exact surface over generated Snapback artifacts, rendering on web today and native macOS/iOS-ready.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Demo apps", "Cron", "Realtime", "Action egress", "Contract/Exact", "Developer experience", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "liveQuery": true,
+    "syncableLiveQuery": true,
+    "cronScheduledExecution": true,
+    "cronDemandActivation": true,
+    "actionRunMutation": true,
+    "capabilityClass": "Online"
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/handlers.mjs + snapback/shared/model.mjs",
+    "seedGenerator": "node demos/all-aboard/snapback/seed.gen.mjs",
+    "codegen": "node demos/_kit/codegen.mjs demos/all-aboard/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate seed then codegen after editing shared/model.mjs"
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "runner": "TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/headless.mjs"
+    },
+    "cron": {
+      "requirement": "required",
+      "runner": "TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/cron.mjs"
+    },
+    "egress": {
+      "requirement": "required",
+      "runner": "node demos/all-aboard/tests/acceptance/egress.mjs",
+      "note": "Phase 3 egress seam; requires codegen of the probe fixture with SNAPBACK_OUTBOUND_ACTIONS=1."
+    },
+    "contract": {
+      "requirement": "required",
+      "runner": "node demos/all-aboard/tests/acceptance/browser.mjs",
+      "devServer": "cd ../exact && bun --bun node_modules/.bin/vite --config <repo>/demos/all-aboard/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5178",
+      "url": "http://127.0.0.1:5178",
+      "toolchain": "node>=24, cargo, bun, sibling Exact checkout, local Google Chrome (CDP)",
+      "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
+      "exact": { "gestures": false, "geolocation": true, "image": true }
+    },
+    "native": {
+      "requirement": "expected_missing",
+      "note": "The same app.contract renders on macOS/iOS through the Exact ExactApp kernel host; not built/run in this repo. Web is the runnable surface."
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "durable static schedule (21 stations north->south, 6 patterns, indexed stopTimes) is queryable",
+      "assumed-direction inference matches the SF/22nd/Bayshore/South SF rule",
+      "nearest-station selection from lat/lng resolves the expected station",
+      "next-north/next-south minutes-away are exact under a frozen 9:00am Pacific clock",
+      "applying a recorded feed tick shifts the exact prediction (sb-limited 0 -> 180s)",
+      "a refresh mutation pushes a live-query delta and advances the durable storage version",
+      "feedRefreshState freshness marker tracks the refresh"
+    ],
+    "cron": [
+      "the warm-poll job is registered from the manifest and targets the refresh action",
+      "demand activation: inactive with no subscribers, armed while a rider is subscribed, inactive again on disconnect",
+      "a scheduler tick runs the action -> mutation -> live-query delta",
+      "the refresh is committed through the mutation (feed marker + cron trigger)",
+      "the run is recorded in the observable cron ledger"
+    ],
+    "egress": [
+      "with SNAPBACK_OUTBOUND_ACTIONS on, an action sees a callable fetch and a scoped ctx.secrets key pool",
+      "a query in the same runtime is still denied fetch",
+      "by default (flag off) even an action is denied fetch"
+    ],
+    "contract": [
+      ".contract compiles against generated Snapback descriptors and mounts against a live backend",
+      "geolocation-denied fallback selects the nearest station to the default location",
+      "press affordances drive station navigation and direction toggle (the swipe stand-in)",
+      "tapping a train opens its detail with ordered stops and a position indicator",
+      "a Contract action drives the generated applyFeedTick mutation and the freshness marker goes live"
+    ]
+  },
+  "capabilityGaps": [
+    "swipe_gestures_not_in_contract",
+    "contract_browser_adapter_no_live_push",
+    "action_egress_per_host_allowlist",
+    "live_external_feed_polling",
+    "notifications",
+    "offline_schedule_cache",
+    "postgres",
+    "cloudflare"
+  ],
+  "temporaryPolicy": {
+    "auth": "anonymous read-only; no login",
+    "feed": "recorded feed ticks advanced by the cron refresh (or a manual Refresh); 60s freshness target",
+    "clock": "predictions use the client's local time; the seed schedule is authored in Pacific (fixed-offset simplification)",
+    "walkBike": "haversine from seed coordinates (walk ~3mph, bike ~9mph); OpenRouteService via a proxied action is the Phase-3 accuracy upgrade",
+    "stationPhotos": "generated per-station SVG drawing (zero egress); real photos via the asset pipeline are the follow-up",
+    "egress": "opt-in via SNAPBACK_OUTBOUND_ACTIONS; the demo product path runs on recorded data and never calls fetch",
+    "contractDataBridge": "the surface feeds live delays/freshness into a store the .contract derives from, since the shared single-boundary adapter does not push server-authored deltas to the browser"
+  },
+  "notClaiming": [
+    "live external polling of a real Caltrain / 511.org feed",
+    "swipe/pan gestures (press affordances stand in)",
+    "notifications / leave-now",
+    "offline/local-first live positions",
+    "a running native macOS/iOS build in this repo",
+    "multi-agency, fares, or trip planning",
+    "a per-host egress allowlist (coarse network:fetch only)",
+    "a high-frequency position fan-out scale benchmark"
+  ]
+}

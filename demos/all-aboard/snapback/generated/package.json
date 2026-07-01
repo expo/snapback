@@ -1,0 +1,13 @@
+{
+  "exports": {
+    ".": {
+      "import": "./api.mjs",
+      "types": "./api.d.ts"
+    },
+    "./capabilities": "./capability.manifest.json",
+    "./contract/*": "./contract/*",
+    "./functions": "./functions.manifest.json",
+    "./schema": "./schema.manifest.json"
+  },
+  "type": "module"
+}

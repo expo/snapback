@@ -1,0 +1,38 @@
+{
+  "appId": "tests",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "contract/runtime-links.ts",
+    "contract/queryProbe.query.ts",
+    "contract/queryProbe.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:02e59f3c2faa332e",
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "tests:egressProbe",
+      "kind": "Action",
+      "name": "egressProbe"
+    },
+    {
+      "id": "tests:queryProbe",
+      "kind": "Query",
+      "name": "queryProbe"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "a431dfc83d67215174af2efdc16e6e6973621420a4f2790199897f271f566426",
+  "schemaHash": "sha256:14fdc81cf4119a2e",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "probe"
+  ]
+}

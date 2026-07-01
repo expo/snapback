@@ -684,6 +684,13 @@ impl LocalSnapback {
 
     pub fn disconnect(&mut self, connection_id: &str, now_ms: u64) {
         self.ephemeral.disconnect(connection_id, now_ms);
+        // A connection's durable live subscriptions are dead once the connection
+        // goes away — there is no way to deliver further deltas. Dropping them lets
+        // a demand-activated cron job deactivate when its last watcher leaves.
+        // @ref LLP 0028#activation-policy — whileLive activation must report
+        //   inactive:no-demand once no subscription to the named live query remains.
+        self.subscriptions
+            .retain(|_, subscription| subscription.connection_id != connection_id);
     }
 
     pub fn cleanup_ephemeral(&mut self, now_ms: u64) {

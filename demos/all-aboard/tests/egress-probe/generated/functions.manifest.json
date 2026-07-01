@@ -1,0 +1,75 @@
+{
+  "appId": "tests",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:02e59f3c2faa332e",
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "egressProbe",
+      "exportedName": "egressProbe",
+      "id": "tests:egressProbe",
+      "kind": "Action",
+      "name": "egressProbe",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "egressProbe",
+          "source": "// Egress-seam probe handlers. `fetchState` is \"available\" when the native fetch\n// global returns a promise (the deny stub throws synchronously instead), so it\n// cleanly distinguishes \"un-denied\" from \"denied\" without touching the network.\nglobalThis.__snapbackHandlers = {\n  async egressProbe(ctx) {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {}); // swallow the (expected) rejection\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    return { fetchState, secrets: ctx.secrets || null, hasSecrets: !!ctx.secrets };\n  },\n\n  async queryProbe() {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {});\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    return [{ fetchState }];\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "action",
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "queryProbe",
+      "exportedName": "queryProbe",
+      "id": "tests:queryProbe",
+      "kind": "Query",
+      "name": "queryProbe",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "probe",
+        "tables": [
+          "probe"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "queryProbe",
+          "source": "// Egress-seam probe handlers. `fetchState` is \"available\" when the native fetch\n// global returns a promise (the deny stub throws synchronously instead), so it\n// cleanly distinguishes \"un-denied\" from \"denied\" without touching the network.\nglobalThis.__snapbackHandlers = {\n  async egressProbe(ctx) {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {}); // swallow the (expected) rejection\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    return { fetchState, secrets: ctx.secrets || null, hasSecrets: !!ctx.secrets };\n  },\n\n  async queryProbe() {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {});\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    return [{ fetchState }];\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "a431dfc83d67215174af2efdc16e6e6973621420a4f2790199897f271f566426",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

@@ -1,0 +1,211 @@
+// All Aboard — the Caltrain next-train Contract surface (LLP 0027).
+//
+// One .contract, rendered on web (DOM mirror) and native macOS/iOS (Rust kernel).
+// The view derives from pure helpers in ./data.ts, which read live Snapback data
+// (delays + freshness) and the device location from store.mjs. A 1s `every`
+// ticker advances nowMs so countdowns tick and server-pushed delays appear live.
+//
+// Interaction is press-first: swipe primitives do not exist in Contract yet
+// (LLP 0027 gesture gap), so station and direction navigation use press
+// affordances that are agent-checkable and identical on web and native. The whole
+// UI is one component so every press=/change= binds an in-scope action (Contract
+// actions are component-scoped and are not visible to child components).
+//
+// Palette literals are inlined (as in demos/todo-v2) so the file compiles
+// identically under the acceptance compiler and the browser Vite host.
+
+use applyFeedTick from "../../snapback/generated/contract/applyFeedTick.mutation.ts"
+
+use getSelectedStation from "./data.ts"
+use searchStations from "./data.ts"
+use adjacentStationId from "./data.ts"
+use stationPhoto from "./data.ts"
+use activeDirection from "./data.ts"
+use oppositeDirection from "./data.ts"
+use directionTitle from "./data.ts"
+use getDirectionBoard from "./data.ts"
+use getTrainRun from "./data.ts"
+use upcomingStops from "./data.ts"
+use formatClockTime from "./data.ts"
+use formatCountdownMinutes from "./data.ts"
+use serviceColor from "./data.ts"
+use serviceTint from "./data.ts"
+use walkBikeSummary from "./data.ts"
+use feedFreshness from "./data.ts"
+use positionFraction from "./data.ts"
+use positionLabel from "./data.ts"
+use fractionPercent from "./data.ts"
+
+component AllAboard
+  state nowMs = now()
+  state stationId = null
+  state directionOverride = null
+  state screen = "home"
+  state tripId = null
+  state query = ""
+
+  derive station = getSelectedStation(stationId, nowMs)
+  derive photoUrl = stationPhoto(station.id)
+  derive activeDir = activeDirection(directionOverride, station)
+  derive oppositeDir = oppositeDirection(activeDir)
+  derive primaryBoard = getDirectionBoard(station.id, activeDir, nowMs, 4)
+  derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, 1)
+  derive prevStationId = adjacentStationId(station.id, -1)
+  derive nextStationId = adjacentStationId(station.id, 1)
+  derive walkBike = walkBikeSummary(station, nowMs)
+  derive freshness = feedFreshness(nowMs)
+  derive matches = searchStations(query, nowMs)
+  derive trip = tripId ? getTrainRun(tripId, nowMs) : null
+
+  mutation refresh = applyFeedTick
+
+  action tick writes nowMs
+    nowMs = now()
+  action goToStation(id) writes stationId, screen, query
+    stationId = id
+    screen = "home"
+    query = ""
+  action toggleDirection(next) writes directionOverride
+    directionOverride = next
+  action openStations writes screen, query
+    screen = "stations"
+    query = ""
+  action setQuery(value) writes query
+    query = value
+  action openTrip(id) writes tripId, screen
+    tripId = id
+    screen = "trip"
+  action goHome writes screen, tripId
+    screen = "home"
+    tripId = null
+  action doRefresh mutates refresh
+    refresh({ trigger: "manual" })
+
+  task ticker mount
+    every(1000, tick)
+
+  contract
+    has button "Change station"
+    when screen == "home" then has button "Flip direction"
+    when screen == "stations" then has input label="Search stations"
+
+  view
+    main background="#f4f6fb" flex=1 width="100%" minHeight="100%" testId="all-aboard-main"
+      scroll background="#f4f6fb" flex=1 width="100%" minHeight="100%"
+        column gap=14 padding=18 maxWidth=560 alignSelf="center" width="100%"
+
+          // --- Station card: photo, name, nav, walk/bike, freshness ---
+          column radius=18 background="#ffffff" borderWidth=1 borderColor="#e6e9f2" width="100%" overflow="hidden" testId="station-card"
+            when photoUrl == ""
+              column height=120 width="100%" background="#dbe3f4" align="center" justify="center"
+                text "Caltrain" size=14 weight=700 color="#6b7495"
+            else
+              image svgSource=photoUrl alt=`${station.name} station` width="100%" height=132 objectFit="cover"
+            column gap=8 padding=16
+              row justify="space-between" align="center" width="100%"
+                column gap=2
+                  text "CALTRAIN" size=11 weight=700 letterSpacing=1.4 color="#2f5fe0"
+                  text station.name size=26 weight=800 color="#10152b" testId="station-name" headingLevel=1
+                column gap=6 align="flex-end"
+                  row gap=6
+                    button press=goToStation(prevStationId) label="Previous station" testId="prev-station" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 background="#eef1f8" borderWidth=1 borderColor="#e6e9f2"
+                      text "◀" size=14 weight=800 color="#2f5fe0"
+                    button press=goToStation(nextStationId) label="Next station" testId="next-station" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 background="#eef1f8" borderWidth=1 borderColor="#e6e9f2"
+                      text "▶" size=14 weight=800 color="#2f5fe0"
+                  button press=openStations label="Change station" testId="change-station" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 background="#ffffff" borderWidth=1 borderColor="#d7dce8"
+                    text "Change station" size=12 weight=600 color="#5a6480"
+              text walkBike size=13 color="#5a6480" testId="walk-bike"
+              row justify="space-between" align="center"
+                text freshness size=12 color="#8b93ad" testId="freshness"
+                button press=doRefresh label="Refresh" testId="refresh" paddingTop=5 paddingBottom=5 paddingLeft=10 paddingRight=10 radius=7 background="#2f5fe0"
+                  text "Refresh" size=12 weight=700 color="#ffffff"
+
+          // --- HOME ---
+          when screen == "home"
+            column gap=12 width="100%" testId="home-screen"
+              row gap=8 align="center" justify="space-between" testId="direction-toggle"
+                text directionTitle(activeDir) size=16 weight=800 color="#10152b" testId="active-direction"
+                button press=toggleDirection(oppositeDir) label="Flip direction" testId="flip-direction" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 background="#eef1f8" borderWidth=1 borderColor="#e6e9f2"
+                  text `Show ${directionTitle(oppositeDir)}` size=12 weight=700 color="#2f5fe0"
+
+              when primaryBoard.primary
+                column gap=10 width="100%"
+                  // Hero: the next train in the assumed direction, expanded with stops.
+                  button press=openTrip(primaryBoard.primary.id) label="Open next train" testId="hero-departure" background="transparent" borderWidth=0 padding=0 width="100%"
+                    column radius=16 padding=16 gap=12 background="#ffffff" borderWidth=1 borderColor="#e6e9f2" width="100%"
+                      row gap=10 align="flex-end"
+                        text `${formatCountdownMinutes(primaryBoard.primary.predictedDepartureMs, nowMs)}` size=60 weight=800 family="ui-monospace" color="#10152b" testId="hero-minutes"
+                        text "min" size=16 color="#8b93ad" paddingBottom=10
+                        column flex=1 align="flex-end" gap=4
+                          column radius=6 paddingLeft=8 paddingRight=8 paddingTop=3 paddingBottom=3 background=serviceTint(primaryBoard.primary.service)
+                            text primaryBoard.primary.service size=12 weight=700 color=serviceColor(primaryBoard.primary.service) testId="hero-service"
+                          text `${formatClockTime(primaryBoard.primary.predictedDepartureMs)} · #${primaryBoard.primary.trainNumber}` size=12 color="#8b93ad"
+                      text `to ${primaryBoard.primary.headsign}` size=14 weight=600 color="#5a6480"
+                      column gap=0 width="100%"
+                        each stop in upcomingStops(primaryBoard.primary.id, station.id, nowMs, 6) key=stop.id
+                          row gap=10 align="center" paddingTop=4 paddingBottom=4
+                            text stop.time size=12 family="ui-monospace" color="#8b93ad" width=52
+                            column width=8 height=8 radius=4 background=stop.isBoarding ? "#2f5fe0" : "#c7cee0"
+                            text stop.name size=13 weight=stop.isBoarding ? 700 : 500 color=stop.isBoarding ? "#2f5fe0" : "#10152b"
+
+                  // Next three trains in the assumed direction.
+                  each d in primaryBoard.secondary key=d.id
+                    button press=openTrip(d.id) label="Open train" testId=`departure-${d.id}` background="transparent" borderWidth=0 padding=0 width="100%"
+                      row justify="space-between" align="center" radius=12 paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 background="#ffffff" borderWidth=1 borderColor="#e6e9f2" width="100%"
+                        row gap=10 align="center"
+                          text `${formatCountdownMinutes(d.predictedDepartureMs, nowMs)} min` size=16 weight=700 family="ui-monospace" color="#10152b" width=64
+                          column radius=6 paddingLeft=8 paddingRight=8 paddingTop=2 paddingBottom=2 background=serviceTint(d.service)
+                            text d.service size=11 weight=700 color=serviceColor(d.service)
+                        text `${formatClockTime(d.predictedDepartureMs)} · ${d.headsign}` size=12 color="#8b93ad"
+              else
+                column radius=14 padding=16 background="#ffffff" borderWidth=1 borderColor="#e6e9f2"
+                  text "No more trains today in this direction." size=14 color="#5a6480" testId="no-trains"
+
+              // Opposite direction, minimal (next train only).
+              when oppositeBoard.primary
+                row justify="space-between" align="center" radius=12 paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 background="#ffffff" borderWidth=1 borderColor="#e6e9f2" testId="opposite-line"
+                  text directionTitle(oppositeDir) size=13 weight=700 color="#5a6480"
+                  text `${formatCountdownMinutes(oppositeBoard.primary.predictedDepartureMs, nowMs)} min` size=14 weight=700 color="#10152b" family="ui-monospace"
+
+          // --- STATIONS ---
+          else
+            when screen == "stations"
+              column gap=10 width="100%" testId="stations-screen"
+                input value=query change=setQuery placeholder="Search stations" label="Search stations" testId="station-search" padding=12 radius=10 background="#ffffff" borderColor="#d7dce8" borderWidth=1 color="#10152b" size=14
+                column gap=6
+                  each s in matches key=s.id
+                    button press=goToStation(s.id) label=s.name testId=`station-${s.id}` background="transparent" borderWidth=0 padding=0 width="100%"
+                      row justify="space-between" align="center" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 radius=10 background="#ffffff" borderWidth=1 borderColor="#e6e9f2" width="100%"
+                        column gap=2 align="flex-start"
+                          text s.name size=15 weight=600 color="#10152b"
+                          text `Zone ${s.zone}` size=12 color="#8b93ad"
+                        text walkBikeSummary(s, nowMs) size=11 family="ui-monospace" color="#8b93ad"
+                button press=goHome label="Back" testId="stations-back" paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 radius=10 background="#eef1f8" borderWidth=1 borderColor="#e6e9f2"
+                  text "Back" size=13 weight=700 color="#2f5fe0"
+
+            // --- TRIP DETAIL ---
+            else
+              column gap=12 width="100%" testId="trip-screen"
+                when trip
+                  column gap=12 width="100%"
+                    column gap=6
+                      row gap=8 align="center"
+                        column radius=6 paddingLeft=8 paddingRight=8 paddingTop=2 paddingBottom=2 background=serviceTint(trip.service)
+                          text trip.service size=12 weight=700 color=serviceColor(trip.service)
+                        text `Train ${trip.trainNumber}` size=20 weight=800 color="#10152b" headingLevel=1
+                      text `${trip.origin.name} → ${trip.destination.name}` size=14 color="#5a6480"
+                      text `${trip.durationMinutes} min · ${trip.stopCount} stops` size=12 color="#8b93ad"
+                    column gap=6 radius=12 padding=14 background="#ffffff" borderWidth=1 borderColor="#e6e9f2"
+                      text positionLabel(trip) size=13 weight=600 color="#5a6480" testId="position-label"
+                      column height=8 radius=4 background="#e6e9f2" width="100%"
+                        column height=8 radius=4 background="#2f5fe0" width=fractionPercent(positionFraction(trip)) testId="position-bar"
+                    column gap=0 radius=12 padding=14 background="#ffffff" borderWidth=1 borderColor="#e6e9f2"
+                      each stop in trip.stops key=stop.station.id
+                        row gap=12 align="center" paddingTop=6 paddingBottom=6
+                          text formatClockTime(stop.predictedTimeMs) size=13 family="ui-monospace" color="#8b93ad" width=56
+                          column width=10 height=10 radius=5 background=stop.station.id == station.id ? "#2f5fe0" : "#c7cee0"
+                          text stop.station.name size=14 weight=stop.station.id == station.id ? 700 : 400 color=stop.station.id == station.id ? "#2f5fe0" : "#10152b"
+                else
+                  text "Train not found" size=14 color="#5a6480"
+                button press=goHome label="Back" testId="trip-back" paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 radius=10 background="#eef1f8" borderWidth=1 borderColor="#e6e9f2"
+                  text "Back" size=13 weight=700 color="#2f5fe0"

@@ -1,0 +1,366 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:57b022ba9ff7ec76",
+  "capabilities": {
+    "branchableFixtures": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "inputsHash": "c68db3e2bae79ec331b1117d255cbd2ad3a87a5745d4cabc25cebfd7dcdac7fe",
+  "manifestVersion": 1,
+  "mutations": {
+    "applyFeedTick": {
+      "argOrder": [
+        "trigger"
+      ],
+      "args": {
+        "trigger": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "applyFeedTick",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "trainStatus",
+        "feedRefreshState"
+      ]
+    },
+    "resetFeed": {
+      "argOrder": [],
+      "args": {},
+      "name": "resetFeed",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "trainStatus",
+        "feedRefreshState"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "feedState": {
+      "argOrder": [],
+      "args": {},
+      "localRunnable": false,
+      "name": "feedState",
+      "reads": [
+        "feedRefreshState"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "fetchedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "lastError": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "lastRunTrigger": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "lastSource": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "staleAfterMs": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "tickCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "tickIndex": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot"
+    },
+    "liveTrainStatus": {
+      "argOrder": [],
+      "args": {},
+      "localRunnable": false,
+      "name": "liveTrainStatus",
+      "reads": [
+        "trainStatus"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "delaySeconds": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "observedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "patternId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot"
+    },
+    "stationsQuery": {
+      "argOrder": [],
+      "args": {},
+      "localRunnable": false,
+      "name": "stationsQuery",
+      "reads": [
+        "stations"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "lat": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "lng": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "minutesFromSf": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "name": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "orderIndex": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "photoAttribution": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "photoUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "shortName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "stationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "zone": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "none"
+    },
+    "stopTimesByStation": {
+      "argOrder": [
+        "stationId"
+      ],
+      "args": {
+        "stationId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "localRunnable": false,
+      "name": "stopTimesByStation",
+      "reads": [
+        "stopTimes"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "offsetMinutes": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "patternId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "stationId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "none"
+    },
+    "tripsQuery": {
+      "argOrder": [],
+      "args": {},
+      "localRunnable": false,
+      "name": "tripsQuery",
+      "reads": [
+        "trips"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "destinationStationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "direction": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "minuteSlots": {
+              "shape": "unknown"
+            },
+            "originStationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "patternId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "service": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "speedFactor": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "trainNumberBase": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "none"
+    }
+  },
+  "schemaHash": "sha256:c7f25a2cc6da8499",
+  "schemaVersion": "snapback.v0"
+}

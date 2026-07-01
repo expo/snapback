@@ -1,11 +1,11 @@
 # LLP 0027: All Aboard — Caltrain next-train demo
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Implemented
 **Systems:** Demo apps, Cron, Realtime, Data gateway, Contract/Exact, Notifications, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack)
+**Revised:** 2026-07-01 (shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
 **Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0009, LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0024, LLP 0028, Diary 0008 (pending), https://github.com/ccheever/ibex, https://openrouteservice.org, https://en.wikipedia.org/wiki/List_of_Caltrain_stations, https://511.org/open-data/transit
 
 ## Summary
@@ -174,13 +174,17 @@ Current implementation evidence:
 - `demos/todo/` and `demos/todo-v2/` already run a working Contract/Exact surface
   over generated Snapback artifacts via `demos/_kit/`, so the Contract surface
   path itself is proven; gestures and geolocation are the new surface load.
-- The Exact checkout at `../exact` exposes gesture primitives
-  (`gesture`, `onPress`, `swipe`, `OnSwipeDown`), geolocation
-  (`getCurrentPosition`, `coords`), and `Image`, so the primitives All Aboard
-  needs exist in source. Whether they bind cleanly to Snapback data in a runnable
-  surface is what the demo must verify — the cursor demo (Diary 0007) is a
-  caution that "primitive exists in source" is not "works in the product
-  surface."
+- The Exact checkout at `../exact` exposes tap-family events (`press`,
+  `longpress`) and an `image` primitive, and a native geolocation module, so most
+  of what All Aboard needs exists in source. **Correction (verified at
+  implementation):** swipe/pan primitives (`swipe`, `OnSwipeDown`, `gesture`) do
+  **not** exist — they live only in unbuilt Exact motion RFCs, and the Contract
+  event vocabulary is exactly `press change submit longpress focus blur scrollend
+  refresh`. There is also no Contract geolocation binding (Exact's own Caltrain
+  twin skips it). So the gesture-first interaction ships as **press affordances**
+  and geolocation is wired via `navigator.geolocation` in surface glue — the
+  cursor demo (Diary 0007) caution in its strongest form: here the primitive was
+  not even in source. See [Implementation](#implementation).
 
 ## Product Design
 
@@ -702,9 +706,41 @@ Diary acceptance (lands as `diaries/0008-all-aboard.diary.md` with the build):
 - **Direction/track naming** — Caltrain's northbound/southbound track naming vs
   the app's north/south; weekend and holiday service days in the seed.
 
+## Implementation
+
+Implemented as `demos/all-aboard/` (2026-06-30, Diary 0008). All four phases ship on
+one shared backend; acceptance is machine-checkable: headless 11/11, cron 7/7,
+egress 4/4, Contract browser 6/6, with the Rust suite green.
+
+- **Phases 0 + 2 (backend + cron)** landed with essentially no engine work: Cron
+  and the action→mutation path were **already implemented** (`src/cron.rs`,
+  commit `1cb6bcb`), so the demo is Cron's first consumer, not its builder. The
+  refresh is `defineCron` → action `refreshFeed` → `ctx.runMutation('applyFeedTick')`;
+  the realtime delta falls out of the mutation commit. Predictions are computed at
+  query/render time from the committed schedule + `trainStatus` delays + now, via a
+  shared pure model (`snapback/shared/model.mjs`) used by both surface and tests.
+- One engine fix was required for the **demand-activation** story: `disconnect`
+  (`src/local.rs`) dropped only ephemeral state, so a `whileLive` job armed but never
+  disarmed. Durable subscriptions for a departed connection are now dropped.
+- **Phase 3 (egress)** is an opt-in seam (`SNAPBACK_OUTBOUND_ACTIONS`,
+  `src/runtime.rs` + a matching codegen relaxation): with it on, an **action** keeps
+  `fetch`/timers and gets `ctx.secrets`; queries/mutations stay denied; the coarse
+  Ibex `network:fetch` is granted only then. Default posture is unchanged. The
+  Caltrain product path never calls `fetch` — it runs on the recorded feed — so the
+  demo stays deterministic; the seam is proved by a separate probe fixture.
+- **Phase 1 (Contract/Exact)** ships as one `app.contract` rendering on web (DOM
+  mirror) and native-ready through the Exact kernel host. Corrections vs the plan:
+  **swipe gestures do not exist** in Contract (only press/longpress), so navigation
+  uses press affordances and `exact.gestures` is a declared gap; **geolocation** is
+  wired via `navigator.geolocation` with a default-station fallback, not a Contract
+  binding; and the **browser Contract adapter does not push** server-authored deltas
+  (it re-queries after local mutations and is single-boundary), so the surface feeds
+  live delays into a store the view derives from on a 1s clock. These are recorded in
+  `demo.snapback.json` gaps and Diary 0008, not faked.
+
 ## Status
 
-Draft. This Plan defines the All Aboard demo and names **scheduled/demand
+Implemented. This Plan defines the All Aboard demo and names **scheduled/demand
 refresh** as its primary forcing function — the one genuinely net-new backend
 shape it needs — with a phasing that proves the Contract/Exact product surface and
 the realtime path on recorded data first. The intended live shape is
