@@ -5,7 +5,7 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
+**Revised:** 2026-07-02 (§Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013
 
 ## Summary
@@ -384,6 +384,44 @@ native (`update_hook`) where available and SQL triggers + a changes table
 elsewhere, so the *mechanism* differs per platform even though the observable
 contract does not. If a persistent store is unavailable (e.g. IndexedDB quota), the
 client should degrade to in-memory rather than fail silently.
+
+### Decision DK-9 — client local-store mandate (2026-07-02)
+
+**Decided: a store-agnostic client-store interface, with SQLite as the
+reference implementation — "SQLite on every client platform" is Valet
+inheritance, not a Snapback mandate.** Ratified by Charlie (applied by
+Claude under Charlie's same-day delegation); LLP 0032 X4, ledgered in
+LLP 0000, taken now — before any client local store exists — because it is
+cheap now and expensive after a store ships.
+
+What the decision pins:
+
+- **The contract is the observable-state list above, not SQL.** Under the
+  ratified server-authoritative query-result sync model (this document's
+  §Proposal; no CRDT core), the client store holds retained query results,
+  the snapshot version / `(stream, version)` cursors
+  ([LLP 0007](./0007-storage-portability.spec.md) §Commit-version
+  graduation), authorization epochs, the pending-mutation queue, and the
+  stale/resync flags — a document/result cache plus an outbox, not a
+  relational replica. Nothing in the wire contract may require SQL
+  semantics client-side.
+- **SQLite is the reference implementation** (expo-sqlite / wa-sqlite),
+  carrying Valet's two non-negotiables verbatim (single-connection mutex as
+  a correctness requirement; explicit transactions with a reentrancy
+  guard). Web targets may instead sit on IndexedDB/OPFS; capability reports
+  **name the store implementation** so an agent can see which physical
+  store and degradation mode (persistent vs in-memory fallback) is in
+  force.
+- **The interface is pinned before the first implementation**: when the
+  first client store lands (the LLP 0016 Phase 6 React/Expo pressure test
+  is the likely forcing demo), it lands as an implementation of the
+  store-agnostic interface, and a second store (or the in-memory fallback)
+  exercises the seam in the same change — the conformance habit that kept
+  the ephemeral backend honest (LLP 0026 Phase 1).
+
+Revisit trigger: if parity-class offline execution (local handler replay)
+ever requires query capabilities the interface cannot express without
+SQL — reopen with that evidence rather than mandating SQLite pre-emptively.
 
 ## Authorization-Aware Sync
 
