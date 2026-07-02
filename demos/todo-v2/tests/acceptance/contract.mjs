@@ -289,6 +289,39 @@ try {
     return { cells: cells.length };
   });
 
+  await suite.check('server-authored delta reaches the Contract boundary with no local mutation (LLP 0034 D1/C1)', async () => {
+    // The C1 fix (Exact LLP 0284 §5.3): another client's write must reach this
+    // surface's boundary through the paved adapter — no local mutation, no
+    // hand-written pump. Pre-D1 the adapter was reconcile-on-mutate only and
+    // this check would hang forever.
+    assert(surface.livePush === true, 'surface should bind listTodos with livePush (manifest v2 mode:"live")');
+    const title = 'Authored by another client (C1)';
+    const cells = [];
+    let resolveArrival;
+    const arrival = new Promise((resolve) => { resolveArrival = resolve; });
+    const sub = surface.provider.subscribe('listTodos', {}, (cell) => {
+      cells.push(cell);
+      if (cell.status === 'ready' && cell.value.some((row) => row.title === title)) resolveArrival(cell);
+    });
+    try {
+      assert(cells[0]?.status === 'ready', 'no initial ready cell');
+      assert('connection' in cells[0], 'live-bound cell should carry the connection axis (Exact LLP 0284 §2.2)');
+      const otherClient = new SnapbackClient(server.baseUrl);
+      await otherClient.mutate('createTodo', { args: { title, priority: 'normal' }, userId: ADA });
+      const timeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('server-authored delta never reached the Contract boundary')), 5_000).unref?.();
+      });
+      const cell = await Promise.race([arrival, timeout]);
+      assert(cell.value.some((row) => row.title === title), 'pushed row missing from boundary cell');
+      await settle();
+      const items = collectByTestId(handle.container, 'todo-item').map(textUnder);
+      assert(items.includes(title), `pushed row missing from mounted tree: ${JSON.stringify(items)}`);
+      return { connection: cell.connection, cells: cells.length };
+    } finally {
+      sub.dispose();
+    }
+  });
+
   await suite.check('rejected runtime-link mutation surfaces diagnostic and authoritative rows', async () => {
     await surface.flush();
     const title = 'Rejected missing priority from Contract';
