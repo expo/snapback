@@ -34,7 +34,7 @@ node demos/_kit/codegen.mjs demos/all-aboard/snapback # manifests + Contract des
 TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/headless.mjs   # backend, predictions, realtime
 TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/cron.mjs       # demand-armed refresh
 node demos/all-aboard/tests/acceptance/egress.mjs                            # opt-in fetch seam
-node demos/all-aboard/tests/acceptance/browser.mjs                           # Contract surface (needs Exact + bun + Chrome)
+node demos/all-aboard/tests/acceptance/browser.mjs                           # Contract surface (needs bun + `bun install` in surfaces/contract + Chrome)
 ```
 
 The egress probe fixture is generated with the seam enabled:
@@ -47,27 +47,25 @@ SNAPBACK_OUTBOUND_ACTIONS=1 node demos/_kit/codegen.mjs demos/all-aboard/tests/e
 
 Two processes — the Snapback API and a Vite dev server (which serves the
 compiled `.contract` and proxies `/snapback`). The surface consumes Exact
-through the paved-road `exactContractWeb` preset (ENG-22463): the checkout is
-the sibling `../exact` by default, overridable with `SNAPBACK_EXACT_ROOT`, and
-`surfaces/contract/exact.pin.json` records the Exact revision the surface was
-last verified against — a mismatched checkout warns on every dev start and
-build (`EXACT_PIN_STRICT=1` turns drift into a hard failure; re-pin
-deliberately with `EXACT_WRITE_PIN=1` after verifying on a new revision).
+from the **npm registry** through the paved-road `exactContractWeb` preset
+(ENG-22463, ENG-22480): `surfaces/contract/package.json` declares npm alias
+dependencies (`"@exact/contract": "npm:@ccheever/exact-contract@0.1.0"`,
+plus renderer/devtools; imports stay `@exact/*`), and the committed
+`surfaces/contract/bun.lock` **is the pin** — it replaced `exact.pin.json`.
+No sibling Exact checkout, no `SNAPBACK_EXACT_ROOT`. Bump Exact deliberately
+by editing the alias versions, running `bun install`, re-verifying, and
+committing the lockfile.
 
 ```sh
+# 0. One-time (and after dependency bumps): install the surface's packages
+bun install --cwd demos/all-aboard/surfaces/contract
+
 # 1. Snapback API (macOS first run: scripts/bootstrap-ibex-runtime)
 cargo run -- --port 4420 --memory
 
 # 2. Vite dev server (separate terminal):
 bun run --cwd demos/all-aboard/surfaces/contract dev
 #   -> open http://127.0.0.1:5178
-```
-
-From a **git worktree** (or with the sibling checkout on the wrong revision)
-point `SNAPBACK_EXACT_ROOT` at the Exact checkout to build against:
-
-```sh
-SNAPBACK_EXACT_ROOT=/path/to/exact bun run --cwd demos/all-aboard/surfaces/contract dev
 ```
 
 The page self-initializes on boot (inspect-first: schema/functions load and the

@@ -11,10 +11,13 @@
 //   - a Contract action drives the generated applyFeedTick mutation and the live
 //     freshness marker updates (server write -> live delta -> view).
 //
-// Integration lane: needs the Exact checkout + bun. Without them the surface is a
-// declared capability gap and this suite skips with SNAPBACK_CAPABILITY_EXACT_MISSING.
-// The cold-clone lane (ENG-22480) sets SNAPBACK_REQUIRE_EXACT=1, under which a
-// missing Exact checkout is a hard failure instead of a skip-as-pass.
+// Integration lane: needs bun + the surface's own node_modules (`bun install`
+// in demos/all-aboard/surfaces/contract — Exact comes from the npm registry
+// via alias deps, ENG-22480; no sibling checkout). Without the install the
+// surface is a declared capability gap and this suite skips with
+// SNAPBACK_CAPABILITY_EXACT_MISSING. The cold-clone lane (ENG-22480) sets
+// SNAPBACK_REQUIRE_EXACT=1, under which missing Exact packages are a hard
+// failure instead of a skip-as-pass.
 //
 // Run: node demos/all-aboard/tests/acceptance/browser.mjs
 //   (reuses an already-running API :4420 + Vite :5178, else starts them).
@@ -40,9 +43,10 @@ const VITE_PORT = Number(process.env.ALL_ABOARD_VITE_PORT ?? 5178);
 const apiUrl = `http://127.0.0.1:${API_PORT}`;
 const viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
-const exactRoot = process.env.SNAPBACK_EXACT_ROOT
-  ? resolve(process.env.SNAPBACK_EXACT_ROOT)
-  : resolve(repoRoot, '..', 'exact');
+// ENG-22480: the surface consumes Exact from the npm registry (alias deps in
+// surfaces/contract/package.json, pinned by its bun.lock), so the capability
+// probe is the surface's own installed packages — not a sibling checkout.
+const surfaceExactPackage = join(surfaceDir, 'node_modules', '@exact', 'contract', 'package.json');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
@@ -74,8 +78,8 @@ async function ensureApi() {
 
 async function ensureVite() {
   if (await urlOk(viteUrl)) return;
-  const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--config', join(surfaceDir, 'vite.config.ts'), '--host', '127.0.0.1', '--port', String(VITE_PORT)],
-    { cwd: exactRoot, env: { ...process.env, SNAPBACK_ALL_ABOARD_API: apiUrl }, stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--config', 'vite.config.ts', '--host', '127.0.0.1', '--port', String(VITE_PORT)],
+    { cwd: surfaceDir, env: { ...process.env, SNAPBACK_ALL_ABOARD_API: apiUrl }, stdio: ['ignore', 'ignore', 'pipe'] });
   cleanups.push(() => child.kill('SIGTERM'));
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) { if (await urlOk(viteUrl)) return; if (child.exitCode !== null) throw new Error('Vite exited'); await sleep(500); }
@@ -83,15 +87,16 @@ async function ensureVite() {
 }
 
 async function main() {
-  if (!existsSync(join(exactRoot, 'packages', 'exact-contract'))) {
+  if (!existsSync(surfaceExactPackage)) {
     // ENG-22480: the cold-clone lane exists to prove the surface is buildable
     // and verifiable from clean clones alone, so there "no Exact" is a
-    // failure, never a declared-gap pass. Default behavior is unchanged.
+    // failure, never a declared-gap pass. The remedy is one command — Exact
+    // is registry deps now, not an external checkout.
     if (process.env.SNAPBACK_REQUIRE_EXACT === '1') {
-      console.error(`FAIL all-aboard browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no Exact at ${exactRoot}) but SNAPBACK_REQUIRE_EXACT=1`);
+      console.error(`FAIL all-aboard browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no @exact/contract at ${surfaceExactPackage}; run \`bun install\` in ${surfaceDir}) but SNAPBACK_REQUIRE_EXACT=1`);
       process.exit(1);
     }
-    console.log(`SKIP all-aboard browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no Exact at ${exactRoot})`);
+    console.log(`SKIP all-aboard browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no @exact/contract at ${surfaceExactPackage}; run \`bun install\` in ${surfaceDir})`);
     console.log('PASS all-aboard browser (Phase 1) — skipped (declared capability gap)');
     return;
   }

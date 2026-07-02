@@ -56,10 +56,10 @@
     "contract": {
       "requirement": "required",
       "runner": "node demos/all-aboard/tests/acceptance/browser.mjs",
-      "devServer": "bun run --cwd demos/all-aboard/surfaces/contract dev (Exact checkout = SNAPBACK_EXACT_ROOT or sibling ../exact; verified revision pinned in surfaces/contract/exact.pin.json)",
-      "build": "bun run --cwd demos/all-aboard/surfaces/contract build (vite build via the exactContractWeb preset -> surfaces/contract/dist/web/)",
+      "devServer": "bun run --cwd demos/all-aboard/surfaces/contract dev (Exact from the npm registry: @exact/* alias deps -> @ccheever/exact-*, ENG-22480; surfaces/contract/bun.lock is the pin — it replaced exact.pin.json; one-time `bun install --cwd demos/all-aboard/surfaces/contract`)",
+      "build": "bun run --cwd demos/all-aboard/surfaces/contract build (vite build via the installed exactContractWeb preset -> surfaces/contract/dist/web/)",
       "url": "http://127.0.0.1:5178",
-      "toolchain": "node>=24, cargo, bun, Exact checkout at the exact.pin.json revision (SNAPBACK_EXACT_ROOT or sibling), local Google Chrome (CDP)",
+      "toolchain": "node>=24, cargo, bun, local Google Chrome (CDP); Exact installs from the npm registry (no checkout)",
       "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "exact": {
         "gestures": false,
