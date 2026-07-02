@@ -425,6 +425,41 @@ coalesces and tolerates spurious wakeups (recover by re-reading the current
 version); the product contract is ordered changesets by version, regardless of how
 a target learns a change happened.
 
+> **v1 wire protocol as shipped (LLP 0032 P4 close-out, 2026-07-02).** The
+> local target now implements this section's contract as follows (design
+> owned by [LLP 0034](./0034-contract-source-seam-provider-side.rfc.md) §2,
+> landed as the D1/D2 arc):
+>
+> - **Addressed envelopes, multiplexed lanes.** Durable `live_replace` /
+>   `resync_required` envelopes carry a `subscription_id`; a connection's
+>   outbox carries every lane's traffic and the client's per-connection lane
+>   registry routes durable envelopes to durable consumers and ephemeral
+>   envelopes to overlays — two handles on one connection advance
+>   independently, and no consumer discards another's messages
+>   (`regression-multiplexed-lanes`, `regression-gc-starvation`,
+>   `regression-mixed-transport`).
+> - **Reconnect is a fresh subscribe, never a resume.** The server drops a
+>   connection's durable subscriptions at socket close and the outbox dies
+>   with the connection — decided with P4. The client re-enters through
+>   `subscribe_live` with explicit supersession and bounded exponential
+>   backoff, and only promotes its connection state after a success.
+>   `resume_live` remains a same-connection operation; the version-based
+>   delta-resume consumer stays future work behind DK-3's revisit trigger
+>   (§Retention and Resume note).
+> - **Resync sentinels.** A subscription-scoped `resync_required` re-snapshots
+>   one handle; the connection-wide sentinel (no `subscription_id` — outbox
+>   overflow) re-snapshots every handle on the connection. Ephemeral overlays
+>   record `needsResync` and recovery is consumer-driven (the adapter
+>   resubscribes on the change signal).
+> - **Loss on a dying socket is recovered by snapshot, not requeue** (the
+>   S5.D4/S5.D5 class): a send failure tears the socket down, reconnect
+>   fresh-snapshots, and per-subscription non-decreasing versions filter
+>   staleness — "nothing silently lost" is pinned by `regression-fake-live`
+>   and the kill-socket legs.
+> - **Liveness** is an application-level ping plus a client freshness budget;
+>   the server-side delivery is event-driven with a defensive 30 s heartbeat
+>   (L8).
+
 **Backpressure must be designed, and over-limit messages must be recoverable.**
 Valet gave each client a dedicated bounded queue (an mpsc of 256, *not* a broadcast
 channel — a broadcast lets one slow consumer block delivery to all others) and
