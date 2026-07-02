@@ -22,6 +22,7 @@ import {
   validateSnapbackContractArtifacts,
 } from '../../../../packages/snapback-contract/index.mjs';
 import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
+import { todoOptimisticReducers } from '../../surfaces/contract/optimistic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -157,6 +158,9 @@ try {
   let handle;
   await suite.check('mounts against the live Snapback backend; renders the live snapshot', async () => {
     surface = await createSnapbackContractSurface({
+      queryName: 'listTodos',
+      boundaryKey: 'todos',
+      optimisticReducers: todoOptimisticReducers,
       runtime: runtimeMod,
       client: db,
       userId: ADA,

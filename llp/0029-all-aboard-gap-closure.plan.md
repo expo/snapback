@@ -5,8 +5,8 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-02 (G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
-**Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0036, Diary 0008
+**Revised:** 2026-07-02 (G2 closed via LLP 0032 P5 — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Earlier same day: G4 closed — the LLP 0036 v1 slice shipped: declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import; G4's closing design drafted as LLP 0036. Earlier 2026-07-01: G1 interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0032, LLP 0034, LLP 0036, Diary 0008
 
 ## Summary
 
@@ -48,11 +48,11 @@ product-impact for a real transit app, not demo-impact.
 | # | Gap | Severity | Effort | Owner |
 |---|---|---|---|---|
 | G1 | Swipe/pan gestures absent in Contract | High | L | Exact motion RFCs |
-| G2 | Browser Contract adapter has no live-push, single-boundary | High | M | LLP 0020 / LLP 0008 |
+| G2 | Browser Contract adapter has no live-push, single-boundary — **closed 2026-07-02** (LLP 0032 P5 on LLP 0034 D1: adapter-owned live push, multi-query mode, `store.mjs` deleted, cron→Contract proof) | High | M | LLP 0020 / LLP 0008 |
 | G3 | Per-host egress allowlist not enforced (coarse `network:fetch`) | High | M | LLP 0009 |
 | G4 | Secrets seam is a static env blob, no rotation/scoping — **closed 2026-07-02** (LLP 0036 v1 slice) | Medium | M | LLP 0036 |
 | G5 | No live external feed polling (runs on recorded data) | Medium | M | LLP 0027 / LLP 0028 |
-| G6 | Cron run duration always 0; start/finish collapse | Low | S | LLP 0028 |
+| G6 | Cron run duration always 0; start/finish collapse — **closed 2026-07-01** (LLP 0032 S5.D8) | Low | S | LLP 0028 |
 | G7 | Stale-read / demand catch-up trigger unbuilt | Medium | M | LLP 0028 |
 | G8 | Native macOS/iOS surface not built or run here | Medium | M | Exact host / LLP 0015 |
 | G9 | No Contract geolocation binding (surface glue instead) | Medium | M | LLP 0020 |
@@ -121,6 +121,23 @@ binds `stationBoard`/`feedState` directly.
 **Effort.** M. **Owner.** [LLP 0020](./0020-core-authoring-surface.plan.md)
 (authoring surface) over [LLP 0008](./0008-local-first-sync-and-realtime.rfc.md)
 (the live path already exists).
+
+**Closed 2026-07-02 (LLP 0032 P5, on the LLP 0034 D1/C1 foundation).** The
+shared adapter owns live push (DK-10 decided: adapter-owned subscription,
+not a separate live-provider seam): single-query surfaces subscribe when
+the bound descriptor is live, and the multi-query mode (`liveQueries:
+[...]`) gives each named query its own boundary key and connection axis
+over one shared socket. All Aboard's `store.mjs` and its poll pump are
+gone — its Contract surface binds `liveTrainStatus`/`feedState` directly.
+The todo-demo defaults (`queryName: 'listTodos'`, `boundaryKey: 'todos'`,
+built-in optimistic reducers) are out of the generic package: binding
+facts are required options, and reducers are app logic each demo owns
+(`demos/*/surfaces/contract/optimistic.mjs`). The done-when proof is
+`demos/all-aboard/tests/acceptance/contract-live.mjs`: a forced cron
+tick's committed rows stream into the Contract boundary over the push lane
+with zero per-demo glue — the adapter's own subscription is what arms the
+demand-activated job. Arg-driven `refetch` remains open for the first demo
+that needs it (no current surface re-queries by arg).
 
 ### G3 — Per-host egress allowlist not enforced
 
@@ -208,6 +225,10 @@ time after it returns; compute `durationMs` from them. One small change in the c
 executor plus a test asserting a nonzero duration for a sleep-y action.
 
 **Effort.** S. **Owner.** [LLP 0028](./0028-cron-scheduled-execution.rfc.md).
+
+**Closed 2026-07-01 via LLP 0032 S5.D8** — duration measured from real
+wall-clock around the run; test `s5_d8_cron_run_records_nonzero_duration`.
+(This body lagged the register; reconciled 2026-07-02.)
 
 ### G7 — Stale-read / demand catch-up trigger unbuilt
 
@@ -365,9 +386,13 @@ not smuggled into a demo.
 
 ## Open questions
 
-- **Adapter vs. store (G2):** should the shared adapter own live-push, or should a
-  separate "live provider" seam sit beside it so the reconcile-after-mutation
-  adapter stays simple? The store bridge suggests the latter may be cleaner.
+- ~~**Adapter vs. store (G2):** should the shared adapter own live-push, or should
+  a separate "live provider" seam sit beside it so the reconcile-after-mutation
+  adapter stays simple? The store bridge suggests the latter may be cleaner.~~
+  **Decided 2026-07-02 (DK-10): the adapter owns live-push.** The LLP 0034
+  D1/C1 implementation proved the adapter-owned subscription (single-query and
+  multi-query modes over one shared socket) and the separate-seam alternative
+  died with `store.mjs`; ledgered in LLP 0000, docket row closed in LLP 0032.
 - **Allowlist location (G3):** declared in the demo manifest, in the function
   manifest per action, or in a runtime policy file
   ([LLP 0009](./0009-code-execution-security.rfc.md))?

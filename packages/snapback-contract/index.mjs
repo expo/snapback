@@ -117,10 +117,16 @@ export async function createSnapbackContractSurface({
   artifactIndex = null,
   schemaManifest = null,
   functionManifest = null,
-  queryName = 'listTodos',
-  boundaryKey = 'todos',
+  // Single-query mode binds one named manifest query to one boundary key.
+  // Both are app facts with no product default (LLP 0032 P5 removed the
+  // todo-demo defaults this generic package used to ship); multi-query
+  // surfaces pass `liveQueries` instead.
+  queryName,
+  boundaryKey,
   queryArgs = {},
-  optimisticReducers = defaultOptimisticReducers(),
+  // Optimistic reducers are app logic (how this app's mutations transform
+  // its rows during the in-flight window); the package ships none.
+  optimisticReducers = {},
   // LLP 0034 D1 (Exact LLP 0284 §2.3): live descriptors bind with server push
   // by default; `livePush: false` opts the surface out (poll/reconcile only).
   livePush = true,
@@ -182,6 +188,16 @@ export async function createSnapbackContractSurface({
       pending,
       mountedHandles,
     });
+  }
+  if (!queryName || !boundaryKey) {
+    const diagnostic = contractDiagnostic(
+      'SNAPBACK_CONTRACT_SURFACE_BINDING_REQUIRED',
+      'createSnapbackContractSurface requires queryName and boundaryKey in single-query mode (or liveQueries: [...] for a multi-query surface).',
+      { queryName: queryName ?? null, boundaryKey: boundaryKey ?? null },
+    );
+    const error = new Error(diagnostic.message);
+    error.diagnostic = diagnostic;
+    throw error;
   }
   // The adapter-stitched correlation (LLP 0034 §3.2): echoed verbatim on
   // every receipt this surface's operations produce.
@@ -1376,24 +1392,3 @@ function validateDescriptorSet(manifest, artifacts, diag) {
   }
 }
 
-function defaultOptimisticReducers() {
-  return {
-    createTodo: (rows, args, { userId, optimisticId }) => [
-      ...rows,
-      {
-        completed: false,
-        userId,
-        ...args,
-        _id: optimisticId,
-        optimistic: true,
-      },
-    ],
-    setCompleted: (rows, args) =>
-      rows.map((row) => row._id === args.id ? { ...row, completed: args.completed } : row),
-    setPriority: (rows, args) =>
-      rows.map((row) => row._id === args.id ? { ...row, priority: args.priority } : row),
-    editTitle: (rows, args) =>
-      rows.map((row) => row._id === args.id ? { ...row, title: args.title } : row),
-    deleteTodo: (rows, args) => rows.filter((row) => row._id !== args.id),
-  };
-}

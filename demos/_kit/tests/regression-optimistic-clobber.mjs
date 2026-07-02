@@ -31,6 +31,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
 const { createSnapbackContractSurface } = await import(join(repoRoot, 'packages/snapback-contract/index.mjs'));
 const { importExactContractRuntime } = await import(join(repoRoot, 'packages/snapback-contract/exact-package.mjs'));
+const { todoOptimisticReducers } = await import(join(repoRoot, 'demos/todo/surfaces/contract/optimistic.mjs'));
 
 const exact = resolveExact({ repoRoot });
 if (exact.sourceKind === 'missing') {
@@ -82,6 +83,7 @@ try {
     manifest: gen('contract-data.manifest.json'),
     queryName: 'listTodos',
     boundaryKey: 'todos',
+    optimisticReducers: todoOptimisticReducers,
   });
   await waitFor(() => surface.connection() === 'live', "surface connection 'live'");
 

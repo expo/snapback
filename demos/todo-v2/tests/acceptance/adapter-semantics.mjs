@@ -16,6 +16,7 @@ import {
 import {
   importExactContractRuntime,
 } from '../../../../packages/snapback-contract/exact-package.mjs';
+import { todoOptimisticReducers } from '../../surfaces/contract/optimistic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -135,6 +136,9 @@ try {
 
 async function createSurface(client) {
   return createSnapbackContractSurface({
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    optimisticReducers: todoOptimisticReducers,
     runtime: runtimeMod,
     client,
     userId: ADA,

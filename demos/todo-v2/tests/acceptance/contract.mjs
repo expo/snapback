@@ -24,6 +24,7 @@ import {
   checkSnapbackContractDescriptors,
 } from '../../../../packages/snapback-contract/exact-project-check.mjs';
 import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
+import { todoOptimisticReducers } from '../../surfaces/contract/optimistic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -175,6 +176,9 @@ try {
   let handle;
   await suite.check('adapter exposes generated runtime links, including setPriority', async () => {
     surface = await createSnapbackContractSurface({
+      queryName: 'listTodos',
+      boundaryKey: 'todos',
+      optimisticReducers: todoOptimisticReducers,
       runtime: runtimeMod,
       client: db,
       userId: ADA,
@@ -351,6 +355,9 @@ try {
   await suite.check('adapter exposes one combined pending mutation count', async () => {
     const gate = createMutationGate(db);
     const pendingSurface = await createSnapbackContractSurface({
+      queryName: 'listTodos',
+      boundaryKey: 'todos',
+      optimisticReducers: todoOptimisticReducers,
       runtime: runtimeMod,
       client: gate.client,
       userId: ADA,
