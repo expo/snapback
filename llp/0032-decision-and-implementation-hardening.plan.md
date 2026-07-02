@@ -660,7 +660,12 @@ change the concurrency architecture and should land as one reviewed arc.
   current version-after-rows read at `src/storage.rs:334-337` is safe only
   under the mutex — pin inside a read transaction instead). **Done when:**
   concurrent reads proceed during a long write in a test, and the
-  version/rows consistency test passes.
+  version/rows consistency test passes. **Deferred to a dedicated arc
+  2026-07-01** — see the L6+L7 note below. The enabling pieces are now in
+  place: E4 (predicate-granularity validation) means concurrent disjoint
+  writers no longer spuriously conflict (the measured 1.0→0.0), which is the
+  precondition this step's own text calls out; M1 is the "before" baseline to
+  quantify the win against.
 - **L7 — Blocking work off the async workers.** Hermes eval and SQLite run
   synchronously inside async handlers with no `spawn_blocking` anywhere
   [confirmed]. Move blocking sections onto blocking threads (or a dedicated
@@ -670,7 +675,36 @@ change the concurrency architecture and should land as one reviewed arc.
   handler test (`tests/local_v0.rs:1770-1790`) no longer stalls *other*
   endpoints. Full preemption/limits remain owned by
   [LLP 0009](./0009-code-execution-security.rfc.md) — this step is
-  scheduling hygiene, not a security claim.
+  scheduling hygiene, not a security claim. **Deferred to a dedicated arc
+  2026-07-01** — see the note below.
+
+  > **L6 + L7 are one coupled concurrency-architecture arc, and are being run
+  > as a dedicated reviewed pass rather than folded into the Phase 3 tail.**
+  > Three reasons the coupling is real, not scheduling convenience: (1) L7's
+  > own done-when — "the busy-loop handler no longer stalls *other* endpoints"
+  > — is not achievable by L7 alone. A busy-loop handler holds the single
+  > `tokio::Mutex<LocalSnapback>`; moving its eval to `spawn_blocking` frees the
+  > tokio *worker* but not the *mutex*, and every other endpoint still locks
+  > that mutex. The stall only lifts once reads run off a separate reader pool
+  > (L6) that does not take the write mutex — so the L7 goal *requires* L6.
+  > (2) Both restructure the same invariant: today version-after-rows is
+  > consistent *only* because the global mutex serializes everything
+  > (`storage.rs:334-337`); L6 must move that read inside a pinned read
+  > transaction and L7 must not let a handler eval observe a torn snapshot.
+  > (3) They interact with S5.D1's `CURRENT_IBEX_HOST_CONTEXT` thread-local —
+  > a dedicated VM thread (the L7 hint) changes which thread that local lives
+  > on. Rushing either in isolation risks data races/deadlocks that the current
+  > test suite would not reliably catch. **Prerequisites, now all landed:** E4
+  > (concurrent writers don't spuriously conflict), M1 (before-baseline
+  > numbers), S5.D1 (context save/restore is correct), L8 (delivery is already
+  > event-driven, so the reader-pool change doesn't have to also fix latency).
+  > The dedicated arc should: design the read/write split (reader pool + a VM
+  > owner — actor thread or `spawn_blocking` with a `Send` handler boundary),
+  > land it behind concurrency tests (concurrent reads during a long write;
+  > version/rows consistency; busy-loop isolation), get one adversarial review
+  > (the L3 HIGH bug shows that pays for itself here), and re-run M1 to
+  > quantify the win — exactly the "one reviewed arc, M1 before/after" this
+  > plan already prescribes for L6–L8.
 - **L8 — Event-driven delivery.** The WS path polls each connection's outbox
   every 25ms under the global lock (`src/server.rs:419`, `437-446`)
   [confirmed] — a ~25ms latency floor and idle lock traffic linear in
