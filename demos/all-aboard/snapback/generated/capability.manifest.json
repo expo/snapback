@@ -83,5 +83,6 @@
     "cron-action-run-mutation"
   ],
   "syncableLiveQueries": true,
-  "targetProfileId": "local-dev-sqlite-ibex"
+  "targetProfileId": "local-dev-sqlite-ibex",
+  "vmLifecycle": "fresh-per-invocation"
 }

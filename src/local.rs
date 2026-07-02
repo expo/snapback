@@ -790,18 +790,10 @@ impl LocalSnapback {
     }
 
     fn capability_gaps(&self) -> Vec<String> {
-        let mut capability_gaps = vec![
-            "offline_mutation_replay".to_owned(),
-            "postgres".to_owned(),
-            "cloudflare".to_owned(),
-            "hosted_untrusted_code".to_owned(),
-            "external_auth".to_owned(),
-            "assets".to_owned(),
-            "outbound_actions".to_owned(),
-            "notifications".to_owned(),
-            "ephemeral_hosted_adapter".to_owned(),
-            "ephemeral_multi_instance_sticky_routing".to_owned(),
-        ];
+        // The declared gap list is owned by the manifest module (the single
+        // source the committed capability artifact is generated from —
+        // LLP 0032 P2); only instance-live adjustments happen here.
+        let mut capability_gaps = crate::manifest::local_v0_default_capability_gaps();
         if self.runtime.capabilities().ibex_cli.available {
             capability_gaps.retain(|gap| gap != "ibex_cli");
         } else {

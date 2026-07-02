@@ -13,7 +13,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "8647f4d058d0b1a85ab07114d943c44fdc71b07e5cee74cac9edc08bff95a233",
+  "inputsHash": "9968606388fa4347428daf0240c37a32bb4b6ca455c58d2d564071ccb07f8f3a",
   "manifestVersion": 2,
   "mutations": {
     "applyFeedTick": {
