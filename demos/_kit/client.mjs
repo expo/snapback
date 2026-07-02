@@ -85,7 +85,15 @@ export class SnapbackClient {
     if (!receipt || typeof receipt !== 'object') return receipt;
     this.__receiptRing.push(receipt);
     while (this.__receiptRing.length > RECEIPT_RING_CAP) this.__receiptRing.shift();
-    for (const listener of [...this.__receiptListeners]) listener(receipt);
+    for (const listener of [...this.__receiptListeners]) {
+      // A throwing app listener must never turn a committed operation into a
+      // client-side failure (ENG-22478 review fix G).
+      try {
+        listener(receipt);
+      } catch {
+        // Listener errors are the listener's problem, not the operation's.
+      }
+    }
     return receipt;
   }
 
@@ -214,14 +222,17 @@ export class SnapbackClient {
     }
   }
 
-  async subscribeLive(ref, { connectionId, args = {}, userId, correlation = null } = {}) {
+  async subscribeLive(ref, { connectionId, args = {}, userId, correlation = null, supersedes = null } = {}) {
     const name = functionName(ref);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
-    const response = await this.#req('POST', `/live/${name}/subscribe`, {
-      connection_id: connectionId,
-      input,
-    });
+    const body = { connection_id: connectionId, input };
+    // Explicit supersession (ENG-22478 review fix A): name the subscription
+    // this fresh subscribe replaces (the kit's own resubscribe paths only);
+    // the server disposes exactly that id. Never inferred — plain duplicate
+    // subscribes coexist.
+    if (supersedes) body.supersedes = supersedes;
+    const response = await this.#req('POST', `/live/${name}/subscribe`, body);
     if (response?.receipt) this.recordReceipt(response.receipt);
     return response;
   }
@@ -444,6 +455,11 @@ export class SnapbackClient {
     let pendingResubscribeReason = 'reconnect';
     let resubscribeRetryTimer = null;
     let resubscribeAttempts = 0;
+    // The 'established' receipt is emitted once, AFTER the transport settles
+    // (ENG-22478 review fix E): a stream binding whose subscribe POST beats
+    // the socket open must not claim transport 'poll' on its receipt.
+    let establishedEmitted = false;
+    let establishTimer = null;
 
     const handle = {
       subscriptionId: null,
@@ -478,12 +494,22 @@ export class SnapbackClient {
         scope: { ...args },
         snapshotVersion: handle.version,
         lastDeltaVersion: handle.version,
-        correlation,
+        correlation: cappedCorrelation(correlation),
         receivedAtMs: Date.now(),
         ...extra,
       };
       client.recordReceipt(receipt);
       onSubscriptionEvent?.(receipt);
+    };
+
+    const emitEstablishedOnce = () => {
+      if (establishedEmitted || disposed || handle.subscriptionId === null) return;
+      establishedEmitted = true;
+      if (establishTimer) {
+        clearTimeout(establishTimer);
+        establishTimer = null;
+      }
+      emitEvent('established');
     };
 
     const applyDurable = (update) => {
@@ -510,7 +536,10 @@ export class SnapbackClient {
     };
 
     const subscribeFresh = async () => {
-      const sub = await client.subscribeLive(name, { connectionId, args, userId, correlation });
+      // This handle's OWN previous subscription (reconnect/resync/resume
+      // paths) is explicitly superseded; the first establish has none.
+      const supersedes = handle.subscriptionId ?? null;
+      const sub = await client.subscribeLive(name, { connectionId, args, userId, correlation, supersedes });
       // Any successful fresh subscribe satisfies an outstanding need — clear
       // it here so every path (establish, resume, resubscribe) agrees.
       needsResubscribe = false;
@@ -636,13 +665,17 @@ export class SnapbackClient {
 
     const attachStream = () => {
       const manager = client.liveStreamManager(connectionId, streamOptions);
-      const offDurable = manager.onDurable(applyDurable);
+      // Durable socket frames arrive through the connection's lane registry
+      // (this handle registered applyDurable there), the same path HTTP
+      // drains use — one delivery pipeline for both transports (ENG-22478
+      // review: mixed-transport unification).
       const offState = manager.onState((state, detail = {}) => {
         if (disposed || paused) return;
         if (state === 'open') {
           streamedSinceSubscribe = true;
           stopFallback();
           if (handle.subscriptionId === null) return; // establishment still in flight
+          emitEstablishedOnce(); // transport settled: push
           fellBack = false;
           if (needsResubscribe) {
             // The lost socket's server-side disconnect dropped this
@@ -662,6 +695,7 @@ export class SnapbackClient {
         }
         if (state === 'lost') {
           streamedSinceSubscribe = false;
+          emitEstablishedOnce(); // transport settled: poll fallback
           if (detail.wasOpen) {
             // An OPEN socket's close makes the server drop this connection's
             // durable subscriptions (src/server.rs live_stream -> disconnect;
@@ -704,7 +738,6 @@ export class SnapbackClient {
         }
       });
       return () => {
-        offDurable();
         offState();
       };
     };
@@ -741,17 +774,24 @@ export class SnapbackClient {
         if (manager.isOpen()) {
           streamedSinceSubscribe = true;
           setConnection('live');
+          emitEstablishedOnce(); // push, deterministically
+        } else if (fellBack) {
+          emitEstablishedOnce(); // the socket already failed: poll fallback
+        } else {
+          // Socket still in flight: defer the receipt until it settles
+          // (open -> push, lost -> poll), with the freshness budget as the
+          // bound so the receipt cannot dangle on a swallowed connect.
+          const budget = streamOptions.freshnessBudgetMs ?? LIVE_FRESHNESS_BUDGET_MS;
+          establishTimer = setTimeout(() => {
+            establishTimer = null;
+            emitEstablishedOnce();
+          }, budget);
+          establishTimer.unref?.();
         }
-        // Otherwise stay 'connecting': the socket is still in flight, and the
-        // manager's first 'lost' event engages the poll fallback (or 'stale'
-        // when fallback is disabled) if the connect fails.
       } else {
         setConnection('polling');
+        emitEstablishedOnce();
       }
-      // Emitted AFTER the transport state settles so the event's transport
-      // fact ('push' vs 'poll') is true on the common path where the socket
-      // opened during the subscribe round-trip.
-      emitEvent('established');
     };
 
     handle.poll = async () => {
@@ -807,14 +847,31 @@ export class SnapbackClient {
 
     handle.dispose = () => {
       if (disposed) return;
+      emitEstablishedOnce(); // receipt ordering: established before disposed
       emitEvent('disposed');
+      const staleSubscriptionId = handle.subscriptionId;
       disposed = true;
       stopFallback();
       clearResubscribeRetry();
+      if (establishTimer) {
+        clearTimeout(establishTimer);
+        establishTimer = null;
+      }
       unregisterDurable();
       detachStream?.();
       detachStream = null;
       setConnection('disconnected');
+      // Best-effort server-side disposal (ENG-22478 review fix F): without
+      // this, unmounting a handle while the connection lives leaves the
+      // §10.1 zombie fanning out until connection teardown.
+      if (staleSubscriptionId) {
+        void client
+          .unsubscribeLive(name, { subscriptionId: staleSubscriptionId, connectionId, userId })
+          .catch(() => {
+            // Best-effort: the subscription may already be gone (disconnect,
+            // supersession) or the server unreachable — the reaper covers it.
+          });
+      }
     };
 
     await establish();
@@ -1038,14 +1095,20 @@ class LiveStreamManager {
       // The lane registry is transport-agnostic (LLP 0034 §10.1 / ENG-22478):
       // when the socket owns the connection's outbox, registered ephemeral
       // consumers (EphemeralOverlays) still receive their lane's frames.
-      // Durable frames are NOT double-routed: live handles subscribe to
-      // durable socket traffic via onDurable already.
       const consumers = this.client.__laneConsumers?.get(this.connectionId);
       for (const consumer of [...(consumers?.ephemeral ?? [])]) consumer(frame);
       return;
     }
-    // Durable-lane payloads arrive unwrapped: live_replace / resync_required.
+    // Durable-lane payloads arrive unwrapped (live_replace / resync_required)
+    // and route through the SAME lane registry HTTP drains use, so a
+    // poll-transport handle sharing this connection is never starved by the
+    // socket owning the outbox (ENG-22478 review: mixed-transport
+    // unification). liveQuery handles consume durable traffic ONLY via the
+    // registry — onDurable is for external socket-frame listeners and must
+    // not be combined with a registry registration (double delivery).
     for (const listener of [...this.durableListeners]) listener(frame);
+    const consumers = this.client.__laneConsumers?.get(this.connectionId);
+    for (const consumer of [...(consumers?.durable ?? [])]) consumer(frame);
   }
 
   /// Send a live-socket request (ephemeral_subscribe/publish/delete or ping)
@@ -1109,6 +1172,20 @@ class LiveStreamManager {
   }
 }
 
+// Cap the correlation echoed on kit receipts (ENG-22478 review fix H): the
+// ring is count-bounded; an unbounded echo could still pin large payloads.
+const CORRELATION_ECHO_MAX_BYTES = 4_096;
+function cappedCorrelation(correlation) {
+  if (correlation == null) return correlation;
+  let size = Infinity;
+  try {
+    size = JSON.stringify(correlation).length;
+  } catch {
+    // Unserializable correlation: keep the honest marker.
+  }
+  return size > CORRELATION_ECHO_MAX_BYTES ? { correlationTruncated: true, bytes: size } : correlation;
+}
+
 function resyncReason(serverReason) {
   if (serverReason === 'outbox_overflow') return 'overflow';
   if (serverReason === 'permission_epoch_changed') return 'permission-epoch';
@@ -1128,6 +1205,7 @@ export class EphemeralOverlay {
     this.scopeEpoch = null;
     this.entries = new Map();
     this.needsResync = false;
+    this.room = null; // captured from OUR subscribe snapshot (room identity)
     this.__drainCaptures = new Set();
     // Cross-lane routing (LLP 0034 §10.1 / ENG-22478): the overlay is this
     // connection's registered ephemeral consumer, so a durable drain on the
@@ -1194,7 +1272,15 @@ export class EphemeralOverlay {
   apply(input) {
     const message = unwrapEphemeralMessage(input);
     if (!message) return 'not_ephemeral';
+    // Room isolation (ENG-22478 review fix B): a connection's outbox carries
+    // EVERY room's traffic, and the lane registry fans it to every overlay —
+    // so each message must match THIS overlay's room identity (captured from
+    // our own subscribe snapshot). A foreign room's snapshot/upsert/remove
+    // must never contaminate this overlay's entries or scopeEpoch.
+    const room = messageRoom(message);
+    if (this.room && room && !sameRoom(this.room, room)) return 'foreign_room';
     if (message.Snapshot) {
+      if (!this.room && message.Snapshot.room) this.room = message.Snapshot.room;
       const previousEpoch = this.scopeEpoch;
       this.scopeEpoch = message.Snapshot.scope_epoch;
       this.entries.clear();
@@ -1305,6 +1391,20 @@ function unwrapEphemeralMessage(input) {
   if (input.message) return input.message;
   if (input.Snapshot || input.Upsert || input.Remove || input.ResyncRequired || input.Error) return input;
   return null;
+}
+
+function messageRoom(message) {
+  return (
+    message.Snapshot?.room
+    ?? message.Upsert?.room
+    ?? message.Remove?.room
+    ?? message.ResyncRequired?.room
+    ?? null
+  );
+}
+
+function sameRoom(a, b) {
+  return a.collection === b.collection && a.routing_key === b.routing_key;
 }
 
 function normalizeEntry(entry) {
