@@ -59,6 +59,7 @@ use formatClockTime from "./data.ts"
 use formatCountdownMinutes from "./data.ts"
 use serviceColor from "./data.ts"
 use serviceTint from "./data.ts"
+use etaModeLabel from "./data.ts"
 use walkBikeSummary from "./data.ts"
 use distanceLabel from "./data.ts"
 use feedFreshness from "./data.ts"
@@ -75,6 +76,7 @@ component AllAboard
   state query = ""
   state heroOffset = 0
   state serviceFilter = "All"
+  state etaMode = "walk"
 
   query delayRows = liveTrainStatus({})
   query feedRows = feedState({})
@@ -89,7 +91,7 @@ component AllAboard
   derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, 1, delayRows)
   derive prevStationId = adjacentStationId(station.id, -1)
   derive nextStationId = adjacentStationId(station.id, 1)
-  derive walkBike = walkBikeSummary(station, nowMs)
+  derive walkBike = walkBikeSummary(station, etaMode, nowMs)
   derive freshness = feedFreshness(nowMs, feedRows)
   derive matches = searchStations(query, nowMs)
   derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows) : null
@@ -113,6 +115,8 @@ component AllAboard
   action setServiceFilter(value) writes serviceFilter, heroOffset
     serviceFilter = value
     heroOffset = 0
+  action toggleEtaMode writes etaMode
+    etaMode = etaMode == "walk" ? "bike" : "walk"
   action openStations writes screen, query
     screen = "stations"
     query = ""
@@ -148,7 +152,7 @@ component AllAboard
 
         when screen == "home"
           column position="absolute" top=0 left=0 right=0 bottom=0 justify="space-between" testId="board-content"
-            StationCard(station=station, walkBike=walkBike, locHint=locHint, openStations=openStations)
+            StationCard(station=station, walkBike=walkBike, locHint=locHint, etaMode=etaMode, openStations=openStations, toggleEtaMode=toggleEtaMode)
             // The delays region dispatches on the live binding: `stale` (Exact
             // LLP 0284 §2.2 sugar) wins over `ready` while the connection is
             // degraded — same board, last-known delays, a visible note.
@@ -166,7 +170,7 @@ component AllAboard
                 DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
         else
           when screen == "stations"
-            StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
+            StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, etaMode=etaMode, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
           else
             TripDetail(trip=trip, stationId=station.id, goHome=goHome)
 
@@ -184,7 +188,9 @@ component StationCard
     station: object
     walkBike: string
     locHint: string
+    etaMode: string
     openStations: () => void
+    toggleEtaMode: () => void
 
   view
     column gap=4 paddingTop=20 paddingLeft=22 paddingRight=22 width="100%" maxWidth=620 alignSelf="center" testId="station-card"
@@ -193,7 +199,12 @@ component StationCard
         button press=openStations label="Change station" testId="change-station" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
           text "Change station" size=12 weight=600 color="#ffffffe6"
       text station.name size=38 weight=800 lineHeight=42 color="#ffffff" testId="station-name" headingLevel=1
-      text `Zone ${station.zone} · ${walkBike}` size=13 color="#ffffffb8" testId="walk-bike"
+      // E4: the ETA mode control — the summary (and the stations-list rows)
+      // follow the selected mode app-wide.
+      row justify="space-between" align="center" width="100%"
+        text `Zone ${station.zone} · ${walkBike}` size=13 color="#ffffffb8" testId="walk-bike"
+        button press=toggleEtaMode label="Toggle ETA mode" testId="eta-mode" paddingTop=4 paddingBottom=4 paddingLeft=10 paddingRight=10 radius=999 background="#ffffff12" borderWidth=1 borderColor="#ffffff1a"
+          text etaModeLabel(etaMode) size=11 weight=700 color="#ffffffe6"
       text locHint size=12 color="#ffffff73" testId="location-hint"
 
 // The board: direction row, the giant hero countdown expanded with its stops,
@@ -300,6 +311,7 @@ component StationsPicker
     matches: object[]
     nowMs: number
     currentStationId: string
+    etaMode: string
     setQuery: (value) => void
     goToStation: (id) => void
     goHome: () => void
@@ -319,7 +331,7 @@ component StationsPicker
                 column gap=2 align="flex-start"
                   text s.name size=15 weight=s.id == currentStationId ? 700 : 600 color="#ffffff"
                   text `Zone ${s.zone}` size=11.5 color="#ffffff73"
-                text distanceLabel(s, nowMs) size=12 family="ui-monospace, Menlo, monospace" color="#ffffff8a"
+                text distanceLabel(s, etaMode, nowMs) size=12 family="ui-monospace, Menlo, monospace" color="#ffffff8a"
 
 // The trip screen: a dark sheet over the artwork — service + train header,
 // live position bar (service-colored), the ordered stop list with the boarding

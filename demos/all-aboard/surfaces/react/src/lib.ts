@@ -191,19 +191,28 @@ export function upcomingStops(
 }
 
 // --- Walk / bike (haversine over the seed coordinates) ---------------------------
+//
+// E4: the app-wide ETA mode ('walk' | 'bike', toggled from the station card)
+// selects which estimate the summary and the stations-list rows show.
 
-export function walkBikeSummary(station: { lat: number; lng: number }, location: LatLng): string {
-  const walk = estimateWalkMinutes(location, station);
-  const bike = estimateBikeMinutes(location, station);
-  const miles = estimateDistanceMiles(location, station);
-  return `${walk} min walk · ${bike} min bike · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+export type EtaMode = 'walk' | 'bike';
+
+export function etaModeLabel(mode: EtaMode): string {
+  return mode === 'bike' ? '🚴 Bike' : '🚶 Walk';
 }
 
-// Compact distance for the stations-list rows, where the full walk/bike
-// summary is too wide (and a 300-minute walk reads as noise).
-export function distanceLabel(station: { lat: number; lng: number }, location: LatLng): string {
+export function walkBikeSummary(station: { lat: number; lng: number }, mode: EtaMode, location: LatLng): string {
+  const minutes = mode === 'bike' ? estimateBikeMinutes(location, station) : estimateWalkMinutes(location, station);
   const miles = estimateDistanceMiles(location, station);
-  return `${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+  return `${minutes} min ${mode === 'bike' ? 'bike' : 'walk'} · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+}
+
+// Compact ETA for the stations-list rows: the mode's minutes plus distance
+// (the full summary is too wide there).
+export function distanceLabel(station: { lat: number; lng: number }, mode: EtaMode, location: LatLng): string {
+  const minutes = mode === 'bike' ? estimateBikeMinutes(location, station) : estimateWalkMinutes(location, station);
+  const miles = estimateDistanceMiles(location, station);
+  return `${minutes} min · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 
 // --- Freshness marker (feedState rows from the live subscription) ----------------

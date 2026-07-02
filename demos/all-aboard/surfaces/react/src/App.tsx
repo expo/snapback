@@ -34,7 +34,7 @@ import {
   oppositeDirection,
   walkBikeSummary,
 } from './lib.ts';
-import type { Station } from './lib.ts';
+import type { EtaMode, Station } from './lib.ts';
 import { useLiveState, useNow } from './store.ts';
 import { DirectionBoard } from './components/DirectionBoard.tsx';
 import type { OppositeBoard } from './components/DirectionBoard.tsx';
@@ -56,6 +56,7 @@ export function App(props: { onRefresh: () => void }) {
   const [query, setQuery] = useState('');
   const [heroOffset, setHeroOffset] = useState(0);
   const [serviceFilter, setServiceFilterState] = useState('All');
+  const [etaMode, setEtaMode] = useState<EtaMode>('walk');
 
   const location = live.location ?? DEFAULT_LOCATION;
   // The model types its lookups as nullable; selection falls back to the
@@ -97,6 +98,7 @@ export function App(props: { onRefresh: () => void }) {
     setServiceFilterState(value);
     setHeroOffset(0);
   };
+  const toggleEtaMode = () => setEtaMode((current) => (current === 'walk' ? 'bike' : 'walk'));
   const openStations = () => {
     setScreen('stations');
     setQuery('');
@@ -164,9 +166,11 @@ export function App(props: { onRefresh: () => void }) {
           >
             <StationCard
               station={station}
-              walkBike={walkBikeSummary(station, location)}
+              walkBike={walkBikeSummary(station, etaMode, location)}
               locHint={locationHint(live.locationSource)}
+              etaMode={etaMode}
               onOpenStations={openStations}
+              onToggleEtaMode={toggleEtaMode}
             />
             {delaysLoading ? (
               <div
@@ -228,6 +232,7 @@ export function App(props: { onRefresh: () => void }) {
             location={location}
             nowMs={nowMs}
             currentStationId={station.id}
+            etaMode={etaMode}
             onSetQuery={setQuery}
             onGoToStation={goToStation}
             onGoHome={goHome}

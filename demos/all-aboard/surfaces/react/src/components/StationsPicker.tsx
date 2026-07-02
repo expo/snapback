@@ -3,7 +3,7 @@
 
 import { searchStations } from '../../../../snapback/shared/model.mjs';
 import { distanceLabel } from '../lib.ts';
-import type { Station } from '../lib.ts';
+import type { EtaMode, Station } from '../lib.ts';
 import type { LatLng } from '../store.ts';
 import { Press, column, mono, palette, pill, row } from '../ui.tsx';
 
@@ -12,6 +12,7 @@ export function StationsPicker(props: {
   location: LatLng;
   nowMs: number;
   currentStationId: string;
+  etaMode: EtaMode;
   onSetQuery: (value: string) => void;
   onGoToStation: (id: string) => void;
   onGoHome: () => void;
@@ -78,7 +79,7 @@ export function StationsPicker(props: {
                   <div style={{ fontSize: 11.5, color: palette.inkFaint }}>{`Zone ${s.zone}`}</div>
                 </div>
                 <div style={{ fontSize: 12, fontFamily: mono, color: palette.inkDim }}>
-                  {distanceLabel(s, props.location)}
+                  {distanceLabel(s, props.etaMode, props.location)}
                 </div>
               </div>
             </Press>

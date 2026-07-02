@@ -49,7 +49,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // failure, not a pass — a pre-check throw must never exit "PASS — 0/0"
 // (ENG-22486). The declared-gap skip in main() returns before the try block,
 // so it never reaches this guard.
-const EXPECTED_CHECKS = 13;
+const EXPECTED_CHECKS = 14;
 
 const suite = createSuite('all-aboard browser (Phase 1)');
 const cleanups = [];
@@ -277,6 +277,25 @@ async function main() {
       const all = await services();
       if (!all.hero) throw new Error('board empty after All');
       return { limited, bullet, allHero: all.hero };
+    });
+
+    // E4 (ENG-22450): the app-wide ETA mode toggle on the station card.
+
+    await suite.check('ETA mode toggles walk/bike estimates app-wide', async () => {
+      const walk = await page.text('walk-bike');
+      if (!/min walk/.test(walk ?? '')) throw new Error(`expected walk mode summary: ${walk}`);
+      await page.click('eta-mode');
+      const bike = await page.text('walk-bike');
+      if (!/min bike/.test(bike ?? '') || /walk/.test(bike ?? '')) throw new Error(`expected bike mode summary: ${bike}`);
+      // App-wide: the stations sheet rows carry the mode's minutes.
+      await page.click('change-station');
+      const pickerRow = await page.eval(`document.querySelector('[data-testid="stations-screen"] button[data-testid^="station-"]')?.textContent.trim() ?? null`);
+      if (!/min ·/.test(pickerRow ?? '')) throw new Error(`picker rows missing mode ETA: ${pickerRow}`);
+      await page.click('stations-back');
+      await page.click('eta-mode');
+      const back = await page.text('walk-bike');
+      if (!/min walk/.test(back ?? '')) throw new Error(`walk mode did not restore: ${back}`);
+      return { walk, bike, pickerRow };
     });
   } catch (error) {
     // Surface the pre-check failure instead of letting the finally-exit
