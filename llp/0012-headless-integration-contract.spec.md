@@ -5,8 +5,8 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-27
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024
+**Revised:** 2026-07-01 (linked LLP 0030 for Contract/Exact preview server lifecycle)
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030
 
 ## Summary
 
@@ -473,7 +473,8 @@ polish of either adapter.
 - Which fields above need to move from v0 manifests into separately versioned
   package schemas before public release?
 - How does a Contract/Exact preview process own or attach to the local Snapback
-  server lifecycle?
+  server lifecycle? [LLP 0030](./0030-managed-snapback-vite-dev.rfc.md) now owns
+  the proposed Vite-managed dev answer; revise this Spec once that API is proven.
 - Does Design Mode persist a high-level intent log in addition to source edits?
 
 ## Status

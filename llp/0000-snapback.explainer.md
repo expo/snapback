@@ -6,8 +6,8 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-30 (related LLP index updated for LLP 0028)
-**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0022, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
+**Revised:** 2026-07-01 (related LLP index updated for LLP 0031 and LLP 0032)
+**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
 
@@ -550,6 +550,11 @@ written) for at least:
   turning demo diary findings into product changes across Snapback core,
   adapters, and Exact/Contract. Drafted as
   [`0016-diary-driven-change-program.plan.md`](./0016-diary-driven-change-program.plan.md).
+- A **decision and implementation hardening program** — the review-driven
+  program that reconciles corpus statuses with reality and hardens the
+  implementation to the ratified semantics, with defect/decision/test-debt
+  registers. Drafted as
+  [`0032-decision-and-implementation-hardening.plan.md`](./0032-decision-and-implementation-hardening.plan.md).
 - **Exact Design Mode integration** — how Snapback affordances surface in, and are
   driven from, Exact's Design Mode. Drafted as
   [`0005-contract-exact-react-integration.explainer.md`](./0005-contract-exact-react-integration.explainer.md).

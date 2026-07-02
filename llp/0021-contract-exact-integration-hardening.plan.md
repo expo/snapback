@@ -5,8 +5,8 @@
 **Systems:** Contract/Exact, Client integration, Developer experience, Testing, Packaging, Admin console, Runtime
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
-**Related:** LLP 0005, LLP 0012, LLP 0016, LLP 0017, LLP 0020, Diary 0001, Diary 0002, Diary 0003, Valet LLP 0088 (retired prior-art), Exact 0263, Exact 0265, Exact 0268
+**Revised:** 2026-07-01 (linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
+**Related:** LLP 0005, LLP 0012, LLP 0016, LLP 0017, LLP 0020, LLP 0023, LLP 0030, Diary 0001, Diary 0002, Diary 0003, Valet LLP 0088 (retired prior-art), Exact 0263, Exact 0265, Exact 0268
 
 ## Summary
 
@@ -535,8 +535,9 @@ Open:
   require Exact.
 - [ ] Get to a new Contract Snapback surface without custom Vite aliases or
   app-local post-build rewrites.
-- [ ] Resolve dev-serve and basePath support, either in Exact or in the
-  Snapback preset with clear diagnostics.
+- [ ] Resolve app dev-serve and managed-backend lifecycle through
+  [LLP 0030](./0030-managed-snapback-vite-dev.rfc.md), and resolve basePath
+  support either in Exact or in the Snapback preset with clear diagnostics.
 
 ### Phase 4: Surface migrations
 
