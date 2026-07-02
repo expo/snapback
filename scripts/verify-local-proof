@@ -36,11 +36,19 @@ run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootst
 run cargo test
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
+run node demos/_kit/tests/client-errors.mjs
+run node demos/_kit/tests/provider-live-conformance.mjs
+run node demos/_kit/tests/regression-reconnect-nuke.mjs
+run node demos/_kit/tests/regression-fake-live.mjs
+run node demos/_kit/tests/regression-gc-starvation.mjs
+run node demos/_kit/tests/regression-overlay-crossroom.mjs
+run node demos/_kit/tests/regression-mixed-transport.mjs
 
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then
         run bun demos/todo/tests/acceptance/contract.mjs
         run bun demos/todo-v2/tests/acceptance/contract.mjs
+        run bun demos/_kit/tests/regression-optimistic-clobber.mjs
         run bash -lc 'cd admin-ui && ./build.sh'
     elif [ "$VERIFY_EXACT" = "1" ]; then
         printf '[snapback-verify] error: SNAPBACK_VERIFY_EXACT=1 but bun or an Exact checkout is unavailable\n' >&2

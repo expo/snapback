@@ -16,8 +16,10 @@
 //   §6.5  permission-epoch resubscribe (server-tagged reason, fresh snapshot)
 //   §6.6  multi-connection identity (one tab dies, the other stays live;
 //         distinct connection-keyed self/sourceClientId)
-//   §6    TTL expiry deletion; delivered-rate <= maxDeltaRateHz for a
-//         draining subscriber with coalescing receipt-visible (ENG-22478)
+//   §6    TTL expiry deletion; ephemeral coalescing bounds a drain-paced
+//         subscriber (per-key delivery at drain cadence) with
+//         coalesced_updates receipt-visible (ENG-22478; the socket lane's
+//         ceiling is the publish budget — see the ImplNotes finding)
 //   §3.2  receipts inspectable + correlation join (Exact 0284 §5 item 5)
 //   §2.8  degraded example: poll transport receipt agrees with 'polling'
 //         (Exact 0284 §5 item 6, provider half)
@@ -432,7 +434,7 @@ try {
   });
 
 
-  await suite.check('permission-epoch resubscribe: server-tagged reason, fresh snapshot (LLP 0034 §6.5)', async () => {
+  await suite.check('permission-epoch resync surfaces as resubscribed:permission-epoch + fresh snapshot (LLP 0034 §6.5 — reason plumbing; row-level permission semantics are LLP 0011 land)', async () => {
     // A mutation declaring permissionEpochBumps invalidates the auth'd
     // subscription's captured permission dep; the server enqueues
     // resync_required with reason "permission_epoch_changed" (src/local.rs
@@ -636,13 +638,18 @@ try {
     }
   });
 
-  await suite.check('delivered rate <= maxDeltaRateHz for a draining subscriber; coalescing receipt-visible (LLP 0034 §6 / Exact 0284 §2.5.1)', async () => {
+  await suite.check('ephemeral coalescing bounds a drain-paced subscriber; coalesced_updates receipt-visible (LLP 0034 §6 / Exact 0284 §2.5.1 note)', async () => {
+    // WHAT THIS MEASURES (honest framing, ENG-22478 review): latest-state
+    // coalescing bounds a DRAIN-PACED subscriber's per-key delivery at its
+    // own drain cadence — the mechanism the maxDeltaRateHz budget rides on
+    // for poll consumers. It does NOT measure a socket subscriber: since L8,
+    // socket delivery is per-enqueue and the enforced ceiling there is the
+    // publish token bucket (see the ImplNotes finding). Drains are
+    // SEQUENTIAL (awaited) so no overlapping captures double-count.
     const scope = { boardId: 'board_flood' };
     const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
     const overlay = await db.subscribeEphemeral('boardCursors', { connectionId: 'flood_observer', scope, userId: ADA, permissions });
     try {
-      // The generated manifest's declared budget for the fixture collection.
-      const maxDeltaRateHz = 30; // dispatch_ms 33 -> ~30 (D3 emission)
       const drainCadenceMs = 100;
       const windowMs = 1_200;
       let delivered = 0;
@@ -650,11 +657,7 @@ try {
       const publisher = new SnapbackClient(server.baseUrl);
       const startedAt = Date.now();
       const floodUntil = startedAt + windowMs;
-      const drainTimer = setInterval(async () => {
-        const applied = await overlay.drain().catch(() => []);
-        delivered += applied.filter((result) => result === 'applied').length;
-      }, drainCadenceMs);
-      try {
+      const publishLoop = (async () => {
         while (Date.now() < floodUntil) {
           try {
             await publisher.publishEphemeral('boardCursors', {
@@ -667,16 +670,23 @@ try {
           }
           await new Promise((resolve) => setTimeout(resolve, 5));
         }
-      } finally {
-        clearInterval(drainTimer);
+      })();
+      while (Date.now() < floodUntil) {
+        const applied = await overlay.drain();
+        delivered += applied.filter((result) => result === 'applied').length;
+        await new Promise((resolve) => setTimeout(resolve, drainCadenceMs));
       }
-      await overlay.drain();
+      await publishLoop;
+      const applied = await overlay.drain();
+      delivered += applied.filter((result) => result === 'applied').length;
       const windowSec = (Date.now() - startedAt) / 1_000;
       const deliveredRate = delivered / windowSec;
+      // One coalesced key: per-key delivery is bounded by the drain cadence.
+      const drainBoundHz = (1_000 / drainCadenceMs) * 1.5; // slack for timer jitter
       assert(published > delivered, `coalescing must reduce deliveries (published ${published}, delivered ${delivered})`);
       assert(
-        deliveredRate <= maxDeltaRateHz,
-        `delivered rate ${deliveredRate.toFixed(1)}Hz exceeds maxDeltaRateHz ${maxDeltaRateHz}`,
+        deliveredRate <= drainBoundHz,
+        `delivered rate ${deliveredRate.toFixed(1)}Hz exceeds the drain-cadence bound ${drainBoundHz}Hz`,
       );
       // The coalescing diagnostic is receipt-visible (LLP 0034 §3.2): it
       // rides the receipts debug surface.
