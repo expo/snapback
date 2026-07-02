@@ -739,9 +739,14 @@ L6–L8.
   2026-07-01** — ledgered in LLP 0000; recorded in LLP 0009 §Invocation
   Isolation with the M1 numbers (LLP 0035). Direction ratified (reduce
   per-invocation VM cost is *the* lever); the warm-VM leg is gated on a proven
-  per-invocation reset (Valet found none on Hermes), and the decision names the
-  cheapest safe first step — decompose create/install/eval and cache the
-  per-invocation process-global host install — before touching VM lifecycle.
+  per-invocation reset (Valet found none on Hermes). **Cheapest safe step done
+  (M2, 2026-07-01):** the per-invocation host install is now cached to
+  once-per-process (`ensure_host_installed`) — a correct cleanup that also
+  removes the nested-re-entry host-reinstall side effect — but the M1
+  decomposition (`vm_create_us` in `snapback-bench`) shows the install was *not*
+  the cost: caching left VM cost within noise, and the cost is **~55 %
+  `ex_hermes_create` + ~45 % eval**. So the real lever is **VM reuse**, not the
+  cheap step; this sharpens DK-4 (recorded in LLP 0009 and LLP 0035).
 - **M3 — Decide DK-3 (delta shape and read lane) on M1 + LLP 0022 evidence.**
   Whole-document `live_replace` per affected subscription per commit
   (`src/local.rs:887-948`) versus op-log deltas, and the stateful-WS-only

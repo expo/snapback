@@ -22,8 +22,13 @@ fn main() -> anyhow::Result<()> {
     println!("  iterations per compute metric: {}", report.iterations);
     println!();
     println!(
-        "  per-invocation VM cost:            {:>10.1} µs   (create + install + eval, no data)",
+        "  per-invocation VM cost:            {:>10.1} µs   (create + eval, no data)",
         report.vm_cost_us
+    );
+    println!(
+        "    of which VM creation:            {:>10.1} µs   ({:.0}% — what a warm VM avoids; rest is eval)",
+        report.vm_create_us,
+        100.0 * report.vm_create_us / report.vm_cost_us.max(1.0)
     );
     println!(
         "  single-writer throughput:          {:>10.0} mut/s (serial commits under the global mutex)",

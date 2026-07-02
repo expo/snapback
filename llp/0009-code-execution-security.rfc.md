@@ -192,15 +192,17 @@ The *direction* is decided; the *technique* stays gated, because Valet's finding
 above (no safe shared-VM technique on Hermes; no snapshot/restore primitives)
 still stands. Concretely:
 
-- **Cheapest safe step first — decompose and cache what carries no isolation
-  risk.** The ~3.9 ms is `RuntimeGuard::create` + `install_host` + `eval`
-  measured together; M1 did not separate them. A follow-up measurement must
-  attribute the cost, because the per-invocation **process-global host
-  re-install** (`install_host` runs on *every* invocation — flagged in
-  [LLP 0032](./0032-decision-and-implementation-hardening.plan.md)'s
-  cross-cutting cleanups) is a prime suspect and caching it is safe (it carries
-  no per-invocation user state). This may capture much of the win without
-  touching VM lifecycle at all.
+- **Cheapest safe step first — done, and it decided the question.** The
+  per-invocation host re-install (`install_host` ran on *every* invocation) was
+  cached to a once-per-process install (LLP 0032 M2) — a correct cleanup that
+  also removes the nested-re-entry host-reinstall side effect. But the M1
+  decomposition ([LLP 0035](./0035-local-target-benchmarks.research.md)) shows
+  the install was **not** the cost: caching it left per-invocation VM cost
+  within run-to-run noise, and the cost decomposes to **~55 % `ex_hermes_create`
+  (pure VM creation) and ~45 % eval**. So the cheap safe win is small, and the
+  real lever is **VM reuse** — creation is the majority of the cost and only a
+  warm VM avoids it (a warm VM also avoids re-parsing the module inside the
+  eval half).
 - **Warm VM per bundle hash for the trusted-local target only.** Reusing a VM
   across invocations of the same handler bundle is the larger lever, but it is
   ratified **only for trusted-local** (single app, trusted developer code, no

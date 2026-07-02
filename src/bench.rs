@@ -74,10 +74,14 @@ impl BenchConfig {
 #[derive(Clone, Debug, Serialize)]
 pub struct BenchReport {
     pub iterations: usize,
-    /// Per-invocation VM cost: create + install-host + eval of a trivial handler
-    /// that touches no data. Isolates the fresh-VM-per-invocation overhead
-    /// (`RuntimeGuard::create`/`install_host`/`eval`). Drives DK-4.
+    /// Per-invocation VM cost: create + eval of a trivial handler that touches
+    /// no data. Isolates the fresh-VM-per-invocation overhead. Drives DK-4.
     pub vm_cost_us: f64,
+    /// Of the VM cost, the *creation* portion (`ex_hermes_create` + wiring +
+    /// drop, host install cached). What a warm VM would avoid; the remainder is
+    /// eval (the handler run itself, which a warm VM must still do but without
+    /// re-parsing the module).
+    pub vm_create_us: f64,
     /// Single-writer throughput: sequential `createTodo` mutations per second.
     /// Because every mutation serializes on the global instance mutex, this is
     /// the single-writer breaking point.
@@ -125,6 +129,7 @@ globalThis.__snapbackHandlers = {
 /// Run the whole harness and return the report.
 pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchReport> {
     let vm_cost_us = measure_vm_cost(config)?;
+    let vm_create_us = crate::runtime::bench_runtime_create_us(config.iterations);
     let single_writer_mutations_per_sec = measure_single_writer(config)?;
     let (matcher_skip_us_per_sub, fanout_us_per_affected_sub) = measure_fanout(config)?;
     let read_set_validation_us_per_dep = measure_read_set_validation(config)?;
@@ -134,6 +139,7 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
     Ok(BenchReport {
         iterations: config.iterations,
         vm_cost_us,
+        vm_create_us,
         single_writer_mutations_per_sec,
         matcher_skip_us_per_sub,
         fanout_us_per_affected_sub,
@@ -570,6 +576,7 @@ mod tests {
         let report = run(&BenchConfig::smoke()).expect("bench runs");
 
         assert!(report.vm_cost_us > 0.0 && report.vm_cost_us < 100_000.0, "{report:?}");
+        assert!(report.vm_create_us >= 0.0, "{report:?}");
         assert!(report.single_writer_mutations_per_sec > 1.0, "{report:?}");
         assert!(report.matcher_skip_us_per_sub >= 0.0, "{report:?}");
         assert!(report.fanout_us_per_affected_sub >= 0.0, "{report:?}");

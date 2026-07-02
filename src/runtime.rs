@@ -19,6 +19,7 @@ use std::process::Command;
 use std::ptr;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
+use std::time::Instant;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct RuntimeCapabilities {
@@ -193,8 +194,19 @@ unsafe extern "C" {
 
 struct RuntimeGuard(*mut HermesRuntimeOpaque);
 
-impl RuntimeGuard {
-    fn create() -> SnapbackResult<Self> {
+/// The process-global Ibex host is a fixed capability *policy* (strict, plus a
+/// coarse `network:fetch` grant when outbound actions are enabled), not
+/// per-invocation state. Building and installing it on every invocation was
+/// pure overhead — and, per M1, per-invocation VM cost dominates the whole
+/// system. Install it exactly once per process. The per-invocation *context*
+/// (reads/writes) stays thread-local and separate.
+///
+/// @ref LLP 0009#invocation-isolation — DK-4 cheapest safe step: cache what
+/// carries no per-invocation user state.
+/// @ref LLP 0032#phase-4--measurement — M2.
+fn ensure_host_installed() {
+    static INSTALLED: std::sync::Once = std::sync::Once::new();
+    INSTALLED.call_once(|| {
         // @ref LLP 0009#capability-model — static checks are defense-in-depth;
         // the runtime host itself must deny ambient powers. The coarse
         // network:fetch gate is opened only when outbound actions are enabled;
@@ -204,6 +216,12 @@ impl RuntimeGuard {
             host.capabilities().grant("*", "network:fetch", None);
         }
         ibex_runtime::host::abi::install_host(host);
+    });
+}
+
+impl RuntimeGuard {
+    fn create() -> SnapbackResult<Self> {
+        ensure_host_installed();
         let runtime = unsafe { ex_hermes_create() };
         if runtime.is_null() {
             return Err(SnapbackError::error(
@@ -221,6 +239,23 @@ impl Drop for RuntimeGuard {
     fn drop(&mut self) {
         unsafe { ex_hermes_destroy(self.0) };
     }
+}
+
+/// Mean microseconds to create + destroy a runtime (`ex_hermes_create` +
+/// host-call wiring + drop), with the host install already cached. Lets the M1
+/// harness attribute the per-invocation VM cost to *creation* (which a warm VM
+/// would avoid) versus *eval* (the handler run itself).
+///
+/// @ref LLP 0032#phase-4--measurement — M2 VM-cost decomposition.
+pub fn bench_runtime_create_us(iterations: usize) -> f64 {
+    for _ in 0..4 {
+        let _ = RuntimeGuard::create();
+    }
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let _guard = RuntimeGuard::create();
+    }
+    start.elapsed().as_micros() as f64 / iterations.max(1) as f64
 }
 
 struct IbexHostContext<'a> {

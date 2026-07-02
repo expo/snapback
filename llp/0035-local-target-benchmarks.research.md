@@ -62,7 +62,8 @@ DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
 
 | Metric | Number | What it measures |
 | --- | --- | --- |
-| Per-invocation VM cost | **~3 900 µs** | `RuntimeGuard::create` + `install_host` + `eval` of a trivial handler touching no data |
+| Per-invocation VM cost | **~2 700–3 900 µs** | create + eval of a trivial handler touching no data (varies run-to-run on a dev machine) |
+| — of which VM *creation* | **~55 %** | `ex_hermes_create` + wiring + drop (host install cached) — what a warm VM avoids; the rest is eval |
 | Single-writer throughput | **~227 mut/s** | sequential `createTodo` commits under the global instance mutex (the single-writer breaking point) |
 | Matcher cost (skip path) | **~1.8 µs/sub** | per-subscription cost to evaluate and skip an *unaffected* subscription |
 | Live fan-out cost (affected) | **~4 900 µs/sub** | per *affected* subscription: re-run the query (a full VM invocation) + serialize + enqueue |
@@ -73,11 +74,16 @@ DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
 
 ## What the numbers mean
 
-1. **The VM is the whole cost.** At ~3.9 ms, a fresh VM per invocation is ~3
-   orders of magnitude more expensive than the matcher, validation, or an
-   ephemeral publish. Single-writer throughput (~230/s) is just `1 / VM-cost`;
-   the commit itself is in the noise. **Anything that reduces per-invocation VM
-   cost is the single biggest lever in the system.**
+1. **The VM is the whole cost.** A fresh VM per invocation is ~3 orders of
+   magnitude more expensive than the matcher, validation, or an ephemeral
+   publish. Single-writer throughput is just `1 / VM-cost`; the commit itself is
+   in the noise. **Anything that reduces per-invocation VM cost is the single
+   biggest lever in the system.** The decomposition (M2) attributes **~55 % to
+   `ex_hermes_create`** (pure VM creation) and ~45 % to eval — and caching the
+   per-invocation host install moved the total within run-to-run noise, so the
+   install was *not* the cost. The lever is therefore **VM reuse** (a warm VM
+   avoids creation entirely and re-parsing the module inside eval), not the
+   host-install cleanup. This is the concrete backing for DK-4.
 
 2. **Live fan-out is catastrophically VM-bound.** Each affected subscription
    costs ~4.9 ms because the current design **re-runs the subscription's query
