@@ -23,9 +23,53 @@ use snapback::manifest::{
 const LEAK_MODULE_SOURCE: &str = r#"
 let moduleCounter = 0;
 let mutationCounter = 0;
+let stashedCtx = null;
 globalThis.DK4_BASELINE = "original";
 globalThis.__snapbackHandlers = {
   async count(ctx) { moduleCounter += 1; return [{ n: moduleCounter }]; },
+  // Cross-context injection probe: A captures its own ctx in module scope
+  // (the sweep cannot reach a closure); a later invocation B fires it.
+  async stashCtx(ctx, args) {
+    stashedCtx = ctx;
+    return await ctx.db.insert('items', { n: args.n, who: args.who });
+  },
+  async fireStashed(ctx, args) {
+    var sawStash = stashedCtx !== null;
+    var injectionBlocked = false;
+    if (stashedCtx) {
+      try {
+        // Under the bug this routes through B's live context (B's auth, B's
+        // buffer) and commits {n:999} inside B's mutation. The epoch guard
+        // must reject it: A's ctx closes over A's epoch, B is live.
+        stashedCtx.db.insert('items', { n: 999, who: 'injected' });
+      } catch (e) {
+        injectionBlocked = true;
+      }
+    }
+    await ctx.db.insert('items', {
+      n: args.n, who: args.who, sawStash: sawStash, injectionBlocked: injectionBlocked
+    });
+    return [];
+  },
+  async listItems(ctx) {
+    return await ctx.db.query('items').order('_createdAt', 'asc').collect();
+  },
+  // Iterator-prototype pollution: %ArrayIteratorPrototype%.next is not a named
+  // global; a poisoned .next breaks the next invocation's for-of unless the
+  // reset root-set reaches it. Poison to terminate-empty (never hang).
+  async poisonIterator(ctx) {
+    var proto = Object.getPrototypeOf([][Symbol.iterator]());
+    proto.dk4IterPoison = "x";
+    proto.next = function () { return { value: undefined, done: true }; };
+    return [];
+  },
+  async checkIterator(ctx) {
+    var arr = ["a", "b"];
+    var collected = [];
+    for (var x of arr) { collected.push(x); if (collected.length > 8) break; }
+    var proto = Object.getPrototypeOf([][Symbol.iterator]());
+    return [{ collected: collected, poisoned: proto.dk4IterPoison !== undefined }];
+  },
   async setLeak(ctx, args) {
     globalThis.dk4Leak = args.value;
     globalThis[Symbol.for("dk4sym")] = args.value;
@@ -90,18 +134,42 @@ globalThis.__snapbackHandlers = {
 "#;
 
 fn schema() -> SchemaManifest {
+    let int = |name: &str, optional: bool| FieldManifest {
+        name: name.to_owned(),
+        field_type: FieldType::Integer,
+        optional,
+    };
+    let string = |name: &str, optional: bool| FieldManifest {
+        name: name.to_owned(),
+        field_type: FieldType::String,
+        optional,
+    };
+    let boolean = |name: &str, optional: bool| FieldManifest {
+        name: name.to_owned(),
+        field_type: FieldType::Boolean,
+        optional,
+    };
     SchemaManifest {
         schema_hash: Some("dk4-v0".to_owned()),
-        tables: vec![TableManifest {
-            name: "counts".to_owned(),
-            fields: vec![FieldManifest {
-                name: "n".to_owned(),
-                field_type: FieldType::Integer,
-                optional: false,
-            }],
-            indexes: Vec::new(),
-            syncable: true,
-        }],
+        tables: vec![
+            TableManifest {
+                name: "counts".to_owned(),
+                fields: vec![int("n", false)],
+                indexes: Vec::new(),
+                syncable: true,
+            },
+            TableManifest {
+                name: "items".to_owned(),
+                fields: vec![
+                    int("n", false),
+                    string("who", false),
+                    boolean("sawStash", true),
+                    boolean("injectionBlocked", true),
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+            },
+        ],
         ..SchemaManifest::default()
     }
 }
@@ -143,6 +211,11 @@ fn leak_functions() -> FunctionManifest {
             query("checkPollution"),
             mutation("danglePromise"),
             query("checkDangle"),
+            mutation("stashCtx"),
+            mutation("fireStashed"),
+            query("listItems"),
+            query("poisonIterator"),
+            query("checkIterator"),
             query("freezeGlobals"),
         ],
         ..FunctionManifest::default()
@@ -161,6 +234,20 @@ fn input(args: Value) -> HandlerInput {
         args,
         auth: AuthInput::default(),
         read_set: Vec::new(),
+        correlation: None,
+    }
+}
+
+fn input_as(user: &str, args: Value) -> HandlerInput {
+    HandlerInput {
+        args,
+        auth: AuthInput {
+            principal: Some(user.to_owned()),
+            session_id: None,
+            user_id: Some(user.to_owned()),
+        },
+        read_set: Vec::new(),
+        correlation: None,
     }
 }
 
@@ -356,6 +443,75 @@ fn dk4_capability_manifest_reports_vm_lifecycle() {
     let mut snapback = configured();
     let inspect = snapback.inspect().expect("inspect");
     assert_eq!(inspect.capability_manifest.vm_lifecycle, "warm-pooled-reset");
+}
+
+/// THE cross-context regression test (adversarial-review HIGH, 2026-07-02).
+/// Invocation A (alice) stashes its own `ctx` in module scope — the accepted
+/// closure carve-out the sweep cannot reach. Invocation B (bob) reuses the
+/// warm VM and fires A's stashed `ctx.db.insert({n:999})`. Against the
+/// unfixed code that insert routes through B's live thread-local context and
+/// commits `{n:999}` inside bob's mutation (cross-user write injection). With
+/// the epoch guard, A's ctx carries A's epoch, B is live, and the host
+/// rejects the stale continuation. Asserts: bob's row proves reuse
+/// (`sawStash`) AND the guard fired (`injectionBlocked`), and no `n:999` row
+/// exists in anyone's data. Would fail against the pre-fix code.
+#[test]
+fn dk4_stale_continuation_cannot_inject_into_another_invocation() {
+    let mut snapback = configured();
+    snapback
+        .invoke_mutation("stashCtx", input_as("alice", json!({ "n": 1, "who": "alice" })))
+        .expect("alice stash");
+    snapback
+        .invoke_mutation("fireStashed", input_as("bob", json!({ "n": 2, "who": "bob" })))
+        .expect("bob fire");
+
+    let rows = snapback
+        .invoke_query("listItems", input(json!({})))
+        .expect("listItems")
+        .rows;
+
+    let bob_row = rows
+        .iter()
+        .find(|row| row["n"].as_u64() == Some(2))
+        .expect("bob's row must exist");
+    assert_eq!(
+        bob_row["sawStash"], true,
+        "the warm VM must have been reused — else the probe is vacuous: {bob_row:?}"
+    );
+    assert_eq!(
+        bob_row["injectionBlocked"], true,
+        "A's stashed ctx.db.insert must be rejected as a stale continuation: {bob_row:?}"
+    );
+    assert!(
+        !rows.iter().any(|row| row["n"].as_u64() == Some(999)),
+        "no injected n:999 row may exist — cross-context write must not commit: {rows:?}"
+    );
+}
+
+/// MEDIUM (adversarial-review, 2026-07-02): the reset root-set must reach
+/// intrinsics that are not named globals. A poisoned
+/// `%ArrayIteratorPrototype%.next` from one invocation must not survive to
+/// break the next invocation's for-of. `count` first proves reuse is
+/// happening (non-vacuous), then poison + check on the same warm VM.
+#[test]
+fn dk4_iterator_prototype_pollution_is_swept() {
+    let snapback = configured();
+    assert_eq!(count(&snapback), 1);
+    assert_eq!(count(&snapback), 2, "warm VM must be reused for this to be meaningful");
+
+    snapback
+        .invoke_query("poisonIterator", input(json!({})))
+        .expect("poisonIterator");
+    let row = query_row(&snapback, "checkIterator");
+    assert_eq!(
+        row["collected"],
+        json!(["a", "b"]),
+        "for-of must work on the next invocation — %ArrayIteratorPrototype% must be restored: {row:?}"
+    );
+    assert_eq!(
+        row["poisoned"], false,
+        "the added iterator-prototype property must be swept: {row:?}"
+    );
 }
 
 /// Actions always run fresh: module-level state never persists across two

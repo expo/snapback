@@ -46,6 +46,15 @@ pub(crate) struct WarmVm {
     /// has completed. Setup runs inside the invocation's host-context window
     /// so first-invocation module top-level host calls match the fresh path.
     set_up: bool,
+    /// The pool generation this VM was checked out under. `clear()` bumps the
+    /// generation; a check-in whose generation is stale is dropped, not
+    /// pooled — this closes the read-lane race where an in-flight lock-free
+    /// query, holding a VM checked out before a `load_functions`/`reset`,
+    /// would otherwise return a pre-clear VM (with pre-reload module state)
+    /// into the freshly-cleared pool.
+    ///
+    /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — generation guard.
+    generation: u64,
 }
 
 // SAFETY: a WarmVm is moved between OS threads (tokio blocking-pool threads
@@ -79,6 +88,9 @@ impl WarmVm {
 struct PoolInner {
     vms: HashMap<String, Vec<WarmVm>>,
     pooled: usize,
+    /// Bumped by `clear()`; a VM checked out under an older generation is
+    /// dropped on check-in rather than pooled.
+    generation: u64,
 }
 
 /// The per-instance warm VM pool. One per `LocalSnapback` — two local app
@@ -125,7 +137,7 @@ impl WarmVmPool {
     /// creation (~ms) runs unlocked, and the returned VM is exclusively owned
     /// until check-in or drop.
     pub(crate) fn checkout(&self, module_source: &str) -> SnapbackResult<WarmVm> {
-        {
+        let generation = {
             let mut inner = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             if let Some(vms) = inner.vms.get_mut(module_source)
                 && let Some(vm) = vms.pop()
@@ -133,11 +145,13 @@ impl WarmVmPool {
                 inner.pooled -= 1;
                 return Ok(vm);
             }
-        }
+            inner.generation
+        };
         Ok(WarmVm {
             guard: RuntimeGuard::create()?,
             key: module_source.to_owned(),
             set_up: false,
+            generation,
         })
     }
 
@@ -159,6 +173,11 @@ impl WarmVmPool {
 
     fn check_in(&self, vm: WarmVm) {
         let mut inner = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        // A VM checked out before a `clear()` carries a stale generation; drop
+        // it rather than return pre-reload module state to the cleared pool.
+        if vm.generation != inner.generation {
+            return;
+        }
         if inner.pooled >= WARM_VM_POOL_CAP {
             return; // drop beyond the bound
         }
@@ -167,12 +186,16 @@ impl WarmVmPool {
         inner.vms.entry(key).or_default().push(vm);
     }
 
-    /// Drop every pooled VM. Called on `load_functions` and app `reset`
-    /// (content keying already prevents stale reuse; clearing frees memory).
+    /// Drop every pooled VM and advance the generation. Called on
+    /// `load_functions` and app `reset`. Content keying already prevents
+    /// reuse across a *changed* source; the generation bump additionally
+    /// closes the identical-source-reload race with an in-flight lock-free
+    /// read holding a pre-clear VM.
     pub(crate) fn clear(&self) {
         let drained = {
             let mut inner = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             inner.pooled = 0;
+            inner.generation = inner.generation.wrapping_add(1);
             std::mem::take(&mut inner.vms)
         };
         drop(drained); // destroy outside the lock
@@ -279,34 +302,89 @@ pub(crate) const RESET_INSTALL_SOURCE: &str = r#"
     return restored;
   }
 
-  // Intrinsic pollution roots. Fixed, shallow, and documented: anything
-  // deeper than these objects' own properties (and the dispatch table's own
-  // properties) is module-state territory per the DK-4 as-built limits.
-  var roots = [
-    Object, Object.prototype, Array, Array.prototype,
-    Function, Function.prototype, String, String.prototype,
-    Number, Number.prototype, Boolean, Boolean.prototype,
-    Date, Date.prototype, RegExp, RegExp.prototype,
-    Error, Error.prototype, TypeError.prototype, RangeError.prototype,
-    SyntaxError.prototype, ReferenceError.prototype, EvalError.prototype,
-    URIError.prototype, Map, Map.prototype, Set, Set.prototype,
-    WeakMap.prototype, WeakSet.prototype, Promise, Promise.prototype,
-    Symbol, Symbol.prototype, JSON, Math, Reflect,
-    ArrayBuffer.prototype, DataView.prototype
+  // Intrinsic pollution roots. The sweep restores each root's *own*
+  // properties to the post-setup baseline; anything deeper (a value stored
+  // inside a root's property) is module-state territory per the DK-4 limits.
+  // The set is broad on purpose: every constructor *and* its prototype, the
+  // iterator/generator prototypes reached reflectively (a poisoned
+  // %ArrayIteratorPrototype%.next would otherwise break the next
+  // invocation's for-of), and the host namespaces. Restore-or-burn: if any
+  // watched root drifted un-restorably, __snapbackReset throws and the VM is
+  // burned. Deduplicated by identity so shared objects are snapshotted once.
+  var roots = [];
+  var seen = new MapCtor();
+  function pushRoot(obj) {
+    if (obj === null || (typeof obj !== "object" && typeof obj !== "function")) return;
+    if (apply(mapHas, seen, [obj])) return;
+    apply(mapSet, seen, [obj, true]);
+    roots[roots.length] = obj;
+  }
+  function pushCtor(ctor) {
+    if (typeof ctor !== "function") return;
+    pushRoot(ctor);
+    pushRoot(ctor.prototype);
+  }
+  // Fundamental + wrappers + well-known.
+  pushCtor(Object); pushCtor(Function); pushCtor(Array);
+  pushCtor(String); pushCtor(Number); pushCtor(Boolean);
+  pushCtor(Symbol); pushCtor(Date); pushCtor(RegExp);
+  pushCtor(Promise);
+  if (typeof BigInt !== "undefined") pushCtor(BigInt);
+  // Errors: constructors *and* prototypes (only prototypes were covered before).
+  pushCtor(Error); pushCtor(TypeError); pushCtor(RangeError);
+  pushCtor(SyntaxError); pushCtor(ReferenceError); pushCtor(EvalError);
+  pushCtor(URIError);
+  if (typeof AggregateError !== "undefined") pushCtor(AggregateError);
+  // Collections, including the weak family's constructors.
+  pushCtor(Map); pushCtor(Set); pushCtor(WeakMap); pushCtor(WeakSet);
+  if (typeof WeakRef !== "undefined") pushCtor(WeakRef);
+  if (typeof FinalizationRegistry !== "undefined") pushCtor(FinalizationRegistry);
+  // Binary: ArrayBuffer/DataView/TypedArray constructors + the shared base.
+  pushCtor(ArrayBuffer); pushCtor(DataView);
+  if (typeof SharedArrayBuffer !== "undefined") pushCtor(SharedArrayBuffer);
+  var typedArrayNames = [
+    "Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array",
+    "Int32Array", "Uint32Array", "Float32Array", "Float64Array",
+    "BigInt64Array", "BigUint64Array"
   ];
-  if (typeof Uint8Array !== "undefined") {
-    roots[roots.length] = getProto(Uint8Array.prototype); // %TypedArray%.prototype
-    roots[roots.length] = getProto(Uint8Array);           // %TypedArray%
+  for (var t = 0; t < typedArrayNames.length; t++) {
+    var TA = g[typedArrayNames[t]];
+    if (typeof TA === "function") {
+      pushCtor(TA);
+      pushRoot(getProto(TA));            // %TypedArray%
+      if (TA.prototype) pushRoot(getProto(TA.prototype)); // %TypedArray%.prototype
+    }
   }
-  // The engine-provided console is the most commonly monkeypatched host
-  // global; sweep its own properties like the intrinsic namespaces (Math,
-  // JSON) so a patched console.log or data stashed on it cannot persist.
-  if (typeof console === "object" && console !== null) {
-    roots[roots.length] = console;
-  }
+  // Reflection / meta namespaces and the Proxy constructor.
+  pushRoot(JSON); pushRoot(Math); pushRoot(Reflect);
+  if (typeof Proxy === "function") pushRoot(Proxy);
+  if (typeof Intl !== "undefined") pushRoot(Intl);
+  if (typeof Atomics !== "undefined") pushRoot(Atomics);
+  if (typeof WebAssembly !== "undefined") pushRoot(WebAssembly);
+  // Iterator/generator prototypes — not reachable as named globals, but a
+  // poisoned .next/.return here silently corrupts for-of/yield in the next
+  // invocation. Reach them reflectively; guard each in case the engine lacks
+  // a form. %IteratorPrototype% is the parent of all of them.
+  try { pushRoot(getProto([][Symbol.iterator]())); pushRoot(getProto(getProto([][Symbol.iterator]()))); } catch (_) {}
+  try { pushRoot(getProto(""[Symbol.iterator]())); } catch (_) {}
+  try { pushRoot(getProto(new MapCtor()[Symbol.iterator]())); } catch (_) {}
+  try { pushRoot(getProto(new Set()[Symbol.iterator]())); } catch (_) {}
+  try {
+    var genFnProto = getProto(function* () {}); // %Generator% (GeneratorFunction.prototype)
+    pushRoot(genFnProto);
+    if (genFnProto && genFnProto.prototype) pushRoot(genFnProto.prototype); // %GeneratorPrototype%
+  } catch (_) {}
+  // (Async generators are not a Hermes syntax form, so %AsyncGeneratorPrototype%
+  // is not reachable/pollutable by app code; nothing to sweep.)
+  // Host-provided globals commonly monkeypatched (console, crypto, encoders).
+  if (typeof console !== "undefined") pushRoot(console);
+  if (typeof crypto !== "undefined") pushRoot(crypto);
+  if (typeof TextEncoder === "function") pushCtor(TextEncoder);
+  if (typeof TextDecoder === "function") pushCtor(TextDecoder);
+  // The dispatch table itself (one level: replacing/adding a handler must not survive).
   var handlers = g.__snapbackHandlers;
   if (handlers !== null && (typeof handlers === "object" || typeof handlers === "function")) {
-    roots[roots.length] = handlers;
+    pushRoot(handlers);
   }
 
   var rootBaselines = [];
@@ -378,6 +456,7 @@ globalThis.__snapbackHandlers = {{
             args: json!({}),
             auth: AuthInput::default(),
             read_set: Vec::new(),
+            correlation: None,
         }
     }
 

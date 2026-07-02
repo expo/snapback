@@ -142,16 +142,22 @@ corpus does not rely on scattered "pending Charlie" notes.
   `globalThis`, the dispatch table, and a fixed intrinsic-root list, with
   fail-closed burn-and-recreate on any doubt; actions and hosted/untrusted
   stay fresh; the posture is capability-flagged (`vmLifecycle`) and
-  opt-out-able (`SNAPBACK_FRESH_VM=1`). The gate held: the `dk4_*` leak suite
-  is the proven reset, and an adversarial-review HIGH (a module-scope-captured
-  continuation firing against a later invocation's host context) is closed by
-  an invocation-epoch guard that fails such a stale host call closed. Measured
-  (LLP 0035 §After warm VM): warm invocation ~900 µs vs fresh ~5.5 ms same-run
-  (6.1×), single-writer ~4× to ~1 050 mut/s, fan-out ~2.4× to ~2 ms/affected
-  sub — fan-out is now row-bound (the DK-3 revisit trigger's territory), not
-  VM-bound. Honest limit recorded: module-level closure state persists across
-  warm invocations (standard pooled-runtime semantics), pinned by a
-  characterization test
+  opt-out-able (`SNAPBACK_FRESH_VM=1`). Adversarial review then found and the
+  same landing fixed a HIGH cross-invocation context-injection bug (a
+  module-scope-stashed handler continuation firing during a later invocation
+  would inject a cross-user write) with an **invocation-epoch
+  stale-continuation guard** that rejects any host call whose originating
+  invocation is not the live one — plus a broadened reset root-set and a pool
+  generation counter. The gate held: the `dk4_*` leak suite is the proven
+  reset, and includes a cross-invocation regression test that fails against
+  the pre-guard code. Measured (LLP 0035 §After warm VM, two runs, the guard
+  adds no measurable cost): warm invocation ~800–900 µs vs fresh ~3.6 ms
+  (4.5–6.1×), single-writer ~4–5× to ~1 050–1 280 mut/s, fan-out ~2.4–3× to
+  ~1.5–2 ms/affected sub — fan-out is now row-bound (the DK-3 revisit
+  trigger's territory), not VM-bound. Honest limit recorded: module-level
+  closure *state* persists across warm invocations (standard pooled-runtime
+  semantics; cross-invocation *execution* is separately fenced by the epoch
+  guard), pinned by a characterization test
   ([LLP 0009](./0009-code-execution-security.rfc.md) §DK-4 as-built).
 
 ## Who Snapback is for

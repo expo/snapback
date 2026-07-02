@@ -103,27 +103,36 @@ per module source for queries/mutations behind a verified per-invocation
 reset; actions and hosted stay fresh). The harness gained a `warm_invoke_us`
 metric — the warm-path cost of the same trivial no-data query — while
 `vm_cost_us` **keeps its fresh-create definition** (the measurement disables
-the pool) so the fresh baseline stays visible. One full-scale release run,
-same machine and method:
+the pool) so the fresh baseline stays visible. Numbers below are the
+representative of **two full-scale release runs**: the initial landing and a
+re-run after the adversarial-review hardening (the invocation-epoch
+stale-continuation guard, the broadened reset root-set, the pool generation
+counter). The guard added **no measurable warm-path cost** — the `noop`
+warm-invoke metric makes zero host calls, so the epoch check does not even
+execute on it, and the per-invocation `host`/builder closure rebuild is in the
+noise (warm invocation ~800–900 µs across both runs).
 
 | Metric | Before (L6+L7 re-run) | After (warm VM) | Meaning |
 | --- | --- | --- | --- |
-| Per-invocation VM cost (fresh) | ~3 600–4 400 µs | ~5 500 µs *(this run)* | definition unchanged (pool disabled in the measurement); this run's fresh cost measured above the earlier band — dev-machine variance — so the same-run fresh:warm ratio is the honest comparison |
-| Warm-path invocation | *n/a* | **~900 µs** | invoke-IIFE eval + reset sweep, no create, no module re-parse — **6.1×** cheaper than fresh in the same run |
-| Single-writer throughput | 248–278 mut/s | **~1 050 mut/s** | ~4× — the commit itself is now visible beside the VM work (~950 µs/commit ≈ warm invocation + commit) |
-| Live fan-out cost (affected) | ~4 900 µs/sub | **~2 000 µs/sub** | ~2.4× — the fresh-VM component is gone; what remains is the re-query row work + serialize + dependency capture, which is DK-3 (op-log delta) territory |
-| Fan-out ceiling @ 10 ms | ~2 affected subs/commit | **~5 affected subs/commit** | derived |
-| Read during a busy write — read lane | ~4 300–4 600 µs | ~7 200 µs | **a warm-pool miss by construction**: the harness's single warm VM is checked out by the busy writer (same bundle), so the one concurrent read pays a fresh create+setup — ≈ the fresh path, never queued. Steady-state concurrent readers warm their own VMs (the pool holds up to 4) |
+| Per-invocation VM cost (fresh) | ~3 600–4 400 µs | ~3 600 µs (one run spiked ~5 500) | definition unchanged (pool disabled in the measurement); dev-machine run-to-run variance — the same-run fresh:warm ratio is the honest comparison |
+| Warm-path invocation | *n/a* | **~800–900 µs** | invoke-IIFE eval + reset sweep, no create, no module re-parse — **4.5–6.1×** cheaper than fresh in the same run |
+| Single-writer throughput | 248–278 mut/s | **~1 050–1 280 mut/s** | ~4–5× — the commit itself is now visible beside the VM work |
+| Live fan-out cost (affected) | ~4 900 µs/sub | **~1 550–2 000 µs/sub** | ~2.4–3× — the fresh-VM component is gone; what remains is the re-query row work + serialize + dependency capture, which is DK-3 (op-log delta) territory |
+| Fan-out ceiling @ 10 ms | ~2 affected subs/commit | **~5–6 affected subs/commit** | derived |
+| Read during a busy write — read lane | ~4 300–4 600 µs | ~6 000–7 200 µs | **a warm-pool miss by construction**: the harness's single warm VM is checked out by the busy writer (same bundle), so the one concurrent read pays a fresh create+setup — ≈ the fresh path, never queued. Steady-state concurrent readers warm their own VMs (the pool holds up to 4) |
 | Read during a busy write — global mutex | ~302 000–309 000 µs | ~300 000 µs | unchanged by design (still queues; kept measurable) |
 
 Reading the numbers:
 
 1. **The warm path delivers the projected win where it was projected.** The
    two write-lane ceilings the M1 numbers blamed on VM creation both moved:
-   single-writer ~4×, fan-out ~2.4×. The ~900 µs warm invocation is the new
-   floor for one handler run — roughly: parse+eval of the small invoke IIFE,
-   the handler's own work, and the reset sweep (globalThis + dispatch table +
-   ~40 intrinsic roots, a few hundred descriptor comparisons).
+   single-writer ~4–5×, fan-out ~2.4–3×. The ~800–900 µs warm invocation is the
+   new floor for one handler run — roughly: parse+eval of the small invoke
+   IIFE, the handler's own work, and the reset sweep (globalThis + dispatch
+   table + the broadened intrinsic root set, a few hundred descriptor
+   comparisons). The stale-continuation guard's per-host-call epoch check
+   (string split + `u64` parse + compare) is dwarfed by the JSON round-trip it
+   sits beside and did not move the metric.
 2. **Fan-out is no longer VM-bound; it is row-bound.** At ~2 ms per affected
    subscriber the remaining cost is re-running the query against a growing
    result set and re-serializing all rows — exactly the whole-document
@@ -135,8 +144,8 @@ Reading the numbers:
    pool-miss case rather than an idealized warm hit.
 4. The `m1_bench_smoke` CI lane now asserts `warm_invoke_us <
    0.75 × vm_cost_us` — it fails if the warm path silently regresses toward
-   fresh (e.g. a broken reset burning every VM); measured ratio this run:
-   **0.16**.
+   fresh (e.g. a broken reset burning every VM, or a silent fallback);
+   measured warm:fresh ratio **~0.16–0.22** across the two runs.
 
 ## What the numbers mean
 

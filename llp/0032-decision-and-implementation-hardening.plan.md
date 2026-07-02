@@ -922,18 +922,29 @@ L6–L8.
   **Warm VM landed 2026-07-02** — the gated leg shipped: a per-instance pool
   keyed by exact module source reuses VMs for queries/mutations behind a
   verified per-invocation reset (baseline-restore of globalThis, the dispatch
-  table, and a fixed intrinsic-root list; fail-closed burn on any doubt);
+  table, and a broadened intrinsic-root set; fail-closed burn on any doubt);
   actions and hosted stay fresh; capability-flagged as `vmLifecycle`
   (`warm-pooled-reset` vs `fresh-per-invocation`) with a `SNAPBACK_FRESH_VM=1`
-  opt-out. The proven-reset gate is the `dk4_*` leak suite
-  (`tests/warm_vm_dk4.rs` + `src/warm_vm.rs` unit tests). Measured
-  ([LLP 0035](./0035-local-target-benchmarks.research.md) §After warm VM):
-  warm invocation **~900 µs** vs fresh ~5.5 ms same-run (**6.1×**);
-  single-writer **~1 050 mut/s** (was 248–278, ~4×); fan-out **~2 000 µs**/
-  affected sub (was ~4 900, ~2.4×), ceiling ~5 subs/commit @ 10 ms; the
-  remaining fan-out cost is row work (DK-3 territory), not VM work. As-built
-  design + honest limits (module-level closure state persists on the warm
-  path — the documented pooled-runtime semantics) in
+  opt-out. **Hardened same day after adversarial review** — a HIGH
+  cross-invocation context-injection bug (a module-scope-stashed `ctx`/resolver
+  firing during a later invocation would route through the wrong context and
+  inject a cross-user write) is closed by an **invocation-epoch
+  stale-continuation guard** (every host call carries its originating
+  invocation's epoch; a mismatch against the live context is rejected
+  fail-closed); a MEDIUM (shallow reset root-set) by broadening the sweep to
+  the iterator/generator prototypes and all constructors with restore-or-burn;
+  a read-lane check-in race by a pool generation counter. The proven-reset gate
+  is the `dk4_*` leak suite (`tests/warm_vm_dk4.rs` + `src/warm_vm.rs` unit
+  tests), including the cross-invocation regression test that fails against the
+  pre-guard code. Measured
+  ([LLP 0035](./0035-local-target-benchmarks.research.md) §After warm VM, two
+  runs, guard adds no measurable cost): warm invocation **~800–900 µs** vs
+  fresh ~3.6 ms (**4.5–6.1×**); single-writer **~1 050–1 280 mut/s** (was
+  248–278, ~4–5×); fan-out **~1 550–2 000 µs**/affected sub (was ~4 900,
+  ~2.4–3×), ceiling ~5–6 subs/commit @ 10 ms; the remaining fan-out cost is row
+  work (DK-3 territory), not VM work. As-built design + honest limits
+  (module-level closure *state* persists — documented pooled-runtime semantics
+  — while cross-invocation *execution* is fenced by the epoch guard) in
   [LLP 0009](./0009-code-execution-security.rfc.md) §DK-4 as-built.
 - **M3 — Decide DK-3 (delta shape and read lane) on M1 + LLP 0022 evidence.**
   Whole-document `live_replace` per affected subscription per commit

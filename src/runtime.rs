@@ -281,6 +281,20 @@ pub fn bench_runtime_create_us(iterations: usize) -> f64 {
     start.elapsed().as_micros() as f64 / iterations.max(1) as f64
 }
 
+/// Process-monotonic invocation epoch. Every invocation (fresh or warm) gets
+/// a unique one; it is baked into that invocation's JS `ctx` closures and
+/// carried on every host call so a continuation from a *prior* invocation —
+/// firing during a *later* one on the same warm VM — is rejected instead of
+/// silently routed to the current invocation's context (cross-user write
+/// injection). See [`snapback_host_call`].
+///
+/// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — stale-continuation guard.
+static NEXT_INVOCATION_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+fn next_invocation_epoch() -> u64 {
+    NEXT_INVOCATION_EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 struct IbexHostContext<'a> {
     db: DbRead<'a>,
     input: HandlerInput,
@@ -290,6 +304,9 @@ struct IbexHostContext<'a> {
     now_ms: u64,
     action_run: Option<CronRunMetadata>,
     action_host: Option<&'a mut dyn IbexActionHost>,
+    /// This invocation's identity. A host call whose carried epoch does not
+    /// equal this is a stale continuation and is rejected.
+    epoch: u64,
 }
 
 impl<'a> IbexHostContext<'a> {
@@ -308,6 +325,7 @@ impl<'a> IbexHostContext<'a> {
             now_ms: now_millis(),
             action_run: None,
             action_host: None,
+            epoch: next_invocation_epoch(),
         }
     }
 
@@ -327,11 +345,16 @@ impl<'a> IbexHostContext<'a> {
             now_ms: run.due_at_ms,
             action_run: Some(run),
             action_host: Some(host),
+            epoch: next_invocation_epoch(),
         }
     }
 
     fn db(&self) -> &DbRead<'a> {
         &self.db
+    }
+
+    fn epoch(&self) -> u64 {
+        self.epoch
     }
 
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
@@ -877,6 +900,11 @@ pub(crate) fn eval(
         "SNAPBACK_HANDLER_CAPABILITY_DENIED"
     } else if output.contains("SNAPBACK_HANDLER_EXPORT_MISSING") {
         "SNAPBACK_HANDLER_EXPORT_MISSING"
+    } else if output.contains("SNAPBACK_HANDLER_STALE_CONTINUATION") {
+        // A stale continuation's host call threw and propagated to the
+        // handler top level (the synchronous-fire case). Surface it distinctly
+        // so it is diagnosable rather than a generic failure.
+        "SNAPBACK_HANDLER_STALE_CONTINUATION"
     } else {
         "SNAPBACK_HANDLER_FAILED"
     };
@@ -889,7 +917,27 @@ pub(crate) fn eval(
 
 extern "C" fn snapback_host_call(op: *const c_char, args_json: *const c_char) -> *mut c_char {
     let result = std::panic::catch_unwind(|| {
-        let op = c_string_to_string(op)?;
+        let raw_op = c_string_to_string(op)?;
+        // Every legitimate host call is emitted by the per-invocation `host()`
+        // closure as "<epoch>|<op>" — the epoch is baked into that closure at
+        // invocation time, so a stale continuation carries the *prior*
+        // invocation's epoch. A bare op (no separator) can only come from code
+        // calling `__hostCall` directly, bypassing `ctx`; that is unsupported
+        // and fails closed.
+        let (epoch_str, op) = raw_op.split_once('|').ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_HANDLER_HOST_CALL_MALFORMED",
+                "runtime",
+                "handler host call was not issued through ctx",
+            )
+        })?;
+        let call_epoch = epoch_str.parse::<u64>().map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_HANDLER_HOST_CALL_MALFORMED",
+                "runtime",
+                "handler host call carried an unparseable invocation epoch",
+            )
+        })?;
         let args_json = c_string_to_string(args_json)?;
         let args = serde_json::from_str::<Value>(&args_json).map_err(|error| {
             SnapbackError::error(
@@ -910,7 +958,21 @@ extern "C" fn snapback_host_call(op: *const c_char, args_json: *const c_char) ->
                 ));
             }
             let ctx = unsafe { &mut *(ptr as *mut IbexHostContext<'_>) };
-            ctx.handle_host_call(&op, args)
+            // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
+            // the stale-continuation guard: a continuation captured in module
+            // scope by invocation A, fired during invocation B's microtask
+            // pump on the same warm VM, would otherwise route A's `ctx.db.*`
+            // through B's live context (B's auth, B's commit buffer). Reject
+            // the mismatch fail-closed rather than execute A against B.
+            if ctx.epoch() != call_epoch {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_HANDLER_STALE_CONTINUATION",
+                    "runtime",
+                    "a handler continuation from a prior invocation attempted a \
+                     host call against the current invocation; rejected",
+                ));
+            }
+            ctx.handle_host_call(op, args)
         })
     });
 
@@ -966,10 +1028,16 @@ fn invocation_iife_source(
         "{}".to_string()
     };
     let secrets_literal = serde_json::to_string(&secrets_json).map_err(handler_serialize_error)?;
+    // The epoch travels as a decimal *string* literal so it is exact past the
+    // f64 safe-integer range; JS concatenates it onto every host op. Baking it
+    // into this per-invocation IIFE (and thus into the `ctx` closures the
+    // bootstrap builds) is what lets the host reject a stale continuation.
+    let epoch_literal = serde_json::to_string(&invocation.epoch().to_string())
+        .map_err(handler_serialize_error)?;
 
     Ok(format!(
-        "(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
-        export_json, args_literal, auth_literal, mode_json, run_literal, secrets_literal,
+        "(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
+        export_json, args_literal, auth_literal, mode_json, run_literal, secrets_literal, epoch_literal,
     ))
 }
 
@@ -1039,61 +1107,66 @@ fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) 
 fn ctx_bootstrap_source() -> &'static str {
     r#"
 (function(g) {
-  function host(op, args) {
-    return g.__hostCall(op, JSON.stringify(args || {}));
-  }
   function literal(value) { return { Literal: value }; }
   function normalizeDirection(direction) {
     return String(direction || "asc").toLowerCase() === "desc" ? "Desc" : "Asc";
   }
-  function makeBuilder(table) {
-    var plan = { table: table, filters: [], order: [], limit: null, indexed_by: null };
-    var builder = {
-      withIndex: function(name) { plan.indexed_by = name; return builder; },
-      eq: function(field, value) {
-        plan.filters.push({ field: field, op: "Eq", value: literal(value) });
-        return builder;
-      },
-      in: function(field, values) {
-        plan.filters.push({ field: field, op: "In", value: literal(values) });
-        return builder;
-      },
-      lt: function(field, value) {
-        plan.filters.push({ field: field, op: "Lt", value: literal(value) });
-        return builder;
-      },
-      lte: function(field, value) {
-        plan.filters.push({ field: field, op: "Lte", value: literal(value) });
-        return builder;
-      },
-      gt: function(field, value) {
-        plan.filters.push({ field: field, op: "Gt", value: literal(value) });
-        return builder;
-      },
-      gte: function(field, value) {
-        plan.filters.push({ field: field, op: "Gte", value: literal(value) });
-        return builder;
-      },
-      order: function(field, direction) {
-        plan.order.push({ field: field, direction: normalizeDirection(direction) });
-        return builder;
-      },
-      take: function(limit) { plan.limit = Number(limit); return builder; },
-      collect: function() { return host("db.query", { plan: plan }).rows; },
-      first: function() {
-        var old = plan.limit;
-        plan.limit = 1;
-        var rows = host("db.query", { plan: plan }).rows;
-        plan.limit = old;
-        return rows.length ? rows[0] : null;
-      }
-    };
-    return builder;
-  }
   function readonlyDenied(op) {
     return function() { throw new Error("SNAPBACK_HANDLER_WRITE_IN_QUERY: " + op); };
   }
-  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson) {
+  // `host`, `makeBuilder`, and the whole `ctx` are built *per invocation* so
+  // that they close over this invocation's `epoch`. A continuation captured
+  // in module scope by a prior invocation therefore carries that prior
+  // epoch, and the host rejects it (stale-continuation guard) rather than
+  // routing it through whatever invocation is currently live on this VM.
+  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch) {
+    function host(op, args) {
+      return g.__hostCall(epoch + "|" + op, JSON.stringify(args || {}));
+    }
+    function makeBuilder(table) {
+      var plan = { table: table, filters: [], order: [], limit: null, indexed_by: null };
+      var builder = {
+        withIndex: function(name) { plan.indexed_by = name; return builder; },
+        eq: function(field, value) {
+          plan.filters.push({ field: field, op: "Eq", value: literal(value) });
+          return builder;
+        },
+        in: function(field, values) {
+          plan.filters.push({ field: field, op: "In", value: literal(values) });
+          return builder;
+        },
+        lt: function(field, value) {
+          plan.filters.push({ field: field, op: "Lt", value: literal(value) });
+          return builder;
+        },
+        lte: function(field, value) {
+          plan.filters.push({ field: field, op: "Lte", value: literal(value) });
+          return builder;
+        },
+        gt: function(field, value) {
+          plan.filters.push({ field: field, op: "Gt", value: literal(value) });
+          return builder;
+        },
+        gte: function(field, value) {
+          plan.filters.push({ field: field, op: "Gte", value: literal(value) });
+          return builder;
+        },
+        order: function(field, direction) {
+          plan.order.push({ field: field, direction: normalizeDirection(direction) });
+          return builder;
+        },
+        take: function(limit) { plan.limit = Number(limit); return builder; },
+        collect: function() { return host("db.query", { plan: plan }).rows; },
+        first: function() {
+          var old = plan.limit;
+          plan.limit = 1;
+          var rows = host("db.query", { plan: plan }).rows;
+          plan.limit = old;
+          return rows.length ? rows[0] : null;
+        }
+      };
+      return builder;
+    }
     var args = JSON.parse(argsJson || "{}");
     var auth = JSON.parse(authJson || "{}");
     var run = runJson ? JSON.parse(runJson) : null;

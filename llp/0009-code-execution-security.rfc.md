@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; the 2026-07-01 revision recorded the decision itself)
+**Revised:** 2026-07-02 (LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, https://github.com/ccheever/ibex
 
 ## Summary
@@ -275,9 +275,17 @@ that). Audit of the Ibex layer on top: the only thread-identity capture is
 `native_ws_release_context` to marshal a JSI-object delete — unreachable for
 warm classes (WebSocket is denied at both the JS ambient layer and the strict
 host, so a warm VM never constructs a WS callback context); the engine's
-`thread_local g_active_module_id` is set only via `__exactSetActiveModuleId`,
-which Snapback's handler convention never calls; the cross-thread callback
-queue is drained by whichever thread evals/polls. The pool therefore uses
+`thread_local g_active_module_id` is set only via `__exactSetActiveModuleId`
+(**convention, not enforcement** — the ambient layer denies `process`,
+`require`, `fetch`, timers, and `WebSocket`, but does *not* deny the engine's
+own `__exact*`/`__hostCall` internals, so trusted handler code *could*
+deliberately call it; verified against the engine source, `g_active_module_id`
+is read only inside its own setter to return the prior value, so even
+deliberate misuse shuffles a value handed straight back to the caller and
+never feeds context routing, capability decisions, or the `Send` soundness —
+this is the same convention-not-enforced posture the fresh path has always
+had); the cross-thread callback queue is drained by whichever thread
+evals/polls. The pool therefore uses
 **exclusive ownership as the serialization**: checkout moves the VM out of
 the `Mutex`-guarded pool, exactly one blocking thread uses it, check-in moves
 it back; the pool mutex provides the happens-before edge between successive
@@ -301,21 +309,61 @@ the context pops; its source is a fixed string that makes no host calls.
 installer captures a **baseline of own-property descriptors** (string and
 symbol keys) for: `globalThis`; the dispatch table `__snapbackHandlers` (one
 level deep — it is the dispatch surface, so replacing or adding a handler
-property must not survive); and a fixed list of intrinsic roots (the
-`Object`/`Array`/`Function`/`String`/`Number`/`Boolean`/`Date`/`RegExp`/
-error/`Map`/`Set`/`Promise`/`Symbol` constructors and prototypes, `JSON`,
-`Math`, `Reflect`, the `%TypedArray%` prototype base, and the host-provided
-`console` — the most commonly monkeypatched non-intrinsic global). The
+property must not survive); and a **deduplicated intrinsic root set**. That
+set is deliberately broad — every constructor **and** its prototype (not just
+prototypes): the fundamentals, the wrapper types, `Symbol`, `BigInt`, `Date`,
+`RegExp`, `Promise`, all the `Error` subclasses, the collections
+(`Map`/`Set`/`WeakMap`/`WeakSet`/`WeakRef`/`FinalizationRegistry`), the binary
+types (`ArrayBuffer`/`SharedArrayBuffer`/`DataView`, every `TypedArray` view
+plus the shared `%TypedArray%` base and prototype), the namespaces
+(`JSON`/`Math`/`Reflect`/`Proxy`/`Intl`/`Atomics`/`WebAssembly`), the
+host-provided globals (`console`/`crypto`/`TextEncoder`/`TextDecoder`), and —
+critically — the **iterator and generator prototypes** reached reflectively
+(`%IteratorPrototype%`, `%ArrayIteratorPrototype%`, the String/Map/Set
+iterator prototypes, and `%Generator%`/`%GeneratorPrototype%`). The iterator
+prototypes are not named globals, but a poisoned `%ArrayIteratorPrototype%.next`
+would silently break the *next* invocation's `for-of`/spread — so they must be
+in the set. (Async-generator prototypes are absent because Hermes has no
+async-generator syntax, so app code cannot reach or pollute them.) The
 baseline is taken **after** module top-level ran, so a module-level polyfill
 is part of the app's own baseline, not a leak. After every invocation,
 `__snapbackReset()` deletes own properties not in the baseline and redefines
 any whose descriptor drifted (value identity via `Object.is`; accessor
-identity; flag equality). Hygiene: every primitive the sweep uses
-(`getOwnPropertyNames`/`getOwnPropertySymbols`/`getOwnPropertyDescriptor`/
-`defineProperty`/`JSON.stringify`/`Map`) is captured at install time, so a
-handler overwriting the global copies cannot blind the sweep — and the
-overwritten globals themselves get restored. `__snapbackReset` is installed
-non-writable/non-configurable/non-enumerable.
+identity; flag equality) — **restore-or-burn**: if any watched root drifted
+un-restorably (a poisoned non-configurable intrinsic), the sweep throws, the
+verdict is not-ok, and the VM is burned. Hygiene: every primitive the sweep
+uses (`getOwnPropertyNames`/`getOwnPropertySymbols`/`getOwnPropertyDescriptor`/
+`defineProperty`/`getPrototypeOf`/`Reflect.apply`/`JSON.stringify`/`Map` and
+its methods) is captured at install time, so a handler overwriting the global
+copies cannot blind the sweep — and the overwritten globals themselves get
+restored. `__snapbackReset` is installed non-writable/non-configurable/
+non-enumerable.
+
+**Stale-continuation guard — the cross-invocation execution fence.** The
+sweep restores *named* state, but a handler can capture its own `ctx` (or a
+resolver closing over it) in **module scope**, where no `globalThis` sweep can
+reach it. If invocation A stashes such a callable and a later invocation B
+fires it on the same warm VM, A's continuation runs during B's microtask pump;
+its `ctx.db.*` calls route through the process thread-local
+`CURRENT_IBEX_HOST_CONTEXT`, which now points at **B's** context — so A's code
+would execute with B's auth and commit into B's buffer (cross-invocation,
+cross-user write injection; reproduced by an adversarial probe, 2026-07-02).
+The reset cannot fix this (the resolver is inert-until-fired, so there is no
+pending microtask to drain), and detecting a stashed closure from Rust is
+undecidable. The fix is an **invocation-identity guard**: every invocation
+(fresh and warm) is stamped with a process-monotonic `epoch`; the per-invocation
+JS `host()` closure — rebuilt inside `__snapbackInvoke` each call so it closes
+over *this* invocation's epoch — prefixes every host op with it
+(`"<epoch>|<op>"`), and `snapback_host_call` rejects any call whose epoch does
+not equal the live thread-local context's epoch with a structured
+`SNAPBACK_HANDLER_STALE_CONTINUATION` (which throws in JS — fail closed). A
+continuation therefore carries its *originating* invocation's epoch and is
+refused against any later one, sync or async fire. The guard is stack-correct
+for the S5.D1 action→mutation re-entry: the nested mutation gets its own epoch
+and its own live context, and returning to the outer action restores the
+outer epoch alongside the outer context (same save/restore stack). Pinned by
+`dk4_stale_continuation_cannot_inject_into_another_invocation`, which fails
+against the pre-guard code.
 
 **Fail-closed pooling.** The reset returns a JSON verdict; the Rust side
 pools the VM only on a parsed `ok: true`. Any handler eval error, reset eval
@@ -328,14 +376,23 @@ poisoned VM never sits in the pool.
 
 **Honest limits — the proof-obligation mapping.**
 
-- *Obligation 1 (global state cleared/isolated): met for everything reachable
-  by name from `globalThis`* — one level deep for the dispatch table, plus
-  the intrinsic-root sweep — *and deliberately **not** met for module-level
-  closure state.* A module-top-level `let counter` mutated by a handler
-  persists across invocations on the warm path: no `globalThis` sweep can
-  reach a closure, and re-evaluating the module per invocation is precisely
+- *Obligation 1 (global state cleared/isolated): met for the swept set —
+  `globalThis` own properties, the dispatch table one level deep, and the
+  enumerated intrinsic root set (constructors + prototypes + iterator/generator
+  prototypes + host namespaces above)* — *and deliberately **not** met for
+  module-level closure state.* The intrinsic set is broad enough that **all
+  standard-language machinery** (the iterator protocol, collection iterators,
+  generators, the fundamental constructors and prototypes) is covered, so
+  language-level corruption cannot persist; an intrinsic *not* in the set
+  (obscure or host-specific) is the same documented residue class as module
+  state, not a language hazard. A module-top-level `let counter` mutated by a
+  handler persists across invocations on the warm path: no `globalThis` sweep
+  can reach a closure, and re-evaluating the module per invocation is precisely
   the cost being removed (it would also throw on top-level `let`
-  redeclaration). Position: **accepted and documented for trusted-local.**
+  redeclaration). This is state *value* residue, not a cross-invocation
+  *execution* vector — the latter (a stashed callable) is closed by the
+  stale-continuation guard above, not by this carve-out. Position:
+  **accepted and documented for trusted-local.**
   (a) It is the standard execution model of mainstream serverless runtimes —
   module state *may* persist across invocations and code must rely on neither
   persistence nor freshness; (b) code that relied on cross-invocation
@@ -346,17 +403,26 @@ poisoned VM never sits in the pool.
   (LLP 0018; pinned by `dk4_pools_are_per_instance`). A characterization test
   (`dk4_module_level_state_persists_documented_semantics`) pins the semantics
   so they are documented-by-test, not accidental.
-- *Obligation 3 (timers/pending async cannot outlive the invocation): met.*
-  Timers cannot exist in a warm VM — `setTimeout`/`setInterval` are denied as
-  non-configurable ambient globals for queries/mutations before module code
-  ever runs, and actions (which may get timers) never pool. Microtasks:
-  `ex_hermes_eval` drains the microtask queue and pumps the event loop until
-  the invocation's promise settles, so every reachable continuation runs
-  inside the invocation that scheduled it. An unsettled promise's reactions
-  can fire later only if something resolves it; after the reset the resolver
-  is unreachable unless it was captured in module-level state — which folds
-  into the module-state carve-out above. Covered by
-  `dk4_unsettled_promise_does_not_carry_over`.
+- *Obligation 3 (timers/pending async cannot outlive the invocation): met,
+  by two mechanisms.* Timers cannot exist in a warm VM — `setTimeout`/
+  `setInterval` are denied as non-configurable ambient globals for
+  queries/mutations before module code ever runs, and actions (which may get
+  timers) never pool. Microtasks: `ex_hermes_eval` drains the microtask queue
+  and pumps the event loop until the invocation's promise settles, so every
+  reachable continuation runs inside the invocation that scheduled it. The
+  residual hazard — a promise resolver or callback **captured in module scope**
+  by invocation A and fired during invocation B — is *not* benign inert data
+  (the earlier draft mistakenly folded a captured *callable* into the
+  module-state carve-out): when fired, it makes host calls, and without a
+  guard those route to B's live context. That is closed by the
+  **stale-continuation guard** (above): A's continuation carries A's epoch and
+  is rejected against B, fail-closed, whether it fires synchronously inside B
+  or via a later microtask. So a stashed continuation can neither execute
+  against another invocation's context nor silently succeed — it throws.
+  Covered by `dk4_unsettled_promise_does_not_carry_over` (the resolver is
+  swept from `globalThis`) and
+  `dk4_stale_continuation_cannot_inject_into_another_invocation` (a
+  module-scope-captured `ctx` firing in a later invocation is refused).
 - *Obligation 2 (module caches cannot leak per-user data): per-invocation
   data never lives in VM state.* Args, auth, reads, writes, and secrets cross
   through the thread-local host context and eval arguments — host calls route
@@ -383,15 +449,27 @@ bounded at **4 VMs total per instance** (a Hermes heap is MB-scale; the
 common case is one bundle shared by all functions, so 1–2 live VMs);
 beyond-bound check-ins destroy the VM. `load_functions` and app `reset` clear
 the pool; content keying makes stale reuse impossible even without the clear
-(changed source ⇒ different key ⇒ miss).
+(changed source ⇒ different key ⇒ miss). One race remains because the L6 read
+lane runs **without the global mutex**: an in-flight lock-free query holding a
+VM checked out *before* a `clear()` could, on an identical-source reload,
+check that pre-reload VM (with stale module state) back into the freshly
+cleared pool. A **generation counter** on the pool closes it: `clear()` bumps
+the generation, checkout stamps the VM with the current generation, and a
+check-in whose generation is stale is dropped rather than pooled (harmless
+otherwise, since content keying already blocks reuse across a changed source).
 
 **Proof.** The gate is the `dk4_*` leak suite — tests that fail if the reset
-regresses: global add, global overwrite (restored to baseline), dispatch
-table mutation, prototype pollution (added *and* overwritten intrinsic
-props), unsettled-promise carryover, reset-failure burn (a frozen
-`globalThis` must yield a fresh VM next invocation), actions-always-fresh,
-per-instance pool isolation, and the module-state characterization — plus the
-full existing suite (E2 read-your-writes, S5.D1 re-entrancy, S5.D9, the
+or the guard regresses: global add, global overwrite (restored to baseline),
+dispatch table mutation, prototype pollution (added *and* overwritten
+intrinsic props), **iterator-prototype pollution** (a poisoned
+`%ArrayIteratorPrototype%.next` must not break the next invocation's for-of),
+unsettled-promise carryover, **cross-invocation stale-continuation injection**
+(the adversarial-review HIGH — a module-scope-stashed `ctx` fired by a later
+invocation must be refused, not committed into that invocation's buffer),
+reset-failure burn (a frozen `globalThis` must yield a fresh VM next
+invocation), actions-always-fresh, per-instance pool isolation, and the
+module-state characterization — plus the full existing suite (E2
+read-your-writes, S5.D1 re-entrancy, S5.D9, the
 l6_/l7_ concurrency arc) green, plus the bench re-run in LLP 0035 (the
 `vm_cost_us` metric keeps its fresh-create definition by disabling the pool
 inside that measurement; the warm path gets its own `warm_invoke_us` metric).
