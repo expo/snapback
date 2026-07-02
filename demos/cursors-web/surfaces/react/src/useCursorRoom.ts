@@ -72,6 +72,9 @@ export interface CursorRoom {
   selfDotRef: React.RefObject<HTMLDivElement | null>;
   publishFacts: () => PublishFacts;
   forceCursors: (cell: ForcedCell) => { dispose: () => void };
+  // E5 (ENG-22531): re-publish presence at the last known position so an
+  // identity change (color) reaches the room without waiting for movement.
+  republishIdentity: () => void;
 }
 
 const cursorsRef = generatedEphemeral.webCursors;
@@ -94,6 +97,13 @@ if (DECLARED_PUBLISH_RATE_HZ > budgetFacts.sustainedHz) {
   );
 }
 const PUBLISH_INTERVAL_MS = 1000 / DECLARED_PUBLISH_RATE_HZ;
+
+// E6 (ENG-22531): idle fade. Entries carry the last MOVEMENT time in the
+// payload (`value.updatedAt` — color re-publishes keep it), and presence is
+// published with the collection's max TTL so an idle cursor outlives the 5s
+// fade threshold instead of expiring at the 5s default TTL.
+export const IDLE_FADE_MS = 5_000;
+export const PRESENCE_TTL_MS = cursorsRef.maxTtlMs;
 
 // Resync re-subscribe backoff — mirrors the Contract adapter's policy shape,
 // simplified (fixed base, capped) for the hand-wired arm.
@@ -135,6 +145,8 @@ export function useCursorRoom({ client, roomId, name, color }: RoomOptions): Cur
     lastPublishAtMs: 0,
     trailingTimer: null as ReturnType<typeof setTimeout> | null,
     pendingSample: null as { x: number; y: number } | null,
+    lastSample: null as { x: number; y: number } | null,
+    lastMoveAtMs: 0,
     disposed: false,
   });
 
@@ -327,7 +339,9 @@ export function useCursorRoom({ client, roomId, name, color }: RoomOptions): Cur
   // The publish path and the self dot never touch React state: pointer
   // samples throttle to the declared rate (leading + trailing edge, so the
   // final position always lands) and the dot is a direct style write.
-  const room = useMemo<Pick<CursorRoom, 'onPointerMove' | 'publishFacts' | 'forceCursors'>>(() => {
+  const room = useMemo<
+    Pick<CursorRoom, 'onPointerMove' | 'publishFacts' | 'forceCursors' | 'republishIdentity'>
+  >(() => {
     const publishSample = (sample: { x: number; y: number }) => {
       const overlay = overlayRef.current;
       const state = publishState.current;
@@ -338,9 +352,12 @@ export function useCursorRoom({ client, roomId, name, color }: RoomOptions): Cur
         y: Math.round(sample.y),
         name: currentName,
         color: currentColor,
+        // Last MOVEMENT time, not last publish time: identity re-publishes
+        // (E5) must not un-fade an idle cursor (E6).
+        updatedAt: state.lastMoveAtMs,
       };
       overlay
-        .publish(value)
+        .publish(value, { ttlMs: PRESENCE_TTL_MS })
         .then(() => {
           state.published += 1;
           if (state.establishedAtMs === null) state.establishedAtMs = Date.now();
@@ -381,12 +398,21 @@ export function useCursorRoom({ client, roomId, name, color }: RoomOptions): Cur
         const rect = stage.getBoundingClientRect();
         const sample = { x: event.clientX - rect.left, y: event.clientY - rect.top };
         publishState.current.writes += 1;
+        publishState.current.lastSample = sample;
+        publishState.current.lastMoveAtMs = Date.now();
         const dot = selfDotRef.current;
         if (dot) {
           dot.style.transform = `translate(${sample.x - SELF_DOT_HALF_PX}px, ${sample.y - SELF_DOT_HALF_PX}px)`;
           dot.style.opacity = '0.9';
         }
         throttledPublish(sample);
+      },
+      republishIdentity: () => {
+        // E5: ride the same throttled lane as movement so the declared rate
+        // holds even for click-spamming a swatch; no sample yet means the
+        // next real move carries the new identity instead.
+        const last = publishState.current.lastSample;
+        if (last) throttledPublish(last);
       },
       publishFacts: () => {
         const state = publishState.current;
@@ -445,5 +471,6 @@ export function useCursorRoom({ client, roomId, name, color }: RoomOptions): Cur
     selfDotRef,
     publishFacts: room.publishFacts,
     forceCursors: room.forceCursors,
+    republishIdentity: room.republishIdentity,
   };
 }

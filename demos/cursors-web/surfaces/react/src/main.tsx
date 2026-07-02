@@ -10,7 +10,7 @@ import { createRoot } from 'react-dom/client';
 
 import { SnapbackClient } from '../../../../_kit/client.mjs';
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
-import { App, type Identity } from './App';
+import { App, CURSOR_PALETTE, type Identity } from './App';
 
 const ROOM = 'lobby';
 
@@ -25,11 +25,10 @@ function snapbackBaseUrl(): string {
 
 function randomIdentity(): Identity {
   const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
-  const palette = ['#5e6ad2', '#2fbf71', '#f2994a', '#e14f62', '#2d9cdb', '#bb6bd9'];
   const suffix = Math.floor(Math.random() * 900 + 100);
   return {
     name: params?.get('name') ?? `guest-${suffix}`,
-    color: params?.get('color') ?? palette[suffix % palette.length],
+    color: params?.get('color') ?? CURSOR_PALETTE[suffix % CURSOR_PALETTE.length],
   };
 }
 

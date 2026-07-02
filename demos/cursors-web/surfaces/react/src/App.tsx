@@ -6,15 +6,19 @@
 // room's ephemeral map, the self entry styled distinctly, and a zero-latency
 // self dot that never rides the React render path.
 
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import type { SnapbackClient, KitReceipt } from '../../../../_kit/client.mjs';
-import { useCursorRoom, type CursorRoom, type PublishFacts } from './useCursorRoom';
+import { IDLE_FADE_MS, useCursorRoom, type CursorRoom, type PublishFacts } from './useCursorRoom';
 
 export interface Identity {
   name: string;
   color: string;
 }
+
+// E5 (ENG-22531): the per-user cursor color choices. Same palette as the
+// boot identity assignment so the picker and the URL param agree.
+export const CURSOR_PALETTE = ['#5e6ad2', '#2fbf71', '#f2994a', '#e14f62', '#2d9cdb', '#bb6bd9'];
 
 interface AppProps {
   client: SnapbackClient;
@@ -33,14 +37,41 @@ interface CursorsWebDebug {
 }
 
 export function App({ client, roomId, identity }: AppProps) {
+  // E5: the chosen color is ordinary React state riding the publish payload;
+  // selecting a swatch re-publishes at the last known position so the room
+  // sees the change without waiting for movement.
+  const [color, setColor] = useState(identity.color);
   const room = useCursorRoom({
     client,
     roomId,
     name: identity.name,
-    color: identity.color,
+    color,
   });
 
-  useDebugSurface({ client, roomId, identity, room });
+  // E6: a 1s clock drives the idle-fade computation. A cursor whose last
+  // MOVEMENT (value.updatedAt) is older than IDLE_FADE_MS renders at low
+  // opacity in every client; a fresh move restores it.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Re-publish AFTER the color commit (an effect, not inline after setColor):
+  // the publish payload reads the identity ref, which only carries the new
+  // color once this render commits — calling republishIdentity inside the
+  // click handler would publish the stale color. (Stale-state footgun caught
+  // in review; recorded in diary 0011.)
+  const firstColorRender = useRef(true);
+  useEffect(() => {
+    if (firstColorRender.current) {
+      firstColorRender.current = false;
+      return;
+    }
+    room.republishIdentity();
+  }, [color, room.republishIdentity]);
+
+  useDebugSurface({ client, roomId, name: identity.name, color, room });
 
   return (
     <main data-testid="cursor-room" style={styles.root}>
@@ -59,12 +90,33 @@ export function App({ client, roomId, identity }: AppProps) {
             {`${room.entries.length} cursors`}
           </div>
           <div style={styles.hint}>Move your pointer — other windows in this room see it live.</div>
+          <div data-testid="color-picker" style={styles.picker}>
+            {CURSOR_PALETTE.map((swatch, index) => (
+              <button
+                key={swatch}
+                type="button"
+                data-testid={`color-swatch-${index}`}
+                aria-label={`Use cursor color ${swatch}`}
+                onClick={() => setColor(swatch)}
+                style={{
+                  ...styles.swatch,
+                  background: swatch,
+                  border: swatch === color ? '2px solid #ffffff' : '2px solid transparent',
+                }}
+              />
+            ))}
+          </div>
         </div>
         {room.entries.map((cursor) => (
           <div
             key={cursor.key}
             data-testid={`cursor-${cursor.key}`}
-            style={{ ...styles.cursor, left: cursor.value.x, top: cursor.value.y }}
+            style={{
+              ...styles.cursor,
+              left: cursor.value.x,
+              top: cursor.value.y,
+              opacity: nowMs - (cursor.value.updatedAt ?? cursor.updatedAt) > IDLE_FADE_MS ? 0.25 : 1,
+            }}
           >
             <div
               style={{
@@ -97,9 +149,16 @@ export function App({ client, roomId, identity }: AppProps) {
 function useDebugSurface({
   client,
   roomId,
-  identity,
+  name,
+  color,
   room,
-}: AppProps & { room: CursorRoom }) {
+}: {
+  client: SnapbackClient;
+  roomId: string;
+  name: string;
+  color: string;
+  room: CursorRoom;
+}) {
   const ghostRef = useRef<{ dispose: () => void } | null>(null);
   const connectionId = room.connectionId;
   useEffect(() => {
@@ -109,7 +168,7 @@ function useDebugSurface({
     if (connectionId === null) return;
     const debug: CursorsWebDebug = {
       room: roomId,
-      identity,
+      identity: { name, color },
       connection: connectionId,
       publishFacts: room.publishFacts,
       receipts: () => client.receipts(),
@@ -144,7 +203,7 @@ function useDebugSurface({
     };
     // The debug surface re-wires only when the room identity changes, not per
     // render — publishFacts/forceCursors are stable references from the hook.
-  }, [client, connectionId, roomId, identity, room.publishFacts, room.forceCursors]);
+  }, [client, connectionId, roomId, name, color, room.publishFacts, room.forceCursors]);
 }
 
 const styles = {
@@ -178,6 +237,19 @@ const styles = {
   hint: {
     fontSize: 12,
     color: '#5f6579',
+  },
+  picker: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  swatch: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    padding: 0,
+    cursor: 'pointer',
   },
   cursor: {
     position: 'absolute',
