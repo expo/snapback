@@ -260,6 +260,10 @@ ships with a regression test and, where user-visible, a diagnostic code.
   not widening a layer.) **Done when:** unauthenticated `POST /admin/reset`
   fails closed on loopback and on non-loopback with a token set, with a
   regression test that stays green through S1's alias retirement.
+  **Landed 2026-07-01** — the four alias handlers call the shared
+  `authorize()` write gate; `s0_*` tests in `tests/admin_v0.rs` cover
+  token-required-on-loopback, disabled/gated non-loopback, and the
+  preserved open-loopback default.
 - **S1 — Implement [LLP 0031](./0031-server-route-taxonomy.spec.md) D1–D5.**
   With S0's exposure closed, land the rest: the compile-time route registry,
   gated system writes

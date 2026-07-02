@@ -260,7 +260,11 @@ pub fn evaluate_access(
     }
 }
 
-fn authorize(ctx: &ServerContext, headers: &HeaderMap, write: bool) -> Result<(), ApiError> {
+pub(crate) fn authorize(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    write: bool,
+) -> Result<(), ApiError> {
     let provided = provided_token(headers);
     match evaluate_access(
         ctx.loopback,

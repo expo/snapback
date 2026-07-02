@@ -6,7 +6,7 @@ use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
 use crate::runtime::CapabilityState;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State};
-use axum::http::{HeaderValue, Method, Request, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -336,10 +336,19 @@ async fn inspect(State(state): State<SharedSnapback>) -> Result<Json<InspectStat
     Ok(Json(snapback.inspect()?))
 }
 
+/// The v0 admin aliases perform system writes, so they share the
+/// `/_snapback/*` write gate until LLP 0031's gated twins land and these
+/// aliases retire.
+///
+/// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S0: the root
+/// admin aliases fail closed like their `/_snapback/*` twins on every bind.
 async fn apply_schema(
     State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
     Json(manifest): Json<SchemaManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
     let mut snapback = state.lock().await;
     Ok(Json(DiagnosticsResponse {
         diagnostics: snapback.apply_schema(manifest)?,
@@ -348,15 +357,23 @@ async fn apply_schema(
 
 async fn load_functions(
     State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
     Json(manifest): Json<FunctionManifest>,
-) -> Json<DiagnosticsResponse> {
+) -> Result<Json<DiagnosticsResponse>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
     let mut snapback = state.lock().await;
-    Json(DiagnosticsResponse {
+    Ok(Json(DiagnosticsResponse {
         diagnostics: snapback.load_functions(manifest),
-    })
+    }))
 }
 
-async fn reset(State(state): State<SharedSnapback>) -> Result<StatusCode, ApiError> {
+async fn reset(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+) -> Result<StatusCode, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
     let mut snapback = state.lock().await;
     snapback.reset()?;
     Ok(StatusCode::NO_CONTENT)
@@ -364,8 +381,11 @@ async fn reset(State(state): State<SharedSnapback>) -> Result<StatusCode, ApiErr
 
 async fn seed(
     State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
     Json(seed): Json<SeedData>,
 ) -> Result<Json<crate::manifest::MutationOutput>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
     let mut snapback = state.lock().await;
     Ok(Json(snapback.seed(seed)?))
 }

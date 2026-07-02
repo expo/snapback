@@ -367,6 +367,80 @@ async fn non_loopback_with_token_allows_admin_reads() {
     assert_eq!(allowed.status(), StatusCode::OK);
 }
 
+/// LLP 0032 S0 — the v0 `/admin/*` aliases fail closed exactly like their
+/// `/_snapback/*` twins: writes are token-gated when a token is configured,
+/// even on loopback.
+#[tokio::test]
+async fn s0_admin_aliases_require_token_when_configured_even_on_loopback() {
+    let app = app_with_context(seeded_snapback(), loopback_context(Some("sekrit")));
+
+    let alias_posts = [
+        (
+            "/admin/schema",
+            serde_json::to_value(todo_schema()).unwrap(),
+        ),
+        (
+            "/admin/functions",
+            serde_json::to_value(todo_functions()).unwrap(),
+        ),
+        ("/admin/reset", json!({})),
+        ("/admin/seed", json!({ "tables": {} })),
+    ];
+    for (uri, body) in alias_posts {
+        let resp = app.clone().oneshot(post(uri, body)).await.unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNAUTHORIZED,
+            "{uri} must fail closed without the configured token"
+        );
+        let body = json(resp).await;
+        assert_eq!(body["diagnostic"]["code"], "SNAPBACK_ADMIN_TOKEN_REQUIRED");
+    }
+
+    let allowed = app
+        .oneshot(post_with_token("/admin/reset", json!({}), "sekrit"))
+        .await
+        .unwrap();
+    assert_eq!(allowed.status(), StatusCode::NO_CONTENT);
+}
+
+/// LLP 0032 S0 — on a non-loopback bind the aliases are disabled without a
+/// token and token-gated with one, like every other admin write.
+#[tokio::test]
+async fn s0_admin_aliases_fail_closed_on_non_loopback_binds() {
+    let no_token = app_with_context(seeded_snapback(), exposed_context(None));
+    let resp = no_token
+        .oneshot(post("/admin/reset", json!({})))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+    let body = json(resp).await;
+    assert_eq!(body["diagnostic"]["code"], "SNAPBACK_ADMIN_DISABLED");
+
+    let with_token = app_with_context(seeded_snapback(), exposed_context(Some("sekrit")));
+    let denied = with_token
+        .clone()
+        .oneshot(post("/admin/reset", json!({})))
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+
+    let allowed = with_token
+        .oneshot(post_with_token("/admin/reset", json!({}), "sekrit"))
+        .await
+        .unwrap();
+    assert_eq!(allowed.status(), StatusCode::NO_CONTENT);
+}
+
+/// LLP 0032 S0 — the open-loopback default is unchanged: no configured token
+/// means local tooling keeps working without headers.
+#[tokio::test]
+async fn s0_admin_aliases_stay_open_on_loopback_without_token() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+    let resp = app.oneshot(post("/admin/reset", json!({}))).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+}
+
 /* ---------- harness ---------- */
 
 fn loopback_app(snapback: LocalSnapback) -> axum::Router {
@@ -376,6 +450,19 @@ fn loopback_app(snapback: LocalSnapback) -> axum::Router {
 fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {
     let state = AppState::new(Arc::new(Mutex::new(snapback)), ctx);
     snapback::server::app(state)
+}
+
+fn loopback_context(token: Option<&str>) -> ServerContext {
+    ServerContext {
+        host: "127.0.0.1".to_owned(),
+        port: 4287,
+        loopback: true,
+        pid: std::process::id(),
+        started: Instant::now(),
+        started_at_ms: 0,
+        admin_token: token.map(ToOwned::to_owned),
+        admin_dist: None,
+    }
 }
 
 fn exposed_context(token: Option<&str>) -> ServerContext {
@@ -413,6 +500,16 @@ fn post(uri: &str, body: Value) -> Request<Body> {
         .method("POST")
         .uri(uri)
         .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+fn post_with_token(uri: &str, body: Value, token: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("content-type", "application/json")
+        .header("x-snapback-admin-token", token)
         .body(Body::from(body.to_string()))
         .unwrap()
 }
