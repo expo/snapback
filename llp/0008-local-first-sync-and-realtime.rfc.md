@@ -239,6 +239,19 @@ LLP 0012 wire guardrail is recorded there.
 > read lane (LLP 0022) stays the deferred, larger option behind its own trigger
 > (the hosted/multi-instance target); op-log deltas are the cheaper immediate
 > win because the matcher already computes membership.
+>
+> **Server delta-core landed (2026-07-02, staged).** The shape-agnostic server
+> half is in: `compute_live_delta` (`src/live_matcher.rs`) classifies a commit's
+> `ChangedRow` set against a subscription's captured predicate into per-row
+> add/update/remove transitions — no re-query — for the analyzable unordered
+> single-table-filter subset, and returns `Replace` (the honest fallback) for
+> ordered/limited windows or un-analyzable predicates. It is unit-tested and is
+> the real function the M3 projection now measures (~0.4 µs/affected sub). What
+> remains is the coordinated Phase-2 wiring: emitting a `live_delta` wire kind
+> from the fan-out path (`notify_live_subscriptions`), maintaining each
+> subscription's membership by applying the ops instead of re-querying, and the
+> client-side apply — all on the LLP 0034 delivery/kit surface, sequenced with
+> that thread's in-flight work.
 
 ## Mutation Replay and Conflict Semantics
 

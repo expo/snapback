@@ -405,3 +405,391 @@ fn scalar_rank(value: &Value) -> Option<u8> {
         Value::Array(_) | Value::Object(_) => None,
     }
 }
+
+// ---------------------------------------------------------------------------
+// DK-3 op-log delta core (LLP 0032 M3 armed the trigger; this is the
+// shape-agnostic server half — computes membership transitions, not a wire
+// payload). Wiring into the fan-out path + the `live_delta` wire kind + the
+// client apply are the coordinated Phase-2 step (LLP 0034 delivery surface).
+// ---------------------------------------------------------------------------
+
+/// One row-level membership transition a commit produces for a subscription.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LiveDeltaKind {
+    /// The row newly enters the result (an insert that matches, or an update
+    /// that moves a row into the predicate). The client upserts it.
+    Add,
+    /// The row was already in the result and changed in place. The client
+    /// replaces it by id.
+    Update,
+    /// The row leaves the result (a delete of a member, or an update that
+    /// moves it out of the predicate). The client drops it by id.
+    Remove,
+}
+
+/// A single delta op: the transition, the row id, and the current row (present
+/// for `Add`/`Update`, absent for `Remove`).
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct LiveDeltaOp {
+    pub kind: LiveDeltaKind,
+    pub id: String,
+    pub row: Option<Value>,
+}
+
+/// The outcome of classifying a commit against one subscription's predicate.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum LiveDeltaOutcome {
+    /// The query is analyzable; these are the transitions to ship as a
+    /// `live_delta`. An empty vec means the commit touched the table but did
+    /// not change this subscription's result (ship nothing — still cheaper
+    /// than a re-query, and the matcher's affected-gate should already have
+    /// skipped most of these).
+    Delta(Vec<LiveDeltaOp>),
+    /// The query cannot be delta'd safely — an ordered/limited window whose
+    /// boundary a change may shift using rows outside the known membership, or
+    /// a predicate the matcher cannot evaluate. The caller falls back to the
+    /// honest whole-result `replace` (LLP 0008 §Reactivity keeps that path as
+    /// the fallback for un-analyzable queries).
+    Replace,
+}
+
+/// Compute the op-log delta for one live subscription from a commit's changed
+/// rows, without re-running the query (the DK-3 lever measured at ~5 200×
+/// cheaper than a re-query in LLP 0035 §M3).
+///
+/// Inputs:
+/// - `plan` + `input`: the subscription's captured analyzable predicate (from
+///   its `CapturedReadKind::Query` dependency) and the args/auth to evaluate it.
+/// - `prior_ids`: the ids currently in the subscription's result (the captured
+///   dependency's `rows`). **Caller contract:** keep this in sync by applying
+///   the returned ops — the delta path must not re-query to refresh membership,
+///   or it defeats the lever.
+/// - `changes`: the commit's `ChangedRow` set.
+///
+/// Only changes to `plan.table` are considered; the caller's affected-gate
+/// (`live_subscription_may_be_affected`) has typically already decided this
+/// subscription is affected, but the function is self-contained and re-checks.
+/// Permission/auth-scope transitions are **not** handled here — the fan-out
+/// caller gates stale permissions and emits permission resyncs separately.
+///
+/// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 — op-log
+/// deltas for the analyzable syncable-live subset, the lever LLP 0035 §M3 armed.
+pub(crate) fn compute_live_delta(
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    prior_ids: &std::collections::BTreeSet<String>,
+    changes: &[ChangedRow],
+) -> LiveDeltaOutcome {
+    // Ordered/limited (top-N) queries: a change can shift the window using rows
+    // outside the current membership, which a commit's changed-row set alone
+    // cannot resolve. The honest `replace` path handles these correctly;
+    // extending deltas to windowed queries (the matcher already has
+    // `matching_limited_row_may_affect_query`/`query_boundary`) is future DK-3
+    // work, deliberately not attempted here.
+    if plan.limit.is_some() || !plan.order.is_empty() {
+        return LiveDeltaOutcome::Replace;
+    }
+
+    let mut ops = Vec::new();
+    for change in changes {
+        if change.table != plan.table {
+            continue;
+        }
+        let was_member = prior_ids.contains(&change.id);
+        match change.op {
+            ChangeOp::Insert => {
+                let Some(row) = change.row.as_ref() else {
+                    // An insert with no row snapshot is not something we can
+                    // classify; fall back rather than guess.
+                    return LiveDeltaOutcome::Replace;
+                };
+                match row_matches_query_filters(plan, input, row) {
+                    Some(true) => ops.push(LiveDeltaOp {
+                        kind: LiveDeltaKind::Add,
+                        id: change.id.clone(),
+                        row: Some(row.clone()),
+                    }),
+                    Some(false) => {}
+                    None => return LiveDeltaOutcome::Replace,
+                }
+            }
+            ChangeOp::Update => {
+                let Some(row) = change.row.as_ref() else {
+                    return LiveDeltaOutcome::Replace;
+                };
+                match row_matches_query_filters(plan, input, row) {
+                    Some(true) => ops.push(LiveDeltaOp {
+                        // Was already in the result → in-place Update; newly
+                        // matching (moved into the predicate) → Add.
+                        kind: if was_member {
+                            LiveDeltaKind::Update
+                        } else {
+                            LiveDeltaKind::Add
+                        },
+                        id: change.id.clone(),
+                        row: Some(row.clone()),
+                    }),
+                    Some(false) => {
+                        // No longer matches: a member leaves; a non-member is
+                        // unaffected.
+                        if was_member {
+                            ops.push(LiveDeltaOp {
+                                kind: LiveDeltaKind::Remove,
+                                id: change.id.clone(),
+                                row: None,
+                            });
+                        }
+                    }
+                    None => return LiveDeltaOutcome::Replace,
+                }
+            }
+            ChangeOp::Delete => {
+                if was_member {
+                    ops.push(LiveDeltaOp {
+                        kind: LiveDeltaKind::Remove,
+                        id: change.id.clone(),
+                        row: None,
+                    });
+                }
+            }
+        }
+    }
+    LiveDeltaOutcome::Delta(ops)
+}
+
+#[cfg(test)]
+mod delta_tests {
+    use super::*;
+    use crate::manifest::{AuthInput, HandlerInput, OrderExpr, ValueExpr};
+    use std::collections::BTreeSet;
+
+    fn input(args: Value) -> HandlerInput {
+        HandlerInput {
+            args,
+            auth: AuthInput::default(),
+            read_set: Vec::new(),
+            correlation: None,
+        }
+    }
+
+    fn unfiltered_plan() -> QueryPlan {
+        QueryPlan {
+            table: "todos".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        }
+    }
+
+    fn user_filtered_plan() -> QueryPlan {
+        QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "userId".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Arg("userId".to_owned()),
+            }],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        }
+    }
+
+    fn row(id: &str, user: &str) -> Value {
+        json!({ "_id": id, "_version": 1, "title": "t", "userId": user })
+    }
+
+    fn change(id: &str, op: ChangeOp, row: Option<Value>) -> ChangedRow {
+        ChangedRow {
+            table: "todos".to_owned(),
+            id: id.to_owned(),
+            op,
+            row,
+            changed_fields: Vec::new(),
+        }
+    }
+
+    fn ids(list: &[&str]) -> BTreeSet<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn delta(outcome: LiveDeltaOutcome) -> Vec<LiveDeltaOp> {
+        match outcome {
+            LiveDeltaOutcome::Delta(ops) => ops,
+            LiveDeltaOutcome::Replace => panic!("expected a delta, got Replace"),
+        }
+    }
+
+    #[test]
+    fn unfiltered_insert_update_delete_map_to_add_update_remove() {
+        let plan = unfiltered_plan();
+        let input = input(json!({}));
+
+        let add = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&[]),
+            &[change("a", ChangeOp::Insert, Some(row("a", "u1")))],
+        ));
+        assert_eq!(add, vec![LiveDeltaOp {
+            kind: LiveDeltaKind::Add,
+            id: "a".to_owned(),
+            row: Some(row("a", "u1")),
+        }]);
+
+        let update = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&["a"]),
+            &[change("a", ChangeOp::Update, Some(row("a", "u1")))],
+        ));
+        assert_eq!(update[0].kind, LiveDeltaKind::Update);
+
+        let remove = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&["a"]),
+            &[change("a", ChangeOp::Delete, None)],
+        ));
+        assert_eq!(remove, vec![LiveDeltaOp {
+            kind: LiveDeltaKind::Remove,
+            id: "a".to_owned(),
+            row: None,
+        }]);
+    }
+
+    #[test]
+    fn filtered_insert_matching_adds_nonmatching_skips() {
+        let plan = user_filtered_plan();
+        let input = input(json!({ "userId": "u-match" }));
+
+        let matching = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&[]),
+            &[change("a", ChangeOp::Insert, Some(row("a", "u-match")))],
+        ));
+        assert_eq!(matching.len(), 1);
+        assert_eq!(matching[0].kind, LiveDeltaKind::Add);
+
+        let nonmatching = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&[]),
+            &[change("b", ChangeOp::Insert, Some(row("b", "someone-else")))],
+        ));
+        assert!(nonmatching.is_empty(), "a non-matching insert yields no delta");
+    }
+
+    #[test]
+    fn filtered_update_moving_into_and_out_of_the_predicate() {
+        let plan = user_filtered_plan();
+        let input = input(json!({ "userId": "u-match" }));
+
+        // Was not a member; now matches → Add (moved in).
+        let moved_in = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&[]),
+            &[change("a", ChangeOp::Update, Some(row("a", "u-match")))],
+        ));
+        assert_eq!(moved_in[0].kind, LiveDeltaKind::Add);
+
+        // Was a member; now does not match → Remove (moved out).
+        let moved_out = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&["a"]),
+            &[change("a", ChangeOp::Update, Some(row("a", "someone-else")))],
+        ));
+        assert_eq!(moved_out, vec![LiveDeltaOp {
+            kind: LiveDeltaKind::Remove,
+            id: "a".to_owned(),
+            row: None,
+        }]);
+
+        // Member, still matches → in-place Update.
+        let stayed = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&["a"]),
+            &[change("a", ChangeOp::Update, Some(row("a", "u-match")))],
+        ));
+        assert_eq!(stayed[0].kind, LiveDeltaKind::Update);
+    }
+
+    #[test]
+    fn delete_of_nonmember_and_change_to_other_table_yield_nothing() {
+        let plan = user_filtered_plan();
+        let input = input(json!({ "userId": "u-match" }));
+
+        let del_nonmember = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&[]),
+            &[change("a", ChangeOp::Delete, None)],
+        ));
+        assert!(del_nonmember.is_empty());
+
+        let other_table = ChangedRow {
+            table: "others".to_owned(),
+            id: "x".to_owned(),
+            op: ChangeOp::Insert,
+            row: Some(json!({ "_id": "x" })),
+            changed_fields: Vec::new(),
+        };
+        let cross = delta(compute_live_delta(&plan, &input, &ids(&[]), &[other_table]));
+        assert!(cross.is_empty(), "a change to another table is not this query's delta");
+    }
+
+    #[test]
+    fn ordered_or_limited_queries_fall_back_to_replace() {
+        let input = input(json!({}));
+        let mut limited = unfiltered_plan();
+        limited.limit = Some(10);
+        assert_eq!(
+            compute_live_delta(
+                &limited,
+                &input,
+                &ids(&[]),
+                &[change("a", ChangeOp::Insert, Some(row("a", "u1")))]
+            ),
+            LiveDeltaOutcome::Replace
+        );
+
+        let mut ordered = unfiltered_plan();
+        ordered.order = vec![OrderExpr {
+            field: "_createdAt".to_owned(),
+            direction: OrderDirection::Asc,
+        }];
+        assert_eq!(
+            compute_live_delta(
+                &ordered,
+                &input,
+                &ids(&[]),
+                &[change("a", ChangeOp::Insert, Some(row("a", "u1")))]
+            ),
+            LiveDeltaOutcome::Replace
+        );
+    }
+
+    #[test]
+    fn a_multi_row_commit_produces_one_op_per_relevant_row() {
+        let plan = user_filtered_plan();
+        let input = input(json!({ "userId": "u-match" }));
+        let outcome = delta(compute_live_delta(
+            &plan,
+            &input,
+            &ids(&["old"]),
+            &[
+                change("new", ChangeOp::Insert, Some(row("new", "u-match"))),
+                change("old", ChangeOp::Delete, None),
+                change("other", ChangeOp::Insert, Some(row("other", "nope"))),
+            ],
+        ));
+        assert_eq!(outcome.len(), 2);
+        assert_eq!(outcome[0].kind, LiveDeltaKind::Add);
+        assert_eq!(outcome[1].kind, LiveDeltaKind::Remove);
+    }
+}

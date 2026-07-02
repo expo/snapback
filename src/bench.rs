@@ -481,54 +481,50 @@ fn measure_fanout_delta_projection(config: &BenchConfig) -> f64 {
 }
 
 /// One commit's worth of op-log-delta fan-out over `subscriptions` affected
-/// subscribers: per subscriber, classify every changed row against the captured
-/// predicate and serialize the resulting delta payload. Returns nothing; timed
-/// by the caller. `black_box` keeps the optimizer from eliding the work.
+/// subscribers: per subscriber, run the **real** delta core
+/// (`compute_live_delta`) to classify the commit against the subscription's
+/// predicate, then serialize the resulting `live_delta` payload. Using the
+/// production function (not a bench replica) makes the M3 projection a
+/// faithful measurement of the shipped server cost. `black_box` keeps the
+/// optimizer from eliding the work.
 fn delta_fanout_round(
     plan: &QueryPlan,
     changes: &[crate::storage::ChangedRow],
     subscriptions: usize,
 ) {
-    use crate::live_matcher::row_matches_query_filters;
-    use crate::storage::ChangeOp;
+    use crate::live_matcher::{LiveDeltaKind, LiveDeltaOutcome, compute_live_delta};
+    use std::collections::BTreeSet;
 
+    // The committed row belongs to `u-match`; subscriber 0 filters on it (a
+    // real Add), the rest on their own user (the matcher's cheap non-member
+    // reject) — the real fan-out mix.
+    let prior_ids: BTreeSet<String> = BTreeSet::new();
     for i in 0..subscriptions {
-        // Each subscriber filters on its own user; `u-match` is the one the
-        // committed row belongs to, so most classify as non-members (the
-        // matcher's cheap reject) and one as an add — the real fan-out mix.
         let sub_user = if i == 0 {
             "u-match".to_owned()
         } else {
             format!("u-{i}")
         };
         let input = args(json!({ "userId": sub_user }));
-        let mut deltas: Vec<Value> = Vec::new();
-        for change in changes {
-            let Some(row) = change.row.as_ref() else {
-                continue;
-            };
-            let is_member = row_matches_query_filters(plan, &input, row).unwrap_or(true);
-            if !is_member {
-                continue;
-            }
-            let op = match change.op {
-                ChangeOp::Insert => "add",
-                ChangeOp::Update => "update",
-                ChangeOp::Delete => "remove",
-            };
-            deltas.push(json!({
-                "op": op,
-                "id": change.id,
-                "row": change.row,
-            }));
-        }
-        // Serialize the delta payload the subscriber would receive (empty when
-        // the commit does not affect this subscriber — still a real classify).
-        let payload = json!({
-            "kind": "live_delta",
-            "version": 1,
-            "deltas": deltas,
-        });
+        let ops = match compute_live_delta(plan, &input, &prior_ids, changes) {
+            LiveDeltaOutcome::Delta(ops) => ops,
+            LiveDeltaOutcome::Replace => Vec::new(),
+        };
+        // Serialize the `live_delta` payload the subscriber would receive
+        // (empty when the commit does not affect this subscriber — still a
+        // real classify through the production core).
+        let deltas: Vec<Value> = ops
+            .iter()
+            .map(|op| {
+                let kind = match op.kind {
+                    LiveDeltaKind::Add => "add",
+                    LiveDeltaKind::Update => "update",
+                    LiveDeltaKind::Remove => "remove",
+                };
+                json!({ "op": kind, "id": op.id, "row": op.row })
+            })
+            .collect();
+        let payload = json!({ "kind": "live_delta", "version": 1, "deltas": deltas });
         let encoded = serde_json::to_vec(&payload).unwrap_or_default();
         std::hint::black_box(&encoded);
     }
