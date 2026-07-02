@@ -341,3 +341,23 @@ medium — the code/config evidence is clear, but I did not run builds or tests 
 > ENG-22446 (pinned consumption), ENG-22441 (external production build),
 > ENG-22443 (error-locus parity), ENG-22445 (index.html takeover); the
 > acceptance-must-not-skip point folds into ENG-22446's CI story.
+
+## 2026-07-02 — Orchestrator note: upstream redesigned the Contract arm mid-exercise
+
+While this exercise ran, snapback main landed `51eea23` "All Aboard redesign:
+full-bleed poster board + web gesture layer" — a substantial visual/structural
+rewrite of the Contract surface (new board model, train prev/next gestures, its
+own delay coloring). Consequences, recorded honestly:
+
+- All measurements above were taken at the documented pre-redesign baseline
+  (`d4ced0d` lineage) and stand as recorded; the E1/E2 **Contract-arm** edit
+  commits were dropped at merge rather than force-ported onto the redesign
+  (which already ships its own delay treatment). The E1/E2 **React-arm** edits
+  remain in `surfaces/react/`.
+- Arm parity ended with the redesign: the shipped Contract surface is now a
+  different visual product than the React control arm, which mirrors the
+  pre-redesign design. Anyone re-running this comparison should re-baseline.
+- The irony is not lost: the exercise's #1 operational finding (the Contract
+  arm's exposure to a moving toolchain/repo at live HEAD) was demonstrated one
+  more time by the subject itself moving during the experiment. The React
+  arm's lockfile did not notice.
