@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Cron, Realtime, Data gateway, Contract/Exact, Notifications, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
+**Revised:** 2026-07-01 (replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
 **Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0009, LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0024, LLP 0028, LLP 0029, Diary 0008, https://github.com/ccheever/ibex, https://openrouteservice.org, https://en.wikipedia.org/wiki/List_of_Caltrain_stations, https://511.org/open-data/transit
 
 ## Summary
@@ -250,14 +250,18 @@ view is one tap deep, not the landing surface.
 
 ### Station identity
 
-Each station shows a **photo (or drawing) and its name**. For the first pass,
-photos come from the Wikipedia
-[List of Caltrain stations](https://en.wikipedia.org/wiki/List_of_Caltrain_stations).
-Sourcing, licensing/attribution, and whether images flow through the
-[asset-storage subsystem](./0000-snapback.explainer.md#asset-storage) or are
-referenced by URL are open ([Open questions](#open-questions)); for v0 a seeded
-URL plus attribution string per station is acceptable and must be recorded as a
-capability shortcut in the manifest.
+Each station shows a **photo and its name**. The photos are the real station
+images from the Wikipedia
+[List of Caltrain stations](https://en.wikipedia.org/wiki/List_of_Caltrain_stations)
+— sourced from Wikimedia Commons, cover-cropped to the card banner, and
+base64-inlined **inside** the card SVG at build time
+(`snapback/shared/station-photos.gen.mjs`). Inlining keeps zero runtime egress and
+full determinism (the DOM mirror blocks `data:` URIs on `src=`, so the photo rides
+the Contract `image svgSource=` path the drawing used), and each card shows the
+required CC BY/CC-BY-SA/CC0 photo credit. Flowing the images through the
+[asset-storage subsystem](./0000-snapback.explainer.md#asset-storage) instead of
+inlining them remains the follow-up ([Open questions](#open-questions)); the
+inline-vs-asset-pipeline shortcut is recorded in the manifest `temporaryPolicy`.
 
 ## Backend Design
 

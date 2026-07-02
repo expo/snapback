@@ -29,6 +29,7 @@ import {
   searchStations as modelSearch,
   serviceColor as modelServiceColor,
   stationPhoto as modelStationPhoto,
+  stationPhotoCredit as modelStationPhotoCredit,
 } from '../../snapback/shared/model.mjs';
 import { getStoreState } from './store.mjs';
 
@@ -75,6 +76,10 @@ export function adjacentStationId(stationId: string, delta: number): string {
 
 export function stationPhoto(stationId: string): string {
   return modelStationPhoto(stationId) ?? '';
+}
+
+export function stationPhotoCredit(stationId: string): string {
+  return modelStationPhotoCredit(stationId) ?? '';
 }
 
 // --- Direction ----------------------------------------------------------------

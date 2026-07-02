@@ -104,7 +104,7 @@
     "feed": "recorded feed ticks advanced by the cron refresh (or a manual Refresh); 60s freshness target",
     "clock": "predictions use the client's local time; the seed schedule is authored in Pacific (fixed-offset simplification)",
     "walkBike": "haversine from seed coordinates (walk ~3mph, bike ~9mph); OpenRouteService via a proxied action is the Phase-3 accuracy upgrade",
-    "stationPhotos": "generated per-station SVG drawing (zero egress); real photos via the asset pipeline are the follow-up",
+    "stationPhotos": "real Wikimedia Commons photos (via the Wikipedia List of Caltrain stations), cover-cropped and base64-inlined inside the card SVG at build time (snapback/shared/station-photos.gen.mjs) — zero runtime egress, deterministic; flowing them through the asset-storage subsystem instead of inlining is the follow-up",
     "egress": "opt-in via SNAPBACK_OUTBOUND_ACTIONS; the demo product path runs on recorded data and never calls fetch",
     "contractDataBridge": "the surface feeds live delays/freshness into a store the .contract derives from, since the shared single-boundary adapter does not push server-authored deltas to the browser"
   },

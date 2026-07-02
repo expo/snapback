@@ -14,6 +14,7 @@ export default defineContractModule('./data.ts', {
   searchStations: pure({ params: ['query', 'tick'], result: 'Station[]', depends: 'args' }),
   adjacentStationId: pure({ params: ['stationId', 'delta'], result: 'string', depends: 'args' }),
   stationPhoto: pure({ params: ['stationId'], result: 'string', depends: 'args' }),
+  stationPhotoCredit: pure({ params: ['stationId'], result: 'string', depends: 'args' }),
   assumedDirection: pure({ params: ['station'], result: 'string', depends: 'args' }),
   activeDirection: pure({ params: ['override', 'station'], result: 'string', depends: 'args' }),
   oppositeDirection: pure({ params: ['direction'], result: 'string', depends: 'args' }),

@@ -125,7 +125,7 @@ export class SnapbackClient {
     const updates = [];
     for (const env of envelopes) {
       if (env && env.Durable) {
-        const text = Buffer.from(env.Durable.payload).toString('utf8');
+        const text = decodeDurablePayload(env.Durable.payload);
         updates.push(JSON.parse(text));
       }
     }
@@ -338,6 +338,11 @@ function decodeEphemeralValue(bytes) {
   } catch {
     return text;
   }
+}
+
+function decodeDurablePayload(payload) {
+  if (typeof payload === 'string') return payload;
+  return new TextDecoder().decode(Uint8Array.from(payload ?? []));
 }
 
 function unwrapEphemeralMessage(input) {

@@ -164,3 +164,51 @@ retiring glue, and it lands its honest gaps (swipe, browser live-push, per-host
 egress allowlist) instead of faking them. The product answers its one question —
 *when is the next train, north and south, from here?* — before you touch anything,
 on a surface that is one file away from running on a Mac.
+
+## 2026-07-01 — Real station photos
+
+Swapped the placeholder per-station SVG "drawing" for the actual station photos
+from the Wikipedia [List of Caltrain
+stations](https://en.wikipedia.org/wiki/List_of_Caltrain_stations). A small
+Python generator (`snapback/shared/station-photos.gen.py`) pulls each station's
+Wikimedia Commons image via the MediaWiki API, cover-crops it to the 560×150 card
+banner, re-encodes it as a q72 JPEG, and emits `station-photos.gen.mjs` — a map of
+`stationId → { dataUri, attribution, sourceFile }`. Twenty-one photos total
+~454 KB of JPEG (~610 KB base64 in source).
+
+### What felt good
+
+The existing seam made this almost a drop-in. `stationPhoto()` already returned
+**inline SVG** for the Contract `image svgSource=` attribute (chosen originally
+because the DOM mirror blocks `data:` URIs on a raw `src=`). Embedding the real
+JPEG as a base64 `<image href>` *inside* that SVG meant the whole rest of the app
+— the `derive photoUrl`, the card layout, the web/native parity, the zero-egress
+tests — did not change at all. The photo rides the exact path the drawing did. A
+bottom scrim gradient plus the name overlay carried straight over, so the station
+name stays legible over any photograph. This is the payoff of the demo's
+"deterministic, zero-egress, one model" posture: real assets went in without
+opening a network path or touching the transactional layer.
+
+### What felt bad / surprising
+
+- **Attribution is on me.** The photos are CC BY / CC BY-SA / CC0, which *require*
+  crediting the author. Nothing in the pipeline reminded me of that; I had to pull
+  `extmetadata` (Artist + LicenseShortName) myself and add a `stationPhotoCredit`
+  helper plus a caption row on the card. An asset pipeline that carried
+  license/attribution as first-class metadata would have made this a non-choice.
+- **Base64-in-source is clearly the shortcut, not the destination.** 600 KB of
+  base64 in a committed `.mjs` is fine for a deterministic demo but is exactly what
+  the [asset-storage subsystem](../llp/0000-snapback.explainer.md#asset-storage) is
+  supposed to own. Recorded as a `temporaryPolicy` shortcut in the manifest.
+- **Wikimedia rate-limits hard (HTTP 429)** on an unthrottled loop; the generator
+  needed a 2 s spacing and backoff. Not a Snapback thing, but worth noting for
+  anyone re-running the fetch.
+
+### Compared to the alternative
+
+In a React app I'd have dropped `<img src="https://upload.wikimedia.org/...">` and
+been done in a line — at the cost of runtime egress, a hotlink that can rot or get
+rate-limited, and a non-deterministic test. Here the constraint ("no egress on the
+product path") pushed the fetch to *build time* and made the runtime artifact a
+pure, committed, deterministic asset. More work up front, but the result is
+hermetic and the acceptance tests stay honest.

@@ -1,7 +1,7 @@
 {
   "appId": "all-aboard",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:57b022ba9ff7ec76",
+  "bundleHash": "sha256:2f6a9bc3443c38b4",
   "cronJobs": [
     {
       "action": "refreshFeed",
@@ -13,7 +13,7 @@
       },
       "enabled": true,
       "jitterPolicy": {
-        "enabled": true,
+        "enabled": false,
         "maxOffsetMs": 0
       },
       "name": "warmPoll",
@@ -357,7 +357,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "c68db3e2bae79ec331b1117d255cbd2ad3a87a5745d4cabc25cebfd7dcdac7fe",
+  "inputsHash": "c60a5aafba001abc0dc48724cb1749a624c241e6114322cd3e21e05b615cb276",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

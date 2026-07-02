@@ -1,5 +1,8 @@
 // All Aboard — shared Caltrain transit model (pure, dependency-free JS).
 //
+// The only import is the generated station-photo asset map (base64 Wikimedia
+// Commons photos); the rest of this file is pure geometry/schedule/prediction math.
+//
 // This is the single source of truth for the corridor geometry, the clock-face
 // schedule, and the prediction/haversine/formatting math. It is imported by BOTH
 // the Contract surface's data helpers (demos/all-aboard/surfaces/contract/data.ts)
@@ -23,10 +26,12 @@
 // @ref LLP 0027#backend-design — durable schedule + refresh-written delays;
 //   predictions computed at query/render time from stopTimes + trainStatus + now.
 
+import { STATION_PHOTOS } from './station-photos.gen.mjs';
+
 // ---------------------------------------------------------------------------
 // Corridor geometry — north (0) to south. minutesFromSf = local travel time
-// from San Francisco. Photos are seeded Wikimedia Commons thumbnails; see the
-// manifest's temporaryPolicy for the attribution shortcut.
+// from San Francisco. Each station carries a real Wikimedia Commons photo,
+// inlined by station-photos.gen.mjs; see the manifest's temporaryPolicy note.
 // ---------------------------------------------------------------------------
 
 export const STATIONS = [
@@ -60,11 +65,12 @@ export const SOUTH_SAN_FRANCISCO_ORDER = 3;
 const STATION_BY_ID = new Map(STATIONS.map((s) => [s.id, s]));
 const STATION_BY_ORDER = new Map(STATIONS.map((s) => [s.orderIndex, s]));
 
-// Station imagery. LLP 0027 allows a "photo (or drawing)"; v0 uses a generated
-// per-station SVG "drawing" (a zone-tinted station banner) rather than hotlinked
-// Wikipedia photos. It renders with zero egress, is fully deterministic, and still
-// exercises the Contract `image` primitive via a data URI. Swapping in real photos
-// through the asset pipeline is the documented follow-up (manifest temporaryPolicy).
+// Station imagery. LLP 0027 wants a real "photo (or drawing)" from the Wikipedia
+// List of Caltrain stations. Each station now carries its actual Wikimedia Commons
+// photo (station-photos.gen.mjs), inlined as a base64 JPEG *inside* the SVG the
+// Contract `image svgSource=` attribute expects. That keeps zero egress, full
+// determinism, and native/web parity (the DOM mirror blocks data: URIs on `src=`,
+// so a raw <img src="data:..."> would not render), while showing real photography.
 const ZONE_TINTS = ['#2f5fe0', '#0a6cbf', '#0e7c86', '#b4460f', '#7a3ea8'];
 
 function escapeXml(value) {
@@ -129,26 +135,40 @@ export function getStationById(stationId) {
   return STATION_BY_ID.get(stationId) ?? null;
 }
 
-// A generated SVG "drawing" for the station card, as inline SVG markup for the
+// The real station photo for the card, returned as inline SVG markup for the
 // Contract `image svgSource=` attribute (the DOM mirror blocks data: URIs on
-// `src=`). No network, fully deterministic, renders on web and native.
+// `src=`). The Wikimedia JPEG is embedded as a base64 <image>, slice-scaled to
+// cover the banner, under a bottom scrim that keeps the station name legible over
+// any photo. No network, fully deterministic, renders on web and native. Falls
+// back to the zone-tinted gradient if a photo is somehow missing.
 export function stationPhoto(stationId) {
   const station = STATION_BY_ID.get(stationId);
   if (!station) return '';
   const tint = ZONE_TINTS[(station.zone - 1) % ZONE_TINTS.length];
+  const photo = STATION_PHOTOS[stationId];
+  const backdrop = photo
+    ? `<image href='${photo.dataUri}' x='0' y='0' width='560' height='150' preserveAspectRatio='xMidYMid slice'/>`
+    : `<rect width='560' height='150' fill='url(#g)'/>`;
   return (
     `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 560 150' width='560' height='150'>` +
     `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
-    `<stop offset='0' stop-color='${tint}'/><stop offset='1' stop-color='#10152b'/></linearGradient></defs>` +
-    `<rect width='560' height='150' fill='url(#g)'/>` +
-    `<rect x='392' y='34' width='150' height='58' rx='10' fill='#ffffff' opacity='0.14'/>` +
-    `<rect x='404' y='44' width='58' height='30' rx='5' fill='#ffffff' opacity='0.22'/>` +
-    `<circle cx='420' cy='100' r='9' fill='#ffffff' opacity='0.5'/>` +
-    `<circle cx='512' cy='100' r='9' fill='#ffffff' opacity='0.5'/>` +
-    `<text x='28' y='92' font-family='system-ui,sans-serif' font-size='32' font-weight='800' fill='#ffffff'>${escapeXml(station.name)}</text>` +
-    `<text x='28' y='120' font-family='system-ui,sans-serif' font-size='14' fill='#dbe3f4'>Caltrain · Zone ${station.zone}</text>` +
+    `<stop offset='0' stop-color='${tint}'/><stop offset='1' stop-color='#10152b'/></linearGradient>` +
+    `<linearGradient id='scrim' x1='0' y1='0' x2='0' y2='1'>` +
+    `<stop offset='0' stop-color='#0a0f1e' stop-opacity='0'/><stop offset='1' stop-color='#0a0f1e' stop-opacity='0.72'/></linearGradient></defs>` +
+    backdrop +
+    `<rect y='70' width='560' height='80' fill='url(#scrim)'/>` +
+    `<text x='28' y='120' font-family='system-ui,sans-serif' font-size='32' font-weight='800' fill='#ffffff'>${escapeXml(station.name)}</text>` +
+    `<text x='28' y='140' font-family='system-ui,sans-serif' font-size='13' fill='#dbe3f4'>Caltrain · Zone ${station.zone}</text>` +
     `</svg>`
   );
+}
+
+// The photo credit line for the station card. CC BY / CC BY-SA license the
+// photos on the condition that the author is named, so this must be shown.
+export function stationPhotoCredit(stationId) {
+  const photo = STATION_PHOTOS[stationId];
+  if (!photo) return '';
+  return `Photo: ${photo.attribution} · Wikimedia Commons`;
 }
 
 export function toRadians(value) {
@@ -238,10 +258,11 @@ export function getStaticScheduleSeed() {
     zone: s.zone,
     lat: s.lat,
     lng: s.lng,
-    // The surface renders a generated SVG drawing via stationPhoto(); the durable
-    // row keeps only the attribution note so the seed stays small.
+    // The surface renders the real photo via stationPhoto() (base64-inlined from
+    // Wikimedia Commons); the durable row keeps the credit so the seed stays small.
     photoUrl: '',
-    photoAttribution: 'Generated SVG drawing (LLP 0027 photo shortcut)',
+    photoAttribution:
+      (STATION_PHOTOS[s.id]?.attribution ?? 'Wikimedia Commons') + ' (via Wikipedia, List of Caltrain stations)',
   }));
 
   const trips = PATTERNS.map((p) => ({

@@ -25,7 +25,7 @@
     "contract/tripsQuery.query.ts",
     "contract/tripsQuery.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:57b022ba9ff7ec76",
+  "bundleHash": "sha256:2f6a9bc3443c38b4",
   "cronJobs": [
     {
       "action": "refreshFeed",
@@ -77,7 +77,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "c68db3e2bae79ec331b1117d255cbd2ad3a87a5745d4cabc25cebfd7dcdac7fe",
+  "inputsHash": "c60a5aafba001abc0dc48724cb1749a624c241e6114322cd3e21e05b615cb276",
   "schemaHash": "sha256:c7f25a2cc6da8499",
   "schemaVersion": "snapback.v0",
   "tables": [
