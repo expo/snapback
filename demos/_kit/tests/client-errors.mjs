@@ -9,7 +9,7 @@
 //   latches, so nextUpdate() after close rejects instead of hanging).
 
 import { SnapbackClient } from '../client.mjs';
-import { AdminClient } from '../../../admin-ui/admin-client.mjs';
+import { AdminClient } from '../../../packages/snapback-admin-client/index.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
 class FakeWebSocket {
