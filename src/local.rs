@@ -401,6 +401,8 @@ impl LocalSnapback {
         self.ephemeral.reset_runtime_state();
         self.cron.reset_runtime_state(&self.functions);
         self.live_delivery = LiveDeliveryStats::default();
+        // Clearing subscriptions can disarm a demand-gated cron job (L5).
+        self.refresh_cron_active();
         self.persist_cron_state()?;
         Ok(())
     }
@@ -987,6 +989,10 @@ impl LocalSnapback {
 
     pub fn explain_table_change_version_plan(&self, table: &str) -> SnapbackResult<String> {
         self.db.explain_table_change_version_plan(table)
+    }
+
+    pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
+        self.db.table_change_version(table)
     }
 
     pub fn drain_live_stream(&mut self, connection_id: &str) -> Vec<String> {

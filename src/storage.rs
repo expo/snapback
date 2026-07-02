@@ -15,6 +15,10 @@ use uuid::Uuid;
 
 const META_SCHEMA_MANIFEST: &str = "schema_manifest";
 const META_CRON_STATE: &str = "cron_state";
+// @ref LLP 0032 L3 — the monotonic replay floor: the highest change version
+// that pruning has removed. A resume from at/above it is guaranteed replayable;
+// below it, a change may be gone, so the client must resnapshot.
+const META_RETENTION_FLOOR: &str = "retention_floor";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct StorageInfo {
@@ -212,6 +216,15 @@ impl LocalDatabase {
     /// change is kept if it is within either window, so a burst of writes and a
     /// long-idle table are both retained conservatively.
     ///
+    /// A table's **newest** change is never pruned, even when cold. Read-set
+    /// validation uses `MAX(version) WHERE table_name = ?` and treats
+    /// captured-version-equals-current as "unchanged since the read"; if the
+    /// last change of a cold table were pruned, that `MAX` would drop to 0 and
+    /// spuriously conflict a mutation that only *read* the table. Retaining the
+    /// per-table high-water row keeps the invariant while still bounding the
+    /// journal (at most one version's worth of rows per table survives the
+    /// window, and table count is bounded by the schema).
+    ///
     /// @ref LLP 0008#retention-and-resume — version-and-time-bounded retention.
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
     pub fn prune_change_journal(
@@ -222,22 +235,60 @@ impl LocalDatabase {
     ) -> SnapbackResult<u64> {
         let version_floor = self.current_version()?.saturating_sub(retain_versions);
         let time_floor = now_ms.saturating_sub(retain_ms);
+        // Predicate for a prunable row: outside both windows, and not its
+        // table's high-water change (which read-set validation still needs).
+        let prunable = "version < ?1 AND changed_at_ms < ?2 \
+             AND version < (SELECT MAX(version) FROM _snapback_changes t2 \
+                            WHERE t2.table_name = _snapback_changes.table_name)";
+        // Advance the monotonic replay floor to the highest version actually
+        // pruned this pass, so a resume at/above the floor is guaranteed to have
+        // a contiguous journal.
+        let highest_pruned: Option<i64> = self.conn.query_row(
+            &format!("SELECT MAX(version) FROM _snapback_changes WHERE {prunable}"),
+            params![version_floor as i64, time_floor as i64],
+            |row| row.get(0),
+        )?;
+        if let Some(highest_pruned) = highest_pruned {
+            let floor = self.load_retention_floor()?.max(highest_pruned as u64 + 1);
+            self.save_retention_floor(floor)?;
+        }
         let deleted = self.conn.execute(
-            "DELETE FROM _snapback_changes WHERE version < ?1 AND changed_at_ms < ?2",
+            &format!("DELETE FROM _snapback_changes WHERE {prunable}"),
             params![version_floor as i64, time_floor as i64],
         )?;
         Ok(deleted as u64)
     }
 
-    /// The oldest change version still retained (0 if the journal is empty). A
-    /// client resuming from below this cannot be replayed and must resnapshot.
+    /// The monotonic replay floor: the highest change version pruning has
+    /// removed (0 if nothing has ever been pruned). A version-based resume from
+    /// below this may hit a pruned gap and must resnapshot; from at/above it the
+    /// journal is contiguous. Distinct from a table's validation high-water,
+    /// which pruning preserves.
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
     pub fn journal_floor_version(&self) -> SnapbackResult<u64> {
-        let floor: Option<i64> =
-            self.conn
-                .query_row("SELECT MIN(version) FROM _snapback_changes", [], |row| {
-                    row.get(0)
-                })?;
-        Ok(floor.unwrap_or(0) as u64)
+        self.load_retention_floor()
+    }
+
+    fn load_retention_floor(&self) -> SnapbackResult<u64> {
+        let value: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![META_RETENTION_FLOOR],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(value.and_then(|value| value.parse().ok()).unwrap_or(0))
+    }
+
+    fn save_retention_floor(&self, floor: u64) -> SnapbackResult<()> {
+        self.conn.execute(
+            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2) \
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![META_RETENTION_FLOOR, floor.to_string()],
+        )?;
+        Ok(())
     }
 
     pub fn change_journal_len(&self) -> SnapbackResult<u64> {
@@ -249,22 +300,22 @@ impl LocalDatabase {
         Ok(count as u64)
     }
 
-    /// Whether a client resuming from `from_version` must resnapshot rather than
-    /// replay: the journal no longer retains the changes it would need. This is
-    /// the retention contract for the version-based replay path (a consumer is
-    /// future sync work, LLP 0032 P4); the primitive is defined here so the
-    /// floor is authoritative.
+    /// Whether a client must resnapshot rather than replay. `from_version` is
+    /// the earliest change version the client still needs (it has applied every
+    /// version before it, and wants `[from_version, current]`). If that is below
+    /// the monotonic replay floor, a needed change may have been pruned, so the
+    /// client must resnapshot; at/above the floor the journal is contiguous and
+    /// can be replayed. A floor of 0 (nothing ever pruned) never forces a
+    /// resnapshot.
+    ///
+    /// This is the retention contract for the version-based replay path; the
+    /// consumer is future sync work ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
+    /// P4 / DK-3), and this primitive keeps the floor authoritative meanwhile.
     ///
     /// @ref LLP 0008#retention-and-resume — resume below the retained floor requires resnapshot.
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
     pub fn resume_requires_resnapshot(&self, from_version: u64) -> SnapbackResult<bool> {
-        let floor = self.journal_floor_version()?;
-        if floor == 0 {
-            // Empty or fully-pruned journal: replay is only possible if the
-            // client is already current; anything behind current must resnapshot.
-            return Ok(from_version < self.current_version()?);
-        }
-        Ok(from_version < floor)
+        Ok(from_version < self.journal_floor_version()?)
     }
 
     /// The `EXPLAIN QUERY PLAN` detail for the per-mutation read-set validation

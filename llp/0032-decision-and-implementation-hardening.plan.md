@@ -597,11 +597,18 @@ change the concurrency architecture and should land as one reviewed arc.
   is added (validation query no longer scans, asserted via `EXPLAIN QUERY
   PLAN`); `prune_change_journal` (version-and-time-bounded) runs in the
   periodic maintenance worker; `journal_floor_version` +
-  `resume_requires_resnapshot` encode the below-floor contract. Test
-  `l3_journal_retention_prune_floor_and_index`. **Note:** the version-based
-  delta-resume *consumer* is future wire work (P4/DK-3) — today live delivery
-  re-runs queries rather than replaying the journal, so the floor primitive
-  exists but has no client caller yet; recorded in LLP 0008 §Retention.
+  `resume_requires_resnapshot` encode the below-floor contract. Tests
+  `l3_journal_retention_prune_floor_and_index` and
+  `l3_prune_preserves_cold_table_validation_version`. **Review fix (same day):**
+  a Claude-family review caught a HIGH bug — naive pruning dropped a cold
+  table's `MAX(version)` to 0, spuriously conflicting a mutation that only
+  *read* that table. Fixed: prune never deletes a table's high-water change
+  (validation stays correct), and the replay floor is a monotonic persisted
+  watermark (highest actually-pruned version + 1), not `MIN(version)` (which the
+  per-table exception would pollute). **Note:** the version-based delta-resume
+  *consumer* is future wire work (P4/DK-3) — today live delivery re-runs
+  queries rather than replaying the journal, so the floor primitive exists but
+  has no client caller yet; recorded in LLP 0008 §Retention.
 - **L4 — Incremental ephemeral counters.** `refresh_counts` recomputes
   diagnostics over all rooms, entries, and outboxes after every publish,
   subscribe, delete, and disconnect (`src/ephemeral.rs:1212-1249`)

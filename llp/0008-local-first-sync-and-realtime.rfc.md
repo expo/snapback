@@ -328,9 +328,13 @@ below the floor.
 > **Implementation status (2026-07-01, LLP 0032 L3):** the local target now
 > bounds the `_snapback_changes` journal — a periodic prune keeps the last N
 > commit versions *or* anything newer than a time window and drops the rest
-> (`LocalDatabase::prune_change_journal`), the retained floor is authoritative
-> (`journal_floor_version`), and `resume_requires_resnapshot(from_version)`
-> encodes the below-floor contract. The journal also gained a
+> (`LocalDatabase::prune_change_journal`), except that a table's **high-water
+> change is never pruned** so read-set validation's `MAX(version) WHERE
+> table_name` never collapses for a cold table (a review caught that as a
+> spurious-conflict bug). The replay floor is a **monotonic persisted
+> watermark** — the highest version pruning has removed — so it stays
+> authoritative even though old per-table high-water rows linger for
+> validation; `resume_requires_resnapshot(from_version)` compares against it. The journal also gained a
 > `(table_name, version)` index so the per-mutation read-set validation no
 > longer full-scans. What is *not* built yet is a version-based **delta-resume
 > consumer**: today live delivery re-runs queries rather than replaying the

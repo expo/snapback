@@ -2809,10 +2809,11 @@ fn l3_journal_retention_prune_floor_and_index() {
     }
     let before = snapback.change_journal_len().unwrap();
     assert!(before >= 12, "expected the journal to hold each change, got {before}");
-    assert_eq!(snapback.journal_floor_version().unwrap(), 1);
+    // Nothing pruned yet → the replay floor is 0 (no resnapshot forced).
+    assert_eq!(snapback.journal_floor_version().unwrap(), 0);
 
     // Prune keeping only the last 3 versions (time window zero → the version
-    // window governs). The journal shrinks and its floor rises.
+    // window governs). The journal shrinks and the replay floor rises.
     let pruned = snapback
         .prune_change_journal(2_000_000_000_000, 3, 0)
         .expect("prune");
@@ -2820,7 +2821,7 @@ fn l3_journal_retention_prune_floor_and_index() {
     let after = snapback.change_journal_len().unwrap();
     assert!(after < before, "journal must shrink: {after} !< {before}");
     let floor = snapback.journal_floor_version().unwrap();
-    assert!(floor > 1, "floor must rise after pruning, got {floor}");
+    assert!(floor > 1, "replay floor must rise after pruning, got {floor}");
 
     // A resume from below the retained floor must resnapshot; from the floor or
     // later can replay.
@@ -2842,4 +2843,81 @@ fn l3_journal_retention_prune_floor_and_index() {
         "read-set validation must use the table_name index; plan was: {plan}"
     );
     assert!(!plan.to_uppercase().contains("SCAN "), "plan should not scan: {plan}");
+}
+
+/// LLP 0032 L3 — regression for the review's HIGH finding: pruning must never
+/// drop a cold table's MAX(version), or read-set validation would spuriously
+/// conflict a mutation that only *read* the cold table (captured expected
+/// version vs a MAX that collapsed to 0).
+#[test]
+fn l3_prune_preserves_cold_table_validation_version() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let mut schema = todo_schema();
+    schema.tables.push(TableManifest {
+        name: "notes".to_owned(),
+        fields: vec![FieldManifest {
+            name: "body".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        }],
+        indexes: Vec::new(),
+        syncable: false,
+    });
+    snapback.apply_schema(schema).expect("apply two-table schema");
+
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', { title: args.title, completed: false, userId: 'u' });
+  },
+  async createNote(ctx, args) {
+    return await ctx.db.insert('notes', { body: args.body });
+  }
+};
+"#;
+    let mut functions = FunctionManifest::default();
+    for (name, table) in [("createTodo", "todos"), ("createNote", "notes")] {
+        let mut def = FunctionDefinition::new(
+            name,
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: SOURCE.to_owned(),
+                export: name.to_owned(),
+            }),
+        );
+        def.required_capabilities = vec![
+            "ibex_ctx_db_host_bridge".to_owned(),
+            "mutation_read_set_validation".to_owned(),
+        ];
+        def.write_set_summary.primary_table = Some(table.to_owned());
+        def.write_set_summary.tables = vec![table.to_owned()];
+        def.write_set_summary.mode = Some("handlerDeclared".to_owned());
+        functions.functions.push(def);
+    }
+    snapback.load_functions(functions);
+
+    // `notes` changes once (cold), then `todos` changes many times (hot), so
+    // `notes`' only change sits far below the version window.
+    snapback
+        .invoke_mutation("createNote", input(json!({ "body": "keep me" }), "u"))
+        .expect("create note");
+    let cold_version = snapback.table_change_version("notes").unwrap();
+    assert!(cold_version >= 1);
+    for n in 0..12 {
+        snapback
+            .invoke_mutation("createTodo", input(json!({ "title": format!("t{n}") }), "u"))
+            .expect("create todo");
+    }
+
+    snapback
+        .prune_change_journal(2_000_000_000_000, 3, 0)
+        .expect("prune");
+
+    // The cold table's validation high-water survives, so a mutation that read
+    // `notes` will not spuriously conflict.
+    assert_eq!(
+        snapback.table_change_version("notes").unwrap(),
+        cold_version,
+        "pruning must preserve a cold table's MAX(version) for read-set validation"
+    );
 }
