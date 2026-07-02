@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Sync, Ephemeral state, Testing, Performance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-01
+**Revised:** 2026-07-02
 **Related:** LLP 0000, LLP 0003, LLP 0008, LLP 0009, LLP 0012, LLP 0022, LLP 0032
 
 ## Summary
@@ -72,6 +72,29 @@ DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
 | Spurious-conflict rate (non-matching) | **1.0 → 0.0** | fraction of concurrent writers that don't match a *filtered* query's predicate yet conflict a reader of it: **1.0** under table-granularity validation, **0.0** after E4's predicate-granularity validation landed (same day) |
 | Ephemeral publish | **~485 000 pub/s (~2 µs)** | per-publish cost with a handful of subscribers (the 20–60 Hz cursor target has ~4 orders of magnitude of headroom) |
 
+## L6+L7 re-run (2026-07-02, after the concurrency arc landed)
+
+The harness gained a `read_during_write` A/B (file-backed database; a busy
+mutation holds the write lane for 400 ms while one read runs each way, both
+paths measured in the same build) and was re-run at full scale after the
+reader-pool/offload arc ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
+L6+L7) landed. Two runs, same machine and method as above.
+
+| Metric | Before (design) | After (measured) | Meaning |
+| --- | --- | --- | --- |
+| Read during a busy write — global mutex | *the write's remaining duration by construction* | **~302 000–309 000 µs** | the pre-L6 path, still measurable: the read queues behind the busy write |
+| Read during a busy write — read lane | *n/a (lane did not exist)* | **~4 300–4 600 µs** | ≈ one fresh-VM query invocation — zero queueing (**~70×** better) |
+| Single-writer throughput | ~227 mut/s | **248–278 mut/s** | no regression from `lock_owned` + `spawn_blocking` on the write path (within run variance) |
+| Per-invocation VM cost | ~2 700–3 900 µs | ~3 600–4 400 µs | unchanged shape; run-to-run variance as documented above |
+
+The read-lane number **is** the VM cost: with queueing eliminated, a
+read-during-write costs exactly what a standalone read costs, which reconnects
+this table to the DK-4 conclusion — the next read-latency lever is VM reuse,
+not concurrency. The mutex-path number is kept measurable on purpose (the
+harness reads through the global lock) so future regressions in either lane
+stay visible. The CI smoke lane asserts the split (lane read under half the
+busy window; mutex read over a quarter of it).
+
 ## What the numbers mean
 
 1. **The VM is the whole cost.** A fresh VM per invocation is ~3 orders of
@@ -136,7 +159,9 @@ DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
   at ~100%.
 - **L6–L8 (the concurrency arc).** These numbers are the "before" baseline;
   re-run the harness after the reader pool / blocking-work offload / event-driven
-  delivery land to quantify the win, as Phase 3 requires.
+  delivery land to quantify the win, as Phase 3 requires. **Done for L6+L7
+  (2026-07-02)** — see §L6+L7 re-run above: reads no longer queue behind
+  writes (~68× on the read-during-write A/B), write throughput unregressed.
 
 ## Open questions
 

@@ -2234,7 +2234,7 @@ fn s2_resume_live_fails_closed_for_a_different_principal() {
 /// closed with a structured diagnostic, never a silently-empty result set.
 #[test]
 fn s5_d9_non_array_query_result_fails_closed() {
-    let mut snapback = configured_ibex_snapback(
+    let snapback = configured_ibex_snapback(
         r#"
 globalThis.__snapbackHandlers = {
   async listTodos(ctx) {

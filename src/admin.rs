@@ -7,7 +7,7 @@
 //! state rather than forking a parallel schema; the console is one consumer.
 
 use crate::diagnostic::SnapbackError;
-use crate::local::InspectState;
+use crate::local::{InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{ApiError, HealthResponse, SharedSnapback};
@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
 
 /// The packaged web admin console: a single self-contained file embedded in the
 /// binary so a built `snapback` serves a working console with no Node, Vite, or
@@ -97,31 +98,47 @@ fn env_admin_dist() -> Option<PathBuf> {
         .filter(|path| !path.as_os_str().is_empty())
 }
 
-/// Shared application state: the Snapback instance plus the server context.
-/// `FromRef` lets the original core handlers keep extracting `SharedSnapback`
-/// unchanged while admin handlers also reach the `ServerContext`.
+/// Shared application state: the Snapback instance (write lane), the lock-free
+/// read lane, and the server context. `FromRef` lets the original core
+/// handlers keep extracting `SharedSnapback` unchanged while other handlers
+/// reach the `ReadLane` or `ServerContext`.
 #[derive(Clone)]
 pub struct AppState {
     pub snapback: SharedSnapback,
+    pub read: ReadLane,
     pub server: Arc<ServerContext>,
 }
 
 impl AppState {
-    pub fn new(snapback: SharedSnapback, server: ServerContext) -> Self {
+    pub fn new(snapback: SharedSnapback, read: ReadLane, server: ServerContext) -> Self {
         Self {
             snapback,
+            read,
             server: Arc::new(server),
         }
     }
 
-    pub fn detached(snapback: SharedSnapback) -> Self {
-        Self::new(snapback, ServerContext::detached())
+    /// Wrap a fresh instance: the read lane is extracted before the instance
+    /// disappears behind the write mutex.
+    pub fn from_snapback(snapback: LocalSnapback, server: ServerContext) -> Self {
+        let read = snapback.read_lane();
+        Self::new(Arc::new(Mutex::new(snapback)), read, server)
+    }
+
+    pub fn detached(snapback: LocalSnapback) -> Self {
+        Self::from_snapback(snapback, ServerContext::detached())
     }
 }
 
 impl FromRef<AppState> for SharedSnapback {
     fn from_ref(state: &AppState) -> Self {
         state.snapback.clone()
+    }
+}
+
+impl FromRef<AppState> for ReadLane {
+    fn from_ref(state: &AppState) -> Self {
+        state.read.clone()
     }
 }
 
@@ -413,8 +430,7 @@ async fn admin_health(
     headers: HeaderMap,
 ) -> Result<Json<HealthResponse>, ApiError> {
     authorize(&ctx, &headers, false)?;
-    let mut snapback = snapback.lock().await;
-    let inspect = snapback.inspect()?;
+    let inspect = crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
     Ok(Json(HealthResponse {
         ok: true,
         target: inspect.target,
@@ -430,8 +446,7 @@ async fn admin_inspect(
     headers: HeaderMap,
 ) -> Result<Json<AdminInspect>, ApiError> {
     authorize(&ctx, &headers, false)?;
-    let mut snapback = snapback.lock().await;
-    let inspect = snapback.inspect()?;
+    let inspect = crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
     Ok(Json(AdminInspect::assemble(inspect, &ctx)))
 }
 
@@ -451,8 +466,11 @@ async fn admin_data(
     authorize(&ctx, &headers, false)?;
     let limit = params.limit.unwrap_or(50).clamp(1, 500);
     let offset = params.offset.unwrap_or(0);
-    let snapback = snapback.lock().await;
-    Ok(Json(snapback.scan_table(&table, limit, offset)?))
+    let scan = crate::server::with_snapback(&snapback, move |snapback| {
+        snapback.scan_table(&table, limit, offset)
+    })
+    .await?;
+    Ok(Json(scan))
 }
 
 async fn admin_run_function(
@@ -462,14 +480,17 @@ async fn admin_run_function(
     Path(name): Path<String>,
     Json(input): Json<HandlerInput>,
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
-    let mut snapback = snapback.lock().await;
-    // A mutation is a write; a query (or unknown function) is a read.
-    let write = matches!(
-        snapback.function_kind(&name),
-        Some(FunctionKind::Mutation | FunctionKind::Action)
-    );
-    authorize(&ctx, &headers, write)?;
-    Ok(Json(snapback.run_function(&name, input)))
+    let result = crate::server::with_snapback(&snapback, move |snapback| -> Result<_, ApiError> {
+        // A mutation is a write; a query (or unknown function) is a read.
+        let write = matches!(
+            snapback.function_kind(&name),
+            Some(FunctionKind::Mutation | FunctionKind::Action)
+        );
+        authorize(&ctx, &headers, write)?;
+        Ok(snapback.run_function(&name, input))
+    })
+    .await?;
+    Ok(Json(result))
 }
 
 async fn admin_cron_tick(
@@ -478,8 +499,10 @@ async fn admin_cron_tick(
     headers: HeaderMap,
 ) -> Result<Json<Vec<crate::cron::CronRunRecord>>, ApiError> {
     authorize(&ctx, &headers, true)?;
-    let mut snapback = snapback.lock().await;
-    Ok(Json(snapback.tick_cron(now_millis())?))
+    let now = now_millis();
+    let runs =
+        crate::server::with_snapback(&snapback, move |snapback| snapback.tick_cron(now)).await?;
+    Ok(Json(runs))
 }
 
 async fn admin_run_cron_job(
@@ -489,8 +512,12 @@ async fn admin_run_cron_job(
     Path(name): Path<String>,
 ) -> Result<Json<crate::cron::CronRunRecord>, ApiError> {
     authorize(&ctx, &headers, true)?;
-    let mut snapback = snapback.lock().await;
-    Ok(Json(snapback.run_cron_job_now(&name, now_millis())?))
+    let now = now_millis();
+    let record = crate::server::with_snapback(&snapback, move |snapback| {
+        snapback.run_cron_job_now(&name, now)
+    })
+    .await?;
+    Ok(Json(record))
 }
 
 async fn admin_ephemeral_cleanup(

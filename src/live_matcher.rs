@@ -3,9 +3,7 @@ use crate::manifest::{
     FilterExpr, FilterOp, FunctionDefinition, FunctionRuntime, HandlerInput, HandlerPlan,
     OrderDirection, QueryOutput, QueryPlan, ValueExpr,
 };
-use crate::storage::{
-    CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, LocalDatabase,
-};
+use crate::storage::{CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, DbRead};
 use serde_json::{Value, json};
 use std::cmp::Ordering;
 
@@ -13,7 +11,7 @@ pub(crate) fn query_dependencies_from_plan(
     plan: &QueryPlan,
     input: &HandlerInput,
     output: &QueryOutput,
-    db: &LocalDatabase,
+    db: &DbRead<'_>,
 ) -> SnapbackResult<Vec<CapturedReadDependency>> {
     let mut dependencies = Vec::new();
     if let Some(user_id) = input.auth.user_id.as_deref() {

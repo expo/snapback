@@ -5,11 +5,12 @@ use crate::manifest::{
     TableManifest, ValueExpr,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
-use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Number, Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -155,6 +156,10 @@ pub struct LocalDatabase {
     conn: Connection,
     path: Option<PathBuf>,
     schema: SchemaManifest,
+    // @ref LLP 0003#database-model — reads use a separate pool of WAL reader
+    // connections so queries do not queue behind writes. `None` for in-memory
+    // databases, which cannot run WAL; those fall back to the serialized lane.
+    reader_pool: Option<Arc<ReaderPool>>,
 }
 
 impl LocalDatabase {
@@ -164,6 +169,7 @@ impl LocalDatabase {
             conn,
             path: None,
             schema: SchemaManifest::default(),
+            reader_pool: None,
         };
         db.configure(false)?;
         db.create_infra()?;
@@ -175,13 +181,25 @@ impl LocalDatabase {
         let conn = Connection::open(&path)?;
         let mut db = Self {
             conn,
-            path: Some(path),
+            path: Some(path.clone()),
             schema: SchemaManifest::default(),
+            reader_pool: None,
         };
         db.configure(true)?;
         db.create_infra()?;
         db.schema = db.load_schema_manifest()?.unwrap_or_default();
+        // The pool is created after configure/create_infra so readers open an
+        // existing WAL database with the infra tables committed.
+        db.reader_pool = Some(Arc::new(ReaderPool::new(path)));
         Ok(db)
+    }
+
+    /// The WAL reader pool for lock-free read-lane queries; `None` for
+    /// in-memory databases (no WAL, reads stay on the serialized write lane).
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+    pub fn reader_pool(&self) -> Option<Arc<ReaderPool>> {
+        self.reader_pool.clone()
     }
 
     pub fn schema(&self) -> &SchemaManifest {
@@ -202,12 +220,7 @@ impl LocalDatabase {
     }
 
     pub fn current_version(&self) -> SnapbackResult<u64> {
-        let version: i64 = self.conn.query_row(
-            "SELECT version FROM _snapback_version WHERE id = 1",
-            [],
-            |row| row.get(0),
-        )?;
-        Ok(version as u64)
+        current_version_on(&self.conn)
     }
 
     /// Prune the change journal to bound its growth: delete changes that are
@@ -462,43 +475,11 @@ impl LocalDatabase {
     }
 
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
-        let table = schema_table(&self.schema, &plan.table)?;
-        validate_query_index(table, plan)?;
-        let (sql, values) = build_query_sql(table, plan, input, &BTreeMap::new(), now_millis())?;
-        let mut statement = self.conn.prepare(&sql)?;
-        let columns = statement
-            .column_names()
-            .into_iter()
-            .map(ToOwned::to_owned)
-            .collect::<Vec<_>>();
-        let mut rows = statement.query(params_from_iter(values.iter()))?;
-        let mut output = Vec::new();
-
-        while let Some(row) = rows.next()? {
-            output.push(row_to_document(row, table, &columns)?);
-        }
-
-        Ok(QueryOutput {
-            version: self.current_version()?,
-            rows: output,
-        })
+        query_on(&self.conn, &self.schema, plan, input)
     }
 
     pub fn get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
-        let table = schema_table(&self.schema, table)?;
-        let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
-        let mut statement = self.conn.prepare(&sql)?;
-        let columns = statement
-            .column_names()
-            .into_iter()
-            .map(ToOwned::to_owned)
-            .collect::<Vec<_>>();
-        let mut rows = statement.query(params![id])?;
-        if let Some(row) = rows.next()? {
-            Ok(Some(row_to_document(row, table, &columns)?))
-        } else {
-            Ok(None)
-        }
+        get_on(&self.conn, &self.schema, table, id)
     }
 
     pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
@@ -572,6 +553,7 @@ impl LocalDatabase {
         plan: &MutationPlan,
         input: &HandlerInput,
     ) -> SnapbackResult<MutationCommit> {
+        crate::exec_guard::debug_assert_off_async_worker("a SQLite mutation");
         // @ref LLP 0003#execution-and-write-semantics — one mutation commits all buffered writes at one version.
         let schema = self.schema.clone();
         let now_ms = now_millis();
@@ -712,6 +694,7 @@ impl LocalDatabase {
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
     ) -> SnapbackResult<MutationCommit> {
+        crate::exec_guard::debug_assert_off_async_worker("a SQLite commit");
         // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
         let schema = self.schema.clone();
         let now_ms = now_millis();
@@ -892,6 +875,234 @@ impl LocalDatabase {
                 })
             })
             .transpose()
+    }
+}
+
+/// Read a query plan against any connection: shared by the write lane (the
+/// live connection, serialized under the global mutex) and the read lane (a
+/// pooled reader inside a pinned WAL read transaction). The version is read
+/// after the rows on purpose — inside a read transaction both come from the
+/// pinned snapshot; on the write lane the global mutex serializes writers.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6: the
+/// version/rows pair must come from one snapshot; the read lane guarantees it
+/// with a pinned read transaction instead of the global mutex.
+pub(crate) fn query_on(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+) -> SnapbackResult<QueryOutput> {
+    crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
+    let table = schema_table(schema, &plan.table)?;
+    validate_query_index(table, plan)?;
+    let (sql, values) = build_query_sql(table, plan, input, &BTreeMap::new(), now_millis())?;
+    let mut statement = conn.prepare(&sql)?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = statement.query(params_from_iter(values.iter()))?;
+    let mut output = Vec::new();
+
+    while let Some(row) = rows.next()? {
+        output.push(row_to_document(row, table, &columns)?);
+    }
+
+    Ok(QueryOutput {
+        version: current_version_on(conn)?,
+        rows: output,
+    })
+}
+
+pub(crate) fn get_on(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    table: &str,
+    id: &str,
+) -> SnapbackResult<Option<Value>> {
+    crate::exec_guard::debug_assert_off_async_worker("a SQLite point read");
+    let table = schema_table(schema, table)?;
+    let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
+    let mut statement = conn.prepare(&sql)?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = statement.query(params![id])?;
+    if let Some(row) = rows.next()? {
+        Ok(Some(row_to_document(row, table, &columns)?))
+    } else {
+        Ok(None)
+    }
+}
+
+pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
+    crate::exec_guard::debug_assert_off_async_worker("a SQLite version read");
+    let version: i64 = conn.query_row(
+        "SELECT version FROM _snapback_version WHERE id = 1",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(version as u64)
+}
+
+/// A read-only storage view for query execution on either lane.
+///
+/// `Live` borrows the write connection (serialized under the global instance
+/// mutex). `LiveRaw` is the action path's deliberately raw alias of the same
+/// connection — an action holds `&mut LocalSnapback` through its host while
+/// its `ctx.db` reads go to the same database, so the borrow is expressed as
+/// a pointer exactly as it was before this enum existed. `Pinned` is a pooled
+/// read-only connection inside a WAL read transaction: every read through it
+/// (rows, versions, change high-waters) comes from one snapshot.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+pub enum DbRead<'a> {
+    Live(&'a LocalDatabase),
+    LiveRaw(*const LocalDatabase),
+    Pinned {
+        conn: &'a Connection,
+        schema: &'a SchemaManifest,
+    },
+}
+
+impl DbRead<'_> {
+    fn live(&self) -> Option<&LocalDatabase> {
+        match self {
+            DbRead::Live(db) => Some(db),
+            // SAFETY: `LiveRaw` is constructed only by the action invocation
+            // path, from a `LocalDatabase` that outlives the invocation; the
+            // pointer is dereferenced only during synchronous host calls on
+            // the invocation's own thread (the same contract the previous
+            // `*const LocalDatabase` field carried).
+            DbRead::LiveRaw(db) => Some(unsafe { &**db }),
+            DbRead::Pinned { .. } => None,
+        }
+    }
+
+    pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
+            _ => self.live().expect("live db").query(plan, input),
+        }
+    }
+
+    pub fn get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
+        match self {
+            DbRead::Pinned { conn, schema } => get_on(conn, schema, table, id),
+            _ => self.live().expect("live db").get(table, id),
+        }
+    }
+
+    pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
+        match self {
+            DbRead::Pinned { conn, schema } => {
+                let table = schema_table(schema, table)?;
+                table_change_version_from_connection(conn, &table.name)
+            }
+            _ => self.live().expect("live db").table_change_version(table),
+        }
+    }
+
+    pub fn current_version(&self) -> SnapbackResult<u64> {
+        match self {
+            DbRead::Pinned { conn, .. } => current_version_on(conn),
+            _ => self.live().expect("live db").current_version(),
+        }
+    }
+
+    pub fn generate_id(&self) -> String {
+        new_id()
+    }
+}
+
+/// How many idle reader connections the pool retains. Checkout never waits:
+/// an empty pool opens a fresh read-only connection on demand, and check-in
+/// drops connections beyond this cap, so the pool itself has no blocking or
+/// deadlock surface.
+const READER_POOL_RETAINED: usize = 4;
+
+/// A pool of read-only WAL connections for the lock-free read lane.
+///
+/// @ref LLP 0003#database-model — queries run read-only against a WAL reader
+/// pool and need not take the write lock at all.
+pub struct ReaderPool {
+    path: PathBuf,
+    idle: Mutex<Vec<Connection>>,
+}
+
+impl ReaderPool {
+    fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            idle: Mutex::new(Vec::new()),
+        }
+    }
+
+    pub fn checkout(&self) -> SnapbackResult<PooledReader<'_>> {
+        crate::exec_guard::debug_assert_off_async_worker("a reader-pool checkout");
+        let pooled = self
+            .idle
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .pop();
+        let conn = match pooled {
+            Some(conn) => conn,
+            None => self.open_reader()?,
+        };
+        Ok(PooledReader {
+            pool: self,
+            conn: Some(conn),
+        })
+    }
+
+    fn open_reader(&self) -> SnapbackResult<Connection> {
+        let conn = Connection::open_with_flags(
+            &self.path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY
+                | OpenFlags::SQLITE_OPEN_URI
+                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        conn.execute_batch(
+            "
+            PRAGMA query_only = ON;
+            PRAGMA busy_timeout = 5000;
+            ",
+        )?;
+        Ok(conn)
+    }
+
+    fn check_in(&self, conn: Connection) {
+        let mut idle = self
+            .idle
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if idle.len() < READER_POOL_RETAINED {
+            idle.push(conn);
+        }
+    }
+}
+
+/// A checked-out reader connection; returns to the pool on drop.
+pub struct PooledReader<'a> {
+    pool: &'a ReaderPool,
+    conn: Option<Connection>,
+}
+
+impl PooledReader<'_> {
+    pub fn conn(&self) -> &Connection {
+        self.conn.as_ref().expect("pooled reader connection")
+    }
+}
+
+impl Drop for PooledReader<'_> {
+    fn drop(&mut self) {
+        if let Some(conn) = self.conn.take() {
+            self.pool.check_in(conn);
+        }
     }
 }
 

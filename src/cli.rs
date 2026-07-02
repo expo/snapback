@@ -50,6 +50,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         snapback
     };
 
+    let read_lane = snapback.read_lane();
     let state = Arc::new(Mutex::new(snapback));
     let listener = bind_listener(&args.host, args.port).await?;
     let local_addr = listener.local_addr()?;
@@ -62,7 +63,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let token_configured = server_context.admin_token.is_some();
     let cron_scheduler = server::spawn_cron_scheduler(state.clone());
     let maintenance_worker = server::spawn_maintenance_worker(state.clone());
-    let app = server::app(AppState::new(state, server_context));
+    let app = server::app(AppState::new(state, read_lane, server_context));
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
     }

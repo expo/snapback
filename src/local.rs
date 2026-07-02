@@ -17,14 +17,14 @@ use crate::manifest::{
 };
 use crate::runtime::{IbexActionHost, RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
-    CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow, LocalDatabase,
-    MutationCommit, StorageInfo, TableScan,
+    CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow, DbRead,
+    LocalDatabase, MutationCommit, ReaderPool, StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::marker::PhantomData;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -312,6 +312,13 @@ pub struct LocalSnapback {
     // down) instead of living forever.
     connections_last_seen: BTreeMap<String, u64>,
     reaped_connections: u64,
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6: the
+    // read-lane snapshot of the non-DB state a query needs. The write side
+    // refreshes these after each relevant commit, while still holding the
+    // global mutex, so refreshes are ordered; readers clone the Arcs/maps and
+    // never take the global mutex.
+    read_manifests: Arc<RwLock<Arc<ReadManifests>>>,
+    read_epochs: Arc<RwLock<BTreeMap<String, u64>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -357,6 +364,7 @@ impl LocalSnapback {
         let ephemeral_collections = manifest.ephemeral_collections.clone();
         let diagnostics = self.db.apply_schema(manifest)?;
         self.ephemeral.replace_collections(ephemeral_collections);
+        self.refresh_read_manifests();
         self.record_diagnostics(diagnostics.clone());
         Ok(diagnostics)
     }
@@ -386,6 +394,7 @@ impl LocalSnapback {
 
         diagnostics.extend(self.cron.reconcile(&self.functions));
         diagnostics.extend(self.runtime.diagnostics());
+        self.refresh_read_manifests();
         self.refresh_cron_active();
         if let Err(error) = self.persist_cron_state() {
             diagnostics.push(error.diagnostic);
@@ -398,6 +407,7 @@ impl LocalSnapback {
         self.db.reset()?;
         self.subscriptions.clear();
         self.permission_epochs.clear();
+        self.refresh_read_epochs();
         self.ephemeral.reset_runtime_state();
         self.cron.reset_runtime_state(&self.functions);
         self.live_delivery = LiveDeliveryStats::default();
@@ -482,40 +492,13 @@ impl LocalSnapback {
         input: HandlerInput,
     ) -> SnapbackResult<QueryInvocation> {
         let function = self.function(name)?;
-        match (&function.kind, &function.runtime) {
-            (
-                FunctionKind::Query | FunctionKind::LiveQuery,
-                FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
-            ) => {
-                let output = self.db.query(plan, &input)?;
-                let mut read_dependencies =
-                    query_dependencies_from_plan(plan, &input, &output, &self.db)?;
-                self.add_permission_dependencies(&input, &mut read_dependencies);
-                Ok(QueryInvocation {
-                    output,
-                    read_dependencies,
-                })
-            }
-            (
-                FunctionKind::Query | FunctionKind::LiveQuery,
-                FunctionRuntime::IbexModule(module),
-            ) => {
-                let run =
-                    self.runtime
-                        .invoke_ibex_query_with_reads(module, input.clone(), &self.db)?;
-                let mut read_dependencies = run.read_dependencies;
-                self.add_permission_dependencies(&input, &mut read_dependencies);
-                Ok(QueryInvocation {
-                    output: run.output,
-                    read_dependencies,
-                })
-            }
-            _ => Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not a query"),
-            )),
-        }
+        execute_query_invocation(
+            function,
+            name,
+            DbRead::Live(&self.db),
+            &self.permission_epochs,
+            input,
+        )
     }
 
     pub fn invoke_mutation(
@@ -553,6 +536,9 @@ impl LocalSnapback {
         } else {
             Vec::new()
         };
+        if !permission_changes.is_empty() {
+            self.refresh_read_epochs();
+        }
         self.notify_permission_resyncs(&permission_changes);
         self.notify_live_subscriptions(&commit.changes);
         Ok(commit)
@@ -1016,6 +1002,12 @@ impl LocalSnapback {
             recent_diagnostics.push_back(diagnostic);
         }
 
+        let read_manifests = Arc::new(RwLock::new(Arc::new(ReadManifests {
+            functions: FunctionManifest::default(),
+            schema: db.schema().clone(),
+            capabilities: runtime.capabilities().clone(),
+        })));
+
         Ok(Self {
             db,
             functions: FunctionManifest::default(),
@@ -1032,6 +1024,8 @@ impl LocalSnapback {
             cron_state_writes: 0,
             connections_last_seen: BTreeMap::new(),
             reaped_connections: 0,
+            read_manifests,
+            read_epochs: Arc::new(RwLock::new(BTreeMap::new())),
         })
     }
 
@@ -1043,6 +1037,47 @@ impl LocalSnapback {
                 format!("unknown function {name}"),
             )
         })
+    }
+
+    /// A handle to the lock-free read lane. Cloneable; shares the manifest
+    /// snapshot, permission-epoch snapshot, and the WAL reader pool (which is
+    /// `None` for in-memory databases — callers fall back to the write lane).
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+    pub fn read_lane(&self) -> ReadLane {
+        ReadLane {
+            manifests: self.read_manifests.clone(),
+            epochs: self.read_epochs.clone(),
+            pool: self.db.reader_pool(),
+        }
+    }
+
+    /// Refresh the read lane's manifest snapshot. Called after schema or
+    /// function loads commit, while the caller still holds the global mutex,
+    /// so successive refreshes cannot reorder. A reader that raced the commit
+    /// sees the previous snapshot — indistinguishable from having arrived a
+    /// moment earlier.
+    fn refresh_read_manifests(&self) {
+        let snapshot = Arc::new(ReadManifests {
+            functions: self.functions.clone(),
+            schema: self.db.schema().clone(),
+            capabilities: self.runtime.capabilities().clone(),
+        });
+        *self
+            .read_manifests
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = snapshot;
+    }
+
+    /// Refresh the read lane's permission-epoch snapshot after epochs advance
+    /// (post-commit, still under the global mutex — same ordering argument as
+    /// [`Self::refresh_read_manifests`]).
+    fn refresh_read_epochs(&self) {
+        let snapshot = self.permission_epochs.clone();
+        *self
+            .read_epochs
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = snapshot;
     }
 
     fn execute_cron_claims(
@@ -1099,9 +1134,15 @@ impl LocalSnapback {
             }
             (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
                 let runtime = self.runtime.clone();
-                let db = &self.db as *const LocalDatabase;
+                // One provenance root: the db pointer is derived from the same
+                // *mut the action host writes through (ctx.runMutation), so
+                // the write does not invalidate the read pointer under
+                // Stacked Borrows. Behavior is unchanged; host calls remain
+                // synchronous on this thread and never overlap a live borrow.
+                let snapback = self as *mut LocalSnapback;
+                let db = unsafe { &raw const (*snapback).db };
                 let mut host = LocalIbexActionHost {
-                    snapback: self as *mut LocalSnapback,
+                    snapback,
                     _marker: PhantomData,
                 };
                 runtime.invoke_ibex_action(module, input, db, metadata, &mut host)
@@ -1327,37 +1368,6 @@ impl LocalSnapback {
         }
     }
 
-    fn add_permission_dependencies(
-        &self,
-        input: &HandlerInput,
-        dependencies: &mut Vec<CapturedReadDependency>,
-    ) {
-        let Some(user_id) = input.auth.user_id.as_deref() else {
-            return;
-        };
-        let scope = user_permission_scope(user_id);
-        if dependencies.iter().any(|dependency| {
-            dependency.kind == CapturedReadKind::Permission
-                && dependency.value.as_ref().and_then(Value::as_str) == Some(scope.as_str())
-        }) {
-            return;
-        }
-        dependencies.push(CapturedReadDependency {
-            kind: CapturedReadKind::Permission,
-            table: None,
-            id: None,
-            version: Some(self.permission_epoch(&scope)),
-            predicate: None,
-            rows: Vec::new(),
-            field: Some("scope".to_owned()),
-            value: Some(Value::String(scope)),
-            order: None,
-            limit: None,
-            result_count: None,
-            boundary: None,
-        });
-    }
-
     fn permission_epoch(&self, scope: &str) -> u64 {
         self.permission_epochs.get(scope).copied().unwrap_or(0)
     }
@@ -1494,6 +1504,198 @@ impl LocalSnapback {
 
 fn user_permission_scope(user_id: &str) -> String {
     format!("user:{user_id}")
+}
+
+/// The manifest state a read-only query invocation needs, published as one
+/// immutable snapshot so the read lane swaps it in O(1) and never blocks on
+/// (or observes a partially-applied) manifest load.
+struct ReadManifests {
+    functions: FunctionManifest,
+    schema: SchemaManifest,
+    capabilities: RuntimeCapabilities,
+}
+
+/// The lock-free read lane (LLP 0032 L6): `/query` and `/health` execute
+/// through this handle without taking the global write mutex. Data reads go to
+/// the WAL reader pool inside a pinned read transaction; manifests and
+/// permission epochs come from snapshots the write lane refreshes post-commit.
+///
+/// For in-memory databases (`pool: None`) the lane reports itself unavailable
+/// and callers use the serialized write lane instead.
+///
+/// @ref LLP 0003#database-model — reads use a separate pool of WAL reader
+/// connections so queries do not queue behind writes.
+#[derive(Clone)]
+pub struct ReadLane {
+    manifests: Arc<RwLock<Arc<ReadManifests>>>,
+    epochs: Arc<RwLock<BTreeMap<String, u64>>>,
+    pool: Option<Arc<ReaderPool>>,
+}
+
+/// What the read lane can serve for `/health` without the global mutex.
+pub struct ReadHealth {
+    pub version: u64,
+    pub capabilities: RuntimeCapabilities,
+}
+
+impl ReadLane {
+    /// Whether the lock-free lane exists for this instance (file-backed WAL
+    /// database). When false, callers must use the write lane.
+    pub fn available(&self) -> bool {
+        self.pool.is_some()
+    }
+
+    fn manifests(&self) -> Arc<ReadManifests> {
+        self.manifests
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
+    /// Run a read-only query without the global mutex.
+    ///
+    /// Ordering matters: the permission-epoch snapshot is taken **before** the
+    /// data snapshot pins. If an epoch bump races in between, the recorded
+    /// epoch is older than the data and at worst conflicts/resyncs
+    /// conservatively; the reverse order could label pre-bump data with a
+    /// post-bump epoch and mask a permission resync.
+    ///
+    /// Known bounded edge (this arc's review): the manifest snapshot is cloned
+    /// before the data snapshot pins, so a reader racing an `apply_schema` can
+    /// decode post-migration rows with the pre-migration schema. The migrator
+    /// is additive-only (create table / add column, never drop or retype), so
+    /// the worst case is a new column surfacing untyped or as NULL for the
+    /// microseconds between the DDL commit and this clone — never a query
+    /// error or a torn row.
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6: the
+    /// whole invocation — every `ctx.db` host call and the reported version —
+    /// runs inside one pinned WAL read transaction.
+    pub fn invoke_query(&self, name: &str, input: HandlerInput) -> SnapbackResult<QueryOutput> {
+        let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
+        let manifests = self.manifests();
+        let epochs = self
+            .epochs
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        let function = manifests.functions.function(name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_UNKNOWN_FUNCTION",
+                "runtime",
+                format!("unknown function {name}"),
+            )
+        })?;
+
+        let reader = pool.checkout()?;
+        let tx = reader.conn().unchecked_transaction()?;
+        // Pin the WAL snapshot now (the first read fixes it), before any
+        // handler work, so rows, captured read versions, and the reported
+        // version all come from this snapshot.
+        crate::storage::current_version_on(&tx)?;
+        let invocation = execute_query_invocation(
+            function,
+            name,
+            DbRead::Pinned {
+                conn: &tx,
+                schema: &manifests.schema,
+            },
+            &epochs,
+            input,
+        )?;
+        Ok(invocation.output)
+    }
+
+    /// Serve the `/health` payload without the global mutex.
+    pub fn health(&self) -> SnapbackResult<ReadHealth> {
+        let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
+        let manifests = self.manifests();
+        let reader = pool.checkout()?;
+        Ok(ReadHealth {
+            version: crate::storage::current_version_on(reader.conn())?,
+            capabilities: manifests.capabilities.clone(),
+        })
+    }
+}
+
+fn read_lane_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_READ_LANE_UNAVAILABLE",
+        "storage",
+        "the lock-free read lane requires a file-backed WAL database",
+    )
+}
+
+/// Execute a query-shaped invocation against any read view: the write lane
+/// passes the live connection and its own epoch map; the read lane passes a
+/// pinned reader and its snapshots. One implementation, so the two lanes
+/// cannot drift.
+fn execute_query_invocation(
+    function: &FunctionDefinition,
+    name: &str,
+    db: DbRead<'_>,
+    permission_epochs: &BTreeMap<String, u64>,
+    input: HandlerInput,
+) -> SnapbackResult<QueryInvocation> {
+    match (&function.kind, &function.runtime) {
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
+        ) => {
+            let output = db.query(plan, &input)?;
+            let mut read_dependencies = query_dependencies_from_plan(plan, &input, &output, &db)?;
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output,
+                read_dependencies,
+            })
+        }
+        (FunctionKind::Query | FunctionKind::LiveQuery, FunctionRuntime::IbexModule(module)) => {
+            let run = crate::runtime::run_ibex_query_with_reads(module, input.clone(), db)?;
+            let mut read_dependencies = run.read_dependencies;
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output: run.output,
+                read_dependencies,
+            })
+        }
+        _ => Err(SnapbackError::error(
+            "SNAPBACK_FUNCTION_KIND_MISMATCH",
+            "runtime",
+            format!("{name} is not a query"),
+        )),
+    }
+}
+
+fn add_permission_dependencies_with(
+    permission_epochs: &BTreeMap<String, u64>,
+    input: &HandlerInput,
+    dependencies: &mut Vec<CapturedReadDependency>,
+) {
+    let Some(user_id) = input.auth.user_id.as_deref() else {
+        return;
+    };
+    let scope = user_permission_scope(user_id);
+    if dependencies.iter().any(|dependency| {
+        dependency.kind == CapturedReadKind::Permission
+            && dependency.value.as_ref().and_then(Value::as_str) == Some(scope.as_str())
+    }) {
+        return;
+    }
+    dependencies.push(CapturedReadDependency {
+        kind: CapturedReadKind::Permission,
+        table: None,
+        id: None,
+        version: Some(permission_epochs.get(&scope).copied().unwrap_or(0)),
+        predicate: None,
+        rows: Vec::new(),
+        field: Some("scope".to_owned()),
+        value: Some(Value::String(scope)),
+        order: None,
+        limit: None,
+        result_count: None,
+        boundary: None,
+    });
 }
 
 fn permission_epochs_from_dependencies(

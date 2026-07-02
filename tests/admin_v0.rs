@@ -17,10 +17,8 @@ use snapback::manifest::{
     OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use std::collections::BTreeMap;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
 use tokio_tungstenite::connect_async;
 use tower::ServiceExt;
 
@@ -154,10 +152,11 @@ async fn function_runner_runs_query_and_mutation_with_read_write_sets() {
 
 #[tokio::test]
 async fn websocket_live_stream_pushes_existing_live_updates() {
-    let shared = Arc::new(Mutex::new(seeded_snapback()));
+    let state = AppState::detached(seeded_snapback());
+    let shared = state.snapback.clone();
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let app = snapback::server::app(AppState::detached(shared.clone()));
+    let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
@@ -556,8 +555,7 @@ fn loopback_app(snapback: LocalSnapback) -> axum::Router {
 }
 
 fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {
-    let state = AppState::new(Arc::new(Mutex::new(snapback)), ctx);
-    snapback::server::app(state)
+    snapback::server::app(AppState::from_snapback(snapback, ctx))
 }
 
 fn loopback_context(token: Option<&str>) -> ServerContext {
@@ -749,10 +747,10 @@ fn todo_functions() -> FunctionManifest {
 /// store, and a frame matching the socket identity passes the gate.
 #[tokio::test]
 async fn s3_websocket_frames_bind_to_the_socket_connection() {
-    let shared = Arc::new(Mutex::new(seeded_snapback()));
+    let state = AppState::detached(seeded_snapback());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let app = snapback::server::app(AppState::detached(shared.clone()));
+    let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });

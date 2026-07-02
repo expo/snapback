@@ -5,7 +5,7 @@ use crate::live_matcher::{
 };
 use crate::manifest::{HandlerInput, IbexModule, MutationOutput, QueryOutput, QueryPlan};
 use crate::storage::{
-    BufferedWrite, CapturedReadDependency, CapturedReadKind, LocalDatabase, MutationCommit,
+    BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead, LocalDatabase, MutationCommit,
 };
 use libc::{c_char, c_int, c_void, size_t};
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,6 @@ use serde_json::{Map, Value, json};
 use std::cell::RefCell;
 use std::env;
 use std::ffi::{CStr, CString};
-use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr;
@@ -123,26 +122,7 @@ impl RuntimeManager {
         input: HandlerInput,
         db: &LocalDatabase,
     ) -> SnapbackResult<IbexQueryRun> {
-        let mut invocation = IbexHostContext::new(db as *const LocalDatabase, input, false);
-        let value = run_ibex_handler_with_context(module, &mut invocation)?;
-        // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
-        // query handler that returns a non-array is a fail-closed error, not a
-        // silently-empty result set (the corpus's cardinal no-silent-drop rule).
-        let rows = value.as_array().cloned().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_HANDLER_RESULT_INVALID",
-                "runtime",
-                "live query handler must return an array of rows",
-            )
-        })?;
-        let output = QueryOutput {
-            version: db.current_version()?,
-            rows,
-        };
-        Ok(IbexQueryRun {
-            output,
-            read_dependencies: invocation.reads,
-        })
+        run_ibex_query_with_reads(module, input, DbRead::Live(db))
     }
 
     pub fn invoke_ibex_mutation(
@@ -151,9 +131,10 @@ impl RuntimeManager {
         input: HandlerInput,
         db: &mut LocalDatabase,
     ) -> SnapbackResult<MutationCommit> {
-        let mut invocation = IbexHostContext::new(db as *const LocalDatabase, input.clone(), true);
+        let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true);
         let result = run_ibex_handler_with_context(module, &mut invocation)?;
-        db.commit_buffered_writes(&input, invocation.writes, invocation.reads, result)
+        let IbexHostContext { writes, reads, .. } = invocation;
+        db.commit_buffered_writes(&input, writes, reads, result)
     }
 
     pub fn invoke_ibex_action(
@@ -164,9 +145,41 @@ impl RuntimeManager {
         run: CronRunMetadata,
         host: &mut dyn IbexActionHost,
     ) -> SnapbackResult<Value> {
-        let mut invocation = IbexHostContext::new_action(db, input, run, host);
+        let mut invocation = IbexHostContext::new_action(DbRead::LiveRaw(db), input, run, host);
         run_ibex_handler_with_context(module, &mut invocation)
     }
+}
+
+/// Run an Ibex query handler against any read view — the write lane passes the
+/// live connection; the read lane passes a pinned reader so the eval's every
+/// `ctx.db` host call and the reported version come from one WAL snapshot.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+pub(crate) fn run_ibex_query_with_reads(
+    module: &IbexModule,
+    input: HandlerInput,
+    db: DbRead<'_>,
+) -> SnapbackResult<IbexQueryRun> {
+    let mut invocation = IbexHostContext::new(db, input, false);
+    let value = run_ibex_handler_with_context(module, &mut invocation)?;
+    // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
+    // query handler that returns a non-array is a fail-closed error, not a
+    // silently-empty result set (the corpus's cardinal no-silent-drop rule).
+    let rows = value.as_array().cloned().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_HANDLER_RESULT_INVALID",
+            "runtime",
+            "live query handler must return an array of rows",
+        )
+    })?;
+    let output = QueryOutput {
+        version: invocation.db().current_version()?,
+        rows,
+    };
+    Ok(IbexQueryRun {
+        output,
+        read_dependencies: invocation.reads,
+    })
 }
 
 #[repr(C)]
@@ -259,7 +272,7 @@ pub fn bench_runtime_create_us(iterations: usize) -> f64 {
 }
 
 struct IbexHostContext<'a> {
-    db: *const LocalDatabase,
+    db: DbRead<'a>,
     input: HandlerInput,
     mode: IbexInvocationMode,
     writes: Vec<BufferedWrite>,
@@ -267,11 +280,10 @@ struct IbexHostContext<'a> {
     now_ms: u64,
     action_run: Option<CronRunMetadata>,
     action_host: Option<&'a mut dyn IbexActionHost>,
-    _marker: PhantomData<&'a LocalDatabase>,
 }
 
 impl<'a> IbexHostContext<'a> {
-    fn new(db: *const LocalDatabase, input: HandlerInput, writable: bool) -> Self {
+    fn new(db: DbRead<'a>, input: HandlerInput, writable: bool) -> Self {
         let reads = auth_dependencies(&input);
         Self {
             db,
@@ -286,12 +298,11 @@ impl<'a> IbexHostContext<'a> {
             now_ms: now_millis(),
             action_run: None,
             action_host: None,
-            _marker: PhantomData,
         }
     }
 
     fn new_action(
-        db: *const LocalDatabase,
+        db: DbRead<'a>,
         input: HandlerInput,
         run: CronRunMetadata,
         host: &'a mut dyn IbexActionHost,
@@ -306,12 +317,11 @@ impl<'a> IbexHostContext<'a> {
             now_ms: run.due_at_ms,
             action_run: Some(run),
             action_host: Some(host),
-            _marker: PhantomData,
         }
     }
 
-    fn db(&self) -> &LocalDatabase {
-        unsafe { &*self.db }
+    fn db(&self) -> &DbRead<'a> {
+        &self.db
     }
 
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
@@ -743,6 +753,10 @@ fn eval(
     source_url: &str,
     source: &str,
 ) -> SnapbackResult<String> {
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L7: a Hermes
+    // eval is synchronous FFI for the whole handler run and must never occupy
+    // a tokio async worker.
+    crate::exec_guard::debug_assert_off_async_worker("ex_hermes_eval");
     let source_url =
         CString::new(source_url).unwrap_or_else(|_| CString::new("handler.js").unwrap());
     let mut out: *mut c_char = ptr::null_mut();

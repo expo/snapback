@@ -13,7 +13,7 @@
 //!
 //! @ref LLP 0032#phase-4--measurement — M1.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -43,6 +43,9 @@ pub struct BenchConfig {
     pub conflict_trials: usize,
     /// Publishes for the ephemeral throughput measurement.
     pub ephemeral_publishes: usize,
+    /// How long the busy write runs in the read-during-write measurement (the
+    /// L6 before/after A/B).
+    pub busy_write_ms: u64,
 }
 
 impl BenchConfig {
@@ -54,6 +57,7 @@ impl BenchConfig {
             read_set_size: 50,
             conflict_trials: 200,
             ephemeral_publishes: 2_000,
+            busy_write_ms: 400,
         }
     }
 
@@ -66,6 +70,7 @@ impl BenchConfig {
             read_set_size: 4,
             conflict_trials: 8,
             ephemeral_publishes: 40,
+            busy_write_ms: 120,
         }
     }
 }
@@ -106,6 +111,13 @@ pub struct BenchReport {
     /// Ephemeral publish throughput (publishes/sec) and per-publish cost.
     pub ephemeral_publishes_per_sec: f64,
     pub ephemeral_publish_us: f64,
+    /// Read latency while a long write holds the write lane, reading through
+    /// the global mutex — the pre-L6 path, where every read queues behind the
+    /// write. Expected ≈ the write's remaining duration.
+    pub read_during_write_via_lock_us: f64,
+    /// Read latency during the same long write through the L6 read lane
+    /// (pooled WAL reader, pinned snapshot). Expected ≈ a standalone read.
+    pub read_during_write_via_read_lane_us: f64,
 }
 
 const HANDLER_SOURCE: &str = r#"
@@ -122,6 +134,11 @@ globalThis.__snapbackHandlers = {
   },
   async createOther(ctx, args) {
     return await ctx.db.insert('others', { label: args.label });
+  },
+  async busyCreate(ctx, args) {
+    const start = Date.now();
+    while (Date.now() - start < args.busyMs) {}
+    return await ctx.db.insert('todos', { title: 'busy', done: false });
   }
 };
 "#;
@@ -135,6 +152,8 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
     let read_set_validation_us_per_dep = measure_read_set_validation(config)?;
     let spurious_conflict_rate = measure_spurious_conflict(config)?;
     let (ephemeral_publishes_per_sec, ephemeral_publish_us) = measure_ephemeral(config)?;
+    let (read_during_write_via_lock_us, read_during_write_via_read_lane_us) =
+        measure_read_during_write(config)?;
 
     Ok(BenchReport {
         iterations: config.iterations,
@@ -152,6 +171,8 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
         spurious_conflict_rate,
         ephemeral_publishes_per_sec,
         ephemeral_publish_us,
+        read_during_write_via_lock_us,
+        read_during_write_via_read_lane_us,
     })
 }
 
@@ -232,6 +253,7 @@ fn functions() -> FunctionManifest {
             query("listOthers", "others"),
             mutation("createTodo", "todos"),
             mutation("createOther", "others"),
+            mutation("busyCreate", "todos"),
         ],
         ..FunctionManifest::default()
     }
@@ -555,6 +577,84 @@ fn measure_ephemeral(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<
     Ok((per_sec, publish_us))
 }
 
+/// The L6 before/after A/B on one build: a busy mutation holds the write lane
+/// for `busy_write_ms` while a read runs (a) through the global mutex — the
+/// pre-L6 shape, which queues behind the write — and (b) through the read lane
+/// (pooled WAL reader, pinned snapshot), which does not. File-backed database:
+/// the read lane requires WAL.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+fn measure_read_during_write(
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<(f64, f64)> {
+    let dir = std::env::temp_dir().join(format!(
+        "snapback-bench-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&dir).map_err(|error| {
+        crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_BENCH_TEMPDIR",
+            "bench",
+            format!("bench tempdir could not be created: {error}"),
+        )
+    })?;
+    let result = measure_read_during_write_at(&dir.join("bench.sqlite3"), config);
+    let _ = std::fs::remove_dir_all(&dir);
+    result
+}
+
+fn measure_read_during_write_at(
+    path: &std::path::Path,
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<(f64, f64)> {
+    let mut snapback = LocalSnapback::open(path)?;
+    snapback.apply_schema(schema())?;
+    snapback.load_functions(functions());
+    snapback.invoke_mutation("createTodo", args(json!({ "title": "seed" })))?;
+    // Warm the reader-pool connection and the query path.
+    let lane = snapback.read_lane();
+    lane.invoke_query("listTodos", args(json!({})))?;
+
+    let shared = std::sync::Arc::new(std::sync::Mutex::new(snapback));
+    let busy_ms = config.busy_write_ms;
+    let spawn_busy_writer = |shared: std::sync::Arc<std::sync::Mutex<LocalSnapback>>| {
+        std::thread::spawn(move || {
+            let mut snapback = shared.lock().expect("bench writer lock");
+            snapback
+                .invoke_mutation("busyCreate", args(json!({ "busyMs": busy_ms })))
+                .expect("bench busy mutation");
+        })
+    };
+    // Wait long enough for the writer to be inside the busy handler (VM
+    // creation is a few ms; a quarter of the busy window is far past it).
+    let entered = Duration::from_millis(busy_ms / 4);
+
+    // (a) The read lane: reads proceed while the write runs.
+    let writer = spawn_busy_writer(shared.clone());
+    std::thread::sleep(entered);
+    let start = Instant::now();
+    lane.invoke_query("listTodos", args(json!({})))?;
+    let via_read_lane_us = start.elapsed().as_micros() as f64;
+    writer.join().expect("bench writer thread");
+
+    // (b) The global mutex: the read queues behind the write's remainder.
+    let writer = spawn_busy_writer(shared.clone());
+    std::thread::sleep(entered);
+    let start = Instant::now();
+    {
+        let snapback = shared.lock().expect("bench reader lock");
+        snapback.invoke_query("listTodos", args(json!({})))?;
+    }
+    let via_lock_us = start.elapsed().as_micros() as f64;
+    writer.join().expect("bench writer thread");
+
+    Ok((via_lock_us, via_read_lane_us))
+}
+
 fn micros_per(start: Instant, iterations: usize) -> f64 {
     start.elapsed().as_micros() as f64 / iterations.max(1) as f64
 }
@@ -587,6 +687,18 @@ mod tests {
         assert!(
             report.ephemeral_publishes_per_sec > 60.0,
             "ephemeral must sustain >60 Hz: {report:?}"
+        );
+        // L6: a read-lane read during a busy write must not queue behind it
+        // (well under half the busy window even with debug-build VM cost),
+        // while the mutex path measures the write it queued behind.
+        let busy_us = (BenchConfig::smoke().busy_write_ms * 1_000) as f64;
+        assert!(
+            report.read_during_write_via_read_lane_us < busy_us / 2.0,
+            "read lane must not queue behind the busy write: {report:?}"
+        );
+        assert!(
+            report.read_during_write_via_lock_us > busy_us / 4.0,
+            "the mutex path should have queued behind the busy write: {report:?}"
         );
     }
 }

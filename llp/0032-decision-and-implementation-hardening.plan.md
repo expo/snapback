@@ -5,7 +5,7 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-01 (accepted by Charlie after the two-family review loop; earlier same day: revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
+**Revised:** 2026-07-02 (L6+L7 landed as the dedicated reviewed concurrency arc: design note, register entries with measured numbers, and the review's HIGH `GET /` fix recorded. Earlier: 2026-07-01 accepted by Charlie after the two-family review loop; same day, revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031
 
 ## Summary
@@ -665,7 +665,31 @@ change the concurrency architecture and should land as one reviewed arc.
   place: E4 (predicate-granularity validation) means concurrent disjoint
   writers no longer spuriously conflict (the measured 1.0→0.0), which is the
   precondition this step's own text calls out; M1 is the "before" baseline to
-  quantify the win against.
+  quantify the win against. **Landed 2026-07-02** (with L7, as the designed
+  arc — see the design note below): `ReaderPool` (read-only WAL connections,
+  checkout-on-demand, retain 4) plus `ReadLane` — `/query/{name}` and
+  `/health` run with no global mutex, the whole invocation (host-plan SQL or
+  a full Ibex eval's `ctx.db` host calls) inside one deferred read
+  transaction pinned by reading `_snapback_version` first, so rows, captured
+  read versions, and the reported version are one snapshot. Manifests and
+  permission epochs come from `Arc<RwLock<…>>` snapshots refreshed
+  post-commit under the global mutex; epochs are cloned before the pin (the
+  conservative direction). In-memory instances (no WAL) fall back to the
+  serialized write lane. **Measured (M1 re-run, release, one machine):** a
+  read during a busy 400 ms write drops from **~305 000 µs** (queued behind
+  the mutex — the pre-arc path, measured in the same build) to
+  **~4 300–4 600 µs** on the read lane (≈ the query's own fresh-VM cost,
+  i.e. zero queueing — **~70×**); single-writer throughput 248–278 mut/s vs
+  the ~227 baseline (no regression). Tests
+  `l6_concurrent_reads_proceed_during_a_long_write`,
+  `l6_version_and_rows_come_from_one_snapshot_under_concurrent_writes`,
+  `l6_memory_instance_falls_back_to_the_write_lane`. **Review note (LOW,
+  accepted):** the manifest snapshot is cloned before the data snapshot
+  pins, so a reader racing `apply_schema` can decode post-migration rows
+  with the pre-migration schema for the microseconds between DDL commit and
+  refresh; the additive-only migrator bounds this to a new column surfacing
+  untyped/NULL — never an error or a torn row (documented at
+  `ReadLane::invoke_query`).
 - **L7 — Blocking work off the async workers.** Hermes eval and SQLite run
   synchronously inside async handlers with no `spawn_blocking` anywhere
   [confirmed]. Move blocking sections onto blocking threads (or a dedicated
@@ -676,7 +700,38 @@ change the concurrency architecture and should land as one reviewed arc.
   endpoints. Full preemption/limits remain owned by
   [LLP 0009](./0009-code-execution-security.rfc.md) — this step is
   scheduling hygiene, not a security claim. **Deferred to a dedicated arc
-  2026-07-01** — see the note below.
+  2026-07-01** — see the note below. **Landed 2026-07-02** (with L6):
+  every server path that can reach Hermes or rusqlite funnels through
+  `with_snapback` (`Arc::lock_owned().await` — queued callers wait async,
+  burning no thread — then `spawn_blocking` with the owned guard moved in)
+  or the read-lane equivalent; that covers all HTTP handlers plus the cron
+  scheduler tick, the maintenance tick, and `GET /`. Memory-only endpoints
+  (ephemeral ops, outbox/WS drains, disconnect) still lock inline — they
+  touch no engine or database. The referenced busy-loop test did not exist
+  (stale line reference); it exists now:
+  `l7_busy_mutation_does_not_stall_other_endpoints` proves `/health` and
+  `/query` respond in <500 ms while a 900 ms busy mutation holds the write
+  lane (possible only because L6 reads bypass the mutex — the coupling the
+  note below predicted). Enforcement is `src/exec_guard.rs`: a debug-build
+  assertion at the Hermes-eval and storage chokepoints panics if blocking
+  work reaches a **multi-thread** tokio worker without the offload helpers'
+  thread-local sanction (current-thread test runtimes are exempt — blocking
+  there stalls only the caller). S5.D1's `CURRENT_IBEX_HOST_CONTEXT`
+  save/restore moves wholesale with the invocation onto its blocking
+  thread, so action→mutation re-entry is unchanged (suite-verified).
+  **Review fix (HIGH, same day):** the adversarial review pass found `GET /`
+  (`instance_home`) still locking inline — its `inspect()` reads SQLite, so
+  every debug-build request to `/` panicked the exec guard on the real
+  multi-thread server while the suite stayed green (current-thread test
+  runtimes are the guard's blind spot). Fixed via `with_snapback`,
+  live-verified, and the gap is closed structurally by
+  `l7_every_blocking_route_passes_the_exec_guard`, a multi-thread sweep
+  over every rusqlite/Hermes-touching route. Also hardened on review: the
+  action host's db pointer now derives from the same provenance root as the
+  `*mut LocalSnapback` it aliases (Stacked-Borrows hygiene, behavior
+  unchanged). Tests `l7_busy_mutation_does_not_stall_other_endpoints`,
+  `l7_every_blocking_route_passes_the_exec_guard`,
+  `l7_exec_guard_refuses_blocking_work_on_async_workers`.
 
   > **L6 + L7 are one coupled concurrency-architecture arc, and are being run
   > as a dedicated reviewed pass rather than folded into the Phase 3 tail.**
@@ -705,6 +760,79 @@ change the concurrency architecture and should land as one reviewed arc.
   > (the L3 HIGH bug shows that pays for itself here), and re-run M1 to
   > quantify the win — exactly the "one reviewed arc, M1 before/after" this
   > plan already prescribes for L6–L8.
+
+  **The L6+L7 read/write split (arc design, written before implementation,
+  2026-07-01).** Two lanes:
+
+  - **Write lane (semantics unchanged).** `Arc<tokio::Mutex<LocalSnapback>>`
+    keeps owning every state-mutating operation — mutations, schema/function
+    loads, live subscribe/resume, ephemeral, cron, connection lifecycle,
+    inspect. Single-writer is preserved (LLP 0003 §Database Model; WAL has one
+    writer anyway).
+  - **Read lane (new).** `/query/{name}` and `/health` execute with **no
+    global lock**, against (a) a WAL **reader pool** for file-backed databases
+    and (b) an `Arc<RwLock<ReadShared>>` snapshot of the non-DB state a query
+    needs (function manifest, schema, permission epochs, runtime
+    capabilities).
+
+  **L6 — reader pool + pinned snapshots.**
+
+  - `ReaderPool` (file-backed only): read-only SQLite connections
+    (`SQLITE_OPEN_READ_ONLY`, `PRAGMA query_only=ON`) checked out per query
+    invocation from a `Mutex<Vec<Connection>>`; an empty pool opens a new
+    connection on demand and check-in retains up to a small cap, so checkout
+    never blocks and the pool has no wait/deadlock surface.
+  - Each read-lane invocation runs inside **one deferred read transaction**
+    pinned at start (the first statement reads `_snapback_version`), so the
+    handler's entire execution — host-plan SQL or an Ibex eval making many
+    `ctx.db` host calls — observes a single WAL snapshot, and the reported
+    `version` comes from the same snapshot as the rows. This replaces the
+    mutex-serialized version-after-rows read (`LocalDatabase::query`), which
+    stays as-is on the write lane where the mutex still serializes.
+  - **Ordering rule:** permission epochs are snapshotted **before** the data
+    snapshot pins. Recorded-epoch-older-than-data at worst conflicts/resyncs
+    conservatively; the reverse order could label pre-bump data with a
+    post-bump epoch and mask a permission resync.
+  - **Refresh rule:** the write lane refreshes `ReadShared` after commit,
+    while still holding the global mutex (so refreshes are ordered). A reader
+    between commit and refresh sees the old manifests — indistinguishable from
+    having arrived a moment earlier.
+  - In-memory databases cannot run WAL (`configure` skips it): the read lane
+    falls back to the serialized write lane. The product default is
+    file-backed (`.snapback/dev.sqlite3`), so the default target gets the
+    concurrency.
+
+  **L7 — blocking work off the async workers.**
+
+  - Chosen shape: **`lock_owned()` + `spawn_blocking`**, not a dedicated
+    VM-owner thread. Waiting for the write mutex stays async
+    (`Arc::lock_owned` — queued callers burn no thread); only actual execution
+    occupies a blocking-pool thread, with the `OwnedMutexGuard` moved into the
+    closure. A dedicated VM thread was considered and rejected: with
+    fresh-VM-per-invocation (M1) there is no VM affinity to preserve, and an
+    actor conversion would touch every lock site for no additional
+    correctness.
+  - Uniform rule: `LocalSnapback` methods — and therefore every
+    `ex_hermes_eval` and rusqlite call — execute only on blocking threads.
+    Every server call site funnels through one helper (`with_snapback`),
+    including the cron scheduler tick, the maintenance tick, and the WS
+    drain/disconnect path; queries funnel through the read-lane equivalent.
+  - S5.D1 thread-local: `CURRENT_IBEX_HOST_CONTEXT` set/eval/restore all
+    happen inside `run_ibex_handler_with_context`, which moves as a unit onto
+    the blocking thread; action→mutation re-entry stays synchronous on that
+    same thread, so the save/restore stack discipline is untouched.
+  - Enforcement: a `debug_assert`-backed sanction marker (thread-local set by
+    the lane helpers) fires if Hermes eval or a chokepoint `LocalDatabase`
+    method runs inside a tokio runtime context without the marker — so any
+    future endpoint that calls into the core directly on an async worker fails
+    loudly in debug/test builds.
+
+  **Explicit non-goals (scope fence).** Preemption/timeouts stay owned by
+  LLP 0009 §Resource Limits — a busy-loop handler still runs forever; it now
+  costs one blocking thread and the write lane, not the async workers or the
+  read lane. Ephemeral-off-the-global-mutex is L9 (LLP 0026): ephemeral and
+  inspect endpoints still queue behind a busy write. Concurrent writers stay
+  out: single writer is the design.
 - **L8 — Event-driven delivery.** The WS path polls each connection's outbox
   every 25ms under the global lock (`src/server.rs:419`, `437-446`)
   [confirmed] — a ~25ms latency floor and idle lock traffic linear in
@@ -737,10 +865,12 @@ LLP 0026's own acceptance — sequenced here, owned there.
 
 **L1–L5 completed 2026-07-01** (the design-independent lifecycle fixes), each
 test-first and adversarially reviewed (the review caught and fixed a HIGH
-read-set-validation bug in L3). L6–L8 (the concurrency arc: reader pool,
-blocking-work offload, event-driven delivery) and L9 remain — they change the
-concurrency architecture and want the M1 harness (Phase 4) before/after, so
-they are the natural next Phase 3 unit.
+read-set-validation bug in L3). **L8 landed 2026-07-01; L6+L7 landed
+2026-07-02 as the dedicated reviewed arc** (design written before code,
+concurrency tests, one adversarial review pass — which again caught a HIGH,
+the unconverted `GET /` handler — and the M1 before/after recorded in
+[LLP 0035](./0035-local-target-benchmarks.research.md)). Of Phase 3 only L9
+remains, owned by LLP 0026 and sequenced here.
 
 ## Phase 4 — Measurement
 
@@ -1047,8 +1177,10 @@ implementations that must stay in sync (`src/live_matcher.rs:12-84` vs
 extractor); `eval_expr` vs `eval_action_expr`; identical
 `entry_key_for_publish`/`entry_key_for_delete`; the
 `*mut LocalSnapback`/`*const LocalDatabase` aliasing in the action host
-(`src/local.rs:190-203`, `809-816` — L7's threading work is the natural
-moment); per-invocation process-global host install and the `"*"` fetch
+(L7 kept the raw-pointer pattern — `DbRead::LiveRaw` — but now derives the
+db pointer from the same provenance root as the `*mut`, per this arc's
+review; retiring the pattern outright remains open); per-invocation
+process-global host install and the `"*"` fetch
 grant under `SNAPBACK_OUTBOUND_ACTIONS` (`src/runtime.rs:189-193`,
 `690-709` — revisit with X2); linear function-manifest lookup per invocation
 (`src/manifest.rs:204-208`); O(n²) read-dep dedup (`src/runtime.rs:493-497`);

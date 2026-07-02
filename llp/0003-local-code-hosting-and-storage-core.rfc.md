@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 R7: §Execution and Write Semantics annotated with the current-vs-target implementation status; LLP 0032 S5.D4: §Realtime Pipeline gains the post-commit fan-out error contract)
+**Revised:** 2026-07-02 (LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, https://github.com/expo/valet, https://github.com/ccheever/ibex
 
 ## Summary
@@ -131,7 +131,12 @@ The serialized boundary governs the *write* path. Reads should use a separate
 pool of WAL reader connections so that queries do not queue behind writes or
 behind one another; collapsing reads and writes onto a single connection would
 forfeit WAL's concurrent-reader benefit, which the read-heavy reference apps
-(feeds, leaderboards — LLP 0000) depend on.
+(feeds, leaderboards — LLP 0000) depend on. (Implemented 2026-07-02 —
+[LLP 0032](./0032-decision-and-implementation-hardening.plan.md) L6: `ReaderPool`
+read-only connections with per-invocation pinned read transactions; measured
+~68× on the read-during-write A/B in
+[LLP 0035](./0035-local-target-benchmarks.research.md). File-backed databases
+only; the in-memory dev mode cannot run WAL and keeps serialized reads.)
 
 Every user table managed by Snapback has system fields:
 
@@ -259,23 +264,32 @@ Hermes is not the limit — Ibex already pumps the microtask queue via
   commit, not across the handler's async duration;
 - if the handler throws, no writes are applied and the mutation is rejected.
 
-> **Implementation status (updated 2026-07-01, LLP 0032 Phase 2):** the
-> boundary above is the ratified **target**; the shipped v0 partially meets it,
-> as verified in
-> [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2.
-> Handler reads are bare autocommit reads on the live connection — no pinned
-> snapshot — and cross-request consistency comes from the global instance mutex,
-> which serializes queries and mutations alike. **Read-your-writes is now
-> implemented (LLP 0032 E2):** a handler's buffered `ctx.db` writes are layered
-> over its own later reads, so insert-then-query sees the row, a `patch` after a
-> buffered insert reports `existed: true`, and delete-then-get misses. Two gaps
-> remain: host-plan mutations still validate only the client-supplied read set
-> rather than capturing reads server-side (**E3** — coupled to DK-1 because,
-> under the atomic single-transaction host-plan model, server-captured reads
-> cannot be stale, so closing the trust-the-client asymmetry is a design
-> question, not a mechanical capture); and query-shaped read-set validation runs
-> at whole-table granularity (**E4** — gated on M1's measured spurious-conflict
-> rate). The mutation-isolation capability field
+> **Implementation status (updated 2026-07-02, LLP 0032 Phases 2–3):** the
+> boundary above is the ratified **target**; the shipped v0 now meets most of
+> it, as verified in
+> [LLP 0032](./0032-decision-and-implementation-hardening.plan.md).
+> **Query handlers run on the WAL reader pool with pinned snapshots (LLP 0032
+> L6, landed 2026-07-02):** each read-only invocation executes inside one
+> deferred read transaction on a pooled read-only connection — every `ctx.db`
+> read during the handler and the reported version come from one WAL snapshot
+> — and takes no lock shared with the write path (file-backed databases; the
+> in-memory dev mode has no WAL and keeps the serialized fallback). *Mutation*
+> handlers still perform bare autocommit reads on the live write connection,
+> consistent because the global instance mutex serializes writers; their
+> pinned-snapshot form remains open under DK-1. **Blocking work is off the
+> async workers (LLP 0032 L7):** Hermes eval and SQLite run only on blocking
+> threads (`lock_owned` + `spawn_blocking`, debug-asserted at the chokepoints),
+> so a slow handler occupies the write lane, not the server's async runtime.
+> **Read-your-writes is implemented (LLP 0032 E2):** a handler's buffered
+> `ctx.db` writes are layered over its own later reads, so insert-then-query
+> sees the row, a `patch` after a buffered insert reports `existed: true`, and
+> delete-then-get misses. Remaining gaps: host-plan mutations still validate
+> only the client-supplied read set rather than capturing reads server-side
+> (**E3** — coupled to DK-1 because, under the atomic single-transaction
+> host-plan model, server-captured reads cannot be stale, so closing the
+> trust-the-client asymmetry is a design question, not a mechanical capture).
+> Query-shaped read-set validation is predicate-granular (**E4**, landed
+> 2026-07-01). The mutation-isolation capability field
 > ([LLP 0012](./0012-headless-integration-contract.spec.md)) reports the shipped
 > mode; DK-1 governs the remaining direction.
 

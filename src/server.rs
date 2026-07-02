@@ -22,6 +22,49 @@ use tokio::time::{Duration, interval};
 
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
 
+/// Run write-lane work against the instance without blocking a tokio worker.
+///
+/// Waiting for the global mutex stays async (`lock_owned` — queued callers
+/// burn no thread); only actual execution occupies a blocking-pool thread,
+/// with the owned guard moved into the closure. Every server path that can
+/// reach Hermes eval or rusqlite goes through here (or the read lane), which
+/// is what keeps the exec-guard assertion true. Endpoints that only touch
+/// in-memory state (ephemeral, outbox drains, disconnect) may still lock
+/// inline.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L7.
+pub(crate) async fn with_snapback<T, F>(state: &SharedSnapback, work: F) -> T
+where
+    F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
+    T: Send + 'static,
+{
+    let mut guard = state.clone().lock_owned().await;
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        work(&mut guard)
+    })
+    .await
+    .expect("snapback blocking task panicked")
+}
+
+/// Run read-lane work (no global mutex) on a blocking-pool thread: the lane
+/// still evals Hermes and reads SQLite, so it must not occupy a tokio worker.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6+L7.
+pub(crate) async fn with_read_lane<T, F>(read: &crate::local::ReadLane, work: F) -> T
+where
+    F: FnOnce(&crate::local::ReadLane) -> T + Send + 'static,
+    T: Send + 'static,
+{
+    let read = read.clone();
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        work(&read)
+    })
+    .await
+    .expect("read-lane blocking task panicked")
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct HealthResponse {
     pub ok: bool,
@@ -226,8 +269,11 @@ async fn instance_home(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
 ) -> Result<Response, ApiError> {
-    let mut snapback = state.lock().await;
-    let inspect = snapback.inspect()?;
+    // inspect() reads SQLite (storage version), so this goes through the
+    // offload like every other rusqlite-touching handler (L7). The review of
+    // this arc caught the original inline lock here: it panicked the exec
+    // guard on every debug-build GET / while current-thread tests stayed green.
+    let inspect = with_snapback(&state, |snapback| snapback.inspect()).await?;
     Ok((
         [(header::CONTENT_TYPE, "text/yaml; charset=utf-8")],
         instance_home_yaml(&inspect, &ctx),
@@ -389,8 +435,8 @@ fn yaml_string_list(values: &[String]) -> String {
 
 /// Backwards-compatible entry point: build the full app with a detached
 /// (loopback, address-unknown) server context.
-pub fn router(state: SharedSnapback) -> Router {
-    app(AppState::detached(state))
+pub fn router(snapback: LocalSnapback) -> Router {
+    app(AppState::detached(snapback))
 }
 
 /// How long a connection may be idle before the reaper tears it down, and how
@@ -417,10 +463,14 @@ pub fn spawn_maintenance_worker(state: SharedSnapback) -> JoinHandle<()> {
         loop {
             ticks.tick().await;
             let now = now_millis();
-            let mut snapback = state.lock().await;
-            snapback.reap_stale_connections(now, CONNECTION_IDLE_TTL_MS);
-            // Best-effort; a transient prune error is retried next tick.
-            let _ = snapback.prune_change_journal(now, JOURNAL_RETAIN_VERSIONS, JOURNAL_RETAIN_MS);
+            // The journal prune is rusqlite work — off the async worker (L7).
+            with_snapback(&state, move |snapback| {
+                snapback.reap_stale_connections(now, CONNECTION_IDLE_TTL_MS);
+                // Best-effort; a transient prune error is retried next tick.
+                let _ =
+                    snapback.prune_change_journal(now, JOURNAL_RETAIN_VERSIONS, JOURNAL_RETAIN_MS);
+            })
+            .await;
         }
     })
 }
@@ -439,8 +489,13 @@ pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
             if !cron_active.load(std::sync::atomic::Ordering::Relaxed) {
                 continue;
             }
-            let mut snapback = state.lock().await;
-            snapback.tick_cron_recording(now_millis());
+            // A due tick persists cron state and may run actions (Hermes) —
+            // off the async worker (L7).
+            let now = now_millis();
+            with_snapback(&state, move |snapback| {
+                snapback.tick_cron_recording(now);
+            })
+            .await;
         }
     })
 }
@@ -489,15 +544,27 @@ fn loopback_origin(origin: Option<&HeaderValue>) -> Option<HeaderValue> {
         .flatten()
 }
 
-async fn health(State(state): State<SharedSnapback>) -> Result<Json<HealthResponse>, ApiError> {
-    let mut snapback = state.lock().await;
-    let inspect = snapback.inspect()?;
+/// `/health` prefers the lock-free read lane (a busy write must not make the
+/// instance look down); in-memory instances fall back to the write lane.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+async fn health(
+    State(state): State<SharedSnapback>,
+    State(read): State<crate::local::ReadLane>,
+) -> Result<Json<HealthResponse>, ApiError> {
+    let (version, capabilities) = if read.available() {
+        let health = with_read_lane(&read, |lane| lane.health()).await?;
+        (health.version, health.capabilities)
+    } else {
+        let inspect = with_snapback(&state, |snapback| snapback.inspect()).await?;
+        (inspect.storage.version, inspect.runtime)
+    };
     Ok(Json(HealthResponse {
         ok: true,
-        target: inspect.target,
-        sqlite_version: inspect.storage.version,
-        ibex_available: inspect.runtime.ibex_cli.available
-            || inspect.runtime.ibex_ctx_db_host_bridge == CapabilityState::Available,
+        target: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        sqlite_version: version,
+        ibex_available: capabilities.ibex_cli.available
+            || capabilities.ibex_ctx_db_host_bridge == CapabilityState::Available,
     }))
 }
 
@@ -509,8 +576,8 @@ async fn health(State(state): State<SharedSnapback>) -> Result<Json<HealthRespon
 async fn inspect(
     State(state): State<SharedSnapback>,
 ) -> Result<Json<crate::local::PublicInspect>, ApiError> {
-    let mut snapback = state.lock().await;
-    Ok(Json(snapback.inspect()?.into()))
+    let inspect = with_snapback(&state, |snapback| snapback.inspect()).await?;
+    Ok(Json(inspect.into()))
 }
 
 /// The v0 admin aliases perform system writes, so they share the
@@ -526,10 +593,9 @@ async fn apply_schema(
     Json(manifest): Json<SchemaManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
-    let mut snapback = state.lock().await;
-    Ok(Json(DiagnosticsResponse {
-        diagnostics: snapback.apply_schema(manifest)?,
-    }))
+    let diagnostics =
+        with_snapback(&state, move |snapback| snapback.apply_schema(manifest)).await?;
+    Ok(Json(DiagnosticsResponse { diagnostics }))
 }
 
 async fn load_functions(
@@ -539,10 +605,9 @@ async fn load_functions(
     Json(manifest): Json<FunctionManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
-    let mut snapback = state.lock().await;
-    Ok(Json(DiagnosticsResponse {
-        diagnostics: snapback.load_functions(manifest),
-    }))
+    let diagnostics =
+        with_snapback(&state, move |snapback| snapback.load_functions(manifest)).await;
+    Ok(Json(DiagnosticsResponse { diagnostics }))
 }
 
 /// `app.reset` — the gated system write that resets the instance and, per
@@ -559,12 +624,17 @@ async fn app_reset(
 ) -> Result<Json<AppResetResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
     let seed = body.and_then(|Json(body)| body.seed);
-    let mut snapback = state.lock().await;
-    snapback.reset()?;
-    let seeded = match seed {
-        Some(seed) => Some(snapback.seed(seed)?),
-        None => None,
-    };
+    let seeded = with_snapback(
+        &state,
+        move |snapback| -> Result<_, crate::diagnostic::SnapbackError> {
+            snapback.reset()?;
+            match seed {
+                Some(seed) => Ok(Some(snapback.seed(seed)?)),
+                None => Ok(None),
+            }
+        },
+    )
+    .await?;
     Ok(Json(AppResetResponse { seeded }))
 }
 
@@ -579,13 +649,24 @@ struct AppResetResponse {
     seeded: Option<crate::manifest::MutationOutput>,
 }
 
+/// `/query/{name}` runs on the lock-free read lane when the instance is
+/// file-backed: a pooled WAL reader inside a pinned read transaction, so
+/// queries proceed during long writes. In-memory instances (no WAL) keep the
+/// serialized write-lane path.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
 async fn invoke_query(
     State(state): State<SharedSnapback>,
+    State(read): State<crate::local::ReadLane>,
     Path(name): Path<String>,
     Json(input): Json<HandlerInput>,
 ) -> Result<Json<crate::manifest::QueryOutput>, ApiError> {
-    let snapback = state.lock().await;
-    Ok(Json(snapback.invoke_query(&name, input)?))
+    let output = if read.available() {
+        with_read_lane(&read, move |lane| lane.invoke_query(&name, input)).await?
+    } else {
+        with_snapback(&state, move |snapback| snapback.invoke_query(&name, input)).await?
+    };
+    Ok(Json(output))
 }
 
 async fn invoke_mutation(
@@ -593,8 +674,11 @@ async fn invoke_mutation(
     Path(name): Path<String>,
     Json(input): Json<HandlerInput>,
 ) -> Result<Json<crate::manifest::MutationOutput>, ApiError> {
-    let mut snapback = state.lock().await;
-    Ok(Json(snapback.invoke_mutation(&name, input)?))
+    let output = with_snapback(&state, move |snapback| {
+        snapback.invoke_mutation(&name, input)
+    })
+    .await?;
+    Ok(Json(output))
 }
 
 async fn subscribe_live(
@@ -602,8 +686,11 @@ async fn subscribe_live(
     Path(name): Path<String>,
     Json(input): Json<LiveSubscribeInput>,
 ) -> Result<Json<crate::local::LiveSubscribeOutput>, ApiError> {
-    let mut snapback = state.lock().await;
-    Ok(Json(snapback.subscribe_live(&name, input)?))
+    let output = with_snapback(&state, move |snapback| {
+        snapback.subscribe_live(&name, input)
+    })
+    .await?;
+    Ok(Json(output))
 }
 
 async fn resume_live(
@@ -611,8 +698,9 @@ async fn resume_live(
     Path(name): Path<String>,
     Json(input): Json<LiveResumeInput>,
 ) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
-    let mut snapback = state.lock().await;
-    Ok(Json(snapback.resume_live(&name, input)?))
+    let output =
+        with_snapback(&state, move |snapback| snapback.resume_live(&name, input)).await?;
+    Ok(Json(output))
 }
 
 async fn stream_live(
