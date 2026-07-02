@@ -3,8 +3,8 @@
 // The transit math is the shared model (../../snapback/shared/model.mjs),
 // imported unchanged — same file the Contract arm and the headless tests use.
 // The wrappers here are the React twin of the Contract arm's data.ts, minus its
-// store-closure/`_tick` indirection: everything takes explicit arguments
-// (location, delays, feed) supplied by the caller from `useLiveState()`.
+// device-location module state: everything takes explicit arguments (location,
+// delay rows, feed rows) supplied by the caller from `useLiveState()`.
 
 import {
   assumedDirection,
@@ -12,14 +12,25 @@ import {
   estimateDistanceMiles,
   estimateWalkMinutes,
   formatClockTime,
-  formatCountdownMinutes,
   getStationById,
+  getStations,
   getTrainRun,
+  getUpcomingDepartures,
   serviceColor,
 } from '../../../snapback/shared/model.mjs';
-import type { FeedRow, LatLng, LocationSource } from './store.ts';
+import type { DelayRow, FeedRow, LatLng, LocationSource } from './store.ts';
 
 export const DEFAULT_LOCATION: LatLng = { lat: 37.3894, lng: -122.0819 }; // Mountain View fallback
+
+export interface Station {
+  id: string;
+  name: string;
+  shortName: string;
+  orderIndex: number;
+  zone: number;
+  lat: number;
+  lng: number;
+}
 
 // A friendly, on-card signal of whether the nearest station came from the device
 // or a fallback — so a denied/dismissed permission prompt is legible, not silent.
@@ -31,6 +42,8 @@ export function locationHint(source: LocationSource): string {
     default: return 'Allow location for your nearest stop';
   }
 }
+
+// --- Direction ------------------------------------------------------------------
 
 export function activeDirection(override: string | null, station: { orderIndex: number }): string {
   if (override === 'north' || override === 'south') return override;
@@ -45,44 +58,75 @@ export function serviceTint(service: string): string {
   return `${serviceColor(service)}22`; // ~13% alpha pill background
 }
 
-// --- Clock formatting (12h "9:57p" / 24h "21:57"), app-wide toggle -------------
+// --- Boards + trips (live delays arrive as liveTrainStatus rows) -----------------
 
-export function formatTime(timestampMs: number, use24h: boolean): string {
-  if (!use24h) return formatClockTime(timestampMs);
-  const date = new Date(timestampMs);
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+// liveTrainStatus rows -> the patternId -> delaySeconds map the model expects.
+export function delaysFrom(delayRows: readonly DelayRow[] | null | undefined): Record<string, number> {
+  const delays: Record<string, number> = {};
+  for (const row of delayRows ?? []) delays[row.patternId] = row.delaySeconds;
+  return delays;
 }
 
-// --- Urgent departures (leaving within 5 minutes) ------------------------------
-
-export const URGENT_RED = '#dc2626';
-export const URGENT_TINT = '#dc262622';
-const URGENT_THRESHOLD_MINUTES = 5;
-
-export function isUrgent(predictedDepartureMs: number, nowMs: number): boolean {
-  return formatCountdownMinutes(predictedDepartureMs, nowMs) <= URGENT_THRESHOLD_MINUTES;
+export interface Departure {
+  id: string;
+  service: string;
+  trainNumber: string;
+  headsign: string;
+  predictedDepartureMs: number;
+  delaySeconds?: number;
 }
 
-// --- Walk / bike (haversine over the seed coordinates) ------------------------
-
-export function walkBikeSummary(station: { lat: number; lng: number }, location: LatLng): string {
-  const walk = estimateWalkMinutes(location, station);
-  const bike = estimateBikeMinutes(location, station);
-  const miles = estimateDistanceMiles(location, station);
-  return `${walk} min walk · ${bike} min bike · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+export interface HeroBoard {
+  hero: Departure | null;
+  rest: Departure[];
+  hasPrev: boolean;
+  hasNext: boolean;
+  offset: number;
 }
 
-// --- Freshness marker ----------------------------------------------------------
-
-export function feedFreshness(feed: FeedRow | null, nowMs: number): string {
-  if (!feed || !feed.fetchedAt) return 'Waiting for feed…';
-  const ageSeconds = Math.max(0, Math.round((nowMs - feed.fetchedAt) / 1000));
-  if (ageSeconds < 5) return 'Updated just now';
-  if (ageSeconds < 90) return `Updated ${ageSeconds}s ago`;
-  return `Updated ${Math.round(ageSeconds / 60)} min ago`;
+// The hero-selection board: `heroOffset` walks the upcoming trains (swipe
+// up/down or the ▲▼ arrows), the three after it stay listed. The offset is
+// clamped to the rows that exist, so an offset stranded by time passing (the
+// selected train departs) degrades to the last remaining train.
+export function boardTrains(
+  stationId: string,
+  direction: string,
+  nowMs: number,
+  heroOffset: number,
+  delayRows: readonly DelayRow[],
+): HeroBoard {
+  const wanted = Math.max(0, heroOffset ?? 0);
+  const rows: Departure[] = getUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), wanted + 5);
+  const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
+  return {
+    hero: rows[offset] ?? null,
+    rest: rows.slice(offset + 1, offset + 4),
+    hasPrev: offset > 0,
+    hasNext: rows.length > offset + 1,
+    offset,
+  };
 }
 
-// --- The served stops from the boarding station onward, for the expanded hero --
+// On-time / late marker for a departure (or a trip; both carry delaySeconds).
+export function delayLabel(dep: { delaySeconds?: number } | null): string {
+  if (!dep) return '';
+  const s = dep.delaySeconds ?? 0;
+  return s >= 45 ? `${Math.max(1, Math.round(s / 60))} min late` : 'on time';
+}
+
+export function delayColor(dep: { delaySeconds?: number } | null): string {
+  return (dep?.delaySeconds ?? 0) >= 45 ? '#fbbf24' : '#34d399';
+}
+
+// Compact destination for the departure rows ("Diridon", not "San Jose
+// Diridon") — headsign is the destination station's full name.
+export function shortHeadsign(dep: { headsign?: string } | null): string {
+  const headsign = dep?.headsign ?? '';
+  const match = getStations().find((s: { name: string; shortName: string }) => s.name === headsign);
+  return match ? match.shortName : headsign;
+}
+
+// --- The served stops from the boarding station onward, for the expanded hero ----
 
 export interface UpcomingStop {
   id: string;
@@ -91,34 +135,62 @@ export interface UpcomingStop {
   isBoarding: boolean;
 }
 
-export function upcomingStops(
-  runId: string,
-  stationId: string,
-  nowMs: number,
-  delays: Record<string, number>,
-  use24h: boolean,
-  limit = 6,
-): UpcomingStop[] {
-  const trip = getTrainRun(runId, nowMs, delays);
-  if (!trip) return [];
-  const boardingIndex = trip.stops.findIndex((stop: TripStop) => stop.station.id === stationId);
-  const from = boardingIndex >= 0 ? boardingIndex : 0;
-  return trip.stops.slice(from, from + limit).map((stop: TripStop) => ({
-    id: stop.station.id,
-    name: stop.station.shortName,
-    time: formatTime(stop.predictedTimeMs, use24h),
-    isBoarding: stop.station.id === stationId,
-  }));
-}
-
-// --- Position indicator (for the train detail continuum) -----------------------
-
 interface TripStop {
   station: { id: string; shortName: string };
   predictedTimeMs: number;
 }
 
-interface TripPosition {
+export function upcomingStops(
+  runId: string,
+  stationId: string,
+  nowMs: number,
+  limit: number,
+  delayRows: readonly DelayRow[],
+): UpcomingStop[] {
+  // The model types stop.station as nullable (a lookup that cannot miss for
+  // seeded runs); assert the runtime reality once at this boundary.
+  const trip = getTrainRun(runId, nowMs, delaysFrom(delayRows)) as { stops: TripStop[] } | null;
+  if (!trip) return [];
+  const boardingIndex = trip.stops.findIndex((stop) => stop.station.id === stationId);
+  const from = boardingIndex >= 0 ? boardingIndex : 0;
+  return trip.stops.slice(from, from + (limit || 6)).map((stop) => ({
+    id: stop.station.id,
+    name: stop.station.shortName,
+    time: formatClockTime(stop.predictedTimeMs),
+    isBoarding: stop.station.id === stationId,
+  }));
+}
+
+// --- Walk / bike (haversine over the seed coordinates) ---------------------------
+
+export function walkBikeSummary(station: { lat: number; lng: number }, location: LatLng): string {
+  const walk = estimateWalkMinutes(location, station);
+  const bike = estimateBikeMinutes(location, station);
+  const miles = estimateDistanceMiles(location, station);
+  return `${walk} min walk · ${bike} min bike · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+}
+
+// Compact distance for the stations-list rows, where the full walk/bike
+// summary is too wide (and a 300-minute walk reads as noise).
+export function distanceLabel(station: { lat: number; lng: number }, location: LatLng): string {
+  const miles = estimateDistanceMiles(location, station);
+  return `${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+}
+
+// --- Freshness marker (feedState rows from the live subscription) ----------------
+
+export function feedFreshness(nowMs: number, feedRows: readonly FeedRow[]): string {
+  const feed = feedRows?.[0] ?? null;
+  if (!feed || !feed.fetchedAt) return 'Waiting for feed…';
+  const ageSeconds = Math.max(0, Math.round((nowMs - feed.fetchedAt) / 1000));
+  if (ageSeconds < 5) return 'Updated just now';
+  if (ageSeconds < 90) return `Updated ${ageSeconds}s ago`;
+  return `Updated ${Math.round(ageSeconds / 60)} min ago`;
+}
+
+// --- Position indicator (for the train detail continuum) -------------------------
+
+export interface TripPosition {
   state: string;
   prevStationId: string | null;
   nextStationId: string | null;

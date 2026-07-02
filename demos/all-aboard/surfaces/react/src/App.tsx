@@ -1,11 +1,18 @@
-// All Aboard — React root component.
+// All Aboard — React root component (redesign re-baseline, ENG-22450).
 //
 // Owns the same state the Contract root owns (station, direction override,
-// screen, trip, query) as useState hooks; the live Snapback data arrives via
-// useLiveState() (push, not tick-polled) and the 1s useNow() clock drives
-// countdowns and the freshness age. Everything below the root is a plain
-// presentational component taking data + callbacks, mirroring the Contract
-// arm's action-threaded props.
+// screen, trip, query, heroOffset) as useState hooks; the live Snapback data
+// arrives via useLiveState() (server push into the store) and the 1s useNow()
+// clock drives countdowns and the freshness age. Everything below the root is
+// a plain presentational component taking data + callbacks, mirroring the
+// Contract arm's action-threaded props.
+//
+// Design: full-bleed poster-stylized station artwork (model.mjs stationPhoto —
+// legibility scrims are baked into its SVG wrapper) with the departure board
+// typeset directly on it: station identity at the top, the answer — a giant
+// countdown — at the bottom where thumbs live. `heroOffset` walks the upcoming
+// trains in the active direction. Edge chevrons, the ▲▼ train arrows, and the
+// flip pill are the visible, pressable stand-ins the gesture glue drives.
 
 import { useState } from 'react';
 
@@ -14,14 +21,28 @@ import {
   getDirectionBoard,
   getSelectedStation,
   getTrainRun,
+  stationPhoto,
+  stationPhotoCredit,
 } from '../../../snapback/shared/model.mjs';
-import { DEFAULT_LOCATION, activeDirection, oppositeDirection } from './lib.ts';
+import {
+  DEFAULT_LOCATION,
+  activeDirection,
+  boardTrains,
+  delaysFrom,
+  feedFreshness,
+  locationHint,
+  oppositeDirection,
+  walkBikeSummary,
+} from './lib.ts';
+import type { Station } from './lib.ts';
 import { useLiveState, useNow } from './store.ts';
 import { DirectionBoard } from './components/DirectionBoard.tsx';
+import type { OppositeBoard } from './components/DirectionBoard.tsx';
 import { StationCard } from './components/StationCard.tsx';
 import { StationsPicker } from './components/StationsPicker.tsx';
 import { TripDetail } from './components/TripDetail.tsx';
-import { column } from './ui.tsx';
+import type { Trip } from './components/TripDetail.tsx';
+import { column, palette } from './ui.tsx';
 
 type Screen = 'home' | 'stations' | 'trip';
 
@@ -33,19 +54,46 @@ export function App(props: { onRefresh: () => void }) {
   const [screen, setScreen] = useState<Screen>('home');
   const [tripId, setTripId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [use24h, setUse24h] = useState(false);
+  const [heroOffset, setHeroOffset] = useState(0);
 
   const location = live.location ?? DEFAULT_LOCATION;
-  const station = getSelectedStation(stationId, location);
+  // The model types its lookups as nullable; selection falls back to the
+  // nearest station and seeded runs always resolve — assert once here.
+  const station = getSelectedStation(stationId, location) as Station;
+  const art: string = stationPhoto(station.id) ?? '';
+  const photoCredit: string = stationPhotoCredit(station.id) ?? '';
   const activeDir = activeDirection(directionOverride, station);
   const oppositeDir = oppositeDirection(activeDir);
-  const primaryBoard = getDirectionBoard(station.id, activeDir, nowMs, live.delays, 4);
-  const oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, live.delays, 1);
-  const trip = tripId ? getTrainRun(tripId, nowMs, live.delays) : null;
+  const board = boardTrains(station.id, activeDir, nowMs, heroOffset, live.delayRows);
+  const oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, delaysFrom(live.delayRows), 1) as OppositeBoard;
+  const prevStationId = getAdjacentStation(station.id, -1)?.id ?? station.id;
+  const nextStationId = getAdjacentStation(station.id, 1)?.id ?? station.id;
+  const trip = tripId ? (getTrainRun(tripId, nowMs, delaysFrom(live.delayRows)) as Trip | null) : null;
+  const freshness = feedFreshness(nowMs, live.feedRows);
+
+  // The delays region dispatches on the live subscription the way the
+  // Contract `async delayRows` block does: `stale` wins over `ready` while
+  // the connection is degraded (kit values 'stale' | 'disconnected' — the
+  // same mapping the Contract runtime's stale arm uses); `loading` shows
+  // until the first snapshot lands.
+  const delaysLoading = !live.delaysReady;
+  const delaysStale =
+    live.connections.liveTrainStatus === 'stale' || live.connections.liveTrainStatus === 'disconnected';
 
   const goToStation = (id: string) => {
     setStationId(id);
     setScreen('home');
+    setQuery('');
+    setHeroOffset(0);
+  };
+  const toggleDirection = (next: string) => {
+    setDirectionOverride(next);
+    setHeroOffset(0);
+  };
+  const trainPrev = () => setHeroOffset((current) => (current > 0 ? current - 1 : 0));
+  const trainNext = () => setHeroOffset((current) => (current < 8 ? current + 1 : current));
+  const openStations = () => {
+    setScreen('stations');
     setQuery('');
   };
   const openTrip = (id: string) => {
@@ -56,55 +104,137 @@ export function App(props: { onRefresh: () => void }) {
     setScreen('home');
     setTripId(null);
   };
-  const openStations = () => {
-    setScreen('stations');
-    setQuery('');
-  };
+
+  const chevron = (side: 'left' | 'right', targetId: string, label: string, testId: string, glyph: string) => (
+    <button
+      type="button"
+      onClick={() => goToStation(targetId)}
+      aria-label={label}
+      data-testid={testId}
+      style={{
+        appearance: 'none',
+        border: 'none',
+        margin: 0,
+        padding: 0,
+        cursor: 'pointer',
+        position: 'absolute',
+        [side]: 0,
+        top: '17%',
+        bottom: '58%',
+        width: 42,
+        background: 'transparent',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <span style={{ fontSize: 34, fontWeight: 700, color: targetId === station.id ? palette.inkDisabled : palette.inkGhost }}>
+        {glyph}
+      </span>
+    </button>
+  );
 
   return (
     <main
       data-testid="all-aboard-main"
-      style={{ ...column, background: '#f4f6fb', flex: 1, width: '100%', minHeight: '100vh' }}
+      style={{ ...column, background: palette.page, flex: 1, width: '100%', minHeight: '100%', height: '100%' }}
     >
-      <div style={{ ...column, gap: 14, padding: 18, maxWidth: 560, alignSelf: 'center', width: '100%' }}>
-        <StationCard
-          station={station}
-          location={location}
-          locationSource={live.locationSource}
-          feed={live.feed}
-          nowMs={nowMs}
-          prevStationId={getAdjacentStation(station.id, -1)?.id ?? station.id}
-          nextStationId={getAdjacentStation(station.id, 1)?.id ?? station.id}
-          onGoToStation={goToStation}
-          onOpenStations={openStations}
-          onRefresh={props.onRefresh}
-          use24h={use24h}
-          onToggleTimeFormat={() => setUse24h((current) => !current)}
-        />
-        {screen === 'home' && (
-          <DirectionBoard
-            stationId={station.id}
-            nowMs={nowMs}
-            activeDir={activeDir}
-            oppositeDir={oppositeDir}
-            primaryBoard={primaryBoard}
-            oppositeBoard={oppositeBoard}
-            delays={live.delays}
-            use24h={use24h}
-            onToggleDirection={setDirectionOverride}
-            onOpenTrip={openTrip}
+      <div style={{ position: 'relative', flex: 1, width: '100%', minHeight: '100%', overflow: 'hidden' }}>
+        {/* Full-bleed station artwork behind everything. */}
+        {art === '' ? (
+          <div style={{ ...column, position: 'absolute', inset: 0, background: '#0b0e1a' }} />
+        ) : (
+          <img
+            src={`data:image/svg+xml;utf8,${encodeURIComponent(art)}`}
+            alt={`${station.name} station artwork`}
+            data-testid="station-art"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
+        )}
+
+        {screen === 'home' && (
+          <div
+            data-testid="board-content"
+            style={{ ...column, position: 'absolute', inset: 0, justifyContent: 'space-between' }}
+          >
+            <StationCard
+              station={station}
+              walkBike={walkBikeSummary(station, location)}
+              locHint={locationHint(live.locationSource)}
+              onOpenStations={openStations}
+            />
+            {delaysLoading ? (
+              <div
+                style={{
+                  ...column,
+                  padding: '0 20px 16px',
+                  width: '100%',
+                  maxWidth: 620,
+                  alignSelf: 'center',
+                }}
+              >
+                <div data-testid="delays-loading" style={{ fontSize: 12, color: palette.inkFaint }}>
+                  Connecting to live delays…
+                </div>
+              </div>
+            ) : (
+              <div style={{ ...column, gap: 8, width: '100%' }}>
+                {delaysStale && (
+                  <div style={{ ...column, alignItems: 'center', width: '100%' }}>
+                    <div
+                      style={{
+                        borderRadius: 999,
+                        padding: '5px 12px',
+                        background: palette.amberTint,
+                        border: `1px solid ${palette.amberBorder}`,
+                      }}
+                    >
+                      <div data-testid="delays-stale" style={{ fontSize: 11, fontWeight: 700, color: palette.amber }}>
+                        Reconnecting — showing last-known delays
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <DirectionBoard
+                  stationId={station.id}
+                  nowMs={nowMs}
+                  activeDir={activeDir}
+                  oppositeDir={oppositeDir}
+                  board={board}
+                  oppositeBoard={oppositeBoard}
+                  freshness={freshness}
+                  photoCredit={photoCredit}
+                  delayRows={live.delayRows}
+                  onToggleDirection={toggleDirection}
+                  onOpenTrip={openTrip}
+                  onTrainPrev={trainPrev}
+                  onTrainNext={trainNext}
+                  onRefresh={props.onRefresh}
+                />
+              </div>
+            )}
+          </div>
         )}
         {screen === 'stations' && (
           <StationsPicker
             query={query}
             location={location}
+            nowMs={nowMs}
+            currentStationId={station.id}
             onSetQuery={setQuery}
             onGoToStation={goToStation}
             onGoHome={goHome}
           />
         )}
-        {screen === 'trip' && <TripDetail trip={trip} stationId={station.id} use24h={use24h} onGoHome={goHome} />}
+        {screen === 'trip' && <TripDetail trip={trip} stationId={station.id} onGoHome={goHome} />}
+
+        {/* Edge chevrons: the visible, pressable stand-in for the swipe. */}
+        {screen === 'home' && (
+          <>
+            {chevron('left', prevStationId, 'Previous station', 'prev-station', '‹')}
+            {chevron('right', nextStationId, 'Next station', 'next-station', '›')}
+          </>
+        )}
       </div>
     </main>
   );

@@ -3,29 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#05070f" />
     <title>All Aboard — Caltrain (React)</title>
     <style>
       *, *::before, *::after { box-sizing: border-box; }
-      html, body, #root { min-height: 100%; margin: 0; }
+      html, body, #root { height: 100%; margin: 0; }
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
-        background: #f4f6fb;
+        background: #05070f;
+        overflow: hidden;
       }
+      /* The gesture layer (src/gestures.ts) owns touches on the home board; the
+         sheet screens keep native scrolling. Double-tap zoom is off app-wide
+         so bare-tap direction flips feel instant. */
+      #root { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+      #root input, #root textarea { -webkit-user-select: text; user-select: text; }
+      [data-testid="board-content"] { touch-action: none; }
+      input::placeholder { color: rgba(255, 255, 255, 0.4); }
       #boot-status {
         position: fixed;
         left: 16px;
         bottom: 16px;
+        z-index: 99;
         max-width: min(520px, calc(100vw - 32px));
         padding: 10px 12px;
-        border: 1px solid #d7dce8;
-        border-radius: 8px;
-        background: #ffffff;
-        color: #2a3038;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 10px;
+        background: #0d1322;
+        color: #dbe3f4;
         font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
       }
       #boot-status[data-state="ready"] { display: none; }
-      #boot-status[data-state="error"] { border-color: #e2a1a1; color: #8a1f1f; }
+      #boot-status[data-state="error"] { border-color: #b4525f; color: #ffb3bd; }
     </style>
   </head>
   <body>

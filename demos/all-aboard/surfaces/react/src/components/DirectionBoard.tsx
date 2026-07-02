@@ -1,208 +1,271 @@
-// The home screen: direction toggle, the expanded hero departure with its
-// upcoming stops, the next few departures, and the opposite-direction line.
+// The board: direction row, the giant hero countdown expanded with its stops,
+// the ▲▼ train-selection arrows, the three departures after it, the opposite
+// direction line, and the freshness / refresh / credit footer.
 
-import { directionTitle, formatCountdownMinutes, serviceColor } from '../../../../snapback/shared/model.mjs';
-import { URGENT_RED, URGENT_TINT, formatTime, isUrgent, serviceTint, upcomingStops } from '../lib.ts';
-import { Press, ServicePill, chip, column, hairlineCard, mono, palette, row } from '../ui.tsx';
+import { directionTitle, formatClockTime, formatCountdownMinutes, serviceColor } from '../../../../snapback/shared/model.mjs';
+import { delayColor, delayLabel, serviceTint, shortHeadsign, upcomingStops } from '../lib.ts';
+import type { Departure, HeroBoard } from '../lib.ts';
+import type { DelayRow } from '../store.ts';
+import { Press, ServicePill, column, mono, palette, pill, row } from '../ui.tsx';
 
-export interface Departure {
-  id: string;
-  service: string;
-  trainNumber: string;
-  headsign: string;
-  predictedDepartureMs: number;
-}
-
-export interface Board {
+export interface OppositeBoard {
   primary: Departure | null;
   secondary: Departure[];
 }
+
+const tabular: React.CSSProperties = { fontFamily: mono, fontVariantNumeric: 'tabular-nums' };
 
 export function DirectionBoard(props: {
   stationId: string;
   nowMs: number;
   activeDir: string;
   oppositeDir: string;
-  primaryBoard: Board;
-  oppositeBoard: Board;
-  delays: Record<string, number>;
-  use24h: boolean;
+  board: HeroBoard;
+  oppositeBoard: OppositeBoard;
+  freshness: string;
+  photoCredit: string;
+  delayRows: readonly DelayRow[];
   onToggleDirection: (next: string) => void;
   onOpenTrip: (id: string) => void;
+  onTrainPrev: () => void;
+  onTrainNext: () => void;
+  onRefresh: () => void;
 }) {
-  const { primaryBoard, oppositeBoard, nowMs } = props;
-  const hero = primaryBoard.primary;
-  const heroUrgent = hero != null && isUrgent(hero.predictedDepartureMs, nowMs);
+  const { board, oppositeBoard, nowMs } = props;
+  const hero = board.hero;
+
+  const arrow = (label: string, testId: string, glyph: string, enabled: boolean, onPress: () => void) => (
+    <Press
+      onPress={onPress}
+      label={label}
+      testId={testId}
+      disabled={!enabled}
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        background: '#ffffff17',
+        border: '1px solid #ffffff21',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: enabled ? 1 : 0.35,
+      }}
+    >
+      <div style={{ fontSize: 12, fontWeight: 800, color: palette.inkBody }}>{glyph}</div>
+    </Press>
+  );
 
   return (
-    <div data-testid="home-screen" style={{ ...column, gap: 12, width: '100%' }}>
+    <div
+      data-testid="home-screen"
+      style={{
+        ...column,
+        gap: 9,
+        padding: '0 20px 10px',
+        width: '100%',
+        maxWidth: 620,
+        alignSelf: 'center',
+      }}
+    >
       <div
         data-testid="direction-toggle"
-        style={{ ...row, gap: 8, alignItems: 'center', justifyContent: 'space-between' }}
+        style={{ ...row, justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
       >
-        <div data-testid="active-direction" style={{ fontSize: 16, fontWeight: 800, color: palette.ink }}>
+        <div data-testid="active-direction" style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.4, color: palette.ink }}>
           {directionTitle(props.activeDir)}
         </div>
         <Press
           onPress={() => props.onToggleDirection(props.oppositeDir)}
           label="Flip direction"
           testId="flip-direction"
-          style={chip()}
+          style={pill()}
         >
-          <div style={{ fontSize: 12, fontWeight: 700, color: palette.accent }}>
-            {`Show ${directionTitle(props.oppositeDir)}`}
+          <div style={{ fontSize: 12, fontWeight: 700, color: palette.inkStrong }}>
+            {`⇄ ${directionTitle(props.oppositeDir)}`}
           </div>
         </Press>
       </div>
 
       {hero ? (
-        <div style={{ ...column, gap: 10, width: '100%' }}>
-          {/* Hero: the next train in the assumed direction, expanded with stops. */}
-          <Press
-            onPress={() => props.onOpenTrip(hero.id)}
-            label="Open next train"
-            testId="hero-departure"
-            style={{ width: '100%' }}
-          >
-            <div style={hairlineCard({ borderRadius: 16, padding: 16, gap: 12, width: '100%' })}>
-              <div style={{ ...row, gap: 10, alignItems: 'flex-end' }}>
-                <div
-                  data-testid="hero-minutes"
-                  style={{ fontSize: 60, fontWeight: 800, fontFamily: mono, color: heroUrgent ? URGENT_RED : palette.ink }}
-                >
-                  {formatCountdownMinutes(hero.predictedDepartureMs, nowMs)}
-                </div>
-                <div style={{ fontSize: 16, color: palette.inkFaint, paddingBottom: 10 }}>min</div>
-                <div style={{ ...column, flex: 1, alignItems: 'flex-end', gap: 4 }}>
-                  {heroUrgent && (
-                    <div style={{ borderRadius: 6, padding: '3px 8px', background: URGENT_TINT }}>
-                      <div
-                        data-testid="hero-leaving-soon"
-                        style={{ fontSize: 12, fontWeight: 700, color: URGENT_RED }}
-                      >
-                        Leaving soon
-                      </div>
+        <div style={{ ...column, gap: 9, width: '100%' }}>
+          <div style={{ ...row, gap: 12, alignItems: 'center', width: '100%' }}>
+            {/* Hero: the next train, expanded — tap opens its detail. */}
+            <Press
+              onPress={() => props.onOpenTrip(hero.id)}
+              label="Open next train"
+              testId="hero-departure"
+              style={{ flex: 1, minWidth: 0 }}
+            >
+              <div style={{ ...column, gap: 7, width: '100%', alignItems: 'flex-start' }}>
+                <div style={{ ...row, alignItems: 'flex-end', gap: 9, width: '100%' }}>
+                  <div
+                    data-testid="hero-minutes"
+                    style={{ fontSize: 98, fontWeight: 800, lineHeight: '92px', ...tabular, color: palette.ink }}
+                  >
+                    {formatCountdownMinutes(hero.predictedDepartureMs, nowMs)}
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 600, color: palette.inkMeta, paddingBottom: 12 }}>min</div>
+                  <div style={{ flex: 1 }} />
+                  <div style={{ ...column, gap: 6, alignItems: 'flex-end', paddingBottom: 10 }}>
+                    <ServicePill
+                      service={hero.service}
+                      color={serviceColor(hero.service)}
+                      tint={serviceTint(hero.service)}
+                      testId="hero-service"
+                    />
+                    <div data-testid="hero-meta" style={{ fontSize: 12, fontFamily: mono, color: palette.inkMono }}>
+                      {`${formatClockTime(hero.predictedDepartureMs)} · #${hero.trainNumber}`}
                     </div>
-                  )}
-                  <ServicePill
-                    service={hero.service}
-                    color={serviceColor(hero.service)}
-                    tint={serviceTint(hero.service)}
-                    testId="hero-service"
-                  />
-                  <div style={{ fontSize: 12, color: palette.inkFaint }}>
-                    {`${formatTime(hero.predictedDepartureMs, props.use24h)} · #${hero.trainNumber}`}
+                    <div style={{ fontSize: 12, fontWeight: 700, color: delayColor(hero) }}>{delayLabel(hero)}</div>
                   </div>
                 </div>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: palette.inkSoft }}>{`to ${hero.headsign}`}</div>
-              <div style={{ ...column, width: '100%' }}>
-                {upcomingStops(hero.id, props.stationId, nowMs, props.delays, props.use24h, 6).map((stop) => (
-                  <div key={stop.id} style={{ ...row, gap: 10, alignItems: 'center', padding: '4px 0' }}>
-                    <div style={{ fontSize: 12, fontFamily: mono, color: palette.inkFaint, width: 52 }}>
-                      {stop.time}
-                    </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: palette.inkBody }}>{`to ${hero.headsign}`}</div>
+                <div style={{ ...row, gap: 6, flexWrap: 'wrap', width: '100%' }}>
+                  {upcomingStops(hero.id, props.stationId, nowMs, 4, props.delayRows).map((stop) => (
                     <div
+                      key={stop.id}
                       style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        background: stop.isBoarding ? palette.accent : palette.track,
-                      }}
-                    />
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: stop.isBoarding ? 700 : 500,
-                        color: stop.isBoarding ? palette.accent : palette.ink,
+                        ...row,
+                        borderRadius: 999,
+                        padding: '4px 10px',
+                        background: stop.isBoarding ? '#ffffff2b' : '#ffffff14',
                       }}
                     >
-                      {stop.name}
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: stop.isBoarding ? 700 : 500,
+                          fontFamily: mono,
+                          color: stop.isBoarding ? palette.ink : palette.inkSoft,
+                        }}
+                      >
+                        {`${stop.time} ${stop.name}`}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Press>
-
-          {/* Next three trains in the assumed direction. */}
-          {primaryBoard.secondary.map((d) => (
-            <Press
-              key={d.id}
-              onPress={() => props.onOpenTrip(d.id)}
-              label="Open train"
-              testId={`departure-${d.id}`}
-              style={{ width: '100%' }}
-            >
-              <div
-                style={hairlineCard({
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  borderRadius: 12,
-                  padding: '12px 14px',
-                  width: '100%',
-                })}
-              >
-                <div style={{ ...row, gap: 10, alignItems: 'center' }}>
-                  <div
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 700,
-                      fontFamily: mono,
-                      color: isUrgent(d.predictedDepartureMs, nowMs) ? URGENT_RED : palette.ink,
-                      width: 64,
-                    }}
-                  >
-                    {`${formatCountdownMinutes(d.predictedDepartureMs, nowMs)} min`}
-                  </div>
-                  <ServicePill
-                    service={d.service}
-                    color={serviceColor(d.service)}
-                    tint={serviceTint(d.service)}
-                    size={11}
-                  />
-                </div>
-                <div style={{ fontSize: 12, color: palette.inkFaint }}>
-                  {`${formatTime(d.predictedDepartureMs, props.use24h)} · ${d.headsign}`}
+                  ))}
                 </div>
               </div>
             </Press>
-          ))}
+            {/* Walk the upcoming trains (swipe up/down drives these same arrows). */}
+            <div style={{ ...column, gap: 8 }}>
+              {arrow('Earlier train', 'train-prev', '▲', board.hasPrev, props.onTrainPrev)}
+              {arrow('Later train', 'train-next', '▼', board.hasNext, props.onTrainNext)}
+            </div>
+          </div>
+
+          {/* The three departures after the hero. */}
+          <div style={{ ...column, gap: 7, width: '100%' }}>
+            {board.rest.map((d) => (
+              <Press
+                key={d.id}
+                onPress={() => props.onOpenTrip(d.id)}
+                label="Open train"
+                testId={`departure-${d.id}`}
+                style={{ width: '100%' }}
+              >
+                <div
+                  style={{
+                    ...row,
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderRadius: 14,
+                    padding: '10px 14px',
+                    background: palette.glassRow,
+                    border: `1px solid ${palette.hairlineRow}`,
+                    width: '100%',
+                  }}
+                >
+                  <div style={{ ...row, gap: 8, alignItems: 'center' }}>
+                    <div
+                      style={{ fontSize: 17, fontWeight: 800, ...tabular, color: palette.ink, width: 36, textAlign: 'right' }}
+                    >
+                      {formatCountdownMinutes(d.predictedDepartureMs, nowMs)}
+                    </div>
+                    <div style={{ fontSize: 11, color: palette.inkFaint }}>min</div>
+                    <ServicePill
+                      service={d.service}
+                      color={serviceColor(d.service)}
+                      tint={serviceTint(d.service)}
+                      size={10}
+                      paddingX={8}
+                      paddingY={2}
+                    />
+                  </div>
+                  <div style={{ fontSize: 12, fontFamily: mono, color: palette.inkDim }}>
+                    {`${formatClockTime(d.predictedDepartureMs)} · ${shortHeadsign(d)}`}
+                  </div>
+                </div>
+              </Press>
+            ))}
+          </div>
         </div>
       ) : (
-        <div style={hairlineCard({ borderRadius: 14, padding: 16 })}>
+        <div
+          style={{
+            ...column,
+            borderRadius: 16,
+            padding: 18,
+            background: palette.glass,
+            border: `1px solid ${palette.hairline}`,
+          }}
+        >
           <div data-testid="no-trains" style={{ fontSize: 14, color: palette.inkSoft }}>
             No more trains today in this direction.
           </div>
         </div>
       )}
 
-      {/* Opposite direction, minimal (next train only). */}
+      {/* Opposite direction, minimal — and itself a flip affordance. */}
       {oppositeBoard.primary && (
-        <div
-          data-testid="opposite-line"
-          style={hairlineCard({
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderRadius: 12,
-            padding: '10px 14px',
-          })}
+        <Press
+          onPress={() => props.onToggleDirection(props.oppositeDir)}
+          label={`Show ${directionTitle(props.oppositeDir)}`}
+          testId="opposite-line"
+          style={{ width: '100%' }}
         >
-          <div style={{ fontSize: 13, fontWeight: 700, color: palette.inkSoft }}>
-            {directionTitle(props.oppositeDir)}
-          </div>
           <div
             style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: isUrgent(oppositeBoard.primary.predictedDepartureMs, nowMs) ? URGENT_RED : palette.ink,
-              fontFamily: mono,
+              ...row,
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderRadius: 14,
+              padding: '9px 14px',
+              background: palette.glassFaint,
+              border: `1px solid ${palette.hairlineFaint}`,
+              width: '100%',
             }}
           >
-            {`${formatCountdownMinutes(oppositeBoard.primary.predictedDepartureMs, nowMs)} min`}
+            <div style={{ ...row, gap: 8, alignItems: 'center' }}>
+              <div style={{ fontSize: 13, color: palette.inkDim }}>⇅</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: palette.inkSoft }}>
+                {directionTitle(props.oppositeDir)}
+              </div>
+            </div>
+            <div style={{ ...row, gap: 5, alignItems: 'center' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, ...tabular, color: palette.ink }}>
+                {formatCountdownMinutes(oppositeBoard.primary.predictedDepartureMs, nowMs)}
+              </div>
+              <div style={{ fontSize: 11, color: palette.inkFaint }}>min</div>
+            </div>
           </div>
+        </Press>
+      )}
+
+      <div style={{ ...row, justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: 2 }}>
+        <div data-testid="freshness" style={{ fontSize: 12, color: palette.inkFaint }}>
+          {props.freshness}
+        </div>
+        <Press onPress={props.onRefresh} label="Refresh" testId="refresh" style={pill({ padding: '5px 12px' })}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: palette.inkStrong }}>Refresh</div>
+        </Press>
+      </div>
+      {props.photoCredit !== '' && (
+        <div
+          data-testid="photo-credit"
+          style={{ fontSize: 10, color: palette.inkCredit, textAlign: 'center', width: '100%' }}
+        >
+          {props.photoCredit}
         </div>
       )}
     </div>

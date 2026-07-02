@@ -1,12 +1,13 @@
 // Live-data store for the React surface.
 //
-// Same seam as the Contract arm's store.mjs (main.tsx writes Snapback live
-// delays / freshness / geolocation here), but shaped the way a React app
-// naturally consumes external state: an immutable snapshot plus a subscribe
-// function, read through `useSyncExternalStore`. Components re-render the
-// moment a poll lands instead of waiting for the next clock tick, and the
-// helpers can take the state as an explicit argument rather than reading a
-// hidden mutable store behind a `_tick` cache-buster parameter.
+// The React twin of the Contract arm's `query` bindings: main.tsx opens two
+// kit `liveQuery` handles (transport 'stream' — server push over the shared
+// live socket, LLP 0034 D1) and writes their rows + per-query connection
+// values here; components read the snapshot through `useSyncExternalStore`
+// and re-render the moment a push lands. The connection axis carries the same
+// values the kit reports ('connecting' | 'live' | 'polling' | 'stale' |
+// 'disconnected'), so the board's reconnecting treatment can mirror the
+// Contract `stale rows` arm exactly (stale wins while degraded).
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
@@ -17,20 +18,36 @@ export interface LatLng {
 
 export type LocationSource = 'device' | 'default' | 'denied' | 'unavailable';
 
+export interface DelayRow {
+  patternId: string;
+  delaySeconds: number;
+}
+
 export interface FeedRow {
   fetchedAt: number;
   tickIndex: number;
   lastSource?: string;
 }
 
+export type ConnectionValue = 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected' | null;
+
 export interface LiveState {
-  delays: Record<string, number>; // patternId -> delaySeconds (from liveTrainStatus)
-  feed: FeedRow | null; // feedRefreshState row
+  delayRows: DelayRow[]; // liveTrainStatus rows (live-pushed)
+  feedRows: FeedRow[]; // feedRefreshState rows (live-pushed)
+  delaysReady: boolean; // first liveTrainStatus snapshot has landed
+  connections: { liveTrainStatus: ConnectionValue; feedState: ConnectionValue };
   location: LatLng | null; // device location, or null => default
   locationSource: LocationSource;
 }
 
-let state: LiveState = { delays: {}, feed: null, location: null, locationSource: 'default' };
+let state: LiveState = {
+  delayRows: [],
+  feedRows: [],
+  delaysReady: false,
+  connections: { liveTrainStatus: null, feedState: null },
+  location: null,
+  locationSource: 'default',
+};
 const listeners = new Set<() => void>();
 
 function emit(next: LiveState): void {
@@ -38,14 +55,16 @@ function emit(next: LiveState): void {
   for (const listener of listeners) listener();
 }
 
-export function setDelays(rows: Array<{ patternId: string; delaySeconds: number }> | null | undefined): void {
-  const delays: Record<string, number> = {};
-  for (const row of rows ?? []) delays[row.patternId] = row.delaySeconds;
-  emit({ ...state, delays });
+export function setDelayRows(rows: DelayRow[] | null | undefined): void {
+  emit({ ...state, delayRows: rows ?? [], delaysReady: true });
 }
 
-export function setFeed(row: FeedRow | null | undefined): void {
-  emit({ ...state, feed: row ?? null });
+export function setFeedRows(rows: FeedRow[] | null | undefined): void {
+  emit({ ...state, feedRows: rows ?? [] });
+}
+
+export function setConnection(name: 'liveTrainStatus' | 'feedState', value: ConnectionValue): void {
+  emit({ ...state, connections: { ...state.connections, [name]: value } });
 }
 
 export function setLocation(location: LatLng | null, source?: LocationSource): void {
@@ -57,12 +76,12 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** The live Snapback-fed state; re-renders the caller whenever a poll lands. */
+/** The live Snapback-fed state; re-renders the caller whenever a push lands. */
 export function useLiveState(): LiveState {
   return useSyncExternalStore(subscribe, () => state);
 }
 
-/** A ticking clock for countdowns and freshness ages. */
+/** A ticking clock for countdowns and freshness ages (UI clock, not transport). */
 export function useNow(intervalMs = 1000): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
