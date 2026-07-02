@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Realtime, Runtime, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-27
-**Revised:** 2026-06-27
+**Revised:** 2026-07-01 (LLP 0032 R5: license-posture decision drafted as LLP 0033 and cross-referenced)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0007, LLP 0008, LLP 0011, LLP 0014, LLP 0018, https://electric.ax, https://www.powersync.com, https://turso.tech
 
 ## Summary
@@ -234,7 +234,8 @@ architecture, performance-and-limits, LICENSE file]. **[inferred]** PowerSync's 
 is a *deliberate* choice to block AWS-style resale — exactly the free-riding
 Snapback's pure-MIT, "host it for other people" stance invites. Snapback's openness
 is a real differentiator here, but the tradeoff PowerSync priced in should be a
-conscious, named decision, not an accident.
+conscious, named decision, not an accident. (Now drafted as
+[LLP 0033](./0033-license-posture.decision.md), 2026-07-01.)
 
 **Agent-first DX (a concrete bar).** Docs **MCP server**, an official **agent-skills
 repo** (Claude Code / Cursor), `llms.txt`/`llms-full.txt`, and a browser **sync-rule
