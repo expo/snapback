@@ -5,8 +5,10 @@
 **Systems:** Realtime, Ephemeral state, Runtime, Deployment, Client integration, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-29
-**Revised:** 2026-06-29
-**Related:** LLP 0000, LLP 0008, LLP 0013, LLP 0014, LLP 0017, LLP 0018, LLP 0020, LLP 0025, Diary 0007
+**Revised:** 2026-07-02 (LLP 0032 L9: as-built design for the sharded local room
+authority written before implementation; the scope-epoch dead-code finding
+recorded with its resolution)
+**Related:** LLP 0000, LLP 0008, LLP 0013, LLP 0014, LLP 0017, LLP 0018, LLP 0020, LLP 0025, LLP 0032, Diary 0007
 
 ## Summary
 
@@ -93,6 +95,34 @@ The implementation gaps are equally clear:
   integrated;
 - hosted-adapter behavior is documented but not executable.
 
+### Finding: scope-epoch machinery was dead code (recorded 2026-07-02)
+
+LLP 0032's Phase 3 review confirmed, and this Plan now records, that the
+shipped local backend allocated `scopeEpoch: 1` for every room and no event
+ever advanced any epoch. The stale-detection contract in LLP 0013 §Stored
+entry shape was therefore only half real: clients compared
+`(scopeEpoch, entryVersion)` correctly, but the server could never produce a
+second epoch, so the `RemoveReason::AuthRevoked`,
+`ResyncReason::AuthChanged`, `ResyncReason::EpochChanged`, and
+`ResyncReason::Restarted` machinery was unreachable. Two concrete
+consequences: (a) an explicit runtime reset or a destructive
+ephemeral-definition replacement discarded rooms, subscriber registrations,
+and queued messages under live connections without any signal — the exact
+"silent staleness" LLP 0013 forbids (bounded only by client TTL pruning); and
+(b) a room destroyed and re-created restarted both `scopeEpoch` and
+`entryVersion` at 1, so a straggling client comparison could classify a fresh
+entry as stale instead of failing safe to resync.
+
+Resolution (LLP 0032 L9, this Plan's Phase 2): epochs advance for real —
+every room incarnation allocates its `scopeEpoch` from a store-global
+monotonic counter, and `ResyncRequired { reason: Restarted }` is delivered to
+registered subscribers when reset or destructive definition replacement
+discards their rooms (with a covering test). `AuthRevoked`, `AuthChanged`,
+and `EpochChanged` had no owning events — durable permission-change
+revocation is deliberately deferred (§Auth and revocation) and the local
+authority never re-epochs a live room — so those variants are removed until
+the events that own them exist, rather than shipping as dead vocabulary.
+
 ## Design
 
 ### Boundary: semantic contract first
@@ -138,6 +168,101 @@ Either is acceptable if it preserves the same externally visible contract:
 
 The current single `LocalSnapback` mutex is useful for v0 simplicity, but it
 should not be the long-term room authority boundary.
+
+#### As-built: sharded local room authority (written 2026-07-02, before the L9 implementation)
+
+The local backend takes the **sharded map with per-room locks plus a small
+global routing lock**, not the actor option: room operations are microsecond
+memory operations, so an actor mailbox adds queuing without adding
+correctness, and sharded locks match the codebase's existing style
+(`ReaderPool`, `DeliveryNotifier`).
+
+- **Boundary spelling.** `LocalEphemeralBackend` becomes an internally
+  synchronized, cheaply cloneable handle (an `Arc` around private shared
+  state). Its public methods are the backend contract; nothing outside the
+  module can reach a room map. The Rust *trait* spelling is deferred to
+  Phase 3, when the conformance suite provides a second consumer — until
+  then a trait would be dead vocabulary (the same failure class as the
+  scope-epoch finding above).
+- **Lock decomposition.** Collections registry in a read-mostly `RwLock`;
+  a routing map `Mutex<BTreeMap<RoomId, Arc<Mutex<RoomState>>>>` (the small
+  global routing lock, held only for lookup/insert/remove); per-connection
+  outboxes `Mutex<BTreeMap<ConnectionId, Arc<Mutex<OutboundQueue>>>>`; a
+  rate-bucket map mutex; an expiry-index mutex; event counters as atomics.
+  Gauges stay computed on demand at inspect time (LLP 0032 L4).
+- **Lock order.** rooms-map → one room → { outbox map, one outbox, expiry
+  index }, inner locks taken one at a time as leaves. Never two room locks;
+  never a room lock while holding an outbox or index lock. The empty-room
+  pruner is the one path that holds the rooms map and a room together (map
+  first); no room holder ever waits on the rooms map, so there is no cycle.
+- **Room-operation atomicity.** A room operation holds the room lock across
+  both the state change and the fan-out enqueues. Per-room outbox arrival
+  order therefore equals `entryVersion` order — the property that makes
+  supersede-by-key coalescing safe (a pending upsert is only ever replaced
+  by a newer one) and keeps snapshot-plus-registration atomic (LLP 0013
+  §Room store model). Publisher-side admission (auth, TTL, size, rate)
+  stays outside the room lock.
+- **Room lifecycle and epochs.** Rooms are created on demand and pruned when
+  they hold no entries and no subscribers, via a retire-and-retry protocol
+  (`retired` is set while holding map and room; operations that acquired a
+  retired room re-consult the map). Every room incarnation allocates its
+  `scopeEpoch` from a store-global monotonic counter, so recreation after
+  prune, reset, or definition replacement yields a strictly newer epoch and
+  stragglers fail safe to resync instead of stale-comparing across
+  incarnations (the finding above).
+- **Restart signaling.** Runtime reset and destructive definition
+  replacement retire every room and deliver
+  `ResyncRequired { reason: Restarted }` to each registered subscriber
+  (previously: silent discard). Destructive replacement now preserves
+  pending durable-lane messages — they belong to durable subscriptions that
+  survive a definition load; reset still clears them because it clears the
+  subscriptions themselves.
+- **Expiry index.** An ordered `(deadline, RoomId)` set with at most one
+  entry per room — a lower bound on the room's earliest expiry, mirrored as
+  the room's `indexed_deadline`. A publish touches the index only when it
+  improves the bound, so a steady-TTL hot room never touches it after its
+  first entry. `cleanup_expired` pops due rooms only, sweeps each under its
+  own lock, and re-indexes or prunes — no scan of all rooms. Per-operation
+  room sweeps are unchanged, so a snapshot still never contains expired
+  entries.
+- **Limits (first hard defaults, answering the open question).** Store-level
+  capability facts, constructor-overridable: max active rooms 4096, max
+  entries per room 1024, max subscribers per room 1024, max aggregate value
+  bytes per room 1 MiB. Enforced as structured `RoomLimitExceeded`
+  rejections counted in a `limit_rejections` diagnostic. Never silent
+  eviction of live entries.
+- **L6/L7 interaction.** The durable fan-out
+  (`notify_live_subscriptions`) runs under the global write mutex on a
+  `spawn_blocking` thread (LLP 0032 L7) and enqueues into these outboxes
+  from that thread. Every enqueue site pushes the message before waking the
+  L8 delivery notifier, and the WS loop registers its waker before its first
+  drain, so the lost-wakeup argument no longer relies on the global mutex
+  serializing enqueues — it relies on push-before-wake plus
+  register-before-first-drain. Durable-before-ephemeral drain order is a
+  per-outbox property and is unchanged.
+- **Connection liveness (LLP 0032 L2).** The last-seen map moves out of
+  `LocalSnapback`'s exclusive state into a shared `ConnectionActivity`
+  handle touched by the lock-free ephemeral/drain paths and by the
+  write-lane live subscribe/resume; the reaper still runs on the write lane
+  because teardown touches durable subscriptions.
+- **Server surface.** `/ephemeral/*`, `/outbox/*`, the WS socket-text
+  operations, WS drains, and the admin ephemeral cleanup reach the store
+  directly with no global mutex. Disconnect keeps the write lane (it tears
+  down durable subscriptions). Ephemeral operations run inline on async
+  workers deliberately: they are pure memory operations outside the L7
+  exec-guard's blocking classes (no Hermes, no SQLite), so `spawn_blocking`
+  would only add latency.
+- **Known bounded races (accepted, same class as the L6 manifest note).**
+  A publish that read the collections registry immediately before a
+  destructive replacement can validate against the old budgets or create a
+  room for a just-removed collection; the room stores no definition (every
+  operation re-reads the registry), the window is microseconds, and an
+  orphaned room is unreachable for new operations and is pruned once empty.
+- **Documented local thresholds (hot-room acceptance).** Under continuous
+  hot-room publish load, unrelated-room cleanup and a durable
+  enqueue-plus-drain complete in under 250 ms, and ephemeral
+  publish/subscribe complete in under 500 ms while a ~900 ms mutation holds
+  the global write mutex (debug-build bounds asserted by the `l9_*` tests).
 
 ### Backend targets
 
@@ -304,12 +429,21 @@ Acceptance:
 ## Open Questions
 
 - Should the first backend extraction be a Rust trait, an enum of target
-  implementations, or an actor interface?
+  implementations, or an actor interface? **Answered 2026-07-02 (Phase 1
+  as-built):** a single concrete type whose public API is the contract — an
+  internally synchronized handle. The trait spelling waits for Phase 3's
+  conformance suite, the first second consumer.
 - Should local room authority be implemented first with actors or sharded locks?
+  **Answered 2026-07-02 (Phase 2 as-built):** sharded per-room locks with a
+  small global routing lock; see the as-built note under §Room authority for
+  the lock order and atomicity argument.
 - Which hosted adapter should be prototyped first: Redis-compatible or Cloudflare
   Durable Object?
 - What are the first hard defaults for active rooms, entries per room, room bytes,
-  and subscribers per room?
+  and subscribers per room? **Answered 2026-07-02 (Phase 2 as-built):** 4096
+  active rooms, 1024 entries/room, 1024 subscribers/room, 1 MiB aggregate
+  value bytes/room — store-level, constructor-overridable, to be revised once
+  the LLP 0035 benchmarks exercise them.
 - Should `dispatchMs` become a real scheduler control in Phase 2, or stay only a
   manifest capability until hosted adapters exist?
 - Where should generated value validators live so Rust, JavaScript tests, and
