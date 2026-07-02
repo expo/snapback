@@ -13,28 +13,57 @@ use tokio::sync::Notify;
 /// that races an in-progress drain is not lost.
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: event-driven delivery.
+///
+/// Registration is GENERATION-GUARDED (LLP 0034 review fix 1): a reconnect
+/// reuses the connection id, so a new socket's `register` replaces the old
+/// waker — and the old task's late teardown (a half-open TCP socket can die
+/// arbitrarily long after the replacement) must not tear down state the new
+/// socket now owns. `register` returns the registration's generation;
+/// `unregister` removes the waker — and reports ownership — only when that
+/// generation is still current, and the caller gates `disconnect` on it.
+#[derive(Default)]
+struct DeliveryNotifierState {
+    next_generation: u64,
+    waiters: HashMap<String, (u64, Arc<Notify>)>,
+}
+
 #[derive(Default)]
 pub struct DeliveryNotifier {
-    waiters: StdMutex<HashMap<String, Arc<Notify>>>,
+    state: StdMutex<DeliveryNotifierState>,
 }
 
 impl DeliveryNotifier {
-    /// Register interest in a connection's deliveries and get its waker.
-    pub fn register(&self, connection_id: &str) -> Arc<Notify> {
+    /// Register interest in a connection's deliveries. Returns this
+    /// registration's generation and the waker; a later `register` for the
+    /// same connection replaces the waker and supersedes the generation.
+    pub fn register(&self, connection_id: &str) -> (u64, Arc<Notify>) {
+        let mut state = self.state.lock().unwrap();
+        state.next_generation += 1;
+        let generation = state.next_generation;
         let notify = Arc::new(Notify::new());
-        self.waiters
-            .lock()
-            .unwrap()
-            .insert(connection_id.to_owned(), notify.clone());
-        notify
+        state
+            .waiters
+            .insert(connection_id.to_owned(), (generation, notify.clone()));
+        (generation, notify)
     }
 
-    pub fn unregister(&self, connection_id: &str) {
-        self.waiters.lock().unwrap().remove(connection_id);
+    /// Unregister only if `generation` still owns the connection's waker.
+    /// Returns whether the caller was the current owner — a stale task (its
+    /// registration already replaced by a reconnect) gets `false` and must
+    /// not perform connection teardown.
+    pub fn unregister(&self, connection_id: &str, generation: u64) -> bool {
+        let mut state = self.state.lock().unwrap();
+        match state.waiters.get(connection_id) {
+            Some((current, _)) if *current == generation => {
+                state.waiters.remove(connection_id);
+                true
+            }
+            _ => false,
+        }
     }
 
     fn wake(&self, connection_id: &str) {
-        if let Some(notify) = self.waiters.lock().unwrap().get(connection_id) {
+        if let Some((_, notify)) = self.state.lock().unwrap().waiters.get(connection_id) {
             notify.notify_one();
         }
     }
@@ -1521,7 +1550,7 @@ mod tests {
     async fn l8_enqueue_wakes_the_registered_delivery_waiter() {
         let mut backend = LocalEphemeralBackend::new();
         let notifier = backend.delivery_notifier();
-        let waker = notifier.register("conn");
+        let (generation, waker) = notifier.register("conn");
 
         // Enqueue before anyone awaits: the permit is stored.
         backend.enqueue_durable("conn", b"{}".to_vec());
@@ -1531,8 +1560,35 @@ mod tests {
             .expect("a durable enqueue must wake the registered waiter");
 
         // After unregister, waking is a no-op (nothing panics; nobody is woken).
-        notifier.unregister("conn");
+        assert!(notifier.unregister("conn", generation));
         backend.enqueue_durable("conn", b"{}".to_vec());
+    }
+
+    /// LLP 0034 review fix 1 — a stale registration (superseded by a reconnect
+    /// on the same connection id) must not remove the new socket's waker or
+    /// claim teardown ownership; the current registration keeps working and
+    /// still owns teardown.
+    #[tokio::test]
+    async fn stale_generation_unregister_keeps_the_new_registration() {
+        let mut backend = LocalEphemeralBackend::new();
+        let notifier = backend.delivery_notifier();
+
+        let (old_generation, _old_waker) = notifier.register("conn");
+        // The reconnect: a new socket registers on the same connection id.
+        let (new_generation, new_waker) = notifier.register("conn");
+
+        // The old task dies late: its unregister must be a no-op without
+        // ownership (the caller gates disconnect on this).
+        assert!(!notifier.unregister("conn", old_generation));
+
+        // The new registration's waker still receives wakes.
+        backend.enqueue_durable("conn", b"{}".to_vec());
+        tokio::time::timeout(std::time::Duration::from_secs(1), new_waker.notified())
+            .await
+            .expect("the new socket's waker must survive the old task's teardown");
+
+        // The new task still owns teardown.
+        assert!(notifier.unregister("conn", new_generation));
     }
 
     fn scope() -> Scope {

@@ -630,7 +630,7 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
     // lock traffic while idle). The long interval is a safety net only, in case
     // a wake is ever missed; register before draining so no push is lost.
     let notify = state.lock().await.delivery_notifier();
-    let waker = notify.register(&connection_id);
+    let (generation, waker) = notify.register(&connection_id);
     // Delivery is event-driven (the 25ms poll is gone); this heartbeat is only a
     // defensive fallback if a wake is ever missed. At 30s it is ~1200× less lock
     // traffic than the old poll, so an idle connection is effectively idle.
@@ -644,9 +644,7 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
         .await
         .is_break()
     {
-        notify.unregister(&connection_id);
-        let mut snapback = state.lock().await;
-        snapback.disconnect(&connection_id, now_millis());
+        teardown_live_stream(&state, &notify, &connection_id, generation).await;
         return;
     }
 
@@ -674,9 +672,27 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
         }
     }
 
-    notify.unregister(&connection_id);
+    teardown_live_stream(&state, &notify, &connection_id, generation).await;
+}
+
+/// Generation-guarded stream teardown (LLP 0034 review fix 1): a task tears a
+/// connection down ONLY while its registration still owns the connection. A
+/// reconnect reuses the connection id — the new socket's `register` supersedes
+/// this task's generation — and a half-open old socket can die arbitrarily
+/// late; without the guard its teardown would remove the NEW socket's waker
+/// and destroy the NEW subscriptions while the new socket keeps answering
+/// pings (permanent silent staleness reported as 'live').
+async fn teardown_live_stream(
+    state: &SharedSnapback,
+    notify: &crate::ephemeral::DeliveryNotifier,
+    connection_id: &str,
+    generation: u64,
+) {
+    if !notify.unregister(connection_id, generation) {
+        return;
+    }
     let mut snapback = state.lock().await;
-    snapback.disconnect(&connection_id, now_millis());
+    snapback.disconnect(connection_id, now_millis());
 }
 
 /// Drain a connection's outbox under the lock and send each message. Returns
