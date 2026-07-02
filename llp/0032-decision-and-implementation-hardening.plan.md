@@ -5,7 +5,8 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-02 (DK-6 decided as POSIX OR — ratified by Charlie same day, ledgered in LLP 0000 — with the calendar-cron and cron-retry test-debt rows closed. Same day: L6+L7 landed as the dedicated reviewed concurrency arc: design note, register entries with measured numbers, and the review's HIGH `GET /` fix recorded. Earlier: 2026-07-01 accepted by Charlie after the two-family review loop; same day, revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
+**Revised:** 2026-07-02 (L9 landed per LLP 0026 Phase 1+2, closing Phase 3 —
+L1–L9 all landed. Same day: DK-6 decided as POSIX OR — ratified by Charlie same day, ledgered in LLP 0000 — with the calendar-cron and cron-retry test-debt rows closed; and L6+L7 landed as the dedicated reviewed concurrency arc: design note, register entries with measured numbers, and the review's HIGH `GET /` fix recorded. Earlier: 2026-07-01 accepted by Charlie after the two-family review loop; same day, revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031
 
 ## Summary
@@ -857,11 +858,31 @@ change the concurrency architecture and should land as one reviewed arc.
   unreachable [confirmed]; wire epoch advancement to the events that own it
   or remove the dead variants until they're real. **Done when:** the
   finding is recorded in 0026 and the epoch machinery is either live (with
-  a revocation test) or removed.
+  a revocation test) or removed. **Landed 2026-07-02** per LLP 0026's
+  Phase 1+2 acceptance (design written before code, as that plan's as-built
+  note): the room authority is an internally synchronized sharded store —
+  per-room locks, room-granular expiry index, hard limits, store-global
+  epoch allocation — and the ephemeral endpoints, WS socket-text ops, and
+  drains reach it with no global mutex. The scope-epoch finding is recorded
+  in 0026 with its resolution: `Restarted` is live (reset/destructive
+  definition replacement signal registered subscribers; recreated rooms get
+  fresh epochs), and the ownerless `AuthRevoked`/`AuthChanged`/`EpochChanged`
+  variants are removed until real. Tests
+  `l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane`
+  (the L6/L7 payoff: ephemeral publish/subscribe/drain complete in <500 ms
+  while a ~900 ms mutation holds the write lane),
+  `l9_hot_room_publish_does_not_stall_unrelated_rooms_or_durable_drain`,
+  `l9_snapshot_registration_is_atomic_under_concurrent_publishes`,
+  `l9_room_limits_reject_never_silently_evict`,
+  `l9_recreated_room_gets_a_fresh_scope_epoch`,
+  `l9_cleanup_expired_visits_due_rooms_and_prunes_empty_ones`,
+  `l9_reset_and_destructive_replace_signal_restarted`; the cursors-web
+  browser acceptance passes 7/7 against the sharded authority.
 
 **Phase 3 Done when:** L1–L5 closed; L6–L8 landed as a reviewed arc with the
 M1 harness (Phase 4) run before/after to quantify the win; L9 landed per
-LLP 0026's own acceptance — sequenced here, owned there.
+LLP 0026's own acceptance — sequenced here, owned there. **Phase 3 is
+complete (L1–L9) as of 2026-07-02.**
 
 **L1–L5 completed 2026-07-01** (the design-independent lifecycle fixes), each
 test-first and adversarially reviewed (the review caught and fixed a HIGH
@@ -869,8 +890,9 @@ read-set-validation bug in L3). **L8 landed 2026-07-01; L6+L7 landed
 2026-07-02 as the dedicated reviewed arc** (design written before code,
 concurrency tests, one adversarial review pass — which again caught a HIGH,
 the unconverted `GET /` handler — and the M1 before/after recorded in
-[LLP 0035](./0035-local-target-benchmarks.research.md)). Of Phase 3 only L9
-remains, owned by LLP 0026 and sequenced here.
+[LLP 0035](./0035-local-target-benchmarks.research.md)). **L9 landed
+2026-07-02** (owned by LLP 0026, which records what shipped), closing
+Phase 3.
 
 ## Phase 4 — Measurement
 

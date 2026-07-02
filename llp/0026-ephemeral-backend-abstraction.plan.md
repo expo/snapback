@@ -5,9 +5,10 @@
 **Systems:** Realtime, Ephemeral state, Runtime, Deployment, Client integration, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-29
-**Revised:** 2026-07-02 (LLP 0032 L9: as-built design for the sharded local room
-authority written before implementation; the scope-epoch dead-code finding
-recorded with its resolution)
+**Revised:** 2026-07-02 (LLP 0032 L9 landed: Phases 1+2 marked landed with
+their tests; earlier the same day, the as-built sharding design written
+before implementation and the scope-epoch dead-code finding recorded with
+its resolution)
 **Related:** LLP 0000, LLP 0008, LLP 0013, LLP 0014, LLP 0017, LLP 0018, LLP 0020, LLP 0025, LLP 0032, Diary 0007
 
 ## Summary
@@ -82,13 +83,24 @@ The implemented local backend already has the important product behaviors:
 
 The implementation gaps are equally clear:
 
-- there is no trait or object boundary for alternate backends;
-- all HTTP/WebSocket operations still take the shared `LocalSnapback` mutex;
-- room state is not a per-room actor, sharded lock, or adapter-owned authority;
+- there is no trait or object boundary for alternate backends —
+  **closed 2026-07-02 (Phase 1):** the internally synchronized
+  `LocalEphemeralBackend` handle is the boundary; the trait spelling waits
+  for the Phase 3 conformance suite;
+- all HTTP/WebSocket operations still take the shared `LocalSnapback` mutex —
+  **closed 2026-07-02 (Phase 2):** the ephemeral endpoints, WS socket-text
+  operations, drains, and admin cleanup reach the room authority with no
+  global mutex;
+- room state is not a per-room actor, sharded lock, or adapter-owned
+  authority — **closed 2026-07-02 (Phase 2):** sharded per-room locks (see
+  the as-built note under §Room authority);
 - TTL cleanup scans rooms instead of using an expiry heap, timing wheel, or
-  adapter-native expiry index;
+  adapter-native expiry index — **closed 2026-07-02 (Phase 2):** a
+  room-granular expiry index; cleanup visits only due rooms;
 - room memory limits and subscriber limits are not enforced as first-class
-  capability facts;
+  capability facts — **closed 2026-07-02 (Phase 2):** store-level hard
+  limits with structured `RoomLimitExceeded` rejections and a
+  `limit_rejections` diagnostic;
 - runtime value validation is byte-budget validation, not the generated value
   schema;
 - auth is local and prefix-shaped; durable permission-change revocation is not
@@ -358,6 +370,14 @@ Acceptance:
 - cursor-web browser acceptance still passes;
 - diagnostics still expose the current counter set.
 
+**Landed 2026-07-02 (with Phase 2, as LLP 0032 L9).** `LocalEphemeralBackend`
+became an internally synchronized handle whose public API is the boundary
+(`src/ephemeral.rs`); `LocalSnapback` and the server consume it through the
+same surface (`EphemeralApi` in `src/local.rs`). All four acceptance items
+verified: no code outside the module touches a room map, the `local_v0`
+ephemeral suite and the cursors-web browser acceptance (7/7) pass, and
+diagnostics keep every prior counter (plus the new `limit_rejections`).
+
 ### Phase 2: Shard or actorize local room authority
 
 - Remove room operations from the shared `LocalSnapback` mutex path where
@@ -374,6 +394,22 @@ Acceptance:
   drain beyond a documented local threshold;
 - memory-limit tests produce rejection or resync diagnostics, never silent
   eviction.
+
+**Landed 2026-07-02 (LLP 0032 L9).** Sharded per-room locks with a small
+routing lock (as-built note under §Room authority); room operations left the
+global `LocalSnapback` mutex entirely; the expiry index replaced
+scan-all-rooms cleanup; hard limits landed as `RoomLimitExceeded` rejections.
+Tests: `l9_snapshot_registration_is_atomic_under_concurrent_publishes`
+(atomicity under real thread contention),
+`durable_lane_drains_before_ephemeral_lane` (unchanged, still green),
+`l9_hot_room_publish_does_not_stall_unrelated_rooms_or_durable_drain` and
+`l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane` (the
+documented thresholds: <250 ms under hot-room load, <500 ms while a ~900 ms
+mutation holds the write lane), `l9_room_limits_reject_never_silently_evict`,
+plus `l9_recreated_room_gets_a_fresh_scope_epoch`,
+`l9_cleanup_expired_visits_due_rooms_and_prunes_empty_ones`, and
+`l9_reset_and_destructive_replace_signal_restarted` for the scope-epoch
+finding's resolution.
 
 ### Phase 3: Conformance suite
 
@@ -451,7 +487,10 @@ Acceptance:
 
 ## Status
 
-Draft. This Plan operationalizes LLP 0013's backend-adapter section and the LLP
-0025 collection-lifecycle correction. It should be revised after Phase 1 lands,
-because the first extraction will likely reveal which parts of today's concrete
-store are true contract and which are local implementation detail.
+Draft, with Phases 1 and 2 landed 2026-07-02 (executed together as LLP 0032
+L9: the boundary extraction and the sharding shipped as one arc because the
+internally synchronized handle *is* the boundary). The scope-epoch dead-code
+finding is recorded above with its resolution. Phases 3 (conformance suite)
+and 4 (hosted adapter prototype) remain open; the first extraction confirmed
+the §Design contract operations are the right surface, and deferred only the
+trait spelling to Phase 3.
