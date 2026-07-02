@@ -1094,7 +1094,22 @@ parallel with Phase 3.
   its own report for `/inspect` — two sources of truth [confirmed]. Make the
   server (or a shared generated schema, per DK-7) the single source; codegen
   embeds or fetches it. **Done when:** the JS literal is deleted and a
-  parity test compares generated manifest to live `/inspect`.
+  parity test compares generated manifest to live `/inspect`. **Landed
+  2026-07-02** — the Rust declaration
+  (`CapabilityManifest::local_v0_declared`; the gap list extracted to
+  `local_v0_default_capability_gaps` so `inspect` shares it) generates the
+  committed `schemas/capability.manifest.local-dev-sqlite-ibex.json`
+  (regenerate: `SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_`);
+  codegen embeds the file verbatim (fail-closed
+  `CODEGEN_CAPABILITY_MANIFEST_{MISSING,INVALID,MISMATCH}` diagnostics, file
+  content folded into `inputsHash`), and the JS literal is deleted. The
+  drift the step predicted was real: the literal had never learned
+  `vmLifecycle`. Parity tests in `tests/capability_v0.rs`:
+  committed-file == declaration, and live `/inspect` == declaration modulo
+  the two documented instance-live fields (`vmLifecycle`, `ibex_cli` gap).
+  Demo artifacts regenerated — each `capability.manifest.json` is now
+  byte-identical to the canonical schemas file. LLP 0012 §Capability
+  Manifest records the contract.
 - **P3 — CI feedback loops for generated artifacts.** Three gates:
   (a) regen-and-diff — run codegen for every demo and `git diff
   --exit-code` on `generated/`, closing the stale-but-internally-consistent

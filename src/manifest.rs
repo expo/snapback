@@ -798,7 +798,37 @@ pub enum ResourceLimitStatus {
     Missing,
 }
 
+/// The declared (instance-independent) capability gaps of the local v0
+/// target. Instance-live adjustments — today only the `ibex_cli` gap when the
+/// CLI is unavailable — are applied by `LocalSnapback::capability_gaps`.
+///
+/// @ref LLP 0037#decision-ratified-2026-07-02 — the Rust core is the single
+/// source of truth for the capability manifest; the committed
+/// `schemas/capability.manifest.local-dev-sqlite-ibex.json` is generated from
+/// this declaration and embedded by codegen (LLP 0032 P2).
+pub fn local_v0_default_capability_gaps() -> Vec<String> {
+    vec![
+        "offline_mutation_replay".to_owned(),
+        "postgres".to_owned(),
+        "cloudflare".to_owned(),
+        "hosted_untrusted_code".to_owned(),
+        "external_auth".to_owned(),
+        "assets".to_owned(),
+        "outbound_actions".to_owned(),
+        "notifications".to_owned(),
+        "ephemeral_hosted_adapter".to_owned(),
+        "ephemeral_multi_instance_sticky_routing".to_owned(),
+    ]
+}
+
 impl CapabilityManifest {
+    /// The declared capability manifest of the local v0 target: what an agent
+    /// may assume from the committed artifact alone. Instance-live facts
+    /// (`vmLifecycle`, the `ibex_cli` gap) are reported by `/inspect`.
+    pub fn local_v0_declared() -> Self {
+        Self::local_v0(local_v0_default_capability_gaps())
+    }
+
     pub fn local_v0(capability_gaps: Vec<String>) -> Self {
         Self {
             artifact_kind: capability_manifest_kind(),

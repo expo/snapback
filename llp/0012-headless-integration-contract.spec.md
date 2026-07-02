@@ -291,6 +291,18 @@ The capability manifest reports what the current target can do. It should cover:
 An adapter must surface missing required capabilities instead of silently
 falling back to a different model.
 
+**Single source (LLP 0032 P2, landed 2026-07-02).** The capability manifest is
+**server-declared**: the Rust core's declaration
+(`CapabilityManifest::local_v0_declared`) generates the committed
+`schemas/capability.manifest.local-dev-sqlite-ibex.json`, codegen embeds that
+file verbatim into every generated backend (failing closed if it is missing or
+for the wrong target), and drift-gate tests (`tests/capability_v0.rs`) hold
+the committed file equal to the declaration and the live `/inspect` report
+equal to it modulo exactly two documented instance-live fields — `vmLifecycle`
+(the DK-4 posture actually in force) and the `ibex_cli` gap. Codegen asserts
+nothing about server capabilities on its own; the earlier hand-maintained JS
+literal (which had already drifted — it never learned `vmLifecycle`) is gone.
+
 Query capability must be fine-grained. A generated function being callable does
 not imply it can be retained locally, incrementally updated, or safely resynced
 after permission changes. The manifest should distinguish at least:

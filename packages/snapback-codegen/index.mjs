@@ -532,6 +532,10 @@ export async function generate(backendDir) {
   const functionsSource = readFileSync(functionsPath, 'utf8');
   const seedSource = existsSync(seedPath) ? readFileSync(seedPath, 'utf8') : null;
   const defineSource = readFileSync(join(packageDir(), 'define.mjs'), 'utf8');
+  const canonicalCapability = loadCanonicalCapabilityManifest(err);
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   // Hash inputs use the MANIFEST-RELATIVE handler path (LLP 0034 review fix
   // 4): keying by absolute path baked the checkout location into inputsHash /
   // bundleHash, so committed artifacts only reproduced from the checkout that
@@ -540,7 +544,7 @@ export async function generate(backendDir) {
   for (const [sourcePath, source] of [...handlerSourceCache.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     handlerInputs.push(sourcePath, source ?? '');
   }
-  const inputs = [schemaSource, functionsSource, ...(seedSource === null ? [] : [seedSource]), defineSource, ...handlerInputs];
+  const inputs = [schemaSource, functionsSource, ...(seedSource === null ? [] : [seedSource]), defineSource, canonicalCapability.source, ...handlerInputs];
   const inputsHash = sha256(inputs.join('\0'));
   const schemaContentHash = sha256(schemaSource);
   const bundleContentHash = sha256([functionsSource, defineSource, ...handlerInputs].join('\0'));
@@ -576,54 +580,11 @@ export async function generate(backendDir) {
     cronJobs,
     config: configEntries,
   };
-  const capabilityManifest = {
-    artifactKind: 'capabilityManifest',
-    schemaVersion: SCHEMA_VERSION,
-    targetProfileId: TARGET_PROFILE,
-    storageEngine: 'sqlite',
-    runtimeEngine: 'ibex',
-    localServerLifecycle: true,
-    liveSubscriptions: true,
-    syncableLiveQueries: true,
-    onlineOnlyQueries: true,
-    replaceOnlyQueries: true,
-    ephemeralRealtime: true,
-    ephemeralWebSocketPublish: true,
-    ephemeralLocalRoomAuthority: true,
-    ephemeralHostedAdapter: false,
-    offlineRetention: false,
-    optimisticReplay: false,
-    mutationIsolationMode: 'handler-captured-read-set-validation',
-    authImpersonation: true,
-    permissionDiagnostics: false,
-    assetUpload: false,
-    outboundActions: false,
-    cron: true,
-    notifications: false,
-    supportedQueryForms: ['host-plan-single-table-eq', 'host-plan-single-table-in', 'host-plan-single-table-range', 'host-plan-live-replace', 'ibex-ctx-db-single-table-eq', 'ibex-ctx-db-single-table-in', 'ibex-ctx-db-single-table-range', 'ibex-live-eq-replace', 'ibex-live-in-replace', 'ibex-live-range-replace', 'ibex-live-limited-boundary-replace', 'websocket-live-replace', 'ephemeral-latest-state-local', 'websocket-ephemeral-publish', 'cron-fixed-interval-local', 'cron-calendar-local', 'cron-action-run-mutation'],
-    portabilityOptOuts: [],
-    resourceLimits: [
-      { name: 'wall_clock_timeout', status: 'Missing' },
-      { name: 'cpu_budget', status: 'Missing' },
-      { name: 'maximum_result_size', status: 'Advisory' },
-      { name: 'maximum_subscription_count', status: 'Advisory' },
-      { name: 'ephemeral_value_size', status: 'Enforced' },
-      { name: 'ephemeral_publish_rate', status: 'Enforced' },
-      { name: 'ephemeral_durable_lane_priority', status: 'Enforced' },
-    ],
-    capabilityGaps: [
-      'offline_mutation_replay',
-      'postgres',
-      'cloudflare',
-      'hosted_untrusted_code',
-      'external_auth',
-      'assets',
-      'outbound_actions',
-      'notifications',
-      'ephemeral_hosted_adapter',
-      'ephemeral_multi_instance_sticky_routing',
-    ],
-  };
+  // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the
+  // committed schemas/ file is generated from the Rust core's declaration
+  // (`CapabilityManifest::local_v0_declared`, drift-gated by
+  // tests/capability_v0.rs) and embedded verbatim.
+  const capabilityManifest = canonicalCapability.manifest;
   const contractManifest = {
     artifactKind: 'contractDataManifest',
     schemaVersion: SCHEMA_VERSION,
@@ -1857,6 +1818,41 @@ function sha256(text) {
 
 function packageDir() {
   return dirname(fileURLToPath(import.meta.url));
+}
+
+// The server-declared capability manifest for the local target (LLP 0032 P2 /
+// LLP 0037): generated from the Rust core by tests/capability_v0.rs
+// (SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_) and embedded — this
+// module asserts nothing about server capabilities on its own.
+function canonicalCapabilityManifestPath() {
+  return join(packageDir(), '..', '..', 'schemas', 'capability.manifest.local-dev-sqlite-ibex.json');
+}
+
+function loadCanonicalCapabilityManifest(err) {
+  const path = canonicalCapabilityManifestPath();
+  let source;
+  try {
+    source = readFileSync(path, 'utf8');
+  } catch (error) {
+    err('CODEGEN_CAPABILITY_MANIFEST_MISSING', 'capability', `the server-declared capability manifest could not be read; regenerate with SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_`, { path, error: error.message });
+    return { source: '', manifest: null };
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(source);
+  } catch (error) {
+    err('CODEGEN_CAPABILITY_MANIFEST_INVALID', 'capability', `the server-declared capability manifest is not valid JSON`, { path, error: error.message });
+    return { source: '', manifest: null };
+  }
+  if (manifest?.artifactKind !== 'capabilityManifest' || manifest?.targetProfileId !== TARGET_PROFILE) {
+    err('CODEGEN_CAPABILITY_MANIFEST_MISMATCH', 'capability', `expected a capabilityManifest for ${TARGET_PROFILE}`, {
+      path,
+      artifactKind: manifest?.artifactKind ?? null,
+      targetProfileId: manifest?.targetProfileId ?? null,
+    });
+    return { source: '', manifest: null };
+  }
+  return { source, manifest };
 }
 
 // --- CLI ---------------------------------------------------------------------
