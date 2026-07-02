@@ -394,9 +394,18 @@ pub fn router(state: SharedSnapback) -> Router {
 
 pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
     tokio::spawn(async move {
+        // Clone the activity flag once, then poll it lock-free. When no cron
+        // jobs are loaded the tick takes the global lock zero times — idle
+        // means idle.
+        //
+        // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5.
+        let cron_active = state.lock().await.cron_activity_flag();
         let mut ticks = interval(Duration::from_secs(1));
         loop {
             ticks.tick().await;
+            if !cron_active.load(std::sync::atomic::Ordering::Relaxed) {
+                continue;
+            }
             let mut snapback = state.lock().await;
             snapback.tick_cron_recording(now_millis());
         }

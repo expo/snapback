@@ -176,6 +176,23 @@ impl LocalCronRuntime {
         })
     }
 
+    /// Whether any enabled cron job is currently armed (its demand condition is
+    /// met). Arming changes only when live-query subscriptions or the function
+    /// manifest change, so this drives the ticker's lock-skip without per-tick
+    /// work.
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5.
+    pub fn any_armed(
+        &self,
+        manifest: &FunctionManifest,
+        active_live_functions: &BTreeSet<String>,
+    ) -> bool {
+        manifest.cron_jobs.iter().any(|job| {
+            job.enabled
+                && activation_state(job, active_live_functions) == CronActivationState::Armed
+        })
+    }
+
     pub fn reconcile(&mut self, manifest: &FunctionManifest) -> Vec<Diagnostic> {
         let diagnostics = validate_cron_manifest(manifest);
         let mut recovery_diagnostics = Vec::new();

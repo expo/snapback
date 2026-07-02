@@ -609,7 +609,14 @@ change the concurrency architecture and should land as one reviewed arc.
   armed. **Done when:** an idle instance performs zero periodic writes
   (asserted by watching the DB file/WAL in a test) and the 1s tick does no
   lock acquisition when no jobs are armed. **needs owner doc update**
-  (LLP 0028 §local scheduler).
+  (LLP 0028 §local scheduler). **Landed 2026-07-01** — `persist_cron_state`
+  writes only when the serialized state changes (idle ticks are no-ops), and a
+  lock-free `cron_active` flag (recomputed on manifest/subscription changes via
+  `refresh_cron_active`, keyed on `LocalCronRuntime::any_armed`) lets the ticker
+  skip the global lock entirely when no job is armed. Owner-doc contract added
+  to LLP 0028 §Scheduler state. Tests
+  `l5_idle_instance_performs_no_periodic_cron_writes` and
+  `l5_cron_activity_flag_tracks_arming`.
 - **L6 — Reader pool.** LLP 0003 §Database Model designed a WAL reader pool;
   the implementation serializes even read-only queries on the single
   `tokio::Mutex<LocalSnapback>` (`src/server.rs:23`, `378`) [confirmed].

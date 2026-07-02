@@ -24,6 +24,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::marker::PhantomData;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
@@ -282,6 +284,13 @@ pub struct LocalSnapback {
     live_delivery: LiveDeliveryStats,
     recent_diagnostics: VecDeque<Diagnostic>,
     cron_tick_errors: u64,
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5: idle means
+    // idle. `cron_active` lets the 1s ticker skip the global lock entirely when
+    // no cron jobs are loaded; the persisted cron state is written only when it
+    // changes, so an idle instance performs no periodic disk writes.
+    cron_active: Arc<AtomicBool>,
+    last_persisted_cron: Option<Value>,
+    cron_state_writes: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -356,6 +365,7 @@ impl LocalSnapback {
 
         diagnostics.extend(self.cron.reconcile(&self.functions));
         diagnostics.extend(self.runtime.diagnostics());
+        self.refresh_cron_active();
         if let Err(error) = self.persist_cron_state() {
             diagnostics.push(error.diagnostic);
         }
@@ -554,6 +564,8 @@ impl LocalSnapback {
                 read_dependencies: query.read_dependencies,
             },
         );
+        // A new subscription can arm a demand-gated cron job (L5).
+        self.refresh_cron_active();
 
         Ok(LiveSubscribeOutput {
             subscription_id,
@@ -821,6 +833,9 @@ impl LocalSnapback {
         //   inactive:no-demand once no subscription to the named live query remains.
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
+        // Losing the last watcher of a demand-gated live query disarms its cron
+        // job (L5).
+        self.refresh_cron_active();
     }
 
     pub fn cleanup_ephemeral(&mut self, now_ms: u64) {
@@ -903,6 +918,9 @@ impl LocalSnapback {
             live_delivery: LiveDeliveryStats::default(),
             recent_diagnostics,
             cron_tick_errors: 0,
+            cron_active: Arc::new(AtomicBool::new(false)),
+            last_persisted_cron: None,
+            cron_state_writes: 0,
         })
     }
 
@@ -1041,9 +1059,43 @@ impl LocalSnapback {
             .collect()
     }
 
+    /// Persist the cron state to SQLite only when it has actually changed. An
+    /// idle instance ticks with no due jobs, which does not mutate the cron
+    /// state, so this becomes a no-op — no periodic disk write.
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5.
     fn persist_cron_state(&mut self) -> SnapbackResult<()> {
         let value = self.cron.persisted_value()?;
-        self.db.save_cron_state(&value)
+        if self.last_persisted_cron.as_ref() == Some(&value) {
+            return Ok(());
+        }
+        self.db.save_cron_state(&value)?;
+        self.last_persisted_cron = Some(value);
+        self.cron_state_writes += 1;
+        Ok(())
+    }
+
+    /// A lock-free flag the cron ticker checks to skip the global lock when no
+    /// cron job is armed (scale-to-zero). @ref LLP 0032 L5.
+    pub fn cron_activity_flag(&self) -> Arc<AtomicBool> {
+        self.cron_active.clone()
+    }
+
+    /// Recompute whether any cron job is armed. Arming depends on the function
+    /// manifest and the set of live-query subscriptions, so this is called when
+    /// either changes — never per tick.
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5.
+    fn refresh_cron_active(&mut self) {
+        let active_live_functions = self.active_live_functions();
+        let armed = self.cron.any_armed(&self.functions, &active_live_functions);
+        self.cron_active.store(armed, Ordering::Relaxed);
+    }
+
+    /// Count of cron-state disk writes — a test hook for the idle-instance
+    /// zero-periodic-writes assertion.
+    pub fn cron_state_writes(&self) -> u64 {
+        self.cron_state_writes
     }
 
     /// Fan a committed changeset out to live subscriptions. The mutation has

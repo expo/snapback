@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline)
+**Revised:** 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027
 
 ## Summary
@@ -202,6 +202,18 @@ store:
 - recent run history: `runId`, nominal scheduled time, jittered due time,
   started/finished time, trigger (`scheduled`, `manual`, `recovery`), attempt
   number, outcome, duration, and diagnostic id/details.
+
+**Idle scheduler cost (local target).** The local 1-second ticker must not do
+work — or write to disk — when there is nothing to run. Two rules hold
+(implemented via [LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
+L5): (1) the scheduler state is persisted **only when it changes**; an idle tick
+observes no due job, does not mutate the state, and performs no SQLite write, so
+an idle instance has no periodic disk I/O — the scale-to-zero shape §Idle cost
+demands. (2) The ticker keeps a lock-free *armed* flag, recomputed only when the
+function manifest or the set of live-query subscriptions changes; when no cron
+job is armed the ticker takes the global instance lock **zero** times per tick.
+Arming a demand-gated job (a watcher subscribes to its demand query) sets the
+flag; losing the last watcher clears it.
 
 Claiming a due run must be atomic at the app/job boundary. Locally, that means a
 brief SQLite transaction around the scheduler state row before the action starts.

@@ -886,6 +886,39 @@ fn cron_demand_gating_and_default_jitter_are_visible_in_inspect() {
     assert_eq!(job.activation_state, CronActivationState::Armed);
 }
 
+/// LLP 0032 L5 — the ticker's lock-skip flag tracks arming, not just presence:
+/// a demand-gated cron job with no watcher is unarmed (flag off → the ticker
+/// skips the lock), subscribing arms it, and disconnecting the last watcher
+/// disarms it again.
+#[test]
+fn l5_cron_activity_flag_tracks_arming() {
+    use std::sync::atomic::Ordering;
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(todo_functions_with_cron(true));
+    let flag = snapback.cron_activity_flag();
+
+    // Loaded but no watcher → unarmed → the ticker skips the global lock.
+    assert!(!flag.load(Ordering::Relaxed));
+
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "watcher".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe arms the demand-gated cron");
+    assert!(flag.load(Ordering::Relaxed), "a watcher must arm the ticker");
+
+    snapback.disconnect("watcher", 1_000);
+    assert!(
+        !flag.load(Ordering::Relaxed),
+        "losing the last watcher disarms the ticker"
+    );
+}
+
 #[test]
 fn ibex_action_can_call_run_mutation_with_cron_metadata() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -2695,4 +2728,30 @@ fn e5_unknown_index_fails_closed() {
     snapback
         .invoke_query("goodIndex", input(json!({}), "user_1"))
         .expect("declared index resolves");
+}
+
+/// LLP 0032 L5 — idle means idle: an instance with no armed cron work performs
+/// no periodic cron-state disk writes, and the ticker's activity flag is off so
+/// it never takes the global lock.
+#[test]
+fn l5_idle_instance_performs_no_periodic_cron_writes() {
+    use std::sync::atomic::Ordering;
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(todo_functions()); // no cron jobs
+
+    // No cron jobs loaded → the ticker skips the global lock entirely.
+    assert!(!snapback.cron_activity_flag().load(Ordering::Relaxed));
+
+    let writes_after_load = snapback.cron_state_writes();
+    // Many idle ticks: nothing is due or armed, so the cron state never changes
+    // and is never re-persisted.
+    for tick in 1..30 {
+        snapback.tick_cron(tick * 1_000).expect("idle tick");
+    }
+    assert_eq!(
+        snapback.cron_state_writes(),
+        writes_after_load,
+        "idle ticks must not write cron state to disk"
+    );
 }
