@@ -14,6 +14,7 @@ pub(crate) mod live_matcher;
 pub mod local;
 pub mod manifest;
 pub mod runtime;
+pub mod schema_export;
 pub mod server;
 pub mod storage;
 pub(crate) mod warm_vm;

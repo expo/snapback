@@ -1062,9 +1062,24 @@ parallel with Phase 3.
   consumer fixture (the S5.D2 bug shipped because no TypeScript ever
   compiled the output); (c) manifest JSON-Schema validation against a schema
   derived from the Rust types — this is **DK-7**, the corpus's most-repeated
-  open question (LLP 0016, 0020, 0024 all block on it); recommendation:
-  Rust types are the source of truth, `schemars`-style JSON Schema is
-  generated from them, JS validates against it. Also close the typing gaps:
+  open question (LLP 0016, 0020, 0024 all block on it); **decided 2026-07-02**
+  ([LLP 0037](./0037-schema-source-of-truth.decision.md), Rust-first) and
+  **P3(c) landed 2026-07-02**: the Snapback-owned serde types carry
+  `schemars::JsonSchema`; one generator
+  (`snapback::schema_export::artifact_schemas`) is written to
+  `schemas/*.schema.json` by the `snapback-schemagen` bin and diffed by the
+  drift gate `tests/artifact_schemas_v0.rs`
+  (`dk7_committed_schemas_match_rust_types`); a representative value of each
+  artifact round-trips through serde and validates against its committed schema
+  (`dk7_representative_values_validate_against_committed_schemas`, proving the
+  generated schema matches the serde output — no `#[schemars(...)]` overrides
+  needed); and `demos/_kit/codegen.mjs` validates every Snapback-owned artifact
+  it emits against the committed schemas before writing, failing closed with a
+  structured `CODEGEN_ARTIFACT_SCHEMA_{MISSING,INVALID}` diagnostic. **P2
+  handoff:** the capability manifest now has a committed schema
+  (`schemas/capability.manifest.schema.json`, from `manifest::CapabilityManifest`)
+  so P2 can delete the JS literal and consume the schema half. Also close the
+  typing gaps:
   JS-handler result types are guessed from the first declared read table and
   `v.json()` becomes `unknown` (`demos/_kit/codegen.mjs:145-146`, `807-808`)
   — require declared result validators for JS handlers or mark the type
@@ -1206,7 +1221,7 @@ Status column in place as rows close.
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01; gated leg landed 2026-07-02** — warm VM pool + verified per-invocation reset shipped behind the `dk4_*` leak suite (LLP 0009 §DK-4 as-built; numbers in LLP 0035 §After warm VM) |
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | **Decided 2026-07-02 — POSIX OR; landed with cron test-debt closure; ratified by Charlie same day, ledgered in LLP 0000** |
-| DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | Open — blocks P3c |
+| DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | **Decided 2026-07-02 — Rust-first** ([LLP 0037](./0037-schema-source-of-truth.decision.md)); **P3(c) landed** — `schemars`-derived schemas at `schemas/`, drift gate `tests/artifact_schemas_v0.rs`, codegen emit-time validation; P2 consumes `schemas/capability.manifest.schema.json` |
 | DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Decided 2026-07-01 — MIT eyes-open (LLP 0033) |
 | DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | Open — X4 |
 | DK-10 | Adapter live-push architecture | Adapter owns the live subscription; separate live-provider seam beside the boundary | prototype in P5 | LLP 0021/0029 | Open — P5 prototype |

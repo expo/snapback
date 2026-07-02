@@ -21,7 +21,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::time::Instant;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct RuntimeCapabilities {
     pub canonical_engine: String,
     pub ibex_submodule: IbexSubmoduleCapability,
@@ -32,20 +32,20 @@ pub struct RuntimeCapabilities {
     pub sqlite_lock_held_across_async: CapabilityState,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct IbexSubmoduleCapability {
     pub present: bool,
     pub path: Option<PathBuf>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct IbexCliCapability {
     pub available: bool,
     pub path: Option<PathBuf>,
     pub version: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CapabilityState {
     Available,
     Unavailable,

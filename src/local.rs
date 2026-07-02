@@ -101,7 +101,7 @@ fn push_capped(ring: &mut VecDeque<Value>, receipt: Value) {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct InspectState {
     #[serde(rename = "artifactKind")]
     pub artifact_kind: String,
@@ -132,7 +132,7 @@ pub struct InspectState {
     pub capability_gaps: Vec<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscriptionInfo {
     pub id: String,
     pub connection_id: String,
@@ -149,7 +149,7 @@ pub struct LiveSubscriptionInfo {
 /// `storage.sqlite_path` (an environment leak).
 ///
 /// @ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
 pub struct PublicInspect {
     #[serde(rename = "artifactKind")]
     pub artifact_kind: String,
@@ -178,14 +178,14 @@ pub struct PublicInspect {
 }
 
 /// Public storage facts: the change version and table list, never the on-disk path.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
 pub struct PublicStorageInfo {
     pub version: u64,
     pub tables: Vec<String>,
 }
 
 /// Public subscription facts: id and function, never the owning connection id.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
 pub struct PublicSubscriptionInfo {
     pub id: String,
     pub function: String,
@@ -390,7 +390,7 @@ pub struct LiveResyncRequired {
     pub clear_retained: bool,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveDeliveryStats {
     pub total_fanout_attempts: u64,
     pub total_deliveries: u64,

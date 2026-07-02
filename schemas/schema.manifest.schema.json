@@ -1,0 +1,323 @@
+{
+  "$defs": {
+    "AccessPolicy": {
+      "oneOf": [
+        {
+          "enum": [
+            "AllowAll"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RequireRoomPermission": {
+              "properties": {
+                "prefix": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "prefix"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RequireRoomPermission"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Diagnostic": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem",
+        "message",
+        "details"
+      ],
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "Info",
+        "Warning",
+        "Error",
+        "Fatal"
+      ],
+      "type": "string"
+    },
+    "EphemeralCollection": {
+      "properties": {
+        "burst": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "defaultTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dispatchMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "hardMaxValueBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "keyMode": {
+          "$ref": "#/$defs/KeyMode"
+        },
+        "maxPendingEphemeralKeys": {
+          "default": 1024,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxValueBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "publish": {
+          "$ref": "#/$defs/AccessPolicy"
+        },
+        "routingFields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scopeFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "subscribe": {
+          "$ref": "#/$defs/AccessPolicy"
+        },
+        "sustainedHz": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "keyMode",
+        "routingFields",
+        "defaultTtlMs",
+        "maxTtlMs",
+        "maxValueBytes",
+        "hardMaxValueBytes",
+        "sustainedHz",
+        "burst",
+        "dispatchMs",
+        "publish",
+        "subscribe"
+      ],
+      "type": "object"
+    },
+    "FieldManifest": {
+      "properties": {
+        "field_type": {
+          "$ref": "#/$defs/FieldType"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "field_type"
+      ],
+      "type": "object"
+    },
+    "FieldType": {
+      "enum": [
+        "String",
+        "Boolean",
+        "Integer",
+        "Real",
+        "Json"
+      ],
+      "type": "string"
+    },
+    "IndexManifest": {
+      "properties": {
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "KeyMode": {
+      "enum": [
+        "Connection",
+        "Session",
+        "User",
+        "Custom"
+      ],
+      "type": "string"
+    },
+    "TableManifest": {
+      "properties": {
+        "fields": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FieldManifest"
+          },
+          "type": "array"
+        },
+        "indexes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/IndexManifest"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "syncable": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/schema.manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "appId": {
+      "default": "local-app",
+      "type": "string"
+    },
+    "artifactDiagnostics": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "type": "array"
+    },
+    "artifactKind": {
+      "default": "schemaManifest",
+      "type": "string"
+    },
+    "ephemeralCollections": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EphemeralCollection"
+      },
+      "type": "array"
+    },
+    "generatedAt": {
+      "default": null,
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "inputsHash": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "portabilityFlags": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schemaHash": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "default": "snapback.v0",
+      "type": "string"
+    },
+    "sourceHash": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tables": {
+      "items": {
+        "$ref": "#/$defs/TableManifest"
+      },
+      "type": "array"
+    },
+    "targetProfile": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "tables"
+  ],
+  "title": "SchemaManifest",
+  "type": "object"
+}

@@ -1,0 +1,29 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/storage-info.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "sqlite_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tables": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "version": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "tables"
+  ],
+  "title": "StorageInfo",
+  "type": "object"
+}

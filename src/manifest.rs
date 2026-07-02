@@ -31,7 +31,7 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SchemaManifest {
     #[serde(
         default = "schema_manifest_kind",
@@ -110,7 +110,7 @@ impl SchemaManifest {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct TableManifest {
     pub name: String,
     #[serde(default)]
@@ -127,7 +127,7 @@ impl TableManifest {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct FieldManifest {
     pub name: String,
     pub field_type: FieldType,
@@ -135,7 +135,7 @@ pub struct FieldManifest {
     pub optional: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FieldType {
     String,
     Boolean,
@@ -144,13 +144,13 @@ pub enum FieldType {
     Json,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct IndexManifest {
     pub name: String,
     pub fields: Vec<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct FunctionManifest {
     #[serde(
         default = "function_manifest_kind",
@@ -224,7 +224,7 @@ impl FunctionManifest {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct FunctionDefinition {
     #[serde(default, rename = "id")]
     pub id: Option<String>,
@@ -292,21 +292,21 @@ impl FunctionDefinition {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum PermissionScopeExpr {
     AuthUser,
     Arg(String),
     Literal(String),
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SourceSpan {
     pub file: String,
     pub line: u32,
     pub column: u32,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct DependencySummary {
     #[serde(default, rename = "primaryTable", alias = "primary_table")]
     pub primary_table: Option<String>,
@@ -318,7 +318,7 @@ pub struct DependencySummary {
     pub auth_scope_field: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FunctionKind {
     Query,
     Mutation,
@@ -326,26 +326,26 @@ pub enum FunctionKind {
     Action,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FunctionRuntime {
     HostPlan(HandlerPlan),
     IbexModule(IbexModule),
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct IbexModule {
     pub source: String,
     pub export: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum HandlerPlan {
     Query(QueryPlan),
     Mutation(MutationPlan),
     Action(ActionPlan),
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ActionPlan {
     #[serde(default)]
     pub steps: Vec<ActionStep>,
@@ -353,7 +353,7 @@ pub struct ActionPlan {
     pub return_value: Option<ActionReturnValue>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ActionStep {
     RunMutation {
         name: String,
@@ -364,7 +364,7 @@ pub enum ActionStep {
     },
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ActionReturnValue {
     Literal(Value),
     Binding(String),
@@ -374,7 +374,7 @@ pub enum ActionReturnValue {
 
 /// @ref LLP 0028#cron-job-definition — generated function manifests carry
 /// source-authored cron jobs beside query/mutation/action handlers.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronJobDefinition {
     pub name: String,
     pub schedule: CronSchedule,
@@ -401,7 +401,7 @@ pub struct CronJobDefinition {
     pub source_span: Option<SourceSpan>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronSchedule {
     #[serde(default, rename = "everyMs", alias = "every_ms")]
     pub every_ms: Option<u64>,
@@ -409,7 +409,7 @@ pub struct CronSchedule {
     pub cron: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronActivationPolicy {
     pub kind: CronActivationKind,
     #[serde(default, rename = "whileLive", alias = "while_live")]
@@ -425,13 +425,13 @@ impl Default for CronActivationPolicy {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronActivationKind {
     Always,
     WhileLive,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronJitterPolicy {
     pub enabled: bool,
     #[serde(rename = "maxOffsetMs", alias = "max_offset_ms")]
@@ -447,7 +447,7 @@ impl Default for CronJitterPolicy {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronOverlapPolicy {
     NoOverlap,
     Allow,
@@ -459,7 +459,7 @@ impl Default for CronOverlapPolicy {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronRetryPolicy {
     pub mode: CronRetryMode,
 }
@@ -472,7 +472,7 @@ impl Default for CronRetryPolicy {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronRetryMode {
     NextTick,
     Backoff,
@@ -481,7 +481,7 @@ pub enum CronRetryMode {
 /// @ref LLP 0036#declared-configuration-in-the-manifest — one declared config
 /// entry: names, purposes, and acquisition metadata are app source (public by
 /// construction); values never appear in any manifest.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ConfigEntryDefinition {
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -520,21 +520,21 @@ pub struct ConfigEntryDefinition {
     pub source_span: Option<SourceSpan>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronTargetWakeup {
     pub kind: CronTargetWakeupKind,
     #[serde(default, rename = "needsDurableRunner", alias = "needs_durable_runner")]
     pub needs_durable_runner: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronTargetWakeupKind {
     IntervalMs,
     CronExpression,
     DynamicAlarm,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct QueryPlan {
     pub table: String,
     #[serde(default)]
@@ -545,14 +545,14 @@ pub struct QueryPlan {
     pub indexed_by: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct FilterExpr {
     pub field: String,
     pub op: FilterOp,
     pub value: ValueExpr,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FilterOp {
     Eq,
     In,
@@ -562,26 +562,26 @@ pub enum FilterOp {
     Gte,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct OrderExpr {
     pub field: String,
     pub direction: OrderDirection,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum OrderDirection {
     Asc,
     Desc,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct MutationPlan {
     #[serde(default)]
     pub steps: Vec<MutationStep>,
     pub return_value: Option<ReturnValue>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum MutationStep {
     Insert {
         table: String,
@@ -599,7 +599,7 @@ pub enum MutationStep {
     },
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ReturnValue {
     Literal(Value),
     Binding(String),
@@ -607,7 +607,7 @@ pub enum ReturnValue {
     ChangedCount,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ValueExpr {
     Arg(String),
     AuthUserId,
@@ -617,14 +617,14 @@ pub enum ValueExpr {
     RuntimeNow,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct AuthInput {
     pub principal: Option<String>,
     pub session_id: Option<String>,
     pub user_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct HandlerInput {
     #[serde(default)]
     pub args: Value,
@@ -640,33 +640,33 @@ pub struct HandlerInput {
     pub correlation: Option<Value>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ReadDependency {
     pub table: String,
     pub id: String,
     pub version: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct QueryOutput {
     pub version: u64,
     pub rows: Vec<Value>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct MutationOutput {
     pub version: u64,
     pub changed_count: usize,
     pub result: Value,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SeedData {
     #[serde(default)]
     pub tables: BTreeMap<String, Vec<Map<String, Value>>>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CapabilityManifest {
     #[serde(
         default = "capability_manifest_kind",
@@ -761,13 +761,13 @@ pub(crate) fn vm_lifecycle_fresh() -> String {
 
 pub(crate) const VM_LIFECYCLE_WARM_POOLED_RESET: &str = "warm-pooled-reset";
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ResourceLimit {
     pub name: String,
     pub status: ResourceLimitStatus,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ResourceLimitStatus {
     Enforced,
     Advisory,

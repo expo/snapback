@@ -1,0 +1,39 @@
+{
+  "$defs": {
+    "DiagnosticSeverity": {
+      "enum": [
+        "Info",
+        "Warning",
+        "Error",
+        "Fatal"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/diagnostic.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "code": {
+      "type": "string"
+    },
+    "details": true,
+    "message": {
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/$defs/DiagnosticSeverity"
+    },
+    "subsystem": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "severity",
+    "subsystem",
+    "message",
+    "details"
+  ],
+  "title": "Diagnostic",
+  "type": "object"
+}

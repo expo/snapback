@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum DiagnosticSeverity {
     Info,
     Warning,
@@ -11,7 +11,7 @@ pub enum DiagnosticSeverity {
     Fatal,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct Diagnostic {
     pub code: String,
     pub severity: DiagnosticSeverity,

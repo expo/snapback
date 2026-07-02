@@ -435,6 +435,11 @@ Valet's experience hardens this section (`[observed - Valet LLP 0004/0012/0048]`
   exactly the drift this section guards against. Define each shared manifest/protocol
   in **one** source-of-truth schema that both codegen and runtime consume, and add a
   CI test that fails on drift (Valet later added codegen↔runtime enum drift tests).
+  Realized 2026-07-02 by DK-7 ([LLP 0037](./0037-schema-source-of-truth.decision.md),
+  Rust-first): the Rust serde types are the single source of truth, `schemars`-derived
+  JSON Schemas for the Snapback-owned artifacts are committed under `schemas/`, and
+  `tests/artifact_schemas_v0.rs` is the drift gate (`dk7_committed_schemas_match_rust_types`;
+  regenerate the committed schemas with `cargo run --bin snapback-schemagen`).
 - **Beware two hashes for one artifact.** Valet computed *two* schema hashes — the
   client hash excluded indexes the client never creates, the server hash included
   them — so "schema unchanged" meant different things on each side. Choose one
