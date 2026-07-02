@@ -3,14 +3,17 @@
 //
 //   node demos/_kit/tests/provider-live-conformance.mjs
 //
-// Named checks (numbering follows LLP 0034 §6):
+// Named checks (numbering follows LLP 0034 rev 2 §6):
 //   §6.1  snapshot-with-subscribe atomicity
-//   §6.6  stream-delivered durable update (two-client durable, no polling)
+//   §6.2  stream-delivered durable update (client A mutates over HTTP;
+//         client B receives live_replace without polling)
 //   §6.3  connection-axis transitions (fallback + no-fallback mappings)
-//   §6.4  version monotonicity on subscription events (partial — full
-//         receipts are D2)
-//   §2.1  one socket, both lanes (durable + two-client presence multiplexed)
-//   D3    codegen migration cross-check (old/new manifest fields agree; a
+//   §6.4  receipt monotonicity, partial pending D2 (the global commit
+//         version is non-decreasing across snapshot and updates per binding)
+//   §2.1  one socket, both lanes (durable + two-client presence multiplexed;
+//         §6.7's shared-socket ground — the flood-priority check itself
+//         waits on D2's delivered-rate receipts)
+//   §6.8  codegen migration cross-check (old/new manifest fields agree; a
 //         deliberately broken binding fails)
 //
 // @ref LLP 0034#6-d5--conformance-and-the-first-proof
@@ -126,7 +129,7 @@ try {
     return { subscriptionId: response.subscription_id, snapshotVersion: response.snapshot.version, deltaVersion: update.version };
   });
 
-  await suite.check('stream-delivered durable update: no polling (LLP 0034 §6.6 durable)', async () => {
+  await suite.check('stream-delivered durable update: no polling (LLP 0034 §6.2)', async () => {
     await db.reset();
     await db.seed(seed);
     const recorder = createRecorder();
@@ -278,7 +281,7 @@ try {
     }
   });
 
-  await suite.check('one socket, both lanes: durable + two-client presence (LLP 0034 §2.1/§6.6)', async () => {
+  await suite.check('one socket, both lanes: durable + two-client presence (LLP 0034 §2.1/§6.7 ground)', async () => {
     // Provision the generated ephemeral fixture (the todo boardCursors
     // collection) alongside the todo tables, as the headless suite does.
     const fixtureDir = mkdtempSync(join(todoFixtures, '.tmp-live-conformance-'));
@@ -366,11 +369,26 @@ try {
     }
   });
 
-  await suite.check('codegen migration cross-check: old/new fields agree; broken binding fails (LLP 0034 D3)', async () => {
-    // The real generated manifest passes the cross-check for every query.
-    const result = await generate(todoBackend);
+  await suite.check('codegen migration cross-check: old/new fields agree; broken binding fails (LLP 0034 §6.8)', async () => {
+    // Generate into a TEMP COPY of the todo backend (same depth under demos/
+    // so its relative ../../_kit imports resolve) — a conformance check must
+    // not rewrite committed generated artifacts as a side effect, even now
+    // that regeneration is byte-identical (path-independent hashes).
+    const tmpRoot = mkdtempSync(join(repoRoot, 'demos', '.tmp-live-conformance-'));
+    let result;
+    try {
+      const tmpBackend = join(tmpRoot, 'snapback');
+      cpSync(todoBackend, tmpBackend, { recursive: true });
+      rmSync(join(tmpBackend, 'generated'), { recursive: true, force: true });
+      result = await generate(tmpBackend);
+    } finally {
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
     assert(result.ok, `codegen failed: ${JSON.stringify(result.diagnostics)}`);
     const manifest = result.contractManifest;
+    // Path-independent hashes make this a real freshness guard: regeneration
+    // from ANY checkout must reproduce the committed inputsHash.
+    assertEqual(manifest.inputsHash, gen('contract-data.manifest.json').inputsHash, 'committed artifacts are stale — rerun codegen');
     assertEqual(manifest.manifestVersion, 2, 'manifest v2');
     for (const [name, binding] of Object.entries(manifest.queries)) {
       assertEqual(crossCheckContractQueryBinding(name, binding), [], `cross-check mismatches for ${name}`);

@@ -379,9 +379,13 @@ export async function generate(backendDir) {
   const functionsSource = readFileSync(functionsPath, 'utf8');
   const seedSource = existsSync(seedPath) ? readFileSync(seedPath, 'utf8') : null;
   const defineSource = readFileSync(join(kitDir(), 'define.mjs'), 'utf8');
+  // Hash inputs use the MANIFEST-RELATIVE handler path (LLP 0034 review fix
+  // 4): keying by absolute path baked the checkout location into inputsHash /
+  // bundleHash, so committed artifacts only reproduced from the checkout that
+  // generated them.
   const handlerInputs = [];
-  for (const [absolute, source] of [...handlerSourceCache.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    handlerInputs.push(absolute, source ?? '');
+  for (const [sourcePath, source] of [...handlerSourceCache.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    handlerInputs.push(sourcePath, source ?? '');
   }
   const inputs = [schemaSource, functionsSource, ...(seedSource === null ? [] : [seedSource]), defineSource, ...handlerInputs];
   const inputsHash = sha256(inputs.join('\0'));
@@ -553,15 +557,18 @@ export async function generate(backendDir) {
 
   return { ok: true, diagnostics, inputsHash, outDir, schemaManifest, functionManifest, capabilityManifest, contractManifest };
 
+  // Cache (and hash — see handlerInputs) by the manifest-relative sourcePath,
+  // never the absolute checkout path, so generated hashes are reproducible
+  // from any checkout (LLP 0034 review fix 4).
   function loadHandlerSource(sourcePath, functionName) {
-    const absolute = join(backendDir, sourcePath);
-    if (!handlerSourceCache.has(absolute)) {
+    if (!handlerSourceCache.has(sourcePath)) {
+      const absolute = join(backendDir, sourcePath);
       let source = '';
       try {
         source = readFileSync(absolute, 'utf8');
       } catch (error) {
         err('BUNDLE_SOURCE_MISSING', 'bundle', `${functionName}: handler source ${sourcePath} could not be read`, { function: functionName, source: sourcePath, error: error.message });
-        handlerSourceCache.set(absolute, null);
+        handlerSourceCache.set(sourcePath, null);
         return null;
       }
       const blocked = scanUnsupportedHandlerSource(source);
@@ -575,9 +582,9 @@ export async function generate(backendDir) {
           });
         }
       }
-      handlerSourceCache.set(absolute, source);
+      handlerSourceCache.set(sourcePath, source);
     }
-    return handlerSourceCache.get(absolute);
+    return handlerSourceCache.get(sourcePath);
   }
 }
 

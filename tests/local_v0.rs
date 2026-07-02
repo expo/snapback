@@ -1445,7 +1445,9 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(functions.schema_version, "snapback.v0");
     assert_eq!(
         functions.bundle_hash.as_deref(),
-        Some("sha256:54ca16ec79be8fcf")
+        // Path-independent since the LLP 0034 review fix 4 (handler sources
+        // hash by manifest-relative path): reproducible from any checkout.
+        Some("sha256:8e76d90d17151b73")
     );
 
     let list = functions
