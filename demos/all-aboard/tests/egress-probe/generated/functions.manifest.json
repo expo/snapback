@@ -1,7 +1,7 @@
 {
   "appId": "tests",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:dd277e21ce31cf6f",
+  "bundleHash": "sha256:8ce770411c8a743b",
   "config": [
     {
       "description": "Rotating test key pool for the egress probe",
@@ -86,7 +86,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "4379a0fc47a35789de42daf1e321d71f0e7fa14262d43d83fa425c1414754218",
+  "inputsHash": "9c75b80b24ff8e3768df39331e80323a5bb11661e50b086579b64705302041e0",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

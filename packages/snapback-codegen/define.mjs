@@ -195,10 +195,18 @@ function jsQueryDef(kind, spec) {
   assert(spec.source, `${kind} requires a handler source file`);
   assert(spec.exportName, `${kind} requires exportName`);
   assert(spec.reads && Array.isArray(spec.reads) && spec.reads.length > 0, `${kind} requires declared reads`);
+  if (spec.result !== undefined) {
+    // LLP 0032 P3: a JS handler can return any shape, so its result rows are
+    // typed only when declared. `result` describes the app fields of each
+    // returned row (system fields ride along); undeclared results are typed
+    // as an honest `unknown`, never guessed from the first read table.
+    assert(spec.result && spec.result.__validator && spec.result.primitive === 'object', `${kind} result must be a v.object(...) row validator`);
+  }
   return {
     [FN]: true,
     __kind: kind,
     args: spec.args ?? {},
+    ...(spec.result !== undefined ? { result: spec.result } : {}),
     // LLP 0034 D3: per-definition defaultLive opt-out (see queryDef).
     ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
     js: {

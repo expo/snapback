@@ -140,7 +140,7 @@ pub struct RoomId {
 #[serde(transparent)]
 pub struct EntryKey(pub String);
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum KeyMode {
     Connection,
     Session,
@@ -172,7 +172,7 @@ impl AuthContext {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum AccessPolicy {
     AllowAll,
     RequireRoomPermission { prefix: String },
@@ -189,7 +189,7 @@ impl AccessPolicy {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct EphemeralCollection {
     pub name: String,
     #[serde(default, rename = "scopeFields", alias = "scope_fields")]

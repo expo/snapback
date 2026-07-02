@@ -260,12 +260,11 @@ export async function generate(backendDir) {
         authScopeField: def.js.authScopeField ?? null,
         syncabilityClass: def.js.syncabilityClass,
       });
-      const primary = readTables[0];
       contractQueries[name] = {
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
-        result: { kind: 'list', row: rowDescriptor(tables[primary]) },
+        result: { kind: 'list', row: jsQueryRowDescriptor(def, name, err) },
         serverRunnable: true,
         localRunnable: false,
         ...contractQueryLivenessFields(def),
@@ -1049,6 +1048,30 @@ function argDescriptors(args) {
   return out;
 }
 
+// JS-handler query results are typed only when declared (LLP 0032 P3): a
+// ctx.db handler can return any shape, so the earlier first-read-table guess
+// (which typed egress-probe's `{fetchState, config}` rows as `probe` rows) is
+// replaced by the declared `result` row validator — app fields, with the
+// system fields every row carries merged in — or an honest unknown.
+function jsQueryRowDescriptor(def, name, err) {
+  if (!def.result) return { shape: 'unknown' };
+  const declared = validatorRowDescriptor(def.result);
+  if (!declared) {
+    err('FUNCTION_INVALID_RESULT', 'function', `${name}: result must be a v.object(...) row validator`, { function: name });
+    return { shape: 'unknown' };
+  }
+  return {
+    shape: 'object',
+    fields: {
+      _id: { shape: 'primitive', name: 'string' },
+      _version: { shape: 'primitive', name: 'number' },
+      _createdAt: { shape: 'primitive', name: 'number' },
+      _updatedAt: { shape: 'primitive', name: 'number' },
+      ...declared.fields,
+    },
+  };
+}
+
 function rowDescriptor(table) {
   const fields = {
     _id: { shape: 'primitive', name: 'string' },
@@ -1406,8 +1429,14 @@ function renderContractQueryMeta(name, binding) {
   const reads = readTablesFromBinding(binding);
   const readMode = binding?.subscription === 'initial-snapshot' ? 'sync' : 'async';
   const cacheKey = reads[0] ?? name;
+  const row = binding?.result?.row;
+  // An untyped row (undeclared JS-handler result) is emitted as an honest
+  // `unknown` result with no shape entry, never an empty object shape.
+  const rowIsTyped = row?.shape === 'object';
   const rowType = `${pascal(name)}Row`;
-  const resultType = binding?.result?.kind === 'list' ? `${rowType}[]` : rowType;
+  const resultType = binding?.result?.kind === 'list'
+    ? (rowIsTyped ? `${rowType}[]` : 'unknown[]')
+    : (rowIsTyped ? rowType : 'unknown');
   return renderQueryMetaModule({
     header: HEADER,
     name,
@@ -1415,8 +1444,8 @@ function renderContractQueryMeta(name, binding) {
     readMode,
     cacheKey,
     resultType,
-    shapeName: rowType,
-    shapeFields: contractShapeFields(binding?.result?.row),
+    shapeName: rowIsTyped ? rowType : null,
+    shapeFields: rowIsTyped ? contractShapeFields(row) : null,
   });
 }
 

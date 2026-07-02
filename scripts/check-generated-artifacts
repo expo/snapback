@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# LLP 0032 P3(a): the regen-and-diff gate. Re-runs codegen for every committed
+# backend (and the admin bindings) and fails if the committed generated/
+# directories differ — the stale-but-internally-consistent hole. Hashes are
+# checkout-independent (handler sources hash by manifest-relative path since
+# the LLP 0034 review fix 4), so this is deterministic anywhere.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+run() {
+    printf '[check-generated-artifacts] $'
+    printf ' %q' "$@"
+    printf '\n'
+    "$@"
+}
+
+run node packages/snapback-codegen/index.mjs demos/todo/snapback
+run node packages/snapback-codegen/index.mjs demos/todo-v2/snapback
+run node packages/snapback-codegen/index.mjs demos/all-aboard/snapback
+run env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/tests/egress-probe
+run node packages/snapback-codegen/index.mjs demos/cursors-web/snapback
+run node admin-ui/generate-contract-bindings.mjs
+
+GENERATED_PATHS=(
+    demos/todo/snapback/generated
+    demos/todo-v2/snapback/generated
+    demos/all-aboard/snapback/generated
+    demos/all-aboard/tests/egress-probe/generated
+    demos/cursors-web/snapback/generated
+    admin-ui/generated
+)
+
+if ! git diff --exit-code -- "${GENERATED_PATHS[@]}"; then
+    echo "[check-generated-artifacts] FAIL: committed generated artifacts are stale — commit the regenerated output" >&2
+    exit 1
+fi
+
+UNTRACKED="$(git status --porcelain -- "${GENERATED_PATHS[@]}" | grep '^??' || true)"
+if [ -n "$UNTRACKED" ]; then
+    echo "[check-generated-artifacts] FAIL: codegen produced files that are not committed:" >&2
+    echo "$UNTRACKED" >&2
+    exit 1
+fi
+
+echo "[check-generated-artifacts] ok: committed generated artifacts are current"
