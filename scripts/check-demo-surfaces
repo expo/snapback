@@ -10,11 +10,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# client.reset() / app/reset / legacy root /admin/ calls in surface code.
+# client.reset() / app/reset / legacy root /admin/ calls in surface SOURCE —
+# build output (dist/) and generated bindings are swept by their own gates.
 PATTERN='client\.reset\(|\.reset\(\)\s*;?\s*//.*backend|app/reset|"/admin/|'"'"'/admin/'
 MATCHES="$(grep -RInE "$PATTERN" demos/*/surfaces \
     --include='*.ts' --include='*.tsx' --include='*.mjs' --include='*.js' \
-    2>/dev/null | grep -v node_modules || true)"
+    --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=generated \
+    2>/dev/null || true)"
 
 if [ -n "$MATCHES" ]; then
     echo "[check-demo-surfaces] FAIL: destructive backend operations in demo surfaces:" >&2
