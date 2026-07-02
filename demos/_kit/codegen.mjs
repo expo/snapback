@@ -22,6 +22,84 @@ const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SCHEMA_VERSION = 'snapback.v0';
 const TARGET_PROFILE = 'local-dev-sqlite-ibex';
 
+// Contract data manifest v2 (LLP 0034 D3; Exact LLP 0284 §2.4).
+//
+// manifestVersion 2 adds the per-descriptor liveness/cost facts additively:
+// old consumers ignore the new fields, and the legacy `subscription` field is
+// still emitted during the migration (0284 §2.4's emit-both rule). The
+// provider-owned poll-fallback floor is the demos' existing 1500 ms cadence.
+const CONTRACT_DATA_MANIFEST_VERSION = 2;
+const PROVIDER_POLL_CADENCE_FLOOR_MS = 1_500;
+
+/// Per-query liveness facts derived once from the definition kind, so the
+/// legacy field and the v2 fields cannot silently drift apart inside one
+/// binding (`crossCheckContractQueryBinding` re-verifies the emitted object).
+function contractQueryLivenessFields(def) {
+  const live = def.__kind === 'LiveQuery';
+  return {
+    // Legacy field (LLP 0263): kept during migration, emit-both.
+    subscription: live ? 'initial-snapshot' : 'none',
+    // v2 fields (Exact LLP 0284 §2.4).
+    mode: live ? 'live' : 'snapshot',
+    livePush: live, // D1 wires the live socket as the browser durable transport.
+    initialSnapshot: live,
+    // Liveness is descriptor policy, not a blanket default: a chatty/expensive
+    // LiveQuery may opt out with `defineLiveQuery({ ..., defaultLive: false })`.
+    defaultLive: live ? def.defaultLive !== false : false,
+    ephemeral: false,
+    ...(live
+      ? {
+          transport: 'push',
+          pollCadenceMs: PROVIDER_POLL_CADENCE_FLOOR_MS,
+        }
+      : {}),
+  };
+}
+
+/**
+ * Migration cross-check (Exact LLP 0284 §2.4; LLP 0034 D3): the legacy
+ * `subscription` field and the new liveness fields are both emitted during the
+ * migration and MUST agree. Codegen fails loudly (writes nothing) if a future
+ * edit changes one emission path without the other. Exported for conformance
+ * tests (LLP 0034 §6 check 4).
+ */
+export function crossCheckContractQueryBinding(name, binding) {
+  const mismatches = [];
+  const legacyLive = binding.subscription === 'initial-snapshot';
+  const expect = (field, expected) => {
+    if (binding[field] !== expected) {
+      mismatches.push(
+        `${field}=${JSON.stringify(binding[field])} disagrees with subscription=${JSON.stringify(binding.subscription)} (expected ${JSON.stringify(expected)})`,
+      );
+    }
+  };
+  if (!['initial-snapshot', 'none'].includes(binding.subscription)) {
+    mismatches.push(`subscription=${JSON.stringify(binding.subscription)} is not a legacy value this provider emits`);
+  }
+  expect('mode', legacyLive ? 'live' : 'snapshot');
+  expect('livePush', legacyLive);
+  expect('initialSnapshot', legacyLive);
+  if (!legacyLive && binding.defaultLive !== false) {
+    mismatches.push(`defaultLive=${JSON.stringify(binding.defaultLive)} must be false on a snapshot descriptor`);
+  }
+  if (legacyLive && typeof binding.defaultLive !== 'boolean') {
+    mismatches.push(`defaultLive=${JSON.stringify(binding.defaultLive)} must be declared on a live descriptor`);
+  }
+  if (legacyLive && binding.transport !== 'push') {
+    mismatches.push(`transport=${JSON.stringify(binding.transport)} disagrees with livePush=true (expected "push")`);
+  }
+  if (legacyLive && !(Number.isInteger(binding.pollCadenceMs) && binding.pollCadenceMs >= PROVIDER_POLL_CADENCE_FLOOR_MS)) {
+    mismatches.push(`pollCadenceMs=${JSON.stringify(binding.pollCadenceMs)} must be >= the provider floor ${PROVIDER_POLL_CADENCE_FLOOR_MS}`);
+  }
+  return mismatches.map((message) => ({
+    code: 'CONTRACT_MANIFEST_MIGRATION_MISMATCH',
+    severity: 'error',
+    subsystem: 'contract',
+    message: `${name}: ${message}`,
+    query: name,
+  }));
+}
+
 export async function generate(backendDir) {
   const diagnostics = [];
   const err = (code, subsystem, message, extra = {}) =>
@@ -146,7 +224,7 @@ export async function generate(backendDir) {
         result: { kind: 'list', row: rowDescriptor(tables[primary]) },
         serverRunnable: true,
         localRunnable: false,
-        subscription: def.__kind === 'LiveQuery' ? 'initial-snapshot' : 'none',
+        ...contractQueryLivenessFields(def),
       };
     } else if (def.__kind === 'Query' || def.__kind === 'LiveQuery') {
       const t = def.plan.table;
@@ -180,7 +258,7 @@ export async function generate(backendDir) {
         result: { kind: 'list', row: rowDescriptor(tables[t]) },
         serverRunnable: true,
         localRunnable: false,
-        subscription: def.__kind === 'LiveQuery' ? 'initial-snapshot' : 'none',
+        ...contractQueryLivenessFields(def),
       };
     } else if (def.__kind === 'Mutation' && def.js) {
       const reads = def.js.reads ?? [];
@@ -389,7 +467,10 @@ export async function generate(backendDir) {
   const contractManifest = {
     artifactKind: 'contractDataManifest',
     schemaVersion: SCHEMA_VERSION,
-    manifestVersion: 1,
+    // v2 (LLP 0034 D3): additive per-descriptor liveness/cost facts per Exact
+    // LLP 0284 §2.4. Old fields remain valid inputs; unknown new fields are
+    // ignored by old consumers.
+    manifestVersion: CONTRACT_DATA_MANIFEST_VERSION,
     provider: 'snapback',
     inputsHash,
     schemaHash,
@@ -405,9 +486,21 @@ export async function generate(backendDir) {
       branchableFixtures: false,
       headlessBoot: true,
     },
+    // Honest until LLP 0034 D2 lands: no MutationReceipt/SubscriptionReceipt
+    // surface exists yet (the D1 kit emits minimal subscription events only).
+    receipts: 'none',
     queries: contractQueries,
     mutations: contractMutations,
+    ephemeral: contractEphemeralSection(ephemeralCollections),
   };
+  for (const [name, binding] of Object.entries(contractQueries)) {
+    // Migration cross-check (0284 §2.4): fail loudly, write nothing, if the
+    // legacy `subscription` field and the v2 liveness fields ever disagree.
+    diagnostics.push(...crossCheckContractQueryBinding(name, binding));
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
 
   const outDir = join(backendDir, 'generated');
   const contractOutDir = join(outDir, 'contract');
@@ -576,6 +669,39 @@ function keyMode(key) {
     user: 'User',
     custom: 'Custom',
   }[key] ?? 'Connection';
+}
+
+/// Contract-manifest ephemeral facts (LLP 0034 D3; Exact LLP 0284 §2.4/§2.5.1).
+///
+/// The read-side delivery budget is derived from the collection's dispatch
+/// window: latest-state coalescing on a 33 ms dispatch tick delivers at most
+/// ~30 map updates/s per entry, so `maxDeltaRateHz = round(1000 / dispatchMs)`
+/// and `coalesce: true` (LLP 0013 latest-state semantics). The publish budget
+/// facts ride along so Exact LLP 0281's rated `publish` can compile against
+/// them; the `*.ephemeral.ts` / `*.publish.ts` descriptor-kind migration is
+/// deferred until Exact ships an `ephemeral` binding (LLP 0034 §4, deferred).
+function contractEphemeralSection(ephemeralCollections) {
+  const section = {};
+  for (const collection of ephemeralCollections) {
+    section[collection.name] = {
+      name: collection.name,
+      ephemeral: true,
+      keyMode: collection.keyMode,
+      scopeFields: collection.scopeFields,
+      routingFields: collection.routingFields,
+      defaultTtlMs: collection.defaultTtlMs,
+      maxTtlMs: collection.maxTtlMs,
+      deliveryMode: 'latest',
+      maxDeltaRateHz: Math.round(1_000 / collection.dispatchMs),
+      coalesce: true,
+      publishBudget: {
+        sustainedHz: collection.sustainedHz,
+        burst: collection.burst,
+        maxValueBytes: collection.maxValueBytes,
+      },
+    };
+  }
+  return section;
 }
 
 function serializeAccessPolicy(policy) {

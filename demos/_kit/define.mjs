@@ -168,6 +168,9 @@ function queryDef(kind, spec) {
     [FN]: true,
     __kind: kind, // 'Query' | 'LiveQuery'
     args: spec.args ?? {},
+    // LLP 0034 D3 (Exact LLP 0284 §2.4): a chatty/expensive LiveQuery may opt
+    // out of binding live by default; livePush capability is unaffected.
+    ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
     plan: {
       table: spec.table,
       filters: spec.filter ?? [],
@@ -191,6 +194,8 @@ function jsQueryDef(kind, spec) {
     [FN]: true,
     __kind: kind,
     args: spec.args ?? {},
+    // LLP 0034 D3: per-definition defaultLive opt-out (see queryDef).
+    ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
     js: {
       source: spec.source,
       exportName: spec.exportName,

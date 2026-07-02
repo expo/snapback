@@ -10,6 +10,11 @@
 export const SNAPBACK_CONTRACT_ADAPTER_VERSION = 1;
 export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 
+// Contract data manifest versions this adapter accepts. v2 (LLP 0034 D3) is an
+// additive extension of v1 per Exact LLP 0284 §2.4: old fields remain valid
+// inputs, so v1 manifests keep working unmodified.
+export const SUPPORTED_CONTRACT_DATA_MANIFEST_VERSIONS = [1, 2];
+
 export function mountSnapbackContractHeadless(runtime, component, options = {}) {
   if (!runtime || typeof runtime.mount !== 'function') {
     throw new Error('mountSnapbackContractHeadless requires a Contract runtime with mount().');
@@ -27,7 +32,7 @@ export function validateSnapbackContractArtifacts({
   artifactIndex = null,
   schemaManifest = null,
   functionManifest = null,
-  expectedManifestVersion = 1,
+  expectedManifestVersion = null,
   expectedSchemaVersion = null,
   expectedInputsHash = null,
   expectedSchemaHash = null,
@@ -51,9 +56,12 @@ export function validateSnapbackContractArtifacts({
     });
   }
 
-  if (contractManifest.manifestVersion !== expectedManifestVersion) {
+  const acceptedManifestVersions = expectedManifestVersion === null
+    ? SUPPORTED_CONTRACT_DATA_MANIFEST_VERSIONS
+    : [expectedManifestVersion];
+  if (!acceptedManifestVersions.includes(contractManifest.manifestVersion)) {
     diag('SNAPBACK_STALE_CONTRACT_DATA_MANIFEST_VERSION', 'Generated Contract data manifest has the wrong manifest version.', {
-      expectedManifestVersion,
+      expectedManifestVersion: acceptedManifestVersions.length === 1 ? acceptedManifestVersions[0] : acceptedManifestVersions,
       actualManifestVersion: contractManifest.manifestVersion ?? null,
     });
   }
