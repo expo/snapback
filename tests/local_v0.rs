@@ -1067,6 +1067,116 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
     assert_eq!(error.diagnostic.details["dependency"]["id"], todo_id);
 }
 
+// @ref LLP 0032#phase-2--execution-semantics-honesty — E3: host-plan mutation
+// isolation is the client-supplied read_set baseline *by design* (Option A). A
+// stale optimistic baseline is rejected; a current baseline commits. This is the
+// principled OCC mechanism for atomic single-transaction host-plan mutations, not
+// a trust gap — the deciding read happened on the client, so only the client can
+// declare it.
+#[test]
+fn e3_hostplan_conflict_uses_client_baseline() {
+    let mut snapback = configured_snapback();
+    let created = snapback
+        .invoke_mutation("createTodo", input(json!({ "title": "E3" }), "user_1"))
+        .expect("create todo");
+    let todo_id = created.result.as_str().unwrap().to_owned();
+
+    // The client optimistically reads the row at V0.
+    let before = snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect("query at v0");
+    let v0 = before.rows[0]["_version"].as_u64().unwrap();
+
+    // Another mutation advances the same row to V1.
+    let bump = snapback
+        .invoke_mutation(
+            "setCompleted",
+            input(json!({ "id": todo_id.clone(), "completed": true }), "user_1"),
+        )
+        .expect("advance to v1");
+    let v1 = bump.version;
+    assert!(v1 > v0, "the bump must advance the row version");
+
+    // (A) A stale client baseline (V0) is rejected as a conflict — the host-plan
+    // mutation declared it read the row at V0, but the row is now at V1.
+    let stale = HandlerInput {
+        args: json!({ "id": todo_id.clone(), "completed": false }),
+        auth: auth("user_1"),
+        read_set: vec![ReadDependency {
+            table: "todos".to_owned(),
+            id: todo_id.clone(),
+            version: v0,
+        }],
+        correlation: None,
+    };
+    let error = snapback
+        .invoke_mutation("setCompleted", stale)
+        .expect_err("stale client baseline should conflict");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+
+    // (B) A current client baseline (V1) commits — the isolation contract holds
+    // for host-plan mutations through the client baseline, not just rejects.
+    let current = HandlerInput {
+        args: json!({ "id": todo_id.clone(), "completed": false }),
+        auth: auth("user_1"),
+        read_set: vec![ReadDependency {
+            table: "todos".to_owned(),
+            id: todo_id.clone(),
+            version: v1,
+        }],
+        correlation: None,
+    };
+    let committed = snapback
+        .invoke_mutation("setCompleted", current)
+        .expect("current client baseline should commit");
+    assert_eq!(committed.changed_count, 1);
+}
+
+// @ref LLP 0032#phase-2--execution-semantics-honesty — E3: demonstrates the
+// Finding's core claim — under the atomic single-transaction host-plan model,
+// server-side read capture is a no-op for conflict detection. With no client
+// baseline the unconditional plan commits against changed state, because any read
+// the server could capture inside the commit tx is already current, never stale.
+#[test]
+fn e3_hostplan_without_baseline_commits_against_changed_state() {
+    let mut snapback = configured_snapback();
+    let created = snapback
+        .invoke_mutation("createTodo", input(json!({ "title": "E3 no-op" }), "user_1"))
+        .expect("create todo");
+    let todo_id = created.result.as_str().unwrap().to_owned();
+
+    // The client optimistically observes V0 but never declares it.
+    let before = snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect("query at v0");
+    let v0 = before.rows[0]["_version"].as_u64().unwrap();
+
+    // A concurrent writer advances the row to V1.
+    let bump = snapback
+        .invoke_mutation(
+            "setCompleted",
+            input(json!({ "id": todo_id.clone(), "completed": true }), "user_1"),
+        )
+        .expect("advance to v1");
+    assert!(bump.version > v0);
+
+    // `input(..)` builds an EMPTY read_set — the host-plan mutation carries no
+    // client baseline. The server has no server-side read that predates the
+    // commit to capture, so it cannot know the client decided against the
+    // now-stale V0. The unconditional plan commits. A hypothetical
+    // "capture reads server-side" here would capture the *current* (V1) row inside
+    // the same transaction that commits — trivially consistent — so it would not
+    // change this outcome. Only the client baseline (see the test above) detects
+    // the stale optimistic read. => E3 Option A.
+    let committed = snapback
+        .invoke_mutation(
+            "setCompleted",
+            input(json!({ "id": todo_id.clone(), "completed": false }), "user_1"),
+        )
+        .expect("unconditional host-plan mutation commits with no baseline");
+    assert_eq!(committed.changed_count, 1);
+}
+
 #[test]
 fn reset_and_seed_are_deterministic_handler_bypass_paths() {
     let mut snapback = configured_snapback();

@@ -5,7 +5,7 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 R7: §Write Semantics annotated with current implementation status)
+**Revised:** 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012
 
 ## Summary
@@ -257,10 +257,13 @@ global mutation lock
 ([LLP 0003](./0003-local-code-hosting-and-storage-core.rfc.md) §Execution and
 Write Semantics). What must hold is the *observable* boundary — a handler never
 sees another request's uncommitted writes — not any particular scheduling of
-execution. (**Implementation status 2026-07-01:** the shipped v0 serializes on
-the global instance mutex, with no pinned snapshots; read-your-writes now works
-(LLP 0032 E2), but host-plan read capture (E3) and predicate-granularity
-validation (E4) remain. See LLP 0003's status callout and
+execution. (**Implementation status, updated 2026-07-02:** read-your-writes
+works (LLP 0032 E2), query-shaped read-set validation is predicate-granular
+(E4), and host-plan mutation isolation is the client-supplied `read_set` baseline
+*by design* (E3, decided Option A, pending Charlie's ratification — see the
+paragraph below). Query handlers now run on pinned WAL snapshots via the reader
+pool (LLP 0032 L6); mutation handlers still serialize on the global instance
+mutex. See LLP 0003's §Execution and Write Semantics callout and
 [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2.)
 
 All writes performed by one mutation should commit and publish as one changeset.
@@ -278,10 +281,16 @@ the write lock, mutation reads are not automatically protected by the final comm
 transaction. A mutation that reads data and later writes must therefore participate
 in the mutation isolation contract: the host records the rows, query ranges, and
 auth/permission facts the handler relied on, validates them at commit, and retries
-or rejects the mutation when those dependencies changed. App code must not assume
-that "server-authoritative" means stale reads can safely commit. The generated API
-and diagnostics should expose conflict failures distinctly from validation errors
-and ordinary thrown handler exceptions.
+or rejects the mutation when those dependencies changed. Host-plan mutations are
+the mirror image: they are unconditional write sequences with no server-side
+read-then-commit window, so the deciding read is the *client's* optimistic read,
+and the client supplies that baseline as `read_set` for the server to validate
+atomically at commit. Either way the same rule holds — a read-before-write cannot
+silently commit against invalidated assumptions — enforced at whichever party
+actually performed the read (LLP 0003 §Execution and Write Semantics; DK-1/E3,
+Option A). App code must not assume that "server-authoritative" means stale reads
+can safely commit. The generated API and diagnostics should expose conflict
+failures distinctly from validation errors and ordinary thrown handler exceptions.
 
 Generated IDs and timestamps should be injectable through the runtime so
 offline replay can produce stable inserts and timestamps later. The handler API

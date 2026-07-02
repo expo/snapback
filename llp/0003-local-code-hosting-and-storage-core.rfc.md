@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
+**Revised:** 2026-07-02 (LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, https://github.com/expo/valet, https://github.com/ccheever/ibex
 
 ## Summary
@@ -276,22 +276,34 @@ Hermes is not the limit — Ibex already pumps the microtask queue via
 > in-memory dev mode has no WAL and keeps the serialized fallback). *Mutation*
 > handlers still perform bare autocommit reads on the live write connection,
 > consistent because the global instance mutex serializes writers; their
-> pinned-snapshot form remains open under DK-1. **Blocking work is off the
+> pinned-snapshot form remains an open concurrency-control refinement, separate
+> from DK-1's now-resolved read-set-validation semantics (E2/E3/E4). **Blocking
+> work is off the
 > async workers (LLP 0032 L7):** Hermes eval and SQLite run only on blocking
 > threads (`lock_owned` + `spawn_blocking`, debug-asserted at the chokepoints),
 > so a slow handler occupies the write lane, not the server's async runtime.
 > **Read-your-writes is implemented (LLP 0032 E2):** a handler's buffered
 > `ctx.db` writes are layered over its own later reads, so insert-then-query
 > sees the row, a `patch` after a buffered insert reports `existed: true`, and
-> delete-then-get misses. Remaining gaps: host-plan mutations still validate
-> only the client-supplied read set rather than capturing reads server-side
-> (**E3** — coupled to DK-1 because, under the atomic single-transaction
-> host-plan model, server-captured reads cannot be stale, so closing the
-> trust-the-client asymmetry is a design question, not a mechanical capture).
-> Query-shaped read-set validation is predicate-granular (**E4**, landed
-> 2026-07-01). The mutation-isolation capability field
+> delete-then-get misses. **Host-plan mutation isolation is the client-supplied
+> read_set baseline by design (E3, decided 2026-07-02 — Option A, pending
+> Charlie's ratification):** a host-plan `MutationPlan` is an *unconditional*
+> write sequence whose reads and writes run in one commit transaction, so a
+> server-captured read there could never be stale relative to the commit —
+> capturing reads server-side would be a no-op for conflict detection. The
+> deciding read happened on the *client*; the client declares its baseline and
+> `execute_mutation` validates it atomically inside the commit transaction. This
+> is a principled optimistic-concurrency mechanism (version-match CAS, like HTTP
+> `If-Match`), **not** a trust gap: an omitted or dishonest baseline weakens only
+> that mutation's own isolation, never other writers' atomic, version-stamped
+> commits. Query-shaped read-set validation is predicate-granular (**E4**, landed
+> 2026-07-01). The one open concurrency-control refinement is that *mutation*
+> handlers still read on the live write connection rather than a pinned snapshot
+> (safe today because the global instance mutex serializes writers); DK-1's
+> isolation *semantics* are now fully resolved (E2/E3/E4). The mutation-isolation
+> capability field
 > ([LLP 0012](./0012-headless-integration-contract.spec.md)) reports the shipped
-> mode; DK-1 governs the remaining direction.
+> mode.
 
 The buffered model must not trade Valet's lock contention for silent stale-read
 bugs. A handler may read data, await, buffer writes, and then commit after another
@@ -318,6 +330,29 @@ matcher uses to decide which subscribed queries a committed write affects
 ([Realtime Pipeline](#realtime-pipeline);
 [LLP 0004](./0004-application-data-api.rfc.md) reactivity) — build it once and
 both the mutation-isolation check and reactive invalidation share it.
+
+Two execution models carry this baseline differently, and the difference is a
+consequence of *where the deciding read happens*, not an inconsistency (DK-1/E3):
+
+- **Server-executed handlers (Ibex).** The handler runs server-side and may read,
+  `await` (releasing the runtime lock), then buffer writes. Because the deciding
+  reads happen on the server at a snapshot that predates the commit, the host
+  *captures* them during execution and validates the captured set at commit. This
+  is the read-then-commit window the rule above exists to protect.
+- **Host-plan mutations.** A host-plan `MutationPlan` is an *unconditional* write
+  sequence (insert/patch/delete with values computed from args, not from queried
+  state); its reads and writes execute in one commit transaction under the global
+  mutex. There is no server-side read-then-commit window — any read the server
+  could capture inside that transaction is by construction current at commit, so
+  server capture would detect nothing. The read that can be stale is the
+  *client's* optimistic read, taken before the request against a snapshot the
+  server never saw. The client therefore supplies that baseline as `read_set`, and
+  the server validates it atomically inside the commit transaction. This is the
+  same rule — *mutations that read before writing cannot silently commit against
+  invalidated assumptions* — enforced at the party that actually performed the
+  read. A future option (E3 Option B) lets host-plan mutations carry declarative
+  conditional predicates the server evaluates atomically instead of a version
+  baseline; it is additive, not a correctness prerequisite.
 
 This separates *handler time* (async, lock-free, may compose many reads and
 writes) from *commit time* (synchronous, brief, holds the write lock). It

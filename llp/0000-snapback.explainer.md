@@ -6,7 +6,7 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (related LLP index and follow-on list updated for LLP 0036; same day, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Revised:** 2026-07-02 (decision ledger: DK-1/E3 host-plan mutation isolation decided — Option A, client-supplied read_set baseline by design, pending Charlie's ratification (DK-1 fully resolved); same day, DK-3 op-log deltas landed and DK-4 warm-VM leg shipped; related LLP index and follow-on list updated for LLP 0036; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
 **Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0035, LLP 0036, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
@@ -92,7 +92,9 @@ corpus does not rely on scattered "pending Charlie" notes.
   legs are host-plan read capture (E3 — a design question under the atomic
   single-transaction host-plan model, not a mechanical fix) and
   predicate-granularity validation (E4, gated on the M1 measurement). The
-  execution-semantics docs are honest about what ships versus the target.
+  execution-semantics docs are honest about what ships versus the target. (E4
+  landed 2026-07-01 predicate-granular; E3 decided 2026-07-02 — Option A — see
+  the 2026-07-02 entry below, which fully resolves DK-1.)
 - **2026-07-01:** the server route taxonomy
   ([LLP 0031](./0031-server-route-taxonomy.spec.md)) → Active: LLP 0032 S1
   implemented the app-data/system boundary — ungated root `/admin/*` aliases
@@ -187,6 +189,31 @@ corpus does not rely on scattered "pending Charlie" notes.
   fallback, so nothing breaks and no client that only understands `live_replace`
   regresses. This closes DK-3's op-log-delta leg; the cacheable-HTTP read lane
   stays deferred.
+- **2026-07-02 (pending Charlie's ratification nod):** host-plan mutation
+  isolation (docket DK-1, leg E3) is decided — **Option A: the client-supplied
+  `read_set` is the isolation mechanism for atomic host-plan mutations, by
+  design.** A host-plan `MutationPlan` is an *unconditional* write sequence whose
+  reads and writes execute in one commit transaction, so a server-captured read
+  can never be stale relative to the commit — "capture reads server-side" (the
+  original E3 target) is a no-op for conflict detection under this atomic model.
+  The read that can be stale is the *client's* optimistic read, taken before the
+  request against a snapshot the server never saw; the client declares that
+  baseline and `execute_mutation` enforces it atomically inside the commit
+  transaction (version-match CAS, the shape of HTTP `If-Match`). This is **not** a
+  trust gap: an omitted or dishonest baseline weakens only that mutation's own
+  isolation, never other writers' atomic, version-stamped commits. The asymmetry
+  with Ibex handlers is *justified* — Ibex reads → awaits → commits across an
+  async window, so the server performed the deciding read early and must capture
+  it; host-plan has no such window. **Option B** (host-plan mutations carrying
+  declarative conditional predicates the server evaluates atomically) is recorded
+  as a future, additive extension, not a correctness prerequisite. Zero code
+  change (`execute_mutation` already validates `input.read_set`); the leg is
+  honest docs + proving tests (`e3_hostplan_conflict_uses_client_baseline`,
+  `e3_hostplan_without_baseline_commits_against_changed_state`). With E2 and E4
+  (predicate-granular) already landed, **DK-1 is fully resolved**
+  ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2;
+  LLP 0003/0004/0007). *The integrator will surface E3 for Charlie's veto; it is
+  not pre-ratified.*
 
 ## Who Snapback is for
 

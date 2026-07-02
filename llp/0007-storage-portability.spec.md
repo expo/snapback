@@ -5,7 +5,7 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 R3/R7: id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract annotated with current implementation status)
+**Revised:** 2026-07-02 (LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011
 
 ## Summary
@@ -261,20 +261,34 @@ execution happens outside the final write lock, the storage contract must provid
 serializability by another means. The default v1 contract is read-set validation:
 every mutation records the row ids, query ranges, index cursors, table predicates,
 and auth/permission facts it read; at commit, the storage layer checks that those
-dependencies have not changed since the handler observed them. A changed
+dependencies have not changed since they were observed. Who records the read set
+depends on where the deciding read happens: a server-executed (Ibex) handler
+reads → awaits → commits, so the host *captures* the read set during execution; a
+host-plan mutation is an unconditional write sequence whose reads and writes run in
+one commit transaction (no server-side read-then-commit window), so the deciding
+read is the *client's* optimistic read and the client supplies it as the mutation's
+`read_set` baseline, which the server validates atomically at commit
+([LLP 0003](./0003-local-code-hosting-and-storage-core.rfc.md) §Execution and Write
+Semantics; DK-1/E3, Option A). A changed
 dependency produces either a deterministic retry or a structured conflict
 diagnostic. Silent commit against stale reads is outside the paved path for
 invariant-preserving mutations such as inventory, ordering, balances, or
 permission-gated writes.
 
-> **Implementation status (updated 2026-07-01, LLP 0032 Phase 2):** the shipped
-> v0 does not yet meet this contract in full. Read-your-writes now works
-> (LLP 0032 E2) and unknown query indexes fail closed (E5), but two gaps remain:
-> host-plan mutations validate only the client-supplied read set (E3), and
-> query-shaped dependencies validate at whole-table granularity (E4, gated on
-> M1) ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2;
-> DK-1 governs direction). LLP 0003 §Execution and Write Semantics carries the
-> full current-vs-target callout.
+> **Implementation status (updated 2026-07-02, LLP 0032 Phase 2):** the shipped
+> v0 now meets this contract's isolation semantics. Read-your-writes works
+> (LLP 0032 E2), unknown query indexes fail closed (E5), query-shaped
+> dependencies validate at predicate granularity (E4, landed after M1), and
+> host-plan mutations validate the client-supplied read set *by design* — under
+> the atomic single-transaction host-plan model the deciding read is the client's,
+> so the client declares the baseline and the server enforces it atomically at
+> commit (E3, decided 2026-07-02 — Option A, pending Charlie's ratification). DK-1
+> is fully resolved (E2/E3/E4)
+> ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2). The
+> one open concurrency-control refinement (mutation handlers reading on a pinned
+> snapshot rather than the live write connection) is separate from these isolation
+> semantics. LLP 0003 §Execution and Write Semantics carries the full
+> current-vs-target callout and the two-execution-models rationale.
 
 This atomicity must also hold for **optimistic client application**, not only
 server commit. Valet applied multi-row mutations optimistically as several separate

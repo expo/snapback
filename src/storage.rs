@@ -561,6 +561,16 @@ impl LocalDatabase {
         let next_version = current_version + 1;
         let tx = self.conn.transaction()?;
 
+        // @ref LLP 0032#phase-2--execution-semantics-honesty — E3 (Option A): the
+        // client-supplied read_set is the host-plan isolation mechanism *by
+        // design*, not a trust gap. A host-plan MutationPlan is an unconditional
+        // write sequence whose reads and writes run in this one transaction, so a
+        // server-captured read could never be stale relative to the commit —
+        // capturing reads here is a no-op for conflict detection. The deciding
+        // read happened on the client, so the client declares its baseline and the
+        // server enforces it atomically here. (Ibex handlers differ: they read →
+        // await → commit across an async window, so their reads are captured
+        // server-side and validated in `commit_buffered_writes`.)
         validate_read_set(&tx, &schema, &input.read_set)?;
 
         let mut bindings = BTreeMap::new();

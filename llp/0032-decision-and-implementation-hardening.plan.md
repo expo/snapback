@@ -501,22 +501,47 @@ recommended staging:
   `merge_buffered_into_query`), reusing the live matcher's
   `row_matches_query_filters`/`sort_key`/`compare_sort_keys` (LLP 0020's one
   extractor); test `e2_handler_reads_its_own_buffered_writes`.
-- **E3 — Host-plan read capture.** Host-plan mutations capture reads
-  server-side like Ibex handlers do (`src/storage.rs:423-559`), ending the
-  trust-the-client validation asymmetry. **Done when:** a host-plan
-  conflict test passes with no client-supplied `read_set`. **Finding
-  (2026-07-01), sequenced with DK-1's design:** host-plan `MutationPlan`s are
-  *unconditional* write sequences that execute reads and writes in **one
-  transaction** under the global mutex, so a server-captured read cannot be
-  stale relative to the commit — there is no read-then-commit window to
-  validate. Detecting the intended conflict (a client that optimistically read
-  stale state) therefore needs a *client-supplied baseline* (which is exactly
-  today's `input.read_set`), or a redesign where host-plan mutations carry
-  conditional read predicates. "Capture reads server-side" as a mechanical fix
-  is a no-op for conflict detection under the atomic model. This is a DK-1
-  design decision, not a mechanical step; it lands with the concurrency-model
-  resolution (pairs with L6 reader pool and the DK-1 outcome), **not** before
-  M1. Kept open with this rationale.
+- **E3 — Host-plan read capture → host-plan isolation decision.** The original
+  framing ("host-plan mutations capture reads server-side like Ibex handlers do,
+  ending the trust-the-client asymmetry"; done-when: "a host-plan conflict test
+  passes with no client-supplied `read_set`") was refuted by the Finding below.
+  **Finding (2026-07-01), sequenced with DK-1's design:** host-plan
+  `MutationPlan`s are *unconditional* write sequences that execute reads and
+  writes in **one transaction** (`src/storage.rs` `execute_mutation`) under the
+  global instance mutex, so a server-captured read cannot be stale relative to
+  the commit — there is no read-then-commit window to validate. Detecting the
+  intended conflict (a client that optimistically read stale state) therefore
+  needs a *client-supplied baseline* (which is exactly today's `input.read_set`),
+  or a redesign where host-plan mutations carry conditional read predicates.
+  "Capture reads server-side" as a mechanical fix is a no-op for conflict
+  detection under the atomic model. This is a DK-1 design decision, not a
+  mechanical step. **Decided 2026-07-02 — Option A (client-supplied baseline),
+  pending Charlie's ratification nod.** Rationale: the client-supplied
+  `input.read_set` is the *principled* optimistic-concurrency mechanism for
+  atomic host-plan mutations, not a trust asymmetry to be fixed. The deciding
+  read happened on the *client* (before the request), against a snapshot the
+  server never saw; the client declares that baseline and `execute_mutation`
+  enforces it atomically inside the commit transaction (version-match CAS, the
+  same shape as HTTP `If-Match`/ETags). A client that omits or lies about its
+  baseline only weakens *its own* mutation's isolation — it cannot corrupt other
+  writers (writes stay atomic and version-stamped) or gain authority — so this is
+  a division of labor, not a security gap. The asymmetry with Ibex handlers is
+  *justified by the execution model*: Ibex reads → awaits (releasing the lock) →
+  commits, so the server performed the deciding read at an earlier snapshot and
+  must capture it (`validate_captured_read_set`); host-plan has no server-side
+  read→decide→write, so there is nothing to capture. **Option B** (host-plan
+  mutations carry declarative conditional read predicates the server evaluates
+  atomically at commit) is recorded as a *future* extension — it enables guarded
+  writes without the client knowing exact versions, but it is strictly bigger
+  surface (a precondition language, portability, codegen, diagnostics) and does
+  not *replace* Option A's correctness; A already provides sound isolation today.
+  **Landed 2026-07-02 — zero code change** (`execute_mutation` already validates
+  `input.read_set` inside its commit `tx`); the leg is docs + tests. Tests
+  `e3_hostplan_conflict_uses_client_baseline` (stale baseline rejected, current
+  baseline commits) and `e3_hostplan_without_baseline_commits_against_changed_state`
+  (proves server-capture would add nothing under the atomic model). LLP 0003
+  §Execution and Write Semantics, LLP 0004 §Write Semantics, and LLP 0007 now
+  describe host-plan isolation as client-baseline-validated by design.
 - **E4 — Predicate-granularity validation.** Reuse the matcher's boundary
   facts (LLP 0020 Phase 3's "one extractor, three consumers" already names
   this) so disjoint-row writes to a queried table stop conflicting every
@@ -553,14 +578,16 @@ recommended staging:
   paragraph in LLP 0004 covering both. **Landed 2026-07-01** — LLP 0004
   §First-Slice API Decisions documents both.
 
-**Phase 2 status (2026-07-01):** E1 decided (implement-up, staged; ledgered),
-E2/E5/E6 landed with tests and the LLP 0003/0004/0007 status callouts updated
-to match. E3 is a DK-1 design decision (the atomic-host-plan finding above),
-not a mechanical step, and E4 is gated on M1 — both land in later phases by
-construction (E4 after Phase 4; E3 with the concurrency-model/DK-1 resolution).
-**Phase 2 Done when:** the semantics described in LLP 0003/0004/0007 §§ are the
-semantics `tests/local_v0.rs` demonstrates (holds for the landed legs), and
-DK-1's outcome is ledgered (done); E4/E3 close in their gated phases.
+**Phase 2 status (updated 2026-07-02):** E1 decided (implement-up, staged;
+ledgered), E2/E5/E6 landed with tests and the LLP 0003/0004/0007 status callouts
+updated to match. E4 landed (predicate-granular, after M1). E3 was a DK-1 design
+decision (the atomic-host-plan finding above), not a mechanical step, and is now
+**decided — Option A** (host-plan isolation is the client-supplied read_set
+baseline by design; zero code change), pending Charlie's ratification nod. With
+that, all of Phase 2's execution-semantics legs are closed and DK-1 is fully
+resolved (E2/E3/E4). **Phase 2 Done when:** the semantics described in
+LLP 0003/0004/0007 §§ are the semantics `tests/local_v0.rs` demonstrates (now
+holds for every leg), and DK-1's outcome is ledgered (done).
 
 ## Phase 3 — Lifecycle and resource hardening
 
@@ -1173,7 +1200,7 @@ Status column in place as rows close.
 
 | Id | Decision | Options (recommendation first) | Gate | Lands in | Status |
 | --- | --- | --- | --- | --- | --- |
-| DK-1 | Read-set validation semantics | Implement-up staged (E2→E3→E4); or honest-downgrade (ratify table-granularity serialized writes as v0 semantics) — R7's doc-honesty patch lands first either way | E1; E4 gated on M1 cost numbers | LLP 0003/0004/0007 | **Decided 2026-07-01 — implement-up, staged.** E2 landed; E3 pinned as design (atomic-host-plan finding); E4 pending M1 |
+| DK-1 | Read-set validation semantics | Implement-up staged (E2→E3→E4); or honest-downgrade (ratify table-granularity serialized writes as v0 semantics) — R7's doc-honesty patch lands first either way | E1; E4 gated on M1 cost numbers | LLP 0003/0004/0007 | **Decided 2026-07-01 — implement-up, staged; fully resolved 2026-07-02.** E2 landed; E4 landed after M1 (predicate-granular); E3 decided Option A (host-plan isolation is the client-supplied baseline *by design* — atomic-host-plan finding) with zero code change. All three legs closed; the E3 decision is **pending Charlie's ratification nod** (ledgered in LLP 0000) |
 | DK-2 | Commit-version graduation shape | Postgres sequence + logical-decoding feed; per-app shards (LLP 0018); HLC ordering | X1 design note | LLP 0007/0014 (+0012 wire impact) | Open — X1 |
 | DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | **Decided 2026-07-01 — v1 pin replace/WS. Trigger fired 2026-07-02 after DK-4 (M3, ~5 200×). Op-log deltas *landed* 2026-07-02 as an additive `live_delta` wire kind for the analyzable HostPlan subset (server + client + tests; LLP 0008 §Decision DK-3, resolves LLP 0034 OQ1); Ibex-passthrough and windowed deltas are future work. Cacheable read lane still deferred (hosted trigger)** |
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01; gated leg landed 2026-07-02** — warm VM pool + verified per-invocation reset shipped behind the `dk4_*` leak suite (LLP 0009 §DK-4 as-built; numbers in LLP 0035 §After warm VM) |
