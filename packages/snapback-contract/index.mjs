@@ -835,6 +835,10 @@ function validateBindingSet(manifest, functions, diag) {
   const expectedMutationNames = new Set();
 
   for (const fn of functions) {
+    // Actions are not Contract data bindings (codegen skips them when
+    // emitting descriptors) — cron-run functions like all-aboard's
+    // refreshFeed must not be demanded as query bindings.
+    if (fn.kind === 'Action') continue;
     if (fn.kind === 'Mutation') expectedMutationNames.add(fn.name);
     else expectedQueryNames.add(fn.name);
   }
