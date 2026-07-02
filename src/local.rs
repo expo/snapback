@@ -1107,7 +1107,9 @@ impl LocalSnapback {
         //   inactive:no-demand once no subscription to the named live query remains.
         // Disposed-by-disconnect markers go to the GLOBAL ring (the
         // connection's own ring dies with it) — LLP 0034 §3 / ENG-22478.
-        let snapshot_version = self.db.current_version().unwrap_or(0);
+        // No storage read here: disconnect runs on the WebSocket teardown
+        // path (an async worker; the L7 exec guard forbids rusqlite there),
+        // and a version-at-death fact is cosmetic — null is the honest value.
         for subscription in self
             .subscriptions
             .values()
@@ -1119,7 +1121,7 @@ impl LocalSnapback {
                 "reason": "disconnected",
                 "subscriptionId": subscription.id.clone(),
                 "scope": subscription.input.args.clone(),
-                "snapshotVersion": snapshot_version,
+                "snapshotVersion": Value::Null,
                 "receivedAtMs": now_ms,
             }));
         }

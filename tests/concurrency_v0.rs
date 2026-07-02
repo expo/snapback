@@ -585,6 +585,7 @@ fn input(args: Value, user_id: &str) -> HandlerInput {
             ..Default::default()
         },
         read_set: Vec::new(),
+        correlation: None,
     }
 }
 
