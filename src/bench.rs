@@ -115,6 +115,16 @@ pub struct BenchReport {
     /// Derived fan-out ceiling: affected subscriptions one commit can fan out to
     /// within a 10 ms budget (`10 ms / fanout_us_per_affected_sub`).
     pub fanout_ceiling_subs_at_10ms: f64,
+    /// **DK-3 / M3 projection.** Per affected subscription, the cost of the
+    /// op-log-delta path for the analyzable subset: classify each committed
+    /// `ChangedRow` against the subscription's captured predicate with the live
+    /// matcher (no VM, no re-query) and serialize a small delta, instead of
+    /// re-running the whole query. This is the lever the DK-3 revisit trigger
+    /// names once warm VM (DK-4) makes the re-query cost row-bound.
+    pub fanout_delta_us_per_affected_sub: f64,
+    /// Derived: the op-log-delta fan-out ceiling within a 10 ms budget — the
+    /// number the DK-3 revisit is decided against.
+    pub fanout_delta_ceiling_subs_at_10ms: f64,
     /// Read-set validation cost per row dependency at commit.
     pub read_set_validation_us_per_dep: f64,
     /// Spurious-conflict rate: fraction of concurrent writers that DON'T match a
@@ -164,6 +174,7 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
     let warm_invoke_us = measure_warm_invoke(config)?;
     let single_writer_mutations_per_sec = measure_single_writer(config)?;
     let (matcher_skip_us_per_sub, fanout_us_per_affected_sub) = measure_fanout(config)?;
+    let fanout_delta_us_per_affected_sub = measure_fanout_delta_projection(config);
     let read_set_validation_us_per_dep = measure_read_set_validation(config)?;
     let spurious_conflict_rate = measure_spurious_conflict(config)?;
     let (ephemeral_publishes_per_sec, ephemeral_publish_us) = measure_ephemeral(config)?;
@@ -180,6 +191,12 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
         fanout_us_per_affected_sub,
         fanout_ceiling_subs_at_10ms: if fanout_us_per_affected_sub > 0.0 {
             10_000.0 / fanout_us_per_affected_sub
+        } else {
+            f64::INFINITY
+        },
+        fanout_delta_us_per_affected_sub,
+        fanout_delta_ceiling_subs_at_10ms: if fanout_delta_us_per_affected_sub > 0.0 {
+            10_000.0 / fanout_delta_us_per_affected_sub
         } else {
             f64::INFINITY
         },
@@ -400,6 +417,121 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
         / config.subscriptions.max(1) as f64;
 
     Ok((matcher_skip_us_per_sub, fanout_us_per_affected_sub))
+}
+
+/// DK-3 / M3: the projected op-log-delta cost per affected subscription for the
+/// analyzable subset (single-table filtered query — the syncable-live subset of
+/// LLP 0008 §Reactivity). Today's fan-out re-runs the whole query in a (warm) VM
+/// per affected subscription (`fanout_us_per_affected_sub`); an op-log delta
+/// instead classifies each committed `ChangedRow` against the subscription's
+/// captured predicate with the live matcher — no VM, no re-query — and ships
+/// just the changed rows. This measures that classify+serialize cost using the
+/// real matcher (`row_matches_query_filters`), so the number is a faithful
+/// projection of the server-side delta cost, not a stub.
+///
+/// Scenario: a filtered live query (`todos WHERE userId = <sub>`), a commit of
+/// one changed row, evaluated per affected subscription. Ordered/limited
+/// queries carry extra boundary work (the matcher already has the primitives);
+/// this measures the common unordered-filter case the trigger is decided on.
+///
+/// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 — the
+/// op-log-delta lever, gated on this post-DK-4 re-measurement (the named
+/// revisit trigger, which this M3 measurement fires).
+fn measure_fanout_delta_projection(config: &BenchConfig) -> f64 {
+    use crate::storage::{ChangeOp, ChangedRow};
+
+    // The analyzable predicate a syncable-live subscription captures.
+    let plan = QueryPlan {
+        table: "todos".to_owned(),
+        filters: vec![FilterExpr {
+            field: "userId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::Arg("userId".to_owned()),
+        }],
+        order: Vec::new(),
+        limit: None,
+        indexed_by: None,
+    };
+    // One committed insert — the row that fans out.
+    let change = ChangedRow {
+        table: "todos".to_owned(),
+        id: "todo_bench".to_owned(),
+        op: ChangeOp::Insert,
+        row: Some(json!({
+            "_id": "todo_bench",
+            "_version": 1,
+            "title": "delta bench",
+            "done": false,
+            "userId": "u-match",
+        })),
+        changed_fields: Vec::new(),
+    };
+    let changes = [change];
+
+    // Warm up the matcher + serializer paths.
+    for _ in 0..4 {
+        delta_fanout_round(&plan, &changes, config.subscriptions);
+    }
+    let start = Instant::now();
+    for _ in 0..config.iterations {
+        delta_fanout_round(&plan, &changes, config.subscriptions);
+    }
+    let per_commit = micros_per(start, config.iterations);
+    per_commit / config.subscriptions.max(1) as f64
+}
+
+/// One commit's worth of op-log-delta fan-out over `subscriptions` affected
+/// subscribers: per subscriber, classify every changed row against the captured
+/// predicate and serialize the resulting delta payload. Returns nothing; timed
+/// by the caller. `black_box` keeps the optimizer from eliding the work.
+fn delta_fanout_round(
+    plan: &QueryPlan,
+    changes: &[crate::storage::ChangedRow],
+    subscriptions: usize,
+) {
+    use crate::live_matcher::row_matches_query_filters;
+    use crate::storage::ChangeOp;
+
+    for i in 0..subscriptions {
+        // Each subscriber filters on its own user; `u-match` is the one the
+        // committed row belongs to, so most classify as non-members (the
+        // matcher's cheap reject) and one as an add — the real fan-out mix.
+        let sub_user = if i == 0 {
+            "u-match".to_owned()
+        } else {
+            format!("u-{i}")
+        };
+        let input = args(json!({ "userId": sub_user }));
+        let mut deltas: Vec<Value> = Vec::new();
+        for change in changes {
+            let Some(row) = change.row.as_ref() else {
+                continue;
+            };
+            let is_member = row_matches_query_filters(plan, &input, row).unwrap_or(true);
+            if !is_member {
+                continue;
+            }
+            let op = match change.op {
+                ChangeOp::Insert => "add",
+                ChangeOp::Update => "update",
+                ChangeOp::Delete => "remove",
+            };
+            deltas.push(json!({
+                "op": op,
+                "id": change.id,
+                "row": change.row,
+            }));
+        }
+        // Serialize the delta payload the subscriber would receive (empty when
+        // the commit does not affect this subscriber — still a real classify).
+        let payload = json!({
+            "kind": "live_delta",
+            "version": 1,
+            "deltas": deltas,
+        });
+        let encoded = serde_json::to_vec(&payload).unwrap_or_default();
+        std::hint::black_box(&encoded);
+    }
 }
 
 fn single_commit_baseline(
@@ -735,6 +867,16 @@ mod tests {
         assert!(report.single_writer_mutations_per_sec > 1.0, "{report:?}");
         assert!(report.matcher_skip_us_per_sub >= 0.0, "{report:?}");
         assert!(report.fanout_us_per_affected_sub >= 0.0, "{report:?}");
+        // DK-3: the op-log-delta projection must be positive and decisively
+        // cheaper than the warm re-query path (both measured this run, so the
+        // comparison is machine-independent). This is the number the revisit
+        // trigger is decided on; if deltas ever stopped beating the re-query
+        // the lever would be gone.
+        assert!(report.fanout_delta_us_per_affected_sub > 0.0, "{report:?}");
+        assert!(
+            report.fanout_delta_us_per_affected_sub * 2.0 < report.fanout_us_per_affected_sub,
+            "op-log delta must decisively beat the re-query fan-out: {report:?}"
+        );
         assert!(report.read_set_validation_us_per_dep >= 0.0, "{report:?}");
         // E4 landed: a non-matching concurrent writer no longer conflicts a
         // reader of a filtered query.

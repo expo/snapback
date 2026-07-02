@@ -52,6 +52,14 @@ fn main() -> anyhow::Result<()> {
         report.fanout_ceiling_subs_at_10ms
     );
     println!(
+        "  op-log delta cost (DK-3 proj.):    {:>10.2} µs/sub  (classify changes + serialize; no re-query)",
+        report.fanout_delta_us_per_affected_sub
+    );
+    println!(
+        "  delta fan-out ceiling @ 10 ms:     {:>10.0} affected subs/commit  (the DK-3 lever)",
+        report.fanout_delta_ceiling_subs_at_10ms
+    );
+    println!(
         "  read-set validation cost:          {:>10.2} µs/dep",
         report.read_set_validation_us_per_dep
     );

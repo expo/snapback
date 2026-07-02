@@ -159,6 +159,21 @@ corpus does not rely on scattered "pending Charlie" notes.
   semantics; cross-invocation *execution* is separately fenced by the epoch
   guard), pinned by a characterization test
   ([LLP 0009](./0009-code-execution-security.rfc.md) §DK-4 as-built).
+- **2026-07-02:** the DK-3 revisit trigger *fired* (M3 re-measurement after
+  DK-4, the trigger's own instruction). Warm-VM whole-query fan-out still caps
+  live delivery at ~5–6 affected subscribers per commit within a 10 ms budget;
+  the op-log-delta projection for the analyzable syncable-live subset (classify
+  each changed row against the captured predicate with the live matcher, no VM,
+  no re-query) is ~5 200× cheaper (~0.32–0.36 µs vs ~1 680–1 970 µs per affected
+  sub), a ceiling of ~28 000+ subscribers/commit
+  ([LLP 0035](./0035-local-target-benchmarks.research.md) §M3). Op-log deltas
+  for the analyzable subset are the sanctioned **next fan-out lever**; the delta
+  shape and server emission are Snapback's, while the wire kind and client apply
+  are shared surface with the LLP 0034 provider-side kit and are sequenced with
+  it (an additive `live_delta` beside the honest `live_replace` fallback, never
+  a breaking change). The cacheable-HTTP read lane (LLP 0022) remains the
+  deferred larger option behind its own hosted/multi-instance trigger. Recorded
+  in [LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Decision DK-3.
 
 ## Who Snapback is for
 

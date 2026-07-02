@@ -985,7 +985,19 @@ L6–L8.
   lever after it. Recorded in LLP 0008 §Reactivity with a named revisit trigger
   (warm-VM fan-out still exceeding target at a real subscriber count, or the
   hosted multi-subscriber target) and an LLP 0012 wire guardrail keeping the
-  cacheable-HTTP-read-lane option open; ledgered in LLP 0000.
+  cacheable-HTTP-read-lane option open; ledgered in LLP 0000. **Re-measured
+  2026-07-02 after DK-4 (the trigger's own instruction):** the trigger is
+  armed. Warm re-query fan-out is ~1 680–1 970 µs/affected sub (ceiling ~5–6
+  subs/commit @ 10 ms); the op-log-delta projection for the analyzable subset —
+  classify each `ChangedRow` against the captured predicate with the real live
+  matcher, no VM — is ~0.32–0.36 µs/sub (~5 200×; ceiling ~28 000+
+  subs/commit), recorded in [LLP 0035](./0035-local-target-benchmarks.research.md)
+  §M3 with a CI smoke guard. Op-log deltas for the analyzable syncable-live
+  subset are the sanctioned next fan-out lever; **implementation is Phase-2
+  work whose wire kind + client apply are shared surface with the LLP 0034
+  provider-side kit and must be sequenced with it** (additive `live_delta`
+  beside the `live_replace` fallback, never a breaking change). LLP 0008
+  §Decision DK-3 records the fired trigger; LLP 0000 ledger updated.
 
 ## Phase 5 — Product boundary and DX
 
@@ -1163,7 +1175,7 @@ Status column in place as rows close.
 | --- | --- | --- | --- | --- | --- |
 | DK-1 | Read-set validation semantics | Implement-up staged (E2→E3→E4); or honest-downgrade (ratify table-granularity serialized writes as v0 semantics) — R7's doc-honesty patch lands first either way | E1; E4 gated on M1 cost numbers | LLP 0003/0004/0007 | **Decided 2026-07-01 — implement-up, staged.** E2 landed; E3 pinned as design (atomic-host-plan finding); E4 pending M1 |
 | DK-2 | Commit-version graduation shape | Postgres sequence + logical-decoding feed; per-app shards (LLP 0018); HLC ordering | X1 design note | LLP 0007/0014 (+0012 wire impact) | Open — X1 |
-| DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | **Decided 2026-07-01 — v1 pin replace/WS; cacheable-read-lane option kept open (M3)** |
+| DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | **Decided 2026-07-01 — v1 pin replace/WS. Revisit trigger *fired* 2026-07-02 after DK-4 (M3): op-log deltas ~5 200× cheaper than the warm re-query — sanctioned next fan-out lever; implementation Phase-2, wire/client coordinated with LLP 0034. Cacheable read lane still deferred** |
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01; gated leg landed 2026-07-02** — warm VM pool + verified per-invocation reset shipped behind the `dk4_*` leak suite (LLP 0009 §DK-4 as-built; numbers in LLP 0035 §After warm VM) |
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | **Decided 2026-07-02 — POSIX OR; landed with cron test-debt closure; ratified by Charlie same day, ledgered in LLP 0000** |

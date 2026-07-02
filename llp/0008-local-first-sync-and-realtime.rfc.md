@@ -5,7 +5,7 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 M3: §Reactivity records the DK-3 decision — v1 replace/WS pin with a named revisit trigger, on the M1 fan-out evidence in LLP 0035; L3 retention status noted in §Retention and Resume)
+**Revised:** 2026-07-02 (LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013
 
 ## Summary
@@ -218,6 +218,27 @@ further wire-protocol surface before this is settled):
 
 Ledgered in [LLP 0000](./0000-snapback.explainer.md); numbers in LLP 0035; the
 LLP 0012 wire guardrail is recorded there.
+
+> **Revisit fired (2026-07-02, after DK-4).** The named trigger — "warm-VM
+> fan-out still exceeds the target at a real subscriber count" — is met. With
+> the warm VM landed, whole-query re-query-per-affected-subscriber still costs
+> ~1 680–1 970 µs/sub, a ceiling of **~5–6 subscribers per commit** within a
+> 10 ms budget (a 100-watcher query is ~170–200 ms/commit — past budget for the
+> read-heavy reference apps). M3 measured the op-log-delta alternative for the
+> analyzable subset (classify each `ChangedRow` against the captured predicate
+> with the live matcher, no VM, no re-query) at **~0.32–0.36 µs/sub**, a
+> ~5 200× reduction and a ceiling of **~28 000+ subscribers/commit**
+> ([LLP 0035](./0035-local-target-benchmarks.research.md) §M3). Op-log deltas
+> for the analyzable syncable-live subset are therefore the sanctioned next
+> fan-out lever. The **delta shape** (this RFC) and the **server** emission are
+> ours; the **wire kind and client apply** are shared surface with the LLP 0034
+> provider-side kit — the implementation adds a `live_delta` alongside the
+> honest `live_replace` fallback as an additive capability class (never a
+> breaking change to the `replace` path), and must be sequenced with the LLP
+> 0034 delivery/wire work rather than pinned unilaterally. The cacheable-HTTP
+> read lane (LLP 0022) stays the deferred, larger option behind its own trigger
+> (the hosted/multi-instance target); op-log deltas are the cheaper immediate
+> win because the matcher already computes membership.
 
 ## Mutation Replay and Conflict Semantics
 

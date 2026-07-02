@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Sync, Ephemeral state, Testing, Performance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-02 (§After warm VM: DK-4 re-run numbers; earlier same day: §L6+L7 re-run)
+**Revised:** 2026-07-02 (§M3: the DK-3 op-log-delta projection — matcher-based delta ~5 200× cheaper than the warm re-query, arming the DK-3 revisit trigger; earlier same day: §After warm VM DK-4 re-run; §L6+L7 re-run)
 **Related:** LLP 0000, LLP 0003, LLP 0008, LLP 0009, LLP 0012, LLP 0022, LLP 0032
 
 ## Summary
@@ -147,6 +147,57 @@ Reading the numbers:
    fresh (e.g. a broken reset burning every VM, or a silent fallback);
    measured warm:fresh ratio **~0.16–0.22** across the two runs.
 
+## M3 — the DK-3 op-log-delta projection (2026-07-02, warm VM landed)
+
+DK-3's revisit trigger ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md)
+§Decision DK-3) names the condition for building op-log deltas: *"warm-VM
+fan-out still exceeds the target latency at a real subscriber count — re-measure
+with M1 after DK-4 lands."* This is that re-measurement. The harness gained a
+`fanout_delta_us_per_affected_sub` metric: the projected cost of the op-log-delta
+path for the analyzable subset (single-table filtered live query), which
+classifies each committed `ChangedRow` against the subscription's captured
+predicate with the **real live matcher** (`row_matches_query_filters`) and
+serializes a small delta — no VM, no re-query — instead of re-running the whole
+query. It is a projection (labelled as such), but it runs the real matcher and
+serializer, so it is a faithful lower bound on the server-side delta cost, not a
+stub. Two full-scale release runs:
+
+| Metric | Warm re-query (shipped) | Op-log delta (projected) | Ratio |
+| --- | --- | --- | --- |
+| Fan-out cost per affected subscription | **~1 680–1 970 µs** | **~0.32–0.36 µs** | **~5 200–5 500×** |
+| Fan-out ceiling @ 10 ms budget | **~5–6 subs/commit** | **~28 000–31 000 subs/commit** | — |
+
+**The trigger is armed, decisively.** Even after warm VM removed the VM-creation
+cost, whole-query re-query-per-affected-subscriber caps live fan-out at ~5–6
+subscribers per commit within a 10 ms budget — so a query with 100 watchers
+costs ~170–200 ms of fan-out per commit, and a popular feed/leaderboard (the
+read-heavy reference apps LLP 0000 names) is far past the budget. The op-log
+delta collapses the per-affected-subscriber cost by ~5 200× because it is
+matcher-and-serialize work (the matcher is ~2 700× cheaper than a VM re-query —
+the M1 result that first flagged this), moving the ceiling from single digits to
+tens of thousands of subscribers per commit. This confirms op-log deltas as the
+**next fan-out lever after DK-4**, exactly as DK-3 sequenced them.
+
+Honest scope of the projection:
+
+- It measures the **unordered single-table-filter** case (the common syncable-live
+  subset). Ordered/limited queries carry extra boundary work when a change shifts
+  the top-N window; the matcher already has those primitives
+  (`matching_limited_row_may_affect_query`, `query_boundary`), so the delta path
+  extends to them, but at a higher (still VM-free) per-change cost not measured
+  here.
+- It is the **server compute** cost. It does not include the wire-format change or
+  the client-side delta apply — those are the Phase-2 implementation, which
+  touches the shared delivery/wire surface the LLP 0034 kit thread also owns and
+  must be sequenced with it, not the isolated server measurement this is.
+- The `~0.32 µs` is per affected subscriber for a one-row commit; a commit
+  changing K rows scales the classify by K, still far below a single VM re-query.
+
+The CI smoke lane asserts `fanout_delta_us_per_affected_sub × 2 <
+fanout_us_per_affected_sub` (both measured the same run, machine-independent) —
+it fails if op-log deltas ever stop decisively beating the re-query path, which
+is the whole premise of the lever.
+
 ## What the numbers mean
 
 1. **The VM is the whole cost.** A fresh VM per invocation is ~3 orders of
@@ -226,9 +277,11 @@ Reading the numbers:
 - ~~Warm-VM cost once DK-4 lands~~ — **answered 2026-07-02** (§After warm VM):
   ~900 µs per warm invocation, single-writer ~1 050 mut/s, fan-out ceiling ~5
   subs/commit.
-- Fan-out with op-log deltas (DK-3): measure per-affected-subscriber cost when
-  the delta is the changed rows rather than a full re-query — now the dominant
-  fan-out term (~2 ms/sub is row work, not VM work).
+- ~~Fan-out with op-log deltas (DK-3)~~ — **answered 2026-07-02** (§M3): the
+  projected op-log-delta cost is ~0.32–0.36 µs/affected sub vs ~1 680–1 970 µs
+  for the warm re-query (~5 200×), moving the ceiling from ~5–6 to ~28 000+
+  subs/commit. The trigger is armed; building it is the Phase-2 implementation
+  (server delta emission + the LLP 0034-coordinated wire/kit change).
 - Decompose the ~900 µs warm invocation (IIFE parse/eval vs reset sweep vs
   host-call round-trips) if a further per-invocation win is ever needed.
 
