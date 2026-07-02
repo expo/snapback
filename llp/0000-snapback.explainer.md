@@ -125,6 +125,17 @@ corpus does not rely on scattered "pending Charlie" notes.
   still open), and LLP 0001/0022 stay Draft (`ref-check` enforces that Active
   documents carry no `[inferred]` claims, and both keep inference-tagged
   analysis). All other documents remain Draft, verified accurate.
+- **2026-07-02:** cron day-matching semantics (docket DK-6) are decided and
+  ratified by Charlie: day-of-month and day-of-week combine with **POSIX OR**
+  when both are restricted (`0 0 13 * 5` fires on every 13th and every
+  Friday), AND-equivalent otherwise — a deliberate breaking change from the
+  initial AND behavior, chosen to match user expectation and standard cron;
+  a stepped day field (`*/2`) counts as restricted (documented divergence
+  from Vixie's `*`-spelling flag so every valid expression provably fires
+  within the bounded scan). Unsatisfiable expressions now fail validation
+  instead of silently never firing
+  ([LLP 0028](./0028-cron-scheduled-execution.rfc.md) §Calendar expression
+  semantics).
 
 ## Who Snapback is for
 
