@@ -4,9 +4,9 @@ use crate::cron::{
 };
 use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
-    CollectionEnsureOutcome, DeleteRequest, EphemeralCollection, EphemeralDiagnostics,
-    EphemeralMessage, LocalEphemeralBackend, PublishOutcome, PublishRequest, RealtimeEnvelope,
-    SubscribeRequest,
+    CollectionEnsureOutcome, DeleteRequest, DeliveryNotifier, EphemeralCollection,
+    EphemeralDiagnostics, EphemeralMessage, LocalEphemeralBackend, PublishOutcome, PublishRequest,
+    RealtimeEnvelope, SubscribeRequest,
 };
 use crate::live_matcher::{live_subscription_may_be_affected, query_dependencies_from_plan};
 use crate::manifest::{
@@ -993,6 +993,12 @@ impl LocalSnapback {
 
     pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
         self.db.table_change_version(table)
+    }
+
+    /// The delivery notifier the WebSocket task registers with, so a push wakes
+    /// it immediately instead of waiting for a poll (L8).
+    pub fn delivery_notifier(&self) -> Arc<DeliveryNotifier> {
+        self.ephemeral.delivery_notifier()
     }
 
     pub fn drain_live_stream(&mut self, connection_id: &str) -> Vec<String> {

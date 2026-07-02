@@ -677,7 +677,15 @@ change the concurrency architecture and should land as one reviewed arc.
   connections. Replace with wakeup notification (the change-notification
   seam LLP 0008 already declares swappable); keep poll as a fallback lane.
   **Done when:** idle connections generate zero periodic lock traffic and a
-  latency test shows sub-poll-interval delivery.
+  latency test shows sub-poll-interval delivery. **Landed 2026-07-01** — a
+  `DeliveryNotifier` (per-connection `tokio::Notify`) is woken at every enqueue
+  site (durable fan-out + ephemeral fan-out); the WS loop registers, drains once
+  to close the startup race (enqueues are serialized under the global lock), and
+  then `select!`s on the waker instead of a 25ms tick, so delivery is on-enqueue
+  (sub-millisecond, no poll floor). The poll is replaced by a 30s defensive
+  heartbeat (~1200× less lock traffic — effectively idle). Test
+  `l8_enqueue_wakes_the_registered_delivery_waiter`; the WS integration tests
+  confirm end-to-end delivery.
 - **L9 — Ephemeral room authority off the global mutex.** Owned by
   [LLP 0026](./0026-ephemeral-backend-abstraction.plan.md); this plan only
   sequences it (after L4, alongside L6–L8). Also close the scope-epoch

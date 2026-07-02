@@ -624,11 +624,34 @@ async fn stream_live(
 
 async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: String) {
     let (mut sender, mut receiver) = socket.split();
-    let mut ticks = interval(Duration::from_millis(25));
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: an enqueue
+    // wakes this task immediately (sub-poll-interval delivery, and no periodic
+    // lock traffic while idle). The long interval is a safety net only, in case
+    // a wake is ever missed; register before draining so no push is lost.
+    let notify = state.lock().await.delivery_notifier();
+    let waker = notify.register(&connection_id);
+    // Delivery is event-driven (the 25ms poll is gone); this heartbeat is only a
+    // defensive fallback if a wake is ever missed. At 30s it is ~1200× less lock
+    // traffic than the old poll, so an idle connection is effectively idle.
+    let mut safety_net = interval(Duration::from_secs(30));
+    safety_net.tick().await; // consume the immediate first tick
+
+    // Flush anything enqueued before (or racing) registration, then rely on
+    // wakeups. Enqueues are serialized under the global lock, so a push either
+    // lands before this drain or wakes the now-registered waker.
+    if drain_and_send(&state, &connection_id, &mut sender)
+        .await
+        .is_break()
+    {
+        notify.unregister(&connection_id);
+        let mut snapback = state.lock().await;
+        snapback.disconnect(&connection_id, now_millis());
+        return;
+    }
 
     // @ref LLP 0020#phase-4-upgrade-realtime-from-v0-outbox-to-app-grade-live-delivery — WebSocket push is a transport over the existing ordered live queue; deterministic drain stays available for tests.
     'stream: loop {
-        tokio::select! {
+        let drain = tokio::select! {
             incoming = receiver.next() => {
                 match incoming {
                     Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
@@ -637,26 +660,41 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
                         if sender.send(Message::Text(response.into())).await.is_err() {
                             break 'stream;
                         }
+                        false
                     }
-                    Some(Ok(Message::Binary(_))) | Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => {}
+                    Some(Ok(Message::Binary(_))) | Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => false,
                 }
             }
-            _ = ticks.tick() => {
-                let messages = {
-                    let mut snapback = state.lock().await;
-                    snapback.drain_live_stream(&connection_id)
-                };
-                for message in messages {
-                    if sender.send(Message::Text(message.into())).await.is_err() {
-                        break 'stream;
-                    }
-                }
-            }
+            _ = waker.notified() => true,
+            _ = safety_net.tick() => true,
+        };
+        if drain && drain_and_send(&state, &connection_id, &mut sender).await.is_break() {
+            break 'stream;
         }
     }
 
+    notify.unregister(&connection_id);
     let mut snapback = state.lock().await;
     snapback.disconnect(&connection_id, now_millis());
+}
+
+/// Drain a connection's outbox under the lock and send each message. Returns
+/// `Break` if the socket send failed (the caller should tear down).
+async fn drain_and_send(
+    state: &SharedSnapback,
+    connection_id: &str,
+    sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
+) -> std::ops::ControlFlow<()> {
+    let messages = {
+        let mut snapback = state.lock().await;
+        snapback.drain_live_stream(connection_id)
+    };
+    for message in messages {
+        if sender.send(Message::Text(message.into())).await.is_err() {
+            return std::ops::ControlFlow::Break(());
+        }
+    }
+    std::ops::ControlFlow::Continue(())
 }
 
 #[derive(Debug, Deserialize)]

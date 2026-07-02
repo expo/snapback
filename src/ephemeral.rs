@@ -1,7 +1,44 @@
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
+use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tokio::sync::Notify;
+
+/// Wakes the per-connection delivery task the moment a message is enqueued for
+/// it, so the WebSocket loop no longer polls on a fixed interval (L8). A
+/// connection with no registered waiter — embedded/test use, or an HTTP-polling
+/// client — is a no-op wake. `tokio::sync::Notify` stores one permit, so a wake
+/// that races an in-progress drain is not lost.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: event-driven delivery.
+#[derive(Default)]
+pub struct DeliveryNotifier {
+    waiters: StdMutex<HashMap<String, Arc<Notify>>>,
+}
+
+impl DeliveryNotifier {
+    /// Register interest in a connection's deliveries and get its waker.
+    pub fn register(&self, connection_id: &str) -> Arc<Notify> {
+        let notify = Arc::new(Notify::new());
+        self.waiters
+            .lock()
+            .unwrap()
+            .insert(connection_id.to_owned(), notify.clone());
+        notify
+    }
+
+    pub fn unregister(&self, connection_id: &str) {
+        self.waiters.lock().unwrap().remove(connection_id);
+    }
+
+    fn wake(&self, connection_id: &str) {
+        if let Some(notify) = self.waiters.lock().unwrap().get(connection_id) {
+            notify.notify_one();
+        }
+    }
+}
 
 pub type Millis = u64;
 pub type ConnectionId = String;
@@ -671,6 +708,9 @@ pub struct LocalEphemeralBackend {
     rate_buckets: BTreeMap<(ConnectionId, String), RateBucket>,
     outbox: BTreeMap<ConnectionId, OutboundQueue>,
     diagnostics: EphemeralDiagnostics,
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: wakes the
+    // delivery task on enqueue instead of a 25ms poll.
+    delivery: Arc<DeliveryNotifier>,
 }
 
 impl Default for LocalEphemeralBackend {
@@ -687,7 +727,13 @@ impl LocalEphemeralBackend {
             rate_buckets: BTreeMap::new(),
             outbox: BTreeMap::new(),
             diagnostics: EphemeralDiagnostics::default(),
+            delivery: Arc::new(DeliveryNotifier::default()),
         }
+    }
+
+    /// The notifier the delivery task registers with (L8).
+    pub fn delivery_notifier(&self) -> Arc<DeliveryNotifier> {
+        self.delivery.clone()
     }
 
     pub fn register_collection(&mut self, collection: EphemeralCollection) {
@@ -963,12 +1009,13 @@ impl LocalEphemeralBackend {
         let connection_id = connection_id.into();
         let overflowed = self
             .outbox
-            .entry(connection_id)
+            .entry(connection_id.clone())
             .or_insert_with(|| OutboundQueue::new(1_024))
             .push_durable(DurableMessage { payload });
         if overflowed {
             self.diagnostics.outbox_overflows += 1;
         }
+        self.delivery.wake(&connection_id);
     }
 
     pub fn drain_outbox(&mut self, connection_id: &str) -> Vec<RealtimeEnvelope> {
@@ -1281,6 +1328,8 @@ impl LocalEphemeralBackend {
             if result.overflowed {
                 self.diagnostics.outbox_overflows += 1;
             }
+            // L8: wake the subscriber's delivery task.
+            self.delivery.wake(&connection_id);
         }
     }
 
@@ -1464,6 +1513,27 @@ impl ClientEphemeralOverlay {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// LLP 0032 L8 — an enqueue wakes the registered delivery waiter (and the
+    /// wake permit survives a race with a not-yet-waiting task), while an
+    /// unregistered connection is a no-op.
+    #[tokio::test]
+    async fn l8_enqueue_wakes_the_registered_delivery_waiter() {
+        let mut backend = LocalEphemeralBackend::new();
+        let notifier = backend.delivery_notifier();
+        let waker = notifier.register("conn");
+
+        // Enqueue before anyone awaits: the permit is stored.
+        backend.enqueue_durable("conn", b"{}".to_vec());
+        // notified() returns immediately thanks to the stored permit.
+        tokio::time::timeout(std::time::Duration::from_secs(1), waker.notified())
+            .await
+            .expect("a durable enqueue must wake the registered waiter");
+
+        // After unregister, waking is a no-op (nothing panics; nobody is woken).
+        notifier.unregister("conn");
+        backend.enqueue_durable("conn", b"{}".to_vec());
+    }
 
     fn scope() -> Scope {
         Scope::from_pairs([("boardId", "board-1")])
