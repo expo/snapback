@@ -121,3 +121,11 @@ move LLP 0013 beyond Draft by itself — WebSocket inbound publish, hosted
 adapters, and generated `defineEphemeral` syntax are still open — but it is the
 right first rung to measure fan-out and keep agents from storing cursors in
 SQLite.
+
+---
+
+**Erratum (2026-07-01):** the header cites "LLP 0024" as this demo's plan. No
+whiteboard demo plan was ever committed at any number — the draft this diary
+cited never landed, and today's LLP 0024 is the agent operating-surface spec.
+Appended per the diary policy in LLP 0016 (originals are never rewritten);
+context in LLP 0032 R3.

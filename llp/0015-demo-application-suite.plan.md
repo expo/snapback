@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Reference apps, Contract/Exact, Client integration, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-01 (updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
+**Revised:** 2026-07-01 (LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; earlier: updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, LLP 0025, LLP 0027, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
 
 ## Summary
@@ -381,8 +381,17 @@ The demo ladder follows LLP 0010's acceptance ladder. The early order should be:
 3. kanban: multi-row optimistic reorder and realtime collaboration;
 4. card game: authorization-aware partial sync where clients see different
    subsets of the same state;
-5. party: RSVP live update, multi-table reads, notification stub when available;
-6. asset slice: upload metadata and processed-media state once assets exist.
+5. task tracker: per LLP 0010's acceptance ladder (an earlier revision of this
+   list omitted it; restored 2026-07-01 via LLP 0032 R3);
+6. party: RSVP live update, multi-table reads, notification stub when available;
+7. asset slice: upload metadata and processed-media state once assets exist.
+
+Shipped so far (as of 2026-07-01): todo, todo-v2 (Contract), the web cursor
+presence demo ([LLP 0025](./0025-web-cursor-presence-demo.plan.md)), and All
+Aboard ([LLP 0027](./0027-all-aboard-caltrain-demo.plan.md)), plus the admin
+console and a headless graffiti-board exercise (Diary 0006; its demo directory
+never landed). The numbered ladder above remains the forward plan for the
+capability-proof demos; deviations are recorded in diaries as they happen.
 
 Each new demo should start headless, then add the highest-value product surface.
 For app UI, the default surface is Contract/Exact unless the needed Exact or

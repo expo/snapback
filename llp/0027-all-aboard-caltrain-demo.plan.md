@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Cron, Realtime, Data gateway, Contract/Exact, Notifications, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
+**Revised:** 2026-07-01 (LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
 **Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0009, LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0024, LLP 0028, LLP 0029, Diary 0008, https://github.com/ccheever/ibex, https://openrouteservice.org, https://en.wikipedia.org/wiki/List_of_Caltrain_stations, https://511.org/open-data/transit
 
 ## Summary
@@ -575,7 +575,7 @@ to [LLP 0015](./0015-demo-application-suite.plan.md#demo-model)):
   },
   "surfaces": {
     "headless": { "requirement": "required" },
-    "contract": { "requirement": "required", "exact": { "gestures": true, "geolocation": true, "image": true } }
+    "contract": { "requirement": "required", "exact": { "gestures": false, "geolocation": true, "image": true } }
   },
   "capabilityGaps": [
     "cron_scheduled_execution",

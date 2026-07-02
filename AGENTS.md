@@ -87,6 +87,8 @@ them after normal checkout/merge operations in this local clone.
 - Prefer updating an existing LLP over creating a new one when the topic is
   already covered.
 - Land doc updates in the same commit as the code change that motivated them.
+- Run the LLP corpus audit (`llp-maintain`-style) before each demo lands and
+  after each LLP 0032 phase completes (LLP 0016's reconcile cadence).
 - Before running `cargo build`, `cargo test`, or `cargo run` on a clean checkout,
   run `scripts/bootstrap-ibex-runtime`. Snapback links the vendored
   `ibex-runtime` crate, which needs ignored Hermes headers/frameworks and tools.

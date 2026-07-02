@@ -5,7 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-29 (related LLP index updated for LLP 0026)
+**Revised:** 2026-07-01 (LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026
 
 ## Summary
@@ -540,11 +540,14 @@ not participate in the same atomic transaction as `ctx.db` writes, should not be
 reported as durable mutation changesets, and should not be required for durable
 correctness. If a mutation needs a durable side effect, it belongs in `ctx.db`.
 If it needs a best-effort live annotation, it can publish ephemeral state after
-commit. "After commit" is load-bearing: the durable write path serializes every
-mutation through a single-writer lock held for the whole handler
-([LLP 0003](./0003-local-code-hosting-and-storage-core.rfc.md) §Execution and Write
-Semantics, [LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Local Store), so
-high-frequency ephemeral fan-out must happen *outside* that lock or it would
+commit. "After commit" is load-bearing: the ratified write path drives the
+handler to completion and applies its buffered writes in one brief commit-time
+transaction ([LLP 0003](./0003-local-code-hosting-and-storage-core.rfc.md)
+§Execution and Write Semantics,
+[LLP 0009](./0009-code-execution-security.rfc.md) §Runtime Boundary — an
+earlier draft of this section cited the superseded whole-handler lock model),
+so ephemeral publishes must not join that transaction, and high-frequency
+ephemeral fan-out must stay off the durable write path or it would
 reintroduce the very write-path pressure this subsystem exists to avoid. Room maps
 and subscriber lists are Rust host state, not state inside any JavaScript isolate;
 `ctx.ephemeral` is a host call out of the sandbox like `ctx.db`, so it is orthogonal

@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-06-27
+**Revised:** 2026-07-01 (LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024
 
 ## Summary
@@ -105,7 +105,11 @@ It does not own:
   not be the default "code runner."
 - **Local safe by default.** The local console should be convenient on
   `127.0.0.1` and conservative when bound to non-loopback interfaces. Hosted
-  admin access must require real authorization before it is enabled.
+  admin access must require real authorization before it is enabled. (The v0
+  `/admin/*` aliases initially shipped ungated on every bind, violating this
+  principle; LLP 0032 S0 closed that on 2026-07-01 — all admin writes now
+  share the token/loopback gate — and full alias retirement is
+  [LLP 0031](./0031-server-route-taxonomy.spec.md).)
 
 ## Serving Model
 
@@ -507,12 +511,17 @@ the UI. It deliberately still shows only what the `admin` capability block
 reports — no placeholder controls — so direct edits, raw SQL, and the remaining
 ephemeral mutating controls stay absent until the API exposes them.
 
-One renderer finding worth recording: the Exact layout kernel under-measures
-content **published into a boundary after first paint** — bare flex rows collapse
-to height 0 and tall multi-line text overflows its container, while the same
-markup measures correctly on initial render. The console works around it by
-giving dynamic rows an explicit `minHeight` and rendering code/JSON output in
-fixed-height `scroll` blocks; diary 0005 has the diagnosis.
+One renderer finding worth recording — since corrected: the console observed
+content **published into a boundary after first paint** collapsing (bare flex
+rows to height 0, tall multi-line text overflowing), while the same markup
+measured correctly on initial render. Diary 0005 diagnosed it as the Exact
+layout kernel under-measuring;
+[LLP 0023](./0023-admin-console-dev-serve-loop.rfc.md) corrected the diagnosis
+— a `flex-shrink` default mismatch in the `dom-mirror` web host, not a
+measurement bug — fixed upstream in Exact ENG-22199 (resize manifestation
+verified under ENG-22214). The console's workarounds (explicit `minHeight` on
+dynamic rows, fixed-height `scroll` blocks for code/JSON output) predate that
+fix and can be retired when convenient.
 
 ## Validation Requirements
 

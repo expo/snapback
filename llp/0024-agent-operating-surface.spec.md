@@ -5,8 +5,18 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27
+**Revised:** 2026-07-01 (LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023
+
+> **Implementation status (2026-07-01):** this Spec pins a contract; the
+> surface is **not built**. No `snapback` CLI binary, host-ops HTTP endpoint,
+> or MCP projection exists — the only way to run the local server today is a
+> source-tree `cargo run`
+> ([LLP 0030](./0030-managed-snapback-vite-dev.rfc.md) records this). The
+> first built slice is scheduled as
+> [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) P6; this
+> banner flips per verb as slices land. Read the tables below as a pinned
+> contract, not an existing API.
 
 ## Summary
 

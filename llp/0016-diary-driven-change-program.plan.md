@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Client integration, API, Runtime, Sync, Realtime, Security, Auth, Contract/Exact, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-06-27 (Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
+**Revised:** 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted; 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, Diary 0001, Exact 0263, Exact 0265
 
 ## Summary
@@ -364,9 +364,9 @@ demo-local glue or prove one harder runtime capability.
 
 The demo corpus and its order are owned by LLP 0015, with LLP 0010 as the
 acceptance-ladder authority. LLP 0010's ladder is todo → messaging → kanban →
-card game → task tracker → party → asset slice. LLP 0015 currently says it
-follows LLP 0010 but omits task tracker from its early demo ladder; that should
-be reconciled in LLP 0015. This Plan does not reorder that ladder. An earlier
+card game → task tracker → party → asset slice. LLP 0015 briefly omitted task
+tracker from its early demo ladder; reconciled in LLP 0015 on 2026-07-01
+(LLP 0032 R3). This Plan does not reorder that ladder. An earlier
 draft of this section implied kanban before messaging and dropped the asset
 slice; that conflicted with LLP 0015 and is corrected here. What this Plan adds
 is the admission rule and the mapping from each demo to the capability that must
@@ -393,6 +393,15 @@ inventory**: the demo-local bridge, resolver, descriptor, seed, outbox,
 Vite-alias, and provider files it still carries, with a count or line total.
 The number should fall as phases land. If it rises, or a second demo re-copies
 the same glue, that is evidence the relevant phase is not actually complete.
+
+Two standing corpus rules (adopted 2026-07-01 via LLP 0032 R3/R6):
+
+- **Diaries are immutable point-in-time records.** Corrections append a dated
+  erratum footnote; the original text is never rewritten. (First applied to
+  Diary 0006's dangling "LLP 0024" whiteboard-plan citation.)
+- **Reconcile cadence.** Run the `llp-maintain`-style corpus audit before each
+  demo lands and after each LLP 0032 phase completes, so status and
+  cross-reference drift is caught at the boundaries where it accumulates.
 
 ## Non-Goals
 
@@ -438,8 +447,8 @@ the same glue, that is evidence the relevant phase is not actually complete.
   acceptance gates assert the class (Phase 3 reports Online until the four
   Parity conditions exist).
 - **R6 — Demo-ladder drift.** This Plan, LLP 0015, and LLP 0010 can diverge on
-  demo order or contents (they already did once, and LLP 0015 currently omits
-  task tracker from the early ladder despite citing LLP 0010). *Mitigation:*
+  demo order or contents (they already did twice; the LLP 0015 task-tracker
+  omission was reconciled 2026-07-01). *Mitigation:*
   LLP 0015 owns the corpus, LLP 0010 owns the acceptance ladder, and this Plan
   only maps demos to gating capabilities; reconcile all three whenever any of
   them changes.
