@@ -6,7 +6,7 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (decision ledger: LLP 0011 v1 auth/sync direction ratified; earlier same day: DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation; earlier same day: DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0037 and repairs the missing LLP 0034 entry; earlier same day: related LLP index and follow-on list updated for LLP 0036, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Revised:** 2026-07-02 (decision ledger: LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; earlier same day: DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation; earlier same day: DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0037 and repairs the missing LLP 0034 entry; earlier same day: related LLP index and follow-on list updated for LLP 0036, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
 **Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
@@ -199,6 +199,16 @@ corpus does not rely on scattered "pending Charlie" notes.
   for analyzable rules. The RFC stays Draft (the auth surface is unbuilt);
   the direction is what P4's protocol and LLP 0020's auth-aware matcher
   design against.
+- **2026-07-02:** [LLP 0036](./0036-app-secrets-and-config.rfc.md) (app
+  secrets and configuration) → **Accepted**, ratified by Charlie (applied by
+  Claude under Charlie's same-day delegation): the v1 slice is built and
+  verified on the local target (declared config + grants, the 0600
+  sibling-file store, `ctx.secrets` handles, gated config ops with the
+  transit rule, the setup wizard, and the All Aboard/G4 migration), one
+  cross-family review round is applied, and the implementation-status banner
+  keeps the honest gaps (host-mediated fetch/G3, probe timeouts, non-secret
+  entries, hosted backends, CLI/MCP projections pending LLP 0032 P6) as the
+  claim boundary.
 
 ## Who Snapback is for
 

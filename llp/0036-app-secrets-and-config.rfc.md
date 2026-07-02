@@ -1,11 +1,11 @@
 # LLP 0036: App secrets and configuration
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-02 (v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
+**Revised:** 2026-07-02 (ratified Accepted by Charlie — the shipped v1 design with honest gaps banner; ledgered in LLP 0000. Earlier same day: v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0015, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0027, LLP 0028, LLP 0029, LLP 0031, Diary 0008
 
 ## Summary
@@ -50,7 +50,9 @@ server, open the printed setup URL, and be walked through each key — what it
 is, why the app needs it, where to get one, paste it, verify it — with the same
 flow drivable end-to-end by an agent through MCP instead of a browser.
 
-> **Implementation status (2026-07-02, updated same day):** the v1 slice is
+> **Implementation status (2026-07-02, updated same day; Accepted same day —
+> the ratified design is the v1 slice below plus the recorded v2+ scope, with
+> the honest gaps standing as the boundary):** the v1 slice is
 > **built and verified on the local target**: declared `config` entries and
 > per-function `uses` grants in the generated manifest (validated fail-closed
 > at codegen and again at manifest load), the 0600 sibling-file store
