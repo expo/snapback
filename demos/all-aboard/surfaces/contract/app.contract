@@ -48,6 +48,7 @@ use activeDirection from "./data.ts"
 use oppositeDirection from "./data.ts"
 use directionTitle from "./data.ts"
 use getDirectionBoard from "./data.ts"
+use serviceFilterOptions from "./data.ts"
 use boardTrains from "./data.ts"
 use delayLabel from "./data.ts"
 use delayColor from "./data.ts"
@@ -73,6 +74,7 @@ component AllAboard
   state tripId = null
   state query = ""
   state heroOffset = 0
+  state serviceFilter = "All"
 
   query delayRows = liveTrainStatus({})
   query feedRows = feedState({})
@@ -83,7 +85,7 @@ component AllAboard
   derive locHint = locationHint(nowMs)
   derive activeDir = activeDirection(directionOverride, station)
   derive oppositeDir = oppositeDirection(activeDir)
-  derive board = boardTrains(station.id, activeDir, nowMs, heroOffset, delayRows)
+  derive board = boardTrains(station.id, activeDir, nowMs, heroOffset, delayRows, serviceFilter)
   derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, 1, delayRows)
   derive prevStationId = adjacentStationId(station.id, -1)
   derive nextStationId = adjacentStationId(station.id, 1)
@@ -108,6 +110,9 @@ component AllAboard
     heroOffset = heroOffset > 0 ? heroOffset - 1 : 0
   action trainNext writes heroOffset
     heroOffset = heroOffset < 8 ? heroOffset + 1 : heroOffset
+  action setServiceFilter(value) writes serviceFilter, heroOffset
+    serviceFilter = value
+    heroOffset = 0
   action openStations writes screen, query
     screen = "stations"
     query = ""
@@ -128,6 +133,7 @@ component AllAboard
   contract
     has button "Change station"
     when screen == "home" then has button "Flip direction"
+    when screen == "home" then has node testId="service-filter"
     when screen == "stations" then has input label="Search stations"
 
   view
@@ -155,9 +161,9 @@ component AllAboard
                   row justify="center" width="100%"
                     row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background="#fbbf2422" borderWidth=1 borderColor="#fbbf2447"
                       text "Reconnecting — showing last-known delays" size=11 weight=700 color="#fbbf24" testId="delays-stale"
-                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, doRefresh=doRefresh)
+                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
               ready rows
-                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, doRefresh=doRefresh)
+                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
         else
           when screen == "stations"
             StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
@@ -201,6 +207,7 @@ component DirectionBoard
     oppositeDir: string
     board: object
     oppositeBoard: object
+    serviceFilter: string
     freshness: string
     photoCredit: string
     delayRows: object[]
@@ -208,6 +215,7 @@ component DirectionBoard
     openTrip: (id) => void
     trainPrev: () => void
     trainNext: () => void
+    setServiceFilter: (value) => void
     doRefresh: () => void
 
   view
@@ -216,6 +224,13 @@ component DirectionBoard
         text directionTitle(activeDir) size=16 weight=800 letterSpacing=0.4 color="#ffffff" testId="active-direction"
         button press=toggleDirection(oppositeDir) label="Flip direction" testId="flip-direction" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
           text `⇄ ${directionTitle(oppositeDir)}` size=12 weight=700 color="#ffffffe6"
+
+      // Service-filter chips (E3): the whole board — hero included — shows
+      // only the selected service class; 'All' restores everything.
+      row gap=6 width="100%" testId="service-filter"
+        each f in serviceFilterOptions() key=f.id
+          button press=setServiceFilter(f.id) label=`Show ${f.label} trains` testId=`service-filter-${f.label}` paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background=serviceFilter == f.id ? "#ffffff2b" : "#ffffff12" borderWidth=1 borderColor=serviceFilter == f.id ? "#ffffff42" : "#ffffff1a"
+            text f.label size=12 weight=serviceFilter == f.id ? 700 : 500 color=serviceFilter == f.id ? "#ffffff" : "#ffffffb8"
 
       when board.hero
         column gap=9 width="100%"

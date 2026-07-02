@@ -49,7 +49,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // failure, not a pass — a pre-check throw must never exit "PASS — 0/0"
 // (ENG-22486). The declared-gap skip in main() returns before the try block,
 // so it never reaches this guard.
-const EXPECTED_CHECKS = 12;
+const EXPECTED_CHECKS = 13;
 
 const suite = createSuite('all-aboard browser (Phase 1)');
 const cleanups = [];
@@ -254,6 +254,29 @@ async function main() {
       const after = await page.text('active-direction');
       if (before === after) throw new Error(`direction did not flip (${before})`);
       return { before, after };
+    });
+
+    // E3 (ENG-22450): service-filter chips on the home board.
+
+    await suite.check('service filter chips filter the board, hero included; All restores', async () => {
+      const services = () => page.eval(`(() => {
+        const rest = [...document.querySelectorAll('[data-testid^="departure-"]')].map((el) => {
+          const t = el.textContent;
+          return t.includes('Baby Bullet') ? 'Baby Bullet' : t.includes('Limited') ? 'Limited' : t.includes('Local') ? 'Local' : '?';
+        });
+        return { hero: document.querySelector('[data-testid="hero-service"]')?.textContent.trim() ?? null, rest };
+      })()`);
+      await page.click('service-filter-Limited');
+      const limited = await services();
+      if (limited.hero !== 'Limited') throw new Error(`hero not filtered to Limited: ${limited.hero}`);
+      if (!limited.rest.every((s) => s === 'Limited')) throw new Error(`rest rows not all Limited: ${limited.rest}`);
+      await page.click('service-filter-Bullet');
+      const bullet = await services();
+      if (bullet.hero !== 'Baby Bullet') throw new Error(`hero not filtered to Baby Bullet: ${bullet.hero}`);
+      await page.click('service-filter-All');
+      const all = await services();
+      if (!all.hero) throw new Error('board empty after All');
+      return { limited, bullet, allHero: all.hero };
     });
   } catch (error) {
     // Surface the pre-check failure instead of letting the finally-exit

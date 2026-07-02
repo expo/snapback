@@ -3,7 +3,7 @@
 // direction line, and the freshness / refresh / credit footer.
 
 import { directionTitle, formatClockTime, formatCountdownMinutes, serviceColor } from '../../../../snapback/shared/model.mjs';
-import { delayColor, delayLabel, serviceTint, shortHeadsign, upcomingStops } from '../lib.ts';
+import { delayColor, delayLabel, serviceFilterOptions, serviceTint, shortHeadsign, upcomingStops } from '../lib.ts';
 import type { Departure, HeroBoard } from '../lib.ts';
 import type { DelayRow } from '../store.ts';
 import { Press, ServicePill, column, mono, palette, pill, row } from '../ui.tsx';
@@ -22,6 +22,7 @@ export function DirectionBoard(props: {
   oppositeDir: string;
   board: HeroBoard;
   oppositeBoard: OppositeBoard;
+  serviceFilter: string;
   freshness: string;
   photoCredit: string;
   delayRows: readonly DelayRow[];
@@ -29,6 +30,7 @@ export function DirectionBoard(props: {
   onOpenTrip: (id: string) => void;
   onTrainPrev: () => void;
   onTrainNext: () => void;
+  onSetServiceFilter: (value: string) => void;
   onRefresh: () => void;
 }) {
   const { board, oppositeBoard, nowMs } = props;
@@ -85,6 +87,32 @@ export function DirectionBoard(props: {
             {`⇄ ${directionTitle(props.oppositeDir)}`}
           </div>
         </Press>
+      </div>
+
+      {/* Service-filter chips (E3): the whole board — hero included — shows
+          only the selected service class; 'All' restores everything. */}
+      <div data-testid="service-filter" style={{ ...row, gap: 6, width: '100%' }}>
+        {serviceFilterOptions().map((f) => {
+          const selected = props.serviceFilter === f.id;
+          return (
+            <Press
+              key={f.id}
+              onPress={() => props.onSetServiceFilter(f.id)}
+              label={`Show ${f.label} trains`}
+              testId={`service-filter-${f.label}`}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 999,
+                background: selected ? '#ffffff2b' : '#ffffff12',
+                border: `1px solid ${selected ? '#ffffff42' : '#ffffff1a'}`,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: selected ? 700 : 500, color: selected ? palette.ink : palette.inkSoft }}>
+                {f.label}
+              </div>
+            </Press>
+          );
+        })}
       </div>
 
       {hero ? (

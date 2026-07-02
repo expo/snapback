@@ -55,6 +55,7 @@ export function App(props: { onRefresh: () => void }) {
   const [tripId, setTripId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [heroOffset, setHeroOffset] = useState(0);
+  const [serviceFilter, setServiceFilterState] = useState('All');
 
   const location = live.location ?? DEFAULT_LOCATION;
   // The model types its lookups as nullable; selection falls back to the
@@ -64,7 +65,7 @@ export function App(props: { onRefresh: () => void }) {
   const photoCredit: string = stationPhotoCredit(station.id) ?? '';
   const activeDir = activeDirection(directionOverride, station);
   const oppositeDir = oppositeDirection(activeDir);
-  const board = boardTrains(station.id, activeDir, nowMs, heroOffset, live.delayRows);
+  const board = boardTrains(station.id, activeDir, nowMs, heroOffset, live.delayRows, serviceFilter);
   const oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, delaysFrom(live.delayRows), 1) as OppositeBoard;
   const prevStationId = getAdjacentStation(station.id, -1)?.id ?? station.id;
   const nextStationId = getAdjacentStation(station.id, 1)?.id ?? station.id;
@@ -92,6 +93,10 @@ export function App(props: { onRefresh: () => void }) {
   };
   const trainPrev = () => setHeroOffset((current) => (current > 0 ? current - 1 : 0));
   const trainNext = () => setHeroOffset((current) => (current < 8 ? current + 1 : current));
+  const setServiceFilter = (value: string) => {
+    setServiceFilterState(value);
+    setHeroOffset(0);
+  };
   const openStations = () => {
     setScreen('stations');
     setQuery('');
@@ -202,6 +207,7 @@ export function App(props: { onRefresh: () => void }) {
                   oppositeDir={oppositeDir}
                   board={board}
                   oppositeBoard={oppositeBoard}
+                  serviceFilter={serviceFilter}
                   freshness={freshness}
                   photoCredit={photoCredit}
                   delayRows={live.delayRows}
@@ -209,6 +215,7 @@ export function App(props: { onRefresh: () => void }) {
                   onOpenTrip={openTrip}
                   onTrainPrev={trainPrev}
                   onTrainNext={trainNext}
+                  onSetServiceFilter={setServiceFilter}
                   onRefresh={props.onRefresh}
                 />
               </div>

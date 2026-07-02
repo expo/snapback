@@ -127,13 +127,36 @@ export function getDirectionBoard(stationId: string, direction: string, nowMs: n
   return modelDirectionBoard(stationId, direction, nowMs, delaysFrom(delayRows), limit);
 }
 
+// The service-filter chips on the home board (E3): 'All' passes everything;
+// 'Bullet' is the compact chip label for the 'Baby Bullet' service class.
+export function serviceFilterOptions() {
+  return [
+    { id: 'All', label: 'All' },
+    { id: 'Local', label: 'Local' },
+    { id: 'Limited', label: 'Limited' },
+    { id: 'Baby Bullet', label: 'Bullet' },
+  ];
+}
+
+function filterByService<T extends { service?: string }>(rows: T[], serviceFilter: string | null | undefined): T[] {
+  if (!serviceFilter || serviceFilter === 'All') return rows;
+  return rows.filter((row) => row.service === serviceFilter);
+}
+
 // The hero-selection board: `heroOffset` walks the upcoming trains (swipe
 // up/down or the ▲▼ arrows), the three after it stay listed. The offset is
 // clamped to the rows that exist, so an offset stranded by time passing (the
-// selected train departs) degrades to the last remaining train.
-export function boardTrains(stationId: string, direction: string, nowMs: number, heroOffset: number, delayRows: DelayRow[]) {
+// selected train departs) degrades to the last remaining train. The service
+// filter (E3) applies to the whole board — hero included — so it fetches a
+// wide window before filtering rather than filtering a pre-limited slice.
+export function boardTrains(stationId: string, direction: string, nowMs: number, heroOffset: number, delayRows: DelayRow[], serviceFilter: string) {
   const wanted = Math.max(0, heroOffset ?? 0);
-  const rows = modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), wanted + 5);
+  const unfiltered = serviceFilter && serviceFilter !== 'All';
+  const fetchLimit = unfiltered ? 40 : wanted + 5;
+  const rows = filterByService(
+    modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), fetchLimit),
+    serviceFilter,
+  ).slice(0, wanted + 5);
   const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
   return {
     hero: rows[offset] ?? null,
