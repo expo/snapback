@@ -189,6 +189,30 @@ export async function createSnapbackContractSurface({
   let liveHandle = null;
   const liveCellObservers = new Set();
 
+  // In-flight optimistic mutations (LLP 0034 review fix 3): with live push, a
+  // concurrent live_replace can arrive DURING a local mutation's in-flight
+  // window carrying authoritative rows that legitimately lack the optimistic
+  // row (it is not committed yet) at a valid higher version — so version
+  // checks cannot help. Every boundary write of server rows re-applies the
+  // still-in-flight optimistic reducers on top, so the user's own row never
+  // flashes out. Interim until D2 receipts correlate fan-outs to mutations.
+  const inFlightOptimistic = new Set();
+
+  const applyOptimisticOverlay = (rows) => {
+    let out = rows;
+    for (const op of inFlightOptimistic) {
+      out = op.reducer(out, op.args, { userId, optimisticId: op.optimisticId });
+    }
+    return out;
+  };
+
+  const writeServerRows = (rows) => {
+    if (disposed || !boundary) return rows;
+    const overlaid = applyOptimisticOverlay(rows);
+    boundary.write(boundaryKey, () => overlaid);
+    return overlaid;
+  };
+
   const surfaceConnection = () => (wantLivePush ? liveHandle?.connection ?? 'connecting' : null);
 
   let initial;
@@ -200,7 +224,7 @@ export async function createSnapbackContractSurface({
       transport: 'stream',
       stream: liveStreamOptions,
       onUpdate: (rows) => {
-        if (!disposed && boundary) boundary.write(boundaryKey, () => rows);
+        writeServerRows(rows);
       },
       onConnectionChange: (connection, detail) => {
         // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each live
@@ -236,10 +260,12 @@ export async function createSnapbackContractSurface({
     return diagnostic;
   };
 
+  // Reconcile fetches authoritative rows and writes them with the in-flight
+  // optimistic overlay applied (other mutations may still be in flight);
+  // returns the rows as written.
   const reconcile = async () => {
     const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
-    if (!disposed) boundary.write(boundaryKey, () => rows);
-    return rows;
+    return writeServerRows(rows);
   };
 
   const track = (promise) => {
@@ -252,11 +278,15 @@ export async function createSnapbackContractSurface({
     return task;
   };
 
-  const persistMutation = async (name, args) => {
+  const persistMutation = async (name, args, optimisticOp = null) => {
     try {
       await client.mutate(name, { args, userId });
+      // The commit landed: drop the optimistic op BEFORE reconciling so the
+      // authoritative row is not doubled by its own overlay.
+      if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
       await reconcile();
     } catch (error) {
+      if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
       publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
         mutation: name,
         args,
@@ -277,12 +307,15 @@ export async function createSnapbackContractSurface({
     links[name] = (args) => {
       assertActive();
       const reducer = optimisticReducers[name];
+      let optimisticOp = null;
       if (typeof reducer === 'function') {
+        optimisticOp = { reducer, args, optimisticId: `optimistic_${++optimisticSeq}` };
+        inFlightOptimistic.add(optimisticOp);
         boundary.write(boundaryKey, (rows) =>
-          reducer(rows, args, { userId, optimisticId: `optimistic_${++optimisticSeq}` }),
+          reducer(rows, args, { userId, optimisticId: optimisticOp.optimisticId }),
         );
       }
-      return track(persistMutation(name, args));
+      return track(persistMutation(name, args, optimisticOp));
     };
   }
 
@@ -296,6 +329,8 @@ export async function createSnapbackContractSurface({
       assertActive();
       await track((async () => {
         await client.mutate(name, { args, userId });
+        // reconcile writes overlaid rows; write the same rows through the
+        // provider's boundary handle so concurrent optimistic ops survive.
         const rows = await reconcile();
         qb.write(boundaryKey, () => rows);
       })());
@@ -374,6 +409,7 @@ export async function createSnapbackContractSurface({
       liveHandle?.dispose();
       liveHandle = null;
       liveCellObservers.clear();
+      inFlightOptimistic.clear();
       for (const handle of [...mountedHandles]) {
         handle.dispose();
       }
