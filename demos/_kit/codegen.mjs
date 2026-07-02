@@ -125,6 +125,99 @@ export function crossCheckContractQueryBinding(name, binding) {
   }));
 }
 
+// --- DK-7: validate emitted Snapback-owned artifacts against committed schemas --
+//
+// LLP 0037 makes the Rust serde types the single source of truth; the JSON
+// Schemas under `schemas/` are generated from them and committed. Codegen
+// validates each Snapback-owned artifact it emits against those schemas BEFORE
+// writing, and fails closed with a structured diagnostic (never a thrown string)
+// so a manifest the Rust server would reject cannot be written (the S5.D2 bug
+// class). This is a dependency-free STRUCTURAL check of the highest-value
+// invariants — required properties, `additionalProperties: false` where the
+// schema closes the object, top-level property types, and the
+// artifactKind/schemaVersion constants (which are serde defaults, not schema
+// consts, so they are pinned here). It is deliberately not a full JSON Schema
+// validator: the exhaustive gate is the Rust round-trip in
+// `tests/artifact_schemas_v0.rs`, which deserializes every committed manifest
+// through the runtime structs. The Exact-owned contract-data manifest is out of
+// scope (LLP 0037 scope fence).
+//
+// @ref LLP 0037#decision-ratified-2026-07-02 — JS codegen validates each artifact
+//   it emits against the committed schemas/ before writing; failures are structured
+//   diagnostics.
+// @ref LLP 0032#decision-docket — DK-7 / P3(c) emit-time validation (defense in depth).
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+function loadCommittedSchema(schemaFile) {
+  const path = join(REPO_ROOT, 'schemas', schemaFile);
+  if (!existsSync(path)) {
+    return { missing: `committed schema not found at ${path}` };
+  }
+  try {
+    return { schema: JSON.parse(readFileSync(path, 'utf8')) };
+  } catch (cause) {
+    return { missing: `committed schema ${schemaFile} is not valid JSON: ${cause.message}` };
+  }
+}
+
+// schemars inlines the root type at the top level (properties/required present),
+// but a $ref root is possible; follow one same-document $ref into $defs.
+function schemaRootNode(schema) {
+  if (schema && typeof schema.$ref === 'string' && schema.$ref.startsWith('#/$defs/')) {
+    const name = schema.$ref.slice('#/$defs/'.length);
+    return (schema.$defs || {})[name] || schema;
+  }
+  return schema;
+}
+
+function jsonTypeOf(value) {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'number';
+  return typeof value; // string | boolean | object
+}
+
+function typeMatches(propSchema, value) {
+  // Enforce only a declared concrete top-level type; skip $ref/oneOf/anyOf/absent
+  // (those are covered exhaustively by the Rust round-trip gate).
+  const expected = propSchema && propSchema.type;
+  const actual = jsonTypeOf(value);
+  const ok = (t) => t === actual || (t === 'number' && actual === 'integer');
+  if (typeof expected === 'string') return ok(expected);
+  if (Array.isArray(expected)) return expected.some(ok);
+  return true;
+}
+
+// Returns { missing?, problems: [] }. `expected` pins the artifactKind and
+// schemaVersion constants the derived schema cannot express (serde defaults).
+function validateArtifactAgainstSchema(schemaFile, instance, expected) {
+  const loaded = loadCommittedSchema(schemaFile);
+  if (loaded.missing) return { missing: loaded.missing, problems: [] };
+  const root = schemaRootNode(loaded.schema) || {};
+  const properties = root.properties || {};
+  const problems = [];
+  for (const key of Array.isArray(root.required) ? root.required : []) {
+    if (!(key in instance)) problems.push(`missing required property "${key}"`);
+  }
+  if (root.additionalProperties === false) {
+    for (const key of Object.keys(instance)) {
+      if (!(key in properties)) problems.push(`unexpected property "${key}" (schema closes the object)`);
+    }
+  }
+  for (const [key, value] of Object.entries(instance)) {
+    if (properties[key] && !typeMatches(properties[key], value)) {
+      problems.push(`property "${key}" is ${jsonTypeOf(value)} but the schema requires ${JSON.stringify(properties[key].type)}`);
+    }
+  }
+  if (expected.artifactKind !== undefined && instance.artifactKind !== expected.artifactKind) {
+    problems.push(`artifactKind is ${JSON.stringify(instance.artifactKind)}, expected ${JSON.stringify(expected.artifactKind)}`);
+  }
+  if (expected.schemaVersion !== undefined && instance.schemaVersion !== expected.schemaVersion) {
+    problems.push(`schemaVersion is ${JSON.stringify(instance.schemaVersion)}, expected ${JSON.stringify(expected.schemaVersion)}`);
+  }
+  return { problems };
+}
+
 export async function generate(backendDir) {
   const diagnostics = [];
   const err = (code, subsystem, message, extra = {}) =>
@@ -549,6 +642,27 @@ export async function generate(backendDir) {
     // legacy `subscription` field and the v2 liveness fields ever disagree.
     diagnostics.push(...crossCheckContractQueryBinding(name, binding));
   }
+
+  // DK-7 (LLP 0037): validate the Snapback-owned artifacts against the committed
+  // Rust-derived schemas before writing. Fail closed (write nothing) on any
+  // mismatch. The Exact-owned contract-data manifest is out of scope (scope fence).
+  for (const [schemaFile, instance, expected] of [
+    ['schema.manifest.schema.json', schemaManifest, { artifactKind: 'schemaManifest', schemaVersion: SCHEMA_VERSION }],
+    ['functions.manifest.schema.json', functionManifest, { artifactKind: 'functionManifest', schemaVersion: SCHEMA_VERSION }],
+    ['capability.manifest.schema.json', capabilityManifest, { artifactKind: 'capabilityManifest', schemaVersion: SCHEMA_VERSION }],
+  ]) {
+    const { missing, problems } = validateArtifactAgainstSchema(schemaFile, instance, expected);
+    if (missing) {
+      err('CODEGEN_ARTIFACT_SCHEMA_MISSING', 'codegen',
+        `cannot validate ${instance.artifactKind} against committed schema: ${missing}`,
+        { artifact: instance.artifactKind, schema: `schemas/${schemaFile}` });
+    } else if (problems.length > 0) {
+      err('CODEGEN_ARTIFACT_SCHEMA_INVALID', 'codegen',
+        `${instance.artifactKind} does not match committed schemas/${schemaFile}: ${problems.join('; ')}`,
+        { artifact: instance.artifactKind, schema: `schemas/${schemaFile}`, problems });
+    }
+  }
+
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
