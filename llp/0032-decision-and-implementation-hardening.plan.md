@@ -413,7 +413,15 @@ Each fix lands with a failing-then-passing test named for the step id.
   meaningless unless the outbox survives socket close. Fix: drain-after-ack
   or requeue-on-failure — pick the one consistent with the L1
   bounded-outbox design *and* P4's reconnect/resume design; decide outbox
-  survival across disconnect together with P4.
+  survival across disconnect together with P4. **Resolved 2026-07-02 with
+  P4:** the decision is **neither requeue nor acked drain — recovery by
+  snapshot**. The outbox deliberately does not survive disconnect; the
+  LLP 0034 D1 reconnect policy (always a fresh `subscribe_live` with an
+  authoritative snapshot, explicit supersession, generation-guarded
+  teardown) makes any loss on a dying socket unobservable after
+  reconnect. Pinned by `regression-fake-live` ("nothing silently lost"),
+  `regression-reconnect-nuke`, and `regression-multiplexed-lanes`'
+  kill-socket leg; contract recorded in LLP 0008 §Realtime Delivery.
 - **S5.D6 — Ephemeral rate-bucket leak on disconnect** [confirmed].
   `disconnect` removes outboxes and subscribers but never `rate_buckets`
   keyed by `(ConnectionId, collection)` (`src/ephemeral.rs:832-876`).
@@ -616,7 +624,9 @@ change the concurrency architecture and should land as one reviewed arc.
   the server emits the overflow signal correctly and loses no rooms, but the
   connection-level durable `resync_required` sentinel carries no
   `subscription_id`; the client's handling of a *connection-wide* resync (vs a
-  per-subscription one) is part of P4's reconnect/resume protocol.
+  per-subscription one) is part of P4's reconnect/resume protocol. *(Closed
+  with P4 2026-07-02: a sentinel without a `subscription_id` re-snapshots
+  every handle on the connection — `demos/_kit/client.mjs` `applyDurable`.)*
 - **L2 — Connection/subscription reaping.** No TTL or heartbeat exists;
   abandoned connections and their subscriptions live forever
   (`src/local.rs:169`) [confirmed]. (WS-attached connections do reap on
@@ -1180,7 +1190,29 @@ parallel with Phase 3.
   reconnection with resume and backoff. **Done when:** the
   two-subscriptions-plus-overlay-on-one-connection test passes; a
   kill-socket test reconnects, resumes, and converges; drains are
-  non-destructive until acked.
+  non-destructive until acked. **Closed 2026-07-02 — the register was
+  superseded on revalidation, and the step's remainder landed now.** The
+  LLP 0034 D1 + ENG-22478 D2 arc (landed 2026-07-01/02, concurrent with
+  this plan's Phase 3) had already rebuilt the protocol: subscription-id
+  addressed envelopes with explicit supersession, the per-connection
+  cross-lane registry (durable and ephemeral consumers no longer discard
+  each other's messages; the poll lane shares stream-owned connections),
+  bounded-backoff reconnect that only promotes connection state after a
+  successful fresh subscribe, receipts with correlation, and the
+  consumer-driven `needsResync` recovery the adapter exercises. The
+  deliberate protocol decisions, now recorded in LLP 0008 §Realtime
+  Delivery (the owner-doc update): **reconnect is a fresh
+  snapshot-with-subscribe, never a resume** (the outbox dies with the
+  connection — S5.D5's resolution; drains need no ack because loss is
+  recovered by snapshot), `resume_live` stays a same-connection op, and
+  version-based delta-resume stays future work behind DK-3's revisit
+  trigger. P4's own landing: the named
+  `regression-multiplexed-lanes` test (two durable handles + an ephemeral
+  overlay on one connection, every lane advancing; kill-socket convergence
+  across all lanes), wired into `verify-local-proof`, plus the L1
+  connection-wide `resync_required` sentinel handling verified in the
+  client (no-`subscription_id` sentinel re-snapshots every handle —
+  `demos/_kit/client.mjs` `applyDurable`).
 - **P5 — Resolve the adapter live-push fork (DK-10) and rebuild the Contract
   adapter.** [LLP 0029](./0029-all-aboard-gap-closure.plan.md) G2's open
   fork: the packaged adapter owns a live subscription versus a separate
@@ -1398,7 +1430,9 @@ silently grow the acceptance gate.
   P3** (all three gates in CI; the tsc gate proven against the injected
   S5.D2 bug).
 - Client: multiplexed subscriptions, reconnect/resume, parse-before-ok →
-  S5.D3/S5.D7/P4.
+  S5.D3/S5.D7/P4. **Closed 2026-07-02**: S5.D3/S5.D7 landed 07-01; the
+  multiplex/reconnect rows are covered by the LLP 0034 D1/D2 regression
+  suites plus P4's `regression-multiplexed-lanes`.
 
 ## Cross-cutting cleanups (opportunistic, low priority)
 
