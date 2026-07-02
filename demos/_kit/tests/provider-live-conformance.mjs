@@ -13,6 +13,14 @@
 //   §2.1  one socket, both lanes (durable + two-client presence multiplexed;
 //         §6.7's shared-socket ground — the flood-priority check itself
 //         waits on D2's delivered-rate receipts)
+//   §6.5  permission-epoch resubscribe (server-tagged reason, fresh snapshot)
+//   §6.6  multi-connection identity (one tab dies, the other stays live;
+//         distinct connection-keyed self/sourceClientId)
+//   §6    TTL expiry deletion; delivered-rate <= maxDeltaRateHz for a
+//         draining subscriber with coalescing receipt-visible (ENG-22478)
+//   §3.2  receipts inspectable + correlation join (Exact 0284 §5 item 5)
+//   §2.8  degraded example: poll transport receipt agrees with 'polling'
+//         (Exact 0284 §5 item 6, provider half)
 //   §6.8  codegen migration cross-check (old/new manifest fields agree; a
 //         deliberately broken binding fails)
 //
@@ -421,6 +429,345 @@ try {
       );
     }
     return { queries: Object.keys(manifest.queries), brokenVariantsCaught: broken.length };
+  });
+
+
+  await suite.check('permission-epoch resubscribe: server-tagged reason, fresh snapshot (LLP 0034 §6.5)', async () => {
+    // A mutation declaring permissionEpochBumps invalidates the auth'd
+    // subscription's captured permission dep; the server enqueues
+    // resync_required with reason "permission_epoch_changed" (src/local.rs
+    // notify_permission_resyncs) and the kit re-enters through a fresh
+    // subscribe with reason 'permission-epoch'.
+    await db.loadFunctions({
+      ...functionsManifest,
+      bundleHash: `${functionsManifest.bundleHash}:permission-bump-test`,
+      functions: [
+        ...functionsManifest.functions,
+        {
+          id: 'todo:bumpAdaPermissions',
+          name: 'bumpAdaPermissions',
+          exportedName: 'bumpAdaPermissions',
+          kind: 'Mutation',
+          sourceSpan: null,
+          requiredCapabilities: ['host_plan_runtime', 'mutation_read_set_validation'],
+          authRequirement: 'optional-user',
+          syncabilityClass: 'mutation',
+          readSetSummary: { mode: 'none', primaryTable: null, tables: [] },
+          writeSetSummary: { mode: 'mutationPlan', primaryTable: 'todos', tables: ['todos'] },
+          permissionEpochBumps: [{ Literal: `user:${ADA}` }],
+          bundleEntrypoint: 'bumpAdaPermissions',
+          runtime: {
+            HostPlan: {
+              Mutation: {
+                steps: [{
+                  Insert: {
+                    table: 'todos',
+                    values: {
+                      title: { Literal: 'permissions changed' },
+                      completed: { Literal: false },
+                      userId: { Literal: ADA },
+                    },
+                    bind_id_as: null,
+                  },
+                }],
+                return_value: 'ChangedCount',
+              },
+            },
+          },
+        },
+      ],
+    });
+    await db.reset();
+    await db.seed(seed);
+
+    const recorder = createRecorder();
+    const handle = await db.liveQuery('listTodos', {
+      connectionId: 'permission_conn',
+      userId: ADA,
+      transport: 'stream',
+      stream: FAST_STREAM,
+      ...recorder,
+    });
+    try {
+      await recorder.waitFor(() => handle.connection === 'live', "connection 'live'");
+      const rowsBefore = handle.rows.length;
+
+      const other = new SnapbackClient(server.baseUrl);
+      await other.mutate('bumpAdaPermissions', { args: {}, userId: 'user_admin' });
+
+      await recorder.waitFor(
+        () => recorder.events.some((e) => e.event === 'resubscribed' && e.reason === 'permission-epoch'),
+        "resubscribed with reason 'permission-epoch'",
+      );
+      await recorder.waitFor(
+        () => handle.rows.some((row) => row.title === 'permissions changed'),
+        'fresh snapshot replaces the stale rows',
+      );
+      assert(handle.rows.length === rowsBefore + 1, 'fresh snapshot row count');
+      const receipt = recorder.events.find((e) => e.event === 'resubscribed' && e.reason === 'permission-epoch');
+      assert(typeof receipt.snapshotVersion === 'number', 'receipt carries the fresh snapshot version');
+      return { reason: receipt.reason, rows: handle.rows.length };
+    } finally {
+      handle.dispose();
+      await db.loadFunctions(functionsManifest); // restore for later checks
+    }
+  });
+
+  await suite.check('multi-connection identity: one tab dies, the other stays live; distinct self keys (LLP 0034 §6.6)', async () => {
+    await db.reset();
+    await db.seed(seed);
+    // Two tabs, same user — distinct connections sharing one backend.
+    const fixtureDir = mkdtempSync(join(todoFixtures, '.tmp-identity-'));
+    cpSync(join(todoFixtures, 'ephemeral-backend'), fixtureDir, { recursive: true });
+    let generated;
+    try {
+      generated = await generate(fixtureDir);
+      assert(generated.ok, 'identity fixture codegen');
+    } finally {
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
+    await db.loadSchema({
+      ...schemaManifest,
+      schemaHash: 'sha256:todo-plus-board-cursors-identity',
+      inputsHash: 'todo-plus-board-cursors-identity',
+      ephemeralCollections: generated.schemaManifest.ephemeralCollections,
+    });
+    await db.loadFunctions(functionsManifest);
+    await db.reset();
+    await db.seed(seed);
+
+    const scope = { boardId: 'board_identity' };
+    const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
+    const tabA = createRecorder();
+    const tabB = createRecorder();
+    const handleA = await db.liveQuery('listTodos', {
+      connectionId: 'tab_a', userId: ADA, transport: 'stream', stream: FAST_STREAM, ...tabA,
+    });
+    const handleB = await db.liveQuery('listTodos', {
+      connectionId: 'tab_b', userId: ADA, transport: 'stream', stream: FAST_STREAM, ...tabB,
+    });
+    const overlayA = await db.subscribeEphemeral('boardCursors', { connectionId: 'tab_a', scope, userId: ADA, permissions });
+    const overlayB = await db.subscribeEphemeral('boardCursors', { connectionId: 'tab_b', scope, userId: ADA, permissions });
+    try {
+      await tabA.waitFor(() => handleA.connection === 'live', "tab A 'live'");
+      await tabB.waitFor(() => handleB.connection === 'live', "tab B 'live'");
+
+      // Connection-keyed identity: each tab's published cursor is keyed by
+      // ITS connection — self = "my connection", sourceClientId distinct.
+      await db.publishEphemeral('boardCursors', { connectionId: 'tab_a', scope, userId: ADA, permissions, value: { x: 1, y: 1 } });
+      await db.publishEphemeral('boardCursors', { connectionId: 'tab_b', scope, userId: ADA, permissions, value: { x: 2, y: 2 } });
+      // Each tab's live socket owns its outbox; the lane registry routes the
+      // socket-delivered ephemeral frames into the overlays (transport-
+      // agnostic consumers) — wait for both cursors to arrive by push.
+      const waitEntries = async (overlay, label) => {
+        const deadline = Date.now() + 5_000;
+        while (Date.now() < deadline) {
+          if (overlay.currentEntries({ prune: false }).length >= 2) return;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        throw new Error(`timed out waiting for ${label} cursors: ${JSON.stringify(overlay.currentEntries({ prune: false }))}`);
+      };
+      await waitEntries(overlayA, 'tab A');
+      await waitEntries(overlayB, 'tab B');
+      const keysA = overlayA.currentEntries().map((entry) => entry.key).sort();
+      assertEqual(keysA, ['tab_a', 'tab_b'], 'both cursors visible, keyed by publishing connection');
+      const selfA = overlayA.currentEntries().filter((entry) => entry.key === overlayA.connectionId);
+      const selfB = overlayB.currentEntries().filter((entry) => entry.key === overlayB.connectionId);
+      assertEqual(selfA.length, 1, "tab A's self entry");
+      assertEqual(selfB.length, 1, "tab B's self entry");
+      assert(selfA[0].key !== selfB[0].key, 'sourceClientId distinct per connection');
+
+      // Kill tab A's socket: tab B must not notice.
+      const transitionsBefore = tabB.transitions.length;
+      db.liveStreamManager('tab_a').debugCloseSocket();
+      await tabA.waitFor(() => tabA.transitions.some((t) => t.startsWith('live->')), "tab A's loss detected");
+      const other = new SnapbackClient(server.baseUrl);
+      await other.mutate('createTodo', { args: { title: 'while tab A is down' }, userId: ADA });
+      await tabB.waitFor(
+        () => handleB.rows.some((row) => row.title === 'while tab A is down'),
+        'tab B keeps receiving durable push',
+      );
+      assertEqual(handleB.connection, 'live', 'tab B stays live');
+      assertEqual(tabB.transitions.length, transitionsBefore, 'tab B saw no connection transitions');
+
+      // Tab A recovers independently.
+      await tabA.waitFor(() => handleA.connection === 'live', 'tab A recovers');
+      await tabA.waitFor(
+        () => handleA.rows.some((row) => row.title === 'while tab A is down'),
+        'tab A converges after recovery',
+      );
+      return { keysA, tabBTransitions: tabB.transitions };
+    } finally {
+      overlayA.dispose();
+      overlayB.dispose();
+      handleA.dispose();
+      handleB.dispose();
+    }
+  });
+
+  await suite.check('TTL expiry: an expired entry leaves entries and is never re-exposed (LLP 0034 §6)', async () => {
+    const scope = { boardId: 'board_ttl' };
+    const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
+    const overlay = await db.subscribeEphemeral('boardCursors', { connectionId: 'ttl_observer', scope, userId: ADA, permissions });
+    try {
+      await db.publishEphemeral('boardCursors', {
+        connectionId: 'ttl_publisher', scope, userId: ADA, permissions,
+        value: { x: 9, y: 9 }, ttlMs: 250,
+      });
+      await overlay.drain();
+      assert(overlay.currentEntries({ prune: false }).some((entry) => entry.key === 'ttl_publisher'), 'entry visible before TTL');
+
+      await new Promise((resolve) => setTimeout(resolve, 400)); // past TTL
+      // Local aging: prune removes it from the overlay.
+      assert(!overlay.currentEntries().some((entry) => entry.key === 'ttl_publisher'), 'expired entry pruned locally');
+
+      // Server truth: any room touch sweeps expired entries, so a FRESH
+      // snapshot never re-exposes it...
+      const fresh = await db.subscribeEphemeral('boardCursors', { connectionId: 'ttl_fresh', scope, userId: ADA, permissions });
+      assert(!fresh.currentEntries({ prune: false }).some((entry) => entry.key === 'ttl_publisher'), 'expired entry absent from a fresh snapshot');
+      fresh.dispose();
+      // ...and the original subscriber sees the authoritative removal, never
+      // a re-appearance.
+      await overlay.drain();
+      assert(!overlay.currentEntries({ prune: false }).some((entry) => entry.key === 'ttl_publisher'), 'expired entry never re-exposed');
+      return { entries: overlay.currentEntries().length };
+    } finally {
+      overlay.dispose();
+    }
+  });
+
+  await suite.check('delivered rate <= maxDeltaRateHz for a draining subscriber; coalescing receipt-visible (LLP 0034 §6 / Exact 0284 §2.5.1)', async () => {
+    const scope = { boardId: 'board_flood' };
+    const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
+    const overlay = await db.subscribeEphemeral('boardCursors', { connectionId: 'flood_observer', scope, userId: ADA, permissions });
+    try {
+      // The generated manifest's declared budget for the fixture collection.
+      const maxDeltaRateHz = 30; // dispatch_ms 33 -> ~30 (D3 emission)
+      const drainCadenceMs = 100;
+      const windowMs = 1_200;
+      let delivered = 0;
+      let published = 0;
+      const publisher = new SnapbackClient(server.baseUrl);
+      const startedAt = Date.now();
+      const floodUntil = startedAt + windowMs;
+      const drainTimer = setInterval(async () => {
+        const applied = await overlay.drain().catch(() => []);
+        delivered += applied.filter((result) => result === 'applied').length;
+      }, drainCadenceMs);
+      try {
+        while (Date.now() < floodUntil) {
+          try {
+            await publisher.publishEphemeral('boardCursors', {
+              connectionId: 'flood_publisher', scope, userId: ADA, permissions,
+              value: { x: published, y: published },
+            });
+            published += 1;
+          } catch (error) {
+            if (error?.diagnostic?.code !== 'SNAPBACK_EPHEMERAL_RATE_LIMITED') throw error;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+      } finally {
+        clearInterval(drainTimer);
+      }
+      await overlay.drain();
+      const windowSec = (Date.now() - startedAt) / 1_000;
+      const deliveredRate = delivered / windowSec;
+      assert(published > delivered, `coalescing must reduce deliveries (published ${published}, delivered ${delivered})`);
+      assert(
+        deliveredRate <= maxDeltaRateHz,
+        `delivered rate ${deliveredRate.toFixed(1)}Hz exceeds maxDeltaRateHz ${maxDeltaRateHz}`,
+      );
+      // The coalescing diagnostic is receipt-visible (LLP 0034 §3.2): it
+      // rides the receipts debug surface.
+      const receiptsRes = await fetch(`${server.baseUrl}/_snapback/api/receipts`);
+      const receipts = await receiptsRes.json();
+      assert(receipts.ephemeralDelivery, 'receipts surface carries ephemeral delivery diagnostics');
+      assert(receipts.ephemeralDelivery.coalesced_updates > 0, `coalesced_updates must be observable under flood: ${JSON.stringify(receipts.ephemeralDelivery)}`);
+      return { published, delivered, deliveredRate: Number(deliveredRate.toFixed(1)), coalesced: receipts.ephemeralDelivery.coalesced_updates };
+    } finally {
+      overlay.dispose();
+    }
+  });
+
+  await suite.check('receipts inspectable + correlation join (LLP 0034 §3.2 / Exact 0284 §5 item 5)', async () => {
+    await db.loadSchema(schemaManifest);
+    await db.loadFunctions(functionsManifest);
+    await db.reset();
+    await db.seed(seed);
+    const correlation = { actionInvocationId: 'act_join_1', rootId: 'root_join_1', bindingIds: ['todos'] };
+    const observed = [];
+    const offReceipt = db.onReceipt((receipt) => observed.push(receipt));
+    try {
+      const response = await db.mutate('createTodo', { args: { title: 'receipted create' }, userId: ADA, correlation });
+      assert(response.receipt, 'mutation response carries its receipt');
+      assertEqual(response.receipt.outcome, 'confirmed', 'receipt outcome');
+      assertEqual(response.receipt.affectedTables, ['todos'], 'declared writes');
+      assertEqual(response.receipt.correlation, correlation, 'correlation echoed verbatim');
+      assert(response.receipt.snapshotVersion === response.version, 'one-version story: receipt matches the commit version');
+
+      // A rejected mutation still yields a joinable receipt.
+      let rejected = null;
+      try {
+        await db.mutate('doesNotExist', { args: {}, userId: ADA, correlation });
+      } catch (error) {
+        rejected = error;
+      }
+      assert(rejected?.receipt, 'rejected mutation carries its receipt on the error');
+      assertEqual(rejected.receipt.outcome, 'rejected', 'rejected outcome');
+      assert(typeof rejected.receipt.rollbackReason === 'string', 'rollback reason is the diagnostic code');
+      assertEqual(rejected.receipt.correlation, correlation, 'rejected correlation echoed');
+
+      // The kit ring + onReceipt observed both; the join key survives.
+      const joined = db.receipts().filter((receipt) => receipt.correlation?.actionInvocationId === 'act_join_1');
+      assert(joined.length >= 2, `kit ring joins by actionInvocationId: ${joined.length}`);
+      assert(observed.some((receipt) => receipt.correlation?.actionInvocationId === 'act_join_1'), 'onReceipt saw the join key');
+
+      // And the server retention ring exposes them on the debug route.
+      const debug = await (await fetch(`${server.baseUrl}/_snapback/api/receipts`)).json();
+      assert(
+        debug.global.some((receipt) => receipt.correlation?.actionInvocationId === 'act_join_1'),
+        'server receipts route exposes the echoed correlation',
+      );
+      return { kitJoined: joined.length, serverGlobal: debug.global.length };
+    } finally {
+      offReceipt();
+    }
+  });
+
+  await suite.check('degraded example: poll-backed binding reports transport poll + connection polling (LLP 0034 §6 / Exact 0284 §2.8)', async () => {
+    const recorder = createRecorder();
+    const handle = await db.liveQuery('listTodos', {
+      connectionId: 'degraded_conn',
+      userId: ADA,
+      transport: 'poll',
+      ...recorder,
+    });
+    try {
+      // §2.1 rule 3 agreement: the receipt's transport fact and the runtime
+      // connection value tell the same story — poll-backed, not push.
+      assertEqual(handle.connection, 'polling', 'connection reports polling');
+      const established = recorder.events.find((event) => event.event === 'established');
+      assert(established, 'established receipt emitted');
+      assertEqual(established.transport, 'poll', 'receipt transport agrees: poll');
+      assertEqual(established.scope, {}, 'scope is present (required)');
+      // The push-bound sibling claims 'push'/'live' — the contrast that makes
+      // the degraded example honest.
+      const streamRecorder = createRecorder();
+      const streamHandle = await db.liveQuery('listTodos', {
+        connectionId: 'degraded_stream_conn', userId: ADA, transport: 'stream', stream: FAST_STREAM, ...streamRecorder,
+      });
+      try {
+        await streamRecorder.waitFor(() => streamHandle.connection === 'live', "stream sibling 'live'");
+        const streamEstablished = streamRecorder.events.find((event) => event.event === 'established');
+        assertEqual(streamEstablished.transport, 'push', 'push transport receipt for the live binding');
+      } finally {
+        streamHandle.dispose();
+      }
+      return { pollTransport: established.transport, connection: handle.connection };
+    } finally {
+      handle.dispose();
+    }
   });
 
   const report = suite.finish();

@@ -1035,6 +1035,13 @@ class LiveStreamManager {
     }
     if (frame.kind === 'ephemeral') {
       for (const listener of [...this.ephemeralListeners]) listener(frame);
+      // The lane registry is transport-agnostic (LLP 0034 §10.1 / ENG-22478):
+      // when the socket owns the connection's outbox, registered ephemeral
+      // consumers (EphemeralOverlays) still receive their lane's frames.
+      // Durable frames are NOT double-routed: live handles subscribe to
+      // durable socket traffic via onDurable already.
+      const consumers = this.client.__laneConsumers?.get(this.connectionId);
+      for (const consumer of [...(consumers?.ephemeral ?? [])]) consumer(frame);
       return;
     }
     // Durable-lane payloads arrive unwrapped: live_replace / resync_required.
@@ -1121,15 +1128,16 @@ export class EphemeralOverlay {
     this.scopeEpoch = null;
     this.entries = new Map();
     this.needsResync = false;
-    this.__drainCapture = null;
+    this.__drainCaptures = new Set();
     // Cross-lane routing (LLP 0034 §10.1 / ENG-22478): the overlay is this
     // connection's registered ephemeral consumer, so a durable drain on the
     // same connection routes ephemeral envelopes here instead of dropping
     // them (and this overlay's drain routes durable envelopes to the durable
-    // consumers symmetrically).
+    // consumers symmetrically). The same registry receives socket-delivered
+    // ephemeral frames when a live stream owns the connection's outbox.
     this.__unregister = client.registerEphemeralConsumer(connectionId, (envelope) => {
       const result = this.apply(envelope);
-      this.__drainCapture?.push(result);
+      for (const capture of this.__drainCaptures) capture.push(result);
     });
     if (snapshot) this.apply(snapshot);
   }
@@ -1168,15 +1176,18 @@ export class EphemeralOverlay {
 
   async drain() {
     // Drain through the shared choke point: this overlay's registered
-    // consumer applies the ephemeral envelopes (captured here for the return
-    // value), while durable envelopes in the same drain are routed to the
-    // connection's durable consumers instead of being discarded.
-    this.__drainCapture = [];
+    // consumer applies the ephemeral envelopes (captured for the return
+    // value; captures are re-entrant — overlapping drains each collect what
+    // was applied while they were in flight), while durable envelopes in the
+    // same drain are routed to the connection's durable consumers instead of
+    // being discarded.
+    const capture = [];
+    this.__drainCaptures.add(capture);
     try {
       await this.client.drainConnection(this.connectionId);
-      return this.__drainCapture.filter((result) => result !== 'not_ephemeral');
+      return capture.filter((result) => result !== 'not_ephemeral');
     } finally {
-      this.__drainCapture = null;
+      this.__drainCaptures.delete(capture);
     }
   }
 
