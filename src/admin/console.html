@@ -457,7 +457,7 @@ function renderSchema(main) {
   main.append(el("div", { class: "section-title" }, "Schema", schemaHash(s.schema) !== "—" ? el("span", { class: "badge mono" }, schemaHash(s.schema)) : null));
   for (const t of s.schema.tables) {
     const right = el("span", {}, t.syncable ? el("span", { class: "badge accent" }, "syncable") : el("span", { class: "badge" }, "local"));
-    const body = el("div", { class: "tablewrap", style: "margin:0 16px 14px" });
+    const body = el("div", { class: "tablewrap", style: "margin:12px 16px 14px" });
     const tbl = el("table", { class: "data" });
     tbl.append(el("thead", {}, el("tr", {}, el("th", {}, "Field"), el("th", {}, "Type"), el("th", {}, "Optional"))));
     const tb = el("tbody");
@@ -465,7 +465,7 @@ function renderSchema(main) {
     for (const f of t.fields) tb.append(el("tr", {}, el("td", {}, f.name), el("td", {}, el("span", { class: "badge" }, fieldType(f))), el("td", {}, f.optional ? "yes" : "no")));
     for (const sys of ["_version", "_createdAt", "_updatedAt"]) tb.append(el("tr", {}, el("td", { class: "sys" }, sys), el("td", {}, sys === "_version" ? "Integer" : "Integer"), el("td", {}, "—")));
     tbl.append(tb); body.append(tbl);
-    const c = el("div", { class: "card" }, (() => { const h = el("h3", {}, t.name); h.append(right); return h; })(), body);
+    const c = el("div", { class: "card", style: "margin-bottom:12px" }, (() => { const h = el("h3", {}, t.name); h.append(right); return h; })(), body);
     if (t.indexes.length) {
       const ix = el("div", { class: "body", style: "padding-top:0" }, el("div", { class: "kv" },
         el("span", { class: "k" }, "Indexes"),
