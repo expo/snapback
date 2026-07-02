@@ -1,11 +1,11 @@
 # LLP 0006: Valet retrospective
 
 **Type:** Research
-**Status:** Draft
+**Status:** Active
 **Systems:** Runtime, Storage, Sync, Realtime, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-26
+**Revised:** 2026-07-01 (status → Active, ratified in the LLP 0032 R1 batch: finished retrospective, stable since 2026-06-26)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, https://github.com/expo/valet, https://github.com/expo/valet/tree/main/diaries
 
 ## Summary

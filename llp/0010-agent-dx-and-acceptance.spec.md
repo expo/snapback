@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 R2: V1 implementation charter drafted, V0 marked superseded-in-practice; ratification pending)
+**Revised:** 2026-07-01 (LLP 0032 R2: V1 implementation charter ratified, superseding the V0 charter)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0024
 
 ## Summary
@@ -237,9 +237,8 @@ charter until it is replaced by a later accepted plan.
 > charter — cron, actions with outbound fetch, ephemeral realtime, and the
 > admin console all shipped while it still said "must not claim" them. The V1
 > charter below describes the current slice; it was drafted via
-> [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) R2 and its
-> ratification is pending in the LLP 0000 ledger. V0 is preserved for the
-> record.
+> [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) R2 and
+> **ratified 2026-07-01** (LLP 0000 ledger). V0 is preserved for the record.
 
 V0 must include:
 
@@ -274,11 +273,12 @@ V0 must not claim:
 - rich text or high-frequency whiteboard fan-out;
 - finance-grade exact-money behavior.
 
-## V1 Implementation Charter (proposed 2026-07-01, ratification pending)
+## V1 Implementation Charter (ratified 2026-07-01)
 
 Drafted via [LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
-R2 after the 2026-07-01 whole-repo review; supersedes the V0 charter above
-once ratified. "Current slice" means what ships from this repository today.
+R2 after the 2026-07-01 whole-repo review; ratified by Charlie 2026-07-01,
+superseding the V0 charter above. "Current slice" means what ships from this
+repository today.
 
 V1 includes everything V0 included, plus:
 

@@ -176,7 +176,11 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   Implemented if Phases 1–4 are its full scope (verify at ratification);
   ratify the 0010 V1 charter (R2) and LLP 0033 (R5/DK-8); everything else
   stays Draft, which is accurate. Section-level annotations landed via
-  R3/R4/R7.
+  R3/R4/R7. **Ratified and applied 2026-07-01** — two apply-time deviations,
+  both honesty-preserving: 0020 stays Draft (its §Remaining Phase 4 design is
+  still open), and 0001/0022 stay Draft (`ref-check` blocks Active documents
+  from carrying `[inferred]` claims, which both keep). R1 done; ledger
+  current.
 - **R2 — Replace the outgrown V0 charter.** The ratified charter in
   [LLP 0010](./0010-agent-dx-and-acceptance.spec.md) §V0 Implementation
   Charter forbids cron; cron shipped and
@@ -184,8 +188,8 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   V1 charter (what the current slice does and does not claim), mark the V0
   charter superseded in place, and ledger it. **Done when:** LLP 0010 carries
   the current charter and no shipped subsystem is charter-forbidden.
-  **Drafted 2026-07-01** — V1 charter added to 0010, V0 marked
-  superseded-in-practice; ratification pending in the R1 batch.
+  **Done 2026-07-01** — V1 charter added to 0010 and ratified, superseding
+  V0; ledgered in LLP 0000.
 - **R3 — Fix stale cross-references.** [confirmed] items from the review:
   - [LLP 0013](./0013-ephemeral-realtime-state.rfc.md) §App API boundary
     justifies publish-after-commit by citing the *superseded* whole-handler
@@ -237,14 +241,14 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   variants — recommendation: MIT eyes-open, since "truly open" is a ratified
   core value in LLP 0000, but the trade should be recorded and ratified).
   **Done when:** a Decision LLP exists and LLP 0000/0022 cross-reference it.
-  **Drafted 2026-07-01** as
-  [LLP 0033](./0033-license-posture.decision.md), cross-referenced from
-  0000/0022; ratification pending in the R1 batch.
+  **Done 2026-07-01** — [LLP 0033](./0033-license-posture.decision.md)
+  ratified (MIT eyes-open with revisit triggers), cross-referenced from
+  0000/0022, ledgered; DK-8 decided.
 - **R6 — Reconcile cadence.** Adopt a standing rule (in `AGENTS.md` or
   LLP 0016): run the `llp-maintain` audit before each demo lands and after
   each phase of this plan completes. **Done when:** the rule is written down
-  and has run once. **Adopted 2026-07-01** in LLP 0016 and AGENTS.md; the
-  first run is this Phase 0 audit (closes with the R1 batch).
+  and has run once. **Done 2026-07-01** — adopted in LLP 0016 and AGENTS.md;
+  the first run was this Phase 0 audit.
 - **R7 — Execution-semantics honesty patch (doc-only).** The corpus's most
   load-bearing overclaim cannot wait for Phase 2: LLP 0003/0004/0007
   describe snapshot reads, read-your-writes `ctx.db`, and commit-time
@@ -261,6 +265,9 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   **Landed 2026-07-01** — status callouts in 0003 §Execution and Write
   Semantics, 0004 §Write Semantics, and 0007's read-set-validation contract;
   0013's stale lock citation was R3's fix.
+
+**Phase 0 completed 2026-07-01.** R1–R7 done; the ratification batch is
+ledgered in LLP 0000; `ref-check` green across the corpus.
 
 ## Phase 1 — Safety floor and confirmed defects
 
@@ -768,7 +775,7 @@ Status column in place as rows close.
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | Open — closes with the cron test-debt work |
 | DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | Open — blocks P3c |
-| DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Drafted as LLP 0033 — ratification pending |
+| DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Decided 2026-07-01 — MIT eyes-open (LLP 0033) |
 | DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | Open — X4 |
 | DK-10 | Adapter live-push architecture | Adapter owns the live subscription; separate live-provider seam beside the boundary | prototype in P5 | LLP 0021/0029 | Open — P5 prototype |
 

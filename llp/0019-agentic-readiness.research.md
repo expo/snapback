@@ -1,11 +1,11 @@
 # LLP 0019: Agentic readiness
 
 **Type:** Research
-**Status:** Draft
+**Status:** Active
 **Systems:** Developer experience, Runtime, Storage, Auth, Sync, Realtime, Tooling, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-26
-**Revised:** 2026-06-27
+**Revised:** 2026-07-01 (status → Active, ratified in the LLP 0032 R1 batch: finished reference research, stable since 2026-06-27)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0018, LLP 0024
 
 ## Summary

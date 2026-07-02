@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Realtime, Runtime, Auth, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-25
-**Revised:** 2026-06-27
+**Revised:** 2026-07-01 (LLP 0032 R1 batch: promotion to Active was ratified, then reverted at apply time — `ref-check` enforces that Active documents carry no `[inferred]` claims, and this research keeps its inference-tagged analysis, so Draft is its honest state; content stable since 2026-06-27)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0022, https://github.com/expo/valet
 
 ## Summary

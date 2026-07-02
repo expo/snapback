@@ -1,11 +1,11 @@
 # LLP 0002: Canonical local dev/test target
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** Runtime, Storage, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-25
-**Revised:** 2026-06-26
+**Revised:** 2026-07-01 (status → Active, ratified in the LLP 0032 R1 batch: the decision is fully implemented — the local Ibex + SQLite server is the shipped core)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0009, LLP 0010, LLP 0014, https://github.com/ccheever/ibex
 
 ## Summary

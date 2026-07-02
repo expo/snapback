@@ -74,6 +74,25 @@ corpus does not rely on scattered "pending Charlie" notes.
   loop with independently verified registers; corpus status transitions,
   docket outcomes, and phase ratifications flow through its rules
   ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md)).
+- **2026-07-01:** the V1 implementation charter in
+  [LLP 0010](./0010-agent-dx-and-acceptance.spec.md) is ratified, superseding
+  the V0 charter: cron, actions with gated outbound fetch, ephemeral realtime,
+  and the admin console are in-charter; the V1 must-not-claim list (snapshot
+  reads until LLP 0032 Phase 2, reconnect/resume, packaged CLI, hosted
+  execution, and the rest) stands as the honesty boundary.
+- **2026-07-01:** license posture is decided — **MIT eyes-open** with named
+  revisit triggers ([LLP 0033](./0033-license-posture.decision.md), docket
+  DK-8): the free-riding exposure is a conscious trade for the ratified
+  "truly open" value; a trademark policy is the compatible first response if
+  a trigger fires.
+- **2026-07-01:** the LLP 0032 R1 status batch is ratified: LLP 0002 and the
+  research documents LLP 0006/0019 → Active; LLP 0013, 0017, 0023, 0028,
+  0031 → Accepted (each is the shipped design); LLP 0025 → Implemented. Two
+  apply-time deviations, both honesty-preserving: LLP 0020 stays Draft
+  (ratification-time verification found its §Remaining Phase 4 design work
+  still open), and LLP 0001/0022 stay Draft (`ref-check` enforces that Active
+  documents carry no `[inferred]` claims, and both keep inference-tagged
+  analysis). All other documents remain Draft, verified accurate.
 
 ## Who Snapback is for
 

@@ -1,11 +1,11 @@
 # LLP 0023: Admin console dev-serve loop
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Developer experience, Contract/Exact, Tooling, Testing
 **Author:** Claude (Opus 4.8)
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (review passes: GPT-5 clarified HMR verification, loopback proxy defaults, structured proxy failures, generated-binding lifecycle, and shared compile config; Claude hardened API-target resolution, non-fatal startup preflight, same-machine proxy risks, env naming, and Exact/bun prerequisites; GPT-5 re-review corrected memory-server port discovery and separated SSE from WebSocket proxy requirements; 2026-06-27 corrected the layout-bug characterization — a Contract `dom-mirror` `flex-shrink` default mismatch, not a kernel measurement bug — and recorded its upstream Exact fix, ENG-22199, verified under ENG-22214)
+**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the dev-serve loop and built-dist serving shipped; 2026-06-27 review passes: GPT-5 clarified HMR verification, loopback proxy defaults, structured proxy failures, generated-binding lifecycle, and shared compile config; Claude hardened API-target resolution, non-fatal startup preflight, same-machine proxy risks, env naming, and Exact/bun prerequisites; GPT-5 re-review corrected memory-server port discovery and separated SSE from WebSocket proxy requirements; 2026-06-27 corrected the layout-bug characterization — a Contract `dom-mirror` `flex-shrink` default mismatch, not a kernel measurement bug — and recorded its upstream Exact fix, ENG-22199, verified under ENG-22214)
 **Related:** LLP 0017 (admin console; Serving Model), LLP 0021 (Contract/Exact integration hardening; the build preset), [diary 0005](../diaries/0005-admin-console-redesign.diary.md); Exact LLP 0268 (static platform manifests)
 
 ## Summary

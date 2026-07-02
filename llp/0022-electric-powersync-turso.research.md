@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Realtime, Runtime, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-27
-**Revised:** 2026-07-01 (LLP 0032 R5: license-posture decision drafted as LLP 0033 and cross-referenced)
+**Revised:** 2026-07-01 (LLP 0032 R1 batch: promotion to Active was ratified, then reverted at apply time — `ref-check` enforces that Active documents carry no `[inferred]` claims, and the FSL-intent analysis here is inherently an inference, so Draft is its honest state; LLP 0032 R5: license-posture decision drafted as LLP 0033 and cross-referenced)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0007, LLP 0008, LLP 0011, LLP 0014, LLP 0018, https://electric.ax, https://www.powersync.com, https://turso.tech
 
 ## Summary

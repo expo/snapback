@@ -1,11 +1,11 @@
 # LLP 0025: Web cursor presence demo reset
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Implemented
 **Systems:** Demo apps, Realtime, Ephemeral state, Web client, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-28
-**Revised:** 2026-06-28
+**Revised:** 2026-07-01 (status → Implemented, ratified in the LLP 0032 R1 batch: the demo shipped as `demos/cursors-web`)
 **Related:** LLP 0000, LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0021, Diary 0006, commit 0bc9ce8, commit 6389ab7
 
 ## Summary

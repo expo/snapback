@@ -1,11 +1,11 @@
 # LLP 0033: License posture — MIT and the free-riding trade
 
 **Type:** Decision
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Project, Packaging, Deployment
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-01
+**Revised:** 2026-07-01 (ratified same day: MIT eyes-open; DK-8 decided)
 **Related:** LLP 0000, LLP 0022, LLP 0032
 
 ## Summary
@@ -53,7 +53,7 @@ R5 (docket row DK-8), from the finding in
    the differentiation LLP 0022 identifies; would need that value re-ratified
    first.
 
-## Decision (pending ratification)
+## Decision (ratified 2026-07-01)
 
 **Option 1 — MIT eyes-open — with option 2 (trademark policy) noted as a
 compatible, deferrable follow-up.** The free-riding exposure is accepted as a
@@ -75,5 +75,5 @@ license change.
 
 ## Status
 
-Draft — awaiting Charlie's ratification (LLP 0032 Phase 0 batch). On
-acceptance, ledger the outcome in LLP 0000 and mark docket row DK-8 decided.
+Accepted — ratified by Charlie 2026-07-01 in the LLP 0032 Phase 0 batch.
+Ledgered in LLP 0000; docket row DK-8 is decided.

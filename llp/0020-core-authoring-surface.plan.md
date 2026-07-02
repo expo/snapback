@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-06-27 (Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-07-01 (LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
 
 ## Summary
