@@ -323,7 +323,21 @@ The retention rule must balance:
 
 Draft default: retention is version-based **plus** time-based, with diagnostics
 when a client falls outside the window, and a forced per-subscription resnapshot
-below the floor. This is deliberately the fix for the concrete trap Valet hit:
+below the floor.
+
+> **Implementation status (2026-07-01, LLP 0032 L3):** the local target now
+> bounds the `_snapback_changes` journal — a periodic prune keeps the last N
+> commit versions *or* anything newer than a time window and drops the rest
+> (`LocalDatabase::prune_change_journal`), the retained floor is authoritative
+> (`journal_floor_version`), and `resume_requires_resnapshot(from_version)`
+> encodes the below-floor contract. The journal also gained a
+> `(table_name, version)` index so the per-mutation read-set validation no
+> longer full-scans. What is *not* built yet is a version-based **delta-resume
+> consumer**: today live delivery re-runs queries rather than replaying the
+> journal, so the floor primitive has no client caller until the wire
+> delta/resume path lands ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
+> P4 / DK-3). Pruning is safe for the current sole journal consumer (the
+> `MAX(version)` validation check, which pruning old rows does not affect). This is deliberately the fix for the concrete trap Valet hit:
 Valet garbage-collected the change log only after **every** active subscription had
 advanced past a version (a `min_last_sync_version()` watermark), with **no time
 bound and no resnapshot escape valve** — so one slow, stuck, or zombie subscription

@@ -206,6 +206,83 @@ impl LocalDatabase {
         Ok(version as u64)
     }
 
+    /// Prune the change journal to bound its growth: delete changes that are
+    /// outside **both** the version window (older than `retain_versions` behind
+    /// the current version) and the time window (older than `retain_ms`). A
+    /// change is kept if it is within either window, so a burst of writes and a
+    /// long-idle table are both retained conservatively.
+    ///
+    /// @ref LLP 0008#retention-and-resume — version-and-time-bounded retention.
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
+    pub fn prune_change_journal(
+        &self,
+        now_ms: u64,
+        retain_versions: u64,
+        retain_ms: u64,
+    ) -> SnapbackResult<u64> {
+        let version_floor = self.current_version()?.saturating_sub(retain_versions);
+        let time_floor = now_ms.saturating_sub(retain_ms);
+        let deleted = self.conn.execute(
+            "DELETE FROM _snapback_changes WHERE version < ?1 AND changed_at_ms < ?2",
+            params![version_floor as i64, time_floor as i64],
+        )?;
+        Ok(deleted as u64)
+    }
+
+    /// The oldest change version still retained (0 if the journal is empty). A
+    /// client resuming from below this cannot be replayed and must resnapshot.
+    pub fn journal_floor_version(&self) -> SnapbackResult<u64> {
+        let floor: Option<i64> =
+            self.conn
+                .query_row("SELECT MIN(version) FROM _snapback_changes", [], |row| {
+                    row.get(0)
+                })?;
+        Ok(floor.unwrap_or(0) as u64)
+    }
+
+    pub fn change_journal_len(&self) -> SnapbackResult<u64> {
+        let count: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
+                    row.get(0)
+                })?;
+        Ok(count as u64)
+    }
+
+    /// Whether a client resuming from `from_version` must resnapshot rather than
+    /// replay: the journal no longer retains the changes it would need. This is
+    /// the retention contract for the version-based replay path (a consumer is
+    /// future sync work, LLP 0032 P4); the primitive is defined here so the
+    /// floor is authoritative.
+    ///
+    /// @ref LLP 0008#retention-and-resume — resume below the retained floor requires resnapshot.
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
+    pub fn resume_requires_resnapshot(&self, from_version: u64) -> SnapbackResult<bool> {
+        let floor = self.journal_floor_version()?;
+        if floor == 0 {
+            // Empty or fully-pruned journal: replay is only possible if the
+            // client is already current; anything behind current must resnapshot.
+            return Ok(from_version < self.current_version()?);
+        }
+        Ok(from_version < floor)
+    }
+
+    /// The `EXPLAIN QUERY PLAN` detail for the per-mutation read-set validation
+    /// query, so a test can assert it uses the `(table_name, version)` index
+    /// rather than scanning. @ref LLP 0032 L3.
+    pub fn explain_table_change_version_plan(&self, table: &str) -> SnapbackResult<String> {
+        let mut statement = self.conn.prepare(
+            "EXPLAIN QUERY PLAN SELECT MAX(version) FROM _snapback_changes WHERE table_name = ?1",
+        )?;
+        let rows = statement.query_map(params![table], |row| row.get::<_, String>(3))?;
+        let mut detail = String::new();
+        for row in rows {
+            detail.push_str(&row?);
+            detail.push('\n');
+        }
+        Ok(detail)
+    }
+
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         validate_schema(&manifest)?;
 
@@ -732,6 +809,11 @@ impl LocalDatabase {
             );
             CREATE INDEX IF NOT EXISTS _snapback_changes_by_version
               ON _snapback_changes(version, id);
+            -- @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3: the
+            -- per-mutation read-set validation runs MAX(version) WHERE
+            -- table_name = ?, which was a full scan on the (version, id) index.
+            CREATE INDEX IF NOT EXISTS _snapback_changes_by_table_version
+              ON _snapback_changes(table_name, version);
             ",
         )?;
         Ok(())

@@ -398,20 +398,28 @@ pub fn router(state: SharedSnapback) -> Router {
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
 const CONNECTION_IDLE_TTL_MS: u64 = 120_000;
-const CONNECTION_REAP_INTERVAL_MS: u64 = 30_000;
+const MAINTENANCE_INTERVAL_MS: u64 = 30_000;
+// @ref LLP 0032 L3 / LLP 0008 §Retention — keep the last N commit versions and
+// anything newer than the time window; prune the rest.
+const JOURNAL_RETAIN_VERSIONS: u64 = 10_000;
+const JOURNAL_RETAIN_MS: u64 = 24 * 60 * 60 * 1_000;
 
-/// Periodically reap connections that have gone idle past the TTL, so an
-/// abandoned HTTP-polling client's subscriptions and ephemeral state do not
-/// live forever.
+/// Periodic lifecycle maintenance: reap connections idle past the TTL (L2) so an
+/// abandoned HTTP-polling client's subscriptions and ephemeral state do not live
+/// forever, and prune the change journal to its retention window (L3) so it does
+/// not grow without bound.
 ///
-/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
-pub fn spawn_connection_reaper(state: SharedSnapback) -> JoinHandle<()> {
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2, L3.
+pub fn spawn_maintenance_worker(state: SharedSnapback) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let mut ticks = interval(Duration::from_millis(CONNECTION_REAP_INTERVAL_MS));
+        let mut ticks = interval(Duration::from_millis(MAINTENANCE_INTERVAL_MS));
         loop {
             ticks.tick().await;
+            let now = now_millis();
             let mut snapback = state.lock().await;
-            snapback.reap_stale_connections(now_millis(), CONNECTION_IDLE_TTL_MS);
+            snapback.reap_stale_connections(now, CONNECTION_IDLE_TTL_MS);
+            // Best-effort; a transient prune error is retried next tick.
+            let _ = snapback.prune_change_journal(now, JOURNAL_RETAIN_VERSIONS, JOURNAL_RETAIN_MS);
         }
     })
 }

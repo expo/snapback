@@ -61,7 +61,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ServerContext::new(local_addr.ip().to_string(), local_addr.port(), loopback);
     let token_configured = server_context.admin_token.is_some();
     let cron_scheduler = server::spawn_cron_scheduler(state.clone());
-    let connection_reaper = server::spawn_connection_reaper(state.clone());
+    let maintenance_worker = server::spawn_maintenance_worker(state.clone());
     let app = server::app(AppState::new(state, server_context));
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
@@ -85,7 +85,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 
     let server_result = axum::serve(listener, app).await;
     cron_scheduler.abort();
-    connection_reaper.abort();
+    maintenance_worker.abort();
     drop(database_lock);
     server_result?;
     Ok(())

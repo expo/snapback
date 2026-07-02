@@ -2793,3 +2793,53 @@ fn l2_abandoned_connection_is_reaped_with_counters() {
         "reaping must tear down the connection's subscriptions"
     );
 }
+
+/// LLP 0032 L3 — the change journal is bounded by retention (prune drops old
+/// changes and raises the floor), a resume from below the retained floor is
+/// told to resnapshot, and the per-mutation validation query uses the
+/// (table_name, version) index instead of scanning.
+#[test]
+fn l3_journal_retention_prune_floor_and_index() {
+    let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
+    // Generate a run of committed changes (one per mutation → one version each).
+    for n in 0..12 {
+        snapback
+            .invoke_mutation("createTodo", input(json!({ "title": format!("t{n}") }), "user_1"))
+            .expect("create todo");
+    }
+    let before = snapback.change_journal_len().unwrap();
+    assert!(before >= 12, "expected the journal to hold each change, got {before}");
+    assert_eq!(snapback.journal_floor_version().unwrap(), 1);
+
+    // Prune keeping only the last 3 versions (time window zero → the version
+    // window governs). The journal shrinks and its floor rises.
+    let pruned = snapback
+        .prune_change_journal(2_000_000_000_000, 3, 0)
+        .expect("prune");
+    assert!(pruned > 0, "prune should have dropped old changes");
+    let after = snapback.change_journal_len().unwrap();
+    assert!(after < before, "journal must shrink: {after} !< {before}");
+    let floor = snapback.journal_floor_version().unwrap();
+    assert!(floor > 1, "floor must rise after pruning, got {floor}");
+
+    // A resume from below the retained floor must resnapshot; from the floor or
+    // later can replay.
+    assert!(
+        snapback.journal_resume_requires_resnapshot(1).unwrap(),
+        "resume from a pruned version must resnapshot"
+    );
+    assert!(
+        !snapback.journal_resume_requires_resnapshot(floor).unwrap(),
+        "resume from the retained floor can replay"
+    );
+
+    // The validation query uses the (table_name, version) index, not a scan.
+    let plan = snapback
+        .explain_table_change_version_plan("todos")
+        .expect("explain");
+    assert!(
+        plan.contains("_snapback_changes_by_table_version"),
+        "read-set validation must use the table_name index; plan was: {plan}"
+    );
+    assert!(!plan.to_uppercase().contains("SCAN "), "plan should not scan: {plan}");
+}

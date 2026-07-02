@@ -593,7 +593,15 @@ change the concurrency architecture and should land as one reviewed arc.
   below the floor), add the `(table_name, version)` index, and a prune job.
   **Done when:** a growth test bounds journal size; resume-below-floor
   forces resnapshot; the scan uses the index (checked via `EXPLAIN QUERY
-  PLAN` in a test).
+  PLAN` in a test). **Landed 2026-07-01** — the `(table_name, version)` index
+  is added (validation query no longer scans, asserted via `EXPLAIN QUERY
+  PLAN`); `prune_change_journal` (version-and-time-bounded) runs in the
+  periodic maintenance worker; `journal_floor_version` +
+  `resume_requires_resnapshot` encode the below-floor contract. Test
+  `l3_journal_retention_prune_floor_and_index`. **Note:** the version-based
+  delta-resume *consumer* is future wire work (P4/DK-3) — today live delivery
+  re-runs queries rather than replaying the journal, so the floor primitive
+  exists but has no client caller yet; recorded in LLP 0008 §Retention.
 - **L4 — Incremental ephemeral counters.** `refresh_counts` recomputes
   diagnostics over all rooms, entries, and outboxes after every publish,
   subscribe, delete, and disconnect (`src/ephemeral.rs:1212-1249`)

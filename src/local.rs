@@ -959,6 +959,36 @@ impl LocalSnapback {
         self.reaped_connections
     }
 
+    /// Prune the change journal to its retention window (L3). Delegates to
+    /// storage; called from the periodic maintenance worker.
+    pub fn prune_change_journal(
+        &self,
+        now_ms: u64,
+        retain_versions: u64,
+        retain_ms: u64,
+    ) -> SnapbackResult<u64> {
+        self.db
+            .prune_change_journal(now_ms, retain_versions, retain_ms)
+    }
+
+    pub fn change_journal_len(&self) -> SnapbackResult<u64> {
+        self.db.change_journal_len()
+    }
+
+    pub fn journal_floor_version(&self) -> SnapbackResult<u64> {
+        self.db.journal_floor_version()
+    }
+
+    /// Whether a version-based resume from `from_version` must resnapshot
+    /// because the journal no longer retains the needed changes (L3).
+    pub fn journal_resume_requires_resnapshot(&self, from_version: u64) -> SnapbackResult<bool> {
+        self.db.resume_requires_resnapshot(from_version)
+    }
+
+    pub fn explain_table_change_version_plan(&self, table: &str) -> SnapbackResult<String> {
+        self.db.explain_table_change_version_plan(table)
+    }
+
     pub fn drain_live_stream(&mut self, connection_id: &str) -> Vec<String> {
         self.drain_outbox(connection_id)
             .into_iter()
