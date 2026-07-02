@@ -617,11 +617,32 @@ pub fn validate_cron_manifest(manifest: &FunctionManifest) -> Vec<Diagnostic> {
                     job.name, ms
                 ),
             )),
-            (None, Some(expr)) if parse_cron_expr(expr).is_err() => diagnostics.push(cron_error(
-                "SNAPBACK_CRON_INVALID_EXPRESSION",
-                job,
-                format!("cron job {} has an invalid cron expression", job.name),
-            )),
+            (None, Some(expr)) => match parse_cron_expr(expr) {
+                Err(()) => diagnostics.push(cron_error(
+                    "SNAPBACK_CRON_INVALID_EXPRESSION",
+                    job,
+                    format!("cron job {} has an invalid cron expression", job.name),
+                )),
+                // An expression with no match within the scan bound can
+                // never fire (the bound exceeds the widest gap between
+                // fires of any satisfiable expression), so scanning from 0
+                // is a complete satisfiability check. Rejecting it here is
+                // what keeps a Feb 30 job from silently never scheduling.
+                //
+                // @ref LLP 0028#calendar-expression-semantics — fail closed
+                // with a structured diagnostic, never a silent no-op.
+                Ok(spec) if next_cron_match_after(&spec, 0).is_none() => {
+                    diagnostics.push(cron_error(
+                        "SNAPBACK_CRON_UNSATISFIABLE_EXPRESSION",
+                        job,
+                        format!(
+                            "cron job {} has a cron expression that can never fire",
+                            job.name
+                        ),
+                    ));
+                }
+                Ok(_) => {}
+            },
             _ => {}
         }
 
@@ -695,6 +716,18 @@ fn next_nominal_after(
     next_calendar_nominal_after(job, previous_nominal_at_ms, now_ms)
 }
 
+/// Upper bound (in days) on the calendar scan in [`next_cron_match_after`].
+/// Under the DK-6 day-matching rule the rarest satisfiable expression is a
+/// leap-day date with an unrestricted weekday (`0 0 29 2 *`): consecutive
+/// fires are at most 2,921 days apart (2096-02-29 → 2104-02-29, across the
+/// non-leap century year 2100). An expression with no match inside the
+/// bound therefore can never fire at all, from any starting instant.
+///
+/// @ref LLP 0028#calendar-expression-semantics — the bound is what turns an
+/// unsatisfiable expression (Feb 30) into a detectable validation error
+/// instead of a job that silently never fires.
+const MAX_CALENDAR_SCAN_DAYS: u64 = 3_000;
+
 fn next_calendar_nominal_after(
     job: &CronJobDefinition,
     previous_nominal_at_ms: Option<u64>,
@@ -703,16 +736,47 @@ fn next_calendar_nominal_after(
     let expr = job.schedule.cron.as_deref()?;
     let spec = parse_cron_expr(expr).ok()?;
     let floor = previous_nominal_at_ms.unwrap_or(now_ms);
-    let mut candidate = ((floor / 60_000) + 1) * 60_000;
-    let deadline = candidate.saturating_add(366 * 24 * 60 * 60 * 1_000);
-    while candidate <= deadline {
-        let Some(dt) = utc_parts(candidate) else {
-            return None;
-        };
-        if spec.matches(dt.minute, dt.hour, dt.day, dt.month, dt.weekday) {
-            return Some(candidate);
+    next_cron_match_after(&spec, floor)
+}
+
+/// First minute-aligned time strictly after `floor_ms` that matches `spec`.
+///
+/// Steps by civil day — date fields first, then the earliest matching
+/// hour/minute inside a matching day — so the bounded scan costs at most
+/// [`MAX_CALENDAR_SCAN_DAYS`] cheap iterations rather than the ~527k minute
+/// steps a year-long minute walk took. Returns `None` only for expressions
+/// that can never fire; `validate_cron_manifest` rejects those up front, so
+/// a scheduled job never silently no-ops here.
+fn next_cron_match_after(spec: &CronExpr, floor_ms: u64) -> Option<u64> {
+    const MINUTES_PER_DAY: u64 = 24 * 60;
+    let start_minute = floor_ms / 60_000 + 1;
+    let start_day = start_minute / MINUTES_PER_DAY;
+    let start_minute_of_day = (start_minute % MINUTES_PER_DAY) as u32;
+    for day in start_day..start_day.saturating_add(MAX_CALENDAR_SCAN_DAYS) {
+        let (_year, month, day_of_month) = civil_from_days(day as i64)?;
+        let weekday = (day as i64 + 4).rem_euclid(7) as u32;
+        if !spec.months.matches(month) || !spec.day_matches(day_of_month, weekday) {
+            continue;
         }
-        candidate = candidate.saturating_add(60_000);
+        let from = if day == start_day {
+            start_minute_of_day
+        } else {
+            0
+        };
+        if let Some(minute_of_day) = spec.first_time_at_or_after(from) {
+            let at_ms = (day * MINUTES_PER_DAY + u64::from(minute_of_day)) * 60_000;
+            debug_assert!(
+                utc_parts(at_ms).is_some_and(|parts| spec.matches(
+                    parts.minute,
+                    parts.hour,
+                    parts.day,
+                    parts.month,
+                    parts.weekday
+                )),
+                "day-stepping scan returned a minute the full matcher rejects"
+            );
+            return Some(at_ms);
+        }
     }
     None
 }
@@ -855,9 +919,47 @@ impl CronExpr {
     fn matches(&self, minute: u32, hour: u32, day: u32, month: u32, weekday: u32) -> bool {
         self.minutes.matches(minute)
             && self.hours.matches(hour)
-            && self.days.matches(day)
             && self.months.matches(month)
-            && self.weekdays.matches(weekday)
+            && self.day_matches(day, weekday)
+    }
+
+    /// Five-field cron day matching, DK-6 semantics: when both day-of-month
+    /// and day-of-week are restricted, a day matches when EITHER field
+    /// matches (POSIX OR — `0 0 13 * 5` fires on every 13th and on every
+    /// Friday). When at most one is restricted, the bare `*` matches
+    /// everything, so the conjunction is AND-equivalent standard cron. A
+    /// field is restricted whenever it is anything but a bare `*`; a stepped
+    /// day field (`*/2`) counts as restricted — a deliberate divergence from
+    /// Vixie's `*`-spelling flag so every validation-passing expression
+    /// provably fires within [`MAX_CALENDAR_SCAN_DAYS`].
+    ///
+    /// @ref LLP 0028#calendar-expression-semantics — DK-6 ratified POSIX OR;
+    /// breaking change from the pre-2026-07 AND matching.
+    fn day_matches(&self, day: u32, weekday: u32) -> bool {
+        if !self.days.any && !self.weekdays.any {
+            self.days.matches(day) || self.weekdays.matches(weekday)
+        } else {
+            self.days.matches(day) && self.weekdays.matches(weekday)
+        }
+    }
+
+    /// Smallest minute-of-day at or after `from_minute_of_day` whose hour
+    /// and minute fields both match, or `None` when nothing later today can.
+    fn first_time_at_or_after(&self, from_minute_of_day: u32) -> Option<u32> {
+        let from_hour = from_minute_of_day / 60;
+        let mut hour_floor = from_hour;
+        while let Some(hour) = self.hours.first_at_or_after(hour_floor, 23) {
+            let minute_floor = if hour == from_hour {
+                from_minute_of_day % 60
+            } else {
+                0
+            };
+            if let Some(minute) = self.minutes.first_at_or_after(minute_floor, 59) {
+                return Some(hour * 60 + minute);
+            }
+            hour_floor = hour + 1;
+        }
+        None
     }
 }
 
@@ -870,6 +972,18 @@ struct CronField {
 impl CronField {
     fn matches(&self, value: u32) -> bool {
         self.any || self.values.contains(&value)
+    }
+
+    /// Smallest matching value in `floor..=max`, if any.
+    fn first_at_or_after(&self, floor: u32, max: u32) -> Option<u32> {
+        if floor > max {
+            return None;
+        }
+        if self.any {
+            Some(floor)
+        } else {
+            self.values.range(floor..=max).next().copied()
+        }
     }
 }
 
@@ -926,5 +1040,356 @@ fn normalize_cron_value(value: u32, normalize_weekdays: bool) -> u32 {
         0
     } else {
         value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::{
+        CronActivationPolicy, CronRetryPolicy, FunctionDefinition, FunctionRuntime, IbexModule,
+    };
+
+    /// Inverse of `civil_from_days` (Howard Hinnant's `days_from_civil`),
+    /// kept test-local so the tests cross-check the production math with an
+    /// independent implementation instead of reusing it.
+    fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
+        let y = year - i64::from(month <= 2);
+        let era = if y >= 0 { y } else { y - 399 } / 400;
+        let yoe = y - era * 400;
+        let mp = i64::from((month + 9) % 12);
+        let doy = (153 * mp + 2) / 5 + i64::from(day) - 1;
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        era * 146_097 + doe - 719_468
+    }
+
+    fn ms_at(year: i64, month: u32, day: u32, hour: u32, minute: u32) -> u64 {
+        let days = days_from_civil(year, month, day);
+        assert!(days >= 0, "test dates must be at or after the epoch");
+        ((days as u64 * 24 + u64::from(hour)) * 60 + u64::from(minute)) * 60_000
+    }
+
+    fn parse(expr: &str) -> CronExpr {
+        parse_cron_expr(expr).expect("cron expression should parse")
+    }
+
+    /// Evaluates `spec` at a civil UTC instant via the production
+    /// `utc_parts` decomposition.
+    fn matches_at(spec: &CronExpr, year: i64, month: u32, day: u32, hour: u32, minute: u32) -> bool {
+        let parts = utc_parts(ms_at(year, month, day, hour, minute)).expect("representable time");
+        spec.matches(parts.minute, parts.hour, parts.day, parts.month, parts.weekday)
+    }
+
+    fn action_stub(name: &str) -> FunctionDefinition {
+        FunctionDefinition::new(
+            name,
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "bundle.js".to_owned(),
+                export: name.to_owned(),
+            }),
+        )
+    }
+
+    fn cron_job(name: &str, schedule: CronSchedule) -> CronJobDefinition {
+        CronJobDefinition {
+            name: name.to_owned(),
+            schedule,
+            action: "refreshAction".to_owned(),
+            enabled: true,
+            activation: CronActivationPolicy::default(),
+            jitter_policy: CronJitterPolicy::default(),
+            overlap_policy: CronOverlapPolicy::default(),
+            retry_policy: CronRetryPolicy::default(),
+            required_capabilities: Vec::new(),
+            target_wakeup: None,
+            source_span: None,
+        }
+    }
+
+    fn calendar_job(name: &str, expr: &str) -> CronJobDefinition {
+        cron_job(
+            name,
+            CronSchedule {
+                every_ms: None,
+                cron: Some(expr.to_owned()),
+            },
+        )
+    }
+
+    fn interval_job(name: &str, every_ms: u64) -> CronJobDefinition {
+        cron_job(
+            name,
+            CronSchedule {
+                every_ms: Some(every_ms),
+                cron: None,
+            },
+        )
+    }
+
+    fn manifest_with_jobs(jobs: Vec<CronJobDefinition>) -> FunctionManifest {
+        FunctionManifest {
+            functions: vec![action_stub("refreshAction")],
+            cron_jobs: jobs,
+            ..FunctionManifest::default()
+        }
+    }
+
+    #[test]
+    fn parse_accepts_v0_grammar() {
+        let nightly = parse("0 3 * * *");
+        assert!(nightly.minutes.matches(0) && !nightly.minutes.matches(1));
+        assert!(nightly.hours.matches(3) && !nightly.hours.matches(4));
+        assert!(nightly.days.any && nightly.months.any && nightly.weekdays.any);
+
+        let steps = parse("*/15 * * * *");
+        assert!(!steps.minutes.any);
+        for minute in [0, 15, 30, 45] {
+            assert!(steps.minutes.matches(minute));
+        }
+        assert!(!steps.minutes.matches(5));
+
+        let list = parse("0 0 1,15 * *");
+        assert!(list.days.matches(1) && list.days.matches(15) && !list.days.matches(2));
+
+        // Day-of-week 7 normalizes to Sunday (0), matching five-field cron.
+        let sunday = parse("0 0 * * 7");
+        assert!(sunday.weekdays.matches(0));
+
+        let stepped_weekdays = parse("0 0 * * */2");
+        assert!(!stepped_weekdays.weekdays.any);
+        for weekday in [0, 2, 4, 6] {
+            assert!(stepped_weekdays.weekdays.matches(weekday));
+        }
+        assert!(!stepped_weekdays.weekdays.matches(1));
+    }
+
+    #[test]
+    fn parse_rejects_malformed_expressions() {
+        for expr in [
+            "",
+            "* * * *",
+            "* * * * * *",
+            "60 * * * *",
+            "* 24 * * *",
+            "* * 0 * *",
+            "* * 32 * *",
+            "* * * 0 *",
+            "* * * 13 *",
+            "* * * * 8",
+            "*/0 * * * *",
+            // Ranges and names are not part of the v0 grammar (LLP 0028
+            // #calendar-expression-semantics); they must fail loudly, not
+            // parse as something else.
+            "1-5 * * * *",
+            "0 0 * * MON",
+        ] {
+            assert!(
+                parse_cron_expr(expr).is_err(),
+                "expected {expr:?} to be rejected"
+            );
+        }
+    }
+
+    // DK-6 matrix: both day fields restricted -> POSIX OR (either matches).
+    #[test]
+    fn dom_dow_both_restricted_matches_either() {
+        let spec = parse("0 0 13 * 5");
+        // 2026-02-13 is a Friday the 13th: both sides hit.
+        assert!(matches_at(&spec, 2026, 2, 13, 0, 0));
+        // 2026-01-13 is a Tuesday: day-of-month side hits.
+        assert!(matches_at(&spec, 2026, 1, 13, 0, 0));
+        // 2026-02-06 is a Friday: day-of-week side hits.
+        assert!(matches_at(&spec, 2026, 2, 6, 0, 0));
+        // 2026-02-11 is a Wednesday the 11th: neither side hits.
+        assert!(!matches_at(&spec, 2026, 2, 11, 0, 0));
+        // Minute/hour fields still AND with the day match.
+        assert!(!matches_at(&spec, 2026, 2, 13, 0, 1));
+        assert!(!matches_at(&spec, 2026, 2, 13, 1, 0));
+    }
+
+    #[test]
+    fn dom_only_restricted_requires_day_of_month() {
+        let spec = parse("0 0 13 * *");
+        assert!(matches_at(&spec, 2026, 1, 13, 0, 0));
+        assert!(matches_at(&spec, 2026, 2, 13, 0, 0));
+        assert!(!matches_at(&spec, 2026, 2, 14, 0, 0));
+    }
+
+    #[test]
+    fn dow_only_restricted_requires_day_of_week() {
+        let spec = parse("0 0 * * 5");
+        // Fridays match whether or not they are the 13th...
+        assert!(matches_at(&spec, 2026, 2, 6, 0, 0));
+        assert!(matches_at(&spec, 2026, 2, 13, 0, 0));
+        // ...and non-Fridays never do.
+        assert!(!matches_at(&spec, 2026, 2, 14, 0, 0));
+        assert!(!matches_at(&spec, 2026, 2, 11, 0, 0));
+    }
+
+    #[test]
+    fn dom_dow_wildcards_match_every_day() {
+        let spec = parse("0 0 * * *");
+        for (month, day) in [(1, 13), (2, 6), (2, 11), (2, 14)] {
+            assert!(matches_at(&spec, 2026, month, day, 0, 0));
+        }
+    }
+
+    // A stepped day field (`*/2`) counts as restricted, so the OR rule
+    // applies. Vixie cron would treat the `*`-spelled field as unrestricted
+    // and AND the two; the divergence is deliberate (see `day_matches`).
+    #[test]
+    fn stepped_day_field_counts_as_restricted() {
+        let spec = parse("0 0 13 * */2");
+        // 2026-02-13, Friday (5): weekday side misses, day side hits -> OR fires.
+        assert!(matches_at(&spec, 2026, 2, 13, 0, 0));
+        // 2026-02-08, Sunday (0): day side misses, weekday side hits -> OR fires.
+        assert!(matches_at(&spec, 2026, 2, 8, 0, 0));
+        // 2026-02-11, Wednesday (3): neither side hits.
+        assert!(!matches_at(&spec, 2026, 2, 11, 0, 0));
+    }
+
+    #[test]
+    fn next_calendar_nominal_crosses_month_boundaries() {
+        let monthly = calendar_job("monthly", "0 0 1 * *");
+        // The fire after the Jan 1 slot is Feb 1 (31-day month boundary).
+        assert_eq!(
+            next_calendar_nominal_after(&monthly, Some(ms_at(2026, 1, 1, 0, 0)), 0),
+            Some(ms_at(2026, 2, 1, 0, 0))
+        );
+        // ...and after Feb 1 comes Mar 1 (28-day February, non-leap year).
+        assert_eq!(
+            next_calendar_nominal_after(&monthly, Some(ms_at(2026, 2, 1, 0, 0)), 0),
+            Some(ms_at(2026, 3, 1, 0, 0))
+        );
+
+        // A daily time earlier than "now" rolls into the next month when
+        // today is the last day of the month.
+        let daily = calendar_job("daily", "30 3 * * *");
+        assert_eq!(
+            next_calendar_nominal_after(&daily, None, ms_at(2026, 1, 31, 4, 0)),
+            Some(ms_at(2026, 2, 1, 3, 30))
+        );
+        // The result is strictly after the floor: from exactly 03:30 the
+        // next nominal is tomorrow's 03:30.
+        assert_eq!(
+            next_calendar_nominal_after(&daily, None, ms_at(2026, 1, 15, 3, 30)),
+            Some(ms_at(2026, 1, 16, 3, 30))
+        );
+    }
+
+    #[test]
+    fn next_calendar_nominal_handles_leap_day() {
+        let leap = calendar_job("leapDay", "0 0 29 2 *");
+        assert_eq!(
+            next_calendar_nominal_after(&leap, None, ms_at(2027, 6, 15, 0, 0)),
+            Some(ms_at(2028, 2, 29, 0, 0))
+        );
+        // The next fire can be almost four years out — well beyond the 366
+        // days the pre-DK-6 scan covered.
+        assert_eq!(
+            next_calendar_nominal_after(&leap, None, ms_at(2028, 3, 1, 0, 0)),
+            Some(ms_at(2032, 2, 29, 0, 0))
+        );
+    }
+
+    // The bounded scan must terminate for an expression that can never
+    // fire, and validation must turn that into a structured diagnostic
+    // rather than a job that silently never schedules.
+    #[test]
+    fn unsatisfiable_expression_scan_terminates_with_error() {
+        let feb_30 = calendar_job("febThirtieth", "0 0 30 2 *");
+        assert_eq!(
+            next_calendar_nominal_after(&feb_30, None, ms_at(2026, 1, 1, 0, 0)),
+            None
+        );
+        // Days that exist in no allowed month are equally unsatisfiable.
+        let spec = parse("0 0 31 4,6,9,11 *");
+        assert_eq!(next_cron_match_after(&spec, 0), None);
+
+        let manifest = manifest_with_jobs(vec![feb_30]);
+        let diagnostics = validate_cron_manifest(&manifest);
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == "SNAPBACK_CRON_UNSATISFIABLE_EXPRESSION")
+            .expect("unsatisfiable expression should be rejected");
+        assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
+        assert_eq!(
+            diagnostic.details.get("jobName").and_then(Value::as_str),
+            Some("febThirtieth")
+        );
+
+        // Fail closed: the job gets no runtime state and is never claimed.
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let claims =
+            runtime.claim_due_runs(&manifest, &BTreeSet::new(), ms_at(2026, 7, 1, 0, 0));
+        assert!(claims.is_empty(), "unsatisfiable job must not be scheduled");
+    }
+
+    #[test]
+    fn validate_accepts_satisfiable_calendar_jobs() {
+        let manifest = manifest_with_jobs(vec![
+            calendar_job("nightly", "0 3 * * *"),
+            // A leap-day-only schedule is rare but satisfiable; the scan
+            // bound must be wide enough not to misreport it.
+            calendar_job("leapDay", "0 0 29 2 *"),
+            interval_job("poll", 60_000),
+        ]);
+        let diagnostics = validate_cron_manifest(&manifest);
+        assert!(
+            diagnostics.is_empty(),
+            "unexpected diagnostics: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn civil_date_math_round_trips() {
+        // Anchors: the Unix epoch was Thursday 1970-01-01; 2000-01-01 is
+        // day 10,957 (946684800 / 86400).
+        assert_eq!(civil_from_days(0), Some((1970, 1, 1)));
+        assert_eq!(days_from_civil(2000, 1, 1), 10_957);
+        assert_eq!(civil_from_days(10_957), Some((2000, 1, 1)));
+
+        for (year, month, day) in [
+            (1999, 12, 31),
+            (2000, 1, 1),
+            (2000, 2, 29),
+            (2024, 2, 29),
+            (2026, 7, 2),
+            (2100, 2, 28),
+            (2100, 3, 1),
+            (2400, 2, 29),
+        ] {
+            assert_eq!(
+                civil_from_days(days_from_civil(year, month, day)),
+                Some((year as i32, month, day)),
+                "round-trip failed for {year}-{month:02}-{day:02}"
+            );
+        }
+
+        // Century rules: 2000 is a leap year (divisible by 400), 2100 is not.
+        assert_eq!(
+            civil_from_days(days_from_civil(2000, 2, 28) + 1),
+            Some((2000, 2, 29))
+        );
+        assert_eq!(
+            civil_from_days(days_from_civil(2100, 2, 28) + 1),
+            Some((2100, 3, 1))
+        );
+
+        // utc_parts decomposes a timestamp into the fields cron matches on;
+        // 2026-02-13 14:45 UTC is a Friday (weekday 5, Sunday = 0).
+        let parts = utc_parts(ms_at(2026, 2, 13, 14, 45)).expect("representable time");
+        assert_eq!(
+            (
+                parts.minute,
+                parts.hour,
+                parts.day,
+                parts.month,
+                parts.weekday
+            ),
+            (45, 14, 13, 2, 5)
+        );
     }
 }

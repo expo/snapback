@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline)
+**Revised:** 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, pending Charlie's ratification nod: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027
 
 ## Summary
@@ -127,6 +127,46 @@ alarms go finer. Apps that can accept a 60s freshness target should prefer it on
 Cloudflare so the hosted wakeup can be a Cron Trigger rather than a continuously
 re-armed sub-minute alarm. A job that asks for finer than the target supports must
 fail with a structured diagnostic, not be silently coarsened.
+
+#### Calendar expression semantics
+
+Ratified via [LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
+DK-6 (2026-07-02, pending Charlie's ratification nod). Calendar expressions
+are five-field cron — `minute hour day-of-month month day-of-week` —
+evaluated in UTC at minute granularity. The v0 grammar accepts `*`,
+`*/step`, and comma lists of numbers (day-of-week `7` ≡ `0` ≡ Sunday);
+ranges (`1-5`) and names (`MON`) are not yet supported and fail validation
+as `SNAPBACK_CRON_INVALID_EXPRESSION`.
+
+Day-of-month and day-of-week combine with **POSIX OR semantics**: when both
+fields are restricted, a day matches when **either** field matches; when at
+most one is restricted, the restricted field must match (a bare `*` matches
+everything, so the conjunction is ordinary AND). `0 0 13 * 5` therefore
+fires on every 13th *and* on every Friday. This is a **breaking change**
+from the initial implementation, which required both fields to match: AND
+silently turned `0 0 13 * 5` into "Friday the 13th", which no cron user
+expects — POSIX specifies the OR rule and every mainstream cron (Vixie,
+cronie, and the implementations Cloudflare Cron Triggers model) implements
+it. This RFC extracts `cron:` strings verbatim into hosted schedulers
+(§Cloudflare), so diverging from the standard would make the same string
+mean different things on different targets.
+
+A field counts as *restricted* whenever it is anything but a bare `*`; a
+stepped day field such as `*/2` is restricted. (Vixie cron instead treats
+any `*`-spelled field, `*/2` included, as unrestricted for this rule;
+Snapback deliberately diverges on that corner so that the OR rule keeps
+every satisfiable expression firing at least once per ~8 years, which is
+what makes validation-time satisfiability decidable with a small bound.)
+
+An expression that can never fire — `0 0 30 2 *`, February 30th — is a
+structured validation error, `SNAPBACK_CRON_UNSATISFIABLE_EXPRESSION`, not
+a job that silently never schedules (the no-silent-no-op rule in
+§Multi-target deployment). The scheduler finds the next fire with a
+day-stepping scan bounded at 3,000 days: under the OR rule the rarest
+satisfiable schedule is a leap-day date with an unrestricted weekday
+(`0 0 29 2 *`), whose consecutive fires are at most 2,921 days apart
+(2096-02-29 → 2104-02-29, across the non-leap century year 2100), so an
+expression with no match inside the bound can never fire at all.
 
 ### Jitter
 
@@ -579,9 +619,10 @@ implementation should prove:
 
 ## Open questions
 
-- **Cadence grammar** — exact cron-expression grammar, seconds support, and
-  whether the first local implementation accepts calendar schedules or starts
-  interval-only with a diagnostic for calendar jobs.
+- **Cadence grammar** — ranges (`1-5`), day/month names, and seconds support.
+  The v0 grammar and the day-of-month/day-of-week rule are pinned in
+  [Calendar expression semantics](#calendar-expression-semantics) (DK-6);
+  calendar schedules are accepted by the first local implementation.
 - **Jitter defaults** — exact default caps for interval and calendar schedules,
   and whether they are target-wide constants, deployment settings, or encoded in
   each generated manifest.

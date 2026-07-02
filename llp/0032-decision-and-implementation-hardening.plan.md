@@ -5,7 +5,7 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-02 (L6+L7 landed as the dedicated reviewed concurrency arc: design note, register entries with measured numbers, and the review's HIGH `GET /` fix recorded. Earlier: 2026-07-01 accepted by Charlie after the two-family review loop; same day, revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
+**Revised:** 2026-07-02 (DK-6 decided as POSIX OR — pending Charlie's ratification nod — with the calendar-cron and cron-retry test-debt rows closed. Same day: L6+L7 landed as the dedicated reviewed concurrency arc: design note, register entries with measured numbers, and the review's HIGH `GET /` fix recorded. Earlier: 2026-07-01 accepted by Charlie after the two-family review loop; same day, revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031
 
 ## Summary
@@ -1115,7 +1115,7 @@ Status column in place as rows close.
 | DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | **Decided 2026-07-01 — v1 pin replace/WS; cacheable-read-lane option kept open (M3)** |
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01 — warm VM per bundle hash for trusted-local, gated on a proven reset (M2)** |
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
-| DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | Open — closes with the cron test-debt work |
+| DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | **Decided 2026-07-02 — POSIX OR; landed with cron test-debt closure (pending Charlie's ratification nod — surface for veto before ledgering in LLP 0000)** |
 | DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | Open — blocks P3c |
 | DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Decided 2026-07-01 — MIT eyes-open (LLP 0033) |
 | DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | Open — X4 |
@@ -1129,9 +1129,13 @@ execution carry a blocker/advisory tier, so late discoveries do not
 silently grow the acceptance gate.
 
 - Calendar cron: parser, `next_calendar_nominal_after`, civil-date math,
-  DOM/DOW semantics — `src/cron.rs` has zero in-file tests today; also the
-  unsatisfiable-expression ~527k-iteration scan (`src/cron.rs:689-699`)
-  needs a bound test. Partly → DK-6.
+  DOM/DOW semantics, and the unsatisfiable-expression scan bound. **Closed
+  2026-07-02 with DK-6:** `src/cron.rs` gained an in-file unit-test module
+  (parser grammar, DOM/DOW OR matrix, month-boundary and leap-day
+  `next_calendar_nominal_after`, civil-date round-trips); the ~527k-iteration
+  minute scan is now a day-stepping scan bounded at 3,000 days, and an
+  unsatisfiable expression (Feb 30) is rejected at validation as
+  `SNAPBACK_CRON_UNSATISFIABLE_EXPRESSION`, with a termination test.
 - Ibex action → Ibex mutation nesting, and multi-host-call actions →
   S5.D1.
 - Post-commit notify failure surfacing → S5.D4.
