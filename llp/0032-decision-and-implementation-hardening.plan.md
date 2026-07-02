@@ -1166,7 +1166,18 @@ design-first.
   **Gates this program** (design note and ledger only; implementation
   follows later). **Done when:** DK-2 is ledgered in 0007/0014 revisions and
   any wire-format implication is reflected in LLP 0012 *before* further
-  protocol pins.
+  protocol pins. **Landed 2026-07-02** — design note in
+  [LLP 0007](./0007-storage-portability.spec.md) §Commit-version graduation:
+  the pinned portable contract is **per-app, gap-free-in-commit-visibility
+  version streams with opaque `(stream, version)` cursors**; allocator
+  mechanics are target-owned (SQLite serialized commit as shipped; Postgres
+  **commit fencing** recommended with the logical-decoding change feed
+  recorded as the measured scale escape; Durable Object per-object counter
+  with **one version authority per app** named as the Profile C constraint);
+  HLC ordering rejected for v1 with a named revisit trigger (multi-master
+  within one stream). LLP 0014 §Durable State carries the Cloudflare answer;
+  LLP 0012 §Versioning pins the cursor shape ahead of P4's reconnect/resume
+  envelopes. DK-2 ledgered in LLP 0000.
 - **X2 — Decide DK-5; if "now", build the V8 conformance twin.** The
   runtime-conformance floor is ratified but `async_handler_completion:
   Available` is a hardcoded constant (`src/runtime.rs:76`), the canonical
@@ -1216,7 +1227,7 @@ Status column in place as rows close.
 | Id | Decision | Options (recommendation first) | Gate | Lands in | Status |
 | --- | --- | --- | --- | --- | --- |
 | DK-1 | Read-set validation semantics | Implement-up staged (E2→E3→E4); or honest-downgrade (ratify table-granularity serialized writes as v0 semantics) — R7's doc-honesty patch lands first either way | E1; E4 gated on M1 cost numbers | LLP 0003/0004/0007 | **Decided 2026-07-01 — implement-up, staged; fully resolved 2026-07-02.** E2 landed; E4 landed after M1 (predicate-granular); E3 decided Option A (host-plan isolation is the client-supplied baseline *by design* — atomic-host-plan finding) with zero code change. All three legs closed; the E3 decision is **pending Charlie's ratification nod** (ledgered in LLP 0000) |
-| DK-2 | Commit-version graduation shape | Postgres sequence + logical-decoding feed; per-app shards (LLP 0018); HLC ordering | X1 design note | LLP 0007/0014 (+0012 wire impact) | Open — X1 |
+| DK-2 | Commit-version graduation shape | Postgres sequence + logical-decoding feed; per-app shards (LLP 0018); HLC ordering | X1 design note | LLP 0007/0014 (+0012 wire impact) | **Decided 2026-07-02** — per-app gap-free streams, target-owned allocators (Postgres commit fencing; DO counter), `(stream, version)` opaque cursors; HLC rejected with revisit trigger (LLP 0007 §Commit-version graduation) |
 | DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | **Decided 2026-07-01 — v1 pin replace/WS. Trigger fired 2026-07-02 after DK-4 (M3, ~5 200×). Op-log deltas *landed* 2026-07-02 as an additive `live_delta` wire kind for the analyzable HostPlan subset (server + client + tests; LLP 0008 §Decision DK-3, resolves LLP 0034 OQ1); Ibex-passthrough and windowed deltas are future work. Cacheable read lane still deferred (hosted trigger)** |
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01; gated leg landed 2026-07-02** — warm VM pool + verified per-invocation reset shipped behind the `dk4_*` leak suite (LLP 0009 §DK-4 as-built; numbers in LLP 0035 §After warm VM) |
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
@@ -1326,7 +1337,9 @@ Guardrails while executing:
 - **Do not port to Cloudflare before X1 and X2** — the version-allocator and
   runtime-conformance answers change what gets ported.
 - **Do not pin further wire-protocol surface (LLP 0012 extensions) before
-  DK-2/DK-3 are decided.**
+  DK-2/DK-3 are decided.** *(Satisfied 2026-07-02: DK-3 decided 07-01, DK-2
+  decided 07-02 — P4 may pin protocol surface within their recorded
+  constraints.)*
 - Land doc updates in the same commit as the code they describe (`AGENTS.md`
   rule); run `ref-check --verbose` and, once P3 exists, the artifact gates
   on every step.
