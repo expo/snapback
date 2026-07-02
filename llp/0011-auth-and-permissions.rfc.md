@@ -5,8 +5,8 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-25
-**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010
+**Revised:** 2026-07-02 (v1 auth/sync direction ratified: server-directed resubscribe on permission change, authorization epochs, fail-closed stale handling, user-switch wipe — ratified before LLP 0032 P4 hardens the sync protocol, per §Status's own ask)
+**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0020, LLP 0032
 
 ## Summary
 
@@ -20,12 +20,12 @@ This RFC proposes a split between authentication, which establishes who the
 request is, and authorization, which decides what that identity can read, write,
 subscribe to, and sync.
 
-This revision also records a recommended v1 answer to the auth/sync direction
-call surfaced by review: use **server-directed resubscribe on permission
-changes**, backed by authorization epochs and fail-closed stale-result handling,
-instead of requiring universal live permission re-evaluation for every connected
-subscription in v1. Precise live `remove` deltas can be an optimization for
-analyzable rules later.
+This revision also records the v1 answer to the auth/sync direction call
+surfaced by review — **ratified 2026-07-02**: use **server-directed
+resubscribe on permission changes**, backed by authorization epochs and
+fail-closed stale-result handling, instead of requiring universal live
+permission re-evaluation for every connected subscription in v1. Precise live
+`remove` deltas can be an optimization for analyzable rules later.
 
 ## Motivation
 
@@ -229,8 +229,8 @@ Permissions affect sync in both directions:
 - reconnect: resumed changes must be filtered through current permissions, not
   just historical visibility.
 
-**Recommended v1 answer: resubscribe on permission change, but make it
-server-directed and fail-closed.** Because Valet resolved a subscription's auth
+**Ratified v1 answer (2026-07-02): resubscribe on permission change, but make
+it server-directed and fail-closed.** Because Valet resolved a subscription's auth
 variables **once at subscribe time**, an auth/permission change did not
 retroactively re-filter a live subscription; the model required a resubscribe to
 pick up new visibility (`[observed - Valet LLP 0006/0019]`). Universal
@@ -326,8 +326,25 @@ The first auth acceptance tests should prove:
 
 ## Status
 
-Draft. Valet's auth/RLS record ([LLP 0006](./0006-valet-retrospective.research.md))
+Draft, with the v1 auth/sync direction **ratified 2026-07-02** by Charlie
+(applied by Claude under Charlie's same-day delegation), answering this
+section's own ask to settle the call before sync hardens — ratified ahead of
+LLP 0032 P4's reconnect/resume protocol work so the wire design can assume
+it. The ratified call: **server-directed resubscribe on permission change**
+— rules declare their auth dependencies, permission-affecting writes advance
+an authorization epoch, the server emits `resync_required` to affected
+subscriptions, clients fail closed (mark stale, clear sensitive retained
+slices, resubscribe), and reconnect/resume compares epochs and resnapshots
+when stale — plus the **user-switch full wipe** of local data, queues, and
+subscriptions. Universal mid-connection re-evaluation with precise `remove`
+deltas stays a later optimization for analyzable rules. The mechanism
+already has server-side footholds (permission epochs and `resync_required`
+signals from [LLP 0020](./0020-core-authoring-surface.plan.md) Phase 4 and
+LLP 0032 S5.D4/L1); the auth *surface* — providers, `ctx.auth`, RLS rules —
+remains unbuilt, so the RFC itself stays Draft. Ledgered in
+[LLP 0000](./0000-snapback.explainer.md).
+
+Earlier: Valet's auth/RLS record ([LLP 0006](./0006-valet-retrospective.research.md))
 is folded in — the stable-principal + identity-link model, write-side fail-closed
 RLS, user-switch wipe, and webhook/admin/deletion rules are grounded in a built
-system. This draft recommends server-directed resubscribe-on-permission-change for
-v1; the author should ratify or amend that call before sync hardens.
+system.
