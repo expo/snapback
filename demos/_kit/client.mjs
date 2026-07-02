@@ -8,6 +8,60 @@
 // @ref LLP 0012#react-and-expo-requirements — this is an Online-class adapter
 //   (speaks the wire protocol, server-authoritative mutations); it does NOT run
 //   handlers locally, so it makes no local-first/Parity claim.
+// @ref LLP 0034#d1--durable-push-to-the-browser — `liveQuery` gains a `stream`
+//   transport over the managed shared live socket (one socket, both lanes) with
+//   poll fallback, reconnect-by-fresh-subscribe, and the Exact LLP 0284 §2.2
+//   connection axis.
+
+// ---------------------------------------------------------------------------
+// D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
+//
+// The server sends nothing on an idle-healthy socket, so freshness is a
+// kit-derived policy with explicit timers: the client sends an app-level
+// `{"type":"ping"}` every LIVE_HEARTBEAT_INTERVAL_MS while the socket is open
+// (the server answers `{"kind":"pong"}` immediately — src/server.rs), and any
+// received frame counts as socket activity. The freshness budget is
+// LIVE_FRESHNESS_BUDGET_MS = 3x the heartbeat interval; silence past the
+// budget is a missed budget: the socket is force-closed and reconnect begins.
+//
+// Connection-axis mapping (normative table, LLP 0034 §2.2):
+//
+//   | provider state                                              | value          |
+//   |-------------------------------------------------------------|----------------|
+//   | socket connecting / (re)subscribe in flight                 | 'connecting'   |
+//   | socket open, subscription established, heartbeat in budget  | 'live'         |
+//   | no socket; HTTP drain timer active at declared cadence      | 'polling'      |
+//   | freshness budget missed while retry/backoff is in progress  | 'stale'        |
+//   | closed with no retry scheduled; drain stopped               | 'disconnected' |
+//
+// Notes against the table as implemented:
+// - With poll fallback enabled (the default), losing the socket goes straight
+//   to 'polling' — the declared-cadence drain is a healthy declared transport,
+//   not a degradation mystery. With fallback disabled, socket loss goes to
+//   'stale' (last-known rows renderable, retry in progress).
+// - transport:'poll' handles (the pre-D1 behavior, still the default) report
+//   'polling' after establish: the cadence is caller-owned there, so the kit
+//   claims no freshness budget for them.
+//
+// Reconnect (LLP 0034 §2.3, amended): the server drops a connection's durable
+// subscriptions when its socket closes (src/server.rs live_stream ->
+// LocalSnapback::disconnect), so there is nothing to resume across a socket
+// loss. Reconnect therefore ALWAYS re-enters through a fresh subscribe_live —
+// snapshot-with-subscribe, never a prime race — and emits a 'resubscribed'
+// subscription event. `resume_live` is not used across socket loss; a
+// subscription-survival grace window is future work.
+// ---------------------------------------------------------------------------
+export const LIVE_HEARTBEAT_INTERVAL_MS = 5_000;
+export const LIVE_FRESHNESS_BUDGET_MS = LIVE_HEARTBEAT_INTERVAL_MS * 3;
+export const LIVE_RECONNECT_BASE_DELAY_MS = 250;
+export const LIVE_RECONNECT_MAX_DELAY_MS = 10_000;
+// Provider poll floor: the declared HTTP outbox drain cadence used as the
+// stream fallback and emitted by codegen as the manifest `pollCadenceMs`.
+export const DEFAULT_POLL_CADENCE_MS = 1_500;
+// Grace before the fallback path re-subscribes after a socket loss, so the
+// server has processed the closing socket's disconnect (which drops the
+// connection's subscriptions) before the fresh subscribe_live lands.
+const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
 
 export class SnapbackClient {
   constructor(baseUrl) {
@@ -206,29 +260,571 @@ export class SnapbackClient {
     };
   }
 
-  // The "current value + subscription" seam as a small live handle: holds the
-  // latest rows, starting from the authoritative snapshot, and applies
-  // live_replace deltas drained from the outbox.
-  async liveQuery(ref, { connectionId, args = {}, userId } = {}) {
+  // The shared managed live socket for one connection (LLP 0034 §2.1: a
+  // connection opens at most one live socket; it carries durable deltas AND
+  // ephemeral push). Created on first use; reference-counted by attached
+  // consumers; reconnects with backoff while demand exists.
+  liveStreamManager(connectionId, options = {}) {
+    this.__liveStreamManagers ??= new Map();
+    let manager = this.__liveStreamManagers.get(connectionId);
+    if (!manager) {
+      manager = new LiveStreamManager(this, connectionId, options, () => {
+        this.__liveStreamManagers.delete(connectionId);
+      });
+      this.__liveStreamManagers.set(connectionId, manager);
+    }
+    return manager;
+  }
+
+  // The "current value + subscription" seam as a live handle: holds the latest
+  // rows, starting from the authoritative snapshot (snapshot-with-subscribe,
+  // one operation — LLP 0034 §1 / Exact LLP 0284 §2.1 rule 1).
+  //
+  // transport:'poll' (default, pre-D1 behavior): the caller drains updates
+  // manually via handle.poll(); nothing else runs.
+  //
+  // transport:'stream' (LLP 0034 D1): updates are pushed over the managed
+  // shared live socket; on socket loss the handle falls back to draining the
+  // HTTP outbox at `pollCadenceMs` (unless fallbackToPoll:false) while the
+  // socket retries with backoff; reconnect always re-enters through a fresh
+  // subscribe_live and emits a 'resubscribed' subscription event.
+  async liveQuery(ref, {
+    connectionId,
+    args = {},
+    userId,
+    transport = 'poll',
+    pollCadenceMs = DEFAULT_POLL_CADENCE_MS,
+    fallbackToPoll = true,
+    onUpdate = null,
+    onConnectionChange = null,
+    onSubscriptionEvent = null,
+    stream: streamOptions = {},
+  } = {}) {
     const name = functionName(ref);
-    const sub = await this.subscribeLive(name, { connectionId, args, userId });
+    const client = this;
+
+    let connection = 'connecting';
+    let disposed = false;
+    let paused = false;
+    let resubscribing = false;
+    let fallbackTimer = null;
+    let detachStream = null;
+    let streamedSinceSubscribe = false;
+    // True while the HTTP drain fallback owns delivery (socket down).
+    let fellBack = false;
+    // True when the server has (or may have) dropped this connection's durable
+    // subscriptions — an OPEN socket's close triggers server-side disconnect —
+    // and a fresh snapshot-with-subscribe has not landed yet.
+    let needsResubscribe = false;
+
     const handle = {
-      subscriptionId: sub.subscription_id,
-      version: sub.snapshot.version,
-      rows: sub.snapshot.rows,
-      poll: async () => {
-        const updates = await this.drainUpdates(connectionId);
-        for (const u of updates) {
-          if (u.subscription_id === handle.subscriptionId) {
-            handle.rows = u.rows;
-            handle.version = u.version;
-          }
-        }
-        return handle.rows;
+      subscriptionId: null,
+      version: 0,
+      rows: [],
+      get connection() {
+        return connection;
       },
     };
+
+    const setConnection = (next) => {
+      if (disposed && next !== 'disconnected') return;
+      if (connection === next) return;
+      const previous = connection;
+      connection = next;
+      onConnectionChange?.(next, { previous });
+    };
+
+    // Minimal subscription events (LLP 0034 D1; the Exact LLP 0284 §2.6
+    // SubscriptionReceipt 'event' vocabulary — full receipt fields are D2).
+    // Versions are the server's durable commit versions carried on the
+    // snapshot and every live_replace; the kit assigns no sequence of its own.
+    const emitEvent = (event, extra = {}) => {
+      onSubscriptionEvent?.({
+        bindingId: handle.subscriptionId,
+        event,
+        transport: transport === 'stream' && streamedSinceSubscribe ? 'push' : 'poll',
+        scope: { ...args },
+        snapshotVersion: handle.version,
+        lastDeltaVersion: handle.version,
+        ...extra,
+      });
+    };
+
+    const applyDurable = (update) => {
+      if (disposed || paused || !update || typeof update !== 'object') return;
+      if (update.kind === 'live_replace') {
+        // Updates for a superseded (pre-resubscribe) subscription id are
+        // ignored; versions are non-decreasing per subscription (the global
+        // durable commit version assigned at fan-out).
+        if (update.subscription_id !== handle.subscriptionId) return;
+        if (typeof update.version === 'number' && update.version < handle.version) return;
+        handle.rows = update.rows;
+        handle.version = update.version;
+        onUpdate?.(handle.rows, { version: handle.version, kind: 'live_replace' });
+        return;
+      }
+      if (update.kind === 'resync_required') {
+        // Connection-wide outbox overflow carries no subscription_id
+        // (src/ephemeral.rs OutboundQueue::overflow); subscription-scoped
+        // resyncs (permission epoch changes, fan-out failures) do. Either
+        // way the recovery is the same: fresh snapshot-with-subscribe.
+        if (update.subscription_id && update.subscription_id !== handle.subscriptionId) return;
+        void resubscribe(resyncReason(update.reason));
+      }
+    };
+
+    const subscribeFresh = async () => {
+      const sub = await client.subscribeLive(name, { connectionId, args, userId });
+      handle.subscriptionId = sub.subscription_id;
+      handle.version = sub.snapshot.version;
+      handle.rows = sub.snapshot.rows;
+      return sub;
+    };
+
+    // Reconnect/resync re-entry: always a fresh subscribe_live (see the policy
+    // block at the top of this file — the server drops a connection's durable
+    // subscriptions on socket close, so there is nothing to resume). Note: on
+    // in-band resyncs (overflow, permission epoch) the superseded subscription
+    // may remain registered server-side until the connection disconnects or is
+    // reaped; its updates are ignored by subscription-id filtering above.
+    const resubscribe = async (reason) => {
+      if (disposed || paused || resubscribing) return;
+      resubscribing = true;
+      try {
+        await subscribeFresh();
+        needsResubscribe = false;
+        emitEvent('resubscribed', { reason });
+        onUpdate?.(handle.rows, { version: handle.version, kind: 'snapshot' });
+      } catch (error) {
+        // Retry rides the transport's own cadence: the next poll tick or the
+        // next socket regain re-enters here.
+        onConnectionChange?.(connection, { previous: connection, error });
+      } finally {
+        resubscribing = false;
+      }
+    };
+
+    const drainOnce = async () => {
+      // HTTP outbox drain: one bounded queue per connection, durable lane
+      // first, then resync, then coalesced ephemeral (OutboundQueue::drain —
+      // durable-over-ephemeral priority, LLP 0013 §delivery-lanes). The kit
+      // preserves arrival order and never reorders ephemeral ahead of durable.
+      const updates = await client.drainUpdates(connectionId);
+      for (const update of updates) applyDurable(update);
+      return handle.rows;
+    };
+
+    const stopFallback = () => {
+      if (fallbackTimer) {
+        clearInterval(fallbackTimer);
+        fallbackTimer = null;
+      }
+    };
+
+    const startFallback = () => {
+      if (fallbackTimer || disposed || paused) return;
+      fallbackTimer = setInterval(() => {
+        drainOnce().catch(() => {
+          // Poll failures while the socket also retries: budget missed.
+          setConnection('stale');
+        });
+      }, pollCadenceMs);
+    };
+
+    const attachStream = () => {
+      const manager = client.liveStreamManager(connectionId, streamOptions);
+      const offDurable = manager.onDurable(applyDurable);
+      const offState = manager.onState((state, detail = {}) => {
+        if (disposed || paused) return;
+        if (state === 'open') {
+          streamedSinceSubscribe = true;
+          stopFallback();
+          if (handle.subscriptionId === null) return; // establishment still in flight
+          fellBack = false;
+          if (needsResubscribe) {
+            // The lost socket's server-side disconnect dropped this
+            // connection's subscriptions and no fresh subscribe has landed
+            // yet: re-enter through snapshot-with-subscribe.
+            setConnection('connecting');
+            void resubscribe('reconnect').then(() => {
+              if (!disposed && !paused && manager.isOpen()) setConnection('live');
+            });
+          } else {
+            // The current subscription is valid (re-created by the fallback
+            // path, or the original if the socket never opened); the regained
+            // socket drains the same connection outbox — no second snapshot.
+            setConnection('live');
+          }
+          return;
+        }
+        if (state === 'lost') {
+          streamedSinceSubscribe = false;
+          if (detail.wasOpen) {
+            // An OPEN socket's close makes the server drop this connection's
+            // durable subscriptions (src/server.rs live_stream -> disconnect).
+            // A socket that never opened dropped nothing.
+            needsResubscribe = true;
+          }
+          if (fallbackToPoll) {
+            setConnection('polling');
+            fellBack = true;
+            if (detail.wasOpen) {
+              // Re-subscribe for the fallback path after a short grace so the
+              // server has processed the close; if the socket reconnects
+              // first, the 'open' handler resubscribes instead (guarded by
+              // needsResubscribe, so exactly one fresh subscribe lands).
+              setTimeout(() => {
+                if (!disposed && !paused && needsResubscribe && handle.subscriptionId !== null) {
+                  void resubscribe('reconnect');
+                }
+              }, RESUBSCRIBE_AFTER_LOSS_DELAY_MS);
+            }
+            startFallback();
+          } else {
+            setConnection('stale');
+          }
+          return;
+        }
+        if (state === 'budget-missed') {
+          setConnection('stale');
+          return;
+        }
+        if (state === 'closed') {
+          setConnection('disconnected');
+        }
+      });
+      return () => {
+        offDurable();
+        offState();
+      };
+    };
+
+    const establish = async () => {
+      setConnection('connecting');
+      if (transport === 'stream') {
+        detachStream = attachStream();
+      }
+      await subscribeFresh();
+      emitEvent('established');
+      if (transport === 'stream') {
+        const manager = client.liveStreamManager(connectionId, streamOptions);
+        if (manager.isOpen()) {
+          streamedSinceSubscribe = true;
+          setConnection('live');
+        }
+        // Otherwise stay 'connecting': the socket is still in flight, and the
+        // manager's first 'lost' event engages the poll fallback (or 'stale'
+        // when fallback is disabled) if the connect fails.
+      } else {
+        setConnection('polling');
+      }
+    };
+
+    handle.poll = async () => {
+      if (disposed || paused) return handle.rows;
+      return drainOnce();
+    };
+
+    // Host lifecycle is provider/kit policy, not view logic (Exact LLP 0284
+    // §2.1 rule 4): pause quiesces this handle's transports (no retry is
+    // scheduled -> 'disconnected'); resume re-enters through a fresh
+    // snapshot-with-subscribe and a 'resubscribed' event.
+    handle.pause = () => {
+      if (disposed || paused) return;
+      paused = true;
+      stopFallback();
+      detachStream?.();
+      detachStream = null;
+      setConnection('disconnected');
+    };
+
+    handle.resume = async () => {
+      if (disposed || !paused) return;
+      paused = false;
+      setConnection('connecting');
+      if (transport === 'stream') {
+        detachStream = attachStream();
+      }
+      await subscribeFresh();
+      emitEvent('resubscribed', { reason: 'resume' });
+      const manager = transport === 'stream' ? client.liveStreamManager(connectionId, streamOptions) : null;
+      if (manager?.isOpen()) {
+        streamedSinceSubscribe = true;
+        setConnection('live');
+      } else if (transport === 'stream' && fallbackToPoll) {
+        fellBack = true;
+        setConnection('polling');
+        startFallback();
+      } else {
+        setConnection(transport === 'stream' ? 'stale' : 'polling');
+      }
+    };
+
+    handle.dispose = () => {
+      if (disposed) return;
+      emitEvent('disposed');
+      disposed = true;
+      stopFallback();
+      detachStream?.();
+      detachStream = null;
+      setConnection('disconnected');
+    };
+
+    await establish();
     return handle;
   }
+}
+
+/// One managed WebSocket per connection, multiplexing durable live-query
+/// updates and ephemeral push (the lanes the server's outbox already carries;
+/// durable drains before ephemeral within each tick — LLP 0013
+/// §delivery-lanes; the manager dispatches frames strictly in arrival order,
+/// preserving that priority). Reference-counted by listeners; reconnects with
+/// exponential backoff while demand exists; sends app-level pings to make the
+/// Exact LLP 0284 §2.2 freshness budget observable.
+///
+/// @ref LLP 0034#21-one-socket-both-lanes
+class LiveStreamManager {
+  constructor(client, connectionId, options = {}, onRelease = () => {}) {
+    this.client = client;
+    this.connectionId = connectionId;
+    this.onRelease = onRelease;
+    this.heartbeatIntervalMs = options.heartbeatIntervalMs ?? LIVE_HEARTBEAT_INTERVAL_MS;
+    this.freshnessBudgetMs = options.freshnessBudgetMs ?? LIVE_FRESHNESS_BUDGET_MS;
+    this.reconnectBaseDelayMs = options.reconnectBaseDelayMs ?? LIVE_RECONNECT_BASE_DELAY_MS;
+    this.reconnectMaxDelayMs = options.reconnectMaxDelayMs ?? LIVE_RECONNECT_MAX_DELAY_MS;
+
+    this.durableListeners = new Set();
+    this.ephemeralListeners = new Set();
+    this.stateListeners = new Set();
+    this.pendingRequests = new Map();
+
+    this.ws = null;
+    this.open = false;
+    this.closed = false;
+    this.attempts = 0;
+    this.reconnectTimer = null;
+    this.heartbeatTimer = null;
+    this.lastActivityMs = Date.now();
+    this.requestSeq = 0;
+  }
+
+  #demand() {
+    return this.durableListeners.size + this.ephemeralListeners.size + this.stateListeners.size;
+  }
+
+  #listen(set, listener) {
+    set.add(listener);
+    this.#ensureSocket();
+    return () => {
+      set.delete(listener);
+      if (this.#demand() === 0) this.close();
+    };
+  }
+
+  onDurable(listener) {
+    return this.#listen(this.durableListeners, listener);
+  }
+
+  onEphemeral(listener) {
+    return this.#listen(this.ephemeralListeners, listener);
+  }
+
+  onState(listener) {
+    return this.#listen(this.stateListeners, listener);
+  }
+
+  isOpen() {
+    return this.open;
+  }
+
+  #emitState(state, detail = {}) {
+    for (const listener of [...this.stateListeners]) listener(state, detail);
+  }
+
+  #ensureSocket() {
+    if (this.closed || this.ws || this.reconnectTimer) return;
+    this.#connect();
+  }
+
+  #connect() {
+    const url = `${this.client.baseUrl.replace(/^http/, 'ws')}/live/${this.connectionId}/stream`;
+    this.#emitState('connecting');
+    let ws;
+    try {
+      ws = new WebSocket(url);
+    } catch (error) {
+      this.#scheduleReconnect();
+      return;
+    }
+    this.ws = ws;
+
+    ws.addEventListener('open', () => {
+      if (this.ws !== ws) return;
+      this.open = true;
+      this.attempts = 0;
+      this.lastActivityMs = Date.now();
+      this.#startHeartbeat();
+      this.#emitState('open');
+    });
+    ws.addEventListener('message', async (event) => {
+      if (this.ws !== ws) return;
+      this.lastActivityMs = Date.now();
+      let frame;
+      try {
+        frame = JSON.parse(await websocketText(event.data));
+      } catch {
+        return;
+      }
+      this.#dispatch(frame);
+    });
+    const onLoss = () => {
+      if (this.ws !== ws) return;
+      const wasOpen = this.open;
+      this.open = false;
+      this.ws = null;
+      this.#stopHeartbeat();
+      this.#failPendingRequests(new Error(`Snapback live stream lost: ${url}`));
+      if (this.closed) return;
+      // Emit on an open socket's loss and on the first failed connect (so
+      // consumers can engage their fallback); silent on later retry failures.
+      if (wasOpen || this.attempts === 0) this.#emitState('lost', { wasOpen });
+      this.#scheduleReconnect();
+    };
+    ws.addEventListener('close', onLoss, { once: true });
+    ws.addEventListener('error', () => {
+      // 'close' follows 'error' in both browser and undici WebSockets; loss
+      // handling is centralized in the close handler.
+    });
+  }
+
+  #scheduleReconnect() {
+    if (this.closed || this.reconnectTimer) return;
+    if (this.#demand() === 0) return;
+    const delay = Math.min(
+      this.reconnectBaseDelayMs * 2 ** this.attempts,
+      this.reconnectMaxDelayMs,
+    );
+    this.attempts += 1;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (!this.closed && this.#demand() > 0) this.#connect();
+    }, delay);
+  }
+
+  #startHeartbeat() {
+    this.#stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (!this.open) return;
+      if (Date.now() - this.lastActivityMs > this.freshnessBudgetMs) {
+        // Freshness budget missed while the socket claims to be open: declare
+        // it, then force the loss path so reconnect begins ('stale' is
+        // budget-missed-while-retrying — LLP 0034 §2.2).
+        this.#emitState('budget-missed');
+        this.debugCloseSocket();
+        return;
+      }
+      this.requestSeq += 1;
+      const requestId = `ping_${this.requestSeq}`;
+      try {
+        this.ws?.send(JSON.stringify({ type: 'ping', requestId }));
+      } catch {
+        // Loss handling rides the close event.
+      }
+    }, this.heartbeatIntervalMs);
+  }
+
+  #stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
+  #dispatch(frame) {
+    if (!frame || typeof frame !== 'object') return;
+    if (frame.requestId && this.pendingRequests.has(frame.requestId)) {
+      const pending = this.pendingRequests.get(frame.requestId);
+      this.pendingRequests.delete(frame.requestId);
+      pending.resolve(frame);
+      return;
+    }
+    if (frame.kind === 'pong' || frame.kind === 'ephemeral_ack' || frame.kind === 'ephemeral_error') {
+      return; // uncorrelated control frames only refresh lastActivityMs
+    }
+    if (frame.kind === 'ephemeral') {
+      for (const listener of [...this.ephemeralListeners]) listener(frame);
+      return;
+    }
+    // Durable-lane payloads arrive unwrapped: live_replace / resync_required.
+    for (const listener of [...this.durableListeners]) listener(frame);
+  }
+
+  /// Send a live-socket request (ephemeral_subscribe/publish/delete or ping)
+  /// and await its correlated response envelope.
+  request(message, timeoutMs = 2_000) {
+    if (!this.open || !this.ws) {
+      return Promise.reject(new Error('Snapback live stream is not open'));
+    }
+    this.requestSeq += 1;
+    const requestId = message.requestId ?? `req_${this.requestSeq}`;
+    const promise = new Promise((resolve, reject) => {
+      this.pendingRequests.set(requestId, { resolve, reject });
+    });
+    this.ws.send(JSON.stringify({ ...message, requestId }));
+    return withTimeout(promise, timeoutMs, `timed out waiting for live-socket response ${requestId}`).finally(() => {
+      this.pendingRequests.delete(requestId);
+    });
+  }
+
+  #failPendingRequests(error) {
+    for (const [, pending] of this.pendingRequests) pending.reject(error);
+    this.pendingRequests.clear();
+  }
+
+  /// Test hook (conformance check 3): force-close the underlying socket
+  /// without releasing demand — the manager treats it as a loss and retries.
+  debugCloseSocket() {
+    const ws = this.ws;
+    if (ws) {
+      try {
+        ws.close();
+      } catch {
+        // close() on a connecting socket may throw in some implementations.
+      }
+    }
+  }
+
+  close() {
+    this.closed = true;
+    this.#stopHeartbeat();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    const ws = this.ws;
+    this.ws = null;
+    this.open = false;
+    if (ws) {
+      try {
+        ws.close();
+      } catch {
+        // best-effort teardown
+      }
+    }
+    this.#failPendingRequests(new Error('Snapback live stream closed'));
+    this.#emitState('closed');
+    this.durableListeners.clear();
+    this.ephemeralListeners.clear();
+    this.stateListeners.clear();
+    this.onRelease();
+  }
+}
+
+function resyncReason(serverReason) {
+  if (serverReason === 'outbox_overflow') return 'overflow';
+  if (serverReason === 'permission_epoch_changed') return 'permission-epoch';
+  return 'resync';
 }
 
 export class EphemeralOverlay {
