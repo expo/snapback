@@ -439,3 +439,61 @@ cargo 97/97, all demo acceptance suites green, new
   the opt-out is `defineLiveQuery({ defaultLive: false })`.
 - **D5 checks 2 (TTL expiry deletion) and 5 (delivered-rate ≤
   `maxDeltaRateHz`)** remain open pending D2 receipts, as scoped.
+
+### 10.1 Implementation review round + first proof (2026-07-02)
+
+An independent adversarial review of the implementation branch (verdict:
+merge-after-fixes; its reproducer probes are preserved as regression
+tests) produced five pre-merge fixes, all landed:
+
+1. **Generation-guarded `live_stream` teardown** — a late-dying
+   superseded socket can no longer destroy the reconnected session's
+   subscriptions and delivery waker (previously masked forever by
+   stateless ping). Consequence: an overlapping reconnect now keeps its
+   subscriptions; superseded-subscription GC remains the D2-adjacent gap.
+2. **Honest resubscribe** — `live` is claimed only when a subscribe
+   actually lands; failures surface, retry on bounded backoff, and every
+   drain tick re-enters the fresh subscribe while needed (covers the
+   destroyed-outbox-drains-empty polling variant).
+3. **In-flight optimistic rows survive concurrent `live_replace`** — the
+   adapter re-applies pending optimistic reducers on every server-rows
+   write (interim mechanism until D2 receipts).
+4. **Path-independent generated hashes** — handler sources hash by
+   manifest-relative path; the conformance cross-check generates into a
+   temp copy and gained a real freshness guard (regen inputsHash must
+   equal committed).
+5. **`establish()`/`resume()` detach the stream manager on subscribe
+   failure** (previously leaked socket + heartbeat + reconnect loop).
+
+Regression tests:
+`demos/_kit/tests/regression-{reconnect-nuke,fake-live,optimistic-clobber}.mjs`.
+Review residuals, open: §6.5 (permission-epoch resubscribe) and §6.6
+(multi-connection identity) conformance checks are not yet written; the
+full cursor-flood variant of §6.7 is open (the one-socket-both-lanes
+ground check exists); cross-lane destructive drains (durable
+`drainUpdates` discards ephemeral envelopes and vice versa) is a kit
+footgun to resolve when one connection combines both lanes outside the
+adapter.
+
+**First proof complete (Exact 0284 §5 items 1–3):** All Aboard runs on
+the paved path — `store.mjs`, the `client.liveQuery` + 1500 ms poll pump,
+and the boot-path `client.reset()` are deleted; boot is inspect-first and
+seed-if-empty; `liveTrainStatus` + `feedState` are live-bound over one
+shared socket; the `stale rows` arm was verified against a live server
+kill (last-known board + "Reconnecting" note, recovery to `live`); the
+browser suite asserts the cron-authored delta reaches the browser with no
+pump and that a second window's boot provisions nothing and does not
+disturb the first (the LLP 0275 C4 footgun, closed). Item 4's provider
+half is proven (two-client presence in the conformance suite); the
+Contract `ephemeral` binding remains Exact-side future work; items 5–6
+pend D2. Friction for the record: **bun-vite cannot proxy WebSocket
+upgrades** (vite 8.0.16 under `bun --bun`: the tunnel hangs open — demos
+talk to Snapback directly at a vite-`define`d origin, the cursors-web
+pattern; an ecosystem landmine for any Exact surface proxying a provider
+socket through the dev server); `connecting` must be **budget-bounded**
+(a swallowed upgrade previously produced permanent `connecting` with
+fallback never engaging — fixed with a connect budget); the adapter's
+`validateBindingSet` wrongly demanded query bindings for Actions (fixed —
+conformance fixtures should include an action-bearing manifest); D4
+residual server work: a true seed-without-reset server path and the
+positive environment-profile capability.
