@@ -6,7 +6,7 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (decision ledger: DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0037 and repairs the missing LLP 0034 entry; earlier same day: related LLP index and follow-on list updated for LLP 0036, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Revised:** 2026-07-02 (decision ledger: DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation; earlier same day: DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0037 and repairs the missing LLP 0034 entry; earlier same day: related LLP index and follow-on list updated for LLP 0036, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
 **Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
@@ -170,6 +170,22 @@ corpus does not rely on scattered "pending Charlie" notes.
   obligation there is a validated mapping, not schema authority. Unblocks
   LLP 0032 P3(c)/P2 and answers the open questions LLP 0016 Phase 1,
   LLP 0020, and LLP 0024 blocked on.
+- **2026-07-02:** the commit-version graduation shape (docket DK-2, LLP 0032
+  X1) is decided and ratified by Charlie (drafted and applied by Claude under
+  Charlie's same-day delegation): the portable contract is **per-app version
+  streams** (LLP 0018's boundary), **gap-free in commit-visibility order**,
+  with wire cursors as opaque `(stream, version)` pairs never compared across
+  streams; allocator mechanics stay target-owned — SQLite's serialized commit
+  as shipped, **commit fencing** as the Postgres graduation default (with the
+  logical-decoding change feed recorded as the measured scale escape), and a
+  per-object Durable Object counter with **one version authority per app**
+  named as the Cloudflare Profile C constraint. HLC-style ordering is
+  rejected for v1 with a named revisit trigger (multi-master writes within
+  one app stream). Design note in
+  [LLP 0007](./0007-storage-portability.spec.md) §Commit-version graduation;
+  wire pin in [LLP 0012](./0012-headless-integration-contract.spec.md)
+  §Versioning ahead of LLP 0032 P4's protocol work; Cloudflare answer in
+  [LLP 0014](./0014-cloudflare-strategy.rfc.md) §Durable State.
 
 ## Who Snapback is for
 

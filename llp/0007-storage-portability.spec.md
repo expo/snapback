@@ -5,8 +5,8 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 R3/R7: id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract annotated with current implementation status)
-**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011
+**Revised:** 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; earlier: 2026-07-01 LLP 0032 R3/R7: id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract annotated with current implementation status)
+**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032
 
 ## Summary
 
@@ -144,6 +144,77 @@ corpus, `[observed - Valet LLP 0001/0013]`). That breaks both atomic changeset
 delivery and the "compare row `_version` to a cursor" rule above. A naive per-row
 trigger does not satisfy this Spec; the version must come from one
 per-transaction allocation.
+
+### Commit-version graduation (DK-2, decided 2026-07-02)
+
+The single monotonic counter above is trivially correct on single-writer
+SQLite and was undesigned for concurrent Postgres writers and for Cloudflare
+(this Spec and [LLP 0014](./0014-cloudflare-strategy.rfc.md) both flagged
+it). This design note — LLP 0032 X1, docket row DK-2 — pins the portable
+contract now, before further wire-protocol surface hardens around a
+single-global-stream assumption, and leaves allocator mechanics to each
+target.
+
+**Pinned for every target (the portable contract):**
+
+1. **The version stream is per logical app**, scoped to
+   [LLP 0018](./0018-app-instance-boundaries.rfc.md)'s app boundary — not
+   per physical instance and not global across apps. On the canonical local
+   target (one app per instance) the two coincide, which is why nothing
+   changes today.
+2. **Within one stream, versions are opaque, monotonically increasing
+   integers.** Clients compare versions and hold cursors only within the
+   same stream; comparing versions across streams is undefined.
+3. **Gap-free commit visibility.** When an observer has seen version `N`,
+   every change numbered `≤ N` in that stream is durably committed and
+   visible to it — versions order *visibility*, not *allocation*. This is
+   the property the serialized SQLite writer provides for free; each
+   graduated target must supply it by its own mechanism, and a mechanism
+   that can expose a gap that later fills in (a reader at `N` missing `N−1`)
+   does not satisfy this Spec.
+4. **Wire cursors are `(stream identity, version)` pairs** treated as one
+   opaque resume token ([LLP 0012](./0012-headless-integration-contract.spec.md)
+   §Versioning). Resume below the retention floor forces resnapshot
+   ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Retention).
+
+**Allocator mechanics per target (target-owned, not portable):**
+
+- **Local SQLite (shipped):** the serialized writer allocates at commit
+  inside the write transaction. Correct by construction.
+- **Postgres (graduation default: commit fencing).** A bare sequence
+  violates property 3: allocation order is not commit order under
+  concurrency, so `changes since N` can permanently miss a lower-numbered
+  transaction that committed later. The recommended shape is **commit
+  fencing** — allocate the version in a short critical section at commit
+  time (per-app advisory lock or a single-row `UPDATE … RETURNING` version
+  row), so version order equals commit-visibility order. Handler execution
+  stays concurrent; only the allocation tail serializes. This preserves the
+  exact contract with the least machinery and is the honest continuation of
+  the per-app single-authority model (per-app write throughput keeps a
+  designed ceiling — the trade [LLP 0022](./0022-electric-powersync-turso.research.md)
+  documents across this product class). The scale-out escape hatch, recorded
+  but deliberately not designed here: a logical-decoding/commit-order change
+  feed assigning stream positions (Electric-style), which also satisfies
+  properties 1–4 if a measured per-app writer ceiling ever becomes the
+  binding constraint. Measure first (M1-class evidence), then design.
+- **Cloudflare D1 / Durable Objects.** A Durable Object is single-threaded,
+  so the write-owning object allocating a per-app counter from its storage
+  reproduces SQLite's semantics exactly. The named constraint: **one app
+  stream requires one version authority.** If one app's data ever shards
+  across multiple objects ([LLP 0014](./0014-cloudflare-strategy.rfc.md)
+  Profile C), either allocation funnels through one coordinator object, or
+  the shards become distinct streams and the client model must carry
+  multiple `(stream, version)` cursors — the opaque-pair wire shape leaves
+  that evolution open, but nothing today designs it, and no target may ship
+  intra-app sharding without revisiting this note.
+
+**Rejected: HLC-style ordering** for the v1 contract. Hybrid logical clocks
+order events across independent writers, but they do not give gap-free
+"changes since `N`" semantics without additional stability-watermark
+machinery, they complicate the retention floor, and they buy nothing while
+every planned target has a single per-app write authority. **Revisit
+trigger:** a design that requires multi-master writes within one app stream
+(nothing planned does).
 
 ## Timestamps
 

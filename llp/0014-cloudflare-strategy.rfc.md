@@ -5,8 +5,8 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Assets, Cron, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-06-26
-**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, https://developers.cloudflare.com/workers/platform/storage-options/, https://developers.cloudflare.com/durable-objects/, https://developers.cloudflare.com/durable-objects/best-practices/websockets/, https://developers.cloudflare.com/d1/platform/limits/, https://developers.cloudflare.com/r2/, https://developers.cloudflare.com/queues/, https://developers.cloudflare.com/workers/configuration/cron-triggers/
+**Revised:** 2026-07-02 (LLP 0032 X1: DK-2 commit-version answer recorded — per-app stream, one version authority per app, Durable Object counter; Profile C intra-app sharding named as the constraint that reopens LLP 0007's note)
+**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0018, LLP 0032, https://developers.cloudflare.com/workers/platform/storage-options/, https://developers.cloudflare.com/durable-objects/, https://developers.cloudflare.com/durable-objects/best-practices/websockets/, https://developers.cloudflare.com/d1/platform/limits/, https://developers.cloudflare.com/r2/, https://developers.cloudflare.com/queues/, https://developers.cloudflare.com/workers/configuration/cron-triggers/
 
 ## Summary
 
@@ -176,6 +176,19 @@ The storage choice must be made against Snapback's portable storage contract:
 D1 is the obvious SQL candidate, but not automatically the only Cloudflare
 store. Durable Object storage may be better for object-local state; R2 is the
 asset-byte store; Queues are not a database.
+
+**Commit-version answer (DK-2, 2026-07-02).** The graduation design note in
+[LLP 0007](./0007-storage-portability.spec.md) §Commit-version graduation
+settles the version-spine question this section inherits: the stream is
+per logical app, gap-free in commit-visibility order, and **one app stream
+requires one version authority**. On Cloudflare that authority is the
+write-owning Durable Object allocating a per-app counter from its own
+storage — single-threaded execution reproduces the local SQLite semantics
+exactly. The named constraint for Profile C: sharding one app's data across
+multiple objects requires either a coordinator-allocated stream or a
+multi-stream client cursor model, neither of which is designed — so the
+first prototype must keep one app's writes owned by one object, and any
+intra-app sharding proposal reopens LLP 0007's note.
 
 ### Runtime Isolation
 

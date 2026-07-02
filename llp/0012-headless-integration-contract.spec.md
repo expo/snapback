@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 M3: DK-3 wire guardrail added — keep the cacheable-HTTP-read-lane option open beside WS delivery; earlier: linked LLP 0030 for Contract/Exact preview server lifecycle)
+**Revised:** 2026-07-02 (LLP 0032 X1: DK-2 cursor pin — versions are per-app-stream opaque `(stream, version)` resume tokens, no cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked LLP 0030 for Contract/Exact preview server lifecycle)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030
 
 ## Summary
@@ -449,6 +449,20 @@ Valet's experience hardens this section (`[observed - Valet LLP 0004/0012/0048]`
 A version mismatch can be a *warning* that allows the connection to continue, or a
 hard stop — Valet chose "continue with a warning"; pick deliberately and report it
 either way rather than failing opaquely at runtime.
+
+**Database-version cursors (DK-2 pin, 2026-07-02).** The commit-version
+graduation decision ([LLP 0007](./0007-storage-portability.spec.md)
+§Commit-version graduation) constrains this contract's wire surface: the
+"current database version" in runtime state, and any resume/reconnect cursor
+built from it, is meaningful only **within one app's version stream**. Clients
+and adapters treat `(stream identity, version)` as one opaque resume token —
+stream identity today is the app database identity already present in runtime
+state — and must not compare versions across streams, assume one global
+stream across apps, or assume a stream survives intra-app sharding. Resume
+below the retention floor is answered with a forced resnapshot
+([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Retention).
+Protocol extensions (including LLP 0032 P4's reconnect/resume envelopes)
+must preserve this shape.
 
 ## Validation Requirements
 
