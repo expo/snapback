@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:e0f87e44f7d609b2",
+  "bundleHash": "sha256:54ca16ec79be8fcf",
   "capabilities": {
     "branchableFixtures": false,
     "forceStates": true,
@@ -12,8 +12,9 @@
     "serverRunnableQueries": true,
     "subscriptions": true
   },
-  "inputsHash": "1c2e3d7dbae2f9c4a917d9cacc1d36033ff2dc3c4febcc69eda78f3f6f614ee2",
-  "manifestVersion": 1,
+  "ephemeral": {},
+  "inputsHash": "cd74e59f3fa9c3965a880d135beb7f30b3f2041c79ff403d53359ce284ea9dfb",
+  "manifestVersion": 2,
   "mutations": {
     "createTodo": {
       "argOrder": [
@@ -102,8 +103,14 @@
     "listTodos": {
       "argOrder": [],
       "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
       "localRunnable": false,
+      "mode": "live",
       "name": "listTodos",
+      "pollCadenceMs": 1500,
       "result": {
         "kind": "list",
         "row": {
@@ -141,12 +148,18 @@
         }
       },
       "serverRunnable": true,
-      "subscription": "initial-snapshot"
+      "subscription": "initial-snapshot",
+      "transport": "push"
     },
     "listTodosOnce": {
       "argOrder": [],
       "args": {},
+      "defaultLive": false,
+      "ephemeral": false,
+      "initialSnapshot": false,
+      "livePush": false,
       "localRunnable": false,
+      "mode": "snapshot",
       "name": "listTodosOnce",
       "reads": [
         "todos"
@@ -191,6 +204,7 @@
       "subscription": "none"
     }
   },
+  "receipts": "none",
   "schemaHash": "sha256:8d0c00db95d693f6",
   "schemaVersion": "snapback.v0"
 }

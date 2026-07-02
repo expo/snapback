@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:2f6a9bc3443c38b4",
+  "bundleHash": "sha256:c778120c9bd39cd9",
   "capabilities": {
     "branchableFixtures": false,
     "forceStates": true,
@@ -12,8 +12,9 @@
     "serverRunnableQueries": true,
     "subscriptions": true
   },
-  "inputsHash": "c60a5aafba001abc0dc48724cb1749a624c241e6114322cd3e21e05b615cb276",
-  "manifestVersion": 1,
+  "ephemeral": {},
+  "inputsHash": "28ee7c3738359ef94945dd2414417111c0e073ad576858161a1229d931a41cae",
+  "manifestVersion": 2,
   "mutations": {
     "applyFeedTick": {
       "argOrder": [
@@ -50,8 +51,14 @@
     "feedState": {
       "argOrder": [],
       "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
       "localRunnable": false,
+      "mode": "live",
       "name": "feedState",
+      "pollCadenceMs": 1500,
       "reads": [
         "feedRefreshState"
       ],
@@ -108,13 +115,20 @@
         }
       },
       "serverRunnable": true,
-      "subscription": "initial-snapshot"
+      "subscription": "initial-snapshot",
+      "transport": "push"
     },
     "liveTrainStatus": {
       "argOrder": [],
       "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
       "localRunnable": false,
+      "mode": "live",
       "name": "liveTrainStatus",
+      "pollCadenceMs": 1500,
       "reads": [
         "trainStatus"
       ],
@@ -159,12 +173,18 @@
         }
       },
       "serverRunnable": true,
-      "subscription": "initial-snapshot"
+      "subscription": "initial-snapshot",
+      "transport": "push"
     },
     "stationsQuery": {
       "argOrder": [],
       "args": {},
+      "defaultLive": false,
+      "ephemeral": false,
+      "initialSnapshot": false,
+      "livePush": false,
       "localRunnable": false,
+      "mode": "snapshot",
       "name": "stationsQuery",
       "reads": [
         "stations"
@@ -246,7 +266,12 @@
           "shape": "primitive"
         }
       },
+      "defaultLive": false,
+      "ephemeral": false,
+      "initialSnapshot": false,
+      "livePush": false,
       "localRunnable": false,
+      "mode": "snapshot",
       "name": "stopTimesByStation",
       "reads": [
         "stopTimes"
@@ -297,7 +322,12 @@
     "tripsQuery": {
       "argOrder": [],
       "args": {},
+      "defaultLive": false,
+      "ephemeral": false,
+      "initialSnapshot": false,
+      "livePush": false,
       "localRunnable": false,
+      "mode": "snapshot",
       "name": "tripsQuery",
       "reads": [
         "trips"
@@ -361,6 +391,7 @@
       "subscription": "none"
     }
   },
+  "receipts": "none",
   "schemaHash": "sha256:c7f25a2cc6da8499",
   "schemaVersion": "snapback.v0"
 }

@@ -1,7 +1,7 @@
 {
   "appId": "all-aboard",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:2f6a9bc3443c38b4",
+  "bundleHash": "sha256:c778120c9bd39cd9",
   "cronJobs": [
     {
       "action": "refreshFeed",
@@ -357,7 +357,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "c60a5aafba001abc0dc48724cb1749a624c241e6114322cd3e21e05b615cb276",
+  "inputsHash": "28ee7c3738359ef94945dd2414417111c0e073ad576858161a1229d931a41cae",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }
