@@ -7,6 +7,7 @@ use crate::manifest::{HandlerInput, IbexModule, MutationOutput, QueryOutput, Que
 use crate::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead, LocalDatabase, MutationCommit,
 };
+use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -107,6 +108,8 @@ impl RuntimeManager {
         diagnostics
     }
 
+    /// Fresh-path query invocation (no warm pool). The pooled paths run
+    /// through `LocalSnapback`/`ReadLane`, which own the per-instance pool.
     pub fn invoke_ibex_query(
         &self,
         module: &IbexModule,
@@ -122,17 +125,18 @@ impl RuntimeManager {
         input: HandlerInput,
         db: &LocalDatabase,
     ) -> SnapbackResult<IbexQueryRun> {
-        run_ibex_query_with_reads(module, input, DbRead::Live(db))
+        run_ibex_query_with_reads(module, input, DbRead::Live(db), None)
     }
 
-    pub fn invoke_ibex_mutation(
+    pub(crate) fn invoke_ibex_mutation(
         &self,
         module: &IbexModule,
         input: HandlerInput,
         db: &mut LocalDatabase,
+        pool: Option<&WarmVmPool>,
     ) -> SnapbackResult<MutationCommit> {
         let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true);
-        let result = run_ibex_handler_with_context(module, &mut invocation)?;
+        let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
         let IbexHostContext { writes, reads, .. } = invocation;
         db.commit_buffered_writes(&input, writes, reads, result)
     }
@@ -146,7 +150,8 @@ impl RuntimeManager {
         host: &mut dyn IbexActionHost,
     ) -> SnapbackResult<Value> {
         let mut invocation = IbexHostContext::new_action(DbRead::LiveRaw(db), input, run, host);
-        run_ibex_handler_with_context(module, &mut invocation)
+        // Actions always run fresh — no pool, by the DK-4 scope fence.
+        run_ibex_handler_with_context(module, &mut invocation, None)
     }
 }
 
@@ -159,9 +164,10 @@ pub(crate) fn run_ibex_query_with_reads(
     module: &IbexModule,
     input: HandlerInput,
     db: DbRead<'_>,
+    pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<IbexQueryRun> {
     let mut invocation = IbexHostContext::new(db, input, false);
-    let value = run_ibex_handler_with_context(module, &mut invocation)?;
+    let value = run_ibex_handler_with_context(module, &mut invocation, pool)?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array is a fail-closed error, not a
     // silently-empty result set (the corpus's cardinal no-silent-drop rule).
@@ -183,7 +189,7 @@ pub(crate) fn run_ibex_query_with_reads(
 }
 
 #[repr(C)]
-struct HermesRuntimeOpaque {
+pub(crate) struct HermesRuntimeOpaque {
     _private: [u8; 0],
 }
 
@@ -205,7 +211,7 @@ unsafe extern "C" {
     );
 }
 
-struct RuntimeGuard(*mut HermesRuntimeOpaque);
+pub(crate) struct RuntimeGuard(*mut HermesRuntimeOpaque);
 
 /// The process-global Ibex host is a fixed capability *policy* (strict, plus a
 /// coarse `network:fetch` grant when outbound actions are enabled), not
@@ -233,7 +239,7 @@ fn ensure_host_installed() {
 }
 
 impl RuntimeGuard {
-    fn create() -> SnapbackResult<Self> {
+    pub(crate) fn create() -> SnapbackResult<Self> {
         ensure_host_installed();
         let runtime = unsafe { ex_hermes_create() };
         if runtime.is_null() {
@@ -245,6 +251,10 @@ impl RuntimeGuard {
         }
         unsafe { ex_hermes_set_host_call(runtime, snapback_host_call) };
         Ok(Self(runtime))
+    }
+
+    pub(crate) fn ptr(&self) -> *mut HermesRuntimeOpaque {
+        self.0
     }
 }
 
@@ -702,6 +712,19 @@ enum IbexInvocationMode {
     Action,
 }
 
+/// Test seam for the DK-4 keying invariant: the warm pool keys by module
+/// source alone, which is sound only while the query and mutation ambient
+/// restriction texts are identical.
+#[cfg(test)]
+pub(crate) fn ambient_restriction_source_for_tests(mutation: bool, outbound: bool) -> String {
+    let mode = if mutation {
+        IbexInvocationMode::Mutation
+    } else {
+        IbexInvocationMode::Query
+    };
+    ambient_restriction_source(mode, outbound)
+}
+
 thread_local! {
     static CURRENT_IBEX_HOST_CONTEXT: RefCell<*mut c_void> = const { RefCell::new(ptr::null_mut()) };
 }
@@ -709,7 +732,21 @@ thread_local! {
 fn run_ibex_handler_with_context(
     module: &IbexModule,
     invocation: &mut IbexHostContext<'_>,
+    pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<Value> {
+    // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
+    // scope fences: only queries and mutations take the warm path; actions
+    // always run fresh (secrets/cron/egress powers, and keeping the outer
+    // invocation of the only nested shape — action→mutation — off the pool
+    // makes checkout re-entrancy-proof). Hosted/untrusted is untouched: no
+    // pool handle, no warm path.
+    if let Some(pool) = pool
+        && !matches!(invocation.mode, IbexInvocationMode::Action)
+        && pool.enabled()
+    {
+        return run_warm_handler_with_context(module, invocation, pool);
+    }
+
     let runtime = RuntimeGuard::create()?;
     let source = invocation_source(module, invocation)?;
 
@@ -719,8 +756,6 @@ fn run_ibex_handler_with_context(
     // an Ibex mutation re-enters this function synchronously on the same
     // thread; nulling on the inner exit would strand the outer invocation so
     // its next host call fails with SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT.
-    // (The nested entry also spins a second VM and reinstalls the process-wide
-    // host; that inefficiency is L7/M2's scope, not a correctness bug here.)
     let previous_context = CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
         let previous = *slot.borrow();
         *slot.borrow_mut() = invocation as *mut IbexHostContext<'_> as *mut c_void;
@@ -731,7 +766,61 @@ fn run_ibex_handler_with_context(
         *slot.borrow_mut() = previous_context;
     });
 
-    let output = eval_result?;
+    parse_handler_output(module, eval_result?)
+}
+
+/// The DK-4 warm path: check out a VM keyed by the exact module source, run
+/// the setup eval once per VM (inside the invocation's host-context window,
+/// so first-invocation module top-level host calls match the fresh path),
+/// eval only the small invoke IIFE per invocation, then let the pool's
+/// reset-and-verify decide whether the VM survives. Any eval error burns the
+/// VM (drop = destroy); fresh-per-invocation is always the fallback.
+///
+/// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — warm structure.
+fn run_warm_handler_with_context(
+    module: &IbexModule,
+    invocation: &mut IbexHostContext<'_>,
+    pool: &WarmVmPool,
+) -> SnapbackResult<Value> {
+    let mut vm = pool.checkout(&module.source)?;
+    let iife = invocation_iife_source(module, invocation)?;
+
+    // S5.D1: same save/restore stack as the fresh path. The reset eval below
+    // runs *after* the restore — its source is a fixed string that makes no
+    // host calls, so it can never observe a stale or outer context.
+    let previous_context = CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
+        let previous = *slot.borrow();
+        *slot.borrow_mut() = invocation as *mut IbexHostContext<'_> as *mut c_void;
+        previous
+    });
+    let eval_result = (|| {
+        if !vm.is_set_up() {
+            eval(
+                vm.runtime(),
+                crate::warm_vm::WARM_SETUP_SOURCE_URL,
+                &warm_setup_source(module),
+            )?;
+            vm.mark_set_up();
+        }
+        eval(vm.runtime(), &module.export, &iife)
+    })();
+    CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
+        *slot.borrow_mut() = previous_context;
+    });
+
+    match eval_result {
+        Ok(output) => {
+            pool.reset_and_check_in(vm);
+            parse_handler_output(module, output)
+        }
+        Err(error) => {
+            drop(vm); // burn: an errored eval's VM state is not trusted
+            Err(error)
+        }
+    }
+}
+
+fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
     if output.trim().is_empty() || output.trim() == "undefined" {
         return Ok(Value::Null);
     }
@@ -749,7 +838,7 @@ fn run_ibex_handler_with_context(
     })
 }
 
-fn eval(
+pub(crate) fn eval(
     runtime: *mut HermesRuntimeOpaque,
     source_url: &str,
     source: &str,
@@ -836,6 +925,24 @@ fn invocation_source(
     module: &IbexModule,
     invocation: &IbexHostContext<'_>,
 ) -> SnapbackResult<String> {
+    Ok(format!(
+        "{}\n{}\n{}\n{}",
+        ambient_restriction_source(invocation.mode, outbound_actions_enabled()),
+        module.source,
+        ctx_bootstrap_source(),
+        invocation_iife_source(module, invocation)?,
+    ))
+}
+
+/// The per-invocation tail of the eval source: the async IIFE that calls
+/// `__snapbackInvoke` with this invocation's literals. The fresh path appends
+/// it to ambient + module + bootstrap in one eval; the warm path evals it
+/// alone against an already-set-up VM — same text either way, so the two
+/// paths cannot drift.
+fn invocation_iife_source(
+    module: &IbexModule,
+    invocation: &IbexHostContext<'_>,
+) -> SnapbackResult<String> {
     let input = &invocation.input;
     let args_json = serde_json::to_string(&input.args).map_err(handler_serialize_error)?;
     let auth_json = serde_json::to_string(&input.auth).map_err(handler_serialize_error)?;
@@ -861,17 +968,26 @@ fn invocation_source(
     let secrets_literal = serde_json::to_string(&secrets_json).map_err(handler_serialize_error)?;
 
     Ok(format!(
-        "{}\n{}\n{}\n(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
-        ambient_restriction_source(invocation.mode, outbound_actions_enabled()),
+        "(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
+        export_json, args_literal, auth_literal, mode_json, run_literal, secrets_literal,
+    ))
+}
+
+/// The once-per-VM warm setup eval: ambient restriction + module source +
+/// ctx bootstrap + the reset installer (which captures the post-setup
+/// baseline). The ambient text is the query/mutation deny set — identical for
+/// both warm modes (pinned by `dk4_query_and_mutation_share_one_ambient_restriction`);
+/// actions, whose ambient differs, never take this path.
+///
+/// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — keying.
+fn warm_setup_source(module: &IbexModule) -> String {
+    format!(
+        "{}\n{}\n{}\n{}",
+        ambient_restriction_source(IbexInvocationMode::Query, outbound_actions_enabled()),
         module.source,
         ctx_bootstrap_source(),
-        export_json,
-        args_literal,
-        auth_literal,
-        mode_json,
-        run_literal,
-        secrets_literal,
-    ))
+        crate::warm_vm::RESET_INSTALL_SOURCE,
+    )
 }
 
 /// Outbound action egress is opt-in and off by default. When enabled, an ACTION

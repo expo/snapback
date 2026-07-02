@@ -687,7 +687,26 @@ pub struct CapabilityManifest {
     pub resource_limits: Vec<ResourceLimit>,
     #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
     pub capability_gaps: Vec<String>,
+    /// VM lifecycle for handler execution: `"fresh-per-invocation"` (the
+    /// durable default and the only hosted posture) or `"warm-pooled-reset"`
+    /// (the DK-4 trusted-local optimization — VM reuse per bundle behind a
+    /// verified per-invocation reset). Surfaced so LLP 0012's honesty rule
+    /// holds: an agent can see which execution semantics are in force.
+    ///
+    /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — capability flag.
+    #[serde(
+        rename = "vmLifecycle",
+        alias = "vm_lifecycle",
+        default = "vm_lifecycle_fresh"
+    )]
+    pub vm_lifecycle: String,
 }
+
+pub(crate) fn vm_lifecycle_fresh() -> String {
+    "fresh-per-invocation".to_owned()
+}
+
+pub(crate) const VM_LIFECYCLE_WARM_POOLED_RESET: &str = "warm-pooled-reset";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ResourceLimit {
@@ -779,6 +798,9 @@ impl CapabilityManifest {
                 },
             ],
             capability_gaps,
+            // Conservative default; `LocalSnapback::inspect` overrides it
+            // with the live per-instance value (warm pool enabled or not).
+            vm_lifecycle: vm_lifecycle_fresh(),
         }
     }
 }

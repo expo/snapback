@@ -86,13 +86,21 @@ impl BenchConfig {
 pub struct BenchReport {
     pub iterations: usize,
     /// Per-invocation VM cost: create + eval of a trivial handler that touches
-    /// no data. Isolates the fresh-VM-per-invocation overhead. Drives DK-4.
+    /// no data. Isolates the **fresh**-VM-per-invocation overhead (the warm
+    /// pool is disabled inside this measurement so the metric keeps its
+    /// definition). Drives DK-4.
     pub vm_cost_us: f64,
     /// Of the VM cost, the *creation* portion (`ex_hermes_create` + wiring +
-    /// drop, host install cached). What a warm VM would avoid; the remainder is
-    /// eval (the handler run itself, which a warm VM must still do but without
+    /// drop, host install cached). What a warm VM avoids; the remainder is
+    /// eval (the handler run itself, which a warm VM still does but without
     /// re-parsing the module).
     pub vm_create_us: f64,
+    /// Per-invocation cost on the DK-4 warm path (default-on): eval of the
+    /// small invoke IIFE plus the per-invocation reset sweep, no VM create,
+    /// no module re-parse. Compare against `vm_cost_us` for the warm win.
+    ///
+    /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — proof: re-measure.
+    pub warm_invoke_us: f64,
     /// Single-writer throughput: sequential `createTodo` mutations per second.
     /// Because every mutation serializes on the global instance mutex, this is
     /// the single-writer breaking point.
@@ -153,6 +161,7 @@ globalThis.__snapbackHandlers = {
 pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchReport> {
     let vm_cost_us = measure_vm_cost(config)?;
     let vm_create_us = crate::runtime::bench_runtime_create_us(config.iterations);
+    let warm_invoke_us = measure_warm_invoke(config)?;
     let single_writer_mutations_per_sec = measure_single_writer(config)?;
     let (matcher_skip_us_per_sub, fanout_us_per_affected_sub) = measure_fanout(config)?;
     let read_set_validation_us_per_dep = measure_read_set_validation(config)?;
@@ -165,6 +174,7 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
         iterations: config.iterations,
         vm_cost_us,
         vm_create_us,
+        warm_invoke_us,
         single_writer_mutations_per_sec,
         matcher_skip_us_per_sub,
         fanout_us_per_affected_sub,
@@ -291,7 +301,27 @@ fn args(value: Value) -> HandlerInput {
 
 fn measure_vm_cost(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
     let snapback = configured()?;
+    // This metric is defined as the *fresh* per-invocation cost; keep that
+    // definition by forcing the fresh path (the warm path has its own metric).
+    snapback.set_warm_vms_enabled(false);
     // Warm up (first eval pays one-time costs the steady state should not).
+    for _ in 0..4 {
+        snapback.invoke_query("noop", args(json!({})))?;
+    }
+    let start = Instant::now();
+    for _ in 0..config.iterations {
+        snapback.invoke_query("noop", args(json!({})))?;
+    }
+    Ok(micros_per(start, config.iterations))
+}
+
+/// The DK-4 warm-path per-invocation cost: the same trivial no-data query as
+/// `vm_cost_us`, but through the default warm pool — invoke-IIFE eval plus
+/// the reset sweep, no create, no module re-parse. The warm-up pays the
+/// one-time VM setup so the steady state is what live fan-out and repeat
+/// invocations actually cost.
+fn measure_warm_invoke(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
+    let snapback = configured()?;
     for _ in 0..4 {
         snapback.invoke_query("noop", args(json!({})))?;
     }
@@ -689,6 +719,15 @@ mod tests {
 
         assert!(report.vm_cost_us > 0.0 && report.vm_cost_us < 100_000.0, "{report:?}");
         assert!(report.vm_create_us >= 0.0, "{report:?}");
+        // DK-4: the warm path must be meaningfully cheaper than a fresh VM —
+        // if it regressed to fresh (silent fallback, broken reset burning
+        // every VM) the ratio collapses toward 1.0 and this catches it. The
+        // 0.75 bound is loose; the architectural gap (no create, no module
+        // re-parse) is several-fold.
+        assert!(
+            report.warm_invoke_us > 0.0 && report.warm_invoke_us < report.vm_cost_us * 0.75,
+            "warm invocation must beat the fresh path decisively: {report:?}"
+        );
         assert!(report.single_writer_mutations_per_sec > 1.0, "{report:?}");
         assert!(report.matcher_skip_us_per_sub >= 0.0, "{report:?}");
         assert!(report.fanout_us_per_affected_sub >= 0.0, "{report:?}");

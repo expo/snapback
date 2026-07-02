@@ -409,6 +409,10 @@ pub struct LocalSnapback {
     read_manifests: Arc<RwLock<Arc<ReadManifests>>>,
     read_epochs: Arc<RwLock<BTreeMap<String, u64>>>,
     receipts: ReceiptLog,
+    // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
+    // per-instance warm VM pool (never process-global: two local app
+    // instances must not share loaded code state). Shared with the read lane.
+    warm_vms: Arc<crate::warm_vm::WarmVmPool>,
 }
 
 #[derive(Clone, Debug)]
@@ -467,6 +471,9 @@ impl LocalSnapback {
         }
 
         self.functions = manifest;
+        // New code means new warm-VM setup state; content keying already
+        // prevents stale reuse, clearing also frees the old VMs' memory.
+        self.warm_vms.clear();
         let mut diagnostics = Vec::new();
 
         if self
@@ -495,6 +502,7 @@ impl LocalSnapback {
 
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.db.reset()?;
+        self.warm_vms.clear();
         self.subscriptions.clear();
         self.permission_epochs.clear();
         self.refresh_read_epochs();
@@ -516,7 +524,14 @@ impl LocalSnapback {
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {
         // @ref LLP 0010#v0-implementation-charter — missing non-v0 capabilities must be reported explicitly.
         let capability_gaps = self.capability_gaps();
-        let capability_manifest = CapabilityManifest::local_v0(capability_gaps.clone());
+        let mut capability_manifest = CapabilityManifest::local_v0(capability_gaps.clone());
+        // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
+        // report the live VM lifecycle honestly (warm is opt-out-able via
+        // SNAPBACK_FRESH_VM=1, so this is per-instance state, not a constant).
+        if self.warm_vms.enabled() {
+            capability_manifest.vm_lifecycle =
+                crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
+        }
         let active_live_functions = self.active_live_functions();
         let cron = self
             .cron
@@ -588,6 +603,7 @@ impl LocalSnapback {
             DbRead::Live(&self.db),
             &self.permission_epochs,
             input,
+            Some(&self.warm_vms),
         )
     }
 
@@ -665,7 +681,7 @@ impl LocalSnapback {
             }
             (FunctionKind::Mutation, FunctionRuntime::IbexModule(module)) => self
                 .runtime
-                .invoke_ibex_mutation(module, input.clone(), &mut self.db)?,
+                .invoke_ibex_mutation(module, input.clone(), &mut self.db, Some(&self.warm_vms))?,
             _ => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_FUNCTION_KIND_MISMATCH",
@@ -1309,6 +1325,7 @@ impl LocalSnapback {
             cron_state_writes: 0,
             connections_last_seen: BTreeMap::new(),
             reaped_connections: 0,
+            warm_vms: Arc::new(crate::warm_vm::WarmVmPool::from_env()),
             read_manifests,
             read_epochs: Arc::new(RwLock::new(BTreeMap::new())),
             receipts: ReceiptLog::default(),
@@ -1335,7 +1352,16 @@ impl LocalSnapback {
             manifests: self.read_manifests.clone(),
             epochs: self.read_epochs.clone(),
             pool: self.db.reader_pool(),
+            warm_vms: self.warm_vms.clone(),
         }
+    }
+
+    /// Force the fresh-VM path for this instance (what `SNAPBACK_FRESH_VM=1`
+    /// samples into at construction). Used by the bench harness to keep the
+    /// `vm_cost_us` metric's fresh-create definition, and by tests to pin the
+    /// opt-out semantics without process-global env mutation.
+    pub(crate) fn set_warm_vms_enabled(&self, enabled: bool) {
+        self.warm_vms.set_enabled(enabled);
     }
 
     /// Refresh the read lane's manifest snapshot. Called after schema or
@@ -1835,6 +1861,10 @@ pub struct ReadLane {
     manifests: Arc<RwLock<Arc<ReadManifests>>>,
     epochs: Arc<RwLock<BTreeMap<String, u64>>>,
     pool: Option<Arc<ReaderPool>>,
+    // Shared with the write lane: concurrent readers check out distinct VMs
+    // (exclusive ownership per checkout), warming extras on miss up to the
+    // pool bound.
+    warm_vms: Arc<crate::warm_vm::WarmVmPool>,
 }
 
 /// What the read lane can serve for `/health` without the global mutex.
@@ -1907,6 +1937,7 @@ impl ReadLane {
             },
             &epochs,
             input,
+            Some(&self.warm_vms),
         )?;
         Ok(invocation.output)
     }
@@ -1941,6 +1972,7 @@ fn execute_query_invocation(
     db: DbRead<'_>,
     permission_epochs: &BTreeMap<String, u64>,
     input: HandlerInput,
+    warm_vms: Option<&crate::warm_vm::WarmVmPool>,
 ) -> SnapbackResult<QueryInvocation> {
     match (&function.kind, &function.runtime) {
         (
@@ -1956,7 +1988,8 @@ fn execute_query_invocation(
             })
         }
         (FunctionKind::Query | FunctionKind::LiveQuery, FunctionRuntime::IbexModule(module)) => {
-            let run = crate::runtime::run_ibex_query_with_reads(module, input.clone(), db)?;
+            let run =
+                crate::runtime::run_ibex_query_with_reads(module, input.clone(), db, warm_vms)?;
             let mut read_dependencies = run.read_dependencies;
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
             Ok(QueryInvocation {

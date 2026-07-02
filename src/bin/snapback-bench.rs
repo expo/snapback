@@ -31,6 +31,11 @@ fn main() -> anyhow::Result<()> {
         100.0 * report.vm_create_us / report.vm_cost_us.max(1.0)
     );
     println!(
+        "  warm-path invocation (DK-4):       {:>10.1} µs   (invoke IIFE + reset sweep; {:.1}x cheaper than fresh)",
+        report.warm_invoke_us,
+        report.vm_cost_us / report.warm_invoke_us.max(1.0)
+    );
+    println!(
         "  single-writer throughput:          {:>10.0} mut/s (serial commits under the global mutex)",
         report.single_writer_mutations_per_sec
     );
