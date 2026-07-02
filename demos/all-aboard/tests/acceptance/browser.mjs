@@ -24,7 +24,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
-import { createSuite } from '../../../_kit/harness.mjs';
+import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -46,12 +46,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
 
 // A run that performs fewer checks than the suite declares is a harness
-// failure, not a pass — a pre-check throw must never exit "PASS — 0/0"
-// (ENG-22486). The declared-gap skip in main() returns before the try block,
-// so it never reaches this guard.
+// failure, not a pass — a pre-check throw must never exit "PASS — 0/0". The
+// guard lives in the shared harness (createSuite expectedChecks +
+// runAcceptance, ENG-22486). The declared-gap skip in main() returns before
+// runAcceptance, so it never reaches the guard.
 const EXPECTED_CHECKS = 14;
 
-const suite = createSuite('all-aboard browser (Phase 1)');
+const suite = createSuite('all-aboard browser (Phase 1)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];
 let cdp = null;
 let page = null;
@@ -85,7 +86,7 @@ async function main() {
     console.log('PASS all-aboard browser (Phase 1) — skipped (declared capability gap)');
     return;
   }
-  try {
+  await runAcceptance(suite, async () => {
     await ensureApi();
     await ensureVite();
     const chrome = await launchChrome();
@@ -297,19 +298,7 @@ async function main() {
       if (!/min walk/.test(back ?? '')) throw new Error(`walk mode did not restore: ${back}`);
       return { walk, bike, pickerRow };
     });
-  } catch (error) {
-    // Surface the pre-check failure instead of letting the finally-exit
-    // swallow it (ENG-22486).
-    console.error(`SETUP FAILURE before checks completed: ${error?.stack ?? error}`);
-  } finally {
-    const report = suite.finish();
-    for (const c of cleanups.reverse()) { try { await c(); } catch { /* best effort */ } }
-    if (report.total !== EXPECTED_CHECKS) {
-      console.error(`FAIL ${report.title} — ran ${report.total}/${EXPECTED_CHECKS} expected checks (vacuous pass guard, ENG-22486)`);
-      process.exit(1);
-    }
-    process.exit(report.ok ? 0 : 1);
-  }
+  }, { cleanups });
 }
 
 // --- Minimal CDP harness (adapted from demos/cursors-web/tests/acceptance) ---
@@ -317,9 +306,14 @@ async function main() {
 async function launchChrome() {
   const userDataDir = mkdtempSync(join(tmpdir(), 'aa-browser-'));
   const child = spawn(chromeBin, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${userDataDir}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  // Without this handler a bad CHROME_BIN crashes the whole process as an
+  // unhandled 'error' event, skipping teardown (ENG-22486).
+  let spawnError = null;
+  child.on('error', (error) => { spawnError = error; });
   const portFile = join(userDataDir, 'DevToolsActivePort');
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
+    if (spawnError) throw new Error(`Chrome failed to launch (${chromeBin}): ${spawnError.message}`);
     try {
       const [port] = readFileSync(portFile, 'utf8').trim().split('\n');
       const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());

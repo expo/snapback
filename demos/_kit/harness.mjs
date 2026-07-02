@@ -3,8 +3,14 @@
 // @ref LLP 0010#diagnostic-shape — results are structured (stable name, ok,
 //   details), not prose an agent must scrape. Also bans setTimeout/sleep in checks:
 //   the server's drain seam is synchronous-on-demand, so no test needs to sleep.
+//
+// Vacuous-pass guard (ENG-22486): a run that performs zero checks — or fewer
+// than the suite declares via `expectedChecks` — is a harness failure, not a
+// pass. `finish()` never reports ok on 0/0, and `runAcceptance()` surfaces a
+// thrown setup error (with stack) instead of letting a `finally`-style
+// process.exit swallow it into a green exit.
 
-export function createSuite(title) {
+export function createSuite(title, { expectedChecks = null } = {}) {
   const results = [];
   return {
     async check(name, fn) {
@@ -19,11 +25,65 @@ export function createSuite(title) {
     },
     finish() {
       const passed = results.filter((r) => r.ok).length;
-      const report = { title, passed, total: results.length, ok: passed === results.length, results };
-      console.log(`\n${report.ok ? 'PASS' : 'FAIL'} ${title} — ${passed}/${results.length}`);
+      const total = results.length;
+      // ENG-22486: zero checks (or a short run against a declared count) can
+      // never be a pass — a pre-check throw that skips the checks must fail.
+      let shortfall = null;
+      if (total === 0) {
+        shortfall = 'zero checks ran';
+      } else if (expectedChecks !== null && total !== expectedChecks) {
+        shortfall = `ran ${total}/${expectedChecks} expected checks`;
+      }
+      const ok = passed === total && shortfall === null;
+      const report = { title, passed, total, ok, results };
+      if (expectedChecks !== null) report.expectedChecks = expectedChecks;
+      if (shortfall !== null) report.shortfall = shortfall;
+      console.log(`\n${ok ? 'PASS' : 'FAIL'} ${title} — ${passed}/${total}`);
+      if (shortfall !== null) {
+        console.error(`FAIL ${title} — ${shortfall} (vacuous-pass guard, ENG-22486)`);
+      }
       return report;
     },
   };
+}
+
+// Shared acceptance-runner tail (ENG-22486). Runs `body`, then always:
+//   1. surfaces a thrown setup/teardown error with its stack (never swallowed
+//      by the exit path);
+//   2. prints the suite report plus a machine-readable JSON line;
+//   3. runs cleanups best-effort in reverse registration order;
+//   4. exits nonzero unless every declared check ran and passed:
+//      0 = pass, 1 = check failure or short/zero run, 2 = setup error.
+// `cleanups` may be a live array (registered during body) — it is read at
+// exit time. `reportExtra` merges extra fields into the machine report.
+export async function runAcceptance(suite, body, { cleanups = [], reportExtra = null } = {}) {
+  let setupError = null;
+  try {
+    await body();
+  } catch (error) {
+    setupError = error;
+    console.error(`\nSETUP FAILURE before checks completed: ${error?.stack ?? error}`);
+  }
+  const report = suite.finish();
+  if (setupError !== null) {
+    if (report.ok) {
+      // All declared checks passed but the body still threw (e.g. teardown):
+      // the summary line above says PASS, so mark the failure explicitly.
+      console.error(`FAIL ${report.title} — setup/teardown error after ${report.passed}/${report.total} checks (ENG-22486)`);
+    }
+    report.ok = false;
+    report.setupError = String(setupError?.message ?? setupError);
+  }
+  console.log('\n--- machine-readable report ---');
+  console.log(JSON.stringify(reportExtra === null ? report : { ...report, ...reportExtra }));
+  for (const cleanup of [...cleanups].reverse()) {
+    try {
+      await cleanup();
+    } catch {
+      /* best-effort teardown */
+    }
+  }
+  process.exit(setupError !== null ? 2 : report.ok ? 0 : 1);
 }
 
 export function assert(cond, message) {

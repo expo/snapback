@@ -12,7 +12,7 @@ import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { generate } from '../../../_kit/codegen.mjs';
-import { assert, assertEqual, assertThrows, createSuite } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, assertThrows, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -27,10 +27,11 @@ let chrome = null;
 let cdp = null;
 let pageA = null;
 let pageB = null;
-let fatalError = null;
 
 async function main() {
-try {
+// runAcceptance (ENG-22486) surfaces a setup throw with its stack and exits
+// nonzero when zero checks ran.
+await runAcceptance(suite, async () => {
   const generated = await generate(backendDir);
   assert(generated.ok, `codegen failed: ${JSON.stringify(generated.diagnostics)}`);
 
@@ -105,19 +106,17 @@ try {
     const gone = await pageA.waitForNoCursor(stateB.connectionId);
     assert(gone, 'client B cursor still visible after close');
   });
-} catch (error) {
-  fatalError = error;
-  console.log(`  ✗ setup or teardown\n      ${error.stack || error.message}`);
-} finally {
-  const report = suite.finish();
-  await pageB?.close().catch(() => {});
-  await pageA?.close().catch(() => {});
-  await cdp?.close().catch(() => {});
-  await chrome?.stop().catch(() => {});
-  await staticServer?.stop().catch(() => {});
-  await snapbackServer?.stop?.();
-  if (fatalError || !report.ok) process.exitCode = 1;
-}
+}, {
+  // Reverse registration order at teardown: pages, CDP, Chrome, then servers.
+  cleanups: [
+    () => snapbackServer?.stop?.(),
+    () => staticServer?.stop(),
+    () => chrome?.stop(),
+    () => cdp?.close(),
+    () => pageA?.close(),
+    () => pageB?.close(),
+  ],
+});
 }
 
 function demoUrl(staticBaseUrl, serverBaseUrl) {
@@ -184,10 +183,17 @@ async function launchChrome() {
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '';
   child.stderr.on('data', (chunk) => { stderr += chunk; });
+  // Without this handler a bad CHROME_BIN crashes the whole process as an
+  // unhandled 'error' event, skipping teardown (ENG-22486).
+  let spawnError = null;
+  child.on('error', (error) => { spawnError = error; });
 
   const portFile = join(userDataDir, 'DevToolsActivePort');
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
+    if (spawnError) {
+      throw new Error(`Chrome failed to launch (${chromeBin}): ${spawnError.message}`);
+    }
     if (child.exitCode !== null) {
       throw new Error(`Chrome exited early (${child.exitCode}): ${stderr}`);
     }

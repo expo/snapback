@@ -25,7 +25,7 @@ import { dirname, join } from 'node:path';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import {
   assumedDirection,
   formatCountdownMinutes,
@@ -51,10 +51,15 @@ const delaysFrom = (rows) => Object.fromEntries(rows.map((r) => [r.patternId, r.
 const snapshotDelays = async () => delaysFrom((await db.query('liveTrainStatus', {})).rows);
 
 const suite = createSuite('all-aboard headless (Phase 0)');
-const server = await startServer({ port: 4408, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+let server = null;
+let db = null;
 
-try {
+// runAcceptance (ENG-22486) surfaces a setup throw and exits nonzero on a
+// zero-check run — previously a pre-check failure here exited "PASS — 0/0".
+await runAcceptance(suite, async () => {
+  server = await startServer({ port: 4408, db: ':memory:', cwd: repoRoot });
+  db = new SnapbackClient(server.baseUrl);
+
   await db.loadSchema(gen('schema.manifest.json'));
   await db.loadFunctions(gen('functions.manifest.json'));
   await db.reset();
@@ -149,8 +154,4 @@ try {
     assert(VALID_LIMITED_DELAYS.has(limited.delaySeconds), `delivered a valid recorded profile (${limited.delaySeconds}s)`);
     return { version: `${versionBefore} -> ${live.version}` };
   });
-} finally {
-  const report = suite.finish();
-  await server.stop();
-  process.exit(report.ok ? 0 : 1);
-}
+}, { cleanups: [() => server?.stop()] });

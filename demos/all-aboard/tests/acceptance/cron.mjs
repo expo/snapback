@@ -22,7 +22,7 @@ import { dirname, join } from 'node:path';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -32,8 +32,8 @@ const seed = JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8'));
 const VALID_LIMITED_DELAYS = new Set([0, 60, 180, 240]);
 
 const suite = createSuite('all-aboard cron (Phase 2)');
-const server = await startServer({ port: 4409, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+let server = null;
+let db = null;
 
 const forceTick = () => fetch(`${server.baseUrl}/_snapback/api/cron/tick`, { method: 'POST' }).then((r) => r.json());
 const inspectJob = async () => {
@@ -42,7 +42,12 @@ const inspectJob = async () => {
 };
 const activation = (job) => String(job?.activationState ?? '').toLowerCase();
 
-try {
+// runAcceptance (ENG-22486) surfaces a setup throw and exits nonzero on a
+// zero-check run — previously a pre-check failure here exited "PASS — 0/0".
+await runAcceptance(suite, async () => {
+  server = await startServer({ port: 4409, db: ':memory:', cwd: repoRoot });
+  db = new SnapbackClient(server.baseUrl);
+
   await db.loadSchema(gen('schema.manifest.json'));
   await db.loadFunctions(gen('functions.manifest.json'));
   await db.reset();
@@ -101,8 +106,4 @@ try {
     const job = await inspectJob();
     assert(activation(job).includes('inactive') || activation(job).includes('no'), `expected inactive after disconnect, got "${activation(job)}"`);
   });
-} finally {
-  const report = suite.finish();
-  await server.stop();
-  process.exit(report.ok ? 0 : 1);
-}
+}, { cleanups: [() => server?.stop()] });

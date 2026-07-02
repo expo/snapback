@@ -20,7 +20,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
-import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -63,7 +63,9 @@ async function runAction(url, name) {
 const suite = createSuite('all-aboard egress seam (Phase 3)');
 const servers = [];
 
-try {
+// runAcceptance (ENG-22486) surfaces a setup throw and exits nonzero on a
+// zero-check run — previously a pre-check failure here exited "PASS — 0/0".
+await runAcceptance(suite, async () => {
   // --- Egress ENABLED runtime ---
   const on = await startApi(4430, { SNAPBACK_OUTBOUND_ACTIONS: '1', SNAPBACK_ACTION_SECRETS: SECRETS });
   servers.push(on);
@@ -107,8 +109,4 @@ try {
     assert(/AMBIENT_CAPABILITY_DENIED/.test(result.result.fetchState), `default should deny fetch, got: ${result.result.fetchState}`);
     return { fetchState: result.result.fetchState };
   });
-} finally {
-  const report = suite.finish();
-  for (const s of servers) { try { s.stop(); } catch { /* best effort */ } }
-  process.exit(report.ok ? 0 : 1);
-}
+}, { cleanups: [() => { for (const s of servers) { try { s.stop(); } catch { /* best effort */ } } }] });
