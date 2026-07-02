@@ -45,7 +45,7 @@ impl DeliveryNotifier {
     /// registration's generation and the waker; a later `register` for the
     /// same connection replaces the waker and supersedes the generation.
     pub fn register(&self, connection_id: &str) -> (u64, Arc<Notify>) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = lock(&self.state);
         state.next_generation += 1;
         let generation = state.next_generation;
         let notify = Arc::new(Notify::new());
@@ -60,7 +60,7 @@ impl DeliveryNotifier {
     /// registration already replaced by a reconnect) gets `false` and must
     /// not perform connection teardown.
     pub fn unregister(&self, connection_id: &str, generation: u64) -> bool {
-        let mut state = self.state.lock().unwrap();
+        let mut state = lock(&self.state);
         match state.waiters.get(connection_id) {
             Some((current, _)) if *current == generation => {
                 state.waiters.remove(connection_id);
@@ -71,7 +71,7 @@ impl DeliveryNotifier {
     }
 
     fn wake(&self, connection_id: &str) {
-        if let Some((_, notify)) = self.state.lock().unwrap().waiters.get(connection_id) {
+        if let Some((_, notify)) = lock(&self.state).waiters.get(connection_id) {
             notify.notify_one();
         }
     }
@@ -1543,6 +1543,16 @@ impl LocalEphemeralBackend {
     /// and the resync boundary is what turns the epoch bump into an overlay
     /// resubscription instead of silent `ignored_stale` drops.
     ///
+    /// Only the retired rooms' own index entries are removed (each via its
+    /// `indexed_deadline` mirror, exactly as `prune_room_if_empty` does) —
+    /// **never** a wholesale `expiry_index.clear()`. A concurrent
+    /// async-worker publish can create a room *after* the `room_ids` snapshot
+    /// but *before* this clear; that room survives the wipe, and a wholesale
+    /// clear would destroy its `(deadline, room)` index entry while its
+    /// mirror still claimed it was indexed, permanently detaching it from
+    /// `cleanup_expired` (MEDIUM finding 1). Surviving rooms keep their index
+    /// entries by construction.
+    ///
     /// @ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — the Restarted/EpochChanged wiring.
     fn wipe_rooms_signaling_resync(&self, reason: ResyncReason) {
         let room_ids: Vec<RoomId> = lock(&self.shared.rooms).keys().cloned().collect();
@@ -1560,6 +1570,11 @@ impl LocalEphemeralBackend {
             room.retired = true;
             rooms.remove(&room_id);
             drop(rooms);
+            // Remove exactly this retired room's index entry (mirror-guided),
+            // leaving any concurrently-created surviving room's entry intact.
+            if let Some(deadline) = room.indexed_deadline.take() {
+                lock(&self.shared.expiry_index).remove(&(deadline, room_id.clone()));
+            }
             for connection_id in room.subscribers.keys() {
                 resyncs.push((
                     connection_id.clone(),
@@ -1571,7 +1586,6 @@ impl LocalEphemeralBackend {
                 ));
             }
         }
-        lock(&self.shared.expiry_index).clear();
         lock(&self.shared.outboxes).clear();
 
         for (connection_id, message) in resyncs {
@@ -2963,4 +2977,135 @@ mod tests {
         }
     }
 
+    /// LLP 0032 L9 (MEDIUM finding 1) — a wipe must not detach a
+    /// concurrently-created surviving room from the TTL sweeper. A publisher
+    /// creates fresh rooms while `reset_runtime_state` retires the snapshot
+    /// set; a room born after the snapshot survives the wipe. The fix removes
+    /// only retired rooms' index entries (never a wholesale
+    /// `expiry_index.clear()`), so every surviving room with entries stays
+    /// index-reachable. Discriminator: a far-future `cleanup_expired` must
+    /// drain every entry to zero — under the pre-fix `clear()`, a detached
+    /// survivor's entries would outlive TTL forever and this would hang at a
+    /// nonzero `entry_count`.
+    #[test]
+    fn l9_wipe_does_not_detach_surviving_rooms_from_the_expiry_index() {
+        use std::sync::atomic::AtomicBool;
+
+        let backend = LocalEphemeralBackend::new();
+        let mut cursors = EphemeralCollection::local_cursor("cursors", "roomId");
+        cursors.sustained_hz = 10_000_000;
+        cursors.burst = 10_000_000;
+        backend.register_collection(cursors);
+
+        let stop = Arc::new(AtomicBool::new(false));
+        let publisher = {
+            let backend = backend.clone();
+            let stop = stop.clone();
+            std::thread::spawn(move || {
+                let mut n = 0u64;
+                while !stop.load(Ordering::Relaxed) {
+                    // A fresh room every publish: some are born inside a wipe's
+                    // snapshot→retire window and survive it.
+                    let request = PublishRequest {
+                        collection: "cursors".to_owned(),
+                        scope: Scope::from_pairs([("roomId", format!("r-{n}"))]),
+                        connection_id: "pub".to_owned(),
+                        session_id: None,
+                        user_id: None,
+                        custom_key: None,
+                        value: b"x".to_vec(),
+                        ttl_ms: Some(5_000),
+                        auth: AuthContext::default(),
+                    };
+                    backend.publish(request, 1_000).expect("publish");
+                    n += 1;
+                }
+                n
+            })
+        };
+
+        // Hammer wipes against the live publisher for a fixed window, so both
+        // threads genuinely overlap (a tight loop would finish before the
+        // publisher thread even warms up).
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(150);
+        let mut wipes = 0u64;
+        while std::time::Instant::now() < deadline {
+            backend.reset_runtime_state();
+            wipes += 1;
+            std::thread::sleep(std::time::Duration::from_micros(50));
+        }
+        stop.store(true, Ordering::Relaxed);
+        let published = publisher.join().expect("publisher thread");
+        assert!(
+            published >= 100 && wipes >= 20,
+            "the publisher and wipes must have genuinely overlapped \
+             (published {published}, wipes {wipes})"
+        );
+
+        // Every room still holding entries must be reachable through the
+        // expiry index: a far-future sweep drains them all. A room detached by
+        // a wholesale index clear would keep its entries here forever.
+        backend.cleanup_expired(10_000_000);
+        let diagnostics = backend.diagnostics();
+        assert_eq!(
+            diagnostics.entry_count, 0,
+            "a surviving room was detached from the expiry index (entries outlive TTL)"
+        );
+        assert_eq!(
+            diagnostics.room_count, 0,
+            "index-reachable empty rooms must prune"
+        );
+    }
+
+    /// LLP 0032 L9 (LOW finding 3) — push-before-wake is load-bearing and now
+    /// guarded: the event-driven delivery claim rests entirely on every
+    /// enqueue site making its message drainable BEFORE it wakes the waiter.
+    /// This ping-pong drives 30k strict enqueue→wake→drain round-trips with NO
+    /// safety-net poll; the consumer only ever drains on a wake. A
+    /// wake-before-push regression consumes a round's only wake on an empty
+    /// drain and strands the late push, so the bounded timeout fails (the
+    /// mutant was caught reliably; the real code passes at 30k iterations).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn l9_enqueue_is_push_before_wake_no_lost_wakeup() {
+        use tokio::sync::mpsc;
+
+        let backend = LocalEphemeralBackend::new();
+        let notifier = backend.delivery_notifier();
+        let (_generation, waker) = notifier.register("conn");
+
+        let (ack_tx, mut ack_rx) = mpsc::channel::<()>(1);
+        let consumer_backend = backend.clone();
+        let consumer = tokio::spawn(async move {
+            loop {
+                waker.notified().await;
+                // Drain on wake with NO fallback poll. In correct code every
+                // enqueue is followed by its wake, so a strict ping-pong never
+                // leaves a spurious empty drain unaccompanied by a real wake.
+                // A wake-before-push regression spends the round's only wake on
+                // an empty drain, then the late push has no wake to announce it.
+                let drained = consumer_backend.drain_outbox("conn");
+                if !drained.is_empty() && ack_tx.send(()).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        const ROUNDS: u64 = 30_000;
+        let producer = async {
+            for n in 0..ROUNDS {
+                backend.enqueue_durable("conn", n.to_le_bytes().to_vec());
+                // Strict ping-pong: the next enqueue waits until the consumer
+                // has drained this one, so no backlog can ever mask a lost wake.
+                ack_rx
+                    .recv()
+                    .await
+                    .expect("the consumer must ack every enqueue");
+            }
+        };
+
+        tokio::time::timeout(std::time::Duration::from_secs(20), producer)
+            .await
+            .expect("push-before-wake must deliver every enqueue with no lost wakeup");
+        consumer.abort();
+    }
 }

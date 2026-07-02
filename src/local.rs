@@ -434,13 +434,23 @@ pub struct EphemeralApi {
 }
 
 impl EphemeralApi {
+    // Touch-after-success (MEDIUM finding 2): the activity touch happens
+    // *after* the store op registers/enqueues, so a registration that
+    // survives a racing write-lane `disconnect` (which removes activity
+    // before it removes registrations) always has a live activity entry.
+    // Registering an entry the L2 reaper can never see — a zombie subscriber
+    // whose room never prunes — is thereby impossible. A failed op still
+    // touches: the caller was demonstrably alive and a rejected publish must
+    // not make a live connection look reapable.
     pub fn publish(
         &self,
         request: PublishRequest,
         now_ms: u64,
     ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
-        self.activity.touch(&request.connection_id, now_ms);
-        self.store.publish(request, now_ms)
+        let connection_id = request.connection_id.clone();
+        let outcome = self.store.publish(request, now_ms);
+        self.activity.touch(&connection_id, now_ms);
+        outcome
     }
 
     pub fn subscribe(
@@ -448,8 +458,10 @@ impl EphemeralApi {
         request: SubscribeRequest,
         now_ms: u64,
     ) -> Result<EphemeralMessage, crate::ephemeral::EphemeralError> {
-        self.activity.touch(&request.connection_id, now_ms);
-        self.store.subscribe(request, now_ms)
+        let connection_id = request.connection_id.clone();
+        let outcome = self.store.subscribe(request, now_ms);
+        self.activity.touch(&connection_id, now_ms);
+        outcome
     }
 
     pub fn delete(
@@ -457,8 +469,10 @@ impl EphemeralApi {
         request: DeleteRequest,
         now_ms: u64,
     ) -> Result<Option<EphemeralMessage>, crate::ephemeral::EphemeralError> {
-        self.activity.touch(&request.connection_id, now_ms);
-        self.store.delete(request, now_ms)
+        let connection_id = request.connection_id.clone();
+        let outcome = self.store.delete(request, now_ms);
+        self.activity.touch(&connection_id, now_ms);
+        outcome
     }
 
     pub fn ensure_collections(
@@ -469,10 +483,14 @@ impl EphemeralApi {
     }
 
     /// Drain a connection's outbox. A poll for updates is a liveness signal
-    /// for an HTTP-polling client (L2).
+    /// for an HTTP-polling client (L2). Touch-after-drain, consistent with the
+    /// other ops (finding 2): a drain racing a `disconnect` re-adds only a
+    /// bare activity entry (self-healing, reapable), never a registration the
+    /// reaper cannot see.
     pub fn drain_outbox(&self, connection_id: &str) -> Vec<RealtimeEnvelope> {
+        let drained = self.store.drain_outbox(connection_id);
         self.activity.touch(connection_id, now_millis());
-        self.store.drain_outbox(connection_id)
+        drained
     }
 
     pub fn drain_live_stream(&self, connection_id: &str) -> Vec<String> {
@@ -1232,6 +1250,20 @@ impl LocalSnapback {
     }
 
     pub fn disconnect(&mut self, connection_id: &str, now_ms: u64) {
+        // Remove the liveness entry FIRST, before tearing down any ephemeral
+        // registration/outbox or durable subscription (MEDIUM finding 2). The
+        // ephemeral store is off the global mutex, so an async-worker
+        // `EphemeralApi::subscribe` can interleave with this write-lane
+        // teardown. Ordering both operations so a surviving registration
+        // implies a surviving activity entry: disconnect removes activity
+        // before it removes registrations, and `EphemeralApi` ops touch
+        // activity *after* the store op succeeds (touch-after-success). The
+        // only reachable residual — an activity entry with no registration —
+        // is self-healing: the L2 reaper reaps it with an idempotent
+        // disconnect. The banned state — a registration with no activity
+        // entry, an unreapable zombie subscriber whose room never prunes —
+        // cannot occur.
+        self.connections_last_seen.remove(connection_id);
         self.ephemeral.disconnect(connection_id, now_ms);
         // A connection's durable live subscriptions are dead once the connection
         // goes away — there is no way to deliver further deltas. Dropping them lets
@@ -1260,7 +1292,6 @@ impl LocalSnapback {
         }
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
-        self.connections_last_seen.remove(connection_id);
         self.receipts.drop_connection(connection_id);
         // Losing the last watcher of a demand-gated live query disarms its cron
         // job (L5).

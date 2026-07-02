@@ -2785,6 +2785,75 @@ fn l5_idle_instance_performs_no_periodic_cron_writes() {
     );
 }
 
+/// LLP 0032 L9 (MEDIUM finding 2) — an `EphemeralApi::subscribe` racing a
+/// write-lane `disconnect` for the same connection must never leave a
+/// registered subscriber with no liveness entry — an unreapable zombie whose
+/// room can never prune. The store is off the global mutex, so the two
+/// interleave. The fix orders both sides so a surviving registration always
+/// implies a surviving activity entry (disconnect removes activity before it
+/// removes registrations; the API touches after the store op succeeds).
+/// Discriminator: after the race a far-future reap must drive
+/// `subscriber_count` to zero — a pre-fix zombie has no activity entry, so the
+/// reaper can never see it and this assertion fails.
+#[test]
+fn l9_reap_vs_revival_subscribe_leaves_no_unreapable_zombie() {
+    use std::sync::{Arc, Mutex};
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor(
+        "cursors", "roomId",
+    ));
+    // The off-lock ephemeral lane shares the store and the liveness map with
+    // the snapback now behind the write mutex.
+    let api = snapback.ephemeral_api();
+    let shared = Arc::new(Mutex::new(snapback));
+
+    // Distinct connection ids so a later iteration's disconnect can never mask
+    // an earlier zombie: an unreapable subscriber from any round survives to
+    // the final far-future reap.
+    const ITERATIONS: u64 = 3_000;
+    for i in 0..ITERATIONS {
+        let connection_id = format!("c-{i}");
+        let subscribe = {
+            let api = api.clone();
+            let connection_id = connection_id.clone();
+            thread::spawn(move || {
+                // Off the global mutex — races the disconnect below.
+                let _ = api.subscribe(
+                    SubscribeRequest {
+                        collection: "cursors".to_owned(),
+                        scope: Scope::from_pairs([("roomId", "room-1")]),
+                        connection_id,
+                        auth: AuthContext::default(),
+                    },
+                    1_000,
+                );
+            })
+        };
+        {
+            let mut snapback = shared.lock().expect("write lock");
+            snapback.disconnect(&connection_id, 1_000);
+        }
+        subscribe.join().expect("subscribe thread");
+    }
+
+    // Every registration the race left behind must be reapable: a far-future
+    // reap clears them all. A single unreapable zombie (registered, no
+    // activity) survives and pins its room's subscriber count above zero.
+    let mut snapback = shared.lock().expect("write lock");
+    snapback.reap_stale_connections(2_000_000_000_000, 120_000);
+    let inspect = snapback.inspect().expect("inspect");
+    assert_eq!(
+        inspect.ephemeral.subscriber_count, 0,
+        "an unreapable zombie subscriber survived the far-future reap"
+    );
+    assert_eq!(
+        snapback.active_connection_count(),
+        0,
+        "every liveness entry must be reapable"
+    );
+}
+
 /// LLP 0032 L2 — a connection idle past the TTL is reaped: its live
 /// subscriptions are torn down and the reap is counted in /inspect. A
 /// recently-active connection is left alone.
@@ -3158,7 +3227,9 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
 /// dropped as stale by an overlay holding the previous window.
 #[test]
 fn d2_collection_replace_bumps_epoch_and_signals_resync() {
-    let mut backend = LocalEphemeralBackend::new();
+    // The sharded room authority (LLP 0032 L9) exposes `&self` methods, so the
+    // backend binding no longer needs `mut`.
+    let backend = LocalEphemeralBackend::new();
     backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
     let scope = Scope::from_pairs([("boardId", "board_1")]);
     let auth = AuthContext::default();

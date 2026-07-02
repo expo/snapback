@@ -243,7 +243,14 @@ correctness, and sharded locks match the codebase's existing style
   first entry. `cleanup_expired` pops due rooms only, sweeps each under its
   own lock, and re-indexes or prunes — no scan of all rooms. Per-operation
   room sweeps are unchanged, so a snapshot still never contains expired
-  entries.
+  entries. **Review fix (MEDIUM 1):** a resync-boundary wipe removes only the
+  retired rooms' own index entries (each via its `indexed_deadline` mirror),
+  never a wholesale `expiry_index.clear()` — a room created concurrently on an
+  async worker after the wipe's `room_ids` snapshot survives the wipe, and a
+  wholesale clear would have destroyed its index entry while the mirror still
+  claimed it was indexed, detaching it from `cleanup_expired` forever (a room
+  leaked per definition hot-reload under live connections). Guarded by
+  `l9_wipe_does_not_detach_surviving_rooms_from_the_expiry_index`.
 - **Limits (first hard defaults, answering the open question).** Store-level
   capability facts, constructor-overridable: max active rooms 4096, max
   entries per room 1024, max subscribers per room 1024, max aggregate value
@@ -258,12 +265,29 @@ correctness, and sharded locks match the codebase's existing style
   drain, so the lost-wakeup argument no longer relies on the global mutex
   serializing enqueues — it relies on push-before-wake plus
   register-before-first-drain. Durable-before-ephemeral drain order is a
-  per-outbox property and is unchanged.
+  per-outbox property and is unchanged. **Review fix (LOW 3, coverage):**
+  the whole event-driven delivery claim now rests on push-before-wake, so it
+  is guarded — `l9_enqueue_is_push_before_wake_no_lost_wakeup` drives 30k
+  strict enqueue→wake→drain ping-pongs with no safety-net poll, failing a
+  bounded timeout if a wake ever precedes its push. (`DeliveryNotifier` also
+  moved to the poison-recovering lock helper for consistency; behavior
+  unchanged. `RoomLimitExceeded` stays HTTP 400, consistent with
+  `RateLimited`.)
 - **Connection liveness (LLP 0032 L2).** The last-seen map moves out of
   `LocalSnapback`'s exclusive state into a shared `ConnectionActivity`
   handle touched by the lock-free ephemeral/drain paths and by the
   write-lane live subscribe/resume; the reaper still runs on the write lane
-  because teardown touches durable subscriptions.
+  because teardown touches durable subscriptions. **Review fix (MEDIUM 2):**
+  because the store is off the global mutex, an async-worker
+  `EphemeralApi::subscribe` can interleave with a write-lane `disconnect`.
+  Both sides are ordered so a *surviving registration implies a surviving
+  activity entry*: `disconnect` removes the activity entry **before** it tears
+  down registrations/outbox, and the `EphemeralApi` ops touch activity
+  **after** the store op succeeds (touch-after-success). The banned state — a
+  registered subscriber the reaper can never see, whose room never prunes —
+  is thereby unreachable; the only residual (a bare activity entry with no
+  registration) is self-healing, reaped by an idempotent disconnect. Guarded
+  by `l9_reap_vs_revival_subscribe_leaves_no_unreapable_zombie`.
 - **Server surface.** `/ephemeral/*`, `/outbox/*`, the WS socket-text
   operations, WS drains, and the admin ephemeral cleanup reach the store
   directly with no global mutex. Disconnect keeps the write lane (it tears
