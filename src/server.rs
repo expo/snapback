@@ -211,6 +211,7 @@ pub fn live_socket_operations() -> Vec<(&'static str, RouteClass)> {
         ("ephemeral_subscribe", RouteClass::AppData),
         ("ephemeral_publish", RouteClass::AppData),
         ("ephemeral_delete", RouteClass::AppData),
+        ("live_ping", RouteClass::AppData),
     ]
 }
 
@@ -715,6 +716,16 @@ enum LiveSocketClientMessage {
         request_id: Option<String>,
         request: DeleteRequest,
     },
+    /// Application-level liveness probe (LLP 0034 D1, Exact LLP 0284 §2.2).
+    /// An idle-healthy socket otherwise sends nothing (the 25ms tick writes
+    /// only when the outbox has messages) and browser/Node `WebSocket` clients
+    /// cannot send protocol-level Ping frames, so without this a client cannot
+    /// distinguish `live` from a dead socket until TCP timeout. Stateless: no
+    /// connection state is read or touched.
+    Ping {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+    },
 }
 
 /// The serde tag each live-socket message is classified under. This exhaustive
@@ -731,6 +742,7 @@ fn live_socket_operation_name(message: &LiveSocketClientMessage) -> &'static str
         LiveSocketClientMessage::EphemeralSubscribe { .. } => "ephemeral_subscribe",
         LiveSocketClientMessage::EphemeralPublish { .. } => "ephemeral_publish",
         LiveSocketClientMessage::EphemeralDelete { .. } => "ephemeral_delete",
+        LiveSocketClientMessage::Ping { .. } => "live_ping",
     }
 }
 
@@ -755,6 +767,13 @@ async fn handle_live_socket_text(
         }
     };
 
+    // Liveness probe: answered immediately and statelessly (no lock, no
+    // connection binding to check — the probe carries no connection_id and
+    // performs no operation on connection state).
+    if let LiveSocketClientMessage::Ping { request_id } = &message {
+        return socket_pong(request_id.clone());
+    }
+
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S3: a socket
     // may only speak for its own connection; the client-chosen connection_id
     // inside a frame is bound to the socket identity, never trusted.
@@ -771,6 +790,7 @@ async fn handle_live_socket_text(
             request_id,
             request,
         } => (request_id.clone(), "delete", &request.connection_id),
+        LiveSocketClientMessage::Ping { .. } => unreachable!("handled above"),
     };
     if frame_connection != connection_id {
         return socket_error(
@@ -830,7 +850,20 @@ async fn handle_live_socket_text(
                 Err(error) => socket_error(request_id, "delete", diagnostic_from_ephemeral(error)),
             }
         }
+        LiveSocketClientMessage::Ping { .. } => unreachable!("handled above"),
     }
+}
+
+/// The `live_ping` response envelope. `serverTimeMs` lets a client measure
+/// round-trip freshness against its heartbeat budget (LLP 0034 §2.2: `live` =
+/// heartbeat within budget; `stale` = budget missed while retrying).
+fn socket_pong(request_id: Option<String>) -> String {
+    serde_json::to_string(&json!({
+        "kind": "pong",
+        "requestId": request_id,
+        "serverTimeMs": now_millis(),
+    }))
+    .unwrap_or_else(|_| "{\"kind\":\"pong\"}".to_owned())
 }
 
 fn socket_ack(request_id: Option<String>, operation: &str, mut body: Value) -> String {
@@ -1199,6 +1232,7 @@ mod tests {
                     auth: Default::default(),
                 },
             },
+            LiveSocketClientMessage::Ping { request_id: None },
         ];
         let sample_names: std::collections::BTreeSet<_> =
             samples.iter().map(live_socket_operation_name).collect();
