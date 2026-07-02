@@ -329,6 +329,7 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
             LiveSubscribeInput {
                 connection_id: format!("skip-{i}"),
                 input: args(json!({})),
+                supersedes: None,
             },
         )?;
     }
@@ -351,6 +352,7 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
             LiveSubscribeInput {
                 connection_id: format!("aff-{i}"),
                 input: args(json!({})),
+                supersedes: None,
             },
         )?;
     }

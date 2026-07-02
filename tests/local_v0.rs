@@ -2,7 +2,7 @@ use serde_json::{Map, Value, json};
 use snapback::cron::{CronActivationState, CronRunOutcome};
 use snapback::ephemeral::{
     AuthContext, ClientEphemeralOverlay, EphemeralCollection, EphemeralErrorCode, EphemeralMessage,
-    OverlayApply, PublishRequest, RealtimeEnvelope, Scope, SubscribeRequest,
+    LocalEphemeralBackend, OverlayApply, PublishRequest, RealtimeEnvelope, Scope, SubscribeRequest,
 };
 use snapback::local::{LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback};
 use snapback::manifest::{
@@ -31,6 +31,7 @@ fn local_sqlite_host_plan_runs_todo_live_query_and_mutation() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe live query");
@@ -79,6 +80,7 @@ fn ibex_ctx_db_handlers_run_todo_query_mutation_and_live_update() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe live query");
@@ -122,6 +124,7 @@ fn live_matcher_skips_user_scoped_disjoint_mutations() {
             LiveSubscribeInput {
                 connection_id: "ada_client".to_owned(),
                 input: input(json!({}), "cron"),
+                supersedes: None,
             },
         )
         .expect("ada subscribe");
@@ -133,6 +136,7 @@ fn live_matcher_skips_user_scoped_disjoint_mutations() {
             LiveSubscribeInput {
                 connection_id: "grace_client".to_owned(),
                 input: input(json!({}), "user_2"),
+                supersedes: None,
             },
         )
         .expect("grace subscribe");
@@ -175,6 +179,7 @@ fn live_matcher_skips_hidden_row_patches_and_deletes() {
             LiveSubscribeInput {
                 connection_id: "ada_client".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("ada subscribe");
@@ -218,6 +223,7 @@ fn live_matcher_keeps_unmarked_ibex_queries_conservative() {
             LiveSubscribeInput {
                 connection_id: "ada_client".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("ada subscribe");
@@ -255,6 +261,7 @@ fn live_matcher_uses_captured_equality_predicates_beyond_auth_scope() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe completed todos");
@@ -312,6 +319,7 @@ fn live_matcher_uses_captured_in_predicates() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe completed todos");
@@ -370,6 +378,7 @@ fn live_matcher_uses_captured_range_predicates() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe ranked todos");
@@ -445,6 +454,7 @@ fn live_matcher_uses_limited_order_boundaries() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe limited ranked todos");
@@ -551,6 +561,7 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe live query");
@@ -561,6 +572,7 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
             LiveSubscribeInput {
                 connection_id: "client_b".to_owned(),
                 input: input(json!({}), "user_2"),
+                supersedes: None,
             },
         )
         .expect("subscribe other user");
@@ -633,6 +645,7 @@ fn live_resume_resnapshots_when_recorded_permission_epoch_is_stale() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe live query");
@@ -706,6 +719,7 @@ fn live_resume_retains_subscription_when_recorded_permission_epoch_is_current() 
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe live query");
@@ -810,6 +824,7 @@ fn cron_tick_runs_host_action_through_mutation_and_live_delivery() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "cron"),
+                supersedes: None,
             },
         )
         .expect("subscribe live query");
@@ -873,6 +888,7 @@ fn cron_demand_gating_and_default_jitter_are_visible_in_inspect() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe activates demand-gated cron");
@@ -909,6 +925,7 @@ fn l5_cron_activity_flag_tracks_arming() {
             LiveSubscribeInput {
                 connection_id: "watcher".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe arms the demand-gated cron");
@@ -2152,6 +2169,7 @@ fn s2_subscription_ids_are_unguessable() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("first subscription");
@@ -2161,6 +2179,7 @@ fn s2_subscription_ids_are_unguessable() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("second subscription");
@@ -2185,6 +2204,7 @@ fn s2_resume_live_fails_closed_for_a_different_principal() {
             LiveSubscribeInput {
                 connection_id: "client_owner".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe live query");
@@ -2296,6 +2316,7 @@ fn s5_d11_recording_tick_runs_cron_without_error() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe activates demand-gated cron");
@@ -2491,6 +2512,7 @@ fn s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others() {
             LiveSubscribeInput {
                 connection_id: "healthy".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("healthy subscribe");
@@ -2500,6 +2522,7 @@ fn s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others() {
             LiveSubscribeInput {
                 connection_id: "exploding".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("exploding subscribe (empty snapshot is fine)");
@@ -2774,6 +2797,7 @@ fn l2_abandoned_connection_is_reaped_with_counters() {
             LiveSubscribeInput {
                 connection_id: "ghost".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe");
@@ -3032,11 +3056,12 @@ fn e4_query_validation_is_predicate_granular() {
     }
 }
 
-/// LLP 0034 §10.1 residual / ENG-22478 — re-subscribing the same
-/// (connection, function, args, principal) supersedes the old subscription:
-/// it is disposed server-side (with a receipt) and stops fanning out.
+/// LLP 0034 §10.1 residual / ENG-22478 (review fix A) — supersession is
+/// EXPLICIT: plain duplicate subscribes coexist (two components may share a
+/// query on one connection), while a subscribe naming `supersedes` disposes
+/// exactly that id (receipted) and only that id stops fanning out.
 #[test]
-fn d2_superseded_subscription_is_gced_and_stops_fanning_out() {
+fn d2_explicit_supersession_disposes_only_the_named_subscription() {
     let mut snapback = configured_snapback();
     let first = snapback
         .subscribe_live(
@@ -3044,6 +3069,7 @@ fn d2_superseded_subscription_is_gced_and_stops_fanning_out() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("first subscribe");
@@ -3053,13 +3079,15 @@ fn d2_superseded_subscription_is_gced_and_stops_fanning_out() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("second subscribe");
     assert_ne!(first.subscription_id, second.subscription_id);
 
+    // Plain duplicates COEXIST: both fan out.
     snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "after gc" }), "user_1"))
+        .invoke_mutation("createTodo", input(json!({ "title": "both live" }), "user_1"))
         .expect("create todo");
     let updates: Vec<Value> = snapback
         .drain_outbox("client_a")
@@ -3070,12 +3098,36 @@ fn d2_superseded_subscription_is_gced_and_stops_fanning_out() {
         })
         .filter(|update: &Value| update["kind"] == "live_replace")
         .collect();
-    assert_eq!(
-        updates.len(),
-        1,
-        "exactly one live_replace: the superseded subscription must not fan out"
-    );
-    assert_eq!(updates[0]["subscription_id"], second.subscription_id);
+    assert_eq!(updates.len(), 2, "duplicate subscribers must both fan out");
+
+    // The kit's resubscribe names its predecessor: exactly that id dies.
+    let third = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+                supersedes: Some(first.subscription_id.clone()),
+            },
+        )
+        .expect("superseding subscribe");
+    snapback
+        .invoke_mutation("createTodo", input(json!({ "title": "after supersede" }), "user_1"))
+        .expect("create todo");
+    let ids: Vec<Value> = snapback
+        .drain_outbox("client_a")
+        .into_iter()
+        .filter_map(|envelope| match envelope {
+            RealtimeEnvelope::Durable(message) => serde_json::from_slice(&message.payload).ok(),
+            RealtimeEnvelope::Ephemeral(_) => None,
+        })
+        .filter(|update: &Value| update["kind"] == "live_replace")
+        .map(|update: Value| update["subscription_id"].clone())
+        .collect();
+    assert_eq!(ids.len(), 2, "the survivor and the superseder fan out");
+    assert!(ids.contains(&json!(second.subscription_id)), "the untouched duplicate survives");
+    assert!(ids.contains(&json!(third.subscription_id)), "the superseder is live");
+    assert!(!ids.contains(&json!(first.subscription_id)), "the named predecessor is disposed");
 
     let receipts = snapback.receipts_snapshot(Some("client_a"));
     let ring = receipts["receipts"].as_array().expect("connection ring");
@@ -3083,15 +3135,105 @@ fn d2_superseded_subscription_is_gced_and_stops_fanning_out() {
         ring.iter().any(|receipt| receipt["event"] == "disposed"
             && receipt["reason"] == "superseded"
             && receipt["subscriptionId"] == first.subscription_id
-            && receipt["supersededBy"] == second.subscription_id),
-        "superseded disposal must be receipted: {receipts}"
+            && receipt["supersededBy"] == third.subscription_id),
+        "explicit supersession must be receipted: {receipts}"
     );
+
+    // An unknown supersedes id is a quiet no-op (reconnects race teardown).
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+                supersedes: Some("sub_gone".to_owned()),
+            },
+        )
+        .expect("unknown supersedes is not an error");
+}
+
+/// ENG-22478 review fix D — collection replace/reset retires room epochs with
+/// a resync boundary: attached subscribers receive ResyncRequired, and a
+/// recreated room's epoch is strictly higher, so fresh entries are never
+/// dropped as stale by an overlay holding the previous window.
+#[test]
+fn d2_collection_replace_bumps_epoch_and_signals_resync() {
+    let mut backend = LocalEphemeralBackend::new();
+    backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
+    let scope = Scope::from_pairs([("boardId", "board_1")]);
+    let auth = AuthContext::default();
+
+    let snapshot = backend
+        .subscribe(
+            SubscribeRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "observer".to_owned(),
+                auth: auth.clone(),
+            },
+            1_000,
+        )
+        .expect("subscribe");
+    let EphemeralMessage::Snapshot { scope_epoch: first_epoch, .. } = snapshot else {
+        panic!("expected snapshot");
+    };
+
+    backend
+        .publish(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "publisher".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: b"{}".to_vec(),
+                ttl_ms: None,
+                auth: auth.clone(),
+            },
+            1_001,
+        )
+        .expect("publish");
+    backend.drain_outbox("observer");
+
+    // Replace with a CHANGED definition: rooms retire, subscribers get the
+    // resync boundary.
+    let mut changed = EphemeralCollection::local_cursor("boardCursors", "boardId");
+    changed.default_ttl_ms = 9_000;
+    backend.replace_collections(vec![changed]);
+
+    let resync = backend
+        .drain_outbox("observer")
+        .into_iter()
+        .find_map(|envelope| match envelope {
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired { scope_epoch, .. }) => {
+                Some(scope_epoch)
+            }
+            _ => None,
+        })
+        .expect("attached subscriber must receive the resync boundary");
+    assert_eq!(resync, first_epoch);
+
+    // The recreated room re-snapshots at a strictly higher epoch, and its
+    // fresh entries apply under the new window (entry versions restart at 1
+    // WITHIN the new epoch — never comparable across epochs).
+    let fresh = backend
+        .subscribe(
+            SubscribeRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "observer".to_owned(),
+                auth: auth.clone(),
+            },
+            2_000,
+        )
+        .expect("re-subscribe");
+    let EphemeralMessage::Snapshot { scope_epoch: second_epoch, .. } = fresh else {
+        panic!("expected fresh snapshot");
+    };
     assert!(
-        ring.iter()
-            .filter(|receipt| receipt["event"] == "established")
-            .count()
-            >= 2,
-        "both establishments receipted"
+        second_epoch > first_epoch,
+        "recreated room must carry a strictly higher epoch ({second_epoch} vs {first_epoch})"
     );
 }
 
@@ -3106,6 +3248,7 @@ fn d2_unsubscribe_live_disposes_and_enforces_ownership() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe");
@@ -3233,6 +3376,7 @@ fn d2_disconnect_receipts_disposal_and_drops_the_connection_ring() {
             LiveSubscribeInput {
                 connection_id: "client_gone".to_owned(),
                 input: input(json!({}), "user_1"),
+                supersedes: None,
             },
         )
         .expect("subscribe");

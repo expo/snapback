@@ -173,6 +173,7 @@ async fn websocket_live_stream_pushes_existing_live_updates() {
                 LiveSubscribeInput {
                     connection_id: "client_ws".to_owned(),
                     input: handler_input(json!({}), "user_1"),
+                    supersedes: None,
                 },
             )
             .expect("subscribe live query");

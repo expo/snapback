@@ -250,6 +250,12 @@ pub struct LiveSubscribeInput {
     pub connection_id: String,
     #[serde(default)]
     pub input: HandlerInput,
+    /// Explicit supersession (ENG-22478 review fix A): the kit names the
+    /// subscription its OWN resubscribe replaces; the server disposes exactly
+    /// that id. Plain duplicate subscribes (two components sharing a query)
+    /// coexist — supersession is never inferred from matching identity.
+    #[serde(default)]
+    pub supersedes: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -604,7 +610,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> (SnapbackResult<MutationOutput>, Value) {
-        let correlation = input.correlation.clone();
+        let correlation = capped_correlation(input.correlation.clone());
         // affectedTables from DECLARED writes; a function that declares none
         // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
         // never a silently-empty list (LLP 0034 §3.2 / Exact 0263 honesty).
@@ -705,37 +711,35 @@ impl LocalSnapback {
         // counters; they share the runtime's UUIDv7 id source.
         let subscription_id = format!("sub_{}", Uuid::now_v7().simple());
 
-        // Superseded-subscription GC (LLP 0034 §10.1 residual, ENG-22478):
-        // the kit's reconnect/resync path is always a FRESH subscribe, so an
-        // identical (connection, function, args, principal) subscription that
-        // already exists is superseded by this one — dispose it server-side
-        // instead of letting it fan out until connection teardown.
-        let superseded: Vec<String> = self
-            .subscriptions
-            .values()
-            .filter(|existing| {
-                existing.connection_id == input.connection_id
-                    && existing.function == name
-                    && existing.input.args == subscription_input.args
-                    && existing.input.auth.principal == subscription_input.auth.principal
-                    && existing.input.auth.user_id == subscription_input.auth.user_id
-            })
-            .map(|existing| existing.id.clone())
-            .collect();
-        for old_id in &superseded {
-            self.subscriptions.remove(old_id);
-            let receipt = json!({
-                "kind": "subscription",
-                "event": "disposed",
-                "reason": "superseded",
-                "subscriptionId": old_id,
-                "supersededBy": subscription_id.clone(),
-                "scope": subscription_input.args.clone(),
-                "snapshotVersion": query.output.version,
-                "receivedAtMs": now_millis(),
-            });
-            self.receipts
-                .push_connection(&input.connection_id, receipt);
+        // Superseded-subscription GC, EXPLICIT protocol (LLP 0034 §10.1
+        // residual; ENG-22478 review fix A): the kit names the subscription
+        // its own resubscribe replaces and the server disposes exactly that
+        // id — never inferred from matching identity, so two legitimate
+        // identical subscribers (two components sharing a query on one
+        // connection) coexist. An unknown id is a quiet no-op: reconnects
+        // race disconnect teardown, which may have dropped it already.
+        if let Some(old_id) = &input.supersedes {
+            if let Some(existing) = self.subscriptions.get(old_id) {
+                let owner = &existing.input.auth;
+                let same_connection = existing.connection_id == input.connection_id;
+                let same_owner = owner.principal == subscription_input.auth.principal
+                    && owner.user_id == subscription_input.auth.user_id;
+                if same_connection && same_owner {
+                    self.subscriptions.remove(old_id);
+                    let receipt = json!({
+                        "kind": "subscription",
+                        "event": "disposed",
+                        "reason": "superseded",
+                        "subscriptionId": old_id,
+                        "supersededBy": subscription_id.clone(),
+                        "scope": subscription_input.args.clone(),
+                        "snapshotVersion": query.output.version,
+                        "receivedAtMs": now_millis(),
+                    });
+                    self.receipts
+                        .push_connection(&input.connection_id, receipt);
+                }
+            }
         }
 
         self.subscriptions.insert(
@@ -761,7 +765,7 @@ impl LocalSnapback {
             "subscriptionId": subscription_id.clone(),
             "scope": subscription_input.args.clone(),
             "snapshotVersion": query.output.version,
-            "correlation": subscription_input.correlation.clone(),
+            "correlation": capped_correlation(subscription_input.correlation.clone()),
             "receivedAtMs": now_millis(),
         });
         self.receipts
@@ -1782,6 +1786,23 @@ impl LocalSnapback {
             }
         }
     }
+}
+
+/// Cap the echoed correlation (ENG-22478 review fix H): the rings are
+/// bounded by COUNT, so an unbounded opaque echo could still pin
+/// RECEIPT_RING_CAP x correlation-size bytes per ring. Oversized correlation
+/// is replaced by an honest truncation marker.
+const CORRELATION_ECHO_MAX_BYTES: usize = 4_096;
+
+fn capped_correlation(correlation: Option<Value>) -> Option<Value> {
+    let correlation = correlation?;
+    let size = serde_json::to_string(&correlation)
+        .map(|serialized| serialized.len())
+        .unwrap_or(usize::MAX);
+    if size > CORRELATION_ECHO_MAX_BYTES {
+        return Some(json!({ "correlationTruncated": true, "bytes": size }));
+    }
+    Some(correlation)
 }
 
 fn user_permission_scope(user_id: &str) -> String {

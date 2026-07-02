@@ -524,9 +524,9 @@ struct RoomState {
 }
 
 impl RoomState {
-    fn new() -> Self {
+    fn new(scope_epoch: u64) -> Self {
         Self {
-            scope_epoch: 1,
+            scope_epoch,
             next_entry_version: 1,
             entries: BTreeMap::new(),
             owner_connections: BTreeMap::new(),
@@ -737,6 +737,12 @@ pub struct LocalEphemeralBackend {
     rate_buckets: BTreeMap<(ConnectionId, String), RateBucket>,
     outbox: BTreeMap<ConnectionId, OutboundQueue>,
     diagnostics: EphemeralDiagnostics,
+    // Monotonic scope-epoch source (ENG-22478 review fix D): epochs survive
+    // room recreation — a room rebuilt after collection replace/reset gets a
+    // HIGHER epoch, so entry versions restarting at 1 are never mistaken for
+    // stale updates within an attached overlay's previous window. Never
+    // reset (monotonic for the process lifetime).
+    scope_epoch_counter: u64,
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: wakes the
     // delivery task on enqueue instead of a 25ms poll.
     delivery: Arc<DeliveryNotifier>,
@@ -756,6 +762,7 @@ impl LocalEphemeralBackend {
             rate_buckets: BTreeMap::new(),
             outbox: BTreeMap::new(),
             diagnostics: EphemeralDiagnostics::default(),
+            scope_epoch_counter: 0,
             delivery: Arc::new(DeliveryNotifier::default()),
         }
     }
@@ -782,10 +789,44 @@ impl LocalEphemeralBackend {
             return;
         }
 
+        self.clear_rooms_with_resync(ResyncReason::EpochChanged);
+        self.collections = next;
+    }
+
+    /// Tear down every room while telling its attached subscribers to
+    /// re-snapshot (ENG-22478 review fix D): the room's epoch is retired, a
+    /// recreated room gets a strictly higher one (the monotonic counter), and
+    /// the ResyncRequired boundary is what turns the epoch bump into an
+    /// overlay resubscription instead of silent ignored_stale drops.
+    fn clear_rooms_with_resync(&mut self, reason: ResyncReason) {
+        let attached: Vec<(RoomId, u64, Vec<ConnectionId>)> = self
+            .rooms
+            .iter()
+            .map(|(room_id, room)| {
+                (
+                    room_id.clone(),
+                    room.scope_epoch,
+                    room.subscribers.keys().cloned().collect(),
+                )
+            })
+            .collect();
         self.rooms.clear();
         self.rate_buckets.clear();
         self.outbox.clear();
-        self.collections = next;
+        for (room_id, scope_epoch, subscribers) in attached {
+            let Some(collection) = self.collections.get(&room_id.collection).cloned() else {
+                continue;
+            };
+            for connection_id in subscribers {
+                let queue = self.ensure_outbox(&connection_id, &collection);
+                queue.push_ephemeral(EphemeralMessage::ResyncRequired {
+                    room: room_id.clone(),
+                    scope_epoch,
+                    reason: reason.clone(),
+                });
+                self.delivery.wake(&connection_id);
+            }
+        }
     }
 
     pub fn ensure_collections(
@@ -845,9 +886,7 @@ impl LocalEphemeralBackend {
     }
 
     pub fn reset_runtime_state(&mut self) {
-        self.rooms.clear();
-        self.rate_buckets.clear();
-        self.outbox.clear();
+        self.clear_rooms_with_resync(ResyncReason::Restarted);
         self.diagnostics = EphemeralDiagnostics::default();
     }
 
@@ -871,10 +910,13 @@ impl LocalEphemeralBackend {
 
         // @ref LLP 0013#routing-and-rooms -- a room authority owns versions and latest-state fan-out.
         let (scope_epoch, entry_version, entry) = {
-            let room = self
-                .rooms
-                .entry(room_id.clone())
-                .or_insert_with(RoomState::new);
+            let next_epoch = self.scope_epoch_counter + 1;
+            let room = self.rooms.entry(room_id.clone()).or_insert_with(|| {
+                RoomState::new(next_epoch)
+            });
+            if room.scope_epoch == next_epoch {
+                self.scope_epoch_counter = next_epoch;
+            }
             let entry_version = room.allocate_version();
             let scope_epoch = room.scope_epoch;
             room.remember_owner_connection(&owner, &request.connection_id);
@@ -951,10 +993,13 @@ impl LocalEphemeralBackend {
 
         // @ref LLP 0013#room-store-model -- snapshot and subscriber registration must be one room operation.
         let (scope_epoch, entries) = {
-            let room = self
-                .rooms
-                .entry(room_id.clone())
-                .or_insert_with(RoomState::new);
+            let next_epoch = self.scope_epoch_counter + 1;
+            let room = self.rooms.entry(room_id.clone()).or_insert_with(|| {
+                RoomState::new(next_epoch)
+            });
+            if room.scope_epoch == next_epoch {
+                self.scope_epoch_counter = next_epoch;
+            }
             let entries = room
                 .entries
                 .iter()
