@@ -316,6 +316,9 @@ export class SnapbackClient {
     // subscriptions — an OPEN socket's close triggers server-side disconnect —
     // and a fresh snapshot-with-subscribe has not landed yet.
     let needsResubscribe = false;
+    let pendingResubscribeReason = 'reconnect';
+    let resubscribeRetryTimer = null;
+    let resubscribeAttempts = 0;
 
     const handle = {
       subscriptionId: null,
@@ -375,36 +378,99 @@ export class SnapbackClient {
 
     const subscribeFresh = async () => {
       const sub = await client.subscribeLive(name, { connectionId, args, userId });
+      // Any successful fresh subscribe satisfies an outstanding need — clear
+      // it here so every path (establish, resume, resubscribe) agrees.
+      needsResubscribe = false;
+      resubscribeAttempts = 0;
+      clearResubscribeRetry();
       handle.subscriptionId = sub.subscription_id;
       handle.version = sub.snapshot.version;
       handle.rows = sub.snapshot.rows;
       return sub;
     };
 
+    // After a successful (re)subscribe, settle the connection value from the
+    // actual transport state — never promote to 'live' on hope.
+    const settleConnectionAfterSubscribe = () => {
+      if (disposed || paused) return;
+      if (transport !== 'stream') {
+        setConnection('polling');
+        return;
+      }
+      const manager = client.liveStreamManager(connectionId, streamOptions);
+      if (manager.isOpen()) {
+        streamedSinceSubscribe = true;
+        setConnection('live');
+      } else if (fellBack) {
+        setConnection('polling');
+      } else if (!fallbackToPoll) {
+        setConnection('stale');
+      }
+      // else: the socket is still in flight; stay 'connecting' until the
+      // manager reports open/lost.
+    };
+
+    const clearResubscribeRetry = () => {
+      if (resubscribeRetryTimer) {
+        clearTimeout(resubscribeRetryTimer);
+        resubscribeRetryTimer = null;
+      }
+    };
+
+    // Retry while the need persists (LLP 0034 review fix 2): a failed
+    // re-subscribe schedules a bounded-backoff retry, and the drain path
+    // below ALSO re-enters on every poll tick — a transient server error can
+    // never strand the handle without a subscription.
+    const scheduleResubscribeRetry = (reason) => {
+      if (disposed || paused || resubscribeRetryTimer || !needsResubscribe) return;
+      const delay = Math.min(
+        LIVE_RECONNECT_BASE_DELAY_MS * 2 ** resubscribeAttempts,
+        LIVE_RECONNECT_MAX_DELAY_MS,
+      );
+      resubscribeAttempts += 1;
+      resubscribeRetryTimer = setTimeout(() => {
+        resubscribeRetryTimer = null;
+        if (!disposed && !paused && needsResubscribe) void resubscribe(reason);
+      }, delay);
+      resubscribeRetryTimer.unref?.();
+    };
+
     // Reconnect/resync re-entry: always a fresh subscribe_live (see the policy
     // block at the top of this file — the server drops a connection's durable
-    // subscriptions on socket close, so there is nothing to resume). Note: on
-    // in-band resyncs (overflow, permission epoch) the superseded subscription
-    // may remain registered server-side until the connection disconnects or is
-    // reaped; its updates are ignored by subscription-id filtering above.
+    // subscriptions on socket close, so there is nothing to resume). Returns
+    // whether the fresh subscribe LANDED; a failure keeps needsResubscribe set
+    // and schedules a retry — the connection value is only ever promoted after
+    // a success (via settleConnectionAfterSubscribe). Note: on in-band resyncs
+    // (overflow, permission epoch) the superseded subscription may remain
+    // registered server-side until the connection disconnects or is reaped;
+    // its updates are ignored by subscription-id filtering above.
     const resubscribe = async (reason) => {
-      if (disposed || paused || resubscribing) return;
+      if (disposed || paused || resubscribing) return false;
       resubscribing = true;
+      needsResubscribe = true;
+      pendingResubscribeReason = reason;
       try {
         await subscribeFresh();
-        needsResubscribe = false;
         emitEvent('resubscribed', { reason });
         onUpdate?.(handle.rows, { version: handle.version, kind: 'snapshot' });
+        settleConnectionAfterSubscribe();
+        return true;
       } catch (error) {
-        // Retry rides the transport's own cadence: the next poll tick or the
-        // next socket regain re-enters here.
         onConnectionChange?.(connection, { previous: connection, error });
+        scheduleResubscribeRetry(reason);
+        return false;
       } finally {
         resubscribing = false;
       }
     };
 
     const drainOnce = async () => {
+      // A broken subscription drains nothing (a disconnect-destroyed outbox
+      // returns [] and looks healthy): re-enter the fresh subscribe on every
+      // drain tick until it lands (LLP 0034 review fix 2, polling variant).
+      if (needsResubscribe && !resubscribing) {
+        await resubscribe(pendingResubscribeReason);
+      }
       // HTTP outbox drain: one bounded queue per connection, durable lane
       // first, then resync, then coalesced ephemeral (OutboundQueue::drain —
       // durable-over-ephemeral priority, LLP 0013 §delivery-lanes). The kit
@@ -446,11 +512,11 @@ export class SnapbackClient {
           if (needsResubscribe) {
             // The lost socket's server-side disconnect dropped this
             // connection's subscriptions and no fresh subscribe has landed
-            // yet: re-enter through snapshot-with-subscribe.
+            // yet: re-enter through snapshot-with-subscribe. Promotion to
+            // 'live' happens INSIDE resubscribe, only on success; on failure
+            // the handle stays 'connecting' and the retry loop re-enters.
             setConnection('connecting');
-            void resubscribe('reconnect').then(() => {
-              if (!disposed && !paused && manager.isOpen()) setConnection('live');
-            });
+            void resubscribe('reconnect');
           } else {
             // The current subscription is valid (re-created by the fallback
             // path, or the original if the socket never opened); the regained
@@ -463,18 +529,22 @@ export class SnapbackClient {
           streamedSinceSubscribe = false;
           if (detail.wasOpen) {
             // An OPEN socket's close makes the server drop this connection's
-            // durable subscriptions (src/server.rs live_stream -> disconnect).
-            // A socket that never opened dropped nothing.
+            // durable subscriptions (src/server.rs live_stream -> disconnect;
+            // when a reconnect superseded this socket server-side the
+            // generation guard skips the drop, and the fresh subscribe below
+            // is merely redundant). A socket that never opened dropped
+            // nothing.
             needsResubscribe = true;
+            pendingResubscribeReason = 'reconnect';
           }
           if (fallbackToPoll) {
             setConnection('polling');
             fellBack = true;
             if (detail.wasOpen) {
-              // Re-subscribe for the fallback path after a short grace so the
-              // server has processed the close; if the socket reconnects
-              // first, the 'open' handler resubscribes instead (guarded by
-              // needsResubscribe, so exactly one fresh subscribe lands).
+              // First re-subscribe attempt after a short grace so the server
+              // has processed the close; failures are covered by the retry
+              // loop AND every fallback drain tick (needsResubscribe gates
+              // all of them, so exactly one fresh subscribe lands).
               setTimeout(() => {
                 if (!disposed && !paused && needsResubscribe && handle.subscriptionId !== null) {
                   void resubscribe('reconnect');
@@ -483,6 +553,9 @@ export class SnapbackClient {
             }
             startFallback();
           } else {
+            // Fallback disabled: hold at 'stale' with last-known rows; the
+            // fresh subscribe re-enters on socket regain (open handler), and
+            // a failure there is covered by the retry loop.
             setConnection('stale');
           }
           return;
@@ -501,13 +574,26 @@ export class SnapbackClient {
       };
     };
 
+    // On subscribe failure the attached stream must not leak (LLP 0034 review
+    // fix 5): detach (dropping manager demand closes the shared socket when
+    // this was its only consumer), mark the handle disposed, and rethrow —
+    // liveQuery() fails loudly and leaves nothing running.
     const establish = async () => {
       setConnection('connecting');
       if (transport === 'stream') {
         detachStream = attachStream();
       }
-      await subscribeFresh();
-      emitEvent('established');
+      try {
+        await subscribeFresh();
+      } catch (error) {
+        stopFallback();
+        clearResubscribeRetry();
+        detachStream?.();
+        detachStream = null;
+        disposed = true;
+        setConnection('disconnected');
+        throw error;
+      }
       if (transport === 'stream') {
         const manager = client.liveStreamManager(connectionId, streamOptions);
         if (manager.isOpen()) {
@@ -520,6 +606,10 @@ export class SnapbackClient {
       } else {
         setConnection('polling');
       }
+      // Emitted AFTER the transport state settles so the event's transport
+      // fact ('push' vs 'poll') is true on the common path where the socket
+      // opened during the subscribe round-trip.
+      emitEvent('established');
     };
 
     handle.poll = async () => {
@@ -535,6 +625,7 @@ export class SnapbackClient {
       if (disposed || paused) return;
       paused = true;
       stopFallback();
+      clearResubscribeRetry();
       detachStream?.();
       detachStream = null;
       setConnection('disconnected');
@@ -547,8 +638,17 @@ export class SnapbackClient {
       if (transport === 'stream') {
         detachStream = attachStream();
       }
-      await subscribeFresh();
-      emitEvent('resubscribed', { reason: 'resume' });
+      try {
+        await subscribeFresh();
+      } catch (error) {
+        // Do not leak the re-attached stream (LLP 0034 review fix 5): return
+        // to the paused state so the caller may retry resume() later.
+        detachStream?.();
+        detachStream = null;
+        paused = true;
+        setConnection('disconnected');
+        throw error;
+      }
       const manager = transport === 'stream' ? client.liveStreamManager(connectionId, streamOptions) : null;
       if (manager?.isOpen()) {
         streamedSinceSubscribe = true;
@@ -560,6 +660,7 @@ export class SnapbackClient {
       } else {
         setConnection(transport === 'stream' ? 'stale' : 'polling');
       }
+      emitEvent('resubscribed', { reason: 'resume' });
     };
 
     handle.dispose = () => {
@@ -567,6 +668,7 @@ export class SnapbackClient {
       emitEvent('disposed');
       disposed = true;
       stopFallback();
+      clearResubscribeRetry();
       detachStream?.();
       detachStream = null;
       setConnection('disconnected');
