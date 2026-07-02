@@ -59,7 +59,17 @@ bun demos/todo/tests/acceptance/contract.mjs
 cargo run -- --port 4420 --memory
 SNAPBACK_TODO_API=http://127.0.0.1:4420 \
   bun run --cwd demos/todo/surfaces/contract dev
+
+# 6. Production build of the Contract surface (exactContractWeb preset ->
+#    surfaces/contract/dist/web/; ENG-22487).
+bun run --cwd demos/todo/surfaces/contract build
 ```
+
+The surface uses the `exactContractWeb` paved-road preset: the Exact checkout
+is `SNAPBACK_EXACT_ROOT` (default: sibling `../exact`), and the revision the
+surface was last verified against is pinned in
+`surfaces/contract/exact.pin.json` — drift warns on dev/build; re-pin
+deliberately with `EXACT_WRITE_PIN=1` after verifying on a new revision.
 
 The acceptance runners start an in-memory Snapback server on a dedicated port
 (reusing one if already healthy) and tear it down on exit.
