@@ -336,3 +336,54 @@ for this surface class:
 - **P3 (both arms):** the E5/E6 feature probes live in the session
   scratchpad; if the edits graduate into product claims, promote them into
   the acceptance suites (both, to keep the mirror).
+
+---
+
+## Appendix: independent cross-family verdict (appended post-push)
+
+**Provenance:** GPT-5.5 Codex · `codex exec`, local CLI, read-only sandbox ·
+2026-07-02 · not redacted · method: read-only review of source, configs,
+lockfiles, and test code in `demos/cursors-web` at snapback main `4a06499`
+plus `packages/snapback-contract`; no builds, tests, or servers run; barred
+from all diaries and strategy documents; prompted for a ship verdict with
+cited reasons, the strongest case for the other side, and checkable flip
+conditions. Appended verbatim by the session that commissioned the run (not
+this diary's author, who did not see it before pushing).
+
+## Verdict
+ship `demos/cursors-web/surfaces/react/` today.
+
+## Top reasons
+- React has the reproducible production build story: `package.json` defines `build` and `typecheck`, with a committed npm lockfile; Contract has only a `dev` script and depends on a sibling Exact checkout plus Bun (`demos/cursors-web/surfaces/react/package.json:5`, `demos/cursors-web/surfaces/react/package-lock.json:1`, `demos/cursors-web/surfaces/contract/package.json:5`, `demos/cursors-web/surfaces/contract/vite.config.ts:10`).
+- Contract's production bundle path has an acknowledged build-only workaround: the pinned Exact channel import pulls TypeScript into the client graph and can fail the native-leak gate unless stubbed (`demos/cursors-web/surfaces/contract/typescript-browser-stub.mjs:3`, `demos/cursors-web/surfaces/contract/typescript-browser-stub.mjs:12`, `demos/cursors-web/surfaces/contract/vite.config.ts:22`).
+- React more completely satisfies the color-picker behavior today: it republishes identity after color state commits (`demos/cursors-web/surfaces/react/src/App.tsx:57`, `demos/cursors-web/surfaces/react/src/App.tsx:68`), while Contract explicitly waits for the next pointer sample because stage-0 channels lack programmatic emission (`demos/cursors-web/surfaces/contract/app.contract:30`).
+- Test coverage is effectively equivalent, so the choice turns on ship risk: both suites have six mirrored browser checks over two windows, live cursor propagation, self treatment, publish facts, forced local state, and post-force liveness (`demos/cursors-web/tests/acceptance/contract-browser.mjs:42`, `demos/cursors-web/tests/acceptance/contract-browser.mjs:131`, `demos/cursors-web/tests/acceptance/react-browser.mjs:36`, `demos/cursors-web/tests/acceptance/react-browser.mjs:123`).
+- React's realtime path is verbose but ordinary-web-engineer auditable in one hook: subscribe, resync, connection axis, TTL pruning, throttle, and publish are all local source (`demos/cursors-web/surfaces/react/src/useCursorRoom.ts:153`, `demos/cursors-web/surfaces/react/src/useCursorRoom.ts:239`, `demos/cursors-web/surfaces/react/src/useCursorRoom.ts:370`).
+
+## Strongest case for the other side
+- Contract's app code is much smaller and keeps the critical realtime semantics declarative: generated ephemeral binding, value channel, declared 15Hz publish, max TTL, self dot transform, and idle fade are visible in one `.contract` file (`demos/cursors-web/surfaces/contract/app.contract:19`, `demos/cursors-web/surfaces/contract/app.contract:52`, `demos/cursors-web/surfaces/contract/app.contract:65`).
+- The hard ephemeral overlay logic is shared in `packages/snapback-contract` rather than hand-rolled per app: self-keying, TTL pruning, expiry re-emits, resync, and connection-axis handling are implemented centrally (`packages/snapback-contract/index.mjs:536`, `packages/snapback-contract/index.mjs:567`, `packages/snapback-contract/index.mjs:650`, `packages/snapback-contract/index.mjs:666`).
+- The demo manifest treats Contract as the required surface and React as the control arm (`demos/cursors-web/demo.snapback.json:37`, `demos/cursors-web/demo.snapback.json:46`).
+
+## What would flip my verdict
+- Contract has a self-contained, non-skipping clean-clone build/install path: no required sibling Exact checkout, enforced `exact.pin.json`, committed or registry-pinned dependencies, and `dev` plus `build` scripts.
+- The TypeScript browser stub is removed because Exact no longer pulls compiler/native-only paths into the browser production graph.
+- Contract can republish color changes without requiring a subsequent pointer movement, and that behavior is covered in acceptance.
+- CI runs both acceptance suites as required, not as capability-skipping lanes, and records the Contract production build artifact from source.
+
+## Confidence
+medium — I did not run builds, tests, or servers, per instruction. From source/config alone, React is the lower-risk production client today despite Contract's cleaner model.
+
+---
+
+**Appender's note (same provenance discipline: this note is by the
+commissioning session, not the judge or the builder).** The two judges
+split: the builder-judge above ships Contract; the read-only judge ships
+React. The judge's factual claims were spot-checked and hold (the Contract
+arm's `package.json` does carry only a `dev` script — its production build
+ran ad hoc through the preset this run). Its four flip conditions were
+already filed at verdict time and map onto: (1) clean-clone path →
+ENG-22480; (2) stub removal via the Exact import-graph fix → ENG-22537;
+(3) programmatic color republish + acceptance coverage → ENG-22539 +
+ENG-22543; (4) required CI suites + recorded Contract build artifact →
+ENG-22543. Gate reading recorded in Exact LLP 0286.
