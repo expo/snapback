@@ -1244,7 +1244,14 @@ client, typed inspect) remain open** — Milestone C needs them.
   admin client (LLP 0017 open question), normalize or typed-project the
   inspect payload (pairs with 0031 D3's trimmed public inspect). **Done
   when:** both consoles consume one client package and a typed inspect
-  schema; a casing-consistency test exists.
+  schema; a casing-consistency test exists. **Scope addition (2026-07-02,
+  found by the Phase 5 full-proof run):** admin-ui still consumes the
+  sibling Exact checkout at live HEAD — its `./build.sh` broke against
+  Exact commits landed the same day ("pure context calls opaque import
+  fonts" in `app.contract` + a moved exact-core internal), while the demos,
+  pinned via `exact.pin.json` since ENG-22463/22487, kept building. P8
+  should adopt the pinned consumption (`exactContractWeb` preset + pin) for
+  admin-ui — the same toolchain-drift class Diary 0009's red-team named.
 
 ## Phase 6 — Strategic derisking
 
