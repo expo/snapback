@@ -387,3 +387,29 @@ ENG-22480; (2) stub removal via the Exact import-graph fix → ENG-22537;
 (3) programmatic color republish + acceptance coverage → ENG-22539 +
 ENG-22543; (4) required CI suites + recorded Contract build artifact →
 ENG-22543. Gate reading recorded in Exact LLP 0286.
+
+---
+
+## Follow-up: flip condition 3 closed (2026-07-02, ENG-22541)
+
+**Provenance:** appended by the ENG-22541 fix session (not this diary's
+author or judges), same day as the verdict, ahead of the pre-registered
+2026-10-01 deadline.
+
+The P1 adapter gap is fixed in `packages/snapback-contract`:
+`buildEphemeralWiring` now mirrors the kit's durable-lane
+`needsResubscribe`-on-open policy for the ephemeral lane (an OPEN socket's
+loss marks the room subscription dead; socket regain re-enters through a
+fresh snapshot-with-subscribe; the presented axis holds `stale` until that
+subscribe lands — never `live` over a dead room; one in-flight subscribe
+per room).
+
+The reconnect probe is now a permanent mirrored acceptance check on BOTH
+arms ("presence recovers after an API server restart", expectedChecks 7)
+plus an ENG-22541 unit regression in
+`demos/_kit/tests/regression-ephemeral-wiring.mjs`. Verdict-c-3's check
+reads: pre-fix contract column stuck at `left: 260px` under a `live`
+banner (reproduced in-suite before the fix); post-fix the contract column
+recovers to `left: 410px` — the same recovery the hand-wired React arm
+shipped with. The "framework owns the lifecycle" argument stands for this
+class.
