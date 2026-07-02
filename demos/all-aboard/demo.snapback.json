@@ -56,9 +56,10 @@
     "contract": {
       "requirement": "required",
       "runner": "node demos/all-aboard/tests/acceptance/browser.mjs",
-      "devServer": "cd ../exact && bun --bun node_modules/.bin/vite --config <repo>/demos/all-aboard/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5178",
+      "devServer": "bun run --cwd demos/all-aboard/surfaces/contract dev (Exact checkout = SNAPBACK_EXACT_ROOT or sibling ../exact; verified revision pinned in surfaces/contract/exact.pin.json)",
+      "build": "bun run --cwd demos/all-aboard/surfaces/contract build (vite build via the exactContractWeb preset -> surfaces/contract/dist/web/)",
       "url": "http://127.0.0.1:5178",
-      "toolchain": "node>=24, cargo, bun, sibling Exact checkout, local Google Chrome (CDP)",
+      "toolchain": "node>=24, cargo, bun, Exact checkout at the exact.pin.json revision (SNAPBACK_EXACT_ROOT or sibling), local Google Chrome (CDP)",
       "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "exact": {
         "gestures": false,
@@ -123,7 +124,7 @@
     "stationPhotos": "full-screen poster-stylized art derived from the real Wikimedia Commons station photos (Wikipedia List of Caltrain stations): fetched + stylized at build time (snapback/shared/station-photos.gen.py, Pillow; algorithmic posterize + ink edges, not an image-gen model) and base64-inlined as 640x1136 JPEG in station-photos.gen.mjs (~1.5MB source) — zero runtime egress, deterministic; legibility scrims live in the model.mjs SVG wrapper; flowing assets through the asset-storage subsystem instead of inlining is the follow-up",
     "egress": "opt-in via SNAPBACK_OUTBOUND_ACTIONS; the demo product path runs on recorded data and never calls fetch",
     "gestures": "gesture-first interaction ships as web surface glue (gestures.ts) driving the declared press affordances; the Contract swipe primitive (LLP 0029 G1) remains the real fix and would delete the glue",
-    "webChrome": "the Exact dev server serves its own HTML shell (index.html is not consulted), so main.ts injects the page chrome the full-bleed layout needs (height chain, dark backdrop, touch-action rules)"
+    "webChrome": "the Exact plugin's shell 'auto' mode preserves the surface's own index.html (ENG-22445), which carries the page chrome; main.ts installWebChrome keeps an idempotent copy of the same rules so the surface also survives generated-shell hosts (height chain, dark backdrop, touch-action rules)"
   },
   "notClaiming": [
     "live external polling of a real Caltrain / 511.org feed",

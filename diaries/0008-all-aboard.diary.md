@@ -413,3 +413,73 @@ through the real glue): 9/9, plus headless 11/11, cron 7/7, egress 4/4. The
 visual loop ran as phone-viewport CDP screenshots across five stations, both
 sheets, terminus dimming, delay states, and each gesture — the fastest way to
 iterate a Contract surface I've found so far.
+
+## 2026-07-02 — Production build + pinned Exact consumption (ENG-22463)
+
+### What changed
+
+The Contract surface's toolchain wiring, not the app. `vite.config.ts` dropped
+the hand-rolled plugin pair + 11-entry alias matrix for the paved-road
+`exactContractWeb({ data: 'snapback', exactRoot, app: { entry: '/main.ts' } })`
+preset (`@exact/devtools/contract-web`; Exact LLP 0264 + the
+ENG-22441/22445/22446 remediation this repo's Diary 0009 red-team triggered).
+`package.json` finally has a `build` script next to `dev`, both honoring
+`SNAPBACK_EXACT_ROOT` with the sibling `../exact` as default, and
+`exact.pin.json` at the surface root records the Exact revision the surface
+was verified against. Surface-specific config stayed hand-authored where it
+belongs: the `__SNAPBACK_API_ORIGIN__` define, the `/snapback` ws proxy, and
+root/port. The preset now owns the aliases, browser resolve conditions, the
+wa-sqlite optimizeDeps exclusion, the client-bundle native-leak gate, and the
+pin drift check.
+
+### What the flip conditions look like closed
+
+- **Flip condition #2 (production build DNF):** `vite build` had hung at 0%
+  CPU on 2/2 attempts in Diary 0009. Through the preset it completes in
+  ~1.5-1.8 s, emits `dist/web/` (client bundle + the surface's own
+  `index.html`), and stays web-only — no mac/windows startup artifacts, no
+  desktop manifests.
+- **Flip condition #3's silent shell takeover:** the plugin logs
+  `HTML shell mode: preserve — project root has its own index.html` and both
+  dev and build keep this surface's HTML (boot-status pill, gesture
+  touch-action rules intact). The takeover is now structurally off the table
+  (shell 'auto', ENG-22445).
+- **Flip condition #1 (sibling-checkout-at-HEAD):** demonstrated itself
+  mid-task, unprompted. Between two builds, another agent session moved the
+  sibling Exact checkout (bb24ab15 → 422baa08); the very first unpinned
+  default-path build printed the `pin drift:` banner naming both revisions
+  and the two remedies. That is exactly the failure mode that restarted and
+  bricked the red-team's dev server twice, converted from a silent hazard
+  into a one-line diagnosis. Warning-only by default; `EXACT_PIN_STRICT=1`
+  makes CI fail on drift.
+
+### Friction, honestly
+
+- No published `@exact/*` packages yet (ENG-22480), and this repo has no root
+  node_modules, so the config cannot `import '@exact/devtools/contract-web'`
+  by bare specifier — it dynamic-imports
+  `packages/exact-devtools/src/contract-web.ts` from the resolved checkout.
+  Upside: `SNAPBACK_EXACT_ROOT` now repoints the preset code itself along
+  with the aliases and pin check (the hand-rolled config kept loading plugin
+  code from the literal sibling path even when pinned elsewhere). Published
+  packages will delete this workaround.
+- Build output lands in `dist/web/`, not `dist/` — the app plugin's layout.
+  Fine, but you have to notice.
+- A pre-check failure in `browser.mjs` (API/vite/Chrome not coming up) exits
+  `PASS — 0/0`: the `finally` calls `process.exit(report.ok ? 0 : 1)` before
+  the thrown error can surface, and zero checks is vacuously ok. Bit me when
+  the first cold `cargo run` exceeded the 90 s health deadline. Harness
+  follow-up material.
+- `todo/` and `todo-v2/` contract surfaces still carry the old hand-rolled
+  config shape; same preset move applies there.
+
+### Verification
+
+Against the pinned revision (9b22261264fe, a clean origin/main worktree):
+`vite build` green with `pinned Exact checkout verified` + `shell mode:
+preserve` in the log and the own-HTML markers asserted in `dist/web/`;
+browser acceptance 12/12 (boot, board, presses, trip detail, mutation +
+freshness, live push paved path, cron delta, second-window D4, three
+gestures); headless/cron backend suites untouched by this change and re-run
+green; dev-script smoke (cwd = surface dir, env fallback) serves the
+surface's own HTML with the agent surface reachable.

@@ -1,0 +1,5 @@
+{
+  "revision": "9b22261264fe0e7819b67a0e05839bd579748701",
+  "pinnedAt": "2026-07-02T08:01:35.524Z",
+  "note": "Exact checkout revision this surface was last verified against (ENG-22446). Bump deliberately: re-run with EXACT_WRITE_PIN=1 after verifying on the new revision."
+}

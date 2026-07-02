@@ -41,30 +41,44 @@ SNAPBACK_OUTBOUND_ACTIONS=1 node demos/_kit/codegen.mjs demos/all-aboard/tests/e
 
 ## Serve the web surface (URL)
 
-Two processes — the Snapback API and a Vite dev server from the sibling Exact
-checkout (which serves the compiled `.contract` and proxies `/snapback`):
+Two processes — the Snapback API and a Vite dev server (which serves the
+compiled `.contract` and proxies `/snapback`). The surface consumes Exact
+through the paved-road `exactContractWeb` preset (ENG-22463): the checkout is
+the sibling `../exact` by default, overridable with `SNAPBACK_EXACT_ROOT`, and
+`surfaces/contract/exact.pin.json` records the Exact revision the surface was
+last verified against — a mismatched checkout warns on every dev start and
+build (`EXACT_PIN_STRICT=1` turns drift into a hard failure; re-pin
+deliberately with `EXACT_WRITE_PIN=1` after verifying on a new revision).
 
 ```sh
 # 1. Snapback API (macOS first run: scripts/bootstrap-ibex-runtime)
 cargo run -- --port 4420 --memory
 
-# 2. Vite dev server (separate terminal), from a normal checkout:
+# 2. Vite dev server (separate terminal):
 bun run --cwd demos/all-aboard/surfaces/contract dev
 #   -> open http://127.0.0.1:5178
 ```
 
-From a **git worktree** the sibling `../exact` path does not resolve; symlink it and
-run Vite directly:
+From a **git worktree** (or with the sibling checkout on the wrong revision)
+point `SNAPBACK_EXACT_ROOT` at the Exact checkout to build against:
 
 ```sh
-ln -s /path/to/exact <repo>/.claude/worktrees/exact
-cd /path/to/exact && SNAPBACK_ALL_ABOARD_API=http://127.0.0.1:4420 \
-  bun --bun node_modules/.bin/vite \
-  --config <repo>/demos/all-aboard/surfaces/contract/vite.config.ts \
-  --host 127.0.0.1 --port 5178
+SNAPBACK_EXACT_ROOT=/path/to/exact bun run --cwd demos/all-aboard/surfaces/contract dev
 ```
 
-The page self-initializes (loads schema/functions, resets, seeds) on boot.
+The page self-initializes on boot (inspect-first: schema/functions load and the
+seed runs only when the backend needs them).
+
+## Production web build
+
+```sh
+bun run --cwd demos/all-aboard/surfaces/contract build   # -> surfaces/contract/dist/web/
+```
+
+`vite build` through the same preset emits the client bundle plus the
+surface's own `index.html` (the plugin's shell `'auto'` mode preserves it —
+ENG-22445) and stays web-only: no native static artifacts, no desktop
+manifests. The build fails if client chunks leak Node/native-only modules.
 
 ## Native (macOS / iOS)
 

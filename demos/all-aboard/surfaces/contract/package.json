@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cd ../../../../../exact && bun --bun node_modules/.bin/vite --config ../snapback/demos/all-aboard/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5178"
+    "dev": "bun --bun \"${SNAPBACK_EXACT_ROOT:-../../../../../exact}/node_modules/.bin/vite\" --config vite.config.ts --host 127.0.0.1 --port 5178",
+    "build": "bun --bun \"${SNAPBACK_EXACT_ROOT:-../../../../../exact}/node_modules/.bin/vite\" build --config vite.config.ts"
   }
 }
