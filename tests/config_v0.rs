@@ -1,0 +1,534 @@
+//! LLP 0036 v1 acceptance: declared config entries, per-action grants, the
+//! opaque handle, the file store, and the gated `/_snapback/api/config/*` ops.
+//!
+//! @ref LLP 0036#implementation-order — the acceptance sketch's positive and
+//! negative claims: grants rotate, every accidental materialization redacts,
+//! queries/mutations get no config surface, reset preserves config, and no
+//! operation or envelope ever contains a value.
+
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use serde_json::{Value, json};
+use snapback::admin::{AppState, ServerContext};
+use snapback::local::LocalSnapback;
+use snapback::manifest::{
+    ConfigEntryDefinition, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
+    FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
+};
+use std::time::Instant;
+use tower::ServiceExt;
+
+// --- Manifest fixtures --------------------------------------------------------
+
+fn probe_schema() -> SchemaManifest {
+    SchemaManifest {
+        tables: vec![TableManifest {
+            name: "probe".to_owned(),
+            fields: vec![FieldManifest {
+                name: "label".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: vec![],
+            syncable: false,
+        }],
+        ..Default::default()
+    }
+}
+
+const HANDLERS: &str = r#"
+globalThis.__snapbackHandlers = {
+  async useKeys(ctx) {
+    var out = {};
+    try {
+      var handle = ctx.secrets.rotating('feedKeys');
+      out.exposed = handle.expose();
+      out.stringified = JSON.stringify(handle);
+      out.template = "" + handle;
+      out.bearer = handle.asBearer();
+    } catch (error) {
+      out.rotatingError = error.message;
+    }
+    try {
+      ctx.secrets.get('somethingElse');
+      out.undeclared = 'no error (BUG)';
+    } catch (error) {
+      out.undeclared = error.message;
+    }
+    return out;
+  },
+  async useKeysRaw(ctx) {
+    // No catch: proves the structured diagnostic code mapping.
+    return { got: ctx.secrets.get('feedKeys').expose() };
+  },
+  async useOther(ctx) {
+    // Not granted feedKeys: proves CONFIG_UNDECLARED as a structured code.
+    return { got: ctx.secrets.get('feedKeys').expose() };
+  },
+  async probeKeys(ctx) {
+    // The probe: implicitly granted the entry it verifies.
+    var handle = ctx.secrets.get('feedKeys');
+    return { ok: handle.expose().length > 0 };
+  }
+};
+"#;
+
+fn ibex_action(name: &str, uses: &[&str]) -> FunctionDefinition {
+    let mut definition = FunctionDefinition::new(
+        name,
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: HANDLERS.to_owned(),
+            export: name.to_owned(),
+        }),
+    );
+    definition.uses = uses.iter().map(|s| (*s).to_owned()).collect();
+    definition
+}
+
+fn entry(name: &str) -> ConfigEntryDefinition {
+    ConfigEntryDefinition {
+        name: name.to_owned(),
+        description: Some("test entry".to_owned()),
+        purpose: None,
+        secret: true,
+        required: true,
+        pool: true,
+        probe: None,
+        how_to_get: None,
+        acquisition: None,
+        default: None,
+        source_span: None,
+    }
+}
+
+fn config_manifest() -> FunctionManifest {
+    let mut feed = entry("feedKeys");
+    feed.probe = Some("probeKeys".to_owned());
+    FunctionManifest {
+        functions: vec![
+            ibex_action("useKeys", &["feedKeys"]),
+            ibex_action("useKeysRaw", &["feedKeys"]),
+            ibex_action("useOther", &[]),
+            ibex_action("probeKeys", &[]),
+        ],
+        config: vec![feed],
+        ..Default::default()
+    }
+}
+
+fn configured() -> LocalSnapback {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(probe_schema()).expect("apply schema");
+    let diagnostics = snapback.load_functions(config_manifest());
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d.severity == snapback::diagnostic::DiagnosticSeverity::Error),
+        "unexpected load errors: {diagnostics:?}"
+    );
+    snapback
+}
+
+fn run_action(snapback: &mut LocalSnapback, name: &str) -> snapback::local::FunctionRunResult {
+    snapback.run_function(
+        name,
+        HandlerInput {
+            args: json!({}),
+            auth: Default::default(),
+            read_set: Vec::new(),
+            correlation: None,
+        },
+    )
+}
+
+// --- Manifest validation (fail closed) -----------------------------------------
+
+#[test]
+fn non_secret_and_default_entries_are_rejected_fail_closed() {
+    let mut snapback = LocalSnapback::memory().unwrap();
+    snapback.apply_schema(probe_schema()).unwrap();
+    let mut non_secret = entry("plainSetting");
+    non_secret.secret = false;
+    let mut with_default = entry("hasDefault");
+    with_default.default = Some(json!("x"));
+    let manifest = FunctionManifest {
+        config: vec![non_secret, with_default],
+        ..Default::default()
+    };
+    let diagnostics = snapback.load_functions(manifest);
+    let codes: Vec<&str> = diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert!(codes.contains(&"SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED"), "{codes:?}");
+    assert!(codes.contains(&"SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED"), "{codes:?}");
+    // Fail closed: rejected entries are not part of the effective declaration.
+    assert!(snapback.config_status().entries.is_empty());
+}
+
+#[test]
+fn probe_validation_rejects_unknown_and_non_action_probes() {
+    let mut snapback = LocalSnapback::memory().unwrap();
+    snapback.apply_schema(probe_schema()).unwrap();
+    let mut ghost = entry("ghostProbe");
+    ghost.probe = Some("noSuchFunction".to_owned());
+    let manifest = FunctionManifest {
+        config: vec![ghost],
+        ..Default::default()
+    };
+    let diagnostics = snapback.load_functions(manifest);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code == "SNAPBACK_CONFIG_PROBE_INVALID"),
+        "{diagnostics:?}"
+    );
+    assert!(snapback.config_status().entries.is_empty());
+}
+
+#[test]
+fn uses_naming_unknown_entries_and_missing_required_are_diagnosed() {
+    let mut snapback = LocalSnapback::memory().unwrap();
+    snapback.apply_schema(probe_schema()).unwrap();
+    let manifest = FunctionManifest {
+        functions: vec![ibex_action("useKeys", &["neverDeclared"])],
+        config: vec![entry("feedKeys")],
+        ..Default::default()
+    };
+    let diagnostics = snapback.load_functions(manifest);
+    let codes: Vec<&str> = diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert!(codes.contains(&"SNAPBACK_CONFIG_USES_UNKNOWN"), "{codes:?}");
+    assert!(codes.contains(&"SNAPBACK_CONFIG_REQUIRED_MISSING"), "{codes:?}");
+    assert_eq!(snapback.required_missing_config(), vec!["feedKeys".to_owned()]);
+}
+
+// --- Grants, handles, rotation, redaction ---------------------------------------
+
+#[test]
+fn granted_handles_rotate_the_pool_and_redact_every_materialization() {
+    let mut snapback = configured();
+    snapback
+        .set_config_entry("feedKeys", vec!["k1".into(), "k2".into()], false, "cli")
+        .expect("set pool");
+
+    let first = run_action(&mut snapback, "useKeys");
+    assert!(first.ok, "{:?}", first.diagnostic);
+    let result = first.result.unwrap();
+    assert_eq!(result["exposed"], "k1");
+    let marker = "[snapback secret feedKeys]";
+    assert_eq!(
+        result["stringified"].as_str(),
+        Some(format!("\"{marker}\"").as_str()),
+        "JSON.stringify yields the quoted marker, never the value"
+    );
+    assert_eq!(result["template"], marker);
+    assert_eq!(result["bearer"], "Bearer k1");
+    assert!(
+        result["undeclared"]
+            .as_str()
+            .unwrap()
+            .contains("SNAPBACK_CONFIG_UNDECLARED"),
+        "{result:?}"
+    );
+
+    let second = run_action(&mut snapback, "useKeys");
+    assert_eq!(second.result.unwrap()["exposed"], "k2", "rotation walks the pool");
+}
+
+#[test]
+fn missing_and_undeclared_access_map_to_structured_codes() {
+    let mut snapback = configured();
+    // Declared but unset → SNAPBACK_CONFIG_MISSING.
+    let missing = run_action(&mut snapback, "useKeysRaw");
+    assert!(!missing.ok);
+    assert_eq!(
+        missing.diagnostic.unwrap().code,
+        "SNAPBACK_CONFIG_MISSING"
+    );
+
+    snapback
+        .set_config_entry("feedKeys", vec!["k1".into()], false, "cli")
+        .expect("set");
+    let ok = run_action(&mut snapback, "useKeysRaw");
+    assert!(ok.ok, "{:?}", ok.diagnostic);
+
+    // Set, but outside this function's uses grant → SNAPBACK_CONFIG_UNDECLARED.
+    let undeclared = run_action(&mut snapback, "useOther");
+    assert!(!undeclared.ok);
+    assert_eq!(
+        undeclared.diagnostic.unwrap().code,
+        "SNAPBACK_CONFIG_UNDECLARED"
+    );
+}
+
+// --- Store semantics ------------------------------------------------------------
+
+#[test]
+fn config_survives_reset_and_reopen() {
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("dev.sqlite3");
+    {
+        let mut snapback = LocalSnapback::open(&db_path).unwrap();
+        snapback.apply_schema(probe_schema()).unwrap();
+        snapback.load_functions(config_manifest());
+        snapback
+            .set_config_entry("feedKeys", vec!["k1".into()], false, "cli")
+            .unwrap();
+        snapback.reset().expect("reset");
+        let status = snapback.config_status();
+        assert!(status.entries[0].set, "reset must not clear config (D2)");
+    }
+    // A fresh process over the same instance dir sees the value.
+    let snapback = LocalSnapback::open(&db_path).unwrap();
+    // Manifest is not persisted, so status has no declarations yet — but the
+    // store itself must have survived; reloading declarations re-joins them.
+    let mut snapback = snapback;
+    snapback.apply_schema(probe_schema()).unwrap();
+    snapback.load_functions(config_manifest());
+    let status = snapback.config_status();
+    assert!(status.entries[0].set, "store persists across reopen");
+    assert_eq!(status.entries[0].source.as_deref(), Some("cli"));
+}
+
+#[test]
+fn set_validation_rejects_undeclared_and_non_pool_shapes() {
+    let mut snapback = configured();
+    let error = snapback
+        .set_config_entry("nope", vec!["x".into()], false, "cli")
+        .unwrap_err();
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_UNDECLARED");
+
+    // Make feedKeys a non-pool entry to prove the shape check.
+    let mut manifest = config_manifest();
+    manifest.config[0].pool = false;
+    let mut single = LocalSnapback::memory().unwrap();
+    single.apply_schema(probe_schema()).unwrap();
+    single.load_functions(manifest);
+    let error = single
+        .set_config_entry("feedKeys", vec!["a".into(), "b".into()], false, "cli")
+        .unwrap_err();
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_VALUE_INVALID");
+    let error = single
+        .set_config_entry("feedKeys", vec!["a".into()], true, "cli")
+        .unwrap_err();
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_VALUE_INVALID");
+    single
+        .set_config_entry("feedKeys", vec!["a".into()], false, "cli")
+        .expect("single value works");
+}
+
+#[test]
+fn verify_runs_the_probe_records_the_outcome_and_cooldown_blocks() {
+    let mut snapback = configured();
+    // Unset → verify refuses before running any probe.
+    let error = snapback.verify_config_entry("feedKeys").unwrap_err();
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_MISSING");
+
+    snapback
+        .set_config_entry("feedKeys", vec!["k1".into()], false, "cli")
+        .unwrap();
+    let outcome = snapback.verify_config_entry("feedKeys").expect("verify");
+    assert!(outcome.ok, "{outcome:?}");
+    let status = snapback.config_status();
+    assert!(status.entries[0].verified.as_ref().unwrap().ok);
+
+    // Immediately verifying again trips the cooldown.
+    let error = snapback.verify_config_entry("feedKeys").unwrap_err();
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_VERIFY_COOLDOWN");
+
+    // A value change resets verification: it attested the old values.
+    snapback
+        .set_config_entry("feedKeys", vec!["k2".into()], false, "cli")
+        .unwrap();
+    assert!(snapback.config_status().entries[0].verified.is_none());
+}
+
+// --- HTTP surface ---------------------------------------------------------------
+
+fn get(path: &str) -> Request<Body> {
+    Request::builder().uri(path).body(Body::empty()).unwrap()
+}
+
+fn post(path: &str, body: Value) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(path)
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+fn post_with_token(path: &str, body: Value, token: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(path)
+        .header("content-type", "application/json")
+        .header("x-snapback-admin-token", token)
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+async fn body_json(resp: axum::response::Response) -> Value {
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    serde_json::from_slice(&bytes).unwrap_or(Value::Null)
+}
+
+fn context(loopback: bool, token: Option<&str>) -> ServerContext {
+    ServerContext {
+        host: if loopback { "127.0.0.1" } else { "0.0.0.0" }.to_owned(),
+        port: 4288,
+        loopback,
+        pid: std::process::id(),
+        started: Instant::now(),
+        started_at_ms: 0,
+        admin_token: token.map(ToOwned::to_owned),
+        admin_dist: None,
+    }
+}
+
+fn app(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {
+    snapback::server::app(AppState::from_snapback(snapback, ctx))
+}
+
+#[tokio::test]
+async fn config_ops_follow_the_admin_gate() {
+    // Loopback, no token: everything open (the local dev default).
+    let open = app(configured(), context(true, None));
+    let resp = open
+        .clone()
+        .oneshot(get("/_snapback/api/config/status"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let resp = open
+        .oneshot(post(
+            "/_snapback/api/config/set",
+            json!({ "entry": "feedKeys", "value": "k1" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Token configured: writes demand it, reads stay open on loopback.
+    let gated = app(configured(), context(true, Some("sekrit")));
+    let denied = gated
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/config/set",
+            json!({ "entry": "feedKeys", "value": "k1" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+    let allowed = gated
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/config/set",
+            json!({ "entry": "feedKeys", "value": "k1" }),
+            "sekrit",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(allowed.status(), StatusCode::OK);
+    let reads = gated
+        .oneshot(get("/_snapback/api/config/status"))
+        .await
+        .unwrap();
+    assert_eq!(reads.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn transit_rule_refuses_value_writes_on_non_loopback_plaintext() {
+    // Even a valid admin token does not carry a value over non-loopback
+    // plaintext: the transit rule is about the transport, not the authority.
+    let exposed = app(configured(), context(false, Some("sekrit")));
+    let refused = exposed
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/config/set",
+            json!({ "entry": "feedKeys", "value": "k1" }),
+            "sekrit",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
+    let body = body_json(refused).await;
+    assert_eq!(body["diagnostic"]["code"], "SNAPBACK_CONFIG_TRANSIT_RULE");
+
+    // unset carries no value; the admin gate alone governs it.
+    let unset = exposed
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/config/unset",
+            json!({ "entry": "feedKeys" }),
+            "sekrit",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(unset.status(), StatusCode::OK);
+
+    // plan reports that this transport would refuse value writes.
+    let plan = exposed
+        .oneshot(
+            Request::builder()
+                .uri("/_snapback/api/config/plan")
+                .header("x-snapback-admin-token", "sekrit")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(plan.status(), StatusCode::OK);
+    let body = body_json(plan).await;
+    assert_eq!(body["valueWritesAccepted"], json!(false));
+}
+
+#[tokio::test]
+async fn envelopes_and_status_never_contain_values() {
+    let open = app(configured(), context(true, None));
+    let set = open
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/config/set",
+            json!({ "entry": "feedKeys", "values": ["super-secret-value-1", "super-secret-value-2"] }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(set.status(), StatusCode::OK);
+    let set_body = body_json(set).await.to_string();
+    assert!(!set_body.contains("super-secret-value"), "{set_body}");
+
+    let status = open
+        .clone()
+        .oneshot(get("/_snapback/api/config/status"))
+        .await
+        .unwrap();
+    let status_body = body_json(status).await;
+    let raw = status_body.to_string();
+    assert!(!raw.contains("super-secret-value"), "{raw}");
+    let entry = &status_body["entries"][0];
+    assert_eq!(entry["name"], "feedKeys");
+    assert_eq!(entry["set"], json!(true));
+    assert_eq!(entry["memberCount"], json!(2));
+
+    // The diagnostics ring (admin inspect) carries audit facts, not values.
+    let inspect = open
+        .oneshot(get("/_snapback/api/inspect"))
+        .await
+        .unwrap();
+    let inspect_raw = body_json(inspect).await.to_string();
+    assert!(!inspect_raw.contains("super-secret-value"), "audit leaked a value");
+}
+
+#[tokio::test]
+async fn setup_wizard_page_is_served_from_the_static_lane() {
+    let open = app(configured(), context(true, None));
+    let resp = open.oneshot(get("/_snapback/admin/setup")).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let html = String::from_utf8_lossy(&bytes);
+    assert!(html.contains("Set up this app"), "wizard page served");
+    assert!(html.contains("/_snapback/api/config/"), "wizard drives the gated ops");
+}

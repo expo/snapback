@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Snapback Setup</title>
+<!-- @ref LLP 0036#the-setup-wizard-d3 — the wizard is a projection of the
+     config ops (status/set/verify), rendered from manifest declarations; it
+     never reads a value back, because no read-back exists to power it. -->
+<style>
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --border: #e3e5ea;
+    --text: #1c1d21; --muted: #6b7280; --faint: #9aa1ad;
+    --accent: #5e6ad2; --accent-soft: #eceefb;
+    --ok: #2a8447; --ok-soft: #e7f3ea;
+    --warn: #b25e09; --warn-soft: #fbf0e2;
+    --err: #c0362c; --err-soft: #fbeae8;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(17, 20, 24, 0.04), 0 1px 3px rgba(17, 20, 24, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a; --surface: #1d1f23; --border: #2c2f35;
+      --text: #e7e8ea; --muted: #9aa1ad; --faint: #6b7280;
+      --accent: #7b86e2; --accent-soft: #262a41;
+      --ok: #4caf6e; --ok-soft: #1d2b22;
+      --warn: #d98a34; --warn-soft: #2e2517;
+      --err: #e05d52; --err-soft: #321d1b;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .banner { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin: 0 0 16px; background: var(--surface); box-shadow: var(--shadow); }
+  .banner.ok { background: var(--ok-soft); border-color: var(--ok); }
+  .banner.warn { background: var(--warn-soft); border-color: var(--warn); }
+  .banner.err { background: var(--err-soft); border-color: var(--err); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin: 0 0 14px; }
+  .card h2 { font-size: 15px; margin: 0; font-family: var(--mono); }
+  .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .grow { flex: 1; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .badge.err { background: var(--err-soft); color: var(--err); border-color: var(--err); }
+  .badge.accent { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .purpose { color: var(--muted); margin: 6px 0 0; }
+  .howto { margin: 10px 0 0; padding: 10px 12px; background: var(--bg); border-radius: 8px; color: var(--muted); }
+  .howto a { color: var(--accent); }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  input[type="password"], input[type="text"] { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; }
+  button { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .meta { color: var(--faint); font-size: 12px; margin-top: 8px; }
+  .msg { font-size: 12px; margin-top: 8px; }
+  .msg.err { color: var(--err); }
+  .msg.ok { color: var(--ok); }
+  .footer { color: var(--faint); font-size: 12px; margin-top: 24px; }
+  .footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Set up this app</h1>
+  <p class="sub">This deployment declares the configuration below. Values are stored on this
+    instance only, are never shown back, and never reach app clients.</p>
+  <div id="posture" class="banner" hidden></div>
+  <div id="summary" class="banner" hidden></div>
+  <div id="auth" class="banner warn" hidden>
+    <div class="head">
+      <span class="grow" id="authmsg">Admin API needs a token.</span>
+      <input type="text" id="tokenInput" placeholder="admin token" />
+      <button class="primary" id="tokenSave">Use token</button>
+    </div>
+  </div>
+  <div id="cards"></div>
+  <p class="footer">Managed by the same gated API agents use:
+    <code>/_snapback/api/config/*</code> — see the
+    <a href="/_snapback/admin">admin console</a> for the rest of the instance.</p>
+</main>
+<script>
+(function () {
+  "use strict";
+  var store = { token: localStorage.getItem("snapback_admin_token") || "" };
+  var $ = function (sel) { return document.querySelector(sel); };
+
+  function headers(json) {
+    var out = json ? { "content-type": "application/json" } : {};
+    if (store.token) out["x-snapback-admin-token"] = store.token;
+    return out;
+  }
+  function api(path, options) {
+    return fetch(path, options).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok) {
+          var diagnostic = body && body.diagnostic;
+          var error = new Error((diagnostic && diagnostic.message) || ("HTTP " + res.status));
+          error.code = diagnostic && diagnostic.code;
+          throw error;
+        }
+        return body;
+      });
+    });
+  }
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (key) {
+      if (key === "text") node.textContent = attrs[key];
+      else node.setAttribute(key, attrs[key]);
+    });
+    (children || []).forEach(function (child) { node.appendChild(child); });
+    return node;
+  }
+  function linkify(text) {
+    var span = el("span", {});
+    var parts = String(text).split(/(https?:\/\/[^\s]+)/g);
+    parts.forEach(function (part) {
+      if (/^https?:\/\//.test(part)) {
+        span.appendChild(el("a", { href: part, target: "_blank", rel: "noreferrer", text: part }));
+      } else {
+        span.appendChild(document.createTextNode(part));
+      }
+    });
+    return span;
+  }
+
+  function renderPosture(inspect) {
+    var posture = $("#posture");
+    if (!inspect || !inspect.admin) { posture.hidden = true; return; }
+    if (!inspect.admin.token_configured && inspect.admin.bind_loopback) {
+      // @ref LLP 0036#the-setup-wizard-d3 — single-user-machine posture said
+      // plainly: visibility, not an auth fork.
+      posture.className = "banner warn";
+      posture.textContent =
+        "No admin token is set: any local user on this machine can administer this instance " +
+        "until SNAPBACK_ADMIN_TOKEN is configured. Fine for a single-user machine; set a " +
+        "token on shared ones.";
+      posture.hidden = false;
+    } else {
+      posture.hidden = true;
+    }
+  }
+
+  function renderSummary(status) {
+    var summary = $("#summary");
+    var required = status.entries.filter(function (entry) { return entry.required; });
+    var missing = status.requiredMissing || [];
+    if (!status.entries.length) {
+      summary.className = "banner";
+      summary.textContent = "This app declares no configuration. Nothing to set up.";
+    } else if (missing.length) {
+      summary.className = "banner warn";
+      summary.textContent = missing.length + " of " + required.length +
+        " required entries still need a value.";
+    } else {
+      summary.className = "banner ok";
+      summary.textContent = "All required configuration is in place. The app is ready.";
+    }
+    summary.hidden = false;
+  }
+
+  function entryCard(entry) {
+    var card = el("div", { class: "card", id: "entry-" + entry.name });
+    var head = el("div", { class: "head" });
+    head.appendChild(el("h2", { class: "grow", text: entry.name }));
+    if (entry.required) head.appendChild(el("span", { class: "badge", text: "required" }));
+    if (entry.pool) head.appendChild(el("span", { class: "badge", text: "key pool" }));
+    if (entry.set) {
+      head.appendChild(el("span", {
+        class: "badge ok",
+        text: entry.pool ? "set · " + entry.memberCount + " key" + (entry.memberCount === 1 ? "" : "s") : "set"
+      }));
+    } else {
+      head.appendChild(el("span", { class: "badge warn", text: "not set" }));
+    }
+    if (entry.verified) {
+      head.appendChild(el("span", {
+        class: "badge " + (entry.verified.ok ? "ok" : "err"),
+        text: entry.verified.ok ? "verified" : "verification failed"
+      }));
+    }
+    card.appendChild(head);
+    if (entry.description) card.appendChild(el("p", { class: "purpose", text: entry.description }));
+    if (entry.purpose) card.appendChild(el("p", { class: "purpose", text: "Why: " + entry.purpose }));
+    if (entry.howToGet) {
+      var howto = el("div", { class: "howto" });
+      howto.appendChild(linkify(entry.howToGet));
+      card.appendChild(howto);
+    }
+    if (entry.acquisition && entry.acquisition.url) {
+      var acquire = el("p", { class: "meta" });
+      acquire.appendChild(el("a", {
+        href: entry.acquisition.url, target: "_blank", rel: "noreferrer",
+        text: "Get one → " + entry.acquisition.url
+      }));
+      if (entry.acquisition.cost) acquire.appendChild(document.createTextNode(" · " + entry.acquisition.cost));
+      card.appendChild(acquire);
+    }
+
+    var row = el("div", { class: "row" });
+    var input = el("input", {
+      type: "password", autocomplete: "off", spellcheck: "false",
+      placeholder: entry.set && entry.pool ? "add another key" : "paste value"
+    });
+    var setButton = el("button", { class: "primary", text: entry.set && entry.pool ? "Add key" : (entry.set ? "Replace" : "Set") });
+    row.appendChild(input);
+    row.appendChild(setButton);
+    var verifyButton = null;
+    if (entry.probe) {
+      verifyButton = el("button", { text: "Verify" });
+      verifyButton.disabled = !entry.set;
+      row.appendChild(verifyButton);
+    }
+    card.appendChild(row);
+
+    var meta = [];
+    if (entry.lastChangedMs) meta.push("last changed " + new Date(entry.lastChangedMs).toLocaleString());
+    if (entry.source) meta.push("via " + entry.source);
+    if (entry.verified && !entry.verified.ok && entry.verified.diagnostic) meta.push(entry.verified.diagnostic);
+    if (meta.length) card.appendChild(el("p", { class: "meta", text: meta.join(" · ") }));
+    var msg = el("p", { class: "msg", hidden: "hidden" });
+    card.appendChild(msg);
+
+    function note(text, ok) {
+      msg.textContent = text;
+      msg.className = "msg " + (ok ? "ok" : "err");
+      msg.hidden = false;
+    }
+
+    setButton.addEventListener("click", function () {
+      var value = input.value;
+      if (!value.trim()) { note("Paste a value first.", false); return; }
+      setButton.disabled = true;
+      api("/_snapback/api/config/set", {
+        method: "POST",
+        headers: headers(true),
+        body: JSON.stringify({
+          entry: entry.name,
+          value: value,
+          append: Boolean(entry.set && entry.pool),
+          source: "wizard"
+        })
+      }).then(function () {
+        input.value = "";
+        refresh();
+      }).catch(function (error) {
+        setButton.disabled = false;
+        note(error.message + (error.code ? " (" + error.code + ")" : ""), false);
+        maybeAuth(error);
+      });
+    });
+
+    if (verifyButton) {
+      verifyButton.addEventListener("click", function () {
+        verifyButton.disabled = true;
+        api("/_snapback/api/config/verify", {
+          method: "POST",
+          headers: headers(true),
+          body: JSON.stringify({ entry: entry.name })
+        }).then(function (outcome) {
+          note(outcome.ok ? "Probe succeeded." : "Probe failed" +
+            (outcome.verified && outcome.verified.diagnostic ? ": " + outcome.verified.diagnostic : "."), outcome.ok);
+          refresh();
+        }).catch(function (error) {
+          verifyButton.disabled = false;
+          note(error.message + (error.code ? " (" + error.code + ")" : ""), false);
+          maybeAuth(error);
+        });
+      });
+    }
+    return card;
+  }
+
+  function maybeAuth(error) {
+    if (error.code === "SNAPBACK_ADMIN_TOKEN_REQUIRED" || error.code === "SNAPBACK_ADMIN_DISABLED") {
+      $("#authmsg").textContent = error.message;
+      $("#auth").hidden = false;
+    }
+  }
+
+  function refresh() {
+    api("/_snapback/api/config/status", { headers: headers(false) }).then(function (status) {
+      $("#auth").hidden = true;
+      renderSummary(status);
+      var cards = $("#cards");
+      cards.textContent = "";
+      status.entries.forEach(function (entry) { cards.appendChild(entryCard(entry)); });
+    }).catch(function (error) {
+      var summary = $("#summary");
+      summary.className = "banner err";
+      summary.textContent = "Could not load config status: " + error.message;
+      summary.hidden = false;
+      maybeAuth(error);
+    });
+    api("/_snapback/api/inspect", { headers: headers(false) })
+      .then(renderPosture)
+      .catch(function () { renderPosture(null); });
+  }
+
+  $("#tokenSave").addEventListener("click", function () {
+    store.token = $("#tokenInput").value.trim();
+    localStorage.setItem("snapback_admin_token", store.token);
+    refresh();
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>

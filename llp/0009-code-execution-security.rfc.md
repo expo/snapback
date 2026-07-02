@@ -5,8 +5,8 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, https://github.com/ccheever/ibex
+**Revised:** 2026-07-02 (§Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, LLP 0036, https://github.com/ccheever/ibex
 
 ## Summary
 
@@ -517,6 +517,13 @@ Draft model:
 Queries should not access secrets. Mutations should avoid secrets unless a later
 contract requires it. Actions and integrations are the likely place for secret
 use.
+
+This section is the security floor. The product layer above it — declared
+configuration in the manifest, the per-app store and its per-target seam, the
+status model, the setup wizard, and agent-driven key acquisition — is drafted
+in [LLP 0036](./0036-app-secrets-and-config.rfc.md), which inherits every rule
+here (secret handles, redaction, no read-back, no value hashing, actions-only
+access) rather than restating weaker versions of them.
 
 Valet's hard-won secret discipline answers the open question "how should Snapback
 represent secret handles?" and is worth adopting as concrete rules

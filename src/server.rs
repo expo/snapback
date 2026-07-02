@@ -8,7 +8,7 @@ use crate::local::{
 use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
 use crate::runtime::CapabilityState;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -129,6 +129,14 @@ fn system_routes() -> Router<AppState> {
             "/_snapback/api/connections/{connection_id}/disconnect",
             post(disconnect),
         )
+        // @ref LLP 0036#operations-and-projections-llp-0024 — the config ops:
+        // status/plan read-gated, set/unset/verify write-gated; the wizard is
+        // a projection of these, not a second implementation.
+        .route("/_snapback/api/config/status", get(config_status))
+        .route("/_snapback/api/config/plan", get(config_plan))
+        .route("/_snapback/api/config/set", post(config_set))
+        .route("/_snapback/api/config/unset", post(config_unset))
+        .route("/_snapback/api/config/verify", post(config_verify))
 }
 
 /// The full Snapback HTTP surface: app-data root routes, the migrated
@@ -241,9 +249,16 @@ pub fn route_registry() -> Vec<RouteSpec> {
             SystemApi,
             AdminWrite,
         ),
+        // System API — app config ops (LLP 0036 §Route placement).
+        spec("GET", "/_snapback/api/config/status", SystemApi, AdminRead),
+        spec("GET", "/_snapback/api/config/plan", SystemApi, AdminRead),
+        spec("POST", "/_snapback/api/config/set", SystemApi, AdminWrite),
+        spec("POST", "/_snapback/api/config/unset", SystemApi, AdminWrite),
+        spec("POST", "/_snapback/api/config/verify", SystemApi, AdminWrite),
         // System static — console shell/assets (public presentation only).
         spec("GET", "/_snapback/admin", SystemStatic, Public),
         spec("GET", "/_snapback/admin/", SystemStatic, Public),
+        spec("GET", "/_snapback/admin/setup", SystemStatic, Public),
         spec("GET", "/_snapback/admin/{*path}", SystemStatic, Public),
     ]
 }
@@ -620,7 +635,169 @@ async fn load_functions(
     crate::admin::authorize(&ctx, &headers, true)?;
     let diagnostics =
         with_snapback(&state, move |snapback| snapback.load_functions(manifest)).await;
+    // @ref LLP 0036#the-setup-wizard-d3 — the printed line is the install
+    // instruction: a manifest that declares required config the store cannot
+    // satisfy points the operator straight at the wizard.
+    let missing = with_snapback(&state, |snapback| snapback.required_missing_config()).await;
+    if !missing.is_empty() {
+        println!(
+            "config: {} required entr{} missing ({}) → http://{}:{}/_snapback/admin/setup",
+            missing.len(),
+            if missing.len() == 1 { "y" } else { "ies" },
+            missing.join(", "),
+            ctx.host,
+            ctx.port,
+        );
+    }
     Ok(Json(DiagnosticsResponse { diagnostics }))
+}
+
+/// `config.status` — the LLP 0036 status primitive: declared × set ×
+/// verified × applied, names and states only. Read-gated like inspect.
+async fn config_status(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+) -> Result<Json<crate::local::ConfigStatus>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, false)?;
+    let status = with_snapback(&state, |snapback| snapback.config_status()).await;
+    Ok(Json(status))
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ConfigPlanQuery {
+    #[serde(default)]
+    entry: Option<String>,
+}
+
+/// `config.plan` — dry-run facts: write locus, apply boundary, and whether
+/// this transport would accept a value write. Nearly free locally; pins the
+/// contract hosted targets need.
+async fn config_plan(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    Query(query): Query<ConfigPlanQuery>,
+) -> Result<Json<crate::local::ConfigPlan>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, false)?;
+    let value_writes_accepted = ctx.loopback;
+    let plan = with_snapback(&state, move |snapback| {
+        snapback.config_plan(query.entry.as_deref(), value_writes_accepted)
+    })
+    .await?;
+    Ok(Json(plan))
+}
+
+#[derive(Debug, Deserialize)]
+struct ConfigSetBody {
+    entry: String,
+    #[serde(default)]
+    value: Option<String>,
+    #[serde(default)]
+    values: Option<Vec<String>>,
+    #[serde(default)]
+    append: bool,
+    #[serde(default)]
+    source: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ConfigEntryBody {
+    entry: String,
+    #[serde(default)]
+    source: Option<String>,
+}
+
+/// The audited write sources (LLP 0036 §Operations and projections). Anything
+/// unrecognized is recorded as plain `http`.
+fn sanitize_config_source(source: Option<String>) -> String {
+    match source.as_deref() {
+        Some(source @ ("wizard" | "cli" | "mcp" | "agent" | "http")) => source.to_owned(),
+        _ => "http".to_owned(),
+    }
+}
+
+/// @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — the transit rule:
+/// value-carrying writes are accepted only over loopback or TLS, and this
+/// local server terminates no TLS, so a non-loopback bind refuses them. An
+/// SSH tunnel (loopback at the server) is the blessed remote path.
+fn require_value_write_transport(ctx: &ServerContext) -> Result<(), ApiError> {
+    if ctx.loopback {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_CONFIG_TRANSIT_RULE",
+        "config",
+        "value-carrying config writes are accepted only over loopback or TLS; this bind is \
+         non-loopback plaintext — use an SSH tunnel to the instance instead",
+    )
+    .into())
+}
+
+/// `config.set` — set a declared entry or add a pool member. Values never
+/// appear in the response, the diagnostics ring, or any log line.
+async fn config_set(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    Json(body): Json<ConfigSetBody>,
+) -> Result<Json<crate::local::ConfigWriteOutcome>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
+    require_value_write_transport(&ctx)?;
+    let values = match (body.value, body.values) {
+        (Some(value), None) => vec![value],
+        (None, Some(values)) => values,
+        _ => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CONFIG_VALUE_INVALID",
+                "config",
+                "provide exactly one of value or values",
+            )
+            .into());
+        }
+    };
+    let entry = body.entry;
+    let append = body.append;
+    let source = sanitize_config_source(body.source);
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.set_config_entry(&entry, values, append, &source)
+    })
+    .await?;
+    Ok(Json(outcome))
+}
+
+/// `config.unset` — remove an entry's stored value. Carries no value, so the
+/// transit rule does not apply; the admin write gate does.
+async fn config_unset(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    Json(body): Json<ConfigEntryBody>,
+) -> Result<Json<crate::local::ConfigWriteOutcome>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
+    let entry = body.entry;
+    let source = sanitize_config_source(body.source);
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.unset_config_entry(&entry, &source)
+    })
+    .await?;
+    Ok(Json(outcome))
+}
+
+/// `config.verify` — run the entry's probe action under the cooldown.
+async fn config_verify(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    Json(body): Json<ConfigEntryBody>,
+) -> Result<Json<crate::local::ConfigVerifyOutcome>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
+    let entry = body.entry;
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.verify_config_entry(&entry)
+    })
+    .await?;
+    Ok(Json(outcome))
 }
 
 /// `app.reset` — the gated system write that resets the instance and, per

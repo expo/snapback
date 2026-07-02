@@ -52,6 +52,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 
     let read_lane = snapback.read_lane();
     let ephemeral = snapback.ephemeral_api();
+    let missing_config = snapback.required_missing_config();
     let state = Arc::new(Mutex::new(snapback));
     let listener = bind_listener(&args.host, args.port).await?;
     let local_addr = listener.local_addr()?;
@@ -83,6 +84,18 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         println!("admin: writes require SNAPBACK_ADMIN_TOKEN");
     } else {
         println!("admin: open on loopback (set SNAPBACK_ADMIN_TOKEN to require it for writes)");
+    }
+    // @ref LLP 0036#the-setup-wizard-d3 — the printed setup line is the
+    // install instruction. Artifacts usually load after boot (the same line
+    // then prints from the functions/load handler); this covers a boot that
+    // already has declarations in hand.
+    if !missing_config.is_empty() {
+        println!(
+            "config: {} required entr{} missing ({}) → http://{local_addr}/_snapback/admin/setup",
+            missing_config.len(),
+            if missing_config.len() == 1 { "y" } else { "ies" },
+            missing_config.join(", "),
+        );
     }
 
     let server_result = axum::serve(listener, app).await;

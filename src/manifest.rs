@@ -182,6 +182,10 @@ pub struct FunctionManifest {
     pub functions: Vec<FunctionDefinition>,
     #[serde(default, rename = "cronJobs", alias = "cron_jobs")]
     pub cron_jobs: Vec<CronJobDefinition>,
+    /// @ref LLP 0036#declared-configuration-in-the-manifest — declared config
+    /// entries ride the generated function manifest the way cron jobs do.
+    #[serde(default)]
+    pub config: Vec<ConfigEntryDefinition>,
 }
 
 impl Default for FunctionManifest {
@@ -196,6 +200,7 @@ impl Default for FunctionManifest {
             unsupported_dependency_diagnostics: Vec::new(),
             functions: Vec::new(),
             cron_jobs: Vec::new(),
+            config: Vec::new(),
         }
     }
 }
@@ -251,6 +256,11 @@ pub struct FunctionDefinition {
     pub permission_epoch_bumps: Vec<PermissionScopeExpr>,
     #[serde(default, rename = "bundleEntrypoint", alias = "bundle_entrypoint")]
     pub bundle_entrypoint: Option<String>,
+    /// @ref LLP 0036#declared-configuration-in-the-manifest — D8: the config
+    /// entries this function may receive. Declaring an entry makes it exist;
+    /// only functions that name it here are granted it at runtime.
+    #[serde(default)]
+    pub uses: Vec<String>,
     pub runtime: FunctionRuntime,
 }
 
@@ -276,6 +286,7 @@ impl FunctionDefinition {
             write_set_summary: DependencySummary::default(),
             permission_epoch_bumps: Vec::new(),
             bundle_entrypoint: Some(name),
+            uses: Vec::new(),
             runtime,
         }
     }
@@ -465,6 +476,48 @@ impl Default for CronRetryPolicy {
 pub enum CronRetryMode {
     NextTick,
     Backoff,
+}
+
+/// @ref LLP 0036#declared-configuration-in-the-manifest — one declared config
+/// entry: names, purposes, and acquisition metadata are app source (public by
+/// construction); values never appear in any manifest.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ConfigEntryDefinition {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
+    /// Default **true**: misclassification fails safe — forgetting the flag
+    /// makes a value more protected, never less (LLP 0036 D5).
+    #[serde(default = "default_true")]
+    pub secret: bool,
+    #[serde(default = "default_true")]
+    pub required: bool,
+    /// The entry holds an ordered pool of values rotated across invocations.
+    #[serde(default)]
+    pub pool: bool,
+    /// Name of a declared action that test-calls the value (`config.verify`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub probe: Option<String>,
+    #[serde(
+        default,
+        rename = "howToGet",
+        alias = "how_to_get",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub how_to_get: Option<String>,
+    /// Structured, agent-readable acquisition metadata (LLP 0036 D6). The host
+    /// carries it verbatim to status/wizard consumers; v1 does not interpret it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acquisition: Option<Value>,
+    /// Non-secret entries only; carried for forward compatibility. v1 rejects
+    /// non-secret entries at manifest validation, so this is always absent in
+    /// an accepted manifest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<Value>,
+    #[serde(default, rename = "sourceSpan", alias = "source_span")]
+    pub source_span: Option<SourceSpan>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

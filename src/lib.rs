@@ -3,6 +3,7 @@
 pub mod admin;
 pub mod bench;
 pub mod cli;
+pub mod config;
 pub mod contract_exact;
 pub mod cron;
 pub mod diagnostic;

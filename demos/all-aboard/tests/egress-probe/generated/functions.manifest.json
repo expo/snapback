@@ -1,7 +1,20 @@
 {
   "appId": "tests",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:02e59f3c2faa332e",
+  "bundleHash": "sha256:03a5b318f970875e",
+  "config": [
+    {
+      "description": "Rotating test key pool for the egress probe",
+      "howToGet": "Test-only keys; any value works.",
+      "name": "feedKeys",
+      "pool": true,
+      "probe": "egressProbe",
+      "purpose": "Proves granted handles, rotation, redaction, and the env import",
+      "required": true,
+      "secret": true,
+      "sourceSpan": null
+    }
+  ],
   "cronJobs": [],
   "functions": [
     {
@@ -24,11 +37,14 @@
       "runtime": {
         "IbexModule": {
           "export": "egressProbe",
-          "source": "// Egress-seam probe handlers. `fetchState` is \"available\" when the native fetch\n// global returns a promise (the deny stub throws synchronously instead), so it\n// cleanly distinguishes \"un-denied\" from \"denied\" without touching the network.\nglobalThis.__snapbackHandlers = {\n  async egressProbe(ctx) {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {}); // swallow the (expected) rejection\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    return { fetchState, secrets: ctx.secrets || null, hasSecrets: !!ctx.secrets };\n  },\n\n  async queryProbe() {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {});\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    return [{ fetchState }];\n  },\n};\n"
+          "source": "// Egress-seam + config-handle probe handlers. `fetchState` is \"available\" when\n// the native fetch global returns a promise (the deny stub throws synchronously\n// instead), so it cleanly distinguishes \"un-denied\" from \"denied\" without\n// touching the network. The config facts exercise the LLP 0036 handle API: the\n// exposed values here are test literals, returned so the acceptance test can\n// prove the grant/rotation/import path end to end — a real app never returns\n// exposed material.\nglobalThis.__snapbackHandlers = {\n  async egressProbe(ctx) {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {}); // swallow the (expected) rejection\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n\n    const config = {};\n    try {\n      const handle = ctx.secrets.rotating('feedKeys');\n      config.rotatingExposed = handle.expose();\n      // Redaction facts: every accidental materialization path must yield the\n      // marker, never the value (LLP 0036 negative acceptance claims).\n      config.stringified = JSON.stringify(handle);\n      config.template = `${handle}`;\n      config.concatenated = 'prefix:' + handle;\n      config.bearer = handle.asBearer();\n    } catch (error) {\n      config.rotatingError = (error && error.message) || String(error);\n    }\n    try {\n      ctx.secrets.get('somethingUndeclared');\n      config.undeclaredError = 'no error (BUG)';\n    } catch (error) {\n      config.undeclaredError = (error && error.message) || String(error);\n    }\n    return { fetchState, config };\n  },\n\n  async queryProbe(ctx) {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {});\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    // Queries get no config surface at all (LLP 0036 D4/D5).\n    const secretsState = typeof ctx.secrets === 'undefined' ? 'undefined' : 'PRESENT (BUG)';\n    return [{ fetchState, secretsState }];\n  },\n};\n"
         }
       },
       "sourceSpan": null,
       "syncabilityClass": "action",
+      "uses": [
+        "feedKeys"
+      ],
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": null,
@@ -56,11 +72,12 @@
       "runtime": {
         "IbexModule": {
           "export": "queryProbe",
-          "source": "// Egress-seam probe handlers. `fetchState` is \"available\" when the native fetch\n// global returns a promise (the deny stub throws synchronously instead), so it\n// cleanly distinguishes \"un-denied\" from \"denied\" without touching the network.\nglobalThis.__snapbackHandlers = {\n  async egressProbe(ctx) {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {}); // swallow the (expected) rejection\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    return { fetchState, secrets: ctx.secrets || null, hasSecrets: !!ctx.secrets };\n  },\n\n  async queryProbe() {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {});\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    return [{ fetchState }];\n  },\n};\n"
+          "source": "// Egress-seam + config-handle probe handlers. `fetchState` is \"available\" when\n// the native fetch global returns a promise (the deny stub throws synchronously\n// instead), so it cleanly distinguishes \"un-denied\" from \"denied\" without\n// touching the network. The config facts exercise the LLP 0036 handle API: the\n// exposed values here are test literals, returned so the acceptance test can\n// prove the grant/rotation/import path end to end — a real app never returns\n// exposed material.\nglobalThis.__snapbackHandlers = {\n  async egressProbe(ctx) {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {}); // swallow the (expected) rejection\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n\n    const config = {};\n    try {\n      const handle = ctx.secrets.rotating('feedKeys');\n      config.rotatingExposed = handle.expose();\n      // Redaction facts: every accidental materialization path must yield the\n      // marker, never the value (LLP 0036 negative acceptance claims).\n      config.stringified = JSON.stringify(handle);\n      config.template = `${handle}`;\n      config.concatenated = 'prefix:' + handle;\n      config.bearer = handle.asBearer();\n    } catch (error) {\n      config.rotatingError = (error && error.message) || String(error);\n    }\n    try {\n      ctx.secrets.get('somethingUndeclared');\n      config.undeclaredError = 'no error (BUG)';\n    } catch (error) {\n      config.undeclaredError = (error && error.message) || String(error);\n    }\n    return { fetchState, config };\n  },\n\n  async queryProbe(ctx) {\n    let fetchState;\n    try {\n      const p = fetch('http://127.0.0.1:9/none');\n      if (p && typeof p.then === 'function') {\n        p.then(function () {}, function () {});\n        fetchState = 'available';\n      } else {\n        fetchState = 'not-a-promise';\n      }\n    } catch (error) {\n      fetchState = (error && error.message) || String(error);\n    }\n    // Queries get no config surface at all (LLP 0036 D4/D5).\n    const secretsState = typeof ctx.secrets === 'undefined' ? 'undefined' : 'PRESENT (BUG)';\n    return [{ fetchState, secretsState }];\n  },\n};\n"
         }
       },
       "sourceSpan": null,
       "syncabilityClass": "online-only",
+      "uses": [],
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": null,
@@ -69,7 +86,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "a431dfc83d67215174af2efdc16e6e6973621420a4f2790199897f271f566426",
+  "inputsHash": "44f8226cdf5f6da0430eba544b1e9970e8a628804e97cb5c0ba3c15f8ba02afe",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

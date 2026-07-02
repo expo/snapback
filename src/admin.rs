@@ -30,6 +30,13 @@ use tokio::sync::Mutex;
 /// work without starting Vite; the bundle ships embedded.
 const CONSOLE_HTML: &str = include_str!("admin/console.html");
 
+/// The config setup wizard: one self-contained page rendered entirely from
+/// manifest declarations plus `config.status`, embedded like the console.
+///
+/// @ref LLP 0036#the-setup-wizard-d3 — a projection of the gated config ops,
+/// not a second implementation; it never reads a value back.
+const SETUP_HTML: &str = include_str!("admin/setup.html");
+
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
 /// socket it is served on) and the admin authorization configuration.
 #[derive(Clone, Debug)]
@@ -349,6 +356,7 @@ pub fn admin_routes() -> Router<AppState> {
     Router::new()
         .route("/_snapback/admin", get(console))
         .route("/_snapback/admin/", get(console))
+        .route("/_snapback/admin/setup", get(setup))
         .route("/_snapback/admin/{*path}", get(console_asset))
         .route("/_snapback/api/health", get(admin_health))
         .route("/_snapback/api/inspect", get(admin_inspect))
@@ -378,6 +386,13 @@ async fn console(State(ctx): State<Arc<ServerContext>>) -> Response {
         return ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], bytes).into_response();
     }
     Html(CONSOLE_HTML).into_response()
+}
+
+/// Serve the embedded setup wizard (`/_snapback/admin/setup`) — system-static
+/// shell; every fact it shows and every write it makes goes through the gated
+/// `/_snapback/api/config/*` lane.
+async fn setup() -> Response {
+    Html(SETUP_HTML).into_response()
 }
 
 /// Serve a static asset of the built console bundle (`/_snapback/admin/<path>`).

@@ -148,9 +148,14 @@ impl RuntimeManager {
         db: *const LocalDatabase,
         run: CronRunMetadata,
         host: &mut dyn IbexActionHost,
+        grants: Value,
     ) -> SnapbackResult<Value> {
-        let mut invocation = IbexHostContext::new_action(DbRead::LiveRaw(db), input, run, host);
-        // Actions always run fresh — no pool, by the DK-4 scope fence.
+        let mut invocation =
+            IbexHostContext::new_action(DbRead::LiveRaw(db), input, run, host, grants);
+        // Actions always run fresh — no pool, by the DK-4 scope fence. That
+        // fence is also what keeps per-invocation config grants (LLP 0036)
+        // out of any reused VM: granted values ride the composed source of a
+        // fresh runtime, never a pooled one.
         run_ibex_handler_with_context(module, &mut invocation, None)
     }
 }
@@ -307,6 +312,12 @@ struct IbexHostContext<'a> {
     /// This invocation's identity. A host call whose carried epoch does not
     /// equal this is a stale continuation and is rejected.
     epoch: u64,
+    /// The granted-config payload for this invocation (actions only) — the
+    /// host-computed `uses` grant, never a process-wide blob.
+    ///
+    /// @ref LLP 0036#runtime-exposure-d5-d8 — per-invocation grants replace
+    /// the deprecated `SNAPBACK_ACTION_SECRETS` env seam (LLP 0029 G4).
+    grants: Value,
 }
 
 impl<'a> IbexHostContext<'a> {
@@ -326,6 +337,7 @@ impl<'a> IbexHostContext<'a> {
             action_run: None,
             action_host: None,
             epoch: next_invocation_epoch(),
+            grants: Value::Null,
         }
     }
 
@@ -334,6 +346,7 @@ impl<'a> IbexHostContext<'a> {
         input: HandlerInput,
         run: CronRunMetadata,
         host: &'a mut dyn IbexActionHost,
+        grants: Value,
     ) -> Self {
         let reads = auth_dependencies(&input);
         Self {
@@ -346,6 +359,7 @@ impl<'a> IbexHostContext<'a> {
             action_run: Some(run),
             action_host: Some(host),
             epoch: next_invocation_epoch(),
+            grants,
         }
     }
 
@@ -905,6 +919,13 @@ pub(crate) fn eval(
         // handler top level (the synchronous-fire case). Surface it distinctly
         // so it is diagnosable rather than a generic failure.
         "SNAPBACK_HANDLER_STALE_CONTINUATION"
+    } else if output.contains("SNAPBACK_CONFIG_UNDECLARED") {
+        // @ref LLP 0036#declared-configuration-in-the-manifest — D8: access
+        // outside the `uses` grant is its own diagnostic, distinct from a
+        // declared-but-unset entry.
+        "SNAPBACK_CONFIG_UNDECLARED"
+    } else if output.contains("SNAPBACK_CONFIG_MISSING") {
+        "SNAPBACK_CONFIG_MISSING"
     } else {
         "SNAPBACK_HANDLER_FAILED"
     };
@@ -1021,11 +1042,14 @@ fn invocation_iife_source(
         serde_json::to_string(&invocation.action_run).map_err(handler_serialize_error)?;
     let run_literal = serde_json::to_string(&run_json).map_err(handler_serialize_error)?;
 
-    // Secrets are exposed only to actions (and are never client-visible).
+    // The granted-config payload is exposed only to actions (and is never
+    // client-visible): the host-computed per-invocation `uses` grant.
+    //
+    // @ref LLP 0036#runtime-exposure-d5-d8 — handles, actions only.
     let secrets_json = if matches!(invocation.mode, IbexInvocationMode::Action) {
-        action_secrets_json()
+        invocation.grants.to_string()
     } else {
-        "{}".to_string()
+        "null".to_string()
     };
     let secrets_literal = serde_json::to_string(&secrets_json).map_err(handler_serialize_error)?;
     // The epoch travels as a decimal *string* literal so it is exact past the
@@ -1070,15 +1094,6 @@ fn outbound_actions_enabled() -> bool {
     )
 }
 
-/// The scoped, never-client-visible secret pool exposed to actions as `ctx.secrets`
-/// (e.g. the rotating feed API keys). A JSON object; empty by default.
-fn action_secrets_json() -> String {
-    std::env::var("SNAPBACK_ACTION_SECRETS")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "{}".to_string())
-}
-
 // @ref LLP 0027#external-data-and-action-egress — un-deny fetch for the action
 //   execution class only; the transactional query/mutation path never gets network.
 // @ref LLP 0009#capability-model — the JS ambient layer gates ambient powers by
@@ -1113,6 +1128,46 @@ fn ctx_bootstrap_source() -> &'static str {
   }
   function readonlyDenied(op) {
     return function() { throw new Error("SNAPBACK_HANDLER_WRITE_IN_QUERY: " + op); };
+  }
+  // The opaque secret handle (LLP 0036 D5/D8): every accidental
+  // materialization path — stringify, JSON, template coercion, console —
+  // yields a redacted marker; expose() is the explicit, greppable escape
+  // hatch; asBearer() is v1 sugar over expose() (a true host-boundary unwrap
+  // awaits host-mediated fetch on the egress seam). Pure helpers: they close
+  // over nothing invocation-specific, and actions run on fresh VMs (DK-4
+  // scope fence), so module scope is safe.
+  function makeSecretHandle(name, value) {
+    var marker = "[snapback secret " + name + "]";
+    var handle = {
+      expose: function() { return value; },
+      asBearer: function() { return "Bearer " + value; },
+      toString: function() { return marker; },
+      toJSON: function() { return marker; }
+    };
+    try {
+      Object.defineProperty(handle, Symbol.toPrimitive, {
+        value: function() { return marker; }
+      });
+    } catch (_) {}
+    return handle;
+  }
+  function makeSecrets(grants) {
+    var entries = (grants && grants.entries) || {};
+    function lookup(name, rotate) {
+      var entry = entries[name];
+      if (!entry) {
+        throw new Error("SNAPBACK_CONFIG_UNDECLARED: " + name + " is not in this function's uses grant");
+      }
+      if (!entry.set || !entry.values || !entry.values.length) {
+        throw new Error("SNAPBACK_CONFIG_MISSING: " + name + " has no value set");
+      }
+      var index = rotate ? (entry.cursor || 0) % entry.values.length : 0;
+      return makeSecretHandle(name, entry.values[index]);
+    }
+    return {
+      get: function(name) { return lookup(name, false); },
+      rotating: function(name) { return lookup(name, true); }
+    };
   }
   // `host`, `makeBuilder`, and the whole `ctx` are built *per invocation* so
   // that they close over this invocation's `epoch`. A continuation captured
@@ -1198,7 +1253,7 @@ fn ctx_bootstrap_source() -> &'static str {
     if (mode === "action") {
       ctx.run = run || host("action.metadata", {});
       ctx.cron = ctx.run;
-      ctx.secrets = secretsJson ? JSON.parse(secretsJson) : {};
+      ctx.secrets = makeSecrets(secretsJson ? JSON.parse(secretsJson) : null);
       ctx.runMutation = function(mutationName, mutationArgs) {
         return host("action.runMutation", { name: mutationName, args: mutationArgs || {} });
       };

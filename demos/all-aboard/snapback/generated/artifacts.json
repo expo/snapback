@@ -25,7 +25,14 @@
     "contract/tripsQuery.query.ts",
     "contract/tripsQuery.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:52a259b0e6c99b1d",
+  "bundleHash": "sha256:c4d882fbd052a402",
+  "config": [
+    {
+      "name": "caltrainFeed",
+      "pool": true,
+      "required": false
+    }
+  ],
   "cronJobs": [
     {
       "action": "refreshFeed",
@@ -77,7 +84,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "f734e8aba1aaa29d50237bebaefeac0947965fefe73f43fa8d5ff3d2f006a5fc",
+  "inputsHash": "616ce51a5f430b115ac3057fe87ca201273f808b9507b203dd88b2d6e660bb63",
   "schemaHash": "sha256:c7f25a2cc6da8499",
   "schemaVersion": "snapback.v0",
   "tables": [

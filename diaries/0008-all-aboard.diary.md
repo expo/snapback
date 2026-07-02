@@ -483,3 +483,64 @@ freshness, live push paved path, cron delta, second-window D4, three
 gestures); headless/cron backend suites untouched by this change and re-run
 green; dev-script smoke (cwd = surface dir, env fallback) serves the
 surface's own HTML with the agent surface reachable.
+
+## 2026-07-02 — Declared config + secrets migration (LLP 0036 v1)
+
+Migrated the demo and its egress fixture off `SNAPBACK_ACTION_SECRETS` onto
+the new declared-config subsystem: `functions.mjs` now exports a
+`defineConfig` block declaring `caltrainFeed` (a rotating 511.org key pool,
+optional while the demo runs the recorded feed) and `refreshFeed` carries
+`uses: ['caltrainFeed']`, so the Phase 3 live fetch already has its grant.
+The egress-probe fixture declares its `feedKeys` pool and its acceptance
+suite grew from 5 to 14 checks, covering rotation, redaction, the gated
+`/_snapback/api/config/*` ops, reset survival, and the deprecated env-blob
+import.
+
+### What felt good
+
+- **The cron precedent made the manifest work mechanical.** `defineConfig` →
+  walk branch → `buildConfigEntries` → manifest field was a straight copy of
+  the `defineCron`/`buildCronJobs` shape, validation style included. When a
+  subsystem's authoring surface has a good precedent, adding the next one is
+  boring in the best way.
+- **Declaring config next to the functions that use it reads well.** The
+  entry (what/why/where-to-get-one) and the `uses` grant sit in the same
+  file; the wizard renders entirely from source-authored metadata. Compared
+  to Convex/Supabase env-var pages, the declaration living in code — typed,
+  reviewed, versioned — is the part that feels genuinely better, closer to
+  Rails credentials but per-deployment.
+- **The printed install line is the money shot.** Load a manifest with a
+  missing required key and the server prints
+  `config: 1 required entry missing (feedKeys) → http://127.0.0.1:PORT/_snapback/admin/setup`;
+  the page walks you through it. The `git clone` → paste-key → running story
+  the RFC promised actually exists now.
+
+### What felt bad or surprising
+
+- **Codegen's fetch scanner and the probe fixture fight.** Regenerating the
+  egress fixture needs `SNAPBACK_OUTBOUND_ACTIONS=1` at *codegen* time or the
+  handler's `fetch(` trips `BUNDLE_UNSUPPORTED_FETCH`. Correct behavior, but
+  nothing tells you the flag applies to codegen too until the regen fails.
+- **Rotation-cursor coupling in tests.** The pool cursor advances once per
+  granted invocation, so acceptance checks that run the probe action for
+  unrelated assertions also consume pool members. Fine once you know; the
+  first draft of the suite asserted `key-a` where `key-b` arrived.
+- **The old blob API broke loudly, which is the design working.** The old
+  handler read `ctx.secrets.feedKeys`; the new surface is
+  `ctx.secrets.rotating('feedKeys')` returning a redacting handle. Every
+  consumer had to migrate — there was exactly one — and the deprecated env
+  var still works as a one-time import, so `egress.mjs` kept its env-driven
+  setup path with zero extra plumbing.
+- **`asBearer()` is sugar, not a boundary.** Without host-mediated fetch
+  (G3), the "unwrap only at the host fetch boundary" helper can't exist yet;
+  it's `'Bearer ' + expose()`. The LLP banner says so — but it's the gap I'd
+  close next, together with the destination allowlist.
+
+### Verification
+
+`cargo test` green (148 tests incl. the new `tests/config_v0.rs`);
+`demos/all-aboard/tests/acceptance/egress.mjs` 14/14 against real spawned
+servers (both egress-on and egress-off runtimes); manual drive of a
+file-backed instance: printed setup line, wizard page served, set via the
+wizard source, `dev.sqlite3.config.json` at 0600, values surviving a server
+restart, status never echoing a value.

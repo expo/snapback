@@ -6,8 +6,8 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
-**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0035, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
+**Revised:** 2026-07-02 (related LLP index and follow-on list updated for LLP 0036; same day, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0035, LLP 0036, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
 
@@ -623,6 +623,11 @@ written) for at least:
   app code, isolation between apps/tenants, and secret handling — load-bearing
   once Snapback runs user code and is hosted for other people. Drafted as
   [`0009-code-execution-security.rfc.md`](./0009-code-execution-security.rfc.md).
+- An **app secrets and configuration** subsystem — declared config entries in
+  the manifest, a per-app store behind a per-target seam, the operator setup
+  wizard, and agent-driven key acquisition, above LLP 0009's security floor.
+  Drafted as
+  [`0036-app-secrets-and-config.rfc.md`](./0036-app-secrets-and-config.rfc.md).
 - **Schema migrations and evolution**, and how they interact with the
   SQLite↔Postgres portability contract.
 - **Observability** — logs, errors, and metrics for *running* apps: the runtime

@@ -1,7 +1,8 @@
 {
   "appId": "todo",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:8e76d90d17151b73",
+  "bundleHash": "sha256:61becbf27c074ddd",
+  "config": [],
   "cronJobs": [],
   "functions": [
     {
@@ -29,6 +30,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "todos",
@@ -64,6 +66,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "todos",
@@ -115,6 +118,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -150,6 +154,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "syncable-live",
+      "uses": [],
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": null,
@@ -198,6 +203,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "online-only",
+      "uses": [],
       "writeSetSummary": {
         "mode": "none",
         "primaryTable": null,
@@ -231,6 +237,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "todos",
@@ -241,7 +248,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "7c76029ab2263ddd9d2b97692b04c4e86a8345f1ccee8ed2b044706b709d4a29",
+  "inputsHash": "5c8927b415c9257f34c4b015a6850280ae0b030e05db3b2e3e7d851e9c76fb18",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

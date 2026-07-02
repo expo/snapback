@@ -5,8 +5,8 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
-**Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, Diary 0008
+**Revised:** 2026-07-02 (G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0036, Diary 0008
 
 ## Summary
 
@@ -50,7 +50,7 @@ product-impact for a real transit app, not demo-impact.
 | G1 | Swipe/pan gestures absent in Contract | High | L | Exact motion RFCs |
 | G2 | Browser Contract adapter has no live-push, single-boundary | High | M | LLP 0020 / LLP 0008 |
 | G3 | Per-host egress allowlist not enforced (coarse `network:fetch`) | High | M | LLP 0009 |
-| G4 | Secrets seam is a static env blob, no rotation/scoping | Medium | M | LLP 0009 |
+| G4 | Secrets seam is a static env blob, no rotation/scoping — **closed 2026-07-02** (LLP 0036 v1 slice) | Medium | M | LLP 0036 |
 | G5 | No live external feed polling (runs on recorded data) | Medium | M | LLP 0027 / LLP 0028 |
 | G6 | Cron run duration always 0; start/finish collapse | Low | S | LLP 0028 |
 | G7 | Stale-read / demand catch-up trigger unbuilt | Medium | M | LLP 0028 |
@@ -157,10 +157,23 @@ rotation and rate-limit headroom, and it puts all secrets in one process-wide bl
 **Closing it.** A scoped secrets store: keys addressed by name, granted per action
 (not global), with a rotation helper (`ctx.secrets.rotating('caltrainFeed')`
 returning the next key). Back it with a real store seam (env for local, a secret
-manager for hosted). Keep it action-only and never client-visible.
+manager for hosted). Keep it action-only and never client-visible. This design
+is now drafted as [LLP 0036](./0036-app-secrets-and-config.rfc.md) (declared
+config entries in the manifest, a per-app store behind a per-target seam,
+rotation pools, gated ops plus the setup wizard).
 
-**Effort.** M. **Owner.** [LLP 0009](./0009-code-execution-security.rfc.md) (same
-territory as G3).
+**Closed (2026-07-02).** The LLP 0036 v1 slice shipped: declared entries with
+per-function `uses` grants, the 0600 sibling-file store, granted rotating
+handles with redacted coercion, the gated `/_snapback/api/config/*` ops, and
+the setup wizard. All Aboard declares `caltrainFeed` (with `refreshFeed`
+carrying the grant), the egress-probe fixture declares its `feedKeys` pool,
+and `SNAPBACK_ACTION_SECRETS` is a deprecated one-time import source.
+Verified by `demos/all-aboard/tests/acceptance/egress.mjs` (14 checks) and
+`tests/config_v0.rs`.
+
+**Effort.** M. **Owner.** [LLP 0036](./0036-app-secrets-and-config.rfc.md)
+(design), on the [LLP 0009](./0009-code-execution-security.rfc.md) security
+floor (same territory as G3).
 
 ### G5 — No live external feed polling
 

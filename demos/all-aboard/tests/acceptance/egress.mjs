@@ -1,16 +1,19 @@
-// All Aboard — Phase 3 action-egress seam acceptance (LLP 0027 / LLP 0009).
+// All Aboard — Phase 3 action-egress seam + LLP 0036 config v1 acceptance.
 //
-// Proves the opt-in outbound-action seam, without touching the real network:
+// Proves the opt-in outbound-action seam and the declared-config subsystem,
+// without touching the real network:
 //   - with SNAPBACK_OUTBOUND_ACTIONS on, an ACTION sees a callable `fetch`
-//     (the native global returns a promise; the deny stub would throw) and a
-//     populated ctx.secrets (the scoped, never-client-visible key pool);
-//   - a QUERY in the same runtime is still denied fetch — egress is scoped to the
-//     action execution class at the JS boundary, off the transactional path;
-//   - with the flag off (the default), even an action is denied fetch, so the
-//     strict posture is preserved unless egress is explicitly enabled.
-//
-// The Caltrain demo itself never calls fetch (it runs on the recorded feed); this
-// fixture exercises the capability the demo's refresh action would use at Phase 3.
+//     (the native global returns a promise; the deny stub would throw);
+//   - the deprecated SNAPBACK_ACTION_SECRETS blob imports ONCE into the config
+//     store for the declared `feedKeys` pool, and the action receives granted
+//     ctx.secrets HANDLES: rotation walks the pool across invocations, every
+//     accidental materialization path (stringify/template/concat) redacts, and
+//     an undeclared entry fails with SNAPBACK_CONFIG_UNDECLARED;
+//   - the gated /_snapback/api/config/* ops drive status/set/unset/verify with
+//     names and states only — never values — and config survives app.reset;
+//   - a QUERY in the same runtime is still denied fetch and has no ctx.secrets;
+//   - with the flag off (the default), even an action is denied fetch, but the
+//     granted handles still work — config does not depend on egress.
 //
 // Run: node demos/all-aboard/tests/acceptance/egress.mjs
 
@@ -29,6 +32,7 @@ const gen = (f) => JSON.parse(readFileSync(join(probeDir, 'generated', f), 'utf8
 const schema = gen('schema.manifest.json');
 const functions = gen('functions.manifest.json');
 const SECRETS = '{"feedKeys":["key-a","key-b"]}';
+const REDACTED = '[snapback secret feedKeys]';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
@@ -60,35 +64,122 @@ async function runAction(url, name) {
   return res.json();
 }
 
-const suite = createSuite('all-aboard egress seam (Phase 3)');
+async function configApi(url, method, path, body) {
+  const res = await fetch(`${url}/_snapback/api/config/${path}`, {
+    method,
+    headers: body === undefined ? {} : { 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  return { status: res.status, body: json, raw: JSON.stringify(json) };
+}
+
+const suite = createSuite('all-aboard egress seam + config v1 (LLP 0036)');
 const servers = [];
 
 // runAcceptance (ENG-22486) surfaces a setup throw and exits nonzero on a
 // zero-check run — previously a pre-check failure here exited "PASS — 0/0".
 await runAcceptance(suite, async () => {
-  // --- Egress ENABLED runtime ---
+  // --- Egress ENABLED runtime, deprecated env blob supplied ---
   const on = await startApi(4430, { SNAPBACK_OUTBOUND_ACTIONS: '1', SNAPBACK_ACTION_SECRETS: SECRETS });
   servers.push(on);
   const dbOn = new SnapbackClient(on.url);
   await dbOn.loadSchema(schema);
-  await dbOn.loadFunctions(functions);
+  const loadResult = await dbOn.loadFunctions(functions);
+
+  await suite.check('loading declared config over the env blob imports it once, loudly deprecated', async () => {
+    const codes = (loadResult.diagnostics ?? []).map((d) => d.code);
+    assert(codes.includes('SNAPBACK_ACTION_SECRETS_DEPRECATED'), `expected deprecation diagnostic, got ${codes.join(', ')}`);
+    assert(codes.includes('SNAPBACK_CONFIG_ENV_IMPORTED'), `expected import diagnostic, got ${codes.join(', ')}`);
+    return { codes };
+  });
 
   await suite.check('with egress on, an action sees a callable fetch', async () => {
     const result = await runAction(on.url, 'egressProbe');
     assert(result.ok, `action failed: ${JSON.stringify(result.diagnostic)}`);
     assertEqual(result.result.fetchState, 'available', 'fetch is un-denied for the action class');
+    assertEqual(result.result.config.rotatingExposed, 'key-a', 'first invocation gets the first pool member');
     return { fetchState: result.result.fetchState };
   });
 
-  await suite.check('the action receives the scoped ctx.secrets key pool', async () => {
-    const result = await runAction(on.url, 'egressProbe');
-    assert(result.result.hasSecrets, 'ctx.secrets present');
-    assertEqual(result.result.secrets.feedKeys, ['key-a', 'key-b'], 'secret key pool matches SNAPBACK_ACTION_SECRETS');
+  await suite.check('granted handles rotate the imported pool across invocations', async () => {
+    const second = await runAction(on.url, 'egressProbe');
+    const third = await runAction(on.url, 'egressProbe');
+    assertEqual(second.result.config.rotatingExposed, 'key-b', 'second invocation rotates to key-b');
+    assertEqual(third.result.config.rotatingExposed, 'key-a', 'third wraps back to key-a');
+    assertEqual(second.result.config.bearer, 'Bearer key-b', 'asBearer sugar carries the member');
   });
 
-  await suite.check('a query in the same runtime is still denied fetch', async () => {
+  await suite.check('every accidental materialization of a handle redacts', async () => {
+    const result = await runAction(on.url, 'egressProbe');
+    const config = result.result.config;
+    assertEqual(config.stringified, JSON.stringify(REDACTED), 'JSON.stringify redacts');
+    assertEqual(config.template, REDACTED, 'template literal redacts');
+    assertEqual(config.concatenated, `prefix:${REDACTED}`, 'string concat redacts');
+    assert(!config.stringified.includes('key-'), 'no key material in stringified form');
+  });
+
+  await suite.check('an entry outside the uses grant fails as SNAPBACK_CONFIG_UNDECLARED', async () => {
+    const result = await runAction(on.url, 'egressProbe');
+    assert(/SNAPBACK_CONFIG_UNDECLARED/.test(result.result.config.undeclaredError), `got: ${result.result.config.undeclaredError}`);
+  });
+
+  await suite.check('config.status reports names and states, never values', async () => {
+    const { status, body, raw } = await configApi(on.url, 'GET', 'status');
+    assertEqual(status, 200, 'status is readable');
+    const entry = body.entries.find((e) => e.name === 'feedKeys');
+    assert(entry, 'feedKeys is declared');
+    assertEqual(entry.set, true, 'imported entry is set');
+    assertEqual(entry.memberCount, 2, 'both pool members imported');
+    assertEqual(entry.source, 'env-import', 'source recorded');
+    assert(!raw.includes('key-a') && !raw.includes('key-b'), 'no value material in status');
+    return { generation: body.generation, backendClass: body.backendClass };
+  });
+
+  await suite.check('config.verify runs the probe and records verification', async () => {
+    const verify = await configApi(on.url, 'POST', 'verify', { entry: 'feedKeys' });
+    assertEqual(verify.status, 200, `verify failed: ${verify.raw}`);
+    assertEqual(verify.body.ok, true, 'probe verified the pool');
+    const { body } = await configApi(on.url, 'GET', 'status');
+    const entry = body.entries.find((e) => e.name === 'feedKeys');
+    assert(entry.verified && entry.verified.ok, 'verification recorded in status');
+  });
+
+  await suite.check('config survives app.reset (deployment state, not app data)', async () => {
+    await dbOn.reset();
+    const { body } = await configApi(on.url, 'GET', 'status');
+    const entry = body.entries.find((e) => e.name === 'feedKeys');
+    assertEqual(entry.set, true, 'reset must not clear config');
+  });
+
+  await suite.check('config.unset empties the entry and actions fail as SNAPBACK_CONFIG_MISSING', async () => {
+    const unset = await configApi(on.url, 'POST', 'unset', { entry: 'feedKeys' });
+    assertEqual(unset.status, 200, `unset failed: ${unset.raw}`);
+    const result = await runAction(on.url, 'egressProbe');
+    assert(/SNAPBACK_CONFIG_MISSING/.test(result.result.config.rotatingError), `got: ${JSON.stringify(result.result.config)}`);
+  });
+
+  await suite.check('config.set restores the entry through the gated API', async () => {
+    const set = await configApi(on.url, 'POST', 'set', { entry: 'feedKeys', values: ['key-c'], source: 'wizard' });
+    assertEqual(set.status, 200, `set failed: ${set.raw}`);
+    assertEqual(set.body.valueChanged, true, 'value changed');
+    assert(!set.raw.includes('key-c'), 'no value material in the set envelope');
+    const append = await configApi(on.url, 'POST', 'set', { entry: 'feedKeys', value: 'key-d', append: true });
+    assertEqual(append.status, 200, `append failed: ${append.raw}`);
+    const result = await runAction(on.url, 'egressProbe');
+    assert(['key-c', 'key-d'].includes(result.result.config.rotatingExposed), 'action sees the new pool');
+  });
+
+  await suite.check('setting an undeclared entry is rejected', async () => {
+    const set = await configApi(on.url, 'POST', 'set', { entry: 'nope', value: 'x' });
+    assertEqual(set.status, 400, 'undeclared set fails');
+    assert(/SNAPBACK_CONFIG_UNDECLARED/.test(set.raw), `got: ${set.raw}`);
+  });
+
+  await suite.check('a query in the same runtime is still denied fetch and has no ctx.secrets', async () => {
     const { rows } = await dbOn.query('queryProbe', {});
     assert(/AMBIENT_CAPABILITY_DENIED/.test(rows[0].fetchState), `query fetch should be denied, got: ${rows[0].fetchState}`);
+    assertEqual(rows[0].secretsState, 'undefined', 'queries get no config surface');
     return { queryFetchState: rows[0].fetchState };
   });
 
@@ -97,7 +188,7 @@ await runAcceptance(suite, async () => {
   await sleep(300);
 
   // --- Egress DISABLED (default) runtime ---
-  const off = await startApi(4431, {});
+  const off = await startApi(4431, { SNAPBACK_ACTION_SECRETS: SECRETS });
   servers.push(off);
   const dbOff = new SnapbackClient(off.url);
   await dbOff.loadSchema(schema);
@@ -108,5 +199,10 @@ await runAcceptance(suite, async () => {
     assert(result.ok, `action failed: ${JSON.stringify(result.diagnostic)}`);
     assert(/AMBIENT_CAPABILITY_DENIED/.test(result.result.fetchState), `default should deny fetch, got: ${result.result.fetchState}`);
     return { fetchState: result.result.fetchState };
+  });
+
+  await suite.check('granted config handles work without egress — config does not ride the fetch grant', async () => {
+    const result = await runAction(off.url, 'egressProbe');
+    assertEqual(result.result.config.rotatingExposed, 'key-b', 'second invocation on this runtime rotates');
   });
 }, { cleanups: [() => { for (const s of servers) { try { s.stop(); } catch { /* best effort */ } } }] });

@@ -15,7 +15,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isCronDef, isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
+import { isConfigDef, isCronDef, isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -202,6 +202,7 @@ export async function generate(backendDir) {
   const contractQueries = {};
   const contractMutations = {};
   const cronDefs = [];
+  const configDefs = [];
 
   const fieldNames = (t) => new Set(tables[t]?.fields.map((f) => f.name) ?? []);
   const isKnownField = (t, f) => SYSTEM_FIELDS.includes(f) || fieldNames(t).has(f);
@@ -209,6 +210,10 @@ export async function generate(backendDir) {
   for (const [name, def] of Object.entries(functionsModule)) {
     if (isCronDef(def)) {
       cronDefs.push({ exportName: name, def });
+      continue;
+    }
+    if (isConfigDef(def)) {
+      configDefs.push({ exportName: name, def });
       continue;
     }
     if (!isFunctionDef(def)) continue;
@@ -369,6 +374,7 @@ export async function generate(backendDir) {
       functions.push({
         name,
         kind: 'Action',
+        uses: def.uses ?? [],
         runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
         declaredReads: [],
         declaredWrites: writes,
@@ -384,6 +390,7 @@ export async function generate(backendDir) {
       functions.push({
         name,
         kind: 'Action',
+        uses: def.uses ?? [],
         runtime: { HostPlan: { Action: serializeActionPlan(def.plan, name, err) } },
         declaredReads: [],
         declaredWrites: writes,
@@ -407,6 +414,7 @@ export async function generate(backendDir) {
 
   validateActionPlans(functions, err);
   const cronJobs = buildCronJobs(cronDefs, functions, err);
+  const configEntries = buildConfigEntries(configDefs, functions, err);
 
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -457,6 +465,7 @@ export async function generate(backendDir) {
     unsupportedDependencyDiagnostics: [],
     functions: decorateFunctions(appId, functions),
     cronJobs,
+    config: configEntries,
   };
   const capabilityManifest = {
     artifactKind: 'capabilityManifest',
@@ -590,6 +599,9 @@ export async function generate(backendDir) {
       ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
       functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
       cronJobs: cronJobs.map((job) => ({ name: job.name, action: job.action, enabled: job.enabled })),
+      // Names and requirement flags only — the index mirrors declarations,
+      // never values (LLP 0036).
+      config: configEntries.map((entry) => ({ name: entry.name, required: entry.required, pool: entry.pool })),
     }) + '\n',
   );
 
@@ -910,6 +922,72 @@ function buildCronJobs(cronDefs, functions, err) {
   return jobs;
 }
 
+// @ref LLP 0036#declared-configuration-in-the-manifest — config entries are
+// validated the way cron jobs are: duplicates, bad identifiers, unknown or
+// non-action probes, and (v1) non-secret entries all fail closed here, before
+// the server validates the same facts again at manifest load.
+function buildConfigEntries(configDefs, functions, err) {
+  const functionKinds = new Map(functions.map((fn) => [fn.name, fn.kind]));
+  const declared = new Set();
+  const entries = [];
+  const CONFIG_IDENT = /^[A-Za-z0-9_-]+$/;
+  for (const { def } of configDefs) {
+    for (const [name, spec] of Object.entries(def.entries)) {
+      if (declared.has(name)) {
+        err('CONFIG_DUPLICATE_ENTRY', 'config', `duplicate config entry ${name}`, { entry: name });
+        continue;
+      }
+      declared.add(name);
+      if (!CONFIG_IDENT.test(name)) {
+        err('CONFIG_INVALID_IDENTIFIER', 'config', `invalid config entry name ${name}`, { entry: name });
+        continue;
+      }
+      if (spec.secret === false) {
+        err('CONFIG_NON_SECRET_UNIMPLEMENTED', 'config', `${name}: non-secret config entries are not implemented yet (LLP 0036 v1 is secret entries only)`, { entry: name });
+        continue;
+      }
+      if (spec.default !== undefined) {
+        err('CONFIG_DEFAULT_UNIMPLEMENTED', 'config', `${name}: defaults belong to non-secret entries, which are not implemented yet`, { entry: name });
+        continue;
+      }
+      if (spec.probe !== undefined) {
+        if (!functionKinds.has(spec.probe)) {
+          err('CONFIG_PROBE_UNKNOWN', 'config', `${name}: unknown probe ${spec.probe}`, { entry: name, probe: spec.probe });
+          continue;
+        }
+        if (functionKinds.get(spec.probe) !== 'Action') {
+          err('CONFIG_PROBE_KIND_MISMATCH', 'config', `${name}: probe ${spec.probe} is not an action`, { entry: name, probe: spec.probe, kind: functionKinds.get(spec.probe) });
+          continue;
+        }
+      }
+      entries.push({
+        name,
+        description: spec.description ?? null,
+        purpose: spec.purpose ?? null,
+        secret: true,
+        required: spec.required ?? true,
+        pool: Boolean(spec.pool),
+        probe: spec.probe ?? null,
+        howToGet: spec.howToGet ?? null,
+        // Omitted (not null) when absent: the server treats an explicit null
+        // acquisition as present-but-empty rather than absent.
+        ...(spec.acquisition !== undefined ? { acquisition: spec.acquisition } : {}),
+        sourceSpan: null,
+      });
+    }
+  }
+  // D8: every `uses` grant names a declared entry; an unknown name would fail
+  // at runtime with SNAPBACK_CONFIG_UNDECLARED, so catch it at codegen time.
+  for (const fn of functions) {
+    for (const name of fn.uses ?? []) {
+      if (!declared.has(name)) {
+        err('CONFIG_USES_UNKNOWN', 'config', `${fn.name}: uses names ${name}, which is not a declared config entry`, { function: fn.name, entry: name });
+      }
+    }
+  }
+  return entries;
+}
+
 function normalizeCronSchedule(name, schedule, err) {
   if (!schedule || typeof schedule !== 'object') {
     err('CRON_INVALID_SCHEDULE', 'cron', `${name}: cron job requires a schedule object`, { jobName: name });
@@ -1026,6 +1104,7 @@ function decorateFunctions(appId, functions) {
       readSetSummary: reads,
       writeSetSummary: writes,
       bundleEntrypoint: fn.name,
+      uses: fn.uses ?? [],
       runtime: fn.runtime,
     };
   });

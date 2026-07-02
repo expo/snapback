@@ -2,6 +2,7 @@ use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
     LocalCronRuntime,
 };
+use crate::config::{ConfigStore, VerificationRecord};
 use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
     CollectionEnsureOutcome, DeleteRequest, DeliveryNotifier, EphemeralCollection,
@@ -510,9 +511,92 @@ impl EphemeralApi {
     }
 }
 
+/// One entry's LLP 0036 status: names and states only — never values.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ConfigEntryStatus {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
+    pub secret: bool,
+    pub required: bool,
+    pub pool: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub probe: Option<String>,
+    #[serde(rename = "howToGet", skip_serializing_if = "Option::is_none")]
+    pub how_to_get: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acquisition: Option<Value>,
+    pub set: bool,
+    #[serde(rename = "memberCount")]
+    pub member_count: usize,
+    #[serde(rename = "lastChangedMs", skip_serializing_if = "Option::is_none")]
+    pub last_changed_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verified: Option<VerificationRecord>,
+    #[serde(rename = "applyState")]
+    pub apply_state: String,
+}
+
+/// The `config.status` payload (LLP 0036 §Operations and projections).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ConfigStatus {
+    pub generation: u64,
+    #[serde(rename = "backendClass")]
+    pub backend_class: String,
+    pub entries: Vec<ConfigEntryStatus>,
+    #[serde(rename = "requiredMissing")]
+    pub required_missing: Vec<String>,
+}
+
+/// The `config.plan` dry-run facts (LLP 0036 §Operations and projections).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ConfigPlan {
+    #[serde(rename = "backendClass")]
+    pub backend_class: String,
+    #[serde(rename = "writeLocus")]
+    pub write_locus: String,
+    #[serde(rename = "appliesImmediately")]
+    pub applies_immediately: bool,
+    #[serde(rename = "valueWritesAccepted")]
+    pub value_writes_accepted: bool,
+    pub generation: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entry: Option<String>,
+    #[serde(rename = "wouldApplyState")]
+    pub would_apply_state: String,
+}
+
+/// The `config.set` / `config.unset` envelope facts — never values.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ConfigWriteOutcome {
+    pub entry: String,
+    #[serde(rename = "applyState")]
+    pub apply_state: String,
+    #[serde(rename = "valueChanged")]
+    pub value_changed: bool,
+    pub generation: u64,
+}
+
+/// The `config.verify` envelope facts.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ConfigVerifyOutcome {
+    pub entry: String,
+    pub ok: bool,
+    pub verified: VerificationRecord,
+    pub generation: u64,
+}
+
 pub struct LocalSnapback {
     db: LocalDatabase,
     functions: FunctionManifest,
+    // @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — the config store
+    // is deployment state beside the database, never inside it; `reset()`
+    // deliberately does not touch it (D2).
+    config: ConfigStore,
     runtime: RuntimeManager,
     ephemeral: LocalEphemeralBackend,
     cron: LocalCronRuntime,
@@ -585,7 +669,10 @@ impl LocalSnapback {
     }
 
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
-        Self::from_database(LocalDatabase::open(path)?)
+        let config = ConfigStore::open_for_database(path.as_ref())?;
+        let mut snapback = Self::from_database(LocalDatabase::open(path)?)?;
+        snapback.config = config;
+        Ok(snapback)
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
@@ -625,6 +712,7 @@ impl LocalSnapback {
         }
 
         diagnostics.extend(self.cron.reconcile(&self.functions));
+        diagnostics.extend(self.reconcile_config());
         diagnostics.extend(self.runtime.diagnostics());
         self.refresh_read_manifests();
         self.refresh_cron_active();
@@ -1203,6 +1291,508 @@ impl LocalSnapback {
         }
     }
 
+    /// Validate declared config entries fail-closed, validate per-function
+    /// `uses` grants, and run the one-time deprecated env-blob import.
+    ///
+    /// @ref LLP 0036#declared-configuration-in-the-manifest — manifest load
+    /// rejects invalid declarations the way cron validation does; a rejected
+    /// entry is removed from the effective declaration set rather than half
+    /// working.
+    fn reconcile_config(&mut self) -> Vec<Diagnostic> {
+        let mut diagnostics = Vec::new();
+        let mut accepted: Vec<crate::manifest::ConfigEntryDefinition> = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+
+        for entry in self.functions.config.clone() {
+            if entry.name.is_empty()
+                || !entry
+                    .name
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            {
+                diagnostics.push(
+                    SnapbackError::error(
+                        "SNAPBACK_CONFIG_ENTRY_INVALID",
+                        "config",
+                        format!(
+                            "config entry name {:?} is invalid; entry names use [A-Za-z0-9_-]",
+                            entry.name
+                        ),
+                    )
+                    .diagnostic,
+                );
+                continue;
+            }
+            if !seen.insert(entry.name.clone()) {
+                diagnostics.push(
+                    SnapbackError::error(
+                        "SNAPBACK_CONFIG_ENTRY_INVALID",
+                        "config",
+                        format!("config entry {} is declared more than once", entry.name),
+                    )
+                    .diagnostic,
+                );
+                continue;
+            }
+            // @ref LLP 0036#implementation-order — the v1 slice is secret
+            // entries only; non-secret entries fail closed at validation (the
+            // cron Backoff precedent), never half-work.
+            if !entry.secret {
+                diagnostics.push(
+                    SnapbackError::error(
+                        "SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED",
+                        "config",
+                        format!(
+                            "config entry {} declares secret: false, but non-secret config \
+                             entries are not implemented yet; declare it secret or remove it",
+                            entry.name
+                        ),
+                    )
+                    .diagnostic,
+                );
+                continue;
+            }
+            if entry.default.is_some() {
+                diagnostics.push(
+                    SnapbackError::error(
+                        "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED",
+                        "config",
+                        format!(
+                            "config entry {} declares a default, which only non-secret entries \
+                             may carry — and those are not implemented yet",
+                            entry.name
+                        ),
+                    )
+                    .diagnostic,
+                );
+                continue;
+            }
+            if let Some(probe) = &entry.probe {
+                match self.functions.function(probe) {
+                    Some(function) if matches!(function.kind, FunctionKind::Action) => {}
+                    Some(_) => {
+                        diagnostics.push(
+                            SnapbackError::error(
+                                "SNAPBACK_CONFIG_PROBE_INVALID",
+                                "config",
+                                format!(
+                                    "config entry {} names probe {probe}, which is not an action",
+                                    entry.name
+                                ),
+                            )
+                            .diagnostic,
+                        );
+                        continue;
+                    }
+                    None => {
+                        diagnostics.push(
+                            SnapbackError::error(
+                                "SNAPBACK_CONFIG_PROBE_INVALID",
+                                "config",
+                                format!(
+                                    "config entry {} names unknown probe function {probe}",
+                                    entry.name
+                                ),
+                            )
+                            .diagnostic,
+                        );
+                        continue;
+                    }
+                }
+            }
+            accepted.push(entry);
+        }
+
+        let declared: std::collections::BTreeSet<&str> =
+            accepted.iter().map(|entry| entry.name.as_str()).collect();
+        for function in &self.functions.functions {
+            for name in &function.uses {
+                if !declared.contains(name.as_str()) {
+                    diagnostics.push(
+                        SnapbackError::error(
+                            "SNAPBACK_CONFIG_USES_UNKNOWN",
+                            "config",
+                            format!(
+                                "function {} declares uses: {name}, which is not a declared \
+                                 config entry; access will fail with SNAPBACK_CONFIG_UNDECLARED",
+                                function.name
+                            ),
+                        )
+                        .diagnostic,
+                    );
+                }
+            }
+        }
+        self.functions.config = accepted;
+
+        // One-time import from the deprecated env blob (LLP 0036 v1 slice
+        // item 2): declared names only, never after the store's first write.
+        if let Ok(blob_raw) = std::env::var("SNAPBACK_ACTION_SECRETS")
+            && !blob_raw.trim().is_empty()
+        {
+            diagnostics.push(Diagnostic::warning(
+                "SNAPBACK_ACTION_SECRETS_DEPRECATED",
+                "config",
+                "SNAPBACK_ACTION_SECRETS is deprecated; values are imported once into the \
+                 config store — manage them via the setup wizard or /_snapback/api/config/*",
+            ));
+            match serde_json::from_str::<Value>(&blob_raw) {
+                Ok(Value::Object(blob)) => {
+                    let declared_names: Vec<String> = self
+                        .functions
+                        .config
+                        .iter()
+                        .map(|entry| entry.name.clone())
+                        .collect();
+                    match self.config.import_env_blob(&blob, &declared_names, now_millis()) {
+                        Ok(outcome) => {
+                            if !outcome.imported.is_empty() || !outcome.ignored.is_empty() {
+                                diagnostics.push(
+                                    Diagnostic::info(
+                                        "SNAPBACK_CONFIG_ENV_IMPORTED",
+                                        "config",
+                                        "imported deprecated SNAPBACK_ACTION_SECRETS values into \
+                                         the config store",
+                                    )
+                                    .with_details(json!({
+                                        "imported": outcome.imported,
+                                        "ignored": outcome.ignored,
+                                        "skippedExistingStore": outcome.skipped_existing_store,
+                                    })),
+                                );
+                            }
+                        }
+                        Err(error) => diagnostics.push(error.diagnostic),
+                    }
+                }
+                _ => diagnostics.push(Diagnostic::warning(
+                    "SNAPBACK_ACTION_SECRETS_INVALID",
+                    "config",
+                    "SNAPBACK_ACTION_SECRETS is set but is not a JSON object; nothing imported",
+                )),
+            }
+        }
+
+        let missing = self.required_missing_config();
+        if !missing.is_empty() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "SNAPBACK_CONFIG_REQUIRED_MISSING",
+                    "config",
+                    format!(
+                        "{} required config entr{} missing ({}); open the setup wizard at \
+                         /_snapback/admin/setup",
+                        missing.len(),
+                        if missing.len() == 1 { "y is" } else { "ies are" },
+                        missing.join(", ")
+                    ),
+                )
+                .with_details(json!({ "entries": missing })),
+            );
+        }
+
+        diagnostics
+    }
+
+    /// Names of required, declared entries with no stored value.
+    pub fn required_missing_config(&self) -> Vec<String> {
+        self.functions
+            .config
+            .iter()
+            .filter(|entry| entry.required && self.config.values(&entry.name).is_none())
+            .map(|entry| entry.name.clone())
+            .collect()
+    }
+
+    fn config_definition(
+        &self,
+        name: &str,
+    ) -> SnapbackResult<&crate::manifest::ConfigEntryDefinition> {
+        self.functions
+            .config
+            .iter()
+            .find(|entry| entry.name == name)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_CONFIG_UNDECLARED",
+                    "config",
+                    format!("{name} is not a declared config entry"),
+                )
+            })
+    }
+
+    /// The full LLP 0036 status primitive: declared × set × verified ×
+    /// applied, names and states only — never values.
+    pub fn config_status(&self) -> ConfigStatus {
+        let entries = self
+            .functions
+            .config
+            .iter()
+            .map(|def| {
+                let stored = self.config.entry(&def.name);
+                ConfigEntryStatus {
+                    name: def.name.clone(),
+                    description: def.description.clone(),
+                    purpose: def.purpose.clone(),
+                    secret: def.secret,
+                    required: def.required,
+                    pool: def.pool,
+                    probe: def.probe.clone(),
+                    how_to_get: def.how_to_get.clone(),
+                    acquisition: def.acquisition.clone(),
+                    set: stored.is_some(),
+                    member_count: stored.map(|entry| entry.member_count()).unwrap_or(0),
+                    last_changed_ms: stored.map(|entry| entry.set_at_ms),
+                    source: stored.map(|entry| entry.source.clone()),
+                    verified: stored.and_then(|entry| entry.verified.clone()),
+                    // v1 is local-file-immediate: every write applies at once.
+                    apply_state: "applied".to_owned(),
+                }
+            })
+            .collect();
+        ConfigStatus {
+            generation: self.config.generation(),
+            backend_class: if self.config.is_persistent() {
+                "local-file-immediate".to_owned()
+            } else {
+                "in-memory".to_owned()
+            },
+            entries,
+            required_missing: self.required_missing_config(),
+        }
+    }
+
+    /// `config.plan` facts for this target: v1 is always the in-server,
+    /// immediately-applying `local-file-immediate` locus, and saying so pins
+    /// the contract hosted backends will answer differently.
+    ///
+    /// @ref LLP 0036#operations-and-projections-llp-0024 — dry-run: no write.
+    pub fn config_plan(
+        &self,
+        entry: Option<&str>,
+        value_writes_accepted: bool,
+    ) -> SnapbackResult<ConfigPlan> {
+        if let Some(name) = entry {
+            self.config_definition(name)?;
+        }
+        Ok(ConfigPlan {
+            backend_class: if self.config.is_persistent() {
+                "local-file-immediate".to_owned()
+            } else {
+                "in-memory".to_owned()
+            },
+            write_locus: "in-server".to_owned(),
+            applies_immediately: true,
+            value_writes_accepted,
+            generation: self.config.generation(),
+            entry: entry.map(str::to_owned),
+            would_apply_state: "applied".to_owned(),
+        })
+    }
+
+    /// Set a declared entry (replace, or append a pool member). Audit facts —
+    /// never values — land in the diagnostics ring.
+    pub fn set_config_entry(
+        &mut self,
+        name: &str,
+        values: Vec<String>,
+        append: bool,
+        source: &str,
+    ) -> SnapbackResult<ConfigWriteOutcome> {
+        let pool = self.config_definition(name)?.pool;
+        if !pool && (values.len() > 1 || append) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CONFIG_VALUE_INVALID",
+                "config",
+                format!("config entry {name} is not a pool; set exactly one value"),
+            ));
+        }
+        let outcome = self.config.set(name, values, append, source, now_millis())?;
+        self.record_diagnostics(vec![
+            Diagnostic::info(
+                "SNAPBACK_CONFIG_WRITE",
+                "config",
+                format!("config entry {name} set via {source}"),
+            )
+            .with_details(json!({
+                "entry": name,
+                "operation": "set",
+                "valueChanged": outcome.value_changed,
+                "source": source,
+            })),
+        ]);
+        Ok(ConfigWriteOutcome {
+            entry: name.to_owned(),
+            apply_state: "applied".to_owned(),
+            value_changed: outcome.value_changed,
+            generation: outcome.generation,
+        })
+    }
+
+    /// Remove an entry's stored value. Deliberately works for names that are
+    /// no longer declared, so stale values can always be cleaned up.
+    pub fn unset_config_entry(
+        &mut self,
+        name: &str,
+        source: &str,
+    ) -> SnapbackResult<ConfigWriteOutcome> {
+        let outcome = self.config.unset(name)?;
+        self.record_diagnostics(vec![
+            Diagnostic::info(
+                "SNAPBACK_CONFIG_WRITE",
+                "config",
+                format!("config entry {name} unset via {source}"),
+            )
+            .with_details(json!({
+                "entry": name,
+                "operation": "unset",
+                "valueChanged": outcome.value_changed,
+                "source": source,
+            })),
+        ]);
+        Ok(ConfigWriteOutcome {
+            entry: name.to_owned(),
+            apply_state: "applied".to_owned(),
+            value_changed: outcome.value_changed,
+            generation: outcome.generation,
+        })
+    }
+
+    /// Run an entry's probe action and record the verification outcome.
+    ///
+    /// @ref LLP 0036#operations-and-projections-llp-0024 — probes run only on
+    /// explicit verify, under cooldown, as ordinary actions with no special
+    /// network powers; results land in verification state, never raw in logs.
+    pub fn verify_config_entry(&mut self, name: &str) -> SnapbackResult<ConfigVerifyOutcome> {
+        let definition = self.config_definition(name)?.clone();
+        let Some(probe) = definition.probe.clone() else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CONFIG_PROBE_MISSING",
+                "config",
+                format!("config entry {name} declares no probe action"),
+            ));
+        };
+        if self.config.values(name).is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CONFIG_MISSING",
+                "config",
+                format!("config entry {name} has no value set; set it before verifying"),
+            ));
+        }
+        let now = now_millis();
+        self.config.check_verify_cooldown(name, now)?;
+        let metadata = CronRunMetadata {
+            job_name: format!("config-verify:{name}"),
+            run_id: format!("config-verify:{name}:{now}"),
+            scheduled_at_ms: None,
+            due_at_ms: now,
+            idempotency_key: format!("config-verify:{name}:{now}"),
+            slot_key: format!("config-verify:{name}"),
+            attempt: 1,
+            trigger: CronRunTrigger::Manual,
+        };
+        let input = HandlerInput {
+            args: json!({ "entry": name }),
+            auth: Default::default(),
+            read_set: Vec::new(),
+            correlation: None,
+        };
+        let record = match self.invoke_action(&probe, input, metadata) {
+            Ok(value) => {
+                let ok = value
+                    .get("ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(true);
+                let diagnostic = if ok {
+                    None
+                } else {
+                    Some(
+                        value
+                            .get("message")
+                            .and_then(Value::as_str)
+                            .unwrap_or("probe reported failure")
+                            .to_owned(),
+                    )
+                };
+                VerificationRecord {
+                    ok,
+                    at_ms: now,
+                    diagnostic,
+                }
+            }
+            Err(error) => VerificationRecord {
+                ok: false,
+                at_ms: now,
+                diagnostic: Some(format!(
+                    "{}: {}",
+                    error.diagnostic.code, error.diagnostic.message
+                )),
+            },
+        };
+        self.config.record_verification(name, record.clone())?;
+        self.record_diagnostics(vec![
+            Diagnostic::info(
+                "SNAPBACK_CONFIG_VERIFY",
+                "config",
+                format!(
+                    "config entry {name} verification {}",
+                    if record.ok { "succeeded" } else { "failed" }
+                ),
+            )
+            .with_details(json!({ "entry": name, "ok": record.ok })),
+        ]);
+        Ok(ConfigVerifyOutcome {
+            entry: name.to_owned(),
+            ok: record.ok,
+            verified: record,
+            generation: self.config.generation(),
+        })
+    }
+
+    /// The granted-config payload for one action invocation: the function's
+    /// `uses` entries (plus the entry a probe verifies, implicitly), with
+    /// value material and a rotation cursor for pools.
+    ///
+    /// @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed host-side
+    /// per invocation; handler code never sees undeclared entries.
+    fn config_grants(&mut self, function: &crate::manifest::FunctionDefinition) -> Value {
+        let mut names: Vec<String> = function.uses.clone();
+        for entry in &self.functions.config {
+            if entry.probe.as_deref() == Some(function.name.as_str())
+                && !names.contains(&entry.name)
+            {
+                names.push(entry.name.clone());
+            }
+        }
+        let granted_defs: Vec<(String, bool)> = names
+            .iter()
+            .filter_map(|name| {
+                self.functions
+                    .config
+                    .iter()
+                    .find(|entry| &entry.name == name)
+                    .map(|entry| (entry.name.clone(), entry.pool))
+            })
+            .collect();
+        let mut entries = serde_json::Map::new();
+        for (name, pool) in granted_defs {
+            let values: Option<Vec<String>> = self.config.values(&name).map(<[String]>::to_vec);
+            let granted = match values {
+                Some(values) if !values.is_empty() => {
+                    let cursor = if pool {
+                        self.config.next_rotation_cursor(&name)
+                    } else {
+                        0
+                    };
+                    json!({ "set": true, "values": values, "cursor": cursor })
+                }
+                _ => json!({ "set": false }),
+            };
+            entries.insert(name, granted);
+        }
+        json!({ "entries": entries })
+    }
+
     /// The kind of a loaded function, if any. Used by the admin function runner
     /// to decide whether a run is a read (query) or a write (mutation).
     pub fn function_kind(&self, name: &str) -> Option<FunctionKind> {
@@ -1464,6 +2054,7 @@ impl LocalSnapback {
         Ok(Self {
             db,
             functions: FunctionManifest::default(),
+            config: ConfigStore::in_memory(),
             runtime,
             ephemeral: LocalEphemeralBackend::new(),
             cron,
@@ -1599,6 +2190,11 @@ impl LocalSnapback {
             }
             (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
                 let runtime = self.runtime.clone();
+                // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
+                // per invocation from the function's `uses` declaration; the
+                // store is read through on every run (no caching), leaving VM
+                // reuse questions to the DK-4 machinery.
+                let grants = self.config_grants(&function);
                 // One provenance root: the db pointer is derived from the same
                 // *mut the action host writes through (ctx.runMutation), so
                 // the write does not invalidate the read pointer under
@@ -1610,7 +2206,7 @@ impl LocalSnapback {
                     snapback,
                     _marker: PhantomData,
                 };
-                runtime.invoke_ibex_action(module, input, db, metadata, &mut host)
+                runtime.invoke_ibex_action(module, input, db, metadata, &mut host, grants)
             }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_KIND_MISMATCH",

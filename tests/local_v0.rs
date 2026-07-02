@@ -1465,7 +1465,8 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
         functions.bundle_hash.as_deref(),
         // Path-independent since the LLP 0034 review fix 4 (handler sources
         // hash by manifest-relative path): reproducible from any checkout.
-        Some("sha256:8e76d90d17151b73")
+        // Re-pinned when LLP 0036 added `uses`/`config` to the manifest shape.
+        Some("sha256:61becbf27c074ddd")
     );
 
     let list = functions

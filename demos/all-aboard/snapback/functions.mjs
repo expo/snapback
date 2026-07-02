@@ -11,6 +11,7 @@ import {
   arg,
   asc,
   defineAction,
+  defineConfig,
   defineCron,
   defineLiveQuery,
   defineJsMutation,
@@ -18,6 +19,31 @@ import {
   eq,
   v,
 } from '../../_kit/define.mjs';
+
+// --- Config -------------------------------------------------------------------
+
+// @ref LLP 0036#declared-configuration-in-the-manifest — the demo declares the
+// key pool the live feed will need. Optional while the demo runs the recorded
+// feed (G5's live half is not built); the declaration is what the setup wizard
+// and `config.status` render, and refreshFeed already carries the grant.
+export const appConfig = defineConfig({
+  caltrainFeed: {
+    description: '511.org Open Data API key',
+    purpose: 'Fetches the Caltrain GTFS-Realtime feed for live departures',
+    required: false,
+    pool: true,
+    howToGet:
+      'Request a free key at https://511.org/open-data/token — it arrives by email, ' +
+      'typically within a day. Add more than one key to spread rate limits.',
+    acquisition: {
+      url: 'https://511.org/open-data/token',
+      kind: 'email-delay',
+      inputs: ['name', 'email', 'intended use'],
+      cost: 'free',
+      humanCommitment: ['terms'],
+    },
+  },
+});
 
 // --- Static schedule reads (callable; the committed durable schedule) ---------
 
@@ -86,6 +112,9 @@ export const resetFeed = defineJsMutation({
 export const refreshFeed = defineAction({
   args: { trigger: v.optional(v.string()) },
   js: { source: 'handlers.mjs', exportName: 'refreshFeed' },
+  // @ref LLP 0036#declared-configuration-in-the-manifest — D8: the grant that
+  // hands Phase 3's live fetch its rotating key via ctx.secrets.
+  uses: ['caltrainFeed'],
   writes: ['trainStatus', 'feedRefreshState'],
 });
 

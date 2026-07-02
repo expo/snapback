@@ -13,6 +13,7 @@
 
 const FN = Symbol('snapback.fn');
 const CRON = Symbol('snapback.cron');
+const CONFIG = Symbol('snapback.config');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 
@@ -273,6 +274,9 @@ export function defineAction(spec) {
       [FN]: true,
       __kind: 'Action',
       args: spec.args ?? {},
+      // @ref LLP 0036#declared-configuration-in-the-manifest — D8: the config
+      // entries this action may receive via ctx.secrets.
+      uses: spec.uses ?? [],
       js: {
         source: spec.js.source,
         exportName: spec.js.exportName,
@@ -288,6 +292,7 @@ export function defineAction(spec) {
     [FN]: true,
     __kind: 'Action',
     args: spec.args ?? {},
+    uses: spec.uses ?? [],
     plan: { steps, return_value: spec.returns ?? null },
     writes: spec.writes ?? [],
   };
@@ -298,6 +303,19 @@ export function defineCron(jobs) {
   return { [CRON]: true, jobs };
 }
 
+/**
+ * Declare the app's config entries (API keys and deployment settings).
+ * Names, purposes, and acquisition metadata are app source — public by
+ * construction; values live only in the deployment's config store.
+ *
+ * @ref LLP 0036#declared-configuration-in-the-manifest — entries ride the
+ * generated function manifest the way cron jobs do.
+ */
+export function defineConfig(entries) {
+  assert(entries && typeof entries === 'object', 'defineConfig expects an entries object');
+  return { [CONFIG]: true, entries };
+}
+
 // ---------------------------------------------------------------------------
 
 export function isFunctionDef(value) {
@@ -306,6 +324,10 @@ export function isFunctionDef(value) {
 
 export function isCronDef(value) {
   return Boolean(value && value[CRON]);
+}
+
+export function isConfigDef(value) {
+  return Boolean(value && value[CONFIG]);
 }
 
 export function isEphemeralCollectionDef(value) {

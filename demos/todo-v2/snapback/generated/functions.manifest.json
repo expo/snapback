@@ -1,7 +1,8 @@
 {
   "appId": "todo-v2",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:7b6da71527ea4164",
+  "bundleHash": "sha256:27ae01215abda6f2",
+  "config": [],
   "cronJobs": [],
   "functions": [
     {
@@ -52,6 +53,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -98,6 +100,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -149,6 +152,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -200,6 +204,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "syncable-live",
+      "uses": [],
       "writeSetSummary": {
         "mode": "none",
         "primaryTable": null,
@@ -248,6 +253,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "online-only",
+      "uses": [],
       "writeSetSummary": {
         "mode": "none",
         "primaryTable": null,
@@ -297,6 +303,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -348,6 +355,7 @@
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
+      "uses": [],
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -358,7 +366,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "8d7eadc888bc482ef6f9168f3cef1bf483096a52adf742fd6399207d287957ad",
+  "inputsHash": "2ad83dbea4d3f8750aa73fb4c005ebf1b108f84ce2f4077b7c9541dd55444f7c",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

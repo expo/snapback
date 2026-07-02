@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:02e59f3c2faa332e",
+  "bundleHash": "sha256:03a5b318f970875e",
   "capabilities": {
     "branchableFixtures": false,
     "forceStates": true,
@@ -12,15 +12,21 @@
     "serverRunnableQueries": true,
     "subscriptions": true
   },
-  "inputsHash": "a431dfc83d67215174af2efdc16e6e6973621420a4f2790199897f271f566426",
-  "manifestVersion": 1,
+  "ephemeral": {},
+  "inputsHash": "44f8226cdf5f6da0430eba544b1e9970e8a628804e97cb5c0ba3c15f8ba02afe",
+  "manifestVersion": 2,
   "mutations": {},
   "provider": "snapback",
   "queries": {
     "queryProbe": {
       "argOrder": [],
       "args": {},
+      "defaultLive": false,
+      "ephemeral": false,
+      "initialSnapshot": false,
+      "livePush": false,
       "localRunnable": false,
+      "mode": "snapshot",
       "name": "queryProbe",
       "result": {
         "kind": "list",
@@ -54,6 +60,7 @@
       "subscription": "none"
     }
   },
+  "receipts": "none",
   "schemaHash": "sha256:14fdc81cf4119a2e",
   "schemaVersion": "snapback.v0"
 }
