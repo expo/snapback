@@ -15,7 +15,7 @@ jobs:
   local-proof:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           # vendor/ibex is a private-repo submodule; the default GITHUB_TOKEN
@@ -23,7 +23,7 @@ jobs:
           # ccheever/snapback + ccheever/ibex.
           token: ${{ secrets.SUBMODULE_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
 
@@ -31,7 +31,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
 
       - name: Cache Hermes Linux build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/exact/hermes-linux

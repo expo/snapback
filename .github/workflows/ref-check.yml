@@ -9,6 +9,6 @@ jobs:
   ref-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate LLP references and metadata
         run: ./ref-check --verbose
