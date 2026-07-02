@@ -170,6 +170,13 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   implementation reality, proposed transitions are ratified or declined, and
   the ledger lists the outcomes; a note in each changed doc says what
   evidence justified the change.
+  **Proposal batch prepared 2026-07-01** (all 33 statuses reviewed; pending
+  Charlie's ratification): 0002 → Active; research docs 0001/0006/0019/0022 →
+  Active; 0013/0017/0023/0028/0031 → Accepted; 0025 → Implemented; 0020 →
+  Implemented if Phases 1–4 are its full scope (verify at ratification);
+  ratify the 0010 V1 charter (R2) and LLP 0033 (R5/DK-8); everything else
+  stays Draft, which is accurate. Section-level annotations landed via
+  R3/R4/R7.
 - **R2 — Replace the outgrown V0 charter.** The ratified charter in
   [LLP 0010](./0010-agent-dx-and-acceptance.spec.md) §V0 Implementation
   Charter forbids cron; cron shipped and
@@ -177,6 +184,8 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   V1 charter (what the current slice does and does not claim), mark the V0
   charter superseded in place, and ledger it. **Done when:** LLP 0010 carries
   the current charter and no shipped subsystem is charter-forbidden.
+  **Drafted 2026-07-01** — V1 charter added to 0010, V0 marked
+  superseded-in-practice; ratification pending in the R1 batch.
 - **R3 — Fix stale cross-references.** [confirmed] items from the review:
   - [LLP 0013](./0013-ephemeral-realtime-state.rfc.md) §App API boundary
     justifies publish-after-commit by citing the *superseded* whole-handler
@@ -209,7 +218,10 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   - [LLP 0000](./0000-snapback.explainer.md)'s Related index is missing
     LLP 0031 (fixed alongside this plan's creation).
   **Done when:** each listed item has landed and `ref-check --verbose`
-  passes.
+  passes. **Landed 2026-07-01** — all six items (0013 boundary re-ground,
+  0007 id close-out, 0017 diagnosis + safe-by-default fixes, 0027 sketch,
+  0015/0016 ladder reconcile, diary 0006 erratum with the immutability
+  policy adopted in 0016).
 - **R4 — Mark pinned-not-built surfaces.** [LLP 0024](./0024-agent-operating-surface.spec.md)
   pins a full CLI/host-ops verb table that does not run anywhere
   ([LLP 0030](./0030-managed-snapback-vite-dev.rfc.md) says so). Add a
@@ -217,6 +229,7 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   reads as shipped) distinguishing *pinned contract* from *built surface*, so
   agents reading the corpus cannot mistake aspiration for API. **Done when:**
   an agent reading 0024 top-to-banner knows what exists today.
+  **Landed 2026-07-01** (banner in 0024; flips per verb as P6 slices land).
 - **R5 — Name the licensing decision.** [LLP 0022](./0022-electric-powersync-turso.research.md)
   flags PowerSync's deliberate FSL choice; Snapback's pure-MIT free-riding
   exposure is currently a blind spot rather than a decision. Write the short
@@ -224,10 +237,14 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   variants — recommendation: MIT eyes-open, since "truly open" is a ratified
   core value in LLP 0000, but the trade should be recorded and ratified).
   **Done when:** a Decision LLP exists and LLP 0000/0022 cross-reference it.
+  **Drafted 2026-07-01** as
+  [LLP 0033](./0033-license-posture.decision.md), cross-referenced from
+  0000/0022; ratification pending in the R1 batch.
 - **R6 — Reconcile cadence.** Adopt a standing rule (in `AGENTS.md` or
   LLP 0016): run the `llp-maintain` audit before each demo lands and after
   each phase of this plan completes. **Done when:** the rule is written down
-  and has run once.
+  and has run once. **Adopted 2026-07-01** in LLP 0016 and AGENTS.md; the
+  first run is this Phase 0 audit (closes with the R1 batch).
 - **R7 — Execution-semantics honesty patch (doc-only).** The corpus's most
   load-bearing overclaim cannot wait for Phase 2: LLP 0003/0004/0007
   describe snapshot reads, read-your-writes `ctx.db`, and commit-time
@@ -241,6 +258,9 @@ cross-references are wrong produces confidently wrong agents. Run this as an
   corpus document describes unimplemented execution semantics as current;
   each revised section cites the register evidence and names the Phase 2
   step that closes its gap.
+  **Landed 2026-07-01** — status callouts in 0003 §Execution and Write
+  Semantics, 0004 §Write Semantics, and 0007's read-set-validation contract;
+  0013's stale lock citation was R3's fix.
 
 ## Phase 1 — Safety floor and confirmed defects
 
@@ -748,7 +768,7 @@ Status column in place as rows close.
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | Open — closes with the cron test-debt work |
 | DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | Open — blocks P3c |
-| DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Open — R5 |
+| DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Drafted as LLP 0033 — ratification pending |
 | DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | Open — X4 |
 | DK-10 | Adapter live-push architecture | Adapter owns the live subscription; separate live-provider seam beside the boundary | prototype in P5 | LLP 0021/0029 | Open — P5 prototype |
 
