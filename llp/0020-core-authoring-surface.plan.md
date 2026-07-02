@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-01 (LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-07-02 (schema source-of-truth open question decided — LLP 0037, Rust-first; earlier: 2026-07-01 LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
 
 ## Summary
@@ -163,7 +163,8 @@ Rust source.
 Required changes:
 
 - choose one source of truth for the v0 artifact schemas (resolves Open
-  Question 1);
+  Question 1) — **decided 2026-07-02**: Rust types → generated JSON Schema,
+  per [LLP 0037](./0037-schema-source-of-truth.decision.md);
 - generate TypeScript types for `schemaManifest`, `functionManifest`,
   `capabilityManifest`, the target profile, diagnostics, runtime state,
   generated function references, and the client call surface;
@@ -461,9 +462,12 @@ scaffolding it depends on and the capability class it is exercising.
 
 ## Open Questions
 
-- Which schema definition is the single source of truth for Rust and TypeScript
-  artifact generation, and does that source also own the shared
-  `ContractDataManifest` schema or only the core manifests LLP 0012 names?
+- ~~Which schema definition is the single source of truth for Rust and
+  TypeScript artifact generation~~ — **decided 2026-07-02**: the Rust types,
+  with generated committed JSON Schemas and a snapshot drift gate
+  ([LLP 0037](./0037-schema-source-of-truth.decision.md)). It owns only the
+  Snapback-native manifests LLP 0012 names; the Exact-owned
+  `ContractDataManifest` stays a mapping obligation (LLP 0021).
 - What is the pluggable transport abstraction for non-local targets, now that
   the first local push transport is WebSocket?
 - Which exact permission metadata syntax declares permission-affecting writes

@@ -7,7 +7,7 @@
 **Date:** 2026-07-01
 **Revised:** 2026-07-02 (L9 landed per LLP 0026 Phase 1+2, closing Phase 3 —
 L1–L9 all landed. Same day: DK-6 decided as POSIX OR — ratified by Charlie same day, ledgered in LLP 0000 — with the calendar-cron and cron-retry test-debt rows closed; and L6+L7 landed as the dedicated reviewed concurrency arc: design note, register entries with measured numbers, and the review's HIGH `GET /` fix recorded. Earlier: 2026-07-01 accepted by Charlie after the two-family review loop; same day, revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0033, LLP 0035, LLP 0037
 
 ## Summary
 
@@ -1023,9 +1023,11 @@ parallel with Phase 3.
   consumer fixture (the S5.D2 bug shipped because no TypeScript ever
   compiled the output); (c) manifest JSON-Schema validation against a schema
   derived from the Rust types — this is **DK-7**, the corpus's most-repeated
-  open question (LLP 0016, 0020, 0024 all block on it); recommendation:
-  Rust types are the source of truth, `schemars`-style JSON Schema is
-  generated from them, JS validates against it. Also close the typing gaps:
+  open question (LLP 0016, 0020, 0024 all block on it); **decided 2026-07-02**
+  ([LLP 0037](./0037-schema-source-of-truth.decision.md)): Rust types are the
+  source of truth, generated JSON Schemas are committed at `schemas/` with a
+  Rust snapshot test as the drift gate, JS validates against the committed
+  schemas. Also close the typing gaps:
   JS-handler result types are guessed from the first declared read table and
   `v.json()` becomes `unknown` (`demos/_kit/codegen.mjs:145-146`, `807-808`)
   — require declared result validators for JS handlers or mark the type
@@ -1167,7 +1169,7 @@ Status column in place as rows close.
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01; gated leg landed 2026-07-02** — warm VM pool + verified per-invocation reset shipped behind the `dk4_*` leak suite (LLP 0009 §DK-4 as-built; numbers in LLP 0035 §After warm VM) |
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | **Decided 2026-07-02 — POSIX OR; landed with cron test-debt closure; ratified by Charlie same day, ledgered in LLP 0000** |
-| DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | Open — blocks P3c |
+| DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | **Decided 2026-07-02 — Rust-first** ([LLP 0037](./0037-schema-source-of-truth.decision.md)); P3c implements, P2 consumes |
 | DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Decided 2026-07-01 — MIT eyes-open (LLP 0033) |
 | DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | Open — X4 |
 | DK-10 | Adapter live-push architecture | Adapter owns the live subscription; separate live-provider seam beside the boundary | prototype in P5 | LLP 0021/0029 | Open — P5 prototype |

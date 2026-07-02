@@ -6,8 +6,8 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (related LLP index and follow-on list updated for LLP 0036; same day, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
-**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0035, LLP 0036, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
+**Revised:** 2026-07-02 (decision ledger: DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0037 and repairs the missing LLP 0034 entry; earlier same day: related LLP index and follow-on list updated for LLP 0036, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
 
@@ -159,6 +159,17 @@ corpus does not rely on scattered "pending Charlie" notes.
   semantics; cross-invocation *execution* is separately fenced by the epoch
   guard), pinned by a characterization test
   ([LLP 0009](./0009-code-execution-security.rfc.md) §DK-4 as-built).
+- **2026-07-02:** the schema source of truth (docket DK-7) is decided and
+  ratified by Charlie (decision drafted and applied by Claude under Charlie's
+  same-day delegation): **the Rust types the server parses are the single
+  source of truth** for every Snapback-owned shared artifact shape; JSON
+  Schemas are generated from them and committed at `schemas/`, JS codegen and
+  tools validate against the committed schemas, and a Rust snapshot test is
+  the CI drift gate ([LLP 0037](./0037-schema-source-of-truth.decision.md)).
+  The Exact-owned `ContractDataManifest` is explicitly out of scope — the
+  obligation there is a validated mapping, not schema authority. Unblocks
+  LLP 0032 P3(c)/P2 and answers the open questions LLP 0016 Phase 1,
+  LLP 0020, and LLP 0024 blocked on.
 
 ## Who Snapback is for
 

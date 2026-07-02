@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-01 (LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
+**Revised:** 2026-07-02 (hostOpsResult source-of-truth open question decided — LLP 0037, Rust-first; earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023
 
 > **Implementation status (2026-07-01):** this Spec pins a contract; the
@@ -460,8 +460,12 @@ Before this Spec moves beyond `Draft`, the first implementation should prove:
 
 ## Open Questions
 
-- Which source-of-truth schema file should define `hostOpsResult` so Rust,
-  TypeScript, CLI, HTTP, and MCP codegen cannot drift?
+- ~~Which source-of-truth schema file should define `hostOpsResult` so Rust,
+  TypeScript, CLI, HTTP, and MCP codegen cannot drift?~~ **Decided
+  2026-07-02** ([LLP 0037](./0037-schema-source-of-truth.decision.md)): the
+  Rust host-ops types are the source of truth; the committed generated JSON
+  Schema is what CLI/HTTP/MCP codegen consumes. Lands with the LLP 0032 P6
+  first slice.
 - Should `/_snapback/api/host-ops` stay as one operation endpoint, or should
   public docs also expose per-operation REST-ish aliases after the core is
   stable?

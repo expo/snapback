@@ -5,8 +5,8 @@
 **Systems:** Developer experience, Client integration, API, Runtime, Sync, Realtime, Security, Auth, Contract/Exact, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted; 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, Diary 0001, Exact 0263, Exact 0265
+**Revised:** 2026-07-02 (Phase 1's schema source-of-truth blocker decided — LLP 0037, Rust-first; earlier: 2026-07-01 LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted; 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, LLP 0037, Diary 0001, Exact 0263, Exact 0265
 
 ## Summary
 
@@ -70,9 +70,11 @@ The real dependencies are:
 - **Phase 1 (typed artifacts) is the long pole.** Phase 3 (Contract adapter),
   Phase 5 (Contract ergonomics), and Phase 6 (React) all consume generated
   descriptors, so none of them can reach its acceptance gate until Phase 1
-  lands. Phase 1 is itself blocked on two decisions in Open Questions: the
-  single source-of-truth schema, and a written `ContractDataManifest` shape (no
-  LLP defines it yet).
+  lands. Phase 1 was blocked on two decisions in Open Questions: the single
+  source-of-truth schema — **decided 2026-07-02**, Rust types → generated JSON
+  Schema ([LLP 0037](./0037-schema-source-of-truth.decision.md)) — and a
+  written `ContractDataManifest` shape (no LLP defines it yet; still open,
+  owned with [LLP 0021](./0021-contract-exact-integration-hardening.plan.md)).
 - **Phase 2 (`ctx.db` handlers) is independent of Phase 1** and gated instead by
   LLP 0009's execution envelope. Phases 1 and 2 together unblock Todo v1.
 - **Phase 4 (realtime) is independent of Phases 1–3** but gates the kanban and
@@ -455,11 +457,13 @@ Two standing corpus rules (adopted 2026-07-01 via LLP 0032 R3/R6):
 
 ## Open Questions
 
-- **[Blocks Phase 1]** Which schema definition should be the single source of
-  truth for Rust and TypeScript artifact types? Should one package expose
-  framework entry points, or should each adapter publish separately, and what
-  are the package names? *Proposed:* settle the source-of-truth choice as a
-  Decision LLP before Phase 1.
+- **[Schema half decided 2026-07-02]** The single source of truth for Rust and
+  TypeScript artifact types is the Rust types, per
+  [LLP 0037](./0037-schema-source-of-truth.decision.md) (the Decision LLP this
+  question asked for; LLP 0032 P3 implements the drift gate). Still open:
+  should one package expose framework entry points or should each adapter
+  publish separately, and what are the package names? — owned by LLP 0032
+  P6's packaging step.
 - **[Blocks the Phase 1 and Phase 3 Contract gates]** What is the
   `ContractDataManifest` shape, `artifactKind`, and version handshake? No LLP
   defines it today; it needs a shared-boundary spec.
