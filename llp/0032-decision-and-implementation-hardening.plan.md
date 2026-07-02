@@ -1153,8 +1153,11 @@ silently grow the acceptance gate.
 - CORS middleware behavior (`src/server.rs:278-320`).
 - Cron retry: `CronRetryMode::Backoff` parses but is unimplemented
   [confirmed] — and no mode has retry logic today (`NextTick` has no
-  explicit handling to match), so retry semantics are net-new. Implement or
-  reject at codegen (fail-closed rule), then test.
+  explicit handling to match), so retry semantics are net-new. **Closed
+  2026-07-02 (reject half):** manifest validation now rejects `retry:
+  backoff` fail-closed as `SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED`, with a
+  test asserting the diagnostic and that the job is never scheduled; actual
+  retry logic stays net-new work for whichever job first needs it.
 - Cron tick-machinery error path (S5.D11): the recording seam and counter
   are tested on the happy path, but forcing `tick_cron`'s own claim/persist
   failure needs storage fault injection that does not exist yet. **Won't-test

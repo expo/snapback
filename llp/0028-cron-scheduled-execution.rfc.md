@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, pending Charlie's ratification nod: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing)
+**Revised:** 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, pending Charlie's ratification nod: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027
 
 ## Summary
@@ -362,6 +362,13 @@ question.
 - Default for pollers: **skip and try the next tick** rather than retry
   aggressively — the next poll is already coming. Jobs that need it can opt into
   retry with backoff.
+- **`retry: backoff` is declared but not implemented.** No retry logic exists
+  for any mode yet (`NextTick` is the implicit skip-to-next-tick default), so
+  manifest validation rejects `retry: backoff` fail-closed with a structured
+  diagnostic (`SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED`) rather than parsing it
+  and silently never retrying — the
+  [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) test-debt
+  fail-closed rule. Lift the rejection when backoff retry actually exists.
 - Repeated failures surface as diagnostics and observability, not just log lines.
 - **On Cloudflare, backoff retry is a primitive capability, not a free knob:**
   Durable Object alarms auto-retry a throwing handler with exponential backoff and

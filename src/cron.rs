@@ -1,7 +1,7 @@
 use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::manifest::{
-    CronActivationKind, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronSchedule,
-    FunctionKind, FunctionManifest, SNAPBACK_SCHEMA_VERSION,
+    CronActivationKind, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode,
+    CronSchedule, FunctionKind, FunctionManifest, SNAPBACK_SCHEMA_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -644,6 +644,25 @@ pub fn validate_cron_manifest(manifest: &FunctionManifest) -> Vec<Diagnostic> {
                 Ok(_) => {}
             },
             _ => {}
+        }
+
+        // No retry logic exists for any mode yet (`NextTick` is the implicit
+        // skip-to-next-tick default). A job that asks for backoff would
+        // parse, then silently get no retries — reject it instead.
+        //
+        // @ref LLP 0028#failure-and-retry — `retry: backoff` is declared but
+        // unimplemented; the LLP 0032 test-debt fail-closed rule rejects it
+        // at validation until real retry logic lands.
+        if job.retry_policy.mode == CronRetryMode::Backoff {
+            diagnostics.push(cron_error(
+                "SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED",
+                job,
+                format!(
+                    "cron job {} requests retry mode Backoff, which is not implemented; \
+                     use NextTick or remove the retry policy",
+                    job.name
+                ),
+            ));
         }
 
         match manifest.function(&job.action) {
@@ -1341,6 +1360,40 @@ mod tests {
             diagnostics.is_empty(),
             "unexpected diagnostics: {diagnostics:?}"
         );
+    }
+
+    // `retry: backoff` parses but no retry logic exists; the fail-closed
+    // rule rejects it at validation instead of silently never retrying.
+    #[test]
+    fn backoff_retry_mode_is_rejected_fail_closed() {
+        let mut backoff = interval_job("pollWithBackoff", 60_000);
+        backoff.retry_policy = CronRetryPolicy {
+            mode: CronRetryMode::Backoff,
+        };
+        let manifest = manifest_with_jobs(vec![backoff]);
+        let diagnostics = validate_cron_manifest(&manifest);
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == "SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED")
+            .expect("backoff retry mode should be rejected");
+        assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
+        assert!(diagnostic.message.contains("not implemented"));
+        assert_eq!(
+            diagnostic.details.get("jobName").and_then(Value::as_str),
+            Some("pollWithBackoff")
+        );
+
+        // Fail closed: the job gets no runtime state and is never claimed,
+        // even when a tick is due.
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let claims = runtime.claim_due_runs(&manifest, &BTreeSet::new(), 600_000);
+        assert!(claims.is_empty(), "backoff job must not be scheduled");
+
+        // The implemented default passes validation untouched.
+        let next_tick = interval_job("poll", 60_000);
+        assert_eq!(next_tick.retry_policy.mode, CronRetryMode::NextTick);
+        assert!(validate_cron_manifest(&manifest_with_jobs(vec![next_tick])).is_empty());
     }
 
     #[test]
