@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# The Ibex bring-up doctor (LLP 0032 P7). Three diaries hit Hermes/dyld
+# bring-up failures in three shapes — build env, spawned-process dyld, and
+# cargo-can't-compile — so this check runs WITHOUT building anything and
+# prints diagnostic-coded remediation for each failure it finds.
+#
+# Usage: scripts/ibex-doctor [--json]
+# Exit: 0 when every required check passes (warnings allowed), 1 otherwise.
+#
+# Detection is shared with scripts/bootstrap-ibex-runtime via
+# scripts/lib/ibex-artifacts.sh — one source of truth for what a working
+# bring-up looks like.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENDOR_IBEX="$ROOT/vendor/ibex"
+
+# shellcheck source=lib/ibex-artifacts.sh
+. "$ROOT/scripts/lib/ibex-artifacts.sh"
+
+JSON_MODE=0
+if [ "${1:-}" = "--json" ]; then
+    JSON_MODE=1
+fi
+
+TARGET_OS="$(ibex_target_os)"
+HERMES_ARCH="$(ibex_hermes_arch)"
+
+FAILED=0
+CHECK_JSON=""
+LAST_REASON=""
+
+capture_reason() {
+    LAST_REASON="$*"
+}
+IBEX_ARTIFACTS_LOG=capture_reason
+
+json_escape() {
+    printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null \
+        || printf '"%s"' "$(printf '%s' "$1" | sed 's/"/\\"/g')"
+}
+
+report() {
+    local status="$1"   # ok | fail | warn
+    local code="$2"
+    local detail="$3"
+    local remediation="$4"
+
+    if [ "$JSON_MODE" = 1 ]; then
+        local entry
+        entry="{\"code\":$(json_escape "$code"),\"status\":$(json_escape "$status"),\"detail\":$(json_escape "$detail"),\"remediation\":$(json_escape "$remediation")}"
+        if [ -n "$CHECK_JSON" ]; then
+            CHECK_JSON="$CHECK_JSON,$entry"
+        else
+            CHECK_JSON="$entry"
+        fi
+    else
+        local mark="ok  "
+        case "$status" in
+            fail) mark="FAIL" ;;
+            warn) mark="warn" ;;
+            info) mark="info" ;;
+        esac
+        printf '[ibex-doctor] %s %s — %s\n' "$mark" "$code" "$detail"
+        if [ "$status" != "ok" ] && [ -n "$remediation" ]; then
+            printf '[ibex-doctor]      remediation: %s\n' "$remediation"
+        fi
+    fi
+    if [ "$status" = "fail" ]; then
+        FAILED=1
+    fi
+}
+
+# --- 1. Repository shape: the vendored Ibex submodule ------------------------
+
+if [ -f "$VENDOR_IBEX/Cargo.toml" ]; then
+    report ok SNAPBACK_DOCTOR_SUBMODULE "vendor/ibex submodule is initialized" ""
+else
+    report fail SNAPBACK_DOCTOR_SUBMODULE \
+        "vendor/ibex is missing or empty (cargo cannot compile the ibex-runtime crate)" \
+        "git submodule update --init --recursive  (vendor/ibex is a private submodule: your token needs read access to ccheever/ibex)"
+fi
+
+# --- 2. Hermes headers (the cargo-can't-compile shape) ------------------------
+
+BOOTSTRAP_HINT="scripts/bootstrap-ibex-runtime  (uses a prepared sibling ../ibex checkout or SNAPBACK_IBEX_CHECKOUT=/path/to/ibex first, then the vendored setup; do not start by building Hermes from source)"
+
+case "$TARGET_OS" in
+    darwin)
+        LAST_REASON=""
+        if ibex_has_darwin_headers "$VENDOR_IBEX"; then
+            report ok SNAPBACK_DOCTOR_HERMES_HEADERS "Hermes/JSI headers present (ios/Frameworks/hermes-headers)" ""
+        else
+            report fail SNAPBACK_DOCTOR_HERMES_HEADERS "${LAST_REASON:-Hermes headers missing}" "$BOOTSTRAP_HINT"
+        fi
+
+        LAST_REASON=""
+        if ibex_has_macos_framework "$VENDOR_IBEX"; then
+            report ok SNAPBACK_DOCTOR_HERMES_RUNTIME "macOS Hermes framework present" ""
+        else
+            report fail SNAPBACK_DOCTOR_HERMES_RUNTIME "${LAST_REASON:-macOS Hermes framework missing}" "$BOOTSTRAP_HINT"
+        fi
+        ;;
+    linux)
+        LAST_REASON=""
+        if ibex_has_linux_headers "$VENDOR_IBEX"; then
+            report ok SNAPBACK_DOCTOR_HERMES_HEADERS "Hermes/JSI headers present (linux/hermes-headers)" ""
+        else
+            report fail SNAPBACK_DOCTOR_HERMES_HEADERS "${LAST_REASON:-Linux Hermes headers missing}" "$BOOTSTRAP_HINT"
+        fi
+
+        LAST_REASON=""
+        if ibex_has_linux_runtime "$VENDOR_IBEX"; then
+            report ok SNAPBACK_DOCTOR_HERMES_RUNTIME "libhermesvm present (linux/lib)" ""
+        else
+            report fail SNAPBACK_DOCTOR_HERMES_RUNTIME "${LAST_REASON:-libhermesvm missing}" "$BOOTSTRAP_HINT"
+        fi
+        ;;
+    *)
+        report fail SNAPBACK_DOCTOR_HOST_UNSUPPORTED "unsupported host OS '$TARGET_OS'" \
+            "use the vendor/ibex platform setup directly"
+        ;;
+esac
+
+# --- 3. hermesc (bytecode compiler) -------------------------------------------
+
+LAST_REASON=""
+case "$TARGET_OS" in
+    darwin) HERMESC_OS="macos" ;;
+    *) HERMESC_OS="$TARGET_OS" ;;
+esac
+if ibex_has_hermesc "$VENDOR_IBEX" "$HERMESC_OS" "$HERMES_ARCH"; then
+    report ok SNAPBACK_DOCTOR_HERMESC "hermesc present (tools/hermes)" ""
+else
+    report fail SNAPBACK_DOCTOR_HERMESC "${LAST_REASON:-hermesc missing}" "$BOOTSTRAP_HINT"
+fi
+
+# --- 4. Runtime library path (the spawned-process dyld SIGABRT shape) ---------
+
+if [ "$TARGET_OS" = "darwin" ]; then
+    # macOS SIP strips DYLD_* variables when execution crosses into a
+    # protected binary (/bin/bash included), so this doctor can NEVER observe
+    # the caller's DYLD_FRAMEWORK_PATH — the very mechanism behind the
+    # "exported it and the spawned server still SIGABRTs" diary confusion.
+    # The check is therefore standing guidance, not an observation.
+    FRAMEWORKS="$VENDOR_IBEX/ios/Frameworks"
+    DYLD_LINE="export DYLD_FRAMEWORK_PATH=\"$FRAMEWORKS:$FRAMEWORKS/macosx\${DYLD_FRAMEWORK_PATH:+:\$DYLD_FRAMEWORK_PATH}\""
+    report info SNAPBACK_DOCTOR_DYLD_ENV \
+        "a bare 'cargo test' or a test-spawned server binary SIGABRTs loading Hermes without DYLD_FRAMEWORK_PATH; SIP strips DYLD_* across protected binaries so this doctor cannot verify your shell's value (scripts/verify-local-proof sets it automatically)" \
+        "$DYLD_LINE"
+elif [ "$TARGET_OS" = "linux" ]; then
+    LIB_DIR="$VENDOR_IBEX/linux/lib"
+    case ":${LD_LIBRARY_PATH:-}:" in
+        *":$LIB_DIR:"*)
+            report ok SNAPBACK_DOCTOR_DYLD_ENV "LD_LIBRARY_PATH includes the vendored Hermes libs" ""
+            ;;
+        *)
+            report warn SNAPBACK_DOCTOR_DYLD_ENV \
+                "LD_LIBRARY_PATH does not include $LIB_DIR — spawned server binaries may fail to load libhermesvm (scripts/verify-local-proof sets this automatically)" \
+                "export LD_LIBRARY_PATH=\"$LIB_DIR\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\""
+            ;;
+    esac
+fi
+
+# --- 5. Ibex CLI (optional capability; the server reports the gap honestly) ---
+
+if [ -x "$VENDOR_IBEX/target/debug/ibex" ] || [ -x "$VENDOR_IBEX/target/release/ibex" ]; then
+    report ok SNAPBACK_DOCTOR_IBEX_CLI "vendored Ibex CLI present" ""
+else
+    report warn SNAPBACK_DOCTOR_IBEX_CLI \
+        "vendored Ibex CLI not built — the server runs, reporting the ibex_cli capability gap" \
+        "scripts/bootstrap-ibex-runtime links the sibling checkout's CLI when one exists"
+fi
+
+# --- 6. Toolchain ---------------------------------------------------------------
+
+if command -v cargo >/dev/null 2>&1; then
+    report ok SNAPBACK_DOCTOR_CARGO "cargo present ($(cargo --version 2>/dev/null | head -1))" ""
+else
+    report fail SNAPBACK_DOCTOR_CARGO "cargo not found" "install Rust via rustup (https://rustup.rs)"
+fi
+
+if command -v node >/dev/null 2>&1; then
+    report ok SNAPBACK_DOCTOR_NODE "node present ($(node --version 2>/dev/null))" ""
+else
+    report fail SNAPBACK_DOCTOR_NODE "node not found (the demo acceptance suites need node >= 22)" "install Node 22+"
+fi
+
+if command -v bun >/dev/null 2>&1; then
+    report ok SNAPBACK_DOCTOR_BUN "bun present ($(bun --version 2>/dev/null))" ""
+else
+    report warn SNAPBACK_DOCTOR_BUN "bun not found — only the Exact-dependent Contract suites need it" "install bun (https://bun.sh)"
+fi
+
+# --- Report -------------------------------------------------------------------
+
+if [ "$JSON_MODE" = 1 ]; then
+    OK_VALUE=true
+    [ "$FAILED" = 1 ] && OK_VALUE=false
+    printf '{"schemaVersion":"snapback.v0","resultKind":"ibexDoctorReport","os":"%s","arch":"%s","ok":%s,"checks":[%s]}\n' \
+        "$TARGET_OS" "$HERMES_ARCH" "$OK_VALUE" "$CHECK_JSON"
+else
+    if [ "$FAILED" = 1 ]; then
+        printf '[ibex-doctor] result: FAIL — follow the remediation lines above, then re-run scripts/ibex-doctor\n'
+    else
+        printf '[ibex-doctor] result: ok — Ibex/Hermes bring-up looks healthy\n'
+    fi
+fi
+
+exit "$FAILED"

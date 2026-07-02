@@ -98,4 +98,9 @@ them after normal checkout/merge operations in this local clone.
   checkout when available, then falls back to the vendored Ibex setup script.
   Set `SNAPBACK_IBEX_CHECKOUT=/path/to/ibex` if the prepared checkout lives
   somewhere else. Do not start by building Hermes from source unless you are
-  specifically changing Ibex or Hermes.
+  specifically changing Ibex or Hermes. When bring-up fails in any shape
+  (cargo can't compile the runtime crate, a spawned server SIGABRTs loading
+  Hermes, missing artifacts), run `scripts/ibex-doctor` — diagnostic-coded
+  remediation per failure (`--json` for structured output). Note macOS SIP
+  strips `DYLD_*` env across protected binaries, so export
+  `DYLD_FRAMEWORK_PATH` in the shell that runs `cargo test` directly.

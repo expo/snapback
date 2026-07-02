@@ -1236,7 +1236,21 @@ client, typed inspect) remain open** — Milestone C needs them.
   or add a host-op): detect frameworks, paths, env, and print
   diagnostic-coded remediation. **Done when:** a fresh clone on macOS goes
   red→green through doctor guidance alone, and a CI lane exercises the
-  doctor.
+  doctor. **Landed 2026-07-02** — `scripts/ibex-doctor` (`--json` for
+  structured output) runs without building anything and reports
+  `SNAPBACK_DOCTOR_{SUBMODULE,HERMES_HEADERS,HERMES_RUNTIME,HERMESC,
+  DYLD_ENV,IBEX_CLI,CARGO,NODE,BUN}` with per-failure remediation; artifact
+  detection is extracted to `scripts/lib/ibex-artifacts.sh` and shared with
+  the bootstrap (one source of truth — the bootstrap behaves identically).
+  Red→green proven in a fresh worktree (the fresh-clone shape: empty
+  submodule, no artifacts): doctor fails with four coded remediations;
+  following exactly its guidance (submodule init → bootstrap with the
+  prepared checkout) turns it green. The proof surfaced a real gotcha now
+  encoded in the doctor and AGENTS.md: **macOS SIP strips `DYLD_*` env
+  across protected binaries**, so the doctor structurally cannot observe
+  the caller's `DYLD_FRAMEWORK_PATH` — that check is standing guidance
+  (info), with the real env check kept on Linux (`LD_LIBRARY_PATH` is not
+  stripped). CI exercises the green path in `verify-local-proof`.
 - **P8 — One admin client, typed inspect.** The embedded console and the
   Contract admin-ui duplicate client and view-model logic, which is where
   the diary-0005 casing bug lived; `/inspect` still mixes camelCase,

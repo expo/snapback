@@ -38,6 +38,9 @@ run scripts/check-generated-artifacts
 run scripts/check-generated-types
 run scripts/check-demo-surfaces
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
+# LLP 0032 P7: the CI lane exercises the doctor's green path (red paths are
+# proven by the fresh-worktree red→green exercise recorded in the plan).
+run scripts/ibex-doctor
 run cargo test
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs

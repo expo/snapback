@@ -6,14 +6,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR_IBEX="$ROOT/vendor/ibex"
 DEFAULT_PEER_IBEX="$(cd "$ROOT/.." && pwd)/ibex"
 PEER_IBEX="${SNAPBACK_IBEX_CHECKOUT:-$DEFAULT_PEER_IBEX}"
-TARGET_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-ARCH_RAW="$(uname -m)"
 
-case "$ARCH_RAW" in
-    arm64|aarch64) HERMES_ARCH="arm64" ;;
-    x86_64|amd64) HERMES_ARCH="x64" ;;
-    *) HERMES_ARCH="$ARCH_RAW" ;;
-esac
+# Artifact detection is shared with scripts/ibex-doctor (LLP 0032 P7):
+# scripts/lib/ibex-artifacts.sh is the single source of truth for what a
+# working Ibex/Hermes bring-up looks like.
+# shellcheck source=lib/ibex-artifacts.sh
+. "$ROOT/scripts/lib/ibex-artifacts.sh"
+
+TARGET_OS="$(ibex_target_os)"
 
 RUN_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-1}"
 
@@ -25,6 +25,8 @@ fail() {
     printf '[snapback-bootstrap] error: %s\n' "$*" >&2
     exit 1
 }
+
+IBEX_ARTIFACTS_LOG=log
 
 copy_dir_contents() {
     local src="$1"
@@ -38,106 +40,14 @@ copy_dir_contents() {
     fi
 }
 
-has_tool() {
-    local base="$1"
-    local tool="$2"
-    shift 2
-
-    local candidate
-    for candidate in "$@"; do
-        if [ -f "$base/tools/hermes/$candidate" ]; then
-            return 0
-        fi
-    done
-
-    log "$tool missing under $base/tools/hermes"
-    return 1
-}
-
-has_macos_framework() {
-    local base="$1"
-    local frameworks="$base/ios/Frameworks"
-    local candidate
-
-    for candidate in \
-        "$frameworks/hermes.framework/hermes" \
-        "$frameworks/hermes.framework/Versions/Current/hermes" \
-        "$frameworks/hermes.framework/Versions/1/hermes" \
-        "$frameworks/hermes.framework/Versions/0/hermes" \
-        "$frameworks/macosx/hermes.framework/hermes" \
-        "$frameworks/macosx/hermes.framework/Versions/Current/hermes" \
-        "$frameworks/macosx/hermes.framework/Versions/1/hermes" \
-        "$frameworks/macosx/hermes.framework/Versions/0/hermes" \
-        "$frameworks/hermesvm.framework/hermesvm" \
-        "$frameworks/hermesvm.framework/Versions/Current/hermesvm" \
-        "$frameworks/hermesvm.framework/Versions/1/hermesvm" \
-        "$frameworks/hermesvm.framework/Versions/0/hermesvm" \
-        "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermes.framework/hermes" \
-        "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermes.framework/Versions/Current/hermes" \
-        "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermesvm.framework/hermesvm" \
-        "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermesvm.framework/Versions/Current/hermesvm" \
-        "$frameworks/hermes.xcframework/macos-arm64/hermes.framework/hermes" \
-        "$frameworks/hermes.xcframework/macos-arm64/hermes.framework/Versions/Current/hermes" \
-        "$frameworks/hermes.xcframework/macos-arm64/hermesvm.framework/hermesvm" \
-        "$frameworks/hermes.xcframework/macos-arm64/hermesvm.framework/Versions/Current/hermesvm"
-    do
-        if [ -f "$candidate" ]; then
-            return 0
-        fi
-    done
-
-    log "macOS Hermes framework missing under $frameworks"
-    return 1
-}
-
-has_darwin_artifacts() {
-    local base="$1"
-    local frameworks="$base/ios/Frameworks"
-
-    [ -f "$frameworks/hermes-headers/hermes/hermes.h" ] || {
-        log "Hermes headers missing under $frameworks/hermes-headers"
-        return 1
-    }
-    [ -f "$frameworks/hermes-headers/jsi/jsi.h" ] || {
-        log "JSI headers missing under $frameworks/hermes-headers"
-        return 1
-    }
-    has_macos_framework "$base" || return 1
-    has_tool "$base" "hermesc" "hermesc-macos-$HERMES_ARCH" "hermesc" || return 1
-}
-
-has_linux_artifacts() {
-    local base="$1"
-
-    [ -f "$base/linux/hermes-headers/hermes/hermes.h" ] || {
-        log "Linux Hermes headers missing under $base/linux/hermes-headers/hermes"
-        return 1
-    }
-    [ -f "$base/linux/hermes-headers/jsi/jsi.h" ] || {
-        log "Linux JSI headers missing under $base/linux/hermes-headers/jsi"
-        return 1
-    }
-    [ -d "$base/linux/lib" ] || {
-        log "Linux Hermes lib dir missing under $base/linux/lib"
-        return 1
-    }
-    find "$base/linux/lib" -name 'libhermesvm*' -print -quit | grep -q . || {
-        log "libhermesvm missing under $base/linux/lib"
-        return 1
-    }
-    has_tool "$base" "hermesc" "hermesc-linux-$HERMES_ARCH" "hermesc" || return 1
-}
-
 has_target_artifacts() {
     local base="$1"
-
-    case "$TARGET_OS" in
-        darwin) has_darwin_artifacts "$base" ;;
-        linux) has_linux_artifacts "$base" ;;
-        *)
-            fail "unsupported bootstrap host '$TARGET_OS'; use vendor/ibex platform setup directly"
-            ;;
-    esac
+    local status=0
+    ibex_has_target_artifacts "$base" || status=$?
+    if [ "$status" = 2 ]; then
+        fail "unsupported bootstrap host '$TARGET_OS'; use vendor/ibex platform setup directly"
+    fi
+    return "$status"
 }
 
 copy_peer_artifacts() {
