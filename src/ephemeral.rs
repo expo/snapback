@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 pub type Millis = u64;
 pub type ConnectionId = String;
@@ -180,6 +181,14 @@ impl EphemeralCollection {
 fn default_max_pending_ephemeral_keys() -> usize {
     1_024
 }
+
+/// The bound on the durable and resync outbox lanes, independent of a
+/// collection's coalescing-map cap. A subscriber that never drains cannot grow
+/// either lane past this; hitting it converts the queue to a single resync
+/// signal.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
+const MAX_OUTBOX_BACKLOG: usize = 1_024;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PublishRequest {
@@ -394,6 +403,9 @@ pub struct EphemeralDiagnostics {
     pub disconnected_entries: u64,
     pub coalesced_updates: u64,
     pub resync_required: u64,
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1: count of
+    // outbox lanes that hit their bound and converted to a resync signal.
+    pub outbox_overflows: u64,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -506,12 +518,19 @@ struct OutboundQueue {
     resync: VecDeque<EphemeralMessage>,
     ephemeral: BTreeMap<(RoomId, EntryKey), EphemeralMessage>,
     max_pending_ephemeral_keys: usize,
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1: the durable
+    // and resync lanes are bounded like the ephemeral map. A subscriber that
+    // never drains cannot accumulate unbounded query-result payloads; a lane at
+    // capacity converts the whole queue to a single resync signal (sticky until
+    // drained), never a silent drop.
+    overflowed: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct QueuePush {
     coalesced: bool,
     resync_count: usize,
+    overflowed: bool,
 }
 
 impl OutboundQueue {
@@ -521,13 +540,60 @@ impl OutboundQueue {
             resync: VecDeque::new(),
             ephemeral: BTreeMap::new(),
             max_pending_ephemeral_keys,
+            overflowed: false,
         }
     }
 
+    /// Convert the queue to a single durable resync signal: the connection is
+    /// too far behind to replay its backlog, so drop all pending state and tell
+    /// the client to re-snapshot rather than losing updates silently. Sticky
+    /// until `drain` empties the queue.
+    ///
+    /// @ref LLP 0008#realtime-delivery — overflow is a resync signal, never a drop.
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
+    fn overflow(&mut self) -> bool {
+        if self.overflowed {
+            return false;
+        }
+        self.durable.clear();
+        self.resync.clear();
+        self.ephemeral.clear();
+        self.durable.push_back(DurableMessage {
+            payload: serde_json::to_vec(&json!({
+                "kind": "resync_required",
+                "reason": "outbox_overflow",
+                "clearRetained": true,
+            }))
+            .unwrap_or_default(),
+        });
+        self.overflowed = true;
+        true
+    }
+
+    /// Push a non-coalescable message (resync/remove) into the resync lane,
+    /// escalating to a full overflow signal if the lane is at capacity.
+    fn push_resync(&mut self, message: EphemeralMessage) {
+        if self.overflowed {
+            return;
+        }
+        if self.resync.len() >= MAX_OUTBOX_BACKLOG {
+            self.overflow();
+            return;
+        }
+        self.resync.push_back(message);
+    }
+
     fn push_ephemeral(&mut self, message: EphemeralMessage) -> QueuePush {
-        let Some(key) = message.coalesce_key() else {
-            self.resync.push_back(message);
+        if self.overflowed {
             return QueuePush::default();
+        }
+        let Some(key) = message.coalesce_key() else {
+            let before = self.overflowed;
+            self.push_resync(message);
+            return QueuePush {
+                overflowed: self.overflowed && !before,
+                ..QueuePush::default()
+            };
         };
 
         if !self.ephemeral.contains_key(&key)
@@ -547,7 +613,7 @@ impl OutboundQueue {
 
             let resync_count = resync_epochs.len();
             for (room, scope_epoch) in resync_epochs {
-                self.resync.push_back(EphemeralMessage::ResyncRequired {
+                self.push_resync(EphemeralMessage::ResyncRequired {
                     room,
                     scope_epoch,
                     reason: ResyncReason::QueueOverflow,
@@ -556,17 +622,30 @@ impl OutboundQueue {
             return QueuePush {
                 coalesced: false,
                 resync_count,
+                overflowed: self.overflowed,
             };
         }
 
         QueuePush {
             coalesced: self.ephemeral.insert(key, message).is_some(),
             resync_count: 0,
+            overflowed: false,
         }
     }
 
-    fn push_durable(&mut self, message: DurableMessage) {
+    /// Push a durable live-query update, bounding the lane. Returns whether this
+    /// push caused an overflow-to-resync.
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
+    fn push_durable(&mut self, message: DurableMessage) -> bool {
+        if self.overflowed {
+            return false;
+        }
+        if self.durable.len() >= MAX_OUTBOX_BACKLOG {
+            return self.overflow();
+        }
         self.durable.push_back(message);
+        false
     }
 
     fn drain(&mut self) -> Vec<RealtimeEnvelope> {
@@ -580,6 +659,8 @@ impl OutboundQueue {
         for (_, message) in std::mem::take(&mut self.ephemeral) {
             messages.push(RealtimeEnvelope::Ephemeral(message));
         }
+        // Drained: the queue can accept fresh state again.
+        self.overflowed = false;
         messages
     }
 }
@@ -611,7 +692,6 @@ impl LocalEphemeralBackend {
 
     pub fn register_collection(&mut self, collection: EphemeralCollection) {
         self.collections.insert(collection.name.clone(), collection);
-        self.refresh_counts();
     }
 
     pub fn replace_collections(&mut self, collections: Vec<EphemeralCollection>) {
@@ -624,7 +704,6 @@ impl LocalEphemeralBackend {
         // app-definition loads with identical ephemeral definitions must not
         // erase active cursor rooms or queued latest-state messages.
         if self.collections == next {
-            self.refresh_counts();
             return;
         }
 
@@ -632,7 +711,6 @@ impl LocalEphemeralBackend {
         self.rate_buckets.clear();
         self.outbox.clear();
         self.collections = next;
-        self.refresh_counts();
     }
 
     pub fn ensure_collections(
@@ -684,7 +762,6 @@ impl LocalEphemeralBackend {
             ));
         }
 
-        self.refresh_counts();
         Ok(CollectionEnsureOutcome {
             collection_count: expected.len(),
             preserved_room_count: self.rooms.len(),
@@ -697,7 +774,6 @@ impl LocalEphemeralBackend {
         self.rate_buckets.clear();
         self.outbox.clear();
         self.diagnostics = EphemeralDiagnostics::default();
-        self.refresh_counts();
     }
 
     pub fn publish(
@@ -759,7 +835,6 @@ impl LocalEphemeralBackend {
                 entry,
             },
         );
-        self.refresh_counts();
 
         Ok(PublishOutcome {
             room: room_id,
@@ -786,7 +861,6 @@ impl LocalEphemeralBackend {
         };
 
         self.enqueue_to_authorized_subscribers(&collection, &room_id, remove.clone());
-        self.refresh_counts();
         Ok(Some(remove))
     }
 
@@ -820,7 +894,6 @@ impl LocalEphemeralBackend {
             (room.scope_epoch, entries)
         };
         self.ensure_outbox(&request.connection_id, &collection);
-        self.refresh_counts();
 
         Ok(EphemeralMessage::Snapshot {
             room: room_id,
@@ -877,7 +950,6 @@ impl LocalEphemeralBackend {
         // connection's buckets on disconnect so they do not leak forever.
         self.rate_buckets
             .retain(|(conn, _), _| conn != connection_id);
-        self.refresh_counts();
     }
 
     pub fn cleanup_expired(&mut self, now_ms: Millis) {
@@ -885,15 +957,18 @@ impl LocalEphemeralBackend {
         for room_id in room_ids {
             self.sweep_room_expired(&room_id, now_ms);
         }
-        self.refresh_counts();
     }
 
     pub fn enqueue_durable(&mut self, connection_id: impl Into<String>, payload: Vec<u8>) {
         let connection_id = connection_id.into();
-        self.outbox
+        let overflowed = self
+            .outbox
             .entry(connection_id)
             .or_insert_with(|| OutboundQueue::new(1_024))
             .push_durable(DurableMessage { payload });
+        if overflowed {
+            self.diagnostics.outbox_overflows += 1;
+        }
     }
 
     pub fn drain_outbox(&mut self, connection_id: &str) -> Vec<RealtimeEnvelope> {
@@ -904,7 +979,9 @@ impl LocalEphemeralBackend {
     }
 
     pub fn diagnostics(&mut self) -> EphemeralDiagnostics {
-        self.refresh_counts();
+        // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L4: the
+        // gauge recompute happens here, on demand, not after every operation.
+        self.recompute_counts();
         self.diagnostics.clone()
     }
 
@@ -1201,6 +1278,9 @@ impl LocalEphemeralBackend {
                 self.diagnostics.coalesced_updates += 1;
             }
             self.diagnostics.resync_required += result.resync_count as u64;
+            if result.overflowed {
+                self.diagnostics.outbox_overflows += 1;
+            }
         }
     }
 
@@ -1214,7 +1294,18 @@ impl LocalEphemeralBackend {
             .or_insert_with(|| OutboundQueue::new(collection.max_pending_ephemeral_keys))
     }
 
-    fn refresh_counts(&mut self) {
+    /// Recompute the gauge diagnostics (room/entry/subscriber counts, value
+    /// bytes, per-room detail, and the outbox pending totals) from the current
+    /// state. These gauges are read only through [`Self::diagnostics`] (the
+    /// `/inspect` path), so this O(rooms + entries + outboxes) pass runs
+    /// on-demand there rather than after every publish/subscribe/delete —
+    /// keeping the hot ephemeral path O(1). The event counters
+    /// (`rejected_publishes`, `coalesced_updates`, `outbox_overflows`, …) are
+    /// incremented at their sites and are not touched here.
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L4: counters
+    /// are no longer recomputed after every ephemeral operation.
+    fn recompute_counts(&mut self) {
         self.diagnostics.room_count = self.rooms.len();
         self.diagnostics.entry_count = self.rooms.values().map(|room| room.entries.len()).sum();
         self.diagnostics.subscriber_count =
@@ -1551,6 +1642,68 @@ mod tests {
             matches!(snapshot, EphemeralMessage::Snapshot { entries, .. } if entries.is_empty())
         );
         assert_eq!(published.key, EntryKey("a".to_owned()));
+    }
+
+    /// LLP 0032 L1 — a never-draining durable subscriber cannot accumulate
+    /// unbounded query-result payloads: the lane bounds and collapses to a
+    /// single resync signal, and drains reset it.
+    #[test]
+    fn l1_durable_lane_overflow_bounds_and_signals_resync() {
+        let mut backend = LocalEphemeralBackend::new();
+        for n in 0..5_000 {
+            backend.enqueue_durable("conn", format!("{{\"n\":{n}}}").into_bytes());
+        }
+
+        let drained = backend.drain_outbox("conn");
+        assert_eq!(
+            drained.len(),
+            1,
+            "overflow must collapse the durable backlog to one signal"
+        );
+        let RealtimeEnvelope::Durable(message) = &drained[0] else {
+            panic!("expected a durable resync signal");
+        };
+        let payload: serde_json::Value = serde_json::from_slice(&message.payload).unwrap();
+        assert_eq!(payload["kind"], "resync_required");
+        assert_eq!(payload["reason"], "outbox_overflow");
+        assert!(backend.diagnostics().outbox_overflows >= 1);
+
+        // After draining, the queue accepts fresh messages again.
+        backend.enqueue_durable("conn", b"{\"fresh\":1}".to_vec());
+        let after = backend.drain_outbox("conn");
+        assert_eq!(after.len(), 1);
+        let RealtimeEnvelope::Durable(message) = &after[0] else {
+            panic!("expected the fresh message");
+        };
+        let payload: serde_json::Value = serde_json::from_slice(&message.payload).unwrap();
+        assert_eq!(payload["fresh"], 1);
+    }
+
+    /// LLP 0032 L4 — gauges are computed on demand and stay accurate across
+    /// operations without a per-op full recompute.
+    #[test]
+    fn l4_gauges_are_accurate_on_demand() {
+        let mut backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+        backend.subscribe(subscribe_request("b"), 1_000).unwrap();
+        backend
+            .publish(publish_request("a", b"cursor"), 1_001)
+            .unwrap();
+
+        let diag = backend.diagnostics();
+        assert_eq!(diag.room_count, 1);
+        assert_eq!(diag.entry_count, 1);
+        assert_eq!(diag.subscriber_count, 1);
+        assert!(diag.value_bytes > 0);
+        assert_eq!(diag.active_rooms.len(), 1);
+        assert_eq!(diag.pending_ephemeral_keys, 1);
+
+        // Disconnecting the publisher removes its owned entry; the gauges
+        // reflect it on the next on-demand read.
+        backend.disconnect("a", 1_100);
+        let diag = backend.diagnostics();
+        assert_eq!(diag.entry_count, 0);
+        assert_eq!(diag.subscriber_count, 1);
     }
 
     #[test]

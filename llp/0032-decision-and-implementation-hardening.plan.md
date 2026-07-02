@@ -566,7 +566,12 @@ change the concurrency architecture and should land as one reviewed arc.
   forever. The `resync` deque in the same queue is unbounded too — bound
   both; overflow converts to a `ResyncRequired`-class signal (never a
   silent drop — LLP 0008 §Realtime Delivery). **Done when:** an overflow
-  test observes the resync signal and bounded memory.
+  test observes the resync signal and bounded memory. **Landed 2026-07-01** —
+  the durable and resync lanes share a `MAX_OUTBOX_BACKLOG` bound (decoupled
+  from the ephemeral-map cap); hitting either collapses the queue to one
+  durable `resync_required` signal (`reason: outbox_overflow`, sticky until
+  drained) and bumps `outbox_overflows`. Test
+  `l1_durable_lane_overflow_bounds_and_signals_resync`.
 - **L2 — Connection/subscription reaping.** No TTL or heartbeat exists;
   abandoned connections and their subscriptions live forever
   (`src/local.rs:169`) [confirmed]. (WS-attached connections do reap on
@@ -588,7 +593,13 @@ change the concurrency architecture and should land as one reviewed arc.
   subscribe, delete, and disconnect (`src/ephemeral.rs:1212-1249`)
   [confirmed] — quadratic at cursor rates. Maintain counters incrementally;
   keep the full recompute as a debug-assert parity check. **Done when:**
-  per-op cost is O(1) and the parity test passes.
+  per-op cost is O(1) and the parity test passes. **Landed 2026-07-01** —
+  simpler than the incremental-plus-parity plan: the gauge fields are read
+  only through `diagnostics()` (the `/inspect` path), so the full recompute
+  (`recompute_counts`) moved there and the per-op calls were removed — the
+  hot ephemeral path is now O(1) and the gauges are computed on demand (always
+  accurate, no drift to assert). Event counters stay incremented at their
+  sites. Test `l4_gauges_are_accurate_on_demand`.
 - **L5 — Idle means idle.** The cron ticker takes the global lock and
   persists the full cron-state JSON to SQLite every second even with no due
   jobs (`src/server.rs:267-276`, `src/local.rs:700-707`) [confirmed] — at
