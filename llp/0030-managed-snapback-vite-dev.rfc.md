@@ -412,6 +412,17 @@ peers), so the leading `/__exact/` segment already disambiguates it from
 relay rather than the generic Snapback plugin default. These authorities must
 stay visually and mechanically distinct.
 
+> **Update (2026-07-01): the boundary now holds at the server.** LLP 0032 S1
+> implemented [LLP 0031](./0031-server-route-taxonomy.spec.md): the ungated root
+> `/admin/*` aliases are retired, `/connections/{id}/disconnect` and the
+> `/ephemeral/collections` register route moved/retired, the migrated writes live
+> under `/_snapback/api/*`, and a declared route registry with an enforcement
+> test guarantees no privileged operation hides at the root. So the default app
+> proxy can now be the single reserved-prefix rule this RFC wanted — *forward the
+> root, refuse `/_snapback/*`* — rather than the hand-maintained allowlist
+> described below. The allowlist reasoning is retained as the rationale for why
+> the boundary was needed and remains valid as defense-in-depth.
+
 **The default app proxy must be an explicit allowlist, never a deny-list.** The
 Snapback HTTP surface interleaves app routes and privileged control routes at the
 server root, with no namespace boundary between them: `/query/*`, `/mutation/*`,

@@ -40,20 +40,17 @@ pub struct ErrorResponse {
     pub diagnostic: Diagnostic,
 }
 
-/// The v0 core routes. These remain as compatibility aliases while
-/// `/_snapback/*` becomes the long-term admin namespace.
+/// The app-data routes: the operations an ordinary app client calls. Every one
+/// lives at the server root, carries app-supplied `ctx.auth` or is explicitly
+/// public, and never performs instance-level control.
 ///
-/// @ref LLP 0003#agent-and-test-surface — the local core exposes inspect, reset, load, and invocation endpoints.
-/// @ref LLP 0017#serving-model — current local routes continue as v0 aliases beside the reserved `/_snapback/*` namespace.
+/// @ref LLP 0003#agent-and-test-surface — the local core exposes inspect, query, mutation, live, and ephemeral endpoints.
+/// @ref LLP 0031#the-invariant — app-data routes live at the root; system routes live under `/_snapback/*`. The classification is declared once in `route_registry`.
 fn core_routes() -> Router<AppState> {
     Router::new()
         .route("/", get(instance_home))
         .route("/health", get(health))
         .route("/inspect", get(inspect))
-        .route("/admin/schema", post(apply_schema))
-        .route("/admin/functions", post(load_functions))
-        .route("/admin/reset", post(reset))
-        .route("/admin/seed", post(seed))
         .route("/query/{name}", post(invoke_query))
         .route("/mutation/{name}", post(invoke_mutation))
         .route("/live/{name}/subscribe", post(subscribe_live))
@@ -61,30 +58,160 @@ fn core_routes() -> Router<AppState> {
         .route("/live/{connection_id}/stream", get(stream_live))
         .route("/outbox/{connection_id}", get(drain_outbox))
         .route(
-            "/ephemeral/collections",
-            post(register_ephemeral_collection),
-        )
-        .route(
             "/ephemeral/collections/ensure",
             post(ensure_ephemeral_collections),
         )
         .route("/ephemeral/publish", post(publish_ephemeral))
         .route("/ephemeral/subscribe", post(subscribe_ephemeral))
         .route("/ephemeral/delete", post(delete_ephemeral))
-        .route("/ephemeral/cleanup", post(cleanup_ephemeral))
-        .route("/connections/{connection_id}/disconnect", post(disconnect))
 }
 
-/// The full Snapback HTTP surface: v0 core routes plus the `/_snapback/*` admin
-/// namespace and packaged web console, served from one server.
+/// The migrated system routes that used to hide at the root as ungated
+/// `/admin/*` aliases (schema/functions/reset load, connection teardown). They
+/// now live under `/_snapback/api/*` behind the admin write policy, projecting
+/// the LLP 0024 host-ops nouns (`schema.load`, `functions.load`, `app.reset`).
 ///
-/// @ref LLP 0017#serving-model — the admin API and console are served by the
-/// same server that owns the instance.
+/// @ref LLP 0031#migration-plan — D5 flat `subsystem/verb` writes and the D2 disconnect move.
+fn system_routes() -> Router<AppState> {
+    Router::new()
+        .route("/_snapback/api/schema/load", post(apply_schema))
+        .route("/_snapback/api/functions/load", post(load_functions))
+        .route("/_snapback/api/app/reset", post(app_reset))
+        .route(
+            "/_snapback/api/connections/{connection_id}/disconnect",
+            post(disconnect),
+        )
+}
+
+/// The full Snapback HTTP surface: app-data root routes, the migrated
+/// `/_snapback/api/*` system writes, and the admin console/API — one server,
+/// one declared boundary (`route_registry`).
+///
+/// @ref LLP 0031#the-invariant — no system operation lives at the root; the enforcement test guards it.
 pub fn app(state: AppState) -> Router {
     core_routes()
+        .merge(system_routes())
         .merge(crate::admin::admin_routes())
         .with_state(state)
         .layer(middleware::from_fn(local_dev_cors))
+}
+
+/// The path class of a route or a multiplexed operation.
+///
+/// @ref LLP 0031#route-classification — every operation is app-data or system.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RouteClass {
+    /// An operation an app client may call; lives at the server root.
+    AppData,
+    /// Static console shell/assets under `/_snapback/admin*`; public presentation only.
+    SystemStatic,
+    /// A system API operation under `/_snapback/api/*`; admin-gated.
+    SystemApi,
+}
+
+/// The authorization policy a route carries. `AppAuth` means the handler may
+/// enforce the app-supplied `ctx.auth` — not that the transport authenticates
+/// the caller (in local v0 it does not; see LLP 0031 §The invariant).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RoutePolicy {
+    Public,
+    AppAuth,
+    AdminRead,
+    AdminWrite,
+}
+
+/// A declared route in the registry.
+#[derive(Clone, Copy, Debug)]
+pub struct RouteSpec {
+    pub method: &'static str,
+    pub path: &'static str,
+    pub class: RouteClass,
+    pub policy: RoutePolicy,
+}
+
+/// The declared route registry — the single source of truth for the
+/// app-data/system boundary. `app()` builds the router from these exact paths;
+/// because axum's `Router` cannot be introspected at runtime, this declaration
+/// is the mechanical guarantee a proxy relies on, and the enforcement test
+/// (`route_registry_matches_the_invariant`) asserts the invariant over it. Keep
+/// this list in lockstep with `core_routes`/`system_routes`/`admin_routes`.
+///
+/// @ref LLP 0031#enforcement — registry-driven enforcement; the classified unit is the operation.
+pub fn route_registry() -> Vec<RouteSpec> {
+    use RouteClass::{AppData, SystemApi, SystemStatic};
+    use RoutePolicy::{AdminRead, AdminWrite, AppAuth, Public};
+    let spec = |method, path, class, policy| RouteSpec {
+        method,
+        path,
+        class,
+        policy,
+    };
+    vec![
+        // App-data — root.
+        spec("GET", "/", AppData, Public),
+        spec("GET", "/health", AppData, Public),
+        spec("GET", "/inspect", AppData, Public),
+        spec("POST", "/query/{name}", AppData, AppAuth),
+        spec("POST", "/mutation/{name}", AppData, AppAuth),
+        spec("POST", "/live/{name}/subscribe", AppData, AppAuth),
+        spec("POST", "/live/{name}/resume", AppData, AppAuth),
+        spec("GET", "/live/{connection_id}/stream", AppData, AppAuth),
+        spec("GET", "/outbox/{connection_id}", AppData, Public),
+        spec("POST", "/ephemeral/collections/ensure", AppData, Public),
+        spec("POST", "/ephemeral/publish", AppData, Public),
+        spec("POST", "/ephemeral/subscribe", AppData, Public),
+        spec("POST", "/ephemeral/delete", AppData, Public),
+        // System API — migrated gated writes (LLP 0031 D5/D2).
+        spec("POST", "/_snapback/api/schema/load", SystemApi, AdminWrite),
+        spec("POST", "/_snapback/api/functions/load", SystemApi, AdminWrite),
+        spec("POST", "/_snapback/api/app/reset", SystemApi, AdminWrite),
+        spec(
+            "POST",
+            "/_snapback/api/connections/{connection_id}/disconnect",
+            SystemApi,
+            AdminWrite,
+        ),
+        // System API — existing admin surface.
+        spec("GET", "/_snapback/api/health", SystemApi, AdminRead),
+        spec("GET", "/_snapback/api/inspect", SystemApi, AdminRead),
+        spec("GET", "/_snapback/api/data/{table}", SystemApi, AdminRead),
+        // Function runner gates dynamically (read for queries, write for
+        // mutations); declared as the stronger write policy.
+        spec(
+            "POST",
+            "/_snapback/api/functions/{name}/run",
+            SystemApi,
+            AdminWrite,
+        ),
+        spec("POST", "/_snapback/api/cron/tick", SystemApi, AdminWrite),
+        spec("POST", "/_snapback/api/cron/{name}/run", SystemApi, AdminWrite),
+        spec(
+            "POST",
+            "/_snapback/api/ephemeral/cleanup",
+            SystemApi,
+            AdminWrite,
+        ),
+        // System static — console shell/assets (public presentation only).
+        spec("GET", "/_snapback/admin", SystemStatic, Public),
+        spec("GET", "/_snapback/admin/", SystemStatic, Public),
+        spec("GET", "/_snapback/admin/{*path}", SystemStatic, Public),
+    ]
+}
+
+/// The operations multiplexed over the `/live/{id}/stream` socket. Per LLP 0031
+/// the classified unit is the *operation*, so these are classified in their own
+/// right — all app-data today — so an app-data route cannot smuggle a system
+/// operation. Kept in lockstep with `LiveSocketClientMessage` by the exhaustive
+/// match in `live_socket_operation_name` (test build); the enforcement test
+/// asserts every one is app-data.
+///
+/// @ref LLP 0031#enforcement — WebSocket message kinds are asserted against the registry directly.
+pub fn live_socket_operations() -> Vec<(&'static str, RouteClass)> {
+    vec![
+        ("ephemeral_subscribe", RouteClass::AppData),
+        ("ephemeral_publish", RouteClass::AppData),
+        ("ephemeral_delete", RouteClass::AppData),
+    ]
 }
 
 /// Browser-friendly default route for a running Snapback instance.
@@ -114,12 +241,13 @@ fn instance_home_yaml(inspect: &InspectState, ctx: &ServerContext) -> String {
     } else {
         "memory"
     };
-    let storage_detail = inspect
-        .storage
-        .sqlite_path
-        .as_ref()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|| "in-memory database".to_owned());
+    // @ref LLP 0031#resolved-decisions — D3: the public `/` must not reveal the
+    // absolute on-disk DB path; report the mode, not the location.
+    let storage_detail = if inspect.storage.sqlite_path.is_some() {
+        "on-disk database"
+    } else {
+        "in-memory database"
+    };
     let schema_hash = inspect
         .schema
         .schema_hash
@@ -331,9 +459,16 @@ async fn health(State(state): State<SharedSnapback>) -> Result<Json<HealthRespon
     }))
 }
 
-async fn inspect(State(state): State<SharedSnapback>) -> Result<Json<InspectState>, ApiError> {
+/// Public `/inspect` — the trimmed identity descriptor. Operational and posture
+/// facts (connection ids, the on-disk DB path) live only in the gated
+/// `/_snapback/api/inspect` twin.
+///
+/// @ref LLP 0031#resolved-decisions — D3: the public payload is a typed projection of `InspectState`.
+async fn inspect(
+    State(state): State<SharedSnapback>,
+) -> Result<Json<crate::local::PublicInspect>, ApiError> {
     let mut snapback = state.lock().await;
-    Ok(Json(snapback.inspect()?))
+    Ok(Json(snapback.inspect()?.into()))
 }
 
 /// The v0 admin aliases perform system writes, so they share the
@@ -368,26 +503,38 @@ async fn load_functions(
     }))
 }
 
-async fn reset(
+/// `app.reset` — the gated system write that resets the instance and, per
+/// LLP 0024/LLP 0031 D5, optionally seeds it in the same call. Seed is folded
+/// in here rather than living as a standalone route, so an empty body resets
+/// and `{ "seed": … }` resets-then-seeds.
+///
+/// @ref LLP 0031#resolved-decisions — D5: seed is an optional argument to `app.reset`, not a fourth route.
+async fn app_reset(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
     headers: HeaderMap,
-) -> Result<StatusCode, ApiError> {
+    body: Option<Json<AppResetBody>>,
+) -> Result<Json<AppResetResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
+    let seed = body.and_then(|Json(body)| body.seed);
     let mut snapback = state.lock().await;
     snapback.reset()?;
-    Ok(StatusCode::NO_CONTENT)
+    let seeded = match seed {
+        Some(seed) => Some(snapback.seed(seed)?),
+        None => None,
+    };
+    Ok(Json(AppResetResponse { seeded }))
 }
 
-async fn seed(
-    State(state): State<SharedSnapback>,
-    State(ctx): State<Arc<ServerContext>>,
-    headers: HeaderMap,
-    Json(seed): Json<SeedData>,
-) -> Result<Json<crate::manifest::MutationOutput>, ApiError> {
-    crate::admin::authorize(&ctx, &headers, true)?;
-    let mut snapback = state.lock().await;
-    Ok(Json(snapback.seed(seed)?))
+#[derive(Debug, Default, Deserialize)]
+struct AppResetBody {
+    #[serde(default)]
+    seed: Option<SeedData>,
+}
+
+#[derive(Debug, Serialize)]
+struct AppResetResponse {
+    seeded: Option<crate::manifest::MutationOutput>,
 }
 
 async fn invoke_query(
@@ -489,6 +636,23 @@ enum LiveSocketClientMessage {
         request_id: Option<String>,
         request: DeleteRequest,
     },
+}
+
+/// The serde tag each live-socket message is classified under. This exhaustive
+/// match is the forcing function for LLP 0031's WebSocket rule: a new
+/// `LiveSocketClientMessage` variant fails to compile here until it is named,
+/// and the enforcement test asserts every name is a registered **app-data**
+/// operation — so a system-authority message kind cannot be smuggled onto the
+/// app-data `/live/*` socket.
+///
+/// @ref LLP 0031#enforcement — enumerate the accepted socket variants; fail if any is not app-data.
+#[cfg(test)]
+fn live_socket_operation_name(message: &LiveSocketClientMessage) -> &'static str {
+    match message {
+        LiveSocketClientMessage::EphemeralSubscribe { .. } => "ephemeral_subscribe",
+        LiveSocketClientMessage::EphemeralPublish { .. } => "ephemeral_publish",
+        LiveSocketClientMessage::EphemeralDelete { .. } => "ephemeral_delete",
+    }
 }
 
 async fn handle_live_socket_text(
@@ -628,14 +792,6 @@ async fn drain_outbox(
     Json(snapback.drain_outbox(&connection_id))
 }
 
-async fn register_ephemeral_collection(
-    State(state): State<SharedSnapback>,
-    Json(collection): Json<EphemeralCollection>,
-) -> StatusCode {
-    let mut snapback = state.lock().await;
-    snapback.register_ephemeral_collection(collection);
-    StatusCode::NO_CONTENT
-}
 
 #[derive(Debug, Deserialize)]
 struct EnsureEphemeralCollectionsInput {
@@ -703,19 +859,22 @@ async fn delete_ephemeral(
         .map_err(ApiError::from_ephemeral)
 }
 
-async fn cleanup_ephemeral(State(state): State<SharedSnapback>) -> StatusCode {
-    let mut snapback = state.lock().await;
-    snapback.cleanup_ephemeral(now_millis());
-    StatusCode::NO_CONTENT
-}
 
+/// Connection teardown is instance control (it tears down the connection *and*
+/// its durable subscriptions), so it is a gated system write under
+/// `/_snapback/api/*`, not a root app route.
+///
+/// @ref LLP 0031#resolved-decisions — D2: `/connections/{id}/disconnect` is system/control.
 async fn disconnect(
     State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
     Path(connection_id): Path<String>,
-) -> StatusCode {
+) -> Result<StatusCode, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
     let mut snapback = state.lock().await;
     snapback.disconnect(&connection_id, now_millis());
-    StatusCode::NO_CONTENT
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Debug)]
@@ -818,6 +977,157 @@ mod tests {
         assert_eq!(
             status_for_diagnostic_code("SNAPBACK_SOMETHING_NEW"),
             StatusCode::BAD_REQUEST
+        );
+    }
+
+    use super::{
+        LiveSocketClientMessage, RouteClass, RoutePolicy, live_socket_operation_name,
+        live_socket_operations, route_registry,
+    };
+    use crate::ephemeral::{DeleteRequest, PublishRequest, Scope, SubscribeRequest};
+
+    const RESERVED_PREFIX: &str = "/_snapback/";
+
+    /// LLP 0031 §The invariant — the declared registry holds the boundary: every
+    /// app-data entry is a root path, every system entry is under the reserved
+    /// prefix, every system-api entry is admin-gated, static console entries are
+    /// public presentation, and no privileged operation lives at the root.
+    #[test]
+    fn s1_route_registry_matches_the_invariant() {
+        let registry = route_registry();
+        assert!(!registry.is_empty());
+        let mut seen = std::collections::BTreeSet::new();
+        for route in &registry {
+            assert!(
+                seen.insert((route.method, route.path)),
+                "duplicate registry entry: {} {}",
+                route.method,
+                route.path
+            );
+            let reserved = route.path.starts_with(RESERVED_PREFIX);
+            match route.class {
+                RouteClass::AppData => {
+                    assert!(
+                        !reserved,
+                        "app-data route must live at the root: {}",
+                        route.path
+                    );
+                    assert!(
+                        matches!(route.policy, RoutePolicy::Public | RoutePolicy::AppAuth),
+                        "app-data route carries an admin policy: {}",
+                        route.path
+                    );
+                }
+                RouteClass::SystemStatic => {
+                    assert!(
+                        route.path.starts_with("/_snapback/admin"),
+                        "system-static must be console shell/assets: {}",
+                        route.path
+                    );
+                    assert_eq!(
+                        route.policy,
+                        RoutePolicy::Public,
+                        "console shell is public presentation: {}",
+                        route.path
+                    );
+                }
+                RouteClass::SystemApi => {
+                    assert!(
+                        route.path.starts_with("/_snapback/api/"),
+                        "system-api must live under /_snapback/api/: {}",
+                        route.path
+                    );
+                    assert!(
+                        matches!(route.policy, RoutePolicy::AdminRead | RoutePolicy::AdminWrite),
+                        "system-api must be admin-gated: {}",
+                        route.path
+                    );
+                }
+            }
+        }
+    }
+
+    /// LLP 0031 §Enforcement — the retired/moved privileged operations must not
+    /// reappear at the root in the declared registry.
+    #[test]
+    fn s1_retired_root_operations_are_absent_from_the_registry() {
+        let registry = route_registry();
+        for banned in [
+            "/admin/schema",
+            "/admin/functions",
+            "/admin/reset",
+            "/admin/seed",
+            "/ephemeral/collections",
+            "/ephemeral/cleanup",
+            "/connections/{connection_id}/disconnect",
+        ] {
+            assert!(
+                !registry.iter().any(|route| route.path == banned),
+                "{banned} must not be a registered root route after migration"
+            );
+        }
+    }
+
+    /// LLP 0031 §Enforcement — every operation multiplexed over the app-data
+    /// `/live/*` socket is itself app-data, and the declared list matches the
+    /// enum's variants (the exhaustive `live_socket_operation_name` forces a new
+    /// variant to be classified).
+    #[test]
+    fn s1_live_socket_operations_are_all_app_data() {
+        let declared = live_socket_operations();
+        for (name, class) in &declared {
+            assert_eq!(
+                *class,
+                RouteClass::AppData,
+                "live-socket operation {name} must be app-data"
+            );
+        }
+
+        let scope = Scope::from_pairs([("roomId", "room_1")]);
+        let samples = [
+            LiveSocketClientMessage::EphemeralSubscribe {
+                request_id: None,
+                request: SubscribeRequest {
+                    collection: "c".to_owned(),
+                    scope: scope.clone(),
+                    connection_id: "conn".to_owned(),
+                    auth: Default::default(),
+                },
+            },
+            LiveSocketClientMessage::EphemeralPublish {
+                request_id: None,
+                request: PublishRequest {
+                    collection: "c".to_owned(),
+                    scope: scope.clone(),
+                    connection_id: "conn".to_owned(),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: None,
+                    value: Vec::new(),
+                    ttl_ms: None,
+                    auth: Default::default(),
+                },
+            },
+            LiveSocketClientMessage::EphemeralDelete {
+                request_id: None,
+                request: DeleteRequest {
+                    collection: "c".to_owned(),
+                    scope,
+                    connection_id: "conn".to_owned(),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: None,
+                    auth: Default::default(),
+                },
+            },
+        ];
+        let sample_names: std::collections::BTreeSet<_> =
+            samples.iter().map(live_socket_operation_name).collect();
+        let declared_names: std::collections::BTreeSet<_> =
+            declared.iter().map(|(name, _)| *name).collect();
+        assert_eq!(
+            sample_names, declared_names,
+            "every LiveSocketClientMessage variant must be a declared app-data operation"
         );
     }
 }

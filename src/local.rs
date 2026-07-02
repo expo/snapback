@@ -61,6 +61,109 @@ pub struct LiveSubscriptionInfo {
     pub function: String,
 }
 
+/// The public projection of [`InspectState`] served at the root `/inspect` and
+/// `/`. It is a typed allowlist: the `From<InspectState>` below destructures the
+/// full struct, so a newly-added `InspectState` (or `StorageInfo`,
+/// `LiveSubscriptionInfo`) field is a compile error here rather than a silent
+/// leak. Two facts are deliberately dropped and live only in the gated
+/// `/_snapback/api/inspect` twin: `subscriptions[].connection_id` (the
+/// enumerate-and-disconnect vector — LLP 0031 D2/D3) and the absolute
+/// `storage.sqlite_path` (an environment leak).
+///
+/// @ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.
+#[derive(Clone, Debug, Serialize)]
+pub struct PublicInspect {
+    #[serde(rename = "artifactKind")]
+    pub artifact_kind: String,
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
+    #[serde(rename = "targetProfileId")]
+    pub target_profile_id: String,
+    pub target: String,
+    pub storage: PublicStorageInfo,
+    pub runtime: RuntimeCapabilities,
+    pub schema: SchemaManifest,
+    pub functions: FunctionManifest,
+    #[serde(rename = "capabilityManifest")]
+    pub capability_manifest: CapabilityManifest,
+    pub subscriptions: Vec<PublicSubscriptionInfo>,
+    #[serde(rename = "liveDelivery")]
+    pub live_delivery: LiveDeliveryStats,
+    pub ephemeral: EphemeralDiagnostics,
+    pub cron: CronInspectState,
+    pub recent_diagnostics: Vec<Diagnostic>,
+    pub capability_gaps: Vec<String>,
+}
+
+/// Public storage facts: the change version and table list, never the on-disk path.
+#[derive(Clone, Debug, Serialize)]
+pub struct PublicStorageInfo {
+    pub version: u64,
+    pub tables: Vec<String>,
+}
+
+/// Public subscription facts: id and function, never the owning connection id.
+#[derive(Clone, Debug, Serialize)]
+pub struct PublicSubscriptionInfo {
+    pub id: String,
+    pub function: String,
+}
+
+impl From<InspectState> for PublicInspect {
+    fn from(inspect: InspectState) -> Self {
+        // Exhaustive destructures below are load-bearing: a new field on any of
+        // these structs must be classified here, not leak by default.
+        let InspectState {
+            artifact_kind,
+            schema_version,
+            target_profile_id,
+            target,
+            storage,
+            runtime,
+            schema,
+            functions,
+            capability_manifest,
+            subscriptions,
+            live_delivery,
+            ephemeral,
+            cron,
+            recent_diagnostics,
+            capability_gaps,
+        } = inspect;
+        let StorageInfo {
+            sqlite_path: _,
+            version,
+            tables,
+        } = storage;
+        PublicInspect {
+            artifact_kind,
+            schema_version,
+            target_profile_id,
+            target,
+            storage: PublicStorageInfo { version, tables },
+            runtime,
+            schema,
+            functions,
+            capability_manifest,
+            subscriptions: subscriptions
+                .into_iter()
+                .map(
+                    |LiveSubscriptionInfo {
+                         id,
+                         connection_id: _,
+                         function,
+                     }| PublicSubscriptionInfo { id, function },
+                )
+                .collect(),
+            live_delivery,
+            ephemeral,
+            cron,
+            recent_diagnostics,
+            capability_gaps,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct LiveSubscribeInput {
     pub connection_id: String,

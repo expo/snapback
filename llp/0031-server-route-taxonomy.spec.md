@@ -1,11 +1,11 @@
 # LLP 0031: Server route taxonomy and authority boundary
 
 **Type:** Spec
-**Status:** Accepted
+**Status:** Active
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate, and S1 implements the registry; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt.)
+**Revised:** 2026-07-01 (status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt.)
 **Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030
 
 ## Summary
@@ -394,12 +394,18 @@ test.
 
 ## Status
 
-Draft. The five ambiguous classifications are now settled (see Resolved
-decisions), so the spec is ready to drive the route-registry implementation —
-starting with the gated `/_snapback/api/{schema/load, functions/load, app/reset}`
-equivalents so the ungated root aliases can be retired without breaking the demos
-and tests that still call them. Two things gate a move toward `Accepted`: a fresh
-cross-family review of the revised spec (the one independent pass — the GPT-5
-review above — predates these decisions), and the author's call on the sequencing
-question in Open questions (own-entry delete vs the proxy switch). Status changes
-are the author's; this pass proposes keeping it `Draft` pending that review.
+Accepted (ratified in the LLP 0032 R1 batch) and now **implemented**: LLP 0032
+S1 landed the migration and the declared route registry with its enforcement
+tests (registry-invariant, retired-root-absent, WebSocket message-kind, and the
+field-level public-inspect trim), verified against a running server. The
+own-entry-delete-vs-proxy sequencing (Open questions) and a cross-family review
+of the revised spec remain outstanding but do not block the implementation.
+
+The five ambiguous classifications are settled (see Resolved
+decisions), and the spec drove the route-registry implementation —
+the gated `/_snapback/api/{schema/load, functions/load, app/reset}` equivalents
+retired the ungated root aliases without breaking the demos and tests that called
+them (they repoint through the kit client). A fresh cross-family review of the
+revised spec (the one independent pass — the GPT-5 review above — predates these
+decisions) and the author's call on the own-entry-delete sequencing remain the
+outstanding follow-ups.

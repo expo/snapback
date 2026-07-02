@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating)
+**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024
 
 ## Summary
@@ -127,11 +127,19 @@ The proposed reserved namespace is:
   assets/...      console static assets, if not embedded
 ```
 
-The current local routes such as `/health`, `/inspect`, `/admin/schema`,
-`/admin/functions`, `/admin/reset`, and `/admin/seed` may continue as v0 aliases,
-but Snapback should reserve `/_snapback/*` as the long-term namespace. A reserved
-prefix avoids collisions with application routes and makes it obvious which
-requests carry system privileges.
+Snapback reserves `/_snapback/*` as the long-term namespace for system routes. A
+reserved prefix avoids collisions with application routes and makes it obvious
+which requests carry system privileges.
+
+> **v0-alias retirement completed (2026-07-01).** This RFC originally let the
+> root `/admin/schema`, `/admin/functions`, `/admin/reset`, and `/admin/seed`
+> aliases "continue as v0 aliases." That migration is now finished:
+> [LLP 0031](./0031-server-route-taxonomy.spec.md) draws and tests the
+> app-data/system boundary, and LLP 0032 S1 implemented it — the root aliases
+> are retired, their gated twins live under `/_snapback/api/{schema/load,
+> functions/load, app/reset}` (seed folded into `app.reset`), and a declared
+> route registry with an enforcement test guards the boundary. See LLP 0031 for
+> the full classification.
 
 The default local behavior should not require Node, Vite, Exact, or a browser
 toolchain. A built Snapback binary should be able to start the local server and

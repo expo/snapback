@@ -85,6 +85,13 @@ corpus does not rely on scattered "pending Charlie" notes.
   DK-8): the free-riding exposure is a conscious trade for the ratified
   "truly open" value; a trademark policy is the compatible first response if
   a trigger fires.
+- **2026-07-01:** the server route taxonomy
+  ([LLP 0031](./0031-server-route-taxonomy.spec.md)) → Active: LLP 0032 S1
+  implemented the app-data/system boundary — ungated root `/admin/*` aliases
+  retired for gated `/_snapback/api/*` twins, connection teardown and the
+  ephemeral register route moved/retired, public `/inspect` trimmed, and a
+  declared route registry with enforcement tests guards it (verified against a
+  running server).
 - **2026-07-01:** the LLP 0032 R1 status batch is ratified: LLP 0002 and the
   research documents LLP 0006/0019 → Active; LLP 0013, 0017, 0023, 0028,
   0031 → Accepted (each is the shipped design); LLP 0025 → Implemented. Two

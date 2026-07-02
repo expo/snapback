@@ -300,7 +300,19 @@ ships with a regression test and, where user-visible, a diagnostic code.
   enforcement and migration tests pass — the registry test enumerating every
   operation including WS message kinds, the black-box
   no-privileged-root-paths test, and the field-level public-inspect test —
-  with S0's fail-closed test still green.
+  with S0's fail-closed test still green. **Landed 2026-07-01** — the declared
+  `route_registry` (+ `live_socket_operations`) is the single source of truth;
+  the migrated writes live under `/_snapback/api/{schema/load, functions/load,
+  app/reset}` (seed folded into `app.reset` per D5), `/connections/{id}/
+  disconnect` moved gated (D2), `/ephemeral/collections` register retired (D4),
+  and public `/inspect`/`/` are a typed projection dropping `connection_id` and
+  `sqlite_path` (D3). Enforcement tests: `s1_route_registry_matches_the_invariant`,
+  `s1_retired_root_operations_are_absent_from_the_registry`,
+  `s1_live_socket_operations_are_all_app_data` (server.rs);
+  `s1_retired_root_operations_are_absent`, the gated fail-closed tests, and
+  `s1_public_inspect_is_trimmed_gated_inspect_is_full` (admin_v0.rs). Verified
+  against a running server; LLP 0031 → Active; LLP 0017/0030 notes updated. The
+  kit client repoints all callers, so demos/acceptance follow without edits.
 - **S2 — Subscription ownership.** Subscription ids are sequential (`sub_1`,
   `sub_2`, …) and `resume_live` performs no ownership check, so any caller
   can re-point another subscription's stream to its own connection

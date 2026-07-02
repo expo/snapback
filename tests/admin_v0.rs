@@ -367,26 +367,52 @@ async fn non_loopback_with_token_allows_admin_reads() {
     assert_eq!(allowed.status(), StatusCode::OK);
 }
 
-/// LLP 0032 S0 — the v0 `/admin/*` aliases fail closed exactly like their
-/// `/_snapback/*` twins: writes are token-gated when a token is configured,
-/// even on loopback.
+/// LLP 0032 S1 (LLP 0031 §Enforcement) — the ungated root aliases and the
+/// routes that changed class are gone from the root: a request to any of them
+/// is a 404, not a silently-served privileged operation.
 #[tokio::test]
-async fn s0_admin_aliases_require_token_when_configured_even_on_loopback() {
+async fn s1_retired_root_operations_are_absent() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+    for uri in [
+        "/admin/schema",
+        "/admin/functions",
+        "/admin/reset",
+        "/admin/seed",
+        "/ephemeral/collections",
+        "/ephemeral/cleanup",
+        "/connections/some-conn/disconnect",
+    ] {
+        let resp = app.clone().oneshot(post(uri, json!({}))).await.unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::NOT_FOUND,
+            "{uri} must be absent from the root after migration"
+        );
+    }
+}
+
+/// LLP 0032 S1 (was S0) — the migrated gated writes fail closed exactly like
+/// their admin peers: token-gated when a token is configured, even on loopback.
+#[tokio::test]
+async fn s1_gated_writes_require_token_when_configured_even_on_loopback() {
     let app = app_with_context(seeded_snapback(), loopback_context(Some("sekrit")));
 
-    let alias_posts = [
+    let gated_posts = [
         (
-            "/admin/schema",
+            "/_snapback/api/schema/load",
             serde_json::to_value(todo_schema()).unwrap(),
         ),
         (
-            "/admin/functions",
+            "/_snapback/api/functions/load",
             serde_json::to_value(todo_functions()).unwrap(),
         ),
-        ("/admin/reset", json!({})),
-        ("/admin/seed", json!({ "tables": {} })),
+        ("/_snapback/api/app/reset", json!({})),
+        (
+            "/_snapback/api/connections/some-conn/disconnect",
+            json!({}),
+        ),
     ];
-    for (uri, body) in alias_posts {
+    for (uri, body) in gated_posts {
         let resp = app.clone().oneshot(post(uri, body)).await.unwrap();
         assert_eq!(
             resp.status(),
@@ -398,19 +424,19 @@ async fn s0_admin_aliases_require_token_when_configured_even_on_loopback() {
     }
 
     let allowed = app
-        .oneshot(post_with_token("/admin/reset", json!({}), "sekrit"))
+        .oneshot(post_with_token("/_snapback/api/app/reset", json!({}), "sekrit"))
         .await
         .unwrap();
-    assert_eq!(allowed.status(), StatusCode::NO_CONTENT);
+    assert_eq!(allowed.status(), StatusCode::OK);
 }
 
-/// LLP 0032 S0 — on a non-loopback bind the aliases are disabled without a
-/// token and token-gated with one, like every other admin write.
+/// LLP 0032 S1 (was S0) — on a non-loopback bind the gated writes are disabled
+/// without a token and token-gated with one.
 #[tokio::test]
-async fn s0_admin_aliases_fail_closed_on_non_loopback_binds() {
+async fn s1_gated_writes_fail_closed_on_non_loopback_binds() {
     let no_token = app_with_context(seeded_snapback(), exposed_context(None));
     let resp = no_token
-        .oneshot(post("/admin/reset", json!({})))
+        .oneshot(post("/_snapback/api/app/reset", json!({})))
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::FORBIDDEN);
@@ -420,25 +446,107 @@ async fn s0_admin_aliases_fail_closed_on_non_loopback_binds() {
     let with_token = app_with_context(seeded_snapback(), exposed_context(Some("sekrit")));
     let denied = with_token
         .clone()
-        .oneshot(post("/admin/reset", json!({})))
+        .oneshot(post("/_snapback/api/app/reset", json!({})))
         .await
         .unwrap();
     assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
 
     let allowed = with_token
-        .oneshot(post_with_token("/admin/reset", json!({}), "sekrit"))
+        .oneshot(post_with_token("/_snapback/api/app/reset", json!({}), "sekrit"))
         .await
         .unwrap();
-    assert_eq!(allowed.status(), StatusCode::NO_CONTENT);
+    assert_eq!(allowed.status(), StatusCode::OK);
 }
 
-/// LLP 0032 S0 — the open-loopback default is unchanged: no configured token
-/// means local tooling keeps working without headers.
+/// LLP 0032 S1 (was S0) — the open-loopback default is unchanged: no configured
+/// token means local demos keep working without headers, now against the gated
+/// routes.
 #[tokio::test]
-async fn s0_admin_aliases_stay_open_on_loopback_without_token() {
+async fn s1_gated_writes_stay_open_on_loopback_without_token() {
     let app = app_with_context(seeded_snapback(), loopback_context(None));
-    let resp = app.oneshot(post("/admin/reset", json!({}))).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    let resp = app
+        .oneshot(post("/_snapback/api/app/reset", json!({})))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+/// LLP 0032 S1 (LLP 0031 D5) — `app.reset` folds seed in: an empty body resets,
+/// `{ seed }` resets-then-seeds in one gated call.
+#[tokio::test]
+async fn s1_app_reset_seeds_when_given_a_seed_argument() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+    let seed = json!({ "seed": { "tables": { "todos": [
+        { "_id": "seed_s1", "title": "Reset seeded", "completed": false, "userId": "user_1" }
+    ] } } });
+    let resp = app
+        .clone()
+        .oneshot(post("/_snapback/api/app/reset", seed))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let scan = json(
+        app.oneshot(get("/_snapback/api/data/todos?limit=10&offset=0"))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(scan["total"], 1);
+    assert_eq!(scan["rows"][0]["title"], "Reset seeded");
+}
+
+/// LLP 0032 S1 (LLP 0031 D3 §Enforcement) — the field-level trim the route
+/// registry cannot see: public `/inspect` keeps the identity/compat facts and
+/// drops the two sensitive ones (`subscriptions[].connection_id`,
+/// `storage.sqlite_path`), while the gated twin retains them.
+#[tokio::test]
+async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+
+    // A live subscription so the public payload has a subscription to trim.
+    let sub = json!({
+        "connection_id": "conn_secret",
+        "input": { "args": {}, "auth": { "user_id": "user_1" } }
+    });
+    let subbed = app
+        .clone()
+        .oneshot(post("/live/listTodos/subscribe", sub))
+        .await
+        .unwrap();
+    assert_eq!(subbed.status(), StatusCode::OK);
+
+    // Public /inspect: identity facts present, sensitive facts absent.
+    let public = json(app.clone().oneshot(get("/inspect")).await.unwrap()).await;
+    assert_eq!(public["schemaVersion"], "snapback.v0");
+    assert!(public["targetProfileId"].is_string());
+    assert!(public["schema"].is_object());
+    assert!(public["functions"].is_object());
+    assert!(public["storage"]["version"].is_number());
+    assert!(
+        public["storage"].get("sqlite_path").is_none(),
+        "public /inspect must not expose the on-disk DB path"
+    );
+    let subs = public["subscriptions"].as_array().expect("subscriptions");
+    assert!(!subs.is_empty(), "expected the live subscription to appear");
+    for entry in subs {
+        assert!(entry["id"].is_string());
+        assert!(entry["function"].is_string());
+        assert!(
+            entry.get("connection_id").is_none(),
+            "public /inspect must not expose subscription connection ids"
+        );
+    }
+
+    // Gated /_snapback/api/inspect: the full payload retains the sensitive fact.
+    let gated = json(app.oneshot(get("/_snapback/api/inspect")).await.unwrap()).await;
+    let gated_subs = gated["subscriptions"].as_array().expect("gated subscriptions");
+    assert!(
+        gated_subs
+            .iter()
+            .any(|entry| entry["connection_id"] == "conn_secret"),
+        "the gated inspect twin must retain connection ids"
+    );
 }
 
 /* ---------- harness ---------- */

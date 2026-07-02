@@ -64,7 +64,10 @@ export class SnapbackClient {
 
   health() { return this.#req('GET', '/health'); }
   inspect() { return this.#req('GET', '/inspect'); }
-  loadSchema(manifest) { return this.#req('POST', '/admin/schema', manifest); }
+  // @ref LLP 0031#migration-plan — system writes moved from ungated root
+  //   /admin/* aliases to the gated /_snapback/api/* namespace (D5). On loopback
+  //   with no admin token these are open, so local demos are unaffected.
+  loadSchema(manifest) { return this.#req('POST', '/_snapback/api/schema/load', manifest); }
   ensureEphemeralCollections(manifestOrCollections) {
     const collections = Array.isArray(manifestOrCollections)
       ? manifestOrCollections
@@ -75,9 +78,11 @@ export class SnapbackClient {
       inputsHash: manifestOrCollections?.inputsHash ?? null,
     });
   }
-  loadFunctions(manifest) { return this.#req('POST', '/admin/functions', manifest); }
-  reset() { return this.#req('POST', '/admin/reset'); }
-  seed(seed) { return this.#req('POST', '/admin/seed', seed); }
+  loadFunctions(manifest) { return this.#req('POST', '/_snapback/api/functions/load', manifest); }
+  // app.reset folds seed in as an optional argument (LLP 0031 D5): reset() wipes,
+  // reset(seed) / seed(seed) reset-then-seed. There is no seed-without-reset path.
+  reset(seed) { return this.#req('POST', '/_snapback/api/app/reset', seed ? { seed } : {}); }
+  seed(seed) { return this.#req('POST', '/_snapback/api/app/reset', { seed }); }
 
   query(ref, { args = {}, userId, readSet = [] } = {}) {
     const name = functionName(ref);
@@ -133,8 +138,10 @@ export class SnapbackClient {
     });
   }
 
+  // @ref LLP 0031#resolved-decisions — D2: connection teardown is system/control,
+  //   moved under the gated /_snapback/api/* namespace.
   disconnect(connectionId) {
-    return this.#req('POST', `/connections/${connectionId}/disconnect`);
+    return this.#req('POST', `/_snapback/api/connections/${connectionId}/disconnect`);
   }
 
   async drainEnvelopes(connectionId) {
