@@ -649,20 +649,51 @@ class LiveStreamManager {
     this.#connect();
   }
 
+  /// The stream endpoint as an absolute ws(s) URL. A browser surface may
+  /// construct the client with a page-relative base (e.g. '/snapback' behind
+  /// the Vite proxy, which needs `ws: true` to upgrade), which `new WebSocket`
+  /// cannot take — resolve against the page origin first; headless clients
+  /// always pass absolute bases.
+  #socketUrl() {
+    const base = this.client.baseUrl;
+    const absolute = /^https?:/i.test(base) || !globalThis.location
+      ? base
+      : new URL(base, globalThis.location.href).toString().replace(/\/$/, '');
+    return `${absolute.replace(/^http/, 'ws')}/live/${this.connectionId}/stream`;
+  }
+
   #connect() {
-    const url = `${this.client.baseUrl.replace(/^http/, 'ws')}/live/${this.connectionId}/stream`;
+    const url = this.#socketUrl();
     this.#emitState('connecting');
     let ws;
     try {
       ws = new WebSocket(url);
-    } catch (error) {
+    } catch {
+      // Constructor failure (bad URL, blocked context) is a loss like any
+      // other: let consumers engage their fallback on the first failure.
+      if (this.attempts === 0) this.#emitState('lost', { wasOpen: false });
       this.#scheduleReconnect();
       return;
     }
     this.ws = ws;
 
+    // Connect budget: a dangling upgrade (a proxy that swallows it, a dead
+    // route) fires neither open nor close, which would otherwise leave
+    // consumers in 'connecting' forever with no fallback. Treat it as a loss.
+    const connectTimer = setTimeout(() => {
+      if (this.ws === ws && !this.open) {
+        try {
+          ws.close();
+        } catch {
+          // close() on a connecting socket may throw; the close event follows.
+        }
+      }
+    }, this.freshnessBudgetMs);
+    connectTimer.unref?.();
+
     ws.addEventListener('open', () => {
       if (this.ws !== ws) return;
+      clearTimeout(connectTimer);
       this.open = true;
       this.attempts = 0;
       this.lastActivityMs = Date.now();
@@ -682,6 +713,7 @@ class LiveStreamManager {
     });
     const onLoss = () => {
       if (this.ws !== ws) return;
+      clearTimeout(connectTimer);
       const wasOpen = this.open;
       this.open = false;
       this.ws = null;

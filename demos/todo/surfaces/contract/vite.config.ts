@@ -40,6 +40,10 @@ export default {
       '/snapback': {
         target: snapbackTarget,
         changeOrigin: true,
+        // The live stream (LLP 0034 D1) is a WebSocket at
+        // /snapback/live/{connection}/stream; without ws:true the proxy
+        // never upgrades and the browser surface can only poll.
+        ws: true,
         rewrite: (path) => path.replace(/^\/snapback/, ''),
       },
     },
