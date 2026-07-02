@@ -429,6 +429,8 @@ export class SnapbackClient {
           setConnection('stale');
         });
       }, pollCadenceMs);
+      // Background timers never hold a headless process open (no-op in browsers).
+      fallbackTimer.unref?.();
     };
 
     const attachStream = () => {
@@ -477,7 +479,7 @@ export class SnapbackClient {
                 if (!disposed && !paused && needsResubscribe && handle.subscriptionId !== null) {
                   void resubscribe('reconnect');
                 }
-              }, RESUBSCRIBE_AFTER_LOSS_DELAY_MS);
+              }, RESUBSCRIBE_AFTER_LOSS_DELAY_MS).unref?.();
             }
             startFallback();
           } else {
@@ -710,6 +712,7 @@ class LiveStreamManager {
       this.reconnectTimer = null;
       if (!this.closed && this.#demand() > 0) this.#connect();
     }, delay);
+    this.reconnectTimer.unref?.();
   }
 
   #startHeartbeat() {
@@ -732,6 +735,7 @@ class LiveStreamManager {
         // Loss handling rides the close event.
       }
     }, this.heartbeatIntervalMs);
+    this.heartbeatTimer.unref?.();
   }
 
   #stopHeartbeat() {
