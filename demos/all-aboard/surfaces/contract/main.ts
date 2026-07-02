@@ -17,25 +17,59 @@ import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
+import { installGestures } from './gestures';
 import { setDelays, setFeed, setLocation } from './store.mjs';
 import app from './app.contract';
 
 const CONNECTION = `all-aboard-${(globalThis.crypto?.randomUUID?.() ?? String(Math.round(performance.now())))}`;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let disposeGestures: (() => void) | null = null;
 
 function snapbackBaseUrl(): string {
   const origin = (globalThis as { __exactServerOrigin?: string }).__exactServerOrigin;
   return typeof origin === 'string' && origin.length > 0 ? `${origin}/snapback` : '/snapback';
 }
 
+// The Exact dev server serves its own generated HTML shell (index.html is not
+// consulted), so the web-host page chrome lives here: the viewport height
+// chain the full-bleed stack needs, the dark backdrop, gesture touch-action
+// rules, and text-selection scoping. This is surface glue in the same sense as
+// the geolocation and boot-status wiring.
+function installWebChrome(): void {
+  if (typeof document === 'undefined' || document.getElementById('all-aboard-web-css')) return;
+  document.title = 'All Aboard — Caltrain';
+  const style = document.createElement('style');
+  style.id = 'all-aboard-web-css';
+  style.textContent = `
+    html, body, #exact-root { height: 100%; margin: 0; }
+    body { background: #05070f; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; }
+    #exact-root { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+    #exact-root input, #exact-root textarea { -webkit-user-select: text; user-select: text; }
+    [data-testid="board-content"] { touch-action: none; }
+    input::placeholder { color: rgba(255, 255, 255, 0.4); }
+    #boot-status { position: fixed; left: 16px; bottom: 16px; z-index: 99; max-width: min(520px, calc(100vw - 32px));
+      padding: 10px 12px; border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; background: #0d1322;
+      color: #dbe3f4; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+    #boot-status[data-state="ready"] { display: none; }
+    #boot-status[data-state="error"] { border-color: #b4525f; color: #ffb3bd; }
+  `;
+  document.head.appendChild(style);
+}
+
 function status(message: string, state: 'booting' | 'ready' | 'error' = 'booting'): void {
-  const el = typeof document !== 'undefined' ? document.getElementById('boot-status') : null;
-  if (!el) {
+  if (typeof document === 'undefined') {
     console.log(`[all-aboard] ${message}`);
     return;
   }
+  let el = document.getElementById('boot-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'boot-status';
+    document.body.appendChild(el);
+  }
   el.textContent = message;
   el.dataset.state = state;
+  console.log(`[all-aboard] ${message}`);
 }
 
 // The generated Contract links. The view drives only applyFeedTick (the manual
@@ -68,6 +102,7 @@ function watchLocation(): void {
 }
 
 async function boot(): Promise<void> {
+  installWebChrome();
   status('Connecting to Snapback…');
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
@@ -99,6 +134,11 @@ async function boot(): Promise<void> {
   status('Mounting…');
   installContractWebHost();
   mount(app);
+
+  // Gesture-first interaction as web surface glue (LLP 0029 G1): swipes and
+  // arrow keys drive the same press affordances the .contract declares.
+  const rootEl = typeof document !== 'undefined' ? document.getElementById('exact-root') : null;
+  if (rootEl) disposeGestures = installGestures(rootEl);
   status('Ready', 'ready');
 }
 
@@ -114,6 +154,7 @@ const ready = boot().catch((error) => {
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     if (pollTimer) clearInterval(pollTimer);
+    if (disposeGestures) disposeGestures();
     resetSnapbackContractLinks();
     reset();
   });

@@ -135,40 +135,53 @@ export function getStationById(stationId) {
   return STATION_BY_ID.get(stationId) ?? null;
 }
 
-// The real station photo for the card, returned as inline SVG markup for the
+// The full-screen station artwork, returned as inline SVG markup for the
 // Contract `image svgSource=` attribute (the DOM mirror blocks data: URIs on
-// `src=`). The Wikimedia JPEG is embedded as a base64 <image>, slice-scaled to
-// cover the banner, under a bottom scrim that keeps the station name legible over
-// any photo. No network, fully deterministic, renders on web and native. Falls
-// back to the zone-tinted gradient if a photo is somehow missing.
+// `src=`). The poster-stylized Wikimedia photo is embedded as a base64 <image>,
+// slice-scaled to cover the 640x1136 portrait canvas, under baked top/bottom
+// scrims that keep the board type legible over any artwork — the scrims live
+// here (tunable in code) rather than in the generated JPEG bytes. No network,
+// fully deterministic, renders on web and native. Falls back to the zone-tinted
+// gradient if the art is somehow missing.
+// @ref LLP 0027#station-identity — full-bleed stylized art, zero runtime egress.
 export function stationPhoto(stationId) {
   const station = STATION_BY_ID.get(stationId);
   if (!station) return '';
   const tint = ZONE_TINTS[(station.zone - 1) % ZONE_TINTS.length];
   const photo = STATION_PHOTOS[stationId];
   const backdrop = photo
-    ? `<image href='${photo.dataUri}' x='0' y='0' width='560' height='150' preserveAspectRatio='xMidYMid slice'/>`
-    : `<rect width='560' height='150' fill='url(#g)'/>`;
+    ? `<image href='${photo.artUri}' x='0' y='0' width='640' height='1136' preserveAspectRatio='xMidYMid slice'/>`
+    : `<rect width='640' height='1136' fill='url(#g)'/>`;
   return (
-    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 560 150' width='560' height='150'>` +
-    `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
-    `<stop offset='0' stop-color='${tint}'/><stop offset='1' stop-color='#10152b'/></linearGradient>` +
-    `<linearGradient id='scrim' x1='0' y1='0' x2='0' y2='1'>` +
-    `<stop offset='0' stop-color='#0a0f1e' stop-opacity='0'/><stop offset='1' stop-color='#0a0f1e' stop-opacity='0.72'/></linearGradient></defs>` +
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 1136' width='640' height='1136'>` +
+    `<defs>` +
+    `<linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
+    `<stop offset='0' stop-color='${tint}'/><stop offset='1' stop-color='#0b0e1a'/></linearGradient>` +
+    `<linearGradient id='st' x1='0' y1='0' x2='0' y2='1'>` +
+    `<stop offset='0' stop-color='#05070f' stop-opacity='0.62'/>` +
+    `<stop offset='0.55' stop-color='#05070f' stop-opacity='0.28'/>` +
+    `<stop offset='1' stop-color='#05070f' stop-opacity='0'/></linearGradient>` +
+    `<linearGradient id='sb' x1='0' y1='0' x2='0' y2='1'>` +
+    `<stop offset='0' stop-color='#05070f' stop-opacity='0'/>` +
+    `<stop offset='0.28' stop-color='#05070f' stop-opacity='0.18'/>` +
+    `<stop offset='0.55' stop-color='#05070f' stop-opacity='0.52'/>` +
+    `<stop offset='0.8' stop-color='#05070f' stop-opacity='0.78'/>` +
+    `<stop offset='1' stop-color='#05070f' stop-opacity='0.92'/></linearGradient>` +
+    `</defs>` +
     backdrop +
-    `<rect y='70' width='560' height='80' fill='url(#scrim)'/>` +
-    `<text x='28' y='120' font-family='system-ui,sans-serif' font-size='32' font-weight='800' fill='#ffffff'>${escapeXml(station.name)}</text>` +
-    `<text x='28' y='140' font-family='system-ui,sans-serif' font-size='13' fill='#dbe3f4'>Caltrain · Zone ${station.zone}</text>` +
+    `<rect width='640' height='330' fill='url(#st)'/>` +
+    `<rect y='420' width='640' height='716' fill='url(#sb)'/>` +
     `</svg>`
   );
 }
 
-// The photo credit line for the station card. CC BY / CC BY-SA license the
-// photos on the condition that the author is named, so this must be shown.
+// The art credit line. CC BY / CC BY-SA license the source photos on the
+// condition that the author is named; the stylized art is a derivative work, so
+// the credit also indicates the change ("after a photo by ...").
 export function stationPhotoCredit(stationId) {
   const photo = STATION_PHOTOS[stationId];
   if (!photo) return '';
-  return `Photo: ${photo.attribution} · Wikimedia Commons`;
+  return `Art after a photo by ${photo.attribution} · Wikimedia Commons`;
 }
 
 export function toRadians(value) {

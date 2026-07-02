@@ -303,3 +303,113 @@ branch's engine accepts them — so the page's self-init died at `loadSchema`
 with a bare `HTTP_404`. The suites' reuse-if-healthy convention trusts
 whatever answers `/health` on the port. Worth a follow-up: have `/health`
 report an engine/build identity the suites can assert before reusing.
+
+## 2026-07-01 — Redesign pass: full-bleed poster board + a real gesture layer
+
+### What changed
+
+The surface went from "cards on a gray page" to **the station itself as the
+screen**: full-bleed poster-stylized artwork per station, with the departure
+board typeset directly on it — identity up top, the giant countdown at the
+bottom where thumbs live, three glass rows after it, the opposite direction as
+one line, and a `heroOffset` state so the rider can walk the upcoming trains.
+And the LLP 0027 interaction model finally exists on web: swipe left/right
+changes station (finger-follow drag, page-turn settle), swipe up/down walks the
+trains, a bare tap flips direction, swipe-right closes the sheet screens, and
+arrow keys drive everything on desktop.
+
+The pieces, and what each one was:
+
+| Piece | Kind |
+|---|---|
+| `station-photos.gen.py` — fetch + poster stylization → 640×1136 art | build-time pipeline (Pillow) |
+| `model.mjs stationPhoto()` — portrait SVG wrapper, scrims baked in | shared model (source) |
+| `app.contract` — full-bleed stack, hero selection, same 4-component split | Contract source |
+| `data.ts boardTrains/delayLabel/shortHeadsign/distanceLabel` | pure bridge helpers |
+| `gestures.ts` — pointer recognition → clicks the declared affordances | **web surface glue** |
+| `main.ts installWebChrome()` — height chain, dark bg, touch-action CSS | **web surface glue** |
+
+### The art pipeline: "AI hand-drawn" without the AI
+
+The brief floated AI-generated hand-drawn station images so text overlays
+better. What shipped gets the same property deterministically: median-smooth →
+saturation lift → 18-color median-cut quantize → soft ink-edge overlay. A
+travel-poster look that flattens photographic noise (so white type reads on any
+station), homogenizes 21 photos of wildly different quality into one visual
+language, and — because it is pure Pillow over the committed Wikimedia
+originals — stays reproducible, offline after first fetch, and zero-egress at
+runtime. I compared photo/duotone/ink-wash/poster contact sheets with mock
+board text before choosing; the poster column won on both looks and
+legibility. The scrims deliberately live in the SVG wrapper (`model.mjs`), not
+the JPEG bytes, so design tuning never refetches. Cost recorded honestly:
+~1.5 MB of base64 in a generated .mjs (up from ~610 KB), still the
+asset-pipeline shortcut the manifest declares.
+
+### Gestures: the DOM mirror is a fine substrate, with three sharp edges
+
+Contract still has no swipe primitive (LLP 0029 G1), so gestures are glue — but
+the glue is deliberately dumb: every recognized gesture **clicks the same
+testId'd press affordance the .contract declares**. One action path for
+gestures, taps, keyboard, acceptance tests, and (someday) native. Three things
+bit me on the way:
+
+- **The mirror wipes inline styles per re-render of a node whose props
+  changed** (`applyProps` → `clearElementAttributes` + re-apply). The
+  finger-follow drag works *because* the dragged container's Contract props are
+  static — glue-owned `transform` survives the 1s ticks. This is load-bearing
+  and undocumented; if someone adds a dynamic attr to `board-content`, the drag
+  will start snapping mid-gesture.
+- **My own click suppressor ate my synthetic clicks.** After a drag you must
+  swallow the browser's trailing click so a swipe released over a train row
+  doesn't open it — but the suppressor (armed before dispatch) also swallowed
+  the glue's `el.click()` for vertical swipes. Horizontal escaped only because
+  its press fires 135 ms later, after the suppressor expired. Fix: a
+  `dispatching` bypass flag. Classic self-inflicted event-layer bug.
+- **`event.target.closest` is not universal** — synthetic keyboard events
+  dispatched on `window` have no `.closest`, which silently killed the handler
+  under test. Guard with `typeof target.closest === 'function'`.
+
+### The web host had one more surprise: index.html is decorative
+
+The full-bleed layout needs `html/body/#exact-root { height: 100% }` — and it
+turned out the Exact dev server serves its **own generated HTML shell**; the
+demo's `index.html` is never consulted. The old design never noticed because
+normal-flow cards get height from content, and `status()` fell back to
+`console.log` when its element didn't exist (which is why boot messages only
+ever appeared in the console). Absolute-inset children have no such luck: the
+app rendered a complete, correct, dark DOM into a zero-height stack — a white
+screen with everything "working". `main.ts` now injects the page chrome
+(`installWebChrome()`): height chain, dark background, `touch-action` rules
+([data-testid="board-content"] { touch-action: none } so the browser never
+fights the gesture layer), and the boot-status element itself. Worth knowing
+for every future full-viewport Contract demo on web.
+
+### What Contract was good at
+
+The redesign itself — stack + absolute inset, the scrimmed art via
+`svgSource=`, `spacer`, per-service tinted pills, `fontVariant="tabular-nums"`
+so the countdown doesn't jitter, conditional colors at the terminus chevrons —
+was pleasant and compiled first try, warnings only. The action-threaded
+component split from ENG-22417 carried over cleanly; the four components kept
+their names and testIds through a total visual rewrite, which is exactly what
+presentational components are for. `heroOffset` as plain state + a pure
+`boardTrains(stationId, dir, now, offset)` derive made "swipe up = later train"
+a two-line action with clamping in one place.
+
+### Compared to React
+
+In React I'd have had the gesture layer as a hook over the same pointer events
+(equivalent work), CSS in a file that actually loads (less work), and
+`IntersectionObserver`-style mid-drag rendering control (more control). The
+Contract version's win is that the *entire interactive surface* stays declared,
+testable, and native-portable — the glue only ever presses buttons that are
+already there. The loss is exactly LLP 0029 G1: none of the gesture layer is
+expressible in the language yet, so feel lives outside the artifact.
+
+### Verification
+
+Browser acceptance grew three gesture checks (synthetic pointer sequences
+through the real glue): 9/9, plus headless 11/11, cron 7/7, egress 4/4. The
+visual loop ran as phone-viewport CDP screenshots across five stations, both
+sheets, terminus dimming, delay states, and each gesture — the fastest way to
+iterate a Contract surface I've found so far.

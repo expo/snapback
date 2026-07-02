@@ -144,6 +144,33 @@ async function main() {
       if (!(feed.fetchedAt > 0)) throw new Error('feedRefreshState.fetchedAt not stamped');
       return { before, after, tickIndex: feed.tickIndex };
     });
+
+    // Gesture layer (LLP 0027 interaction model via web surface glue; LLP 0029
+    // G1 remains open — these drive the same press affordances by pointer).
+
+    await suite.check('gesture: swipe left moves to the adjacent station', async () => {
+      const before = await page.text('station-name');
+      await page.swipe('h', -170);
+      const after = await page.text('station-name');
+      if (!before || before === after) throw new Error(`station did not change (${before} -> ${after})`);
+      return { before, after };
+    });
+
+    await suite.check('gesture: swipe up selects the next upcoming train', async () => {
+      const before = await page.text('hero-meta');
+      await page.swipe('v', -90);
+      const after = await page.text('hero-meta');
+      if (!before || before === after) throw new Error(`hero train did not change (${before} -> ${after})`);
+      return { before, after };
+    });
+
+    await suite.check('gesture: bare tap on neutral ground flips the direction', async () => {
+      const before = await page.text('active-direction');
+      await page.tapNeutral();
+      const after = await page.text('active-direction');
+      if (before === after) throw new Error(`direction did not flip (${before})`);
+      return { before, after };
+    });
   } finally {
     const report = suite.finish();
     for (const c of cleanups.reverse()) { try { await c(); } catch { /* best effort */ } }
@@ -198,6 +225,32 @@ async function connectCdp(url) {
         text: (id) => evalRaw(`document.querySelector('${sel(id)}')?.textContent.trim() ?? null`),
         exists: (id) => evalRaw(`!!document.querySelector('${sel(id)}')`),
         click: (id) => evalRaw(`(async () => { const el = document.querySelector('${sel(id)}'); if (!el) throw new Error('no ${id}'); el.click(); await new Promise(r=>setTimeout(r,350)); })()`),
+        // Synthetic pointer gestures against the glue layer (gestures.ts).
+        swipe: (axis, delta) => evalRaw(`(async () => {
+          const root = document.getElementById('exact-root');
+          const cx = 195, cy = 480, steps = 8;
+          const opts = (x, y, extra) => ({ bubbles: true, cancelable: true, pointerId: 7, isPrimary: true, button: 0, buttons: 1, clientX: x, clientY: y, pointerType: 'touch', ...extra });
+          const at = (i) => { const d = ${delta} * (i / steps); return '${axis}' === 'h' ? [cx + d, cy] : [cx, cy + d]; };
+          root.dispatchEvent(new PointerEvent('pointerdown', opts(cx, cy)));
+          for (let i = 1; i <= steps; i++) { const [x, y] = at(i); root.dispatchEvent(new PointerEvent('pointermove', opts(x, y))); await new Promise(r => setTimeout(r, 16)); }
+          const [x, y] = at(steps);
+          root.dispatchEvent(new PointerEvent('pointerup', opts(x, y, { buttons: 0 })));
+          await new Promise(r => setTimeout(r, 650));
+        })()`),
+        tapNeutral: () => evalRaw(`(async () => {
+          const w = window.innerWidth, h = window.innerHeight;
+          const candidates = [[w / 2, h * 0.38], [w / 2, h * 0.32], [w / 2, h * 0.45], [w * 0.3, h * 0.38]];
+          let x = w / 2, y = h * 0.38, el = null;
+          for (const [cx, cy] of candidates) {
+            const probe = document.elementFromPoint(cx, cy);
+            if (probe && !probe.closest('button, a, input, textarea, select')) { x = cx; y = cy; el = probe; break; }
+          }
+          el = el ?? document.getElementById('exact-root');
+          const opts = { bubbles: true, cancelable: true, pointerId: 9, isPrimary: true, button: 0, clientX: x, clientY: y, pointerType: 'touch' };
+          el.dispatchEvent(new PointerEvent('pointerdown', opts));
+          el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0 }));
+          await new Promise(r => setTimeout(r, 400));
+        })()`),
         waitForTestId: (id) => evalRaw(`(async () => { const d = Date.now()+8000; while (Date.now()<d) { if (document.querySelector('${sel(id)}')) return true; await new Promise(r=>setTimeout(r,80)); } throw new Error('timeout waiting for ${id}'); })()`),
         evalPoll: (expr, _pred, ms) => evalRaw(`(async () => { const d = Date.now()+${ms}; let v; while (Date.now()<d) { v = ${expr}; if (/Updated/.test(v)) return v; await new Promise(r=>setTimeout(r,150)); } return v; })()`),
       };

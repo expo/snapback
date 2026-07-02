@@ -26,6 +26,7 @@ import {
   getStationById,
   getStations as modelStations,
   getTrainRun as modelTrainRun,
+  getUpcomingDepartures as modelUpcomingDepartures,
   searchStations as modelSearch,
   serviceColor as modelServiceColor,
   stationPhoto as modelStationPhoto,
@@ -106,6 +107,42 @@ export function getDirectionBoard(stationId: string, direction: string, nowMs: n
   return modelDirectionBoard(stationId, direction, nowMs, getStoreState().delays, limit);
 }
 
+// The hero-selection board: `heroOffset` walks the upcoming trains (swipe
+// up/down or the ▲▼ arrows), the three after it stay listed. The offset is
+// clamped to the rows that exist, so an offset stranded by time passing (the
+// selected train departs) degrades to the last remaining train.
+export function boardTrains(stationId: string, direction: string, nowMs: number, heroOffset: number) {
+  const wanted = Math.max(0, heroOffset ?? 0);
+  const rows = modelUpcomingDepartures(stationId, direction, nowMs, getStoreState().delays, wanted + 5);
+  const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
+  return {
+    hero: rows[offset] ?? null,
+    rest: rows.slice(offset + 1, offset + 4),
+    hasPrev: offset > 0,
+    hasNext: rows.length > offset + 1,
+    offset,
+  };
+}
+
+// On-time / late marker for a departure (or a trip; both carry delaySeconds).
+export function delayLabel(dep: { delaySeconds?: number } | null): string {
+  if (!dep) return '';
+  const s = dep.delaySeconds ?? 0;
+  return s >= 45 ? `${Math.max(1, Math.round(s / 60))} min late` : 'on time';
+}
+
+export function delayColor(dep: { delaySeconds?: number } | null): string {
+  return (dep?.delaySeconds ?? 0) >= 45 ? '#fbbf24' : '#34d399';
+}
+
+// Compact destination for the departure rows ("Diridon", not "San Jose
+// Diridon") — headsign is the destination station's full name.
+export function shortHeadsign(dep: { headsign?: string } | null): string {
+  const headsign = dep?.headsign ?? '';
+  const match = modelStations().find((s: { name: string; shortName: string }) => s.name === headsign);
+  return match ? match.shortName : headsign;
+}
+
 export function getTrainRun(runId: string, nowMs: number) {
   return modelTrainRun(runId, nowMs, getStoreState().delays);
 }
@@ -150,6 +187,13 @@ export function walkBikeSummary(station: { lat: number; lng: number }, _tick?: n
   const bike = estimateBikeMinutes(location, station);
   const miles = estimateDistanceMiles(location, station);
   return `${walk} min walk · ${bike} min bike · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+}
+
+// Compact distance for the stations-list rows, where the full walk/bike
+// summary is too wide (and a 300-minute walk reads as noise).
+export function distanceLabel(station: { lat: number; lng: number }, _tick?: number): string {
+  const miles = estimateDistanceMiles(getUserLocation(), station);
+  return `${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 
 // --- Freshness marker (reads feedRefreshState from the store) -----------------

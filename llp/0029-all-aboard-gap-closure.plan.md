@@ -5,6 +5,7 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
+**Revised:** 2026-07-01 (G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
 **Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, Diary 0008
 
 ## Summary
@@ -80,6 +81,15 @@ over the host-ops protocol, a Contract event attribute (`swipe=` / `onSwipeLeft=
 …), and web + native host bindings. Then the demo swaps press affordances for
 `swipe=` handlers that call the same actions. Gate acceptance through Exact's
 structured tree, not synthetic DOM events.
+
+**Interim (2026-07-01).** The redesign pass shipped the swipe UX on web as
+demo-local surface glue: `surfaces/contract/gestures.ts` recognizes the
+LLP 0027 gestures (station swipe with finger-follow drag, train swipe, bare-tap
+flip, sheet swipe-back, arrow keys) and dispatches by clicking the declared
+press affordances, so one action path serves gestures/taps/keyboard/tests. The
+product vision is now demonstrable, but this is glue of exactly the kind
+LLP 0016 wants retired — the Contract primitive above remains the closure and
+deletes the file. Native still has press affordances only.
 
 **Effort.** L (a real Exact feature, multiple layers). **Owner.** Exact motion
 RFCs; All Aboard is the first consumer.

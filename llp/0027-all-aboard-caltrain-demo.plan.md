@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Cron, Realtime, Data gateway, Contract/Exact, Notifications, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
+**Revised:** 2026-07-01 (redesign pass: full-bleed poster-stylized station art with the board typeset on it, hero-selection state, and the LLP interaction model implemented for real on web via gesture surface glue — see [Station identity](#station-identity), [Interaction model](#interaction-model), [Implementation](#implementation), Diary 0008; earlier same day — LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
 **Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0009, LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0024, LLP 0028, LLP 0029, Diary 0008, https://github.com/ccheever/ibex, https://openrouteservice.org, https://en.wikipedia.org/wiki/List_of_Caltrain_stations, https://511.org/open-data/transit
 
 ## Summary
@@ -230,9 +230,19 @@ zero-chrome:
 
 Swiping is the spatial mental model: left/right walks the line of stations;
 up/down walks the list of trains at the current station. Tap is the cheap toggle
-for direction. These map directly onto the Exact gesture primitives found above
-(`onSwipe*`, `onPress`), and the acceptance gate verifies each through Exact's
-agent API / structured tree rather than DOM scraping
+for direction.
+
+*As implemented (2026-07-01 redesign):* Contract still has no swipe primitive
+(LLP 0029 G1), so this model ships on web as **surface glue** —
+`surfaces/contract/gestures.ts` recognizes the swipes (with finger-follow drag
+and a page-turn settle for stations), the bare-tap direction flip, a
+swipe-right-to-go-back on the sheet screens, and arrow-key equivalents, and
+dispatches every recognized gesture by clicking the same visible press
+affordances the `.contract` declares (edge chevrons, ▲▼ train arrows, the flip
+pill). One action path serves gestures, taps, keyboard, tests, and the native
+host; when the Exact motion primitives land, the glue file is deleted and
+`swipe=` attributes replace it. Acceptance drives the affordances by testId and
+the gestures by synthetic pointer sequences
 ([LLP 0015](./0015-demo-application-suite.plan.md#contractexact)).
 
 ### Train detail
@@ -250,18 +260,28 @@ view is one tap deep, not the landing surface.
 
 ### Station identity
 
-Each station shows a **photo and its name**. The photos are the real station
-images from the Wikipedia
+Each station is a **full-screen poster**: the whole home screen is the station's
+artwork, with the departure board typeset directly on it — identity (wordmark,
+station name, zone/walk/bike) at the top, the answer (the giant countdown, its
+stops, the next three trains, the opposite direction) at the bottom where thumbs
+live. The artwork is derived from the real station photos on the Wikipedia
 [List of Caltrain stations](https://en.wikipedia.org/wiki/List_of_Caltrain_stations)
-— sourced from Wikimedia Commons, cover-cropped to the card banner, and
-base64-inlined **inside** the card SVG at build time
-(`snapback/shared/station-photos.gen.mjs`). Inlining keeps zero runtime egress and
-full determinism (the DOM mirror blocks `data:` URIs on `src=`, so the photo rides
-the Contract `image svgSource=` path the drawing used), and each card shows the
-required CC BY/CC-BY-SA/CC0 photo credit. Flowing the images through the
+(Wikimedia Commons), run through a deterministic **travel-poster stylization**
+at build time (`snapback/shared/station-photos.gen.py`: median-smooth, saturate,
+18-color median-cut quantize, soft ink-edge overlay — algorithmic Pillow, not an
+image-generation model) and base64-inlined as 640×1136 JPEG in
+`station-photos.gen.mjs`. The flattening is what lets white board type sit
+legibly on any station's art; the top/bottom **legibility scrims are baked into
+the SVG wrapper** built by `model.mjs stationPhoto()` (the DOM mirror blocks
+`data:` URIs on `src=`, so the art rides the Contract `image svgSource=` path),
+keeping them tunable in code without refetching. Zero runtime egress, full
+determinism, and each screen shows the required CC BY/CC-BY-SA/CC0 credit as
+"art after a photo by …" (a derivative work keeps its source license). Flowing
+the assets through the
 [asset-storage subsystem](./0000-snapback.explainer.md#asset-storage) instead of
-inlining them remains the follow-up ([Open questions](#open-questions)); the
-inline-vs-asset-pipeline shortcut is recorded in the manifest `temporaryPolicy`.
+inlining (~1.5 MB of base64 source) remains the follow-up
+([Open questions](#open-questions)); the shortcut is recorded in the manifest
+`temporaryPolicy`.
 
 ## Backend Design
 
@@ -741,6 +761,20 @@ egress 4/4, Contract browser 6/6, with the Rust suite green.
   (it re-queries after local mutations and is single-boundary), so the surface feeds
   live delays into a store the view derives from on a 1s clock. These are recorded in
   `demo.snapback.json` gaps and Diary 0008, not faked.
+- **Redesign pass (2026-07-01, Diary 0008).** The surface became the full-bleed
+  poster board described under [Station identity](#station-identity): stylized
+  full-screen station art (build-time Pillow pipeline), the board typeset on
+  baked SVG scrims, a `heroOffset` state that walks the upcoming trains, and the
+  [interaction model](#interaction-model) implemented for real on web via
+  `gestures.ts` surface glue that drives the declared press affordances (swipe
+  station/train, bare-tap flip, swipe-back on sheets, arrow keys). The
+  `exact.gestures` Contract-primitive gap **stays open** (LLP 0029 G1) — the
+  glue is the interim, deletable stand-in, and the affordances remain the
+  portable path for native. One web-host discovery recorded honestly: the Exact
+  dev server serves its own HTML shell (the demo's `index.html` is never
+  consulted), so `main.ts` injects the page chrome (height chain, dark
+  backdrop, touch-action rules) the full-bleed layout needs. Browser acceptance
+  grew gesture checks (9/9 with headless 11/11, cron 7/7, egress 4/4 all green).
 
 ## Status
 
