@@ -1,14 +1,20 @@
-// All Aboard — React control-arm browser acceptance (ENG-22435 red-team).
+// All Aboard — React control-arm browser acceptance (ENG-22435 red-team;
+// re-baselined to the redesigned product by ENG-22450).
 //
 // Mirrors browser.mjs (the Contract/Exact Phase 1 suite) check-for-check against
-// the React surface in demos/all-aboard/surfaces/react: same six assertions,
-// same testId handles, same backend lifecycle. Differences from the Contract
-// suite are exactly the differences between the arms:
+// the React surface in demos/all-aboard/surfaces/react: same twelve assertions,
+// same testId handles, same backend lifecycle — boot, board, presses, trip
+// detail, mutation + freshness, live push, cron delta with no pump, second
+// window D4, and the three gesture checks. Differences from the Contract suite
+// are exactly the differences between the arms:
 //   - the surface is stock React + Vite resolved from the surface's own
 //     node_modules (no sibling Exact checkout), so the "capability gap" skip is
 //     replaced by a one-time `bun install`;
 //   - the Refresh press drives applyFeedTick through a direct client.mutate
-//     call rather than a generated Contract mutation binding.
+//     call rather than a generated Contract mutation binding;
+//   - live push is two hand-wired kit liveQuery handles (transport 'stream')
+//     rather than createSnapbackContractSurface's generated bindings;
+//   - gestures dispatch against `#root` (React) rather than `#exact-root`.
 //
 // Ports are env-overridable (ALL_ABOARD_API_PORT / ALL_ABOARD_REACT_VITE_PORT)
 // so the suite can run isolated from other checkouts' demo servers squatting
@@ -34,6 +40,11 @@ const API_PORT = Number(process.env.ALL_ABOARD_API_PORT ?? 4420);
 const VITE_PORT = Number(process.env.ALL_ABOARD_REACT_VITE_PORT ?? 5179);
 const apiUrl = `http://127.0.0.1:${API_PORT}`;
 const viteUrl = `http://127.0.0.1:${VITE_PORT}`;
+
+// A run that performs fewer checks than the suite declares is a harness
+// failure, not a pass — a pre-check throw must never exit "PASS — 0/0"
+// (ENG-22486).
+const EXPECTED_CHECKS = 12;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
@@ -139,9 +150,119 @@ async function main() {
       if (!(feed.fetchedAt > 0)) throw new Error('feedRefreshState.fetchedAt not stamped');
       return { before, after, tickIndex: feed.tickIndex };
     });
+
+    // --- The paved path, React arm (LLP 0034 D1): server push through two
+    // hand-wired kit liveQuery stream handles, no poll pump, D4 boot.
+
+    await suite.check('paved path: both live queries bind with push; connections report live', async () => {
+      const facts = await page.eval(`(async () => {
+        const d = Date.now() + 8000;
+        for (;;) {
+          const aa = window.allAboard;
+          const conns = aa && aa.connections ? aa.connections() : null;
+          if (aa && aa.livePush === true && conns
+              && conns.liveTrainStatus === 'live' && conns.feedState === 'live') {
+            return { livePush: aa.livePush, connections: conns, provisioned: aa.provisioned };
+          }
+          if (Date.now() > d) throw new Error('live connections never settled: ' + JSON.stringify({ livePush: aa?.livePush, conns }));
+          await new Promise(r => setTimeout(r, 100));
+        }
+      })()`);
+      // First window on a fresh backend performs the full provisioning.
+      if (!Array.isArray(facts.provisioned)) throw new Error('provisioning facts missing');
+      return facts;
+    });
+
+    await suite.check('cron-authored delta reaches the browser through the handles (no pump)', async () => {
+      // Trigger the demo's own cron job server-side (the admin manual-run
+      // route): refreshFeed -> applyFeedTick -> live fan-out. The browser
+      // performs no interaction and owns no poll timer for these queries —
+      // the freshness marker must go "just now" purely from the push.
+      const client = new SnapbackClient(apiUrl);
+      const tickBefore = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
+      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
+      if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
+      const record = await run.json();
+      const fresh = await page.pollText('freshness', 'Updated just now', 6000);
+      if (fresh !== 'Updated just now') throw new Error(`cron delta did not reach the browser: freshness=${fresh}`);
+      const tickAfter = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
+      if (!(tickAfter > tickBefore)) throw new Error(`cron run did not advance the feed (${tickBefore} -> ${tickAfter})`);
+      const conns = await page.eval('window.allAboard.connections()');
+      if (conns.liveTrainStatus !== 'live') throw new Error(`connection degraded during push: ${JSON.stringify(conns)}`);
+      return { cronOutcome: record.outcome, tickBefore, tickAfter, connections: conns };
+    });
+
+    await suite.check('second window boot does not clear the first (D4 inspect-first)', async () => {
+      const page2 = await cdp.newPage();
+      await page2.navigate(`${viteUrl}/`);
+      const second = await page2.eval(`(async () => {
+        const d = Date.now() + 20000;
+        while (!window.allAboard) { if (Date.now() > d) throw new Error('second window never booted'); await new Promise(r=>setTimeout(r,50)); }
+        await window.allAboard.ready;
+        const s = Date.now() + 8000;
+        for (;;) {
+          const conns = window.allAboard.connections ? window.allAboard.connections() : null;
+          if (conns && conns.liveTrainStatus === 'live') return { provisioned: window.allAboard.provisioned, connections: conns };
+          if (Date.now() > s) throw new Error('second window connections never settled: ' + JSON.stringify(conns));
+          await new Promise(r => setTimeout(r, 100));
+        }
+      })()`);
+      // Inspect-first: the backend is already provisioned and seeded, so the
+      // second window's boot performs NO provisioning writes (the LLP 0275 C4
+      // footgun — a second window calling loadSchema/reset — is gone).
+      if (second.provisioned.length !== 0) {
+        throw new Error(`second window re-provisioned: ${JSON.stringify(second.provisioned)}`);
+      }
+      // The first window's session survived: still rendered, still live, and
+      // still receiving server-authored deltas after the second boot.
+      const stationName = await page.text('station-name');
+      if (!stationName) throw new Error('first window lost its board after the second boot');
+      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
+      if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
+      const fresh = await page.pollText('freshness', 'Updated just now', 6000);
+      if (fresh !== 'Updated just now') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
+      const conns = await page.eval('window.allAboard.connections()');
+      if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
+      return { second, firstStillLive: conns };
+    });
+
+    // Gesture layer (the same recognizer glue as the Contract arm, installed
+    // over #root — these drive the same press affordances by pointer).
+
+    await suite.check('gesture: swipe left moves to the adjacent station', async () => {
+      const before = await page.text('station-name');
+      await page.swipe('h', -170);
+      const after = await page.text('station-name');
+      if (!before || before === after) throw new Error(`station did not change (${before} -> ${after})`);
+      return { before, after };
+    });
+
+    await suite.check('gesture: swipe up selects the next upcoming train', async () => {
+      const before = await page.text('hero-meta');
+      await page.swipe('v', -90);
+      const after = await page.text('hero-meta');
+      if (!before || before === after) throw new Error(`hero train did not change (${before} -> ${after})`);
+      return { before, after };
+    });
+
+    await suite.check('gesture: bare tap on neutral ground flips the direction', async () => {
+      const before = await page.text('active-direction');
+      await page.tapNeutral();
+      const after = await page.text('active-direction');
+      if (before === after) throw new Error(`direction did not flip (${before})`);
+      return { before, after };
+    });
+  } catch (error) {
+    // Surface the pre-check failure instead of letting the finally-exit
+    // swallow it (ENG-22486).
+    console.error(`SETUP FAILURE before checks completed: ${error?.stack ?? error}`);
   } finally {
     const report = suite.finish();
     for (const c of cleanups.reverse()) { try { await c(); } catch { /* best effort */ } }
+    if (report.total !== EXPECTED_CHECKS) {
+      console.error(`FAIL ${report.title} — ran ${report.total}/${EXPECTED_CHECKS} expected checks (vacuous pass guard, ENG-22486)`);
+      process.exit(1);
+    }
     process.exit(report.ok ? 0 : 1);
   }
 }
@@ -193,8 +314,37 @@ async function connectCdp(url) {
         text: (id) => evalRaw(`document.querySelector('${sel(id)}')?.textContent.trim() ?? null`),
         exists: (id) => evalRaw(`!!document.querySelector('${sel(id)}')`),
         click: (id) => evalRaw(`(async () => { const el = document.querySelector('${sel(id)}'); if (!el) throw new Error('no ${id}'); el.click(); await new Promise(r=>setTimeout(r,350)); })()`),
+        // Synthetic pointer gestures against the glue layer (src/gestures.ts).
+        swipe: (axis, delta) => evalRaw(`(async () => {
+          const root = document.getElementById('root');
+          const cx = 195, cy = 480, steps = 8;
+          const opts = (x, y, extra) => ({ bubbles: true, cancelable: true, pointerId: 7, isPrimary: true, button: 0, buttons: 1, clientX: x, clientY: y, pointerType: 'touch', ...extra });
+          const at = (i) => { const d = ${delta} * (i / steps); return '${axis}' === 'h' ? [cx + d, cy] : [cx, cy + d]; };
+          root.dispatchEvent(new PointerEvent('pointerdown', opts(cx, cy)));
+          for (let i = 1; i <= steps; i++) { const [x, y] = at(i); root.dispatchEvent(new PointerEvent('pointermove', opts(x, y))); await new Promise(r => setTimeout(r, 16)); }
+          const [x, y] = at(steps);
+          root.dispatchEvent(new PointerEvent('pointerup', opts(x, y, { buttons: 0 })));
+          await new Promise(r => setTimeout(r, 650));
+        })()`),
+        tapNeutral: () => evalRaw(`(async () => {
+          const w = window.innerWidth, h = window.innerHeight;
+          const candidates = [[w / 2, h * 0.38], [w / 2, h * 0.32], [w / 2, h * 0.45], [w * 0.3, h * 0.38]];
+          let x = w / 2, y = h * 0.38, el = null;
+          for (const [cx, cy] of candidates) {
+            const probe = document.elementFromPoint(cx, cy);
+            if (probe && !probe.closest('button, a, input, textarea, select')) { x = cx; y = cy; el = probe; break; }
+          }
+          el = el ?? document.getElementById('root');
+          const opts = { bubbles: true, cancelable: true, pointerId: 9, isPrimary: true, button: 0, clientX: x, clientY: y, pointerType: 'touch' };
+          el.dispatchEvent(new PointerEvent('pointerdown', opts));
+          el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0 }));
+          await new Promise(r => setTimeout(r, 400));
+        })()`),
         waitForTestId: (id) => evalRaw(`(async () => { const d = Date.now()+8000; while (Date.now()<d) { if (document.querySelector('${sel(id)}')) return true; await new Promise(r=>setTimeout(r,80)); } throw new Error('timeout waiting for ${id}'); })()`),
         evalPoll: (expr, _pred, ms) => evalRaw(`(async () => { const d = Date.now()+${ms}; let v; while (Date.now()<d) { v = ${expr}; if (/Updated/.test(v)) return v; await new Promise(r=>setTimeout(r,150)); } return v; })()`),
+        // Poll a testId's text until it matches the pattern (or time out,
+        // returning the last value for the caller's error message).
+        pollText: (id, pattern, ms) => evalRaw(`(async () => { const d = Date.now()+${ms}; let v; while (Date.now()<d) { v = document.querySelector('${sel(id)}')?.textContent.trim() ?? null; if (v !== null && new RegExp(${JSON.stringify(pattern)}).test(v)) return v; await new Promise(r=>setTimeout(r,120)); } return v; })()`),
       };
     },
   };

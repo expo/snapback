@@ -45,6 +45,12 @@ const exactRoot = process.env.SNAPBACK_EXACT_ROOT
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
 
+// A run that performs fewer checks than the suite declares is a harness
+// failure, not a pass — a pre-check throw must never exit "PASS — 0/0"
+// (ENG-22486). The declared-gap skip in main() returns before the try block,
+// so it never reaches this guard.
+const EXPECTED_CHECKS = 12;
+
 const suite = createSuite('all-aboard browser (Phase 1)');
 const cleanups = [];
 let cdp = null;
@@ -249,9 +255,17 @@ async function main() {
       if (before === after) throw new Error(`direction did not flip (${before})`);
       return { before, after };
     });
+  } catch (error) {
+    // Surface the pre-check failure instead of letting the finally-exit
+    // swallow it (ENG-22486).
+    console.error(`SETUP FAILURE before checks completed: ${error?.stack ?? error}`);
   } finally {
     const report = suite.finish();
     for (const c of cleanups.reverse()) { try { await c(); } catch { /* best effort */ } }
+    if (report.total !== EXPECTED_CHECKS) {
+      console.error(`FAIL ${report.title} — ran ${report.total}/${EXPECTED_CHECKS} expected checks (vacuous pass guard, ENG-22486)`);
+      process.exit(1);
+    }
     process.exit(report.ok ? 0 : 1);
   }
 }
