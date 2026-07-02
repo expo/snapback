@@ -489,6 +489,14 @@ export async function createSnapbackContractSurface({
 // - a per-collection source-start counter (the conformance gate's LOCAL-ONLY
 //   probe asserts forced subscribers never start the provider source).
 //
+// Reconnect (ENG-22541, diary 0011 flip condition 3): the ephemeral lane
+// mirrors the kit's durable-lane needsResubscribe-on-open policy — an OPEN
+// socket's loss marks every room subscription dead (the server drops a
+// connection's subscriptions on socket close, so no in-band needs_resync
+// ever arrives after a server restart), socket regain re-enters through a
+// fresh snapshot-with-subscribe per room, and the presented connection holds
+// 'stale' until that subscribe lands (never 'live' over a dead room).
+//
 // Force semantics (forceEphemeralState LOCAL-ONLY, force-reaches-live,
 // dispose-restores) come from the Exact runtime's boundary provider force
 // plane — the adapter deliberately does NOT wrap subscribeEphemeral or
@@ -616,6 +624,7 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       lingerTimer: null,
       tornDown: false,
       disposalEntry: null,
+      resyncInFlight: false,
       notify: null,
     };
     record.notify = () => {
@@ -628,13 +637,27 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
     // retrying maps to 'stale' per the kit's connection table (ENG-22479
     // review fix 3). A retired subscription emits no further signals, so
     // silence here would freeze the map as empty-but-ready-and-live forever.
+    // At most ONE fresh subscribe is ever in flight per record (ENG-22541):
+    // the socket-regain trigger below can race the in-band resync retry
+    // loop, and overlapping subscribes would double the room's server-side
+    // fan-out. Entering a resync also cancels a pending backoff retry — the
+    // immediate attempt supersedes it. A torn-down record (idle-linger
+    // teardown, ENG-22527) must never resync: its onState detaches only when
+    // the best-effort unsubscribe settles, and a fresh registration here
+    // would race that unsubscribe and leak (nothing owns it afterwards).
     const attemptResync = () => {
-      if (disposed) return;
+      if (disposed || record.tornDown || record.resyncInFlight) return;
+      if (record.resyncTimer) {
+        clearTimeout(record.resyncTimer);
+        record.resyncTimer = null;
+      }
+      record.resyncInFlight = true;
       void client
         .subscribeEphemeral(name, { connectionId, scope: { ...args }, userId, permissions })
         .then((fresh) => {
-          if (disposed) {
-            fresh.dispose(); // fix 4: never leak past surface disposal
+          record.resyncInFlight = false;
+          if (disposed || record.tornDown) {
+            fresh.dispose(); // fix 4: never leak past surface/record teardown
             return;
           }
           const superseded = record.overlay;
@@ -646,7 +669,8 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
           record.notify();
         })
         .catch(() => {
-          if (disposed) return;
+          record.resyncInFlight = false;
+          if (disposed || record.tornDown) return;
           const delay = Math.min(
             RESYNC_BASE_DELAY_MS * 2 ** record.resyncAttempts,
             RESYNC_MAX_DELAY_MS,
@@ -680,7 +704,27 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
     // truth (same connection the durable lanes ride).
     const manager = client.liveStreamManager(connectionId);
     record.connection = manager.isOpen() ? 'live' : 'connecting';
-    record.offState = manager.onState((state) => {
+    record.offState = manager.onState((state, detail = {}) => {
+      // Reconnect policy (ENG-22541): mirror the kit's durable-lane
+      // needsResubscribe-on-open rule (demos/_kit/client.mjs attachStream).
+      // An OPEN socket's close makes the server drop this connection's
+      // subscriptions (src/server.rs live_stream -> disconnect; diary 0007),
+      // so the room is dead server-side and NO in-band needs_resync will
+      // ever arrive for it — after a server restart the old wiring froze
+      // every map under a 'live' banner. A socket that never opened dropped
+      // nothing. Any successful fresh subscribe (attemptResync) clears the
+      // need, so a resync that landed during the outage is not repeated.
+      if (state === 'lost' && detail.wasOpen) {
+        record.subscribed = false;
+      }
+      if (state === 'open' && !record.subscribed) {
+        // Socket regained over a dead room: re-enter through a fresh
+        // snapshot-with-subscribe. Until it lands, toMapCell keeps
+        // presenting 'stale' (record.subscribed === false), so the map
+        // never claims 'live' over a dead room; 'live' arrives with the
+        // fresh snapshot via attemptResync's notify (LLP 0034 §2.2 order).
+        attemptResync();
+      }
       const next = state === 'open' ? 'live'
         : state === 'budget-missed' ? 'stale'
         : state === 'lost' ? 'stale'

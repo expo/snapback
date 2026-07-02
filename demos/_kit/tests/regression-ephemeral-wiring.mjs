@@ -8,6 +8,12 @@
 //           degraded cell ('stale') and recovers on bounded backoff;
 //   fix 4 — dispose racing an in-flight subscribe never leaks a live overlay
 //           (no lane consumer survives surface disposal).
+// Plus the ENG-22541 reconnect regression (diary 0011 flip condition 3): a
+// server restart sends NO in-band needs_resync, so the wiring must re-enter
+// through a fresh snapshot-with-subscribe on socket regain (the kit's
+// durable-lane needsResubscribe-on-open policy), present 'stale' — never
+// 'live' — over the dead room until that subscribe lands, and never overlap
+// two subscribes for one room.
 //
 // Plus the ENG-22527 item 3 idle-room teardown policy (LLP 0034 §10.1):
 //   linger A — unbind→rebind WITHIN the linger window reuses the shared room
@@ -50,7 +56,7 @@ if (exact.sourceKind === 'missing') {
 }
 
 const runtime = await importExactContractRuntime({ exactRoot: exact.path });
-const server = await startServer({ port: 4436, db: ':memory:', cwd: repoRoot });
+let server = await startServer({ port: 4436, db: ':memory:', cwd: repoRoot });
 const db = new SnapbackClient(server.baseUrl);
 const suite = createSuite('_kit regression / ephemeral-wiring (ENG-22479 review fixes 1-4 + ENG-22527 idle linger)');
 const ADA = 'user_ada';
@@ -330,6 +336,72 @@ try {
 
   lingerClient.subscribeEphemeral = realLingerSubscribe;
   lingerSurface.dispose();
+
+  await suite.check('ENG-22541: a server restart re-subscribes the room on socket regain, never live over a dead room', async () => {
+    if (server.reused) {
+      throw new Error('restart regression requires a suite-owned server — free port 4436 and re-run');
+    }
+    // Per-room in-flight subscribe tracking: the socket-regain trigger must
+    // never overlap the in-band resync retry loop (double-subscription guard).
+    const realSubscribe = db.subscribeEphemeral.bind(db);
+    const inflight = new Map();
+    let maxOverlap = 0;
+    db.subscribeEphemeral = (ref, opts) => {
+      const key = JSON.stringify([typeof ref === 'string' ? ref : ref?.name, opts?.scope ?? {}]);
+      const depth = (inflight.get(key) ?? 0) + 1;
+      inflight.set(key, depth);
+      maxOverlap = Math.max(maxOverlap, depth);
+      const done = () => inflight.set(key, (inflight.get(key) ?? 1) - 1);
+      return realSubscribe(ref, opts).then(
+        (overlay) => { done(); return overlay; },
+        (error) => { done(); throw error; },
+      );
+    };
+    const cells = [];
+    const sub = surface.provider.subscribeEphemeral('todoPresence', { listId: 'restart_room' }, (cell) => cells.push(cell));
+    try {
+      await waitFor(() => cells.some((c) => c.status === 'ready'), 'ready map');
+      await db.publishEphemeral('todoPresence', {
+        connectionId: 'restart_viewer_pre', scope: { listId: 'restart_room' }, userId: ADA, value: { name: 'pre-restart' },
+      });
+      await waitFor(() => cells.at(-1)?.entries.some((e) => e.key === 'restart_viewer_pre'), 'pre-restart entry');
+
+      // Server restart: every subscription dies with its socket (diary 0007
+      // close→disconnect) and NO in-band needs_resync ever arrives.
+      await server.stop();
+      await waitFor(() => cells.at(-1)?.connection === 'stale', "honest 'stale' during the outage", 20_000);
+      server = await startServer({ port: 4436, db: ':memory:', cwd: repoRoot });
+      await db.loadSchema(schemaManifest);
+      await db.loadFunctions(functionsManifest);
+
+      // The fix: socket regain re-enters through a fresh
+      // snapshot-with-subscribe (mirroring demos/_kit/client.mjs's durable
+      // lane), and only THAT promotes the presented axis back to 'live'.
+      await waitFor(() => cells.at(-1)?.connection === 'live', "'live' after regain + fresh subscribe", 30_000);
+
+      // Honesty ordering: the first post-outage 'live' cell must be the
+      // fresh snapshot — never the frozen pre-restart map under a live
+      // banner (the ENG-22541 failure mode).
+      const staleIdx = cells.findIndex((c) => c.connection === 'stale');
+      const firstLive = cells.slice(staleIdx).find((c) => c.connection === 'live');
+      assert(
+        firstLive && firstLive.entries.every((e) => e.key !== 'restart_viewer_pre'),
+        `first live cell after the outage must be the fresh snapshot, got: ${JSON.stringify(firstLive?.entries ?? null)}`,
+      );
+
+      // The probe's flip-condition check: a fresh publish reaches the room.
+      await db.publishEphemeral('todoPresence', {
+        connectionId: 'restart_viewer_post', scope: { listId: 'restart_room' }, userId: ADA, value: { name: 'post-restart' },
+      });
+      await waitFor(() => cells.at(-1)?.entries.some((e) => e.key === 'restart_viewer_post'), 'fresh publish arrives after the restart', 10_000);
+
+      assertEqual(maxOverlap, 1, 'no overlapping subscribes for one room (double-subscription guard)');
+      return { cells: cells.length, lastConnection: cells.at(-1).connection, maxOverlap };
+    } finally {
+      sub.dispose();
+      db.subscribeEphemeral = realSubscribe;
+    }
+  });
 
   const report = suite.finish();
   console.log('\n--- machine-readable report ---');

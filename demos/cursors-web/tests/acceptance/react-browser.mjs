@@ -33,7 +33,7 @@ const VITE_PORT = Number(process.env.CURSORS_REACT_VITE_PORT ?? 5187);
 const apiUrl = `http://127.0.0.1:${API_PORT}`;
 const viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
-const EXPECTED_CHECKS = 6;
+const EXPECTED_CHECKS = 7;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
@@ -41,18 +41,54 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 const suite = createSuite('cursors-web react browser (ENG-22531)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];
 let cdp = null;
+// Suite-owned API child so the ENG-22541 restart check can bounce it; stays
+// null when an externally running server was reused.
+let apiChild = null;
+cleanups.push(() => apiChild?.kill('SIGTERM'));
 
-async function ensureApi() {
-  if (await urlOk(`${apiUrl}/health`)) return;
+async function spawnApi() {
   const env = { ...process.env };
   if (process.platform === 'darwin' && !env.DYLD_FRAMEWORK_PATH) {
     env.DYLD_FRAMEWORK_PATH = join(repoRoot, 'vendor', 'ibex', 'ios', 'Frameworks');
   }
   const child = spawn('cargo', ['run', '--quiet', '--', '--port', String(API_PORT), '--memory'], { cwd: repoRoot, env, stdio: ['ignore', 'ignore', 'pipe'] });
-  cleanups.push(() => child.kill('SIGTERM'));
+  apiChild = child;
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) { if (await urlOk(`${apiUrl}/health`)) return; if (child.exitCode !== null) throw new Error('API server exited'); await sleep(500); }
   throw new Error('API server did not become healthy');
+}
+
+async function stopApi() {
+  const child = apiChild;
+  apiChild = null;
+  if (!child || child.exitCode !== null) return;
+  await new Promise((resolve) => {
+    const hardKill = setTimeout(() => child.kill('SIGKILL'), 3_000);
+    child.once('exit', () => { clearTimeout(hardKill); resolve(); });
+    child.kill('SIGTERM');
+  });
+}
+
+// Re-provision a fresh `--memory` server: loadSchema BEFORE ensure (diary
+// 0011 hit exactly this; a schema-less restarted server leaves both arms
+// honestly degraded, which is expected — the suite provisions, never the arms).
+async function provisionApi() {
+  const schemaManifest = JSON.parse(readFileSync(join(repoRoot, 'demos', 'cursors-web', 'snapback', 'generated', 'schema.manifest.json'), 'utf8'));
+  const post = async (path, body) => {
+    const res = await fetch(`${apiUrl}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status} ${await res.text()}`);
+  };
+  await post('/_snapback/api/schema/load', schemaManifest);
+  await post('/ephemeral/collections/ensure', {
+    collections: schemaManifest.ephemeralCollections ?? [],
+    schemaHash: schemaManifest.schemaHash ?? null,
+    inputsHash: schemaManifest.inputsHash ?? null,
+  });
+}
+
+async function ensureApi() {
+  if (await urlOk(`${apiUrl}/health`)) return;
+  await spawnApi();
 }
 
 async function ensureVite() {
@@ -221,6 +257,61 @@ await runAcceptance(suite, async () => {
     })()`);
     if (!badge || parseInt(badge, 10) < 400) throw new Error(`B's fresh move did not propagate: ${badge}`);
     return { left: badge };
+  });
+
+  // ENG-22541 mirror (diary 0011 reconnect probe): the hand-wired glue
+  // re-enters through a fresh subscribe on socket regain (useCursorRoom's
+  // lostSinceSubscribe → attemptResync policy — the behavior the Contract
+  // adapter now mirrors), so this arm must recover a live room after a
+  // server restart: honest `stale` during the outage, `live` only once the
+  // fresh subscribe landed, and a fresh move propagating end-to-end.
+  const pollLeftAt = (page, key, x, ms) => page.eval(`(async () => {
+    const d = Date.now() + ${ms};
+    let last = null;
+    for (;;) {
+      const el = document.querySelector('[data-testid="cursor-${key}"]');
+      last = el ? el.style.left : null;
+      if (last === '${x}px') return last;
+      if (Date.now() > d) return last;
+      await new Promise(r=>setTimeout(r,100));
+    }
+  })()`);
+
+  await suite.check('presence recovers after an API server restart (fresh re-subscribe on socket regain, ENG-22541)', async () => {
+    if (!apiChild) {
+      throw new Error(`restart check requires the suite-owned API server — stop the external server on ${apiUrl} (or set CURSORS_REACT_API_PORT) and re-run`);
+    }
+    // Baseline: B parks at x=260 and A sees it (the probe's stuck value).
+    await moveCursor(pageB, 260, 220);
+    const baseline = await pollLeftAt(pageA, b.connection, 260, 8000);
+    if (baseline !== '260px') throw new Error(`baseline move did not propagate before the restart: ${baseline}`);
+
+    // Kill the API server mid-session: both windows must degrade honestly.
+    await stopApi();
+    const staleBanner = await pageA.pollText('map-status', 'connection: (stale|disconnected)', 25000);
+    if (!/connection: (stale|disconnected)/.test(staleBanner ?? '')) {
+      throw new Error(`banner did not degrade during the outage: ${staleBanner}`);
+    }
+
+    // Restart and re-provision, then wait out the reconnect budgets: the
+    // socket backoff caps at 10s, and the banner may only return to `live`
+    // once the fresh subscribe landed (connection-axis honesty, LLP 0034).
+    await spawnApi();
+    await provisionApi();
+    const liveA = await pageA.pollText('map-status', 'connection: live', 30000);
+    if (!/connection: live/.test(liveA ?? '')) throw new Error(`A never returned to live after the restart: ${liveA}`);
+    const liveB = await pageB.pollText('map-status', 'connection: live', 30000);
+    if (!/connection: live/.test(liveB ?? '')) throw new Error(`B never returned to live after the restart: ${liveB}`);
+
+    // The flip-condition check (diary 0011 §verdict-c-3): B's FRESH move
+    // reaches A — left 410px, not the frozen pre-restart 260px.
+    await moveCursor(pageB, 410, 240);
+    const left = await pollLeftAt(pageA, b.connection, 410, 15000);
+    if (left !== '410px') {
+      const banner = await pageA.text('map-status');
+      throw new Error(`fresh move did not arrive after the restart (left: ${left ?? 'entry gone'}; banner: ${banner}) — dead room under a live banner`);
+    }
+    return { baseline, staleBanner, left };
   });
 }, { cleanups, reportExtra: { demo: 'cursors-web', surface: 'react', issue: 'ENG-22531' } });
 

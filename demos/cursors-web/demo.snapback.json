@@ -59,7 +59,8 @@
       "the transform sink drives the self dot compositor-only",
       "channel + rated-publish facts are live-observable with receipts (Exact LLP 0281 §3.5)",
       "forceEphemeralState is LOCAL-ONLY and dispose restores live state",
-      "presence stays live after the force cycle"
+      "presence stays live after the force cycle",
+      "presence recovers after an API server restart (fresh re-subscribe on socket regain, ENG-22541)"
     ],
     "react": [
       "both windows boot the React surface over generated artifacts",
@@ -67,7 +68,8 @@
       "the pointer glue drives the self dot through direct ref writes (synchronous with the input event)",
       "publish facts (declared 15Hz inside the generated sustainedHz=20 budget) are live-observable with receipts",
       "forceCursors is LOCAL-ONLY and dispose restores live state",
-      "presence stays live after the force cycle"
+      "presence stays live after the force cycle",
+      "presence recovers after an API server restart (fresh re-subscribe on socket regain, ENG-22541)"
     ]
   },
   "capabilityGaps": [
