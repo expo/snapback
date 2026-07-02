@@ -8,7 +8,7 @@
 // @ref LLP 0012#react-and-expo-requirements — this is an Online-class adapter
 //   (speaks the wire protocol, server-authoritative mutations); it does NOT run
 //   handlers locally, so it makes no local-first/Parity claim.
-// @ref LLP 0034#d1--durable-push-to-the-browser — `liveQuery` gains a `stream`
+// @ref LLP 0034#2-d0--d1--a-liveness-signal-then-durable-push-to-the-browser — `liveQuery` gains a `stream`
 //   transport over the managed shared live socket (one socket, both lanes) with
 //   poll fallback, reconnect-by-fresh-subscribe, and the Exact LLP 0284 §2.2
 //   connection axis.
@@ -687,7 +687,7 @@ export class SnapbackClient {
 /// exponential backoff while demand exists; sends app-level pings to make the
 /// Exact LLP 0284 §2.2 freshness budget observable.
 ///
-/// @ref LLP 0034#21-one-socket-both-lanes
+/// @ref LLP 0034#22-one-socket-both-lanes--with-the-priority-invariant
 class LiveStreamManager {
   constructor(client, connectionId, options = {}, onRelease = () => {}) {
     this.client = client;

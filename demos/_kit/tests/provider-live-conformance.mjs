@@ -16,8 +16,9 @@
 //   §6.8  codegen migration cross-check (old/new manifest fields agree; a
 //         deliberately broken binding fails)
 //
-// @ref LLP 0034#6-d5--conformance-and-the-first-proof
-// @ref Exact LLP 0284 §2.2 (connection axis), §5.2 (provider conformance)
+// @ref LLP 0034#6-d5--conformance-and-the-first-proof-re-grounded
+// See Exact LLP 0284 §2.2 (connection axis), §5.2 (provider conformance) —
+// an external corpus, cited in prose because ref annotations resolve locally.
 
 import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
