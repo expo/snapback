@@ -919,6 +919,22 @@ L6–L8.
   the cost: caching left VM cost within noise, and the cost is **~55 %
   `ex_hermes_create` + ~45 % eval**. So the real lever is **VM reuse**, not the
   cheap step; this sharpens DK-4 (recorded in LLP 0009 and LLP 0035).
+  **Warm VM landed 2026-07-02** — the gated leg shipped: a per-instance pool
+  keyed by exact module source reuses VMs for queries/mutations behind a
+  verified per-invocation reset (baseline-restore of globalThis, the dispatch
+  table, and a fixed intrinsic-root list; fail-closed burn on any doubt);
+  actions and hosted stay fresh; capability-flagged as `vmLifecycle`
+  (`warm-pooled-reset` vs `fresh-per-invocation`) with a `SNAPBACK_FRESH_VM=1`
+  opt-out. The proven-reset gate is the `dk4_*` leak suite
+  (`tests/warm_vm_dk4.rs` + `src/warm_vm.rs` unit tests). Measured
+  ([LLP 0035](./0035-local-target-benchmarks.research.md) §After warm VM):
+  warm invocation **~900 µs** vs fresh ~5.5 ms same-run (**6.1×**);
+  single-writer **~1 050 mut/s** (was 248–278, ~4×); fan-out **~2 000 µs**/
+  affected sub (was ~4 900, ~2.4×), ceiling ~5 subs/commit @ 10 ms; the
+  remaining fan-out cost is row work (DK-3 territory), not VM work. As-built
+  design + honest limits (module-level closure state persists on the warm
+  path — the documented pooled-runtime semantics) in
+  [LLP 0009](./0009-code-execution-security.rfc.md) §DK-4 as-built.
 - **M3 — Decide DK-3 (delta shape and read lane) on M1 + LLP 0022 evidence.**
   Whole-document `live_replace` per affected subscription per commit
   (`src/local.rs:887-948`) versus op-log deltas, and the stateful-WS-only
@@ -1113,7 +1129,7 @@ Status column in place as rows close.
 | DK-1 | Read-set validation semantics | Implement-up staged (E2→E3→E4); or honest-downgrade (ratify table-granularity serialized writes as v0 semantics) — R7's doc-honesty patch lands first either way | E1; E4 gated on M1 cost numbers | LLP 0003/0004/0007 | **Decided 2026-07-01 — implement-up, staged.** E2 landed; E3 pinned as design (atomic-host-plan finding); E4 pending M1 |
 | DK-2 | Commit-version graduation shape | Postgres sequence + logical-decoding feed; per-app shards (LLP 0018); HLC ordering | X1 design note | LLP 0007/0014 (+0012 wire impact) | Open — X1 |
 | DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | **Decided 2026-07-01 — v1 pin replace/WS; cacheable-read-lane option kept open (M3)** |
-| DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01 — warm VM per bundle hash for trusted-local, gated on a proven reset (M2)** |
+| DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01; gated leg landed 2026-07-02** — warm VM pool + verified per-invocation reset shipped behind the `dk4_*` leak suite (LLP 0009 §DK-4 as-built; numbers in LLP 0035 §After warm VM) |
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | **Decided 2026-07-02 — POSIX OR; landed with cron test-debt closure; ratified by Charlie same day, ledgered in LLP 0000** |
 | DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | Open — blocks P3c |

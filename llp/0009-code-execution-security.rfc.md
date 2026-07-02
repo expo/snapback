@@ -304,9 +304,10 @@ level deep — it is the dispatch surface, so replacing or adding a handler
 property must not survive); and a fixed list of intrinsic roots (the
 `Object`/`Array`/`Function`/`String`/`Number`/`Boolean`/`Date`/`RegExp`/
 error/`Map`/`Set`/`Promise`/`Symbol` constructors and prototypes, `JSON`,
-`Math`, `Reflect`, and the `%TypedArray%` prototype base). The baseline is
-taken **after** module top-level ran, so a module-level polyfill is part of
-the app's own baseline, not a leak. After every invocation,
+`Math`, `Reflect`, the `%TypedArray%` prototype base, and the host-provided
+`console` — the most commonly monkeypatched non-intrinsic global). The
+baseline is taken **after** module top-level ran, so a module-level polyfill
+is part of the app's own baseline, not a leak. After every invocation,
 `__snapbackReset()` deletes own properties not in the baseline and redefines
 any whose descriptor drifted (value identity via `Object.is`; accessor
 identity; flag equality). Hygiene: every primitive the sweep uses

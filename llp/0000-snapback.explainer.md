@@ -6,7 +6,7 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Revised:** 2026-07-02 (decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
 **Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0035, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
@@ -136,6 +136,23 @@ corpus does not rely on scattered "pending Charlie" notes.
   instead of silently never firing
   ([LLP 0028](./0028-cron-scheduled-execution.rfc.md) §Calendar expression
   semantics).
+- **2026-07-02:** the DK-4 gated leg ships: queries and mutations reuse a
+  **warm VM per bundle** (keyed by exact module source, per app instance)
+  behind a **verified per-invocation reset** — baseline-restore of
+  `globalThis`, the dispatch table, and a fixed intrinsic-root list, with
+  fail-closed burn-and-recreate on any doubt; actions and hosted/untrusted
+  stay fresh; the posture is capability-flagged (`vmLifecycle`) and
+  opt-out-able (`SNAPBACK_FRESH_VM=1`). The gate held: the `dk4_*` leak suite
+  is the proven reset, and an adversarial-review HIGH (a module-scope-captured
+  continuation firing against a later invocation's host context) is closed by
+  an invocation-epoch guard that fails such a stale host call closed. Measured
+  (LLP 0035 §After warm VM): warm invocation ~900 µs vs fresh ~5.5 ms same-run
+  (6.1×), single-writer ~4× to ~1 050 mut/s, fan-out ~2.4× to ~2 ms/affected
+  sub — fan-out is now row-bound (the DK-3 revisit trigger's territory), not
+  VM-bound. Honest limit recorded: module-level closure state persists across
+  warm invocations (standard pooled-runtime semantics), pinned by a
+  characterization test
+  ([LLP 0009](./0009-code-execution-security.rfc.md) §DK-4 as-built).
 
 ## Who Snapback is for
 

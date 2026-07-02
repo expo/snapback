@@ -29,12 +29,18 @@ globalThis.__snapbackHandlers = {
   async setLeak(ctx, args) {
     globalThis.dk4Leak = args.value;
     globalThis[Symbol.for("dk4sym")] = args.value;
+    if (typeof console === "object" && console !== null) {
+      console.dk4Stash = args.value;
+    }
     return [];
   },
   async readLeak(ctx) {
     return [{
       leak: typeof globalThis.dk4Leak,
-      sym: typeof globalThis[Symbol.for("dk4sym")]
+      sym: typeof globalThis[Symbol.for("dk4sym")],
+      consoleStash: typeof console === "object" && console !== null
+        ? typeof console.dk4Stash
+        : "undefined"
     }];
   },
   async bumpViaMutation(ctx, args) {
@@ -202,6 +208,10 @@ fn dk4_global_add_does_not_leak_between_invocations() {
     let row = query_row(&snapback, "readLeak");
     assert_eq!(row["leak"], "undefined", "string-keyed global must be swept: {row:?}");
     assert_eq!(row["sym"], "undefined", "symbol-keyed global must be swept: {row:?}");
+    assert_eq!(
+        row["consoleStash"], "undefined",
+        "data stashed on the console host global must be swept: {row:?}"
+    );
     assert_eq!(count(&snapback), 2, "the sweep must not have burned the VM");
 }
 

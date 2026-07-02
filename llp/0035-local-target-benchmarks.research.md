@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Sync, Ephemeral state, Testing, Performance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-02
+**Revised:** 2026-07-02 (§After warm VM: DK-4 re-run numbers; earlier same day: §L6+L7 re-run)
 **Related:** LLP 0000, LLP 0003, LLP 0008, LLP 0009, LLP 0012, LLP 0022, LLP 0032
 
 ## Summary
@@ -95,6 +95,49 @@ harness reads through the global lock) so future regressions in either lane
 stay visible. The CI smoke lane asserts the split (lane read under half the
 busy window; mutex read over a quarter of it).
 
+## After warm VM (2026-07-02, DK-4 landed)
+
+The DK-4 warm-VM pool landed the same day
+([LLP 0009](./0009-code-execution-security.rfc.md) §DK-4 as-built: VM reuse
+per module source for queries/mutations behind a verified per-invocation
+reset; actions and hosted stay fresh). The harness gained a `warm_invoke_us`
+metric — the warm-path cost of the same trivial no-data query — while
+`vm_cost_us` **keeps its fresh-create definition** (the measurement disables
+the pool) so the fresh baseline stays visible. One full-scale release run,
+same machine and method:
+
+| Metric | Before (L6+L7 re-run) | After (warm VM) | Meaning |
+| --- | --- | --- | --- |
+| Per-invocation VM cost (fresh) | ~3 600–4 400 µs | ~5 500 µs *(this run)* | definition unchanged (pool disabled in the measurement); this run's fresh cost measured above the earlier band — dev-machine variance — so the same-run fresh:warm ratio is the honest comparison |
+| Warm-path invocation | *n/a* | **~900 µs** | invoke-IIFE eval + reset sweep, no create, no module re-parse — **6.1×** cheaper than fresh in the same run |
+| Single-writer throughput | 248–278 mut/s | **~1 050 mut/s** | ~4× — the commit itself is now visible beside the VM work (~950 µs/commit ≈ warm invocation + commit) |
+| Live fan-out cost (affected) | ~4 900 µs/sub | **~2 000 µs/sub** | ~2.4× — the fresh-VM component is gone; what remains is the re-query row work + serialize + dependency capture, which is DK-3 (op-log delta) territory |
+| Fan-out ceiling @ 10 ms | ~2 affected subs/commit | **~5 affected subs/commit** | derived |
+| Read during a busy write — read lane | ~4 300–4 600 µs | ~7 200 µs | **a warm-pool miss by construction**: the harness's single warm VM is checked out by the busy writer (same bundle), so the one concurrent read pays a fresh create+setup — ≈ the fresh path, never queued. Steady-state concurrent readers warm their own VMs (the pool holds up to 4) |
+| Read during a busy write — global mutex | ~302 000–309 000 µs | ~300 000 µs | unchanged by design (still queues; kept measurable) |
+
+Reading the numbers:
+
+1. **The warm path delivers the projected win where it was projected.** The
+   two write-lane ceilings the M1 numbers blamed on VM creation both moved:
+   single-writer ~4×, fan-out ~2.4×. The ~900 µs warm invocation is the new
+   floor for one handler run — roughly: parse+eval of the small invoke IIFE,
+   the handler's own work, and the reset sweep (globalThis + dispatch table +
+   ~40 intrinsic roots, a few hundred descriptor comparisons).
+2. **Fan-out is no longer VM-bound; it is row-bound.** At ~2 ms per affected
+   subscriber the remaining cost is re-running the query against a growing
+   result set and re-serializing all rows — exactly the whole-document
+   `replace` shape DK-3 pinned for v1. This is the measured hand-off from
+   DK-4 to the DK-3 revisit trigger (op-log deltas), not a residual VM
+   problem.
+3. **The read-lane A/B still shows queue elimination** (~300 ms mutex vs
+   ~7 ms lane, ~42×), and the lane's single-read cost honestly shows the
+   pool-miss case rather than an idealized warm hit.
+4. The `m1_bench_smoke` CI lane now asserts `warm_invoke_us <
+   0.75 × vm_cost_us` — it fails if the warm path silently regresses toward
+   fresh (e.g. a broken reset burning every VM); measured ratio this run:
+   **0.16**.
+
 ## What the numbers mean
 
 1. **The VM is the whole cost.** A fresh VM per invocation is ~3 orders of
@@ -147,6 +190,8 @@ busy window; mutex read over a quarter of it).
   attack both the single-writer and the fan-out ceilings at once. This is the
   strongest single lever the numbers reveal. (LLP 0009's five hosted-pooling
   proof obligations are unchanged — this is the trusted-local question.)
+  **Done 2026-07-02** — see §After warm VM: single-writer ~4×, fan-out
+  ~2.4×, warm invocation ~900 µs vs fresh ~5.5 ms same-run.
 - **DK-3 (delta shape + read lane) — M3.** Re-running the whole query per
   affected subscriber is what makes fan-out ~4.9 ms/sub. Op-log deltas (send the
   changed rows, not a whole re-query) and/or a cacheable read lane would cut the
@@ -169,10 +214,14 @@ busy window; mutex read over a quarter of it).
   smoke lane checks order-of-magnitude only). A criterion-style harness with
   confidence intervals is the natural next step if a precise regression gate is
   wanted.
-- Warm-VM cost once DK-4 lands: re-measure per-invocation cost with a pooled VM
-  to confirm the projected win and set the new fan-out ceiling.
+- ~~Warm-VM cost once DK-4 lands~~ — **answered 2026-07-02** (§After warm VM):
+  ~900 µs per warm invocation, single-writer ~1 050 mut/s, fan-out ceiling ~5
+  subs/commit.
 - Fan-out with op-log deltas (DK-3): measure per-affected-subscriber cost when
-  the delta is the changed rows rather than a full re-query.
+  the delta is the changed rows rather than a full re-query — now the dominant
+  fan-out term (~2 ms/sub is row work, not VM work).
+- Decompose the ~900 µs warm invocation (IIFE parse/eval vs reset sweep vs
+  host-call round-trips) if a further per-invocation win is ever needed.
 
 ## Status
 

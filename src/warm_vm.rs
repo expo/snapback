@@ -298,6 +298,12 @@ pub(crate) const RESET_INSTALL_SOURCE: &str = r#"
     roots[roots.length] = getProto(Uint8Array.prototype); // %TypedArray%.prototype
     roots[roots.length] = getProto(Uint8Array);           // %TypedArray%
   }
+  // The engine-provided console is the most commonly monkeypatched host
+  // global; sweep its own properties like the intrinsic namespaces (Math,
+  // JSON) so a patched console.log or data stashed on it cannot persist.
+  if (typeof console === "object" && console !== null) {
+    roots[roots.length] = console;
+  }
   var handlers = g.__snapbackHandlers;
   if (handlers !== null && (typeof handlers === "object" || typeof handlers === "function")) {
     roots[roots.length] = handlers;
