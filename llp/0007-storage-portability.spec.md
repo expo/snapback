@@ -267,13 +267,14 @@ diagnostic. Silent commit against stale reads is outside the paved path for
 invariant-preserving mutations such as inventory, ordering, balances, or
 permission-gated writes.
 
-> **Implementation status (2026-07-01, LLP 0032 R7):** the shipped v0 does not
-> yet meet this contract in full — host-plan mutations validate only the
-> client-supplied read set, and query-shaped dependencies validate at
-> whole-table granularity
-> ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2,
-> steps E3/E4; DK-1 governs direction). LLP 0003 §Execution and Write
-> Semantics carries the full current-vs-target callout.
+> **Implementation status (updated 2026-07-01, LLP 0032 Phase 2):** the shipped
+> v0 does not yet meet this contract in full. Read-your-writes now works
+> (LLP 0032 E2) and unknown query indexes fail closed (E5), but two gaps remain:
+> host-plan mutations validate only the client-supplied read set (E3), and
+> query-shaped dependencies validate at whole-table granularity (E4, gated on
+> M1) ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2;
+> DK-1 governs direction). LLP 0003 §Execution and Write Semantics carries the
+> full current-vs-target callout.
 
 This atomicity must also hold for **optimistic client application**, not only
 server commit. Valet applied multi-row mutations optimistically as several separate

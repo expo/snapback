@@ -215,7 +215,18 @@ fn change_may_affect_query_plan(
     }
 }
 
-fn row_matches_query_filters(plan: &QueryPlan, input: &HandlerInput, row: &Value) -> Option<bool> {
+/// Whether a row satisfies a query plan's filters. `None` when a filter cannot
+/// be evaluated against the row (a missing field or a binding-valued predicate).
+///
+/// @ref LLP 0020#phase-3-capture-read-sets-during-handler-execution — one
+/// extractor, three consumers: the matcher's row-vs-plan predicate is reused by
+/// the read-your-writes overlay (LLP 0032 E2) so buffered writes are filtered by
+/// the same logic the live matcher uses.
+pub(crate) fn row_matches_query_filters(
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    row: &Value,
+) -> Option<bool> {
     for filter in &plan.filters {
         if !filter_matches_row(filter, input, row)? {
             return Some(false);
@@ -325,7 +336,7 @@ fn query_boundary(plan: &QueryPlan, rows: &[Value]) -> Option<Value> {
     }))
 }
 
-fn sort_key(plan: &QueryPlan, row: &Value) -> Option<Value> {
+pub(crate) fn sort_key(plan: &QueryPlan, row: &Value) -> Option<Value> {
     let mut values = Vec::with_capacity(plan.order.len());
     for order in &plan.order {
         values.push(row.get(&order.field)?.clone());
@@ -333,7 +344,7 @@ fn sort_key(plan: &QueryPlan, row: &Value) -> Option<Value> {
     Some(Value::Array(values))
 }
 
-fn compare_sort_keys(plan: &QueryPlan, left: &Value, right: &Value) -> Option<Ordering> {
+pub(crate) fn compare_sort_keys(plan: &QueryPlan, left: &Value, right: &Value) -> Option<Ordering> {
     let left = left.as_array()?;
     let right = right.as_array()?;
     if left.len() != plan.order.len() || right.len() != plan.order.len() {

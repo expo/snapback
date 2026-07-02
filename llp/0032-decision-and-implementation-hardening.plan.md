@@ -489,15 +489,33 @@ recommended staging:
   this step decides direction. Recommended: *implement-up, staged*
   (E2→E3→E4) rather than ratifying current semantics as final. **Done
   when:** DK-1's direction is ledgered; its E4 leg may remain explicitly
-  "pending M1".
+  "pending M1". **Decided 2026-07-01** — *implement-up, staged*, ledgered in
+  LLP 0000. E2/E5/E6 landed; E3's mechanism is pinned as part of DK-1 (see the
+  E3 finding below); E4 stays pending M1.
 - **E2 — Read-your-writes overlay.** `ctx.db` reads consult the buffered
   write set layered over storage (`src/runtime.rs:270-331`). **Done when:**
   insert-then-query sees the row; patch-after-buffered-insert reports
-  `existed: true`; delete-then-get misses.
+  `existed: true`; delete-then-get misses. **Landed 2026-07-01** — reads fold
+  this invocation's buffered writes over storage (`apply_buffered_to_point`,
+  `merge_buffered_into_query`), reusing the live matcher's
+  `row_matches_query_filters`/`sort_key`/`compare_sort_keys` (LLP 0020's one
+  extractor); test `e2_handler_reads_its_own_buffered_writes`.
 - **E3 — Host-plan read capture.** Host-plan mutations capture reads
   server-side like Ibex handlers do (`src/storage.rs:423-559`), ending the
   trust-the-client validation asymmetry. **Done when:** a host-plan
-  conflict test passes with no client-supplied `read_set`.
+  conflict test passes with no client-supplied `read_set`. **Finding
+  (2026-07-01), sequenced with DK-1's design:** host-plan `MutationPlan`s are
+  *unconditional* write sequences that execute reads and writes in **one
+  transaction** under the global mutex, so a server-captured read cannot be
+  stale relative to the commit — there is no read-then-commit window to
+  validate. Detecting the intended conflict (a client that optimistically read
+  stale state) therefore needs a *client-supplied baseline* (which is exactly
+  today's `input.read_set`), or a redesign where host-plan mutations carry
+  conditional read predicates. "Capture reads server-side" as a mechanical fix
+  is a no-op for conflict detection under the atomic model. This is a DK-1
+  design decision, not a mechanical step; it lands with the concurrency-model
+  resolution (pairs with L6 reader pool and the DK-1 outcome), **not** before
+  M1. Kept open with this rationale.
 - **E4 — Predicate-granularity validation.** Reuse the matcher's boundary
   facts (LLP 0020 Phase 3's "one extractor, three consumers" already names
   this) so disjoint-row writes to a queried table stop conflicting every
@@ -509,23 +527,32 @@ recommended staging:
   (`src/storage.rs:1054-1055`), so point-miss reads inherit table-granularity
   conflicts; include them in the narrowing. **Done when:** the
   disjoint-write no-conflict test passes (or DK-1 records the measured
-  accept).
+  accept). **Deferred (gated on M1):** unchanged — E4 lands after Phase 4's
+  M1 measurement (or DK-1 records the measured accept). Docs already state the
+  honest current whole-table behavior.
 - **E5 — `indexed_by` becomes real or goes away.** The query builder accepts
   and stores index hints but never uses them (`src/storage.rs:895-985`)
   [confirmed]; at minimum, validate that a declared index exists and emit a
   diagnostic when it doesn't. **Done when:** unknown-index queries fail
-  closed at codegen or load time.
+  closed at codegen or load time. **Landed 2026-07-01** — `validate_query_index`
+  fails closed with `SNAPBACK_QUERY_UNKNOWN_INDEX` at query execution (the
+  authoritative backstop); a codegen-time check remains available as
+  defense-in-depth. Test `e5_unknown_index_fails_closed`.
 - **E6 — Document the frozen per-invocation clock.** `ctx.runtime.now()` is
   frozen at handler start (`src/runtime.rs:237,333`) — correct for replay
   determinism, surprising for long handlers. Actions freeze it to the run's
   `due_at_ms` (`src/runtime.rs:257`) — not even invocation wall-clock. One
-  paragraph in LLP 0004 covering both.
+  paragraph in LLP 0004 covering both. **Landed 2026-07-01** — LLP 0004
+  §First-Slice API Decisions documents both.
 
-**Phase 2 Done when:** the semantics described in LLP 0003/0004/0007 §§ are
-the semantics `tests/local_v0.rs` demonstrates, and DK-1's outcome is
-ledgered. E4 closes by test or by DK-1's measured accept; because its gate
-is M1 (which runs after L1–L5), Phase 2's last leg lands after Phase 3's
-L1–L5 by construction.
+**Phase 2 status (2026-07-01):** E1 decided (implement-up, staged; ledgered),
+E2/E5/E6 landed with tests and the LLP 0003/0004/0007 status callouts updated
+to match. E3 is a DK-1 design decision (the atomic-host-plan finding above),
+not a mechanical step, and E4 is gated on M1 — both land in later phases by
+construction (E4 after Phase 4; E3 with the concurrency-model/DK-1 resolution).
+**Phase 2 Done when:** the semantics described in LLP 0003/0004/0007 §§ are the
+semantics `tests/local_v0.rs` demonstrates (holds for the landed legs), and
+DK-1's outcome is ledgered (done); E4/E3 close in their gated phases.
 
 ## Phase 3 — Lifecycle and resource hardening
 
@@ -821,7 +848,7 @@ Status column in place as rows close.
 
 | Id | Decision | Options (recommendation first) | Gate | Lands in | Status |
 | --- | --- | --- | --- | --- | --- |
-| DK-1 | Read-set validation semantics | Implement-up staged (E2→E3→E4); or honest-downgrade (ratify table-granularity serialized writes as v0 semantics) — R7's doc-honesty patch lands first either way | E1; E4 gated on M1 cost numbers | LLP 0003/0004/0007 | Open — E1 decides; E4 leg blocked on M1 |
+| DK-1 | Read-set validation semantics | Implement-up staged (E2→E3→E4); or honest-downgrade (ratify table-granularity serialized writes as v0 semantics) — R7's doc-honesty patch lands first either way | E1; E4 gated on M1 cost numbers | LLP 0003/0004/0007 | **Decided 2026-07-01 — implement-up, staged.** E2 landed; E3 pinned as design (atomic-host-plan finding); E4 pending M1 |
 | DK-2 | Commit-version graduation shape | Postgres sequence + logical-decoding feed; per-app shards (LLP 0018); HLC ordering | X1 design note | LLP 0007/0014 (+0012 wire impact) | Open — X1 |
 | DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | Blocked on M1 |
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | Blocked on M1 |

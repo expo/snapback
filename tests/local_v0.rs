@@ -2559,3 +2559,140 @@ globalThis.__snapbackHandlers = {
 
     manifest
 }
+
+/// LLP 0032 E2 — read-your-writes: a handler's buffered writes are visible to
+/// its own later reads. insert-then-query sees the row, get returns it,
+/// patch-after-buffered-insert reports existed:true and the patched value,
+/// and delete-then-get misses.
+#[test]
+fn e2_handler_reads_its_own_buffered_writes() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    let mut functions = ibex_todo_functions(RYW_HANDLER_SOURCE);
+    let mut ryw = FunctionDefinition::new(
+        "ryw",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: RYW_HANDLER_SOURCE.to_owned(),
+            export: "ryw".to_owned(),
+        }),
+    );
+    ryw.required_capabilities = vec![
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+    ];
+    ryw.write_set_summary.primary_table = Some("todos".to_owned());
+    ryw.write_set_summary.tables = vec!["todos".to_owned()];
+    ryw.write_set_summary.mode = Some("handlerDeclared".to_owned());
+    functions.functions.push(ryw);
+    snapback.load_functions(functions);
+
+    // Two committed rows so the in-handler query has existing rows to merge with.
+    for title in ["first", "second"] {
+        snapback
+            .invoke_mutation("createTodo", input(json!({ "title": title }), "u"))
+            .expect("seed todo");
+    }
+
+    let commit = snapback
+        .invoke_mutation("ryw", input(json!({}), "u"))
+        .expect("read-your-writes mutation");
+    let r = &commit.result;
+
+    // insert-then-query sees the buffered row layered over the committed rows.
+    assert_eq!(r["queryCount"], 3, "buffered insert must appear in the query");
+    assert_eq!(r["queryHasBuffered"], true);
+    // get returns the buffered row.
+    assert_eq!(r["gotTitle"], "buffered");
+    // patch-after-buffered-insert: existed is true and the patched value is read back.
+    assert_eq!(r["patchExisted"], true);
+    assert_eq!(r["completedAfterPatch"], true);
+    // delete-then-get misses.
+    assert_eq!(r["deleteExisted"], true);
+    assert_eq!(r["afterDeleteNull"], true);
+}
+
+const RYW_HANDLER_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async listTodos(ctx) {
+    return await ctx.db.query('todos').order('_createdAt', 'asc').collect();
+  },
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', {
+      title: args.title, completed: false, userId: 'u',
+    });
+  },
+  async setCompleted(ctx, args) {
+    const todo = await ctx.db.get('todos', args.id);
+    if (!todo) return 0;
+    return (await ctx.db.patch('todos', args.id, { completed: args.completed })) ? 1 : 0;
+  },
+  async deleteTodo(ctx, args) {
+    const todo = await ctx.db.get('todos', args.id);
+    if (!todo) return 0;
+    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;
+  },
+  async ryw(ctx) {
+    const id = await ctx.db.insert('todos', { title: 'buffered', completed: false, userId: 'u' });
+    const q = await ctx.db.query('todos').order('_createdAt', 'asc').collect();
+    const got = await ctx.db.get('todos', id);
+    const patchExisted = await ctx.db.patch('todos', id, { completed: true });
+    const gotPatched = await ctx.db.get('todos', id);
+    const deleteExisted = await ctx.db.delete('todos', id);
+    const gotDeleted = await ctx.db.get('todos', id);
+    return {
+      queryCount: q.length,
+      queryHasBuffered: q.some((row) => row.title === 'buffered'),
+      gotTitle: got ? got.title : null,
+      patchExisted,
+      completedAfterPatch: gotPatched ? gotPatched.completed : null,
+      deleteExisted,
+      afterDeleteNull: gotDeleted === null,
+    };
+  }
+};
+"#;
+
+/// LLP 0032 E5 — a query that declares an index the table does not define fails
+/// closed with a structured diagnostic, instead of silently ignoring the hint.
+#[test]
+fn e5_unknown_index_fails_closed() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    let mut manifest = FunctionManifest::default();
+    manifest.functions.push(FunctionDefinition::new(
+        "badIndex",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "todos".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: Some("does_not_exist".to_owned()),
+        })),
+    ));
+    snapback.load_functions(manifest);
+
+    let error = snapback
+        .invoke_query("badIndex", input(json!({}), "user_1"))
+        .expect_err("unknown index must fail closed");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_QUERY_UNKNOWN_INDEX");
+
+    // A query that names a defined index still works.
+    let mut ok_manifest = FunctionManifest::default();
+    ok_manifest.functions.push(FunctionDefinition::new(
+        "goodIndex",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "todos".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: Some("by_user".to_owned()),
+        })),
+    ));
+    snapback.load_functions(ok_manifest);
+    snapback
+        .invoke_query("goodIndex", input(json!({}), "user_1"))
+        .expect("declared index resolves");
+}

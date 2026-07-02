@@ -259,19 +259,25 @@ Hermes is not the limit — Ibex already pumps the microtask queue via
   commit, not across the handler's async duration;
 - if the handler throws, no writes are applied and the mutation is rejected.
 
-> **Implementation status (2026-07-01, LLP 0032 R7):** the boundary above is
-> the ratified **target**; the shipped v0 diverges, as verified in
+> **Implementation status (updated 2026-07-01, LLP 0032 Phase 2):** the
+> boundary above is the ratified **target**; the shipped v0 partially meets it,
+> as verified in
 > [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2.
-> Today: handler reads are bare autocommit reads on the live connection — no
-> pinned snapshot — and cross-request consistency comes from the global
-> instance mutex, which serializes queries and mutations alike; buffered
-> writes are **not** visible to later reads in the same handler (no
-> read-your-writes — a `patch` after a buffered insert reports
-> `existed: false`); host-plan mutations validate only the client-supplied
-> read set; and query-shaped read-set validation runs at whole-table
-> granularity. The mutation-isolation capability field
-> ([LLP 0012](./0012-headless-integration-contract.spec.md)) reports the
-> shipped mode. LLP 0032 E2–E4 close these gaps; DK-1 governs direction.
+> Handler reads are bare autocommit reads on the live connection — no pinned
+> snapshot — and cross-request consistency comes from the global instance mutex,
+> which serializes queries and mutations alike. **Read-your-writes is now
+> implemented (LLP 0032 E2):** a handler's buffered `ctx.db` writes are layered
+> over its own later reads, so insert-then-query sees the row, a `patch` after a
+> buffered insert reports `existed: true`, and delete-then-get misses. Two gaps
+> remain: host-plan mutations still validate only the client-supplied read set
+> rather than capturing reads server-side (**E3** — coupled to DK-1 because,
+> under the atomic single-transaction host-plan model, server-captured reads
+> cannot be stale, so closing the trust-the-client asymmetry is a design
+> question, not a mechanical capture); and query-shaped read-set validation runs
+> at whole-table granularity (**E4** — gated on M1's measured spurious-conflict
+> rate). The mutation-isolation capability field
+> ([LLP 0012](./0012-headless-integration-contract.spec.md)) reports the shipped
+> mode; DK-1 governs the remaining direction.
 
 The buffered model must not trade Valet's lock contention for silent stale-read
 bugs. A handler may read data, await, buffer writes, and then commit after another

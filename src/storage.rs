@@ -129,6 +129,24 @@ pub enum BufferedWrite {
     },
 }
 
+impl BufferedWrite {
+    pub fn table(&self) -> &str {
+        match self {
+            BufferedWrite::Insert { table, .. }
+            | BufferedWrite::Patch { table, .. }
+            | BufferedWrite::Delete { table, .. } => table,
+        }
+    }
+
+    pub fn id(&self) -> &str {
+        match self {
+            BufferedWrite::Insert { id, .. }
+            | BufferedWrite::Patch { id, .. }
+            | BufferedWrite::Delete { id, .. } => id,
+        }
+    }
+}
+
 pub struct LocalDatabase {
     conn: Connection,
     path: Option<PathBuf>,
@@ -317,6 +335,7 @@ impl LocalDatabase {
 
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
         let table = schema_table(&self.schema, &plan.table)?;
+        validate_query_index(table, plan)?;
         let (sql, values) = build_query_sql(table, plan, input, &BTreeMap::new(), now_millis())?;
         let mut statement = self.conn.prepare(&sql)?;
         let columns = statement
@@ -890,6 +909,37 @@ fn existing_columns(tx: &Transaction<'_>, table: &str) -> SnapbackResult<BTreeSe
         columns.insert(row.get::<_, String>(1)?);
     }
     Ok(columns)
+}
+
+/// Fail closed when a query declares `indexed_by` for an index the table's
+/// schema does not define. The v0 SQLite target does not yet consult the hint
+/// for planning, but silently accepting an unknown index name is a
+/// silent-drop-class violation: the hint would be a no-op the author believes
+/// is load-bearing. Validating it here makes the honest state explicit until
+/// the hint is wired into planning (or removed).
+///
+/// @ref LLP 0032#phase-2--execution-semantics-honesty — E5: `indexed_by` is
+/// validated rather than silently ignored.
+fn validate_query_index(table: &TableManifest, plan: &QueryPlan) -> SnapbackResult<()> {
+    let Some(index_name) = &plan.indexed_by else {
+        return Ok(());
+    };
+    if table.indexes.iter().any(|index| &index.name == index_name) {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_QUERY_UNKNOWN_INDEX",
+        "storage",
+        format!(
+            "query declares index {index_name:?} which table {:?} does not define",
+            table.name
+        ),
+    )
+    .with_details(json!({
+        "table": table.name,
+        "requestedIndex": index_name,
+        "knownIndexes": table.indexes.iter().map(|index| &index.name).collect::<Vec<_>>(),
+    })))
 }
 
 fn build_query_sql(

@@ -85,6 +85,14 @@ corpus does not rely on scattered "pending Charlie" notes.
   DK-8): the free-riding exposure is a conscious trade for the ratified
   "truly open" value; a trademark policy is the compatible first response if
   a trigger fires.
+- **2026-07-01:** read-set validation semantics (docket DK-1) are decided —
+  **implement-up, staged** rather than ratifying the current table-granularity
+  behavior as final ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
+  Phase 2, LLP 0003/0004/0007). Read-your-writes now works (E2); the remaining
+  legs are host-plan read capture (E3 — a design question under the atomic
+  single-transaction host-plan model, not a mechanical fix) and
+  predicate-granularity validation (E4, gated on the M1 measurement). The
+  execution-semantics docs are honest about what ships versus the target.
 - **2026-07-01:** the server route taxonomy
   ([LLP 0031](./0031-server-route-taxonomy.spec.md)) → Active: LLP 0032 S1
   implemented the app-data/system boundary — ungated root `/admin/*` aliases

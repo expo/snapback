@@ -1,6 +1,8 @@
 use crate::cron::CronRunMetadata;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
-use crate::live_matcher::query_dependency_metadata;
+use crate::live_matcher::{
+    compare_sort_keys, query_dependency_metadata, row_matches_query_filters, sort_key,
+};
 use crate::manifest::{HandlerInput, IbexModule, MutationOutput, QueryOutput, QueryPlan};
 use crate::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, LocalDatabase, MutationCommit,
@@ -15,6 +17,8 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr;
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct RuntimeCapabilities {
@@ -290,7 +294,31 @@ impl<'a> IbexHostContext<'a> {
                     .with_details(json!({ "error": error.to_string() }))
                 })?;
                 let output = self.db().query(&plan, &self.input)?;
+                // Capture the read dependency on the storage result the plan
+                // declared (its limit included) — the buffered overlay below is
+                // the handler's own uncommitted writes, not a storage dependency.
                 self.capture_query_read(&plan, &output)?;
+                // @ref LLP 0032#phase-2--execution-semantics-honesty — E2: layer
+                // this invocation's buffered writes over the storage result so
+                // the handler reads its own writes (read-your-writes).
+                let output = if self.has_buffered_writes_for(&plan.table) {
+                    let version = output.version;
+                    // With a limit, merge over the *unlimited* base so a buffered
+                    // insert can surface a row the SQL limit would have hidden.
+                    let base_rows = if plan.limit.is_some() {
+                        let mut unlimited = plan.clone();
+                        unlimited.limit = None;
+                        self.db().query(&unlimited, &self.input)?.rows
+                    } else {
+                        output.rows
+                    };
+                    QueryOutput {
+                        version,
+                        rows: self.merge_buffered_into_query(&plan, base_rows),
+                    }
+                } else {
+                    output
+                };
                 serde_json::to_value(output).map_err(|error| {
                     SnapbackError::error(
                         "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
@@ -303,9 +331,12 @@ impl<'a> IbexHostContext<'a> {
             "db.get" => {
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
-                let row = self.db().get(&table, &id)?;
-                self.capture_point_read(&table, &id, row.as_ref())?;
-                Ok(row.unwrap_or(Value::Null))
+                let stored = self.db().get(&table, &id)?;
+                self.capture_point_read(&table, &id, stored.as_ref())?;
+                // E2: read-your-writes — fold buffered writes over the stored row.
+                Ok(self
+                    .apply_buffered_to_point(&table, &id, stored)
+                    .unwrap_or(Value::Null))
             }
             "db.insert" => {
                 self.ensure_writable("insert")?;
@@ -324,9 +355,11 @@ impl<'a> IbexHostContext<'a> {
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
                 let values = required_object(&args, "values")?;
-                let row = self.db().get(&table, &id)?;
-                let existed = row.is_some();
-                self.capture_point_read(&table, &id, row.as_ref())?;
+                let stored = self.db().get(&table, &id)?;
+                self.capture_point_read(&table, &id, stored.as_ref())?;
+                // E2: `existed` reflects the effective view — a row buffered-inserted
+                // earlier in this handler exists even though it is not yet committed.
+                let existed = self.apply_buffered_to_point(&table, &id, stored).is_some();
                 self.writes.push(BufferedWrite::Patch { table, id, values });
                 Ok(Value::Bool(existed))
             }
@@ -334,9 +367,9 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_writable("delete")?;
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
-                let row = self.db().get(&table, &id)?;
-                let existed = row.is_some();
-                self.capture_point_read(&table, &id, row.as_ref())?;
+                let stored = self.db().get(&table, &id)?;
+                self.capture_point_read(&table, &id, stored.as_ref())?;
+                let existed = self.apply_buffered_to_point(&table, &id, stored).is_some();
                 self.writes.push(BufferedWrite::Delete { table, id });
                 Ok(Value::Bool(existed))
             }
@@ -389,6 +422,115 @@ impl<'a> IbexHostContext<'a> {
             "runtime",
             format!("query handler attempted ctx.db.{op}"),
         ))
+    }
+
+    /// Whether this invocation has buffered any write targeting `table`.
+    ///
+    /// @ref LLP 0032#phase-2--execution-semantics-honesty — E2.
+    fn has_buffered_writes_for(&self, table: &str) -> bool {
+        self.writes.iter().any(|write| write.table() == table)
+    }
+
+    /// Fold this invocation's buffered writes for `(table, id)` over a stored
+    /// row, producing the row the handler should observe. A buffered insert's
+    /// system fields mirror `insert_document`'s shape with a provisional
+    /// `_createdAt`/`_updatedAt` (the frozen handler clock); the authoritative
+    /// version and timestamps are assigned at commit.
+    ///
+    /// @ref LLP 0032#phase-2--execution-semantics-honesty — E2 read-your-writes overlay.
+    fn apply_buffered_to_point(
+        &self,
+        table: &str,
+        id: &str,
+        stored: Option<Value>,
+    ) -> Option<Value> {
+        let mut current = stored;
+        for write in &self.writes {
+            if write.table() != table || write.id() != id {
+                continue;
+            }
+            match write {
+                BufferedWrite::Insert { values, .. } => {
+                    current = Some(self.materialize_insert(id, values));
+                }
+                BufferedWrite::Patch { values, .. } => {
+                    // A patch against a row that does not exist yet is a no-op at
+                    // commit; the effective view stays a miss.
+                    if let Some(Value::Object(mut row)) = current.take() {
+                        for (key, value) in values {
+                            row.insert(key.clone(), value.clone());
+                        }
+                        row.insert("_updatedAt".to_owned(), json!(self.now_ms));
+                        current = Some(Value::Object(row));
+                    }
+                }
+                BufferedWrite::Delete { .. } => {
+                    current = None;
+                }
+            }
+        }
+        current
+    }
+
+    fn materialize_insert(&self, id: &str, values: &Map<String, Value>) -> Value {
+        let mut document = Map::new();
+        document.insert("_id".to_owned(), Value::String(id.to_owned()));
+        document.insert("_createdAt".to_owned(), json!(self.now_ms));
+        document.insert("_updatedAt".to_owned(), json!(self.now_ms));
+        for (key, value) in values {
+            document.insert(key.clone(), value.clone());
+        }
+        Value::Object(document)
+    }
+
+    /// Layer buffered writes over a storage query result: drop rows this
+    /// invocation has since deleted, recompute patched/inserted rows from their
+    /// effective view, keep only those still matching the plan's filters, then
+    /// re-sort and re-apply the limit with the same primitives the live matcher
+    /// uses. `base_rows` must be unlimited when the plan carries a limit.
+    ///
+    /// @ref LLP 0032#phase-2--execution-semantics-honesty — E2.
+    fn merge_buffered_into_query(&self, plan: &QueryPlan, base_rows: Vec<Value>) -> Vec<Value> {
+        let touched: BTreeSet<&str> = self
+            .writes
+            .iter()
+            .filter(|write| write.table() == plan.table)
+            .map(|write| write.id())
+            .collect();
+
+        let mut merged: Vec<Value> = base_rows
+            .into_iter()
+            .filter(|row| {
+                row.get("_id")
+                    .and_then(Value::as_str)
+                    .map(|id| !touched.contains(id))
+                    .unwrap_or(true)
+            })
+            .collect();
+
+        for id in &touched {
+            let stored = self.db().get(&plan.table, id).ok().flatten();
+            if let Some(row) = self.apply_buffered_to_point(&plan.table, id, stored)
+                && row_matches_query_filters(plan, &self.input, &row) == Some(true)
+            {
+                merged.push(row);
+            }
+        }
+
+        if !plan.order.is_empty() {
+            merged.sort_by(|left, right| {
+                match (sort_key(plan, left), sort_key(plan, right)) {
+                    (Some(left_key), Some(right_key)) => {
+                        compare_sort_keys(plan, &left_key, &right_key).unwrap_or(Ordering::Equal)
+                    }
+                    _ => Ordering::Equal,
+                }
+            });
+        }
+        if let Some(limit) = plan.limit {
+            merged.truncate(limit);
+        }
+        merged
     }
 
     fn ensure_action(&self, op: &str) -> SnapbackResult<()> {

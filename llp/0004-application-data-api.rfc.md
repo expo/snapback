@@ -257,11 +257,11 @@ global mutation lock
 ([LLP 0003](./0003-local-code-hosting-and-storage-core.rfc.md) §Execution and
 Write Semantics). What must hold is the *observable* boundary — a handler never
 sees another request's uncommitted writes — not any particular scheduling of
-execution. (**Implementation status 2026-07-01:** the shipped v0 does
-serialize on the global instance mutex, with no pinned snapshots and no
-read-your-writes; see LLP 0003's status callout and
-[LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2,
-which closes the gap.)
+execution. (**Implementation status 2026-07-01:** the shipped v0 serializes on
+the global instance mutex, with no pinned snapshots; read-your-writes now works
+(LLP 0032 E2), but host-plan read capture (E3) and predicate-granularity
+validation (E4) remain. See LLP 0003's status callout and
+[LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2.)
 
 All writes performed by one mutation should commit and publish as one changeset.
 A client may optimistically simulate that changeset, but subscribers should not
@@ -433,7 +433,14 @@ Ratified on 2026-06-26 for v0 implementation:
   deterministic time and ids. The first spelling is `ctx.runtime.now()` for the
   mutation timestamp and `ctx.runtime.id()` for an id. Direct `Date.now()`,
   `new Date()`, `Math.random()`, and ad hoc id libraries are diagnostics inside
-  query and mutation handlers.
+  query and mutation handlers. **`ctx.runtime.now()` is frozen for the whole
+  invocation:** it returns a single timestamp fixed when the handler starts, so
+  every call within one invocation is equal — correct for replay determinism (a
+  replayed handler that read the clock twice must see the same value both times),
+  but surprising if you expect wall-clock progress inside a long handler. For a
+  scheduled action the value is frozen to the run's *scheduled* time
+  (`due_at_ms`), not the moment the action began, so a late-firing action still
+  stamps the time it was due. (LLP 0032 E6.)
 - **Query builders:** query-builder chains are immutable. A call such as
   `.filter(...)`, `.withIndex(...)`, `.order(...)`, or `.take(...)` returns a
   new query expression. This avoids Valet's mutable-builder parity footgun and
