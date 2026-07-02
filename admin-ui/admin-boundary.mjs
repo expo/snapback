@@ -13,17 +13,24 @@
 import { createSnapbackSystemContractSurface } from '../packages/snapback-contract/index.mjs';
 
 export async function createAdminSurface({ runtime, client }) {
+  // The most recent config.verify outcome, folded into the next inspect view so
+  // the Secrets surface can show "verify ran and said X" next to durable state.
+  let lastVerify = null;
+  const loadView = async () => buildView(...(await loadFacts(client)), lastVerify);
   return createSnapbackSystemContractSurface({
     runtime,
     targetSurface: 'Snapback admin Contract',
     resources: {
-      inspect: async () => loadView(client),
+      inspect: async () => loadView(),
       tableScan: emptyScan,
       runResult: emptyRun,
     },
     commands: {
       refresh: async (_args, { publishOne }) => {
-        publishOne('inspect', await loadView(client));
+        // An explicit refresh drops the transient probe-result note; the
+        // durable verified state on each entry is what remains authoritative.
+        lastVerify = null;
+        publishOne('inspect', await loadView());
       },
       // The data explorer's parameterized read: fetch a page, pre-shape rows into
       // {key,text,sys} cells so the .contract uses static access, then republish.
@@ -71,7 +78,24 @@ export async function createAdminSurface({ runtime, client }) {
         } catch {
           /* surfaced on the next inspect; the panel stays usable */
         }
-        publishOne('inspect', await loadView(client));
+        publishOne('inspect', await loadView());
+      },
+      // config.verify: run the entry's probe, remember the outcome (ok or the
+      // failure diagnostic — never a value), and republish so the Secrets
+      // surface shows both the fresh verification state and the probe result.
+      verifyConfig: async ({ entry }, { publishOne }) => {
+        if (!entry) return;
+        try {
+          const outcome = await client.verifyConfigEntry(entry);
+          lastVerify = {
+            entry: outcome.entry || entry,
+            ok: !!outcome.ok,
+            detail: (outcome.verified && outcome.verified.diagnostic) || '',
+          };
+        } catch (error) {
+          lastVerify = { entry, ok: false, detail: error.message };
+        }
+        publishOne('inspect', await loadView());
       },
     },
   });
@@ -217,11 +241,22 @@ function shortId(id) {
 
 /* ---------------- inspect view model ---------------- */
 
-async function loadView(client) {
-  return buildView(await client.inspect());
+// Inspect is required (its failure is the console's error state); config status
+// is optional so the console keeps working against a server without the
+// LLP 0036 routes — the Secrets surface then reports itself unavailable.
+async function loadFacts(client) {
+  return Promise.all([
+    client.inspect(),
+    typeof client.configStatus === 'function'
+      ? client.configStatus().then(
+          (status) => ({ available: true, status }),
+          (error) => ({ available: false, error: error.message }),
+        )
+      : { available: false, error: 'config status is not supported by this client' },
+  ]);
 }
 
-function buildView(s) {
+function buildView(s, configResult, lastVerify) {
   const sv = s.server || {};
   const st = s.storage || {};
   const rt = s.runtime || {};
@@ -237,10 +272,12 @@ function buildView(s) {
   const fns = fnManifest.functions || [];
 
   const errorDiagnostics = diags.filter((d) => d.severity === 'Error' || d.severity === 'Fatal').length;
+  const config = shapeConfig(configResult, fns, lastVerify);
 
   return {
     id: 'inspect',
     ui: {
+      config,
       // identity + status strip
       target: s.target || '—',
       loadedAt: `updated ${timeLabel()}`,
@@ -254,11 +291,16 @@ function buildView(s) {
           ? 'writes need token'
           : 'open on loopback',
       tokenTone: admin.token_configured ? 'accent' : admin.writes_require_token ? 'warn' : 'muted',
+      // Missing required config is a whole-deployment fact ("the app is not
+      // fully set up"), so it earns a strip badge on every surface.
+      showConfigAlert: config.available && config.missingCount > 0,
+      configAlertLabel: `config: ${config.missingCount} required missing`,
 
       // overview dashboard tiles
       tiles: [
         { key: 'tables', label: tables.length === 1 ? 'Table' : 'Tables', value: String(tables.length), alert: false },
         { key: 'functions', label: fns.length === 1 ? 'Function' : 'Functions', value: String(fns.length), alert: false },
+        { key: 'config', label: config.declaredCount === 1 ? 'Config entry' : 'Config entries', value: config.available ? String(config.declaredCount) : '—', alert: config.available && config.missingCount > 0 },
         { key: 'subs', label: 'Live subscriptions', value: String(subs.length), alert: false },
         { key: 'diags', label: 'Diagnostics', value: String(diags.length), alert: errorDiagnostics > 0 },
       ],
@@ -413,6 +455,110 @@ function buildView(s) {
   };
 }
 
+/* ---------------- config / secrets ---------------- */
+
+// @ref LLP 0036#status-model-and-app-visibility-d4 — one status primitive,
+// projected: declared × set × verified × applied per entry, names and states
+// only. This shaping renders the primitive; it never sees a value.
+function shapeConfig(configResult, fns, lastVerify) {
+  if (!configResult || !configResult.available) {
+    return {
+      available: false,
+      error: (configResult && configResult.error) || '',
+      declaredCount: 0,
+      missingCount: 0,
+      tiles: [],
+      entries: [],
+      hasEntries: false,
+      generationLabel: '',
+      backendClass: '',
+      readyLabel: '',
+      readyTone: 'muted',
+      missingLabel: '',
+      setupHref: SETUP_HREF,
+    };
+  }
+  const status = configResult.status || {};
+  const entries = status.entries || [];
+  const missing = status.required_missing || status.requiredMissing || [];
+  const setCount = entries.filter((e) => e.set).length;
+  const verifiedOk = entries.filter((e) => e.verified && e.verified.ok).length;
+  return {
+    available: true,
+    error: '',
+    declaredCount: entries.length,
+    missingCount: missing.length,
+    tiles: [
+      { key: 'declared', label: 'Declared', value: String(entries.length), alert: false },
+      { key: 'set', label: 'Set', value: String(setCount), alert: false },
+      { key: 'missing', label: 'Missing required', value: String(missing.length), alert: missing.length > 0 },
+      { key: 'verified', label: 'Verified OK', value: String(verifiedOk), alert: false },
+    ],
+    generationLabel: `generation ${status.generation ?? 0}`,
+    backendClass: status.backendClass || status.backend_class || '—',
+    readyLabel: missing.length === 0
+      ? 'all required entries set'
+      : `${missing.length} required ${missing.length === 1 ? 'entry' : 'entries'} missing`,
+    readyTone: missing.length === 0 ? 'ok' : 'warn',
+    missingLabel: missing.join(', '),
+    setupHref: SETUP_HREF,
+    hasEntries: entries.length > 0,
+    entries: entries.map((e) => shapeConfigEntry(e, fns, lastVerify)),
+  };
+}
+
+function shapeConfigEntry(e, fns, lastVerify) {
+  // D8 legibility: "which functions can see this key" — joined from the
+  // manifest's per-function `uses` grants (a probe is implicitly granted).
+  const usedBy = fns
+    .filter((f) => (f.uses || []).includes(e.name))
+    .map((f) => ({ key: f.name, label: f.name }));
+  const verified = e.verified || null;
+  const verifiedLabel = !e.set
+    ? ''
+    : verified
+      ? verified.ok
+        ? `verified ${fmtTime(verified.atMs)}`
+        : 'verify failed'
+      : e.probe
+        ? 'unverified'
+        : '';
+  const changedParts = [];
+  if (e.lastChangedMs) changedParts.push(`changed ${fmtTime(e.lastChangedMs)}`);
+  if (e.source) changedParts.push(`via ${e.source}`);
+  const verifyResult = lastVerify && lastVerify.entry === e.name ? lastVerify : null;
+  return {
+    name: e.name,
+    description: e.description || '',
+    purpose: e.purpose || '',
+    secretLabel: e.secret ? 'secret' : 'config',
+    secretTone: e.secret ? 'accent' : 'default',
+    requiredLabel: e.required ? 'required' : 'optional',
+    poolLabel: e.pool ? `pool ×${e.memberCount || 0}` : '',
+    setLabel: e.set
+      ? e.pool
+        ? `set (${e.memberCount} ${e.memberCount === 1 ? 'key' : 'keys'})`
+        : 'set'
+      : 'not set',
+    setTone: e.set ? 'ok' : e.required ? 'warn' : 'default',
+    verifiedLabel,
+    verifiedTone: verified ? (verified.ok ? 'ok' : 'err') : 'default',
+    verifyDiagnostic: verified && !verified.ok ? verified.diagnostic || '' : '',
+    pendingLabel: e.applyState && e.applyState !== 'applied' ? e.applyState : '',
+    changedLabel: changedParts.join(' '),
+    howToGet: e.howToGet || '',
+    usedBy,
+    hasUsedBy: usedBy.length > 0,
+    canVerify: !!e.probe && e.set,
+    verifyRan: !!verifyResult,
+    verifyOk: !!(verifyResult && verifyResult.ok),
+    verifyLabel: verifyResult ? (verifyResult.ok ? 'probe ok' : 'probe failed') : '',
+    verifyDetail: (verifyResult && verifyResult.detail) || '',
+  };
+}
+
+const SETUP_HREF = '/_snapback/admin/setup';
+
 function shapeFunction(f) {
   const rt = f.runtime || {};
   const reads = (f.readSetSummary && f.readSetSummary.tables) || [];
@@ -455,6 +601,9 @@ function shapeFunction(f) {
     io: `reads ${reads.length ? reads.join(', ') : '—'}   →   writes ${writes.length ? writes.join(', ') : '—'}`,
     caps: (f.requiredCapabilities || []).map((c) => ({ key: c, label: c })),
     hasCaps: (f.requiredCapabilities || []).length > 0,
+    // D8 per-action config grants: the entries this function may receive.
+    grants: (f.uses || []).map((u) => ({ key: u, label: u })),
+    hasGrants: (f.uses || []).length > 0,
     planLabel,
     planSummary: planSummary || '—',
     planJson,

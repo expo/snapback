@@ -67,6 +67,16 @@ export class AdminClient {
   cleanupEphemeral() {
     return this.#req('POST', '/ephemeral/cleanup');
   }
+
+  // @ref LLP 0036#status-model-and-app-visibility-d4 — the status primitive:
+  // names and states only, never values. The Secrets surface renders this.
+  configStatus() {
+    return this.#req('GET', '/config/status');
+  }
+
+  verifyConfigEntry(entry) {
+    return this.#req('POST', '/config/verify', { entry, source: 'http' });
+  }
 }
 
 function bodySnippet(text, limit = 200) {

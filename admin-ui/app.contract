@@ -17,6 +17,7 @@ use loadTable from "./generated/contract/loadTable.mutation.ts"
 use runResult from "./generated/contract/runResult.query.ts"
 use runFunction from "./generated/contract/runFunction.mutation.ts"
 use cleanup from "./generated/contract/cleanup.mutation.ts"
+use verifyConfig from "./generated/contract/verifyConfig.mutation.ts"
 use colors from "./theme.ts"
 use fonts from "./theme.ts"
 use navSections from "./theme.ts"
@@ -40,6 +41,7 @@ component AdminConsole
   mutation loadScan = loadTable
   mutation runMut = runFunction
   mutation cleanupMut = cleanup
+  mutation verifyMut = verifyConfig
 
   derive c = colors(theme)
   derive f = fonts()
@@ -48,6 +50,7 @@ component AdminConsole
   derive isSchema = activeTab == "Schema"
   derive isData = activeTab == "Data"
   derive isFunctions = activeTab == "Functions"
+  derive isSecrets = activeTab == "Secrets"
   derive isCapabilities = activeTab == "Capabilities"
   derive isRealtime = activeTab == "Realtime"
   derive isDiagnostics = activeTab == "Diagnostics"
@@ -75,6 +78,8 @@ component AdminConsole
     runMut({ name: runName, argsText: runArgs, userId: runUser })
   action cleanupNow mutates cleanupMut
     cleanupMut()
+  action verifyEntry(name) mutates verifyMut
+    verifyMut({ entry: name })
 
   view
     row flex=1 width="100%" minHeight="100%" background=c.canvas
@@ -132,6 +137,8 @@ component AdminConsole
                   Badge(c=c, label=s.ui.exposureLabel, tone=s.ui.exposureTone)
                   Badge(c=c, label=s.ui.storageLabel, tone="default")
                   Badge(c=c, label=s.ui.tokenLabel, tone=s.ui.tokenTone)
+                  when s.ui.showConfigAlert
+                    Badge(c=c, label=s.ui.configAlertLabel, tone="warn")
 
                 column height=1 background=c.border width="100%"
 
@@ -301,12 +308,90 @@ component AdminConsole
                                       text "requires" size=11 color=c.textFaint family=f.sans
                                       each cap in fn.caps key=cap.key
                                         Badge(c=c, label=cap.label, tone="default", mono=true)
+                                  when fn.hasGrants
+                                    row gap=6 align="center" minHeight=24
+                                      text "config grants" size=11 color=c.textFaint family=f.sans
+                                      each g in fn.grants key=g.key
+                                        Badge(c=c, label=g.label, tone="accent", mono=true)
                                   when fn.hasPlanJson
                                     scroll height=220 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
                                       text fn.planJson size=11 color=c.textMuted family=f.mono
                                   when fn.isIbex
                                     scroll height=220 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
                                       text fn.source size=11 color=c.text family=f.mono
+
+                when isSecrets
+                  column gap=16 width="100%"
+                    text "Declared configuration and secrets — status only. Values are write-only and never readable here." size=13 color=c.textMuted family=f.sans
+                    when s.ui.config.available
+                      column gap=16 width="100%"
+                        row gap=12 wrap="wrap" width="100%" minHeight=92
+                          each t in s.ui.config.tiles key=t.key
+                            StatTile(c=c, label=t.label, value=t.value, alert=t.alert)
+                        row gap=8 wrap="wrap" align="center" width="100%"
+                          Badge(c=c, label=s.ui.config.readyLabel, tone=s.ui.config.readyTone)
+                          Badge(c=c, label=s.ui.config.backendClass, tone="default", mono=true)
+                          Badge(c=c, label=s.ui.config.generationLabel, tone="default", mono=true)
+                        when s.ui.config.missingLabel
+                          column gap=6 padding=14 radius=12 background=c.warnSoft width="100%"
+                            text "Missing required entries" size=12 weight=700 color=c.warn family=f.sans
+                            text s.ui.config.missingLabel size=13 color=c.warn family=f.mono
+                        row gap=12 align="center" padding=14 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                          column gap=2 flex=1 minWidth=0
+                            text "Values are set in the setup wizard" size=13 weight=600 color=c.text family=f.sans
+                            text "This page shows status and runs verification probes; paste or replace values there." size=12 color=c.textMuted family=f.sans
+                          link href=s.ui.config.setupHref testId="open-setup"
+                            text "Open setup wizard →" size=13 weight=600 color=c.accentText family=f.sans background=c.accentSoft radius=8 paddingTop=8 paddingBottom=8 paddingLeft=14 paddingRight=14
+                        when s.ui.config.hasEntries
+                          column gap=12 width="100%"
+                            each e in s.ui.config.entries key=e.name
+                              column gap=8 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                                row gap=8 align="center" wrap="wrap" width="100%"
+                                  text e.name size=15 weight=700 color=c.text family=f.mono flex=1 minWidth=0
+                                  Badge(c=c, label=e.secretLabel, tone=e.secretTone)
+                                  Badge(c=c, label=e.requiredLabel, tone="default")
+                                  when e.poolLabel
+                                    Badge(c=c, label=e.poolLabel, tone="default", mono=true)
+                                  when e.pendingLabel
+                                    Badge(c=c, label=e.pendingLabel, tone="warn")
+                                  Badge(c=c, label=e.setLabel, tone=e.setTone)
+                                  when e.verifiedLabel
+                                    Badge(c=c, label=e.verifiedLabel, tone=e.verifiedTone)
+                                when e.description
+                                  text e.description size=13 color=c.text family=f.sans
+                                when e.purpose
+                                  text e.purpose size=12 color=c.textMuted family=f.sans
+                                when e.howToGet
+                                  text e.howToGet size=12 color=c.textMuted family=f.sans lineHeight=17
+                                when e.hasUsedBy
+                                  row gap=6 align="center" wrap="wrap" minHeight=24
+                                    text "used by" size=11 color=c.textFaint family=f.sans
+                                    each u in e.usedBy key=u.key
+                                      Badge(c=c, label=u.label, tone="default", mono=true)
+                                when e.verifyDiagnostic
+                                  column padding=12 radius=8 background=c.errSoft width="100%"
+                                    text e.verifyDiagnostic size=12 color=c.err family=f.mono
+                                row gap=10 align="center" wrap="wrap" width="100%" minHeight=30
+                                  when e.changedLabel
+                                    text e.changedLabel size=12 color=c.textFaint family=f.sans flex=1 minWidth=0
+                                  else
+                                    spacer
+                                  when e.verifyRan
+                                    Badge(c=c, label=e.verifyLabel, tone=e.verifyOk ? "ok" : "err")
+                                  when e.canVerify
+                                    button press=verifyEntry(e.name) testId=`verify-${e.name}` paddingTop=7 paddingBottom=7 paddingLeft=14 paddingRight=14 radius=8 borderWidth=1 borderColor=c.border background=c.surface
+                                      text "Verify" size=12 weight=600 color=c.textMuted family=f.sans
+                                when e.verifyDetail
+                                  column padding=12 radius=8 background=e.verifyOk ? c.surfaceRaised : c.errSoft width="100%"
+                                    text e.verifyDetail size=12 color=e.verifyOk ? c.textMuted : c.err family=f.mono
+                        else
+                          column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                            text "This app declares no configuration entries." size=13 color=c.textMuted family=f.sans
+                    else
+                      column gap=8 padding=20 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                        text "Config status is unavailable on this server." size=13 weight=600 color=c.text family=f.sans
+                        when s.ui.config.error
+                          text s.ui.config.error size=12 color=c.err family=f.mono
 
                 when isCapabilities
                   column gap=14 width="100%"

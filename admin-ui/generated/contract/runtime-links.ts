@@ -9,6 +9,7 @@ export interface AdminContractLinks {
   runResult(args: Record<string, never>): unknown;
   runFunction(args: { name: string; argsText: string; userId: string }): unknown;
   cleanup(args: Record<string, never>): unknown;
+  verifyConfig(args: { entry: string }): unknown;
 }
 
 let links: AdminContractLinks | null = null;

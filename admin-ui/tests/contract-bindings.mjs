@@ -38,13 +38,38 @@ assert.equal(view.id, 'inspect', 'inspect resource hydrates');
 // The flattened view model the .contract renders (correct casing — schema.schemaHash,
 // not schema_hash — and the capability-manifest surface the rebuild added).
 assert.equal(view.ui.schemaHash, 'sha256:test', 'schema hash reads the camelCase key');
-assert.equal(view.ui.tiles.length, 4, 'overview exposes four dashboard tiles');
+assert.equal(view.ui.tiles.length, 5, 'overview exposes five dashboard tiles');
 assert.equal(view.ui.cap.storageEngine, 'sqlite', 'capability manifest is flattened');
 assert.ok(view.ui.cap.flags.some((f) => f.label === 'Live subscriptions' && f.on), 'capability flags shape');
 assert.equal(view.ui.functions[0].auth, 'optional-user', 'function auth metadata is surfaced');
 assert.equal(view.ui.functions[0].kindLabel, 'live query', 'LiveQuery renders a friendly kind label');
 assert.equal(surface.queryRows('tableScan')[0].loaded, false, 'tableScan starts empty');
 assert.equal(surface.queryRows('runResult')[0].ran, false, 'runResult starts empty');
+
+// The Secrets surface: the LLP 0036 status primitive shaped for rendering —
+// names and states only; the view model must never carry a value field.
+const config = view.ui.config;
+assert.equal(config.available, true, 'config status hydrates');
+assert.equal(config.declaredCount, 2, 'declared entries are counted');
+assert.equal(config.missingCount, 1, 'required missing is surfaced');
+assert.equal(view.ui.showConfigAlert, true, 'missing required config raises the strip badge');
+assert.ok(view.ui.tiles.some((t) => t.key === 'config' && t.value === '2' && t.alert), 'overview shows the config tile with an alert');
+const feed = config.entries.find((e) => e.name === 'caltrainFeed');
+assert.equal(feed.setLabel, 'set (2 keys)', 'pooled set state renders member count');
+assert.equal(feed.verifiedLabel.startsWith('verified'), true, 'verification state renders');
+assert.deepEqual(feed.usedBy.map((u) => u.label), ['refreshFeed'], 'uses grants join into used-by');
+assert.equal(feed.canVerify, true, 'probe-backed set entries can verify');
+const directions = config.entries.find((e) => e.name === 'directionsKey');
+assert.equal(directions.setLabel, 'not set', 'unset entries render as not set');
+assert.equal(directions.setTone, 'warn', 'missing required entries warn');
+assert.equal(directions.canVerify, false, 'unset entries cannot verify');
+assert.equal(JSON.stringify(config).includes('sekret-value'), false, 'no value ever reaches the view model');
+
+await surface.links.verifyConfig({ entry: 'caltrainFeed' });
+const verifiedView = surface.queryRows('inspect')[0];
+const verifiedFeed = verifiedView.ui.config.entries.find((e) => e.name === 'caltrainFeed');
+assert.equal(verifiedFeed.verifyRan, true, 'verify outcome is folded into the entry');
+assert.equal(verifiedFeed.verifyOk, true, 'verify outcome reports the probe result');
 
 await surface.links.loadTable({ table: 'todos', offset: 0 });
 assert.equal(surface.queryRows('tableScan')[0].loaded, true, 'loadTable publishes scan state');
@@ -59,6 +84,11 @@ assert.equal(surface.queryRows('inspect')[0].id, 'inspect', 'cleanup republishes
 
 await surface.links.refresh({});
 assert.equal(surface.pendingCount(), 0, 'completed commands leave no pending work');
+assert.equal(
+  surface.queryRows('inspect')[0].ui.config.entries.find((e) => e.name === 'caltrainFeed').verifyRan,
+  false,
+  'refresh drops the transient probe-result note',
+);
 
 surface.dispose();
 assert.throws(() => surface.links.inspect({}), /used after dispose/, 'disposed links fail closed');
@@ -167,6 +197,17 @@ function createFakeAdminClient() {
               writeSetSummary: { tables: [] },
               runtime: { HostPlan: { Query: { table: 'todos', indexed_by: 'by_user', filters: [] } } },
             },
+            {
+              name: 'refreshFeed',
+              kind: 'Action',
+              authRequirement: 'none',
+              syncabilityClass: 'action',
+              requiredCapabilities: ['outbound_actions'],
+              readSetSummary: { tables: [] },
+              writeSetSummary: { tables: [] },
+              uses: ['caltrainFeed'],
+              runtime: { IbexModule: { export: 'refreshFeed', source: 'export const refreshFeed = 1;' } },
+            },
           ],
         },
         recent_diagnostics: [],
@@ -182,6 +223,55 @@ function createFakeAdminClient() {
     },
     async cleanupEphemeral() {
       return null;
+    },
+    // LLP 0036 config.status fixture: names and states only. The fake value
+    // string below exists only to prove the shaping never touches values —
+    // it is deliberately not part of the status payload shape.
+    async configStatus() {
+      return {
+        generation: 3,
+        backendClass: 'local-file-immediate',
+        requiredMissing: ['directionsKey'],
+        entries: [
+          {
+            name: 'caltrainFeed',
+            description: '511.org Open Data API key',
+            purpose: 'Fetches the Caltrain GTFS-Realtime feed',
+            secret: true,
+            required: false,
+            pool: true,
+            probe: 'verifyCaltrainKey',
+            howToGet: 'Request a free key at https://511.org/open-data/token.',
+            set: true,
+            memberCount: 2,
+            lastChangedMs: 1750000000000,
+            source: 'wizard',
+            verified: { ok: true, atMs: 1750000300000 },
+            applyState: 'applied',
+          },
+          {
+            name: 'directionsKey',
+            description: 'Directions provider key',
+            secret: true,
+            required: true,
+            pool: false,
+            set: false,
+            memberCount: 0,
+            applyState: 'applied',
+            // A rogue field a buggy server might add: the shaping must drop
+            // anything value-shaped rather than pass entries through wholesale.
+            value: 'sekret-value',
+          },
+        ],
+      };
+    },
+    async verifyConfigEntry(entry) {
+      return {
+        entry,
+        ok: true,
+        verified: { ok: true, atMs: 1750000400000 },
+        generation: 3,
+      };
     },
     async scanTable(table, _limit, offset) {
       return {

@@ -70,4 +70,16 @@ export const adminContractBindings = [
     effects: ['ephemeral.cleanup'],
     invalidates: ['inspect'],
   },
+  {
+    // config.verify: run a declared entry's probe action (token-gated admin
+    // write), then republish inspect so the Secrets surface reflects the new
+    // verification state. Status rides the inspect view; values never appear.
+    name: 'verifyConfig',
+    kind: 'mutation',
+    args: {
+      entry: 'string',
+    },
+    effects: ['config.verify'],
+    invalidates: ['inspect'],
+  },
 ];

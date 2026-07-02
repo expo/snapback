@@ -5,8 +5,8 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024
+**Revised:** 2026-07-02 (ENG-22598: Secrets surface added to both consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036
 
 ## Summary
 
@@ -318,6 +318,11 @@ surfaces:
 - **Diagnostics and capabilities:** stable diagnostic objects, capability
   manifest, missing features, version mismatches, stale generated artifacts, and
   suggested next checks.
+- **Secrets and configuration status:** the LLP 0036 `config.status` primitive
+  per declared entry — set/unset, pool membership, verification state, apply
+  state, and which functions are granted the entry — with probe verification,
+  and a pointer to the setup wizard for value writes. Names and states only;
+  no read-back exists to power anything more.
 - **Reset, seed, export, and import:** deterministic local operations useful for
   tests and demo repair.
 
@@ -530,6 +535,15 @@ measurement bug — fixed upstream in Exact ENG-22199 (resize manifestation
 verified under ENG-22214). The console's workarounds (explicit `minHeight` on
 dynamic rows, fixed-height `scroll` blocks for code/JSON output) predate that
 fix and can be retired when convenient.
+
+On 2026-07-02 both consoles gained a **Secrets** surface over the LLP 0036
+config ops (ENG-22598): stat tiles (declared / set / missing required /
+verified), per-entry status cards with a probe **Verify** control, "used by"
+badges joined from each function's `uses` grants, and a link to the setup
+wizard, which stays the only place values are written. The Contract console
+also raises a `config: N required missing` badge in the status strip and shows
+per-function config grants in the Functions detail. Both render names and
+states only — the view model never carries a value.
 
 ## Validation Requirements
 

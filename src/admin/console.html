@@ -228,7 +228,7 @@
 "use strict";
 
 const API = "/_snapback/api";
-const TABS = ["Overview", "Schema", "Data", "Functions", "Cron", "Realtime", "Diagnostics"];
+const TABS = ["Overview", "Schema", "Data", "Functions", "Secrets", "Cron", "Realtime", "Diagnostics"];
 
 const store = {
   inspect: null,
@@ -377,6 +377,7 @@ function renderActive() {
     Schema: renderSchema,
     Data: renderData,
     Functions: renderFunctions,
+    Secrets: renderSecrets,
     Cron: renderCron,
     Realtime: renderRealtime,
     Diagnostics: renderDiagnostics,
@@ -691,6 +692,98 @@ function renderRunResult(out, res) {
   if (payload !== undefined && payload !== null) out.append(el("pre", { class: "json" }, pretty(payload)));
 }
 function hasDetails(d) { return d && (typeof d !== "object" || Object.keys(d).length > 0); }
+
+/* ---------- Secrets ---------- */
+// @ref LLP 0036#status-model-and-app-visibility-d4 — renders the config.status
+// primitive: declared × set × verified per entry, names and states only. Values
+// are write-only (setup wizard); this tab shows status and runs probes.
+function renderSecrets(main) {
+  main.append(el("div", { class: "toolbar" },
+    el("span", { class: "muted" }, "Declared configuration and secrets — status only; values are never readable."),
+    el("span", { class: "spacer", style: "flex:1" }),
+    el("a", { href: "/_snapback/admin/setup" }, "Open setup wizard →")));
+  main.append(el("div", { id: "secretswrap" }, el("div", { class: "empty" }, "Loading…")));
+  loadSecrets();
+}
+
+async function loadSecrets() {
+  const wrap = $("#secretswrap"); if (!wrap) return;
+  let status;
+  try {
+    status = await api("/config/status");
+  } catch (e) {
+    if (!e.handled) { wrap.innerHTML = ""; wrap.append(el("div", { class: "empty" }, "Config status unavailable: " + e.message)); }
+    return;
+  }
+  wrap.innerHTML = "";
+  const entries = status.entries || [];
+  const missing = status.requiredMissing || [];
+  const fns = store.inspect ? store.inspect.functions.functions : [];
+
+  const stats = [
+    ["Declared", entries.length],
+    ["Set", entries.filter((e) => e.set).length],
+    ["Missing required", missing.length, missing.length > 0],
+    ["Verified OK", entries.filter((e) => e.verified && e.verified.ok).length],
+  ];
+  const grid = el("div", { class: "stat-grid", style: "margin-bottom:14px" });
+  for (const [l, n, alert] of stats) grid.append(el("div", { class: "stat" + (alert ? " alert" : "") }, el("div", { class: "n" }, n), el("div", { class: "l" }, l)));
+  wrap.append(grid);
+
+  wrap.append(el("div", { class: "chips", style: "margin-bottom:14px" },
+    missing.length === 0
+      ? el("span", { class: "badge ok" }, "all required entries set")
+      : el("span", { class: "badge warn" }, missing.length + " required missing: " + missing.join(", ")),
+    el("span", { class: "badge mono" }, status.backendClass),
+    el("span", { class: "badge mono" }, "generation " + status.generation)));
+
+  if (entries.length === 0) {
+    wrap.append(el("div", { class: "empty" }, "This app declares no configuration entries."));
+    return;
+  }
+  for (const entry of entries) {
+    const usedBy = fns.filter((f) => (f.uses || []).includes(entry.name)).map((f) => f.name);
+    const badges = el("span", { class: "chips" },
+      el("span", { class: "badge " + (entry.secret ? "accent" : "") }, entry.secret ? "secret" : "config"),
+      el("span", { class: "badge" }, entry.required ? "required" : "optional"),
+      entry.pool ? el("span", { class: "badge mono" }, "pool ×" + entry.memberCount) : null,
+      entry.applyState && entry.applyState !== "applied" ? el("span", { class: "badge warn" }, entry.applyState) : null,
+      entry.set
+        ? el("span", { class: "badge ok" }, entry.pool ? "set (" + entry.memberCount + (entry.memberCount === 1 ? " key)" : " keys)") : "set")
+        : el("span", { class: "badge " + (entry.required ? "warn" : "") }, "not set"),
+      entry.set && entry.verified
+        ? el("span", { class: "badge " + (entry.verified.ok ? "ok" : "err") }, entry.verified.ok ? "verified " + fmtTime(entry.verified.atMs) : "verify failed")
+        : entry.set && entry.probe ? el("span", { class: "badge" }, "unverified") : null);
+    const rows = [];
+    if (entry.description) rows.push(kv("Description", entry.description));
+    if (entry.purpose) rows.push(kv("Purpose", entry.purpose));
+    if (entry.howToGet) rows.push(kv("How to get one", entry.howToGet));
+    if (usedBy.length) rows.push(kv("Used by", usedBy.join(", "), true));
+    if (entry.lastChangedMs) rows.push(kv("Last changed", fmtTime(entry.lastChangedMs) + (entry.source ? " via " + entry.source : "")));
+    if (entry.verified && !entry.verified.ok && entry.verified.diagnostic) rows.push(kv("Probe diagnostic", entry.verified.diagnostic, true));
+    if (entry.probe && entry.set) {
+      rows.push(el("div", { class: "toolbar", style: "padding-top:8px" },
+        el("button", { onclick: () => verifyConfigEntry(entry.name) }, "Verify"),
+        el("span", { class: "muted", id: "verify-" + entry.name })));
+    }
+    wrap.append(el("div", { class: "card", style: "margin-bottom:12px" },
+      (() => { const h = el("h3", {}, entry.name); h.append(badges); return h; })(),
+      el("div", { class: "body" }, ...rows)));
+  }
+}
+
+async function verifyConfigEntry(name) {
+  const note = $("#verify-" + CSS.escape(name));
+  if (note) note.textContent = "verifying…";
+  try {
+    const outcome = await api("/config/verify", { method: "POST", body: { entry: name, source: "http" } });
+    toast(name + ": " + (outcome.ok ? "probe ok" : "probe failed"));
+    loadSecrets();
+  } catch (e) {
+    if (!e.handled) toast(e.message);
+    if (note) note.textContent = "";
+  }
+}
 
 /* ---------- Cron ---------- */
 function renderCron(main) {

@@ -5,7 +5,7 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-02 (v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
+**Revised:** 2026-07-02 (later same day, ENG-22598: the admin console — Contract console and embedded fallback — gained a Secrets surface projecting `config.status` with per-entry probe verify and grants legibility; see LLP 0017 §Implementation status. Earlier: v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0015, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0027, LLP 0028, LLP 0029, LLP 0031, Diary 0008
 
 ## Summary
@@ -60,9 +60,12 @@ flow drivable end-to-end by an agent through MCP instead of a browser.
 > wire), the gated `/_snapback/api/config/{status,plan,set,unset,verify}` ops
 > with the transit rule and per-entry verify cooldown, the
 > `/_snapback/admin/setup` wizard plus the printed install line, the one-time
-> deprecated `SNAPBACK_ACTION_SECRETS` import, and the All Aboard +
+> deprecated `SNAPBACK_ACTION_SECRETS` import, the All Aboard +
 > egress-probe migration (G4 closed; acceptance:
-> `demos/all-aboard/tests/acceptance/egress.mjs`, `tests/config_v0.rs`).
+> `demos/all-aboard/tests/acceptance/egress.mjs`, `tests/config_v0.rs`), and
+> a **Secrets surface in both admin consoles** projecting `config.status` —
+> per-entry set/verified/apply state, `uses`-grant legibility, probe verify —
+> with values write-only via the wizard (ENG-22598, LLP 0017).
 > Honest gaps: `asBearer()` is `expose()` sugar — a true host-boundary unwrap
 > awaits host-mediated fetch on the egress seam (G3); probes have a cooldown
 > but no hard timeout (this target has no handler wall-clock timeout at all
@@ -514,7 +517,7 @@ or prompt, never argv, which leaks into shell history and process lists);
 control-plane MCP tools `snapback_config_*` mapping 1:1. These projections
 land with the LLP 0024 surface (LLP 0032 P6); until then the gated HTTP twins
 under `/_snapback/api/config/*` are the only transport, which is enough for
-the wizard.
+the wizard and for the admin console's Secrets surface (LLP 0017).
 
 **Audit discipline** (inherited from
 [LLP 0009](./0009-code-execution-security.rfc.md) §Secrets, extended one
