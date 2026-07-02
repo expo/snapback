@@ -396,3 +396,46 @@ D3+D0+D1 (unblocks the All Aboard proof, Exact 0277 §5.1 row 4), then D2
 (unblocks Exact 0278 §D), with D4/D5 alongside — D4's boot edits land with
 the first proof. Implementation of D0/D1/D3/D5 is in flight on branch
 `csw/llp-0034-d1-d3` at the time of acceptance.
+
+## 10. ImplNotes (2026-07-01, from the D0/D1/D3/D5 implementation)
+
+Recorded from the first implementation pass (branch `csw/llp-0034-d1-d3`;
+cargo 97/97, all demo acceptance suites green, new
+`demos/_kit/tests/provider-live-conformance.mjs` 7/7):
+
+- **D0 shape decided (OQ3):** an app-level `{"type":"ping"}` →
+  `{"kind":"pong"}` envelope on the live socket (`live_ping`, registered
+  per LLP 0031). Protocol-level Ping/Pong was not viable: browser/undici
+  WebSocket JS cannot send protocol pings. Constants as shipped:
+  `LIVE_HEARTBEAT_INTERVAL_MS = 5000` (not §2.1's provisional 10 000),
+  budget `k = 3`, reconnect backoff `250ms × 2ⁿ` capped at 10 s,
+  `DEFAULT_POLL_CADENCE_MS = 1500` — documented beside the
+  connection-state machine in `demos/_kit/client.mjs`.
+- **Connection-axis refinements to §2.3's table:** socket loss with poll
+  fallback enabled goes directly `live → polling` (the declared-cadence
+  drain is a healthy declared transport, not a degradation); `stale` is
+  reserved for budget-missed-while-retrying (fallback disabled, poll
+  failures during fallback, or an open-but-silent socket past budget —
+  which force-closes and reconnects); `disconnected` (= no retry
+  scheduled, matching Exact 0284's definition) is reached via
+  dispose/pause, not retry exhaustion, because the kit retries with capped
+  backoff while demand exists.
+- **Overflow resync is connection-wide**, not per-subscription
+  (`OutboundQueue::overflow` carries no `subscription_id`), unlike
+  permission/fanout resyncs — §2.4's resubscribe triggers operate at
+  connection scope for overflow.
+- **Zombie subscriptions (D2-adjacent work, named):** there is no
+  `unsubscribe_live` endpoint; in-band resync recovery re-subscribes
+  fresh, so a superseded subscription keeps fanning out server-side until
+  connection teardown/reap. Subscription GC or an unsubscribe operation
+  belongs with D2.
+- **Exact-side v2 pin confirmed (§6 ownership table, item 1):** Exact's
+  shipped conformance hard-pins `manifestVersion === 1`, so the adapter
+  temporarily hands the runtime the v2 document declared as v1 with
+  `providerManifestVersion: 2` riding along — deleted when Exact's
+  manifest-v2 acceptance lands (implemented on the Exact side in the same
+  integration window).
+- **OQ8 decided:** `defaultLive: true` shipped for LiveQuery descriptors;
+  the opt-out is `defineLiveQuery({ defaultLive: false })`.
+- **D5 checks 2 (TTL expiry deletion) and 5 (delivered-rate ≤
+  `maxDeltaRateHz`)** remain open pending D2 receipts, as scoped.
