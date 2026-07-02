@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation)
+**Revised:** 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027
 
 ## Summary
@@ -428,6 +428,20 @@ return the same structured cron block. Later, token-gated admin/test operations
 can add `run now`, `advance/tick`, `enable/disable`, and `clear run history`
 controls, but read-only job/status inspection should be available as soon as cron
 lands.
+
+One wire value in the runtime view needs interpretation rather than direct
+display. Interval schedules anchor their nominal grid at Unix epoch 0 so that
+"every 1m" means whole-minute boundaries regardless of when the process
+started; a job that has never advanced past its anchor therefore reports
+`nextNominalAtMs: 0` (and a jitter-offset `nextDueAtMs` near 0). Under the
+scheduler contract `dueAt <= now` means "due at the next tick", so the anchor
+is truthful machine-readable state, not a missing value — headless consumers
+may rely on it. Display surfaces, however, must not render the anchor (or any
+past-due time on an armed job) as a wall-clock date: show "due now" for an
+armed job whose due time is in the past, and show the next times as absent for
+a job the scheduler will not fire (`disabled` or `inactive:no-demand`) — its
+stored nominal/due values will not fire as written. The motivating failure was
+the admin console printing `12/31/1969` for a demand-gated poller (ENG-22604).
 
 ### Security and isolation
 

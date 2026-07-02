@@ -711,6 +711,10 @@ fn ensure_next_due(job: &CronJobDefinition, state: &mut CronJobRuntimeState, now
 
 fn initial_nominal(job: &CronJobDefinition, now_ms: u64) -> Option<u64> {
     if job.schedule.every_ms.is_some() {
+        // @ref LLP 0028#inspection-and-query-surface — interval nominals
+        // anchor at epoch 0 so "every 1m" means whole-minute boundaries; the
+        // anchor reads as "due at the next tick" and surfaces in inspect, so
+        // display layers must not render it as a wall-clock date.
         Some(0)
     } else if job.schedule.cron.is_some() {
         next_calendar_nominal_after(job, None, now_ms)

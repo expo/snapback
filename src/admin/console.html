@@ -272,7 +272,18 @@ function fmtDuration(ms) {
   return parts.slice(0, 2).join(" ");
 }
 function fmtTime(ms) { try { return new Date(ms).toLocaleString(); } catch { return String(ms); } }
-function fmtMaybeTime(ms) { return ms === null || ms === undefined ? "—" : fmtTime(ms); }
+// A 0 timestamp is a scheduler sentinel (interval nominals anchor to the Unix
+// epoch grid), never a real wall-clock moment — render it as absent rather
+// than 12/31/1969.
+function fmtMaybeTime(ms) { return ms === null || ms === undefined || ms === 0 ? "—" : fmtTime(ms); }
+// @ref LLP 0028#inspection-and-query-surface — the epoch-0 anchor means "due
+// at the next tick": armed jobs show past-due times as "due now", and jobs the
+// scheduler will not fire (disabled / inactive:no-demand) show no next times.
+function fmtCronNext(job, ms) {
+  if (job.activationState !== "Armed" || ms === null || ms === undefined) return "—";
+  if (ms <= Date.now()) return "due now";
+  return fmtTime(ms);
+}
 
 let toastTimer;
 function toast(msg) {
@@ -805,8 +816,8 @@ function renderCron(main) {
       kv("Schedule", schedule, true),
       kv("Enabled", yn(job.enabled)),
       kv("Jitter", job.jitterPolicy.enabled ? fmtDuration(job.jitterOffsetMs) + " offset" : "off"),
-      kv("Next nominal", fmtMaybeTime(job.nextNominalAtMs)),
-      kv("Next due", fmtMaybeTime(job.nextDueAtMs)),
+      kv("Next nominal", fmtCronNext(job, job.nextNominalAtMs)),
+      kv("Next due", fmtCronNext(job, job.nextDueAtMs)),
       kv("In flight", job.inFlightRunId || "—", true),
       kv("Last run", fmtMaybeTime(job.lastRunAtMs)),
       kv("Last outcome", job.lastOutcome || "—"),
