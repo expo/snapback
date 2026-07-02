@@ -69,6 +69,11 @@ corpus does not rely on scattered "pending Charlie" notes.
 - **2026-06-26:** Cloudflare remains the planned second target, but only through
   a dedicated strategy and prototype, not as an assumed port of the local core
   ([LLP 0014](./0014-cloudflare-strategy.rfc.md)).
+- **2026-07-01:** the decision-and-implementation hardening program is accepted
+  as the execution charter for the current phase, after a two-family review
+  loop with independently verified registers; corpus status transitions,
+  docket outcomes, and phase ratifications flow through its rules
+  ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md)).
 
 ## Who Snapback is for
 

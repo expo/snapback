@@ -1,11 +1,11 @@
 # LLP 0032: Decision and Implementation Hardening Program
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-01 (same-day revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
+**Revised:** 2026-07-01 (accepted by Charlie after the two-family review loop; earlier same day: revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031
 
 ## Summary
@@ -868,9 +868,11 @@ concretely as:
 
 ## Status
 
-Draft. The LLP 0005 loop has run: a GPT-5/Codex review and a Claude-family
-review (which independently re-verified the registers) are in
-[`llp/reviews/`](./reviews/), and this revision applies both. Promotion out
-of Draft is the author's call. The plan should be revised in place as phases
-complete. Its registers supersede the conversation that produced them; if a
-citation drifts, fix it here.
+Accepted 2026-07-01, ratified by Charlie after the LLP 0005 loop ran: a
+GPT-5/Codex review and a Claude-family review (which independently
+re-verified the registers) are in [`llp/reviews/`](./reviews/), and the
+accepted revision applies both. The plan is a living execution document:
+update the registers, docket statuses, and checklists in place as phases
+complete, and ledger phase-boundary ratifications in LLP 0000. Its registers
+supersede the conversation that produced them; if a citation drifts, fix it
+here.
