@@ -4,7 +4,7 @@ use snapback::ephemeral::{
     AuthContext, ClientEphemeralOverlay, EphemeralCollection, EphemeralErrorCode, EphemeralMessage,
     OverlayApply, PublishRequest, RealtimeEnvelope, Scope, SubscribeRequest,
 };
-use snapback::local::{LiveResumeInput, LiveSubscribeInput, LocalSnapback};
+use snapback::local::{LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback};
 use snapback::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AuthInput, CronActivationKind, CronActivationPolicy,
     CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
@@ -992,6 +992,7 @@ fn read_set_conflict_rejects_stale_mutation() {
             id: before.rows[0]["_id"].as_str().unwrap().to_owned(),
             version: observed_version,
         }],
+        correlation: None,
     };
     let error = snapback
         .invoke_mutation("setCompleted", stale)
@@ -2128,6 +2129,7 @@ fn input(args: Value, user_id: &str) -> HandlerInput {
         args,
         auth: auth(user_id),
         read_set: Vec::new(),
+        correlation: None,
     }
 }
 
@@ -3028,4 +3030,234 @@ fn e4_query_validation_is_predicate_granular() {
             .expect_err("a matching concurrent write must still conflict");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
+}
+
+/// LLP 0034 §10.1 residual / ENG-22478 — re-subscribing the same
+/// (connection, function, args, principal) supersedes the old subscription:
+/// it is disposed server-side (with a receipt) and stops fanning out.
+#[test]
+fn d2_superseded_subscription_is_gced_and_stops_fanning_out() {
+    let mut snapback = configured_snapback();
+    let first = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("first subscribe");
+    let second = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("second subscribe");
+    assert_ne!(first.subscription_id, second.subscription_id);
+
+    snapback
+        .invoke_mutation("createTodo", input(json!({ "title": "after gc" }), "user_1"))
+        .expect("create todo");
+    let updates: Vec<Value> = snapback
+        .drain_outbox("client_a")
+        .into_iter()
+        .filter_map(|envelope| match envelope {
+            RealtimeEnvelope::Durable(message) => serde_json::from_slice(&message.payload).ok(),
+            RealtimeEnvelope::Ephemeral(_) => None,
+        })
+        .filter(|update: &Value| update["kind"] == "live_replace")
+        .collect();
+    assert_eq!(
+        updates.len(),
+        1,
+        "exactly one live_replace: the superseded subscription must not fan out"
+    );
+    assert_eq!(updates[0]["subscription_id"], second.subscription_id);
+
+    let receipts = snapback.receipts_snapshot(Some("client_a"));
+    let ring = receipts["receipts"].as_array().expect("connection ring");
+    assert!(
+        ring.iter().any(|receipt| receipt["event"] == "disposed"
+            && receipt["reason"] == "superseded"
+            && receipt["subscriptionId"] == first.subscription_id
+            && receipt["supersededBy"] == second.subscription_id),
+        "superseded disposal must be receipted: {receipts}"
+    );
+    assert!(
+        ring.iter()
+            .filter(|receipt| receipt["event"] == "established")
+            .count()
+            >= 2,
+        "both establishments receipted"
+    );
+}
+
+/// LLP 0034 §10.1 residual / ENG-22478 — explicit unsubscribe disposes the
+/// subscription (receipted), stops fan-out, and enforces ownership.
+#[test]
+fn d2_unsubscribe_live_disposes_and_enforces_ownership() {
+    let mut snapback = configured_snapback();
+    let sub = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe");
+
+    // A different principal cannot dispose it.
+    let stranger = snapback.unsubscribe_live(
+        "listTodos",
+        LiveUnsubscribeInput {
+            subscription_id: sub.subscription_id.clone(),
+            connection_id: "client_a".to_owned(),
+            auth: auth("user_2"),
+        },
+    );
+    assert_eq!(
+        stranger.expect_err("ownership").diagnostic.code,
+        "SNAPBACK_LIVE_RESUME_OWNERSHIP"
+    );
+
+    let disposed = snapback
+        .unsubscribe_live(
+            "listTodos",
+            LiveUnsubscribeInput {
+                subscription_id: sub.subscription_id.clone(),
+                connection_id: "client_a".to_owned(),
+                auth: auth("user_1"),
+            },
+        )
+        .expect("unsubscribe");
+    assert!(disposed.disposed);
+    assert_eq!(
+        disposed.receipt.as_ref().expect("receipt")["event"],
+        "disposed"
+    );
+    assert_eq!(disposed.receipt.as_ref().expect("receipt")["reason"], "unsubscribed");
+
+    snapback
+        .invoke_mutation("createTodo", input(json!({ "title": "after dispose" }), "user_1"))
+        .expect("create todo");
+    let durable = snapback
+        .drain_outbox("client_a")
+        .into_iter()
+        .filter(|envelope| matches!(envelope, RealtimeEnvelope::Durable(_)))
+        .count();
+    assert_eq!(durable, 0, "a disposed subscription must not fan out");
+
+    let unknown = snapback.unsubscribe_live(
+        "listTodos",
+        LiveUnsubscribeInput {
+            subscription_id: sub.subscription_id,
+            connection_id: "client_a".to_owned(),
+            auth: auth("user_1"),
+        },
+    );
+    assert_eq!(
+        unknown.expect_err("already disposed").diagnostic.code,
+        "SNAPBACK_UNKNOWN_SUBSCRIPTION"
+    );
+}
+
+/// LLP 0034 §3.2 / ENG-22478 — mutation receipts: provider fields populated,
+/// adapter correlation echoed verbatim, affectedTables from DECLARED writes
+/// with the explicit-unknown (null) shape when a function declares none.
+#[test]
+fn d2_mutation_receipts_echo_correlation_and_declare_affected_tables() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+
+    let mut declared = system_todo_mutation();
+    declared.name = "declaredWrites".to_owned();
+    declared.write_set_summary.tables = vec!["todos".to_owned()];
+    let mut undeclared = system_todo_mutation();
+    undeclared.name = "undeclaredWrites".to_owned();
+    // write_set_summary stays default-empty: declared-nothing.
+    snapback.load_functions(FunctionManifest {
+        bundle_hash: Some("d2-receipts".to_owned()),
+        functions: vec![declared, undeclared],
+        ..FunctionManifest::default()
+    });
+
+    let correlation = json!({
+        "actionInvocationId": "act_1",
+        "rootId": "root_1",
+        "bindingIds": ["todos"],
+    });
+    let mut with_correlation = input(json!({ "title": "receipted" }), "user_1");
+    with_correlation.correlation = Some(correlation.clone());
+    let (result, receipt) = snapback.invoke_mutation_recording("declaredWrites", with_correlation);
+    let output = result.expect("mutation");
+    assert_eq!(receipt["kind"], "mutation");
+    assert_eq!(receipt["outcome"], "confirmed");
+    assert_eq!(receipt["rollbackReason"], Value::Null);
+    assert_eq!(receipt["affectedTables"], json!(["todos"]));
+    assert_eq!(receipt["snapshotVersion"], json!(output.version));
+    assert_eq!(receipt["correlation"], correlation, "correlation echoed verbatim");
+    assert!(receipt["mutationId"].as_str().unwrap().starts_with("mut_"));
+
+    // Declared-nothing: EXPLICITLY unknown (null), never silently empty.
+    let (_, unknown_receipt) = snapback.invoke_mutation_recording(
+        "undeclaredWrites",
+        input(json!({ "title": "unknown writes" }), "user_1"),
+    );
+    assert_eq!(unknown_receipt["affectedTables"], Value::Null);
+
+    // A rejected mutation still produces its receipt, with the diagnostic
+    // CODE (never the message) as the rollback reason (§3.3 privacy).
+    let (rejected, rejected_receipt) =
+        snapback.invoke_mutation_recording("nope", input(json!({}), "user_1"));
+    assert!(rejected.is_err());
+    assert_eq!(rejected_receipt["outcome"], "rejected");
+    assert_eq!(rejected_receipt["rollbackReason"], "SNAPBACK_UNKNOWN_FUNCTION");
+
+    // Retention: all three receipts are in the bounded global ring.
+    let receipts = snapback.receipts_snapshot(None);
+    assert_eq!(receipts["global"].as_array().expect("global ring").len(), 3);
+}
+
+/// LLP 0034 §3 / ENG-22478 — a disconnect receipts the disposal into the
+/// GLOBAL ring and drops the connection's own ring.
+#[test]
+fn d2_disconnect_receipts_disposal_and_drops_the_connection_ring() {
+    let mut snapback = configured_snapback();
+    let sub = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_gone".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe");
+    assert!(
+        !snapback.receipts_snapshot(Some("client_gone"))["receipts"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+
+    snapback.disconnect("client_gone", 1_000);
+    let receipts = snapback.receipts_snapshot(None);
+    assert!(
+        receipts["global"].as_array().unwrap().iter().any(|receipt| {
+            receipt["event"] == "disposed"
+                && receipt["reason"] == "disconnected"
+                && receipt["subscriptionId"] == sub.subscription_id
+        }),
+        "disconnect disposal must be receipted globally: {receipts}"
+    );
+    assert!(
+        snapback.receipts_snapshot(Some("client_gone"))["receipts"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "the connection ring dies with the connection"
+    );
 }

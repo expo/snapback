@@ -32,6 +32,70 @@ use uuid::Uuid;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 
+/// Receipt retention (LLP 0034 §3 / ENG-22478): bounded in-memory rings — one
+/// global ring for connectionless facts (mutation receipts, disposed-on-
+/// disconnect markers) and one ring per live connection (subscription
+/// lifecycle). Dropped with the connection; never durable.
+///
+/// Privacy (§3.3): receipts carry opaque ids, versions, table names, and the
+/// verbatim adapter correlation object — never ephemeral payload values and
+/// never auth identities beyond what the adapter itself chose to put in its
+/// opaque correlation.
+const RECEIPT_RING_CAP: usize = 256;
+
+#[derive(Default)]
+struct ReceiptLog {
+    global: VecDeque<Value>,
+    per_connection: BTreeMap<String, VecDeque<Value>>,
+}
+
+impl ReceiptLog {
+    fn push_global(&mut self, receipt: Value) {
+        push_capped(&mut self.global, receipt);
+    }
+
+    fn push_connection(&mut self, connection_id: &str, receipt: Value) {
+        push_capped(
+            self.per_connection
+                .entry(connection_id.to_owned())
+                .or_default(),
+            receipt,
+        );
+    }
+
+    fn drop_connection(&mut self, connection_id: &str) {
+        self.per_connection.remove(connection_id);
+    }
+
+    fn snapshot(&self, connection_id: Option<&str>) -> Value {
+        match connection_id {
+            Some(id) => json!({
+                "connection": id,
+                "receipts": self
+                    .per_connection
+                    .get(id)
+                    .map(|ring| ring.iter().cloned().collect::<Vec<_>>())
+                    .unwrap_or_default(),
+            }),
+            None => json!({
+                "global": self.global.iter().cloned().collect::<Vec<_>>(),
+                "connections": self
+                    .per_connection
+                    .iter()
+                    .map(|(id, ring)| (id.clone(), Value::Array(ring.iter().cloned().collect())))
+                    .collect::<serde_json::Map<_, _>>(),
+            }),
+        }
+    }
+}
+
+fn push_capped(ring: &mut VecDeque<Value>, receipt: Value) {
+    ring.push_back(receipt);
+    while ring.len() > RECEIPT_RING_CAP {
+        ring.pop_front();
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct InspectState {
     #[serde(rename = "artifactKind")]
@@ -194,6 +258,9 @@ pub struct LiveSubscribeOutput {
     pub snapshot: QueryOutput,
     #[serde(default)]
     pub permission_epochs: BTreeMap<String, u64>,
+    /// Server half of the 'established' receipt (LLP 0034 §3.2, ENG-22478).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -220,6 +287,22 @@ pub struct LiveResumeOutput {
     pub snapshot: Option<QueryOutput>,
     #[serde(default)]
     pub permission_epochs: BTreeMap<String, u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LiveUnsubscribeInput {
+    pub subscription_id: String,
+    pub connection_id: String,
+    #[serde(default)]
+    pub auth: AuthInput,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LiveUnsubscribeOutput {
+    pub subscription_id: String,
+    pub disposed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -319,6 +402,7 @@ pub struct LocalSnapback {
     // never take the global mutex.
     read_manifests: Arc<RwLock<Arc<ReadManifests>>>,
     read_epochs: Arc<RwLock<BTreeMap<String, u64>>>,
+    receipts: ReceiptLog,
 }
 
 #[derive(Clone, Debug)]
@@ -506,7 +590,61 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> SnapbackResult<MutationOutput> {
-        Ok(self.invoke_mutation_commit(name, input)?.output)
+        self.invoke_mutation_recording(name, input).0
+    }
+
+    /// The mutation choke point with receipt emission (LLP 0034 §3.2,
+    /// ENG-22478). Every mutation — HTTP, action-hosted, cron-driven —
+    /// produces a MutationReceipt with the provider-owned fields; the opaque
+    /// adapter correlation from the input is echoed verbatim. The receipt is
+    /// retained in the global ring and returned so the HTTP handler can ride
+    /// it on the response.
+    pub fn invoke_mutation_recording(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+    ) -> (SnapbackResult<MutationOutput>, Value) {
+        let correlation = input.correlation.clone();
+        // affectedTables from DECLARED writes; a function that declares none
+        // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
+        // never a silently-empty list (LLP 0034 §3.2 / Exact 0263 honesty).
+        let affected_tables: Option<Vec<String>> = self
+            .functions
+            .function(name)
+            .map(|function| function.write_set_summary.tables.clone())
+            .filter(|tables| !tables.is_empty());
+        let result = self.invoke_mutation_commit(name, input);
+        let (outcome, rollback_reason, snapshot_version) = match &result {
+            Ok(commit) => ("confirmed", None, commit.output.version),
+            Err(error) => (
+                "rejected",
+                // The diagnostic CODE only — messages may embed argument
+                // values (§3.3 privacy).
+                Some(error.diagnostic.code.clone()),
+                self.db.current_version().unwrap_or(0),
+            ),
+        };
+        let receipt = json!({
+            "kind": "mutation",
+            "mutationId": format!("mut_{}", Uuid::now_v7().simple()),
+            "mutation": name,
+            "outcome": outcome,
+            "rollbackReason": rollback_reason,
+            "affectedTables": affected_tables,
+            "snapshotVersion": snapshot_version,
+            "transport": "http",
+            "correlation": correlation,
+            "receivedAtMs": now_millis(),
+        });
+        self.receipts.push_global(receipt.clone());
+        (result.map(|commit| commit.output), receipt)
+    }
+
+    /// Receipt retention surface (LLP 0034 §3 / ENG-22478): the bounded rings,
+    /// filtered to one connection when requested. Dev/debug read — served by
+    /// the admin API (LLP 0031 SystemApi class).
+    pub fn receipts_snapshot(&self, connection_id: Option<&str>) -> Value {
+        self.receipts.snapshot(connection_id)
     }
 
     fn invoke_mutation_commit(
@@ -566,23 +704,139 @@ impl LocalSnapback {
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
         let subscription_id = format!("sub_{}", Uuid::now_v7().simple());
+
+        // Superseded-subscription GC (LLP 0034 §10.1 residual, ENG-22478):
+        // the kit's reconnect/resync path is always a FRESH subscribe, so an
+        // identical (connection, function, args, principal) subscription that
+        // already exists is superseded by this one — dispose it server-side
+        // instead of letting it fan out until connection teardown.
+        let superseded: Vec<String> = self
+            .subscriptions
+            .values()
+            .filter(|existing| {
+                existing.connection_id == input.connection_id
+                    && existing.function == name
+                    && existing.input.args == subscription_input.args
+                    && existing.input.auth.principal == subscription_input.auth.principal
+                    && existing.input.auth.user_id == subscription_input.auth.user_id
+            })
+            .map(|existing| existing.id.clone())
+            .collect();
+        for old_id in &superseded {
+            self.subscriptions.remove(old_id);
+            let receipt = json!({
+                "kind": "subscription",
+                "event": "disposed",
+                "reason": "superseded",
+                "subscriptionId": old_id,
+                "supersededBy": subscription_id.clone(),
+                "scope": subscription_input.args.clone(),
+                "snapshotVersion": query.output.version,
+                "receivedAtMs": now_millis(),
+            });
+            self.receipts
+                .push_connection(&input.connection_id, receipt);
+        }
+
         self.subscriptions.insert(
             subscription_id.clone(),
             LiveSubscription {
                 id: subscription_id.clone(),
-                connection_id: input.connection_id,
+                connection_id: input.connection_id.clone(),
                 function: name.to_owned(),
-                input: subscription_input,
+                input: subscription_input.clone(),
                 read_dependencies: query.read_dependencies,
             },
         );
         // A new subscription can arm a demand-gated cron job (L5).
         self.refresh_cron_active();
 
+        // Server half of the 'established' receipt (LLP 0034 §3.2): scope is
+        // REQUIRED (the subscription's routing/scope args); the adapter's
+        // opaque correlation is echoed verbatim; transport is a kit fact and
+        // is stitched there.
+        let receipt = json!({
+            "kind": "subscription",
+            "event": "established",
+            "subscriptionId": subscription_id.clone(),
+            "scope": subscription_input.args.clone(),
+            "snapshotVersion": query.output.version,
+            "correlation": subscription_input.correlation.clone(),
+            "receivedAtMs": now_millis(),
+        });
+        self.receipts
+            .push_connection(&input.connection_id, receipt.clone());
+
         Ok(LiveSubscribeOutput {
             subscription_id,
             snapshot: query.output,
             permission_epochs,
+            receipt: Some(receipt),
+        })
+    }
+
+    /// Explicit unsubscribe (LLP 0034 §10.1 residual, ENG-22478): dispose one
+    /// live subscription. Ownership mirrors `resume_live` — once a principal
+    /// owns the subscription the caller must present that principal.
+    pub fn unsubscribe_live(
+        &mut self,
+        name: &str,
+        input: LiveUnsubscribeInput,
+    ) -> SnapbackResult<LiveUnsubscribeOutput> {
+        self.touch_connection(&input.connection_id, now_millis());
+        let subscription = self
+            .subscriptions
+            .get(&input.subscription_id)
+            .cloned()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_UNKNOWN_SUBSCRIPTION",
+                    "realtime",
+                    format!("unknown live subscription {}", input.subscription_id),
+                )
+            })?;
+        if subscription.function != name {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH",
+                "realtime",
+                format!(
+                    "subscription {} belongs to {}, not {name}",
+                    subscription.id, subscription.function
+                ),
+            ));
+        }
+        let owner = &subscription.input.auth;
+        if (owner.principal.is_some() || owner.user_id.is_some())
+            && (owner.principal != input.auth.principal || owner.user_id != input.auth.user_id)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+                "realtime",
+                format!(
+                    "subscription {} is owned by a different principal",
+                    subscription.id
+                ),
+            ));
+        }
+
+        self.subscriptions.remove(&subscription.id);
+        // Losing the last watcher of a demand-gated live query disarms cron.
+        self.refresh_cron_active();
+        let receipt = json!({
+            "kind": "subscription",
+            "event": "disposed",
+            "reason": "unsubscribed",
+            "subscriptionId": subscription.id.clone(),
+            "scope": subscription.input.args.clone(),
+            "snapshotVersion": self.db.current_version().unwrap_or(0),
+            "receivedAtMs": now_millis(),
+        });
+        self.receipts
+            .push_connection(&subscription.connection_id, receipt.clone());
+        Ok(LiveUnsubscribeOutput {
+            subscription_id: subscription.id,
+            disposed: true,
+            receipt: Some(receipt),
         })
     }
 
@@ -847,12 +1101,37 @@ impl LocalSnapback {
         // a demand-activated cron job deactivate when its last watcher leaves.
         // @ref LLP 0028#activation-policy — whileLive activation must report
         //   inactive:no-demand once no subscription to the named live query remains.
+        // Disposed-by-disconnect markers go to the GLOBAL ring (the
+        // connection's own ring dies with it) — LLP 0034 §3 / ENG-22478.
+        let snapshot_version = self.db.current_version().unwrap_or(0);
+        for subscription in self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.connection_id == connection_id)
+        {
+            self.receipts.push_global(json!({
+                "kind": "subscription",
+                "event": "disposed",
+                "reason": "disconnected",
+                "subscriptionId": subscription.id.clone(),
+                "scope": subscription.input.args.clone(),
+                "snapshotVersion": snapshot_version,
+                "receivedAtMs": now_ms,
+            }));
+        }
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
         self.connections_last_seen.remove(connection_id);
+        self.receipts.drop_connection(connection_id);
         // Losing the last watcher of a demand-gated live query disarms its cron
         // job (L5).
         self.refresh_cron_active();
+    }
+
+    /// Ephemeral delivery diagnostics for the receipts surface (LLP 0034
+    /// §3.2: coalesced_updates as a receipt-visible fact).
+    pub fn ephemeral_diagnostics(&mut self) -> EphemeralDiagnostics {
+        self.ephemeral.diagnostics()
     }
 
     pub fn cleanup_ephemeral(&mut self, now_ms: u64) {
@@ -1026,6 +1305,7 @@ impl LocalSnapback {
             reaped_connections: 0,
             read_manifests,
             read_epochs: Arc::new(RwLock::new(BTreeMap::new())),
+            receipts: ReceiptLog::default(),
         })
     }
 
@@ -1097,6 +1377,7 @@ impl LocalSnapback {
                         }),
                         auth: Default::default(),
                         read_set: Vec::new(),
+                        correlation: None,
                     },
                     claim.metadata.clone(),
                 )
@@ -1178,6 +1459,7 @@ impl LocalSnapback {
                             args: Value::Object(mutation_args),
                             auth: input.auth.clone(),
                             read_set: Vec::new(),
+                            correlation: None,
                         },
                     )?;
                     changed_count += output.changed_count;

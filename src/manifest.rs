@@ -579,6 +579,12 @@ pub struct HandlerInput {
     pub auth: AuthInput,
     #[serde(default)]
     pub read_set: Vec<ReadDependency>,
+    /// Opaque adapter-stitched correlation (LLP 0034 §3.2, ENG-22478): the
+    /// Exact adapter's join keys (`actionInvocationId`, `optimisticWaveId`,
+    /// `rootId`, `bindingIds`) live inside. The provider echoes it verbatim
+    /// on receipts and never interprets it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correlation: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

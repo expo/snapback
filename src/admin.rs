@@ -337,6 +337,7 @@ pub fn admin_routes() -> Router<AppState> {
         .route("/_snapback/admin/{*path}", get(console_asset))
         .route("/_snapback/api/health", get(admin_health))
         .route("/_snapback/api/inspect", get(admin_inspect))
+        .route("/_snapback/api/receipts", get(admin_receipts))
         .route("/_snapback/api/data/{table}", get(admin_data))
         .route(
             "/_snapback/api/functions/{name}/run",
@@ -454,6 +455,39 @@ async fn admin_inspect(
 struct DataQuery {
     limit: Option<usize>,
     offset: Option<usize>,
+}
+
+/// Receipt retention surface (LLP 0034 §3 / ENG-22478): the bounded
+/// in-memory receipt rings — dev/debug reads under the admin read policy
+/// (LLP 0031 SystemApi). `?connection_id=` filters to one connection's ring.
+/// Privacy (§3.3): rings hold opaque ids/versions/table names and verbatim
+/// adapter correlation — never ephemeral payload values.
+async fn admin_receipts(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, crate::server::ApiError> {
+    authorize(&ctx, &headers, false)?;
+    // L7 shape: the rings and gauges are pure in-memory reads, but the guard
+    // discipline is one pattern for every handler that takes the global lock.
+    let connection_filter = params.get("connection_id").cloned();
+    let body = crate::server::with_snapback(&state, move |snapback| {
+        let mut body = snapback.receipts_snapshot(connection_filter.as_deref());
+        // Delivered-rate observability (LLP 0034 §3.2 / Exact 0284 §2.5.1):
+        // the coalescing diagnostics ride the receipts surface as
+        // receipt-visible facts so conformance can measure delivered rate
+        // against the budget.
+        if let Some(object) = body.as_object_mut() {
+            object.insert(
+                "ephemeralDelivery".to_owned(),
+                serde_json::to_value(snapback.ephemeral_diagnostics()).unwrap_or_default(),
+            );
+        }
+        body
+    })
+    .await;
+    Ok(Json(body))
 }
 
 async fn admin_data(

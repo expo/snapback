@@ -629,6 +629,7 @@ fn handler_input(args: Value, user_id: &str) -> HandlerInput {
             user_id: Some(user_id.to_owned()),
         },
         read_set: Vec::new(),
+        correlation: None,
     }
 }
 

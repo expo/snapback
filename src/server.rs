@@ -1,7 +1,9 @@
 use crate::admin::{AppState, ServerContext};
 use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, SubscribeRequest};
-use crate::local::{InspectState, LiveResumeInput, LiveSubscribeInput, LocalSnapback};
+use crate::local::{
+    InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
+};
 use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
 use crate::runtime::CapabilityState;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -98,6 +100,7 @@ fn core_routes() -> Router<AppState> {
         .route("/mutation/{name}", post(invoke_mutation))
         .route("/live/{name}/subscribe", post(subscribe_live))
         .route("/live/{name}/resume", post(resume_live))
+        .route("/live/{name}/unsubscribe", post(unsubscribe_live))
         .route("/live/{connection_id}/stream", get(stream_live))
         .route("/outbox/{connection_id}", get(drain_outbox))
         .route(
@@ -198,6 +201,7 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("POST", "/mutation/{name}", AppData, AppAuth),
         spec("POST", "/live/{name}/subscribe", AppData, AppAuth),
         spec("POST", "/live/{name}/resume", AppData, AppAuth),
+        spec("POST", "/live/{name}/unsubscribe", AppData, AppAuth),
         spec("GET", "/live/{connection_id}/stream", AppData, AppAuth),
         spec("GET", "/outbox/{connection_id}", AppData, Public),
         spec("POST", "/ephemeral/collections/ensure", AppData, Public),
@@ -217,6 +221,7 @@ pub fn route_registry() -> Vec<RouteSpec> {
         // System API — existing admin surface.
         spec("GET", "/_snapback/api/health", SystemApi, AdminRead),
         spec("GET", "/_snapback/api/inspect", SystemApi, AdminRead),
+        spec("GET", "/_snapback/api/receipts", SystemApi, AdminRead),
         spec("GET", "/_snapback/api/data/{table}", SystemApi, AdminRead),
         // Function runner gates dynamically (read for queries, write for
         // mutations); declared as the stronger write policy.
@@ -669,16 +674,33 @@ async fn invoke_query(
     Ok(Json(output))
 }
 
+/// Mutations respond with the MutationOutput fields plus the provider-core
+/// MutationReceipt (LLP 0034 §3.2, ENG-22478) — additive, so pre-receipt
+/// clients are unaffected. A REJECTED mutation still produces a receipt; it
+/// rides the error envelope.
 async fn invoke_mutation(
     State(state): State<SharedSnapback>,
     Path(name): Path<String>,
     Json(input): Json<HandlerInput>,
-) -> Result<Json<crate::manifest::MutationOutput>, ApiError> {
-    let output = with_snapback(&state, move |snapback| {
-        snapback.invoke_mutation(&name, input)
+) -> Result<Json<Value>, ApiError> {
+    // Receipt emission rides the L7 blocking offload: the recording call
+    // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
+    // assembled from its (result, receipt) pair back on the async side.
+    let (result, receipt) = with_snapback(&state, move |snapback| {
+        snapback.invoke_mutation_recording(&name, input)
     })
-    .await?;
-    Ok(Json(output))
+    .await;
+    match result {
+        Ok(output) => {
+            let mut body = serde_json::to_value(&output)
+                .unwrap_or_else(|_| json!({ "changed_count": output.changed_count }));
+            if let Some(object) = body.as_object_mut() {
+                object.insert("receipt".to_owned(), receipt);
+            }
+            Ok(Json(body))
+        }
+        Err(error) => Err(ApiError::with_receipt(error, receipt)),
+    }
 }
 
 async fn subscribe_live(
@@ -700,6 +722,20 @@ async fn resume_live(
 ) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
     let output =
         with_snapback(&state, move |snapback| snapback.resume_live(&name, input)).await?;
+    Ok(Json(output))
+}
+
+async fn unsubscribe_live(
+    State(state): State<SharedSnapback>,
+    Path(name): Path<String>,
+    Json(input): Json<LiveUnsubscribeInput>,
+) -> Result<Json<crate::local::LiveUnsubscribeOutput>, ApiError> {
+    // L7 offload: disposal reads the storage version (rusqlite) for its
+    // receipt, so it runs on the blocking lane like every other write path.
+    let output = with_snapback(&state, move |snapback| {
+        snapback.unsubscribe_live(&name, input)
+    })
+    .await?;
     Ok(Json(output))
 }
 
@@ -1094,11 +1130,17 @@ async fn disconnect(
 }
 
 #[derive(Debug)]
-pub struct ApiError(SnapbackError);
+pub struct ApiError(SnapbackError, Option<Value>);
 
 impl ApiError {
     fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
-        Self(SnapbackError::new(diagnostic_from_ephemeral(error)))
+        Self(SnapbackError::new(diagnostic_from_ephemeral(error)), None)
+    }
+
+    /// Attach a receipt to an error response (a REJECTED mutation still
+    /// produces its receipt — LLP 0034 §3.2, ENG-22478).
+    fn with_receipt(error: SnapbackError, receipt: Value) -> Self {
+        Self(error, Some(receipt))
     }
 }
 
@@ -1111,7 +1153,7 @@ fn diagnostic_from_ephemeral(error: crate::ephemeral::EphemeralError) -> Diagnos
 
 impl From<SnapbackError> for ApiError {
     fn from(value: SnapbackError) -> Self {
-        Self(value)
+        Self(value, None)
     }
 }
 
@@ -1142,13 +1184,11 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = status_for_diagnostic_code(self.0.diagnostic.code.as_str());
-        (
-            status,
-            Json(ErrorResponse {
-                diagnostic: self.0.diagnostic,
-            }),
-        )
-            .into_response()
+        let mut body = json!({ "diagnostic": self.0.diagnostic });
+        if let (Some(object), Some(receipt)) = (body.as_object_mut(), self.1) {
+            object.insert("receipt".to_owned(), receipt);
+        }
+        (status, Json(body)).into_response()
     }
 }
 

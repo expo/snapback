@@ -439,6 +439,7 @@ impl<'a> IbexHostContext<'a> {
                     args: mutation_args,
                     auth: self.input.auth.clone(),
                     read_set: Vec::new(),
+                    correlation: None,
                 };
                 let host = self.action_host.as_deref_mut().ok_or_else(|| {
                     SnapbackError::error(
