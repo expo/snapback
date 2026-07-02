@@ -30,8 +30,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const surfaceDir = join(repoRoot, 'demos', 'all-aboard', 'surfaces', 'contract');
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const API_PORT = 4420;
-const VITE_PORT = 5178;
+// Env-overridable so the suite can run isolated from other checkouts' demo
+// servers squatting the defaults (the 2026-07-01 diary gotcha: reuse-if-healthy
+// trusts whatever answers /health on the port, even a different engine).
+const API_PORT = Number(process.env.ALL_ABOARD_API_PORT ?? 4420);
+const VITE_PORT = Number(process.env.ALL_ABOARD_VITE_PORT ?? 5178);
 const apiUrl = `http://127.0.0.1:${API_PORT}`;
 const viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
