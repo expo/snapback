@@ -428,7 +428,8 @@ cargo 97/97, all demo acceptance suites green, new
   `unsubscribe_live` endpoint; in-band resync recovery re-subscribes
   fresh, so a superseded subscription keeps fanning out server-side until
   connection teardown/reap. Subscription GC or an unsubscribe operation
-  belongs with D2.
+  belongs with D2. *(Closed in D2 — §10.2: explicit client-named
+  supersession + `unsubscribe_live`; the server never infers identity.)*
 - **Exact-side v2 pin confirmed (§6 ownership table, item 1):** Exact's
   shipped conformance hard-pins `manifestVersion === 1`, so the adapter
   temporarily hands the runtime the v2 document declared as v1 with
@@ -497,3 +498,90 @@ fallback never engaging — fixed with a connect budget); the adapter's
 conformance fixtures should include an action-bearing manifest); D4
 residual server work: a true seed-without-reset server path and the
 positive environment-profile capability.
+
+### 10.2 D2 + ephemeral integration rounds (2026-07-02)
+
+**D2 delivered** (ENG-22478; adversarially reviewed — 11 findings, 8 fixed
+pre-merge, 3 claim corrections; six probe-derived regression tests now
+gated in `verify-local-proof`):
+
+- **Explicit supersession replaces inferred GC.** §3/§10.1's
+  "superseded-subscription GC" shipped briefly as server-inferred
+  (connection+function+args+principal) matching — the review proved that
+  starves a second *legitimate* identical subscriber, silently, under a
+  `live` connection. The protocol is now explicit: the kit names its
+  predecessor (`LiveSubscribeInput.supersedes`) only on its own
+  reconnect/resync paths; the server disposes exactly that id
+  (same-connection + same-owner checks; unknown ids no-op); plain
+  duplicate subscribes coexist. `unsubscribe_live`
+  (`POST /live/{name}/unsubscribe`) + dispose-wiring close the
+  unmount-while-connected zombie.
+- **Receipts.** MutationReceipt from the mutation choke point
+  (provider-core fields; `rollbackReason` is the diagnostic code only;
+  `affectedTables` explicit-`null` when undeclared; verbatim correlation
+  echo capped at 4 KB with a truncation marker; `transport` adopted into
+  Exact 0284 §2.6). SubscriptionReceipt full field set with required
+  `scope`. **Ring keying:** mutation receipts live in a *global* ring
+  (`HandlerInput` has no connection identity and the provider never
+  interprets correlation); per-connection rings hold subscription
+  lifecycle; `GET /_snapback/api/receipts` (SystemApi/AdminRead) serves
+  both plus `ephemeralDelivery` facts. Disconnect-time disposal receipts
+  carry `snapshotVersion: null` — the teardown lane is rusqlite-free
+  under the L7 exec guard.
+- **Scope epochs are real:** a monotonic backend counter survives room
+  recreation; `replace_collections`/`reset_runtime_state` retire rooms
+  through resync signals, so an epoch bump is an actual resubscription
+  boundary (§3.1 now holds as written).
+- **Lane registry:** durable socket frames route through the same
+  per-connection lane registry as HTTP drains (single delivery,
+  mixed-transport regression) — the §10.1 cross-lane footgun fix, taken
+  the code route; overlays filter by room identity.
+- **`maxDeltaRateHz` re-scoped (correcting §2.1/D3's premise):** L8's
+  event-driven delivery removed the 33 ms dispatch window, so the fact
+  now means the *coalescing bound for drain-paced consumers*; the
+  enforced ceilings are the publish token bucket and latest-state
+  coalescing. A hard delivery-side ceiling on the socket path would be
+  new server work — named, not scheduled. The delivered-rate conformance
+  check is framed to what it measures; §6.5 is scoped to reason plumbing
+  (row-level permission semantics are LLP 0011 land).
+
+**Ephemeral integration delivered** (ENG-22479 provider half; reviewed —
+merge-after-fixes, all four applied with a 4/4 regression suite):
+
+- Codegen emits the descriptor kind on by default: manifest queries
+  entry with `ephemeral: true` + keyMode/scopeFields/TTL/rate facts,
+  `<name>.ephemeral.ts`, `<name>.publish.ts` (budget facts;
+  mutation-shaped callable until Exact 0281), contract-meta sidecars;
+  cross-check + adapter validators cover the kind.
+- The adapter's `buildEphemeralWiring` feeds Exact's boundary provider
+  (its force plane used, not reinvented) through shared
+  per-(collection, scope) overlays with in-flight dedup;
+  `sourceClientId` = lease key and `self` per key mode (Session/Custom
+  degrade to false — OQ6 refinement stands); TTL-expired entries prune
+  at emit on a healthy connection with a one-shot expiry re-emit timer
+  (Exact 0284 §2.5's rule holds on quiet rooms; freeze-at-last-known
+  stays reserved for degraded connections); resync retries on bounded
+  backoff presenting `stale` while unsubscribed; dispose guards every
+  await. **The adapter passes Exact's hardened conformance gate,
+  including all five ephemeral probes and both force-plane pins.**
+- **Exact 0284 §5 item 4 is proven:** cursors-web gained a Contract
+  surface beside the untouched DOM one — client B's cursor reaches
+  client A's `ephemeral` *binding* through generated bindings alone
+  (two-window acceptance 4/4, including forced-ghost local-only and
+  dispose-restore). The imperative overlay's deletion remains Exact
+  0281 stage-0's budget. Item 5 is proven at the provider+adapter
+  halves (receipts joined by correlation; Exact-runtime
+  `actionInvocationId`/`optimisticWaveId` stitching pends LLP
+  0231/0278). Item 6's provider half is proven (degraded-example
+  conformance); its compiler-diagnostic half pends the LLP 0194
+  amendment (Exact 0284 §8).
+
+**Follow-ups named, not scheduled:** per-scope forcing (forces are
+name-scoped across scopes today); an idle-room teardown policy before
+app scale (scoped rooms accumulate one live server subscription per
+room visited until surface dispose); generated ephemeral value shapes
+are decorative (no member checking — durable rows do get
+`shape_unknown_member`); `exact.pin.json` drift is warning-only unless
+`EXACT_PIN_STRICT=1`; one idempotent ensure-everything server call (the
+D4 seed-without-reset + profile-capability residual) so Contract
+presence surfaces don't each carry a provision-if-missing boot branch.
