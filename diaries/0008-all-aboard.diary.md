@@ -212,3 +212,94 @@ rate-limited, and a non-deterministic test. Here the constraint ("no egress on t
 product path") pushed the fetch to *build time* and made the runtime artifact a
 pure, committed, deterministic asset. More work up front, but the result is
 hermetic and the acceptance tests stay honest.
+
+## 2026-07-01 — Splitting the one-component workaround (ENG-22417)
+
+The 2026-06-30 entry recorded that my first cut split the board into child
+components, failed with `event_unknown_action`, and inlined the whole UI into
+one 219-line component. The Exact repo's LLP 0280 §5 phase 1 asks for the
+inverse experiment: split it back apart using **only the existing mechanism**
+— actions threaded as ordinary callback props — and record what remains
+painful. This isolates missing *constructs* from missing *diagnostics*.
+
+### What changed
+
+`app.contract` is now a root `AllAboard` (all state, derives, actions, the
+mutation, the ticker task, and the contract block) plus four presentational
+components in the same file: `StationCard` (header card), `DirectionBoard`
+(home screen), `StationsPicker` (stations screen), `TripDetail` (trip
+screen). Actions flow down as props — bare (`press=doRefresh`, `press=goHome`)
+and curried (`press=goToStation(prevStationId)`, `press=openTrip(d.id)`) —
+and the one-component workaround comment in the header is gone. 219 → 276
+lines; every `testId` and every visual attr is unchanged (verified by
+normalized diff, and the DOM parent chains are identical — component
+boundaries mount no wrapper node).
+
+### The workaround was a diagnostics failure, not a language gap
+
+The compiler has supported this the whole time: `checkEventHandler` accepts
+an event handler whose root resolves to a **prop** (`names.get(root.name) ===
+'prop'`), and the runtime defines actions as scope values, so `goToStation=
+goToStation` in a component call hands the child a callable that arrives as a
+reactive prop. The June failure happened because nothing at the error site
+said so — `event_unknown_action` names the missing action and stops. I read
+"actions are component-scoped" as "children cannot call parent actions" and
+inlined. LLP 0280 §2.3's two-way fix-it (thread it / extract a behavior) is
+precisely the repair; the mechanism needed no new grammar at all.
+
+### Verification
+
+Compile via the acceptance path (Vite-plugin pipeline, accumulate mode): zero
+errors, zero warnings — the only diagnostic is the same pre-existing
+`duplicate_source_imports` hint the monolith had. Suites, all against this
+worktree's engine: Contract browser **6/6** (every check drives a threaded
+action prop: prev-station, flip, open-trip, refresh), headless **11/11**,
+cron **7/7**, egress **4/4** — identical to the 2026-06-30 baseline.
+
+### What remains painful (the LLP 0280 phase-1 deliverable)
+
+- **Threading verbosity is real but shallow.** `StationCard` takes 11 props;
+  its instantiation line is ~270 characters; 28 prop declarations across the
+  four components; +57 lines for zero behavior change. It is boilerplate, not
+  complexity — nothing became harder to reason about, there is just more of
+  it. An `actions=` group prop (LLP 0280 declines it) never felt *needed*;
+  named threading stayed legible even at 11 props.
+- **Function-typed props are decorative.** `goToStation: (id) => void`
+  compiles to `{ kind: 'function' }` with the signature kept as raw text.
+  Nothing checks arity or parameter types at the call site or the use site —
+  passing `openStations` where `(id) => void` is expected compiles clean, and
+  a non-function value would fail *silently* at press time (`makeHandler`
+  bails without a warning unless the handler is a call expression). This is
+  exactly the hole action-typed props (LLP 0280 §2.3.1, ENG-22416) close.
+- **Event-attr names are silently reserved on component calls.** On a
+  component instantiation, `press=`/`change=` are classified as events and
+  wrapped by `makeHandler`, not passed as plain props. The Caltrain twin
+  leans on this (`press=openTrip` works *because* of it), but it means a
+  component's prop namespace has an invisible reserved list; I dodged it by
+  using domain names (`goToStation`, `openTrip`) for everything.
+- **The root contract block now claims children's markup.** `has button
+  "Change station"` is asserted by `AllAboard` but rendered by `StationCard`;
+  the live-tree check still passes, but nothing ties the child's label to the
+  root's claim statically — rename the button text in `StationCard` and the
+  root contract fails only at runtime verification. Behavior-carried contract
+  blocks (LLP 0280 §2.1) are the eventual home for shared claims. I also did
+  not need a cross-boundary `press … -> action` clause; whether one can name
+  a child's prop-bound handler from the root is untested here.
+- **Boundary renames create expression drift.** The child sees `stationId`
+  where the root wrote `station.id` (three lines changed for it). Trivial,
+  but it is the review tax every prop boundary charges.
+- **What did *not* hurt:** reactive props (the 1s `nowMs` tick flows through
+  prop getters and countdowns keep ticking), currying a prop with another
+  prop as the argument, bare-prop handlers, prop forwarding depth, and visual
+  parity — component mounting splices the child view with no wrapper node, so
+  the split is pixel-neutral by construction.
+
+### A test-environment note
+
+The browser suite failed 0/6 twice before any of my code ran: a leftover
+`--memory` demo server **from the main checkout** (a different branch/engine)
+was squatting `:4420`, and its `/admin/*` routes answer 404 where this
+branch's engine accepts them — so the page's self-init died at `loadSchema`
+with a bare `HTTP_404`. The suites' reuse-if-healthy convention trusts
+whatever answers `/health` on the port. Worth a follow-up: have `/health`
+report an engine/build identity the suites can assert before reusing.
