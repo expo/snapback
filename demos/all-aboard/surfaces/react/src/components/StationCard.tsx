@@ -27,6 +27,8 @@ export function StationCard(props: {
   onGoToStation: (id: string) => void;
   onOpenStations: () => void;
   onRefresh: () => void;
+  use24h: boolean;
+  onToggleTimeFormat: () => void;
 }) {
   const { station } = props;
   const photoSvg: string = stationPhoto(station.id);
@@ -98,6 +100,16 @@ export function StationCard(props: {
               style={chip({ background: palette.card, borderColor: palette.hairlineStrong })}
             >
               <div style={{ fontSize: 12, fontWeight: 600, color: palette.inkSoft }}>Change station</div>
+            </Press>
+            <Press
+              onPress={props.onToggleTimeFormat}
+              label="Toggle time format"
+              testId="time-format"
+              style={chip({ background: palette.card, borderColor: palette.hairlineStrong })}
+            >
+              <div style={{ fontSize: 12, fontWeight: 600, color: palette.inkSoft }}>
+                {props.use24h ? '24h times' : '12h times'}
+              </div>
             </Press>
           </div>
         </div>

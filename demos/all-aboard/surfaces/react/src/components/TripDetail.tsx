@@ -1,8 +1,8 @@
 // The trip screen: service + train header, live position bar, the ordered
 // stop list (boarding station highlighted), and Back.
 
-import { formatClockTime, serviceColor } from '../../../../snapback/shared/model.mjs';
-import { fractionPercent, positionFraction, positionLabel, serviceTint } from '../lib.ts';
+import { serviceColor } from '../../../../snapback/shared/model.mjs';
+import { formatTime, fractionPercent, positionFraction, positionLabel, serviceTint } from '../lib.ts';
 import { Press, ServicePill, chip, column, hairlineCard, mono, palette, row } from '../ui.tsx';
 
 interface TripStop {
@@ -22,7 +22,7 @@ export interface Trip {
   position?: { state: string; prevStationId: string | null; nextStationId: string | null; corridorFraction: number } | null;
 }
 
-export function TripDetail(props: { trip: Trip | null; stationId: string; onGoHome: () => void }) {
+export function TripDetail(props: { trip: Trip | null; stationId: string; use24h: boolean; onGoHome: () => void }) {
   const { trip } = props;
 
   return (
@@ -69,7 +69,7 @@ export function TripDetail(props: { trip: Trip | null; stationId: string; onGoHo
               return (
                 <div key={stop.station.id} style={{ ...row, gap: 12, alignItems: 'center', padding: '6px 0' }}>
                   <div style={{ fontSize: 13, fontFamily: mono, color: palette.inkFaint, width: 56 }}>
-                    {formatClockTime(stop.predictedTimeMs)}
+                    {formatTime(stop.predictedTimeMs, props.use24h)}
                   </div>
                   <div
                     style={{

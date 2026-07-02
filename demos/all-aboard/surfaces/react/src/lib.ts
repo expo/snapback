@@ -45,6 +45,14 @@ export function serviceTint(service: string): string {
   return `${serviceColor(service)}22`; // ~13% alpha pill background
 }
 
+// --- Clock formatting (12h "9:57p" / 24h "21:57"), app-wide toggle -------------
+
+export function formatTime(timestampMs: number, use24h: boolean): string {
+  if (!use24h) return formatClockTime(timestampMs);
+  const date = new Date(timestampMs);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 // --- Urgent departures (leaving within 5 minutes) ------------------------------
 
 export const URGENT_RED = '#dc2626';
@@ -88,6 +96,7 @@ export function upcomingStops(
   stationId: string,
   nowMs: number,
   delays: Record<string, number>,
+  use24h: boolean,
   limit = 6,
 ): UpcomingStop[] {
   const trip = getTrainRun(runId, nowMs, delays);
@@ -97,7 +106,7 @@ export function upcomingStops(
   return trip.stops.slice(from, from + limit).map((stop: TripStop) => ({
     id: stop.station.id,
     name: stop.station.shortName,
-    time: formatClockTime(stop.predictedTimeMs),
+    time: formatTime(stop.predictedTimeMs, use24h),
     isBoarding: stop.station.id === stationId,
   }));
 }

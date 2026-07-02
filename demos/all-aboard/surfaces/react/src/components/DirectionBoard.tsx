@@ -1,8 +1,8 @@
 // The home screen: direction toggle, the expanded hero departure with its
 // upcoming stops, the next few departures, and the opposite-direction line.
 
-import { directionTitle, formatClockTime, formatCountdownMinutes, serviceColor } from '../../../../snapback/shared/model.mjs';
-import { URGENT_RED, URGENT_TINT, isUrgent, serviceTint, upcomingStops } from '../lib.ts';
+import { directionTitle, formatCountdownMinutes, serviceColor } from '../../../../snapback/shared/model.mjs';
+import { URGENT_RED, URGENT_TINT, formatTime, isUrgent, serviceTint, upcomingStops } from '../lib.ts';
 import { Press, ServicePill, chip, column, hairlineCard, mono, palette, row } from '../ui.tsx';
 
 export interface Departure {
@@ -26,6 +26,7 @@ export function DirectionBoard(props: {
   primaryBoard: Board;
   oppositeBoard: Board;
   delays: Record<string, number>;
+  use24h: boolean;
   onToggleDirection: (next: string) => void;
   onOpenTrip: (id: string) => void;
 }) {
@@ -90,13 +91,13 @@ export function DirectionBoard(props: {
                     testId="hero-service"
                   />
                   <div style={{ fontSize: 12, color: palette.inkFaint }}>
-                    {`${formatClockTime(hero.predictedDepartureMs)} · #${hero.trainNumber}`}
+                    {`${formatTime(hero.predictedDepartureMs, props.use24h)} · #${hero.trainNumber}`}
                   </div>
                 </div>
               </div>
               <div style={{ fontSize: 14, fontWeight: 600, color: palette.inkSoft }}>{`to ${hero.headsign}`}</div>
               <div style={{ ...column, width: '100%' }}>
-                {upcomingStops(hero.id, props.stationId, nowMs, props.delays, 6).map((stop) => (
+                {upcomingStops(hero.id, props.stationId, nowMs, props.delays, props.use24h, 6).map((stop) => (
                   <div key={stop.id} style={{ ...row, gap: 10, alignItems: 'center', padding: '4px 0' }}>
                     <div style={{ fontSize: 12, fontFamily: mono, color: palette.inkFaint, width: 52 }}>
                       {stop.time}
@@ -163,7 +164,7 @@ export function DirectionBoard(props: {
                   />
                 </div>
                 <div style={{ fontSize: 12, color: palette.inkFaint }}>
-                  {`${formatClockTime(d.predictedDepartureMs)} · ${d.headsign}`}
+                  {`${formatTime(d.predictedDepartureMs, props.use24h)} · ${d.headsign}`}
                 </div>
               </div>
             </Press>

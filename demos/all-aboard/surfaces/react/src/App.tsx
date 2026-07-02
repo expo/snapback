@@ -33,6 +33,7 @@ export function App(props: { onRefresh: () => void }) {
   const [screen, setScreen] = useState<Screen>('home');
   const [tripId, setTripId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [use24h, setUse24h] = useState(false);
 
   const location = live.location ?? DEFAULT_LOCATION;
   const station = getSelectedStation(stationId, location);
@@ -77,6 +78,8 @@ export function App(props: { onRefresh: () => void }) {
           onGoToStation={goToStation}
           onOpenStations={openStations}
           onRefresh={props.onRefresh}
+          use24h={use24h}
+          onToggleTimeFormat={() => setUse24h((current) => !current)}
         />
         {screen === 'home' && (
           <DirectionBoard
@@ -87,6 +90,7 @@ export function App(props: { onRefresh: () => void }) {
             primaryBoard={primaryBoard}
             oppositeBoard={oppositeBoard}
             delays={live.delays}
+            use24h={use24h}
             onToggleDirection={setDirectionOverride}
             onOpenTrip={openTrip}
           />
@@ -100,7 +104,7 @@ export function App(props: { onRefresh: () => void }) {
             onGoHome={goHome}
           />
         )}
-        {screen === 'trip' && <TripDetail trip={trip} stationId={station.id} onGoHome={goHome} />}
+        {screen === 'trip' && <TripDetail trip={trip} stationId={station.id} use24h={use24h} onGoHome={goHome} />}
       </div>
     </main>
   );
