@@ -13,6 +13,8 @@
 //
 // Integration lane: needs the Exact checkout + bun. Without them the surface is a
 // declared capability gap and this suite skips with SNAPBACK_CAPABILITY_EXACT_MISSING.
+// The cold-clone lane (ENG-22480) sets SNAPBACK_REQUIRE_EXACT=1, under which a
+// missing Exact checkout is a hard failure instead of a skip-as-pass.
 //
 // Run: node demos/all-aboard/tests/acceptance/browser.mjs
 //   (reuses an already-running API :4420 + Vite :5178, else starts them).
@@ -82,6 +84,13 @@ async function ensureVite() {
 
 async function main() {
   if (!existsSync(join(exactRoot, 'packages', 'exact-contract'))) {
+    // ENG-22480: the cold-clone lane exists to prove the surface is buildable
+    // and verifiable from clean clones alone, so there "no Exact" is a
+    // failure, never a declared-gap pass. Default behavior is unchanged.
+    if (process.env.SNAPBACK_REQUIRE_EXACT === '1') {
+      console.error(`FAIL all-aboard browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no Exact at ${exactRoot}) but SNAPBACK_REQUIRE_EXACT=1`);
+      process.exit(1);
+    }
     console.log(`SKIP all-aboard browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no Exact at ${exactRoot})`);
     console.log('PASS all-aboard browser (Phase 1) — skipped (declared capability gap)');
     return;

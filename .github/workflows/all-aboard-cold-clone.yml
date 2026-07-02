@@ -1,0 +1,91 @@
+name: all-aboard-cold-clone
+
+# ENG-22480 (Diary 0010): prove cold-clone reproducibility of the All Aboard
+# Contract surface — fetch Exact at exactly the pinned revision, pin-strict
+# production build, then the full 14-check browser acceptance where a missing
+# Exact checkout is a FAILURE (SNAPBACK_REQUIRE_EXACT=1), never a skip.
+# scripts/cold-clone-check.sh is the canonical check; this job runs it
+# unmodified on a runner with no sibling checkouts by construction.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Agents push to main in bursts; only the newest commit's proof matters, so
+# cancel superseded runs instead of paying for each.
+concurrency:
+  group: all-aboard-cold-clone-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cold-clone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          # vendor/ibex is a private-repo submodule; the default GITHUB_TOKEN
+          # only reads this repository. Fine-grained PAT, Contents: read on
+          # ccheever/snapback + ccheever/ibex — and, for this workflow's
+          # second checkout below, ALSO on ccheever/exact (private).
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+
+      - name: Read the pinned Exact revision
+        id: pin
+        run: echo "sha=$(jq -r .revision demos/all-aboard/surfaces/contract/exact.pin.json)" >> "$GITHUB_OUTPUT"
+
+      # The cold clone itself: Exact at exactly the pinned revision (shallow),
+      # never a sibling checkout or a floating HEAD. The script re-verifies
+      # HEAD against the pin and EXACT_PIN_STRICT=1 makes drift a hard build
+      # failure.
+      - uses: actions/checkout@v7
+        with:
+          repository: ccheever/exact
+          ref: ${{ steps.pin.outputs.sha }}
+          # Must grant Contents: read on ccheever/exact (see comment above).
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+          path: .cold-clone/exact
+          # Exact's one submodule is vendor/ibex (also covered by the PAT):
+          # the exact-runtime-js workspace package resolves @ibex/runtime-js
+          # from it, so `bun install` in the checkout fails without it. Doing
+          # it here (not in the script) keeps submodule auth on the
+          # actions/checkout path; the script's own idempotent
+          # `submodule update --init` then no-ops offline.
+          submodules: true
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install native build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
+
+      - name: Cache Hermes Linux build
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/exact/hermes-linux
+            vendor/ibex/linux
+            vendor/ibex/tools/hermes
+          key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hermes-
+
+      # Cargo registry + target cache: without it every run cold-compiles the
+      # full dependency tree (and the ibex-runtime C++ glue) on a 2-core
+      # runner — the dominant per-run cost.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      # Step 1 (pin-strict production build) and step 2 (the 14-check browser
+      # acceptance, Chrome ships on ubuntu-latest) both live in the script so
+      # local runs and CI exercise one code path. No continue-on-error, no
+      # fallback: if Exact is missing or any check fails, this job is red.
+      - name: Cold-clone check (pin-strict build + browser acceptance)
+        env:
+          EXACT_CHECKOUT_DIR: ${{ github.workspace }}/.cold-clone/exact
+        run: scripts/cold-clone-check.sh
