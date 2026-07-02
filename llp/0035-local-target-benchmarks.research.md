@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Sync, Ephemeral state, Testing, Performance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-02 (§M3: the DK-3 op-log-delta lever — matcher-based delta ~5 200× cheaper than the warm re-query, armed the trigger and then *landed* as the shipped `live_delta` path measured by the same function; earlier same day: §After warm VM DK-4 re-run; §L6+L7 re-run)
+**Revised:** 2026-07-02 (§Idle cost added — the measured X5 scale-to-zero entry for the local target; same day: §M3: the DK-3 op-log-delta lever — matcher-based delta ~5 200× cheaper than the warm re-query, armed the trigger and then *landed* as the shipped `live_delta` path measured by the same function; earlier same day: §After warm VM DK-4 re-run; §L6+L7 re-run)
 **Related:** LLP 0000, LLP 0003, LLP 0008, LLP 0009, LLP 0012, LLP 0022, LLP 0032
 
 ## Summary
@@ -205,6 +205,36 @@ client apply in `demos/_kit/client.mjs`; LLP 0008 §Decision DK-3, resolving
 LLP 0034 OQ1). The bench measures the same `compute_live_delta` the fan-out
 calls, so `fanout_delta_us_per_affected_sub` is now the cost of shipped code,
 not a projection.
+## Idle cost (2026-07-02, LLP 0032 X5)
+
+The scale-to-zero claim, measured on the canonical local target. **Method:**
+release build; `snapback start` with a file-backed database; the todo demo's
+schema + function manifests loaded through the gated system routes; then the
+instance left completely idle — zero connections, zero subscriptions, no
+armed cron (todo declares no jobs) — for **120 seconds**, sampling process
+CPU time (`ps -o cputime`), resident memory (`ps -o rss`), and the
+size/mtime of the database and WAL files at the start and end of the window.
+Measured on the pre-origin-sync Phase 5 line
+(`backup/main-before-origin-sync-20260702`).
+
+| Measure | Start | After 120 s idle |
+| --- | --- | --- |
+| Process CPU time | 0:00.02 | **0:00.02** (no measurable change) |
+| Database file | 4 096 B, mtime frozen | **byte-identical, mtime unchanged** |
+| WAL file | 86 552 B, mtime frozen | **byte-identical, mtime unchanged** |
+| Resident memory | 13 472 KB | 13 488 KB (~13.2 MiB) |
+
+**Reading:** an idle provisioned instance performs **zero disk writes** and
+consumes **no measurable CPU** (sub-centisecond over two minutes — below
+`ps` cputime resolution); its footprint is ~13 MiB resident. The periodic
+machinery that exists — the 1 s cron ticker behind the lock-free
+`cron_active` check (L5), the 30 s connection reaper (L2), the maintenance
+worker (L3), and the 30 s WS heartbeat (L8) — is visible in these numbers
+as *nothing*, which is the point: idle means idle. Caveat: this measures
+the always-on local process; per LLP 0000 §Multi-target deployment, idle
+*cost in dollars* is target-dependent (an always-on VM bills its base rate
+regardless), so each target profile records its own idle expectations —
+this section is the local target's entry.
 
 ## What the numbers mean
 

@@ -1236,7 +1236,14 @@ design-first.
   an idle local instance actually does (target: nothing periodic), and
   write the per-target idle-cost expectations LLP 0000 §Multi-target
   deployment demands. **Done when:** the numbers are in the M1 Research LLP
-  and 0000's claim links to them.
+  and 0000's claim links to them. **Landed 2026-07-02** — LLP 0035 §Idle
+  cost: a provisioned idle instance (todo loaded, zero
+  connections/subscriptions/armed jobs) over a 120 s window shows **zero
+  disk writes** (database and WAL byte-identical, mtimes frozen), **no
+  measurable CPU** (cputime unchanged at 0:00.02), and ~13 MiB resident —
+  the L5/L8/L2/L3 periodic machinery is visible as nothing. LLP 0000
+  §Multi-target deployment links the measured local entry and keeps the
+  dollars-when-idle question per target profile.
 
 ---
 

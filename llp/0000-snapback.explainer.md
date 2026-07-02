@@ -496,7 +496,12 @@ target-dependent: a serverless or Cloudflare-style substrate can bill to
 — keeps incurring its base rate no matter how light the app is. "Costs almost
 nothing when idle" is therefore a property the architecture must earn per
 target, not a universal guarantee; the deployment LLP should state what idle
-cost looks like for each target profile.
+cost looks like for each target profile. **The canonical local target's
+entry is measured** ([LLP 0035](./0035-local-target-benchmarks.research.md)
+§Idle cost, LLP 0032 X5): a provisioned idle instance performs zero disk
+writes and no measurable CPU over a 120 s window, at ~13 MiB resident —
+idle means idle on the process the architecture controls; the
+dollars-when-idle question remains each target profile's to state.
 
 ## Canonical local target
 
