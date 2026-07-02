@@ -10,10 +10,11 @@
 // Write side: the pointer stream never touches the signal graph. A
 // value channel (`pointerChannel`, LLP 0281 §3.1) receives element-local
 // pointermove samples frame-coalesced, drives the zero-latency self dot
-// through the compositor-only `transform` sink (§3.3), and publishes at a
-// declared 15Hz — inside the descriptor's sustainedHz=20 budget, which the
-// Exact analyzer checks against the generated publishBudget facts — via
-// the mutation-shaped webCursorsPublish descriptor. The payload mapping
+// through the compositor-only `transform` sink (§3.3), and publishes
+// through the authored `publish` view line (ENG-22525 — the options
+// spelling is retired) at a declared 15Hz, inside the generated publish
+// descriptor's sustainedHz=20 budget, which the Exact analyzer checks at
+// build time (channel_rate_exceeds_budget). The payload mapping
 // (`sample`/`element` in the channel lane) is IR-visible and trace-honest.
 
 use webCursors from "../../snapback/generated/contract/webCursors.ephemeral.ts"
@@ -49,11 +50,12 @@ component CursorRoom
   task fadeClock mount
     every(1000, tick)
 
-  use pointer = pointerChannel({ publish: webCursorsPublish, rate: 15, payload: { roomId: "lobby", ttlMs: 30000, value: { x: Math.round(sample.x), y: Math.round(sample.y), name: profileName, color: chosenColor, updatedAt: now() } } })
+  use pointer = pointerChannel()
 
   view
     main background="#05070f" width="100%" minHeight="100vh" testId="cursor-room"
       stack position="relative" width="100%" height="100vh" overflow="hidden" pointermove=pointer.self testId="cursor-stage"
+        publish pointer.self -> webCursorsPublish rate=15 payload={ roomId: "lobby", ttlMs: 30000, value: { x: Math.round(sample.x), y: Math.round(sample.y), name: profileName, color: chosenColor, updatedAt: now() } }
         column padding=20 gap=6
           text "Cursor presence — Contract surface" size=18 weight=700 color="#e6e9f2" headingLevel=1
           text `room: lobby · map: ${cursors.status} · connection: ${cursors.connection}` size=12 color="#8b93a7" testId="map-status"
