@@ -717,7 +717,11 @@ mod tests {
     fn m1_bench_smoke() {
         let report = run(&BenchConfig::smoke()).expect("bench runs");
 
-        assert!(report.vm_cost_us > 0.0 && report.vm_cost_us < 100_000.0, "{report:?}");
+        // Order-of-magnitude ceiling only: a healthy debug VM is single-digit
+        // ms on a dev machine and ~180 ms on the slowest observed 2-core
+        // shared CI runner, so 1 s still catches a true order-of-magnitude
+        // regression without flaking on runner contention.
+        assert!(report.vm_cost_us > 0.0 && report.vm_cost_us < 1_000_000.0, "{report:?}");
         assert!(report.vm_create_us >= 0.0, "{report:?}");
         // DK-4: the warm path must be meaningfully cheaper than a fresh VM —
         // if it regressed to fresh (silent fallback, broken reset burning
@@ -739,13 +743,18 @@ mod tests {
             report.ephemeral_publishes_per_sec > 60.0,
             "ephemeral must sustain >60 Hz: {report:?}"
         );
-        // L6: a read-lane read during a busy write must not queue behind it
-        // (well under half the busy window even with debug-build VM cost),
-        // while the mutex path measures the write it queued behind.
+        // L6: during the same busy write, the read lane (a pooled reader that
+        // does not queue) must decisively beat the mutex path (which waits out
+        // the write). This is asserted *relative* — both are measured on the
+        // same runner in the same run — so it is machine-independent and does
+        // not flake on a slow shared runner the way an absolute bound does.
+        // The lock path's own lower bound confirms it genuinely queued behind
+        // the wall-clock busy window.
         let busy_us = (BenchConfig::smoke().busy_write_ms * 1_000) as f64;
         assert!(
-            report.read_during_write_via_read_lane_us < busy_us / 2.0,
-            "read lane must not queue behind the busy write: {report:?}"
+            report.read_during_write_via_read_lane_us * 2.0
+                < report.read_during_write_via_lock_us,
+            "read lane must decisively beat the queued mutex path: {report:?}"
         );
         assert!(
             report.read_during_write_via_lock_us > busy_us / 4.0,
