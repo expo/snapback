@@ -113,6 +113,7 @@ fn core_routes() -> Router<AppState> {
         .route("/ephemeral/publish", post(publish_ephemeral))
         .route("/ephemeral/subscribe", post(subscribe_ephemeral))
         .route("/ephemeral/delete", post(delete_ephemeral))
+        .route("/ephemeral/unsubscribe", post(unsubscribe_ephemeral))
 }
 
 /// The migrated system routes that used to hide at the root as ungated
@@ -220,6 +221,7 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("POST", "/ephemeral/publish", AppData, Public),
         spec("POST", "/ephemeral/subscribe", AppData, Public),
         spec("POST", "/ephemeral/delete", AppData, Public),
+        spec("POST", "/ephemeral/unsubscribe", AppData, Public),
         // System API — migrated gated writes (LLP 0031 D5/D2).
         spec("POST", "/_snapback/api/schema/load", SystemApi, AdminWrite),
         spec("POST", "/_snapback/api/functions/load", SystemApi, AdminWrite),
@@ -1294,6 +1296,18 @@ async fn subscribe_ephemeral(
         .subscribe(request, now_millis())
         .map(Json)
         .map_err(ApiError::from_ephemeral)
+}
+
+async fn unsubscribe_ephemeral(
+    State(state): State<SharedSnapback>,
+    Json(request): Json<SubscribeRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.unsubscribe_ephemeral(request, now_millis())
+    })
+    .await
+    .map_err(ApiError::from_ephemeral)?;
+    Ok(Json(outcome))
 }
 
 async fn delete_ephemeral(

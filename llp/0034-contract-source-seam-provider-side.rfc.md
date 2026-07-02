@@ -585,3 +585,55 @@ are decorative (no member checking — durable rows do get
 `EXACT_PIN_STRICT=1`; one idempotent ensure-everything server call (the
 D4 seed-without-reset + profile-capability residual) so Contract
 presence surfaces don't each carry a provision-if-missing boot branch.
+*(Four of these shipped as ENG-22527 — see §10.3; per-scope forcing and
+strict-by-default pin checking remain open.)*
+
+### 10.3 Operational follow-ups (2026-07-02, ENG-22527)
+
+Four of the follow-ups above are now scheduled work, delivered on this
+round (the remaining two — per-scope forcing and strict-by-default pin
+checking — stay named-not-scheduled):
+
+- **One idempotent ensure-everything call.** `POST /app/ensure` inspects
+  `schemaHash`/`bundleHash`, provisions only the missing halves,
+  seeds only when every seed target table is empty, and never resets —
+  D4's mount-lifecycle doctrine as one server-side op. Every demo boot
+  (cursors-web both surfaces, all-aboard, todo, todo-v2) now makes the
+  single `client.ensureApp(...)` call; the per-surface
+  provision-if-missing branches (~56 lines) are deleted. Provisioning
+  is gated by the new positive profile capability: `SNAPBACK_PROFILE`
+  (`dev|demo|test|prod`; default dev on loopback binds, prod otherwise),
+  with destructive ops requiring AdminWrite AND a non-prod profile
+  (`SNAPBACK_PROFILE_FORBIDS`, 403). Gated ensure halves report
+  `"gated"` rather than erroring, so inspection stays always-allowed.
+- **Typed ephemeral value shapes.** Generated `.ephemeral` contract-meta
+  now emits the real value shape (`<Name>Entry` with a typed `value`
+  member built from the collection's validator fields) instead of the
+  decorative `unknown`. The compiler half of the gap remains on the
+  Exact side: `analyze.ts` populates `queryResultTypes` only for
+  `descriptor?.kind === 'query'`, so `c.value.nosuchfield` on an
+  ephemeral binding still produces no `shape_unknown_member` — reported
+  precisely for the ENG-22526 track (Exact 0284 §8).
+- **Idle-room teardown policy.** The adapter now lingers an
+  observerless (collection, scope) overlay for
+  `EPHEMERAL_IDLE_LINGER_MS` (30 s; `ephemeralIdleLingerMs` surface
+  option) and then tears it down: best-effort
+  `POST /ephemeral/unsubscribe` (new op — `unsubscribe_live` is
+  durable-lane only; this removes just the subscriber registration,
+  never published entries, and receipts
+  `disposed/unsubscribed` into the connection ring), overlay disposed
+  and cache dropped on settle. Rebind within the window cancels and
+  reuses; rebind after expiry waits out the in-flight teardown and
+  subscribes fresh (registration identity is (room, connectionId) — a
+  late unsubscribe must never remove a fresh registration). Ordering
+  is load-bearing: the teardown dispatches the unsubscribe BEFORE
+  dropping its `manager.onState` demand, because dropping the last
+  demand closes the shared socket and the server's disconnect cleanup
+  would remove every registration on the connection first
+  (nondeterministic receipts, sibling rooms silently unregistered) —
+  found by the linger regression pair now gated in
+  `regression-ephemeral-wiring.mjs`. Surface dispose skips the linger.
+- **Liveness facts into sidecars.** Generated contract-meta now carries
+  the Exact 0284 §2.4 fact names (`mode`, `livePush`,
+  `initialSnapshot`, `pollCadenceMs`, `transport`, `ephemeral`) per
+  binding, for the exact-side ENG-22526 consumption track.

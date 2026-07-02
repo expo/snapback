@@ -9,6 +9,13 @@
 //   fix 4 — dispose racing an in-flight subscribe never leaks a live overlay
 //           (no lane consumer survives surface disposal).
 //
+// Plus the ENG-22527 item 3 idle-room teardown policy (LLP 0034 §10.1):
+//   linger A — unbind→rebind WITHIN the linger window reuses the shared room
+//              (no new server subscription);
+//   linger B — unbind→expiry tears the room down (server registration
+//              receipted disposed/unsubscribed) and a later rebind creates a
+//              fresh subscription.
+//
 // Needs the Exact runtime (run with bun); standard structured skip without it.
 //
 // Run: bun demos/_kit/tests/regression-ephemeral-wiring.mjs
@@ -45,7 +52,7 @@ if (exact.sourceKind === 'missing') {
 const runtime = await importExactContractRuntime({ exactRoot: exact.path });
 const server = await startServer({ port: 4436, db: ':memory:', cwd: repoRoot });
 const db = new SnapbackClient(server.baseUrl);
-const suite = createSuite('_kit regression / ephemeral-wiring (ENG-22479 review fixes 1-4)');
+const suite = createSuite('_kit regression / ephemeral-wiring (ENG-22479 review fixes 1-4 + ENG-22527 idle linger)');
 const ADA = 'user_ada';
 
 const schemaManifest = gen('schema.manifest.json');
@@ -232,6 +239,97 @@ try {
     assert(!cells.some((c) => c.status === 'ready' && c.entries.length > 0), 'no late delivery after disposal');
     return { cells: cells.length };
   });
+
+  // --- ENG-22527 item 3: idle-room teardown (linger) ---
+  // A dedicated surface with a FAST linger override so both arms run in
+  // test time (production default is EPHEMERAL_IDLE_LINGER_MS = 30s).
+  const LINGER_MS = 300;
+  const lingerClient = new SnapbackClient(server.baseUrl);
+  const realLingerSubscribe = lingerClient.subscribeEphemeral.bind(lingerClient);
+  let lingerSubscribeCalls = 0;
+  lingerClient.subscribeEphemeral = (...args) => {
+    lingerSubscribeCalls += 1;
+    return realLingerSubscribe(...args);
+  };
+  const lingerSurface = await createSnapbackContractSurface({
+    runtime,
+    client: lingerClient,
+    userId: ADA,
+    manifest: contractDataManifest,
+    schemaManifest,
+    functionManifest: functionsManifest,
+    livePush: false,
+    ephemeralIdleLingerMs: LINGER_MS,
+  });
+
+  await suite.check('linger A: rebind within the window reuses the room (no new server subscribe)', async () => {
+    lingerSubscribeCalls = 0;
+    const first = [];
+    const subFirst = lingerSurface.provider.subscribeEphemeral('todoPresence', { listId: 'linger_reuse' }, (cell) => first.push(cell));
+    await waitFor(() => first.some((c) => c.status === 'ready'), 'first bind ready');
+    assertEqual(lingerSubscribeCalls, 1, 'first bind subscribes once');
+    subFirst.dispose();
+
+    // Rebind well inside the linger window.
+    await sleep(LINGER_MS / 3);
+    const second = [];
+    const subSecond = lingerSurface.provider.subscribeEphemeral('todoPresence', { listId: 'linger_reuse' }, (cell) => second.push(cell));
+    await waitFor(() => second.some((c) => c.status === 'ready'), 'rebind ready');
+    assertEqual(lingerSubscribeCalls, 1, 'rebind within the window reuses the subscription');
+
+    // The reused room is genuinely live: a publish still reaches the observer,
+    // and holding it PAST the original expiry proves the timer was cancelled.
+    await db.publishEphemeral('todoPresence', {
+      connectionId: 'linger_viewer', scope: { listId: 'linger_reuse' }, userId: ADA, value: { name: 'still here' },
+    });
+    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === 'linger_viewer'), 'publish reaches the reused room');
+    await sleep(LINGER_MS + 150);
+    await db.publishEphemeral('todoPresence', {
+      connectionId: 'linger_viewer_2', scope: { listId: 'linger_reuse' }, userId: ADA, value: { name: 'after window' },
+    });
+    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === 'linger_viewer_2'), 'room alive past the cancelled window');
+    assertEqual(lingerSubscribeCalls, 1, 'still the single original subscription');
+    subSecond.dispose();
+    return { subscribeCalls: lingerSubscribeCalls };
+  });
+
+  await suite.check('linger B: expiry tears down (receipted disposed) and rebind subscribes fresh', async () => {
+    lingerSubscribeCalls = 0;
+    const first = [];
+    const subFirst = lingerSurface.provider.subscribeEphemeral('todoPresence', { listId: 'linger_expire' }, (cell) => first.push(cell));
+    await waitFor(() => first.some((c) => c.status === 'ready'), 'first bind ready');
+    assertEqual(lingerSubscribeCalls, 1, 'first bind subscribes once');
+    subFirst.dispose();
+
+    // Let the linger window expire: the adapter must best-effort unsubscribe,
+    // and the server receipts the registration as disposed/unsubscribed.
+    await waitFor(
+      () => lingerClient.receipts().some((r) => r.lane === 'ephemeral'
+        && r.event === 'disposed'
+        && r.reason === 'unsubscribed'
+        && r.collection === 'todoPresence'
+        && r.scope?.listId === 'linger_expire'),
+      'disposal receipt after linger expiry',
+      LINGER_MS * 10,
+    );
+    const receipt = lingerClient.receipts().find((r) => r.lane === 'ephemeral' && r.reason === 'unsubscribed' && r.scope?.listId === 'linger_expire');
+    assertEqual(receipt.removed, true, 'server actually removed the registration');
+
+    // Rebind after expiry: a FRESH subscription (cache dropped).
+    const second = [];
+    const subSecond = lingerSurface.provider.subscribeEphemeral('todoPresence', { listId: 'linger_expire' }, (cell) => second.push(cell));
+    await waitFor(() => second.some((c) => c.status === 'ready'), 'post-expiry rebind ready');
+    assertEqual(lingerSubscribeCalls, 2, 'rebind after expiry creates a fresh subscription');
+    await db.publishEphemeral('todoPresence', {
+      connectionId: 'fresh_viewer', scope: { listId: 'linger_expire' }, userId: ADA, value: { name: 'fresh room' },
+    });
+    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === 'fresh_viewer'), 'fresh room is live');
+    subSecond.dispose();
+    return { subscribeCalls: lingerSubscribeCalls, receipt: { event: receipt.event, reason: receipt.reason, removed: receipt.removed } };
+  });
+
+  lingerClient.subscribeEphemeral = realLingerSubscribe;
+  lingerSurface.dispose();
 
   const report = suite.finish();
   console.log('\n--- machine-readable report ---');

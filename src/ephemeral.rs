@@ -1190,6 +1190,37 @@ impl LocalEphemeralBackend {
         Ok(removed)
     }
 
+    /// Remove one connection's subscriber registration from a room without
+    /// touching its published entries (ENG-22527 item 3: the adapter's
+    /// idle-room teardown). Dropping observation is never privileged — the
+    /// HTTP layer binds the connection identity exactly as for the other
+    /// ephemeral operations. Returns whether a registration was removed;
+    /// an unknown room/registration is a quiet no-op (teardown races
+    /// disconnect/reap).
+    pub fn unsubscribe(&self, request: SubscribeRequest) -> Result<bool, EphemeralError> {
+        let collection = self.collection(&request.collection)?;
+        let room_id = room_id_for(&collection, &request.scope)?;
+        let room_arc = {
+            let rooms = lock(&self.shared.rooms);
+            rooms.get(&room_id).cloned()
+        };
+        let Some(room_arc) = room_arc else {
+            return Ok(false);
+        };
+        let removed = {
+            let mut room = lock(&room_arc);
+            if room.retired {
+                false
+            } else {
+                room.subscribers.remove(&request.connection_id).is_some()
+            }
+        };
+        if removed {
+            self.prune_room_if_empty(&room_id);
+        }
+        Ok(removed)
+    }
+
     pub fn subscribe(
         &self,
         request: SubscribeRequest,

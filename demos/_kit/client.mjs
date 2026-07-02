@@ -322,6 +322,19 @@ export class SnapbackClient {
     }
   }
 
+  // ENG-22527 item 3: stop observing a room (published entries untouched);
+  // best-effort — an unknown room/registration is a quiet no-op server-side.
+  async unsubscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
+    const outcome = await this.#req('POST', '/ephemeral/unsubscribe', {
+      collection: collectionName(ref),
+      scope,
+      connection_id: connectionId,
+      auth: SnapbackClient.auth(userId, { permissions }),
+    });
+    if (outcome?.receipt) this.recordReceipt(outcome.receipt);
+    return outcome;
+  }
+
   deleteEphemeral(ref, { connectionId, scope = {}, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
     return this.#req('POST', '/ephemeral/delete', {
       collection: collectionName(ref),

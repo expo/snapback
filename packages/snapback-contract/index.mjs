@@ -139,6 +139,7 @@ export async function createSnapbackContractSurface({
   // zero-scope prewarm keeps the conformance gate's synchronous-snapshot
   // expectation honest.
   ephemeralPermissions = null,
+  ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS,
   // Multi-query mode (LLP 0034 §6 ownership row 3 — the All Aboard proof):
   // name the manifest's live queries to bind each over the shared stream with
   // its own boundary key and per-query connection axis. Legacy single-query
@@ -178,6 +179,7 @@ export async function createSnapbackContractSurface({
       rootId: surfaceRootId,
       detachReceiptListener,
       ephemeralPermissions,
+      ephemeralIdleLingerMs,
       diagnostics,
       pending,
       mountedHandles,
@@ -216,6 +218,7 @@ export async function createSnapbackContractSurface({
     connectionId: surfaceConnectionId,
     userId,
     ephemeralPermissions,
+    ephemeralIdleLingerMs,
   });
 
   // In-flight optimistic mutations (LLP 0034 review fix 3): with live push, a
@@ -494,7 +497,14 @@ export async function createSnapbackContractSurface({
 // Overlays are SHARED per (collection, scope) and prewarmed at surface
 // creation, so a source start delivers its ready snapshot synchronously —
 // presence rooms the surface serves are subscribed once, not per observer.
-function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemeralPermissions = null }) {
+// Idle-room teardown (ENG-22527 item 3): when the LAST observer of a
+// (collection, scope) overlay disposes, the shared subscription lingers for
+// this window — a re-bind inside it cancels the timer and reuses the room;
+// on expiry the overlay is torn down and the server registration is
+// best-effort unsubscribed. Overridable per surface (ephemeralIdleLingerMs).
+export const EPHEMERAL_IDLE_LINGER_MS = 30_000;
+
+function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemeralPermissions = null, ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS }) {
   const descriptors = Object.entries(manifest?.queries ?? {}).filter(
     ([, descriptor]) => descriptor?.ephemeral === true,
   );
@@ -603,6 +613,9 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       expiryTimer: null,
       resyncTimer: null,
       resyncAttempts: 0,
+      lingerTimer: null,
+      tornDown: false,
+      disposalEntry: null,
       notify: null,
     };
     record.notify = () => {
@@ -679,20 +692,73 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       }
     });
     overlay.onChange(handleChange);
-    disposals.add(() => {
+    record.disposalEntry = () => {
+      record.tornDown = true;
       record.offState?.();
-      if (record.expiryTimer) {
-        clearTimeout(record.expiryTimer);
-        record.expiryTimer = null;
-      }
-      if (record.resyncTimer) {
-        clearTimeout(record.resyncTimer);
-        record.resyncTimer = null;
+      for (const timer of ['expiryTimer', 'resyncTimer', 'lingerTimer']) {
+        if (record[timer]) {
+          clearTimeout(record[timer]);
+          record[timer] = null;
+        }
       }
       record.overlay.dispose();
-    });
+    };
+    disposals.add(record.disposalEntry);
     scheduleExpiryReemit(record);
     return record;
+  };
+
+  // Idle-room teardown (ENG-22527 item 3): drop the cache entry, send the
+  // best-effort server-side unsubscribe (the D2 ephemeral disposal receipt),
+  // and detach locally only once the unsubscribe settles. Ordering matters:
+  // each record's manager.onState subscription is shared-socket demand, and
+  // dropping the LAST one closes the socket — the server's disconnect
+  // cleanup would then remove every registration on the connection before
+  // the unsubscribe arrives (nondeterministic receipts, and it would
+  // silently unregister sibling rooms mid-teardown). So the unsubscribe is
+  // dispatched first; offState/overlay detach in its settle. The in-flight
+  // teardown is parked in teardownCache so a rebind after expiry subscribes
+  // strictly AFTER the old registration is gone (same (room, connectionId)
+  // key — a late unsubscribe must never remove a fresh registration).
+  const teardownCache = new Map();
+  const teardownIdleRecord = (cacheKey, name, args, permissions, record) => {
+    if (record.tornDown || disposed) return;
+    record.tornDown = true;
+    recordCache.delete(cacheKey);
+    disposals.delete(record.disposalEntry);
+    for (const timer of ['expiryTimer', 'resyncTimer', 'lingerTimer']) {
+      if (record[timer]) {
+        clearTimeout(record[timer]);
+        record[timer] = null;
+      }
+    }
+    const unsubscribe = client.unsubscribeEphemeral?.(name, {
+      connectionId,
+      scope: { ...args },
+      userId,
+      permissions,
+    });
+    const settled = Promise.resolve(unsubscribe)
+      .catch(() => {
+        // Best-effort: disconnect/reap covers the registration otherwise.
+      })
+      .finally(() => {
+        record.offState?.();
+        record.overlay.dispose();
+        teardownCache.delete(cacheKey);
+      });
+    teardownCache.set(cacheKey, settled);
+  };
+
+  const armIdleLinger = (cacheKey, name, args, permissions, record) => {
+    if (record.tornDown || disposed || record.listeners.size > 0 || record.lingerTimer) return;
+    record.lingerTimer = setTimeout(() => {
+      record.lingerTimer = null;
+      if (record.listeners.size === 0) {
+        teardownIdleRecord(cacheKey, name, args, permissions, record);
+      }
+    }, ephemeralIdleLingerMs);
+    record.lingerTimer.unref?.();
   };
 
   // In-flight dedup (ENG-22479 review fix 1): two bindings of the same
@@ -705,6 +771,12 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
     if (resolved) return Promise.resolve(resolved);
     const inflight = pendingCache.get(cacheKey);
     if (inflight) return inflight;
+    const tearing = teardownCache.get(cacheKey);
+    if (tearing) {
+      // Rebind racing an idle teardown: wait for the old registration to be
+      // unsubscribed, then subscribe fresh (ENG-22527 item 3).
+      return tearing.then(() => ensureOverlay(name, descriptor, args));
+    }
     const permissions = ephemeralPermissions?.(name, args) ?? [];
     const pending = createRecord(name, args, permissions)
       .then((record) => {
@@ -727,11 +799,27 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       let offListener = null;
       const cacheKey = `${name}\u0000${scopeKeyOf(args)}`;
       const cached = recordCache.get(cacheKey);
+      const permissions = ephemeralPermissions?.(name, args) ?? [];
       const attach = (record) => {
-        if (!active || disposed) return;
+        if (!active || disposed) {
+          // The observer went away while the subscribe was in flight: give
+          // the now-observerless room its linger window (ENG-22527 item 3).
+          armIdleLinger(cacheKey, name, args, permissions, record);
+          return;
+        }
+        if (record.lingerTimer) {
+          // Re-bind within the linger window: cancel and reuse.
+          clearTimeout(record.lingerTimer);
+          record.lingerTimer = null;
+        }
         const listener = () => emit(toMapCell(record, descriptor));
         record.listeners.add(listener);
-        offListener = () => record.listeners.delete(listener);
+        offListener = () => {
+          record.listeners.delete(listener);
+          if (record.listeners.size === 0) {
+            armIdleLinger(cacheKey, name, args, permissions, record);
+          }
+        };
         emit(toMapCell(record, descriptor));
       };
       if (cached) {
@@ -847,6 +935,7 @@ async function createMultiLiveContractSurface({
   rootId,
   detachReceiptListener = null,
   ephemeralPermissions = null,
+  ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS,
   diagnostics,
   pending,
   mountedHandles,
@@ -876,6 +965,7 @@ async function createMultiLiveContractSurface({
     connectionId: sharedConnectionId,
     userId,
     ephemeralPermissions,
+    ephemeralIdleLingerMs,
   });
 
   const assertActive = () => {

@@ -1143,6 +1143,76 @@ fn local_snapback_reuses_in_memory_ephemeral_store() {
 }
 
 #[test]
+fn ephemeral_unsubscribe_removes_registration_and_receipts_disposal() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor(
+        "boardCursors",
+        "boardId",
+    ));
+    let scope = Scope::from_pairs([("boardId", "board_1")]);
+    let auth = AuthContext::default();
+    let request = SubscribeRequest {
+        collection: "boardCursors".to_owned(),
+        scope: scope.clone(),
+        connection_id: "observer".to_owned(),
+        auth: auth.clone(),
+    };
+    snapback
+        .subscribe_ephemeral(request.clone(), 1_000)
+        .expect("subscribe ephemeral");
+
+    // ENG-22527 item 3 (LLP 0034 §10.1): the idle-linger teardown's server
+    // half removes ONLY the subscriber registration — published entries and
+    // other connections' registrations are untouched — and receipts the
+    // disposal into the connection ring.
+    let outcome = snapback
+        .unsubscribe_ephemeral(request.clone(), 1_100)
+        .expect("unsubscribe ephemeral");
+    assert_eq!(outcome["removed"], json!(true));
+    assert_eq!(outcome["receipt"]["lane"], "ephemeral");
+    assert_eq!(outcome["receipt"]["event"], "disposed");
+    assert_eq!(outcome["receipt"]["reason"], "unsubscribed");
+    let receipts = snapback.receipts_snapshot(Some("observer"));
+    let ring = receipts["receipts"].as_array().expect("connection ring");
+    assert!(
+        ring.iter().any(|receipt| receipt["event"] == "disposed"
+            && receipt["reason"] == "unsubscribed"
+            && receipt["removed"] == json!(true)),
+        "unsubscribe must be receipted: {receipts}"
+    );
+
+    // Publishes after the unsubscribe no longer reach the observer.
+    snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope,
+                connection_id: "publisher".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: br#"{"x":9,"y":9}"#.to_vec(),
+                ttl_ms: None,
+                auth,
+            },
+            1_200,
+        )
+        .expect("publish ephemeral");
+    let messages = snapback.drain_outbox("observer");
+    assert!(
+        messages.is_empty(),
+        "unsubscribed observer must not receive deltas: {messages:?}"
+    );
+
+    // Unsubscribing again (or for a room that was pruned) is a quiet no-op —
+    // the linger teardown is best-effort and may race disconnect cleanup.
+    let again = snapback
+        .unsubscribe_ephemeral(request, 1_300)
+        .expect("second unsubscribe");
+    assert_eq!(again["removed"], json!(false));
+}
+
+#[test]
 fn schema_manifest_registers_authorized_ephemeral_board_cursors() {
     let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId")
         .require_room_permission("boardMember");

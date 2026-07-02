@@ -1944,6 +1944,31 @@ impl LocalSnapback {
         self.ephemeral.subscribe(request, now_ms)
     }
 
+    /// ENG-22527 item 3: remove one connection's room observation (published
+    /// entries untouched), receipted into the connection ring.
+    pub fn unsubscribe_ephemeral(
+        &mut self,
+        request: SubscribeRequest,
+        now_ms: u64,
+    ) -> Result<Value, crate::ephemeral::EphemeralError> {
+        self.touch_connection(&request.connection_id, now_ms);
+        let removed = self.ephemeral.unsubscribe(request.clone())?;
+        let receipt = json!({
+            "kind": "subscription",
+            "lane": "ephemeral",
+            "bindingId": request.collection.clone(),
+            "collection": request.collection,
+            "event": "disposed",
+            "reason": "unsubscribed",
+            "removed": removed,
+            "scope": request.scope,
+            "receivedAtMs": now_ms,
+        });
+        self.receipts
+            .push_connection(&request.connection_id, receipt.clone());
+        Ok(json!({ "removed": removed, "receipt": receipt }))
+    }
+
     pub fn delete_ephemeral(
         &mut self,
         request: DeleteRequest,
