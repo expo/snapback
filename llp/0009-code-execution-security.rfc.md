@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 M2: §Invocation Isolation records the DK-4 decision — warm VM per bundle hash for trusted-local, gated on a proven reset, on the M1 VM-cost evidence in LLP 0035)
+**Revised:** 2026-07-02 (LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; the 2026-07-01 revision recorded the decision itself)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, https://github.com/ccheever/ibex
 
 ## Summary
@@ -223,6 +223,177 @@ still stands. Concretely:
 Ledgered in [LLP 0000](./0000-snapback.explainer.md); numbers in LLP 0035.
 Revisit: after the cost decomposition, and again once a warm VM (if it ships)
 is re-measured to confirm the projected win.
+
+### DK-4 as-built — the warm VM pool and its per-invocation reset (2026-07-02)
+
+The gated leg shipped. This subsection is the as-built design: what the warm
+path reuses, what proves the VM clean between invocations, and — most
+importantly — the limits stated honestly. The implementation lives in
+`src/warm_vm.rs` (pool, setup/reset sources) and `src/runtime.rs` (the warm
+orchestration inside `run_ibex_handler_with_context`).
+
+**Scope fences.** Warm VMs serve **query and mutation** invocations of
+Ibex-module handlers on the trusted-local target. **Actions always run
+fresh** — they receive secrets, cron metadata, and (when outbound egress is
+enabled) timers and `fetch`; pooling them buys little and risks much, and
+keeping them fresh also makes pool checkout re-entrancy-proof: the only
+nested invocation shape is action→mutation (S5.D1), and since the outer
+action never holds a pooled VM, the inner mutation's checkout can never
+self-deadlock. The hosted/untrusted posture is untouched — fresh per
+invocation remains the durable default and the five hosted-pooling proof
+obligations stand unchanged. The warm path is capability-flagged
+(`vmLifecycle: "warm-pooled-reset"` vs `"fresh-per-invocation"` in the
+capability manifest / `inspect`, per LLP 0012's honesty rule) and opt-out:
+`SNAPBACK_FRESH_VM=1` (sampled at instance construction) forces the fresh
+path for debugging or A/B measurement.
+
+**Keying.** A VM is keyed by the **exact module source text** — not a digest
+(the map's key equality is the correctness check; nothing can collide), and
+not the manifest `bundleHash` (that hashes manifest metadata, not the
+executable text). The full VM-determining setup input is (ambient
+restriction, module source, ctx bootstrap, reset install); the bootstrap and
+reset are process-static, `SNAPBACK_OUTBOUND_ACTIONS` is env-static, and the
+ambient restriction text is **identical for queries and mutations** (only
+actions get the egress variant, and actions never pool) — an equality pinned
+by test (`dk4_query_and_mutation_share_one_ambient_restriction`), so a future
+divergence of the deny sets forces a re-key rather than a silent unsoundness.
+Mode still matters per invocation, but it travels as an argument into
+`__snapbackInvoke`, and the *real* write boundary is host-side
+(`ensure_writable` in the invocation context) per §Capability Model — the JS
+mode switch is UX, so one VM can serve both modes of one bundle.
+
+**Threading.** Hermes runtimes are not thread-safe, but the vendored JSI
+contract is **non-concurrency, not thread-affinity**
+(`vendor/ibex/ios/Frameworks/hermes-headers/jsi/jsi.h`): a Runtime "cannot be
+used safely from multiple threads at once. The application is responsible for
+ensuring that it is used safely. This could mean using the Runtime from a
+single thread, **using a mutex**, doing all work on a serial queue, etc." —
+mutex-serialized sequential use from different threads is an explicitly
+sanctioned strategy (Meta's own `jsi/threadsafe.h` decorator is exactly
+that). Audit of the Ibex layer on top: the only thread-identity capture is
+`ExactHermesRuntime::runtime_thread`, consulted solely by
+`native_ws_release_context` to marshal a JSI-object delete — unreachable for
+warm classes (WebSocket is denied at both the JS ambient layer and the strict
+host, so a warm VM never constructs a WS callback context); the engine's
+`thread_local g_active_module_id` is set only via `__exactSetActiveModuleId`,
+which Snapback's handler convention never calls; the cross-thread callback
+queue is drained by whichever thread evals/polls. The pool therefore uses
+**exclusive ownership as the serialization**: checkout moves the VM out of
+the `Mutex`-guarded pool, exactly one blocking thread uses it, check-in moves
+it back; the pool mutex provides the happens-before edge between successive
+owning threads. The lease type is `Send` (with the justification at the
+`unsafe impl`) and never `Sync`. This one structure serves both lanes: the
+serialized write lane (mutations + fan-out re-runs — the largest win) reuses
+one VM per bundle, and concurrent L6 read-lane queries simply check out
+distinct VMs, warming extras on miss up to the bound.
+
+**Warm structure.** Setup eval, once per VM: ambient restriction + module
+source + ctx bootstrap + reset install (which captures the baseline described
+below). Per invocation: one eval of the small async-invoke IIFE — the same
+text the fresh path appends — then the reset eval. The S5.D1 host-context
+stack is pushed around **both** the setup and invoke evals, so module
+top-level host calls on a warm VM's first invocation behave exactly as they
+do on the fresh path (on later invocations module top-level simply does not
+re-run — part of the module-state semantics below). The reset eval runs after
+the context pops; its source is a fixed string that makes no host calls.
+
+**Reset technique — what "proven reset" means here.** At setup, the reset
+installer captures a **baseline of own-property descriptors** (string and
+symbol keys) for: `globalThis`; the dispatch table `__snapbackHandlers` (one
+level deep — it is the dispatch surface, so replacing or adding a handler
+property must not survive); and a fixed list of intrinsic roots (the
+`Object`/`Array`/`Function`/`String`/`Number`/`Boolean`/`Date`/`RegExp`/
+error/`Map`/`Set`/`Promise`/`Symbol` constructors and prototypes, `JSON`,
+`Math`, `Reflect`, and the `%TypedArray%` prototype base). The baseline is
+taken **after** module top-level ran, so a module-level polyfill is part of
+the app's own baseline, not a leak. After every invocation,
+`__snapbackReset()` deletes own properties not in the baseline and redefines
+any whose descriptor drifted (value identity via `Object.is`; accessor
+identity; flag equality). Hygiene: every primitive the sweep uses
+(`getOwnPropertyNames`/`getOwnPropertySymbols`/`getOwnPropertyDescriptor`/
+`defineProperty`/`JSON.stringify`/`Map`) is captured at install time, so a
+handler overwriting the global copies cannot blind the sweep — and the
+overwritten globals themselves get restored. `__snapbackReset` is installed
+non-writable/non-configurable/non-enumerable.
+
+**Fail-closed pooling.** The reset returns a JSON verdict; the Rust side
+pools the VM only on a parsed `ok: true`. Any handler eval error, reset eval
+error, thrown sweep error (e.g. a frozen `globalThis` making a delete or
+redefine impossible), or unparseable verdict **burns the VM** — it is
+destroyed and the next invocation of that bundle pays a fresh create + setup.
+Fresh-per-invocation is always the fallback, never an error. The reset runs
+at check-in (not next-checkout) so pooled VMs are clean at rest and a
+poisoned VM never sits in the pool.
+
+**Honest limits — the proof-obligation mapping.**
+
+- *Obligation 1 (global state cleared/isolated): met for everything reachable
+  by name from `globalThis`* — one level deep for the dispatch table, plus
+  the intrinsic-root sweep — *and deliberately **not** met for module-level
+  closure state.* A module-top-level `let counter` mutated by a handler
+  persists across invocations on the warm path: no `globalThis` sweep can
+  reach a closure, and re-evaluating the module per invocation is precisely
+  the cost being removed (it would also throw on top-level `let`
+  redeclaration). Position: **accepted and documented for trusted-local.**
+  (a) It is the standard execution model of mainstream serverless runtimes —
+  module state *may* persist across invocations and code must rely on neither
+  persistence nor freshness; (b) code that relied on cross-invocation
+  freshness of module state was already unportable to any pooled target;
+  (c) the semantics are capability-flagged and opt-out-able
+  (`SNAPBACK_FRESH_VM=1`); (d) this is single-app, own-code territory — pools
+  are per app instance, so state can never cross an app or tenant boundary
+  (LLP 0018; pinned by `dk4_pools_are_per_instance`). A characterization test
+  (`dk4_module_level_state_persists_documented_semantics`) pins the semantics
+  so they are documented-by-test, not accidental.
+- *Obligation 3 (timers/pending async cannot outlive the invocation): met.*
+  Timers cannot exist in a warm VM — `setTimeout`/`setInterval` are denied as
+  non-configurable ambient globals for queries/mutations before module code
+  ever runs, and actions (which may get timers) never pool. Microtasks:
+  `ex_hermes_eval` drains the microtask queue and pumps the event loop until
+  the invocation's promise settles, so every reachable continuation runs
+  inside the invocation that scheduled it. An unsettled promise's reactions
+  can fire later only if something resolves it; after the reset the resolver
+  is unreachable unless it was captured in module-level state — which folds
+  into the module-state carve-out above. Covered by
+  `dk4_unsettled_promise_does_not_carry_over`.
+- *Obligation 2 (module caches cannot leak per-user data): per-invocation
+  data never lives in VM state.* Args, auth, reads, writes, and secrets cross
+  through the thread-local host context and eval arguments — host calls route
+  through Rust, not VM globals — and the sweep removes any global residue.
+  Per-user data can enter module state only if handler code puts it there:
+  the same trusted-local carve-out, stated plainly. Hosted stays fresh.
+- *Obligations 4 (memory/CPU limits) and 5 (log identity): posture
+  unchanged.* Limits remain reported-Missing for this engine (§Resource
+  Limits); invocation identity lives host-side. A warm VM's heap outlives one
+  invocation by design; the pool bound (below) is the memory control.
+- *Unobservable residue, named:* the `Symbol.for` registry grows
+  monotonically (no data channel — a symbol is observable only through a
+  property somewhere, and those are swept); engine-internal caches and GC
+  state persist (no JS-observable data channel); per-eval source retention in
+  the engine's source map is bounded because eval URLs repeat per
+  (bundle, export). Deliberate self-sabotage — e.g. proxying an intrinsic so
+  the sweep reads lies — is out of scope: the trusted-local threat model is
+  accidental bleed, not the app attacking itself; untrusted code gets fresh
+  VMs, full stop.
+
+**Pool bound and invalidation.** One pool per `LocalSnapback` instance (two
+local app instances must not share loaded code — §Validation Requirements),
+bounded at **4 VMs total per instance** (a Hermes heap is MB-scale; the
+common case is one bundle shared by all functions, so 1–2 live VMs);
+beyond-bound check-ins destroy the VM. `load_functions` and app `reset` clear
+the pool; content keying makes stale reuse impossible even without the clear
+(changed source ⇒ different key ⇒ miss).
+
+**Proof.** The gate is the `dk4_*` leak suite — tests that fail if the reset
+regresses: global add, global overwrite (restored to baseline), dispatch
+table mutation, prototype pollution (added *and* overwritten intrinsic
+props), unsettled-promise carryover, reset-failure burn (a frozen
+`globalThis` must yield a fresh VM next invocation), actions-always-fresh,
+per-instance pool isolation, and the module-state characterization — plus the
+full existing suite (E2 read-your-writes, S5.D1 re-entrancy, S5.D9, the
+l6_/l7_ concurrency arc) green, plus the bench re-run in LLP 0035 (the
+`vm_cost_us` metric keeps its fresh-create definition by disabling the pool
+inside that measurement; the warm path gets its own `warm_invoke_us` metric).
 
 ## Capability Model
 
