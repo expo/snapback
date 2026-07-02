@@ -14,7 +14,11 @@ See [LLP 0027](../../llp/0027-all-aboard-caltrain-demo.plan.md) for the design a
   (`shared/model.mjs`), and the deterministic seed generator.
 - `surfaces/contract/` — the one multi-surface `app.contract` plus its web host
   wiring (`main.ts`, `vite.config.ts`).
-- `tests/acceptance/` — `headless.mjs`, `cron.mjs`, `egress.mjs`, `browser.mjs`.
+- `surfaces/react/` — the red-team control arm (stock React 19 + Vite, web-only,
+  same product/testIds/backend; ENG-22435, re-baselined by ENG-22450); its
+  suite is `tests/acceptance/browser-react.mjs`.
+- `tests/acceptance/` — `headless.mjs`, `cron.mjs`, `egress.mjs`, `browser.mjs`,
+  `browser-react.mjs`.
 - `tests/egress-probe/` — a fixture backend for the Phase 3 egress test only.
 
 ## Regenerate backend artifacts

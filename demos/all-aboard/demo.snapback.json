@@ -71,6 +71,14 @@
     "native": {
       "requirement": "expected_missing",
       "note": "The same app.contract renders on macOS/iOS through the Exact ExactApp kernel host; not built/run in this repo. Web is the runnable surface."
+    },
+    "react-control": {
+      "requirement": "control_arm",
+      "runner": "node demos/all-aboard/tests/acceptance/browser-react.mjs",
+      "devServer": "bun run --cwd demos/all-aboard/surfaces/react dev (stock React 19 + Vite from the surface's own node_modules)",
+      "build": "bun run --cwd demos/all-aboard/surfaces/react build -> surfaces/react/dist/",
+      "url": "http://127.0.0.1:5179",
+      "note": "Red-team control arm (ENG-22435; re-baselined to the redesigned poster-board product by ENG-22450): the same product, testIds, D4 boot, and stream-transport live push over the shared kit client, web-only. Its suite mirrors the contract browser list check-for-check (14/14)."
     }
   },
   "acceptanceChecks": {
@@ -104,7 +112,12 @@
       "paved path: liveTrainStatus + feedState bind with server push over the shared stream; connections report live (LLP 0034 D1)",
       "cron-authored delta reaches the browser through generated bindings with no poll pump (Exact LLP 0284 §5.3 item 3)",
       "second window boot is inspect-first and does not clear the first window (LLP 0034 D4 / LLP 0275 C4)",
-      "gesture glue: swipe left changes station, swipe up selects the next train, bare tap flips direction (synthetic pointers)"
+      "gesture glue: swipe left changes station, swipe up selects the next train, bare tap flips direction (synthetic pointers)",
+      "service-filter chips filter the board hero-included and All restores (E3, ENG-22450)",
+      "the station-card ETA mode toggles walk/bike estimates app-wide (E4, ENG-22450)"
+    ],
+    "react-control": [
+      "mirrors the contract browser list check-for-check against the React surface (same twelve product checks plus the E3/E4 checks; gestures dispatch against #root)"
     ]
   },
   "capabilityGaps": [
