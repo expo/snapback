@@ -500,12 +500,23 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
   );
   const sourceStarts = {};
   const sources = {};
-  const overlayCache = new Map(); // `${name}\u0000${scopeKey}` -> { overlay, connection, offState }
+  const recordCache = new Map(); // cacheKey -> resolved record (sync attach path)
+  const pendingCache = new Map(); // cacheKey -> in-flight Promise<record> (ENG-22479 review fix 1)
   const disposals = new Set();
+  // ENG-22479 review fix 4: once the surface is disposed, any late-resolving
+  // subscribe must be torn down immediately — it would otherwise re-register
+  // a lane consumer and onState demand (reopening the closed socket).
+  let disposed = false;
   const supportsEphemeral =
     descriptors.length > 0
     && typeof client.subscribeEphemeral === 'function'
     && typeof client.liveStreamManager === 'function';
+
+  // Resync re-subscribe backoff — mirrors the kit's LIVE_RECONNECT_* policy
+  // (ENG-22479 review fix 3; the adapter takes the client by injection, so
+  // the constants are mirrored rather than imported).
+  const RESYNC_BASE_DELAY_MS = 250;
+  const RESYNC_MAX_DELAY_MS = 10_000;
 
   const scopeKeyOf = (args) => JSON.stringify(Object.entries(args ?? {}).sort(([a], [b]) => (a < b ? -1 : 1)));
 
@@ -522,61 +533,136 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
     }
   };
 
-  const toMapCell = (record, descriptor) => ({
-    status: 'ready',
-    entries: record.overlay
-      .currentEntries({ prune: false }) // expiry is provider-owned (§2.5)
-      .map((entry) => ({
-        key: entry.key,
-        value: entry.value,
-        updatedAt: entry.receivedAtMs,
-        expiresAt: entry.expiresAtMs,
-        // The lease key IS the presence provenance (LLP 0034 §4).
-        sourceClientId: entry.key,
-        self: entry.key === selfKeyFor(descriptor),
-      }))
-      .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
-    connection: record.connection,
-  });
+  const toMapCell = (record, descriptor) => {
+    // Exact 0284 §2.5: an entry past provider TTL is deleted from `entries`
+    // and never exposed again; freeze-at-last-known is reserved for
+    // stale/disconnected, where entries may age past TTL locally and the
+    // connection axis is the trust signal (ENG-22479 review fix 2).
+    const connection = record.subscribed === false ? 'stale' : record.connection;
+    const frozen = connection === 'stale' || connection === 'disconnected';
+    const now = Date.now();
+    return {
+      status: 'ready',
+      entries: record.overlay
+        .currentEntries({ prune: false })
+        .filter((entry) => frozen || entry.expiresAtMs > now)
+        .map((entry) => ({
+          key: entry.key,
+          value: entry.value,
+          updatedAt: entry.receivedAtMs,
+          expiresAt: entry.expiresAtMs,
+          // The lease key IS the presence provenance (LLP 0034 §4).
+          sourceClientId: entry.key,
+          self: entry.key === selfKeyFor(descriptor),
+        }))
+        .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+      connection,
+    };
+  };
 
-  const ensureOverlay = async (name, descriptor, args) => {
-    const cacheKey = `${name}\u0000${scopeKeyOf(args)}`;
-    let record = overlayCache.get(cacheKey);
-    if (record) return record;
-    const permissions = ephemeralPermissions?.(name, args) ?? [];
+  // Pruning without a change event never re-renders: arm a one-shot timer at
+  // the earliest future expiry so the binding re-emits when an entry ages out
+  // on an otherwise-quiet room (ENG-22479 review fix 2). Re-armed after every
+  // notification; cleared on dispose.
+  const scheduleExpiryReemit = (record) => {
+    if (record.expiryTimer) {
+      clearTimeout(record.expiryTimer);
+      record.expiryTimer = null;
+    }
+    if (disposed) return;
+    const now = Date.now();
+    let earliest = Infinity;
+    for (const entry of record.overlay.currentEntries({ prune: false })) {
+      if (entry.expiresAtMs > now && entry.expiresAtMs < earliest) earliest = entry.expiresAtMs;
+    }
+    if (earliest === Infinity) return;
+    record.expiryTimer = setTimeout(() => {
+      record.expiryTimer = null;
+      record.notify();
+    }, Math.max(16, earliest - now + 5));
+    record.expiryTimer.unref?.();
+  };
+
+  const createRecord = async (name, args, permissions) => {
     const overlay = await client.subscribeEphemeral(name, {
       connectionId,
       scope: { ...args },
       userId,
       permissions,
     });
-    record = { overlay, connection: 'connecting', listeners: new Set(), offState: null };
-    const notify = () => {
-      for (const listener of [...record.listeners]) listener();
+    if (disposed) {
+      overlay.dispose();
+      throw new Error('surface disposed during ephemeral subscribe');
+    }
+    const record = {
+      overlay,
+      connection: 'connecting',
+      subscribed: true,
+      listeners: new Set(),
+      offState: null,
+      expiryTimer: null,
+      resyncTimer: null,
+      resyncAttempts: 0,
+      notify: null,
     };
+    record.notify = () => {
+      for (const listener of [...record.listeners]) listener();
+      scheduleExpiryReemit(record);
+    };
+
+    // Failed resync re-subscribes retry on bounded backoff while the map
+    // presents its honest degraded state — no active subscription while
+    // retrying maps to 'stale' per the kit's connection table (ENG-22479
+    // review fix 3). A retired subscription emits no further signals, so
+    // silence here would freeze the map as empty-but-ready-and-live forever.
+    const attemptResync = () => {
+      if (disposed) return;
+      void client
+        .subscribeEphemeral(name, { connectionId, scope: { ...args }, userId, permissions })
+        .then((fresh) => {
+          if (disposed) {
+            fresh.dispose(); // fix 4: never leak past surface disposal
+            return;
+          }
+          const superseded = record.overlay;
+          record.overlay = fresh;
+          superseded.dispose();
+          record.subscribed = true;
+          record.resyncAttempts = 0;
+          fresh.onChange(handleChange);
+          record.notify();
+        })
+        .catch(() => {
+          if (disposed) return;
+          const delay = Math.min(
+            RESYNC_BASE_DELAY_MS * 2 ** record.resyncAttempts,
+            RESYNC_MAX_DELAY_MS,
+          );
+          record.resyncAttempts += 1;
+          record.resyncTimer = setTimeout(() => {
+            record.resyncTimer = null;
+            attemptResync();
+          }, delay);
+          record.resyncTimer.unref?.();
+        });
+    };
+
     const handleChange = (result) => {
       if (result === 'needs_resync') {
         // The server retired the room's epoch (collection replace/reset) or
         // the queue overflowed: re-enter through a fresh
         // snapshot-with-subscribe and swap the overlay generation (the D2
         // epoch work guarantees the fresh snapshot's epoch is strictly
-        // newer, and the kit receipts the resubscribed boundary).
-        void client
-          .subscribeEphemeral(name, { connectionId, scope: { ...args }, userId, permissions })
-          .then((fresh) => {
-            const superseded = record.overlay;
-            record.overlay = fresh;
-            superseded.dispose();
-            fresh.onChange(handleChange);
-            notify();
-          })
-          .catch(() => {
-            // Retry rides the next resync signal or consumer resubscribe.
-          });
+        // newer, and the kit receipts the resubscribed boundary). Until the
+        // fresh subscribe lands the map presents 'stale' (fix 3).
+        record.subscribed = false;
+        record.notify();
+        attemptResync();
         return;
       }
-      notify();
+      record.notify();
     };
+
     // Connection axis: the shared live socket's state is the map's transport
     // truth (same connection the durable lanes ride).
     const manager = client.liveStreamManager(connectionId);
@@ -589,16 +675,47 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
         : record.connection;
       if (next !== record.connection) {
         record.connection = next;
-        notify();
+        record.notify();
       }
     });
     overlay.onChange(handleChange);
     disposals.add(() => {
       record.offState?.();
+      if (record.expiryTimer) {
+        clearTimeout(record.expiryTimer);
+        record.expiryTimer = null;
+      }
+      if (record.resyncTimer) {
+        clearTimeout(record.resyncTimer);
+        record.resyncTimer = null;
+      }
       record.overlay.dispose();
     });
-    overlayCache.set(cacheKey, record);
+    scheduleExpiryReemit(record);
     return record;
+  };
+
+  // In-flight dedup (ENG-22479 review fix 1): two bindings of the same
+  // (collection, scope) mounting in one flush share ONE server subscription —
+  // the in-flight promise is cached before the await, and the resolved
+  // record replaces it for the synchronous attach path.
+  const ensureOverlay = (name, descriptor, args) => {
+    const cacheKey = `${name}\u0000${scopeKeyOf(args)}`;
+    const resolved = recordCache.get(cacheKey);
+    if (resolved) return Promise.resolve(resolved);
+    const inflight = pendingCache.get(cacheKey);
+    if (inflight) return inflight;
+    const permissions = ephemeralPermissions?.(name, args) ?? [];
+    const pending = createRecord(name, args, permissions)
+      .then((record) => {
+        recordCache.set(cacheKey, record);
+        return record;
+      })
+      .finally(() => {
+        pendingCache.delete(cacheKey);
+      });
+    pendingCache.set(cacheKey, pending);
+    return pending;
   };
 
   for (const [name, descriptor] of descriptors) {
@@ -609,9 +726,9 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       let active = true;
       let offListener = null;
       const cacheKey = `${name}\u0000${scopeKeyOf(args)}`;
-      const cached = overlayCache.get(cacheKey);
+      const cached = recordCache.get(cacheKey);
       const attach = (record) => {
-        if (!active) return;
+        if (!active || disposed) return;
         const listener = () => emit(toMapCell(record, descriptor));
         record.listeners.add(listener);
         offListener = () => record.listeners.delete(listener);
@@ -624,7 +741,7 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
         void ensureOverlay(name, descriptor, args)
           .then((record) => attach(record))
           .catch((error) => {
-            if (!active) return;
+            if (!active || disposed) return;
             console.warn(`[snapback-contract] ephemeral subscribe failed for "${name}"`, error);
             emit({ status: 'error', entries: [] });
           });
@@ -678,6 +795,7 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       return links;
     },
     dispose: () => {
+      disposed = true;
       for (const dispose of [...disposals]) {
         try {
           dispose();
@@ -686,7 +804,8 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
         }
       }
       disposals.clear();
-      overlayCache.clear();
+      recordCache.clear();
+      pendingCache.clear();
     },
   };
 }
