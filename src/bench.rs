@@ -70,7 +70,13 @@ impl BenchConfig {
             read_set_size: 4,
             conflict_trials: 8,
             ephemeral_publishes: 40,
-            busy_write_ms: 120,
+            // The busy window must dominate one read's own cost or the
+            // read-during-write assertions cannot discriminate queueing from
+            // slowness: a debug-build fresh-VM read is ~90-130ms on a 2-core
+            // CI runner (measured on the first local-proof run), so a 120ms
+            // window failed the lane read without any queueing. 800ms keeps
+            // ~3x margin there while adding ~1.5s to the smoke lane.
+            busy_write_ms: 800,
         }
     }
 }
