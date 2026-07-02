@@ -571,7 +571,11 @@ change the concurrency architecture and should land as one reviewed arc.
   from the ephemeral-map cap); hitting either collapses the queue to one
   durable `resync_required` signal (`reason: outbox_overflow`, sticky until
   drained) and bumps `outbox_overflows`. Test
-  `l1_durable_lane_overflow_bounds_and_signals_resync`.
+  `l1_durable_lane_overflow_bounds_and_signals_resync`. **Review note (P4):**
+  the server emits the overflow signal correctly and loses no rooms, but the
+  connection-level durable `resync_required` sentinel carries no
+  `subscription_id`; the client's handling of a *connection-wide* resync (vs a
+  per-subscription one) is part of P4's reconnect/resume protocol.
 - **L2 — Connection/subscription reaping.** No TTL or heartbeat exists;
   abandoned connections and their subscriptions live forever
   (`src/local.rs:169`) [confirmed]. (WS-attached connections do reap on
@@ -584,7 +588,11 @@ change the concurrency architecture and should land as one reviewed arc.
   120 s TTL) calls `reap_stale_connections`, which disconnects idle
   connections (tearing down subscriptions + ephemeral state) and counts them.
   `/inspect` gains `activeConnections`/`reapedConnections`. Test
-  `l2_abandoned_connection_is_reaped_with_counters`.
+  `l2_abandoned_connection_is_reaped_with_counters`. **Review note (edge,
+  accepted):** a WebSocket wedged by >120 s of send backpressure can be reaped
+  and, if it later resumes, re-register as a subscription-less connection until
+  socket close — self-correcting and only under pathological backpressure;
+  reaping an unresponsive client is the intended behavior.
 - **L3 — Change-journal retention.** `_snapback_changes` grows without bound
   (pruned only by `reset`) and its per-query
   `MAX(version) WHERE table_name = ?` check is a full scan — the only index
@@ -677,6 +685,13 @@ change the concurrency architecture and should land as one reviewed arc.
 **Phase 3 Done when:** L1–L5 closed; L6–L8 landed as a reviewed arc with the
 M1 harness (Phase 4) run before/after to quantify the win; L9 landed per
 LLP 0026's own acceptance — sequenced here, owned there.
+
+**L1–L5 completed 2026-07-01** (the design-independent lifecycle fixes), each
+test-first and adversarially reviewed (the review caught and fixed a HIGH
+read-set-validation bug in L3). L6–L8 (the concurrency arc: reader pool,
+blocking-work offload, event-driven delivery) and L9 remain — they change the
+concurrency architecture and want the M1 harness (Phase 4) before/after, so
+they are the natural next Phase 3 unit.
 
 ## Phase 4 — Measurement
 
