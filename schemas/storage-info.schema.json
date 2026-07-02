@@ -2,7 +2,7 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/storage-info.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
-    "sqlite_path": {
+    "sqlitePath": {
       "type": [
         "string",
         "null"

@@ -17,6 +17,7 @@
 
 use serde_json::Value;
 
+use crate::admin::AdminInspect;
 use crate::diagnostic::Diagnostic;
 use crate::host_ops::{HostOpsResult, HostReadyDescriptor};
 use crate::local::{InspectState, PublicInspect};
@@ -70,6 +71,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "host-ready.schema.json",
             schemars::schema_for!(HostReadyDescriptor),
+        ),
+        finish(
+            "inspect.admin.schema.json",
+            schemars::schema_for!(AdminInspect),
         ),
     ]
 }

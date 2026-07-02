@@ -128,11 +128,14 @@ pub struct InspectState {
     pub live_delivery: LiveDeliveryStats,
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
+    #[serde(rename = "recentDiagnostics", alias = "recent_diagnostics")]
     pub recent_diagnostics: Vec<Diagnostic>,
+    #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
     pub capability_gaps: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LiveSubscriptionInfo {
     pub id: String,
     pub connection_id: String,
@@ -173,7 +176,9 @@ pub struct PublicInspect {
     pub live_delivery: LiveDeliveryStats,
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
+    #[serde(rename = "recentDiagnostics", alias = "recent_diagnostics")]
     pub recent_diagnostics: Vec<Diagnostic>,
+    #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
     pub capability_gaps: Vec<String>,
 }
 
@@ -186,6 +191,7 @@ pub struct PublicStorageInfo {
 
 /// Public subscription facts: id and function, never the owning connection id.
 #[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct PublicSubscriptionInfo {
     pub id: String,
     pub function: String,
@@ -391,6 +397,7 @@ pub struct LiveResyncRequired {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LiveDeliveryStats {
     pub total_fanout_attempts: u64,
     pub total_deliveries: u64,

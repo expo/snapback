@@ -492,6 +492,7 @@ impl RealtimeEnvelope {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct EphemeralDiagnostics {
     pub room_count: usize,
     pub entry_count: usize,
@@ -521,6 +522,7 @@ pub struct EphemeralDiagnostics {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct EphemeralRoomDiagnostics {
     pub collection: String,
     pub routing_key: String,

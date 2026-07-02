@@ -9,7 +9,7 @@ import * as contractRuntime from '@exact/contract/runtime';
 import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
-import { AdminClient } from './admin-client.mjs';
+import { AdminClient } from '../packages/snapback-admin-client/index.mjs';
 import { createAdminSurface } from './admin-boundary.mjs';
 import app from './app.contract';
 import {

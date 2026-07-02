@@ -1328,7 +1328,35 @@ parallel with Phase 3.
   admin client (LLP 0017 open question), normalize or typed-project the
   inspect payload (pairs with 0031 D3's trimmed public inspect). **Done
   when:** both consoles consume one client package and a typed inspect
-  schema; a casing-consistency test exists.
+  schema; a casing-consistency test exists. **Scope addition (2026-07-02,
+  found by the Phase 5 full-proof run):** admin-ui still consumes the
+  sibling Exact checkout at live HEAD — its `./build.sh` broke against
+  Exact commits landed the same day ("pure context calls opaque import
+  fonts" in `app.contract` + a moved exact-core internal), while the demos,
+  pinned via `exact.pin.json` since ENG-22463/22487, kept building. P8
+  should adopt the pinned consumption (`exactContractWeb` preset + pin) for
+  admin-ui — the same toolchain-drift class Diary 0009's red-team named.
+  **Re-landed 2026-07-03 (ENG-22680), legs 2+3; leg 1 superseded.**
+  (1) *Pinned consumption:* NOT re-landed — the stranded `checkExactPin` +
+  `admin-ui/exact.pin.json` ceremony was superseded on this line by the
+  registry-packages-over-pinned-checkout direction (b64336a: bun.lock is
+  THE pin) and by ENG-22600's dev-serve/build fixes against the sibling
+  checkout; admin-ui's future pin is registry packages, not a checkout
+  hash. The stranded `theme.contract-meta.ts` pure() declarations were
+  independently superseded by ENG-22665's version on this line. (2) *One admin client:*
+  `@snapback/admin-client` — the Contract admin-ui imports the workspace
+  package, the embedded console imports the byte-identical module served
+  embedded at `/_snapback/admin/client.mjs`
+  (`p8_both_consoles_consume_the_one_embedded_admin_client`); the console's
+  inline `api()` duplicate is deleted. (3) *Typed inspect:* the payload is
+  camelCase end to end (StorageInfo, RuntimeCapabilities, delivery/
+  ephemeral/cron counters, the server/admin blocks; `DiagnosticSeverity`
+  now serializes lowercase, conforming Rust to the JS diagnostic family it
+  had drifted from — aliases keep old spellings parsing); the embedded v0
+  artifacts keep their LLP 0012-pinned shapes as the documented exception;
+  committed schemas `inspect.admin.schema.json` + `inspect.public.schema.json`
+  ride the LLP 0037 drift gate; `tests/inspect_casing_v0.rs` walks both real
+  payloads. All 188 Rust tests green; every touched JS suite green.
 
 ## Phase 6 — Strategic derisking
 

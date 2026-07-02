@@ -69,8 +69,8 @@ try {
     assertEqual(api.createTodo.kind, 'Mutation', 'generated createTodo reference kind');
     assertEqual(state.functions.artifactKind, 'functionManifest', 'function manifest artifact kind');
     assertEqual(state.capabilityManifest.artifactKind, 'capabilityManifest', 'capability manifest artifact kind');
-    assertEqual(state.runtime.ibex_ctx_db_host_bridge, 'Available', 'embedded ctx.db bridge capability');
-    assert(!state.capability_gaps.includes('ibex_ctx_db_host_bridge'), 'ctx.db bridge should not be reported as a gap once wired');
+    assertEqual(state.runtime.ibexCtxDbHostBridge, 'Available', 'embedded ctx.db bridge capability');
+    assert(!state.capabilityGaps.includes('ibex_ctx_db_host_bridge'), 'ctx.db bridge should not be reported as a gap once wired');
     assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-eq-replace'), 'live matcher capability form');
     assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-in-replace'), 'live matcher In capability form');
     assert(state.capabilityManifest.supportedQueryForms.includes('ibex-live-range-replace'), 'live matcher range capability form');
@@ -78,7 +78,7 @@ try {
     assert(state.capabilityManifest.supportedQueryForms.includes('websocket-live-replace'), 'websocket live replace capability form');
     assert(!state.capabilityManifest.capabilityGaps.includes('websocket_push_transport'), 'push transport should not be a gap once wired');
     assert(!state.capabilityManifest.capabilityGaps.includes('precise_realtime_query_range_matcher'), 'precise range matcher should not be a gap once reconnect epochs are covered');
-    return { functions: names, capability_gaps: state.capability_gaps, bridge: state.runtime.ibex_ctx_db_host_bridge, generatedRef: api.createTodo };
+    return { functions: names, capabilityGaps: state.capabilityGaps, bridge: state.runtime.ibexCtxDbHostBridge, generatedRef: api.createTodo };
   });
 
   await suite.check('deterministic reset + declarative seed', async () => {
@@ -340,7 +340,7 @@ try {
       const pubAck = await stream.nextUpdate();
       assertEqual(pubAck.kind, 'ephemeral_ack', 'ws publish ack kind');
       assertEqual(pubAck.operation, 'publish', 'ws publish ack operation');
-      return { coalesced: (await db.inspect()).ephemeral.coalesced_updates, rateLimited };
+      return { coalesced: (await db.inspect()).ephemeral.coalescedUpdates, rateLimited };
     } finally {
       stream.close();
     }
@@ -354,8 +354,8 @@ try {
     const updates = await db.drainUpdates('client_disjoint');
     assertEqual(updates, [], 'other-user create should not refresh Ada subscription');
     const state = await db.inspect();
-    assertEqual(state.liveDelivery.last_skipped, 1, 'matcher skip count');
-    assertEqual(state.liveDelivery.last_deliveries, 0, 'matcher delivery count');
+    assertEqual(state.liveDelivery.lastSkipped, 1, 'matcher skip count');
+    assertEqual(state.liveDelivery.lastDeliveries, 0, 'matcher delivery count');
     return { updates: updates.length, liveDelivery: state.liveDelivery };
   });
 
@@ -366,13 +366,13 @@ try {
     await db.mutate(api.setCompleted, { args: { id: hidden.result, completed: true }, userId: GRACE });
     assertEqual(await db.drainUpdates('client_hidden'), [], 'hidden patch should not refresh Ada subscription');
     const patchState = await db.inspect();
-    assertEqual(patchState.liveDelivery.last_skipped, 1, 'hidden patch skip count');
-    assertEqual(patchState.liveDelivery.last_deliveries, 0, 'hidden patch delivery count');
+    assertEqual(patchState.liveDelivery.lastSkipped, 1, 'hidden patch skip count');
+    assertEqual(patchState.liveDelivery.lastDeliveries, 0, 'hidden patch delivery count');
     await db.mutate(api.deleteTodo, { args: { id: hidden.result }, userId: GRACE });
     assertEqual(await db.drainUpdates('client_hidden'), [], 'hidden delete should not refresh Ada subscription');
     const deleteState = await db.inspect();
-    assertEqual(deleteState.liveDelivery.last_skipped, 1, 'hidden delete skip count');
-    assertEqual(deleteState.liveDelivery.last_deliveries, 0, 'hidden delete delivery count');
+    assertEqual(deleteState.liveDelivery.lastSkipped, 1, 'hidden delete skip count');
+    assertEqual(deleteState.liveDelivery.lastDeliveries, 0, 'hidden delete delivery count');
     return { hiddenId: hidden.result, liveDelivery: deleteState.liveDelivery };
   });
 
@@ -385,8 +385,8 @@ try {
     const created = await db.mutate(api.createTodo, { args: { title: 'Still open' }, userId: ADA });
     assertEqual(await db.drainUpdates('client_completed'), [], 'completed=false insert should not refresh completed=true subscription');
     const skipped = await db.inspect();
-    assertEqual(skipped.liveDelivery.last_skipped, 1, 'completed=false skip count');
-    assertEqual(skipped.liveDelivery.last_deliveries, 0, 'completed=false delivery count');
+    assertEqual(skipped.liveDelivery.lastSkipped, 1, 'completed=false skip count');
+    assertEqual(skipped.liveDelivery.lastDeliveries, 0, 'completed=false delivery count');
 
     await db.mutate(api.setCompleted, { args: { id: created.result, completed: true }, userId: ADA });
     const rows = await completed.poll();
@@ -394,8 +394,8 @@ try {
     assertEqual(rows[0]._id, created.result, 'completed row id');
     assertEqual(rows[0].completed, true, 'completed row flag');
     const delivered = await db.inspect();
-    assertEqual(delivered.liveDelivery.last_deliveries, 1, 'completed=true delivery count');
-    assertEqual(delivered.liveDelivery.last_skipped, 0, 'completed=true skip count');
+    assertEqual(delivered.liveDelivery.lastDeliveries, 1, 'completed=true delivery count');
+    assertEqual(delivered.liveDelivery.lastSkipped, 0, 'completed=true skip count');
     return { id: created.result, liveDelivery: delivered.liveDelivery };
   });
 

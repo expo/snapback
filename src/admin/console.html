@@ -224,8 +224,8 @@
 <main id="main"></main>
 <div class="toast" id="toast"></div>
 
-<script>
-"use strict";
+<script type="module">
+import { AdminClient } from "/_snapback/admin/client.mjs";
 
 const API = "/_snapback/api";
 const TABS = ["Overview", "Schema", "Data", "Functions", "Secrets", "Cron", "Realtime", "Diagnostics"];
@@ -292,26 +292,21 @@ function toast(msg) {
 }
 
 /* ---------- api ---------- */
-async function api(path, opts = {}) {
-  const headers = Object.assign({}, opts.headers);
-  if (store.token) headers["x-snapback-admin-token"] = store.token;
-  if (opts.body !== undefined) headers["content-type"] = "application/json";
-  const res = await fetch(API + path, {
-    method: opts.method || "GET",
-    headers,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  });
-  const text = await res.text();
-  const json = text ? JSON.parse(text) : null;
-  if (res.status === 401 || res.status === 403) {
-    showAuthBanner(json && json.diagnostic ? json.diagnostic.message : "Admin access denied.");
-    const err = new Error("auth"); err.handled = true; throw err;
+// One shared client for both consoles (LLP 0032 P8): this is the same module
+// the Contract admin-ui imports as @snapback/admin-client, served embedded at
+// /_snapback/admin/client.mjs so client behavior cannot drift per console.
+const client = new AdminClient(API, { token: store.token });
+
+async function adminCall(run) {
+  try {
+    return await run();
+  } catch (err) {
+    if (err.status === 401 || err.status === 403) {
+      showAuthBanner(err.diagnostic ? err.diagnostic.message : "Admin access denied.");
+      const handled = new Error("auth"); handled.handled = true; throw handled;
+    }
+    throw err;
   }
-  if (!res.ok) {
-    const d = json && json.diagnostic ? json.diagnostic : { code: "HTTP_" + res.status, message: text };
-    const err = new Error(d.code + ": " + (d.message || "")); err.diagnostic = d; throw err;
-  }
-  return json;
 }
 
 function showAuthBanner(msg) {
@@ -324,7 +319,7 @@ function hideAuthBanner() { $("#authbanner").classList.remove("show"); }
 /* ---------- refresh ---------- */
 async function refresh() {
   try {
-    store.inspect = await api("/inspect");
+    store.inspect = await adminCall(() => client.inspect());
     hideAuthBanner();
     $("#updated").textContent = "updated " + new Date().toLocaleTimeString();
     renderTopbar();
@@ -346,9 +341,9 @@ function renderTopbar() {
     s.server.loopback
       ? el("span", { class: "badge ok" }, "loopback")
       : el("span", { class: "badge warn" }, "exposed"),
-    el("span", { class: "badge" }, s.server.storage_mode === "memory" ? "in-memory" : "file"),
+    el("span", { class: "badge" }, s.server.storageMode === "memory" ? "in-memory" : "file"),
     el("span", { class: "badge" }, "db v" + s.storage.version),
-    s.admin.token_configured
+    s.admin.tokenConfigured
       ? el("span", { class: "badge accent" }, "token set")
       : el("span", { class: "badge" }, "no token"),
   );
@@ -360,7 +355,7 @@ function renderTabs() {
     Schema: s ? s.schema.tables.length : 0,
     Functions: s ? s.functions.functions.length : 0,
     Cron: s && s.cron ? s.cron.jobs.length : 0,
-    Diagnostics: s ? s.recent_diagnostics.length : 0,
+    Diagnostics: s ? s.recentDiagnostics.length : 0,
   };
   const nav = $("#tabs"); nav.innerHTML = "";
   for (const name of TABS) {
@@ -420,43 +415,43 @@ function renderOverview(main) {
       kv("Address", s.server.host + ":" + s.server.port, true),
       kv("Exposure", s.server.loopback ? el("span", { class: "badge ok" }, "loopback only") : el("span", { class: "badge warn" }, "non-loopback")),
       kv("PID", s.server.pid, true),
-      kv("Uptime", fmtDuration(s.server.uptime_ms)),
-      kv("Started", fmtTime(s.server.started_at_ms)),
+      kv("Uptime", fmtDuration(s.server.uptimeMs)),
+      kv("Started", fmtTime(s.server.startedAtMs)),
     ),
     card("Storage", null,
-      kv("Mode", s.server.storage_mode === "memory" ? "in-memory" : "file-backed"),
-      kv("SQLite path", s.storage.sqlite_path || "—", true),
+      kv("Mode", s.server.storageMode === "memory" ? "in-memory" : "file-backed"),
+      kv("SQLite path", s.storage.sqlitePath || "—", true),
       kv("Data version", s.storage.version, true),
       kv("Tables", s.storage.tables.length),
       kv("Schema hash", schemaHash(s.schema), true),
     ),
     card("Runtime", null,
-      kv("Canonical engine", r.canonical_engine),
-      kv("Ibex CLI", r.ibex_cli.available ? el("span", { class: "badge ok" }, r.ibex_cli.version || "available") : el("span", { class: "badge warn" }, "unavailable")),
-      kv("Ibex submodule", yn(r.ibex_submodule.present)),
-      kv("Host-plan runtime", yn(r.host_plan_runtime)),
-      kv("Async handler", el("span", { class: "badge" }, r.async_handler_completion)),
-      kv("Lock across async", el("span", { class: "badge" }, r.sqlite_lock_held_across_async)),
+      kv("Canonical engine", r.canonicalEngine),
+      kv("Ibex CLI", r.ibexCli.available ? el("span", { class: "badge ok" }, r.ibexCli.version || "available") : el("span", { class: "badge warn" }, "unavailable")),
+      kv("Ibex submodule", yn(r.ibexSubmodule.present)),
+      kv("Host-plan runtime", yn(r.hostPlanRuntime)),
+      kv("Async handler", el("span", { class: "badge" }, r.asyncHandlerCompletion)),
+      kv("Lock across async", el("span", { class: "badge" }, r.sqliteLockHeldAcrossAsync)),
     ),
     card("Admin", null,
       kv("Console", yn(s.admin.console)),
-      kv("Data explorer", yn(s.admin.data_explorer)),
-      kv("Function runner", yn(s.admin.function_runner)),
-      kv("Cron controls", yn(s.admin.cron_controls)),
-      kv("Direct row edit", yn(s.admin.direct_data_edit)),
-      kv("Raw SQL", yn(s.admin.raw_sql)),
-      kv("Writes require token", yn(s.admin.writes_require_token)),
+      kv("Data explorer", yn(s.admin.dataExplorer)),
+      kv("Function runner", yn(s.admin.functionRunner)),
+      kv("Cron controls", yn(s.admin.cronControls)),
+      kv("Direct row edit", yn(s.admin.directDataEdit)),
+      kv("Raw SQL", yn(s.admin.rawSql)),
+      kv("Writes require token", yn(s.admin.writesRequireToken)),
     ),
   );
   main.append(grid);
 
   main.append(el("div", { class: "section-title" }, "Capability gaps",
     el("span", { class: "muted", style: "font-weight:400" }, "— what this target does not do yet")));
-  if (s.capability_gaps.length === 0) {
+  if (s.capabilityGaps.length === 0) {
     main.append(el("div", { class: "empty" }, "No declared gaps."));
   } else {
     const chips = el("div", { class: "chips" });
-    for (const g of s.capability_gaps) chips.append(el("span", { class: "badge warn" }, g));
+    for (const g of s.capabilityGaps) chips.append(el("span", { class: "badge warn" }, g));
     main.append(chips);
   }
 }
@@ -510,7 +505,7 @@ function renderData(main) {
 async function loadData() {
   const wrap = $("#datawrap"); if (!wrap) return;
   try {
-    const scan = await api("/data/" + encodeURIComponent(store.dataTable) + "?limit=" + store.dataLimit + "&offset=" + store.dataOffset);
+    const scan = await adminCall(() => client.scanTable(store.dataTable, store.dataLimit, store.dataOffset));
     wrap.innerHTML = "";
     if (scan.rows.length === 0) { wrap.append(el("div", { class: "empty" }, "No rows in " + scan.table + ".")); $("#pager").innerHTML = ""; return; }
     const tw = el("div", { class: "tablewrap" });
@@ -668,10 +663,9 @@ async function runSelected() {
   catch (e) { out.append(el("div", { class: "banner err show", style: "margin:0" }, "Invalid JSON args: " + e.message)); return; }
   const userId = $("#runUser").value.trim() || null;
   try {
-    const res = await api("/functions/" + encodeURIComponent(name) + "/run", {
-      method: "POST",
-      body: { args: parsed, auth: { principal: userId, session_id: null, user_id: userId }, read_set: [] },
-    });
+    const res = await adminCall(() => client.runFunction(name, {
+      args: parsed, auth: { principal: userId, session_id: null, user_id: userId }, read_set: [],
+    }));
     renderRunResult(out, res);
   } catch (e) {
     if (!e.handled) out.append(el("div", { class: "banner err show", style: "margin:0" }, e.message));
@@ -800,7 +794,7 @@ async function verifyConfigEntry(name) {
 function renderCron(main) {
   const cron = store.inspect.cron || { jobs: [], recentRuns: [], diagnostics: [] };
   main.append(el("div", { class: "toolbar" },
-    el("button", { class: "primary", disabled: store.inspect.admin.cron_controls ? false : "disabled", onclick: tickCron }, "Tick due jobs"),
+    el("button", { class: "primary", disabled: store.inspect.admin.cronControls ? false : "disabled", onclick: tickCron }, "Tick due jobs"),
     el("span", { class: "muted" }, "Scheduler state comes from /_snapback/api/inspect")));
   if (cron.jobs.length === 0) {
     main.append(el("div", { class: "empty" }, "No cron jobs declared."));
@@ -852,7 +846,7 @@ function renderCron(main) {
 
 async function tickCron() {
   try {
-    const runs = await api("/cron/tick", { method: "POST" });
+    const runs = await adminCall(() => client.tickCron());
     toast(runs.length ? "Cron tick ran " + runs.length + " job(s)" : "No due cron jobs");
     refresh();
   } catch (e) { if (!e.handled) toast(e.message); }
@@ -860,7 +854,7 @@ async function tickCron() {
 
 async function runCronJob(name) {
   try {
-    const run = await api("/cron/" + encodeURIComponent(name) + "/run", { method: "POST" });
+    const run = await adminCall(() => client.runCronJob(name));
     toast(name + ": " + run.outcome);
     refresh();
   } catch (e) { if (!e.handled) toast(e.message); }
@@ -878,7 +872,7 @@ function renderRealtime(main) {
     const tbl = el("table", { class: "data" });
     tbl.append(el("thead", {}, el("tr", {}, el("th", {}, "Subscription"), el("th", {}, "Connection"), el("th", {}, "Function"))));
     const tb = el("tbody");
-    for (const sub of s.subscriptions) tb.append(el("tr", {}, el("td", { class: "sys" }, sub.id), el("td", { class: "sys" }, sub.connection_id), el("td", {}, sub.function)));
+    for (const sub of s.subscriptions) tb.append(el("tr", {}, el("td", { class: "sys" }, sub.id), el("td", { class: "sys" }, sub.connectionId), el("td", {}, sub.function)));
     tbl.append(tb); tw.append(tbl); main.append(tw);
   }
 
@@ -886,16 +880,16 @@ function renderRealtime(main) {
   main.append(el("div", { class: "section-title" }, "Ephemeral rooms",
     el("span", { class: "muted", style: "font-weight:400" }, "— process-local memory, cleared on restart"),
     el("span", { class: "spacer", style: "flex:1" }),
-    s.admin.ephemeral_cleanup ? el("button", { class: "ghost", onclick: cleanupEphemeral }, "Cleanup expired") : null));
+    s.admin.ephemeralCleanup ? el("button", { class: "ghost", onclick: cleanupEphemeral }, "Cleanup expired") : null));
   const stats = [
-    ["Rooms", e.room_count], ["Entries", e.entry_count], ["Subscribers", e.subscriber_count],
-    ["Value bytes", fmtBytes(e.value_bytes)],
-    ["Coalesced", e.coalesced_updates], ["Resync required", e.resync_required, e.resync_required > 0],
-    ["Rejected", e.rejected_publishes, e.rejected_publishes > 0],
-    ["Rate-limited", e.rate_limited_publishes, e.rate_limited_publishes > 0],
-    ["Oversized", e.oversized_publishes, e.oversized_publishes > 0],
-    ["Unauthorized", e.unauthorized_requests, e.unauthorized_requests > 0],
-    ["Expired", e.expired_entries], ["Disconnected", e.disconnected_entries],
+    ["Rooms", e.roomCount], ["Entries", e.entryCount], ["Subscribers", e.subscriberCount],
+    ["Value bytes", fmtBytes(e.valueBytes)],
+    ["Coalesced", e.coalescedUpdates], ["Resync required", e.resyncRequired, e.resyncRequired > 0],
+    ["Rejected", e.rejectedPublishes, e.rejectedPublishes > 0],
+    ["Rate-limited", e.rateLimitedPublishes, e.rateLimitedPublishes > 0],
+    ["Oversized", e.oversizedPublishes, e.oversizedPublishes > 0],
+    ["Unauthorized", e.unauthorizedRequests, e.unauthorizedRequests > 0],
+    ["Expired", e.expiredEntries], ["Disconnected", e.disconnectedEntries],
   ];
   const grid = el("div", { class: "stat-grid" });
   for (const [l, n, alert] of stats) grid.append(el("div", { class: "stat" + (alert ? " alert" : "") }, el("div", { class: "n" }, n), el("div", { class: "l" }, l)));
@@ -903,13 +897,13 @@ function renderRealtime(main) {
 }
 
 async function cleanupEphemeral() {
-  try { await api("/ephemeral/cleanup", { method: "POST" }); toast("Expired entries cleaned up"); refresh(); }
+  try { await adminCall(() => client.cleanupEphemeral()); toast("Expired entries cleaned up"); refresh(); }
   catch (e) { if (!e.handled) toast(e.message); }
 }
 
 /* ---------- Diagnostics ---------- */
 function renderDiagnostics(main) {
-  const ds = store.inspect.recent_diagnostics;
+  const ds = store.inspect.recentDiagnostics;
   if (ds.length === 0) { main.append(el("div", { class: "empty" }, "No recent diagnostics.")); return; }
   main.append(el("div", { class: "section-title" }, "Recent diagnostics", el("span", { class: "badge" }, ds.length)));
   const list = el("div", { class: "card" });
@@ -932,7 +926,7 @@ $("#auto").addEventListener("change", (e) => {
 });
 $("#tokenSave").addEventListener("click", () => {
   store.token = $("#tokenInput").value.trim();
-  localStorage.setItem("snapback_admin_token", store.token);
+  client.setToken(store.token);
   refresh();
 });
 $("#tokenInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#tokenSave").click(); });

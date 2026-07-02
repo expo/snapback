@@ -1,0 +1,2338 @@
+{
+  "$defs": {
+    "AccessPolicy": {
+      "oneOf": [
+        {
+          "enum": [
+            "AllowAll"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RequireRoomPermission": {
+              "properties": {
+                "prefix": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "prefix"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RequireRoomPermission"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ActionPlan": {
+      "properties": {
+        "returnValue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ActionReturnValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "steps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ActionStep"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ActionReturnValue": {
+      "oneOf": [
+        {
+          "enum": [
+            "LastMutationResult",
+            "ChangedCount"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binding": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Binding"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ActionStep": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RunMutation": {
+              "properties": {
+                "args": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "default": {},
+                  "type": "object"
+                },
+                "bindResultAs": {
+                  "default": null,
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RunMutation"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AdminCapabilities": {
+      "description": "Which admin capabilities this target offers, and how writes are gated.\n\n@ref LLP 0017#headless-admin-contract — admin-write capability is a reported\ncapability field, not a private flag, and unimplemented surfaces are honest\ngaps rather than placeholder controls.",
+      "properties": {
+        "bindLoopback": {
+          "type": "boolean"
+        },
+        "console": {
+          "type": "boolean"
+        },
+        "cronControls": {
+          "type": "boolean"
+        },
+        "dataExplorer": {
+          "type": "boolean"
+        },
+        "directDataEdit": {
+          "description": "Not in this slice: direct row edits land only once they commit as ordinary\nchangesets with validation and live notification.",
+          "type": "boolean"
+        },
+        "ephemeralCleanup": {
+          "type": "boolean"
+        },
+        "functionRunner": {
+          "type": "boolean"
+        },
+        "rawSql": {
+          "description": "Not in this slice: raw SQL is an explicit portability/safety opt-out.",
+          "type": "boolean"
+        },
+        "readInspect": {
+          "type": "boolean"
+        },
+        "tokenConfigured": {
+          "type": "boolean"
+        },
+        "writesRequireToken": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "console",
+        "readInspect",
+        "dataExplorer",
+        "functionRunner",
+        "cronControls",
+        "ephemeralCleanup",
+        "directDataEdit",
+        "rawSql",
+        "tokenConfigured",
+        "writesRequireToken",
+        "bindLoopback"
+      ],
+      "type": "object"
+    },
+    "AppIdentity": {
+      "description": "Optional presentation identity for the loaded app: how the instance should\nintroduce itself to a human. Everything here is public by construction — it\nis rendered on the public root page and flows into the public inspect\nprojection — so apps must not put secrets in it. The icon/wordmark URLs are\nordinary app-served or absolute URLs; the root page renders them as plain\n`<img>` references with attribute escaping.\n\n@ref LLP 0017#instance-home-page — the root page renders this identity when\n  the manifest declares it; absent, the page is Snapback-branded only.",
+      "properties": {
+        "description": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "iconUrl": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wordmarkUrl": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "CapabilityManifest": {
+      "properties": {
+        "artifactKind": {
+          "default": "capabilityManifest",
+          "type": "string"
+        },
+        "assetUpload": {
+          "type": "boolean"
+        },
+        "authImpersonation": {
+          "type": "boolean"
+        },
+        "capabilityGaps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cron": {
+          "type": "boolean"
+        },
+        "ephemeralHostedAdapter": {
+          "default": false,
+          "type": "boolean"
+        },
+        "ephemeralLocalRoomAuthority": {
+          "default": false,
+          "type": "boolean"
+        },
+        "ephemeralRealtime": {
+          "default": false,
+          "type": "boolean"
+        },
+        "ephemeralWebSocketPublish": {
+          "default": false,
+          "type": "boolean"
+        },
+        "liveSubscriptions": {
+          "type": "boolean"
+        },
+        "localServerLifecycle": {
+          "type": "boolean"
+        },
+        "mutationIsolationMode": {
+          "type": "string"
+        },
+        "notifications": {
+          "type": "boolean"
+        },
+        "offlineRetention": {
+          "type": "boolean"
+        },
+        "onlineOnlyQueries": {
+          "type": "boolean"
+        },
+        "optimisticReplay": {
+          "type": "boolean"
+        },
+        "outboundActions": {
+          "type": "boolean"
+        },
+        "permissionDiagnostics": {
+          "type": "boolean"
+        },
+        "portabilityOptOuts": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "replaceOnlyQueries": {
+          "type": "boolean"
+        },
+        "resourceLimits": {
+          "items": {
+            "$ref": "#/$defs/ResourceLimit"
+          },
+          "type": "array"
+        },
+        "runtimeEngine": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "default": "snapback.v0",
+          "type": "string"
+        },
+        "storageEngine": {
+          "type": "string"
+        },
+        "supportedQueryForms": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "syncableLiveQueries": {
+          "type": "boolean"
+        },
+        "targetProfileId": {
+          "type": "string"
+        },
+        "vmLifecycle": {
+          "default": "fresh-per-invocation",
+          "description": "VM lifecycle for handler execution: `\"fresh-per-invocation\"` (the\ndurable default and the only hosted posture) or `\"warm-pooled-reset\"`\n(the DK-4 trusted-local optimization — VM reuse per bundle behind a\nverified per-invocation reset). Surfaced so LLP 0012's honesty rule\nholds: an agent can see which execution semantics are in force.\n\n@ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — capability flag.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "targetProfileId",
+        "storageEngine",
+        "runtimeEngine",
+        "localServerLifecycle",
+        "liveSubscriptions",
+        "syncableLiveQueries",
+        "onlineOnlyQueries",
+        "replaceOnlyQueries",
+        "offlineRetention",
+        "optimisticReplay",
+        "mutationIsolationMode",
+        "authImpersonation",
+        "permissionDiagnostics",
+        "assetUpload",
+        "outboundActions",
+        "cron",
+        "notifications",
+        "supportedQueryForms",
+        "portabilityOptOuts",
+        "resourceLimits",
+        "capabilityGaps"
+      ],
+      "type": "object"
+    },
+    "CapabilityState": {
+      "enum": [
+        "Available",
+        "Unavailable",
+        "NotYetWired"
+      ],
+      "type": "string"
+    },
+    "ConfigEntryDefinition": {
+      "description": "@ref LLP 0036#declared-configuration-in-the-manifest — one declared config\nentry: names, purposes, and acquisition metadata are app source (public by\nconstruction); values never appear in any manifest.",
+      "properties": {
+        "acquisition": {
+          "description": "Structured, agent-readable acquisition metadata (LLP 0036 D6). The host\ncarries it verbatim to status/wizard consumers; v1 does not interpret it."
+        },
+        "default": {
+          "description": "Non-secret entries only; carried for forward compatibility. v1 rejects\nnon-secret entries at manifest validation, so this is always absent in\nan accepted manifest."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "howToGet": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "pool": {
+          "default": false,
+          "description": "The entry holds an ordered pool of values rotated across invocations.",
+          "type": "boolean"
+        },
+        "probe": {
+          "description": "Name of a declared action that test-calls the value (`config.verify`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "purpose": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "default": true,
+          "type": "boolean"
+        },
+        "secret": {
+          "default": true,
+          "description": "Default **true**: misclassification fails safe — forgetting the flag\nmakes a value more protected, never less (LLP 0036 D5).",
+          "type": "boolean"
+        },
+        "sourceSpan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceSpan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "CronActivationKind": {
+      "enum": [
+        "Always",
+        "WhileLive"
+      ],
+      "type": "string"
+    },
+    "CronActivationPolicy": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/CronActivationKind"
+        },
+        "whileLive": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "CronActivationState": {
+      "enum": [
+        "Armed",
+        "InactiveNoDemand",
+        "Disabled"
+      ],
+      "type": "string"
+    },
+    "CronInspectState": {
+      "properties": {
+        "artifactKind": {
+          "type": "string"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "type": "array"
+        },
+        "jobs": {
+          "items": {
+            "$ref": "#/$defs/CronJobInspect"
+          },
+          "type": "array"
+        },
+        "recentRuns": {
+          "items": {
+            "$ref": "#/$defs/CronRunRecord"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactKind",
+        "schemaVersion",
+        "jobs",
+        "recentRuns",
+        "diagnostics"
+      ],
+      "type": "object"
+    },
+    "CronJitterPolicy": {
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "maxOffsetMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "maxOffsetMs"
+      ],
+      "type": "object"
+    },
+    "CronJobDefinition": {
+      "description": "@ref LLP 0028#cron-job-definition — generated function manifests carry\nsource-authored cron jobs beside query/mutation/action handlers.",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "activation": {
+          "$ref": "#/$defs/CronActivationPolicy",
+          "default": {
+            "kind": "Always",
+            "whileLive": []
+          }
+        },
+        "enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "jitterPolicy": {
+          "$ref": "#/$defs/CronJitterPolicy",
+          "default": {
+            "enabled": true,
+            "maxOffsetMs": 0
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "overlapPolicy": {
+          "$ref": "#/$defs/CronOverlapPolicy",
+          "default": "NoOverlap"
+        },
+        "requiredCapabilities": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "retryPolicy": {
+          "$ref": "#/$defs/CronRetryPolicy",
+          "default": {
+            "mode": "NextTick"
+          }
+        },
+        "schedule": {
+          "$ref": "#/$defs/CronSchedule"
+        },
+        "sourceSpan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceSpan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "targetWakeup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CronTargetWakeup"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "schedule",
+        "action"
+      ],
+      "type": "object"
+    },
+    "CronJobInspect": {
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "activationPolicy": {
+          "type": "string"
+        },
+        "activationState": {
+          "$ref": "#/$defs/CronActivationState"
+        },
+        "consecutiveFailures": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "inFlightRunId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "jitterOffsetMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "jitterPolicy": {
+          "$ref": "#/$defs/CronJitterPolicy"
+        },
+        "jitterSeed": {
+          "type": "string"
+        },
+        "lastError": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastOutcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CronRunOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastRunAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "nextDueAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "nextNominalAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "recentRuns": {
+          "items": {
+            "$ref": "#/$defs/CronRunRecord"
+          },
+          "type": "array"
+        },
+        "schedule": {
+          "$ref": "#/$defs/CronSchedule"
+        },
+        "scheduleHash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "action",
+        "enabled",
+        "schedule",
+        "scheduleHash",
+        "activationPolicy",
+        "activationState",
+        "jitterPolicy",
+        "jitterSeed",
+        "jitterOffsetMs",
+        "consecutiveFailures",
+        "recentRuns"
+      ],
+      "type": "object"
+    },
+    "CronOverlapPolicy": {
+      "enum": [
+        "NoOverlap",
+        "Allow"
+      ],
+      "type": "string"
+    },
+    "CronRetryMode": {
+      "enum": [
+        "NextTick",
+        "Backoff"
+      ],
+      "type": "string"
+    },
+    "CronRetryPolicy": {
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/CronRetryMode"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "CronRunOutcome": {
+      "enum": [
+        "Succeeded",
+        "Failed",
+        "Skipped"
+      ],
+      "type": "string"
+    },
+    "CronRunRecord": {
+      "properties": {
+        "attempt": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "diagnostic": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dueAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "durationMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "finishedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string"
+        },
+        "jobName": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/CronRunOutcome"
+        },
+        "result": {
+          "default": null
+        },
+        "runId": {
+          "type": "string"
+        },
+        "scheduledAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "slotKey": {
+          "type": "string"
+        },
+        "startedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "trigger": {
+          "$ref": "#/$defs/CronRunTrigger"
+        }
+      },
+      "required": [
+        "runId",
+        "jobName",
+        "dueAtMs",
+        "startedAtMs",
+        "trigger",
+        "attempt",
+        "outcome",
+        "idempotencyKey",
+        "slotKey"
+      ],
+      "type": "object"
+    },
+    "CronRunTrigger": {
+      "enum": [
+        "Scheduled",
+        "Manual",
+        "Recovery",
+        "DemandCatchUp"
+      ],
+      "type": "string"
+    },
+    "CronSchedule": {
+      "properties": {
+        "cron": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "everyMs": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "CronTargetWakeup": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/CronTargetWakeupKind"
+        },
+        "needsDurableRunner": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "CronTargetWakeupKind": {
+      "enum": [
+        "IntervalMs",
+        "CronExpression",
+        "DynamicAlarm"
+      ],
+      "type": "string"
+    },
+    "DependencySummary": {
+      "properties": {
+        "authScopeField": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primaryTable": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tables": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Diagnostic": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem",
+        "message",
+        "details"
+      ],
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "info",
+        "warning",
+        "error",
+        "fatal"
+      ],
+      "type": "string"
+    },
+    "EphemeralCollection": {
+      "properties": {
+        "burst": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "defaultTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dispatchMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "hardMaxValueBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "keyMode": {
+          "$ref": "#/$defs/KeyMode"
+        },
+        "maxPendingEphemeralKeys": {
+          "default": 1024,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxValueBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "publish": {
+          "$ref": "#/$defs/AccessPolicy"
+        },
+        "routingFields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scopeFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "subscribe": {
+          "$ref": "#/$defs/AccessPolicy"
+        },
+        "sustainedHz": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "keyMode",
+        "routingFields",
+        "defaultTtlMs",
+        "maxTtlMs",
+        "maxValueBytes",
+        "hardMaxValueBytes",
+        "sustainedHz",
+        "burst",
+        "dispatchMs",
+        "publish",
+        "subscribe"
+      ],
+      "type": "object"
+    },
+    "EphemeralDiagnostics": {
+      "properties": {
+        "activeRooms": {
+          "items": {
+            "$ref": "#/$defs/EphemeralRoomDiagnostics"
+          },
+          "type": "array"
+        },
+        "coalescedUpdates": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "disconnectedEntries": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "entryCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expiredEntries": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "limitRejections": {
+          "default": 0,
+          "description": "Operations rejected by a hard room/store limit (L9). Structured\nrejection, never silent eviction.\n\n@ref LLP 0026#limits-and-diagnostics — limits are capability facts.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "outboxOverflows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "oversizedPublishes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pendingDurableMessages": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pendingEphemeralKeys": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pendingResyncMessages": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rateLimitedPublishes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rejectedPublishes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resyncRequired": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "roomCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "subscriberCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "unauthorizedRequests": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "valueBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "roomCount",
+        "entryCount",
+        "subscriberCount",
+        "valueBytes",
+        "activeRooms",
+        "pendingEphemeralKeys",
+        "pendingDurableMessages",
+        "pendingResyncMessages",
+        "rejectedPublishes",
+        "rateLimitedPublishes",
+        "oversizedPublishes",
+        "unauthorizedRequests",
+        "expiredEntries",
+        "disconnectedEntries",
+        "coalescedUpdates",
+        "resyncRequired",
+        "outboxOverflows"
+      ],
+      "type": "object"
+    },
+    "EphemeralRoomDiagnostics": {
+      "properties": {
+        "collection": {
+          "type": "string"
+        },
+        "entries": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "routingKey": {
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "scopeEpoch": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "subscribers": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "valueBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "collection",
+        "routingKey",
+        "scope",
+        "scopeEpoch",
+        "entries",
+        "subscribers",
+        "valueBytes"
+      ],
+      "type": "object"
+    },
+    "FieldManifest": {
+      "properties": {
+        "field_type": {
+          "$ref": "#/$defs/FieldType"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "field_type"
+      ],
+      "type": "object"
+    },
+    "FieldType": {
+      "enum": [
+        "String",
+        "Boolean",
+        "Integer",
+        "Real",
+        "Json"
+      ],
+      "type": "string"
+    },
+    "FilterExpr": {
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/FilterOp"
+        },
+        "value": {
+          "$ref": "#/$defs/ValueExpr"
+        }
+      },
+      "required": [
+        "field",
+        "op",
+        "value"
+      ],
+      "type": "object"
+    },
+    "FilterOp": {
+      "enum": [
+        "Eq",
+        "In",
+        "Lt",
+        "Lte",
+        "Gt",
+        "Gte"
+      ],
+      "type": "string"
+    },
+    "FunctionDefinition": {
+      "properties": {
+        "authRequirement": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bundleEntrypoint": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exportedName": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/FunctionKind"
+        },
+        "name": {
+          "type": "string"
+        },
+        "permissionEpochBumps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PermissionScopeExpr"
+          },
+          "type": "array"
+        },
+        "readSetSummary": {
+          "$ref": "#/$defs/DependencySummary",
+          "default": {
+            "authScopeField": null,
+            "mode": null,
+            "primaryTable": null,
+            "tables": []
+          }
+        },
+        "requiredCapabilities": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "runtime": {
+          "$ref": "#/$defs/FunctionRuntime"
+        },
+        "sourceSpan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceSpan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "syncabilityClass": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uses": {
+          "default": [],
+          "description": "@ref LLP 0036#declared-configuration-in-the-manifest — D8: the config\nentries this function may receive. Declaring an entry makes it exist;\nonly functions that name it here are granted it at runtime.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "writeSetSummary": {
+          "$ref": "#/$defs/DependencySummary",
+          "default": {
+            "authScopeField": null,
+            "mode": null,
+            "primaryTable": null,
+            "tables": []
+          }
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "runtime"
+      ],
+      "type": "object"
+    },
+    "FunctionKind": {
+      "enum": [
+        "Query",
+        "Mutation",
+        "LiveQuery",
+        "Action"
+      ],
+      "type": "string"
+    },
+    "FunctionManifest": {
+      "properties": {
+        "appId": {
+          "default": "local-app",
+          "type": "string"
+        },
+        "artifactKind": {
+          "default": "functionManifest",
+          "type": "string"
+        },
+        "bundleHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config": {
+          "default": [],
+          "description": "@ref LLP 0036#declared-configuration-in-the-manifest — declared config\nentries ride the generated function manifest the way cron jobs do.",
+          "items": {
+            "$ref": "#/$defs/ConfigEntryDefinition"
+          },
+          "type": "array"
+        },
+        "cronJobs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CronJobDefinition"
+          },
+          "type": "array"
+        },
+        "functions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FunctionDefinition"
+          },
+          "type": "array"
+        },
+        "generatedAt": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "inputsHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaVersion": {
+          "default": "snapback.v0",
+          "type": "string"
+        },
+        "unsupportedDependencyDiagnostics": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "FunctionRuntime": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "HostPlan": {
+              "$ref": "#/$defs/HandlerPlan"
+            }
+          },
+          "required": [
+            "HostPlan"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "IbexModule": {
+              "$ref": "#/$defs/IbexModule"
+            }
+          },
+          "required": [
+            "IbexModule"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "HandlerPlan": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Query": {
+              "$ref": "#/$defs/QueryPlan"
+            }
+          },
+          "required": [
+            "Query"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Mutation": {
+              "$ref": "#/$defs/MutationPlan"
+            }
+          },
+          "required": [
+            "Mutation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "$ref": "#/$defs/ActionPlan"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "IbexCliCapability": {
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "type": "object"
+    },
+    "IbexModule": {
+      "properties": {
+        "export": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "export"
+      ],
+      "type": "object"
+    },
+    "IbexSubmoduleCapability": {
+      "properties": {
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "present": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "present"
+      ],
+      "type": "object"
+    },
+    "IndexManifest": {
+      "properties": {
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "KeyMode": {
+      "enum": [
+        "Connection",
+        "Session",
+        "User",
+        "Custom"
+      ],
+      "type": "string"
+    },
+    "LiveDeliveryStats": {
+      "properties": {
+        "lastDeliveries": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastFailed": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastFanoutSubscriptions": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastSkipped": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "totalDeliveries": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "totalFailed": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "totalFanoutAttempts": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "totalSkipped": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "totalFanoutAttempts",
+        "totalDeliveries",
+        "totalSkipped",
+        "totalFailed",
+        "lastFanoutSubscriptions",
+        "lastDeliveries",
+        "lastSkipped",
+        "lastFailed"
+      ],
+      "type": "object"
+    },
+    "LiveSubscriptionInfo": {
+      "properties": {
+        "connectionId": {
+          "type": "string"
+        },
+        "function": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "connectionId",
+        "function"
+      ],
+      "type": "object"
+    },
+    "MutationPlan": {
+      "properties": {
+        "return_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReturnValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "steps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MutationStep"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "MutationStep": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Insert": {
+              "properties": {
+                "bind_id_as": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "table": {
+                  "type": "string"
+                },
+                "values": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "table",
+                "values"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Insert"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Patch": {
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                },
+                "values": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "table",
+                "id",
+                "values"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Patch"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Delete": {
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Delete"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "OrderDirection": {
+      "enum": [
+        "Asc",
+        "Desc"
+      ],
+      "type": "string"
+    },
+    "OrderExpr": {
+      "properties": {
+        "direction": {
+          "$ref": "#/$defs/OrderDirection"
+        },
+        "field": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "direction"
+      ],
+      "type": "object"
+    },
+    "PermissionScopeExpr": {
+      "oneOf": [
+        {
+          "enum": [
+            "AuthUser"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Arg": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Arg"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "QueryPlan": {
+      "properties": {
+        "filters": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "indexed_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "order": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/OrderExpr"
+          },
+          "type": "array"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table"
+      ],
+      "type": "object"
+    },
+    "ResourceLimit": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ResourceLimitStatus"
+        }
+      },
+      "required": [
+        "name",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ResourceLimitStatus": {
+      "enum": [
+        "Enforced",
+        "Advisory",
+        "Missing"
+      ],
+      "type": "string"
+    },
+    "ReturnValue": {
+      "oneOf": [
+        {
+          "enum": [
+            "ChangedCount"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binding": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Binding"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Document": {
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Document"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RuntimeCapabilities": {
+      "properties": {
+        "asyncHandlerCompletion": {
+          "$ref": "#/$defs/CapabilityState"
+        },
+        "canonicalEngine": {
+          "type": "string"
+        },
+        "hostPlanRuntime": {
+          "type": "boolean"
+        },
+        "ibexCli": {
+          "$ref": "#/$defs/IbexCliCapability"
+        },
+        "ibexCtxDbHostBridge": {
+          "$ref": "#/$defs/CapabilityState"
+        },
+        "ibexSubmodule": {
+          "$ref": "#/$defs/IbexSubmoduleCapability"
+        },
+        "sqliteLockHeldAcrossAsync": {
+          "$ref": "#/$defs/CapabilityState"
+        }
+      },
+      "required": [
+        "canonicalEngine",
+        "ibexSubmodule",
+        "ibexCli",
+        "hostPlanRuntime",
+        "ibexCtxDbHostBridge",
+        "asyncHandlerCompletion",
+        "sqliteLockHeldAcrossAsync"
+      ],
+      "type": "object"
+    },
+    "SchemaManifest": {
+      "properties": {
+        "app": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AppIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "appId": {
+          "default": "local-app",
+          "type": "string"
+        },
+        "artifactDiagnostics": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "type": "array"
+        },
+        "artifactKind": {
+          "default": "schemaManifest",
+          "type": "string"
+        },
+        "ephemeralCollections": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EphemeralCollection"
+          },
+          "type": "array"
+        },
+        "generatedAt": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "inputsHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "portabilityFlags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "schemaHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaVersion": {
+          "default": "snapback.v0",
+          "type": "string"
+        },
+        "sourceHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/TableManifest"
+          },
+          "type": "array"
+        },
+        "targetProfile": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "tables"
+      ],
+      "type": "object"
+    },
+    "ServerInfo": {
+      "description": "Server-runtime facts surfaced on the admin dashboard.",
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "loopback": {
+          "type": "boolean"
+        },
+        "pid": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "port": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "startedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "storageMode": {
+          "description": "`\"file\"` or `\"memory\"`, derived from the storage path.",
+          "type": "string"
+        },
+        "uptimeMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host",
+        "port",
+        "loopback",
+        "pid",
+        "startedAtMs",
+        "uptimeMs",
+        "storageMode"
+      ],
+      "type": "object"
+    },
+    "SourceSpan": {
+      "properties": {
+        "column": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "file",
+        "line",
+        "column"
+      ],
+      "type": "object"
+    },
+    "StorageInfo": {
+      "properties": {
+        "sqlitePath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tables": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "tables"
+      ],
+      "type": "object"
+    },
+    "TableManifest": {
+      "properties": {
+        "fields": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FieldManifest"
+          },
+          "type": "array"
+        },
+        "indexes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/IndexManifest"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "syncable": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ValueExpr": {
+      "oneOf": [
+        {
+          "enum": [
+            "AuthUserId",
+            "RuntimeId",
+            "RuntimeNow"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Arg": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Arg"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binding": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Binding"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/inspect.admin.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The canonical admin inspect payload: the existing `InspectState` extended in\nplace with `server` and `admin` blocks.\n\n@ref LLP 0017#headless-admin-contract — extend the runtime-state facts rather\nthan inventing a parallel schema.",
+  "properties": {
+    "activeConnections": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "admin": {
+      "$ref": "#/$defs/AdminCapabilities"
+    },
+    "artifactKind": {
+      "type": "string"
+    },
+    "capabilityGaps": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "capabilityManifest": {
+      "$ref": "#/$defs/CapabilityManifest"
+    },
+    "cron": {
+      "$ref": "#/$defs/CronInspectState"
+    },
+    "ephemeral": {
+      "$ref": "#/$defs/EphemeralDiagnostics"
+    },
+    "functions": {
+      "$ref": "#/$defs/FunctionManifest"
+    },
+    "liveDelivery": {
+      "$ref": "#/$defs/LiveDeliveryStats"
+    },
+    "reapedConnections": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "recentDiagnostics": {
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "type": "array"
+    },
+    "runtime": {
+      "$ref": "#/$defs/RuntimeCapabilities"
+    },
+    "schema": {
+      "$ref": "#/$defs/SchemaManifest"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "server": {
+      "$ref": "#/$defs/ServerInfo"
+    },
+    "storage": {
+      "$ref": "#/$defs/StorageInfo"
+    },
+    "subscriptions": {
+      "items": {
+        "$ref": "#/$defs/LiveSubscriptionInfo"
+      },
+      "type": "array"
+    },
+    "target": {
+      "type": "string"
+    },
+    "targetProfileId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "schemaVersion",
+    "targetProfileId",
+    "target",
+    "storage",
+    "runtime",
+    "schema",
+    "functions",
+    "capabilityManifest",
+    "subscriptions",
+    "activeConnections",
+    "reapedConnections",
+    "liveDelivery",
+    "ephemeral",
+    "cron",
+    "recentDiagnostics",
+    "capabilityGaps",
+    "server",
+    "admin"
+  ],
+  "title": "AdminInspect",
+  "type": "object"
+}

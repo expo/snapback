@@ -873,10 +873,10 @@
     },
     "DiagnosticSeverity": {
       "enum": [
-        "Info",
-        "Warning",
-        "Error",
-        "Fatal"
+        "info",
+        "warning",
+        "error",
+        "fatal"
       ],
       "type": "string"
     },
@@ -967,118 +967,118 @@
     },
     "EphemeralDiagnostics": {
       "properties": {
-        "active_rooms": {
+        "activeRooms": {
           "items": {
             "$ref": "#/$defs/EphemeralRoomDiagnostics"
           },
           "type": "array"
         },
-        "coalesced_updates": {
+        "coalescedUpdates": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "disconnected_entries": {
+        "disconnectedEntries": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "entry_count": {
+        "entryCount": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "expired_entries": {
+        "expiredEntries": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "limit_rejections": {
+        "limitRejections": {
           "default": 0,
           "description": "Operations rejected by a hard room/store limit (L9). Structured\nrejection, never silent eviction.\n\n@ref LLP 0026#limits-and-diagnostics — limits are capability facts.",
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "outbox_overflows": {
+        "outboxOverflows": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "oversized_publishes": {
+        "oversizedPublishes": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "pending_durable_messages": {
+        "pendingDurableMessages": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "pending_ephemeral_keys": {
+        "pendingEphemeralKeys": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "pending_resync_messages": {
+        "pendingResyncMessages": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "rate_limited_publishes": {
+        "rateLimitedPublishes": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "rejected_publishes": {
+        "rejectedPublishes": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "resync_required": {
+        "resyncRequired": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "room_count": {
+        "roomCount": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "subscriber_count": {
+        "subscriberCount": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "unauthorized_requests": {
+        "unauthorizedRequests": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "value_bytes": {
+        "valueBytes": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         }
       },
       "required": [
-        "room_count",
-        "entry_count",
-        "subscriber_count",
-        "value_bytes",
-        "active_rooms",
-        "pending_ephemeral_keys",
-        "pending_durable_messages",
-        "pending_resync_messages",
-        "rejected_publishes",
-        "rate_limited_publishes",
-        "oversized_publishes",
-        "unauthorized_requests",
-        "expired_entries",
-        "disconnected_entries",
-        "coalesced_updates",
-        "resync_required",
-        "outbox_overflows"
+        "roomCount",
+        "entryCount",
+        "subscriberCount",
+        "valueBytes",
+        "activeRooms",
+        "pendingEphemeralKeys",
+        "pendingDurableMessages",
+        "pendingResyncMessages",
+        "rejectedPublishes",
+        "rateLimitedPublishes",
+        "oversizedPublishes",
+        "unauthorizedRequests",
+        "expiredEntries",
+        "disconnectedEntries",
+        "coalescedUpdates",
+        "resyncRequired",
+        "outboxOverflows"
       ],
       "type": "object"
     },
@@ -1092,7 +1092,7 @@
           "minimum": 0,
           "type": "integer"
         },
-        "routing_key": {
+        "routingKey": {
           "type": "string"
         },
         "scope": {
@@ -1101,7 +1101,7 @@
           },
           "type": "object"
         },
-        "scope_epoch": {
+        "scopeEpoch": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
@@ -1111,7 +1111,7 @@
           "minimum": 0,
           "type": "integer"
         },
-        "value_bytes": {
+        "valueBytes": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
@@ -1119,12 +1119,12 @@
       },
       "required": [
         "collection",
-        "routing_key",
+        "routingKey",
         "scope",
-        "scope_epoch",
+        "scopeEpoch",
         "entries",
         "subscribers",
-        "value_bytes"
+        "valueBytes"
       ],
       "type": "object"
     },
@@ -1522,62 +1522,62 @@
     },
     "LiveDeliveryStats": {
       "properties": {
-        "last_deliveries": {
+        "lastDeliveries": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "last_failed": {
+        "lastFailed": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "last_fanout_subscriptions": {
+        "lastFanoutSubscriptions": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "last_skipped": {
+        "lastSkipped": {
           "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
-        "total_deliveries": {
+        "totalDeliveries": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "total_failed": {
+        "totalFailed": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "total_fanout_attempts": {
+        "totalFanoutAttempts": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
-        "total_skipped": {
+        "totalSkipped": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         }
       },
       "required": [
-        "total_fanout_attempts",
-        "total_deliveries",
-        "total_skipped",
-        "total_failed",
-        "last_fanout_subscriptions",
-        "last_deliveries",
-        "last_skipped",
-        "last_failed"
+        "totalFanoutAttempts",
+        "totalDeliveries",
+        "totalSkipped",
+        "totalFailed",
+        "lastFanoutSubscriptions",
+        "lastDeliveries",
+        "lastSkipped",
+        "lastFailed"
       ],
       "type": "object"
     },
     "LiveSubscriptionInfo": {
       "properties": {
-        "connection_id": {
+        "connectionId": {
           "type": "string"
         },
         "function": {
@@ -1589,7 +1589,7 @@
       },
       "required": [
         "id",
-        "connection_id",
+        "connectionId",
         "function"
       ],
       "type": "object"
@@ -1884,36 +1884,36 @@
     },
     "RuntimeCapabilities": {
       "properties": {
-        "async_handler_completion": {
+        "asyncHandlerCompletion": {
           "$ref": "#/$defs/CapabilityState"
         },
-        "canonical_engine": {
+        "canonicalEngine": {
           "type": "string"
         },
-        "host_plan_runtime": {
+        "hostPlanRuntime": {
           "type": "boolean"
         },
-        "ibex_cli": {
+        "ibexCli": {
           "$ref": "#/$defs/IbexCliCapability"
         },
-        "ibex_ctx_db_host_bridge": {
+        "ibexCtxDbHostBridge": {
           "$ref": "#/$defs/CapabilityState"
         },
-        "ibex_submodule": {
+        "ibexSubmodule": {
           "$ref": "#/$defs/IbexSubmoduleCapability"
         },
-        "sqlite_lock_held_across_async": {
+        "sqliteLockHeldAcrossAsync": {
           "$ref": "#/$defs/CapabilityState"
         }
       },
       "required": [
-        "canonical_engine",
-        "ibex_submodule",
-        "ibex_cli",
-        "host_plan_runtime",
-        "ibex_ctx_db_host_bridge",
-        "async_handler_completion",
-        "sqlite_lock_held_across_async"
+        "canonicalEngine",
+        "ibexSubmodule",
+        "ibexCli",
+        "hostPlanRuntime",
+        "ibexCtxDbHostBridge",
+        "asyncHandlerCompletion",
+        "sqliteLockHeldAcrossAsync"
       ],
       "type": "object"
     },
@@ -2037,7 +2037,7 @@
     },
     "StorageInfo": {
       "properties": {
-        "sqlite_path": {
+        "sqlitePath": {
           "type": [
             "string",
             "null"
@@ -2148,14 +2148,14 @@
     "artifactKind": {
       "type": "string"
     },
-    "capabilityManifest": {
-      "$ref": "#/$defs/CapabilityManifest"
-    },
-    "capability_gaps": {
+    "capabilityGaps": {
       "items": {
         "type": "string"
       },
       "type": "array"
+    },
+    "capabilityManifest": {
+      "$ref": "#/$defs/CapabilityManifest"
     },
     "cron": {
       "$ref": "#/$defs/CronInspectState"
@@ -2174,7 +2174,7 @@
       "minimum": 0,
       "type": "integer"
     },
-    "recent_diagnostics": {
+    "recentDiagnostics": {
       "items": {
         "$ref": "#/$defs/Diagnostic"
       },
@@ -2221,8 +2221,8 @@
     "liveDelivery",
     "ephemeral",
     "cron",
-    "recent_diagnostics",
-    "capability_gaps"
+    "recentDiagnostics",
+    "capabilityGaps"
   ],
   "title": "InspectState",
   "type": "object"

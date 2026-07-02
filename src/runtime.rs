@@ -22,6 +22,7 @@ use std::ptr;
 use std::time::Instant;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct RuntimeCapabilities {
     pub canonical_engine: String,
     pub ibex_submodule: IbexSubmoduleCapability,

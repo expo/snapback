@@ -49,9 +49,9 @@ try {
     assert(names.includes('listTodos') && names.includes('createTodo') && names.includes('setPriority'), `missing functions: ${names}`);
     assertEqual(state.functions.artifactKind, 'functionManifest', 'function manifest artifact kind');
     assertEqual(state.capabilityManifest.artifactKind, 'capabilityManifest', 'capability manifest artifact kind');
-    assertEqual(state.runtime.ibex_ctx_db_host_bridge, 'Available', 'embedded ctx.db bridge capability');
-    assert(!state.capability_gaps.includes('ibex_ctx_db_host_bridge'), 'ctx.db bridge should not be reported as a gap once wired');
-    return { functions: names, capability_gaps: state.capability_gaps, bridge: state.runtime.ibex_ctx_db_host_bridge, capabilityManifest: state.capabilityManifest };
+    assertEqual(state.runtime.ibexCtxDbHostBridge, 'Available', 'embedded ctx.db bridge capability');
+    assert(!state.capabilityGaps.includes('ibex_ctx_db_host_bridge'), 'ctx.db bridge should not be reported as a gap once wired');
+    return { functions: names, capabilityGaps: state.capabilityGaps, bridge: state.runtime.ibexCtxDbHostBridge, capabilityManifest: state.capabilityManifest };
   });
 
   await suite.check('deterministic reset + declarative seed with priorities', async () => {

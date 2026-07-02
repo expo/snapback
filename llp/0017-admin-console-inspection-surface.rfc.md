@@ -675,9 +675,22 @@ where possible.
   the embedded single-file console is the baseline/fallback, and a statically
   built Contract/Exact console is the richer UI served from a `dist/` snapshot
   (*Static bundling and the native shell*). The remaining open items are narrower:
-  (a) the two do not yet **share one admin client package**; and (b) whether the
+  (a) ~~the two do not yet **share one admin client package**~~ — **resolved
+  2026-07-02 (LLP 0032 P8):** `@snapback/admin-client` is the one client; the
+  Contract admin-ui imports the workspace package and the embedded console
+  imports the byte-identical module the server serves at
+  `/_snapback/admin/client.mjs` (embedded via `include_str!`, so the
+  bootstrap property holds with no dist and no build step; test
+  `p8_both_consoles_consume_the_one_embedded_admin_client`). The same pass
+  normalized the inspect payload to camelCase end to end (aliases keep old
+  spellings parsing; the embedded v0 artifacts keep their LLP 0012-pinned
+  shapes), committed typed schemas for both payloads
+  (`schemas/inspect.admin.schema.json`, `schemas/inspect.public.schema.json`,
+  drift-gated per LLP 0037), and pinned casing with
+  `tests/inspect_casing_v0.rs`; and (b) whether the
   **native macOS shell** actually renders the static snapshot end-to-end (the
-  artifacts now emit; loading them in ExactAppMac is the open verification).
+  artifacts now emit; loading them in ExactAppMac is the open verification —
+  currently also blocked upstream at Exact HEAD, ENG-22578).
 - Should the packaged web console be embedded into the Rust binary from the
   start, or served from an installed asset directory until release packaging is
   settled?

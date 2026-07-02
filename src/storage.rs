@@ -23,6 +23,7 @@ const META_RETENTION_FLOOR: &str = "retention_floor";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct StorageInfo {
+    #[serde(rename = "sqlitePath", alias = "sqlite_path")]
     pub sqlite_path: Option<PathBuf>,
     pub version: u64,
     pub tables: Vec<String>,

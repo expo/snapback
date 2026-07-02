@@ -245,6 +245,45 @@ async fn root_renders_declared_app_identity_escaped() {
 }
 
 #[tokio::test]
+async fn p8_both_consoles_consume_the_one_embedded_admin_client() {
+    let app = loopback_app(seeded_snapback());
+
+    // The embedded console imports the shared client module…
+    let html = text(app.clone().oneshot(get("/_snapback/admin")).await.unwrap()).await;
+    assert!(
+        html.contains(r#"import { AdminClient } from "/_snapback/admin/client.mjs""#),
+        "embedded console imports the shared admin client"
+    );
+
+    // …and the server serves that exact module embedded, with no dist and no
+    // build step (the LLP 0017 bootstrap property).
+    let module = app
+        .clone()
+        .oneshot(get("/_snapback/admin/client.mjs"))
+        .await
+        .unwrap();
+    assert_eq!(module.status(), StatusCode::OK);
+    let ctype = module
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(ctype.starts_with("text/javascript"), "served as a JS module");
+    let source = text(module).await;
+    assert!(
+        source.contains("export class AdminClient"),
+        "the served module is the @snapback/admin-client package file"
+    );
+    assert_eq!(
+        source,
+        include_str!("../packages/snapback-admin-client/index.mjs"),
+        "byte-identical to the workspace package the Contract admin-ui imports"
+    );
+}
+
+#[tokio::test]
 async fn console_and_inspect_serve_from_one_server_without_vite() {
     let app = loopback_app(seeded_snapback());
 
@@ -267,14 +306,14 @@ async fn console_and_inspect_serve_from_one_server_without_vite() {
     let inspect = json(app.oneshot(get("/_snapback/api/inspect")).await.unwrap()).await;
     // The admin inspect extends the existing inspect state in place.
     assert_eq!(inspect["target"], "local-dev-sqlite-ibex");
-    assert!(inspect["capability_gaps"].is_array());
+    assert!(inspect["capabilityGaps"].is_array());
     // ...plus the new server and admin blocks.
     assert_eq!(inspect["server"]["loopback"], true);
-    assert_eq!(inspect["server"]["storage_mode"], "memory");
-    assert_eq!(inspect["admin"]["function_runner"], true);
-    assert_eq!(inspect["admin"]["cron_controls"], true);
-    assert_eq!(inspect["admin"]["direct_data_edit"], false);
-    assert_eq!(inspect["admin"]["raw_sql"], false);
+    assert_eq!(inspect["server"]["storageMode"], "memory");
+    assert_eq!(inspect["admin"]["functionRunner"], true);
+    assert_eq!(inspect["admin"]["cronControls"], true);
+    assert_eq!(inspect["admin"]["directDataEdit"], false);
+    assert_eq!(inspect["admin"]["rawSql"], false);
     assert_eq!(inspect["cron"]["artifactKind"], "cronRuntimeState");
     assert!(inspect["cron"]["jobs"].is_array());
 }
@@ -772,7 +811,7 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
     assert!(public["functions"].is_object());
     assert!(public["storage"]["version"].is_number());
     assert!(
-        public["storage"].get("sqlite_path").is_none(),
+        public["storage"].get("sqlitePath").is_none() && public["storage"].get("sqlite_path").is_none(),
         "public /inspect must not expose the on-disk DB path"
     );
     let subs = public["subscriptions"].as_array().expect("subscriptions");
@@ -781,7 +820,7 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
         assert!(entry["id"].is_string());
         assert!(entry["function"].is_string());
         assert!(
-            entry.get("connection_id").is_none(),
+            entry.get("connectionId").is_none() && entry.get("connection_id").is_none(),
             "public /inspect must not expose subscription connection ids"
         );
     }
@@ -794,7 +833,7 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
     assert!(
         gated_subs
             .iter()
-            .any(|entry| entry["connection_id"] == "conn_secret"),
+            .any(|entry| entry["connectionId"] == "conn_secret"),
         "the gated inspect twin must retain connection ids"
     );
 }

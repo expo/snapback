@@ -266,7 +266,7 @@ function buildView(s, configResult, lastVerify) {
   const eph = s.ephemeral || {};
   const ld = s.liveDelivery || {};
   const subs = s.subscriptions || [];
-  const diags = s.recent_diagnostics || [];
+  const diags = s.recentDiagnostics || [];
   const admin = s.admin || {};
   const tables = sc.tables || [];
   const fns = fnManifest.functions || [];
@@ -284,13 +284,13 @@ function buildView(s, configResult, lastVerify) {
       address: `${sv.host}:${sv.port}`,
       exposureLabel: sv.loopback ? 'loopback only' : 'exposed',
       exposureTone: sv.loopback ? 'ok' : 'warn',
-      storageLabel: sv.storage_mode === 'memory' ? 'in-memory' : 'file-backed',
-      tokenLabel: admin.token_configured
+      storageLabel: sv.storageMode === 'memory' ? 'in-memory' : 'file-backed',
+      tokenLabel: admin.tokenConfigured
         ? 'admin token set'
-        : admin.writes_require_token
+        : admin.writesRequireToken
           ? 'writes need token'
           : 'open on loopback',
-      tokenTone: admin.token_configured ? 'accent' : admin.writes_require_token ? 'warn' : 'muted',
+      tokenTone: admin.tokenConfigured ? 'accent' : admin.writesRequireToken ? 'warn' : 'muted',
       // Missing required config is a whole-deployment fact ("the app is not
       // fully set up"), so it earns a strip badge on every surface.
       showConfigAlert: config.available && config.missingCount > 0,
@@ -310,36 +310,36 @@ function buildView(s, configResult, lastVerify) {
         kv('target', 'Target', s.target || '—', { mono: true }),
         kv('address', 'Address', `${sv.host}:${sv.port}`, { mono: true }),
         kv('exposure', 'Exposure', sv.loopback ? 'loopback only' : 'non-loopback (exposed)', { tone: sv.loopback ? 'ok' : 'warn' }),
-        kv('uptime', 'Uptime', fmtDuration(sv.uptime_ms)),
+        kv('uptime', 'Uptime', fmtDuration(sv.uptimeMs)),
         kv('pid', 'PID', String(sv.pid), { mono: true }),
-        kv('started', 'Started', fmtTime(sv.started_at_ms)),
+        kv('started', 'Started', fmtTime(sv.startedAtMs)),
       ],
       storage: [
-        kv('mode', 'Mode', sv.storage_mode === 'memory' ? 'in-memory' : 'file-backed'),
-        kv('path', 'SQLite path', st.sqlite_path || '—', { mono: true }),
+        kv('mode', 'Mode', sv.storageMode === 'memory' ? 'in-memory' : 'file-backed'),
+        kv('path', 'SQLite path', st.sqlitePath || '—', { mono: true }),
         kv('version', 'Data version', String(st.version), { mono: true }),
         kv('tables', 'Tables', String((st.tables || []).length)),
         kv('hash', 'Schema hash', sc.schemaHash || '—', { mono: true }),
       ],
       runtime: [
-        kv('engine', 'Engine', rt.canonical_engine || '—'),
-        kv('hostplan', 'Host-plan runtime', yn(rt.host_plan_runtime), { tone: rt.host_plan_runtime ? 'ok' : 'faint' }),
-        kv('ibex', 'Ibex CLI', rt.ibex_cli && rt.ibex_cli.available ? rt.ibex_cli.version || 'available' : 'unavailable', { tone: rt.ibex_cli && rt.ibex_cli.available ? 'ok' : 'warn' }),
-        kv('bridge', 'ctx.db bridge', rt.ibex_ctx_db_host_bridge || '—', { tone: stateTone(rt.ibex_ctx_db_host_bridge) }),
-        kv('async', 'Async handlers', rt.async_handler_completion || '—', { tone: stateTone(rt.async_handler_completion) }),
-        kv('lock', 'Lock across async', rt.sqlite_lock_held_across_async || '—', { tone: stateTone(rt.sqlite_lock_held_across_async) }),
+        kv('engine', 'Engine', rt.canonicalEngine || '—'),
+        kv('hostplan', 'Host-plan runtime', yn(rt.hostPlanRuntime), { tone: rt.hostPlanRuntime ? 'ok' : 'faint' }),
+        kv('ibex', 'Ibex CLI', rt.ibexCli && rt.ibexCli.available ? rt.ibexCli.version || 'available' : 'unavailable', { tone: rt.ibexCli && rt.ibexCli.available ? 'ok' : 'warn' }),
+        kv('bridge', 'ctx.db bridge', rt.ibexCtxDbHostBridge || '—', { tone: stateTone(rt.ibexCtxDbHostBridge) }),
+        kv('async', 'Async handlers', rt.asyncHandlerCompletion || '—', { tone: stateTone(rt.asyncHandlerCompletion) }),
+        kv('lock', 'Lock across async', rt.sqliteLockHeldAcrossAsync || '—', { tone: stateTone(rt.sqliteLockHeldAcrossAsync) }),
       ],
       adminCaps: [
         { key: 'console', k: 'Console', on: !!admin.console },
-        { key: 'explorer', k: 'Data explorer', on: !!admin.data_explorer },
-        { key: 'runner', k: 'Function runner', on: !!admin.function_runner },
-        { key: 'cleanup', k: 'Ephemeral cleanup', on: !!admin.ephemeral_cleanup },
-        { key: 'edit', k: 'Direct row edit', on: !!admin.direct_data_edit },
-        { key: 'sql', k: 'Raw SQL', on: !!admin.raw_sql },
-        { key: 'wtoken', k: 'Writes require token', on: !!admin.writes_require_token },
+        { key: 'explorer', k: 'Data explorer', on: !!admin.dataExplorer },
+        { key: 'runner', k: 'Function runner', on: !!admin.functionRunner },
+        { key: 'cleanup', k: 'Ephemeral cleanup', on: !!admin.ephemeralCleanup },
+        { key: 'edit', k: 'Direct row edit', on: !!admin.directDataEdit },
+        { key: 'sql', k: 'Raw SQL', on: !!admin.rawSql },
+        { key: 'wtoken', k: 'Writes require token', on: !!admin.writesRequireToken },
       ],
-      gaps: (s.capability_gaps || []).map((g) => ({ key: g, label: g })),
-      hasGaps: (s.capability_gaps || []).length > 0,
+      gaps: (s.capabilityGaps || []).map((g) => ({ key: g, label: g })),
+      hasGaps: (s.capabilityGaps || []).length > 0,
 
       // schema
       schemaHash: sc.schemaHash || '',
@@ -415,28 +415,28 @@ function buildView(s, configResult, lastVerify) {
         function: x.function,
       })),
       delivery: [
-        { key: 'fa', label: 'Fanout attempts', value: String(ld.total_fanout_attempts || 0) },
-        { key: 'd', label: 'Deliveries', value: String(ld.total_deliveries || 0) },
-        { key: 's', label: 'Skipped', value: String(ld.total_skipped || 0) },
-        { key: 'lfs', label: 'Last fanout subs', value: String(ld.last_fanout_subscriptions || 0) },
-        { key: 'ld', label: 'Last deliveries', value: String(ld.last_deliveries || 0) },
-        { key: 'ls', label: 'Last skipped', value: String(ld.last_skipped || 0) },
+        { key: 'fa', label: 'Fanout attempts', value: String(ld.totalFanoutAttempts || 0) },
+        { key: 'd', label: 'Deliveries', value: String(ld.totalDeliveries || 0) },
+        { key: 's', label: 'Skipped', value: String(ld.totalSkipped || 0) },
+        { key: 'lfs', label: 'Last fanout subs', value: String(ld.lastFanoutSubscriptions || 0) },
+        { key: 'ld', label: 'Last deliveries', value: String(ld.lastDeliveries || 0) },
+        { key: 'ls', label: 'Last skipped', value: String(ld.lastSkipped || 0) },
       ],
       ephemeral: [
-        { key: 'rooms', label: 'Rooms', value: String(eph.room_count || 0), alert: false },
-        { key: 'entries', label: 'Entries', value: String(eph.entry_count || 0), alert: false },
-        { key: 'subs', label: 'Subscribers', value: String(eph.subscriber_count || 0), alert: false },
-        { key: 'bytes', label: 'Value bytes', value: fmtBytes(eph.value_bytes || 0), alert: false },
-        { key: 'coalesced', label: 'Coalesced', value: String(eph.coalesced_updates || 0), alert: false },
-        { key: 'resync', label: 'Resync required', value: String(eph.resync_required || 0), alert: (eph.resync_required || 0) > 0 },
-        { key: 'rejected', label: 'Rejected', value: String(eph.rejected_publishes || 0), alert: (eph.rejected_publishes || 0) > 0 },
-        { key: 'rate', label: 'Rate-limited', value: String(eph.rate_limited_publishes || 0), alert: (eph.rate_limited_publishes || 0) > 0 },
-        { key: 'oversized', label: 'Oversized', value: String(eph.oversized_publishes || 0), alert: (eph.oversized_publishes || 0) > 0 },
-        { key: 'unauth', label: 'Unauthorized', value: String(eph.unauthorized_requests || 0), alert: (eph.unauthorized_requests || 0) > 0 },
-        { key: 'expired', label: 'Expired', value: String(eph.expired_entries || 0), alert: false },
-        { key: 'disc', label: 'Disconnected', value: String(eph.disconnected_entries || 0), alert: false },
+        { key: 'rooms', label: 'Rooms', value: String(eph.roomCount || 0), alert: false },
+        { key: 'entries', label: 'Entries', value: String(eph.entryCount || 0), alert: false },
+        { key: 'subs', label: 'Subscribers', value: String(eph.subscriberCount || 0), alert: false },
+        { key: 'bytes', label: 'Value bytes', value: fmtBytes(eph.valueBytes || 0), alert: false },
+        { key: 'coalesced', label: 'Coalesced', value: String(eph.coalescedUpdates || 0), alert: false },
+        { key: 'resync', label: 'Resync required', value: String(eph.resyncRequired || 0), alert: (eph.resyncRequired || 0) > 0 },
+        { key: 'rejected', label: 'Rejected', value: String(eph.rejectedPublishes || 0), alert: (eph.rejectedPublishes || 0) > 0 },
+        { key: 'rate', label: 'Rate-limited', value: String(eph.rateLimitedPublishes || 0), alert: (eph.rateLimitedPublishes || 0) > 0 },
+        { key: 'oversized', label: 'Oversized', value: String(eph.oversizedPublishes || 0), alert: (eph.oversizedPublishes || 0) > 0 },
+        { key: 'unauth', label: 'Unauthorized', value: String(eph.unauthorizedRequests || 0), alert: (eph.unauthorizedRequests || 0) > 0 },
+        { key: 'expired', label: 'Expired', value: String(eph.expiredEntries || 0), alert: false },
+        { key: 'disc', label: 'Disconnected', value: String(eph.disconnectedEntries || 0), alert: false },
       ],
-      canCleanup: !!admin.ephemeral_cleanup,
+      canCleanup: !!admin.ephemeralCleanup,
 
       // diagnostics
       hasDiags: diags.length > 0,

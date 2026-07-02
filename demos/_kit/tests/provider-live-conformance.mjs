@@ -693,8 +693,8 @@ try {
       const receiptsRes = await fetch(`${server.baseUrl}/_snapback/api/receipts`);
       const receipts = await receiptsRes.json();
       assert(receipts.ephemeralDelivery, 'receipts surface carries ephemeral delivery diagnostics');
-      assert(receipts.ephemeralDelivery.coalesced_updates > 0, `coalesced_updates must be observable under flood: ${JSON.stringify(receipts.ephemeralDelivery)}`);
-      return { published, delivered, deliveredRate: Number(deliveredRate.toFixed(1)), coalesced: receipts.ephemeralDelivery.coalesced_updates };
+      assert(receipts.ephemeralDelivery.coalescedUpdates > 0, `coalesced_updates must be observable under flood: ${JSON.stringify(receipts.ephemeralDelivery)}`);
+      return { published, delivered, deliveredRate: Number(deliveredRate.toFixed(1)), coalesced: receipts.ephemeralDelivery.coalescedUpdates };
     } finally {
       overlay.dispose();
     }
