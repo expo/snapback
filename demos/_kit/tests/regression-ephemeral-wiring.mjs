@@ -99,6 +99,8 @@ try {
     };
     try {
       surface = await createSnapbackContractSurface({
+        queryName: 'listTodos',
+        boundaryKey: 'todos',
         runtime,
         client: db,
         userId: ADA,
@@ -232,6 +234,8 @@ try {
       return realSubscribe(...args);
     };
     const racedSurface = await createSnapbackContractSurface({
+        queryName: 'listTodos',
+        boundaryKey: 'todos',
       runtime,
       client: slow,
       userId: ADA,

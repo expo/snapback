@@ -13,6 +13,7 @@ import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
+import { todoOptimisticReducers } from './optimistic.mjs';
 
 const ADA = 'user_ada';
 let activeSurface: { dispose?: () => void } | null = null;
@@ -84,6 +85,9 @@ async function boot(): Promise<void> {
   status('Mounting Contract surface...');
   installContractWebHost();
   const surface = await createSnapbackContractSurface({
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    optimisticReducers: todoOptimisticReducers,
     runtime: await import('@exact/contract/runtime'),
     client,
     userId: ADA,

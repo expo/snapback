@@ -56,6 +56,7 @@ if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then
         run bun demos/todo/tests/acceptance/contract.mjs
         run bun demos/todo-v2/tests/acceptance/contract.mjs
+        run bun demos/all-aboard/tests/acceptance/contract-live.mjs
         run bun demos/_kit/tests/regression-optimistic-clobber.mjs
         run bun demos/_kit/tests/regression-ephemeral-wiring.mjs
         run bun demos/_kit/tests/regression-multilive-scoped.mjs

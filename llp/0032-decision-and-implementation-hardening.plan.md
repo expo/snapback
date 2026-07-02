@@ -1228,6 +1228,26 @@ parallel with Phase 3.
   change reaches a Contract surface with zero per-demo glue; All Aboard's
   `store.mjs` is deleted; multi-query surfaces bind per-query; the todo
   defaults are gone; the diary glue-inventory count falls (LLP 0016's rule).
+  **Closed 2026-07-02 — partially superseded on revalidation, remainder
+  landed now.** The LLP 0034 D1/C1 arc had already rebuilt the adapter:
+  it owns the live subscription (single-query mode subscribes when the
+  bound descriptor is live; the multi-query `liveQueries` mode binds each
+  named query to its own boundary key and connection axis over one shared
+  socket), and All Aboard's `store.mjs`/poll pump were already deleted —
+  **DK-10 is thereby decided: adapter-owned live push**, the
+  live-provider-seam fork is dead (docket + LLP 0029 G2 + ledger updated).
+  P5's own landing: the todo-demo defaults are out of the generic package
+  (`queryName`/`boundaryKey` are required options failing closed with
+  `SNAPBACK_CONTRACT_SURFACE_BINDING_REQUIRED`; optimistic reducers are
+  app logic, moved to `demos/{todo,todo-v2}/surfaces/contract/optimistic.mjs`;
+  seven call sites migrated), and the done-when proof exists:
+  `demos/all-aboard/tests/acceptance/contract-live.mjs` — a forced cron
+  tick's committed rows stream into the Contract boundary with zero
+  per-demo glue, the adapter's own subscription arming the demand-activated
+  job. Suites: todo contract 8/8, todo-v2 contract 13/13,
+  adapter-semantics, provider-conformance, optimistic-clobber,
+  ephemeral-wiring, contract-live 2/2. The glue-inventory-falls leg is
+  measured by the next demo's diary (program acceptance #6), not here.
 - **P6 — Packaging and the operating surface.** Root `package.json` +
   lockfile + workspaces (there are none today); decide and claim the real
   package name ([LLP 0021](./0021-contract-exact-integration-hardening.plan.md)
@@ -1378,7 +1398,7 @@ Status column in place as rows close.
 | DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | **Decided 2026-07-02 — Rust-first** ([LLP 0037](./0037-schema-source-of-truth.decision.md)); **P3(c) landed** — `schemars`-derived schemas at `schemas/`, drift gate `tests/artifact_schemas_v0.rs`, codegen emit-time validation; P2 consumes `schemas/capability.manifest.schema.json` |
 | DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Decided 2026-07-01 — MIT eyes-open (LLP 0033) |
 | DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | **Decided 2026-07-02 — store-agnostic interface, SQLite reference impl** (LLP 0008 §Decision DK-9) |
-| DK-10 | Adapter live-push architecture | Adapter owns the live subscription; separate live-provider seam beside the boundary | prototype in P5 | LLP 0021/0029 | **Decided 2026-07-02 — adapter-owned live push** (proved by the LLP 0034 D1/C1 implementation; single- and multi-query modes; `store.mjs` dead; the P5 close-out — generic `@snapback/contract` defaults and the `contract-live.mjs` acceptance, LLP 0029 G2 — re-lands with Phase 5) |
+| DK-10 | Adapter live-push architecture | Adapter owns the live subscription; separate live-provider seam beside the boundary | prototype in P5 | LLP 0021/0029 | **Decided 2026-07-02 — adapter-owned live push** (proved by the LLP 0034 D1/C1 implementation; single- and multi-query modes; `store.mjs` dead; the P5 close-out — generic `@snapback/contract` defaults and the `contract-live.mjs` acceptance, LLP 0029 G2 — re-landed 2026-07-03, ENG-22680) |
 
 ## Test-debt register
 
