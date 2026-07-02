@@ -2,6 +2,6 @@
 import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./listTodos.query.ts', {
-  listTodos: query({ reads: [], readMode: 'sync', cacheKey: 'listTodos', result: 'ListTodosRow[]' }),
+  listTodos: query({ reads: [], readMode: 'sync', cacheKey: 'listTodos', result: 'ListTodosRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
   ListTodosRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","title":"string","completed":"boolean","userId":"string"} }),
 });

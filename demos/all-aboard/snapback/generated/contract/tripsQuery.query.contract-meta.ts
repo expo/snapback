@@ -2,6 +2,6 @@
 import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./tripsQuery.query.ts', {
-  tripsQuery: query({ reads: ["trips"], readMode: 'async', cacheKey: 'trips', result: 'TripsQueryRow[]' }),
+  tripsQuery: query({ reads: ["trips"], readMode: 'async', cacheKey: 'trips', result: 'TripsQueryRow[]', mode: "snapshot", livePush: false, initialSnapshot: false, ephemeral: false }),
   TripsQueryRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","patternId":"string","direction":"string","service":"string","trainNumberBase":"number","minuteSlots":"unknown","speedFactor":"number","originStationId":"string","destinationStationId":"string"} }),
 });

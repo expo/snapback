@@ -2,6 +2,7 @@
 import { defineContractModule, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./webCursors.ephemeral.ts', {
-  webCursors: { kind: 'ephemeral', reads: ["webCursors"], result: 'WebCursorsEntry[]' },
-  WebCursorsValue: shape({ fields: {"x":"number","y":"number","name":"string","color":"string","updatedAt":"number"} }),
+  webCursors: { kind: 'ephemeral', reads: ["webCursors"], result: 'WebCursorsEntry[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: true, maxDeltaRateHz: 30, coalesce: true },
+  WebCursorsEntry: shape({ fields: {"key":"string","value":"WebCursorsValue","updatedAt":"number","expiresAt":{"type":"number","optional":true},"sourceClientId":"string","self":"boolean"} }),
+  WebCursorsValue: shape({ fields: {"x":"number","y":"number","name":"string","color":"string","updatedAt":{"type":"number","optional":true}} }),
 });

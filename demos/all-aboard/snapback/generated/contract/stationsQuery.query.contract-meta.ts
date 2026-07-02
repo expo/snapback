@@ -2,6 +2,6 @@
 import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./stationsQuery.query.ts', {
-  stationsQuery: query({ reads: ["stations"], readMode: 'async', cacheKey: 'stations', result: 'StationsQueryRow[]' }),
+  stationsQuery: query({ reads: ["stations"], readMode: 'async', cacheKey: 'stations', result: 'StationsQueryRow[]', mode: "snapshot", livePush: false, initialSnapshot: false, ephemeral: false }),
   StationsQueryRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","stationId":"string","name":"string","shortName":"string","orderIndex":"number","minutesFromSf":"number","zone":"number","lat":"number","lng":"number","photoUrl":"string","photoAttribution":"string"} }),
 });

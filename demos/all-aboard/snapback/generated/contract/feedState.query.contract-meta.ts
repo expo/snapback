@@ -2,6 +2,6 @@
 import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./feedState.query.ts', {
-  feedState: query({ reads: ["feedRefreshState"], readMode: 'sync', cacheKey: 'feedRefreshState', result: 'FeedStateRow[]' }),
+  feedState: query({ reads: ["feedRefreshState"], readMode: 'sync', cacheKey: 'feedRefreshState', result: 'FeedStateRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
   FeedStateRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","fetchedAt":"number","staleAfterMs":"number","tickIndex":"number","tickCount":"number","lastSource":"string","lastError":"string","lastRunTrigger":"string"} }),
 });
