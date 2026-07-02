@@ -9,16 +9,13 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import type { SnapbackClient, KitReceipt } from '../../../../_kit/client.mjs';
+import { CURSOR_PALETTE } from './palette';
 import { IDLE_FADE_MS, useCursorRoom, type CursorRoom, type PublishFacts } from './useCursorRoom';
 
 export interface Identity {
   name: string;
   color: string;
 }
-
-// E5 (ENG-22531): the per-user cursor color choices. Same palette as the
-// boot identity assignment so the picker and the URL param agree.
-export const CURSOR_PALETTE = ['#5e6ad2', '#2fbf71', '#f2994a', '#e14f62', '#2d9cdb', '#bb6bd9'];
 
 interface AppProps {
   client: SnapbackClient;

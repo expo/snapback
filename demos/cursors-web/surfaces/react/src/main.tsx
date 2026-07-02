@@ -10,7 +10,8 @@ import { createRoot } from 'react-dom/client';
 
 import { SnapbackClient } from '../../../../_kit/client.mjs';
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
-import { App, CURSOR_PALETTE, type Identity } from './App';
+import { App, type Identity } from './App';
+import { CURSOR_PALETTE } from './palette';
 
 const ROOM = 'lobby';
 
