@@ -1445,7 +1445,7 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(functions.schema_version, "snapback.v0");
     assert_eq!(
         functions.bundle_hash.as_deref(),
-        Some("sha256:e0f87e44f7d609b2")
+        Some("sha256:54ca16ec79be8fcf")
     );
 
     let list = functions
