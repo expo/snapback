@@ -362,3 +362,52 @@ embarrassed it.
 - **P3 (repo hygiene):** `demos/todo*` contract surfaces still carry the
   hand-rolled vite config shape this demo left behind (noted in Diary 0008;
   still true).
+
+## 2026-07-02 — Independent cross-family verdict (GPT/Codex)
+
+> Provenance: OpenAI Codex CLI v0.142.5 (gpt-5.5), read-only sandbox, run at the
+> orchestrating session's request AFTER the diary above was written. The judge
+> was instructed to read both surfaces, configs, pin file, and acceptance
+> suites but NOT this diary or 0009, so the verdict below is uncontaminated.
+> Verbatim.
+
+## Verdict
+Ship `demos/all-aboard/surfaces/react/` today.
+
+## Top reasons
+- Lower ship risk: React uses local stock Vite/React dependencies and scripts (`surfaces/react/package.json:5-20`, `vite.config.ts:19-46`); Contract requires a sibling Exact checkout and skips acceptance entirely when absent (`tests/acceptance/browser.mjs:14-15`, `82-87`).
+- Build/deploy story is simpler: React's suite self-installs missing deps (`browser-react.mjs:70-81`); Contract's Vite runs from `exactRoot` and imports plugin source from that checkout (`surfaces/contract/vite.config.ts:28-45`).
+- Maintainability for ordinary web engineers is better: React splits root, store, helpers, and components (`App.tsx:49-83`, `store.ts`, `components/*`), while Contract concentrates product state, actions, view, and contract grammar in one specialized `.contract` file (`app.contract:70-143`).
+- Test coverage is effectively tied: both arms have the same 14-check browser contract for boot, gestures, live push, second window behavior, filters, and ETA mode (`browser.mjs:48-52`, `browser-react.mjs:44-47`).
+- The React arm's hand-wired live-query code is not ideal, but it is explicit and small enough to audit (`main.tsx:132-154`); the Contract arm's generated binding path is cleaner but depends on more project-specific machinery (`contract/main.ts:149-164`).
+
+## Strongest case for the other side
+- Contract is more purpose-fit for demonstrating Contract/Exact: generated Snapback `query`/`mutation` bindings are first-class in the UI grammar (`app.contract:81-99`, `131-132`).
+- Contract has the cleaner product model: state, derives, actions, async stale/loading UI, and test-id contract sit together declaratively (`app.contract:70-143`), with no React external store.
+- The Exact pin mechanism is honest and improving: `exact.pin.json` records a verified revision, and the Vite preset reports drift with strict-mode support (`exact.pin.json:1-5`, `vite.config.ts:1-23`).
+
+## What would flip my verdict
+- A reproducible Contract install/build path that does not require an untracked sibling checkout, or a CI job that fetches the pinned Exact revision and runs the 14-check suite without `SNAPBACK_CAPABILITY_EXACT_MISSING`.
+- `EXACT_PIN_STRICT=1` enabled in the shipped Contract build/test path, with documented failure behavior when the checkout revision differs from `exact.pin.json`.
+- Evidence that Contract production `vite build` passes from a clean checkout using only committed/pinned inputs.
+- At least one next-feature edit showing Contract compiler errors are local and understandable enough for non-Exact specialists.
+
+## Confidence
+medium — I read the relevant code/configs/tests but did not run builds or acceptance suites, per the read-only/no-build instruction.
+
+> Orchestrator note — the gate result, recorded precisely: this is a **split
+> verdict**. The builder-judge (who ran both arms: 14/14 suites, matched
+> edits, builds, error probes) flipped to ship-Contract; the code-reading
+> judge (read-only, no builds) stayed ship-React, with every one of its flip
+> conditions concentrated on **cold-clone reproducibility** — the sibling
+> checkout, acceptance skipping when Exact is absent, strict pin mode not
+> defaulted in the shipped path. Those are precisely the phase-2 distribution
+> items (published @exact/* packages, ENG-22480; CI strict-pin job). Compared
+> to exercise one — where BOTH judges said ship-React on live operational
+> breakage — the disagreement has narrowed from "the toolchain breaks under
+> you" to "prove a stranger can build this from a clean clone." LLP 0286
+> §Decision.3's outcome is recorded as: primary instrument flipped;
+> cross-family dissent names distribution as the remaining condition, which
+> becomes the checkpoint's named criterion rather than a full lane
+> re-examination. The reopen-vs-proceed reading is the author's call and is
+> recorded in LLP 0286.
