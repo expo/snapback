@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Agents push to main in bursts; only the newest commit's proof matters, so
+# cancel superseded runs instead of paying for each.
+concurrency:
+  group: local-proof-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   local-proof:
     runs-on: ubuntu-latest
@@ -12,6 +18,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          # vendor/ibex is a private-repo submodule; the default GITHUB_TOKEN
+          # only reads this repository. Fine-grained PAT, Contents: read on
+          # ccheever/snapback + ccheever/ibex.
+          token: ${{ secrets.SUBMODULE_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -30,6 +40,12 @@ jobs:
           key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-hermes-
+
+      # Cargo registry + target cache: without it every run cold-compiles the
+      # full dependency tree (and the ibex-runtime C++ glue) on a 2-core
+      # runner — the dominant per-run cost.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Verify Snapback local proof
         env:
