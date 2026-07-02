@@ -12,6 +12,7 @@ import {
   estimateDistanceMiles,
   estimateWalkMinutes,
   formatClockTime,
+  formatCountdownMinutes,
   getStationById,
   getTrainRun,
   serviceColor,
@@ -42,6 +43,16 @@ export function oppositeDirection(direction: string): string {
 
 export function serviceTint(service: string): string {
   return `${serviceColor(service)}22`; // ~13% alpha pill background
+}
+
+// --- Urgent departures (leaving within 5 minutes) ------------------------------
+
+export const URGENT_RED = '#dc2626';
+export const URGENT_TINT = '#dc262622';
+const URGENT_THRESHOLD_MINUTES = 5;
+
+export function isUrgent(predictedDepartureMs: number, nowMs: number): boolean {
+  return formatCountdownMinutes(predictedDepartureMs, nowMs) <= URGENT_THRESHOLD_MINUTES;
 }
 
 // --- Walk / bike (haversine over the seed coordinates) ------------------------

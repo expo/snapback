@@ -2,7 +2,7 @@
 // upcoming stops, the next few departures, and the opposite-direction line.
 
 import { directionTitle, formatClockTime, formatCountdownMinutes, serviceColor } from '../../../../snapback/shared/model.mjs';
-import { serviceTint, upcomingStops } from '../lib.ts';
+import { URGENT_RED, URGENT_TINT, isUrgent, serviceTint, upcomingStops } from '../lib.ts';
 import { Press, ServicePill, chip, column, hairlineCard, mono, palette, row } from '../ui.tsx';
 
 export interface Departure {
@@ -31,6 +31,7 @@ export function DirectionBoard(props: {
 }) {
   const { primaryBoard, oppositeBoard, nowMs } = props;
   const hero = primaryBoard.primary;
+  const heroUrgent = hero != null && isUrgent(hero.predictedDepartureMs, nowMs);
 
   return (
     <div data-testid="home-screen" style={{ ...column, gap: 12, width: '100%' }}>
@@ -66,12 +67,22 @@ export function DirectionBoard(props: {
               <div style={{ ...row, gap: 10, alignItems: 'flex-end' }}>
                 <div
                   data-testid="hero-minutes"
-                  style={{ fontSize: 60, fontWeight: 800, fontFamily: mono, color: palette.ink }}
+                  style={{ fontSize: 60, fontWeight: 800, fontFamily: mono, color: heroUrgent ? URGENT_RED : palette.ink }}
                 >
                   {formatCountdownMinutes(hero.predictedDepartureMs, nowMs)}
                 </div>
                 <div style={{ fontSize: 16, color: palette.inkFaint, paddingBottom: 10 }}>min</div>
                 <div style={{ ...column, flex: 1, alignItems: 'flex-end', gap: 4 }}>
+                  {heroUrgent && (
+                    <div style={{ borderRadius: 6, padding: '3px 8px', background: URGENT_TINT }}>
+                      <div
+                        data-testid="hero-leaving-soon"
+                        style={{ fontSize: 12, fontWeight: 700, color: URGENT_RED }}
+                      >
+                        Leaving soon
+                      </div>
+                    </div>
+                  )}
                   <ServicePill
                     service={hero.service}
                     color={serviceColor(hero.service)}
@@ -133,7 +144,15 @@ export function DirectionBoard(props: {
                 })}
               >
                 <div style={{ ...row, gap: 10, alignItems: 'center' }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: mono, color: palette.ink, width: 64 }}>
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      fontFamily: mono,
+                      color: isUrgent(d.predictedDepartureMs, nowMs) ? URGENT_RED : palette.ink,
+                      width: 64,
+                    }}
+                  >
                     {`${formatCountdownMinutes(d.predictedDepartureMs, nowMs)} min`}
                   </div>
                   <ServicePill
@@ -173,7 +192,14 @@ export function DirectionBoard(props: {
           <div style={{ fontSize: 13, fontWeight: 700, color: palette.inkSoft }}>
             {directionTitle(props.oppositeDir)}
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: palette.ink, fontFamily: mono }}>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: isUrgent(oppositeBoard.primary.predictedDepartureMs, nowMs) ? URGENT_RED : palette.ink,
+              fontFamily: mono,
+            }}
+          >
             {`${formatCountdownMinutes(oppositeBoard.primary.predictedDepartureMs, nowMs)} min`}
           </div>
         </div>
