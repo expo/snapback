@@ -194,6 +194,30 @@ export class SnapbackClient {
     });
   }
   loadFunctions(manifest) { return this.#req('POST', '/_snapback/api/functions/load', manifest); }
+  // The single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
+  // inspects schemaHash/bundleHash/collections against the posted generated
+  // manifests, provisions ONLY what is missing/mismatched, seeds only when
+  // the seed's target tables are all empty — never reset-then-seed. Throws a
+  // structured diagnostic when the server profile gates a needed half.
+  async ensureApp({ schema = null, functions = null, seed = null } = {}) {
+    const outcome = await this.#req('POST', '/app/ensure', {
+      ...(schema ? { schema } : {}),
+      ...(functions ? { functions } : {}),
+      ...(seed ? { seed } : {}),
+    });
+    const gated = ['schema', 'functions', 'seed'].filter((part) => outcome[part] === 'gated');
+    if (gated.length > 0) {
+      const diag = {
+        code: 'SNAPBACK_PROFILE_FORBIDS',
+        message: `backend is not provisioned and the '${outcome.profile}' profile gates provisioning: ${gated.join(', ')}`,
+      };
+      const error = new Error(`${diag.code}: ${diag.message}`);
+      error.diagnostic = diag;
+      error.outcome = outcome;
+      throw error;
+    }
+    return outcome;
+  }
   // app.reset folds seed in as an optional argument (LLP 0031 D5): reset() wipes,
   // reset(seed) / seed(seed) reset-then-seed. There is no seed-without-reset path.
   reset(seed) { return this.#req('POST', '/_snapback/api/app/reset', seed ? { seed } : {}); }

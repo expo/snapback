@@ -313,6 +313,34 @@ pub struct LiveUnsubscribeOutput {
     pub receipt: Option<Value>,
 }
 
+/// The single idempotent ensure-everything operation (LLP 0034 §5 D4
+/// residual, ENG-22527): "is this backend provisioned for this manifest?" as
+/// ONE call that inspects, provisions only what is missing/mismatched, and
+/// seeds only-if-empty — never reset-then-seed, never replace-clearing live
+/// rooms beyond the identity-guarded collection replace apply_schema already
+/// performs.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct EnsureAppInput {
+    #[serde(default)]
+    pub schema: Option<SchemaManifest>,
+    #[serde(default)]
+    pub functions: Option<FunctionManifest>,
+    #[serde(default)]
+    pub seed: Option<SeedData>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct EnsureAppOutcome {
+    /// 'matched' | 'provisioned' | 'gated' | 'skipped-absent'
+    pub schema: String,
+    /// 'matched' | 'provisioned' | 'gated' | 'skipped-absent'
+    pub functions: String,
+    /// 'seeded' | 'skipped-nonempty' | 'gated' | 'skipped-absent'
+    pub seed: String,
+    /// The server profile the decision ran under.
+    pub profile: String,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct LiveUpdate {
     pub kind: String,
@@ -736,6 +764,92 @@ impl LocalSnapback {
         self.refresh_cron_active();
         self.persist_cron_state()?;
         Ok(())
+    }
+
+    /// ENG-22527: the ensure-everything mount-lifecycle operation. Inspects
+    /// the loaded schemaHash/bundleHash against the posted generated
+    /// manifests; provisions ONLY the missing/mismatched halves (when the
+    /// profile allows provisioning — otherwise those halves report 'gated');
+    /// seeds server-side only when every seed target table is empty (the
+    /// true seed-without-reset path).
+    pub fn ensure_app(
+        &mut self,
+        input: EnsureAppInput,
+        provisioning_allowed: bool,
+        profile: &str,
+    ) -> SnapbackResult<EnsureAppOutcome> {
+        let schema_outcome = match input.schema {
+            None => "skipped-absent",
+            Some(manifest) => {
+                let loaded = self.db.schema().schema_hash.clone();
+                if loaded.as_deref() == manifest.schema_hash.as_deref() && loaded.is_some() {
+                    "matched"
+                } else if provisioning_allowed {
+                    // apply_schema is additive for tables and identity-guarded
+                    // for ephemeral collections (replace_collections no-ops on
+                    // identical definitions — live rooms survive a matched
+                    // ensure by construction; LLP 0025).
+                    self.apply_schema(manifest)?;
+                    "provisioned"
+                } else {
+                    "gated"
+                }
+            }
+        };
+
+        let functions_outcome = match input.functions {
+            None => "skipped-absent",
+            Some(manifest) => {
+                let loaded = self.functions.bundle_hash.clone();
+                if loaded.as_deref() == manifest.bundle_hash.as_deref() && loaded.is_some() {
+                    "matched"
+                } else if provisioning_allowed {
+                    let diagnostics = self.load_functions(manifest);
+                    if let Some(error) = diagnostics.iter().find(|diagnostic| {
+                        matches!(
+                            diagnostic.severity,
+                            DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+                        )
+                    }) {
+                        return Err(SnapbackError::new(error.clone()));
+                    }
+                    "provisioned"
+                } else {
+                    "gated"
+                }
+            }
+        };
+
+        let seed_outcome = match input.seed {
+            None => "skipped-absent",
+            Some(seed) => {
+                let mut all_empty = true;
+                for table in seed.tables.keys() {
+                    let scan = self.db.scan_table(table, 1, 0)?;
+                    if !scan.rows.is_empty() {
+                        all_empty = false;
+                        break;
+                    }
+                }
+                if !all_empty {
+                    // Seed-if-empty, never reset-then-seed (LLP 0034 §5 edit
+                    // 2): existing data always wins.
+                    "skipped-nonempty"
+                } else if provisioning_allowed {
+                    self.seed(seed)?;
+                    "seeded"
+                } else {
+                    "gated"
+                }
+            }
+        };
+
+        Ok(EnsureAppOutcome {
+            schema: schema_outcome.to_owned(),
+            functions: functions_outcome.to_owned(),
+            seed: seed_outcome.to_owned(),
+            profile: profile.to_owned(),
+        })
     }
 
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {

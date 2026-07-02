@@ -375,6 +375,7 @@ async fn body_json(resp: axum::response::Response) -> Value {
 
 fn context(loopback: bool, token: Option<&str>) -> ServerContext {
     ServerContext {
+        profile: snapback::admin::ServerProfile::Dev,
         host: if loopback { "127.0.0.1" } else { "0.0.0.0" }.to_owned(),
         port: 4288,
         loopback,

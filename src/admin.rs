@@ -37,6 +37,47 @@ const CONSOLE_HTML: &str = include_str!("admin/console.html");
 /// not a second implementation; it never reads a value back.
 const SETUP_HTML: &str = include_str!("admin/setup.html");
 
+/// The positive environment/profile capability (LLP 0034 §5 D4 residual,
+/// ENG-22527): auth (`AdminWrite`) answers "may this principal?"; the profile
+/// answers "is this operation appropriate in this environment?". Destructive
+/// and provisioning operations require BOTH. Resolution: `SNAPBACK_PROFILE`
+/// (dev|demo|test|prod) wins; otherwise loopback binds default to `dev` (the
+/// zero-config local posture, mirroring the loopback-open AdminWrite stance —
+/// OQ7 stands) and non-loopback binds default to `prod`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ServerProfile {
+    Dev,
+    Demo,
+    Test,
+    Prod,
+}
+
+impl ServerProfile {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Dev => "dev",
+            Self::Demo => "demo",
+            Self::Test => "test",
+            Self::Prod => "prod",
+        }
+    }
+
+    pub fn allows_provisioning(self) -> bool {
+        !matches!(self, Self::Prod)
+    }
+}
+
+fn env_profile(loopback: bool) -> ServerProfile {
+    match std::env::var("SNAPBACK_PROFILE").ok().as_deref() {
+        Some("dev") => ServerProfile::Dev,
+        Some("demo") => ServerProfile::Demo,
+        Some("test") => ServerProfile::Test,
+        Some("prod") => ServerProfile::Prod,
+        _ if loopback => ServerProfile::Dev,
+        _ => ServerProfile::Prod,
+    }
+}
+
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
 /// socket it is served on) and the admin authorization configuration.
 #[derive(Clone, Debug)]
@@ -44,6 +85,7 @@ pub struct ServerContext {
     pub host: String,
     pub port: u16,
     pub loopback: bool,
+    pub profile: ServerProfile,
     pub pid: u32,
     pub started: Instant,
     pub started_at_ms: u64,
@@ -65,6 +107,7 @@ impl ServerContext {
             host: host.into(),
             port,
             loopback,
+            profile: env_profile(loopback),
             pid: std::process::id(),
             started: Instant::now(),
             started_at_ms: now_millis(),
@@ -80,6 +123,7 @@ impl ServerContext {
             host: "127.0.0.1".to_owned(),
             port: 0,
             loopback: true,
+            profile: env_profile(true),
             pid: std::process::id(),
             started: Instant::now(),
             started_at_ms: now_millis(),
@@ -297,6 +341,28 @@ pub fn evaluate_access(
     } else {
         AdminAccess::Disabled
     }
+}
+
+/// Route-level profile gate (ENG-22527): destructive/provisioning system
+/// writes require a non-prod profile in addition to AdminWrite.
+pub(crate) fn require_non_prod_profile(
+    ctx: &ServerContext,
+    operation: &str,
+) -> Result<(), crate::server::ApiError> {
+    if ctx.profile.allows_provisioning() {
+        return Ok(());
+    }
+    Err(crate::diagnostic::SnapbackError::new(
+        crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_PROFILE_FORBIDS",
+            "admin",
+            format!(
+                "{operation} is not available under the '{}' profile; set SNAPBACK_PROFILE=dev|demo|test to enable it",
+                ctx.profile.as_str()
+            ),
+        ),
+    )
+    .into())
 }
 
 pub(crate) fn authorize(

@@ -100,6 +100,7 @@ fn core_routes() -> Router<AppState> {
         .route("/inspect", get(inspect))
         .route("/query/{name}", post(invoke_query))
         .route("/mutation/{name}", post(invoke_mutation))
+        .route("/app/ensure", post(ensure_app))
         .route("/live/{name}/subscribe", post(subscribe_live))
         .route("/live/{name}/resume", post(resume_live))
         .route("/live/{name}/unsubscribe", post(unsubscribe_live))
@@ -209,6 +210,7 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("GET", "/inspect", AppData, Public),
         spec("POST", "/query/{name}", AppData, AppAuth),
         spec("POST", "/mutation/{name}", AppData, AppAuth),
+        spec("POST", "/app/ensure", AppData, Public),
         spec("POST", "/live/{name}/subscribe", AppData, AppAuth),
         spec("POST", "/live/{name}/resume", AppData, AppAuth),
         spec("POST", "/live/{name}/unsubscribe", AppData, AppAuth),
@@ -621,6 +623,7 @@ async fn apply_schema(
     Json(manifest): Json<SchemaManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
+    crate::admin::require_non_prod_profile(&ctx, "schema.load")?;
     let diagnostics =
         with_snapback(&state, move |snapback| snapback.apply_schema(manifest)).await?;
     Ok(Json(DiagnosticsResponse { diagnostics }))
@@ -633,6 +636,7 @@ async fn load_functions(
     Json(manifest): Json<FunctionManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
+    crate::admin::require_non_prod_profile(&ctx, "functions.load")?;
     let diagnostics =
         with_snapback(&state, move |snapback| snapback.load_functions(manifest)).await;
     // @ref LLP 0036#the-setup-wizard-d3 — the printed line is the install
@@ -813,6 +817,7 @@ async fn app_reset(
     body: Option<Json<AppResetBody>>,
 ) -> Result<Json<AppResetResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
+    crate::admin::require_non_prod_profile(&ctx, "app.reset")?;
     let seed = body.and_then(|Json(body)| body.seed);
     let seeded = with_snapback(
         &state,
@@ -886,6 +891,24 @@ async fn invoke_mutation(
         }
         Err(error) => Err(ApiError::with_receipt(error, receipt)),
     }
+}
+
+/// The mount-lifecycle ensure-everything operation (LLP 0034 §5 / ENG-22527):
+/// app-data at the root like the ephemeral ensure it generalizes — idempotent
+/// and non-destructive by construction; the PROVISIONING half is gated by the
+/// server profile (prod inspects and reports 'gated' instead of writing).
+async fn ensure_app(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    Json(input): Json<crate::local::EnsureAppInput>,
+) -> Result<Json<crate::local::EnsureAppOutcome>, ApiError> {
+    let provisioning_allowed = ctx.profile.allows_provisioning();
+    let profile = ctx.profile.as_str().to_owned();
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.ensure_app(input, provisioning_allowed, &profile)
+    })
+    .await?;
+    Ok(Json(outcome))
 }
 
 async fn subscribe_live(
@@ -1344,7 +1367,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_MUTATION_CONFLICT" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
         // (forbidden) from "needs the configured token" (unauthorized).
-        "SNAPBACK_ADMIN_DISABLED" | "SNAPBACK_LIVE_RESUME_OWNERSHIP" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ADMIN_DISABLED" | "SNAPBACK_LIVE_RESUME_OWNERSHIP" | "SNAPBACK_PROFILE_FORBIDS" => {
+            StatusCode::FORBIDDEN
+        }
         "SNAPBACK_ADMIN_TOKEN_REQUIRED" => StatusCode::UNAUTHORIZED,
         "SNAPBACK_SQLITE_ERROR" | "SNAPBACK_INTERNAL_ERROR" => {
             StatusCode::INTERNAL_SERVER_ERROR

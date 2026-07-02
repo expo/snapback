@@ -65,17 +65,10 @@ async function boot() {
   installWebChrome();
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
-  // D4-shaped boot (LLP 0034 §5, the All Aboard pattern): inspect-first via
-  // the non-destructive ensure (LLP 0025 lineage — a second window's boot
-  // must never clear the first window's rooms); PROVISION the schema only
-  // when the ensure says the collections are not loaded at all.
-  try {
-    await client.ensureEphemeralCollections(schemaManifest);
-  } catch (error) {
-    if ((error as { diagnostic?: { code?: string } })?.diagnostic?.code !== 'SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION') throw error;
-    await client.loadSchema(schemaManifest);
-    await client.ensureEphemeralCollections(schemaManifest);
-  }
+  // The single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
+  // inspects, provisions only what is missing, never resets — a second
+  // window's boot cannot clear the first window's rooms (LLP 0025 rule).
+  await client.ensureApp({ schema: schemaManifest });
 
   const surface = await createSnapbackContractSurface({
     runtime: await import('@exact/contract/runtime'),

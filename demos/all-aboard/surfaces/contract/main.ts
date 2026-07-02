@@ -102,49 +102,22 @@ function watchLocation(): void {
   );
 }
 
-// D4 edits 1-3 (LLP 0034 §5): mount lifecycle = connect + health +
-// inspect-only provisioning check; provision and seed run ONLY when inspection
-// says they are needed (schema/bundle hash mismatch; empty schedule tables);
-// seed-if-empty, never reset-then-seed; the destructive reset is not reachable
-// from this path. Extends the ensure_collections inspect-first pattern to
-// schema and functions.
-async function ensureProvisioned(client: SnapbackClient): Promise<string[]> {
-  const actions: string[] = [];
-  const inspect = (await client.inspect()) as {
-    schema?: { schemaHash?: string | null };
-    functions?: { bundleHash?: string | null };
-  };
-
-  if (inspect.schema?.schemaHash !== (schemaManifest as { schemaHash: string }).schemaHash) {
-    status('Provisioning schema (backend not provisioned for this manifest)…');
-    await client.loadSchema(schemaManifest);
-    actions.push('schema');
-  }
-  if (inspect.functions?.bundleHash !== (functionsManifest as { bundleHash: string }).bundleHash) {
-    status('Provisioning functions…');
-    await client.loadFunctions(functionsManifest);
-    actions.push('functions');
-  }
-
-  // Seed-if-empty: the static schedule is the seeded-state marker. On an
-  // already-provisioned backend with data this is a read, never a write.
-  const stations = await client.query('stationsQuery', {});
-  if ((stations.rows?.length ?? 0) === 0) {
-    status('Seeding the schedule (empty backend)…');
-    await client.seed(seed);
-    actions.push('seed');
-  }
-  return actions;
-}
-
 async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnType<typeof createSnapbackContractSurface>> }> {
   installWebChrome();
   status('Connecting to Snapback…');
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
 
-  status('Checking provisioning (inspect-first)…');
-  const provisioned = await ensureProvisioned(client);
+  // The single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
+  // the server inspects, provisions only what is missing, and seeds only
+  // when the schedule tables are empty — one call, D4 semantics server-side.
+  status('Ensuring backend provisioning…');
+  const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+  const provisioned = [
+    ensured.schema === 'provisioned' ? 'schema' : null,
+    ensured.functions === 'provisioned' ? 'functions' : null,
+    ensured.seed === 'seeded' ? 'seed' : null,
+  ].filter((action): action is string => action !== null);
 
   status('Subscribing to live train status…');
   // The generated Contract adapter with live push (LLP 0034 D1): both live

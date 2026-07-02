@@ -561,6 +561,7 @@ fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router
 
 fn loopback_context(token: Option<&str>) -> ServerContext {
     ServerContext {
+        profile: snapback::admin::ServerProfile::Dev,
         host: "127.0.0.1".to_owned(),
         port: 4287,
         loopback: true,
@@ -574,6 +575,7 @@ fn loopback_context(token: Option<&str>) -> ServerContext {
 
 fn exposed_context(token: Option<&str>) -> ServerContext {
     ServerContext {
+        profile: snapback::admin::ServerProfile::Dev,
         host: "0.0.0.0".to_owned(),
         port: 4287,
         loopback: false,
@@ -587,6 +589,7 @@ fn exposed_context(token: Option<&str>) -> ServerContext {
 
 fn dist_context(dist: std::path::PathBuf) -> ServerContext {
     ServerContext {
+        profile: snapback::admin::ServerProfile::Dev,
         host: "127.0.0.1".to_owned(),
         port: 4287,
         loopback: true,

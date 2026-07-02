@@ -74,11 +74,12 @@ async function boot(): Promise<void> {
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
 
-  status('Loading schema, functions, and seed data...');
-  await client.loadSchema(schemaManifest);
-  await client.loadFunctions(functionsManifest);
-  await client.reset();
-  await client.seed(seed);
+  // Single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
+  // provisions only what is missing, seeds only when the todos table is
+  // empty — the boot-path reset is gone (D4 edit 1), so a reload preserves
+  // your data.
+  status('Ensuring backend provisioning...');
+  await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
 
   status('Mounting Contract surface...');
   installContractWebHost();

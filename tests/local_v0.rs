@@ -3477,3 +3477,113 @@ fn d2_disconnect_receipts_disposal_and_drops_the_connection_ring() {
         "the connection ring dies with the connection"
     );
 }
+
+/// LLP 0034 §5 D4 / ENG-22527 — the single idempotent ensure-everything
+/// operation: provisions only what is missing, matches on re-run, and seeds
+/// server-side only when every target table is empty (never reset-then-seed).
+#[test]
+fn d4_ensure_app_provisions_once_and_seeds_only_if_empty() {
+    use snapback::local::EnsureAppInput;
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let seed = SeedData {
+        tables: std::collections::BTreeMap::from([(
+            "todos".to_owned(),
+            vec![
+                serde_json::from_value::<Map<String, Value>>(
+                    json!({ "_id": "seed_1", "title": "Seeded", "completed": false, "userId": "user_1" }),
+                )
+                .expect("seed row"),
+            ],
+        )]),
+    };
+
+    // Fresh backend: everything provisions.
+    let first = snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(todo_schema()),
+                functions: Some(todo_functions()),
+                seed: Some(seed.clone()),
+            },
+            true,
+            "dev",
+        )
+        .expect("first ensure");
+    assert_eq!(first.schema, "provisioned");
+    assert_eq!(first.functions, "provisioned");
+    assert_eq!(first.seed, "seeded");
+    assert_eq!(first.profile, "dev");
+
+    // Second boot (another window): everything matches; the seed is
+    // skipped because the target table has rows — data always survives.
+    let second = snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(todo_schema()),
+                functions: Some(todo_functions()),
+                seed: Some(seed.clone()),
+            },
+            true,
+            "dev",
+        )
+        .expect("second ensure");
+    assert_eq!(second.schema, "matched");
+    assert_eq!(second.functions, "matched");
+    assert_eq!(second.seed, "skipped-nonempty");
+    let rows = snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect("query");
+    assert_eq!(rows.rows.len(), 1, "the seed ran exactly once");
+}
+
+/// ENG-22527 — the profile capability gates the PROVISIONING half of ensure:
+/// under a prod profile the operation inspects and reports 'gated' instead
+/// of writing; matched halves still report 'matched'.
+#[test]
+fn d4_ensure_app_reports_gated_under_prod() {
+    use snapback::local::EnsureAppInput;
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let gated = snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(todo_schema()),
+                functions: Some(todo_functions()),
+                seed: None,
+            },
+            false,
+            "prod",
+        )
+        .expect("gated ensure");
+    assert_eq!(gated.schema, "gated");
+    assert_eq!(gated.functions, "gated");
+    assert_eq!(gated.seed, "skipped-absent");
+
+    // Provision under dev, then a prod ensure of the SAME manifests is a
+    // pure inspection: matched, no gate needed.
+    snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(todo_schema()),
+                functions: Some(todo_functions()),
+                seed: None,
+            },
+            true,
+            "dev",
+        )
+        .expect("provision");
+    let matched = snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(todo_schema()),
+                functions: Some(todo_functions()),
+                seed: None,
+            },
+            false,
+            "prod",
+        )
+        .expect("prod inspect");
+    assert_eq!(matched.schema, "matched");
+    assert_eq!(matched.functions, "matched");
+}
