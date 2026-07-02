@@ -226,7 +226,23 @@
       placeholder: entry.set && entry.pool ? "add another key" : "paste value"
     });
     var setButton = el("button", { class: "primary", text: entry.set && entry.pool ? "Add key" : (entry.set ? "Replace" : "Set") });
+    // ENG-22594: shoulder-surfing-permitting, let the operator check what they
+    // pasted before committing it. Reveals only the local, uncommitted input —
+    // stored values still have no read-back to show.
+    var revealButton = el("button", {
+      type: "button", text: "Show",
+      "aria-pressed": "false", "aria-label": "Show the value being entered"
+    });
+    revealButton.addEventListener("click", function () {
+      var show = input.getAttribute("type") === "password";
+      input.setAttribute("type", show ? "text" : "password");
+      revealButton.textContent = show ? "Hide" : "Show";
+      revealButton.setAttribute("aria-pressed", String(show));
+      revealButton.setAttribute("aria-label",
+        show ? "Hide the value being entered" : "Show the value being entered");
+    });
     row.appendChild(input);
+    row.appendChild(revealButton);
     row.appendChild(setButton);
     var verifyButton = null;
     if (entry.probe) {

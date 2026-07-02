@@ -543,4 +543,10 @@ async fn setup_wizard_page_is_served_from_the_static_lane() {
         html.contains(r#"entry.required ? "required" : "optional""#),
         "cards label optional entries"
     );
+    // ENG-22594: the value input has a show/hide toggle so the operator can
+    // check what they pasted before committing it.
+    assert!(
+        html.contains(r#"input.setAttribute("type", show ? "text" : "password")"#),
+        "value input has a show/hide toggle"
+    );
 }
