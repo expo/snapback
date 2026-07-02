@@ -712,6 +712,17 @@ L6–L8.
   turns on); ephemeral publish cost at 20–60 Hz.
   **Done when:** results are committed as a Research LLP with methodology,
   and CI runs a smoke-scale variant to catch order-of-magnitude regressions.
+  **Landed 2026-07-01** — harness in `src/bench.rs` (bin `snapback-bench`,
+  `--json`); first numbers + methodology committed as
+  [LLP 0035](./0035-local-target-benchmarks.research.md); CI smoke lane is the
+  `m1_bench_smoke` lib test (tiny scale, 10× threshold headroom). **Headline:**
+  per-invocation VM cost ~3.9 ms dominates everything — single-writer ~230
+  mut/s, and live fan-out ~4.9 ms per *affected* subscriber (a fresh-VM
+  re-query each), so the fan-out ceiling is ~2 subs/commit at a 10 ms budget.
+  Matcher (~1.8 µs/sub), validation (~1.3 µs/dep), and ephemeral publish (~2 µs,
+  ~485k/s) are cheap; the disjoint-writer spurious-conflict rate is 1.0. This is
+  decisive evidence for M2 (DK-4 warm VM) and M3 (DK-3 deltas/read lane), and
+  the "before" baseline for the L6–L8 arc.
 - **M2 — Decide DK-4 (VM lifecycle) on M1 evidence.** Fresh-VM-per-invocation
   is the dominant compute cost, multiplied by fan-out re-queries. The
   candidate: warm VM per bundle hash for the **trusted local** target only,

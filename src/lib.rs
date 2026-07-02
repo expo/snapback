@@ -1,6 +1,7 @@
 //! Core Snapback runtime components.
 
 pub mod admin;
+pub mod bench;
 pub mod cli;
 pub mod contract_exact;
 pub mod cron;
