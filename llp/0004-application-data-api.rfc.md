@@ -5,7 +5,7 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-26
+**Revised:** 2026-07-01 (LLP 0032 R7: §Write Semantics annotated with current implementation status)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012
 
 ## Summary
@@ -249,14 +249,19 @@ that any named function automatically has offline and incremental-sync semantics
 ## Write Semantics
 
 Mutations are server-authoritative. Each mutation should run inside one atomic
-write boundary by default. Handler execution itself is **not** globally
-serialized: the local target drives handlers concurrently and serializes only the
-brief commit, keeping concurrent mutations isolated through snapshot reads plus a
-commit-time read-set conflict check rather than a single global mutation lock
+write boundary by default. In the ratified target, handler execution itself is
+**not** globally serialized: the local target drives handlers concurrently and
+serializes only the brief commit, keeping concurrent mutations isolated through
+snapshot reads plus a commit-time read-set conflict check rather than a single
+global mutation lock
 ([LLP 0003](./0003-local-code-hosting-and-storage-core.rfc.md) §Execution and
 Write Semantics). What must hold is the *observable* boundary — a handler never
 sees another request's uncommitted writes — not any particular scheduling of
-execution.
+execution. (**Implementation status 2026-07-01:** the shipped v0 does
+serialize on the global instance mutex, with no pinned snapshots and no
+read-your-writes; see LLP 0003's status callout and
+[LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2,
+which closes the gap.)
 
 All writes performed by one mutation should commit and publish as one changeset.
 A client may optimistically simulate that changeset, but subscribers should not
