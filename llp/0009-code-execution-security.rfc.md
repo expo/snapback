@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (§Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
+**Revised:** 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, LLP 0036, https://github.com/ccheever/ibex
 
 ## Summary
@@ -118,6 +118,55 @@ practical rule: the canonical local Ibex target is for *trusted* local developme
 any untrusted or multi-tenant target needs the V8/killable-isolate path, which is a
 **named, load-bearing security dependency**, not an aside. Do not read "adopt the
 capability shape required by hosting where cheap" as "Ibex is hosting-ready."
+
+### Decision DK-5 — V8 conformance twin timing (2026-07-02)
+
+**Decided: defer the synthetic V8 twin; the first V8 conformance exercise is
+the Cloudflare prototype (X3), with named revisit triggers.** Ratified by
+Charlie (applied by Claude under Charlie's same-day delegation); LLP 0032
+X2, ledgered in LLP 0000.
+
+Why defer rather than build now:
+
+- **The anti-hardening job is already done by gates that exist.** The twin's
+  purpose is keeping handler semantics from hardening around Hermes quirks —
+  but the handler surface is deliberately tiny and fail-closed-gated:
+  codegen bans ambient dependencies (`import`/`process`/`fetch`/timers/
+  `Date.now`/`Math.random`), the `ctx` surface is the only power, definitions
+  are executed-DSL-not-parsed, and DK-4's invocation-epoch guard fences
+  cross-invocation execution. That narrowness, enforced in CI, is the
+  portability defense a twin would re-verify.
+- **The second target is V8 by construction.** Cloudflare
+  ([LLP 0014](./0014-cloudflare-strategy.rfc.md)) runs workerd/V8; X3's
+  narrow proofs exercise this section's conformance floor against the real
+  platform — engine, limits, and isolation together — with more fidelity
+  than a synthetic local embed, and without maintaining a second native
+  bring-up (the repo's #1 recurring DX pain; see LLP 0032 P7).
+- **The busy-loop risk that argued for "now" was re-scoped by L6/L7.** A
+  `while(true){}` handler once wedged the whole process while holding the
+  global lock; today it costs one blocking-pool thread plus the write lane —
+  reads, ephemeral, and health stay live. Preemption remains owned by
+  §Resource Limits, with the capability report honestly declaring
+  `wall_clock_timeout`/`cpu_budget` **Missing** on this target.
+
+**Capability truthfulness note.** `async_handler_completion: Available` is a
+constant in the capability report, *verified by the conformance-floor tests*
+(the async-handler suites in `tests/local_v0.rs`) rather than computed at
+report time. Computed-not-asserted limit fields land with whichever V8
+runtime ships first; until then the suite-verified constant plus the
+Missing-declared limits are the honest posture.
+
+**Revisit triggers — any one reopens this decision:**
+
+1. X3's Cloudflare prototype starts (the twin becomes that target's runtime
+   bring-up, not a separate artifact);
+2. hosted or untrusted execution work begins anywhere (this section's own
+   rule: untrusted requires the V8/killable-isolate path);
+3. a handler-visible semantics divergence between Hermes and V8 is observed
+   in practice (the bug class a twin would catch earlier);
+4. the missing wall-clock/CPU enforcement becomes user-facing on the local
+   target (a demo or diary hits a wedged busy loop despite the L6/L7
+   bounding).
 
 Concrete runtime invariants worth carrying over verbatim (`[observed - Valet LLP
 0005]`), with one now *superseded* by the execution-boundary revision in

@@ -6,7 +6,7 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (decision ledger: @snapback/* namespace decided + LLP 0024 first slice built (P6); DK-10 adapter-owned live push decided; LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; earlier same day: DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation; earlier same day: DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0037 and repairs the missing LLP 0034 entry; earlier same day: related LLP index and follow-on list updated for LLP 0036, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Revised:** 2026-07-02 (decision ledger: DK-5 twin deferred + DK-9 store-agnostic client store decided (X2/X4); @snapback/* namespace decided + LLP 0024 first slice built (P6); DK-10 adapter-owned live push decided; LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; earlier same day: DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation; earlier same day: DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0037 and repairs the missing LLP 0034 entry; earlier same day: related LLP index and follow-on list updated for LLP 0036, decision ledger: DK-4 warm-VM leg shipped; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
 **Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
@@ -233,6 +233,24 @@ corpus does not rely on scattered "pending Charlie" notes.
   the `snapback` CLI + gated host-ops endpoint serve the first-slice verbs
   with one `hostOpsResult` envelope, and `start --ready-file` writes the
   LLP 0030 readiness descriptor.
+- **2026-07-02:** V8 conformance-twin timing (docket DK-5, LLP 0032 X2) is
+  decided and ratified by Charlie (applied by Claude under Charlie's
+  same-day delegation): **defer the synthetic twin** — the fail-closed
+  handler-surface gates already do the anti-hardening job, the second
+  target (Cloudflare) is V8 by construction so X3 is the first real
+  conformance exercise, a second native bring-up would double the repo's
+  worst DX pain, and L6/L7 re-scoped the busy-loop risk. Four named revisit
+  triggers (X3 start; hosted/untrusted work; observed engine divergence;
+  the limits gap turning user-facing) in
+  [LLP 0009](./0009-code-execution-security.rfc.md) §Decision DK-5.
+- **2026-07-02:** the client local-store mandate (docket DK-9, LLP 0032 X4)
+  is decided and ratified by Charlie (applied by Claude under Charlie's
+  same-day delegation): **a store-agnostic client-store interface with
+  SQLite as the reference implementation** — under server-authoritative
+  query-result sync the client store is a result cache + cursor/epoch
+  state + outbox, never a relational replica; nothing on the wire may
+  require SQL client-side; capability reports name the physical store
+  ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Decision DK-9).
 
 ## Who Snapback is for
 

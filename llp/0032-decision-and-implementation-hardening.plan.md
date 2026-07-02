@@ -1333,6 +1333,20 @@ design-first.
   same `tests/local_v0.rs` handler tests pass on both engines in CI and the
   capability report's enforced/advisory limit fields are *computed*, not
   asserted; if "defer", the revisit trigger is named in LLP 0009.
+  **Decided 2026-07-02 — defer, with four named revisit triggers**
+  (LLP 0009 §Decision DK-5): the synthetic twin's anti-hardening job is
+  already done by the fail-closed handler-surface gates that exist in CI;
+  the second target (Cloudflare, X3) is V8 by construction and exercises
+  the conformance floor with more fidelity than a local embed; a second
+  native bring-up would double the repo's #1 recurring DX pain (P7's
+  reason for existing); and the busy-loop risk that argued for "now" was
+  re-scoped by L6/L7 (one blocking thread + the write lane, not the
+  process). Triggers: X3 starting; any hosted/untrusted work; an observed
+  Hermes/V8 handler-visible divergence; the missing wall-clock/CPU
+  enforcement becoming user-facing locally. The capability-truthfulness
+  note records that `async_handler_completion` is suite-verified, with
+  computed limit fields landing alongside whichever V8 runtime ships
+  first. Ledgered in LLP 0000.
 - **X3 — Cloudflare narrow proof.** Execute
   [LLP 0014](./0014-cloudflare-strategy.rfc.md)'s ten narrow proofs (profile
   choice is 0014's call). Sequenced after X1/X2 and P6 (artifacts must be
@@ -1347,7 +1361,17 @@ design-first.
   local store exists yet. Short revision to LLP 0008 §Local Store: mandate,
   or store-agnostic interface with SQLite as the reference implementation.
   **Gates this program** (cheap now). **Done when:** LLP 0008 §Local Store
-  records the chosen stance and DK-9 is ledgered.
+  records the chosen stance and DK-9 is ledgered. **Decided 2026-07-02 —
+  store-agnostic interface, SQLite as the reference implementation**
+  (LLP 0008 §Decision DK-9): under server-authoritative query-result sync
+  the client store is a result cache + cursor/epoch state + outbox, never a
+  relational replica, so the contract is the observable-state list and
+  nothing on the wire may require SQL client-side; capability reports name
+  the physical store; the first client store lands as an implementation of
+  the pinned interface with a second store exercising the seam. Valet's two
+  SQLite non-negotiables carry into the reference implementation. Revisit
+  trigger: parity-class offline replay demanding capabilities the interface
+  cannot express without SQL. Ledgered in LLP 0000.
 - **X5 — Idle-cost audit per target.** After L5/L8, measure and record what
   an idle local instance actually does (target: nothing periodic), and
   write the per-target idle-cost expectations LLP 0000 §Multi-target
@@ -1370,11 +1394,11 @@ Status column in place as rows close.
 | DK-2 | Commit-version graduation shape | Postgres sequence + logical-decoding feed; per-app shards (LLP 0018); HLC ordering | X1 design note | LLP 0007/0014 (+0012 wire impact) | **Decided 2026-07-02** — per-app gap-free streams, target-owned allocators (Postgres commit fencing; DO counter), `(stream, version)` opaque cursors; HLC rejected with revisit trigger (LLP 0007 §Commit-version graduation) |
 | DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | **Decided 2026-07-01 — v1 pin replace/WS; cacheable-read-lane option kept open (M3)** |
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01; gated leg landed 2026-07-02** — warm VM pool + verified per-invocation reset shipped behind the `dk4_*` leak suite (LLP 0009 §DK-4 as-built; numbers in LLP 0035 §After warm VM) |
-| DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
+| DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | **Decided 2026-07-02 — defer**, four named revisit triggers (X3 start; hosted/untrusted work; observed engine divergence; limits gap user-facing). LLP 0009 §Decision DK-5 |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | **Decided 2026-07-02 — POSIX OR; landed with cron test-debt closure; ratified by Charlie same day, ledgered in LLP 0000** |
 | DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | **Decided 2026-07-02 — Rust-first** ([LLP 0037](./0037-schema-source-of-truth.decision.md)); P3c implements, P2 consumes |
 | DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Decided 2026-07-01 — MIT eyes-open (LLP 0033) |
-| DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | Open — X4 |
+| DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | **Decided 2026-07-02 — store-agnostic interface, SQLite reference impl** (LLP 0008 §Decision DK-9) |
 | DK-10 | Adapter live-push architecture | Adapter owns the live subscription; separate live-provider seam beside the boundary | prototype in P5 | LLP 0021/0029 | **Decided 2026-07-02 — adapter-owned live push** (proved by the LLP 0034 D1/C1 implementation; single- and multi-query modes; `store.mjs` dead; LLP 0029 G2 closed) |
 
 ## Test-debt register
