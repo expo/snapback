@@ -128,6 +128,11 @@ export async function createSnapbackContractSurface({
   liveStreamOptions = {},
   onConnectionChange = null,
   onSubscriptionEvent = null,
+  // Multi-query mode (LLP 0034 §6 ownership row 3 — the All Aboard proof):
+  // name the manifest's live queries to bind each over the shared stream with
+  // its own boundary key and per-query connection axis. Legacy single-query
+  // options (queryName/boundaryKey/queryArgs/optimisticReducers) do not apply.
+  liveQueries = null,
 }) {
   const pending = new Set();
   const mountedHandles = new Set();
@@ -142,6 +147,23 @@ export async function createSnapbackContractSurface({
     const error = new Error(blockingDiagnostic.message);
     error.diagnostic = blockingDiagnostic;
     throw error;
+  }
+  if (Array.isArray(liveQueries)) {
+    return createMultiLiveContractSurface({
+      runtime,
+      client,
+      userId,
+      manifest,
+      liveQueries,
+      livePush,
+      connectionId,
+      liveStreamOptions,
+      onConnectionChange,
+      onSubscriptionEvent,
+      diagnostics,
+      pending,
+      mountedHandles,
+    });
   }
   let optimisticSeq = 0;
   let disposed = false;
@@ -280,19 +302,10 @@ export async function createSnapbackContractSurface({
     };
   }
 
-  // Exact's shipped runtime/conformance surface still pins
-  // `manifestVersion === 1` (packages/exact-contract data-provider
-  // conformance); manifest v2 is a strictly additive extension (LLP 0034 D3 /
-  // Exact LLP 0284 §2.4: old fields remain valid, new fields are ignorable),
-  // so until the Exact side accepts v2 the adapter presents the v1-compatible
-  // projection: the same document, declared as v1, with the provider's actual
-  // version carried additively as `providerManifestVersion`. Delete this
-  // projection when Exact LLP 0284's manifest-v2 acceptance lands.
-  const runtimeManifest = manifest?.manifestVersion === 2
-    ? { ...manifest, manifestVersion: 1, providerManifestVersion: 2 }
-    : manifest;
-
-  const baseProvider = runtime.createBoundaryContractDataProvider(runtimeManifest, boundary, {
+  // Manifest v2 is declared natively: Exact's runtime/conformance accepts
+  // manifestVersion 1 | 2 since the LLP 0284 connection-axis merge (the interim
+  // v1 projection this adapter carried is gone).
+  const baseProvider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
     queries: providerQueries,
     mutations: providerMutations,
     rowSyncState: async (_table, rowId) => {
@@ -373,6 +386,235 @@ export async function createSnapbackContractSurface({
 function defaultContractConnectionId() {
   const unique = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
   return `contract_${unique}`;
+}
+
+// Multi-query live surface (LLP 0034 §6 ownership row 3; Exact LLP 0284 §5.3).
+//
+// Each named live query gets its own boundary key (the query name), its own
+// snapshot-with-subscribe over the kit's stream transport (one shared socket
+// per connection), and its own connection axis; server-authored live_replace
+// rows are written straight into the boundary — no app-code pump. Query links
+// return provider-backed handles (runtime.createProviderQueryHandle) whose
+// deliveries carry the full cell, so `async … stale rows` sugar and
+// `<binding>.connection` work in the .contract. Non-live queries serve empty
+// ready cells (nothing in the All Aboard surface consumes them — the static
+// schedule ships in the shared model); mutations persist server-side with
+// pending tracking and no optimistic layer — freshness for live-bound queries
+// is owned by the push, not reconcile-on-mutate.
+async function createMultiLiveContractSurface({
+  runtime,
+  client,
+  userId,
+  manifest,
+  liveQueries,
+  livePush,
+  connectionId,
+  liveStreamOptions,
+  onConnectionChange,
+  onSubscriptionEvent,
+  diagnostics,
+  pending,
+  mountedHandles,
+}) {
+  if (typeof runtime.createProviderQueryHandle !== 'function') {
+    throw new Error(
+      'createSnapbackContractSurface liveQueries mode requires an Exact runtime with createProviderQueryHandle (LLP 0284 §2.2).',
+    );
+  }
+  const queryNames = Object.keys(manifest?.queries ?? {});
+  const mutationNames = Object.keys(manifest?.mutations ?? {});
+  for (const name of liveQueries) {
+    if (!manifest?.queries?.[name]) {
+      throw new Error(`liveQueries names an unknown manifest query "${name}".`);
+    }
+  }
+
+  let disposed = false;
+  let boundary = null;
+  const sharedConnectionId = connectionId ?? defaultContractConnectionId();
+  const liveHandles = new Map(); // query name -> kit live handle
+  const liveCellObservers = new Map(); // query name -> Set<record>
+  const wantLivePush = livePush && typeof client.liveQuery === 'function';
+
+  const assertActive = () => {
+    if (disposed) {
+      throw new Error('Snapback Contract surface was used after dispose().');
+    }
+  };
+
+  const publishDiagnostic = (code, message, details = {}) => {
+    const diagnostic = contractDiagnostic(code, message, details);
+    diagnostics.push(diagnostic);
+    return diagnostic;
+  };
+
+  const connectionFor = (name) =>
+    (wantLivePush && liveHandles.has(name) ? liveHandles.get(name).connection ?? 'connecting' : null);
+
+  const reemitCells = (name, connection) => {
+    for (const record of [...(liveCellObservers.get(name) ?? [])]) {
+      if (record.lastCell) record.emit({ ...record.lastCell, connection });
+    }
+  };
+
+  // Establish every live subscription (snapshot-with-subscribe each; one
+  // shared socket via the connection id) before the boundary exists, then
+  // build the boundary from the snapshots.
+  const initialRows = {};
+  for (const name of queryNames) {
+    initialRows[name] = [];
+  }
+  if (wantLivePush) {
+    for (const name of liveQueries) {
+      const handle = await client.liveQuery(name, {
+        connectionId: sharedConnectionId,
+        args: {},
+        userId,
+        transport: 'stream',
+        stream: liveStreamOptions,
+        onUpdate: (rows) => {
+          if (!disposed && boundary) boundary.write(name, () => rows);
+        },
+        onConnectionChange: (connection, detail) => {
+          // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit last
+          // cells so slot sugar sees transitions without a data change.
+          reemitCells(name, connection);
+          onConnectionChange?.(connection, { ...detail, queryName: name });
+        },
+        onSubscriptionEvent: onSubscriptionEvent
+          ? (event) => onSubscriptionEvent({ ...event, queryName: name })
+          : null,
+      });
+      liveHandles.set(name, handle);
+      liveCellObservers.set(name, new Set());
+      initialRows[name] = handle.rows;
+    }
+  }
+  boundary = runtime.createContractMockQueryBoundary(initialRows);
+  for (const [name, handle] of liveHandles) {
+    if (handle.rows !== initialRows[name]) {
+      // An update that raced boundary creation is not lost.
+      boundary.write(name, () => handle.rows);
+    }
+  }
+
+  const track = (promise) => {
+    const task = Promise.resolve(promise);
+    pending.add(task);
+    task.then(
+      () => pending.delete(task),
+      () => pending.delete(task),
+    );
+    return task;
+  };
+
+  const persistMutation = async (name, args) => {
+    try {
+      await client.mutate(name, { args, userId });
+    } catch (error) {
+      publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
+        mutation: name,
+        args,
+      });
+      throw error;
+    }
+  };
+
+  const providerQueries = {};
+  for (const name of queryNames) {
+    providerQueries[name] = (_args, qb) => qb.query(name, (rows) => rows, { key: name });
+  }
+  const providerMutations = {};
+  for (const name of mutationNames) {
+    providerMutations[name] = async (args) => {
+      assertActive();
+      await track(persistMutation(name, args));
+    };
+  }
+
+  const baseProvider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
+    queries: providerQueries,
+    mutations: providerMutations,
+  });
+
+  // DataCellV2 connection axis: cells for live-bound queries carry their own
+  // query's connection; the field stays absent elsewhere.
+  const provider = {
+    ...baseProvider,
+    subscribe(subscribedQuery, args, observer) {
+      if (!liveHandles.has(subscribedQuery)) {
+        return baseProvider.subscribe(subscribedQuery, args, observer);
+      }
+      const records = liveCellObservers.get(subscribedQuery);
+      const record = {
+        lastCell: null,
+        emit: (cell) => observer(cell),
+      };
+      records.add(record);
+      const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
+        record.lastCell = cell;
+        observer({ ...cell, connection: connectionFor(subscribedQuery) });
+      });
+      return {
+        dispose() {
+          records.delete(record);
+          subscription.dispose();
+        },
+      };
+    },
+  };
+
+  const links = {};
+  for (const name of queryNames) {
+    links[name] = (args = {}) => {
+      assertActive();
+      return runtime.createProviderQueryHandle(provider, name, args ?? {});
+    };
+  }
+  for (const name of mutationNames) {
+    links[name] = (args) => {
+      assertActive();
+      return track(persistMutation(name, args));
+    };
+  }
+
+  return {
+    adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
+    capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
+    boundary,
+    links,
+    provider,
+    diagnostics,
+    pendingCount: () => pending.size,
+    declaredQueries: queryNames,
+    declaredMutations: mutationNames,
+    livePush: wantLivePush,
+    liveQueries: [...liveQueries],
+    connectionId: sharedConnectionId,
+    // Per-query connection facts; no argument = the first live query.
+    connection: (name = liveQueries[0]) => connectionFor(name),
+    connections: () => Object.fromEntries(liveQueries.map((name) => [name, connectionFor(name)])),
+    mount: (component, options = {}) => {
+      assertActive();
+      return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
+    },
+    flush: async () => {
+      await Promise.all([...pending]);
+    },
+    dispose: () => {
+      disposed = true;
+      for (const [, handle] of liveHandles) {
+        handle.dispose();
+      }
+      liveHandles.clear();
+      liveCellObservers.clear();
+      for (const handle of [...mountedHandles]) {
+        handle.dispose();
+      }
+      mountedHandles.clear();
+      pending.clear();
+    },
+  };
 }
 
 // Shared bridge for Contract system surfaces such as the Snapback admin console.
