@@ -322,17 +322,35 @@ export class SnapbackClient {
     }
   }
 
-  // ENG-22527 item 3: stop observing a room (published entries untouched);
-  // best-effort — an unknown room/registration is a quiet no-op server-side.
+  // ENG-22527 item 3 / SECURITY: stop observing a room (published entries
+  // untouched). Carried over the shared live socket, NOT a public HTTP route:
+  // the server binds the requester to this socket's connection
+  // (SNAPBACK_WEBSOCKET_SENDER_MISMATCH otherwise), so a participant cannot
+  // evict another connection's subscription by asserting its id. Best-effort —
+  // if the socket is not open the registration is left to disconnect/reap, and
+  // an unknown room/registration is a quiet no-op server-side (removed:false).
   async unsubscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
-    const outcome = await this.#req('POST', '/ephemeral/unsubscribe', {
-      collection: collectionName(ref),
-      scope,
-      connection_id: connectionId,
-      auth: SnapbackClient.auth(userId, { permissions }),
+    const manager = this.liveStreamManager(connectionId);
+    if (!manager.isOpen()) {
+      return { removed: false, skipped: 'socket-not-open' };
+    }
+    const ack = await manager.request({
+      type: 'ephemeral_unsubscribe',
+      request: {
+        collection: collectionName(ref),
+        scope,
+        connection_id: connectionId,
+        auth: SnapbackClient.auth(userId, { permissions }),
+      },
     });
-    if (outcome?.receipt) this.recordReceipt(outcome.receipt);
-    return outcome;
+    if (ack?.kind === 'ephemeral_error') {
+      const diag = ack.diagnostic ?? { code: 'SNAPBACK_EPHEMERAL_UNSUBSCRIBE_FAILED', message: '' };
+      const error = new Error(`${diag.code}: ${diag.message ?? ''}`);
+      error.diagnostic = diag;
+      throw error;
+    }
+    if (ack?.receipt) this.recordReceipt(ack.receipt);
+    return { removed: ack?.removed ?? false, receipt: ack?.receipt };
   }
 
   deleteEphemeral(ref, { connectionId, scope = {}, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {

@@ -1,6 +1,6 @@
 use crate::admin::{AppState, ServerContext};
 use crate::diagnostic::{Diagnostic, SnapbackError};
-use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, SubscribeRequest};
+use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest};
 use crate::local::{
     EphemeralApi, InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
     LocalSnapback,
@@ -113,7 +113,6 @@ fn core_routes() -> Router<AppState> {
         .route("/ephemeral/publish", post(publish_ephemeral))
         .route("/ephemeral/subscribe", post(subscribe_ephemeral))
         .route("/ephemeral/delete", post(delete_ephemeral))
-        .route("/ephemeral/unsubscribe", post(unsubscribe_ephemeral))
 }
 
 /// The migrated system routes that used to hide at the root as ungated
@@ -221,7 +220,6 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("POST", "/ephemeral/publish", AppData, Public),
         spec("POST", "/ephemeral/subscribe", AppData, Public),
         spec("POST", "/ephemeral/delete", AppData, Public),
-        spec("POST", "/ephemeral/unsubscribe", AppData, Public),
         // System API — migrated gated writes (LLP 0031 D5/D2).
         spec("POST", "/_snapback/api/schema/load", SystemApi, AdminWrite),
         spec("POST", "/_snapback/api/functions/load", SystemApi, AdminWrite),
@@ -280,6 +278,7 @@ pub fn live_socket_operations() -> Vec<(&'static str, RouteClass)> {
         ("ephemeral_subscribe", RouteClass::AppData),
         ("ephemeral_publish", RouteClass::AppData),
         ("ephemeral_delete", RouteClass::AppData),
+        ("ephemeral_unsubscribe", RouteClass::AppData),
         ("live_ping", RouteClass::AppData),
     ]
 }
@@ -1073,6 +1072,17 @@ enum LiveSocketClientMessage {
         request_id: Option<String>,
         request: DeleteRequest,
     },
+    /// Stop observing a room (ENG-22527 item 3 / SECURITY). Carried over the
+    /// shared live socket rather than a public HTTP route so the socket's
+    /// connection identity (checked by the `frame_connection != connection_id`
+    /// gate below) binds the requester: a participant cannot evict another
+    /// connection's subscription by asserting its id. Published entries are
+    /// untouched; the disposal is acked with a receipt.
+    EphemeralUnsubscribe {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+        request: SubscribeRequest,
+    },
     /// Application-level liveness probe (LLP 0034 D1, Exact LLP 0284 §2.2).
     /// An idle-healthy socket otherwise sends nothing (the 25ms tick writes
     /// only when the outbox has messages) and browser/Node `WebSocket` clients
@@ -1099,6 +1109,7 @@ fn live_socket_operation_name(message: &LiveSocketClientMessage) -> &'static str
         LiveSocketClientMessage::EphemeralSubscribe { .. } => "ephemeral_subscribe",
         LiveSocketClientMessage::EphemeralPublish { .. } => "ephemeral_publish",
         LiveSocketClientMessage::EphemeralDelete { .. } => "ephemeral_delete",
+        LiveSocketClientMessage::EphemeralUnsubscribe { .. } => "ephemeral_unsubscribe",
         LiveSocketClientMessage::Ping { .. } => "live_ping",
     }
 }
@@ -1146,6 +1157,10 @@ fn handle_live_socket_text(ephemeral: &EphemeralApi, connection_id: &str, text: 
             request_id,
             request,
         } => (request_id.clone(), "delete", &request.connection_id),
+        LiveSocketClientMessage::EphemeralUnsubscribe {
+            request_id,
+            request,
+        } => (request_id.clone(), "unsubscribe", &request.connection_id),
         LiveSocketClientMessage::Ping { .. } => unreachable!("handled above"),
     };
     if frame_connection != connection_id {
@@ -1186,8 +1201,57 @@ fn handle_live_socket_text(ephemeral: &EphemeralApi, connection_id: &str, text: 
             Ok(message) => socket_ack(request_id, "delete", json!({ "message": message })),
             Err(error) => socket_error(request_id, "delete", diagnostic_from_ephemeral(error)),
         },
+        LiveSocketClientMessage::EphemeralUnsubscribe {
+            request_id,
+            request,
+        } => {
+            let receipt_scope = request.scope.clone();
+            let collection = request.collection.clone();
+            match ephemeral.unsubscribe(request, now_millis()) {
+                Ok(removed) => {
+                    let receipt = ephemeral_unsubscribe_receipt(
+                        &collection,
+                        &receipt_scope,
+                        removed,
+                        now_millis(),
+                    );
+                    socket_ack(
+                        request_id,
+                        "unsubscribe",
+                        json!({ "removed": removed, "receipt": receipt }),
+                    )
+                }
+                Err(error) => {
+                    socket_error(request_id, "unsubscribe", diagnostic_from_ephemeral(error))
+                }
+            }
+        }
         LiveSocketClientMessage::Ping { .. } => unreachable!("handled above"),
     }
+}
+
+/// The disposal receipt for an ephemeral unsubscribe (ENG-22527 item 3). Shape
+/// matches the durable subscription-disposal receipts (kind `subscription`,
+/// lane `ephemeral`): the kit records it client-side so an idle-linger
+/// teardown is observable. Privacy (§3.3): opaque ids, scope, and a boolean —
+/// never a payload value.
+fn ephemeral_unsubscribe_receipt(
+    collection: &str,
+    scope: &Scope,
+    removed: bool,
+    now_ms: u64,
+) -> Value {
+    json!({
+        "kind": "subscription",
+        "lane": "ephemeral",
+        "bindingId": collection,
+        "collection": collection,
+        "event": "disposed",
+        "reason": "unsubscribed",
+        "removed": removed,
+        "scope": scope,
+        "receivedAtMs": now_ms,
+    })
 }
 
 /// The `live_ping` response envelope. `serverTimeMs` lets a client measure
@@ -1296,18 +1360,6 @@ async fn subscribe_ephemeral(
         .subscribe(request, now_millis())
         .map(Json)
         .map_err(ApiError::from_ephemeral)
-}
-
-async fn unsubscribe_ephemeral(
-    State(state): State<SharedSnapback>,
-    Json(request): Json<SubscribeRequest>,
-) -> Result<Json<Value>, ApiError> {
-    let outcome = with_snapback(&state, move |snapback| {
-        snapback.unsubscribe_ephemeral(request, now_millis())
-    })
-    .await
-    .map_err(ApiError::from_ephemeral)?;
-    Ok(Json(outcome))
 }
 
 async fn delete_ephemeral(
@@ -1579,11 +1631,20 @@ mod tests {
                 request_id: None,
                 request: DeleteRequest {
                     collection: "c".to_owned(),
-                    scope,
+                    scope: scope.clone(),
                     connection_id: "conn".to_owned(),
                     session_id: None,
                     user_id: None,
                     custom_key: None,
+                    auth: Default::default(),
+                },
+            },
+            LiveSocketClientMessage::EphemeralUnsubscribe {
+                request_id: None,
+                request: SubscribeRequest {
+                    collection: "c".to_owned(),
+                    scope,
+                    connection_id: "conn".to_owned(),
                     auth: Default::default(),
                 },
             },

@@ -2,7 +2,7 @@
 import { defineContractModule, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./todoPresence.ephemeral.ts', {
-  todoPresence: { kind: 'ephemeral', reads: ["todoPresence"], result: 'TodoPresenceEntry[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: true, maxDeltaRateHz: 30, coalesce: true },
+  todoPresence: { kind: 'ephemeral', reads: ["todoPresence"], result: 'TodoPresenceEntry[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: true },
   TodoPresenceEntry: shape({ fields: {"key":"string","value":"TodoPresenceValue","updatedAt":"number","expiresAt":{"type":"number","optional":true},"sourceClientId":"string","self":"boolean"} }),
   TodoPresenceValue: shape({ fields: {"name":"string","editing":{"type":"boolean","optional":true}} }),
 });

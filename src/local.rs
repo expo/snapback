@@ -504,6 +504,24 @@ impl EphemeralApi {
         outcome
     }
 
+    /// Stop observing a room (ENG-22527 item 3 / SECURITY). Removes only this
+    /// connection's subscriber registration — published entries are untouched
+    /// — and prunes the room if it is now empty. Reached only over the shared
+    /// live socket, where `handle_live_socket_text` has already bound the
+    /// requester to `request.connection_id`; there is no public HTTP route, so
+    /// a participant cannot evict another connection. Touch-after-success
+    /// (finding 2), consistent with the other ops.
+    pub fn unsubscribe(
+        &self,
+        request: SubscribeRequest,
+        now_ms: u64,
+    ) -> Result<bool, crate::ephemeral::EphemeralError> {
+        let connection_id = request.connection_id.clone();
+        let removed = self.store.unsubscribe(request)?;
+        self.activity.touch(&connection_id, now_ms);
+        Ok(removed)
+    }
+
     pub fn ensure_collections(
         &self,
         collections: Vec<EphemeralCollection>,
@@ -822,6 +840,13 @@ impl LocalSnapback {
 
         let seed_outcome = match input.seed {
             None => "skipped-absent",
+            // Gate BEFORE the emptiness scan (ENG-22527 FIX 2): when
+            // provisioning is disallowed the schema half is also gated, so its
+            // tables were never created — scanning them would raise
+            // SNAPBACK_UNKNOWN_TABLE and turn the primary fresh-prod mount into
+            // a 500 instead of an honest seed:"gated". Report gated and never
+            // touch the store.
+            Some(_) if !provisioning_allowed => "gated",
             Some(seed) => {
                 let mut all_empty = true;
                 for table in seed.tables.keys() {
@@ -835,11 +860,9 @@ impl LocalSnapback {
                     // Seed-if-empty, never reset-then-seed (LLP 0034 §5 edit
                     // 2): existing data always wins.
                     "skipped-nonempty"
-                } else if provisioning_allowed {
+                } else {
                     self.seed(seed)?;
                     "seeded"
-                } else {
-                    "gated"
                 }
             }
         };
@@ -1942,31 +1965,6 @@ impl LocalSnapback {
     ) -> Result<EphemeralMessage, crate::ephemeral::EphemeralError> {
         self.touch_connection(&request.connection_id, now_ms);
         self.ephemeral.subscribe(request, now_ms)
-    }
-
-    /// ENG-22527 item 3: remove one connection's room observation (published
-    /// entries untouched), receipted into the connection ring.
-    pub fn unsubscribe_ephemeral(
-        &mut self,
-        request: SubscribeRequest,
-        now_ms: u64,
-    ) -> Result<Value, crate::ephemeral::EphemeralError> {
-        self.touch_connection(&request.connection_id, now_ms);
-        let removed = self.ephemeral.unsubscribe(request.clone())?;
-        let receipt = json!({
-            "kind": "subscription",
-            "lane": "ephemeral",
-            "bindingId": request.collection.clone(),
-            "collection": request.collection,
-            "event": "disposed",
-            "reason": "unsubscribed",
-            "removed": removed,
-            "scope": request.scope,
-            "receivedAtMs": now_ms,
-        });
-        self.receipts
-            .push_connection(&request.connection_id, receipt.clone());
-        Ok(json!({ "removed": removed, "receipt": receipt }))
     }
 
     pub fn delete_ephemeral(

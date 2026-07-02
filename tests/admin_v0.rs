@@ -10,6 +10,7 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext};
+use snapback::ephemeral::EphemeralCollection;
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
@@ -458,6 +459,40 @@ async fn s1_gated_writes_fail_closed_on_non_loopback_binds() {
     assert_eq!(allowed.status(), StatusCode::OK);
 }
 
+/// ENG-22527 FIX 3 e2e — under the `prod` profile the provisioning writes are
+/// refused by `require_non_prod_profile` even where the admin-token layer
+/// would allow them (open loopback, no token configured): the profile gate is
+/// its own layer, and it answers with SNAPBACK_PROFILE_FORBIDS, not an auth
+/// diagnostic.
+#[tokio::test]
+async fn provisioning_writes_are_profile_forbidden_under_prod() {
+    let mut ctx = loopback_context(None);
+    ctx.profile = snapback::admin::ServerProfile::Prod;
+    let app = app_with_context(seeded_snapback(), ctx);
+
+    let gated_posts = [
+        (
+            "/_snapback/api/schema/load",
+            serde_json::to_value(todo_schema()).unwrap(),
+        ),
+        (
+            "/_snapback/api/functions/load",
+            serde_json::to_value(todo_functions()).unwrap(),
+        ),
+        ("/_snapback/api/app/reset", json!({})),
+    ];
+    for (uri, body) in gated_posts {
+        let resp = app.clone().oneshot(post(uri, body)).await.unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "{uri} must be profile-forbidden under prod"
+        );
+        let body = json(resp).await;
+        assert_eq!(body["diagnostic"]["code"], "SNAPBACK_PROFILE_FORBIDS");
+    }
+}
+
 /// LLP 0032 S1 (was S0) — the open-loopback default is unchanged: no configured
 /// token means local demos keep working without headers, now against the gated
 /// routes.
@@ -822,6 +857,122 @@ async fn s3_websocket_frames_bind_to_the_socket_connection() {
         reply["diagnostic"]["code"], "SNAPBACK_WEBSOCKET_SENDER_MISMATCH",
         "a frame matching the socket identity must pass the sender gate"
     );
+
+    server.abort();
+}
+
+/// ENG-22527 item 3 / SECURITY — ephemeral unsubscribe is an eviction
+/// primitive, so it rides the shared live socket (not a public HTTP route):
+/// the S3 sender gate binds it to the socket's connection. A participant
+/// cannot evict another connection's room subscription by asserting its id,
+/// and the connection's own idle-linger teardown still works end to end
+/// (removed + disposal receipt).
+#[tokio::test]
+async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
+    let mut snapback = seeded_snapback();
+    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
+    let state = AppState::detached(snapback);
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = snapback::server::app(state);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let (mut stream, _) = connect_async(format!("ws://{addr}/live/owner_ws/stream"))
+        .await
+        .unwrap();
+
+    let text = |frame: Value| tokio_tungstenite::tungstenite::Message::Text(frame.to_string().into());
+    let unsubscribe_frame = |connection_id: &str| {
+        json!({
+            "type": "ephemeral_unsubscribe",
+            "requestId": "req_unsub",
+            "request": {
+                "collection": "cursors",
+                "scope": { "roomId": "room_1" },
+                "connection_id": connection_id,
+                "auth": { "principal": null, "session_id": null, "user_id": null, "permissions": [] }
+            }
+        })
+    };
+
+    // The owner subscribes its own connection.
+    stream
+        .send(text(json!({
+            "type": "ephemeral_subscribe",
+            "requestId": "req_sub",
+            "request": {
+                "collection": "cursors",
+                "scope": { "roomId": "room_1" },
+                "connection_id": "owner_ws",
+                "auth": { "principal": null, "session_id": null, "user_id": null, "permissions": [] }
+            }
+        })))
+        .await
+        .unwrap();
+    let sub_ack: Value = serde_json::from_str(
+        &tokio::time::timeout(Duration::from_secs(2), stream.next())
+            .await
+            .expect("subscribe reply timeout")
+            .expect("websocket closed")
+            .expect("websocket message")
+            .into_text()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(sub_ack["kind"], "ephemeral_ack", "subscribe acked: {sub_ack}");
+
+    // An attacker who knows the owner's connection id (in Connection key mode
+    // it is BROADCAST as the entry key) tries to evict it over ITS OWN socket:
+    // rejected by the sender gate before touching the store.
+    stream
+        .send(text(unsubscribe_frame("victim_owner_ws")))
+        .await
+        .unwrap();
+    let spoof: Value = serde_json::from_str(
+        &tokio::time::timeout(Duration::from_secs(2), stream.next())
+            .await
+            .expect("spoof reply timeout")
+            .expect("websocket closed")
+            .expect("websocket message")
+            .into_text()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(spoof["kind"], "ephemeral_error");
+    assert_eq!(
+        spoof["diagnostic"]["code"], "SNAPBACK_WEBSOCKET_SENDER_MISMATCH",
+        "a spoofed unsubscribe must be rejected: {spoof}"
+    );
+
+    // The owner's own unsubscribe still removes its registration — removed:true
+    // here also proves the spoof above did NOT evict it — and carries the
+    // disposal receipt the idle-linger teardown records.
+    stream
+        .send(text(unsubscribe_frame("owner_ws")))
+        .await
+        .unwrap();
+    let ack: Value = serde_json::from_str(
+        &tokio::time::timeout(Duration::from_secs(2), stream.next())
+            .await
+            .expect("self-unsubscribe reply timeout")
+            .expect("websocket closed")
+            .expect("websocket message")
+            .into_text()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(ack["kind"], "ephemeral_ack", "self-unsubscribe acked: {ack}");
+    assert_eq!(
+        ack["removed"],
+        json!(true),
+        "the owner's registration survived the spoof and is now removed"
+    );
+    assert_eq!(ack["receipt"]["lane"], "ephemeral");
+    assert_eq!(ack["receipt"]["event"], "disposed");
+    assert_eq!(ack["receipt"]["reason"], "unsubscribed");
+    assert_eq!(ack["receipt"]["removed"], json!(true));
 
     server.abort();
 }

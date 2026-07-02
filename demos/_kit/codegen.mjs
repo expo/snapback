@@ -1477,8 +1477,11 @@ function renderContractQueryMeta(name, binding) {
 
 // Exact 0284 §2.4 liveness facts, emitted into the contract-meta descriptor
 // entries under EXACTLY these names (ENG-22527 item 4): the exact-side
-// ENG-22526 track teaches the compiler to read them for compile-time info
-// diagnostics; until then they ride as ignorable extra descriptor fields.
+// ENG-22526 compiler reads them for compile-time info diagnostics. Restricted
+// to exact's six ImportLivenessFacts fields (packages/exact-contract
+// compiler/ir.ts) — delivery facts (maxDeltaRateHz/coalesce) ride the
+// contract-data manifest and the ephemeral module exports, never the
+// descriptor entry, so the sidecars typecheck against the exact surface.
 function livenessFactsLiteral(binding) {
   const facts = {
     mode: binding?.mode,
@@ -1488,8 +1491,6 @@ function livenessFactsLiteral(binding) {
   };
   if (binding?.pollCadenceMs !== undefined) facts.pollCadenceMs = binding.pollCadenceMs;
   if (binding?.transport !== undefined) facts.transport = binding.transport;
-  if (binding?.maxDeltaRateHz !== undefined) facts.maxDeltaRateHz = binding.maxDeltaRateHz;
-  if (binding?.coalesce !== undefined) facts.coalesce = binding.coalesce;
   return Object.entries(facts)
     .filter(([, value]) => value !== undefined)
     .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)

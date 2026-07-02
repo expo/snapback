@@ -1143,7 +1143,12 @@ fn local_snapback_reuses_in_memory_ephemeral_store() {
 }
 
 #[test]
-fn ephemeral_unsubscribe_removes_registration_and_receipts_disposal() {
+fn ephemeral_unsubscribe_removes_only_the_requester_registration() {
+    // ENG-22527 item 3 (LLP 0034 §10.1): the idle-linger teardown's server
+    // half — `EphemeralApi::unsubscribe`, the lock-free primitive reached over
+    // the shared live socket (SECURITY: no public HTTP route; the socket binds
+    // the requester). It removes ONLY the caller's own registration; published
+    // entries and other observers' registrations are untouched.
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback.register_ephemeral_collection(EphemeralCollection::local_cursor(
         "boardCursors",
@@ -1151,65 +1156,54 @@ fn ephemeral_unsubscribe_removes_registration_and_receipts_disposal() {
     ));
     let scope = Scope::from_pairs([("boardId", "board_1")]);
     let auth = AuthContext::default();
-    let request = SubscribeRequest {
+    let api = snapback.ephemeral_api();
+    let request = |connection_id: &str| SubscribeRequest {
         collection: "boardCursors".to_owned(),
         scope: scope.clone(),
-        connection_id: "observer".to_owned(),
+        connection_id: connection_id.to_owned(),
         auth: auth.clone(),
     };
-    snapback
-        .subscribe_ephemeral(request.clone(), 1_000)
-        .expect("subscribe ephemeral");
 
-    // ENG-22527 item 3 (LLP 0034 §10.1): the idle-linger teardown's server
-    // half removes ONLY the subscriber registration — published entries and
-    // other connections' registrations are untouched — and receipts the
-    // disposal into the connection ring.
-    let outcome = snapback
-        .unsubscribe_ephemeral(request.clone(), 1_100)
-        .expect("unsubscribe ephemeral");
-    assert_eq!(outcome["removed"], json!(true));
-    assert_eq!(outcome["receipt"]["lane"], "ephemeral");
-    assert_eq!(outcome["receipt"]["event"], "disposed");
-    assert_eq!(outcome["receipt"]["reason"], "unsubscribed");
-    let receipts = snapback.receipts_snapshot(Some("observer"));
-    let ring = receipts["receipts"].as_array().expect("connection ring");
+    // Two observers on one room; only `observer` unsubscribes.
+    api.subscribe(request("observer"), 1_000).expect("subscribe");
+    api.subscribe(request("bystander"), 1_000)
+        .expect("subscribe bystander");
+    api.drain_outbox("observer");
+    api.drain_outbox("bystander");
+
+    let removed = api.unsubscribe(request("observer"), 1_100).expect("unsubscribe");
+    assert!(removed, "the requester's own registration is removed");
+
+    // A publish reaches the bystander but never the unsubscribed observer;
+    // published entries themselves are untouched (the bystander still sees it).
+    api.publish(
+        PublishRequest {
+            collection: "boardCursors".to_owned(),
+            scope: scope.clone(),
+            connection_id: "publisher".to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: None,
+            value: br#"{"x":9,"y":9}"#.to_vec(),
+            ttl_ms: None,
+            auth: auth.clone(),
+        },
+        1_200,
+    )
+    .expect("publish");
     assert!(
-        ring.iter().any(|receipt| receipt["event"] == "disposed"
-            && receipt["reason"] == "unsubscribed"
-            && receipt["removed"] == json!(true)),
-        "unsubscribe must be receipted: {receipts}"
+        api.drain_outbox("observer").is_empty(),
+        "unsubscribed observer must not receive deltas"
+    );
+    assert!(
+        !api.drain_outbox("bystander").is_empty(),
+        "the bystander's registration is untouched and still receives deltas"
     );
 
-    // Publishes after the unsubscribe no longer reach the observer.
-    snapback
-        .publish_ephemeral(
-            PublishRequest {
-                collection: "boardCursors".to_owned(),
-                scope,
-                connection_id: "publisher".to_owned(),
-                session_id: None,
-                user_id: None,
-                custom_key: None,
-                value: br#"{"x":9,"y":9}"#.to_vec(),
-                ttl_ms: None,
-                auth,
-            },
-            1_200,
-        )
-        .expect("publish ephemeral");
-    let messages = snapback.drain_outbox("observer");
-    assert!(
-        messages.is_empty(),
-        "unsubscribed observer must not receive deltas: {messages:?}"
-    );
-
-    // Unsubscribing again (or for a room that was pruned) is a quiet no-op —
-    // the linger teardown is best-effort and may race disconnect cleanup.
-    let again = snapback
-        .unsubscribe_ephemeral(request, 1_300)
-        .expect("second unsubscribe");
-    assert_eq!(again["removed"], json!(false));
+    // Unsubscribing again (or for a room already pruned) is a quiet no-op —
+    // best-effort teardown may race disconnect cleanup.
+    let again = api.unsubscribe(request("observer"), 1_300).expect("second unsubscribe");
+    assert!(!again, "a second unsubscribe is a quiet no-op (removed:false)");
 }
 
 #[test]
@@ -3629,6 +3623,34 @@ fn d4_ensure_app_reports_gated_under_prod() {
     assert_eq!(gated.schema, "gated");
     assert_eq!(gated.functions, "gated");
     assert_eq!(gated.seed, "skipped-absent");
+
+    // The primary fresh-prod mount (ENG-22527 FIX 2): an UNPROVISIONED prod
+    // backend with a seed present must report seed:"gated", never raise
+    // SNAPBACK_UNKNOWN_TABLE by scanning a table the gated schema never
+    // created (that scan-before-gate ordering was a 500 on the main mount).
+    let seed = SeedData {
+        tables: std::collections::BTreeMap::from([(
+            "todos".to_owned(),
+            vec![serde_json::from_value::<Map<String, Value>>(
+                json!({ "_id": "seed_1", "title": "Seeded", "completed": false, "userId": "user_1" }),
+            )
+            .expect("seed row")],
+        )]),
+    };
+    let fresh_prod = snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(todo_schema()),
+                functions: Some(todo_functions()),
+                seed: Some(seed),
+            },
+            false,
+            "prod",
+        )
+        .expect("fresh-prod ensure must not error");
+    assert_eq!(fresh_prod.schema, "gated");
+    assert_eq!(fresh_prod.functions, "gated");
+    assert_eq!(fresh_prod.seed, "gated");
 
     // Provision under dev, then a prod ensure of the SAME manifests is a
     // pure inspection: matched, no gate needed.

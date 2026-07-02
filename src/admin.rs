@@ -68,11 +68,24 @@ impl ServerProfile {
 }
 
 fn env_profile(loopback: bool) -> ServerProfile {
-    match std::env::var("SNAPBACK_PROFILE").ok().as_deref() {
+    resolve_profile(std::env::var("SNAPBACK_PROFILE").ok().as_deref(), loopback)
+}
+
+/// Resolve the server profile from the raw `SNAPBACK_PROFILE` value (pure, so
+/// the fail-closed behavior is testable without mutating the process
+/// environment). An exact `dev|demo|test|prod` wins; ANY other non-empty value
+/// — a typo, `production`, `PROD`, `staging` — fails CLOSED to `Prod` rather
+/// than silently granting the destructive/provisioning capability via the
+/// loopback default (ENG-22527 FIX 3). Unset or empty falls back to the
+/// bind-address default: zero-config `dev` on loopback, `prod` on a real
+/// interface.
+fn resolve_profile(raw: Option<&str>, loopback: bool) -> ServerProfile {
+    match raw {
         Some("dev") => ServerProfile::Dev,
         Some("demo") => ServerProfile::Demo,
         Some("test") => ServerProfile::Test,
         Some("prod") => ServerProfile::Prod,
+        Some(value) if !value.is_empty() => ServerProfile::Prod,
         _ if loopback => ServerProfile::Dev,
         _ => ServerProfile::Prod,
     }
@@ -674,6 +687,35 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn profile_resolution_fails_closed_on_unrecognized_values() {
+        // Exact matches win, on either bind.
+        assert_eq!(resolve_profile(Some("dev"), true), ServerProfile::Dev);
+        assert_eq!(resolve_profile(Some("demo"), false), ServerProfile::Demo);
+        assert_eq!(resolve_profile(Some("test"), true), ServerProfile::Test);
+        assert_eq!(resolve_profile(Some("prod"), true), ServerProfile::Prod);
+
+        // ENG-22527 FIX 3: any unrecognized NON-EMPTY value fails CLOSED to
+        // Prod even on loopback — a typo must never grant provisioning.
+        for typo in ["production", "PROD", "Dev", "staging", "prd", "true"] {
+            assert_eq!(
+                resolve_profile(Some(typo), true),
+                ServerProfile::Prod,
+                "unrecognized profile {typo:?} must fail closed to Prod"
+            );
+            assert!(
+                !resolve_profile(Some(typo), true).allows_provisioning(),
+                "unrecognized profile {typo:?} must not allow provisioning"
+            );
+        }
+
+        // Unset or empty falls back to the bind-address default.
+        assert_eq!(resolve_profile(None, true), ServerProfile::Dev);
+        assert_eq!(resolve_profile(Some(""), true), ServerProfile::Dev);
+        assert_eq!(resolve_profile(None, false), ServerProfile::Prod);
+        assert_eq!(resolve_profile(Some(""), false), ServerProfile::Prod);
+    }
 
     #[test]
     fn loopback_reads_are_open_and_writes_open_without_a_token() {
