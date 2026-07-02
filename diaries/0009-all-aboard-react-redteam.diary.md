@@ -299,3 +299,45 @@ Contract the better ship for this demo, and I would say so.
   `cargo build`, 45 s) on :4431; Contract vite :5188 from the sibling Exact
   checkout; React vite :5189 self-contained; another agent session's servers
   on :4420/:5178 left untouched.
+
+## 2026-07-02 — Independent cross-family verdict (GPT/Codex)
+
+> Provenance: OpenAI Codex CLI v0.142.5 (gpt-5.5), read-only sandbox, run at the
+> orchestrating session's request AFTER the diary above was written. The judge
+> was instructed to read both surfaces, configs, and acceptance suites but NOT
+> this diary, so the verdict below is uncontaminated by the one above. Verbatim.
+
+## Verdict
+Ship `surfaces/react/`.
+
+## Top reasons
+- React has the lower ship risk: its Vite config is stock React/Vite with local dependencies and no Exact aliases (`surfaces/react/vite.config.ts`, `surfaces/react/package.json`); Contract imports Exact source from a sibling checkout and aliases many internals (`surfaces/contract/vite.config.ts`).
+- Contract's acceptance can legally skip when Exact is missing (`tests/acceptance/browser.mjs:76`); React installs/runs from its own surface instead (`browser-react.mjs:59`).
+- React is more editable for the next feature: root state, live store, helpers, and components are separated with typed props (`App.tsx`, `store.ts`); Contract concentrates most UI/action/style logic in one 289-line grammar file (`app.contract`).
+- React's live-state model is explicit `useSyncExternalStore` snapshots (`store.ts`); Contract relies on mutable module state plus `_tick` cache-buster helper args (`data.ts`).
+- React has a concrete build/deploy path and checked-in `dist` output; Contract exposes only a dev script run from Exact.
+
+## Strongest case for the other side
+- Contract is the product's intended differentiator: one `.contract` is meant to render web and native from the same UI definition.
+- Contract is much more compact at the surface layer: one main UI file plus helpers, while React spreads the same UI across multiple TSX files.
+- Contract exercises generated Snapback Contract mutation bindings, not just direct `client.mutate`, so it better proves the Exact/Contract integration path.
+
+## What would flip my verdict
+- Contract has a self-contained, pinned dependency story: no sibling Exact checkout, no source-alias matrix, reproducible install/build from `surfaces/contract/package.json`.
+- Contract acceptance no longer skips for missing Exact in normal CI, and both suites explicitly assert urgent highlighting and 12h/24h toggle behavior.
+- Contract provides a production build/preview artifact equivalent to React's `vite build`/`dist`.
+- The `.contract` UI is split or otherwise made easier to edit without large single-file changes and duplicated meta declarations.
+
+## Confidence
+medium — the code/config evidence is clear, but I did not run builds or tests per the read-only/no-build instruction.
+
+> Orchestrator note: two independent model families reached the same ship-React
+> verdict via the same causal story (operational packaging, not the language),
+> and their flip conditions overlap on pinned consumption + a working external
+> production build. One genuine dissent between the judges worth preserving:
+> Codex scored the single-file multi-component `.contract` surface as LESS
+> editable than React's file-per-component split — the opposite of this diary's
+> (and the corpus's) compactness-as-win framing. Flip conditions tracked as
+> ENG-22446 (pinned consumption), ENG-22441 (external production build),
+> ENG-22443 (error-locus parity), ENG-22445 (index.html takeover); the
+> acceptance-must-not-skip point folds into ENG-22446's CI story.
