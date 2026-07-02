@@ -42,6 +42,14 @@
       "toolchain": "node>=24, cargo, bun, the Exact checkout (paved-road preset), local Google Chrome with Chrome DevTools Protocol",
       "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "note": "Pure Contract end-to-end (ENG-22524, Exact LLP 0281 stage 0): read side through the `ephemeral` binding (ENG-22479; Exact LLP 0284 §5 item 4), write side through a value channel's rated publish. The imperative DOM arm was deleted with the stage-0 landing; diary 0007 carries its record."
+    },
+    "react": {
+      "requirement": "control_arm",
+      "runner": "node demos/cursors-web/tests/acceptance/react-browser.mjs",
+      "devServer": "cd demos/cursors-web/surfaces/react && npm run dev (vite on 127.0.0.1:5186; SNAPBACK_CURSORS_API overrides the API origin)",
+      "toolchain": "node>=24, npm (self-contained package: run npm install once), cargo, local Google Chrome with Chrome DevTools Protocol",
+      "expectedDiagnostic": "SNAPBACK_CAPABILITY_REACT_DEPS_MISSING",
+      "note": "Red-team control arm (ENG-22531): the same product over the same Snapback ephemeral backend and generated artifacts, with the subscribe/connection/publish glue hand-wired in idiomatic React (hooks + refs + a hand throttle). Exists to price the Contract abstractions honestly; verdict and metrics live in diary 0011."
     }
   },
   "acceptanceChecks": {
@@ -51,6 +59,14 @@
       "the transform sink drives the self dot compositor-only",
       "channel + rated-publish facts are live-observable with receipts (Exact LLP 0281 §3.5)",
       "forceEphemeralState is LOCAL-ONLY and dispose restores live state",
+      "presence stays live after the force cycle"
+    ],
+    "react": [
+      "both windows boot the React surface over generated artifacts",
+      "client B's cursor reaches client A's subscribed overlay through the hand-throttled publish (and vice versa), self styled distinctly",
+      "the pointer glue drives the self dot through direct ref writes (synchronous with the input event)",
+      "publish facts (declared 15Hz inside the generated sustainedHz=20 budget) are live-observable with receipts",
+      "forceCursors is LOCAL-ONLY and dispose restores live state",
       "presence stays live after the force cycle"
     ]
   },
