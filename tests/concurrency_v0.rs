@@ -1,7 +1,9 @@
-//! Concurrency acceptance for the LLP 0032 L6+L7 arc: reads proceed on the
-//! lock-free WAL read lane while a write holds the global mutex, version/rows
-//! pairs come from one pinned snapshot, a busy-loop handler no longer stalls
-//! other endpoints, and blocking work stays off the tokio async workers.
+//! Concurrency acceptance for the LLP 0032 L6+L7 arc and the L9 ephemeral
+//! room authority: reads proceed on the lock-free WAL read lane while a write
+//! holds the global mutex, version/rows pairs come from one pinned snapshot,
+//! a busy-loop handler no longer stalls other endpoints, blocking work stays
+//! off the tokio async workers, and ephemeral publish/subscribe/drain proceed
+//! while a busy mutation holds the write lane (l9_*).
 //!
 //! These tests use a file-backed database (tempdir): the read lane requires
 //! WAL, which in-memory SQLite cannot run. The in-memory fallback is asserted
@@ -430,6 +432,326 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
     }
 }
 
+/// LLP 0032 L9 (the payoff over L6/L7) — ephemeral operations proceed while a
+/// long-running mutation holds the global write mutex. A busy Ibex mutation
+/// occupies the write lane for ~900ms; HTTP ephemeral subscribe/publish, the
+/// outbox drain, and a WebSocket socket-text publish all complete in a small
+/// fraction of that, because the room authority no longer takes the global
+/// mutex (LLP 0026 Phase 2). The latency bounds discriminate the lanes the
+/// same way the l7 test does: a request that secretly queued on the write
+/// mutex takes ≥650ms at this point in the busy write; 500ms splits the
+/// outcomes with margin.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
+    use futures_util::{SinkExt, StreamExt};
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("l9-busy.sqlite3");
+    let snapback = tokio::task::spawn_blocking(move || {
+        let _sanction = snapback::exec_guard::BlockingSanction::acquire();
+        let mut snapback = LocalSnapback::open(db_path).expect("open");
+        configure(&mut snapback);
+        seed_todo(&mut snapback, "steady state");
+        snapback
+    })
+    .await
+    .expect("setup");
+    let app = snapback::server::app(AppState::detached(snapback));
+
+    // Serve the same app on a real listener for the WebSocket leg.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = {
+        let app = app.clone();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.expect("serve");
+        })
+    };
+
+    let busy_started = Instant::now();
+    let busy = {
+        let app = app.clone();
+        tokio::spawn(async move {
+            let response = app
+                .oneshot(post_json(
+                    "/mutation/busyCreate",
+                    json!({ "args": { "busyMs": 900 }, "auth": { "user_id": "user_1" } }),
+                ))
+                .await
+                .expect("busy mutation response");
+            (response.status(), Instant::now())
+        })
+    };
+
+    tokio::time::sleep(Duration::from_millis(250)).await;
+
+    let ephemeral_request = |connection: &str| {
+        json!({
+            "collection": "cursors",
+            "scope": { "roomId": "room_l9" },
+            "connection_id": connection,
+            "session_id": null,
+            "user_id": null,
+            "custom_key": null,
+            "auth": { "principal": null, "session_id": null, "user_id": null, "permissions": [] }
+        })
+    };
+
+    // HTTP subscribe while the write lane is busy.
+    let started = Instant::now();
+    let mut subscribe = ephemeral_request("l9-observer");
+    let response = tokio::time::timeout(
+        Duration::from_secs(2),
+        app.clone()
+            .oneshot(post_json("/ephemeral/subscribe", subscribe.clone())),
+    )
+    .await
+    .expect("subscribe must not stall behind the busy mutation")
+    .expect("subscribe response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "ephemeral subscribe must not queue behind the busy write ({:?})",
+        started.elapsed()
+    );
+    // Reuse the request shape for an HTTP publish from another connection.
+    subscribe = ephemeral_request("l9-publisher");
+    subscribe["value"] = json!([123, 125]);
+    subscribe["ttl_ms"] = json!(null);
+    let started = Instant::now();
+    let response = tokio::time::timeout(
+        Duration::from_secs(2),
+        app.clone().oneshot(post_json("/ephemeral/publish", subscribe)),
+    )
+    .await
+    .expect("publish must not stall behind the busy mutation")
+    .expect("publish response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "ephemeral publish must not queue behind the busy write ({:?})",
+        started.elapsed()
+    );
+
+    // WebSocket socket-text publish while the write lane is still busy: the
+    // pre-L9 handler locked the global mutex inline for these frames.
+    let started = Instant::now();
+    let (mut socket, _) = tokio::time::timeout(
+        Duration::from_secs(2),
+        tokio_tungstenite::connect_async(format!("ws://{addr}/live/l9-ws/stream")),
+    )
+    .await
+    .expect("ws connect must not stall behind the busy mutation")
+    .expect("ws connect");
+    let mut frame = json!({
+        "type": "ephemeral_publish",
+        "requestId": "l9-ws-1",
+        "request": ephemeral_request("l9-ws")
+    });
+    frame["request"]["value"] = json!([120]);
+    frame["request"]["ttl_ms"] = json!(null);
+    socket
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            frame.to_string().into(),
+        ))
+        .await
+        .expect("ws send");
+    let reply = tokio::time::timeout(Duration::from_secs(2), socket.next())
+        .await
+        .expect("ws publish ack must not stall behind the busy mutation")
+        .expect("ws open")
+        .expect("ws message");
+    let reply: Value = serde_json::from_str(&reply.into_text().expect("text")).expect("json");
+    assert_eq!(reply["kind"], "ephemeral_ack", "unexpected reply: {reply}");
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "the WS ephemeral publish must not queue behind the busy write ({:?})",
+        started.elapsed()
+    );
+
+    // The observer's outbox drain also bypasses the write lane and already
+    // holds the fanned-out upserts.
+    let started = Instant::now();
+    let response = tokio::time::timeout(
+        Duration::from_secs(2),
+        app.clone().oneshot(
+            Request::builder()
+                .uri("/outbox/l9-observer")
+                .body(Body::empty())
+                .expect("drain request"),
+        ),
+    )
+    .await
+    .expect("outbox drain must not stall behind the busy mutation")
+    .expect("drain response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "the outbox drain must not queue behind the busy write ({:?})",
+        started.elapsed()
+    );
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("drain body");
+    let envelopes: Value = serde_json::from_slice(&body).expect("drain json");
+    let upserts = envelopes
+        .as_array()
+        .expect("array")
+        .iter()
+        .filter(|envelope| envelope["Ephemeral"]["Upsert"].is_object())
+        .count();
+    assert!(
+        upserts >= 2,
+        "the observer must have received both publishes mid-busy-write: {envelopes}"
+    );
+    let ephemeral_finished = Instant::now();
+
+    let (busy_status, busy_finished) = busy.await.expect("busy task");
+    assert_eq!(busy_status, StatusCode::OK);
+    assert!(
+        busy_finished - busy_started >= Duration::from_millis(800),
+        "the busy mutation must actually have been long"
+    );
+    assert!(
+        ephemeral_finished < busy_finished,
+        "every ephemeral operation must complete while the busy mutation still runs"
+    );
+    server.abort();
+}
+
+/// LLP 0026 Phase 2 acceptance — a hot room does not block unrelated rooms or
+/// the durable outbox path. Publisher threads hammer one room continuously;
+/// meanwhile expiry cleanup of an unrelated room and a durable
+/// enqueue-plus-drain for an unrelated connection complete within the
+/// documented local threshold (250ms — generous for what are microsecond
+/// memory operations; the bound exists to catch gross serialization behind
+/// the hot room).
+#[test]
+fn l9_hot_room_publish_does_not_stall_unrelated_rooms_or_durable_drain() {
+    use snapback::ephemeral::{
+        AuthContext, EphemeralCollection, EphemeralMessage, LocalEphemeralBackend, PublishRequest,
+        RealtimeEnvelope, RemoveReason, Scope, SubscribeRequest,
+    };
+
+    let backend = LocalEphemeralBackend::new();
+    let mut cursors = EphemeralCollection::local_cursor("cursors", "roomId");
+    cursors.sustained_hz = 10_000_000;
+    cursors.burst = 10_000_000;
+    backend.register_collection(cursors);
+
+    let publish = |connection: &str, room: &str, value: &[u8], ttl_ms: u64, now: u64| {
+        (
+            PublishRequest {
+                collection: "cursors".to_owned(),
+                scope: Scope::from_pairs([("roomId", room)]),
+                connection_id: connection.to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: value.to_vec(),
+                ttl_ms: Some(ttl_ms),
+                auth: AuthContext::default(),
+            },
+            now,
+        )
+    };
+
+    // A cold room with an already-expired entry and a subscriber to observe
+    // the removal.
+    backend
+        .subscribe(
+            SubscribeRequest {
+                collection: "cursors".to_owned(),
+                scope: Scope::from_pairs([("roomId", "cold")]),
+                connection_id: "cold-observer".to_owned(),
+                auth: AuthContext::default(),
+            },
+            1_000,
+        )
+        .expect("cold subscribe");
+    let (request, now) = publish("cold-pub", "cold", b"cold", 5_000, 1_000);
+    backend.publish(request, now).expect("cold publish");
+
+    // Hot load: three threads republishing into one room. The fixed logical
+    // clock keeps hot entries far from expiry and the huge budget keeps rate
+    // limiting out of the way — the contention is real, the clock is not.
+    let stop = Arc::new(AtomicBool::new(false));
+    let mut hot_publishers = Vec::new();
+    for publisher in 0..3 {
+        let backend = backend.clone();
+        let stop = stop.clone();
+        hot_publishers.push(thread::spawn(move || {
+            let connection = format!("hot-{publisher}");
+            let mut published = 0u64;
+            while !stop.load(Ordering::Relaxed) {
+                let request = PublishRequest {
+                    collection: "cursors".to_owned(),
+                    scope: Scope::from_pairs([("roomId", "hot")]),
+                    connection_id: connection.clone(),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: None,
+                    value: published.to_le_bytes().to_vec(),
+                    ttl_ms: Some(30_000),
+                    auth: AuthContext::default(),
+                };
+                backend.publish(request, 2_000).expect("hot publish");
+                published += 1;
+            }
+            published
+        }));
+    }
+
+    // Let the hot room heat up, then measure the unrelated paths.
+    thread::sleep(Duration::from_millis(50));
+
+    let started = Instant::now();
+    backend.cleanup_expired(6_500);
+    let cleanup_elapsed = started.elapsed();
+    assert!(
+        cleanup_elapsed < Duration::from_millis(250),
+        "unrelated-room cleanup must not be blocked by the hot room ({cleanup_elapsed:?})"
+    );
+
+    let started = Instant::now();
+    backend.enqueue_durable("durable-conn", b"{\"kind\":\"live_replace\"}".to_vec());
+    let drained = backend.drain_outbox("durable-conn");
+    let durable_elapsed = started.elapsed();
+    assert!(
+        durable_elapsed < Duration::from_millis(250),
+        "the durable enqueue+drain must not be blocked by the hot room ({durable_elapsed:?})"
+    );
+    assert_eq!(drained.len(), 1);
+
+    stop.store(true, Ordering::Relaxed);
+    let mut total_published = 0u64;
+    for publisher in hot_publishers {
+        total_published += publisher.join().expect("hot publisher");
+    }
+    assert!(
+        total_published >= 100,
+        "the hot room must have seen genuine continuous load (got {total_published})"
+    );
+
+    // The cold observer received the expiry removal produced mid-load.
+    let removals = backend
+        .drain_outbox("cold-observer")
+        .into_iter()
+        .filter(|envelope| {
+            matches!(
+                envelope,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Remove {
+                    reason: RemoveReason::Expired,
+                    ..
+                })
+            )
+        })
+        .count();
+    assert_eq!(removals, 1, "the cold room's expiry must have fanned out");
+}
+
 /* ---------- harness ---------- */
 
 const CONCURRENCY_HANDLER_SOURCE: &str = r#"
@@ -481,8 +803,14 @@ fn seed_todo(snapback: &mut LocalSnapback, title: &str) -> String {
 }
 
 fn concurrency_schema() -> SchemaManifest {
+    // The ephemeral collection gives the l9_* tests a cursor room; the huge
+    // publish budget keeps rate limiting out of these timing tests.
+    let mut cursors = snapback::ephemeral::EphemeralCollection::local_cursor("cursors", "roomId");
+    cursors.sustained_hz = 10_000_000;
+    cursors.burst = 10_000_000;
     SchemaManifest {
         schema_hash: Some("concurrency-v0".to_owned()),
+        ephemeral_collections: vec![cursors],
         tables: vec![TableManifest {
             name: "todos".to_owned(),
             fields: vec![

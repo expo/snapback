@@ -24,7 +24,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::marker::PhantomData;
-use std::sync::{Arc, RwLock};
+use std::sync::Mutex as StdMutex;
+use std::sync::{Arc, PoisonError, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -377,6 +378,120 @@ pub struct FunctionRunResult {
     pub diagnostic: Option<Diagnostic>,
 }
 
+/// Shared per-connection last-seen map for the L2 reaper. Ephemeral
+/// operations and outbox drains count as liveness but no longer take the
+/// global write mutex (L9), so the map is a small internally locked handle
+/// shared between `LocalSnapback` (which reaps on the write lane) and the
+/// server's lock-free ephemeral paths.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2: liveness
+/// touching survives the ephemeral paths leaving the global mutex.
+#[derive(Clone, Default)]
+pub struct ConnectionActivity {
+    last_seen: Arc<StdMutex<BTreeMap<String, u64>>>,
+}
+
+impl ConnectionActivity {
+    pub fn touch(&self, connection_id: &str, now_ms: u64) {
+        self.lock().insert(connection_id.to_owned(), now_ms);
+    }
+
+    fn remove(&self, connection_id: &str) {
+        self.lock().remove(connection_id);
+    }
+
+    fn len(&self) -> usize {
+        self.lock().len()
+    }
+
+    fn stale_ids(&self, cutoff_ms: u64) -> Vec<String> {
+        self.lock()
+            .iter()
+            .filter(|(_, seen)| **seen < cutoff_ms)
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, BTreeMap<String, u64>> {
+        self.last_seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// The server-facing ephemeral handle: the internally synchronized room
+/// authority plus the connection-activity map, so ephemeral operations,
+/// collection ensure, and outbox drains proceed without the global write
+/// mutex while still counting as liveness for the L2 reaper. These are pure
+/// memory operations (no Hermes, no SQLite) — outside the L7 exec guard's
+/// blocking classes — so they run inline on async workers by design.
+///
+/// @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — the server surface off the global mutex.
+#[derive(Clone)]
+pub struct EphemeralApi {
+    store: LocalEphemeralBackend,
+    activity: ConnectionActivity,
+}
+
+impl EphemeralApi {
+    pub fn publish(
+        &self,
+        request: PublishRequest,
+        now_ms: u64,
+    ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
+        self.activity.touch(&request.connection_id, now_ms);
+        self.store.publish(request, now_ms)
+    }
+
+    pub fn subscribe(
+        &self,
+        request: SubscribeRequest,
+        now_ms: u64,
+    ) -> Result<EphemeralMessage, crate::ephemeral::EphemeralError> {
+        self.activity.touch(&request.connection_id, now_ms);
+        self.store.subscribe(request, now_ms)
+    }
+
+    pub fn delete(
+        &self,
+        request: DeleteRequest,
+        now_ms: u64,
+    ) -> Result<Option<EphemeralMessage>, crate::ephemeral::EphemeralError> {
+        self.activity.touch(&request.connection_id, now_ms);
+        self.store.delete(request, now_ms)
+    }
+
+    pub fn ensure_collections(
+        &self,
+        collections: Vec<EphemeralCollection>,
+    ) -> Result<CollectionEnsureOutcome, crate::ephemeral::EphemeralError> {
+        self.store.ensure_collections(collections)
+    }
+
+    /// Drain a connection's outbox. A poll for updates is a liveness signal
+    /// for an HTTP-polling client (L2).
+    pub fn drain_outbox(&self, connection_id: &str) -> Vec<RealtimeEnvelope> {
+        self.activity.touch(connection_id, now_millis());
+        self.store.drain_outbox(connection_id)
+    }
+
+    pub fn drain_live_stream(&self, connection_id: &str) -> Vec<String> {
+        self.drain_outbox(connection_id)
+            .into_iter()
+            .filter_map(live_stream_text)
+            .collect()
+    }
+
+    pub fn cleanup_expired(&self, now_ms: u64) {
+        self.store.cleanup_expired(now_ms);
+    }
+
+    /// The delivery notifier the WebSocket task registers with (L8).
+    pub fn delivery_notifier(&self) -> Arc<DeliveryNotifier> {
+        self.store.delivery_notifier()
+    }
+}
+
 pub struct LocalSnapback {
     db: LocalDatabase,
     functions: FunctionManifest,
@@ -398,8 +513,10 @@ pub struct LocalSnapback {
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2: last-seen
     // time per connection, so HTTP-polling clients that vanish without calling
     // disconnect can be reaped (their subscriptions and ephemeral state torn
-    // down) instead of living forever.
-    connections_last_seen: BTreeMap<String, u64>,
+    // down) instead of living forever. Shared (not exclusive to this struct)
+    // because after L9 the ephemeral/drain server paths touch liveness without
+    // taking the global mutex.
+    connections_last_seen: ConnectionActivity,
     reaped_connections: u64,
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6: the
     // read-lane snapshot of the non-DB state a query needs. The write side
@@ -1214,8 +1331,17 @@ impl LocalSnapback {
 
     /// Record connection activity for the L2 reaper. @ref LLP 0032 L2.
     fn touch_connection(&mut self, connection_id: &str, now_ms: u64) {
-        self.connections_last_seen
-            .insert(connection_id.to_owned(), now_ms);
+        self.connections_last_seen.touch(connection_id, now_ms);
+    }
+
+    /// The lock-free ephemeral lane handle for the server: room authority plus
+    /// liveness map, cloneable and usable from any thread without the global
+    /// mutex (LLP 0026 Phase 2 / LLP 0032 L9).
+    pub fn ephemeral_api(&self) -> EphemeralApi {
+        EphemeralApi {
+            store: self.ephemeral.clone(),
+            activity: self.connections_last_seen.clone(),
+        }
     }
 
     /// Reap connections idle longer than `ttl_ms`: tear down each one's live
@@ -1226,12 +1352,7 @@ impl LocalSnapback {
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
     pub fn reap_stale_connections(&mut self, now_ms: u64, ttl_ms: u64) -> usize {
         let cutoff = now_ms.saturating_sub(ttl_ms);
-        let stale: Vec<String> = self
-            .connections_last_seen
-            .iter()
-            .filter(|(_, seen)| **seen < cutoff)
-            .map(|(id, _)| id.clone())
-            .collect();
+        let stale = self.connections_last_seen.stale_ids(cutoff);
         for id in &stale {
             // disconnect removes the connection from connections_last_seen too.
             self.disconnect(id, now_ms);
@@ -1323,7 +1444,7 @@ impl LocalSnapback {
             cron_active: Arc::new(AtomicBool::new(false)),
             last_persisted_cron: None,
             cron_state_writes: 0,
-            connections_last_seen: BTreeMap::new(),
+            connections_last_seen: ConnectionActivity::default(),
             reaped_connections: 0,
             warm_vms: Arc::new(crate::warm_vm::WarmVmPool::from_env()),
             read_manifests,

@@ -7,7 +7,7 @@
 //! state rather than forking a parallel schema; the console is one consumer.
 
 use crate::diagnostic::SnapbackError;
-use crate::local::{InspectState, LocalSnapback, ReadLane};
+use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{ApiError, HealthResponse, SharedSnapback};
@@ -99,30 +99,39 @@ fn env_admin_dist() -> Option<PathBuf> {
 }
 
 /// Shared application state: the Snapback instance (write lane), the lock-free
-/// read lane, and the server context. `FromRef` lets the original core
-/// handlers keep extracting `SharedSnapback` unchanged while other handlers
-/// reach the `ReadLane` or `ServerContext`.
+/// read lane, the lock-free ephemeral lane (LLP 0032 L9), and the server
+/// context. `FromRef` lets the original core handlers keep extracting
+/// `SharedSnapback` unchanged while other handlers reach the `ReadLane`,
+/// `EphemeralApi`, or `ServerContext`.
 #[derive(Clone)]
 pub struct AppState {
     pub snapback: SharedSnapback,
     pub read: ReadLane,
+    pub ephemeral: EphemeralApi,
     pub server: Arc<ServerContext>,
 }
 
 impl AppState {
-    pub fn new(snapback: SharedSnapback, read: ReadLane, server: ServerContext) -> Self {
+    pub fn new(
+        snapback: SharedSnapback,
+        read: ReadLane,
+        ephemeral: EphemeralApi,
+        server: ServerContext,
+    ) -> Self {
         Self {
             snapback,
             read,
+            ephemeral,
             server: Arc::new(server),
         }
     }
 
-    /// Wrap a fresh instance: the read lane is extracted before the instance
-    /// disappears behind the write mutex.
+    /// Wrap a fresh instance: the read and ephemeral lanes are extracted
+    /// before the instance disappears behind the write mutex.
     pub fn from_snapback(snapback: LocalSnapback, server: ServerContext) -> Self {
         let read = snapback.read_lane();
-        Self::new(Arc::new(Mutex::new(snapback)), read, server)
+        let ephemeral = snapback.ephemeral_api();
+        Self::new(Arc::new(Mutex::new(snapback)), read, ephemeral, server)
     }
 
     pub fn detached(snapback: LocalSnapback) -> Self {
@@ -139,6 +148,12 @@ impl FromRef<AppState> for SharedSnapback {
 impl FromRef<AppState> for ReadLane {
     fn from_ref(state: &AppState) -> Self {
         state.read.clone()
+    }
+}
+
+impl FromRef<AppState> for EphemeralApi {
+    fn from_ref(state: &AppState) -> Self {
+        state.ephemeral.clone()
     }
 }
 
@@ -555,15 +570,16 @@ async fn admin_run_cron_job(
 }
 
 async fn admin_ephemeral_cleanup(
-    State(snapback): State<SharedSnapback>,
+    State(ephemeral): State<EphemeralApi>,
     State(ctx): State<Arc<ServerContext>>,
     headers: HeaderMap,
 ) -> Result<StatusCode, ApiError> {
     // @ref LLP 0017#ephemeral-inspector — ephemeral mutating controls are
     // privileged writes, gated like durable admin writes.
     authorize(&ctx, &headers, true)?;
-    let mut snapback = snapback.lock().await;
-    snapback.cleanup_ephemeral(now_millis());
+    // Room authority is off the global mutex (LLP 0032 L9): cleanup reaches
+    // the store directly and cannot queue behind a busy write.
+    ephemeral.cleanup_expired(now_millis());
     Ok(StatusCode::NO_CONTENT)
 }
 

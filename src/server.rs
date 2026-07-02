@@ -2,7 +2,8 @@ use crate::admin::{AppState, ServerContext};
 use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, SubscribeRequest};
 use crate::local::{
-    InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
+    EphemeralApi, InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
+    LocalSnapback,
 };
 use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
 use crate::runtime::CapabilityState;
@@ -30,9 +31,10 @@ pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
 /// burn no thread); only actual execution occupies a blocking-pool thread,
 /// with the owned guard moved into the closure. Every server path that can
 /// reach Hermes eval or rusqlite goes through here (or the read lane), which
-/// is what keeps the exec-guard assertion true. Endpoints that only touch
-/// in-memory state (ephemeral, outbox drains, disconnect) may still lock
-/// inline.
+/// is what keeps the exec-guard assertion true. Ephemeral operations and
+/// outbox drains no longer take this mutex at all (LLP 0032 L9 — they go to
+/// the internally synchronized `EphemeralApi`); disconnect still locks
+/// inline because it tears down durable subscriptions, which is memory-only.
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L7.
 pub(crate) async fn with_snapback<T, F>(state: &SharedSnapback, work: F) -> T
@@ -458,16 +460,22 @@ const JOURNAL_RETAIN_MS: u64 = 24 * 60 * 60 * 1_000;
 
 /// Periodic lifecycle maintenance: reap connections idle past the TTL (L2) so an
 /// abandoned HTTP-polling client's subscriptions and ephemeral state do not live
-/// forever, and prune the change journal to its retention window (L3) so it does
-/// not grow without bound.
+/// forever, prune the change journal to its retention window (L3) so it does
+/// not grow without bound, and prune expired ephemeral entries through the
+/// expiry index (L9) — the index makes this cheap, and it never takes the
+/// global mutex.
 ///
-/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2, L3.
-pub fn spawn_maintenance_worker(state: SharedSnapback) -> JoinHandle<()> {
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2, L3, L9.
+pub fn spawn_maintenance_worker(state: SharedSnapback, ephemeral: EphemeralApi) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut ticks = interval(Duration::from_millis(MAINTENANCE_INTERVAL_MS));
         loop {
             ticks.tick().await;
             let now = now_millis();
+            // Room-authority TTL sweep: index-driven, off the global mutex
+            // (server-side remove deltas are best effort — clients also prune
+            // by TTL, LLP 0013 §TTL and leases).
+            ephemeral.cleanup_expired(now);
             // The journal prune is rusqlite work — off the async worker (L7).
             with_snapback(&state, move |snapback| {
                 snapback.reap_stale_connections(now, CONNECTION_IDLE_TTL_MS);
@@ -741,19 +749,25 @@ async fn unsubscribe_live(
 
 async fn stream_live(
     State(state): State<SharedSnapback>,
+    State(ephemeral): State<EphemeralApi>,
     Path(connection_id): Path<String>,
     ws: WebSocketUpgrade,
 ) -> Response {
-    ws.on_upgrade(move |socket| live_stream(socket, state, connection_id))
+    ws.on_upgrade(move |socket| live_stream(socket, state, ephemeral, connection_id))
 }
 
-async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: String) {
+async fn live_stream(
+    socket: WebSocket,
+    state: SharedSnapback,
+    ephemeral: EphemeralApi,
+    connection_id: String,
+) {
     let (mut sender, mut receiver) = socket.split();
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: an enqueue
     // wakes this task immediately (sub-poll-interval delivery, and no periodic
     // lock traffic while idle). The long interval is a safety net only, in case
     // a wake is ever missed; register before draining so no push is lost.
-    let notify = state.lock().await.delivery_notifier();
+    let notify = ephemeral.delivery_notifier();
     let (generation, waker) = notify.register(&connection_id);
     // Delivery is event-driven (the 25ms poll is gone); this heartbeat is only a
     // defensive fallback if a wake is ever missed. At 30s it is ~1200× less lock
@@ -762,9 +776,12 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
     safety_net.tick().await; // consume the immediate first tick
 
     // Flush anything enqueued before (or racing) registration, then rely on
-    // wakeups. Enqueues are serialized under the global lock, so a push either
-    // lands before this drain or wakes the now-registered waker.
-    if drain_and_send(&state, &connection_id, &mut sender)
+    // wakeups. Enqueues are no longer serialized by the global mutex (L9);
+    // the no-lost-wakeup argument is push-before-wake at every enqueue site
+    // plus this register-before-first-drain: a push the drain below misses
+    // happened after the drain took the outbox lock, and its wake then finds
+    // the already-registered waker and stores a permit.
+    if drain_and_send(&ephemeral, &connection_id, &mut sender)
         .await
         .is_break()
     {
@@ -779,7 +796,7 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
                 match incoming {
                     Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
                     Some(Ok(Message::Text(text))) => {
-                        let response = handle_live_socket_text(&state, &connection_id, &text).await;
+                        let response = handle_live_socket_text(&ephemeral, &connection_id, &text);
                         if sender.send(Message::Text(response.into())).await.is_err() {
                             break 'stream;
                         }
@@ -791,7 +808,7 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
             _ = waker.notified() => true,
             _ = safety_net.tick() => true,
         };
-        if drain && drain_and_send(&state, &connection_id, &mut sender).await.is_break() {
+        if drain && drain_and_send(&ephemeral, &connection_id, &mut sender).await.is_break() {
             break 'stream;
         }
     }
@@ -819,17 +836,15 @@ async fn teardown_live_stream(
     snapback.disconnect(connection_id, now_millis());
 }
 
-/// Drain a connection's outbox under the lock and send each message. Returns
-/// `Break` if the socket send failed (the caller should tear down).
+/// Drain a connection's outbox and send each message. The drain reaches the
+/// room authority's per-connection queue directly — no global mutex (L9).
+/// Returns `Break` if the socket send failed (the caller should tear down).
 async fn drain_and_send(
-    state: &SharedSnapback,
+    ephemeral: &EphemeralApi,
     connection_id: &str,
     sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
 ) -> std::ops::ControlFlow<()> {
-    let messages = {
-        let mut snapback = state.lock().await;
-        snapback.drain_live_stream(connection_id)
-    };
+    let messages = ephemeral.drain_live_stream(connection_id);
     for message in messages {
         if sender.send(Message::Text(message.into())).await.is_err() {
             return std::ops::ControlFlow::Break(());
@@ -886,11 +901,10 @@ fn live_socket_operation_name(message: &LiveSocketClientMessage) -> &'static str
     }
 }
 
-async fn handle_live_socket_text(
-    state: &SharedSnapback,
-    connection_id: &str,
-    text: &str,
-) -> String {
+/// Handle a socket-text operation. Ephemeral operations reach the room
+/// authority directly — a busy mutation holding the global write mutex cannot
+/// delay a cursor publish on this socket (LLP 0032 L9).
+fn handle_live_socket_text(ephemeral: &EphemeralApi, connection_id: &str, text: &str) -> String {
     let message = match serde_json::from_str::<LiveSocketClientMessage>(text) {
         Ok(message) => message,
         Err(error) => {
@@ -952,44 +966,24 @@ async fn handle_live_socket_text(
         LiveSocketClientMessage::EphemeralSubscribe {
             request_id,
             request,
-        } => {
-            let outcome = {
-                let mut snapback = state.lock().await;
-                snapback.subscribe_ephemeral(request, now_millis())
-            };
-            match outcome {
-                Ok(message) => socket_ack(request_id, "subscribe", json!({ "message": message })),
-                Err(error) => {
-                    socket_error(request_id, "subscribe", diagnostic_from_ephemeral(error))
-                }
-            }
-        }
+        } => match ephemeral.subscribe(request, now_millis()) {
+            Ok(message) => socket_ack(request_id, "subscribe", json!({ "message": message })),
+            Err(error) => socket_error(request_id, "subscribe", diagnostic_from_ephemeral(error)),
+        },
         LiveSocketClientMessage::EphemeralPublish {
             request_id,
             request,
-        } => {
-            let outcome = {
-                let mut snapback = state.lock().await;
-                snapback.publish_ephemeral(request, now_millis())
-            };
-            match outcome {
-                Ok(outcome) => socket_ack(request_id, "publish", json!({ "outcome": outcome })),
-                Err(error) => socket_error(request_id, "publish", diagnostic_from_ephemeral(error)),
-            }
-        }
+        } => match ephemeral.publish(request, now_millis()) {
+            Ok(outcome) => socket_ack(request_id, "publish", json!({ "outcome": outcome })),
+            Err(error) => socket_error(request_id, "publish", diagnostic_from_ephemeral(error)),
+        },
         LiveSocketClientMessage::EphemeralDelete {
             request_id,
             request,
-        } => {
-            let outcome = {
-                let mut snapback = state.lock().await;
-                snapback.delete_ephemeral(request, now_millis())
-            };
-            match outcome {
-                Ok(message) => socket_ack(request_id, "delete", json!({ "message": message })),
-                Err(error) => socket_error(request_id, "delete", diagnostic_from_ephemeral(error)),
-            }
-        }
+        } => match ephemeral.delete(request, now_millis()) {
+            Ok(message) => socket_ack(request_id, "delete", json!({ "message": message })),
+            Err(error) => socket_error(request_id, "delete", diagnostic_from_ephemeral(error)),
+        },
         LiveSocketClientMessage::Ping { .. } => unreachable!("handled above"),
     }
 }
@@ -1036,12 +1030,12 @@ fn merge_json_object(target: &mut Value, source: Value) {
     }
 }
 
+/// Outbox drain reaches the room authority directly — no global mutex (L9).
 async fn drain_outbox(
-    State(state): State<SharedSnapback>,
+    State(ephemeral): State<EphemeralApi>,
     Path(connection_id): Path<String>,
 ) -> Json<Vec<crate::ephemeral::RealtimeEnvelope>> {
-    let mut snapback = state.lock().await;
-    Json(snapback.drain_outbox(&connection_id))
+    Json(ephemeral.drain_outbox(&connection_id))
 }
 
 
@@ -1067,46 +1061,47 @@ impl EnsureEphemeralCollectionsInput {
     }
 }
 
+/// The ephemeral endpoints reach the sharded room authority directly: no
+/// global mutex, so a busy mutation on the write lane cannot delay presence
+/// (LLP 0013 §Delivery lanes; LLP 0032 L9). They are pure memory operations —
+/// no Hermes, no SQLite — so they run inline on async workers by design (the
+/// L7 exec guard's blocking classes do not apply).
 async fn ensure_ephemeral_collections(
-    State(state): State<SharedSnapback>,
+    State(ephemeral): State<EphemeralApi>,
     Json(input): Json<EnsureEphemeralCollectionsInput>,
 ) -> Result<Json<crate::ephemeral::CollectionEnsureOutcome>, ApiError> {
-    let mut snapback = state.lock().await;
-    snapback
-        .ensure_ephemeral_collections(input.into_collections())
+    ephemeral
+        .ensure_collections(input.into_collections())
         .map(Json)
         .map_err(ApiError::from_ephemeral)
 }
 
 async fn publish_ephemeral(
-    State(state): State<SharedSnapback>,
+    State(ephemeral): State<EphemeralApi>,
     Json(request): Json<PublishRequest>,
 ) -> Result<Json<crate::ephemeral::PublishOutcome>, ApiError> {
-    let mut snapback = state.lock().await;
-    snapback
-        .publish_ephemeral(request, now_millis())
+    ephemeral
+        .publish(request, now_millis())
         .map(Json)
         .map_err(ApiError::from_ephemeral)
 }
 
 async fn subscribe_ephemeral(
-    State(state): State<SharedSnapback>,
+    State(ephemeral): State<EphemeralApi>,
     Json(request): Json<SubscribeRequest>,
 ) -> Result<Json<crate::ephemeral::EphemeralMessage>, ApiError> {
-    let mut snapback = state.lock().await;
-    snapback
-        .subscribe_ephemeral(request, now_millis())
+    ephemeral
+        .subscribe(request, now_millis())
         .map(Json)
         .map_err(ApiError::from_ephemeral)
 }
 
 async fn delete_ephemeral(
-    State(state): State<SharedSnapback>,
+    State(ephemeral): State<EphemeralApi>,
     Json(request): Json<DeleteRequest>,
 ) -> Result<Json<Option<crate::ephemeral::EphemeralMessage>>, ApiError> {
-    let mut snapback = state.lock().await;
-    snapback
-        .delete_ephemeral(request, now_millis())
+    ephemeral
+        .delete(request, now_millis())
         .map(Json)
         .map_err(ApiError::from_ephemeral)
 }
