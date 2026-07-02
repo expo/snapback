@@ -664,7 +664,9 @@ implementation should prove:
 
 ## Status
 
-Draft. The first consumer and forcing function is All Aboard
+Accepted (ratified in the LLP 0032 R1 batch, 2026-07-01; the local scheduler
+and action→mutation path shipped per this design, and DK-6 calendar semantics
+were ratified 2026-07-02). The first consumer and forcing function is All Aboard
 ([LLP 0027](./0027-all-aboard-caltrain-demo.plan.md)); this RFC unblocks its
 Phase 2 (real scheduled/demand refresh). It depends on
 [LLP 0009](./0009-code-execution-security.rfc.md) for the action sandbox/secrets
