@@ -1024,11 +1024,15 @@ agent-first philosophy leans on hardest — is the least fed-back component in
 the repo. This phase makes the JS estate product-grade. It can run in
 parallel with Phase 3.
 
-**Phase 5 status (2026-07-02): P1–P6 landed** (P4 and half of P5 by
-revalidation — the LLP 0034 D1/ENG-22478 D2 arc had already built the wire
-protocol and adapter live push; the steps' remainders, tests, and owner-doc
-contracts landed here). **P7 (Ibex bring-up doctor) and P8 (one admin
-client, typed inspect) remain open** — Milestone C needs them.
+**Phase 5 completed 2026-07-02 (P1–P8) — Milestone C reached.** P1–P6
+landed in the morning arc (P4 and half of P5 by revalidation — the
+LLP 0034 D1/ENG-22478 D2 arc had already built the wire protocol and
+adapter live push; the steps' remainders, tests, and owner-doc contracts
+landed here); P7 (the bring-up doctor, red→green proven) and P8 (pinned
+Exact consumption, the one admin client, camelCase typed inspect) closed
+the phase the same day. The one Milestone C leg that only a future event
+can measure: acceptance #6's glue-inventory drop is recorded by the *next*
+demo's diary.
 
 - **P1 — Promote codegen out of `demos/_kit`.** `demos/_kit/codegen.mjs`
   (1,281 lines) is the only writer of the manifests, typed API, and Contract
@@ -1393,7 +1397,10 @@ Decisions this program forces. Each lands as a revision to its owner doc
 (new Decision LLP only where noted), gets ledgered in LLP 0000, and cites
 its gating evidence. **Program acceptance requires every row ledgered —
 decided, or explicitly deferred with a named revisit trigger.** Update the
-Status column in place as rows close.
+Status column in place as rows close. **All ten rows closed as of
+2026-07-02** (DK-1's E3 leg stays a pinned design question inside the
+decided implement-up direction; DK-5 is an explicit defer with four named
+revisit triggers).
 
 | Id | Decision | Options (recommendation first) | Gate | Lands in | Status |
 | --- | --- | --- | --- | --- | --- |
@@ -1520,6 +1527,17 @@ Guardrails while executing:
   on every step.
 
 ## Program acceptance
+
+**Status 2026-07-02:** properties 1–5 hold (Phases 0–5 complete; every
+docket row ledgered; the gating Phase 6 steps X1, X2's decision, X4, and
+X5 landed — X3 is scheduled-not-gating per its own step). What remains for
+full program acceptance: property 6's final leg (the *next* demo diary's
+glue inventory reporting a lower count than Diary 0008's — a future demo
+event by construction) and property 7's three still-open test-debt rows
+(additive `ALTER TABLE` migration on a populated DB; seed with duplicate
+`_id`s + function-manifest reload under live subscriptions; CORS
+middleware behavior), each of which needs a test or a recorded won't-test
+rationale.
 
 The program is complete when the seven end-state properties hold, checked
 concretely as:
