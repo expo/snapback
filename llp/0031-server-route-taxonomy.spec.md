@@ -103,7 +103,7 @@ and its target home:
 
 | Route today | Gating today | Class | Target |
 | --- | --- | --- | --- |
-| `/` (YAML status) | none | app-data/public read | root — keep; trim the on-disk DB path per D3 |
+| `/` (instance status; content-negotiated HTML/YAML/JSON/Markdown, YAML default — LLP 0017 §Instance home page) | none | app-data/public read | root — keep; trim the on-disk DB path per D3. Negotiation changes the rendering, never the payload's public scope |
 | `/health` | none | app-data | root — keep |
 | `/query/{name}` | app auth | app-data | root — keep |
 | `/mutation/{name}` | app auth | app-data | root — keep |

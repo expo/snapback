@@ -30,6 +30,40 @@
         }
       ]
     },
+    "AppIdentity": {
+      "description": "Optional presentation identity for the loaded app: how the instance should\nintroduce itself to a human. Everything here is public by construction — it\nis rendered on the public root page and flows into the public inspect\nprojection — so apps must not put secrets in it. The icon/wordmark URLs are\nordinary app-served or absolute URLs; the root page renders them as plain\n`<img>` references with attribute escaping.\n\n@ref LLP 0017#instance-home-page — the root page renders this identity when\n  the manifest declares it; absent, the page is Snapback-branded only.",
+      "properties": {
+        "description": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "iconUrl": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wordmarkUrl": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "Diagnostic": {
       "properties": {
         "code": {
@@ -238,6 +272,17 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/schema.manifest.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "app": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AppIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "appId": {
       "default": "local-app",
       "type": "string"

@@ -13,9 +13,10 @@ use snapback::admin::{AppState, ServerContext};
 use snapback::ephemeral::EphemeralCollection;
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
-    AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerInput, HandlerPlan, IndexManifest, MutationPlan, MutationStep,
-    OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData, TableManifest, ValueExpr,
+    AppIdentity, AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
+    FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IndexManifest, MutationPlan,
+    MutationStep, OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData, TableManifest,
+    ValueExpr,
 };
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -50,6 +51,169 @@ async fn root_path_serves_yaml_instance_status() {
     assert!(body.contains("  healthJson: \"/_snapback/api/health\""));
     assert!(body.contains("  inspectJson: \"/_snapback/api/inspect\""));
     assert!(body.contains("Open on loopback"));
+    assert!(body.contains("app:\n  id: \"local-app\""));
+    // No identity declared, so no presentation fields are emitted.
+    assert!(!body.contains("iconUrl"));
+}
+
+/// A browser `Accept` header gets the branded HTML homepage instead of YAML,
+/// with the emphasized admin-console link and the smaller machine-endpoint
+/// links.
+#[tokio::test]
+async fn root_negotiates_html_for_browsers() {
+    let app = loopback_app(seeded_snapback());
+
+    let resp = app
+        .oneshot(get_accept(
+            "/",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ctype = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(ctype.starts_with("text/html"), "browser gets HTML");
+
+    let body = text(resp).await;
+    assert!(body.contains("<svg"), "inline Snapback mark is embedded");
+    assert!(body.contains("Snapback"), "wordmark is present");
+    assert!(body.contains("Open admin console"));
+    assert!(body.contains("href=\"/_snapback/admin\""));
+    assert!(body.contains("/_snapback/api/health"));
+    assert!(body.contains("/_snapback/api/inspect"));
+    assert!(body.contains("<details"), "expandable instance details");
+    assert!(
+        body.contains("schemaVersion: &quot;snapback.v0&quot;"),
+        "details carry the full metadata object"
+    );
+}
+
+#[tokio::test]
+async fn root_negotiates_json_and_markdown() {
+    let app = loopback_app(seeded_snapback());
+
+    let resp = app
+        .clone()
+        .oneshot(get_accept("/", "application/json"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ctype = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(ctype.starts_with("application/json"));
+    let body = json(resp).await;
+    assert_eq!(body["statusKind"], "snapbackInstanceStatus");
+    assert_eq!(body["counts"]["loadedTables"], 1);
+    assert_eq!(body["links"]["adminConsole"], "/_snapback/admin");
+    assert_eq!(body["app"]["id"], "local-app");
+    assert!(
+        body["app"].get("name").is_none(),
+        "undeclared identity fields are omitted from JSON"
+    );
+
+    let resp = app
+        .oneshot(get_accept("/", "text/markdown"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ctype = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(ctype.starts_with("text/markdown"));
+    let body = text(resp).await;
+    assert!(body.starts_with("# Snapback local server"));
+    assert!(body.contains("- target: `local-dev-sqlite-ibex`"));
+    assert!(body.contains("[Admin console](/_snapback/admin)"));
+}
+
+/// `?format=` beats the `Accept` header so the HTML page can link to the
+/// machine renderings from a browser.
+#[tokio::test]
+async fn root_format_param_overrides_accept() {
+    let app = loopback_app(seeded_snapback());
+
+    let resp = app
+        .clone()
+        .oneshot(get_accept("/?format=json", "text/html"))
+        .await
+        .unwrap();
+    let ctype = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(ctype.starts_with("application/json"));
+
+    // And an unknown format falls back to header negotiation.
+    let resp = app
+        .oneshot(get_accept("/?format=xml", "text/html"))
+        .await
+        .unwrap();
+    let ctype = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(ctype.starts_with("text/html"));
+}
+
+/// A declared app identity is rendered on the homepage — HTML-escaped, since
+/// the manifest is app-authored input on the open root — and flows into the
+/// machine formats.
+#[tokio::test]
+async fn root_renders_declared_app_identity_escaped() {
+    let mut schema = todo_schema();
+    schema.app = Some(AppIdentity {
+        name: Some("Todo <Deluxe> & Friends".to_owned()),
+        description: Some("The \"best\" list app".to_owned()),
+        icon_url: Some("/assets/icon.png?v=1&theme=dark".to_owned()),
+        wordmark_url: None,
+    });
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(schema).expect("schema");
+    let app = loopback_app(snapback);
+
+    let html = text(
+        app.clone()
+            .oneshot(get_accept("/", "text/html"))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(html.contains("Todo &lt;Deluxe&gt; &amp; Friends"));
+    assert!(
+        !html.contains("<Deluxe>"),
+        "app-supplied markup must not reach the page unescaped"
+    );
+    assert!(html.contains("The &quot;best&quot; list app"));
+    assert!(html.contains("src=\"/assets/icon.png?v=1&amp;theme=dark\""));
+
+    let yaml = text(app.clone().oneshot(get("/")).await.unwrap()).await;
+    assert!(yaml.contains("  name: \"Todo <Deluxe> & Friends\""));
+    assert!(yaml.contains("  iconUrl: \"/assets/icon.png?v=1&theme=dark\""));
+
+    let body = json(app.oneshot(get_accept("/", "application/json")).await.unwrap()).await;
+    assert_eq!(body["app"]["name"], "Todo <Deluxe> & Friends");
+    assert_eq!(body["app"]["description"], "The \"best\" list app");
 }
 
 #[tokio::test]
@@ -638,6 +802,14 @@ fn dist_context(dist: std::path::PathBuf) -> ServerContext {
 
 fn get(uri: &str) -> Request<Body> {
     Request::builder().uri(uri).body(Body::empty()).unwrap()
+}
+
+fn get_accept(uri: &str, accept: &str) -> Request<Body> {
+    Request::builder()
+        .uri(uri)
+        .header("accept", accept)
+        .body(Body::empty())
+        .unwrap()
 }
 
 fn post(uri: &str, body: Value) -> Request<Body> {

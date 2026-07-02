@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>__TITLE__</title>
+<link rel="icon" href="__FAVICON_HREF__" type="image/svg+xml" />
+<!-- @ref LLP 0017#serving-model — like the embedded console, this page is one
+     self-contained file served by the Snapback server itself; no build step,
+     no external assets. -->
+<!-- @ref LLP 0031#resolved-decisions — D3: everything rendered here comes from
+     the public InstanceStatus object; nothing on this page may exceed it. -->
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --surface-2: #fafbfc;
+    --border: #e3e5ea;
+    --border-strong: #d4d7df;
+    --text: #1c1d21;
+    --muted: #6b7280;
+    --faint: #9aa1ad;
+    --accent: #5e6ad2;
+    --accent-soft: #eceefb;
+    --ink: #111111;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(17, 20, 24, 0.04), 0 1px 3px rgba(17, 20, 24, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a;
+      --surface: #1d1f23;
+      --surface-2: #212327;
+      --border: #2c2f35;
+      --border-strong: #3a3e45;
+      --text: #e7e8ea;
+      --muted: #9aa1ad;
+      --faint: #6b7280;
+      --accent: #8b95ec;
+      --accent-soft: #262a44;
+      --ink: #ffffff;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  a { color: var(--accent); }
+
+  header.topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    display: inline-flex; align-items: center; gap: 9px;
+    color: var(--ink); text-decoration: none;
+  }
+  .brand svg { height: 18px; width: auto; display: block; }
+  .brand .wordmark { font-weight: 700; font-size: 15px; letter-spacing: -0.02em; color: var(--text); }
+  .brand small { color: var(--muted); font-weight: 500; }
+  .topbar .spacer { flex: 1; }
+  .topbar a.console { font-size: 13px; font-weight: 550; text-decoration: none; }
+  .topbar a.console:hover { text-decoration: underline; }
+
+  main { width: 100%; max-width: 760px; margin: 0 auto; padding: 36px 20px 20px; flex: 1; }
+
+  .hero { text-align: center; padding: 12px 0 26px; }
+  .hero .snapback-mark svg { height: 56px; width: auto; color: var(--ink); }
+  .hero img.app-icon { max-height: 72px; max-width: 72px; border-radius: 16px; display: block; margin: 0 auto 14px; }
+  .hero img.app-wordmark { max-height: 44px; max-width: 320px; display: block; margin: 0 auto; }
+  .hero h1 { margin: 10px 0 0; font-size: 26px; letter-spacing: -0.02em; }
+  .hero p.desc { margin: 10px auto 0; max-width: 540px; color: var(--muted); font-size: 15px; }
+  .hero p.sub { margin: 6px 0 0; color: var(--faint); font-size: 13px; }
+
+  .actions { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-bottom: 28px; }
+  .actions a.primary {
+    display: inline-block; text-decoration: none;
+    background: var(--accent); color: #fff;
+    font-weight: 600; font-size: 14px;
+    padding: 10px 22px; border-radius: 9px;
+    box-shadow: var(--shadow);
+  }
+  .actions a.primary:hover { filter: brightness(1.05); }
+  .actions .small-links { color: var(--faint); font-size: 12.5px; }
+  .actions .small-links a { color: var(--muted); font-family: var(--mono); font-size: 12px; text-decoration: none; }
+  .actions .small-links a:hover { color: var(--accent); text-decoration: underline; }
+
+  .facts {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px;
+    padding-bottom: 26px;
+  }
+  .fact {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 10px 12px; min-width: 0;
+  }
+  .fact .k { color: var(--faint); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .fact .v { font-size: 14px; font-weight: 550; margin-top: 2px; overflow-wrap: break-word; }
+  .fact .v.mono { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
+  .fact.wide { grid-column: 1 / -1; }
+  .fact.wide .v { font-weight: 450; color: var(--muted); font-size: 13px; }
+
+  details.details {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); margin-bottom: 26px;
+  }
+  details.details summary {
+    cursor: pointer; user-select: none;
+    padding: 11px 14px; font-weight: 600; font-size: 13px; color: var(--muted);
+  }
+  details.details[open] summary { border-bottom: 1px solid var(--border); color: var(--text); }
+  details.details pre {
+    margin: 0; padding: 14px; overflow-x: auto;
+    font-family: var(--mono); font-size: 12px; line-height: 1.55;
+    background: var(--surface-2); color: var(--text);
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  details.details .alt-formats {
+    margin: 0; padding: 9px 14px; font-size: 12px; color: var(--faint);
+    border-top: 1px solid var(--border);
+  }
+
+  footer {
+    padding: 16px 20px 22px; text-align: center;
+    color: var(--faint); font-size: 12px;
+  }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">__SNAPBACK_MARK__<span class="wordmark">Snapback</span></a>
+  <span class="spacer"></span>
+  <a class="console" href="/_snapback/admin">Admin console</a>
+</header>
+<main>
+  <section class="hero">
+__HERO__
+  </section>
+  <section class="actions">
+    <a class="primary" href="/_snapback/admin">Open admin console</a>
+    <span class="small-links"><a href="/_snapback/api/health">/_snapback/api/health</a> &middot; <a href="/_snapback/api/inspect">/_snapback/api/inspect</a></span>
+  </section>
+  <section class="facts">
+__FACTS__
+  </section>
+  <details class="details">
+    <summary>Instance details</summary>
+    <pre>__DETAILS_YAML__</pre>
+    <p class="alt-formats">This status as <a href="/?format=yaml">YAML</a> &middot; <a href="/?format=json">JSON</a> &middot; <a href="/?format=md">Markdown</a></p>
+  </details>
+</main>
+<footer>Powered by Snapback</footer>
+</body>
+</html>

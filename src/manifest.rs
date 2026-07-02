@@ -31,6 +31,27 @@ fn default_true() -> bool {
     true
 }
 
+/// Optional presentation identity for the loaded app: how the instance should
+/// introduce itself to a human. Everything here is public by construction — it
+/// is rendered on the public root page and flows into the public inspect
+/// projection — so apps must not put secrets in it. The icon/wordmark URLs are
+/// ordinary app-served or absolute URLs; the root page renders them as plain
+/// `<img>` references with attribute escaping.
+///
+/// @ref LLP 0017#instance-home-page — the root page renders this identity when
+///   the manifest declares it; absent, the page is Snapback-branded only.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct AppIdentity {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default, rename = "iconUrl", alias = "icon_url")]
+    pub icon_url: Option<String>,
+    #[serde(default, rename = "wordmarkUrl", alias = "wordmark_url")]
+    pub wordmark_url: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SchemaManifest {
     #[serde(
@@ -47,6 +68,8 @@ pub struct SchemaManifest {
     pub schema_version: String,
     #[serde(default = "local_app_id", rename = "appId", alias = "app_id")]
     pub app_id: String,
+    #[serde(default)]
+    pub app: Option<AppIdentity>,
     #[serde(default, rename = "schemaHash", alias = "schema_hash")]
     pub schema_hash: Option<String>,
     #[serde(default, rename = "inputsHash", alias = "inputs_hash")]
@@ -80,6 +103,7 @@ impl Default for SchemaManifest {
             artifact_kind: schema_manifest_kind(),
             schema_version: snapback_schema_version(),
             app_id: local_app_id(),
+            app: None,
             schema_hash: None,
             inputs_hash: None,
             generated_at: None,

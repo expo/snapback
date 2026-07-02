@@ -285,6 +285,12 @@ pub fn live_socket_operations() -> Vec<(&'static str, RouteClass)> {
 
 /// Browser-friendly default route for a running Snapback instance.
 ///
+/// One public metadata object ([`InstanceStatus`]), four renderings, chosen by
+/// content negotiation: HTML for browsers, and JSON, Markdown, or YAML for
+/// clients that ask for them. YAML stays the default so `curl /` keeps reading
+/// the way it always has; `?format=` overrides the header so the HTML page can
+/// link to the machine renderings.
+///
 /// @ref LLP 0017#serving-model — system surfaces live under the reserved
 /// `/_snapback/*` namespace; the default route can point humans at them without
 /// becoming another privileged API.
@@ -293,43 +299,185 @@ pub fn live_socket_operations() -> Vec<(&'static str, RouteClass)> {
 async fn instance_home(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
+    Query(query): Query<HomeQuery>,
+    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     // inspect() reads SQLite (storage version), so this goes through the
     // offload like every other rusqlite-touching handler (L7). The review of
     // this arc caught the original inline lock here: it panicked the exec
     // guard on every debug-build GET / while current-thread tests stayed green.
     let inspect = with_snapback(&state, |snapback| snapback.inspect()).await?;
-    Ok((
-        [(header::CONTENT_TYPE, "text/yaml; charset=utf-8")],
-        instance_home_yaml(&inspect, &ctx),
-    )
-        .into_response())
+    let status = instance_status(&inspect, &ctx);
+    let accept = headers
+        .get(header::ACCEPT)
+        .and_then(|value| value.to_str().ok());
+    Ok(match negotiate_home_format(query.format.as_deref(), accept) {
+        HomeFormat::Html => (
+            [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+            instance_home_html(&status),
+        )
+            .into_response(),
+        HomeFormat::Json => Json(&status).into_response(),
+        HomeFormat::Markdown => (
+            [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+            instance_home_markdown(&status),
+        )
+            .into_response(),
+        HomeFormat::Yaml => (
+            [(header::CONTENT_TYPE, "text/yaml; charset=utf-8")],
+            instance_home_yaml(&status),
+        )
+            .into_response(),
+    })
 }
 
-fn instance_home_yaml(inspect: &InspectState, ctx: &ServerContext) -> String {
-    let bind = format!("{}:{}", ctx.host, ctx.port);
+#[derive(Debug, Deserialize)]
+struct HomeQuery {
+    format: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum HomeFormat {
+    Yaml,
+    Json,
+    Markdown,
+    Html,
+}
+
+/// `?format=` wins, then the earliest recognized media type in `Accept`, then
+/// YAML — the shape `/` has always served to non-browser clients, so agents
+/// and `curl` (which sends `*/*`) see no change.
+fn negotiate_home_format(format_param: Option<&str>, accept: Option<&str>) -> HomeFormat {
+    match format_param.map(str::to_ascii_lowercase).as_deref() {
+        Some("html") => return HomeFormat::Html,
+        Some("json") => return HomeFormat::Json,
+        Some("md") | Some("markdown") => return HomeFormat::Markdown,
+        Some("yaml") | Some("yml") => return HomeFormat::Yaml,
+        _ => {}
+    }
+    for entry in accept.unwrap_or_default().split(',') {
+        let media = entry.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+        match media.as_str() {
+            "text/html" | "application/xhtml+xml" => return HomeFormat::Html,
+            "application/json" | "text/json" => return HomeFormat::Json,
+            "text/markdown" | "text/x-markdown" => return HomeFormat::Markdown,
+            "text/yaml" | "text/x-yaml" | "application/yaml" | "application/x-yaml"
+            | "text/plain" => return HomeFormat::Yaml,
+            _ => {}
+        }
+    }
+    HomeFormat::Yaml
+}
+
+/// The public instance-status metadata object behind every `/` rendering.
+/// Everything here must be safe on the open, unauthenticated root.
+///
+/// @ref LLP 0031#resolved-decisions — D3: the public `/` must not reveal the
+/// absolute on-disk DB path; report the mode, not the location.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InstanceStatus {
+    schema_version: String,
+    status_kind: String,
+    name: String,
+    target: String,
+    runtime_engine: String,
+    app: AppStatus,
+    storage: StorageStatus,
+    server: ServerStatus,
+    admin: AdminStatus,
+    artifacts: ArtifactsStatus,
+    counts: CountsStatus,
+    capabilities: CapabilitiesStatus,
+    links: LinksStatus,
+}
+
+/// App identity as declared by the loaded schema manifest (`app` block); the
+/// id is always present, the presentation fields only when the app declares
+/// them.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppStatus {
+    id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    wordmark_url: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StorageStatus {
+    engine: String,
+    mode: String,
+    detail: String,
+    database_version: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ServerStatus {
+    bind: String,
+    host: String,
+    port: u16,
+    loopback: bool,
+    uptime_ms: u64,
+    uptime: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AdminStatus {
+    access: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ArtifactsStatus {
+    schema_hash: String,
+    bundle_hash: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CountsStatus {
+    loaded_tables: usize,
+    loaded_functions: usize,
+    live_subscriptions: usize,
+    cron_jobs: usize,
+    recent_diagnostics: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CapabilitiesStatus {
+    summary: String,
+    gaps: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LinksStatus {
+    admin_console: String,
+    health_json: String,
+    inspect_json: String,
+}
+
+fn instance_status(inspect: &InspectState, ctx: &ServerContext) -> InstanceStatus {
     let storage_mode = if inspect.storage.sqlite_path.is_some() {
         "file"
     } else {
         "memory"
     };
-    // @ref LLP 0031#resolved-decisions — D3: the public `/` must not reveal the
-    // absolute on-disk DB path; report the mode, not the location.
     let storage_detail = if inspect.storage.sqlite_path.is_some() {
         "on-disk database"
     } else {
         "in-memory database"
     };
-    let schema_hash = inspect
-        .schema
-        .schema_hash
-        .as_deref()
-        .unwrap_or("not loaded");
-    let bundle_hash = inspect
-        .functions
-        .bundle_hash
-        .as_deref()
-        .unwrap_or("not loaded");
     let capability_summary = if inspect.capability_gaps.is_empty() {
         "No reported capability gaps".to_owned()
     } else {
@@ -343,73 +491,384 @@ fn instance_home_yaml(inspect: &InspectState, ctx: &ServerContext) -> String {
             }
         )
     };
-    format!(
-        concat!(
-            "schemaVersion: {schema_version}\n",
-            "statusKind: {status_kind}\n",
-            "name: {name}\n",
-            "target: {target}\n",
-            "runtimeEngine: {runtime_engine}\n",
-            "storage:\n",
-            "  engine: {storage_engine}\n",
-            "  mode: {storage_mode}\n",
-            "  detail: {storage_detail}\n",
-            "  databaseVersion: {database_version}\n",
-            "server:\n",
-            "  bind: {bind}\n",
-            "  host: {host}\n",
-            "  port: {port}\n",
-            "  loopback: {loopback}\n",
-            "  uptimeMs: {uptime_ms}\n",
-            "  uptime: {uptime}\n",
-            "admin:\n",
-            "  access: {admin_access}\n",
-            "artifacts:\n",
-            "  schemaHash: {schema_hash}\n",
-            "  bundleHash: {bundle_hash}\n",
-            "counts:\n",
-            "  loadedTables: {table_count}\n",
-            "  loadedFunctions: {function_count}\n",
-            "  liveSubscriptions: {subscription_count}\n",
-            "  cronJobs: {cron_job_count}\n",
-            "  recentDiagnostics: {diagnostic_count}\n",
-            "capabilities:\n",
-            "  summary: {capability_summary}\n",
-            "  gaps: {capability_gaps}\n",
-            "links:\n",
-            "  adminConsole: {admin_console}\n",
-            "  healthJson: {health_json}\n",
-            "  inspectJson: {inspect_json}\n",
-        ),
-        schema_version = yaml_string(&inspect.schema_version),
-        status_kind = yaml_string("snapbackInstanceStatus"),
-        name = yaml_string("Snapback local server"),
-        target = yaml_string(&inspect.target),
-        runtime_engine = yaml_string(&inspect.capability_manifest.runtime_engine),
-        storage_engine = yaml_string(&inspect.capability_manifest.storage_engine),
-        storage_mode = yaml_string(storage_mode),
-        storage_detail = yaml_string(&storage_detail),
-        database_version = inspect.storage.version,
-        bind = yaml_string(&bind),
-        host = yaml_string(&ctx.host),
-        port = ctx.port,
-        loopback = ctx.loopback,
-        uptime_ms = ctx.uptime_ms(),
-        uptime = yaml_string(&format_duration(ctx.uptime_ms())),
-        admin_access = yaml_string(&admin_access_summary(ctx)),
-        schema_hash = yaml_string(schema_hash),
-        bundle_hash = yaml_string(bundle_hash),
-        table_count = inspect.storage.tables.len(),
-        function_count = inspect.functions.functions.len(),
-        subscription_count = inspect.subscriptions.len(),
-        cron_job_count = inspect.cron.jobs.len(),
-        diagnostic_count = inspect.recent_diagnostics.len(),
-        capability_summary = yaml_string(&capability_summary),
-        capability_gaps = yaml_string_list(&inspect.capability_gaps),
-        admin_console = yaml_string("/_snapback/admin"),
-        health_json = yaml_string("/_snapback/api/health"),
-        inspect_json = yaml_string("/_snapback/api/inspect"),
-    )
+    let app = inspect.schema.app.clone().unwrap_or_default();
+    InstanceStatus {
+        schema_version: inspect.schema_version.clone(),
+        status_kind: "snapbackInstanceStatus".to_owned(),
+        name: "Snapback local server".to_owned(),
+        target: inspect.target.clone(),
+        runtime_engine: inspect.capability_manifest.runtime_engine.clone(),
+        app: AppStatus {
+            id: inspect.schema.app_id.clone(),
+            name: app.name,
+            description: app.description,
+            icon_url: app.icon_url,
+            wordmark_url: app.wordmark_url,
+        },
+        storage: StorageStatus {
+            engine: inspect.capability_manifest.storage_engine.clone(),
+            mode: storage_mode.to_owned(),
+            detail: storage_detail.to_owned(),
+            database_version: inspect.storage.version,
+        },
+        server: ServerStatus {
+            bind: format!("{}:{}", ctx.host, ctx.port),
+            host: ctx.host.clone(),
+            port: ctx.port,
+            loopback: ctx.loopback,
+            uptime_ms: ctx.uptime_ms(),
+            uptime: format_duration(ctx.uptime_ms()),
+        },
+        admin: AdminStatus {
+            access: admin_access_summary(ctx),
+        },
+        artifacts: ArtifactsStatus {
+            schema_hash: inspect
+                .schema
+                .schema_hash
+                .clone()
+                .unwrap_or_else(|| "not loaded".to_owned()),
+            bundle_hash: inspect
+                .functions
+                .bundle_hash
+                .clone()
+                .unwrap_or_else(|| "not loaded".to_owned()),
+        },
+        counts: CountsStatus {
+            loaded_tables: inspect.storage.tables.len(),
+            loaded_functions: inspect.functions.functions.len(),
+            live_subscriptions: inspect.subscriptions.len(),
+            cron_jobs: inspect.cron.jobs.len(),
+            recent_diagnostics: inspect.recent_diagnostics.len(),
+        },
+        capabilities: CapabilitiesStatus {
+            summary: capability_summary,
+            gaps: inspect.capability_gaps.clone(),
+        },
+        links: LinksStatus {
+            admin_console: "/_snapback/admin".to_owned(),
+            health_json: "/_snapback/api/health".to_owned(),
+            inspect_json: "/_snapback/api/inspect".to_owned(),
+        },
+    }
+}
+
+fn instance_home_yaml(status: &InstanceStatus) -> String {
+    let mut out = String::new();
+    out.push_str(&format!(
+        "schemaVersion: {}\n",
+        yaml_string(&status.schema_version)
+    ));
+    out.push_str(&format!("statusKind: {}\n", yaml_string(&status.status_kind)));
+    out.push_str(&format!("name: {}\n", yaml_string(&status.name)));
+    out.push_str(&format!("target: {}\n", yaml_string(&status.target)));
+    out.push_str(&format!(
+        "runtimeEngine: {}\n",
+        yaml_string(&status.runtime_engine)
+    ));
+    out.push_str("app:\n");
+    out.push_str(&format!("  id: {}\n", yaml_string(&status.app.id)));
+    for (key, value) in [
+        ("name", &status.app.name),
+        ("description", &status.app.description),
+        ("iconUrl", &status.app.icon_url),
+        ("wordmarkUrl", &status.app.wordmark_url),
+    ] {
+        if let Some(value) = value {
+            out.push_str(&format!("  {key}: {}\n", yaml_string(value)));
+        }
+    }
+    out.push_str("storage:\n");
+    out.push_str(&format!("  engine: {}\n", yaml_string(&status.storage.engine)));
+    out.push_str(&format!("  mode: {}\n", yaml_string(&status.storage.mode)));
+    out.push_str(&format!("  detail: {}\n", yaml_string(&status.storage.detail)));
+    out.push_str(&format!(
+        "  databaseVersion: {}\n",
+        status.storage.database_version
+    ));
+    out.push_str("server:\n");
+    out.push_str(&format!("  bind: {}\n", yaml_string(&status.server.bind)));
+    out.push_str(&format!("  host: {}\n", yaml_string(&status.server.host)));
+    out.push_str(&format!("  port: {}\n", status.server.port));
+    out.push_str(&format!("  loopback: {}\n", status.server.loopback));
+    out.push_str(&format!("  uptimeMs: {}\n", status.server.uptime_ms));
+    out.push_str(&format!("  uptime: {}\n", yaml_string(&status.server.uptime)));
+    out.push_str("admin:\n");
+    out.push_str(&format!("  access: {}\n", yaml_string(&status.admin.access)));
+    out.push_str("artifacts:\n");
+    out.push_str(&format!(
+        "  schemaHash: {}\n",
+        yaml_string(&status.artifacts.schema_hash)
+    ));
+    out.push_str(&format!(
+        "  bundleHash: {}\n",
+        yaml_string(&status.artifacts.bundle_hash)
+    ));
+    out.push_str("counts:\n");
+    out.push_str(&format!("  loadedTables: {}\n", status.counts.loaded_tables));
+    out.push_str(&format!(
+        "  loadedFunctions: {}\n",
+        status.counts.loaded_functions
+    ));
+    out.push_str(&format!(
+        "  liveSubscriptions: {}\n",
+        status.counts.live_subscriptions
+    ));
+    out.push_str(&format!("  cronJobs: {}\n", status.counts.cron_jobs));
+    out.push_str(&format!(
+        "  recentDiagnostics: {}\n",
+        status.counts.recent_diagnostics
+    ));
+    out.push_str("capabilities:\n");
+    out.push_str(&format!(
+        "  summary: {}\n",
+        yaml_string(&status.capabilities.summary)
+    ));
+    out.push_str(&format!(
+        "  gaps: {}\n",
+        yaml_string_list(&status.capabilities.gaps)
+    ));
+    out.push_str("links:\n");
+    out.push_str(&format!(
+        "  adminConsole: {}\n",
+        yaml_string(&status.links.admin_console)
+    ));
+    out.push_str(&format!(
+        "  healthJson: {}\n",
+        yaml_string(&status.links.health_json)
+    ));
+    out.push_str(&format!(
+        "  inspectJson: {}\n",
+        yaml_string(&status.links.inspect_json)
+    ));
+    out
+}
+
+fn instance_home_markdown(status: &InstanceStatus) -> String {
+    let mut out = String::new();
+    let title = status.app.name.as_deref().unwrap_or(&status.name);
+    out.push_str(&format!("# {title}\n\n"));
+    if let Some(description) = &status.app.description {
+        out.push_str(&format!("{description}\n\n"));
+    }
+    out.push_str("A Snapback instance is running here.\n\n");
+    out.push_str(&format!("- schemaVersion: `{}`\n", status.schema_version));
+    out.push_str(&format!("- statusKind: `{}`\n", status.status_kind));
+    out.push_str(&format!("- name: {}\n", status.name));
+    out.push_str(&format!("- target: `{}`\n", status.target));
+    out.push_str(&format!("- runtimeEngine: `{}`\n", status.runtime_engine));
+    out.push_str("\n## app\n\n");
+    out.push_str(&format!("- id: `{}`\n", status.app.id));
+    for (key, value) in [
+        ("name", &status.app.name),
+        ("description", &status.app.description),
+        ("iconUrl", &status.app.icon_url),
+        ("wordmarkUrl", &status.app.wordmark_url),
+    ] {
+        if let Some(value) = value {
+            out.push_str(&format!("- {key}: {value}\n"));
+        }
+    }
+    out.push_str("\n## storage\n\n");
+    out.push_str(&format!("- engine: `{}`\n", status.storage.engine));
+    out.push_str(&format!("- mode: `{}`\n", status.storage.mode));
+    out.push_str(&format!("- detail: {}\n", status.storage.detail));
+    out.push_str(&format!(
+        "- databaseVersion: {}\n",
+        status.storage.database_version
+    ));
+    out.push_str("\n## server\n\n");
+    out.push_str(&format!("- bind: `{}`\n", status.server.bind));
+    out.push_str(&format!("- host: `{}`\n", status.server.host));
+    out.push_str(&format!("- port: {}\n", status.server.port));
+    out.push_str(&format!("- loopback: {}\n", status.server.loopback));
+    out.push_str(&format!("- uptimeMs: {}\n", status.server.uptime_ms));
+    out.push_str(&format!("- uptime: {}\n", status.server.uptime));
+    out.push_str("\n## admin\n\n");
+    out.push_str(&format!("- access: {}\n", status.admin.access));
+    out.push_str("\n## artifacts\n\n");
+    out.push_str(&format!("- schemaHash: `{}`\n", status.artifacts.schema_hash));
+    out.push_str(&format!("- bundleHash: `{}`\n", status.artifacts.bundle_hash));
+    out.push_str("\n## counts\n\n");
+    out.push_str(&format!("- loadedTables: {}\n", status.counts.loaded_tables));
+    out.push_str(&format!(
+        "- loadedFunctions: {}\n",
+        status.counts.loaded_functions
+    ));
+    out.push_str(&format!(
+        "- liveSubscriptions: {}\n",
+        status.counts.live_subscriptions
+    ));
+    out.push_str(&format!("- cronJobs: {}\n", status.counts.cron_jobs));
+    out.push_str(&format!(
+        "- recentDiagnostics: {}\n",
+        status.counts.recent_diagnostics
+    ));
+    out.push_str("\n## capabilities\n\n");
+    out.push_str(&format!("- summary: {}\n", status.capabilities.summary));
+    if status.capabilities.gaps.is_empty() {
+        out.push_str("- gaps: none\n");
+    } else {
+        for gap in &status.capabilities.gaps {
+            out.push_str(&format!("- gap: {gap}\n"));
+        }
+    }
+    out.push_str("\n## links\n\n");
+    out.push_str(&format!(
+        "- [Admin console]({})\n",
+        status.links.admin_console
+    ));
+    out.push_str(&format!("- [Health JSON]({})\n", status.links.health_json));
+    out.push_str(&format!("- [Inspect JSON]({})\n", status.links.inspect_json));
+    out
+}
+
+/// The embedded browser homepage. Like the embedded admin console it is a
+/// single self-contained file — inline styles, inline brand SVG, no external
+/// assets — so a bare `cargo run` serves it with no toolchain.
+const INSTANCE_HOME_HTML: &str = include_str!("server/instance_home.html");
+const SNAPBACK_MARK_SVG: &str = include_str!("../brand/snapback-mark.svg");
+const SNAPBACK_FAVICON_SVG: &str = include_str!("../brand/favicon.svg");
+
+fn instance_home_html(status: &InstanceStatus) -> String {
+    let title = match &status.app.name {
+        Some(name) => format!("{name} — Snapback"),
+        None => "Snapback".to_owned(),
+    };
+    INSTANCE_HOME_HTML
+        .replace("__TITLE__", &html_escape(&title))
+        .replace("__FAVICON_HREF__", &svg_data_uri(SNAPBACK_FAVICON_SVG))
+        .replace("__SNAPBACK_MARK__", SNAPBACK_MARK_SVG)
+        .replace("__HERO__", &instance_home_hero(status))
+        .replace("__FACTS__", &instance_home_facts(status))
+        .replace("__DETAILS_YAML__", &html_escape(&instance_home_yaml(status)))
+}
+
+/// App-branded hero when the manifest declares an identity, Snapback-branded
+/// otherwise. Every app-supplied value is escaped: the manifest is app-authored
+/// input, and this page renders on the open root.
+fn instance_home_hero(status: &InstanceStatus) -> String {
+    let app = &status.app;
+    let has_identity = app.name.is_some()
+        || app.description.is_some()
+        || app.icon_url.is_some()
+        || app.wordmark_url.is_some();
+    if !has_identity {
+        return format!(
+            concat!(
+                "<div class=\"snapback-mark\">{mark}</div>\n",
+                "<h1>Snapback</h1>\n",
+                "<p class=\"desc\">A Snapback instance is running here.</p>\n",
+                "<p class=\"sub\">app id <code>{app_id}</code></p>\n",
+            ),
+            mark = SNAPBACK_MARK_SVG,
+            app_id = html_escape(&app.id),
+        );
+    }
+    let mut out = String::new();
+    if let Some(icon_url) = &app.icon_url {
+        out.push_str(&format!(
+            "<img class=\"app-icon\" src=\"{}\" alt=\"\" />\n",
+            html_escape(icon_url)
+        ));
+    }
+    let display_name = app.name.as_deref().unwrap_or(&app.id);
+    match &app.wordmark_url {
+        Some(wordmark_url) => out.push_str(&format!(
+            "<img class=\"app-wordmark\" src=\"{}\" alt=\"{}\" />\n",
+            html_escape(wordmark_url),
+            html_escape(display_name)
+        )),
+        None => out.push_str(&format!("<h1>{}</h1>\n", html_escape(display_name))),
+    }
+    if let Some(description) = &app.description {
+        out.push_str(&format!(
+            "<p class=\"desc\">{}</p>\n",
+            html_escape(description)
+        ));
+    }
+    out.push_str(&format!(
+        "<p class=\"sub\">app id <code>{}</code> &middot; running on Snapback</p>\n",
+        html_escape(&app.id)
+    ));
+    out
+}
+
+/// The most important public facts, as cards. Everything shown is drawn from
+/// the same public `InstanceStatus` the machine formats serve.
+fn instance_home_facts(status: &InstanceStatus) -> String {
+    let mut out = String::new();
+    let mut fact = |key: &str, value: &str, mono: bool| {
+        out.push_str(&format!(
+            "<div class=\"fact\"><div class=\"k\">{}</div><div class=\"v{}\">{}</div></div>\n",
+            html_escape(key),
+            if mono { " mono" } else { "" },
+            html_escape(value)
+        ));
+    };
+    fact("Uptime", &status.server.uptime, false);
+    fact("Target", &status.target, true);
+    fact("Runtime", &status.runtime_engine, true);
+    fact(
+        "Storage",
+        &format!("{} ({})", status.storage.engine, status.storage.mode),
+        false,
+    );
+    fact("Tables", &status.counts.loaded_tables.to_string(), false);
+    fact(
+        "Functions",
+        &status.counts.loaded_functions.to_string(),
+        false,
+    );
+    fact(
+        "Live subscriptions",
+        &status.counts.live_subscriptions.to_string(),
+        false,
+    );
+    fact("Cron jobs", &status.counts.cron_jobs.to_string(), false);
+    fact("Capabilities", &status.capabilities.summary, false);
+    fact("Bind", &status.server.bind, true);
+    out.push_str(&format!(
+        "<div class=\"fact wide\"><div class=\"k\">Admin access</div><div class=\"v\">{}</div></div>\n",
+        html_escape(&status.admin.access)
+    ));
+    out
+}
+
+fn html_escape(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for ch in value.chars() {
+        match ch {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// Minimal percent-encoding for an SVG `data:` URI (favicon): enough to keep
+/// the document valid inside an HTML attribute without a base64 dependency.
+fn svg_data_uri(svg: &str) -> String {
+    let mut out = String::with_capacity(svg.len() + 24);
+    out.push_str("data:image/svg+xml,");
+    for ch in svg.chars() {
+        match ch {
+            '<' => out.push_str("%3C"),
+            '>' => out.push_str("%3E"),
+            '#' => out.push_str("%23"),
+            '%' => out.push_str("%25"),
+            '{' => out.push_str("%7B"),
+            '}' => out.push_str("%7D"),
+            '"' => out.push('\''),
+            '\n' => out.push(' '),
+            other => out.push(other),
+        }
+    }
+    out
 }
 
 fn admin_access_summary(ctx: &ServerContext) -> String {
