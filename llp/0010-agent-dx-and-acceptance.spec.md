@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-27
+**Revised:** 2026-07-01 (LLP 0032 R2: V1 implementation charter drafted, V0 marked superseded-in-practice; ratification pending)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0024
 
 ## Summary
@@ -233,6 +233,14 @@ Ratified on 2026-06-26: "first version of Snapback" means the first-slice proof
 above, not a compressed v1. Implementation work should be reviewed against this
 charter until it is replaced by a later accepted plan.
 
+> **Superseded in practice (2026-07-01):** the implementation moved past this
+> charter — cron, actions with outbound fetch, ephemeral realtime, and the
+> admin console all shipped while it still said "must not claim" them. The V1
+> charter below describes the current slice; it was drafted via
+> [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) R2 and its
+> ratification is pending in the LLP 0000 ledger. V0 is preserved for the
+> record.
+
 V0 must include:
 
 - the canonical local Ibex + SQLite server from LLP 0002;
@@ -265,6 +273,48 @@ V0 must not claim:
 - Contract/Exact Design Mode authoring;
 - rich text or high-frequency whiteboard fan-out;
 - finance-grade exact-money behavior.
+
+## V1 Implementation Charter (proposed 2026-07-01, ratification pending)
+
+Drafted via [LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
+R2 after the 2026-07-01 whole-repo review; supersedes the V0 charter above
+once ratified. "Current slice" means what ships from this repository today.
+
+V1 includes everything V0 included, plus:
+
+- calendar-cron scheduled execution with run records and admin controls
+  ([LLP 0028](./0028-cron-scheduled-execution.rfc.md));
+- actions with outbound fetch behind `SNAPBACK_OUTBOUND_ACTIONS` — a coarse
+  process-wide `network:fetch` grant, not a per-host allowlist
+  ([LLP 0027](./0027-all-aboard-caltrain-demo.plan.md) recorded the corrected
+  scope);
+- ephemeral realtime state: declared collections, publish/subscribe, TTL and
+  rate budgets, HTTP and WebSocket delivery
+  ([LLP 0013](./0013-ephemeral-realtime-state.rfc.md));
+- the admin console and `/_snapback/*` admin API with token/loopback gating,
+  covering the v0 `/admin/*` aliases too (LLP 0032 S0;
+  [LLP 0031](./0031-server-route-taxonomy.spec.md) owns the full route
+  taxonomy);
+- generated Contract bindings and the `snapback-contract` adapter consumed by
+  the shipped demos ([LLP 0012](./0012-headless-integration-contract.spec.md),
+  [LLP 0021](./0021-contract-exact-integration-hardening.plan.md)).
+
+V1 must not claim (unchanged from V0 unless noted):
+
+- offline mutation replay; Postgres graduation; Cloudflare support;
+- hosted or untrusted code execution, or enforced CPU/wall-clock limits (the
+  capability report self-declares them Missing);
+- real external auth providers; assets; notifications;
+- snapshot reads, read-your-writes `ctx.db`, or predicate-granularity
+  read-set validation — ratified targets, not current behavior, until
+  LLP 0032 Phase 2 lands (see LLP 0003 §Execution and Write Semantics status
+  callout);
+- client reconnect/resume or multiplexed live consumers (LLP 0032 P4);
+- a packaged CLI or host-ops surface
+  ([LLP 0024](./0024-agent-operating-surface.spec.md) is pinned, not built —
+  LLP 0032 P6);
+- rich text or high-frequency durable whiteboard fan-out; finance-grade
+  exact-money behavior.
 
 Those may appear as capability gaps and explicit TODOs. They should not appear
 as hidden fallbacks, partial behavior under production names, or untested
