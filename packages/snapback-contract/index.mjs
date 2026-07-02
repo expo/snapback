@@ -121,6 +121,13 @@ export async function createSnapbackContractSurface({
   boundaryKey = 'todos',
   queryArgs = {},
   optimisticReducers = defaultOptimisticReducers(),
+  // LLP 0034 D1 (Exact LLP 0284 §2.3): live descriptors bind with server push
+  // by default; `livePush: false` opts the surface out (poll/reconcile only).
+  livePush = true,
+  connectionId = null,
+  liveStreamOptions = {},
+  onConnectionChange = null,
+  onSubscriptionEvent = null,
 }) {
   const pending = new Set();
   const mountedHandles = new Set();
@@ -141,8 +148,59 @@ export async function createSnapbackContractSurface({
   const queryNames = Object.keys(manifest?.queries ?? {});
   const mutationNames = Object.keys(manifest?.mutations ?? {});
 
-  const initial = (await client.query(queryName, { args: queryArgs, userId })).rows;
-  const boundary = runtime.createContractMockQueryBoundary({ [boundaryKey]: initial });
+  // The C1 fix (LLP 0034 D1; Exact LLP 0284 §5.3): when the bound descriptor
+  // is live (manifest v2 `mode`/`defaultLive`, or the legacy `subscription`
+  // field), the surface subscribes over the kit's stream transport and pushes
+  // server-authored rows into the Contract boundary as they arrive — no
+  // app-code pump. The initial rows come from the same snapshot-with-subscribe
+  // operation, so there is no prime race. Non-live descriptors keep the
+  // pre-D1 behavior: one snapshot read plus reconcile-on-mutate.
+  const boundDescriptor = manifest?.queries?.[queryName] ?? null;
+  const descriptorIsLive = Boolean(
+    boundDescriptor
+      && (boundDescriptor.mode === 'live' || boundDescriptor.subscription === 'initial-snapshot')
+      && boundDescriptor.defaultLive !== false,
+  );
+  const wantLivePush = livePush && descriptorIsLive && typeof client.liveQuery === 'function';
+
+  let boundary = null;
+  let liveHandle = null;
+  const liveCellObservers = new Set();
+
+  const surfaceConnection = () => (wantLivePush ? liveHandle?.connection ?? 'connecting' : null);
+
+  let initial;
+  if (wantLivePush) {
+    liveHandle = await client.liveQuery(queryName, {
+      connectionId: connectionId ?? defaultContractConnectionId(),
+      args: queryArgs,
+      userId,
+      transport: 'stream',
+      stream: liveStreamOptions,
+      onUpdate: (rows) => {
+        if (!disposed && boundary) boundary.write(boundaryKey, () => rows);
+      },
+      onConnectionChange: (connection, detail) => {
+        // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each live
+        // observer's last cell with the new connection value so slot sugar
+        // and agent inspection see transitions without a data change.
+        for (const record of [...liveCellObservers]) {
+          if (record.lastCell) record.emit({ ...record.lastCell, connection });
+        }
+        onConnectionChange?.(connection, detail);
+      },
+      onSubscriptionEvent,
+    });
+    initial = liveHandle.rows;
+  } else {
+    initial = (await client.query(queryName, { args: queryArgs, userId })).rows;
+  }
+  boundary = runtime.createContractMockQueryBoundary({ [boundaryKey]: initial });
+  if (wantLivePush && liveHandle.rows !== initial) {
+    // An update that raced boundary creation is not lost: rewrite from the
+    // handle's latest rows (idempotent when nothing changed).
+    boundary.write(boundaryKey, () => liveHandle.rows);
+  }
 
   const assertActive = () => {
     if (disposed) {
@@ -222,7 +280,19 @@ export async function createSnapbackContractSurface({
     };
   }
 
-  const provider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
+  // Exact's shipped runtime/conformance surface still pins
+  // `manifestVersion === 1` (packages/exact-contract data-provider
+  // conformance); manifest v2 is a strictly additive extension (LLP 0034 D3 /
+  // Exact LLP 0284 §2.4: old fields remain valid, new fields are ignorable),
+  // so until the Exact side accepts v2 the adapter presents the v1-compatible
+  // projection: the same document, declared as v1, with the provider's actual
+  // version carried additively as `providerManifestVersion`. Delete this
+  // projection when Exact LLP 0284's manifest-v2 acceptance lands.
+  const runtimeManifest = manifest?.manifestVersion === 2
+    ? { ...manifest, manifestVersion: 1, providerManifestVersion: 2 }
+    : manifest;
+
+  const baseProvider = runtime.createBoundaryContractDataProvider(runtimeManifest, boundary, {
     queries: providerQueries,
     mutations: providerMutations,
     rowSyncState: async (_table, rowId) => {
@@ -234,6 +304,36 @@ export async function createSnapbackContractSurface({
     },
   });
 
+  // DataCellV2 connection axis (Exact LLP 0284 §2.2): cells emitted for the
+  // live-bound descriptor carry `connection`; the field is absent for
+  // non-subscription descriptors — its absence is itself a fact. Additive: a
+  // consumer that ignores the extra field behaves exactly as before.
+  const provider = wantLivePush
+    ? {
+        ...baseProvider,
+        subscribe(subscribedQuery, args, observer) {
+          if (subscribedQuery !== queryName) {
+            return baseProvider.subscribe(subscribedQuery, args, observer);
+          }
+          const record = {
+            lastCell: null,
+            emit: (cell) => observer(cell),
+          };
+          liveCellObservers.add(record);
+          const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
+            record.lastCell = cell;
+            observer({ ...cell, connection: surfaceConnection() });
+          });
+          return {
+            dispose() {
+              liveCellObservers.delete(record);
+              subscription.dispose();
+            },
+          };
+        },
+      }
+    : baseProvider;
+
   return {
     adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
     capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
@@ -244,6 +344,11 @@ export async function createSnapbackContractSurface({
     pendingCount: () => pending.size,
     declaredQueries: queryNames,
     declaredMutations: mutationNames,
+    // LLP 0034 D1 facts: whether the bound descriptor streams server push, and
+    // the current Exact LLP 0284 §2.2 connection value (null when not
+    // subscription-backed).
+    livePush: wantLivePush,
+    connection: surfaceConnection,
     mount: (component, options = {}) => {
       assertActive();
       return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
@@ -253,6 +358,9 @@ export async function createSnapbackContractSurface({
     },
     dispose: () => {
       disposed = true;
+      liveHandle?.dispose();
+      liveHandle = null;
+      liveCellObservers.clear();
       for (const handle of [...mountedHandles]) {
         handle.dispose();
       }
@@ -260,6 +368,11 @@ export async function createSnapbackContractSurface({
       pending.clear();
     },
   };
+}
+
+function defaultContractConnectionId() {
+  const unique = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
+  return `contract_${unique}`;
 }
 
 // Shared bridge for Contract system surfaces such as the Snapback admin console.
