@@ -382,17 +382,18 @@ pub enum RemoveReason {
     Expired,
 }
 
-/// Why a subscriber must resnapshot. `Restarted` is sent when runtime reset or
-/// a destructive definition replacement discards room state under live
-/// connections. `EpochChanged`/`AuthChanged` were removed 2026-07-02: the
-/// local authority never re-epochs a live room (epochs advance per room
-/// incarnation instead) and auth revocation is not integrated, so both were
-/// unreachable.
+/// Why a subscriber must resnapshot. `Restarted` is sent when an explicit
+/// runtime reset discards room state under live connections; `EpochChanged`
+/// when a destructive definition replacement retires room epochs (the
+/// ENG-22478 review-fix-D reasons, ratified upstream and adopted by the
+/// sharded authority). `AuthChanged` was removed 2026-07-02: auth revocation
+/// is not integrated, so it was unreachable vocabulary.
 ///
 /// @ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — live-or-removed resolution.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ResyncReason {
     QueueOverflow,
+    EpochChanged,
     Restarted,
 }
 
@@ -966,11 +967,12 @@ impl LocalEphemeralBackend {
             *current = next;
         }
 
-        // A destructive replacement discards room state under live
+        // A destructive replacement retires room epochs under live
         // connections: tell each registered subscriber to resubscribe instead
-        // of going silent. Pending durable-lane messages are preserved — they
-        // belong to durable subscriptions that survive a definition load.
-        self.wipe_rooms_signaling_restart(true);
+        // of going silent. `EpochChanged` is the ratified reason for this
+        // boundary (ENG-22478 review fix D); recreated rooms carry strictly
+        // higher epochs from the store-global allocator.
+        self.wipe_rooms_signaling_resync(ResyncReason::EpochChanged);
         lock(&self.shared.rate_buckets).clear();
     }
 
@@ -1044,7 +1046,7 @@ impl LocalEphemeralBackend {
     /// resync signals are counted, since they follow the counter reset).
     pub fn reset_runtime_state(&self) {
         self.shared.counters.reset();
-        self.wipe_rooms_signaling_restart(false);
+        self.wipe_rooms_signaling_resync(ResyncReason::Restarted);
         lock(&self.shared.rate_buckets).clear();
     }
 
@@ -1531,17 +1533,18 @@ impl LocalEphemeralBackend {
         }
     }
 
-    /// Retire every room, delivering `ResyncRequired { reason: Restarted }`
-    /// to each registered subscriber: runtime reset and destructive
-    /// definition replacement discard the authority's state under live
-    /// connections, and going silent would leave subscribers believing a
-    /// dead stream is current (the scope-epoch finding). `preserve_durable`
-    /// keeps pending durable-lane messages — definition replacement does not
-    /// invalidate durable subscriptions; reset clears whole outboxes because
-    /// it clears the subscriptions themselves.
+    /// Retire every room, delivering a `ResyncRequired` boundary to each
+    /// registered subscriber: runtime reset (`Restarted`) and destructive
+    /// definition replacement (`EpochChanged`) discard the authority's state
+    /// under live connections, and going silent would leave subscribers
+    /// believing a dead stream is current (the scope-epoch finding). Outboxes
+    /// are cleared wholesale before the boundaries are pushed — the ratified
+    /// ENG-22478 shape: everything queued belongs to the retired epoch world,
+    /// and the resync boundary is what turns the epoch bump into an overlay
+    /// resubscription instead of silent `ignored_stale` drops.
     ///
-    /// @ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — the Restarted wiring.
-    fn wipe_rooms_signaling_restart(&self, preserve_durable: bool) {
+    /// @ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — the Restarted/EpochChanged wiring.
+    fn wipe_rooms_signaling_resync(&self, reason: ResyncReason) {
         let room_ids: Vec<RoomId> = lock(&self.shared.rooms).keys().cloned().collect();
         let mut resyncs: Vec<(ConnectionId, EphemeralMessage)> = Vec::new();
         for room_id in room_ids {
@@ -1563,24 +1566,13 @@ impl LocalEphemeralBackend {
                     EphemeralMessage::ResyncRequired {
                         room: room_id.clone(),
                         scope_epoch: room.scope_epoch,
-                        reason: ResyncReason::Restarted,
+                        reason: reason.clone(),
                     },
                 ));
             }
         }
         lock(&self.shared.expiry_index).clear();
-
-        if preserve_durable {
-            let outboxes: Vec<SharedOutbox> =
-                lock(&self.shared.outboxes).values().cloned().collect();
-            for outbox in outboxes {
-                let mut outbox = lock(&outbox);
-                outbox.resync.clear();
-                outbox.ephemeral.clear();
-            }
-        } else {
-            lock(&self.shared.outboxes).clear();
-        }
+        lock(&self.shared.outboxes).clear();
 
         for (connection_id, message) in resyncs {
             let outbox = self.ensure_outbox(&connection_id, default_max_pending_ephemeral_keys());
@@ -2814,14 +2806,15 @@ mod tests {
         assert_eq!(diagnostics.room_count, 0);
     }
 
-    /// LLP 0032 L9 — the Restarted machinery is live: a destructive
-    /// definition replacement and an explicit runtime reset both deliver
-    /// `ResyncRequired { reason: Restarted }` to registered subscribers
-    /// instead of silently discarding their rooms. Replacement preserves
-    /// pending durable-lane messages (durable subscriptions survive a
-    /// definition load); reset clears them.
+    /// LLP 0032 L9 — the resync-boundary machinery is live with the ratified
+    /// ENG-22478 reasons: a destructive definition replacement delivers
+    /// `ResyncRequired { reason: EpochChanged }` and an explicit runtime
+    /// reset delivers `ResyncRequired { reason: Restarted }` to registered
+    /// subscribers instead of silently discarding their rooms. Outboxes are
+    /// cleared wholesale at the boundary (everything queued belongs to the
+    /// retired epoch world), so the boundary is the only message left.
     #[test]
-    fn l9_reset_and_destructive_replace_signal_restarted() {
+    fn l9_reset_and_destructive_replace_signal_resync_boundaries() {
         let backend = LocalEphemeralBackend::new();
         let collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
         backend.replace_collections(vec![collection.clone()]);
@@ -2835,27 +2828,26 @@ mod tests {
         backend.subscribe(subscribe.clone(), 1_000).unwrap();
         backend.enqueue_durable("observer", b"{\"kind\":\"live_replace\"}".to_vec());
 
-        // Destructive replacement: a changed definition.
+        // Destructive replacement: a changed definition retires the epoch.
         let mut changed = collection.clone();
         changed.max_value_bytes = 512;
         backend.replace_collections(vec![changed.clone()]);
 
         let messages = backend.drain_outbox("observer");
-        assert_eq!(messages.len(), 2, "durable survives + one restart signal");
-        let RealtimeEnvelope::Durable(durable) = &messages[0] else {
-            panic!("pending durable messages must survive a definition replacement");
-        };
-        assert_eq!(durable.payload, b"{\"kind\":\"live_replace\"}".to_vec());
+        assert_eq!(
+            messages.len(),
+            1,
+            "the boundary replaces everything queued in the retired epoch world"
+        );
         assert!(matches!(
-            &messages[1],
+            &messages[0],
             RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
-                reason: ResyncReason::Restarted,
+                reason: ResyncReason::EpochChanged,
                 ..
             })
         ));
 
-        // Explicit runtime reset: subscribers get the restart signal; the
-        // durable lane goes with the subscriptions it belonged to.
+        // Explicit runtime reset: subscribers get the restart boundary.
         backend.subscribe(subscribe, 2_000).unwrap();
         backend.enqueue_durable("observer", b"{\"stale\":true}".to_vec());
         backend.reset_runtime_state();

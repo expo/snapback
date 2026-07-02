@@ -864,10 +864,12 @@ change the concurrency architecture and should land as one reviewed arc.
   per-room locks, room-granular expiry index, hard limits, store-global
   epoch allocation — and the ephemeral endpoints, WS socket-text ops, and
   drains reach it with no global mutex. The scope-epoch finding is recorded
-  in 0026 with its resolution: `Restarted` is live (reset/destructive
-  definition replacement signal registered subscribers; recreated rooms get
-  fresh epochs), and the ownerless `AuthRevoked`/`AuthChanged`/`EpochChanged`
-  variants are removed until real. Tests
+  in 0026 with its resolution (the same wiring landed concurrently upstream
+  as ENG-22478 review fix D; the sharded authority adopts its ratified
+  reasons): `Restarted` (reset) and `EpochChanged` (destructive definition
+  replacement) are live boundaries, recreated rooms get fresh epochs, and
+  the ownerless `AuthRevoked`/`AuthChanged` variants are removed until
+  real. Tests
   `l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane`
   (the L6/L7 payoff: ephemeral publish/subscribe/drain complete in <500 ms
   while a ~900 ms mutation holds the write lane),
@@ -876,7 +878,7 @@ change the concurrency architecture and should land as one reviewed arc.
   `l9_room_limits_reject_never_silently_evict`,
   `l9_recreated_room_gets_a_fresh_scope_epoch`,
   `l9_cleanup_expired_visits_due_rooms_and_prunes_empty_ones`,
-  `l9_reset_and_destructive_replace_signal_restarted`; the cursors-web
+  `l9_reset_and_destructive_replace_signal_resync_boundaries`; the cursors-web
   browser acceptance passes 7/7 against the sharded authority.
 
 **Phase 3 Done when:** L1–L5 closed; L6–L8 landed as a reviewed arc with the

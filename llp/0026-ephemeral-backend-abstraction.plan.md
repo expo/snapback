@@ -6,9 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-29
 **Revised:** 2026-07-02 (LLP 0032 L9 landed: Phases 1+2 marked landed with
-their tests; earlier the same day, the as-built sharding design written
-before implementation and the scope-epoch dead-code finding recorded with
-its resolution)
+their tests, then reconciled with the concurrently-landed ENG-22478 D2
+resync-boundary semantics — EpochChanged on destructive replacement,
+Restarted on reset, outboxes cleared at the boundary. Earlier the same day,
+the as-built sharding design written before implementation and the
+scope-epoch dead-code finding recorded with its resolution)
 **Related:** LLP 0000, LLP 0008, LLP 0013, LLP 0014, LLP 0017, LLP 0018, LLP 0020, LLP 0025, LLP 0032, Diary 0007
 
 ## Summary
@@ -125,15 +127,19 @@ and queued messages under live connections without any signal — the exact
 `entryVersion` at 1, so a straggling client comparison could classify a fresh
 entry as stale instead of failing safe to resync.
 
-Resolution (LLP 0032 L9, this Plan's Phase 2): epochs advance for real —
-every room incarnation allocates its `scopeEpoch` from a store-global
-monotonic counter, and `ResyncRequired { reason: Restarted }` is delivered to
-registered subscribers when reset or destructive definition replacement
-discards their rooms (with a covering test). `AuthRevoked`, `AuthChanged`,
-and `EpochChanged` had no owning events — durable permission-change
-revocation is deliberately deferred (§Auth and revocation) and the local
-authority never re-epochs a live room — so those variants are removed until
-the events that own them exist, rather than shipping as dead vocabulary.
+Resolution (LLP 0032 L9, this Plan's Phase 2; the same wiring landed
+concurrently upstream as ENG-22478 review fix D, and the sharded authority
+adopts those ratified reasons): epochs advance for real — every room
+incarnation allocates its `scopeEpoch` from a store-global monotonic
+counter — and a `ResyncRequired` boundary is delivered to registered
+subscribers when the authority discards their rooms: `Restarted` on explicit
+runtime reset, `EpochChanged` on destructive definition replacement (both
+covered by tests). Outboxes are cleared wholesale at the boundary —
+everything queued belongs to the retired epoch world. `AuthRevoked` and
+`AuthChanged` still have no owning event — durable permission-change
+revocation is deliberately deferred (§Auth and revocation) — so those two
+variants are removed until the events that own them exist, rather than
+shipping as dead vocabulary.
 
 ## Design
 
@@ -222,13 +228,14 @@ correctness, and sharded locks match the codebase's existing style
   prune, reset, or definition replacement yields a strictly newer epoch and
   stragglers fail safe to resync instead of stale-comparing across
   incarnations (the finding above).
-- **Restart signaling.** Runtime reset and destructive definition
-  replacement retire every room and deliver
-  `ResyncRequired { reason: Restarted }` to each registered subscriber
-  (previously: silent discard). Destructive replacement now preserves
-  pending durable-lane messages — they belong to durable subscriptions that
-  survive a definition load; reset still clears them because it clears the
-  subscriptions themselves.
+- **Resync boundaries.** Runtime reset and destructive definition
+  replacement retire every room and deliver a `ResyncRequired` boundary to
+  each registered subscriber (previously: silent discard) — `Restarted` for
+  reset, `EpochChanged` for replacement, the reasons ratified upstream by
+  ENG-22478 review fix D. Outboxes are cleared wholesale before the
+  boundaries are pushed: everything queued belongs to the retired epoch
+  world, and the boundary is what turns the epoch bump into a
+  resubscription instead of silent stale drops.
 - **Expiry index.** An ordered `(deadline, RoomId)` set with at most one
   entry per room — a lower bound on the room's earliest expiry, mirrored as
   the room's `indexed_deadline`. A publish touches the index only when it
@@ -408,8 +415,10 @@ documented thresholds: <250 ms under hot-room load, <500 ms while a ~900 ms
 mutation holds the write lane), `l9_room_limits_reject_never_silently_evict`,
 plus `l9_recreated_room_gets_a_fresh_scope_epoch`,
 `l9_cleanup_expired_visits_due_rooms_and_prunes_empty_ones`, and
-`l9_reset_and_destructive_replace_signal_restarted` for the scope-epoch
-finding's resolution.
+`l9_reset_and_destructive_replace_signal_resync_boundaries` for the
+scope-epoch finding's resolution (plus upstream's
+`d2_collection_replace_bumps_epoch_and_signals_resync`, which passes
+unchanged against the sharded authority).
 
 ### Phase 3: Conformance suite
 
