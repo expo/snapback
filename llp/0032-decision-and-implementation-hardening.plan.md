@@ -480,6 +480,12 @@ Each fix lands with a failing-then-passing test named for the step id.
 **Phase 1 Done when:** all S-steps closed; `cargo test` includes every new
 regression test; the 0031 registry test is in CI.
 
+**Phase 1 completed 2026-07-02.** The two legs deliberately deferred at the
+07-01 sweep closed with their owning steps: S5.D5 resolved with P4
+(recovery-by-snapshot; the outbox dies with the connection) and S4 closed
+with P6 (reconciled to LLP 0034 D4's boot semantics; destructive class
+gated). Every other S-step landed 2026-07-01 with regression tests.
+
 ## Phase 2 — Execution-semantics honesty
 
 The ratified execution/write boundary (LLP 0003 §Execution and Write
@@ -1018,6 +1024,12 @@ agent-first philosophy leans on hardest — is the least fed-back component in
 the repo. This phase makes the JS estate product-grade. It can run in
 parallel with Phase 3.
 
+**Phase 5 status (2026-07-02): P1–P6 landed** (P4 and half of P5 by
+revalidation — the LLP 0034 D1/ENG-22478 D2 arc had already built the wire
+protocol and adapter live push; the steps' remainders, tests, and owner-doc
+contracts landed here). **P7 (Ibex bring-up doctor) and P8 (one admin
+client, typed inspect) remain open** — Milestone C needs them.
+
 - **P1 — Promote codegen out of `demos/_kit`.** `demos/_kit/codegen.mjs`
   (1,281 lines) is the only writer of the manifests, typed API, and Contract
   binding modules that the Rust server ingests and
@@ -1422,7 +1434,9 @@ Intermediate milestones, so partial completion is a legible state:
 Guardrails while executing:
 
 - **Do not start new demos before P5 lands** — each one hand-rolls the same
-  live-push glue (five diaries of evidence).
+  live-push glue (five diaries of evidence). *(Satisfied 2026-07-02: P5
+  landed — the next demo builds on the packaged adapter's live push and must
+  report a lower glue count than Diary 0008's, per acceptance #6.)*
 - **Do not port to Cloudflare before X1 and X2** — the version-allocator and
   runtime-conformance answers change what gets ported.
 - **Do not pin further wire-protocol surface (LLP 0012 extensions) before
