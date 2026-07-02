@@ -4,6 +4,7 @@
 //   Vite plugin ordering, route-registry preflights, native artifact target, and
 //   Snapback admin base-path rewrite are product recipe, not admin-local lore.
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,63 @@ export class SnapbackContractBuildError extends Error {
     this.name = 'SnapbackContractBuildError';
     this.diagnostic = diagnostic;
   }
+}
+
+// Pinned Exact consumption (LLP 0032 P8, mirroring the exactContractWeb
+// preset's semantics the demos adopted in ENG-22463): report drift between
+// the consumed Exact checkout and the surface's exact.pin.json;
+// EXACT_PIN_STRICT=1 turns drift into a hard failure; re-pin deliberately
+// with EXACT_WRITE_PIN=1 after verifying on the new revision.
+export function checkExactPin({ appRoot, exactRoot }) {
+  const pinPath = resolve(appRoot, 'exact.pin.json');
+  let revision = null;
+  try {
+    revision = execFileSync('git', ['-C', exactRoot, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    console.warn('[snapback-contract] exact pin: could not read the Exact checkout revision (not a git checkout?)');
+    return { status: 'unknown', revision: null };
+  }
+  if (process.env.EXACT_WRITE_PIN === '1') {
+    writeFileSync(
+      pinPath,
+      `${JSON.stringify(
+        {
+          revision,
+          pinnedAt: new Date().toISOString(),
+          note: 'Exact checkout revision this surface was last verified against. Bump deliberately: re-run with EXACT_WRITE_PIN=1 after verifying on the new revision.',
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    console.log(`[snapback-contract] exact pin written: ${revision}`);
+    return { status: 'written', revision };
+  }
+  if (!existsSync(pinPath)) {
+    console.warn(`[snapback-contract] no exact.pin.json beside ${appRoot} — pin the verified Exact revision with EXACT_WRITE_PIN=1`);
+    return { status: 'unpinned', revision };
+  }
+  let pin = null;
+  try {
+    pin = JSON.parse(readFileSync(pinPath, 'utf8'));
+  } catch (error) {
+    throw diagnosticError(
+      'SNAPBACK_CAPABILITY_EXACT_PIN_INVALID',
+      `exact.pin.json is unreadable: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (pin.revision === revision) {
+    console.log(`[snapback-contract] exact pin ok (${String(revision).slice(0, 12)})`);
+    return { status: 'ok', revision };
+  }
+  const message = `Exact checkout ${String(revision).slice(0, 12)} drifts from exact.pin.json ${String(pin.revision).slice(0, 12)} (pinned ${pin.pinnedAt}); verify on the new revision, then re-pin with EXACT_WRITE_PIN=1`;
+  if (process.env.EXACT_PIN_STRICT === '1') {
+    throw diagnosticError('SNAPBACK_CAPABILITY_EXACT_PIN_DRIFT', message);
+  }
+  console.warn(`[snapback-contract] ${message}`);
+  return { status: 'drift', revision };
 }
 
 export async function buildSnapbackContractStaticApp({
@@ -46,6 +104,7 @@ export async function buildSnapbackContractStaticApp({
   const appRoot = resolve(root);
   const normalizedBasePath = normalizeBasePath(basePath);
   const resolvedOutDir = resolve(appRoot, outDir);
+  checkExactPin({ appRoot, exactRoot: resolveExactRoot(exactRoot) });
   const { config, exactRoot: resolvedExactRoot, entry: normalizedEntry, exactModules } =
     await contractViteBaseConfig({
       root: appRoot,

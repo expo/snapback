@@ -16,6 +16,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 await generateAdminContractBindings({ root: here });
 
+// SNAPBACK_ADMIN_STATIC_TARGETS selects the native envelope targets
+// (comma-separated; empty for a web-only build).
+const staticPlatformTargets = (process.env.SNAPBACK_ADMIN_STATIC_TARGETS ?? 'mac')
+  .split(',')
+  .map((target) => target.trim())
+  .filter(Boolean);
+
 const result = await buildSnapbackContractStaticApp({
   root: here,
   exactRoot: process.env.SNAPBACK_EXACT_ROOT ?? resolve(here, '../../exact'),
@@ -23,7 +30,7 @@ const result = await buildSnapbackContractStaticApp({
   entry: '/src/main.ts',
   outDir: 'dist',
   routeRegistry: 'src/app/routes.ts',
-  staticPlatformTargets: ['mac'],
+  staticPlatformTargets,
 });
 
 console.log('admin-ui: static build OK ->', result.outDir);
