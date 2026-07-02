@@ -664,6 +664,7 @@ fn live_resume_resnapshots_when_recorded_permission_epoch_is_stale() {
             LiveResumeInput {
                 subscription_id: subscription.subscription_id.clone(),
                 connection_id: "client_reconnected".to_owned(),
+                auth: auth("user_1"),
                 recorded_permission_epochs: subscription.permission_epochs,
             },
         )
@@ -713,6 +714,7 @@ fn live_resume_retains_subscription_when_recorded_permission_epoch_is_current() 
             LiveResumeInput {
                 subscription_id: subscription.subscription_id.clone(),
                 connection_id: "client_reconnected".to_owned(),
+                auth: auth("user_1"),
                 recorded_permission_epochs: subscription.permission_epochs,
             },
         )
@@ -2098,4 +2100,95 @@ fn auth(user_id: &str) -> AuthInput {
         session_id: None,
         user_id: Some(user_id.to_owned()),
     }
+}
+
+/// LLP 0032 S2 — subscription ids must be unguessable bearer capabilities,
+/// not enumerable counters.
+#[test]
+fn s2_subscription_ids_are_unguessable() {
+    let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
+    let first = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("first subscription");
+    let second = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("second subscription");
+    assert_ne!(first.subscription_id, second.subscription_id);
+    for id in [&first.subscription_id, &second.subscription_id] {
+        assert!(id.starts_with("sub_"), "unexpected id shape: {id}");
+        assert!(
+            id.len() >= "sub_".len() + 32,
+            "id must not be an enumerable counter: {id}"
+        );
+    }
+}
+
+/// LLP 0032 S2 — resume is bound to the subscribing principal: a different or
+/// anonymous caller must fail closed even with the correct subscription id.
+#[test]
+fn s2_resume_live_fails_closed_for_a_different_principal() {
+    let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
+    let subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_owner".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe live query");
+
+    let hijack = snapback.resume_live(
+        "listTodos",
+        LiveResumeInput {
+            subscription_id: subscription.subscription_id.clone(),
+            connection_id: "client_attacker".to_owned(),
+            auth: auth("user_2"),
+            recorded_permission_epochs: subscription.permission_epochs.clone(),
+        },
+    );
+    let error = hijack.expect_err("resume by a different principal must fail closed");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
+
+    let anonymous = snapback.resume_live(
+        "listTodos",
+        LiveResumeInput {
+            subscription_id: subscription.subscription_id.clone(),
+            connection_id: "client_attacker".to_owned(),
+            auth: AuthInput::default(),
+            recorded_permission_epochs: subscription.permission_epochs.clone(),
+        },
+    );
+    assert_eq!(
+        anonymous
+            .expect_err("anonymous resume of an owned subscription must fail closed")
+            .diagnostic
+            .code,
+        "SNAPBACK_LIVE_RESUME_OWNERSHIP"
+    );
+
+    let owner = snapback
+        .resume_live(
+            "listTodos",
+            LiveResumeInput {
+                subscription_id: subscription.subscription_id.clone(),
+                connection_id: "client_owner_reconnected".to_owned(),
+                auth: auth("user_1"),
+                recorded_permission_epochs: subscription.permission_epochs,
+            },
+        )
+        .expect("owner resume succeeds");
+    assert_eq!(owner.subscription_id, subscription.subscription_id);
 }

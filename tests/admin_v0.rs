@@ -7,7 +7,7 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use futures_util::StreamExt;
+use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext};
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
@@ -634,4 +634,83 @@ fn todo_functions() -> FunctionManifest {
         ],
         ..FunctionManifest::default()
     }
+}
+
+/// LLP 0032 S3 — a WebSocket may only speak for its own connection: a frame
+/// carrying another connection_id fails closed before reaching the ephemeral
+/// store, and a frame matching the socket identity passes the gate.
+#[tokio::test]
+async fn s3_websocket_frames_bind_to_the_socket_connection() {
+    let shared = Arc::new(Mutex::new(seeded_snapback()));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = snapback::server::app(AppState::detached(shared.clone()));
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let (mut stream, _) = connect_async(format!("ws://{addr}/live/client_ws_a/stream"))
+        .await
+        .unwrap();
+
+    let frame = |connection_id: &str| {
+        json!({
+            "type": "ephemeral_publish",
+            "requestId": "req_s3",
+            "request": {
+                "collection": "cursors",
+                "scope": { "roomId": "room_1" },
+                "connection_id": connection_id,
+                "session_id": null,
+                "user_id": null,
+                "custom_key": null,
+                "value": [123],
+                "ttl_ms": null,
+                "auth": {
+                    "principal": null,
+                    "session_id": null,
+                    "user_id": null,
+                    "permissions": []
+                }
+            }
+        })
+        .to_string()
+    };
+
+    stream
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            frame("client_ws_victim").into(),
+        ))
+        .await
+        .unwrap();
+    let reply = tokio::time::timeout(Duration::from_secs(2), stream.next())
+        .await
+        .expect("spoofed frame reply timeout")
+        .expect("websocket closed")
+        .expect("websocket message");
+    let reply: Value = serde_json::from_str(&reply.into_text().unwrap()).unwrap();
+    assert_eq!(reply["kind"], "ephemeral_error");
+    assert_eq!(
+        reply["diagnostic"]["code"],
+        "SNAPBACK_WEBSOCKET_SENDER_MISMATCH"
+    );
+
+    stream
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            frame("client_ws_a").into(),
+        ))
+        .await
+        .unwrap();
+    let reply = tokio::time::timeout(Duration::from_secs(2), stream.next())
+        .await
+        .expect("matching frame reply timeout")
+        .expect("websocket closed")
+        .expect("websocket message");
+    let reply: Value = serde_json::from_str(&reply.into_text().unwrap()).unwrap();
+    assert_ne!(
+        reply["diagnostic"]["code"], "SNAPBACK_WEBSOCKET_SENDER_MISMATCH",
+        "a frame matching the socket identity must pass the sender gate"
+    );
+
+    server.abort();
 }

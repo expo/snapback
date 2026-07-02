@@ -10,7 +10,7 @@ use crate::ephemeral::{
 };
 use crate::live_matcher::{live_subscription_may_be_affected, query_dependencies_from_plan};
 use crate::manifest::{
-    ActionPlan, ActionReturnValue, ActionStep, CapabilityManifest, FunctionDefinition,
+    ActionPlan, ActionReturnValue, ActionStep, AuthInput, CapabilityManifest, FunctionDefinition,
     FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
     MutationStep, PermissionScopeExpr, QueryOutput, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
     SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr,
@@ -26,6 +26,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use uuid::Uuid;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 
@@ -79,6 +80,8 @@ pub struct LiveSubscribeOutput {
 pub struct LiveResumeInput {
     pub subscription_id: String,
     pub connection_id: String,
+    #[serde(default)]
+    pub auth: AuthInput,
     #[serde(
         default,
         rename = "recorded_permission_epochs",
@@ -170,7 +173,6 @@ pub struct LocalSnapback {
     permission_epochs: BTreeMap<String, u64>,
     live_delivery: LiveDeliveryStats,
     recent_diagnostics: VecDeque<Diagnostic>,
-    next_subscription_id: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -259,7 +261,6 @@ impl LocalSnapback {
         self.ephemeral.reset_runtime_state();
         self.cron.reset_runtime_state(&self.functions);
         self.live_delivery = LiveDeliveryStats::default();
-        self.next_subscription_id = 0;
         self.persist_cron_state()?;
         Ok(())
     }
@@ -430,8 +431,10 @@ impl LocalSnapback {
         let subscription_input = input.input;
         let query = self.invoke_query_with_dependencies(name, subscription_input.clone())?;
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
-        self.next_subscription_id += 1;
-        let subscription_id = format!("sub_{}", self.next_subscription_id);
+        // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
+        // subscription ids are unguessable bearer capabilities, not enumerable
+        // counters; they share the runtime's UUIDv7 id source.
+        let subscription_id = format!("sub_{}", Uuid::now_v7().simple());
         self.subscriptions.insert(
             subscription_id.clone(),
             LiveSubscription {
@@ -474,6 +477,24 @@ impl LocalSnapback {
                 format!(
                     "subscription {} belongs to {}, not {name}",
                     subscription.id, subscription.function
+                ),
+            ));
+        }
+
+        // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
+        // resume re-points a subscription's stream, so once a principal owns
+        // the subscription the caller must present that principal; the
+        // unguessable id alone is not ownership.
+        let owner = &subscription.input.auth;
+        if (owner.principal.is_some() || owner.user_id.is_some())
+            && (owner.principal != input.auth.principal || owner.user_id != input.auth.user_id)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+                "realtime",
+                format!(
+                    "subscription {} is owned by a different principal",
+                    subscription.id
                 ),
             ));
         }
@@ -748,7 +769,6 @@ impl LocalSnapback {
             permission_epochs: BTreeMap::new(),
             live_delivery: LiveDeliveryStats::default(),
             recent_diagnostics,
-            next_subscription_id: 0,
         })
     }
 

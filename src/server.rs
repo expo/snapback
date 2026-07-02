@@ -445,7 +445,7 @@ async fn live_stream(socket: WebSocket, state: SharedSnapback, connection_id: St
                 match incoming {
                     Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
                     Some(Ok(Message::Text(text))) => {
-                        let response = handle_live_socket_text(&state, &text).await;
+                        let response = handle_live_socket_text(&state, &connection_id, &text).await;
                         if sender.send(Message::Text(response.into())).await.is_err() {
                             break 'stream;
                         }
@@ -491,7 +491,11 @@ enum LiveSocketClientMessage {
     },
 }
 
-async fn handle_live_socket_text(state: &SharedSnapback, text: &str) -> String {
+async fn handle_live_socket_text(
+    state: &SharedSnapback,
+    connection_id: &str,
+    text: &str,
+) -> String {
     let message = match serde_json::from_str::<LiveSocketClientMessage>(text) {
         Ok(message) => message,
         Err(error) => {
@@ -507,6 +511,39 @@ async fn handle_live_socket_text(state: &SharedSnapback, text: &str) -> String {
             );
         }
     };
+
+    // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S3: a socket
+    // may only speak for its own connection; the client-chosen connection_id
+    // inside a frame is bound to the socket identity, never trusted.
+    let (frame_request_id, frame_operation, frame_connection) = match &message {
+        LiveSocketClientMessage::EphemeralSubscribe {
+            request_id,
+            request,
+        } => (request_id.clone(), "subscribe", &request.connection_id),
+        LiveSocketClientMessage::EphemeralPublish {
+            request_id,
+            request,
+        } => (request_id.clone(), "publish", &request.connection_id),
+        LiveSocketClientMessage::EphemeralDelete {
+            request_id,
+            request,
+        } => (request_id.clone(), "delete", &request.connection_id),
+    };
+    if frame_connection != connection_id {
+        return socket_error(
+            frame_request_id,
+            frame_operation,
+            Diagnostic::error(
+                "SNAPBACK_WEBSOCKET_SENDER_MISMATCH",
+                "realtime",
+                "message connection_id does not match this socket's connection",
+            )
+            .with_details(json!({
+                "socket_connection_id": connection_id,
+                "message_connection_id": frame_connection,
+            })),
+        );
+    }
 
     match message {
         LiveSocketClientMessage::EphemeralSubscribe {
