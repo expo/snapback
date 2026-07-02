@@ -100,12 +100,14 @@
       "press affordances drive station navigation and direction toggle (identical on web and native)",
       "tapping a train opens its detail with ordered stops and a position indicator",
       "a Contract action drives the generated applyFeedTick mutation and the freshness marker goes live",
+      "paved path: liveTrainStatus + feedState bind with server push over the shared stream; connections report live (LLP 0034 D1)",
+      "cron-authored delta reaches the browser through generated bindings with no poll pump (Exact LLP 0284 §5.3 item 3)",
+      "second window boot is inspect-first and does not clear the first window (LLP 0034 D4 / LLP 0275 C4)",
       "gesture glue: swipe left changes station, swipe up selects the next train, bare tap flips direction (synthetic pointers)"
     ]
   },
   "capabilityGaps": [
     "swipe_gestures_not_in_contract",
-    "contract_browser_adapter_no_live_push",
     "action_egress_per_host_allowlist",
     "live_external_feed_polling",
     "notifications",
@@ -120,7 +122,6 @@
     "walkBike": "haversine from seed coordinates (walk ~3mph, bike ~9mph); OpenRouteService via a proxied action is the Phase-3 accuracy upgrade",
     "stationPhotos": "full-screen poster-stylized art derived from the real Wikimedia Commons station photos (Wikipedia List of Caltrain stations): fetched + stylized at build time (snapback/shared/station-photos.gen.py, Pillow; algorithmic posterize + ink edges, not an image-gen model) and base64-inlined as 640x1136 JPEG in station-photos.gen.mjs (~1.5MB source) — zero runtime egress, deterministic; legibility scrims live in the model.mjs SVG wrapper; flowing assets through the asset-storage subsystem instead of inlining is the follow-up",
     "egress": "opt-in via SNAPBACK_OUTBOUND_ACTIONS; the demo product path runs on recorded data and never calls fetch",
-    "contractDataBridge": "the surface feeds live delays/freshness into a store the .contract derives from, since the shared single-boundary adapter does not push server-authored deltas to the browser",
     "gestures": "gesture-first interaction ships as web surface glue (gestures.ts) driving the declared press affordances; the Contract swipe primitive (LLP 0029 G1) remains the real fix and would delete the glue",
     "webChrome": "the Exact dev server serves its own HTML shell (index.html is not consulted), so main.ts injects the page chrome the full-bleed layout needs (height chain, dark backdrop, touch-action rules)"
   },

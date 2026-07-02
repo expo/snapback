@@ -148,6 +148,81 @@ async function main() {
       return { before, after, tickIndex: feed.tickIndex };
     });
 
+    // --- The paved path (LLP 0034 §6 ownership row 3; Exact 0284 §5.3 item 3):
+    // server push through generated bindings, no hand-written pump, D4 boot.
+
+    await suite.check('paved path: both live queries bind with push; connections report live', async () => {
+      const facts = await page.eval(`(async () => {
+        const d = Date.now() + 8000;
+        for (;;) {
+          const aa = window.allAboard;
+          const conns = aa && aa.connections ? aa.connections() : null;
+          if (aa && aa.livePush === true && conns
+              && conns.liveTrainStatus === 'live' && conns.feedState === 'live') {
+            return { livePush: aa.livePush, connections: conns, provisioned: aa.provisioned };
+          }
+          if (Date.now() > d) throw new Error('live connections never settled: ' + JSON.stringify({ livePush: aa?.livePush, conns }));
+          await new Promise(r => setTimeout(r, 100));
+        }
+      })()`);
+      // First window on a fresh backend performs the full provisioning.
+      if (!Array.isArray(facts.provisioned)) throw new Error('provisioning facts missing');
+      return facts;
+    });
+
+    await suite.check('cron-authored delta reaches the browser through the bindings (no pump)', async () => {
+      // Trigger the demo's own cron job server-side (the admin manual-run
+      // route): refreshFeed -> applyFeedTick -> live fan-out. The browser
+      // performs no interaction and owns no poll timer for these queries —
+      // the freshness marker must go "just now" purely from the push.
+      const client = new SnapbackClient(apiUrl);
+      const tickBefore = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
+      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
+      if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
+      const record = await run.json();
+      const fresh = await page.pollText('freshness', 'Updated just now', 6000);
+      if (fresh !== 'Updated just now') throw new Error(`cron delta did not reach the browser: freshness=${fresh}`);
+      const tickAfter = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
+      if (!(tickAfter > tickBefore)) throw new Error(`cron run did not advance the feed (${tickBefore} -> ${tickAfter})`);
+      const conns = await page.eval('window.allAboard.connections()');
+      if (conns.liveTrainStatus !== 'live') throw new Error(`connection degraded during push: ${JSON.stringify(conns)}`);
+      return { cronOutcome: record.outcome, tickBefore, tickAfter, connections: conns };
+    });
+
+    await suite.check('second window boot does not clear the first (D4 inspect-first)', async () => {
+      const page2 = await cdp.newPage();
+      await page2.navigate(`${viteUrl}/`);
+      const second = await page2.eval(`(async () => {
+        const d = Date.now() + 20000;
+        while (!window.allAboard) { if (Date.now() > d) throw new Error('second window never booted'); await new Promise(r=>setTimeout(r,50)); }
+        await window.allAboard.ready;
+        const s = Date.now() + 8000;
+        for (;;) {
+          const conns = window.allAboard.connections ? window.allAboard.connections() : null;
+          if (conns && conns.liveTrainStatus === 'live') return { provisioned: window.allAboard.provisioned, connections: conns };
+          if (Date.now() > s) throw new Error('second window connections never settled: ' + JSON.stringify(conns));
+          await new Promise(r => setTimeout(r, 100));
+        }
+      })()`);
+      // Inspect-first: the backend is already provisioned and seeded, so the
+      // second window's boot performs NO provisioning writes (the LLP 0275 C4
+      // footgun — a second window calling loadSchema/reset — is gone).
+      if (second.provisioned.length !== 0) {
+        throw new Error(`second window re-provisioned: ${JSON.stringify(second.provisioned)}`);
+      }
+      // The first window's session survived: still rendered, still live, and
+      // still receiving server-authored deltas after the second boot.
+      const stationName = await page.text('station-name');
+      if (!stationName) throw new Error('first window lost its board after the second boot');
+      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
+      if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
+      const fresh = await page.pollText('freshness', 'Updated just now', 6000);
+      if (fresh !== 'Updated just now') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
+      const conns = await page.eval('window.allAboard.connections()');
+      if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
+      return { second, firstStillLive: conns };
+    });
+
     // Gesture layer (LLP 0027 interaction model via web surface glue; LLP 0029
     // G1 remains open — these drive the same press affordances by pointer).
 
@@ -256,6 +331,9 @@ async function connectCdp(url) {
         })()`),
         waitForTestId: (id) => evalRaw(`(async () => { const d = Date.now()+8000; while (Date.now()<d) { if (document.querySelector('${sel(id)}')) return true; await new Promise(r=>setTimeout(r,80)); } throw new Error('timeout waiting for ${id}'); })()`),
         evalPoll: (expr, _pred, ms) => evalRaw(`(async () => { const d = Date.now()+${ms}; let v; while (Date.now()<d) { v = ${expr}; if (/Updated/.test(v)) return v; await new Promise(r=>setTimeout(r,150)); } return v; })()`),
+        // Poll a testId's text until it matches the pattern (or time out,
+        // returning the last value for the caller's error message).
+        pollText: (id, pattern, ms) => evalRaw(`(async () => { const d = Date.now()+${ms}; let v; while (Date.now()<d) { v = document.querySelector('${sel(id)}')?.textContent.trim() ?? null; if (v !== null && new RegExp(${JSON.stringify(pattern)}).test(v)) return v; await new Promise(r=>setTimeout(r,120)); } return v; })()`),
       };
     },
   };

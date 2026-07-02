@@ -1,15 +1,18 @@
 // Contract-facing data helpers for the All Aboard surface.
 //
 // These are the pure helpers the app.contract `use`s. The transit math lives in
-// the shared model (imported unchanged); the wrappers here read the live delays
-// and device location from store.mjs, which main.ts keeps in sync with Snapback.
+// the shared model (imported unchanged). Live Snapback data (delays + the
+// freshness marker) arrives as ARGUMENTS — the .contract's `query` bindings
+// over the generated liveTrainStatus/feedState descriptors (LLP 0034 §6
+// ownership row 3; Exact LLP 0284 §5.3) — so these helpers are genuinely
+// pure-by-args for the live data. The store.mjs seam and its poll pump are
+// gone: server push drives the bindings, and the bindings drive the derives.
 //
-// Reactivity note: the Contract compiler treats these as pure-by-args, so every
-// helper that reads the mutable store also takes the ticking `nowMs` (a cache
-// buster). Because the `every(1000, tick)` task advances nowMs each second, the
-// derives re-run each second and pick up the latest server-pushed delay or a
-// freshly resolved location — the same reactive trick the Facet caltrain twin uses
-// with its clock, extended to Snapback-authored data.
+// Device location is the one remaining piece of module state: it is a device
+// capability (navigator.geolocation), not transport glue, so it lives here as
+// explicit device glue behind `setDeviceLocation`. Location-reading helpers
+// keep the ticking `nowMs` cache-buster so the 1s clock re-derives them (the
+// clock is UI — countdowns tick — not transport).
 
 import {
   getAdjacentStation as modelAdjacent,
@@ -32,25 +35,33 @@ import {
   stationPhoto as modelStationPhoto,
   stationPhotoCredit as modelStationPhotoCredit,
 } from '../../snapback/shared/model.mjs';
-import { getStoreState } from './store.mjs';
-
 const DEFAULT_LOCATION = { lat: 37.3894, lng: -122.0819 }; // Mountain View fallback
+
+// --- Device location (device-capability glue, set by main.ts) -----------------
+
+type LatLng = { lat: number; lng: number };
+let deviceLocation: LatLng | null = null;
+let deviceLocationSource = 'default'; // 'device' | 'default' | 'denied' | 'unavailable'
+
+export function setDeviceLocation(location: LatLng | null, source?: string): void {
+  deviceLocation = location ?? null;
+  deviceLocationSource = source ?? (location ? 'device' : 'default');
+}
 
 // --- Location + station selection --------------------------------------------
 
 export function getUserLocation(_tick?: number) {
-  const { location } = getStoreState();
-  return location ?? DEFAULT_LOCATION;
+  return deviceLocation ?? DEFAULT_LOCATION;
 }
 
 export function locationSource(_tick?: number): string {
-  return getStoreState().locationSource;
+  return deviceLocationSource;
 }
 
 // A friendly, on-card signal of whether the nearest station came from the device
 // or a fallback — so a denied/dismissed permission prompt is legible, not silent.
 export function locationHint(_tick?: number): string {
-  switch (getStoreState().locationSource) {
+  switch (deviceLocationSource) {
     case 'device': return '📍 Using your location';
     case 'denied': return 'Location blocked — showing a default stop';
     case 'unavailable': return 'Location unavailable — showing a default stop';
@@ -101,19 +112,28 @@ export function directionTitle(direction: string): string {
   return modelDirectionTitle(direction);
 }
 
-// --- Boards + trips (read live delays from the store) -------------------------
+// --- Boards + trips (live delays arrive as liveTrainStatus rows) --------------
 
-export function getDirectionBoard(stationId: string, direction: string, nowMs: number, limit: number) {
-  return modelDirectionBoard(stationId, direction, nowMs, getStoreState().delays, limit);
+type DelayRow = { patternId: string; delaySeconds: number };
+
+// liveTrainStatus rows -> the patternId -> delaySeconds map the model expects.
+function delaysFrom(delayRows: readonly DelayRow[] | null | undefined): Record<string, number> {
+  const delays: Record<string, number> = {};
+  for (const row of delayRows ?? []) delays[row.patternId] = row.delaySeconds;
+  return delays;
+}
+
+export function getDirectionBoard(stationId: string, direction: string, nowMs: number, limit: number, delayRows: DelayRow[]) {
+  return modelDirectionBoard(stationId, direction, nowMs, delaysFrom(delayRows), limit);
 }
 
 // The hero-selection board: `heroOffset` walks the upcoming trains (swipe
 // up/down or the ▲▼ arrows), the three after it stay listed. The offset is
 // clamped to the rows that exist, so an offset stranded by time passing (the
 // selected train departs) degrades to the last remaining train.
-export function boardTrains(stationId: string, direction: string, nowMs: number, heroOffset: number) {
+export function boardTrains(stationId: string, direction: string, nowMs: number, heroOffset: number, delayRows: DelayRow[]) {
   const wanted = Math.max(0, heroOffset ?? 0);
-  const rows = modelUpcomingDepartures(stationId, direction, nowMs, getStoreState().delays, wanted + 5);
+  const rows = modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), wanted + 5);
   const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
   return {
     hero: rows[offset] ?? null,
@@ -143,13 +163,13 @@ export function shortHeadsign(dep: { headsign?: string } | null): string {
   return match ? match.shortName : headsign;
 }
 
-export function getTrainRun(runId: string, nowMs: number) {
-  return modelTrainRun(runId, nowMs, getStoreState().delays);
+export function getTrainRun(runId: string, nowMs: number, delayRows: DelayRow[]) {
+  return modelTrainRun(runId, nowMs, delaysFrom(delayRows));
 }
 
 // The served stops from the boarding station onward, for the expanded hero.
-export function upcomingStops(runId: string, stationId: string, nowMs: number, limit: number) {
-  const trip = modelTrainRun(runId, nowMs, getStoreState().delays);
+export function upcomingStops(runId: string, stationId: string, nowMs: number, limit: number, delayRows: DelayRow[]) {
+  const trip = modelTrainRun(runId, nowMs, delaysFrom(delayRows));
   if (!trip) return [];
   const boardingIndex = trip.stops.findIndex((stop: { station: { id: string } }) => stop.station.id === stationId);
   const from = boardingIndex >= 0 ? boardingIndex : 0;
@@ -196,10 +216,10 @@ export function distanceLabel(station: { lat: number; lng: number }, _tick?: num
   return `${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 
-// --- Freshness marker (reads feedRefreshState from the store) -----------------
+// --- Freshness marker (feedState rows from the live query binding) ------------
 
-export function feedFreshness(nowMs: number): string {
-  const { feed } = getStoreState();
+export function feedFreshness(nowMs: number, feedRows: Array<{ fetchedAt?: number }>): string {
+  const feed = feedRows?.[0] ?? null;
   if (!feed || !feed.fetchedAt) return 'Waiting for feed…';
   const ageSeconds = Math.max(0, Math.round((nowMs - feed.fetchedAt) / 1000));
   if (ageSeconds < 5) return 'Updated just now';

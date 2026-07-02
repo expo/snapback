@@ -1,15 +1,25 @@
 // All Aboard — Contract surface bootstrap (web host).
 //
-// Boots a Snapback backend, wires the generated applyFeedTick mutation binding,
-// keeps store.mjs in sync with the live delays + freshness marker, and feeds the
-// device location in (with a default-station fallback when it is denied). The
-// .contract then renders from the store on every clock tick — on web here via the
-// DOM mirror, and unchanged on native macOS/iOS through the Exact kernel host.
+// The paved path (LLP 0034 §6 ownership row 3; Exact LLP 0284 §5.3 "Done
+// means" item 3): live data reaches the .contract through `query` bindings
+// over the generated liveTrainStatus/feedState descriptors, live-bound over
+// the shared stream by createSnapbackContractSurface — server push, no
+// hand-written liveQuery + poll pump, no store.mjs container (both deleted).
+//
+// Boot is D4-shaped (LLP 0034 §5): connect + health + inspect-first
+// provisioning — schema/functions load ONLY when inspection says the backend
+// is not provisioned for this manifest, seed ONLY when the schedule tables are
+// empty, and the mount path never calls the destructive reset. A second
+// window's boot therefore cannot clobber the first window's live session (the
+// LLP 0275 C4 footgun).
 
 import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
+import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
+import artifactIndex from '../../snapback/generated/artifacts.json';
+import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
@@ -18,14 +28,22 @@ import {
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
 import { installGestures } from './gestures';
-import { setDelays, setFeed, setLocation } from './store.mjs';
+import { setDeviceLocation } from './data';
 import app from './app.contract';
 
-const CONNECTION = `all-aboard-${(globalThis.crypto?.randomUUID?.() ?? String(Math.round(performance.now())))}`;
-let pollTimer: ReturnType<typeof setInterval> | null = null;
+let activeSurface: { dispose?: () => void } | null = null;
 let disposeGestures: (() => void) | null = null;
 
+// Build-time API origin injected by vite.config.ts `define`.
+declare const __SNAPBACK_API_ORIGIN__: string | undefined;
+
 function snapbackBaseUrl(): string {
+  // Prefer the direct API origin (live WebSocket + HTTP under loopback CORS;
+  // the bun-vite proxy cannot complete WebSocket upgrades — see
+  // vite.config.ts). Fall back to the /snapback proxy path when absent.
+  if (typeof __SNAPBACK_API_ORIGIN__ === 'string' && __SNAPBACK_API_ORIGIN__.length > 0) {
+    return __SNAPBACK_API_ORIGIN__;
+  }
   const origin = (globalThis as { __exactServerOrigin?: string }).__exactServerOrigin;
   return typeof origin === 'string' && origin.length > 0 ? `${origin}/snapback` : '/snapback';
 }
@@ -72,64 +90,79 @@ function status(message: string, state: 'booting' | 'ready' | 'error' = 'booting
   console.log(`[all-aboard] ${message}`);
 }
 
-// The generated Contract links. The view drives only applyFeedTick (the manual
-// refresh action); the rest satisfy the generated interface. Queries are served
-// from the live store, so their links are unused stubs.
-function contractLinks(client: SnapbackClient) {
-  const mutate = (name: string) => (args: unknown) => client.mutate(name, { args });
-  const empty = () => [];
-  return {
-    applyFeedTick: mutate('applyFeedTick'),
-    resetFeed: mutate('resetFeed'),
-    liveTrainStatus: empty,
-    feedState: empty,
-    stationsQuery: empty,
-    stopTimesByStation: empty,
-    tripsQuery: empty,
-  };
-}
-
 function watchLocation(): void {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    setLocation(null, 'unavailable');
+    setDeviceLocation(null, 'unavailable');
     return;
   }
   navigator.geolocation.getCurrentPosition(
-    (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 'device'),
-    (err) => setLocation(null, err.code === 1 ? 'denied' : 'unavailable'),
+    (pos) => setDeviceLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 'device'),
+    (err) => setDeviceLocation(null, err.code === 1 ? 'denied' : 'unavailable'),
     { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 },
   );
 }
 
-async function boot(): Promise<void> {
+// D4 edits 1-3 (LLP 0034 §5): mount lifecycle = connect + health +
+// inspect-only provisioning check; provision and seed run ONLY when inspection
+// says they are needed (schema/bundle hash mismatch; empty schedule tables);
+// seed-if-empty, never reset-then-seed; the destructive reset is not reachable
+// from this path. Extends the ensure_collections inspect-first pattern to
+// schema and functions.
+async function ensureProvisioned(client: SnapbackClient): Promise<string[]> {
+  const actions: string[] = [];
+  const inspect = (await client.inspect()) as {
+    schema?: { schemaHash?: string | null };
+    functions?: { bundleHash?: string | null };
+  };
+
+  if (inspect.schema?.schemaHash !== (schemaManifest as { schemaHash: string }).schemaHash) {
+    status('Provisioning schema (backend not provisioned for this manifest)…');
+    await client.loadSchema(schemaManifest);
+    actions.push('schema');
+  }
+  if (inspect.functions?.bundleHash !== (functionsManifest as { bundleHash: string }).bundleHash) {
+    status('Provisioning functions…');
+    await client.loadFunctions(functionsManifest);
+    actions.push('functions');
+  }
+
+  // Seed-if-empty: the static schedule is the seeded-state marker. On an
+  // already-provisioned backend with data this is a read, never a write.
+  const stations = await client.query('stationsQuery', {});
+  if ((stations.rows?.length ?? 0) === 0) {
+    status('Seeding the schedule (empty backend)…');
+    await client.seed(seed);
+    actions.push('seed');
+  }
+  return actions;
+}
+
+async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnType<typeof createSnapbackContractSurface>> }> {
   installWebChrome();
   status('Connecting to Snapback…');
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
 
-  status('Loading schedule + recorded feed…');
-  await client.loadSchema(schemaManifest);
-  await client.loadFunctions(functionsManifest);
-  await client.reset();
-  await client.seed(seed);
-  configureSnapbackContractLinks(contractLinks(client));
+  status('Checking provisioning (inspect-first)…');
+  const provisioned = await ensureProvisioned(client);
 
-  // Live delays: a real subscription (arms the warm-poll cron via whileLive).
-  const delaysLive = await client.liveQuery('liveTrainStatus', { connectionId: CONNECTION });
-  setDelays(delaysLive.rows);
-  setFeed((await client.query('feedState', {})).rows[0]);
+  status('Subscribing to live train status…');
+  // The generated Contract adapter with live push (LLP 0034 D1): both live
+  // descriptors bind over one shared socket; snapshots arrive with the
+  // subscriptions (never a prime race); server-authored deltas (cron ticks,
+  // other clients' refreshes) stream into the query bindings with no pump.
+  const surface = await createSnapbackContractSurface({
+    runtime: await import('@exact/contract/runtime'),
+    client,
+    manifest: contractDataManifest,
+    artifactIndex,
+    schemaManifest,
+    functionManifest: functionsManifest,
+    liveQueries: ['liveTrainStatus', 'feedState'],
+  });
+  activeSurface = surface;
+  configureSnapbackContractLinks(surface.links as never);
   watchLocation();
-
-  // Poll the live delta outbox + freshness marker so cron/manual refreshes appear
-  // on screen. The .contract's 1s ticker re-derives from the store each second.
-  pollTimer = setInterval(async () => {
-    try {
-      setDelays(await delaysLive.poll());
-      setFeed((await client.query('feedState', {})).rows[0]);
-    } catch (error) {
-      console.warn('[all-aboard] poll failed', error);
-    }
-  }, 1500);
 
   status('Mounting…');
   installContractWebHost();
@@ -140,6 +173,7 @@ async function boot(): Promise<void> {
   const rootEl = typeof document !== 'undefined' ? document.getElementById('exact-root') : null;
   if (rootEl) disposeGestures = installGestures(rootEl);
   status('Ready', 'ready');
+  return { provisioned, surface };
 }
 
 const ready = boot().catch((error) => {
@@ -149,12 +183,25 @@ const ready = boot().catch((error) => {
   throw error;
 });
 
-(globalThis as { allAboard?: unknown }).allAboard = { ready, connection: CONNECTION };
+// Test/debug facts: the browser acceptance suite asserts the paved path
+// through these (livePush, per-query connection values, the provisioning
+// actions this window actually performed).
+(globalThis as { allAboard?: unknown }).allAboard = { ready };
+void ready.then(({ surface, provisioned }) => {
+  (globalThis as { allAboard?: unknown }).allAboard = {
+    ready,
+    connection: surface.connectionId,
+    livePush: surface.livePush,
+    connections: () => surface.connections(),
+    provisioned,
+  };
+}).catch(() => { /* boot failure already surfaced via status */ });
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    if (pollTimer) clearInterval(pollTimer);
     if (disposeGestures) disposeGestures();
+    activeSurface?.dispose?.();
+    activeSurface = null;
     resetSnapbackContractLinks();
     reset();
   });

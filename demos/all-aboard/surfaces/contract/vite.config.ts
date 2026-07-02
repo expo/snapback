@@ -22,6 +22,15 @@ export default {
     exactVitePlugin({ entry: '/main.ts', agentReadiness: false }),
     contractVitePlugin(),
   ],
+  define: {
+    // The surface talks to Snapback DIRECTLY at this origin (HTTP under the
+    // server's loopback CORS; the live WebSocket needs no CORS). Direct is
+    // the same pattern cursors-web uses, and it sidesteps a real bug: vite
+    // under `bun --bun` never completes proxied WebSocket upgrades (the
+    // ws:true proxy below logs the forward, then the tunnel hangs), which
+    // would leave the stream transport permanently connecting.
+    __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackTarget),
+  },
   resolve: {
     alias: {
       '@exact/contract/compiler': resolve(packages, 'exact-contract/src/compiler/index.ts'),
@@ -46,6 +55,10 @@ export default {
       '/snapback': {
         target: snapbackTarget,
         changeOrigin: true,
+        // The live stream (LLP 0034 D1) is a WebSocket at
+        // /snapback/live/{connection}/stream; without ws:true the proxy
+        // never upgrades and the browser surface can only poll.
+        ws: true,
         rewrite: (path: string) => path.replace(/^\/snapback/, ''),
       },
     },

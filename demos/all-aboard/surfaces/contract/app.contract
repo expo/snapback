@@ -1,9 +1,14 @@
 // All Aboard — the Caltrain next-train Contract surface (LLP 0027).
 //
 // One .contract, rendered on web (DOM mirror) and native macOS/iOS (Rust kernel).
-// The view derives from pure helpers in ./data.ts, which read live Snapback data
-// (delays + freshness) and the device location from store.mjs. A 1s `every`
-// ticker advances nowMs so countdowns tick and server-pushed delays appear live.
+// Live Snapback data arrives through `query` bindings over the generated
+// liveTrainStatus/feedState descriptors — server push over the shared live
+// socket (LLP 0034 D1; Exact LLP 0284 §5.3), no hand-written pump, no store.
+// The view derives from pure helpers in ./data.ts, passing the bound rows as
+// arguments. A 1s `every` ticker advances nowMs so countdowns tick (UI clock,
+// not transport). The delays region carries a `stale rows` arm (Exact LLP 0284
+// §2.2 connection sugar): on a missed freshness budget the board keeps
+// rendering last-known delays under a visible reconnecting note.
 //
 // Design: full-bleed poster-stylized station artwork (model.mjs stationPhoto —
 // legibility scrims are baked into its SVG wrapper) with the departure board
@@ -30,6 +35,8 @@
 // identically under the acceptance compiler and the browser Vite host.
 
 use applyFeedTick from "../../snapback/generated/contract/applyFeedTick.mutation.ts"
+use liveTrainStatus from "../../snapback/generated/contract/liveTrainStatus.query.ts"
+use feedState from "../../snapback/generated/contract/feedState.query.ts"
 
 use getSelectedStation from "./data.ts"
 use searchStations from "./data.ts"
@@ -67,20 +74,23 @@ component AllAboard
   state query = ""
   state heroOffset = 0
 
+  query delayRows = liveTrainStatus({})
+  query feedRows = feedState({})
+
   derive station = getSelectedStation(stationId, nowMs)
   derive art = stationPhoto(station.id)
   derive photoCredit = stationPhotoCredit(station.id)
   derive locHint = locationHint(nowMs)
   derive activeDir = activeDirection(directionOverride, station)
   derive oppositeDir = oppositeDirection(activeDir)
-  derive board = boardTrains(station.id, activeDir, nowMs, heroOffset)
-  derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, 1)
+  derive board = boardTrains(station.id, activeDir, nowMs, heroOffset, delayRows)
+  derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, 1, delayRows)
   derive prevStationId = adjacentStationId(station.id, -1)
   derive nextStationId = adjacentStationId(station.id, 1)
   derive walkBike = walkBikeSummary(station, nowMs)
-  derive freshness = feedFreshness(nowMs)
+  derive freshness = feedFreshness(nowMs, feedRows)
   derive matches = searchStations(query, nowMs)
-  derive trip = tripId ? getTrainRun(tripId, nowMs) : null
+  derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows) : null
 
   mutation refresh = applyFeedTick
 
@@ -133,7 +143,21 @@ component AllAboard
         when screen == "home"
           column position="absolute" top=0 left=0 right=0 bottom=0 justify="space-between" testId="board-content"
             StationCard(station=station, walkBike=walkBike, locHint=locHint, openStations=openStations)
-            DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, freshness=freshness, photoCredit=photoCredit, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, doRefresh=doRefresh)
+            // The delays region dispatches on the live binding: `stale` (Exact
+            // LLP 0284 §2.2 sugar) wins over `ready` while the connection is
+            // degraded — same board, last-known delays, a visible note.
+            async delayRows
+              loading
+                column paddingLeft=20 paddingRight=20 paddingBottom=16 width="100%" maxWidth=620 alignSelf="center"
+                  text "Connecting to live delays…" size=12 color="#ffffff73" testId="delays-loading"
+              stale rows
+                column gap=8 width="100%"
+                  row justify="center" width="100%"
+                    row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background="#fbbf2422" borderWidth=1 borderColor="#fbbf2447"
+                      text "Reconnecting — showing last-known delays" size=11 weight=700 color="#fbbf24" testId="delays-stale"
+                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, doRefresh=doRefresh)
+              ready rows
+                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, doRefresh=doRefresh)
         else
           when screen == "stations"
             StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
@@ -179,6 +203,7 @@ component DirectionBoard
     oppositeBoard: object
     freshness: string
     photoCredit: string
+    delayRows: object[]
     toggleDirection: (next) => void
     openTrip: (id) => void
     trainPrev: () => void
@@ -209,7 +234,7 @@ component DirectionBoard
                     text delayLabel(board.hero) size=12 weight=700 color=delayColor(board.hero)
                 text `to ${board.hero.headsign}` size=15 weight=600 color="#ffffffd9"
                 row gap=6 wrap="wrap" width="100%"
-                  each stop in upcomingStops(board.hero.id, stationId, nowMs, 4) key=stop.id
+                  each stop in upcomingStops(board.hero.id, stationId, nowMs, 4, delayRows) key=stop.id
                     row radius=999 paddingLeft=10 paddingRight=10 paddingTop=4 paddingBottom=4 background=stop.isBoarding ? "#ffffff2b" : "#ffffff14"
                       text `${stop.time} ${stop.name}` size=11 weight=stop.isBoarding ? 700 : 500 family="ui-monospace, Menlo, monospace" color=stop.isBoarding ? "#ffffff" : "#ffffffb8"
             // Walk the upcoming trains (swipe up/down drives these same arrows).
