@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 R7: §Execution and Write Semantics annotated with the current-vs-target implementation status)
+**Revised:** 2026-07-01 (LLP 0032 R7: §Execution and Write Semantics annotated with the current-vs-target implementation status; LLP 0032 S5.D4: §Realtime Pipeline gains the post-commit fan-out error contract)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, https://github.com/expo/valet, https://github.com/ccheever/ibex
 
 ## Summary
@@ -209,6 +209,20 @@ Valet retrospective should inform.
 
 The pipeline must not hold the SQLite write lock while doing async WebSocket
 dispatch. It may hold the database lock briefly for tailing and hydration.
+
+**Post-commit fan-out error contract.** Fan-out runs *after* the mutation has
+committed, so a single subscription's re-run or serialization failure must
+never be reported as a mutation failure and must never abort the fan-out loop
+— doing either returns an error to a caller whose write already persisted and
+silently starves the remaining subscribers. Each per-subscription failure is
+instead a recorded diagnostic (with a delivery-failure counter) plus a
+best-effort `resync_required` signal to that one subscriber, so the client
+re-snapshots rather than freezing; the loop continues to the next
+subscription. A mutation only fails for reasons that occur *before* commit.
+(Implemented 2026-07-01 via
+[LLP 0032](./0032-decision-and-implementation-hardening.plan.md) S5.D4;
+`notify_live_subscriptions`/`notify_permission_resyncs` are infallible with
+respect to the mutation.)
 
 ## Execution and Write Semantics
 

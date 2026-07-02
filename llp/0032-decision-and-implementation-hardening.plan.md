@@ -380,7 +380,12 @@ Each fix lands with a failing-then-passing test named for the step id.
   subscribers. Fix: fan-out errors are per-subscription diagnostics (and
   outbox resync signals), never a mutation failure; the loop continues.
   **needs owner doc update** (LLP 0003 §Realtime Pipeline should state the
-  post-commit error contract).
+  post-commit error contract). **Landed 2026-07-01** —
+  `notify_live_subscriptions`/`notify_permission_resyncs` are now infallible
+  w.r.t. the mutation: per-subscription failures record a diagnostic, bump
+  `live_delivery.total_failed`, and enqueue a `resync_required` signal, then
+  continue. LLP 0003 §Realtime Pipeline gained the contract; test
+  `s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others`.
 - **S5.D5 — WS drain-then-send loses messages on send failure** [analysis].
   Messages are drained from the outbox under the lock, then written to the
   socket; a send error discards the failing message and everything drained

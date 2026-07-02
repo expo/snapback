@@ -126,9 +126,14 @@ pub struct LiveDeliveryStats {
     pub total_fanout_attempts: u64,
     pub total_deliveries: u64,
     pub total_skipped: u64,
+    // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D4:
+    // post-commit fan-out failures are per-subscription diagnostics, counted
+    // here, never a failure of the already-committed mutation.
+    pub total_failed: u64,
     pub last_fanout_subscriptions: usize,
     pub last_deliveries: usize,
     pub last_skipped: usize,
+    pub last_failed: usize,
 }
 
 /// The result of running a generated function from the admin function runner.
@@ -268,7 +273,7 @@ impl LocalSnapback {
 
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
         let output = self.db.seed(seed)?;
-        self.notify_live_subscriptions(&[])?;
+        self.notify_live_subscriptions(&[]);
         Ok(output)
     }
 
@@ -410,8 +415,8 @@ impl LocalSnapback {
         } else {
             Vec::new()
         };
-        self.notify_permission_resyncs(&permission_changes)?;
-        self.notify_live_subscriptions(&commit.changes)?;
+        self.notify_permission_resyncs(&permission_changes);
+        self.notify_live_subscriptions(&commit.changes);
         Ok(commit)
     }
 
@@ -938,9 +943,17 @@ impl LocalSnapback {
         self.db.save_cron_state(&value)
     }
 
-    fn notify_live_subscriptions(&mut self, changes: &[ChangedRow]) -> SnapbackResult<()> {
+    /// Fan a committed changeset out to live subscriptions. The mutation has
+    /// already committed by the time this runs, so a single subscription's
+    /// re-run or serialization failure must never fail the mutation or abort
+    /// the loop and starve the remaining subscribers — each failure is a
+    /// recorded diagnostic plus a resync signal to that one subscriber.
+    ///
+    /// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D4.
+    /// @ref LLP 0003#realtime-pipeline — post-commit fan-out error contract.
+    fn notify_live_subscriptions(&mut self, changes: &[ChangedRow]) {
         if changes.is_empty() && self.subscriptions.is_empty() {
-            return Ok(());
+            return;
         }
 
         let subscriptions = self.subscriptions.values().cloned().collect::<Vec<_>>();
@@ -948,6 +961,7 @@ impl LocalSnapback {
         self.live_delivery.last_fanout_subscriptions = subscriptions.len();
         self.live_delivery.last_deliveries = 0;
         self.live_delivery.last_skipped = 0;
+        self.live_delivery.last_failed = 0;
 
         for subscription in subscriptions {
             let Some(function) = self.functions.function(&subscription.function) else {
@@ -970,25 +984,38 @@ impl LocalSnapback {
                 self.live_delivery.last_skipped += 1;
                 continue;
             }
-            let query = self.invoke_query_with_dependencies(
+            let query = match self.invoke_query_with_dependencies(
                 &subscription.function,
                 subscription.input.clone(),
-            )?;
-            let payload = serde_json::to_vec(&LiveUpdate {
+            ) {
+                Ok(query) => query,
+                Err(error) => {
+                    self.fail_subscription_fanout(&subscription, "live_refresh_failed", error);
+                    continue;
+                }
+            };
+            let payload = match serde_json::to_vec(&LiveUpdate {
                 kind: "live_replace".to_owned(),
                 subscription_id: subscription.id.clone(),
                 function: subscription.function.clone(),
                 version: query.output.version,
                 rows: query.output.rows,
-            })
-            .map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
-                    "realtime",
-                    "live query update could not be serialized",
-                )
-                .with_details(json!({ "error": error.to_string() }))
-            })?;
+            }) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    self.fail_subscription_fanout(
+                        &subscription,
+                        "live_serialize_failed",
+                        SnapbackError::error(
+                            "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                            "realtime",
+                            "live query update could not be serialized",
+                        )
+                        .with_details(json!({ "error": error.to_string() })),
+                    );
+                    continue;
+                }
+            };
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                 stored.read_dependencies = query.read_dependencies;
             }
@@ -997,8 +1024,41 @@ impl LocalSnapback {
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
         }
+    }
 
-        Ok(())
+    /// Record a post-commit fan-out failure for one subscription: a diagnostic
+    /// in the ring, a failure counter, and a best-effort `resync_required`
+    /// signal so the client re-snapshots instead of silently freezing. Never
+    /// propagates — the mutation already committed.
+    ///
+    /// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D4.
+    fn fail_subscription_fanout(
+        &mut self,
+        subscription: &LiveSubscription,
+        reason: &str,
+        error: SnapbackError,
+    ) {
+        self.live_delivery.total_failed += 1;
+        self.live_delivery.last_failed += 1;
+        let mut diagnostic = error.diagnostic;
+        diagnostic.details = json!({
+            "subscriptionId": subscription.id,
+            "function": subscription.function,
+            "reason": reason,
+            "error": diagnostic.details,
+        });
+        self.record_diagnostics(vec![diagnostic]);
+        if let Ok(payload) = serde_json::to_vec(&LiveResyncRequired {
+            kind: "resync_required".to_owned(),
+            reason: reason.to_owned(),
+            subscription_id: subscription.id.clone(),
+            scope: String::new(),
+            epoch: 0,
+            clear_retained: true,
+        }) {
+            self.ephemeral
+                .enqueue_durable(subscription.connection_id.clone(), payload);
+        }
     }
 
     fn add_permission_dependencies(
@@ -1055,9 +1115,15 @@ impl LocalSnapback {
         Ok(changes)
     }
 
-    fn notify_permission_resyncs(&mut self, changes: &[(String, u64)]) -> SnapbackResult<()> {
+    /// Post-commit permission-epoch resync fan-out. Like
+    /// [`Self::notify_live_subscriptions`], a per-subscription serialization
+    /// failure is a recorded diagnostic, never a failure of the committed
+    /// mutation.
+    ///
+    /// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D4.
+    fn notify_permission_resyncs(&mut self, changes: &[(String, u64)]) {
         if changes.is_empty() || self.subscriptions.is_empty() {
-            return Ok(());
+            return;
         }
 
         let subscriptions = self.subscriptions.values().cloned().collect::<Vec<_>>();
@@ -1065,6 +1131,7 @@ impl LocalSnapback {
         self.live_delivery.last_fanout_subscriptions = subscriptions.len();
         self.live_delivery.last_deliveries = 0;
         self.live_delivery.last_skipped = 0;
+        self.live_delivery.last_failed = 0;
 
         for subscription in subscriptions {
             let Some((scope, epoch)) = subscription_stale_permission_change(&subscription, changes)
@@ -1074,29 +1141,34 @@ impl LocalSnapback {
                 continue;
             };
 
-            let payload = serde_json::to_vec(&LiveResyncRequired {
+            let payload = match serde_json::to_vec(&LiveResyncRequired {
                 kind: "resync_required".to_owned(),
                 reason: "permission_epoch_changed".to_owned(),
-                subscription_id: subscription.id,
+                subscription_id: subscription.id.clone(),
                 scope: scope.clone(),
                 epoch: *epoch,
                 clear_retained: true,
-            })
-            .map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
-                    "realtime",
-                    "live resync message could not be serialized",
-                )
-                .with_details(json!({ "error": error.to_string() }))
-            })?;
+            }) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    self.fail_subscription_fanout(
+                        &subscription,
+                        "permission_resync_serialize_failed",
+                        SnapbackError::error(
+                            "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                            "realtime",
+                            "live resync message could not be serialized",
+                        )
+                        .with_details(json!({ "error": error.to_string() })),
+                    );
+                    continue;
+                }
+            };
             self.ephemeral
                 .enqueue_durable(subscription.connection_id, payload);
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
         }
-
-        Ok(())
     }
 
     fn subscription_has_stale_permission(&self, subscription: &LiveSubscription) -> bool {

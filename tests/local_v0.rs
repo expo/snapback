@@ -2435,3 +2435,127 @@ globalThis.__snapbackHandlers = {
 
     manifest
 }
+
+/// LLP 0032 S5.D4 — a post-commit fan-out failure for one subscription is a
+/// per-subscription diagnostic plus a resync signal; it never fails the
+/// already-committed mutation and never starves the other subscribers.
+#[test]
+fn s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(ibex_fanout_failure_functions());
+
+    // Healthy subscriber and a subscriber whose query throws once a todo exists.
+    snapback
+        .subscribe_live(
+            "listAllTodos",
+            LiveSubscribeInput {
+                connection_id: "healthy".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("healthy subscribe");
+    snapback
+        .subscribe_live(
+            "explodeOnItems",
+            LiveSubscribeInput {
+                connection_id: "exploding".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("exploding subscribe (empty snapshot is fine)");
+
+    // The mutation commits; its fan-out re-runs both subscriptions, one of
+    // which now throws. The mutation must still succeed.
+    let commit = snapback
+        .invoke_mutation("createTodo", input(json!({ "title": "boom" }), "user_1"))
+        .expect("mutation must succeed despite a fan-out failure");
+    assert_eq!(commit.changed_count, 1);
+
+    // The healthy subscriber still got its live update.
+    let healthy = snapback.drain_outbox("healthy");
+    let RealtimeEnvelope::Durable(message) = &healthy[0] else {
+        panic!("expected a durable update for the healthy subscriber");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("healthy update json");
+    assert_eq!(update["kind"], "live_replace");
+
+    // The failing subscriber got a resync signal instead of silence.
+    let exploding = snapback.drain_outbox("exploding");
+    let RealtimeEnvelope::Durable(message) = &exploding[0] else {
+        panic!("expected a durable resync for the failing subscriber");
+    };
+    let signal: Value = serde_json::from_slice(&message.payload).expect("resync json");
+    assert_eq!(signal["kind"], "resync_required");
+    assert_eq!(signal["reason"], "live_refresh_failed");
+
+    // The failure is counted and a diagnostic was recorded.
+    let inspect = snapback.inspect().expect("inspect");
+    assert_eq!(inspect.live_delivery.total_failed, 1);
+    assert!(
+        inspect
+            .recent_diagnostics
+            .iter()
+            .any(|d| d.details["reason"] == "live_refresh_failed"),
+        "a per-subscription fan-out diagnostic should be recorded"
+    );
+}
+
+fn ibex_fanout_failure_functions() -> FunctionManifest {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async listAllTodos(ctx) {
+    return await ctx.db.query('todos').order('_createdAt', 'asc').collect();
+  },
+  async explodeOnItems(ctx) {
+    const rows = await ctx.db.query('todos').collect();
+    if (rows.length > 0) throw new Error('boom on re-run');
+    return rows;
+  },
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', {
+      title: args.title, completed: false, userId: ctx.auth.userId,
+    });
+  }
+};
+"#;
+    let mut manifest = FunctionManifest::default();
+
+    for export in ["listAllTodos", "explodeOnItems"] {
+        let mut query = FunctionDefinition::new(
+            export,
+            FunctionKind::LiveQuery,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: SOURCE.to_owned(),
+                export: export.to_owned(),
+            }),
+        );
+        query.required_capabilities = vec![
+            "live_subscriptions".to_owned(),
+            "ibex_ctx_db_host_bridge".to_owned(),
+        ];
+        query.read_set_summary.primary_table = Some("todos".to_owned());
+        query.read_set_summary.tables = vec!["todos".to_owned()];
+        query.read_set_summary.mode = Some("handlerDeclared".to_owned());
+        manifest.functions.push(query);
+    }
+
+    let mut create = FunctionDefinition::new(
+        "createTodo",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "createTodo".to_owned(),
+        }),
+    );
+    create.required_capabilities = vec![
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+    ];
+    create.write_set_summary.primary_table = Some("todos".to_owned());
+    create.write_set_summary.tables = vec!["todos".to_owned()];
+    create.write_set_summary.mode = Some("handlerDeclared".to_owned());
+    manifest.functions.push(create);
+
+    manifest
+}
