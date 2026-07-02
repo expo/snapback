@@ -6,7 +6,7 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (decision ledger: LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; same day: DK-1/E3 host-plan mutation isolation decided — Option A, client-supplied read_set baseline by design, pending Charlie's ratification (DK-1 fully resolved); DK-3 op-log deltas landed and DK-4 warm-VM leg shipped; DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation — and DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0034 and LLP 0037; related LLP index and follow-on list updated for LLP 0036; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Revised:** 2026-07-02 (decision ledger: DK-5 twin deferred and DK-9 store-agnostic client store decided (X2/X4); @snapback/* namespace and DK-10 adapter-owned live push decided — the P5/P6 close-out artifacts live on the pre-origin-sync line and re-land with Phase 5; LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; same day: DK-1/E3 host-plan mutation isolation decided — Option A, client-supplied read_set baseline by design, pending Charlie's ratification (DK-1 fully resolved); DK-3 op-log deltas landed and DK-4 warm-VM leg shipped; DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation — and DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0034 and LLP 0037; related LLP index and follow-on list updated for LLP 0036; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
 **Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
@@ -264,6 +264,50 @@ corpus does not rely on scattered "pending Charlie" notes.
   ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md) Phase 2;
   LLP 0003/0004/0007). *The integrator will surface E3 for Charlie's veto; it is
   not pre-ratified.*
+- **2026-07-02:** adapter live-push architecture (docket DK-10) is decided
+  and ratified by Charlie (applied by Claude under Charlie's same-day
+  delegation): **the Contract adapter owns the live subscription** — proved
+  in code by the LLP 0034 D1/C1 implementation (single-query surfaces
+  subscribe when the bound descriptor is live; the multi-query mode binds
+  each named query to its own boundary key and connection axis over one
+  shared socket), with All Aboard's `store.mjs` workaround deleted and the
+  separate live-provider-seam alternative dead. The LLP 0032 P5 close-out —
+  todo-demo defaults out of the generic `@snapback/contract` package
+  (binding facts as required options, app-owned optimistic reducers) and the
+  cron-authored-change-reaches-a-Contract-surface proof
+  `demos/all-aboard/tests/acceptance/contract-live.mjs`
+  ([LLP 0029](./0029-all-aboard-gap-closure.plan.md) G2) — was executed on
+  the pre-origin-sync line and re-lands with Phase 5 (LLP 0032 §Phase 5).
+- **2026-07-02:** the JS package namespace is decided and ratified by Charlie
+  (applied by Claude under Charlie's same-day delegation): **`@snapback/*`**
+  (`@snapback/contract`, `@snapback/codegen`), private workspace packages
+  under `packages/*` with a repo-root workspace (LLP 0032 P6).
+  Registry claiming/publishing is deliberately deferred to the first
+  publish; if the npm scope proves unavailable then, the decision reopens
+  (recorded in [LLP 0021](./0021-contract-exact-integration-hardening.plan.md)).
+  The P6 build itself — the repo-root workspace, the `snapback` CLI +
+  gated host-ops endpoint serving the first-slice verbs with one
+  `hostOpsResult` envelope, and `start --ready-file` writing the LLP 0030
+  readiness descriptor — was executed on the pre-origin-sync line and
+  re-lands with Phase 5 (LLP 0032 §Phase 5).
+- **2026-07-02:** V8 conformance-twin timing (docket DK-5, LLP 0032 X2) is
+  decided and ratified by Charlie (applied by Claude under Charlie's
+  same-day delegation): **defer the synthetic twin** — the fail-closed
+  handler-surface gates already do the anti-hardening job, the second
+  target (Cloudflare) is V8 by construction so X3 is the first real
+  conformance exercise, a second native bring-up would double the repo's
+  worst DX pain, and L6/L7 re-scoped the busy-loop risk. Four named revisit
+  triggers (X3 start; hosted/untrusted work; observed engine divergence;
+  the limits gap turning user-facing) in
+  [LLP 0009](./0009-code-execution-security.rfc.md) §Decision DK-5.
+- **2026-07-02:** the client local-store mandate (docket DK-9, LLP 0032 X4)
+  is decided and ratified by Charlie (applied by Claude under Charlie's
+  same-day delegation): **a store-agnostic client-store interface with
+  SQLite as the reference implementation** — under server-authoritative
+  query-result sync the client store is a result cache + cursor/epoch
+  state + outbox, never a relational replica; nothing on the wire may
+  require SQL client-side; capability reports name the physical store
+  ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Decision DK-9).
 
 ## Who Snapback is for
 
