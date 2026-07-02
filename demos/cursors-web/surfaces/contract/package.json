@@ -1,0 +1,8 @@
+{
+  "name": "snapback-cursors-web-contract-surface",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cd ../../../../../exact && bun --bun node_modules/.bin/vite --config ../snapback/demos/cursors-web/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5184"
+  }
+}

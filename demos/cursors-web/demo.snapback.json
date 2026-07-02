@@ -4,7 +4,14 @@
   "description": "A web-only cursor presence demo for LLP 0025: one generated ephemeral collection, a plain DOM page, WebSocket publish/subscribe, and two real browser clients seeing each other's latest cursor positions.",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
-  "systems": ["Demo apps", "Realtime", "Ephemeral state", "Web client", "Developer experience", "Testing"],
+  "systems": [
+    "Demo apps",
+    "Realtime",
+    "Ephemeral state",
+    "Web client",
+    "Developer experience",
+    "Testing"
+  ],
   "requiredCapabilities": {
     "storageEngine": "sqlite",
     "runtimeEngine": "ibex",
@@ -32,6 +39,13 @@
       "requirement": "required",
       "runner": "node demos/cursors-web/tests/acceptance/browser.mjs",
       "toolchain": "node>=24, cargo, local Google Chrome with Chrome DevTools Protocol"
+    },
+    "contract": {
+      "requirement": "optional",
+      "runner": "node demos/cursors-web/tests/acceptance/contract-browser.mjs",
+      "devServer": "cd ../exact && bun --bun node_modules/.bin/vite --config <repo>/demos/cursors-web/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5184",
+      "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
+      "note": "The `ephemeral` binding proof (ENG-22479; Exact LLP 0284 §5 item 4): presence through generated bindings alone; the DOM surface stays as the framework-free reference."
     }
   },
   "acceptanceChecks": {
@@ -45,6 +59,12 @@
       "opening a second context does not clear the first context's room or outbox",
       "incompatible generated collection definition returns SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
       "closing one browser context removes its connection-owned cursor from the other"
+    ],
+    "contract": [
+      "both windows boot the Contract surface over generated bindings",
+      "client B's cursor reaches client A's ephemeral BINDING (and vice versa), self styled distinctly",
+      "forceEphemeralState is LOCAL-ONLY and dispose restores live state",
+      "presence stays live after the force cycle"
     ]
   },
   "capabilityGaps": [
@@ -57,7 +77,6 @@
   ],
   "notClaiming": [
     "durable drawing or stroke storage",
-    "Contract/Exact surface",
     "native app surface",
     "offline/local-first presence",
     "hosted multi-instance presence routing",
