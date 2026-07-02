@@ -1,10 +1,10 @@
 # Diary 0007: Web cursor presence
 
 **Demo:** Web cursor presence (`demos/cursors-web/`)
-**Surfaces:** web (required)
-**Author:** Codex
+**Surfaces:** contract (required; the web arm was deleted 2026-07-02 — see the ENG-22524 entry below)
+**Author:** Codex (2026-06-28); Claude (Fable 5) (2026-07-02 entry)
 **Date:** 2026-06-28
-**Related:** LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0025, Diary 0006
+**Related:** LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0025, LLP 0034, Diary 0006, Exact LLP 0281/0284, ENG-22524
 
 ## 2026-06-28 - Building the LLP 0025 reset
 
@@ -89,3 +89,97 @@ Contract, offline presence, or hosted adapter support. It does prove that the
 local Snapback ephemeral lane can hold cursor presence without writing durable
 rows, and that browser page load no longer has to destroy active rooms to verify
 generated collection definitions.
+
+## 2026-07-02 — The imperative arm deletes: pure Contract on LLP 0281 stage 0 (ENG-22524)
+
+**Author:** Claude (Fable 5), agent-authored
+**Related:** Exact LLP 0281 (stage 0, rev 2 §3.1 + §7 ImplNotes), Exact LLP 0284 §5 item 4, LLP 0034, ENG-22479, ENG-22516, ENG-22524, ENG-22463
+**Exact pin:** `253a39eb` (the stage-0 revision this surface verified against)
+
+### What changed
+
+Exact LLP 0281 stage 0 landed (pointer event attrs, host-owned value
+channels, rated `publish` — no new grammar), so this demo became the proof
+it was budgeted for. The whole imperative arm is gone:
+
+- `surfaces/web/main.mjs` (307 lines: pointer capture, envelope glue, the
+  hand throttle, the DOM-diff overlay), `index.html` (17), `style.css`
+  (120) — **444 lines of framework-free surface deleted**.
+- `tests/acceptance/browser.mjs` (396 lines, the LLP 0025 imperative CDP
+  acceptance) — deleted; the Contract acceptance is the required runner
+  now (hardened to the ENG-22486 bar: `runAcceptance` + `expectedChecks: 6`).
+- The Contract mount shim's write-side glue — the `document.addEventListener('pointermove', ...)`
+  + 66ms hand throttle + `webCursorsPublish(...)` call — deleted. `main.ts`
+  is pure bootstrap now (client health, D4 ensure, surface creation,
+  mount with identity props, test facts).
+
+The write side lives IN the `.contract` file:
+
+```contract
+use pointer = pointerChannel({ publish: webCursorsPublish, rate: 15, payload: { roomId: "lobby", value: { x: Math.round(sample.x), y: Math.round(sample.y), name: profileName, color: profileColor } } })
+...
+stack ... pointermove=pointer.self testId="cursor-stage"
+...
+column ... opacity=pointer.self.hasSample ? 0.9 : 0 transform=`translate(${pointer.self.x - 8}px, ${pointer.self.y - 8}px)` testId="self-dot"
+```
+
+`pointermove` binds only the channel (the Exact analyzer rejects a
+transactional action there); the channel is frame-coalesced and never
+enters the signal graph; the self dot renders through the compositor-only
+`transform`/`opacity` sinks with zero reactive flushes; and the rated
+publish samples at 15Hz against the generated descriptor's
+`publishBudget` (sustainedHz=20) — codegen now emits those budget facts
+in `webCursors.publish.contract-meta.ts`, and the Exact analyzer errors
+at compile time if a channel declares a rate above them.
+
+Acceptance: 6/6 green (two headless windows converge through generated
+bindings + the rated publish; the sink transform lands
+(`translate(242px, 292px)` for a move to 250,300 — element-local minus
+the half-dot offset); channel + publish facts and the `established`
+publish receipt are live-readable through the same
+`getContractDataflowSnapshot` the agent surface serves; forced-map
+LOCAL-ONLY + recovery unchanged).
+
+### Stage-1 decision data (Exact LLP 0281 §5 OQ1 — where the channel model chafed)
+
+Pre-registered honestly, friction first:
+
+1. **One-logical-line instantiation.** The channel options object (publish
+   + rate + payload mapping) must sit on one line — Contract has no
+   bracket continuation — and ours runs ~200 chars. Ugly but shallow; a
+   formatter/continuation fix, not a semantics gap. Stage-1's `publish
+   <channel> -> <desc> rate=N` declaration would also dissolve it.
+2. **Identity plumbing was friction-free** — name/color enter as ordinary
+   props and the payload mapping reads them per tick (§3.4
+   normal→transient reads). No lane crossing needed, no `transient`
+   declarations missed.
+3. **Nothing needed composition.** Cursor presence needed exactly one
+   channel, zero derived channel math, zero multi-value gestures. The
+   §3.3 sink expressions (translate + literal offset, ternary opacity)
+   stayed inside the channel+literal confinement without strain.
+4. **Two real integration potholes, both host-level, neither
+   language-level:** (a) cross-repo `@exact/*` descriptor resolution had
+   to learn the compiler-checkout fallback (fixed in Exact, `253a39eb`);
+   (b) browsers pause rAF in background tabs, which stalled coalesced
+   delivery for a hidden window still receiving synthetic events — the
+   channel clock now degrades to the platform's throttled timer cadence
+   when hidden, and the acceptance activates a window before moving its
+   pointer (which is what a real pointer implies anyway).
+
+**Verdict input:** for the presence/cursor class of surface, stage 0
+sufficed — no `transient` declarations, no symbol-class analyzer, no
+composed channel expressions were missed. The chafing that exists is
+spelling ergonomics (the one-line options object), not model shape. On
+this evidence the `transient` language lane stays unjustified; the next
+probe that could justify it is the freehand-drawing class (draft-stroke
+buffers — LLP 0275 B1's DrawingSurface plus bounded buffer types), not
+cursors.
+
+### Net
+
+The demo's claim upgraded from "presence through generated bindings for
+the read side" to **presence with zero imperative surface code in either
+direction**. 840 deleted lines, one `.contract` file, one bootstrap
+module. The framework-free reference implementation this diary
+originally documented now exists only in git history — which is exactly
+the graduation LLP 0025 and the deletion budget wanted.

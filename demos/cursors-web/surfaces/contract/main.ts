@@ -1,14 +1,18 @@
-// Cursor presence — Contract surface bootstrap (ENG-22479).
+// Cursor presence — Contract surface bootstrap (ENG-22479 / ENG-22524).
 //
 // Read side through the paved path: the `ephemeral` binding in app.contract
 // consumes the generated webCursors descriptor via
 // createSnapbackContractSurface; presence arrives over the shared live
-// socket. Write side: pointermove glue publishes through the generated
-// mutation-shaped webCursorsPublish link (rated `publish` is Exact LLP 0281's
-// budget). Boot is D4-shaped: inspect-first ensure, provision-if-missing,
-// never reset (LLP 0034 §5; the LLP 0025 second-window rule holds).
+// socket. Write side (Exact LLP 0281 stage 0): the pointer stream is a
+// value channel declared IN app.contract — pointermove binds the channel,
+// the compositor-only transform sink drives the self dot, and the rated
+// publish (rate=15, inside the generated sustainedHz=20 budget) feeds the
+// mutation-shaped webCursorsPublish descriptor. This file is now pure
+// bootstrap: no pointer listeners, no throttle, no publish glue. Boot is
+// D4-shaped: inspect-first ensure, provision-if-missing, never reset
+// (LLP 0034 §5; the LLP 0025 second-window rule holds).
 
-import { mount, reset } from '@exact/contract/runtime';
+import { getContractDataflowSnapshot, mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
@@ -23,12 +27,10 @@ import {
 import app from './app.contract';
 
 const ROOM = 'lobby';
-const PUBLISH_MIN_INTERVAL_MS = 66; // ~15Hz, inside the 20Hz sustained budget
 
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
 
 let activeSurface: { dispose?: () => void } | null = null;
-let removePointerListener: (() => void) | null = null;
 
 function snapbackBaseUrl(): string {
   if (typeof __SNAPBACK_API_ORIGIN__ === 'string' && __SNAPBACK_API_ORIGIN__.length > 0) {
@@ -89,35 +91,25 @@ async function boot() {
   configureSnapbackContractLinks(surface.links as never);
 
   installContractWebHost();
-  mount(app);
-
-  // Publish glue: throttled pointermove -> the generated publish descriptor.
+  // Identity enters as ordinary props; the channel's publish payload reads
+  // them per tick in the channel lane (LLP 0281 §3.4 normal→transient reads).
   const identity = randomIdentity();
-  let lastPublish = 0;
-  const onPointerMove = (event: PointerEvent) => {
-    const now = Date.now();
-    if (now - lastPublish < PUBLISH_MIN_INTERVAL_MS) return;
-    lastPublish = now;
-    void Promise.resolve(
-      surface.links.webCursorsPublish({
-        roomId: ROOM,
-        value: { x: Math.round(event.clientX), y: Math.round(event.clientY), ...identity },
-      }),
-    ).catch(() => {
-      // Rate-limit rejections are the budget working; drop quietly.
-    });
-  };
-  document.addEventListener('pointermove', onPointerMove);
-  removePointerListener = () => document.removeEventListener('pointermove', onPointerMove);
+  mount(app, { props: { profileName: identity.name, profileColor: identity.color } });
 
   // Test/debug facts: the acceptance suite drives the forced-map proof
-  // (LOCAL-ONLY + dispose-restores) through these.
+  // (LOCAL-ONLY + dispose-restores) and reads the channel/publish facts
+  // through the same dataflow snapshot the agent surface serves
+  // (LLP 0281 §3.5 — live-observable, never replay-asserted).
   let ghostHandle: { dispose(): void } | null = null;
   (globalThis as { cursorsWeb?: unknown }).cursorsWeb = {
     room: ROOM,
     identity,
     connection: surface.connectionId,
     surface,
+    channels: () =>
+      getContractDataflowSnapshot({ component: 'CursorRoom', include: ['channels'] }),
+    receipts: () =>
+      getContractDataflowSnapshot({ component: 'CursorRoom', include: ['receipts'] }),
     forceGhost: () => {
       ghostHandle?.dispose();
       ghostHandle = surface.provider.forceEphemeralState?.('webCursors', {
@@ -148,7 +140,6 @@ const ready = boot().catch((error) => {
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    removePointerListener?.();
     activeSurface?.dispose?.();
     activeSurface = null;
     resetSnapbackContractLinks();

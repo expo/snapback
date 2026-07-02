@@ -2,5 +2,5 @@
 import { defineContractModule, mutation } from '@exact/contract/exports';
 
 export default defineContractModule('./todoPresence.publish.ts', {
-  todoPresencePublish: mutation({ effects: ["ephemeral:todoPresence"], invalidates: [] }),
+  todoPresencePublish: mutation({ effects: ["ephemeral:todoPresence"], invalidates: [], publishBudget: {"sustainedHz":20,"burst":40,"maxValueBytes":512} }),
 });

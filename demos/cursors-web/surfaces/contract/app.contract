@@ -1,22 +1,37 @@
-// Cursor presence — the Contract surface (ENG-22479; Exact LLP 0284 §5 item 4).
+// Cursor presence — the pure-Contract surface (ENG-22479 read side;
+// ENG-22524 write side — the Exact LLP 0281 stage-0 proof).
 //
-// The read side is the proof: client B's cursor reaches client A's
-// `ephemeral` BINDING through generated bindings alone — no imperative
-// overlay, no poll pump. The binding target is the generated
-// webCursors.ephemeral.ts descriptor; entries carry the normative
-// EphemeralMapCell shape (key/value/updatedAt/expiresAt/sourceClientId/self)
-// and the map's `connection` axis is the transport truth. The WRITE side
-// stays mutation-shaped publish glue in main.ts (pointer events are surface
-// glue until Exact LLP 0281 lands rated `publish`).
+// Read side: client B's cursor reaches client A's `ephemeral` BINDING
+// through generated bindings alone — no imperative overlay, no poll pump.
+// The binding target is the generated webCursors.ephemeral.ts descriptor;
+// entries carry the normative EphemeralMapCell shape and the map's
+// `connection` axis is the transport truth.
+//
+// Write side: the pointer stream never touches the signal graph. A
+// value channel (`pointerChannel`, LLP 0281 §3.1) receives element-local
+// pointermove samples frame-coalesced, drives the zero-latency self dot
+// through the compositor-only `transform` sink (§3.3), and publishes at a
+// declared 15Hz — inside the descriptor's sustainedHz=20 budget, which the
+// Exact analyzer checks against the generated publishBudget facts — via
+// the mutation-shaped webCursorsPublish descriptor. The payload mapping
+// (`sample`/`element` in the channel lane) is IR-visible and trace-honest.
 
 use webCursors from "../../snapback/generated/contract/webCursors.ephemeral.ts"
+use webCursorsPublish from "../../snapback/generated/contract/webCursors.publish.ts"
+use pointerChannel from "@exact/contract/channels"
 
 component CursorRoom
+  props
+    profileName: string
+    profileColor: string
+
   ephemeral cursors = webCursors({ roomId: "lobby" })
+
+  use pointer = pointerChannel({ publish: webCursorsPublish, rate: 15, payload: { roomId: "lobby", value: { x: Math.round(sample.x), y: Math.round(sample.y), name: profileName, color: profileColor } } })
 
   view
     main background="#05070f" width="100%" minHeight="100vh" testId="cursor-room"
-      stack position="relative" width="100%" height="100vh" overflow="hidden" testId="cursor-stage"
+      stack position="relative" width="100%" height="100vh" overflow="hidden" pointermove=pointer.self testId="cursor-stage"
         column padding=20 gap=6
           text "Cursor presence — Contract surface" size=18 weight=700 color="#e6e9f2" headingLevel=1
           text `room: lobby · map: ${cursors.status} · connection: ${cursors.connection}` size=12 color="#8b93a7" testId="map-status"
@@ -26,3 +41,4 @@ component CursorRoom
           column position="absolute" left=c.value.x top=c.value.y gap=3 align="flex-start" testId=`cursor-${c.key}`
             column width=12 height=12 radius=6 background=c.value.color borderWidth=c.self ? 2 : 0 borderColor="#ffffff"
             text c.value.name size=10 weight=c.self ? 800 : 500 color=c.self ? "#ffffff" : "#c8cede" testId=`cursor-name-${c.key}`
+        column position="absolute" left=0 top=0 width=16 height=16 radius=8 borderWidth=2 borderColor="#ffffff" background="transparent" opacity=pointer.self.hasSample ? 0.9 : 0 transform=`translate(${pointer.self.x - 8}px, ${pointer.self.y - 8}px)` testId="self-dot"

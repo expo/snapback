@@ -1,11 +1,17 @@
-// Cursor presence — Contract-surface browser acceptance (ENG-22479; the
-// completing proof for Exact LLP 0284 §5 item 4).
+// Cursor presence — pure-Contract browser acceptance (ENG-22479 read side;
+// ENG-22524 write side — the Exact LLP 0281 stage-0 proof).
 //
-// Two real browser windows on one Snapback room: client B's cursor appears in
-// client A's `ephemeral` BINDING through generated bindings alone (and vice
-// versa) — no imperative overlay, no poll pump. Plus the forced-map proof:
-// forceEphemeralState shows a synthetic cursor LOCALLY only (the other window
-// and the server never see it), and disposing the force restores live state.
+// Two real browser windows on one Snapback room, driven end-to-end through
+// the framework: real pointermove events feed the value channel declared in
+// app.contract; the rated publish (rate=15 inside the generated
+// sustainedHz=20 budget) carries presence through the mutation-shaped
+// webCursorsPublish descriptor; client B's cursor appears in client A's
+// `ephemeral` BINDING (and vice versa) through generated bindings alone —
+// no imperative overlay, no pointer glue, no hand throttle anywhere in the
+// demo. Plus: the compositor-only transform sink drives the local self dot,
+// the channel/publish facts are live-observable through the same dataflow
+// snapshot the agent surface serves (LLP 0281 §3.5), and the forced-map
+// proof (forceEphemeralState is LOCAL-ONLY; dispose restores live state).
 //
 // Integration lane: needs the Exact checkout + bun + Chrome; skips with the
 // standard structured diagnostic without them.
@@ -18,7 +24,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createSuite } from '../../../_kit/harness.mjs';
+import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -33,10 +39,12 @@ const exactRoot = process.env.SNAPBACK_EXACT_ROOT
   ? resolve(process.env.SNAPBACK_EXACT_ROOT)
   : resolve(repoRoot, '..', 'exact');
 
+const EXPECTED_CHECKS = 6;
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
 
-const suite = createSuite('cursors-web contract browser (ENG-22479)');
+const suite = createSuite('cursors-web contract browser (ENG-22524)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];
 let cdp = null;
 
@@ -66,118 +74,167 @@ async function ensureVite() {
   throw new Error(`Vite did not become ready:\n${viteLog}`);
 }
 
-async function main() {
-  if (!existsSync(join(exactRoot, 'packages', 'exact-contract'))) {
-    console.log(`SKIP cursors-web contract browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no Exact at ${exactRoot})`);
-    console.log('PASS cursors-web contract browser (ENG-22479) — skipped (declared capability gap)');
-    return;
-  }
-  try {
-    await ensureApi();
-    await ensureVite();
-    const chrome = await launchChrome();
-    cleanups.push(() => chrome.stop());
-    cdp = await connectCdp(chrome.ws);
-    cleanups.push(() => cdp.close());
-
-    const pageA = await cdp.newPage();
-    const pageB = await cdp.newPage();
-    await pageA.navigate(`${viteUrl}/?name=alice&color=%235e6ad2`);
-    await pageB.navigate(`${viteUrl}/?name=bob&color=%232fbf71`);
-
-    const waitBoot = (page) => page.eval(`(async () => {
-      const d = Date.now() + 20000;
-      while (!window.cursorsWeb) { if (Date.now() > d) throw new Error('surface never booted'); await new Promise(r=>setTimeout(r,50)); }
-      await window.cursorsWebReady;
-      return { connection: window.cursorsWeb.connection, name: window.cursorsWeb.identity.name };
-    })()`);
-
-    let a = null;
-    let b = null;
-    await suite.check('both windows boot the Contract surface over generated bindings', async () => {
-      a = await waitBoot(pageA);
-      b = await waitBoot(pageB);
-      if (!a.connection || !b.connection) throw new Error('missing connection ids');
-      if (a.connection === b.connection) throw new Error('windows must have distinct connections');
-      return { a, b };
-    });
-
-    const moveCursor = (page, x, y) => page.eval(`(async () => {
-      document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ${x}, clientY: ${y}, pointerType: 'mouse' }));
-      await new Promise(r => setTimeout(r, 120));
-      document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ${x}, clientY: ${y}, pointerType: 'mouse' }));
-    })()`);
-
-    await suite.check("client B's cursor reaches client A's ephemeral BINDING (and vice versa)", async () => {
-      await moveCursor(pageA, 210, 260);
-      await moveCursor(pageB, 340, 180);
-      // Each window renders each c in cursors.entries — keyed by connection.
-      const badgeOnA = await pageA.pollText(`cursor-name-${b.connection}`, 'bob', 8000);
-      if (badgeOnA !== 'bob') throw new Error(`B's cursor missing on A: ${badgeOnA}`);
-      const badgeOnB = await pageB.pollText(`cursor-name-${a.connection}`, 'alice', 8000);
-      if (badgeOnB !== 'alice') throw new Error(`A's cursor missing on B: ${badgeOnB}`);
-      // Self-presence appears and is styled distinctly (weight 800 + white).
-      const selfOnA = await pageA.eval(`(() => {
-        const el = document.querySelector('[data-testid="cursor-name-${a.connection}"]');
-        if (!el) return null;
-        const style = getComputedStyle(el);
-        return { text: el.textContent.trim(), weight: style.fontWeight };
-      })()`);
-      if (!selfOnA || selfOnA.text !== 'alice') throw new Error(`self cursor missing on A: ${JSON.stringify(selfOnA)}`);
-      if (String(selfOnA.weight) !== '800') throw new Error(`self cursor not styled distinctly: ${JSON.stringify(selfOnA)}`);
-      const count = await pageA.text('cursor-count');
-      if (!/^2 /.test(count ?? '')) throw new Error(`expected 2 cursors on A, got: ${count}`);
-      return { badgeOnA, badgeOnB, selfOnA, count };
-    });
-
-    await suite.check('forceEphemeralState is LOCAL-ONLY and dispose restores live state', async () => {
-      const forced = await pageA.eval('window.cursorsWeb.forceGhost()');
-      if (!forced) throw new Error('forceEphemeralState unavailable on the provider');
-      const ghostOnA = await pageA.pollText('cursor-name-ghost', 'Ghost', 5000);
-      if (!/Ghost/.test(ghostOnA ?? '')) throw new Error(`forced ghost not rendered locally: ${ghostOnA}`);
-      const countForced = await pageA.text('cursor-count');
-      if (!/^1 /.test(countForced ?? '')) throw new Error(`forced map must replace live entries locally, got: ${countForced}`);
-
-      // LOCAL-ONLY: the other window never sees the ghost, and keeps its live map.
-      await moveCursor(pageB, 360, 200);
-      await sleep(600);
-      const ghostOnB = await pageB.exists('cursor-ghost');
-      if (ghostOnB) throw new Error('forced ghost leaked to the other window (must be local-only)');
-      const bStillLive = await pageB.text(`cursor-name-${a.connection}`);
-      if (bStillLive !== 'alice') throw new Error(`B lost live entries during A's force: ${bStillLive}`);
-
-      // Dispose restores the live map on A (ghost gone, real cursors back).
-      await pageA.eval('window.cursorsWeb.disposeGhost()');
-      const restored = await pageA.pollText(`cursor-name-${b.connection}`, 'bob', 5000);
-      if (restored !== 'bob') throw new Error(`live map not restored after dispose: ${restored}`);
-      const ghostGone = await pageA.exists('cursor-ghost');
-      if (ghostGone) throw new Error('ghost lingered after dispose');
-      return { ghostOnA, restored };
-    });
-
-    await suite.check('presence stays live after the force cycle (fresh moves propagate)', async () => {
-      await moveCursor(pageB, 420, 300);
-      const badge = await pageA.eval(`(async () => {
-        const d = Date.now() + 8000;
-        for (;;) {
-          const el = document.querySelector('[data-testid="cursor-${b.connection}"]');
-          if (el && parseInt(el.style.left, 10) >= 400) return el.style.left;
-          if (Date.now() > d) return el ? el.style.left : null;
-          await new Promise(r=>setTimeout(r,100));
-        }
-      })()`);
-      if (!badge || parseInt(badge, 10) < 400) throw new Error(`B's fresh move did not propagate: ${badge}`);
-      return { left: badge };
-    });
-  } catch (error) {
-    console.error('contract-browser harness crashed:', error);
-    process.exitCode = 2;
-  } finally {
-    const report = suite.finish();
-    for (const c of cleanups.reverse()) { try { await c(); } catch { /* best effort */ } }
-    process.exit(process.exitCode === 2 ? 2 : report.ok && report.total > 0 ? 0 : 1);
-  }
+if (!existsSync(join(exactRoot, 'packages', 'exact-contract'))) {
+  console.log(`SKIP cursors-web contract browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no Exact at ${exactRoot})`);
+  console.log('PASS cursors-web contract browser (ENG-22524) — skipped (declared capability gap)');
+  process.exit(0);
 }
+
+await runAcceptance(suite, async () => {
+  await ensureApi();
+  await ensureVite();
+  const chrome = await launchChrome();
+  cleanups.push(() => chrome.stop());
+  cdp = await connectCdp(chrome.ws);
+  cleanups.push(() => cdp.close());
+
+  const pageA = await cdp.newPage();
+  const pageB = await cdp.newPage();
+  await pageA.navigate(`${viteUrl}/?name=alice&color=%235e6ad2`);
+  await pageB.navigate(`${viteUrl}/?name=bob&color=%232fbf71`);
+
+  const waitBoot = (page) => page.eval(`(async () => {
+    const d = Date.now() + 20000;
+    while (!window.cursorsWeb) { if (Date.now() > d) throw new Error('surface never booted'); await new Promise(r=>setTimeout(r,50)); }
+    await window.cursorsWebReady;
+    return { connection: window.cursorsWeb.connection, name: window.cursorsWeb.identity.name };
+  })()`);
+
+  let a = null;
+  let b = null;
+  await suite.check('both windows boot the Contract surface over generated bindings', async () => {
+    a = await waitBoot(pageA);
+    b = await waitBoot(pageB);
+    if (!a.connection || !b.connection) throw new Error('missing connection ids');
+    if (a.connection === b.connection) throw new Error('windows must have distinct connections');
+    return { a, b };
+  });
+
+  // Real pointer events against the stage element: the ONLY write path is
+  // the value channel bound with pointermove= in app.contract — there is no
+  // document-level listener left in the demo. Activate the window first,
+  // like a real user moving a real pointer would: background tabs pause
+  // rAF, so the channel's frame coalescing runs at the platform's hidden
+  // cadence there (the LLP 0281 host-channel degradation, not a bug).
+  const moveCursor = async (page, x, y) => {
+    await page.activate();
+    await page.eval(`(async () => {
+      const stage = document.querySelector('[data-testid="cursor-stage"]');
+      if (!stage) throw new Error('cursor-stage missing');
+      stage.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ${x}, clientY: ${y}, pointerType: 'mouse' }));
+      await new Promise(r => setTimeout(r, 120));
+      stage.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ${x}, clientY: ${y}, pointerType: 'mouse' }));
+      await new Promise(r => setTimeout(r, 60));
+    })()`);
+  };
+
+  await suite.check("client B's cursor reaches client A's ephemeral BINDING through the rated publish (and vice versa)", async () => {
+    await moveCursor(pageA, 210, 260);
+    await moveCursor(pageB, 340, 180);
+    // Each window renders each c in cursors.entries — keyed by connection.
+    const badgeOnA = await pageA.pollText(`cursor-name-${b.connection}`, 'bob', 8000);
+    if (badgeOnA !== 'bob') throw new Error(`B's cursor missing on A: ${badgeOnA}`);
+    const badgeOnB = await pageB.pollText(`cursor-name-${a.connection}`, 'alice', 8000);
+    if (badgeOnB !== 'alice') throw new Error(`A's cursor missing on B: ${badgeOnB}`);
+    // Self-presence appears and is styled distinctly (weight 800 + white).
+    const selfOnA = await pageA.eval(`(() => {
+      const el = document.querySelector('[data-testid="cursor-name-${a.connection}"]');
+      if (!el) return null;
+      const style = getComputedStyle(el);
+      return { text: el.textContent.trim(), weight: style.fontWeight };
+    })()`);
+    if (!selfOnA || selfOnA.text !== 'alice') throw new Error(`self cursor missing on A: ${JSON.stringify(selfOnA)}`);
+    if (String(selfOnA.weight) !== '800') throw new Error(`self cursor not styled distinctly: ${JSON.stringify(selfOnA)}`);
+    const count = await pageA.text('cursor-count');
+    if (!/^2 /.test(count ?? '')) throw new Error(`expected 2 cursors on A, got: ${count}`);
+    return { badgeOnA, badgeOnB, selfOnA, count };
+  });
+
+  await suite.check('the transform sink drives the self dot compositor-only (no reactive flush)', async () => {
+    await moveCursor(pageA, 250, 300);
+    const dot = await pageA.eval(`(async () => {
+      const d = Date.now() + 4000;
+      for (;;) {
+        const el = document.querySelector('[data-testid="self-dot"]');
+        if (el && /translate\\(242px(,| )/.test(el.style.transform ?? '')) {
+          return { transform: el.style.transform, opacity: el.style.opacity };
+        }
+        if (Date.now() > d) return el ? { transform: el.style.transform, opacity: el.style.opacity } : null;
+        await new Promise(r=>setTimeout(r,60));
+      }
+    })()`);
+    // 250 - 8 (half the 16px dot) = 242; the channel value applied straight
+    // to the DOM node through the host channel-apply seam.
+    if (!dot || !/translate\(242px/.test(dot.transform ?? '')) {
+      throw new Error(`self dot transform not applied by the channel sink: ${JSON.stringify(dot)}`);
+    }
+    if (Number(dot.opacity) !== 0.9) throw new Error(`self dot opacity sink not applied: ${JSON.stringify(dot)}`);
+    return dot;
+  });
+
+  await suite.check('channel + rated-publish facts are live-observable (LLP 0281 §3.5) with receipts', async () => {
+    const facts = await pageA.eval(`(() => {
+      const snapshot = window.cursorsWeb.channels();
+      const receipts = window.cursorsWeb.receipts();
+      return {
+        channels: snapshot.channels ?? [],
+        publishReceipts: (receipts.receipts?.receipts ?? []).filter((r) => r.receipt.kind === 'publish').map((r) => r.receipt),
+      };
+    })()`);
+    const channel = facts.channels[0];
+    if (!channel || channel.binding !== 'pointer') throw new Error(`channel binding missing from snapshot: ${JSON.stringify(facts.channels)}`);
+    if (!channel.publish || channel.publish.declaredRateHz !== 15) throw new Error(`declared publish rate missing: ${JSON.stringify(channel.publish)}`);
+    if (channel.publish.descriptor !== 'webCursorsPublish') throw new Error(`publish descriptor fact wrong: ${JSON.stringify(channel.publish)}`);
+    if (!(channel.publish.published >= 1)) throw new Error(`no publishes recorded: ${JSON.stringify(channel.publish)}`);
+    if (!channel.publish.budget || channel.publish.budget.sustainedHz !== 20) throw new Error(`generated publishBudget facts missing: ${JSON.stringify(channel.publish)}`);
+    if (!(channel.channels.self.writes >= 2)) throw new Error(`channel write counters missing: ${JSON.stringify(channel.channels)}`);
+    const established = facts.publishReceipts.find((r) => r.event === 'established');
+    if (!established || established.declaredRateHz !== 15 || established.bindingId !== 'pointer') {
+      throw new Error(`publish established receipt missing: ${JSON.stringify(facts.publishReceipts)}`);
+    }
+    return { publish: channel.publish, establishedReceipt: established };
+  });
+
+  await suite.check('forceEphemeralState is LOCAL-ONLY and dispose restores live state', async () => {
+    const forced = await pageA.eval('window.cursorsWeb.forceGhost()');
+    if (!forced) throw new Error('forceEphemeralState unavailable on the provider');
+    const ghostOnA = await pageA.pollText('cursor-name-ghost', 'Ghost', 5000);
+    if (!/Ghost/.test(ghostOnA ?? '')) throw new Error(`forced ghost not rendered locally: ${ghostOnA}`);
+    const countForced = await pageA.text('cursor-count');
+    if (!/^1 /.test(countForced ?? '')) throw new Error(`forced map must replace live entries locally, got: ${countForced}`);
+
+    // LOCAL-ONLY: the other window never sees the ghost, and keeps its live map.
+    await moveCursor(pageB, 360, 200);
+    await sleep(600);
+    const ghostOnB = await pageB.exists('cursor-ghost');
+    if (ghostOnB) throw new Error('forced ghost leaked to the other window (must be local-only)');
+    const bStillLive = await pageB.text(`cursor-name-${a.connection}`);
+    if (bStillLive !== 'alice') throw new Error(`B lost live entries during A's force: ${bStillLive}`);
+
+    // Dispose restores the live map on A (ghost gone, real cursors back).
+    await pageA.eval('window.cursorsWeb.disposeGhost()');
+    const restored = await pageA.pollText(`cursor-name-${b.connection}`, 'bob', 5000);
+    if (restored !== 'bob') throw new Error(`live map not restored after dispose: ${restored}`);
+    const ghostGone = await pageA.exists('cursor-ghost');
+    if (ghostGone) throw new Error('ghost lingered after dispose');
+    return { ghostOnA, restored };
+  });
+
+  await suite.check('presence stays live after the force cycle (fresh moves propagate)', async () => {
+    await moveCursor(pageB, 420, 300);
+    const badge = await pageA.eval(`(async () => {
+      const d = Date.now() + 8000;
+      for (;;) {
+        const el = document.querySelector('[data-testid="cursor-${b.connection}"]');
+        if (el && parseInt(el.style.left, 10) >= 400) return el.style.left;
+        if (Date.now() > d) return el ? el.style.left : null;
+        await new Promise(r=>setTimeout(r,100));
+      }
+    })()`);
+    if (!badge || parseInt(badge, 10) < 400) throw new Error(`B's fresh move did not propagate: ${badge}`);
+    return { left: badge };
+  });
+}, { cleanups, reportExtra: { demo: 'cursors-web', surface: 'contract', issue: 'ENG-22524' } });
 
 // --- Minimal CDP harness (shared shape with all-aboard/tests/acceptance) ---
 
@@ -222,6 +279,7 @@ async function connectCdp(url) {
       const sel = (id) => `[data-testid="${id}"]`;
       return {
         navigate: (url) => send('Page.navigate', { url }, sessionId),
+        activate: () => send('Target.activateTarget', { targetId }),
         eval: evalRaw,
         text: (id) => evalRaw(`document.querySelector('${sel(id)}')?.textContent.trim() ?? null`),
         exists: (id) => evalRaw(`!!document.querySelector('${sel(id)}')`),
@@ -230,5 +288,3 @@ async function connectCdp(url) {
     },
   };
 }
-
-await main();

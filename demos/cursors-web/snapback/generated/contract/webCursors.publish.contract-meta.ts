@@ -2,5 +2,5 @@
 import { defineContractModule, mutation } from '@exact/contract/exports';
 
 export default defineContractModule('./webCursors.publish.ts', {
-  webCursorsPublish: mutation({ effects: ["ephemeral:webCursors"], invalidates: [] }),
+  webCursorsPublish: mutation({ effects: ["ephemeral:webCursors"], invalidates: [], publishBudget: {"sustainedHz":20,"burst":40,"maxValueBytes":1024} }),
 });
