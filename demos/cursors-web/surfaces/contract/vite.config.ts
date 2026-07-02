@@ -12,21 +12,18 @@ const exactRoot = process.env.SNAPBACK_EXACT_ROOT
   : resolve(__dirname, '../../../../../exact');
 const snapbackTarget = process.env.SNAPBACK_CURSORS_API ?? 'http://127.0.0.1:4425';
 
-export default async ({ command }: { command: string }) => {
+export default async () => {
   const { exactContractWeb } = await import(
     pathToFileURL(resolve(exactRoot, 'packages/exact-devtools/src/contract-web.ts')).href
   );
 
   return {
     root: __dirname,
-    // Build-only (ENG-22531): the stage-0 channels import drags the full
-    // TypeScript compiler into the client graph on the pinned revision and
-    // its `node:*` string literals fail the preset's native-leak gate. The
-    // runtime never calls it; stub it out of production bundles only. See
-    // typescript-browser-stub.mjs for the full chain.
-    resolve: command === 'build'
-      ? { alias: { typescript: resolve(__dirname, 'typescript-browser-stub.mjs') } }
-      : undefined,
+    // ENG-22537: the build-only `typescript` alias stub that used to live
+    // here is gone — Exact no longer pulls the compiler into the browser
+    // graph from the stage-0 channels import (guarded at the source by
+    // exact-contract's client-graph test), so production builds run the
+    // same module graph as dev.
     plugins: [
       exactContractWeb({
         data: 'snapback',
