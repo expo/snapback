@@ -29,10 +29,32 @@ export class SnapbackClient {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await res.text();
-    const json = text ? JSON.parse(text) : null;
+    // @ref LLP 0032#confirmed-defect-register — S5.D3: check status before
+    //   trusting the body as JSON, so a proxy 502 HTML page surfaces as a
+    //   structured diagnostic instead of a bare SyntaxError.
+    let json = null;
+    let parseError = null;
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch (error) {
+        parseError = error;
+      }
+    }
     if (!res.ok) {
-      const diag = json && json.diagnostic ? json.diagnostic : { code: `HTTP_${res.status}`, message: text };
+      const diag = json && json.diagnostic
+        ? json.diagnostic
+        : parseError
+          ? { code: 'SNAPBACK_HTTP_ERROR', message: `HTTP ${res.status} with non-JSON body: ${bodySnippet(text)}` }
+          : { code: `HTTP_${res.status}`, message: text };
       const error = new Error(`${diag.code}: ${diag.message ?? ''}`);
+      error.diagnostic = diag;
+      error.status = res.status;
+      throw error;
+    }
+    if (parseError) {
+      const diag = { code: 'SNAPBACK_RESPONSE_NOT_JSON', message: `HTTP ${res.status} response is not JSON: ${bodySnippet(text)}` };
+      const error = new Error(`${diag.code}: ${diag.message}`);
       error.diagnostic = diag;
       error.status = res.status;
       throw error;
@@ -139,8 +161,8 @@ export class SnapbackClient {
     const waiters = [];
     let streamError = null;
     const fail = (error) => {
-      streamError = error;
-      while (waiters.length > 0) waiters.shift().reject(error);
+      streamError ??= error; // first failure wins; a later close never masks it
+      while (waiters.length > 0) waiters.shift().reject(streamError);
     };
     ws.addEventListener('message', async (event) => {
       try {
@@ -153,9 +175,10 @@ export class SnapbackClient {
       }
     });
     ws.addEventListener('error', () => fail(new Error(`Snapback live stream failed: ${url}`)), { once: true });
-    ws.addEventListener('close', () => {
-      if (waiters.length > 0) fail(new Error(`Snapback live stream closed: ${url}`));
-    });
+    // @ref LLP 0032#confirmed-defect-register — S5.D7: latch unconditionally on
+    //   close (not just when waiters are pending) so a later nextUpdate() rejects
+    //   immediately instead of hanging until its timeout.
+    ws.addEventListener('close', () => fail(new Error(`Snapback live stream closed: ${url}`)), { once: true });
 
     return {
       ready: new Promise((resolve, reject) => {
@@ -370,6 +393,11 @@ function normalizedScopeKey(scope) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${String(key).length}:${key}=${String(value).length}:${value}`)
     .join('|');
+}
+
+function bodySnippet(text, limit = 200) {
+  const collapsed = String(text ?? '').replace(/\s+/g, ' ').trim();
+  return collapsed.length <= limit ? collapsed : `${collapsed.slice(0, limit)}…`;
 }
 
 async function websocketText(data) {

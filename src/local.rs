@@ -173,6 +173,7 @@ pub struct LocalSnapback {
     permission_epochs: BTreeMap<String, u64>,
     live_delivery: LiveDeliveryStats,
     recent_diagnostics: VecDeque<Diagnostic>,
+    cron_tick_errors: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -718,6 +719,30 @@ impl LocalSnapback {
         self.ephemeral.cleanup_expired(now_ms);
     }
 
+    /// Tick the cron scheduler, routing the tick machinery's *own* errors
+    /// (claim/persist failures) into the diagnostics ring with a counter
+    /// instead of dropping them. Failed cron *runs* already record diagnostics
+    /// inside `execute_cron_claims`; this closes the gap where `tick_cron`'s
+    /// Err was silently swallowed by the 1s ticker.
+    ///
+    /// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D11.
+    pub fn tick_cron_recording(&mut self, now_ms: u64) -> Vec<CronRunRecord> {
+        match self.tick_cron(now_ms) {
+            Ok(records) => records,
+            Err(error) => {
+                self.cron_tick_errors += 1;
+                self.record_diagnostics(vec![error.diagnostic]);
+                Vec::new()
+            }
+        }
+    }
+
+    /// Count of swallowed-then-recorded cron tick errors, surfaced for tests
+    /// and inspection.
+    pub fn cron_tick_errors(&self) -> u64 {
+        self.cron_tick_errors
+    }
+
     pub fn tick_cron(&mut self, now_ms: u64) -> SnapbackResult<Vec<CronRunRecord>> {
         let active_live_functions = self.active_live_functions();
         let claims = self
@@ -769,6 +794,7 @@ impl LocalSnapback {
             permission_epochs: BTreeMap::new(),
             live_delivery: LiveDeliveryStats::default(),
             recent_diagnostics,
+            cron_tick_errors: 0,
         })
     }
 
@@ -788,6 +814,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<Vec<CronRunRecord>> {
         let mut records = Vec::new();
         for claim in claims {
+            let started_wall_ms = now_millis();
             let result = self
                 .invoke_action(
                     &claim.job.action,
@@ -802,7 +829,14 @@ impl LocalSnapback {
                     claim.metadata.clone(),
                 )
                 .map_err(|error| error.diagnostic);
-            let finished_at_ms = claim.started_at_ms;
+            // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D8
+            // (semantics LLP 0029 G6): measure real wall-clock around the run so
+            // durationMs is not always zero. finished_at stays logically
+            // consistent with the claim's start (start + elapsed), so a run's
+            // duration reflects actual execution time on any clock the caller
+            // stamped the claim with.
+            let elapsed_ms = now_millis().saturating_sub(started_wall_ms);
+            let finished_at_ms = claim.started_at_ms.saturating_add(elapsed_ms);
             let record = self.cron.finish_run(claim, finished_at_ms, result);
             self.persist_cron_state()?;
             if record.outcome == CronRunOutcome::Failed

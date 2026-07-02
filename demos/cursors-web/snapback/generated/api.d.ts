@@ -28,7 +28,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value>
   readonly __value?: Value;
 }
 export interface GeneratedEphemeral {
-  webCursors: EphemeralCollectionReference<'webCursors', { roomId: string }, { x: number; y: number; name: string; color: string; updatedAt?: number | }>;
+  webCursors: EphemeralCollectionReference<'webCursors', { roomId: string }, { x: number; y: number; name: string; color: string; updatedAt?: number }>;
 }
 export interface GeneratedApi {
   ephemeral: GeneratedEphemeral;

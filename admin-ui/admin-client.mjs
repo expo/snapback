@@ -21,10 +21,31 @@ export class AdminClient {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
-    const json = text ? JSON.parse(text) : null;
+    // @ref LLP 0032#confirmed-defect-register — S5.D3: check status before
+    //   trusting the body as JSON, so a proxy 502 HTML page surfaces as a
+    //   structured diagnostic instead of a bare SyntaxError.
+    let json = null;
+    let parseError = null;
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch (error) {
+        parseError = error;
+      }
+    }
     if (!res.ok) {
-      const d = json && json.diagnostic ? json.diagnostic : { code: `HTTP_${res.status}`, message: text };
+      const d = json && json.diagnostic
+        ? json.diagnostic
+        : parseError
+          ? { code: 'SNAPBACK_HTTP_ERROR', message: `HTTP ${res.status} with non-JSON body: ${bodySnippet(text)}` }
+          : { code: `HTTP_${res.status}`, message: text };
       const error = new Error(`${d.code}: ${d.message ?? ''}`);
+      error.diagnostic = d;
+      throw error;
+    }
+    if (parseError) {
+      const d = { code: 'SNAPBACK_RESPONSE_NOT_JSON', message: `HTTP ${res.status} response is not JSON: ${bodySnippet(text)}` };
+      const error = new Error(`${d.code}: ${d.message}`);
       error.diagnostic = d;
       throw error;
     }
@@ -46,4 +67,9 @@ export class AdminClient {
   cleanupEphemeral() {
     return this.#req('POST', '/ephemeral/cleanup');
   }
+}
+
+function bodySnippet(text, limit = 200) {
+  const collapsed = String(text ?? '').replace(/\s+/g, ' ').trim();
+  return collapsed.length <= limit ? collapsed : `${collapsed.slice(0, limit)}…`;
 }

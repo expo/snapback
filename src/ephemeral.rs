@@ -872,6 +872,11 @@ impl LocalEphemeralBackend {
             }
         }
         self.outbox.remove(connection_id);
+        // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D6:
+        // rate buckets are keyed by (connection, collection); drop this
+        // connection's buckets on disconnect so they do not leak forever.
+        self.rate_buckets
+            .retain(|(conn, _), _| conn != connection_id);
         self.refresh_counts();
     }
 
@@ -1426,6 +1431,31 @@ mod tests {
                 RealtimeEnvelope::Durable(_) => None,
             })
             .expect("expected ephemeral message")
+    }
+
+    /// LLP 0032 S5.D6 — a connection's rate buckets are dropped on disconnect,
+    /// not leaked forever.
+    #[test]
+    fn s5_d6_disconnect_clears_rate_buckets() {
+        let mut backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+
+        backend
+            .publish(publish_request("a", b"cursor"), 1_000)
+            .unwrap();
+        assert!(
+            backend
+                .rate_buckets
+                .keys()
+                .any(|(conn, _)| conn == "a"),
+            "publishing should create a rate bucket for the connection"
+        );
+
+        backend.disconnect("a", 1_100);
+        assert!(
+            !backend.rate_buckets.keys().any(|(conn, _)| conn == "a"),
+            "disconnect must drop the connection's rate buckets"
+        );
     }
 
     #[test]

@@ -2192,3 +2192,119 @@ fn s2_resume_live_fails_closed_for_a_different_principal() {
         .expect("owner resume succeeds");
     assert_eq!(owner.subscription_id, subscription.subscription_id);
 }
+
+/// LLP 0032 S5.D9 — a live query handler that returns a non-array fails
+/// closed with a structured diagnostic, never a silently-empty result set.
+#[test]
+fn s5_d9_non_array_query_result_fails_closed() {
+    let mut snapback = configured_ibex_snapback(
+        r#"
+globalThis.__snapbackHandlers = {
+  async listTodos(ctx) {
+    return { not: 'an array' };
+  },
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', {
+      title: args.title, completed: false, userId: ctx.auth.userId,
+    });
+  }
+};
+"#,
+    );
+    let error = snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect_err("non-array query result must fail closed");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_RESULT_INVALID");
+}
+
+/// LLP 0032 S5.D8 — cron run duration is measured from real wall-clock, not
+/// collapsed to zero (started/finished no longer coincide).
+#[test]
+fn s5_d8_cron_run_records_nonzero_duration() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(ibex_busy_action_cron_functions());
+
+    let record = snapback
+        .run_cron_job_now("pollTodos", 123_000)
+        .expect("manual cron run");
+    assert_eq!(record.outcome, CronRunOutcome::Succeeded);
+    let finished = record.finished_at_ms.expect("finished timestamp");
+    assert!(
+        finished > record.started_at_ms,
+        "finished ({finished}) must be after started ({})",
+        record.started_at_ms
+    );
+    assert!(
+        record.duration_ms.unwrap_or(0) > 0,
+        "a busy action must record a nonzero durationMs, got {:?}",
+        record.duration_ms
+    );
+}
+
+/// LLP 0032 S5.D11 — the recording tick returns runs on the happy path and
+/// leaves the error counter untouched. (The error path — tick_cron's own
+/// claim/persist failure — needs storage fault injection and is recorded as
+/// test-debt in LLP 0032; the recording seam and counter are exercised here.)
+#[test]
+fn s5_d11_recording_tick_runs_cron_without_error() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(ibex_action_cron_functions());
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe activates demand-gated cron");
+
+    let runs = snapback.tick_cron_recording(6_000);
+    assert_eq!(runs.len(), 1);
+    assert_eq!(snapback.cron_tick_errors(), 0);
+}
+
+fn ibex_busy_action_cron_functions() -> FunctionManifest {
+    let mut manifest = todo_functions();
+    manifest.functions.push(FunctionDefinition::new(
+        "busyAction",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: r#"
+globalThis.__snapbackHandlers = {
+  async busyAction(ctx) {
+    const start = Date.now();
+    while (Date.now() - start < 5) {}
+    return { ranAt: start };
+  }
+};
+"#
+            .to_owned(),
+            export: "busyAction".to_owned(),
+        }),
+    ));
+    manifest.cron_jobs = vec![CronJobDefinition {
+        name: "pollTodos".to_owned(),
+        schedule: CronSchedule {
+            every_ms: Some(60_000),
+            cron: None,
+        },
+        action: "busyAction".to_owned(),
+        enabled: true,
+        activation: CronActivationPolicy::default(),
+        jitter_policy: CronJitterPolicy {
+            enabled: false,
+            max_offset_ms: 0,
+        },
+        overlap_policy: CronOverlapPolicy::NoOverlap,
+        retry_policy: CronRetryPolicy {
+            mode: CronRetryMode::NextTick,
+        },
+        required_capabilities: vec!["cron".to_owned()],
+        target_wakeup: None,
+        source_span: None,
+    }];
+    manifest
+}

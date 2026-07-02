@@ -270,7 +270,7 @@ pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
         loop {
             ticks.tick().await;
             let mut snapback = state.lock().await;
-            let _ = snapback.tick_cron(now_millis());
+            snapback.tick_cron_recording(now_millis());
         }
     })
 }
@@ -740,20 +740,33 @@ impl From<SnapbackError> for ApiError {
     }
 }
 
+/// Map a diagnostic code to an HTTP status.
+///
+/// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D10: an
+/// internal-error class (5xx) so a client or agent can tell "you erred" (4xx)
+/// from "the server erred" (5xx); unrecognized failures default to 400, but
+/// storage-layer and explicitly-internal faults are 500.
+fn status_for_diagnostic_code(code: &str) -> StatusCode {
+    match code {
+        "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
+            StatusCode::NOT_FOUND
+        }
+        "SNAPBACK_UNKNOWN_CRON_JOB" | "SNAPBACK_UNKNOWN_SUBSCRIPTION" => StatusCode::NOT_FOUND,
+        "SNAPBACK_MUTATION_CONFLICT" => StatusCode::CONFLICT,
+        // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
+        // (forbidden) from "needs the configured token" (unauthorized).
+        "SNAPBACK_ADMIN_DISABLED" | "SNAPBACK_LIVE_RESUME_OWNERSHIP" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ADMIN_TOKEN_REQUIRED" => StatusCode::UNAUTHORIZED,
+        "SNAPBACK_SQLITE_ERROR" | "SNAPBACK_INTERNAL_ERROR" => {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+        _ => StatusCode::BAD_REQUEST,
+    }
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let status = match self.0.diagnostic.code.as_str() {
-            "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
-                StatusCode::NOT_FOUND
-            }
-            "SNAPBACK_UNKNOWN_CRON_JOB" => StatusCode::NOT_FOUND,
-            "SNAPBACK_MUTATION_CONFLICT" => StatusCode::CONFLICT,
-            // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
-            // (forbidden) from "needs the configured token" (unauthorized).
-            "SNAPBACK_ADMIN_DISABLED" => StatusCode::FORBIDDEN,
-            "SNAPBACK_ADMIN_TOKEN_REQUIRED" => StatusCode::UNAUTHORIZED,
-            _ => StatusCode::BAD_REQUEST,
-        };
+        let status = status_for_diagnostic_code(self.0.diagnostic.code.as_str());
         (
             status,
             Json(ErrorResponse {
@@ -769,4 +782,42 @@ fn now_millis() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::status_for_diagnostic_code;
+    use axum::http::StatusCode;
+
+    /// LLP 0032 S5.D10 — internal/storage faults are 5xx, client errors are
+    /// 4xx, and unrecognized codes still default to 400.
+    #[test]
+    fn s5_d10_internal_errors_map_to_5xx() {
+        assert_eq!(
+            status_for_diagnostic_code("SNAPBACK_SQLITE_ERROR"),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert_eq!(
+            status_for_diagnostic_code("SNAPBACK_INTERNAL_ERROR"),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert_eq!(
+            status_for_diagnostic_code("SNAPBACK_MUTATION_CONFLICT"),
+            StatusCode::CONFLICT
+        );
+        assert_eq!(
+            status_for_diagnostic_code("SNAPBACK_ADMIN_TOKEN_REQUIRED"),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            status_for_diagnostic_code("SNAPBACK_UNKNOWN_TABLE"),
+            StatusCode::NOT_FOUND
+        );
+        // An unrecognized (client-authoring) error still defaults to 400, so
+        // the new 5xx class never widens by accident.
+        assert_eq!(
+            status_for_diagnostic_code("SNAPBACK_SOMETHING_NEW"),
+            StatusCode::BAD_REQUEST
+        );
+    }
 }

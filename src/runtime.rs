@@ -120,9 +120,19 @@ impl RuntimeManager {
     ) -> SnapbackResult<IbexQueryRun> {
         let mut invocation = IbexHostContext::new(db as *const LocalDatabase, input, false);
         let value = run_ibex_handler_with_context(module, &mut invocation)?;
+        // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
+        // query handler that returns a non-array is a fail-closed error, not a
+        // silently-empty result set (the corpus's cardinal no-silent-drop rule).
+        let rows = value.as_array().cloned().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_HANDLER_RESULT_INVALID",
+                "runtime",
+                "live query handler must return an array of rows",
+            )
+        })?;
         let output = QueryOutput {
             version: db.current_version()?,
-            rows: value.as_array().cloned().unwrap_or_default(),
+            rows,
         };
         Ok(IbexQueryRun {
             output,

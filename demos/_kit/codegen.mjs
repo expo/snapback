@@ -1217,7 +1217,7 @@ function typeForValidator(val) {
   if (!val || !val.__validator) return 'unknown';
   let type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
   if (val.primitive === 'object') {
-    type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForValidator(field).replace(/ \\| undefined$/, '')}`).join('; ')} }`;
+    type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
   }
   return val.optional ? `${type} | undefined` : type;
 }

@@ -307,12 +307,18 @@ ships with a regression test and, where user-visible, a diagnostic code.
   (`src/local.rs:433-434`, `454-514`) [confirmed]. Make ids unguessable and
   bind resume (and any future per-subscription op) to the owning
   connection/principal. **Done when:** a hijack test fails closed with a
-  structured diagnostic.
+  structured diagnostic. **Landed 2026-07-01** — ids are UUIDv7 bearer
+  tokens; `resume_live` binds to the subscribing principal
+  (`SNAPBACK_LIVE_RESUME_OWNERSHIP`); tests `s2_subscription_ids_are_unguessable`,
+  `s2_resume_live_fails_closed_for_a_different_principal`.
 - **S3 — WebSocket sender binding.** WS `ephemeral_publish` frames carry a
   client-chosen `connection_id` that is never checked against the socket's
   own connection (`src/server.rs:474-534`) [confirmed]. Bind frames to the
   socket identity. **Done when:** a spoofed-connection publish test fails
-  closed.
+  closed. **Landed 2026-07-01** — all three WS message kinds bind to the
+  socket's connection (`SNAPBACK_WEBSOCKET_SENDER_MISMATCH`); test
+  `s3_websocket_frames_bind_to_the_socket_connection` (also the first WS
+  text-protocol coverage).
 - **S4 — Take deployment away from the browser.** All Aboard's Contract
   surface loads schema, resets, and reseeds the shared DB on **every page
   load** (`demos/all-aboard/surfaces/contract/main.ts:75-79`) [confirmed];
@@ -345,12 +351,21 @@ Each fix lands with a failing-then-passing test named for the step id.
   pattern (`demos/_kit/codegen.mjs:1220`); committed proof:
   `demos/cursors-web/snapback/generated/api.d.ts:31` ends `number |`. Fix the
   regex, regenerate all demos, and note that P3's `tsc` gate is what keeps
-  this class out permanently.
+  this class out permanently. **Landed 2026-07-01** — the over-escaped pipe
+  is now `/ \| undefined$/`; regenerating produced exactly one content change
+  (`cursors-web/api.d.ts` → `updatedAt?: number`). Regen also exposed a
+  determinism bug (below): codegen keys handler-source hashes by absolute
+  path, so `bundleHash`/`inputsHash` churn per checkout; that hash-only churn
+  was reverted and registered for P3 rather than committed.
 - **S5.D3 — Client parses JSON before checking `res.ok`**
   (`demos/_kit/client.mjs:31-33`; same flaw in
   `admin-ui/admin-client.mjs`) [confirmed]. A proxy 502/HTML error page
   surfaces as a bare `SyntaxError` with no status or diagnostic. Check
-  status first; wrap non-JSON bodies in a structured error.
+  status first; wrap non-JSON bodies in a structured error. **Landed
+  2026-07-01** — both clients check status and wrap non-JSON bodies
+  (`SNAPBACK_HTTP_ERROR` with status + snippet; `SNAPBACK_RESPONSE_NOT_JSON`
+  on an ok-but-unparseable body); tests in `demos/_kit/tests/client-errors.mjs`
+  (`s5_d3` × 5), proven against HEAD.
 - **S5.D4 — Post-commit fan-out failures are misreported** [confirmed].
   `notify_permission_resyncs(...)?` / `notify_live_subscriptions(...)?` run
   after the mutation committed (`src/local.rs:411-412`); a live-query re-run
@@ -373,7 +388,8 @@ Each fix lands with a failing-then-passing test named for the step id.
   `disconnect` removes outboxes and subscribers but never `rate_buckets`
   keyed by `(ConnectionId, collection)` (`src/ephemeral.rs:832-876`).
   (Wholesale clears exist on schema reload/reset; the missing piece is
-  per-connection removal.)
+  per-connection removal.) **Landed 2026-07-01** — `disconnect` retains only
+  other connections' buckets; test `s5_d6_disconnect_clears_rate_buckets`.
 - **S5.D7 — Dead socket without pending waiters hangs the client forever**
   [analysis]. The `close` handler only fails waiters that exist at close
   time (`demos/_kit/client.mjs:156-158`); later `nextUpdate()` calls wait
@@ -381,26 +397,40 @@ Each fix lands with a failing-then-passing test named for the step id.
   a frozen board that never errors. Fix: fail waiters unconditionally on
   close (the `streamError` latch already exists but is skipped on a clean
   close with no pending waiters); surface a structured stream-closed error.
-  (Full reconnect is P4.)
+  (Full reconnect is P4.) **Landed 2026-07-01** — close now fails waiters
+  unconditionally and `fail` latches first-error-wins (`streamError ??=`), so
+  a trailing close cannot mask an earlier failure; tests
+  `demos/_kit/tests/client-errors.mjs` (`s5_d7` × 3), proven against HEAD.
 - **S5.D8 — Cron run durations always record zero** [confirmed].
   `finished_at_ms = claim.started_at_ms` (`src/local.rs:784-786`). Already
   registered as [LLP 0029](./0029-all-aboard-gap-closure.plan.md) G6 —
-  schedule it here, semantics owned there.
+  schedule it here, semantics owned there. **Landed 2026-07-01** — duration is
+  measured from real wall-clock around the run (finished = logical start +
+  elapsed); test `s5_d8_cron_run_records_nonzero_duration`.
 - **S5.D9 — Silent empty result on non-array Ibex query returns**
   [confirmed]. `as_array().cloned().unwrap_or_default()`
   (`src/runtime.rs:125`) converts a handler returning a non-array into
   `rows: []` with no diagnostic — a silent-drop-class violation of the
   corpus's own cardinal rule. Fail with a structured
-  `SNAPBACK_HANDLER_RESULT_INVALID`-family diagnostic.
+  `SNAPBACK_HANDLER_RESULT_INVALID`-family diagnostic. **Landed 2026-07-01** —
+  `invoke_ibex_query_with_reads` fails closed on a non-array result; test
+  `s5_d9_non_array_query_result_fails_closed`.
 - **S5.D10 — No 5xx class** [confirmed]. Every unrecognized error, including
   internal SQLite failures, maps to HTTP 400 (`src/server.rs:688-699`).
   Introduce an internal-error class so clients and agents can distinguish
-  "you erred" from "the server erred".
+  "you erred" from "the server erred". **Landed 2026-07-01** —
+  `status_for_diagnostic_code` maps `SNAPBACK_SQLITE_ERROR`/
+  `SNAPBACK_INTERNAL_ERROR` to 500; test `s5_d10_internal_errors_map_to_5xx`.
 - **S5.D11 — Cron ticker swallows its own errors** [confirmed].
   `let _ = snapback.tick_cron(...)` every second (`src/server.rs:273`);
   claim/persistence failures vanish. (Failed cron *runs* already record
   diagnostics inside `execute_cron_claims` — the gap is the tick machinery's
-  own errors.) Route into the diagnostics ring with a counter.
+  own errors.) Route into the diagnostics ring with a counter. **Landed
+  2026-07-01** — `tick_cron_recording` records tick errors into the
+  diagnostics ring and increments `cron_tick_errors()`; the ticker uses it.
+  Happy path tested (`s5_d11_recording_tick_runs_cron_without_error`); the
+  error path needs storage fault injection and is a recorded won't-test row
+  (see test-debt register).
 
 **Phase 1 Done when:** all S-steps closed; `cargo test` includes every new
 regression test; the 0031 registry test is in CI.
@@ -809,9 +839,18 @@ silently grow the acceptance gate.
   [confirmed] — and no mode has retry logic today (`NextTick` has no
   explicit handling to match), so retry semantics are net-new. Implement or
   reject at codegen (fail-closed rule), then test.
+- Cron tick-machinery error path (S5.D11): the recording seam and counter
+  are tested on the happy path, but forcing `tick_cron`'s own claim/persist
+  failure needs storage fault injection that does not exist yet. **Won't-test
+  for now** — revisit if a storage fault-injection harness lands (would also
+  serve L3/L5). The recording wiring is one line, verified by inspection.
 - Perf regression floor → M1 smoke lane.
 - Codegen: `tsc` over generated output, regen-diff staleness, JS-handler
-  result typing → P3.
+  result typing → P3. **Blocker for P3(a):** codegen keys handler-source
+  hashes by *absolute path* (`loadHandlerSource`, `demos/_kit/codegen.mjs`
+  ~464 → `bundleHash`/`inputsHash` at ~305-312), so committed hashes drift
+  per checkout and the regen-diff gate cannot pass until hashing is made
+  path-relative (surfaced by the S5.D2 regen, 2026-07-01).
 - Client: multiplexed subscriptions, reconnect/resume, parse-before-ok →
   S5.D3/S5.D7/P4.
 
