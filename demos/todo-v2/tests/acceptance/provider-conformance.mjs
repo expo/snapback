@@ -86,6 +86,18 @@ try {
   await db.reset();
   await db.seed(seed);
 
+  // Presence for the ephemeral probe (ENG-22479): two viewers, keyed by
+  // their publishing connections — the gate's snapshot asserts these keys in
+  // ascending order.
+  for (const viewer of ['viewer_a', 'viewer_b']) {
+    await db.publishEphemeral('todoPresence', {
+      connectionId: viewer,
+      scope: { listId: 'inbox' },
+      userId: ADA,
+      value: { name: viewer },
+    });
+  }
+
   const fixture = createTodoV2ProviderFixture({ runtime: runtimeMod, client: db });
   const report = await conformanceMod.assertDataProviderConformance(fixture);
 
@@ -159,6 +171,10 @@ function createTodoV2ProviderFixture({ runtime, client }) {
         schemaManifest,
         functionManifest: functionsManifest,
       });
+      // Subscribe the probe's presence room up front so the gate's
+      // subscribeEphemeral delivers its ready snapshot within settle()
+      // (the source reads the shared prewarmed overlay synchronously).
+      await surface.prewarmEphemeral('todoPresence', { listId: 'inbox' });
 
       primaryQuery.initial.value = await currentRows(client);
       const syncedRow = primaryQuery.initial.value.find((row) => row._id === rowSyncState.rowId);
@@ -185,6 +201,27 @@ function createTodoV2ProviderFixture({ runtime, client }) {
       name: 'listTodos',
       args: {},
       expected: { status: 'ready' },
+    },
+    // LLP 0284 §2.5 ephemeral probes (ENG-22479): snapshot, ascending order,
+    // and the ENG-22453 force plane (force-reaches-live, LOCAL-ONLY with the
+    // source-start counter, dispose-restores).
+    ephemeral: {
+      name: 'todoPresence',
+      args: { listId: 'inbox' },
+      initialKeys: ['viewer_a', 'viewer_b'],
+      forcedState: {
+        status: 'ready',
+        entries: [
+          {
+            key: 'ghost_viewer',
+            value: { name: 'Ghost (forced)' },
+            updatedAt: 1,
+            sourceClientId: 'ghost_viewer',
+            self: false,
+          },
+        ],
+      },
+      sourceStarts: () => surface.ephemeralSourceStarts('todoPresence'),
     },
   };
 }

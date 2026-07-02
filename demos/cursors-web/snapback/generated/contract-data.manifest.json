@@ -39,7 +39,42 @@
   "manifestVersion": 2,
   "mutations": {},
   "provider": "snapback",
-  "queries": {},
+  "queries": {
+    "webCursors": {
+      "argOrder": [
+        "roomId"
+      ],
+      "args": {
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 5000,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "Connection",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 30000,
+      "mode": "live",
+      "name": "webCursors",
+      "result": {
+        "kind": "list",
+        "row": {
+          "shape": "unknown"
+        }
+      },
+      "scopeFields": [
+        "roomId"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    }
+  },
   "receipts": "none",
   "schemaHash": "sha256:dc0bdf21b8afb2f5",
   "schemaVersion": "snapback.v0"

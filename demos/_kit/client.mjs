@@ -1207,6 +1207,7 @@ export class EphemeralOverlay {
     this.needsResync = false;
     this.room = null; // captured from OUR subscribe snapshot (room identity)
     this.__drainCaptures = new Set();
+    this.__changeListeners = new Set();
     // Cross-lane routing (LLP 0034 §10.1 / ENG-22478): the overlay is this
     // connection's registered ephemeral consumer, so a durable drain on the
     // same connection routes ephemeral envelopes here instead of dropping
@@ -1224,6 +1225,25 @@ export class EphemeralOverlay {
   dispose() {
     this.__unregister?.();
     this.__unregister = null;
+    this.__changeListeners.clear();
+  }
+
+  /// Observe state changes (applied snapshots/upserts/removes and resync
+  /// boundaries) — the hook the Contract adapter's ephemeral source uses to
+  /// re-emit EphemeralMapCells (ENG-22479).
+  onChange(listener) {
+    this.__changeListeners.add(listener);
+    return () => this.__changeListeners.delete(listener);
+  }
+
+  #notifyChange(result) {
+    for (const listener of [...this.__changeListeners]) {
+      try {
+        listener(result, this);
+      } catch {
+        // Observer errors never poison the overlay's apply path.
+      }
+    }
   }
 
   publish(value, options = {}) {
@@ -1295,6 +1315,9 @@ export class EphemeralOverlay {
       this.client.recordReceipt?.({
         kind: 'subscription',
         lane: 'ephemeral',
+        // The binding id for an ephemeral map IS the collection name — the
+        // adapter joins overlay receipts to bindings by it (ENG-22479).
+        bindingId: collectionName(this.ref),
         collection: collectionName(this.ref),
         event: previousEpoch === null ? 'established' : 'resubscribed',
         ...(previousEpoch === null ? {} : { reason: 'resync' }),
@@ -1302,6 +1325,7 @@ export class EphemeralOverlay {
         snapback: { scopeEpoch: this.scopeEpoch },
         receivedAtMs: Date.now(),
       });
+      this.#notifyChange('applied');
       return 'applied';
     }
     if (message.Upsert) {
@@ -1313,6 +1337,7 @@ export class EphemeralOverlay {
       const current = this.entries.get(entry.key);
       if (current && current.entryVersion >= entry.entryVersion) return 'ignored_stale';
       this.entries.set(entry.key, entry);
+      this.#notifyChange('applied');
       return 'applied';
     }
     if (message.Remove) {
@@ -1324,11 +1349,13 @@ export class EphemeralOverlay {
       const current = this.entries.get(remove.key);
       if (current && current.entryVersion > remove.entry_version) return 'ignored_stale';
       this.entries.delete(remove.key);
+      this.#notifyChange('applied');
       return 'applied';
     }
     if (message.ResyncRequired) {
       this.entries.clear();
       this.needsResync = true;
+      this.#notifyChange('needs_resync');
       return 'needs_resync';
     }
     return 'not_ephemeral';

@@ -135,6 +135,10 @@ export async function createSnapbackContractSurface({
   // pass them via the correlation the runtime provides at that point).
   rootId = null,
   onReceipt = null,
+  // Ephemeral wiring (ENG-22479): permissions per collection+scope, and the
+  // zero-scope prewarm keeps the conformance gate's synchronous-snapshot
+  // expectation honest.
+  ephemeralPermissions = null,
   // Multi-query mode (LLP 0034 §6 ownership row 3 — the All Aboard proof):
   // name the manifest's live queries to bind each over the shared stream with
   // its own boundary key and per-query connection axis. Legacy single-query
@@ -173,6 +177,7 @@ export async function createSnapbackContractSurface({
       onSubscriptionEvent,
       rootId: surfaceRootId,
       detachReceiptListener,
+      ephemeralPermissions,
       diagnostics,
       pending,
       mountedHandles,
@@ -204,6 +209,14 @@ export async function createSnapbackContractSurface({
   let boundary = null;
   let liveHandle = null;
   const liveCellObservers = new Set();
+  const surfaceConnectionId = connectionId ?? defaultContractConnectionId();
+  const ephemeralWiring = buildEphemeralWiring({
+    client,
+    manifest,
+    connectionId: surfaceConnectionId,
+    userId,
+    ephemeralPermissions,
+  });
 
   // In-flight optimistic mutations (LLP 0034 review fix 3): with live push, a
   // concurrent live_replace can arrive DURING a local mutation's in-flight
@@ -234,7 +247,7 @@ export async function createSnapbackContractSurface({
   let initial;
   if (wantLivePush) {
     liveHandle = await client.liveQuery(queryName, {
-      connectionId: connectionId ?? defaultContractConnectionId(),
+      connectionId: surfaceConnectionId,
       args: queryArgs,
       userId,
       transport: 'stream',
@@ -264,6 +277,9 @@ export async function createSnapbackContractSurface({
     // handle's latest rows (idempotent when nothing changed).
     boundary.write(boundaryKey, () => liveHandle.rows);
   }
+  // Zero-scope presence rooms subscribe once up front so an `ephemeral`
+  // binding's first snapshot delivers synchronously (ENG-22479).
+  await ephemeralWiring.prewarm();
 
   const assertActive = () => {
     if (disposed) {
@@ -362,6 +378,7 @@ export async function createSnapbackContractSurface({
   const baseProvider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
     queries: providerQueries,
     mutations: providerMutations,
+    ephemerals: ephemeralWiring.sources,
     rowSyncState: async (_table, rowId) => {
       const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
       const row = rows.find((r) => r._id === rowId);
@@ -401,6 +418,10 @@ export async function createSnapbackContractSurface({
       }
     : baseProvider;
 
+  // Ephemeral binding + publish links resolve through the finished provider
+  // (the `ephemeral` grammar's initializer expects a provider-backed handle).
+  Object.assign(links, ephemeralWiring.buildLinks(provider, runtime));
+
   return {
     adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
     capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
@@ -419,6 +440,10 @@ export async function createSnapbackContractSurface({
     // Receipt surface (LLP 0034 §3 / ENG-22478): the kit ring, adapter-facing.
     rootId: surfaceRootId,
     receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
+    // Ephemeral facts (ENG-22479): the conformance gate's LOCAL-ONLY probe
+    // reads source starts; prewarmScope subscribes a scoped room up front.
+    ephemeralSourceStarts: ephemeralWiring.sourceStarts,
+    prewarmEphemeral: ephemeralWiring.prewarmScope,
     mount: (component, options = {}) => {
       assertActive();
       return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
@@ -429,6 +454,7 @@ export async function createSnapbackContractSurface({
     dispose: () => {
       disposed = true;
       detachReceiptListener?.();
+      ephemeralWiring.dispose();
       liveHandle?.dispose();
       liveHandle = null;
       liveCellObservers.clear();
@@ -438,6 +464,229 @@ export async function createSnapbackContractSurface({
       }
       mountedHandles.clear();
       pending.clear();
+    },
+  };
+}
+
+
+// ---------------------------------------------------------------------------
+// Ephemeral read-path wiring (ENG-22479; Exact LLP 0284 §2.5 / LLP 0034 §4)
+// ---------------------------------------------------------------------------
+//
+// For every manifest descriptor with `ephemeral: true`, the surface provides:
+// - a BoundaryEphemeralSource (options.ephemerals) mapping the kit's
+//   EphemeralOverlay to the normative EphemeralMapCell shape — entries carry
+//   key/value/updatedAt/expiresAt/sourceClientId/self per LLP 0034 §4's
+//   key-mode rules, plus the §2.2 connection axis; a scope-epoch bump arrives
+//   as a fresh snapshot (the kit's D2 receipts already mark the resubscribed
+//   boundary);
+// - links: `<name>(args)` returns a provider-backed ephemeral handle for the
+//   `ephemeral` binding, and `<name>Publish(args)` is the mutation-shaped
+//   publish (scope fields + value + ttlMs) until Exact LLP 0281 lands;
+// - a per-collection source-start counter (the conformance gate's LOCAL-ONLY
+//   probe asserts forced subscribers never start the provider source).
+//
+// Force semantics (forceEphemeralState LOCAL-ONLY, force-reaches-live,
+// dispose-restores) come from the Exact runtime's boundary provider force
+// plane — the adapter deliberately does NOT wrap subscribeEphemeral or
+// forceEphemeralState, so forced cells flow verbatim.
+//
+// Overlays are SHARED per (collection, scope) and prewarmed at surface
+// creation, so a source start delivers its ready snapshot synchronously —
+// presence rooms the surface serves are subscribed once, not per observer.
+function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemeralPermissions = null }) {
+  const descriptors = Object.entries(manifest?.queries ?? {}).filter(
+    ([, descriptor]) => descriptor?.ephemeral === true,
+  );
+  const sourceStarts = {};
+  const sources = {};
+  const overlayCache = new Map(); // `${name}\u0000${scopeKey}` -> { overlay, connection, offState }
+  const disposals = new Set();
+  const supportsEphemeral =
+    descriptors.length > 0
+    && typeof client.subscribeEphemeral === 'function'
+    && typeof client.liveStreamManager === 'function';
+
+  const scopeKeyOf = (args) => JSON.stringify(Object.entries(args ?? {}).sort(([a], [b]) => (a < b ? -1 : 1)));
+
+  const selfKeyFor = (descriptor) => {
+    switch (descriptor.keyMode) {
+      case 'User':
+        return userId ?? null;
+      case 'Connection':
+        return connectionId;
+      default:
+        // Session/Custom lease identity is not modeled by this kit client;
+        // `self` degrades to false rather than guessing (LLP 0034 §4 / OQ6).
+        return null;
+    }
+  };
+
+  const toMapCell = (record, descriptor) => ({
+    status: 'ready',
+    entries: record.overlay
+      .currentEntries({ prune: false }) // expiry is provider-owned (§2.5)
+      .map((entry) => ({
+        key: entry.key,
+        value: entry.value,
+        updatedAt: entry.receivedAtMs,
+        expiresAt: entry.expiresAtMs,
+        // The lease key IS the presence provenance (LLP 0034 §4).
+        sourceClientId: entry.key,
+        self: entry.key === selfKeyFor(descriptor),
+      }))
+      .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+    connection: record.connection,
+  });
+
+  const ensureOverlay = async (name, descriptor, args) => {
+    const cacheKey = `${name}\u0000${scopeKeyOf(args)}`;
+    let record = overlayCache.get(cacheKey);
+    if (record) return record;
+    const permissions = ephemeralPermissions?.(name, args) ?? [];
+    const overlay = await client.subscribeEphemeral(name, {
+      connectionId,
+      scope: { ...args },
+      userId,
+      permissions,
+    });
+    record = { overlay, connection: 'connecting', listeners: new Set(), offState: null };
+    const notify = () => {
+      for (const listener of [...record.listeners]) listener();
+    };
+    const handleChange = (result) => {
+      if (result === 'needs_resync') {
+        // The server retired the room's epoch (collection replace/reset) or
+        // the queue overflowed: re-enter through a fresh
+        // snapshot-with-subscribe and swap the overlay generation (the D2
+        // epoch work guarantees the fresh snapshot's epoch is strictly
+        // newer, and the kit receipts the resubscribed boundary).
+        void client
+          .subscribeEphemeral(name, { connectionId, scope: { ...args }, userId, permissions })
+          .then((fresh) => {
+            const superseded = record.overlay;
+            record.overlay = fresh;
+            superseded.dispose();
+            fresh.onChange(handleChange);
+            notify();
+          })
+          .catch(() => {
+            // Retry rides the next resync signal or consumer resubscribe.
+          });
+        return;
+      }
+      notify();
+    };
+    // Connection axis: the shared live socket's state is the map's transport
+    // truth (same connection the durable lanes ride).
+    const manager = client.liveStreamManager(connectionId);
+    record.connection = manager.isOpen() ? 'live' : 'connecting';
+    record.offState = manager.onState((state) => {
+      const next = state === 'open' ? 'live'
+        : state === 'budget-missed' ? 'stale'
+        : state === 'lost' ? 'stale'
+        : state === 'closed' ? 'disconnected'
+        : record.connection;
+      if (next !== record.connection) {
+        record.connection = next;
+        notify();
+      }
+    });
+    overlay.onChange(handleChange);
+    disposals.add(() => {
+      record.offState?.();
+      record.overlay.dispose();
+    });
+    overlayCache.set(cacheKey, record);
+    return record;
+  };
+
+  for (const [name, descriptor] of descriptors) {
+    sourceStarts[name] = 0;
+    if (!supportsEphemeral) continue;
+    sources[name] = (args, emit) => {
+      sourceStarts[name] += 1;
+      let active = true;
+      let offListener = null;
+      const cacheKey = `${name}\u0000${scopeKeyOf(args)}`;
+      const cached = overlayCache.get(cacheKey);
+      const attach = (record) => {
+        if (!active) return;
+        const listener = () => emit(toMapCell(record, descriptor));
+        record.listeners.add(listener);
+        offListener = () => record.listeners.delete(listener);
+        emit(toMapCell(record, descriptor));
+      };
+      if (cached) {
+        // Prewarmed/shared overlay: the ready snapshot delivers synchronously.
+        attach(cached);
+      } else {
+        void ensureOverlay(name, descriptor, args)
+          .then((record) => attach(record))
+          .catch((error) => {
+            if (!active) return;
+            console.warn(`[snapback-contract] ephemeral subscribe failed for "${name}"`, error);
+            emit({ status: 'error', entries: [] });
+          });
+      }
+      return () => {
+        active = false;
+        offListener?.();
+      };
+    };
+  }
+
+  return {
+    descriptors,
+    sources,
+    sourceStarts: (name) => sourceStarts[name] ?? 0,
+    prewarm: async () => {
+      if (!supportsEphemeral) return;
+      // Prewarm zero-arg scopes only when the descriptor has no scope fields;
+      // scoped rooms subscribe on first bind (their args are app data).
+      for (const [name, descriptor] of descriptors) {
+        if ((descriptor.scopeFields ?? []).length === 0) {
+          await ensureOverlay(name, descriptor, {}).catch(() => {});
+        }
+      }
+    },
+    prewarmScope: async (name, args) => {
+      const descriptor = manifest?.queries?.[name];
+      if (!supportsEphemeral || !descriptor) return;
+      await ensureOverlay(name, descriptor, args ?? {}).catch(() => {});
+    },
+    buildLinks: (provider, runtime) => {
+      const links = {};
+      for (const [name] of descriptors) {
+        links[name] = (args = {}) => runtime.createProviderEphemeralHandle(provider, name, args ?? {});
+        links[`${name}Publish`] = (args = {}) => {
+          const { value, ttlMs = null, ...scope } = args ?? {};
+          const permissions = ephemeralPermissions?.(name, scope) ?? [];
+          // Presence publishes are not durable mutations: no optimistic
+          // layer, no pending/flush participation; the socket's latest-state
+          // coalescing owns delivery (LLP 0013).
+          return client.publishEphemeral(name, {
+            connectionId,
+            scope,
+            value,
+            ttlMs,
+            userId,
+            permissions,
+          });
+        };
+      }
+      return links;
+    },
+    dispose: () => {
+      for (const dispose of [...disposals]) {
+        try {
+          dispose();
+        } catch {
+          // best-effort teardown
+        }
+      }
+      disposals.clear();
+      overlayCache.clear();
     },
   };
 }
@@ -478,6 +727,7 @@ async function createMultiLiveContractSurface({
   onSubscriptionEvent,
   rootId,
   detachReceiptListener = null,
+  ephemeralPermissions = null,
   diagnostics,
   pending,
   mountedHandles,
@@ -501,6 +751,13 @@ async function createMultiLiveContractSurface({
   const liveHandles = new Map(); // query name -> kit live handle
   const liveCellObservers = new Map(); // query name -> Set<record>
   const wantLivePush = livePush && typeof client.liveQuery === 'function';
+  const ephemeralWiring = buildEphemeralWiring({
+    client,
+    manifest,
+    connectionId: sharedConnectionId,
+    userId,
+    ephemeralPermissions,
+  });
 
   const assertActive = () => {
     if (disposed) {
@@ -528,6 +785,7 @@ async function createMultiLiveContractSurface({
   // build the boundary from the snapshots.
   const initialRows = {};
   for (const name of queryNames) {
+    if (manifest?.queries?.[name]?.ephemeral === true) continue;
     initialRows[name] = [];
   }
   if (wantLivePush) {
@@ -595,6 +853,7 @@ async function createMultiLiveContractSurface({
 
   const providerQueries = {};
   for (const name of queryNames) {
+    if (manifest?.queries?.[name]?.ephemeral === true) continue; // §2.4 kind split
     providerQueries[name] = (_args, qb) => qb.query(name, (rows) => rows, { key: name });
   }
   const providerMutations = {};
@@ -605,9 +864,12 @@ async function createMultiLiveContractSurface({
     };
   }
 
+  await ephemeralWiring.prewarm();
+
   const baseProvider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
     queries: providerQueries,
     mutations: providerMutations,
+    ephemerals: ephemeralWiring.sources,
   });
 
   // DataCellV2 connection axis: cells for live-bound queries carry their own
@@ -639,6 +901,7 @@ async function createMultiLiveContractSurface({
 
   const links = {};
   for (const name of queryNames) {
+    if (manifest?.queries?.[name]?.ephemeral === true) continue; // bound below
     links[name] = (args = {}) => {
       assertActive();
       return runtime.createProviderQueryHandle(provider, name, args ?? {});
@@ -650,6 +913,7 @@ async function createMultiLiveContractSurface({
       return track(persistMutation(name, args));
     };
   }
+  Object.assign(links, ephemeralWiring.buildLinks(provider, runtime));
 
   return {
     adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
@@ -666,6 +930,8 @@ async function createMultiLiveContractSurface({
     connectionId: sharedConnectionId,
     rootId,
     receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
+    ephemeralSourceStarts: ephemeralWiring.sourceStarts,
+    prewarmEphemeral: ephemeralWiring.prewarmScope,
     // Per-query connection facts; no argument = the first live query.
     connection: (name = liveQueries[0]) => connectionFor(name),
     connections: () => Object.fromEntries(liveQueries.map((name) => [name, connectionFor(name)])),
@@ -679,6 +945,7 @@ async function createMultiLiveContractSurface({
     dispose: () => {
       disposed = true;
       detachReceiptListener?.();
+      ephemeralWiring.dispose();
       for (const [, handle] of liveHandles) {
         handle.dispose();
       }
@@ -936,6 +1203,9 @@ function validateBindingSet(manifest, functions, diag) {
     }
   }
   for (const name of Object.keys(queries)) {
+    // Ephemeral read descriptors live in the queries map (Exact LLP 0284
+    // §2.5) but are collections, not server functions (ENG-22479).
+    if (queries[name]?.ephemeral === true) continue;
     if (!expectedQueryNames.has(name)) {
       diag('SNAPBACK_STALE_CONTRACT_DATA_BINDINGS', 'Generated Contract data manifest has a query binding not declared by the function manifest.', {
         binding: name,
@@ -956,7 +1226,15 @@ function validateBindingSet(manifest, functions, diag) {
 function validateDescriptorSet(manifest, artifacts, diag) {
   const artifactSet = new Set(artifacts);
   for (const name of Object.keys(manifest.queries ?? {})) {
-    for (const file of [`contract/${name}.query.ts`, `contract/${name}.query.contract-meta.ts`]) {
+    const expectedFiles = manifest.queries[name]?.ephemeral === true
+      ? [
+          `contract/${name}.ephemeral.ts`,
+          `contract/${name}.ephemeral.contract-meta.ts`,
+          `contract/${name}.publish.ts`,
+          `contract/${name}.publish.contract-meta.ts`,
+        ]
+      : [`contract/${name}.query.ts`, `contract/${name}.query.contract-meta.ts`];
+    for (const file of expectedFiles) {
       if (!artifactSet.has(file)) {
         diag('SNAPBACK_STALE_CONTRACT_DESCRIPTOR_SET', 'Generated Contract descriptor artifact is missing from the artifact index.', {
           binding: name,

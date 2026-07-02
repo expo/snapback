@@ -2,11 +2,32 @@
   "appId": "todo-v2",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "ephemeralCollections": [],
+  "ephemeralCollections": [
+    {
+      "burst": 40,
+      "defaultTtlMs": 20000,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 60000,
+      "maxValueBytes": 512,
+      "name": "todoPresence",
+      "publish": "AllowAll",
+      "routingFields": [
+        "listId"
+      ],
+      "scopeFields": [
+        "listId"
+      ],
+      "subscribe": "AllowAll",
+      "sustainedHz": 20
+    }
+  ],
   "generatedAt": 0,
-  "inputsHash": "eca08727878b4e21c93a08ee38c53d676fe107693050b4a46509a7188c1fd42d",
+  "inputsHash": "8d7eadc888bc482ef6f9168f3cef1bf483096a52adf742fd6399207d287957ad",
   "portabilityFlags": [],
-  "schemaHash": "sha256:d9f3b5fa3aede1f8",
+  "schemaHash": "sha256:933c5591717c22bc",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

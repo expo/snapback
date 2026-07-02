@@ -2,6 +2,8 @@
 // @ref LLP 0021#phase-1-specify-contractdatamanifest - Contract runtime links are projected from Snapback generated artifacts.
 
 export interface SnapbackContractLinks {
+  webCursors(args: { roomId: string }): unknown;
+  webCursorsPublish(args: { roomId: string; value: { x: number; y: number; name: string; color: string; updatedAt?: number }; ttlMs?: number }): unknown;
 }
 
 let links: SnapbackContractLinks | null = null;

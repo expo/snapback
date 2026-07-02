@@ -12,8 +12,30 @@
     "serverRunnableQueries": true,
     "subscriptions": true
   },
-  "ephemeral": {},
-  "inputsHash": "eca08727878b4e21c93a08ee38c53d676fe107693050b4a46509a7188c1fd42d",
+  "ephemeral": {
+    "todoPresence": {
+      "coalesce": true,
+      "defaultTtlMs": 20000,
+      "deliveryMode": "latest",
+      "ephemeral": true,
+      "keyMode": "Connection",
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 60000,
+      "name": "todoPresence",
+      "publishBudget": {
+        "burst": 40,
+        "maxValueBytes": 512,
+        "sustainedHz": 20
+      },
+      "routingFields": [
+        "listId"
+      ],
+      "scopeFields": [
+        "listId"
+      ]
+    }
+  },
+  "inputsHash": "8d7eadc888bc482ef6f9168f3cef1bf483096a52adf742fd6399207d287957ad",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {
@@ -252,9 +274,43 @@
       },
       "serverRunnable": true,
       "subscription": "none"
+    },
+    "todoPresence": {
+      "argOrder": [
+        "listId"
+      ],
+      "args": {
+        "listId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 20000,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "Connection",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 60000,
+      "mode": "live",
+      "name": "todoPresence",
+      "result": {
+        "kind": "list",
+        "row": {
+          "shape": "unknown"
+        }
+      },
+      "scopeFields": [
+        "listId"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
     }
   },
   "receipts": "none",
-  "schemaHash": "sha256:d9f3b5fa3aede1f8",
+  "schemaHash": "sha256:933c5591717c22bc",
   "schemaVersion": "snapback.v0"
 }

@@ -9,6 +9,8 @@ export interface SnapbackContractLinks {
   listTodosOnce(args: Record<string, never>): unknown;
   setCompleted(args: { id: string; completed: boolean }): unknown;
   setPriority(args: { id: string; priority: string }): unknown;
+  todoPresence(args: { listId: string }): unknown;
+  todoPresencePublish(args: { listId: string; value: { name: string; editing?: boolean }; ttlMs?: number }): unknown;
 }
 
 let links: SnapbackContractLinks | null = null;

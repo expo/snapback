@@ -3,7 +3,7 @@
 // @ref LLP 0015#todo-demo-requirements — the floor app: source-authored schema,
 //   user-scoped data, server-owned system fields, one indexed/syncable table.
 
-import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
+import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '../../_kit/define.mjs';
 
 export default defineSchema({
   todos: defineTable({
@@ -16,4 +16,27 @@ export default defineSchema({
     .index('by_user', ['userId'])
     // Declared syncable so it can back the restricted syncable-live subset.
     .sync(),
+}, {
+  // Presence for the Exact provider-conformance gate (ENG-22479; Exact LLP
+  // 0284 §2.5): who is looking at a list right now. Connection-keyed,
+  // allow-all (the LLP 0011 permission story is exercised by the todo v1
+  // boardCursors fixture), TTL generous enough for the gate's run.
+  ephemeral: defineEphemeral({
+    todoPresence: ephemeral.collection({
+      scope: { listId: v.string() },
+      routing: ['listId'],
+      key: 'connection',
+      ttlMs: 20_000,
+      maxTtlMs: 60_000,
+      maxValueBytes: 512,
+      publishRate: { sustainedHz: 20, burst: 40 },
+      delivery: { mode: 'latest', dispatchMs: 33 },
+      value: v.object({
+        name: v.string(),
+        editing: v.optional(v.boolean()),
+      }),
+      publish: allow.all(),
+      subscribe: allow.all(),
+    }),
+  }),
 });

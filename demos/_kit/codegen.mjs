@@ -65,6 +65,31 @@ function contractQueryLivenessFields(def) {
  */
 export function crossCheckContractQueryBinding(name, binding) {
   const mismatches = [];
+  if (binding.ephemeral === true) {
+    // Ephemeral read descriptors (ENG-22479): always-live push maps; the
+    // durable transport/poll rules do not apply. Cross-check the invariant
+    // facts instead.
+    const expectEphemeral = (field, expected) => {
+      if (binding[field] !== expected) {
+        mismatches.push(`${field}=${JSON.stringify(binding[field])} must be ${JSON.stringify(expected)} on an ephemeral descriptor`);
+      }
+    };
+    expectEphemeral('subscription', 'initial-snapshot');
+    expectEphemeral('mode', 'live');
+    expectEphemeral('livePush', true);
+    expectEphemeral('initialSnapshot', true);
+    expectEphemeral('coalesce', true);
+    if (!Number.isInteger(binding.maxDeltaRateHz) || binding.maxDeltaRateHz <= 0) {
+      mismatches.push(`maxDeltaRateHz=${JSON.stringify(binding.maxDeltaRateHz)} must be a positive integer`);
+    }
+    return mismatches.map((message) => ({
+      code: 'CONTRACT_MANIFEST_MIGRATION_MISMATCH',
+      severity: 'error',
+      subsystem: 'contract',
+      message: `${name}: ${message}`,
+      query: name,
+    }));
+  }
   const legacyLive = binding.subscription === 'initial-snapshot';
   const expect = (field, expected) => {
     if (binding[field] !== expected) {
@@ -367,6 +392,19 @@ export async function generate(backendDir) {
     }
   }
 
+  // Ephemeral collections project as Contract read descriptors (ENG-22479;
+  // Exact LLP 0284 §2.5): they live in the manifest QUERIES map with
+  // `ephemeral: true` (the runtime's subscribeEphemeral looks descriptors up
+  // there and the compiler rejects `query`-binding them — §2.4 kind
+  // mismatch). They are NOT server functions; name collisions are errors.
+  for (const collection of ephemeralCollections) {
+    if (contractQueries[collection.name] || contractMutations[collection.name]) {
+      err('EPHEMERAL_NAME_COLLISION', 'ephemeral', `${collection.name} collides with a function name`, { collection: collection.name });
+      continue;
+    }
+    contractQueries[collection.name] = contractEphemeralDescriptor(collection, schemaDef);
+  }
+
   validateActionPlans(functions, err);
   const cronJobs = buildCronJobs(cronDefs, functions, err);
 
@@ -513,7 +551,7 @@ export async function generate(backendDir) {
   mkdirSync(contractOutDir, { recursive: true });
   const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
   const apiTypes = renderApiTypes(functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
-  const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule);
+  const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
@@ -676,6 +714,35 @@ function keyMode(key) {
     user: 'User',
     custom: 'Custom',
   }[key] ?? 'Connection';
+}
+
+/// The Contract read descriptor for one ephemeral collection (ENG-22479;
+/// Exact LLP 0284 §2.4/§2.5): the queries-map entry the runtime's
+/// subscribeEphemeral resolves. Field shape mirrors the Exact conformance
+/// fixture descriptor (ephemeral+mode:'live'+livePush+initialSnapshot with
+/// the delivery-budget facts riding along).
+function contractEphemeralDescriptor(collection, schemaDef) {
+  const def = schemaDef.ephemeral?.collections?.[collection.name];
+  return {
+    name: collection.name,
+    args: argDescriptors(def?.scope ?? {}),
+    argOrder: Object.keys(def?.scope ?? {}),
+    result: { kind: 'list', row: { shape: 'unknown' } },
+    serverRunnable: false,
+    localRunnable: true,
+    subscription: 'initial-snapshot',
+    ephemeral: true,
+    mode: 'live',
+    livePush: true,
+    initialSnapshot: true,
+    defaultLive: true,
+    maxDeltaRateHz: Math.round(1_000 / collection.dispatchMs),
+    coalesce: true,
+    keyMode: collection.keyMode,
+    scopeFields: collection.scopeFields,
+    defaultTtlMs: collection.defaultTtlMs,
+    maxTtlMs: collection.maxTtlMs,
+  };
 }
 
 /// Contract-manifest ephemeral facts (LLP 0034 D3; Exact LLP 0284 §2.4/§2.5.1).
@@ -1189,13 +1256,37 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
   return lines.join('\n') + '\n';
 }
 
-function renderContractModules(contractManifest, functions, functionsModule) {
+function renderContractModules(contractManifest, functions, functionsModule, ephemeralCollections = [], schemaDef = null) {
   const modules = [
     {
       file: 'runtime-links.ts',
-      source: renderContractRuntimeLinks(functions, functionsModule),
+      source: renderContractRuntimeLinks(functions, functionsModule, ephemeralCollections, schemaDef),
     },
   ];
+
+  // Ephemeral descriptor pair (ENG-22479; Exact LLP 0284 §2.5 / LLP 0034
+  // §4): the read descriptor (`ephemeral` binding target) and the
+  // mutation-shaped publish callable carrying the LLP 0281 budget facts.
+  for (const collection of ephemeralCollections) {
+    const def = schemaDef?.ephemeral?.collections?.[collection.name];
+    const binding = contractManifest.queries[collection.name];
+    modules.push({
+      file: `${collection.name}.ephemeral.ts`,
+      source: renderContractEphemeralModule(collection, def),
+    });
+    modules.push({
+      file: `${collection.name}.ephemeral.contract-meta.ts`,
+      source: renderContractEphemeralMeta(collection.name, binding, def),
+    });
+    modules.push({
+      file: `${collection.name}.publish.ts`,
+      source: renderContractPublishModule(collection, def),
+    });
+    modules.push({
+      file: `${collection.name}.publish.contract-meta.ts`,
+      source: renderContractPublishMeta(collection.name),
+    });
+  }
 
   for (const fn of functions) {
     if (fn.kind === 'Action') continue;
@@ -1225,7 +1316,7 @@ function renderContractModules(contractManifest, functions, functionsModule) {
   return modules;
 }
 
-function renderContractRuntimeLinks(functions, functionsModule) {
+function renderContractRuntimeLinks(functions, functionsModule, ephemeralCollections = [], schemaDef = null) {
   const lines = [
     '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
     '// @ref LLP 0021#phase-1-specify-contractdatamanifest - Contract runtime links are projected from Snapback generated artifacts.',
@@ -1236,6 +1327,11 @@ function renderContractRuntimeLinks(functions, functionsModule) {
     if (fn.kind === 'Action') continue;
     const def = functionsModule[fn.name];
     lines.push(`  ${fn.name}(args: ${typeForArgs(def?.args ?? {})}): unknown;`);
+  }
+  for (const collection of ephemeralCollections) {
+    const def = schemaDef?.ephemeral?.collections?.[collection.name];
+    lines.push(`  ${collection.name}(args: ${typeForScope(def?.scope ?? {})}): unknown;`);
+    lines.push(`  ${collection.name}Publish(args: ${publishArgsType(def)}): unknown;`);
   }
   lines.push('}');
   lines.push('');
@@ -1312,6 +1408,104 @@ function renderContractMutationMeta(name, binding) {
     '});',
     '',
   ].join('\n');
+}
+
+function renderContractEphemeralModule(collection, def) {
+  const scopeType = typeForScope(def?.scope ?? {});
+  const valueType = typeForValidator(def?.value);
+  const pascalName = pascal(collection.name);
+  return [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    `// Ephemeral read descriptor for ${collection.name} (ENG-22479; Exact LLP 0284 §2.5):`,
+    '// the `ephemeral` binding target. Entries are the typed presence map;',
+    '// delivery facts ride the contract-data manifest (maxDeltaRateHz/coalesce).',
+    '',
+    "import { getSnapbackContractLinks } from './runtime-links';",
+    '',
+    `export const descriptor = '${collection.name}';`,
+    `export const ephemeral = true;`,
+    `export const keyMode = '${collection.keyMode}';`,
+    `export const scopeFields = ${jsonLiteral(collection.scopeFields)};`,
+    `export const defaultTtlMs = ${collection.defaultTtlMs};`,
+    `export const maxTtlMs = ${collection.maxTtlMs};`,
+    `export const maxDeltaRateHz = ${Math.round(1_000 / collection.dispatchMs)};`,
+    `export const coalesce = true;`,
+    `export type ${pascalName}Scope = ${scopeType};`,
+    `export type ${pascalName}Value = ${valueType};`,
+    '',
+    `export function ${collection.name}(args: ${pascalName}Scope) {`,
+    `  return getSnapbackContractLinks().${collection.name}(args);`,
+    '}',
+    '',
+  ].join('\n');
+}
+
+function renderContractEphemeralMeta(name, binding, def) {
+  const valueShape = contractShapeFields(validatorRowDescriptor(def?.value));
+  const pascalName = pascal(name);
+  return [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    "import { defineContractModule, shape } from '@exact/contract/exports';",
+    '',
+    `export default defineContractModule('./${name}.ephemeral.ts', {`,
+    `  ${name}: { kind: 'ephemeral', reads: ${jsonLiteral([name])}, result: '${pascalName}Entry[]' },`,
+    `  ${pascalName}Value: shape({ fields: ${jsonLiteral(valueShape)} }),`,
+    '});',
+    '',
+  ].join('\n');
+}
+
+function renderContractPublishModule(collection, def) {
+  const pascalName = pascal(collection.name);
+  return [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    `// Publish descriptor for ${collection.name} (ENG-22479; LLP 0034 §4): the`,
+    '// budget facts Exact LLP 0281 rated `publish` compiles against. Until 0281',
+    '// stage 0 lands, this stays callable as a mutation-shaped publish.',
+    '',
+    "import { getSnapbackContractLinks } from './runtime-links';",
+    '',
+    `export const descriptor = '${collection.name}';`,
+    `export const sustainedHz = ${collection.sustainedHz};`,
+    `export const burst = ${collection.burst};`,
+    `export const maxValueBytes = ${collection.maxValueBytes};`,
+    `export const hardMaxValueBytes = ${collection.hardMaxValueBytes};`,
+    `export type ${pascalName}PublishArgs = ${publishArgsType(def)};`,
+    '',
+    `export function ${collection.name}Publish(args: ${pascalName}PublishArgs) {`,
+    `  return getSnapbackContractLinks().${collection.name}Publish(args);`,
+    '}',
+    '',
+  ].join('\n');
+}
+
+function renderContractPublishMeta(name) {
+  return [
+    '// Generated by demos/_kit/codegen.mjs. Do not edit by hand.',
+    "import { defineContractModule, mutation } from '@exact/contract/exports';",
+    '',
+    `export default defineContractModule('./${name}.publish.ts', {`,
+    `  ${name}Publish: mutation({ effects: ${jsonLiteral([`ephemeral:${name}`])}, invalidates: [] }),`,
+    '});',
+    '',
+  ].join('\n');
+}
+
+function publishArgsType(def) {
+  const scope = Object.entries(def?.scope ?? {})
+    .map(([name, val]) => `${name}: ${typeForValidator(val)}`)
+    .join('; ');
+  const valueType = typeForValidator(def?.value);
+  return `{ ${scope}${scope ? '; ' : ''}value: ${valueType}; ttlMs?: number }`;
+}
+
+function validatorRowDescriptor(validator) {
+  if (!validator || validator.primitive !== 'object') return null;
+  const fields = {};
+  for (const [name, field] of Object.entries(validator.fields ?? {})) {
+    fields[name] = { shape: 'primitive', name: { string: 'string', number: 'number', boolean: 'boolean' }[field.primitive] ?? 'unknown' };
+  }
+  return { shape: 'object', fields };
 }
 
 function readTablesFromBinding(binding) {

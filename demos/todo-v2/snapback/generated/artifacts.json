@@ -10,6 +10,10 @@
     "api.d.ts",
     "package.json",
     "contract/runtime-links.ts",
+    "contract/todoPresence.ephemeral.ts",
+    "contract/todoPresence.ephemeral.contract-meta.ts",
+    "contract/todoPresence.publish.ts",
+    "contract/todoPresence.publish.contract-meta.ts",
     "contract/createTodo.mutation.ts",
     "contract/createTodo.mutation.contract-meta.ts",
     "contract/deleteTodo.mutation.ts",
@@ -27,7 +31,9 @@
   ],
   "bundleHash": "sha256:7b6da71527ea4164",
   "cronJobs": [],
-  "ephemeralCollections": [],
+  "ephemeralCollections": [
+    "todoPresence"
+  ],
   "functions": [
     {
       "id": "todo-v2:createTodo",
@@ -66,8 +72,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "eca08727878b4e21c93a08ee38c53d676fe107693050b4a46509a7188c1fd42d",
-  "schemaHash": "sha256:d9f3b5fa3aede1f8",
+  "inputsHash": "8d7eadc888bc482ef6f9168f3cef1bf483096a52adf742fd6399207d287957ad",
+  "schemaHash": "sha256:933c5591717c22bc",
   "schemaVersion": "snapback.v0",
   "tables": [
     "todos"

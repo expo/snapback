@@ -28,6 +28,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value>
   readonly __value?: Value;
 }
 export interface GeneratedEphemeral {
+  todoPresence: EphemeralCollectionReference<'todoPresence', { listId: string }, { name: string; editing?: boolean }>;
 }
 export interface GeneratedApi {
   createTodo: FunctionReference<'createTodo', 'Mutation', { title: string; priority: string }>;

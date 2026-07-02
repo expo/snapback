@@ -9,7 +9,11 @@
     "api.mjs",
     "api.d.ts",
     "package.json",
-    "contract/runtime-links.ts"
+    "contract/runtime-links.ts",
+    "contract/webCursors.ephemeral.ts",
+    "contract/webCursors.ephemeral.contract-meta.ts",
+    "contract/webCursors.publish.ts",
+    "contract/webCursors.publish.contract-meta.ts"
   ],
   "bundleHash": "sha256:af2a871a5a87de99",
   "cronJobs": [],
