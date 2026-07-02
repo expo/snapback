@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+// Server-side demo provisioning (LLP 0032 S4/P6): load the generated
+// artifacts, reset deterministically, and seed — the destructive path that
+// must never run from a browser page load (pages boot by blast radius per
+// LLP 0034 D4: conditional provision + seed-if-empty only).
+//
+// Usage: node scripts/demo-setup <todo|todo-v2|all-aboard|cursors-web> [--url http://127.0.0.1:4287]
+//
+// The same setup is available from the product CLI against a running server:
+//   snapback load --url <url> --schema <generated/schema.manifest.json> --functions <generated/functions.manifest.json>
+//   snapback reset --url <url> --seed <seed.json>
+
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(here, '..');
+
+const demo = process.argv[2];
+const urlFlag = process.argv.indexOf('--url');
+const baseUrl = urlFlag > -1 ? process.argv[urlFlag + 1] : 'http://127.0.0.1:4287';
+
+const DEMOS = ['todo', 'todo-v2', 'all-aboard', 'cursors-web'];
+if (!DEMOS.includes(demo)) {
+  console.error(`usage: node scripts/demo-setup <${DEMOS.join('|')}> [--url http://127.0.0.1:4287]`);
+  process.exit(2);
+}
+
+const backendDir = join(repoRoot, 'demos', demo, 'snapback');
+const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'utf8'));
+
+const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
+const client = new SnapbackClient(baseUrl);
+
+await client.health();
+await client.loadSchema(gen('schema.manifest.json'));
+await client.loadFunctions(gen('functions.manifest.json'));
+await client.reset();
+const seedPath = join(backendDir, 'seed.json');
+if (existsSync(seedPath)) {
+  await client.seed(JSON.parse(readFileSync(seedPath, 'utf8')));
+}
+console.log(`[demo-setup] ${demo} provisioned at ${baseUrl} (schema + functions + reset${existsSync(seedPath) ? ' + seed' : ''})`);

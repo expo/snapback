@@ -12,6 +12,7 @@
 //   drift-gated schemas instead of hand-synced shape definitions.
 
 use serde_json::Value;
+use snapback::host_ops::{HostOpsResult, HostReadyDescriptor};
 use snapback::manifest::{CapabilityManifest, FunctionManifest, SchemaManifest};
 use std::fs;
 use std::path::PathBuf;
@@ -20,21 +21,38 @@ fn schemas_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("schemas")
 }
 
-fn artifact_schemas() -> Vec<(&'static str, Value)> {
+/// (committed schema file, demo manifest file validated against it — None for
+/// shapes that have no per-demo artifact, derived schema).
+fn artifact_schemas() -> Vec<(&'static str, Option<&'static str>, Value)> {
     vec![
         (
             "schema.manifest.schema.json",
+            Some("schema.manifest.json"),
             serde_json::to_value(schemars::schema_for!(SchemaManifest)).expect("schema schema"),
         ),
         (
             "functions.manifest.schema.json",
+            Some("functions.manifest.json"),
             serde_json::to_value(schemars::schema_for!(FunctionManifest))
                 .expect("functions schema"),
         ),
         (
             "capability.manifest.schema.json",
+            Some("capability.manifest.json"),
             serde_json::to_value(schemars::schema_for!(CapabilityManifest))
                 .expect("capability schema"),
+        ),
+        (
+            "host-ops.result.schema.json",
+            None,
+            serde_json::to_value(schemars::schema_for!(HostOpsResult))
+                .expect("host-ops result schema"),
+        ),
+        (
+            "host-ready.schema.json",
+            None,
+            serde_json::to_value(schemars::schema_for!(HostReadyDescriptor))
+                .expect("host-ready schema"),
         ),
     ]
 }
@@ -60,7 +78,7 @@ fn sorted_keys(value: Value) -> Value {
 
 #[test]
 fn p3_committed_artifact_schemas_match_the_rust_types() {
-    for (file, derived) in artifact_schemas() {
+    for (file, _manifest, derived) in artifact_schemas() {
         let derived = sorted_keys(derived);
         let path = schemas_dir().join(file);
         if std::env::var("SNAPBACK_UPDATE_ARTIFACT_SCHEMAS").is_ok() {
@@ -100,18 +118,10 @@ fn p3_committed_demo_manifests_validate_against_the_schemas() {
     let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validators: Vec<(&str, jsonschema::Validator)> = artifact_schemas()
         .into_iter()
-        .map(|(file, schema)| {
-            let manifest_file = file.replace(".schema.json", ".json");
+        .filter_map(|(file, manifest_file, schema)| {
             let validator = jsonschema::validator_for(&schema)
                 .unwrap_or_else(|error| panic!("compile {file}: {error}"));
-            (
-                match manifest_file.as_str() {
-                    "schema.manifest.json" => "schema.manifest.json",
-                    "functions.manifest.json" => "functions.manifest.json",
-                    _ => "capability.manifest.json",
-                },
-                validator,
-            )
+            manifest_file.map(|manifest_file| (manifest_file, validator))
         })
         .collect();
 

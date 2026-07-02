@@ -772,8 +772,17 @@ Snapback to bind the first safe port and report it structurally.
 
 ## Status
 
-Draft. The immediate next step is an MVP managed-dev plugin for one existing
-Contract demo: readiness handshake, mode-aware lifecycle, one-shot managed
-backend setup from existing generated artifacts, `/__snapback` app-route proxy
-allowlist, and structured diagnostics. Codegen/watch/hot push should follow only
-after the backend lifecycle and authority boundary prove sound.
+Draft. **The host side of the handshake shipped 2026-07-02 (LLP 0032 P6):**
+`snapback start --ready-file <path>` writes the out-of-band readiness
+descriptor this RFC asked for (shape: `schemas/host-ready.schema.json`,
+generated from the Rust `HostReadyDescriptor` per LLP 0037; attach-side
+validation is `HostReadyDescriptor::validate`, tested in
+`tests/host_ops_v0.rs`), the `snapback` CLI performs
+`stop/inspect/reset/load/run` against a running instance, and one-shot
+backend setup from generated artifacts exists as both `scripts/demo-setup`
+and CLI verbs — so the managed/attach plugin can now be a thin consumer.
+The immediate next step is unchanged in kind but smaller: the MVP
+managed-dev plugin for one existing Contract demo — readiness handshake
+(read the descriptor), mode-aware lifecycle, `/__snapback` app-route proxy
+allowlist, and structured diagnostics. Codegen/watch/hot push should follow
+only after the backend lifecycle and authority boundary prove sound.

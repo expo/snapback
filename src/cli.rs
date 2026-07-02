@@ -1,14 +1,20 @@
 use crate::admin::{AppState, ServerContext};
+use crate::host_ops::{
+    HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor,
+};
 use crate::instance_lock::DatabaseInstanceLock;
 use crate::local::LocalSnapback;
+use crate::manifest::SNAPBACK_SCHEMA_VERSION;
 use crate::server;
 use anyhow::Context;
 use clap::Parser;
+use serde_json::{Value, json};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 const DEFAULT_PORT_RANGE_START: u16 = 4287;
 const DEFAULT_PORT_RANGE_END: u16 = 4387;
@@ -28,10 +34,257 @@ pub struct Args {
 
     #[arg(long)]
     pub memory: bool,
+
+    /// Write an LLP 0030 readiness descriptor (JSON) once the listener is
+    /// bound — the out-of-band handshake managed/attach launchers read.
+    #[arg(long)]
+    pub ready_file: Option<PathBuf>,
+}
+
+/// The `snapback` CLI (LLP 0024 first slice, built by LLP 0032 P6): with no
+/// subcommand it starts the local dev server (compatibility with the original
+/// single-purpose binary); the subcommands project the host operations.
+#[derive(Debug, Parser)]
+#[command(
+    name = "snapback",
+    about = "Snapback local server + host operations (LLP 0024 first slice)"
+)]
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Option<HostCommand>,
+    #[command(flatten)]
+    pub serve: Args,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum HostCommand {
+    /// host.start — run the local server in the foreground. Structured
+    /// readiness is the --ready-file descriptor, not stdout.
+    Start(Args),
+    /// host.stop — stop the server named by a readiness descriptor.
+    Stop {
+        #[arg(long)]
+        ready_file: PathBuf,
+    },
+    /// app.inspect — one hostOpsResult envelope with the runtime state.
+    Inspect(TargetArgs),
+    /// app.reset — deterministic reset, optionally applying a seed file.
+    Reset {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        seed: Option<PathBuf>,
+    },
+    /// schema.load / functions.load from generated manifest files.
+    Load {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        schema: Option<PathBuf>,
+        #[arg(long)]
+        functions: Option<PathBuf>,
+    },
+    /// function.run — run one generated query or mutation by name/id.
+    Run {
+        #[command(flatten)]
+        target: TargetArgs,
+        function: String,
+        /// JSON object of function args.
+        #[arg(long)]
+        args: Option<String>,
+        /// Run as this app user (devUser authority).
+        #[arg(long)]
+        user: Option<String>,
+    },
+}
+
+#[derive(Debug, clap::Args)]
+pub struct TargetArgs {
+    /// Server base URL (e.g. http://127.0.0.1:4287).
+    #[arg(long)]
+    pub url: Option<String>,
+    /// Readiness descriptor to resolve the server from (see `start --ready-file`).
+    #[arg(long)]
+    pub ready_file: Option<PathBuf>,
+    /// Admin token for gated writes (defaults to SNAPBACK_ADMIN_TOKEN).
+    #[arg(long)]
+    pub token: Option<String>,
 }
 
 pub async fn run_from_env() -> anyhow::Result<()> {
-    run(Args::parse()).await
+    let cli = Cli::parse();
+    match cli.command {
+        None => run(cli.serve).await,
+        Some(HostCommand::Start(args)) => run(args).await,
+        Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file),
+        Some(HostCommand::Inspect(target)) => {
+            host_op_via_http(&target, json!({ "operation": "app.inspect" }))
+        }
+        Some(HostCommand::Reset { target, seed }) => {
+            let mut request = json!({ "operation": "app.reset" });
+            if let Some(seed) = seed {
+                request["seed"] = read_json_file(&seed)?;
+            }
+            host_op_via_http(&target, request)
+        }
+        Some(HostCommand::Load {
+            target,
+            schema,
+            functions,
+        }) => {
+            if schema.is_none() && functions.is_none() {
+                anyhow::bail!("load requires --schema and/or --functions manifest files");
+            }
+            let mut failed = false;
+            if let Some(schema) = schema {
+                let manifest = read_json_file(&schema)?;
+                failed |= !print_envelope(&post_host_op(
+                    &target,
+                    json!({ "operation": "schema.load", "schema": manifest }),
+                )?);
+            }
+            if let Some(functions) = functions {
+                let manifest = read_json_file(&functions)?;
+                failed |= !print_envelope(&post_host_op(
+                    &target,
+                    json!({ "operation": "functions.load", "functions": manifest }),
+                )?);
+            }
+            if failed {
+                std::process::exit(1);
+            }
+            Ok(())
+        }
+        Some(HostCommand::Run {
+            target,
+            function,
+            args,
+            user,
+        }) => {
+            let parsed_args: Value = match args {
+                Some(raw) => serde_json::from_str(&raw).context("--args must be a JSON object")?,
+                None => Value::Object(Default::default()),
+            };
+            host_op_via_http(
+                &target,
+                json!({
+                    "operation": "function.run",
+                    "function": function,
+                    "args": parsed_args,
+                    "userId": user,
+                }),
+            )
+        }
+    }
+}
+
+fn read_json_file(path: &Path) -> anyhow::Result<Value> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("failed to read {}", path.display()))?;
+    serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
+}
+
+fn resolve_target_url(target: &TargetArgs) -> anyhow::Result<String> {
+    if let Some(url) = &target.url {
+        return Ok(url.trim_end_matches('/').to_owned());
+    }
+    if let Some(path) = &target.ready_file {
+        let value = read_json_file(path)?;
+        let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+            anyhow::anyhow!(
+                "{} is not a valid readiness descriptor: {}",
+                path.display(),
+                problems.join("; ")
+            )
+        })?;
+        return Ok(descriptor.server_url.trim_end_matches('/').to_owned());
+    }
+    anyhow::bail!("no target: pass --url or --ready-file")
+}
+
+/// POST one host operation and project the envelope to stdout + exit code
+/// (`ok: false` → exit 1) per LLP 0024's transport-projection rule.
+fn host_op_via_http(target: &TargetArgs, request: Value) -> anyhow::Result<()> {
+    let envelope = post_host_op(target, request)?;
+    if !print_envelope(&envelope) {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
+    let url = resolve_target_url(target)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok());
+    let mut http = ureq::post(&format!("{url}/_snapback/api/host-ops"));
+    if let Some(token) = token.filter(|token| !token.is_empty()) {
+        http = http.set("x-snapback-admin-token", &token);
+    }
+    match http.send_json(request) {
+        Ok(response) => Ok(response
+            .into_json()
+            .context("host-ops response was not JSON")?),
+        // A gated/refused call returns the structured ApiError body — surface
+        // it verbatim rather than as a transport error.
+        Err(ureq::Error::Status(_status, response)) => Ok(response
+            .into_json()
+            .context("host-ops error response was not JSON")?),
+        Err(error) => Err(error).context("host-ops request failed"),
+    }
+}
+
+/// Print the envelope; returns envelope `ok` (missing/false → false).
+fn print_envelope(envelope: &Value) -> bool {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(envelope).unwrap_or_else(|_| envelope.to_string())
+    );
+    envelope.get("ok").and_then(Value::as_bool).unwrap_or(false)
+}
+
+/// host.stop: validate the readiness descriptor, signal the process, remove
+/// the file, and print a synthesized host.stop envelope (the CLI owns this
+/// operation — a server cannot stop itself over its own HTTP surface).
+fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
+    let value = read_json_file(ready_file)?;
+    let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            ready_file.display(),
+            problems.join("; ")
+        )
+    })?;
+    let stopped = std::process::Command::new("kill")
+        .arg(descriptor.pid.to_string())
+        .status()
+        .context("failed to signal the server process")?
+        .success();
+    if stopped {
+        let _ = std::fs::remove_file(ready_file);
+    }
+    let envelope = HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: format!("hop_{}", Uuid::now_v7().simple()),
+        operation: "host.stop".to_owned(),
+        ok: stopped,
+        target: descriptor.target.clone(),
+        authority: None,
+        artifacts: HostOpsArtifacts::default(),
+        data: json!({
+            "stoppedPid": descriptor.pid,
+            "serverUrl": descriptor.server_url,
+        }),
+        diagnostics: Vec::new(),
+        next: Vec::new(),
+    };
+    let ok = print_envelope(&serde_json::to_value(&envelope)?);
+    if !ok {
+        std::process::exit(1);
+    }
+    Ok(())
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -53,6 +306,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let read_lane = snapback.read_lane();
     let ephemeral = snapback.ephemeral_api();
     let missing_config = snapback.required_missing_config();
+    let loaded_app_id = snapback.loaded_app_id();
     let state = Arc::new(Mutex::new(snapback));
     let listener = bind_listener(&args.host, args.port).await?;
     let local_addr = listener.local_addr()?;
@@ -68,6 +322,50 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let app = server::app(AppState::new(state, read_lane, ephemeral, server_context));
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
+    }
+
+    // @ref LLP 0030#readiness-and-port-discovery — the readiness file is
+    // the structured handshake: out-of-band so launcher stdout (cargo build
+    // noise) cannot corrupt it; aligned with the LLP 0024 target shape.
+    if let Some(path) = args.ready_file.as_ref() {
+        let descriptor = crate::host_ops::HostReadyDescriptor {
+            schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+            descriptor_kind: crate::host_ops::HOST_READY_DESCRIPTOR_KIND.to_owned(),
+            startup_id: format!("srt_{}", Uuid::now_v7().simple()),
+            ready: true,
+            server_url: format!("http://{local_addr}"),
+            host: local_addr.ip().to_string(),
+            port: local_addr.port(),
+            pid: std::process::id(),
+            target: crate::host_ops::HostOpsTarget {
+                app_id: loaded_app_id.clone(),
+                app_root: None,
+                target_profile: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                server_url: Some(format!("http://{local_addr}")),
+            },
+            database: crate::host_ops::HostReadyDatabase {
+                mode: if args.memory { "memory" } else { "file" }.to_owned(),
+                path: database_path
+                    .as_ref()
+                    .map(|path| path.display().to_string()),
+            },
+            started_at_ms: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|elapsed| elapsed.as_millis() as u64)
+                .unwrap_or(0),
+            admin_gated: token_configured || !loopback,
+            diagnostics: Vec::new(),
+        };
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("failed to create ready-file directory {}", parent.display())
+            })?;
+        }
+        std::fs::write(path, format!("{}\n", serde_json::to_string_pretty(&descriptor)?))
+            .with_context(|| format!("failed to write ready file {}", path.display()))?;
+        println!("ready file: {}", path.display());
     }
 
     println!("snapback listening on http://{local_addr}");
@@ -102,6 +400,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     cron_scheduler.abort();
     maintenance_worker.abort();
     drop(database_lock);
+    if let Some(path) = args.ready_file.as_ref() {
+        let _ = std::fs::remove_file(path);
+    }
     server_result?;
     Ok(())
 }

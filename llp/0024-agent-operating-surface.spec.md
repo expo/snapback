@@ -8,15 +8,29 @@
 **Revised:** 2026-07-02 (hostOpsResult source-of-truth open question decided — LLP 0037, Rust-first; earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023
 
-> **Implementation status (2026-07-01):** this Spec pins a contract; the
-> surface is **not built**. No `snapback` CLI binary, host-ops HTTP endpoint,
-> or MCP projection exists — the only way to run the local server today is a
-> source-tree `cargo run`
-> ([LLP 0030](./0030-managed-snapback-vite-dev.rfc.md) records this). The
-> first built slice is scheduled as
-> [LLP 0032](./0032-decision-and-implementation-hardening.plan.md) P6; this
-> banner flips per verb as slices land. Read the tables below as a pinned
-> contract, not an existing API.
+> **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
+> built).** The `snapback` CLI and the host-ops HTTP endpoint
+> (`POST /_snapback/api/host-ops`, admin-write-gated, registered in the
+> LLP 0031 route registry) exist and share one `hostOpsResult` envelope
+> (`src/host_ops.rs` is the source of truth; the committed
+> `schemas/host-ops.result.schema.json` is generated from it per LLP 0037).
+> Per-verb status:
+>
+> - **Built:** `host.start` (CLI `snapback start`, foreground; structured
+>   readiness is the `--ready-file` descriptor —
+>   `schemas/host-ready.schema.json` — per LLP 0030's out-of-band
+>   handshake), `host.stop` (CLI, via the readiness descriptor),
+>   `app.inspect`, `app.reset` (with optional seed), `schema.load`,
+>   `functions.load`, `function.run` (queries and mutations; never actions)
+>   — each as CLI verb + HTTP operation, tested in `tests/host_ops_v0.rs`.
+> - **Pinned, not built:** `host.restart`, `schema.reload`,
+>   `functions.reload`, `function.explain`, `acceptance.run` — requested
+>   over HTTP they return a structured `SNAPBACK_HOST_OP_UNIMPLEMENTED`
+>   envelope (`host.*` over HTTP returns `SNAPBACK_HOST_OP_CLI_ONLY`); the
+>   MCP projection is not built.
+>
+> Read the rest of the tables as pinned contract; the list above is the
+> built surface.
 
 ## Summary
 

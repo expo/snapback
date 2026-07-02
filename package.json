@@ -1,0 +1,15 @@
+{
+  "name": "snapback-monorepo",
+  "private": true,
+  "type": "module",
+  "description": "Snapback workspace root (LLP 0032 P6). Product JS packages live under packages/*; demos and admin-ui manage their own dependencies deliberately (they pin Exact via exact.pin.json, not the workspace).",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "check:artifacts": "scripts/check-generated-artifacts",
+    "check:types": "scripts/check-generated-types",
+    "check:surfaces": "scripts/check-demo-surfaces",
+    "verify": "scripts/verify-local-proof"
+  }
+}

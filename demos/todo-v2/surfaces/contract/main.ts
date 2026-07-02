@@ -75,11 +75,28 @@ async function boot(): Promise<void> {
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
 
-  status('Loading schema, functions, and seed data...');
-  await client.loadSchema(schemaManifest);
-  await client.loadFunctions(functionsManifest);
-  await client.reset();
-  await client.seed(seed);
+  // Boot by blast radius (LLP 0034 D4; LLP 0032 S4): inspect-first
+  // conditional provisioning and seed-if-empty. A page load never resets —
+  // the destructive path belongs to the harness/CLI (scripts/demo-setup or
+  // `snapback reset`).
+  status('Checking backend provisioning...');
+  const inspect = (await client.inspect()) as {
+    schema?: { schemaHash?: string | null };
+    functions?: { bundleHash?: string | null };
+  };
+  if (inspect.schema?.schemaHash !== (schemaManifest as { schemaHash: string }).schemaHash) {
+    status('Provisioning schema (backend not provisioned for this manifest)...');
+    await client.loadSchema(schemaManifest);
+  }
+  if (inspect.functions?.bundleHash !== (functionsManifest as { bundleHash: string }).bundleHash) {
+    status('Provisioning functions...');
+    await client.loadFunctions(functionsManifest);
+  }
+  const existing = await client.query('listTodos', { userId: ADA });
+  if (((existing as { rows?: unknown[] }).rows?.length ?? 0) === 0) {
+    status('Seeding empty backend...');
+    await client.seed(seed);
+  }
 
   status('Mounting Contract surface...');
   installContractWebHost();

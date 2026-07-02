@@ -1,0 +1,187 @@
+{
+  "$defs": {
+    "Diagnostic": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem",
+        "message",
+        "details"
+      ],
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "Info",
+        "Warning",
+        "Error",
+        "Fatal"
+      ],
+      "type": "string"
+    },
+    "HostOpsArtifacts": {
+      "properties": {
+        "bundleHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "databaseVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "schemaHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "HostOpsAuthority": {
+      "properties": {
+        "actorPrincipal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "adminBypass": {
+          "type": "boolean"
+        },
+        "effectivePrincipal": true,
+        "localDevOnly": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "localDevOnly",
+        "adminBypass"
+      ],
+      "type": "object"
+    },
+    "HostOpsTarget": {
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "appRoot": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "serverUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetProfile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "appId",
+        "targetProfile"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "artifacts": {
+      "$ref": "#/$defs/HostOpsArtifacts"
+    },
+    "authority": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HostOpsAuthority"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "data": true,
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "type": "array"
+    },
+    "next": {
+      "items": true,
+      "type": "array"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "requestId": {
+      "type": "string"
+    },
+    "resultKind": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "target": {
+      "$ref": "#/$defs/HostOpsTarget"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "resultKind",
+    "requestId",
+    "operation",
+    "ok",
+    "target",
+    "artifacts",
+    "data",
+    "diagnostics",
+    "next"
+  ],
+  "title": "HostOpsResult",
+  "type": "object"
+}

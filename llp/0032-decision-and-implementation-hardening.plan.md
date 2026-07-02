@@ -340,6 +340,19 @@ ships with a regression test and, where user-visible, a diagnostic code.
   full lifecycle story is owned by [LLP 0030](./0030-managed-snapback-vite-dev.rfc.md)
   and lands with P6. **Done when:** no demo page-load calls any `/admin/*` or
   system write; a grep gate over `demos/*/surfaces/` enforces it.
+  **Closed 2026-07-02 with P6, reconciled to the later-ratified boot
+  semantics.** After this register was written, LLP 0034 D4 ("bootstrap by
+  blast radius", Accepted) defined and landed the page-boot contract:
+  inspect-first *conditional* provisioning and seed-if-empty are legitimate
+  page behavior; the destructive class (reset-then-seed, legacy `/admin/*`)
+  is not. Per this plan's own ownership rule the detail doc governs, so the
+  done-when is enforced at D4's line: todo and todo-v2 pages (the last
+  unconditional reset-then-seed boots) migrated to the D4 pattern, the
+  destructive class is gated by `scripts/check-demo-surfaces` (proven
+  against an injected `client.reset()`), and the server-side setup path the
+  interim fix asked for exists twice over — `scripts/demo-setup <demo>` and
+  the P6 CLI (`snapback load/reset`). All Aboard and cursors-web already
+  implemented D4.
 
 ### Confirmed defect register
 
@@ -1180,7 +1193,29 @@ parallel with Phase 3.
   can land on top. S4's interim demo-boot fix graduates to this. **Done
   when:** `snapback` (or the chosen binary name) performs the six ops
   against a local instance; 0030's attach descriptor validation works; 0024's
-  banner from R4 flips to "built" for the shipped verbs.
+  banner from R4 flips to "built" for the shipped verbs. **Landed
+  2026-07-02.** Packaging: repo-root `package.json` + `bun.lock` with
+  `packages/*` workspaces; the namespace decision (0021's open question) is
+  **`@snapback/*`** (`@snapback/contract`, `@snapback/codegen`; registry
+  claiming deferred to first publish with the reopen caveat recorded in
+  0021). Host-ops: `src/host_ops.rs` is the envelope source of truth
+  (committed `schemas/host-ops.result.schema.json` +
+  `schemas/host-ready.schema.json` per LLP 0037, drift-gated); the gated
+  `POST /_snapback/api/host-ops` endpoint (route-registry entry) serves
+  `app.inspect`, `app.reset` (+seed), `schema.load`, `functions.load`,
+  `function.run` (queries/mutations, never actions), and every
+  pinned-not-built operation fails closed with a structured envelope
+  (`SNAPBACK_HOST_OP_{UNKNOWN,UNIMPLEMENTED,CLI_ONLY,…}`). The `snapback`
+  CLI projects `start` (foreground; `--ready-file` writes the LLP 0030
+  readiness descriptor, removed on exit), `stop` (descriptor-validated
+  signal), `inspect`, `reset [--seed]`, `load
+  --schema/--functions`, and `run <function> [--args] [--user]`, printing
+  one envelope per op with exit-code projection over `ok`. Proof:
+  `tests/host_ops_v0.rs` (served-op round trip, fail-closed matrix,
+  ready-file write + attach validation + tamper rejection) and a live
+  end-to-end CLI run (start → load → reset+seed → run query/mutation →
+  inspect → stop, ready file cleaned up). 0024's banner flipped per verb;
+  0030 records the shipped handshake.
 - **P7 — Ibex bring-up doctor.** Three diaries hit Hermes/dyld bring-up
   failures in three different shapes (build env, spawned-process dyld,
   cargo-can't-compile), and `cargo test` still requires a manual

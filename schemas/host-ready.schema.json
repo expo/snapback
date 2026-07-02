@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "Diagnostic": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem",
+        "message",
+        "details"
+      ],
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "Info",
+        "Warning",
+        "Error",
+        "Fatal"
+      ],
+      "type": "string"
+    },
+    "HostOpsTarget": {
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "appRoot": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "serverUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetProfile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "appId",
+        "targetProfile"
+      ],
+      "type": "object"
+    },
+    "HostReadyDatabase": {
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The readiness descriptor `snapback start --ready-file <path>` writes once\nthe listener is bound — the LLP 0030 attach/managed handshake (out-of-band\nso `cargo run` launcher noise on stdout cannot corrupt it).",
+  "properties": {
+    "adminGated": {
+      "type": "boolean"
+    },
+    "database": {
+      "$ref": "#/$defs/HostReadyDatabase"
+    },
+    "descriptorKind": {
+      "type": "string"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "type": "array"
+    },
+    "host": {
+      "type": "string"
+    },
+    "pid": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "port": {
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ready": {
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "serverUrl": {
+      "type": "string"
+    },
+    "startedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "startupId": {
+      "type": "string"
+    },
+    "target": {
+      "$ref": "#/$defs/HostOpsTarget"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "descriptorKind",
+    "startupId",
+    "ready",
+    "serverUrl",
+    "host",
+    "port",
+    "pid",
+    "target",
+    "database",
+    "startedAtMs",
+    "adminGated",
+    "diagnostics"
+  ],
+  "title": "HostReadyDescriptor",
+  "type": "object"
+}
