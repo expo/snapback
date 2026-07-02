@@ -525,12 +525,22 @@ fn run_ibex_handler_with_context(
     let runtime = RuntimeGuard::create()?;
     let source = invocation_source(module, invocation)?;
 
-    CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
+    // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D1: the
+    // context pointer is saved and restored (a stack, via recursion), not
+    // unconditionally nulled. An Ibex action whose `ctx.runMutation` targets
+    // an Ibex mutation re-enters this function synchronously on the same
+    // thread; nulling on the inner exit would strand the outer invocation so
+    // its next host call fails with SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT.
+    // (The nested entry also spins a second VM and reinstalls the process-wide
+    // host; that inefficiency is L7/M2's scope, not a correctness bug here.)
+    let previous_context = CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
+        let previous = *slot.borrow();
         *slot.borrow_mut() = invocation as *mut IbexHostContext<'_> as *mut c_void;
+        previous
     });
     let eval_result = eval(runtime.0, &module.export, &source);
     CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
-        *slot.borrow_mut() = ptr::null_mut();
+        *slot.borrow_mut() = previous_context;
     });
 
     let output = eval_result?;

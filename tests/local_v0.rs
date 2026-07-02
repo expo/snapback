@@ -2308,3 +2308,130 @@ globalThis.__snapbackHandlers = {
     }];
     manifest
 }
+
+/// LLP 0032 S5.D1 — an Ibex action whose `ctx.runMutation` targets an Ibex
+/// mutation re-enters the runtime; the outer action's context must survive the
+/// nested call so a *subsequent* host call still works. Pre-fix, the nested
+/// exit nulled the thread-local and the second runMutation failed with
+/// SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT.
+#[test]
+fn s5_d1_action_calling_ibex_mutation_preserves_context() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(ibex_nested_reentry_functions());
+
+    let record = snapback
+        .run_cron_job_now("nestedReentry", 1_000)
+        .expect("manual cron run");
+    assert_eq!(
+        record.outcome,
+        CronRunOutcome::Succeeded,
+        "nested re-entry must not strand the outer action: {:?}",
+        record.diagnostic
+    );
+
+    // Both nested mutations committed — proving the second host call, made
+    // after the first nested Ibex mutation returned, still had a live context.
+    let query = snapback
+        .invoke_query("listAllTodos", input(json!({}), "nested"))
+        .expect("query todos after nested action");
+    let titles: Vec<&str> = query
+        .rows
+        .iter()
+        .filter_map(|row| row["title"].as_str())
+        .collect();
+    assert!(titles.contains(&"first"), "first nested insert missing: {titles:?}");
+    assert!(titles.contains(&"second"), "second nested insert missing: {titles:?}");
+}
+
+fn ibex_nested_reentry_functions() -> FunctionManifest {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async listAllTodos(ctx) {
+    return await ctx.db.query('todos').order('_createdAt', 'asc').collect();
+  },
+  async innerCreate(ctx, args) {
+    return await ctx.db.insert('todos', {
+      title: args.title, completed: false, userId: 'nested',
+    });
+  },
+  async nestedAction(ctx) {
+    const first = await ctx.runMutation('innerCreate', { title: 'first' });
+    // This second host call runs AFTER the first nested Ibex mutation has
+    // returned; on the bug the context is null here and it fails closed.
+    const second = await ctx.runMutation('innerCreate', { title: 'second' });
+    return { first: first, second: second };
+  }
+};
+"#;
+    let mut manifest = FunctionManifest::default();
+
+    let mut list = FunctionDefinition::new(
+        "listAllTodos",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "listAllTodos".to_owned(),
+        }),
+    );
+    list.required_capabilities = vec![
+        "live_subscriptions".to_owned(),
+        "ibex_ctx_db_host_bridge".to_owned(),
+    ];
+    list.read_set_summary.primary_table = Some("todos".to_owned());
+    list.read_set_summary.tables = vec!["todos".to_owned()];
+    list.read_set_summary.mode = Some("handlerDeclared".to_owned());
+    manifest.functions.push(list);
+
+    let mut inner = FunctionDefinition::new(
+        "innerCreate",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "innerCreate".to_owned(),
+        }),
+    );
+    inner.required_capabilities = vec![
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+    ];
+    inner.write_set_summary.primary_table = Some("todos".to_owned());
+    inner.write_set_summary.tables = vec!["todos".to_owned()];
+    inner.write_set_summary.mode = Some("handlerDeclared".to_owned());
+    manifest.functions.push(inner);
+
+    let mut action = FunctionDefinition::new(
+        "nestedAction",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "nestedAction".to_owned(),
+        }),
+    );
+    action.required_capabilities = vec!["cron".to_owned(), "cron_action_run_mutation".to_owned()];
+    manifest.functions.push(action);
+
+    manifest.cron_jobs = vec![CronJobDefinition {
+        name: "nestedReentry".to_owned(),
+        schedule: CronSchedule {
+            every_ms: Some(60_000),
+            cron: None,
+        },
+        action: "nestedAction".to_owned(),
+        enabled: true,
+        activation: CronActivationPolicy::default(),
+        jitter_policy: CronJitterPolicy {
+            enabled: false,
+            max_offset_ms: 0,
+        },
+        overlap_policy: CronOverlapPolicy::NoOverlap,
+        retry_policy: CronRetryPolicy {
+            mode: CronRetryMode::NextTick,
+        },
+        required_capabilities: vec!["cron".to_owned(), "cron_action_run_mutation".to_owned()],
+        target_wakeup: None,
+        source_span: None,
+    }];
+
+    manifest
+}

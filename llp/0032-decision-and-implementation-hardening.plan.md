@@ -346,6 +346,12 @@ Each fix lands with a failing-then-passing test named for the step id.
   process-global Ibex host and creates a second VM mid-flight
   (`vendor/ibex/src/host/abi.rs:128-142`); the thread-local fix alone leaves
   those — scope them here or hand them to L7's threading work explicitly.
+  **Landed 2026-07-01** — the context pointer is now saved and restored (a
+  stack via recursion), not nulled on the inner exit; the second-VM and
+  host-reinstall inefficiency is explicitly handed to L7/M2. Test
+  `s5_d1_action_calling_ibex_mutation_preserves_context` makes a second host
+  call after the nested Ibex mutation returns; proven to fail closed
+  (`SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT`) on the pre-fix code.
 - **S5.D2 — Codegen optional-field regex emits invalid TypeScript**
   [confirmed]. `typeForValidator` strips optionals with a mis-escaped
   pattern (`demos/_kit/codegen.mjs:1220`); committed proof:
