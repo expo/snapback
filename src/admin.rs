@@ -37,6 +37,13 @@ const CONSOLE_HTML: &str = include_str!("admin/console.html");
 /// not a second implementation; it never reads a value back.
 const SETUP_HTML: &str = include_str!("admin/setup.html");
 
+/// The one admin HTTP client, shared by both consoles (LLP 0032 P8): the
+/// embedded console imports this exact module from
+/// `/_snapback/admin/client.mjs`, and the Contract admin-ui imports the same
+/// file as the `@snapback/admin-client` workspace package — one client, no
+/// per-console drift.
+const ADMIN_CLIENT_MJS: &str = include_str!("../packages/snapback-admin-client/index.mjs");
+
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
 /// socket it is served on) and the admin authorization configuration.
 #[derive(Clone, Debug)]
@@ -171,7 +178,8 @@ impl FromRef<AppState> for Arc<ServerContext> {
 }
 
 /// Server-runtime facts surfaced on the admin dashboard.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct ServerInfo {
     pub host: String,
     pub port: u16,
@@ -188,7 +196,8 @@ pub struct ServerInfo {
 /// @ref LLP 0017#headless-admin-contract — admin-write capability is a reported
 /// capability field, not a private flag, and unimplemented surfaces are honest
 /// gaps rather than placeholder controls.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct AdminCapabilities {
     pub console: bool,
     pub read_inspect: bool,
@@ -211,7 +220,7 @@ pub struct AdminCapabilities {
 ///
 /// @ref LLP 0017#headless-admin-contract — extend the runtime-state facts rather
 /// than inventing a parallel schema.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct AdminInspect {
     #[serde(flatten)]
     pub inspect: InspectState,
@@ -407,6 +416,17 @@ async fn console_asset(
         .any(|segment| segment.is_empty() || segment == "." || segment == "..")
     {
         return StatusCode::NOT_FOUND.into_response();
+    }
+    // The shared admin client is always served embedded — the bootstrap
+    // property (LLP 0017): the console and its client work with no dist and
+    // no build step, and a dist cannot shadow the client the embedded
+    // console's import resolves.
+    if path == "client.mjs" {
+        return (
+            [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+            ADMIN_CLIENT_MJS,
+        )
+            .into_response();
     }
     let exact_artifact = crate::contract_exact::is_exact_static_artifact_path(&path);
     let Some(dist) = &ctx.admin_dist else {

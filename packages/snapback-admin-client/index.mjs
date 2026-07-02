@@ -1,14 +1,35 @@
-// HTTP client for the Snapback headless admin API (`/_snapback/api/*`).
+// The one HTTP client for the Snapback headless admin API (`/_snapback/api/*`).
+//
+// Both admin consoles consume this module (LLP 0032 P8): the Contract
+// admin-ui imports it as a workspace package, and the embedded single-file
+// console imports the same file served by the server at
+// `/_snapback/admin/client.mjs` — so client behavior (auth header, error
+// shaping, verb set) cannot drift one console at a time, which is where the
+// diary-0005 casing bug class lived.
 //
 // The admin console is a *system app*: it talks to this privileged admin
 // contract, never to ordinary app tables through generated application
-// functions. That keeps it usable even when the app's own schema/functions are
-// broken — the bootstrap property LLP 0017 requires.
+// functions. That keeps it usable even when the app's own schema/functions
+// are broken — the bootstrap property LLP 0017 requires.
+
+const TOKEN_STORAGE_KEY = 'snapback_admin_token';
 
 export class AdminClient {
-  constructor(baseUrl) {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
-    this.token = (typeof localStorage !== 'undefined' && localStorage.getItem('snapback_admin_token')) || '';
+  constructor(baseUrl, { token } = {}) {
+    this.baseUrl = String(baseUrl ?? '').replace(/\/$/, '');
+    this.token = token ?? storedToken();
+  }
+
+  setToken(token) {
+    this.token = token ?? '';
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(TOKEN_STORAGE_KEY, this.token);
+      }
+    } catch {
+      // Storage may be unavailable (private mode, headless); the in-memory
+      // token still applies to this client.
+    }
   }
 
   async #req(method, path, body) {
@@ -41,12 +62,15 @@ export class AdminClient {
           : { code: `HTTP_${res.status}`, message: text };
       const error = new Error(`${d.code}: ${d.message ?? ''}`);
       error.diagnostic = d;
+      // Consoles branch on auth failures (token banner) — expose the status.
+      error.status = res.status;
       throw error;
     }
     if (parseError) {
       const d = { code: 'SNAPBACK_RESPONSE_NOT_JSON', message: `HTTP ${res.status} response is not JSON: ${bodySnippet(text)}` };
       const error = new Error(`${d.code}: ${d.message}`);
       error.diagnostic = d;
+      error.status = res.status;
       throw error;
     }
     return json;
@@ -64,8 +88,24 @@ export class AdminClient {
     return this.#req('POST', `/functions/${encodeURIComponent(name)}/run`, input);
   }
 
+  tickCron() {
+    return this.#req('POST', '/cron/tick');
+  }
+
+  runCronJob(name) {
+    return this.#req('POST', `/cron/${encodeURIComponent(name)}/run`);
+  }
+
   cleanupEphemeral() {
     return this.#req('POST', '/ephemeral/cleanup');
+  }
+}
+
+function storedToken() {
+  try {
+    return (typeof localStorage !== 'undefined' && localStorage.getItem(TOKEN_STORAGE_KEY)) || '';
+  } catch {
+    return '';
   }
 }
 

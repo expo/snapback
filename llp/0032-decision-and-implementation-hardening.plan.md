@@ -1266,6 +1266,26 @@ client, typed inspect) remain open** — Milestone C needs them.
   pinned via `exact.pin.json` since ENG-22463/22487, kept building. P8
   should adopt the pinned consumption (`exactContractWeb` preset + pin) for
   admin-ui — the same toolchain-drift class Diary 0009's red-team named.
+  **Landed 2026-07-02, three legs.** (1) *Pinned consumption:*
+  `checkExactPin` in the shared build preset (drift report,
+  `EXACT_PIN_STRICT=1` hard-fail, `EXACT_WRITE_PIN=1` deliberate re-pin —
+  all three paths proven) + `admin-ui/exact.pin.json`; the fonts()
+  pure-context break fixed via `theme.contract-meta.ts`; the remaining mac
+  native-envelope break at Exact HEAD filed as ENG-22578 with the verify
+  lane building web-only meanwhile. (2) *One admin client:*
+  `@snapback/admin-client` — the Contract admin-ui imports the workspace
+  package, the embedded console imports the byte-identical module served
+  embedded at `/_snapback/admin/client.mjs`
+  (`p8_both_consoles_consume_the_one_embedded_admin_client`); the console's
+  inline `api()` duplicate is deleted. (3) *Typed inspect:* the payload is
+  camelCase end to end (StorageInfo, RuntimeCapabilities, delivery/
+  ephemeral/cron counters, the server/admin blocks; `DiagnosticSeverity`
+  now serializes lowercase, conforming Rust to the JS diagnostic family it
+  had drifted from — aliases keep old spellings parsing); the embedded v0
+  artifacts keep their LLP 0012-pinned shapes as the documented exception;
+  committed schemas `inspect.admin.schema.json` + `inspect.public.schema.json`
+  ride the LLP 0037 drift gate; `tests/inspect_casing_v0.rs` walks both real
+  payloads. All 188 Rust tests green; every touched JS suite green.
 
 ## Phase 6 — Strategic derisking
 

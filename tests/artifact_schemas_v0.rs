@@ -54,6 +54,18 @@ fn artifact_schemas() -> Vec<(&'static str, Option<&'static str>, Value)> {
             serde_json::to_value(schemars::schema_for!(HostReadyDescriptor))
                 .expect("host-ready schema"),
         ),
+        (
+            "inspect.admin.schema.json",
+            None,
+            serde_json::to_value(schemars::schema_for!(snapback::admin::AdminInspect))
+                .expect("admin inspect schema"),
+        ),
+        (
+            "inspect.public.schema.json",
+            None,
+            serde_json::to_value(schemars::schema_for!(snapback::local::PublicInspect))
+                .expect("public inspect schema"),
+        ),
     ]
 }
 

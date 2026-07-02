@@ -45,7 +45,7 @@ await runAcceptance(suite, async () => {
     const res = await db.loadSchema(generated.schemaManifest);
     assertEqual(res.diagnostics, [], 'schema diagnostics');
     const state = await db.inspect();
-    assertEqual(state.ephemeral.room_count, 0, 'rooms before browsers');
+    assertEqual(state.ephemeral.roomCount, 0, 'rooms before browsers');
     return { baseUrl: snapbackServer.baseUrl, staticUrl: staticServer.baseUrl };
   });
 
@@ -80,8 +80,8 @@ await runAcceptance(suite, async () => {
   await suite.check('cursor publishes do not advance durable storage', async () => {
     const state = await db.inspect();
     assertEqual(state.storage.version, 0, 'durable storage version after cursor moves');
-    assertEqual(state.ephemeral.room_count, 1, 'one cursor room');
-    assert(state.ephemeral.entry_count >= 2, `expected at least two cursor entries, got ${state.ephemeral.entry_count}`);
+    assertEqual(state.ephemeral.roomCount, 1, 'one cursor room');
+    assert(state.ephemeral.entryCount >= 2, `expected at least two cursor entries, got ${state.ephemeral.entryCount}`);
     return { storageVersion: state.storage.version, ephemeral: state.ephemeral };
   });
 

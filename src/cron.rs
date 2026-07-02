@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 const MAX_RECENT_RUNS: usize = 50;
 const LOCAL_MIN_INTERVAL_MS: u64 = 1_000;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronInspectState {
     #[serde(rename = "artifactKind")]
     pub artifact_kind: String,
@@ -22,7 +22,7 @@ pub struct CronInspectState {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronJobInspect {
     pub name: String,
     pub action: String,
@@ -58,14 +58,14 @@ pub struct CronJobInspect {
     pub recent_runs: Vec<CronRunRecord>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronActivationState {
     Armed,
     InactiveNoDemand,
     Disabled,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronRunTrigger {
     Scheduled,
     Manual,
@@ -73,14 +73,14 @@ pub enum CronRunTrigger {
     DemandCatchUp,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronRunOutcome {
     Succeeded,
     Failed,
     Skipped,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronRunRecord {
     #[serde(rename = "runId")]
     pub run_id: String,

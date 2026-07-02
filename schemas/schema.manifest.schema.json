@@ -57,10 +57,10 @@
     },
     "DiagnosticSeverity": {
       "enum": [
-        "Info",
-        "Warning",
-        "Error",
-        "Fatal"
+        "info",
+        "warning",
+        "error",
+        "fatal"
       ],
       "type": "string"
     },

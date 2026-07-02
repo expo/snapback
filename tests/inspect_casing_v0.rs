@@ -1,0 +1,116 @@
+// LLP 0032 P8: the inspect payload is camelCase, consistently — the mixed
+// camel/snake/Pascal payload is where the diary-0005 casing bug class lived.
+// This test serializes the real admin and public inspect payloads and walks
+// every key. Two subtrees are exempt by design and documented here:
+//
+//   - `schema` and `functions`: the embedded v0 generated artifacts, whose
+//     wire shapes (`field_type`, host-plan `indexed_by`, externally-tagged
+//     runtime variants, …) are the ratified LLP 0012 v0 artifact pin — their
+//     casing is owned by that pin, not by the inspect payload.
+//   - `ephemeral.activeRooms[].scope`: scope field names are app data
+//     (whatever the app's ephemeral collection declares), not payload keys.
+
+use serde_json::Value;
+use snapback::admin::{AdminInspect, ServerContext};
+use snapback::local::LocalSnapback;
+use snapback::manifest::{FunctionManifest, SchemaManifest};
+use std::fs;
+use std::path::PathBuf;
+
+fn generated(file: &str) -> String {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("demos/todo/snapback/generated")
+        .join(file);
+    fs::read_to_string(path).expect("read generated artifact")
+}
+
+fn configured_snapback() -> LocalSnapback {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let schema: SchemaManifest =
+        serde_json::from_str(&generated("schema.manifest.json")).expect("schema manifest");
+    let functions: FunctionManifest =
+        serde_json::from_str(&generated("functions.manifest.json")).expect("functions manifest");
+    snapback.apply_schema(schema).expect("apply schema");
+    snapback.load_functions(functions);
+    snapback
+}
+
+fn is_camel_case(key: &str) -> bool {
+    let mut chars = key.chars();
+    match chars.next() {
+        Some(first) if first.is_ascii_lowercase() => {}
+        _ => return false,
+    }
+    key.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+fn exempt(path: &str) -> bool {
+    // The embedded v0 artifacts keep their ratified pinned shapes.
+    path.starts_with(".schema.") || path == ".schema"
+        || path.starts_with(".functions.") || path == ".functions"
+        // App-declared scope field names are data, not payload keys.
+        || path.contains(".scope.")
+}
+
+fn walk(value: &Value, path: &str, offenders: &mut Vec<String>) {
+    match value {
+        Value::Object(map) => {
+            for (key, inner) in map {
+                let key_path = format!("{path}.{key}");
+                if !exempt(&key_path) && !is_camel_case(key) {
+                    offenders.push(key_path.clone());
+                }
+                walk(inner, &key_path, offenders);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                walk(item, &format!("{path}[]"), offenders);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn p8_admin_inspect_payload_is_camel_case() {
+    let mut snapback = configured_snapback();
+    let inspect = snapback.inspect().expect("inspect");
+    let admin = AdminInspect::assemble(inspect, &ServerContext::detached());
+    let payload = serde_json::to_value(&admin).expect("serialize admin inspect");
+
+    let mut offenders = Vec::new();
+    walk(&payload, "", &mut offenders);
+    assert!(
+        offenders.is_empty(),
+        "non-camelCase keys in the admin inspect payload:\n{}",
+        offenders.join("\n")
+    );
+}
+
+#[test]
+fn p8_public_inspect_payload_is_camel_case() {
+    let mut snapback = configured_snapback();
+    let public =
+        snapback::local::PublicInspect::from(snapback.inspect().expect("inspect"));
+    let payload = serde_json::to_value(&public).expect("serialize public inspect");
+
+    let mut offenders = Vec::new();
+    walk(&payload, "", &mut offenders);
+    assert!(
+        offenders.is_empty(),
+        "non-camelCase keys in the public inspect payload:\n{}",
+        offenders.join("\n")
+    );
+}
+
+#[test]
+fn p8_diagnostic_severity_serializes_lowercase() {
+    // The LLP 0012 diagnostic family is lowercase on the JS side; the Rust
+    // serialization drifted PascalCase until P8. Old spellings still parse.
+    let severity = snapback::diagnostic::DiagnosticSeverity::Error;
+    assert_eq!(serde_json::to_value(&severity).unwrap(), Value::String("error".into()));
+    let parsed: snapback::diagnostic::DiagnosticSeverity =
+        serde_json::from_value(Value::String("Error".into())).expect("old spelling parses");
+    assert_eq!(parsed, snapback::diagnostic::DiagnosticSeverity::Error);
+}

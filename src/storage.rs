@@ -21,8 +21,9 @@ const META_CRON_STATE: &str = "cron_state";
 // below it, a change may be gone, so the client must resnapshot.
 const META_RETENTION_FLOOR: &str = "retention_floor";
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct StorageInfo {
+    #[serde(rename = "sqlitePath", alias = "sqlite_path")]
     pub sqlite_path: Option<PathBuf>,
     pub version: u64,
     pub tables: Vec<String>,

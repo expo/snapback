@@ -3,11 +3,19 @@ use serde_json::{Value, json};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
+// Lowercase on the wire (LLP 0032 P8): the LLP 0012 diagnostic family has
+// always been lowercase on the JS side ('error'); the Rust serialization
+// drifted PascalCase. Aliases keep old spellings parsing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
 pub enum DiagnosticSeverity {
+    #[serde(alias = "Info")]
     Info,
+    #[serde(alias = "Warning")]
     Warning,
+    #[serde(alias = "Error")]
     Error,
+    #[serde(alias = "Fatal")]
     Fatal,
 }
 

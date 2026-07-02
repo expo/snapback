@@ -80,7 +80,7 @@ impl DeliveryNotifier {
 pub type Millis = u64;
 pub type ConnectionId = String;
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, schemars::JsonSchema)]
 #[serde(transparent)]
 pub struct Scope(BTreeMap<String, String>);
 
@@ -479,7 +479,8 @@ impl RealtimeEnvelope {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct EphemeralDiagnostics {
     pub room_count: usize,
     pub entry_count: usize,
@@ -508,7 +509,8 @@ pub struct EphemeralDiagnostics {
     pub limit_rejections: u64,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct EphemeralRoomDiagnostics {
     pub collection: String,
     pub routing_key: String,
