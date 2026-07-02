@@ -62,10 +62,62 @@ export const DEFAULT_POLL_CADENCE_MS = 1_500;
 // server has processed the closing socket's disconnect (which drops the
 // connection's subscriptions) before the fresh subscribe_live lands.
 const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
+// Kit receipt ring bound — mirrors the server-side retention cap (LLP 0034 §3).
+const RECEIPT_RING_CAP = 256;
 
 export class SnapbackClient {
   constructor(baseUrl) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    // Receipt retention, kit half (LLP 0034 §3 / ENG-22478): a bounded ring
+    // of every receipt this client observed (mutation receipts riding
+    // responses, subscription receipts emitted by live handles, ephemeral
+    // publish receipts), surfaced to the adapter via receipts()/onReceipt.
+    this.__receiptRing = [];
+    this.__receiptListeners = new Set();
+    // Cross-lane drain routing (LLP 0034 §10.1 residual): per-connection
+    // consumer registries so one connection's durable and ephemeral lanes
+    // never destructively discard each other's envelopes on drain.
+    this.__laneConsumers = new Map();
+  }
+
+  /// Record a receipt into the bounded kit ring and notify listeners.
+  recordReceipt(receipt) {
+    if (!receipt || typeof receipt !== 'object') return receipt;
+    this.__receiptRing.push(receipt);
+    while (this.__receiptRing.length > RECEIPT_RING_CAP) this.__receiptRing.shift();
+    for (const listener of [...this.__receiptListeners]) listener(receipt);
+    return receipt;
+  }
+
+  /// The receipts this client has observed, oldest first (bounded ring).
+  receipts() {
+    return [...this.__receiptRing];
+  }
+
+  onReceipt(listener) {
+    this.__receiptListeners.add(listener);
+    return () => this.__receiptListeners.delete(listener);
+  }
+
+  #laneConsumersFor(connectionId) {
+    let consumers = this.__laneConsumers.get(connectionId);
+    if (!consumers) {
+      consumers = { durable: new Set(), ephemeral: new Set() };
+      this.__laneConsumers.set(connectionId, consumers);
+    }
+    return consumers;
+  }
+
+  registerDurableConsumer(connectionId, consumer) {
+    const consumers = this.#laneConsumersFor(connectionId);
+    consumers.durable.add(consumer);
+    return () => consumers.durable.delete(consumer);
+  }
+
+  registerEphemeralConsumer(connectionId, consumer) {
+    const consumers = this.#laneConsumersFor(connectionId);
+    consumers.ephemeral.add(consumer);
+    return () => consumers.ephemeral.delete(consumer);
   }
 
   static auth(userId, { permissions = [] } = {}) {
@@ -104,6 +156,7 @@ export class SnapbackClient {
       const error = new Error(`${diag.code}: ${diag.message ?? ''}`);
       error.diagnostic = diag;
       error.status = res.status;
+      if (json?.receipt) error.receipt = json.receipt;
       throw error;
     }
     if (parseError) {
@@ -143,17 +196,47 @@ export class SnapbackClient {
     return this.#req('POST', `/query/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
   }
 
-  mutate(ref, { args = {}, userId, readSet = [] } = {}) {
+  async mutate(ref, { args = {}, userId, readSet = [], correlation = null } = {}) {
     const name = functionName(ref);
-    return this.#req('POST', `/mutation/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
+    const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
+    // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
+    // the receipt; the provider never interprets it.
+    if (correlation) body.correlation = correlation;
+    try {
+      const json = await this.#req('POST', `/mutation/${name}`, body);
+      if (json?.receipt) this.recordReceipt(json.receipt);
+      return json;
+    } catch (error) {
+      // A REJECTED mutation still produced its receipt (it rides the error
+      // envelope) — retain it before rethrowing.
+      if (error?.receipt) this.recordReceipt(error.receipt);
+      throw error;
+    }
   }
 
-  async subscribeLive(ref, { connectionId, args = {}, userId } = {}) {
+  async subscribeLive(ref, { connectionId, args = {}, userId, correlation = null } = {}) {
     const name = functionName(ref);
-    return this.#req('POST', `/live/${name}/subscribe`, {
+    const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
+    if (correlation) input.correlation = correlation;
+    const response = await this.#req('POST', `/live/${name}/subscribe`, {
       connection_id: connectionId,
-      input: { args, auth: SnapbackClient.auth(userId), read_set: [] },
+      input,
     });
+    if (response?.receipt) this.recordReceipt(response.receipt);
+    return response;
+  }
+
+  /// Explicit unsubscribe (LLP 0034 §10.1 residual / ENG-22478): dispose one
+  /// live subscription; ownership mirrors resume_live.
+  async unsubscribeLive(ref, { subscriptionId, connectionId, userId } = {}) {
+    const name = functionName(ref);
+    const response = await this.#req('POST', `/live/${name}/unsubscribe`, {
+      subscription_id: subscriptionId,
+      connection_id: connectionId,
+      auth: SnapbackClient.auth(userId),
+    });
+    if (response?.receipt) this.recordReceipt(response.receipt);
+    return response;
   }
 
   subscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
@@ -166,18 +249,42 @@ export class SnapbackClient {
     }).then((snapshot) => new EphemeralOverlay(this, ref, { connectionId, scope, userId, permissions, snapshot }));
   }
 
-  publishEphemeral(ref, { connectionId, scope = {}, value, ttlMs = null, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
-    return this.#req('POST', '/ephemeral/publish', {
-      collection: collectionName(ref),
-      scope,
-      connection_id: connectionId,
-      session_id: sessionId,
-      user_id: ownerUserId,
-      custom_key: customKey,
-      value: encodeEphemeralValue(value),
-      ttl_ms: ttlMs,
-      auth: SnapbackClient.auth(userId, { permissions }),
-    });
+  async publishEphemeral(ref, { connectionId, scope = {}, value, ttlMs = null, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
+    const collection = collectionName(ref);
+    try {
+      const outcome = await this.#req('POST', '/ephemeral/publish', {
+        collection,
+        scope,
+        connection_id: connectionId,
+        session_id: sessionId,
+        user_id: ownerUserId,
+        custom_key: customKey,
+        value: encodeEphemeralValue(value),
+        ttl_ms: ttlMs,
+        auth: SnapbackClient.auth(userId, { permissions }),
+      });
+      // Ephemeral one-version story (LLP 0034 §3.1): snapshotVersion is the
+      // entryVersion, valid WITHIN a scopeEpoch; the epoch rides in the
+      // snapback-namespaced field. Privacy (§3.3): never the payload value.
+      this.recordReceipt({
+        kind: 'ephemeral-publish',
+        collection,
+        outcome: 'confirmed',
+        snapshotVersion: outcome.entry_version,
+        snapback: { scopeEpoch: outcome.scope_epoch, key: outcome.key },
+        receivedAtMs: Date.now(),
+      });
+      return outcome;
+    } catch (error) {
+      this.recordReceipt({
+        kind: 'ephemeral-publish',
+        collection,
+        outcome: 'rejected',
+        rollbackReason: error?.diagnostic?.code ?? 'SNAPBACK_EPHEMERAL_PUBLISH_FAILED',
+        receivedAtMs: Date.now(),
+      });
+      throw error;
+    }
   }
 
   deleteEphemeral(ref, { connectionId, scope = {}, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
@@ -202,17 +309,34 @@ export class SnapbackClient {
     return this.#req('GET', `/outbox/${connectionId}`);
   }
 
-  // Drains a connection's outbox and decodes durable live-query updates.
-  async drainUpdates(connectionId) {
+  // The shared drain choke point (LLP 0034 §10.1 residual / ENG-22478): a
+  // connection's outbox is ONE queue carrying both lanes, so every drain
+  // routes each envelope to the registered consumers of ITS lane instead of
+  // destructively discarding the other lane's traffic. Returns the decoded
+  // durable updates and the raw ephemeral envelopes of this drain.
+  async drainConnection(connectionId) {
     const envelopes = await this.drainEnvelopes(connectionId);
-    const updates = [];
+    const consumers = this.__laneConsumers.get(connectionId);
+    const durable = [];
+    const ephemeral = [];
     for (const env of envelopes) {
       if (env && env.Durable) {
-        const text = decodeDurablePayload(env.Durable.payload);
-        updates.push(JSON.parse(text));
+        const update = JSON.parse(decodeDurablePayload(env.Durable.payload));
+        durable.push(update);
+        for (const consumer of [...(consumers?.durable ?? [])]) consumer(update);
+      } else if (env) {
+        ephemeral.push(env);
+        for (const consumer of [...(consumers?.ephemeral ?? [])]) consumer(env);
       }
     }
-    return updates;
+    return { durable, ephemeral };
+  }
+
+  // Drains a connection's outbox and decodes durable live-query updates.
+  // Ephemeral envelopes in the same drain are ROUTED to registered ephemeral
+  // consumers (e.g. an EphemeralOverlay on this connection), never discarded.
+  async drainUpdates(connectionId) {
+    return (await this.drainConnection(connectionId)).durable;
   }
 
   openLiveStream(connectionId) {
@@ -298,6 +422,7 @@ export class SnapbackClient {
     onUpdate = null,
     onConnectionChange = null,
     onSubscriptionEvent = null,
+    correlation = null,
     stream: streamOptions = {},
   } = {}) {
     const name = functionName(ref);
@@ -337,20 +462,28 @@ export class SnapbackClient {
       onConnectionChange?.(next, { previous });
     };
 
-    // Minimal subscription events (LLP 0034 D1; the Exact LLP 0284 §2.6
-    // SubscriptionReceipt 'event' vocabulary — full receipt fields are D2).
-    // Versions are the server's durable commit versions carried on the
-    // snapshot and every live_replace; the kit assigns no sequence of its own.
+    // Full SubscriptionReceipts (LLP 0034 §3.2 / ENG-22478): the kit is the
+    // provider half that knows the actual transport; scope is REQUIRED (the
+    // subscription's routing/scope args); versions are the server's durable
+    // commit versions (§3.1 — one version story, nothing invented); the
+    // adapter's opaque correlation is echoed verbatim. Receipts are retained
+    // in the client ring and handed to onSubscriptionEvent.
     const emitEvent = (event, extra = {}) => {
-      onSubscriptionEvent?.({
+      const receipt = {
+        kind: 'subscription',
         bindingId: handle.subscriptionId,
+        subscriptionId: handle.subscriptionId,
         event,
         transport: transport === 'stream' && streamedSinceSubscribe ? 'push' : 'poll',
         scope: { ...args },
         snapshotVersion: handle.version,
         lastDeltaVersion: handle.version,
+        correlation,
+        receivedAtMs: Date.now(),
         ...extra,
-      });
+      };
+      client.recordReceipt(receipt);
+      onSubscriptionEvent?.(receipt);
     };
 
     const applyDurable = (update) => {
@@ -377,7 +510,7 @@ export class SnapbackClient {
     };
 
     const subscribeFresh = async () => {
-      const sub = await client.subscribeLive(name, { connectionId, args, userId });
+      const sub = await client.subscribeLive(name, { connectionId, args, userId, correlation });
       // Any successful fresh subscribe satisfies an outstanding need — clear
       // it here so every path (establish, resume, resubscribe) agrees.
       needsResubscribe = false;
@@ -471,12 +604,14 @@ export class SnapbackClient {
       if (needsResubscribe && !resubscribing) {
         await resubscribe(pendingResubscribeReason);
       }
-      // HTTP outbox drain: one bounded queue per connection, durable lane
-      // first, then resync, then coalesced ephemeral (OutboundQueue::drain —
-      // durable-over-ephemeral priority, LLP 0013 §delivery-lanes). The kit
-      // preserves arrival order and never reorders ephemeral ahead of durable.
-      const updates = await client.drainUpdates(connectionId);
-      for (const update of updates) applyDurable(update);
+      // HTTP outbox drain through the shared choke point: one bounded queue
+      // per connection, durable lane first, then resync, then coalesced
+      // ephemeral (OutboundQueue::drain — durable-over-ephemeral priority,
+      // LLP 0013 §delivery-lanes). Routing applies durable updates to this
+      // handle via its registered consumer AND delivers both lanes to every
+      // other registered consumer on the connection — no cross-lane or
+      // cross-handle discards (LLP 0034 §10.1 / ENG-22478).
+      await client.drainConnection(connectionId);
       return handle.rows;
     };
 
@@ -574,6 +709,12 @@ export class SnapbackClient {
       };
     };
 
+    // Drained durable updates reach this handle through the connection's
+    // lane router (covers manual poll(), the fallback timer, AND any other
+    // consumer's drain on the same connection — the pre-D2 "whoever drains
+    // first steals the updates" gap).
+    const unregisterDurable = client.registerDurableConsumer(connectionId, applyDurable);
+
     // On subscribe failure the attached stream must not leak (LLP 0034 review
     // fix 5): detach (dropping manager demand closes the shared socket when
     // this was its only consumer), mark the handle disposed, and rethrow —
@@ -588,6 +729,7 @@ export class SnapbackClient {
       } catch (error) {
         stopFallback();
         clearResubscribeRetry();
+        unregisterDurable();
         detachStream?.();
         detachStream = null;
         disposed = true;
@@ -669,6 +811,7 @@ export class SnapbackClient {
       disposed = true;
       stopFallback();
       clearResubscribeRetry();
+      unregisterDurable();
       detachStream?.();
       detachStream = null;
       setConnection('disconnected');
@@ -978,7 +1121,23 @@ export class EphemeralOverlay {
     this.scopeEpoch = null;
     this.entries = new Map();
     this.needsResync = false;
+    this.__drainCapture = null;
+    // Cross-lane routing (LLP 0034 §10.1 / ENG-22478): the overlay is this
+    // connection's registered ephemeral consumer, so a durable drain on the
+    // same connection routes ephemeral envelopes here instead of dropping
+    // them (and this overlay's drain routes durable envelopes to the durable
+    // consumers symmetrically).
+    this.__unregister = client.registerEphemeralConsumer(connectionId, (envelope) => {
+      const result = this.apply(envelope);
+      this.__drainCapture?.push(result);
+    });
     if (snapshot) this.apply(snapshot);
+  }
+
+  /// Detach from the connection's lane router.
+  dispose() {
+    this.__unregister?.();
+    this.__unregister = null;
   }
 
   publish(value, options = {}) {
@@ -1008,25 +1167,44 @@ export class EphemeralOverlay {
   }
 
   async drain() {
-    const envelopes = await this.client.drainEnvelopes(this.connectionId);
-    const applied = [];
-    for (const envelope of envelopes) {
-      const result = this.apply(envelope);
-      if (result !== 'not_ephemeral') applied.push(result);
+    // Drain through the shared choke point: this overlay's registered
+    // consumer applies the ephemeral envelopes (captured here for the return
+    // value), while durable envelopes in the same drain are routed to the
+    // connection's durable consumers instead of being discarded.
+    this.__drainCapture = [];
+    try {
+      await this.client.drainConnection(this.connectionId);
+      return this.__drainCapture.filter((result) => result !== 'not_ephemeral');
+    } finally {
+      this.__drainCapture = null;
     }
-    return applied;
   }
 
   apply(input) {
     const message = unwrapEphemeralMessage(input);
     if (!message) return 'not_ephemeral';
     if (message.Snapshot) {
+      const previousEpoch = this.scopeEpoch;
       this.scopeEpoch = message.Snapshot.scope_epoch;
       this.entries.clear();
       for (const entry of message.Snapshot.entries ?? []) {
         this.entries.set(entry.key, normalizeEntry(entry));
       }
       this.needsResync = false;
+      // Ephemeral one-version story (LLP 0034 §3.1): entry versions are valid
+      // WITHIN a scopeEpoch; an epoch bump is a resubscription boundary and
+      // is receipted as such. The first snapshot is the establishment.
+      // Privacy (§3.3): scope/epoch/keys only — never entry values.
+      this.client.recordReceipt?.({
+        kind: 'subscription',
+        lane: 'ephemeral',
+        collection: collectionName(this.ref),
+        event: previousEpoch === null ? 'established' : 'resubscribed',
+        ...(previousEpoch === null ? {} : { reason: 'resync' }),
+        scope: { ...this.scope },
+        snapback: { scopeEpoch: this.scopeEpoch },
+        receivedAtMs: Date.now(),
+      });
       return 'applied';
     }
     if (message.Upsert) {

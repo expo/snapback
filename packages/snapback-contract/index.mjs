@@ -128,6 +128,13 @@ export async function createSnapbackContractSurface({
   liveStreamOptions = {},
   onConnectionChange = null,
   onSubscriptionEvent = null,
+  // Receipt stitching (LLP 0034 §3.2 / ENG-22478): the adapter owns the
+  // Exact-runtime join keys. rootId identifies this mounted surface;
+  // actionInvocationId / optimisticWaveId are supplied per-mutation once the
+  // Exact LLP 0231 action log / LLP 0278 wave integration lands (TODO seam —
+  // pass them via the correlation the runtime provides at that point).
+  rootId = null,
+  onReceipt = null,
   // Multi-query mode (LLP 0034 §6 ownership row 3 — the All Aboard proof):
   // name the manifest's live queries to bind each over the shared stream with
   // its own boundary key and per-query connection axis. Legacy single-query
@@ -148,6 +155,10 @@ export async function createSnapbackContractSurface({
     error.diagnostic = blockingDiagnostic;
     throw error;
   }
+  const surfaceRootId = rootId ?? defaultContractRootId();
+  const detachReceiptListener = onReceipt && typeof client.onReceipt === 'function'
+    ? client.onReceipt(onReceipt)
+    : null;
   if (Array.isArray(liveQueries)) {
     return createMultiLiveContractSurface({
       runtime,
@@ -160,11 +171,16 @@ export async function createSnapbackContractSurface({
       liveStreamOptions,
       onConnectionChange,
       onSubscriptionEvent,
+      rootId: surfaceRootId,
+      detachReceiptListener,
       diagnostics,
       pending,
       mountedHandles,
     });
   }
+  // The adapter-stitched correlation (LLP 0034 §3.2): echoed verbatim on
+  // every receipt this surface's operations produce.
+  const surfaceCorrelation = { rootId: surfaceRootId, bindingIds: [boundaryKey] };
   let optimisticSeq = 0;
   let disposed = false;
   const queryNames = Object.keys(manifest?.queries ?? {});
@@ -223,6 +239,7 @@ export async function createSnapbackContractSurface({
       userId,
       transport: 'stream',
       stream: liveStreamOptions,
+      correlation: surfaceCorrelation,
       onUpdate: (rows) => {
         writeServerRows(rows);
       },
@@ -280,7 +297,9 @@ export async function createSnapbackContractSurface({
 
   const persistMutation = async (name, args, optimisticOp = null) => {
     try {
-      await client.mutate(name, { args, userId });
+      // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
+      // into this correlation when the runtime supplies them.
+      await client.mutate(name, { args, userId, correlation: surfaceCorrelation });
       // The commit landed: drop the optimistic op BEFORE reconciling so the
       // authoritative row is not doubled by its own overlay.
       if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
@@ -328,7 +347,7 @@ export async function createSnapbackContractSurface({
     providerMutations[name] = async (args, qb) => {
       assertActive();
       await track((async () => {
-        await client.mutate(name, { args, userId });
+        await client.mutate(name, { args, userId, correlation: surfaceCorrelation });
         // reconcile writes overlaid rows; write the same rows through the
         // provider's boundary handle so concurrent optimistic ops survive.
         const rows = await reconcile();
@@ -397,6 +416,9 @@ export async function createSnapbackContractSurface({
     // subscription-backed).
     livePush: wantLivePush,
     connection: surfaceConnection,
+    // Receipt surface (LLP 0034 §3 / ENG-22478): the kit ring, adapter-facing.
+    rootId: surfaceRootId,
+    receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
     mount: (component, options = {}) => {
       assertActive();
       return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
@@ -406,6 +428,7 @@ export async function createSnapbackContractSurface({
     },
     dispose: () => {
       disposed = true;
+      detachReceiptListener?.();
       liveHandle?.dispose();
       liveHandle = null;
       liveCellObservers.clear();
@@ -417,6 +440,11 @@ export async function createSnapbackContractSurface({
       pending.clear();
     },
   };
+}
+
+function defaultContractRootId() {
+  const unique = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
+  return `root_${unique}`;
 }
 
 function defaultContractConnectionId() {
@@ -448,6 +476,8 @@ async function createMultiLiveContractSurface({
   liveStreamOptions,
   onConnectionChange,
   onSubscriptionEvent,
+  rootId,
+  detachReceiptListener = null,
   diagnostics,
   pending,
   mountedHandles,
@@ -508,6 +538,9 @@ async function createMultiLiveContractSurface({
         userId,
         transport: 'stream',
         stream: liveStreamOptions,
+        // Adapter-stitched correlation (LLP 0034 §3.2); TODO(Exact LLP
+        // 0231/0278): thread action/wave ids when the runtime supplies them.
+        correlation: { rootId, bindingIds: [name] },
         onUpdate: (rows) => {
           if (!disposed && boundary) boundary.write(name, () => rows);
         },
@@ -546,7 +579,11 @@ async function createMultiLiveContractSurface({
 
   const persistMutation = async (name, args) => {
     try {
-      await client.mutate(name, { args, userId });
+      await client.mutate(name, {
+        args,
+        userId,
+        correlation: { rootId, bindingIds: [...liveQueries] },
+      });
     } catch (error) {
       publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
         mutation: name,
@@ -627,6 +664,8 @@ async function createMultiLiveContractSurface({
     livePush: wantLivePush,
     liveQueries: [...liveQueries],
     connectionId: sharedConnectionId,
+    rootId,
+    receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
     // Per-query connection facts; no argument = the first live query.
     connection: (name = liveQueries[0]) => connectionFor(name),
     connections: () => Object.fromEntries(liveQueries.map((name) => [name, connectionFor(name)])),
@@ -639,6 +678,7 @@ async function createMultiLiveContractSurface({
     },
     dispose: () => {
       disposed = true;
+      detachReceiptListener?.();
       for (const [, handle] of liveHandles) {
         handle.dispose();
       }
