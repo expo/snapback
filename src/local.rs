@@ -48,6 +48,13 @@ pub struct InspectState {
     #[serde(rename = "capabilityManifest")]
     pub capability_manifest: CapabilityManifest,
     pub subscriptions: Vec<LiveSubscriptionInfo>,
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2 connection
+    // reaper counters (counts only; no connection ids beyond the trimmed public
+    // subscription list).
+    #[serde(rename = "activeConnections")]
+    pub active_connections: usize,
+    #[serde(rename = "reapedConnections")]
+    pub reaped_connections: u64,
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
     pub ephemeral: EphemeralDiagnostics,
@@ -89,6 +96,10 @@ pub struct PublicInspect {
     #[serde(rename = "capabilityManifest")]
     pub capability_manifest: CapabilityManifest,
     pub subscriptions: Vec<PublicSubscriptionInfo>,
+    #[serde(rename = "activeConnections")]
+    pub active_connections: usize,
+    #[serde(rename = "reapedConnections")]
+    pub reaped_connections: u64,
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
     pub ephemeral: EphemeralDiagnostics,
@@ -126,6 +137,8 @@ impl From<InspectState> for PublicInspect {
             functions,
             capability_manifest,
             subscriptions,
+            active_connections,
+            reaped_connections,
             live_delivery,
             ephemeral,
             cron,
@@ -157,6 +170,8 @@ impl From<InspectState> for PublicInspect {
                      }| PublicSubscriptionInfo { id, function },
                 )
                 .collect(),
+            active_connections,
+            reaped_connections,
             live_delivery,
             ephemeral,
             cron,
@@ -291,6 +306,12 @@ pub struct LocalSnapback {
     cron_active: Arc<AtomicBool>,
     last_persisted_cron: Option<Value>,
     cron_state_writes: u64,
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2: last-seen
+    // time per connection, so HTTP-polling clients that vanish without calling
+    // disconnect can be reaped (their subscriptions and ephemeral state torn
+    // down) instead of living forever.
+    connections_last_seen: BTreeMap<String, u64>,
+    reaped_connections: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -418,6 +439,8 @@ impl LocalSnapback {
                     function: subscription.function.clone(),
                 })
                 .collect(),
+            active_connections: self.connections_last_seen.len(),
+            reaped_connections: self.reaped_connections,
             live_delivery: self.live_delivery.clone(),
             ephemeral: self.ephemeral.diagnostics(),
             cron,
@@ -538,6 +561,7 @@ impl LocalSnapback {
         name: &str,
         input: LiveSubscribeInput,
     ) -> SnapbackResult<LiveSubscribeOutput> {
+        self.touch_connection(&input.connection_id, now_millis());
         let function = self.function(name)?;
         if function.kind != FunctionKind::LiveQuery {
             return Err(SnapbackError::error(
@@ -580,6 +604,7 @@ impl LocalSnapback {
         name: &str,
         input: LiveResumeInput,
     ) -> SnapbackResult<LiveResumeOutput> {
+        self.touch_connection(&input.connection_id, now_millis());
         let subscription = self
             .subscriptions
             .get(&input.subscription_id)
@@ -805,6 +830,7 @@ impl LocalSnapback {
         request: PublishRequest,
         now_ms: u64,
     ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
+        self.touch_connection(&request.connection_id, now_ms);
         self.ephemeral.publish(request, now_ms)
     }
 
@@ -813,6 +839,7 @@ impl LocalSnapback {
         request: SubscribeRequest,
         now_ms: u64,
     ) -> Result<EphemeralMessage, crate::ephemeral::EphemeralError> {
+        self.touch_connection(&request.connection_id, now_ms);
         self.ephemeral.subscribe(request, now_ms)
     }
 
@@ -821,6 +848,7 @@ impl LocalSnapback {
         request: DeleteRequest,
         now_ms: u64,
     ) -> Result<Option<EphemeralMessage>, crate::ephemeral::EphemeralError> {
+        self.touch_connection(&request.connection_id, now_ms);
         self.ephemeral.delete(request, now_ms)
     }
 
@@ -833,6 +861,7 @@ impl LocalSnapback {
         //   inactive:no-demand once no subscription to the named live query remains.
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
+        self.connections_last_seen.remove(connection_id);
         // Losing the last watcher of a demand-gated live query disarms its cron
         // job (L5).
         self.refresh_cron_active();
@@ -889,7 +918,45 @@ impl LocalSnapback {
     }
 
     pub fn drain_outbox(&mut self, connection_id: &str) -> Vec<RealtimeEnvelope> {
+        // A poll for updates is a liveness signal for an HTTP-polling client.
+        self.touch_connection(connection_id, now_millis());
         self.ephemeral.drain_outbox(connection_id)
+    }
+
+    /// Record connection activity for the L2 reaper. @ref LLP 0032 L2.
+    fn touch_connection(&mut self, connection_id: &str, now_ms: u64) {
+        self.connections_last_seen
+            .insert(connection_id.to_owned(), now_ms);
+    }
+
+    /// Reap connections idle longer than `ttl_ms`: tear down each one's live
+    /// subscriptions and ephemeral state (as an explicit disconnect would) and
+    /// count it. The safety net for HTTP-polling clients that vanish without
+    /// disconnecting; WS clients are already reaped on socket close.
+    ///
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
+    pub fn reap_stale_connections(&mut self, now_ms: u64, ttl_ms: u64) -> usize {
+        let cutoff = now_ms.saturating_sub(ttl_ms);
+        let stale: Vec<String> = self
+            .connections_last_seen
+            .iter()
+            .filter(|(_, seen)| **seen < cutoff)
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in &stale {
+            // disconnect removes the connection from connections_last_seen too.
+            self.disconnect(id, now_ms);
+        }
+        self.reaped_connections += stale.len() as u64;
+        stale.len()
+    }
+
+    pub fn active_connection_count(&self) -> usize {
+        self.connections_last_seen.len()
+    }
+
+    pub fn reaped_connection_count(&self) -> u64 {
+        self.reaped_connections
     }
 
     pub fn drain_live_stream(&mut self, connection_id: &str) -> Vec<String> {
@@ -921,6 +988,8 @@ impl LocalSnapback {
             cron_active: Arc::new(AtomicBool::new(false)),
             last_persisted_cron: None,
             cron_state_writes: 0,
+            connections_last_seen: BTreeMap::new(),
+            reaped_connections: 0,
         })
     }
 

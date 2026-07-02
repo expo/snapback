@@ -392,6 +392,30 @@ pub fn router(state: SharedSnapback) -> Router {
     app(AppState::detached(state))
 }
 
+/// How long a connection may be idle before the reaper tears it down, and how
+/// often the reaper runs. HTTP-polling clients poll well within this window;
+/// WS clients are reaped on socket close and never reach it.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
+const CONNECTION_IDLE_TTL_MS: u64 = 120_000;
+const CONNECTION_REAP_INTERVAL_MS: u64 = 30_000;
+
+/// Periodically reap connections that have gone idle past the TTL, so an
+/// abandoned HTTP-polling client's subscriptions and ephemeral state do not
+/// live forever.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
+pub fn spawn_connection_reaper(state: SharedSnapback) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut ticks = interval(Duration::from_millis(CONNECTION_REAP_INTERVAL_MS));
+        loop {
+            ticks.tick().await;
+            let mut snapback = state.lock().await;
+            snapback.reap_stale_connections(now_millis(), CONNECTION_IDLE_TTL_MS);
+        }
+    })
+}
+
 pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
     tokio::spawn(async move {
         // Clone the activity flag once, then poll it lock-free. When no cron

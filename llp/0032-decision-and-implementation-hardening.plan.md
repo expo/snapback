@@ -578,7 +578,13 @@ change the concurrency architecture and should land as one reviewed arc.
   socket close; the leak is HTTP-polling connections that vanish without
   calling disconnect.) Add heartbeat/expiry with counters.
   **Done when:** an abandoned-connection test shows reap, and counters
-  appear in `/inspect`.
+  appear in `/inspect`. **Landed 2026-07-01** — `connections_last_seen`
+  tracks per-connection activity (touched on subscribe/resume/outbox-drain and
+  every ephemeral op); a background `spawn_connection_reaper` (30 s interval,
+  120 s TTL) calls `reap_stale_connections`, which disconnects idle
+  connections (tearing down subscriptions + ephemeral state) and counts them.
+  `/inspect` gains `activeConnections`/`reapedConnections`. Test
+  `l2_abandoned_connection_is_reaped_with_counters`.
 - **L3 — Change-journal retention.** `_snapback_changes` grows without bound
   (pruned only by `reset`) and its per-query
   `MAX(version) WHERE table_name = ?` check is a full scan — the only index

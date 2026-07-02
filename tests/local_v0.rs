@@ -2755,3 +2755,41 @@ fn l5_idle_instance_performs_no_periodic_cron_writes() {
         "idle ticks must not write cron state to disk"
     );
 }
+
+/// LLP 0032 L2 — a connection idle past the TTL is reaped: its live
+/// subscriptions are torn down and the reap is counted in /inspect. A
+/// recently-active connection is left alone.
+#[test]
+fn l2_abandoned_connection_is_reaped_with_counters() {
+    let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "ghost".to_owned(),
+                input: input(json!({}), "user_1"),
+            },
+        )
+        .expect("subscribe");
+    assert_eq!(snapback.active_connection_count(), 1);
+    assert_eq!(snapback.inspect().unwrap().active_connections, 1);
+
+    // Reaping with an early clock leaves the recently-seen connection alone.
+    assert_eq!(snapback.reap_stale_connections(1_000, 120_000), 0);
+    assert_eq!(snapback.active_connection_count(), 1);
+
+    // Idle past the TTL (reap with a clock far in the future) → reaped, and its
+    // subscription is torn down.
+    let reaped = snapback.reap_stale_connections(2_000_000_000_000, 120_000);
+    assert_eq!(reaped, 1);
+    assert_eq!(snapback.active_connection_count(), 0);
+    assert_eq!(snapback.reaped_connection_count(), 1);
+
+    let inspect = snapback.inspect().unwrap();
+    assert_eq!(inspect.active_connections, 0);
+    assert_eq!(inspect.reaped_connections, 1);
+    assert!(
+        inspect.subscriptions.is_empty(),
+        "reaping must tear down the connection's subscriptions"
+    );
+}
