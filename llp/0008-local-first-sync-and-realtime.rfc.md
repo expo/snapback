@@ -5,7 +5,7 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-25
+**Revised:** 2026-07-01 (LLP 0032 M3: §Reactivity records the DK-3 decision — v1 replace/WS pin with a named revisit trigger, on the M1 fan-out evidence in LLP 0035; L3 retention status noted in §Retention and Resume)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013
 
 ## Summary
@@ -178,6 +178,46 @@ than an assumed capability. This answers "which query forms are live-syncable in
 v1": analyzable single-table filters get retained local state and deltas;
 everything else gets online-only or resnapshot/`replace`, depending on target
 capabilities.
+
+### Decision DK-3 — delta shape and read lane (2026-07-01)
+
+The M1 benchmarks ([LLP 0035](./0035-local-target-benchmarks.research.md))
+measured live fan-out at **~4.9 ms per affected subscription** — a fan-out
+ceiling of ~2 affected subscribers per commit within a 10 ms budget. The cost is
+almost entirely the **fresh-VM re-query** the current implementation runs for
+each affected subscription on every commit
+(`invoke_query_with_dependencies` in the fan-out loop); the matcher that
+*decides* to re-run is ~2 700× cheaper. So the fan-out ceiling is a VM problem
+first and a delta-shape problem second.
+
+Decision, made deliberately per LLP 0032's DK-3 (and its guardrail not to pin
+further wire-protocol surface before this is settled):
+
+- **v1 pin: whole-document `replace` per affected subscription, WS-only read
+  path.** Keep the honest brute-force `replace` fallback and the stateful-WS
+  delivery for v1. Op-log deltas and a cacheable read lane are **not** built
+  now — but the decision to defer them is explicit, not an accident.
+- **The higher-leverage immediate fix is DK-4 (warm VM), not the delta shape.**
+  Because the ~4.9 ms is dominated by the fresh-VM re-query, a warm VM
+  ([LLP 0009](./0009-code-execution-security.rfc.md) DK-4) raises the fan-out
+  ceiling without changing the wire format. Op-log deltas (send the changed
+  rows, not a whole re-query) are the *next* lever after warm VM, for the
+  analyzable syncable-live subset above.
+- **Preserve the cacheable-read-lane option; do not preclude it.** LLP 0022
+  calls an Electric-style cacheable HTTP read lane "the most actionable single
+  idea," and it is hard to retrofit once the wire protocol hardens — which is
+  why it is decided now: **keep it open.** Do not pin
+  [LLP 0012](./0012-headless-integration-contract.spec.md) read-path surface in
+  a way that assumes WS-only; a cacheable HTTP read lane must be addable later
+  as a new read-path capability class beside the WS path, not a breaking change.
+- **Revisit trigger (named):** revisit op-log deltas and the cacheable read lane
+  when (a) warm-VM fan-out *still* exceeds the target latency at a real
+  subscriber count (re-measure with M1 after DK-4 lands), or (b) the hosted /
+  multi-subscriber target lands — whichever comes first. The M1 ceiling of ~2
+  subs/commit is the current baseline the trigger is measured against.
+
+Ledgered in [LLP 0000](./0000-snapback.explainer.md); numbers in LLP 0035; the
+LLP 0012 wire guardrail is recorded there.
 
 ## Mutation Replay and Conflict Semantics
 

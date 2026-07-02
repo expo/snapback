@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-06-26
+**Revised:** 2026-07-01 (LLP 0032 M2: §Invocation Isolation records the DK-4 decision — warm VM per bundle hash for trusted-local, gated on a proven reset, on the M1 VM-cost evidence in LLP 0035)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, https://github.com/ccheever/ibex
 
 ## Summary
@@ -175,6 +175,52 @@ rebound globals" was judged the cheapest but most fragile option — so pooling 
 0037/0048]`). Treat fresh-context-per-invocation as the durable default and pooling
 as research, not a near-term optimization. The five proof obligations above map
 almost exactly onto Valet's failed candidates; keep them.
+
+### Decision DK-4 — VM lifecycle for the trusted-local target (2026-07-01)
+
+The M1 benchmarks ([LLP 0035](./0035-local-target-benchmarks.research.md))
+measured fresh-VM-per-invocation at **~3.9 ms** — roughly three orders of
+magnitude above the matcher (~1.8 µs/sub), read-set validation (~1.3 µs/dep),
+or an ephemeral publish (~2 µs). It is paid on every mutation *and again per
+affected subscription per commit* (each live re-run is a full VM invocation),
+so it single-handedly caps single-writer throughput (~230 mut/s) and the live
+fan-out ceiling (~2 affected subscribers per commit at a 10 ms budget). Reducing
+per-invocation VM cost is therefore **the single biggest compute lever in the
+system**, and the priority is ratified as such.
+
+The *direction* is decided; the *technique* stays gated, because Valet's finding
+above (no safe shared-VM technique on Hermes; no snapshot/restore primitives)
+still stands. Concretely:
+
+- **Cheapest safe step first — decompose and cache what carries no isolation
+  risk.** The ~3.9 ms is `RuntimeGuard::create` + `install_host` + `eval`
+  measured together; M1 did not separate them. A follow-up measurement must
+  attribute the cost, because the per-invocation **process-global host
+  re-install** (`install_host` runs on *every* invocation — flagged in
+  [LLP 0032](./0032-decision-and-implementation-hardening.plan.md)'s
+  cross-cutting cleanups) is a prime suspect and caching it is safe (it carries
+  no per-invocation user state). This may capture much of the win without
+  touching VM lifecycle at all.
+- **Warm VM per bundle hash for the trusted-local target only.** Reusing a VM
+  across invocations of the same handler bundle is the larger lever, but it is
+  ratified **only for trusted-local** (single app, trusted developer code, no
+  cross-tenant boundary) and **only with a proven per-invocation reset**:
+  proof obligations 1 (global state cleared/isolated) and 3 (no timers/async
+  outlive the invocation) apply here as **correctness**, not merely isolation —
+  a warm VM that leaks a global between two invocations of the same app is a
+  wrong-result bug, not just a tenancy leak. If Ibex offers no workable reset
+  (the Valet blocker), this leg does not ship and the cheap-step win above is
+  what stands.
+- **Hosted/untrusted is unchanged.** Fresh-context-per-invocation remains the
+  durable hosted default; the five proof obligations for hosted pooling are
+  untouched. The warm-VM path is a **capability-flagged, local-only**
+  optimization and must never become the hosted posture (§Validation
+  Requirements: per-invocation global state must not leak under the chosen
+  policy — a warm VM must satisfy that test in the trusted-local mode too).
+
+Ledgered in [LLP 0000](./0000-snapback.explainer.md); numbers in LLP 0035.
+Revisit: after the cost decomposition, and again once a warm VM (if it ships)
+is re-measured to confirm the projected win.
 
 ## Capability Model
 

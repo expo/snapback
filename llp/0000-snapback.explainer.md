@@ -100,6 +100,23 @@ corpus does not rely on scattered "pending Charlie" notes.
   ephemeral register route moved/retired, public `/inspect` trimmed, and a
   declared route registry with enforcement tests guards it (verified against a
   running server).
+- **2026-07-01:** VM lifecycle (docket DK-4) is decided on the M1 evidence
+  ([LLP 0035](./0035-local-target-benchmarks.research.md)): reducing
+  per-invocation VM cost is the top compute priority — a warm VM per bundle
+  hash for the **trusted-local** target only, gated on a proven per-invocation
+  reset, with the cheapest safe step (decompose the cost; cache the
+  per-invocation process-global host install) taken first. Hosted/untrusted
+  keeps fresh-per-invocation; the five hosted-pooling proofs are unchanged
+  ([LLP 0009](./0009-code-execution-security.rfc.md) §Invocation Isolation).
+- **2026-07-01:** delta shape and read lane (docket DK-3) are decided
+  deliberately on the M1 fan-out evidence: **whole-document `replace`, WS-only
+  for v1**, because the fan-out cost is VM-bound (DK-4 is the higher-leverage
+  fix) — with a named revisit trigger (warm-VM fan-out still exceeding target at
+  a real subscriber count, or the hosted multi-subscriber target) and an
+  explicit guardrail keeping the cacheable-HTTP-read-lane and op-log-delta
+  options open in the wire protocol
+  ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Reactivity,
+  [LLP 0012](./0012-headless-integration-contract.spec.md)).
 - **2026-07-01:** the LLP 0032 R1 status batch is ratified: LLP 0002 and the
   research documents LLP 0006/0019 → Active; LLP 0013, 0017, 0023, 0028,
   0031 → Accepted (each is the shipped design); LLP 0025 → Implemented. Two

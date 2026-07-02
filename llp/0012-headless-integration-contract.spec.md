@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (linked LLP 0030 for Contract/Exact preview server lifecycle)
+**Revised:** 2026-07-01 (LLP 0032 M3: DK-3 wire guardrail added — keep the cacheable-HTTP-read-lane option open beside WS delivery; earlier: linked LLP 0030 for Contract/Exact preview server lifecycle)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030
 
 ## Summary
@@ -305,6 +305,17 @@ Adapters must use those classes in their public runtime state. A React hook or
 Contract/Exact binding should not label a result "local-first" unless the
 underlying function has the syncable-live/offline-retained capabilities the target
 requires.
+
+> **DK-3 wire guardrail (2026-07-01).** The read-path classes above describe
+> *what a query is*, not *which transport delivers it*. v1 delivers over the
+> stateful WebSocket only ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md)
+> DK-3, on the M1 fan-out evidence in
+> [LLP 0035](./0035-local-target-benchmarks.research.md)), but that pin must not
+> harden into an assumption. A future **cacheable HTTP read lane** (LLP 0022's
+> "most actionable single idea") has to be addable as a *new read-path delivery
+> option beside* the WS path — not a breaking wire change. Keep the delivery
+> transport out of the query capability class, and do not pin further read-path
+> wire surface that presumes WS-only, until DK-3's revisit trigger fires.
 
 The manifest must encode the **Online vs. Parity** distinction Valet drew for
 adapters (`[observed - Valet LLP 0037]`): an *Online* client speaks the wire

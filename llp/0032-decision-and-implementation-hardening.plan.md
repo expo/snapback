@@ -728,7 +728,13 @@ L6–L8.
   candidate: warm VM per bundle hash for the **trusted local** target only,
   with fresh-per-invocation retained for hosted/untrusted (LLP 0009's five
   pooling proof obligations unchanged — this is not the hosted pooling
-  question). **Done when:** DK-4 ledgered with numbers attached.
+  question). **Done when:** DK-4 ledgered with numbers attached. **Decided
+  2026-07-01** — ledgered in LLP 0000; recorded in LLP 0009 §Invocation
+  Isolation with the M1 numbers (LLP 0035). Direction ratified (reduce
+  per-invocation VM cost is *the* lever); the warm-VM leg is gated on a proven
+  per-invocation reset (Valet found none on Hermes), and the decision names the
+  cheapest safe first step — decompose create/install/eval and cache the
+  per-invocation process-global host install — before touching VM lifecycle.
 - **M3 — Decide DK-3 (delta shape and read lane) on M1 + LLP 0022 evidence.**
   Whole-document `live_replace` per affected subscription per commit
   (`src/local.rs:887-948`) versus op-log deltas, and the stateful-WS-only
@@ -738,6 +744,13 @@ L6–L8.
   decision must be made deliberately even if the answer is "replace-only and
   WS-only for v1, revisit at N subscribers." **Done when:** DK-3 ledgered;
   LLP 0008/0012 revised to record the outcome and its revisit trigger.
+  **Decided 2026-07-01** — v1 pin: whole-document `replace`, WS-only. The M1
+  fan-out cost is VM-bound (each affected sub is a fresh-VM re-query), so DK-4
+  (warm VM) is the higher-leverage immediate fix and op-log deltas are the next
+  lever after it. Recorded in LLP 0008 §Reactivity with a named revisit trigger
+  (warm-VM fan-out still exceeding target at a real subscriber count, or the
+  hosted multi-subscriber target) and an LLP 0012 wire guardrail keeping the
+  cacheable-HTTP-read-lane option open; ledgered in LLP 0000.
 
 ## Phase 5 — Product boundary and DX
 
@@ -915,8 +928,8 @@ Status column in place as rows close.
 | --- | --- | --- | --- | --- | --- |
 | DK-1 | Read-set validation semantics | Implement-up staged (E2→E3→E4); or honest-downgrade (ratify table-granularity serialized writes as v0 semantics) — R7's doc-honesty patch lands first either way | E1; E4 gated on M1 cost numbers | LLP 0003/0004/0007 | **Decided 2026-07-01 — implement-up, staged.** E2 landed; E3 pinned as design (atomic-host-plan finding); E4 pending M1 |
 | DK-2 | Commit-version graduation shape | Postgres sequence + logical-decoding feed; per-app shards (LLP 0018); HLC ordering | X1 design note | LLP 0007/0014 (+0012 wire impact) | Open — X1 |
-| DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | Blocked on M1 |
-| DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | Blocked on M1 |
+| DK-3 | Delta shape + read lane | Deliberate v1 pin of replace-only/WS with named revisit trigger; op-log deltas; cacheable HTTP read lane | M1 + LLP 0022 | LLP 0008/0012 | **Decided 2026-07-01 — v1 pin replace/WS; cacheable-read-lane option kept open (M3)** |
+| DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01 — warm VM per bundle hash for trusted-local, gated on a proven reset (M2)** |
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | Open — X2 decides |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | Open — closes with the cron test-debt work |
 | DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | Open — blocks P3c |
