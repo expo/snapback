@@ -44,6 +44,7 @@ run node demos/_kit/tests/regression-fake-live.mjs
 run node demos/_kit/tests/regression-gc-starvation.mjs
 run node demos/_kit/tests/regression-overlay-crossroom.mjs
 run node demos/_kit/tests/regression-mixed-transport.mjs
+run node demos/_kit/tests/live-delta-e2e.mjs
 
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then

@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Sync, Ephemeral state, Testing, Performance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-02 (§M3: the DK-3 op-log-delta projection — matcher-based delta ~5 200× cheaper than the warm re-query, arming the DK-3 revisit trigger; earlier same day: §After warm VM DK-4 re-run; §L6+L7 re-run)
+**Revised:** 2026-07-02 (§M3: the DK-3 op-log-delta lever — matcher-based delta ~5 200× cheaper than the warm re-query, armed the trigger and then *landed* as the shipped `live_delta` path measured by the same function; earlier same day: §After warm VM DK-4 re-run; §L6+L7 re-run)
 **Related:** LLP 0000, LLP 0003, LLP 0008, LLP 0009, LLP 0012, LLP 0022, LLP 0032
 
 ## Summary
@@ -197,6 +197,14 @@ The CI smoke lane asserts `fanout_delta_us_per_affected_sub × 2 <
 fanout_us_per_affected_sub` (both measured the same run, machine-independent) —
 it fails if op-log deltas ever stop decisively beating the re-query path, which
 is the whole premise of the lever.
+
+**Landed 2026-07-02.** The projection became the shipped path: live delivery
+emits an additive `live_delta` for the analyzable HostPlan subset instead of a
+whole-result `live_replace` (`notify_live_subscriptions` + `compute_live_delta`;
+client apply in `demos/_kit/client.mjs`; LLP 0008 §Decision DK-3, resolving
+LLP 0034 OQ1). The bench measures the same `compute_live_delta` the fan-out
+calls, so `fanout_delta_us_per_affected_sub` is now the cost of shipped code,
+not a projection.
 
 ## What the numbers mean
 

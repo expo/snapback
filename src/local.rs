@@ -9,12 +9,15 @@ use crate::ephemeral::{
     EphemeralDiagnostics, EphemeralMessage, LocalEphemeralBackend, PublishOutcome, PublishRequest,
     RealtimeEnvelope, SubscribeRequest,
 };
-use crate::live_matcher::{live_subscription_may_be_affected, query_dependencies_from_plan};
+use crate::live_matcher::{
+    LiveDeltaKind, LiveDeltaOutcome, compute_live_delta, live_subscription_may_be_affected,
+    query_dependencies_from_plan,
+};
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AuthInput, CapabilityManifest, FunctionDefinition,
     FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
-    MutationStep, PermissionScopeExpr, QueryOutput, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
-    SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr,
+    MutationStep, PermissionScopeExpr, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION,
+    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr,
 };
 use crate::runtime::{IbexActionHost, RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
@@ -348,6 +351,33 @@ pub struct LiveUpdate {
     pub function: String,
     pub version: u64,
     pub rows: Vec<Value>,
+}
+
+/// The additive op-log delta payload (DK-3 / LLP 0034 OQ1): per-row
+/// add/update/remove transitions for the analyzable subset, sent instead of a
+/// whole-result `live_replace` when the fan-out can compute the delta without
+/// re-running the query. `live_replace` stays the fallback and the wire
+/// default; a client that only understands `live_replace` is unaffected.
+///
+/// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 — op-log
+/// deltas for the analyzable syncable-live subset.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LiveDelta {
+    pub kind: String,
+    pub subscription_id: String,
+    pub function: String,
+    pub version: u64,
+    pub ops: Vec<LiveDeltaWireOp>,
+}
+
+/// One wire delta op: `op` is `"add"`, `"update"`, or `"remove"`; `row` is the
+/// current row for add/update and absent for remove.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LiveDeltaWireOp {
+    pub op: String,
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub row: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -692,6 +722,16 @@ struct LiveSubscription {
 struct QueryInvocation {
     output: QueryOutput,
     read_dependencies: Vec<CapturedReadDependency>,
+}
+
+/// Outcome of the DK-3 op-log delta fast path for one subscription.
+enum DeltaFanout {
+    /// A `live_delta` was enqueued and the subscription's membership updated.
+    Delivered,
+    /// The commit did not change this subscription's result — nothing to send.
+    NoChange,
+    /// The delta could not be serialized (reported as a fan-out failure).
+    Failed(SnapbackError),
 }
 
 struct LocalIbexActionHost<'a> {
@@ -2490,6 +2530,46 @@ impl LocalSnapback {
                 self.live_delivery.last_skipped += 1;
                 continue;
             }
+
+            // @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 —
+            // op-log delta fast path: for an analyzable HostPlan single-table
+            // query, ship the classified add/update/remove ops instead of
+            // re-running the query in a VM. Extract the plan (an owned clone,
+            // cheap) so the immutable `function` borrow ends before the fast
+            // path takes `&mut self`. `try_live_delta_fanout` returns `Some`
+            // when it owns the subscription's delivery and `None` when the
+            // caller must fall back to the re-query + `live_replace` path.
+            // Empty `changes` is the seed/refresh signal (`seed()` calls
+            // `notify_live_subscriptions(&[])` with no change list): it means
+            // "re-evaluate from scratch", which only the re-query + replace
+            // path can honour. Skipping the delta path here keeps seed
+            // delivering to HostPlan subscribers (DK-3 review finding C).
+            let delta_plan = match &function.runtime {
+                FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) if !changes.is_empty() => {
+                    Some(plan.clone())
+                }
+                _ => None,
+            };
+            if let Some(plan) = &delta_plan {
+                match self.try_live_delta_fanout(&subscription, plan, changes) {
+                    Some(DeltaFanout::Delivered) => {
+                        self.live_delivery.total_deliveries += 1;
+                        self.live_delivery.last_deliveries += 1;
+                        continue;
+                    }
+                    Some(DeltaFanout::NoChange) => {
+                        self.live_delivery.total_skipped += 1;
+                        self.live_delivery.last_skipped += 1;
+                        continue;
+                    }
+                    Some(DeltaFanout::Failed(error)) => {
+                        self.fail_subscription_fanout(&subscription, "live_delta_failed", error);
+                        continue;
+                    }
+                    None => {}
+                }
+            }
+
             let query = match self.invoke_query_with_dependencies(
                 &subscription.function,
                 subscription.input.clone(),
@@ -2530,6 +2610,161 @@ impl LocalSnapback {
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
         }
+    }
+
+    /// Try the DK-3 op-log delta fast path for one affected subscription.
+    ///
+    /// Returns `None` if the subscription is not delta-eligible (not a
+    /// `HostPlan` single-table query, no captured membership, or the query is
+    /// ordered/limited/un-analyzable so `compute_live_delta` yields `Replace`);
+    /// the caller then uses the re-query + `live_replace` path. Returns `Some`
+    /// once it has taken ownership of the subscription's delivery:
+    /// `Delivered` (a `live_delta` was enqueued and membership updated),
+    /// `NoChange` (the commit did not change this subscription's result), or
+    /// `Failed` (serialization error — reported as a fan-out failure).
+    ///
+    /// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01
+    fn try_live_delta_fanout(
+        &mut self,
+        subscription: &LiveSubscription,
+        plan: &QueryPlan,
+        changes: &[ChangedRow],
+    ) -> Option<DeltaFanout> {
+        // The subscription must carry a captured Query dependency (its current
+        // result membership); a subscription established before this change, or
+        // one whose snapshot captured no query dependency, falls back.
+        let query_dep_index = subscription
+            .read_dependencies
+            .iter()
+            .position(|dependency| {
+                dependency.kind == CapturedReadKind::Query
+                    && dependency.table.as_deref() == Some(plan.table.as_str())
+            })?;
+        let prior_ids: BTreeSet<String> = subscription.read_dependencies[query_dep_index]
+            .rows
+            .iter()
+            .cloned()
+            .collect();
+
+        let ops = match compute_live_delta(plan, &subscription.input, &prior_ids, changes) {
+            LiveDeltaOutcome::Delta(ops) => ops,
+            LiveDeltaOutcome::Replace => return None,
+        };
+        if ops.is_empty() {
+            // The matcher flagged the subscription as possibly affected, but no
+            // committed row actually enters/leaves/updates its result. Nothing
+            // to deliver — no re-query needed either.
+            return Some(DeltaFanout::NoChange);
+        }
+
+        // The commit version: read once on the write lane (this runs under the
+        // global mutex right after commit, so it is exactly the commit's
+        // version). If the read fails, fall back to the re-query path, which
+        // carries its own version.
+        let version = self.db.current_version().ok()?;
+
+        let wire_ops: Vec<LiveDeltaWireOp> = ops
+            .iter()
+            .map(|op| LiveDeltaWireOp {
+                op: match op.kind {
+                    LiveDeltaKind::Add => "add".to_owned(),
+                    LiveDeltaKind::Update => "update".to_owned(),
+                    LiveDeltaKind::Remove => "remove".to_owned(),
+                },
+                id: op.id.clone(),
+                row: op.row.clone(),
+            })
+            .collect();
+
+        let payload = match serde_json::to_vec(&LiveDelta {
+            kind: "live_delta".to_owned(),
+            subscription_id: subscription.id.clone(),
+            function: subscription.function.clone(),
+            version,
+            ops: wire_ops,
+        }) {
+            Ok(payload) => payload,
+            Err(error) => {
+                return Some(DeltaFanout::Failed(
+                    SnapbackError::error(
+                        "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
+                        "realtime",
+                        "live query delta could not be serialized",
+                    )
+                    .with_details(json!({ "error": error.to_string() })),
+                ));
+            }
+        };
+
+        // Maintain this subscription's membership by applying the ops to its
+        // captured Query dependency — no re-query. Add/remove change the id
+        // set; update leaves membership unchanged. Refresh the dependency's
+        // table-change version so the matcher's next affected-check is accurate.
+        let fresh_table_version = self.db.table_change_version(&plan.table).ok();
+        if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+            && let Some(dependency) = stored.read_dependencies.get_mut(query_dep_index)
+        {
+            for op in &ops {
+                match op.kind {
+                    LiveDeltaKind::Add => {
+                        if !dependency.rows.contains(&op.id) {
+                            dependency.rows.push(op.id.clone());
+                        }
+                    }
+                    LiveDeltaKind::Remove => {
+                        dependency.rows.retain(|id| id != &op.id);
+                    }
+                    LiveDeltaKind::Update => {}
+                }
+            }
+            if let Some(fresh) = fresh_table_version {
+                dependency.version = Some(fresh);
+            }
+        }
+
+        // Convergence gate (debug/test only): the delta-maintained member set
+        // must equal what a fresh re-query would produce. Free in release; any
+        // membership drift fails the test that exercises this path. (L4 parity
+        // pattern.)
+        #[cfg(debug_assertions)]
+        self.debug_assert_delta_membership_converges(subscription, query_dep_index);
+
+        self.ephemeral
+            .enqueue_durable(subscription.connection_id.clone(), payload);
+        Some(DeltaFanout::Delivered)
+    }
+
+    /// Debug-only: re-run the subscription's query and assert the
+    /// delta-maintained membership (the captured Query dependency's `rows`)
+    /// equals the fresh result's ids. Catches any op-application drift.
+    #[cfg(debug_assertions)]
+    fn debug_assert_delta_membership_converges(
+        &self,
+        subscription: &LiveSubscription,
+        query_dep_index: usize,
+    ) {
+        let Ok(fresh) =
+            self.invoke_query_with_dependencies(&subscription.function, subscription.input.clone())
+        else {
+            return;
+        };
+        let fresh_ids: BTreeSet<&str> = fresh
+            .read_dependencies
+            .iter()
+            .find(|dependency| dependency.kind == CapturedReadKind::Query)
+            .map(|dependency| dependency.rows.iter().map(String::as_str).collect())
+            .unwrap_or_default();
+        let maintained_ids: BTreeSet<&str> = self
+            .subscriptions
+            .get(&subscription.id)
+            .and_then(|stored| stored.read_dependencies.get(query_dep_index))
+            .map(|dependency| dependency.rows.iter().map(String::as_str).collect())
+            .unwrap_or_default();
+        debug_assert_eq!(
+            maintained_ids, fresh_ids,
+            "live_delta membership drifted from a fresh re-query for subscription {}",
+            subscription.id
+        );
     }
 
     /// Record a post-commit fan-out failure for one subscription: a diagnostic

@@ -174,6 +174,19 @@ corpus does not rely on scattered "pending Charlie" notes.
   a breaking change). The cacheable-HTTP read lane (LLP 0022) remains the
   deferred larger option behind its own hosted/multi-instance trigger. Recorded
   in [LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Decision DK-3.
+- **2026-07-02:** op-log deltas *landed* — the DK-3 lever shipped end to end as
+  an additive `live_delta` wire kind beside `live_replace`, resolving
+  [LLP 0034](./0034-contract-source-seam-provider-side.rfc.md)'s Open Question 1
+  (row diffs). For the analyzable subset (an unordered single-table filtered
+  **HostPlan** query — where the predicate *is* the query, so a matcher-derived
+  delta is sound), live delivery now ships the per-row add/update/remove
+  transitions instead of re-running the query; the server maintains membership
+  by applying the ops (a debug-build convergence assertion guards it) and the
+  kit applies them client-side. Ibex queries (which may transform results beyond
+  their predicate) and ordered/limited windows keep the honest `live_replace`
+  fallback, so nothing breaks and no client that only understands `live_replace`
+  regresses. This closes DK-3's op-log-delta leg; the cacheable-HTTP read lane
+  stays deferred.
 
 ## Who Snapback is for
 

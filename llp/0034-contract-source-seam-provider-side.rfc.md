@@ -5,7 +5,7 @@
 **Systems:** Live Queries, Ephemeral, Codegen, Server, Client Kit, Conformance, Contract Integration
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-01 (rev 2 — LLP 0005 review incorporation, one GPT (Codex/gpt-5.5) + one fresh-context Claude (Opus 4.8) review, artifacts in `llp/reviews/0034-contract-source-seam-provider-side.{gpt,claude}.md`, run blind to each other and convergent. Load-bearing corrections: **added D0** — the connection axis requires a server keepalive that does not exist (the stream sends nothing when idle and no-ops Ping/Pong), so "wiring, not server work" was oversold; **collapsed the version story to the existing global durable commit version** (rev 1's "updates are unnumbered" was false — every `live_replace` already carries it) and specified the ephemeral `(scopeEpoch, entryVersion)` mapping, deleting the invented per-subscription sequence; **split receipts into provider-populated vs adapter-stitched keys** with an inbound-correlation convention (several 0284 §2.6 keys are Exact-runtime concepts a provider cannot originate); **rewrote reconnect around reality** — socket close disposes durable subscriptions server-side, so reconnect is always a fresh `subscribe_live`, and `resume_live` is permission-epoch-driven retain/resnapshot with no version replay; corrected D3's baseline (in-tree, ephemeral collections project only as `ephemeralCollectionReference` — the query/mutation presence pair exists only in the off-tree graffiti worktree, so the ephemeral kind is net-new emission, simpler than a migration); re-grounded presence proofs on `cursors-web`; rewrote D4 as three concrete boot edits plus the AdminWrite-vs-profile distinction; promoted old OQ6 to a stated fact (ephemeral has no resume path; it always re-snapshots); reframed OQ1 (the server already pushes full replacement rows — a poke would be a regression); added the durable-over-ephemeral drain-priority invariant, the permission-epoch receipt reason, the §5 ownership table, DO-hibernation and key-mode identity OQs. Accepted same day by the author's decision, the round's blocking concerns being resolved in this revision. rev 1 — initial draft)
+**Revised:** 2026-07-02 (OQ1 resolved — row diffs ship as an additive `live_delta` wire kind for the analyzable HostPlan subset, closing DK-3's op-log-delta leg on the M3 evidence; server + client + tests landed, LLP 0008 §Decision DK-3 governs). 2026-07-01 (rev 2 — LLP 0005 review incorporation, one GPT (Codex/gpt-5.5) + one fresh-context Claude (Opus 4.8) review, artifacts in `llp/reviews/0034-contract-source-seam-provider-side.{gpt,claude}.md`, run blind to each other and convergent. Load-bearing corrections: **added D0** — the connection axis requires a server keepalive that does not exist (the stream sends nothing when idle and no-ops Ping/Pong), so "wiring, not server work" was oversold; **collapsed the version story to the existing global durable commit version** (rev 1's "updates are unnumbered" was false — every `live_replace` already carries it) and specified the ephemeral `(scopeEpoch, entryVersion)` mapping, deleting the invented per-subscription sequence; **split receipts into provider-populated vs adapter-stitched keys** with an inbound-correlation convention (several 0284 §2.6 keys are Exact-runtime concepts a provider cannot originate); **rewrote reconnect around reality** — socket close disposes durable subscriptions server-side, so reconnect is always a fresh `subscribe_live`, and `resume_live` is permission-epoch-driven retain/resnapshot with no version replay; corrected D3's baseline (in-tree, ephemeral collections project only as `ephemeralCollectionReference` — the query/mutation presence pair exists only in the off-tree graffiti worktree, so the ephemeral kind is net-new emission, simpler than a migration); re-grounded presence proofs on `cursors-web`; rewrote D4 as three concrete boot edits plus the AdminWrite-vs-profile distinction; promoted old OQ6 to a stated fact (ephemeral has no resume path; it always re-snapshots); reframed OQ1 (the server already pushes full replacement rows — a poke would be a regression); added the durable-over-ephemeral drain-priority invariant, the permission-epoch receipt reason, the §5 ownership table, DO-hibernation and key-mode identity OQs. Accepted same day by the author's decision, the round's blocking concerns being resolved in this revision. rev 1 — initial draft)
 **Related:** Exact LLP 0284 (Contract Source Seam, rev 3 — the interface this implements; its acceptance gates on this document), Exact LLP 0263 (Contract Data Bindings — the manifest/adapter surface), Exact LLP 0278 (Verification Depth — §D consumes the receipts specified here; D2 is the provider home for its OQ2), Exact LLP 0281 (Transient Reactivity Lane — rated `publish` compiles against the budget facts D3 emits), Exact LLP 0275 (the realtime gap report), LLP 0013 (Ephemeral Realtime State — the shipped subsystem D1/D3 expose), LLP 0008 (Local-First Sync and Realtime), LLP 0011 (Auth and Permissions — permission epochs), LLP 0012 (Headless Integration Contract), LLP 0014 (Cloudflare Strategy — OQ5's hibernation semantics), LLP 0020 (Core Authoring Surface), LLP 0021 (Contract/Exact Integration Hardening — the program this lands in), LLP 0025 (Web Cursor Presence Demo — the idempotent-ensure lineage), LLP 0026 (Ephemeral Backend Abstraction), LLP 0027 / LLP 0029 (All Aboard demo + gap closure — the first proof's home), LLP 0031 (Server Route Taxonomy — D4's gating home), LLP 0032 (Decision and Implementation Hardening), diaries 0001 (snapshot-with-subscribe praised), 0004 (provider-conformance lineage), 0006 (graffiti acceptance — off-tree worktree), 0008 (All Aboard glue); **reviews:** `llp/reviews/0034-contract-source-seam-provider-side.{gpt,claude}.md`
 
 ---
@@ -359,10 +359,27 @@ deletion.
 
 ## 8. Open questions
 
-1. **Row diffs, ever?** The shipped shape is full-row `live_replace`;
-   row-level diffs would be a pure bandwidth optimization for large result
-   sets. Measure before designing (reframed in rev 2 — a poke lane is off
-   the table; it would regress the round trip the current code avoids).
+1. ~~**Row diffs, ever?**~~ **Resolved 2026-07-02 — yes, as `live_delta`.**
+   "Measure before designing" was done as LLP 0032 M3
+   ([LLP 0035](../llp/0035-local-target-benchmarks.research.md) §M3): once
+   DK-4 (warm VM) made fan-out row-bound, whole-result `live_replace` still
+   capped live delivery at ~5–6 affected subscribers/commit, and a
+   matcher-computed op-log delta was ~5 200× cheaper. So row-level diffs
+   shipped as an **additive `live_delta` wire kind** beside `live_replace`
+   (the fallback and default), for the analyzable subset — an unordered
+   single-table filtered **HostPlan** query, where the predicate is the whole
+   query so a predicate-derived delta is sound. Ibex queries (which may
+   transform results in JS beyond their captured predicate) and
+   ordered/limited windows keep `live_replace`. Server: `notify_live_subscriptions`
+   + `compute_live_delta` (`src/live_matcher.rs`), membership maintained by
+   applying ops with a debug-build convergence assertion; client:
+   `applyDurable` in `demos/_kit/client.mjs`. Governed by
+   [LLP 0008](../llp/0008-local-first-sync-and-realtime.rfc.md) §Decision DK-3;
+   this closes DK-3's op-log-delta leg. **Remaining under this question:**
+   extending deltas to Ibex passthrough queries needs a handler-purity
+   guarantee (the demos are Ibex today, so they fall back to replace);
+   windowed (ordered/limited) deltas need boundary maintenance (the matcher
+   has the primitives). Both are future work, not blockers.
 2. **SSE fallback** — does any deployment target forbid long-lived
    WebSockets and force an SSE lane?
 3. **D0 shape** — Ping→Pong vs server keepalive frame; final

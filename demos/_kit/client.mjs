@@ -580,6 +580,28 @@ export class SnapbackClient {
         onUpdate?.(handle.rows, { version: handle.version, kind: 'live_replace' });
         return;
       }
+      if (update.kind === 'live_delta') {
+        // DK-3 op-log delta (LLP 0008 §Decision DK-3): the server sends only
+        // the rows that entered/left/changed this subscription's result, for
+        // the analyzable unordered subset. Apply by _id: add/update upsert,
+        // remove drops. Same subscription-id and version-non-decreasing guards
+        // as live_replace. Unordered by contract (ordered queries fall back to
+        // live_replace), so preserving existing order and appending new rows is
+        // correct.
+        if (update.subscription_id !== handle.subscriptionId) return;
+        if (typeof update.version === 'number' && update.version < handle.version) return;
+        const byId = new Map(
+          (Array.isArray(handle.rows) ? handle.rows : []).map((row) => [row?._id, row]),
+        );
+        for (const op of update.ops ?? []) {
+          if (op.op === 'remove') byId.delete(op.id);
+          else if (op.op === 'add' || op.op === 'update') byId.set(op.id, op.row);
+        }
+        handle.rows = [...byId.values()];
+        handle.version = update.version;
+        onUpdate?.(handle.rows, { version: handle.version, kind: 'live_delta' });
+        return;
+      }
       if (update.kind === 'resync_required') {
         // Connection-wide outbox overflow carries no subscription_id
         // (src/ephemeral.rs OutboundQueue::overflow); subscription-scoped

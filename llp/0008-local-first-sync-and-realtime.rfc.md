@@ -240,18 +240,49 @@ LLP 0012 wire guardrail is recorded there.
 > (the hosted/multi-instance target); op-log deltas are the cheaper immediate
 > win because the matcher already computes membership.
 >
-> **Server delta-core landed (2026-07-02, staged).** The shape-agnostic server
-> half is in: `compute_live_delta` (`src/live_matcher.rs`) classifies a commit's
-> `ChangedRow` set against a subscription's captured predicate into per-row
-> add/update/remove transitions — no re-query — for the analyzable unordered
-> single-table-filter subset, and returns `Replace` (the honest fallback) for
-> ordered/limited windows or un-analyzable predicates. It is unit-tested and is
-> the real function the M3 projection now measures (~0.4 µs/affected sub). What
-> remains is the coordinated Phase-2 wiring: emitting a `live_delta` wire kind
-> from the fan-out path (`notify_live_subscriptions`), maintaining each
-> subscription's membership by applying the ops instead of re-querying, and the
-> client-side apply — all on the LLP 0034 delivery/kit surface, sequenced with
-> that thread's in-flight work.
+> **Landed (2026-07-02) — `live_delta` as an additive wire kind.** The op-log
+> delta path is wired end to end for the analyzable subset, resolving this RFC's
+> Open Question 1 (row diffs) and LLP 0034's OQ1:
+>
+> - **Server** (`notify_live_subscriptions`): a subscription is delta-eligible
+>   iff its function is a `HostPlan` single-table `Query` (predicate directly
+>   available), the commit has changed rows, and `compute_live_delta`
+>   (`src/live_matcher.rs`) returns `Delta` (not `Replace`). Eligible
+>   subscriptions get a `live_delta` payload built from the classified ops and
+>   the commit version; the server maintains that subscription's membership by
+>   applying the ops to its captured `Query` dependency's `rows` (and refreshing
+>   the dependency's table-change version) — **no re-query**. Everything else —
+>   Ibex queries, ordered/limited windows, un-analyzable predicates, the
+>   empty-changes seed refresh — keeps the honest re-query + `live_replace`
+>   path, unchanged. `live_delta` is strictly additive: `live_replace` remains
+>   the fallback and the wire default, so no client that only understands
+>   `live_replace` breaks (LLP 0012 read-path guardrail honoured).
+> - **Correctness gate:** delta-applied state must be byte-identical to what a
+>   re-query + replace would produce. Three guards enforce it: the conservative
+>   eligibility (only the subset where `compute_live_delta` is exact); a
+>   **debug-build convergence assertion** that re-runs the query on every emitted
+>   delta and asserts the delta-maintained member set equals the fresh member set
+>   (the L4 parity pattern — free in release, fails any drift in test); and a
+>   multi-commit convergence test plus a client acceptance test.
+> - **Load-bearing invariant (from this arc's adversarial review):** the matcher
+>   predicate (`row_matches_query_filters`) MUST agree with the SQL `WHERE`
+>   (`build_query_sql`) on every operator, or delta membership diverges from a
+>   real query. The review caught a HIGH here — `NULL < x` read as true in the
+>   matcher but SQL excludes NULL rows, so a NULL range-filtered field phantomed
+>   into the result and drifted permanently. Fixed by giving the matcher SQL
+>   three-valued logic (a NULL operand matches no comparison); regression-tested
+>   with a `priority < 3` + NULL-priority row. Two more review findings fixed:
+>   same-id opposing changes in one commit (collapse to the last change per id,
+>   so an insert-then-delete nets to nothing) and the empty-changes `seed()`
+>   refresh (only real commits take the delta path; seed keeps re-query +
+>   replace).
+> - **Wire shape:** `{ kind: "live_delta", subscription_id, function, version,
+>   ops: [{ op: "add"|"update"|"remove", id, row? }] }`. `add`/`update` carry the
+>   row (client upserts by `_id`); `remove` drops by id. Unordered by contract
+>   (ordered queries fall back to `replace`), so row order is not load-bearing.
+> - **Client** (`demos/_kit/client.mjs` `applyDurable`): a `live_delta` branch
+>   applies the ops to `handle.rows` under the same subscription-id and
+>   version-non-decreasing guards as `live_replace`.
 
 ## Mutation Replay and Conflict Semantics
 

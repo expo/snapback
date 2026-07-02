@@ -242,6 +242,22 @@ pub(crate) fn row_matches_query_filters(
 fn filter_matches_row(filter: &FilterExpr, input: &HandlerInput, row: &Value) -> Option<bool> {
     let actual = row.get(&filter.field)?;
     let expected = eval_match_expr(&filter.value, input)?;
+    // SQL three-valued logic: a NULL operand makes any comparison UNKNOWN, and
+    // a `WHERE` clause excludes UNKNOWN rows. The matcher MUST agree with the
+    // SQL `WHERE` (`build_query_sql`) or op-log delta membership diverges from
+    // a real query — a NULL `priority` row phantoms into a `priority < 3`
+    // result because `scalar_rank(Null) = 0 < Number` reads as `Less` (DK-3
+    // review finding A). None of the supported operators match a NULL column
+    // value; `IS NULL` is not an expressible predicate here. A NULL literal on
+    // the right (`x = NULL`, `x < NULL`) is likewise UNKNOWN → excluded; `In`
+    // keeps per-element equality (a NULL element simply never equals a
+    // non-NULL `actual`, matching `x IN (a, NULL)`).
+    if actual.is_null() {
+        return Some(false);
+    }
+    if expected.is_null() && filter.op != FilterOp::In {
+        return Some(false);
+    }
     match filter.op {
         FilterOp::Eq => Some(values_equal(actual, &expected)),
         FilterOp::In => {
@@ -490,12 +506,29 @@ pub(crate) fn compute_live_delta(
         return LiveDeltaOutcome::Replace;
     }
 
-    let mut ops = Vec::new();
+    // A commit can touch the same row more than once — a mutation plan may
+    // `Insert(bind_id_as x)` then `Delete(x)`, so `changes` holds two entries
+    // for one id. Only the LAST entry reflects the row's final committed
+    // state; classifying each entry independently would net an `Add` for a
+    // created-then-deleted row (`was_member` reads pre-commit membership for
+    // both — DK-3 review finding B). Collapse to the last change per id,
+    // preserving first-seen order for a stable op sequence.
+    let mut order: Vec<&str> = Vec::new();
+    let mut last: std::collections::HashMap<&str, &ChangedRow> = std::collections::HashMap::new();
     for change in changes {
         if change.table != plan.table {
             continue;
         }
-        let was_member = prior_ids.contains(&change.id);
+        if !last.contains_key(change.id.as_str()) {
+            order.push(change.id.as_str());
+        }
+        last.insert(change.id.as_str(), change);
+    }
+
+    let mut ops = Vec::new();
+    for id in order {
+        let change = last[id];
+        let was_member = prior_ids.contains(id);
         match change.op {
             ChangeOp::Insert => {
                 let Some(row) = change.row.as_ref() else {
