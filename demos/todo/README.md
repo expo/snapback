@@ -43,7 +43,7 @@ glue from product code in
 
 ```sh
 # 1. Regenerate the manifests from source (deterministic; fails closed).
-node demos/_kit/codegen.mjs demos/todo/snapback
+node packages/snapback-codegen/index.mjs demos/todo/snapback
 
 # 2. Headless surface walkthrough (boots the Rust server itself).
 node demos/todo/surfaces/headless/run.mjs

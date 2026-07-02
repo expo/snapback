@@ -25,7 +25,7 @@ See [LLP 0027](../../llp/0027-all-aboard-caltrain-demo.plan.md) for the design a
 
 ```sh
 node demos/all-aboard/snapback/seed.gen.mjs          # seed.json from the model
-node demos/_kit/codegen.mjs demos/all-aboard/snapback # manifests + Contract descriptors
+node packages/snapback-codegen/index.mjs demos/all-aboard/snapback # manifests + Contract descriptors
 ```
 
 ## Run the tests
@@ -40,7 +40,7 @@ node demos/all-aboard/tests/acceptance/browser.mjs                           # C
 The egress probe fixture is generated with the seam enabled:
 
 ```sh
-SNAPBACK_OUTBOUND_ACTIONS=1 node demos/_kit/codegen.mjs demos/all-aboard/tests/egress-probe
+SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/tests/egress-probe
 ```
 
 ## Serve the web surface (URL)

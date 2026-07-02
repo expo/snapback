@@ -15,7 +15,7 @@
     "contract/webCursors.publish.ts",
     "contract/webCursors.publish.contract-meta.ts"
   ],
-  "bundleHash": "sha256:14de71085cff1769",
+  "bundleHash": "sha256:68d3c2ccc6772c8b",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [
@@ -23,7 +23,7 @@
   ],
   "functions": [],
   "generatedAt": 0,
-  "inputsHash": "080031c20ec4d673fbdfd55457c52fd6ea7d97428fe68fb514a5eb35b84e9ffc",
+  "inputsHash": "8d3268b142cdbc2439bc9c3d016ffb4fcf4858cb498f02421ec3bd71a0467bda",
   "schemaHash": "sha256:dc0bdf21b8afb2f5",
   "schemaVersion": "snapback.v0",
   "tables": []

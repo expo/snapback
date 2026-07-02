@@ -55,7 +55,7 @@ distinguishes the remaining prototype bridge from product code in
 
 ```sh
 # 1. Regenerate the manifests from source (deterministic; fails closed).
-node demos/_kit/codegen.mjs demos/todo-v2/snapback
+node packages/snapback-codegen/index.mjs demos/todo-v2/snapback
 
 # 2. Headless surface walkthrough (boots the Rust server itself).
 node demos/todo-v2/surfaces/headless/run.mjs
