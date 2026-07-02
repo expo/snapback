@@ -1662,10 +1662,10 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
         functions.bundle_hash.as_deref(),
         // Path-independent since the LLP 0034 review fix 4 (handler sources
         // hash by manifest-relative path): reproducible from any checkout.
-        // Re-pinned when LLP 0032 P1 moved define.mjs into
-        // packages/snapback-codegen (its header comment is a bundle input);
-        // previously re-pinned when LLP 0036 added `uses`/`config`.
-        Some("sha256:88622b82cbf58be7")
+        // Re-pinned when LLP 0032 P3 added the declared listTodos result
+        // validator; previously for the P1 define.mjs move and the LLP 0036
+        // `uses`/`config` additions.
+        Some("sha256:772d53aaf70ee050")
     );
 
     let list = functions

@@ -467,6 +467,17 @@ A version mismatch can be a *warning* that allows the connection to continue, or
 hard stop — Valet chose "continue with a warning"; pick deliberately and report it
 either way rather than failing opaquely at runtime.
 
+**Enforced (LLP 0032 P3, landed 2026-07-02).** The single-source +
+drift-gate demand above is now CI-checked end to end: the Rust types
+generate committed JSON Schemas (`schemas/*.schema.json`, per
+[LLP 0037](./0037-schema-source-of-truth.decision.md)) with a snapshot
+drift gate; every committed generated manifest validates against them and
+parses through the runtime structs; a regen-and-diff gate holds committed
+artifacts equal to what codegen emits (the `inputsHash` staleness marker is
+itself exercised by it); and a strict `tsc` gate compiles every generated
+`.d.ts` plus a typed consumer fixture, so invalid emitted TypeScript cannot
+land.
+
 **Database-version cursors (DK-2 pin, 2026-07-02).** The commit-version
 graduation decision ([LLP 0007](./0007-storage-portability.spec.md)
 §Commit-version graduation) constrains this contract's wire surface: the

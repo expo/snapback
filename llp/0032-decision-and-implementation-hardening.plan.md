@@ -1144,7 +1144,29 @@ parallel with Phase 3.
   honestly. The gates may land as plain repo scripts in CI before P6's
   workspaces exist. **Done when:** all three gates run in CI and the S5.D2
   bug class cannot land; DK-7 is ledgered. **needs owner doc update**
-  (LLP 0012 §Versioning).
+  (LLP 0012 §Versioning). **Landed 2026-07-02** — all three gates in
+  `scripts/verify-local-proof` (the CI entry): (a)
+  `scripts/check-generated-artifacts` re-runs codegen for all five committed
+  backends + admin bindings and fails on any diff or untracked output — the
+  registered absolute-path-hashing blocker was **already fixed** by the
+  LLP 0034 review fix 4 (manifest-relative hashing; the register row was
+  stale on revalidation); (b) `scripts/check-generated-types` runs pinned
+  `tsc --strict --noEmit` over every generated `api.d.ts` plus
+  `demos/_kit/tests/typed-consumer-fixture.ts` (typed calls, a
+  `@ts-expect-error` misuse probe, and a pinned assertion on the S5.D2
+  regression site) — proven to reject the S5.D2 class by injecting the
+  historical bug; (c) per DK-7/LLP 0037, `schemars`-derived JSON Schemas for
+  the three manifests are committed at `schemas/*.schema.json` with a
+  Rust snapshot drift gate, every committed demo manifest validates against
+  them (`jsonschema` dev-dependency) and parses through the runtime structs
+  (`tests/artifact_schemas_v0.rs`, in `cargo test`). Typing gaps closed:
+  `defineJsQuery`/`defineJsLiveQuery` accept a declared `result` row
+  validator (todo's `listTodos` declares one; its emitted shape is
+  byte-identical to the old guess), and undeclared JS-handler results are
+  an honest `unknown[]` — which exposed that the old first-read-table guess
+  had been typing egress-probe's `{fetchState, config}` rows as `probe`
+  rows. JS emit-time schema validation (defense-in-depth beyond the CI
+  gates) follows once P6's workspace can carry a JS validator dependency.
 - **P4 — Wire protocol: multiplexing, reconnect, resume.** The
   per-connection outbox is drained destructively by whoever asks first: two
   `liveQuery` handles on one connection silently discard each other's
@@ -1370,11 +1392,11 @@ silently grow the acceptance gate.
   serve L3/L5). The recording wiring is one line, verified by inspection.
 - Perf regression floor → M1 smoke lane.
 - Codegen: `tsc` over generated output, regen-diff staleness, JS-handler
-  result typing → P3. **Blocker for P3(a):** codegen keys handler-source
-  hashes by *absolute path* (`loadHandlerSource`, `demos/_kit/codegen.mjs`
-  ~464 → `bundleHash`/`inputsHash` at ~305-312), so committed hashes drift
-  per checkout and the regen-diff gate cannot pass until hashing is made
-  path-relative (surfaced by the S5.D2 regen, 2026-07-01).
+  result typing → P3. ~~**Blocker for P3(a):** codegen keys handler-source
+  hashes by *absolute path*~~ — stale on revalidation: the LLP 0034 review
+  fix 4 had already made hashing manifest-relative. **Closed 2026-07-02 by
+  P3** (all three gates in CI; the tsc gate proven against the injected
+  S5.D2 bug).
 - Client: multiplexed subscriptions, reconnect/resume, parse-before-ok →
   S5.D3/S5.D7/P4.
 

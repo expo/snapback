@@ -27,6 +27,9 @@ export const listTodos = defineJsLiveQuery({
   exportName: 'listTodos',
   reads: ['todos'],
   authScopeField: 'userId',
+  // Declared row shape (LLP 0032 P3): JS-handler results are typed only when
+  // declared; this handler returns `todos` rows.
+  result: v.object({ title: v.string(), completed: v.boolean(), userId: v.string() }),
 });
 
 // Ordinary callable query (NOT live). Exists to prove the capability distinction:
