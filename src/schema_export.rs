@@ -18,6 +18,7 @@
 use serde_json::Value;
 
 use crate::diagnostic::Diagnostic;
+use crate::host_ops::{HostOpsResult, HostReadyDescriptor};
 use crate::local::{InspectState, PublicInspect};
 use crate::manifest::{
     CapabilityManifest, FunctionManifest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
@@ -61,6 +62,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "storage-info.schema.json",
             schemars::schema_for!(StorageInfo),
+        ),
+        finish(
+            "host-ops.result.schema.json",
+            schemars::schema_for!(HostOpsResult),
+        ),
+        finish(
+            "host-ready.schema.json",
+            schemars::schema_for!(HostReadyDescriptor),
         ),
     ]
 }

@@ -921,6 +921,29 @@ impl LocalSnapback {
         Ok(output)
     }
 
+    // Cheap identity/artifact facts for host-ops envelopes (LLP 0032 P6):
+    // every envelope carries them, so they must not pay inspect()'s price.
+
+    pub fn loaded_app_id(&self) -> String {
+        self.db.schema().app_id.clone()
+    }
+
+    pub fn loaded_schema_hash(&self) -> Option<String> {
+        self.db.schema().schema_hash.clone()
+    }
+
+    pub fn loaded_bundle_hash(&self) -> Option<String> {
+        self.functions.bundle_hash.clone()
+    }
+
+    pub fn durable_version(&self) -> Option<u64> {
+        self.db.info().ok().map(|info| info.version)
+    }
+
+    pub fn function_definition(&self, name: &str) -> Option<&FunctionDefinition> {
+        self.functions.function(name)
+    }
+
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {
         // @ref LLP 0010#v0-implementation-charter — missing non-v0 capabilities must be reported explicitly.
         let capability_gaps = self.capability_gaps();

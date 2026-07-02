@@ -1,0 +1,20 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "snapback-monorepo",
+    },
+    "packages/snapback-codegen": {
+      "name": "@snapback/codegen",
+    },
+    "packages/snapback-contract": {
+      "name": "@snapback/contract",
+    },
+  },
+  "packages": {
+    "@snapback/codegen": ["@snapback/codegen@workspace:packages/snapback-codegen"],
+
+    "@snapback/contract": ["@snapback/contract@workspace:packages/snapback-contract"],
+  }
+}

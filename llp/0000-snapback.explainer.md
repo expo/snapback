@@ -276,8 +276,8 @@ corpus does not rely on scattered "pending Charlie" notes.
   (binding facts as required options, app-owned optimistic reducers) and the
   cron-authored-change-reaches-a-Contract-surface proof
   `demos/all-aboard/tests/acceptance/contract-live.mjs`
-  ([LLP 0029](./0029-all-aboard-gap-closure.plan.md) G2) — was executed on
-  the pre-origin-sync line and re-lands with Phase 5 (LLP 0032 §Phase 5).
+  ([LLP 0029](./0029-all-aboard-gap-closure.plan.md) G2) — re-landed
+  2026-07-03 adapted to the post-sync main (ENG-22680).
 - **2026-07-02:** the JS package namespace is decided and ratified by Charlie
   (applied by Claude under Charlie's same-day delegation): **`@snapback/*`**
   (`@snapback/contract`, `@snapback/codegen`), private workspace packages
@@ -288,8 +288,8 @@ corpus does not rely on scattered "pending Charlie" notes.
   The P6 build itself — the repo-root workspace, the `snapback` CLI +
   gated host-ops endpoint serving the first-slice verbs with one
   `hostOpsResult` envelope, and `start --ready-file` writing the LLP 0030
-  readiness descriptor — was executed on the pre-origin-sync line and
-  re-lands with Phase 5 (LLP 0032 §Phase 5).
+  readiness descriptor — re-landed 2026-07-03 adapted to the post-sync
+  main (ENG-22680).
 - **2026-07-02:** V8 conformance-twin timing (docket DK-5, LLP 0032 X2) is
   decided and ratified by Charlie (applied by Claude under Charlie's
   same-day delegation): **defer the synthetic twin** — the fail-closed

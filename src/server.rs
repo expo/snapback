@@ -129,6 +129,10 @@ fn system_routes() -> Router<AppState> {
         .route("/_snapback/api/schema/load", post(apply_schema))
         .route("/_snapback/api/functions/load", post(load_functions))
         .route("/_snapback/api/app/reset", post(app_reset))
+        // @ref LLP 0024#result-envelope — the host-ops first slice (LLP 0032
+        // P6): one operation endpoint, one hostOpsResult envelope per call;
+        // the legacy per-noun routes above stay as documented aliases.
+        .route("/_snapback/api/host-ops", post(host_ops_handler))
         .route(
             "/_snapback/api/connections/{connection_id}/disconnect",
             post(disconnect),
@@ -233,6 +237,7 @@ pub fn route_registry() -> Vec<RouteSpec> {
             AdminWrite,
         ),
         spec("POST", "/_snapback/api/app/reset", SystemApi, AdminWrite),
+        spec("POST", "/_snapback/api/host-ops", SystemApi, AdminWrite),
         spec(
             "POST",
             "/_snapback/api/connections/{connection_id}/disconnect",
@@ -1362,6 +1367,25 @@ async fn config_verify(
     let outcome =
         with_snapback(&state, move |snapback| snapback.verify_config_entry(&entry)).await?;
     Ok(Json(outcome))
+}
+
+/// The host-ops operation endpoint (LLP 0032 P6): every served operation goes
+/// through one gate and returns one `hostOpsResult` envelope. Transport is a
+/// projection — HTTP is always 200 once an envelope exists; `ok` and
+/// `diagnostics[]` carry the outcome (LLP 0024 §Result Envelope).
+async fn host_ops_handler(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    Json(request): Json<crate::host_ops::HostOpsRequest>,
+) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
+    let server_url = Some(format!("http://{}:{}", ctx.host, ctx.port));
+    let result = with_snapback(&state, move |snapback| {
+        crate::host_ops::execute_host_op(snapback, request, server_url)
+    })
+    .await;
+    Ok(Json(result))
 }
 
 /// `app.reset` — the gated system write that resets the instance and, per

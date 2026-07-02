@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# LLP 0032 S4 (graduated with P6): no demo page may perform a destructive
+# backend operation on load. Boot semantics are LLP 0034 D4 — inspect-first
+# conditional provisioning and seed-if-empty are allowed; reset (and any
+# legacy /admin/* call) from a surface is not. The destructive path lives in
+# scripts/demo-setup and the snapback CLI.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+# client.reset() / app/reset / legacy root /admin/ calls in surface code.
+PATTERN='client\.reset\(|\.reset\(\)\s*;?\s*//.*backend|app/reset|"/admin/|'"'"'/admin/'
+MATCHES="$(grep -RInE "$PATTERN" demos/*/surfaces \
+    --include='*.ts' --include='*.tsx' --include='*.mjs' --include='*.js' \
+    2>/dev/null | grep -v node_modules || true)"
+
+if [ -n "$MATCHES" ]; then
+    echo "[check-demo-surfaces] FAIL: destructive backend operations in demo surfaces:" >&2
+    echo "$MATCHES" >&2
+    exit 1
+fi
+
+echo "[check-demo-surfaces] ok: no destructive backend operations in demo surfaces"

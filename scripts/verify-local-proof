@@ -36,6 +36,7 @@ run ./ref-check --verbose
 # types (the Rust-derived schema validation gate runs inside cargo test).
 run scripts/check-generated-artifacts
 run scripts/check-generated-types
+run scripts/check-demo-surfaces
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
 run cargo test
 run node demos/todo/tests/acceptance/headless.mjs
