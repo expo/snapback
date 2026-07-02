@@ -555,7 +555,13 @@ entirely from manifest declarations plus `config.status`:
   never the value, not even masked (no read-back exists to power it). Editing
   is replace-only.
 - **Done state:** all required entries set (and verified where probes exist);
-  the page says so and links to the app.
+  the page says so and links to the app. Because "done" is defined by required
+  entries only, every card is labeled `required` or `optional`, an unset
+  optional entry renders as a neutral fact rather than a warning, and the
+  ready banner names how many optional entries remain unset ("the app runs
+  without them") — otherwise the banner and the cards contradict each other
+  (ENG-22581: All Aboard's optional `caltrainFeed` read as "paste a key" next
+  to "the app is ready").
 - **On out-of-band targets** (§Write locus): the same page, but cards accept
   no values — each shows live status plus the exact platform command or
   dashboard step, and flips green when the applied value is observed. Guided

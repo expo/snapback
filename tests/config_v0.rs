@@ -532,4 +532,15 @@ async fn setup_wizard_page_is_served_from_the_static_lane() {
     let html = String::from_utf8_lossy(&bytes);
     assert!(html.contains("Set up this app"), "wizard page served");
     assert!(html.contains("/_snapback/api/config/"), "wizard drives the gated ops");
+    // ENG-22581: the ready banner must acknowledge unset optional entries and
+    // cards must distinguish required from optional, or the page contradicts
+    // itself ("app is ready" above a warning asking for a key).
+    assert!(
+        html.contains("the app runs without"),
+        "ready banner mentions unset optional entries"
+    );
+    assert!(
+        html.contains(r#"entry.required ? "required" : "optional""#),
+        "cards label optional entries"
+    );
 }

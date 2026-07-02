@@ -151,6 +151,9 @@
     var summary = $("#summary");
     var required = status.entries.filter(function (entry) { return entry.required; });
     var missing = status.requiredMissing || [];
+    var optionalUnset = status.entries.filter(function (entry) {
+      return !entry.required && !entry.set;
+    });
     if (!status.entries.length) {
       summary.className = "banner";
       summary.textContent = "This app declares no configuration. Nothing to set up.";
@@ -160,7 +163,16 @@
         " required entries still need a value.";
     } else {
       summary.className = "banner ok";
-      summary.textContent = "All required configuration is in place. The app is ready.";
+      var text = required.length
+        ? "All required configuration is in place. The app is ready."
+        : "This app requires no configuration. The app is ready.";
+      if (optionalUnset.length) {
+        text += " " + optionalUnset.length + " optional " +
+          (optionalUnset.length === 1 ? "entry is" : "entries are") +
+          " not set; the app runs without " +
+          (optionalUnset.length === 1 ? "it" : "them") + ".";
+      }
+      summary.textContent = text;
     }
     summary.hidden = false;
   }
@@ -169,7 +181,7 @@
     var card = el("div", { class: "card", id: "entry-" + entry.name });
     var head = el("div", { class: "head" });
     head.appendChild(el("h2", { class: "grow", text: entry.name }));
-    if (entry.required) head.appendChild(el("span", { class: "badge", text: "required" }));
+    head.appendChild(el("span", { class: "badge", text: entry.required ? "required" : "optional" }));
     if (entry.pool) head.appendChild(el("span", { class: "badge", text: "key pool" }));
     if (entry.set) {
       head.appendChild(el("span", {
@@ -177,7 +189,12 @@
         text: entry.pool ? "set · " + entry.memberCount + " key" + (entry.memberCount === 1 ? "" : "s") : "set"
       }));
     } else {
-      head.appendChild(el("span", { class: "badge warn", text: "not set" }));
+      // Only a required gap is a warning; an unset optional entry is a
+      // neutral fact, so the card can't contradict the ready banner.
+      head.appendChild(el("span", {
+        class: entry.required ? "badge warn" : "badge",
+        text: "not set"
+      }));
     }
     if (entry.verified) {
       head.appendChild(el("span", {
