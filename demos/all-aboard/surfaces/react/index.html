@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>All Aboard — Caltrain (React)</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #root { min-height: 100%; margin: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+        background: #f4f6fb;
+      }
+      #boot-status {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        max-width: min(520px, calc(100vw - 32px));
+        padding: 10px 12px;
+        border: 1px solid #d7dce8;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #2a3038;
+        font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      }
+      #boot-status[data-state="ready"] { display: none; }
+      #boot-status[data-state="error"] { border-color: #e2a1a1; color: #8a1f1f; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="boot-status">Booting All Aboard…</div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
