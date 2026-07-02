@@ -7,7 +7,12 @@ import { exactVitePlugin } from '../../../../../exact/packages/exact-devtools/sr
 // checkout. When serving from a git worktree, symlink it into place, e.g.
 //   ln -s /path/to/exact <repo>/.claude/worktrees/exact
 // (the SNAPBACK_EXACT_ROOT resolver convention; see the diary for the one-liner).
-const exactRoot = resolve(__dirname, '../../../../../exact');
+// SNAPBACK_EXACT_ROOT (already honored by tests/acceptance/browser.mjs for the
+// spawn cwd) now also repoints these aliases, so the surface can build against
+// a pinned Exact worktree instead of whatever HEAD the sibling checkout is on.
+const exactRoot = process.env.SNAPBACK_EXACT_ROOT
+  ? resolve(process.env.SNAPBACK_EXACT_ROOT)
+  : resolve(__dirname, '../../../../../exact');
 const packages = resolve(exactRoot, 'packages');
 const snapbackTarget = process.env.SNAPBACK_ALL_ABOARD_API ?? 'http://127.0.0.1:4420';
 
