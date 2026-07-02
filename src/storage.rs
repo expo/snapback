@@ -721,7 +721,7 @@ impl LocalDatabase {
 
         validate_read_set(&tx, &schema, &input.read_set)?;
         // @ref LLP 0020#phase-3-capture-read-sets-during-handler-execution — handler-captured dependencies are validated at commit so callers no longer own the read-set.
-        validate_captured_read_set(&tx, &schema, &read_dependencies)?;
+        validate_captured_read_set(&tx, &schema, input, &read_dependencies)?;
 
         let mut changes = Vec::new();
         for write in writes {
@@ -1198,6 +1198,7 @@ fn validate_read_set(
 fn validate_captured_read_set(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
+    input: &HandlerInput,
     read_set: &[CapturedReadDependency],
 ) -> SnapbackResult<()> {
     for dependency in read_set {
@@ -1234,8 +1235,12 @@ fn validate_captured_read_set(
                 let id = dependency_id(dependency)?;
                 let table = schema_table(schema, table_name)?;
                 let current = get_row_version(tx, table, id)?;
-                let current_table_version = table_change_version_from_tx(tx, table_name)?;
-                if current.is_some() || dependency.version != Some(current_table_version) {
+                // @ref LLP 0032#phase-2--execution-semantics-honesty — E4: a
+                // "row X was absent" read is invalidated only if X is present
+                // now — a current-state check, not a whole-table version bump.
+                // A disjoint write that inserts a *different* row no longer
+                // conflicts.
+                if current.is_some() {
                     return Err(captured_conflict(
                         "captured missing-row read changed before commit",
                         dependency,
@@ -1245,7 +1250,6 @@ fn validate_captured_read_set(
                             "id": id,
                             "expected": dependency.version,
                             "actual": current,
-                            "actualTableVersion": current_table_version,
                         }),
                         read_set,
                     ));
@@ -1262,7 +1266,31 @@ fn validate_captured_read_set(
                 })?;
                 schema_table(schema, table_name)?;
                 let current = table_change_version_from_tx(tx, table_name)?;
-                if current != expected {
+                if current == expected {
+                    // Fast path: the table has not changed at all.
+                    continue;
+                }
+                // @ref LLP 0032#phase-2--execution-semantics-honesty — E4:
+                // the table changed, but only conflict if a change since the
+                // read actually affects *this query's* result — reuse the live
+                // matcher's predicate so a disjoint-row write (one that does not
+                // match the query) no longer conflicts every mutation. If the
+                // captured version is below the retention floor the intervening
+                // changes were pruned and we cannot tell, so conflict
+                // conservatively.
+                let floor = retention_floor_from_tx(tx)?;
+                let affected = if expected < floor {
+                    true
+                } else {
+                    changes_to_table_since(tx, table_name, expected)?
+                        .iter()
+                        .any(|change| {
+                            crate::live_matcher::query_dependency_change_may_affect(
+                                input, dependency, change,
+                            )
+                        })
+                };
+                if affected {
                     return Err(captured_conflict(
                         "captured query read changed before commit",
                         dependency,
@@ -1352,6 +1380,64 @@ fn table_change_version_from_tx(tx: &Transaction<'_>, table: &str) -> SnapbackRe
         |row| row.get(0),
     )?;
     Ok(version.unwrap_or(0) as u64)
+}
+
+/// The changes to `table` committed after `version`, reconstructed as
+/// `ChangedRow`s. `changed_fields` is not journaled, so it is left empty (the
+/// matcher treats an update with unknown changed fields conservatively).
+///
+/// @ref LLP 0032#phase-2--execution-semantics-honesty — E4: predicate-granularity validation.
+fn changes_to_table_since(
+    tx: &Transaction<'_>,
+    table: &str,
+    version: u64,
+) -> SnapbackResult<Vec<ChangedRow>> {
+    let mut statement = tx.prepare(
+        "SELECT row_id, op, row_json FROM _snapback_changes \
+         WHERE table_name = ?1 AND version > ?2 ORDER BY version, id",
+    )?;
+    let rows = statement.query_map(params![table, version as i64], |row| {
+        let id: String = row.get(0)?;
+        let op: String = row.get(1)?;
+        let row_json: Option<String> = row.get(2)?;
+        Ok((id, op, row_json))
+    })?;
+    let mut changes = Vec::new();
+    for row in rows {
+        let (id, op, row_json) = row?;
+        let op = match op.as_str() {
+            "insert" => ChangeOp::Insert,
+            "update" => ChangeOp::Update,
+            _ => ChangeOp::Delete,
+        };
+        let row = row_json
+            .as_deref()
+            .and_then(|json| serde_json::from_str::<Value>(json).ok());
+        changes.push(ChangedRow {
+            table: table.to_owned(),
+            id,
+            op,
+            row,
+            changed_fields: Vec::new(),
+        });
+    }
+    Ok(changes)
+}
+
+/// The monotonic retention floor recorded by pruning (0 if none). A captured
+/// read below it cannot be validated precisely — the changes it would need were
+/// pruned — so validation must fall back to a conservative conflict.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3 / E4.
+fn retention_floor_from_tx(tx: &Transaction<'_>) -> SnapbackResult<u64> {
+    let value: Option<String> = tx
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key = ?1",
+            params![META_RETENTION_FLOOR],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(value.and_then(|value| value.parse().ok()).unwrap_or(0))
 }
 
 fn captured_writes_from_changes(changes: &[ChangedRow]) -> Vec<CapturedWriteDependency> {

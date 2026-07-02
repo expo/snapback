@@ -21,9 +21,9 @@ use serde_json::{Value, json};
 use crate::ephemeral::{AuthContext, EphemeralCollection, PublishRequest, Scope, SubscribeRequest};
 use crate::local::{LiveSubscribeInput, LocalSnapback};
 use crate::manifest::{
-    AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerInput, IbexModule, QueryPlan, ReadDependency, SchemaManifest,
-    TableManifest,
+    AuthInput, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
+    FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, QueryPlan, ReadDependency,
+    SchemaManifest, TableManifest, ValueExpr,
 };
 use crate::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, LocalDatabase,
@@ -94,10 +94,10 @@ pub struct BenchReport {
     pub fanout_ceiling_subs_at_10ms: f64,
     /// Read-set validation cost per row dependency at commit.
     pub read_set_validation_us_per_dep: f64,
-    /// Spurious-conflict rate: fraction of disjoint-row concurrent writers to a
-    /// queried table that conflict under the current table-granularity query
-    /// validation. 1.0 means every disjoint writer spuriously conflicts — the
-    /// number E4 would drive to 0.
+    /// Spurious-conflict rate: fraction of concurrent writers that DON'T match a
+    /// filtered query's predicate yet conflict with a reader of that query. 1.0
+    /// under table-granularity validation (every non-matching writer spuriously
+    /// conflicts); 0.0 under E4's predicate-granularity validation.
     pub spurious_conflict_rate: f64,
     /// Ephemeral publish throughput (publishes/sec) and per-publish cost.
     pub ephemeral_publishes_per_sec: f64,
@@ -389,52 +389,59 @@ fn measure_read_set_validation(config: &BenchConfig) -> crate::diagnostic::Snapb
 }
 
 fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
-    // The current model serializes mutations under the global mutex, so disjoint
-    // writers never actually interleave in normal operation. To measure the
-    // table-granularity property that E4 targets, we simulate the concurrent
-    // interleaving at the storage layer: capture a query read of `todos` at
-    // version V, let a *disjoint-row* write commit (bumping the table version),
-    // then validate a second disjoint-row write that still carries the V read.
-    // Under table-granularity validation it conflicts every time.
+    // The current model serializes mutations under the global mutex, so
+    // concurrent writers never actually interleave in normal operation. To
+    // measure the property E4 targets, we simulate the interleaving at the
+    // storage layer: a reader captures a *filtered* query read of `todos`
+    // (`done = true`) at version V; a concurrent, **non-matching** write commits
+    // (`done = false`, bumping the table version); then the reader validates a
+    // second write carrying the V read. Under table-granularity validation this
+    // conflicts every time (rate 1.0); under E4's predicate-granularity
+    // validation the non-matching write does not affect the query, so the rate
+    // drops to 0.0.
+    let filtered_query = || {
+        serde_json::to_value(QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "done".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(json!(true)),
+            }],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        })
+        .unwrap_or(Value::Null)
+    };
     let mut conflicts = 0usize;
     for trial in 0..config.conflict_trials {
         let mut db = LocalDatabase::memory()?;
         db.apply_schema(schema())?;
-        // A couple of existing rows so the queried table has content.
-        commit_insert(&mut db, "todos", json!({ "title": "seed-a", "done": false }))?;
-        commit_insert(&mut db, "todos", json!({ "title": "seed-b", "done": false }))?;
+        commit_insert(&mut db, "todos", json!({ "title": "match", "done": true }))?;
 
-        // Reader captures the query read at the current table version.
         let captured_version = db.table_change_version("todos")?;
         let query_read = CapturedReadDependency {
             kind: CapturedReadKind::Query,
             table: Some("todos".to_owned()),
             id: None,
             version: Some(captured_version),
-            predicate: Some(
-                serde_json::to_value(QueryPlan {
-                    table: "todos".to_owned(),
-                    filters: Vec::new(),
-                    order: Vec::new(),
-                    limit: None,
-                    indexed_by: None,
-                })
-                .unwrap_or(Value::Null),
-            ),
+            predicate: Some(filtered_query()),
             rows: Vec::new(),
             field: None,
             value: None,
             order: None,
             limit: None,
-            result_count: Some(2),
+            result_count: Some(1),
             boundary: None,
         };
 
-        // A concurrent, disjoint-row writer commits first (bumps the version).
-        commit_insert(&mut db, "todos", json!({ "title": format!("other-{trial}"), "done": false }))?;
+        // Concurrent writer inserts a row that does NOT match `done = true`.
+        commit_insert(
+            &mut db,
+            "todos",
+            json!({ "title": format!("other-{trial}"), "done": false }),
+        )?;
 
-        // The reader now commits its own disjoint-row write carrying the stale
-        // query read. Row-disjoint from the concurrent write, yet:
         let input = HandlerInput {
             args: json!({}),
             auth: auth(),
@@ -567,9 +574,9 @@ mod tests {
         assert!(report.matcher_skip_us_per_sub >= 0.0, "{report:?}");
         assert!(report.fanout_us_per_affected_sub >= 0.0, "{report:?}");
         assert!(report.read_set_validation_us_per_dep >= 0.0, "{report:?}");
-        // The table-granularity property E4 targets: every disjoint writer
-        // conflicts today.
-        assert_eq!(report.spurious_conflict_rate, 1.0, "{report:?}");
+        // E4 landed: a non-matching concurrent writer no longer conflicts a
+        // reader of a filtered query.
+        assert_eq!(report.spurious_conflict_rate, 0.0, "{report:?}");
         assert!(
             report.ephemeral_publishes_per_sec > 60.0,
             "ephemeral must sustain >60 Hz: {report:?}"

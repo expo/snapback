@@ -14,7 +14,9 @@ use snapback::manifest::{
     ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use snapback::runtime::CapabilityState;
-use snapback::storage::{CapturedReadKind, ChangeOp};
+use snapback::storage::{
+    BufferedWrite, CapturedReadDependency, CapturedReadKind, ChangeOp, LocalDatabase,
+};
 use std::collections::BTreeMap;
 use std::thread;
 use std::time::Duration;
@@ -2920,4 +2922,108 @@ globalThis.__snapbackHandlers = {
         cold_version,
         "pruning must preserve a cold table's MAX(version) for read-set validation"
     );
+}
+
+/// LLP 0032 E4 — predicate-granularity read-set validation: a captured read of
+/// a filtered query conflicts only with writes that actually affect the query's
+/// result. A concurrent *non-matching* write no longer conflicts (the
+/// table-granularity spurious conflict), while a *matching* write still does.
+#[test]
+fn e4_query_validation_is_predicate_granular() {
+    let filtered_query = || CapturedReadDependency {
+        kind: CapturedReadKind::Query,
+        table: Some("todos".to_owned()),
+        id: None,
+        version: None, // filled per-case with the captured table version
+        predicate: Some(
+            serde_json::to_value(QueryPlan {
+                table: "todos".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "completed".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Literal(json!(true)),
+                }],
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })
+            .unwrap(),
+        ),
+        rows: Vec::new(),
+        field: None,
+        value: None,
+        order: None,
+        limit: None,
+        result_count: Some(0),
+        boundary: None,
+    };
+
+    let commit_todo = |db: &mut LocalDatabase, title: &str, completed: bool| {
+        db.commit_buffered_writes(
+            &input(json!({}), "u"),
+            vec![BufferedWrite::Insert {
+                table: "todos".to_owned(),
+                id: db.generate_id(),
+                values: json!({ "title": title, "completed": completed, "userId": "u" })
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+            }],
+            Vec::new(),
+            json!(null),
+        )
+    };
+
+    // Non-matching concurrent write → no conflict (the E4 win).
+    {
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(todo_schema()).unwrap();
+        let captured = db.table_change_version("todos").unwrap();
+        commit_todo(&mut db, "not-completed", false).expect("concurrent non-matching write");
+        let mut dep = filtered_query();
+        dep.version = Some(captured);
+        let result = db.commit_buffered_writes(
+            &input(json!({}), "u"),
+            vec![BufferedWrite::Insert {
+                table: "todos".to_owned(),
+                id: db.generate_id(),
+                values: json!({ "title": "reader-write", "completed": false, "userId": "u" })
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+            }],
+            vec![dep],
+            json!(null),
+        );
+        assert!(
+            result.is_ok(),
+            "a non-matching concurrent write must not conflict a filtered-query reader: {result:?}"
+        );
+    }
+
+    // Matching concurrent write → conflict (correctness preserved).
+    {
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(todo_schema()).unwrap();
+        let captured = db.table_change_version("todos").unwrap();
+        commit_todo(&mut db, "completed", true).expect("concurrent matching write");
+        let mut dep = filtered_query();
+        dep.version = Some(captured);
+        let error = db
+            .commit_buffered_writes(
+                &input(json!({}), "u"),
+                vec![BufferedWrite::Insert {
+                    table: "todos".to_owned(),
+                    id: db.generate_id(),
+                    values: json!({ "title": "reader-write", "completed": false, "userId": "u" })
+                        .as_object()
+                        .cloned()
+                        .unwrap(),
+                }],
+                vec![dep],
+                json!(null),
+            )
+            .expect_err("a matching concurrent write must still conflict");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    }
 }

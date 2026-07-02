@@ -182,7 +182,13 @@ fn live_subscription_may_be_affected_by_dependencies(
     Some(false)
 }
 
-fn query_dependency_change_may_affect(
+/// Whether a committed change may affect the query described by a captured
+/// query read dependency. Reused by commit-time read-set validation (LLP 0032
+/// E4) so a disjoint-row write that does not match the query's predicate stops
+/// conflicting — the same predicate the live matcher uses to decide delivery.
+///
+/// @ref LLP 0020#phase-3-capture-read-sets-during-handler-execution — one extractor, three consumers.
+pub(crate) fn query_dependency_change_may_affect(
     input: &HandlerInput,
     dependency: &CapturedReadDependency,
     change: &ChangedRow,

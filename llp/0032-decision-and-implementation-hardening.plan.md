@@ -527,9 +527,16 @@ recommended staging:
   (`src/storage.rs:1054-1055`), so point-miss reads inherit table-granularity
   conflicts; include them in the narrowing. **Done when:** the
   disjoint-write no-conflict test passes (or DK-1 records the measured
-  accept). **Deferred (gated on M1):** unchanged — E4 lands after Phase 4's
-  M1 measurement (or DK-1 records the measured accept). Docs already state the
-  honest current whole-table behavior.
+  accept). **Landed 2026-07-01** (after M1) — the Query arm reuses the live
+  matcher's `query_dependency_change_may_affect`: on a table change it conflicts
+  only if a change since the read actually affects *this query* (a non-matching
+  disjoint write no longer conflicts), with a retention-floor guard
+  (pruned-below-floor → conservative conflict). The MissingRow arm is narrowed
+  to a current-presence check (no whole-table version bump). The M1
+  spurious-conflict measurement (corrected to a filtered query) drops **1.0 →
+  0.0**; test `e4_query_validation_is_predicate_granular` (non-matching write
+  no-conflict, matching write conflicts). This unblocks the L6 concurrent-writer
+  arc.
 - **E5 — `indexed_by` becomes real or goes away.** The query builder accepts
   and stores index hints but never uses them (`src/storage.rs:895-985`)
   [confirmed]; at minimum, validate that a declared index exists and emit a

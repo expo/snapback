@@ -68,7 +68,7 @@ DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
 | Live fan-out cost (affected) | **~4 900 µs/sub** | per *affected* subscription: re-run the query (a full VM invocation) + serialize + enqueue |
 | Fan-out ceiling @ 10 ms | **~2 affected subs/commit** | 10 ms ÷ per-affected-sub cost |
 | Read-set validation cost | **~1.3 µs/dep** | per row dependency validated at commit |
-| Spurious-conflict rate (disjoint) | **1.0** | fraction of disjoint-row concurrent writers to a queried table that conflict under table-granularity validation |
+| Spurious-conflict rate (non-matching) | **1.0 → 0.0** | fraction of concurrent writers that don't match a *filtered* query's predicate yet conflict a reader of it: **1.0** under table-granularity validation, **0.0** after E4's predicate-granularity validation landed (same day) |
 | Ephemeral publish | **~485 000 pub/s (~2 µs)** | per-publish cost with a handful of subscribers (the 20–60 Hz cursor target has ~4 orders of magnitude of headroom) |
 
 ## What the numbers mean
@@ -92,13 +92,23 @@ DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
    The ephemeral cursor path in particular sustains ~485k publishes/s, far above
    the 20–60 Hz product target.
 
-4. **Table-granularity validation spuriously conflicts every disjoint writer**
-   (rate 1.0). In today's *serial* local model this is latent (mutations are
-   atomic under the global mutex, so disjoint writers never actually interleave —
-   the harness simulates the interleave at the storage layer to expose it). It
-   becomes live the moment writers run concurrently (the L6 reader pool) or a
-   client supplies query-shaped optimistic read-sets. This is the number E4/DK-1
-   turns on.
+4. **Table-granularity validation spuriously conflicted every non-matching
+   writer** (rate 1.0) — and **E4 drove it to 0.0** (measured, same day). The
+   harness captures a *filtered* query read (`done = true`), lets a
+   **non-matching** write commit (`done = false`), and validates a second write
+   carrying the stale read. Under table granularity it conflicted every time;
+   under E4's predicate-granularity validation (which reuses the live matcher's
+   change-affects-query predicate) the non-matching write does not affect the
+   query, so it no longer conflicts, while a *matching* write still does. In the
+   *serial* local model this was latent (mutations are atomic under the global
+   mutex); the harness simulates the interleave at the storage layer to expose
+   it. It becomes live the moment writers run concurrently (the L6 reader pool)
+   or a client supplies query-shaped optimistic read-sets — which is exactly why
+   E4 lands before that arc.
+   > **Measurement correction:** the first run of this harness measured an
+   > *unfiltered* query, where an insert legitimately adds a row to the result —
+   > a correct conflict, not a spurious one. The number above uses a filtered
+   > query with a non-matching write, which is the true E4 case.
 
 ## Implications for the deferred decisions
 
