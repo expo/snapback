@@ -258,11 +258,23 @@ The build recipe (proven by dogfooding) has sharp edges worth recording:
   exporter. The registry is a React-free stub (`@exact/router/types`, not the
   `@exact/router` barrel, which would drag React into the prerender SSR); the
   console stays client-rendered.
-- **Build programmatically with `configFile: false`.** `vite build --config`
-  sends the exporter's nested prerender server down a config-reload path that
-  fails to load the registry; an inline `build()` call avoids it. The entry must
-  live in a subdirectory (`/src/main.ts`), not at the root — a root-level entry
-  cannot locate its registry. See `admin-ui/build.mjs`.
+- **Build through a generated config file.** The preset writes a temporary
+  vite config (plugins, workspace aliases, and a `server.fs.allow` spanning
+  the Snapback and Exact repos) and builds with `configFile` pointing at it.
+  Vite's own `base` stays `/`: native startup/HBC module ids must remain
+  app-root-relative, while the browser `index.html` is post-rewritten to the
+  `/_snapback/admin/` mount path. The exporter's nested prerender server
+  reconstructs its config from scratch
+  *unless* the outer build carried a `configFile` — and that reconstruction
+  drops `fs.allow`, so the nested dev server, rooted in this repo but loading
+  Exact sources from the checkout, denies those reads and fails with
+  nondeterministic `Failed to load url … Does the file exist?` on files that
+  exist (vite 8 only falls back to a raw fs read for `consumer === 'server'`
+  or allowed paths). An earlier revision built inline with
+  `configFile: false` because the then-current config-reload path failed to
+  load the registry; that guidance is superseded. The entry must still live
+  in a subdirectory (`/src/main.ts`), not at the root — a root-level entry
+  cannot locate its registry. See `packages/snapback-contract/build-preset.mjs`.
 - **The web entry is root-absolute; the native artifacts are document-relative.**
   exactVitePlugin emits the web `<script src="/assets/…">` without basePath
   support, while the native envelope/manifest use `./…`. `build.mjs` post-rewrites

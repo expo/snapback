@@ -6,10 +6,10 @@
 // compiler plugin and the Exact app plugin — `vite` dev with the agent
 // surface AND a production `vite build` (ENG-22441) — with
 // external-surface-safe defaults: shell 'auto' preserves this surface's own
-// ./index.html (ENG-22445), the agent-readiness audit is off, and no native
-// static artifacts or desktop manifests are emitted. It also excludes
-// wa-sqlite from optimizeDeps (data: 'snapback') and fails builds whose
-// client chunks leak Node/native-only modules.
+// ./index.html (ENG-22445), the agent-readiness audit is off, and static
+// native artifacts/desktop manifests are enabled only on this surface's build
+// path. It also excludes wa-sqlite from optimizeDeps (data: 'snapback') and
+// fails builds whose client chunks leak Node/native-only modules.
 //
 // ENG-22480: Exact is consumed from the npm registry — `@exact/*` imports
 // resolve through npm alias dependencies to the published
@@ -24,13 +24,42 @@
 import { exactContractWeb } from '@exact/devtools/contract-web';
 
 const snapbackTarget = process.env.SNAPBACK_ALL_ABOARD_API ?? 'http://127.0.0.1:4420';
+const exactNativeOptimizerEscapeHatch = {
+  optimizeDeps: {
+    // Exact's native startup builder walks the Contract runtime source graph.
+    // Vite 8/Rolldown leaves @vite-ignore relative imports inside optimized
+    // host-ops chunks, but does not copy the sibling inspector.js module into
+    // the native optimizer cache.
+    exclude: [
+      '@exact/contract/runtime',
+      '@exact/renderer/host-ops',
+      '@exact/renderer/web-host',
+    ],
+  },
+};
+const exactNativeEnvironments = Object.fromEntries(
+  [
+    'exact_native_android_android_hermes',
+    'exact_native_ios_uikit_hermes',
+    'exact_native_linux_gtk_hermes',
+    'exact_native_mac_appkit_hermes',
+    'exact_native_mac_swiftui_hermes',
+    'exact_native_native_host_hermes',
+    'exact_native_windows_winui_hermes',
+  ].map((name) => [name, exactNativeOptimizerEscapeHatch]),
+);
 
-export default {
+export default ({ command }: { command: 'serve' | 'build' }) => ({
   root: __dirname,
+  environments: exactNativeEnvironments,
   plugins: [
     exactContractWeb({
       data: 'snapback',
-      app: { entry: '/main.ts' },
+      app: {
+        entry: command === 'build' ? '/native.ts' : '/main.ts',
+        staticPlatformTargets: command === 'build' ? ['mac', 'ios'] : false,
+        emitDesktopManifests: command === 'build',
+      },
     }),
   ],
   define: {
@@ -58,4 +87,4 @@ export default {
       },
     },
   },
-};
+});

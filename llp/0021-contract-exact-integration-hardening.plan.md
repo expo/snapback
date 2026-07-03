@@ -53,7 +53,10 @@ The diary evidence is consistent:
   before the row-collection model was understood;
 - static native export required a non-obvious route registry,
   `@exact/router/types`, programmatic `configFile: false` builds, and a
-  subdirectory entry;
+  subdirectory entry (the `configFile: false` guidance was later superseded —
+  the preset now builds through a generated config file so the exporter's
+  nested prerender server inherits `server.fs.allow`; see LLP 0017 §Static
+  bundling);
 - separately, serving the web build under a subpath such as `/_snapback/admin/`
   required a post-build basePath rewrite, because `exactVitePlugin` emits
   root-absolute asset URLs with no basePath support;

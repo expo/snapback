@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -9,6 +8,7 @@ import {
   createSnapbackAdminDevApiUnreachableDiagnostic,
   createSnapbackWrongServerShapeDiagnostic,
   resolveRootResolvableDedupe,
+  rewriteStaticBasePath,
   resolveSnapbackContractDevServerOptions,
 } from './build-preset.mjs';
 
@@ -96,6 +96,30 @@ assert.equal(wrongShape.details.target_surface, 'admin Contract dev server');
     rmSync(bareRoot, { recursive: true, force: true });
     rmSync(armedRoot, { recursive: true, force: true });
   }
+}
+
+const tempDir = mkdtempSync(join(tmpdir(), 'snapback-build-preset-'));
+try {
+  const indexPath = join(tempDir, 'index.html');
+  writeFileSync(
+    indexPath,
+    [
+      '<link href="/__exact/platform-manifest.json">',
+      '<script src="/assets/main.js"></script>',
+      '<script type="application/json">{"envelopeUrl":"./__exact/native/mac/exact-native.json"}</script>',
+    ].join('\n'),
+  );
+
+  rewriteStaticBasePath({ indexPath, basePath: '/_snapback/admin' });
+
+  const rewritten = readFileSync(indexPath, 'utf8');
+  assert.match(rewritten, /href="\/_snapback\/admin\/__exact\/platform-manifest\.json"/);
+  assert.match(rewritten, /src="\/_snapback\/admin\/assets\/main\.js"/);
+  assert.match(rewritten, /"envelopeUrl":"\/_snapback\/admin\/__exact\/native\/mac\/exact-native\.json"/);
+  assert.doesNotMatch(rewritten, /href="\/__exact\//);
+  assert.doesNotMatch(rewritten, /src="\/assets\//);
+} finally {
+  rmSync(tempDir, { recursive: true, force: true });
 }
 
 console.log('snapback contract build preset tests: ok');
