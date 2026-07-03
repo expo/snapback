@@ -5,8 +5,8 @@
 **Systems:** Developer experience, Client integration, API, Runtime, Sync, Realtime, Security, Auth, Contract/Exact, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted; 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, Diary 0001, Exact 0263, Exact 0265
+**Revised:** 2026-07-03 (demo ladder: collaborative graffiti/whiteboard rung added between kanban and card game with its capability-mapping row — shipped as `demos/graffiti/` (ENG-22219, Diary 0006); reconciled with LLP 0010/0015 per R6. Earlier: 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted); 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, LLP 0024, Diary 0001, Diary 0006, Exact 0263, Exact 0265
 
 ## Summary
 
@@ -364,9 +364,11 @@ demo-local glue or prove one harder runtime capability.
 
 The demo corpus and its order are owned by LLP 0015, with LLP 0010 as the
 acceptance-ladder authority. LLP 0010's ladder is todo → messaging → kanban →
-card game → task tracker → party → asset slice. LLP 0015 briefly omitted task
-tracker from its early demo ladder; reconciled in LLP 0015 on 2026-07-01
-(LLP 0032 R3). This Plan does not reorder that ladder. An earlier
+collaborative graffiti/whiteboard (shipped 2026-07-03 as `demos/graffiti/`,
+ENG-22219) → card game → task tracker → party → asset slice. LLP 0015 briefly
+omitted task tracker from its early demo ladder; reconciled in LLP 0015 on
+2026-07-01 (LLP 0032 R3); the graffiti rung was reconciled across all three
+documents on 2026-07-03. This Plan does not reorder that ladder. An earlier
 draft of this section implied kanban before messaging and dropped the asset
 slice; that conflicted with LLP 0015 and is corrected here. What this Plan adds
 is the admission rule and the mapping from each demo to the capability that must
@@ -378,6 +380,7 @@ exist before it can claim success:
 | todo (Contract surface) | real Contract adapter; delete demo-local bridge | Phase 3 |
 | messaging | push transport; reconnect; retained query state | Phase 4 |
 | kanban | multi-row mutations; dependency-matched live queries; typed Contract rows | Phases 4 + 5 |
+| collaborative graffiti/whiteboard (shipped — `demos/graffiti/`) | generated ephemeral API; client overlay; WebSocket publish path; fan-out and durable-lane separation measurement | LLP 0013 + LLP 0024 + Phase 4 |
 | card game | authorization-aware partial sync; different authorized views | Authorized sync (LLP 0011) + Phase 4 — not yet sequenced |
 | task tracker | index-first query; cursor pagination over a larger local dataset | LLP 0007 query/index contract + a future pagination slice |
 | party (Partiful-style) | multi-table Contract composition; component-local queries | Phase 5 |

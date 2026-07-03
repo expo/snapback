@@ -5,8 +5,8 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-03 (ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0024
+**Revised:** 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024
 
 ## Summary
 
@@ -471,13 +471,17 @@ After the todo app, add reference-app slices in this order:
 
 1. **Messaging slice:** partial local retention, reconnect, and live delivery.
 2. **Kanban slice:** optimistic multi-row mutation and realtime reorder.
-3. **Card-game slice:** authorization-aware sync where different clients see
+3. **Collaborative graffiti/whiteboard slice:** durable committed marks plus
+   ephemeral cursors or active-stroke presence, proving the LLP 0013 carrier,
+   fan-out measurements, and durable-lane separation under cursor pressure
+   (shipped 2026-07-03 — `demos/graffiti/`, ENG-22219, Diary 0006).
+4. **Card-game slice:** authorization-aware sync where different clients see
    different rows from the same underlying game state.
-4. **Task-tracker slice:** index-first query and cursor pagination over a larger
+5. **Task-tracker slice:** index-first query and cursor pagination over a larger
    local dataset.
-5. **Party slice:** RSVP live update and notification stub once notifications
+6. **Party slice:** RSVP live update and notification stub once notifications
    exist.
-6. **Asset slice:** upload metadata and processed-media state once assets exist.
+7. **Asset slice:** upload metadata and processed-media state once assets exist.
 
 The full reference-app list in LLP 0000 remains the north star. This ladder is
 the build order for minimal acceptance slices, not a claim that these apps are
@@ -495,13 +499,11 @@ editor storage model.
 
 Every LLP 0000 reference app should eventually map to an acceptance profile before
 Snapback uses it as evidence for product or scale claims. The first ladder above
-covers todo, messaging, kanban, card game, task tracker, party, and assets. The
-remaining examples need explicit profiles:
+covers todo, messaging, kanban, collaborative graffiti/whiteboard, card game,
+task tracker, party, and assets. The remaining examples need explicit profiles:
 
 - e-commerce: inventory/order atomicity, payment-integration boundary, product
   media assets;
-- collaborative whiteboard: high-frequency ephemeral presence, fan-out ceiling,
-  and explicit non-goal boundary against fast-twitch games;
 - collaborative rich-text pad: one chosen CRDT/OT/block strategy, not generic
   row-sync hand-waving;
 - Notion-like workspace: desktop-scale local store, mixed structured/freeform

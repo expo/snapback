@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Reference apps, Contract/Exact, Client integration, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-03 (ENG-22219: the collaborative graffiti wall landed as `demos/graffiti/` — shipped-so-far record updated; earlier: 2026-07-01 LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
+**Revised:** 2026-07-03 (demo ladder: collaborative graffiti/whiteboard added as the rung between kanban and card game, reconciling the numbered ladder with LLP 0010/0016 per LLP 0016 R6; earlier same day, ENG-22219: the collaborative graffiti wall landed as `demos/graffiti/` — shipped-so-far record updated; earlier: 2026-07-01 LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, LLP 0013, LLP 0025, LLP 0027, LLP 0034, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
 
 ## Summary
@@ -379,12 +379,15 @@ The demo ladder follows LLP 0010's acceptance ladder. The early order should be:
 1. todo: single-table CRUD, live query, reset, diagnostics;
 2. messaging: retained local history, reconnect, live delivery;
 3. kanban: multi-row optimistic reorder and realtime collaboration;
-4. card game: authorization-aware partial sync where clients see different
+4. collaborative graffiti/whiteboard: durable committed marks plus ephemeral
+   cursors, fan-out measurement, and durable-lane separation under cursor
+   pressure (shipped 2026-07-03 — `demos/graffiti/`, ENG-22219; see below);
+5. card game: authorization-aware partial sync where clients see different
    subsets of the same state;
-5. task tracker: per LLP 0010's acceptance ladder (an earlier revision of this
+6. task tracker: per LLP 0010's acceptance ladder (an earlier revision of this
    list omitted it; restored 2026-07-01 via LLP 0032 R3);
-6. party: RSVP live update, multi-table reads, notification stub when available;
-7. asset slice: upload metadata and processed-media state once assets exist.
+7. party: RSVP live update, multi-table reads, notification stub when available;
+8. asset slice: upload metadata and processed-media state once assets exist.
 
 Shipped so far (as of 2026-07-03): todo, todo-v2 (Contract), the web cursor
 presence demo ([LLP 0025](./0025-web-cursor-presence-demo.plan.md)), All
