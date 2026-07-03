@@ -8,5 +8,8 @@
     "./exact-conformance": "./exact-conformance.mjs",
     "./exact-package": "./exact-package.mjs",
     "./exact-project-check": "./exact-project-check.mjs"
+  },
+  "scripts": {
+    "test": "node build-preset.test.mjs"
   }
 }

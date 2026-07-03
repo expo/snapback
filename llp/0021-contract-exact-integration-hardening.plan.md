@@ -524,6 +524,19 @@ Done:
   directory into `DYLD_FRAMEWORK_PATH` for spawned Cargo servers, so
   server-backed Contract acceptance can use prepared peer Ibex artifacts without
   every runner spelling the runtime framework path by hand.
+- [x] ENG-22600: the preset's `resolve.dedupe` is conditional on app-root
+  resolvability (`resolveRootResolvableDedupe`, unit-tested in
+  `build-preset.test.mjs`, exercised end-to-end by
+  `admin-ui/tests/dev-serve-react-esm.mjs`), fixing the dev-serve React 19
+  CJS/ESM boot crash (details in LLP 0023 "Shared Vite config"). Upstream, a
+  fail-fast for missing explicit workspace-alias targets at `configResolved`
+  plus a CI test of Exact's package `exports` maps are landing in the
+  exact-side ENG-22578 branch (same sweep); with those, sibling-checkout
+  drift that hits an alias or exports target (directly evidenced for the
+  `agent/types.ts` instance; the inferred most-plausible cause for ENG-22578's
+  `agent/state.ts`) is named at preflight instead of surfacing as a deep
+  `Failed to load url` inside the build — drift elsewhere in the source tree
+  still surfaces as the deep error.
 
 Open:
 
