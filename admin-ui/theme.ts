@@ -1,10 +1,11 @@
 // Design system for the Snapback admin console.
 //
 // Plain dependency-free helpers the `.contract` `use`s. Two hand-tuned palettes
-// (light + dark) selected by `colors(mode)`, a shared font stack, and the
-// nav model. Dark mode is real here (no @exact/facet-contract dependency): the
-// resolved palette is threaded through the view as the `c` value and passed to
-// child components as a prop, so flipping `theme` state re-renders everything.
+// (light + dark) selected by the host/system color scheme, a shared font stack,
+// and the nav model. Dark mode is real here (no @exact/facet-contract
+// dependency): the resolved palette is threaded through the view as the `c`
+// value and passed to child components as a prop, so host appearance changes
+// re-render everything.
 //
 // @ref LLP 0017#console-surfaces — the console is a system app over the headless
 //   admin contract; this file owns only presentation tokens, never admin facts.
@@ -107,6 +108,100 @@ export function colors(mode?: string): AdminColors {
   return mode === 'dark' ? DARK : LIGHT;
 }
 
+type AdminThemeMode = 'light' | 'dark';
+type ThemeListener = (mode: AdminThemeMode) => void;
+type MediaQueryListLike = {
+  readonly matches: boolean;
+  addEventListener?: (event: 'change', listener: () => void) => void;
+  removeEventListener?: (event: 'change', listener: () => void) => void;
+  addListener?: (listener: () => void) => void;
+  removeListener?: (listener: () => void) => void;
+};
+type ExactAccessibilityLike = {
+  readonly colorScheme?: AdminThemeMode;
+  addEventListener?: (event: string, listener: () => void) => unknown;
+};
+type ExactGlobal = {
+  readonly Exact?: {
+    readonly accessibility?: ExactAccessibilityLike;
+  };
+  readonly __exactAppearanceState?: {
+    readonly colorScheme?: AdminThemeMode;
+  };
+  readonly __exactAccessibilitySnapshot?: {
+    readonly colorScheme?: AdminThemeMode;
+  };
+  __exactWindowNotifyMediaChange?: (next: { colorScheme?: AdminThemeMode; reducedMotion?: boolean }) => void;
+  matchMedia?: (query: string) => MediaQueryListLike;
+};
+
+export function systemTheme(): AdminThemeMode {
+  return readSystemTheme();
+}
+
+export function watchSystemTheme(listener: ThemeListener): () => void {
+  let last = readSystemTheme();
+  let disposed = false;
+  const disposers: Array<() => void> = [];
+  const sync = () => {
+    if (disposed) return;
+    const next = readSystemTheme();
+    if (next !== last) {
+      last = next;
+      listener(next);
+    }
+  };
+
+  const media = darkModeMediaQuery();
+  if (media) {
+    if (typeof media.addEventListener === 'function' && typeof media.removeEventListener === 'function') {
+      media.addEventListener('change', sync);
+      disposers.push(() => media.removeEventListener?.('change', sync));
+    } else if (typeof media.addListener === 'function' && typeof media.removeListener === 'function') {
+      media.addListener(sync);
+      disposers.push(() => media.removeListener?.(sync));
+    }
+  }
+
+  const accessibility = exactAccessibility();
+  if (accessibility && typeof accessibility.addEventListener === 'function') {
+    for (const event of ['colorSchemeChanged', 'change']) {
+      const cleanup = accessibility.addEventListener(event, sync);
+      if (typeof cleanup === 'function') {
+        disposers.push(cleanup as () => void);
+      }
+    }
+  }
+
+  const globals = globalThis as ExactGlobal;
+  const previousNativeNotify = globals.__exactWindowNotifyMediaChange;
+  if (previousNativeNotify || globals.__exactAppearanceState || globals.__exactAccessibilitySnapshot) {
+    const chainedNotify: ExactGlobal['__exactWindowNotifyMediaChange'] = (next) => {
+      previousNativeNotify?.(next);
+      sync();
+    };
+    globals.__exactWindowNotifyMediaChange = chainedNotify;
+    disposers.push(() => {
+      if (globals.__exactWindowNotifyMediaChange === chainedNotify) {
+        globals.__exactWindowNotifyMediaChange = previousNativeNotify;
+      }
+    });
+  }
+
+  sync();
+
+  return () => {
+    disposed = true;
+    for (const dispose of disposers.splice(0).reverse()) {
+      try {
+        dispose();
+      } catch {
+        // Ignore host listener cleanup failures.
+      }
+    }
+  };
+}
+
 export interface AdminFonts {
   readonly sans: string;
   readonly mono: string;
@@ -151,21 +246,40 @@ export function initialTab(): string {
   return tabNames().includes(tab) ? tab : 'Overview';
 }
 
-// Initial color scheme: an explicit `?theme=dark|light` wins (used by tooling and
-// shareable links), then a stored preference, then the OS setting, else light.
-export function initialTheme(): string {
-  if (typeof location !== 'undefined' && location.search) {
-    const q = new URLSearchParams(location.search).get('theme');
-    if (q === 'dark' || q === 'light') return q;
+function readSystemTheme(): AdminThemeMode {
+  const globals = globalThis as ExactGlobal;
+  const exactAppearanceScheme = globals.__exactAppearanceState?.colorScheme;
+  if (exactAppearanceScheme === 'dark' || exactAppearanceScheme === 'light') {
+    return exactAppearanceScheme;
   }
-  try {
-    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('snapback_admin_theme') : null;
-    if (stored === 'dark' || stored === 'light') return stored;
-  } catch {
-    /* localStorage may be unavailable */
+
+  const media = darkModeMediaQuery();
+  if (media) {
+    return media.matches ? 'dark' : 'light';
   }
-  if (typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
+
+  const exactAccessibilityScheme = globals.__exactAccessibilitySnapshot?.colorScheme;
+  if (exactAccessibilityScheme === 'dark' || exactAccessibilityScheme === 'light') {
+    return exactAccessibilityScheme;
   }
+
+  const accessibilityScheme = exactAccessibility()?.colorScheme;
+  if (accessibilityScheme === 'dark' || accessibilityScheme === 'light') {
+    return accessibilityScheme;
+  }
+
   return 'light';
+}
+
+function exactAccessibility(): ExactAccessibilityLike | null {
+  const accessibility = (globalThis as ExactGlobal).Exact?.accessibility;
+  return accessibility && typeof accessibility === 'object' ? accessibility : null;
+}
+
+function darkModeMediaQuery(): MediaQueryListLike | null {
+  try {
+    return typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
+  } catch {
+    return null;
+  }
 }

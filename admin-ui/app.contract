@@ -2,8 +2,8 @@
 //
 // A system app over the headless admin contract (/_snapback/api/*), authored in
 // Contract and statically built (admin-ui/build.mjs + LLP 0017). App-shell
-// layout: a fixed sidebar (brand, nav, light/dark toggle) beside a scrolling
-// content pane. The single inspect read is a one-row collection, so the body
+// layout: a fixed sidebar (brand, nav) beside a scrolling content pane. The
+// single inspect read is a one-row collection, so the body
 // renders inside `each s in rows`; all formatting lives in admin-boundary.mjs's
 // `data.ui.*` view model — the template only reads flat, statically-named fields.
 //
@@ -22,12 +22,13 @@ use colors from "./theme.ts"
 use fonts from "./theme.ts"
 use navSections from "./theme.ts"
 use initialTab from "./theme.ts"
-use initialTheme from "./theme.ts"
+use systemTheme from "./theme.ts"
+use watchSystemTheme from "./theme.ts"
 use snapbackMark from "./brand-mark.ts"
 
 component AdminConsole
   state activeTab = initialTab()
-  state theme = initialTheme()
+  state theme = systemTheme()
   state dataTable = ""
   state dataOffset = 0
   state runName = ""
@@ -59,7 +60,7 @@ component AdminConsole
     reloadInspect()
   action setTab(name) writes activeTab
     activeTab = name
-  action setTheme(mode) writes theme
+  action syncSystemTheme(mode) writes theme
     theme = mode
   action openTable(name) writes dataTable, dataOffset mutates loadScan
     dataTable = name
@@ -81,6 +82,9 @@ component AdminConsole
   action verifyEntry(name) mutates verifyMut
     verifyMut({ entry: name })
 
+  task themeWatcher mount
+    onCleanup(watchSystemTheme(syncSystemTheme))
+
   view
     row flex=1 width="100%" minHeight="100%" background=c.canvas
 
@@ -97,15 +101,6 @@ component AdminConsole
               text item.label size=13 weight=activeTab == item.key ? 600 : 500 color=activeTab == item.key ? c.accentText : c.textMuted family=f.sans
 
         spacer
-
-        column gap=8 width="100%"
-          column height=1 background=c.border width="100%"
-          text "APPEARANCE" size=9 weight=700 color=c.textFaint family=f.sans letterSpacing=1.4 paddingLeft=8
-          row gap=4 padding=3 radius=10 background=c.surfaceRaised width="100%"
-            button press=setTheme("light") testId="theme-light" flex=1 radius=8 borderWidth=0 paddingTop=6 paddingBottom=6 background=theme == "light" ? c.accentSoft : "transparent"
-              text "Light" size=12 weight=600 color=theme == "light" ? c.accentText : c.textMuted family=f.sans textAlign="center"
-            button press=setTheme("dark") testId="theme-dark" flex=1 radius=8 borderWidth=0 paddingTop=6 paddingBottom=6 background=theme == "dark" ? c.accentSoft : "transparent"
-              text "Dark" size=12 weight=600 color=theme == "dark" ? c.accentText : c.textMuted family=f.sans textAlign="center"
 
       scroll flex=1 minWidth=0 minHeight=0 background=c.canvas borderLeftWidth=1 borderLeftColor=c.border
         column padding=28 gap=18 width="100%" maxWidth=1180

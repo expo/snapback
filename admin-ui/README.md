@@ -9,9 +9,9 @@ app's own schema/functions are broken. Governed by
 from-scratch redesign is logged in
 [diary 0005](../diaries/0005-admin-console-redesign.diary.md).
 
-It is an app-shell layout — a fixed sidebar (the Snapback toggle mark,
-navigation, and a built-in **light/dark** switch) beside a scrolling content
-pane — with seven surfaces: **Overview**, **Schema**, a paginated **Data**
+It is an app-shell layout — a fixed sidebar (the Snapback toggle mark and
+navigation) beside a scrolling content pane — with seven surfaces:
+**Overview**, **Schema**, a paginated **Data**
 explorer, a **Functions** runner that shows captured read/write sets,
 **Capabilities** (the full capability manifest), **Realtime** (durable
 subscriptions, live-delivery stats, ephemeral counters), and **Diagnostics**.
@@ -104,11 +104,11 @@ remaining verification.
   published *after* first paint measures deterministically — see diary 0005 for
   the renderer post-paint relayout finding behind that choice.
 - `theme.ts` — self-contained design system: hand-tuned **light and dark**
-  palettes selected by `colors(mode)` (no `@exact/facet-contract` dependency),
-  font stack, nav model, and theme resolution from `?theme=` /
-  `prefers-color-scheme` / stored preference. The resolved palette is threaded
-  through the view and passed to child components as a `c` prop, so flipping the
-  theme re-renders the whole tree.
+  palettes selected from the host/system color scheme (no
+  `@exact/facet-contract` dependency), font stack, nav model, and a managed
+  appearance watcher for browser and native hosts. The resolved palette is
+  threaded through the view and passed to child components as a `c` prop, so
+  system appearance changes re-render the whole tree.
 - `contract-bindings.mjs` — the source list for the admin Contract query and
   mutation bindings.
 - `generate-contract-bindings.mjs` / `generated/contract/` — generated
