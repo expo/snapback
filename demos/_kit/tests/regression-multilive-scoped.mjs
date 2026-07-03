@@ -13,17 +13,24 @@
 //
 // Uses the graffiti demo's generated artifacts as the scoped-query fixture
 // (the same precedent regression-optimistic-clobber sets with todo's).
-// Needs the Exact runtime (run with bun); skips with the standard structured
-// diagnostic when no Exact checkout resolves.
+// Needs the Exact runtime, which imports .js-suffixed TypeScript modules that
+// resolve ONLY under bun — run this suite with bun, never plain node. Under node
+// the Exact runtime import crashes with a cryptic ERR_MODULE_NOT_FOUND (ENG-
+// 22655); the requireBunRuntime guard below turns that into a clear message.
+// Skips with the standard structured diagnostic when no Exact checkout resolves.
 //
-// Run: bun demos/_kit/tests/regression-multilive-scoped.mjs
+// Run: bun demos/_kit/tests/regression-multilive-scoped.mjs   (NOT node)
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { startServer } from '../server-process.mjs';
 import { resolveExact } from '../exact-resolver.mjs';
-import { assert, assertEqual, createSuite } from '../harness.mjs';
+import { assert, assertEqual, createSuite, requireBunRuntime } from '../harness.mjs';
+
+// ENG-22655: fail fast with a "run under bun" message before the Exact runtime
+// import can crash under node with an unhelpful module-resolution stack.
+requireBunRuntime('_kit regression / multilive-scoped');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');

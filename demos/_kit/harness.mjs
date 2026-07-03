@@ -86,6 +86,33 @@ export async function runAcceptance(suite, body, { cleanups = [], reportExtra = 
   process.exit(setupError !== null ? 2 : report.ok ? 0 : 1);
 }
 
+// ENG-22655: the Exact-importing regression suites load the Contract runtime,
+// whose `.js`-suffixed TypeScript imports (e.g. `./signals.js` resolving to
+// `signals.ts`) resolve ONLY under bun. Run under plain `node` they crash deep
+// in a dynamic import with a cryptic `ERR_MODULE_NOT_FOUND: Cannot find module
+// '.../signals.js'`. Call this as the first statement of such a suite so the
+// wrong-runtime failure is self-explanatory — a clear "run under bun" message
+// and a distinct nonzero exit (3), never a module-resolution stack trace.
+// `label` names the suite in the message.
+export function requireBunRuntime(label) {
+  if (typeof process === 'undefined' || process.versions?.bun) return;
+  const script = process.argv?.[1] ?? 'demos/_kit/tests/<this-test>.mjs';
+  const runtime = process.versions?.node ? `node v${process.versions.node}` : 'a non-bun runtime';
+  console.error(
+    [
+      '',
+      `SNAPBACK_KIT_REQUIRES_BUN: ${label} imports the Exact Contract runtime,`,
+      "whose .js-suffixed TypeScript imports resolve only under bun. You ran it",
+      `under ${runtime}, which cannot resolve Exact's .ts modules and would`,
+      'otherwise crash with a cryptic ERR_MODULE_NOT_FOUND. Re-run it with bun:',
+      '',
+      `    bun ${script}`,
+      '',
+    ].join('\n'),
+  );
+  process.exit(3);
+}
+
 export function assert(cond, message) {
   if (!cond) throw new Error(message);
 }
