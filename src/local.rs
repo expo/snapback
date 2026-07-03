@@ -1,8 +1,8 @@
+use crate::config::{ConfigStore, VerificationRecord};
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
     LocalCronRuntime,
 };
-use crate::config::{ConfigStore, VerificationRecord};
 use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
     CollectionEnsureOutcome, DeleteRequest, DeliveryNotifier, EphemeralCollection,
@@ -28,10 +28,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::marker::PhantomData;
-use std::sync::Mutex as StdMutex;
-use std::sync::{Arc, PoisonError, RwLock};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::Path;
+use std::sync::Mutex as StdMutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, PoisonError, RwLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -1152,8 +1152,7 @@ impl LocalSnapback {
                         "snapshotVersion": query.output.version,
                         "receivedAtMs": now_millis(),
                     });
-                    self.receipts
-                        .push_connection(&input.connection_id, receipt);
+                    self.receipts.push_connection(&input.connection_id, receipt);
                 }
             }
         }
@@ -1468,6 +1467,99 @@ impl LocalSnapback {
         }
     }
 
+    /// Run an app-data action through the normal action invocation path without
+    /// borrowing the admin function runner's metadata. Non-actions return a
+    /// diagnostic envelope and are never executed.
+    ///
+    /// @ref LLP 0028#open-questions — actions are useful
+    /// for app-triggered egress, not only scheduled cron runs.
+    pub fn run_app_action(&mut self, name: &str, input: HandlerInput) -> FunctionRunResult {
+        let started = Instant::now();
+        let Some(definition) = self.functions.function(name).cloned() else {
+            return FunctionRunResult {
+                ok: false,
+                function: name.to_owned(),
+                kind: None,
+                reads: Vec::new(),
+                writes: Vec::new(),
+                captured_reads: Vec::new(),
+                captured_writes: Vec::new(),
+                elapsed_ms: elapsed_ms(started),
+                version: None,
+                changed_count: None,
+                rows: None,
+                result: None,
+                diagnostic: Some(
+                    SnapbackError::error(
+                        "SNAPBACK_UNKNOWN_FUNCTION",
+                        "runtime",
+                        format!("unknown function {name}"),
+                    )
+                    .diagnostic,
+                ),
+            };
+        };
+
+        let (reads, writes) = plan_io(&definition);
+        let kind = definition.kind.clone();
+        let base = FunctionRunResult {
+            ok: true,
+            function: name.to_owned(),
+            kind: Some(kind.clone()),
+            reads,
+            writes,
+            captured_reads: Vec::new(),
+            captured_writes: Vec::new(),
+            elapsed_ms: 0,
+            version: None,
+            changed_count: None,
+            rows: None,
+            result: None,
+            diagnostic: None,
+        };
+
+        if !matches!(kind, FunctionKind::Action) {
+            return FunctionRunResult {
+                ok: false,
+                elapsed_ms: elapsed_ms(started),
+                diagnostic: Some(
+                    SnapbackError::error(
+                        "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                        "runtime",
+                        format!("{name} is not an action"),
+                    )
+                    .diagnostic,
+                ),
+                ..base
+            };
+        }
+
+        let now = now_millis();
+        let metadata = CronRunMetadata {
+            job_name: format!("action:{name}"),
+            run_id: format!("action:{name}:{now}"),
+            scheduled_at_ms: None,
+            due_at_ms: now,
+            idempotency_key: format!("action:{name}:manual"),
+            slot_key: format!("action:{name}:manual"),
+            attempt: 1,
+            trigger: CronRunTrigger::Manual,
+        };
+        match self.invoke_action(name, input, metadata) {
+            Ok(result) => FunctionRunResult {
+                elapsed_ms: elapsed_ms(started),
+                result: Some(result),
+                ..base
+            },
+            Err(error) => FunctionRunResult {
+                ok: false,
+                elapsed_ms: elapsed_ms(started),
+                diagnostic: Some(error.diagnostic),
+                ..base
+            },
+        }
+    }
+
     /// Validate declared config entries fail-closed, validate per-function
     /// `uses` grants, and run the one-time deprecated env-blob import.
     ///
@@ -1621,7 +1713,10 @@ impl LocalSnapback {
                         .iter()
                         .map(|entry| entry.name.clone())
                         .collect();
-                    match self.config.import_env_blob(&blob, &declared_names, now_millis()) {
+                    match self
+                        .config
+                        .import_env_blob(&blob, &declared_names, now_millis())
+                    {
                         Ok(outcome) => {
                             if !outcome.imported.is_empty() || !outcome.ignored.is_empty() {
                                 diagnostics.push(
@@ -1660,7 +1755,11 @@ impl LocalSnapback {
                         "{} required config entr{} missing ({}); open the setup wizard at \
                          /_snapback/admin/setup",
                         missing.len(),
-                        if missing.len() == 1 { "y is" } else { "ies are" },
+                        if missing.len() == 1 {
+                            "y is"
+                        } else {
+                            "ies are"
+                        },
                         missing.join(", ")
                     ),
                 )
@@ -1784,7 +1883,9 @@ impl LocalSnapback {
                 format!("config entry {name} is not a pool; set exactly one value"),
             ));
         }
-        let outcome = self.config.set(name, values, append, source, now_millis())?;
+        let outcome = self
+            .config
+            .set(name, values, append, source, now_millis())?;
         self.record_diagnostics(vec![
             Diagnostic::info(
                 "SNAPBACK_CONFIG_WRITE",
@@ -1876,10 +1977,7 @@ impl LocalSnapback {
         };
         let record = match self.invoke_action(&probe, input, metadata) {
             Ok(value) => {
-                let ok = value
-                    .get("ok")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(true);
+                let ok = value.get("ok").and_then(Value::as_bool).unwrap_or(true);
                 let diagnostic = if ok {
                     None
                 } else {
@@ -2570,10 +2668,9 @@ impl LocalSnapback {
                 }
             }
 
-            let query = match self.invoke_query_with_dependencies(
-                &subscription.function,
-                subscription.input.clone(),
-            ) {
+            let query = match self
+                .invoke_query_with_dependencies(&subscription.function, subscription.input.clone())
+            {
                 Ok(query) => query,
                 Err(error) => {
                     self.fail_subscription_fanout(&subscription, "live_refresh_failed", error);

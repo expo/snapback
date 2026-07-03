@@ -1,6 +1,8 @@
 use crate::admin::{AppState, ServerContext};
 use crate::diagnostic::{Diagnostic, SnapbackError};
-use crate::ephemeral::{DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest};
+use crate::ephemeral::{
+    DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
+};
 use crate::local::{
     EphemeralApi, InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
     LocalSnapback,
@@ -100,6 +102,7 @@ fn core_routes() -> Router<AppState> {
         .route("/inspect", get(inspect))
         .route("/query/{name}", post(invoke_query))
         .route("/mutation/{name}", post(invoke_mutation))
+        .route("/action/{name}", post(invoke_action))
         .route("/app/ensure", post(ensure_app))
         .route("/live/{name}/subscribe", post(subscribe_live))
         .route("/live/{name}/resume", post(resume_live))
@@ -210,6 +213,7 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("GET", "/inspect", AppData, Public),
         spec("POST", "/query/{name}", AppData, AppAuth),
         spec("POST", "/mutation/{name}", AppData, AppAuth),
+        spec("POST", "/action/{name}", AppData, AppAuth),
         spec("POST", "/app/ensure", AppData, Public),
         spec("POST", "/live/{name}/subscribe", AppData, AppAuth),
         spec("POST", "/live/{name}/resume", AppData, AppAuth),
@@ -222,7 +226,12 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("POST", "/ephemeral/delete", AppData, Public),
         // System API — migrated gated writes (LLP 0031 D5/D2).
         spec("POST", "/_snapback/api/schema/load", SystemApi, AdminWrite),
-        spec("POST", "/_snapback/api/functions/load", SystemApi, AdminWrite),
+        spec(
+            "POST",
+            "/_snapback/api/functions/load",
+            SystemApi,
+            AdminWrite,
+        ),
         spec("POST", "/_snapback/api/app/reset", SystemApi, AdminWrite),
         spec(
             "POST",
@@ -244,7 +253,12 @@ pub fn route_registry() -> Vec<RouteSpec> {
             AdminWrite,
         ),
         spec("POST", "/_snapback/api/cron/tick", SystemApi, AdminWrite),
-        spec("POST", "/_snapback/api/cron/{name}/run", SystemApi, AdminWrite),
+        spec(
+            "POST",
+            "/_snapback/api/cron/{name}/run",
+            SystemApi,
+            AdminWrite,
+        ),
         spec(
             "POST",
             "/_snapback/api/ephemeral/cleanup",
@@ -256,7 +270,12 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("GET", "/_snapback/api/config/plan", SystemApi, AdminRead),
         spec("POST", "/_snapback/api/config/set", SystemApi, AdminWrite),
         spec("POST", "/_snapback/api/config/unset", SystemApi, AdminWrite),
-        spec("POST", "/_snapback/api/config/verify", SystemApi, AdminWrite),
+        spec(
+            "POST",
+            "/_snapback/api/config/verify",
+            SystemApi,
+            AdminWrite,
+        ),
         // System static — console shell/assets (public presentation only).
         spec("GET", "/_snapback/admin", SystemStatic, Public),
         spec("GET", "/_snapback/admin/", SystemStatic, Public),
@@ -311,24 +330,26 @@ async fn instance_home(
     let accept = headers
         .get(header::ACCEPT)
         .and_then(|value| value.to_str().ok());
-    Ok(match negotiate_home_format(query.format.as_deref(), accept) {
-        HomeFormat::Html => (
-            [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-            instance_home_html(&status),
-        )
-            .into_response(),
-        HomeFormat::Json => Json(&status).into_response(),
-        HomeFormat::Markdown => (
-            [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
-            instance_home_markdown(&status),
-        )
-            .into_response(),
-        HomeFormat::Yaml => (
-            [(header::CONTENT_TYPE, "text/yaml; charset=utf-8")],
-            instance_home_yaml(&status),
-        )
-            .into_response(),
-    })
+    Ok(
+        match negotiate_home_format(query.format.as_deref(), accept) {
+            HomeFormat::Html => (
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                instance_home_html(&status),
+            )
+                .into_response(),
+            HomeFormat::Json => Json(&status).into_response(),
+            HomeFormat::Markdown => (
+                [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+                instance_home_markdown(&status),
+            )
+                .into_response(),
+            HomeFormat::Yaml => (
+                [(header::CONTENT_TYPE, "text/yaml; charset=utf-8")],
+                instance_home_yaml(&status),
+            )
+                .into_response(),
+        },
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -356,7 +377,12 @@ fn negotiate_home_format(format_param: Option<&str>, accept: Option<&str>) -> Ho
         _ => {}
     }
     for entry in accept.unwrap_or_default().split(',') {
-        let media = entry.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+        let media = entry
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
         match media.as_str() {
             "text/html" | "application/xhtml+xml" => return HomeFormat::Html,
             "application/json" | "text/json" => return HomeFormat::Json,
@@ -393,8 +419,8 @@ struct InstanceStatus {
 }
 
 /// App identity as declared by the loaded schema manifest (`app` block); the
-/// id is always present, the presentation fields only when the app declares
-/// them.
+/// id field is present in the payload, and may be empty before an app is
+/// loaded. Presentation fields appear only when the app declares them.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AppStatus {
@@ -559,7 +585,10 @@ fn instance_home_yaml(status: &InstanceStatus) -> String {
         "schemaVersion: {}\n",
         yaml_string(&status.schema_version)
     ));
-    out.push_str(&format!("statusKind: {}\n", yaml_string(&status.status_kind)));
+    out.push_str(&format!(
+        "statusKind: {}\n",
+        yaml_string(&status.status_kind)
+    ));
     out.push_str(&format!("name: {}\n", yaml_string(&status.name)));
     out.push_str(&format!("target: {}\n", yaml_string(&status.target)));
     out.push_str(&format!(
@@ -579,9 +608,15 @@ fn instance_home_yaml(status: &InstanceStatus) -> String {
         }
     }
     out.push_str("storage:\n");
-    out.push_str(&format!("  engine: {}\n", yaml_string(&status.storage.engine)));
+    out.push_str(&format!(
+        "  engine: {}\n",
+        yaml_string(&status.storage.engine)
+    ));
     out.push_str(&format!("  mode: {}\n", yaml_string(&status.storage.mode)));
-    out.push_str(&format!("  detail: {}\n", yaml_string(&status.storage.detail)));
+    out.push_str(&format!(
+        "  detail: {}\n",
+        yaml_string(&status.storage.detail)
+    ));
     out.push_str(&format!(
         "  databaseVersion: {}\n",
         status.storage.database_version
@@ -592,9 +627,15 @@ fn instance_home_yaml(status: &InstanceStatus) -> String {
     out.push_str(&format!("  port: {}\n", status.server.port));
     out.push_str(&format!("  loopback: {}\n", status.server.loopback));
     out.push_str(&format!("  uptimeMs: {}\n", status.server.uptime_ms));
-    out.push_str(&format!("  uptime: {}\n", yaml_string(&status.server.uptime)));
+    out.push_str(&format!(
+        "  uptime: {}\n",
+        yaml_string(&status.server.uptime)
+    ));
     out.push_str("admin:\n");
-    out.push_str(&format!("  access: {}\n", yaml_string(&status.admin.access)));
+    out.push_str(&format!(
+        "  access: {}\n",
+        yaml_string(&status.admin.access)
+    ));
     out.push_str("artifacts:\n");
     out.push_str(&format!(
         "  schemaHash: {}\n",
@@ -605,7 +646,10 @@ fn instance_home_yaml(status: &InstanceStatus) -> String {
         yaml_string(&status.artifacts.bundle_hash)
     ));
     out.push_str("counts:\n");
-    out.push_str(&format!("  loadedTables: {}\n", status.counts.loaded_tables));
+    out.push_str(&format!(
+        "  loadedTables: {}\n",
+        status.counts.loaded_tables
+    ));
     out.push_str(&format!(
         "  loadedFunctions: {}\n",
         status.counts.loaded_functions
@@ -687,10 +731,19 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
     out.push_str("\n## admin\n\n");
     out.push_str(&format!("- access: {}\n", status.admin.access));
     out.push_str("\n## artifacts\n\n");
-    out.push_str(&format!("- schemaHash: `{}`\n", status.artifacts.schema_hash));
-    out.push_str(&format!("- bundleHash: `{}`\n", status.artifacts.bundle_hash));
+    out.push_str(&format!(
+        "- schemaHash: `{}`\n",
+        status.artifacts.schema_hash
+    ));
+    out.push_str(&format!(
+        "- bundleHash: `{}`\n",
+        status.artifacts.bundle_hash
+    ));
     out.push_str("\n## counts\n\n");
-    out.push_str(&format!("- loadedTables: {}\n", status.counts.loaded_tables));
+    out.push_str(&format!(
+        "- loadedTables: {}\n",
+        status.counts.loaded_tables
+    ));
     out.push_str(&format!(
         "- loadedFunctions: {}\n",
         status.counts.loaded_functions
@@ -719,7 +772,10 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
         status.links.admin_console
     ));
     out.push_str(&format!("- [Health JSON]({})\n", status.links.health_json));
-    out.push_str(&format!("- [Inspect JSON]({})\n", status.links.inspect_json));
+    out.push_str(&format!(
+        "- [Inspect JSON]({})\n",
+        status.links.inspect_json
+    ));
     out
 }
 
@@ -1303,10 +1359,8 @@ async fn config_verify(
 ) -> Result<Json<crate::local::ConfigVerifyOutcome>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
     let entry = body.entry;
-    let outcome = with_snapback(&state, move |snapback| {
-        snapback.verify_config_entry(&entry)
-    })
-    .await?;
+    let outcome =
+        with_snapback(&state, move |snapback| snapback.verify_config_entry(&entry)).await?;
     Ok(Json(outcome))
 }
 
@@ -1399,6 +1453,25 @@ async fn invoke_mutation(
     }
 }
 
+/// App-data action runner for side-effectful app work that is not a transaction:
+/// browser clients can trigger action egress without reaching through the admin
+/// function runner, while writes still happen only through declared mutations.
+///
+/// @ref LLP 0031#the-invariant — app-data routes live at the root.
+/// @ref LLP 0028#open-questions — per-request app actions
+/// include the All Aboard walk/bike routing call, not just cron jobs.
+async fn invoke_action(
+    State(state): State<SharedSnapback>,
+    Path(name): Path<String>,
+    Json(input): Json<HandlerInput>,
+) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
+    let result = with_snapback(&state, move |snapback| {
+        snapback.run_app_action(&name, input)
+    })
+    .await;
+    Ok(Json(result))
+}
+
 /// The mount-lifecycle ensure-everything operation (LLP 0034 §5 / ENG-22527):
 /// app-data at the root like the ephemeral ensure it generalizes — idempotent
 /// and non-destructive by construction; the PROVISIONING half is gated by the
@@ -1434,8 +1507,7 @@ async fn resume_live(
     Path(name): Path<String>,
     Json(input): Json<LiveResumeInput>,
 ) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
-    let output =
-        with_snapback(&state, move |snapback| snapback.resume_live(&name, input)).await?;
+    let output = with_snapback(&state, move |snapback| snapback.resume_live(&name, input)).await?;
     Ok(Json(output))
 }
 
@@ -1514,7 +1586,11 @@ async fn live_stream(
             _ = waker.notified() => true,
             _ = safety_net.tick() => true,
         };
-        if drain && drain_and_send(&ephemeral, &connection_id, &mut sender).await.is_break() {
+        if drain
+            && drain_and_send(&ephemeral, &connection_id, &mut sender)
+                .await
+                .is_break()
+        {
             break 'stream;
         }
     }
@@ -1809,7 +1885,6 @@ async fn drain_outbox(
     Json(ephemeral.drain_outbox(&connection_id))
 }
 
-
 #[derive(Debug, Deserialize)]
 struct EnsureEphemeralCollectionsInput {
     #[serde(default)]
@@ -1877,7 +1952,6 @@ async fn delete_ephemeral(
         .map_err(ApiError::from_ephemeral)
 }
 
-
 /// Connection teardown is instance control (it tears down the connection *and*
 /// its durable subscriptions), so it is a gated system write under
 /// `/_snapback/api/*`, not a root app route.
@@ -1938,13 +2012,11 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_MUTATION_CONFLICT" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
         // (forbidden) from "needs the configured token" (unauthorized).
-        "SNAPBACK_ADMIN_DISABLED" | "SNAPBACK_LIVE_RESUME_OWNERSHIP" | "SNAPBACK_PROFILE_FORBIDS" => {
-            StatusCode::FORBIDDEN
-        }
+        "SNAPBACK_ADMIN_DISABLED"
+        | "SNAPBACK_LIVE_RESUME_OWNERSHIP"
+        | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED" => StatusCode::UNAUTHORIZED,
-        "SNAPBACK_SQLITE_ERROR" | "SNAPBACK_INTERNAL_ERROR" => {
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+        "SNAPBACK_SQLITE_ERROR" | "SNAPBACK_INTERNAL_ERROR" => StatusCode::INTERNAL_SERVER_ERROR,
         _ => StatusCode::BAD_REQUEST,
     }
 }
@@ -2062,7 +2134,10 @@ mod tests {
                         route.path
                     );
                     assert!(
-                        matches!(route.policy, RoutePolicy::AdminRead | RoutePolicy::AdminWrite),
+                        matches!(
+                            route.policy,
+                            RoutePolicy::AdminRead | RoutePolicy::AdminWrite
+                        ),
                         "system-api must be admin-gated: {}",
                         route.path
                     );

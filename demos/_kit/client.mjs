@@ -228,6 +228,11 @@ export class SnapbackClient {
     return this.#req('POST', `/query/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
   }
 
+  action(ref, { args = {}, userId, readSet = [] } = {}) {
+    const name = functionName(ref);
+    return this.#req('POST', `/action/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
+  }
+
   async mutate(ref, { args = {}, userId, readSet = [], correlation = null } = {}) {
     const name = functionName(ref);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
