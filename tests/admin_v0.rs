@@ -490,6 +490,22 @@ async fn embedded_console_is_the_fallback_without_a_dist() {
 }
 
 #[tokio::test]
+async fn root_homepage_is_embedded_html() {
+    let app = loopback_app(seeded_snapback());
+
+    let resp = app
+        .clone()
+        .oneshot(get_accept("/", "text/html"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert!(text(resp).await.contains("<summary>More details</summary>"));
+
+    let shell = app.clone().oneshot(get("/_snapback/home")).await.unwrap();
+    assert_eq!(shell.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn root_path_reports_non_loopback_admin_state() {
     let app = app_with_context(seeded_snapback(), exposed_context(None));
 

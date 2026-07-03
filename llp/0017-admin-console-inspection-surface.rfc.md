@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-02 (added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface added to both consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
+**Revised:** 2026-07-03 (instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface added to both consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036
 
 ## Summary
@@ -181,31 +181,34 @@ path — LLP 0031 D3), server bind and uptime, artifact hashes, counts,
 capability summary, and links to the system surfaces. What changes per request
 is the *rendering*, chosen by content negotiation:
 
-- **Browsers** (`Accept: text/html`) get a branded homepage: the Snapback mark
-  and wordmark, the app's own identity when the schema manifest declares one
-  (`app.name` / `app.description` / `app.iconUrl` / `app.wordmarkUrl`), the
-  most important public facts as cards, an expandable details section carrying
-  the full metadata object, an emphasized admin-console link, and smaller
-  links to the health and inspect JSON endpoints.
+- **Browsers** (`Accept: text/html`) get a branded homepage, left-aligned: the
+  Snapback mark and wordmark, the app's own identity when the schema manifest
+  declares one (`app.name` / `app.description` / `app.iconUrl` /
+  `app.wordmarkUrl`), an emphasized admin-console action, the most important
+  public facts as a four-column table (two key/value pairs per row, so the
+  list reads as two side-by-side columns), an expandable "More details"
+  section carrying the full metadata object, and smaller links to the health
+  and inspect JSON endpoints.
 - **Machine clients** get the object itself as YAML (`Accept: */*` or any
   YAML type — the default, so `curl /` keeps its long-standing shape), JSON
   (`application/json`), or Markdown (`text/markdown`). A `?format=` query
   parameter overrides the header so the HTML page can link to the machine
   renderings.
 
-Two constraints shape the implementation:
+The browser rendering has one implementation: **the embedded page**
+(`src/server/instance_home.html`). It is a single self-contained file (inline
+styles, inline brand SVG, no external assets) rendered by the Rust server, so a
+bare binary serves the page with no Exact, Vite, dist directory, or native
+surface dependency. That is intentional: `/` is a recovery/status and launch
+page, so its most important property is that it always works. The admin
+dashboard remains the Contract/Exact dogfooding surface because it has enough
+interactive state, privileged API shape, forms, and native-shell value to justify
+the extra machinery.
 
-- **Same rules as the embedded console.** The homepage is a single
-  self-contained embedded file (inline styles, inline brand SVG, no external
-  assets) rendered by the Rust server, so a bare binary serves it with no
-  toolchain. It is deliberately *not* a Contract app: Contract builds require
-  bun plus the Exact checkout and are served only when a dist is configured
-  (§Serving Model); the root page is the always-available surface, and it has
-  no reactive data needs that would justify the heavier path.
-- **Public means public.** Every rendering is a projection of the same
-  public instance-status object; nothing on the HTML page may exceed what the
-  YAML/JSON renderings expose. App identity fields are app-authored input on
-  an open route, so the HTML rendering escapes them.
+One constraint spans both: **public means public.** Every rendering is a
+projection of the same public instance-status object; nothing on the HTML
+page may exceed what the YAML/JSON renderings expose. App identity fields are
+app-authored input on an open route, so the HTML rendering escapes them.
 
 The app identity lives on the schema manifest (an optional `app` block beside
 `appId`) because the manifest is already the app-authored artifact the
