@@ -288,8 +288,8 @@ pub fn live_socket_operations() -> Vec<(&'static str, RouteClass)> {
 /// One public metadata object ([`InstanceStatus`]), four renderings, chosen by
 /// content negotiation: HTML for browsers, and JSON, Markdown, or YAML for
 /// clients that ask for them. YAML stays the default so `curl /` keeps reading
-/// the way it always has; `?format=` overrides the header so the HTML page can
-/// link to the machine renderings.
+/// the way it always has; `?format=` overrides the header for direct machine
+/// rendering requests.
 ///
 /// @ref LLP 0017#serving-model — system surfaces live under the reserved
 /// `/_snapback/*` namespace; the default route can point humans at them without
@@ -729,6 +729,7 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
 const INSTANCE_HOME_HTML: &str = include_str!("server/instance_home.html");
 const SNAPBACK_MARK_SVG: &str = include_str!("../brand/snapback-mark.svg");
 const SNAPBACK_FAVICON_SVG: &str = include_str!("../brand/favicon.svg");
+const LOCK_ICON_SVG: &str = r#"<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>"#;
 
 fn instance_home_html(status: &InstanceStatus) -> String {
     let title = match &status.app.name {
@@ -739,9 +740,13 @@ fn instance_home_html(status: &InstanceStatus) -> String {
         .replace("__TITLE__", &html_escape(&title))
         .replace("__FAVICON_HREF__", &svg_data_uri(SNAPBACK_FAVICON_SVG))
         .replace("__SNAPBACK_MARK__", SNAPBACK_MARK_SVG)
+        .replace("__LOCK_ICON__", LOCK_ICON_SVG)
         .replace("__HERO__", &instance_home_hero(status))
         .replace("__FACTS__", &instance_home_facts(status))
-        .replace("__DETAILS_YAML__", &html_escape(&instance_home_yaml(status)))
+        .replace(
+            "__DETAILS_YAML__",
+            &html_escape(&instance_home_yaml(status)),
+        )
 }
 
 /// App-branded hero when the manifest declares an identity, Snapback-branded
@@ -749,90 +754,131 @@ fn instance_home_html(status: &InstanceStatus) -> String {
 /// input, and this page renders on the open root.
 fn instance_home_hero(status: &InstanceStatus) -> String {
     let app = &status.app;
-    let has_identity = app.name.is_some()
-        || app.description.is_some()
-        || app.icon_url.is_some()
-        || app.wordmark_url.is_some();
+    let app_id = if status.artifacts.schema_hash == "not loaded" {
+        ""
+    } else {
+        app.id.trim()
+    };
+    let name = non_empty(&app.name);
+    let description = non_empty(&app.description);
+    let icon_url = non_empty(&app.icon_url);
+    let wordmark_url = non_empty(&app.wordmark_url);
+    let has_identity = name.is_some()
+        || description.is_some()
+        || icon_url.is_some()
+        || wordmark_url.is_some()
+        || !app_id.is_empty();
     if !has_identity {
-        return format!(
-            concat!(
-                "<div class=\"snapback-mark\">{mark}</div>\n",
-                "<h1>Snapback</h1>\n",
-                "<p class=\"desc\">A Snapback instance is running here.</p>\n",
-                "<p class=\"sub\">app id <code>{app_id}</code></p>\n",
-            ),
-            mark = SNAPBACK_MARK_SVG,
-            app_id = html_escape(&app.id),
-        );
+        return String::new();
     }
     let mut out = String::new();
-    if let Some(icon_url) = &app.icon_url {
+    if let Some(icon_url) = icon_url {
+        out.push_str("<div class=\"identity\">\n");
         out.push_str(&format!(
-            "<img class=\"app-icon\" src=\"{}\" alt=\"\" />\n",
+            "<img class=\"app-icon\" src=\"{}\" alt=\"\" />\n<div>\n",
             html_escape(icon_url)
         ));
     }
-    let display_name = app.name.as_deref().unwrap_or(&app.id);
-    match &app.wordmark_url {
+    let display_name = name.unwrap_or(app_id);
+    match wordmark_url {
         Some(wordmark_url) => out.push_str(&format!(
             "<img class=\"app-wordmark\" src=\"{}\" alt=\"{}\" />\n",
             html_escape(wordmark_url),
             html_escape(display_name)
         )),
-        None => out.push_str(&format!("<h1>{}</h1>\n", html_escape(display_name))),
+        None if !display_name.is_empty() => {
+            out.push_str(&format!("<h1>{}</h1>\n", html_escape(display_name)))
+        }
+        None => {}
     }
-    if let Some(description) = &app.description {
+    if let Some(description) = description {
         out.push_str(&format!(
             "<p class=\"desc\">{}</p>\n",
             html_escape(description)
         ));
     }
-    out.push_str(&format!(
-        "<p class=\"sub\">app id <code>{}</code> &middot; running on Snapback</p>\n",
-        html_escape(&app.id)
-    ));
+    if !app_id.is_empty() {
+        let sub = if name.is_some()
+            || description.is_some()
+            || icon_url.is_some()
+            || wordmark_url.is_some()
+        {
+            format!(
+                "app id <code>{}</code> &middot; running on Snapback",
+                html_escape(app_id)
+            )
+        } else {
+            "running on Snapback".to_owned()
+        };
+        out.push_str(&format!("<p class=\"sub\">{sub}</p>\n"));
+    }
+    if icon_url.is_some() {
+        out.push_str("</div>\n</div>\n");
+    }
     out
 }
 
-/// The most important public facts, as cards. Everything shown is drawn from
-/// the same public `InstanceStatus` the machine formats serve.
+/// The most important public facts, as a four-column table: two key/value
+/// pairs per row, so the list reads as two side-by-side columns instead of one
+/// tall one. Everything shown is drawn from the same public `InstanceStatus`
+/// the machine formats serve.
 fn instance_home_facts(status: &InstanceStatus) -> String {
-    let mut out = String::new();
-    let mut fact = |key: &str, value: &str, mono: bool| {
-        out.push_str(&format!(
-            "<div class=\"fact\"><div class=\"k\">{}</div><div class=\"v{}\">{}</div></div>\n",
+    let facts: [(&str, String, bool); 10] = [
+        ("Uptime", status.server.uptime.clone(), false),
+        ("Bind", status.server.bind.clone(), true),
+        ("Target", status.target.clone(), true),
+        ("Runtime", status.runtime_engine.clone(), true),
+        (
+            "Storage",
+            format!("{} ({})", status.storage.engine, status.storage.mode),
+            false,
+        ),
+        ("Tables", status.counts.loaded_tables.to_string(), false),
+        (
+            "Functions",
+            status.counts.loaded_functions.to_string(),
+            false,
+        ),
+        ("Cron jobs", status.counts.cron_jobs.to_string(), false),
+        (
+            "Live subscriptions",
+            status.counts.live_subscriptions.to_string(),
+            false,
+        ),
+        ("Capabilities", status.capabilities.summary.clone(), false),
+    ];
+    let cell = |key: &str, value: &str, mono: bool| {
+        format!(
+            "<th scope=\"row\">{}</th><td{}>{}</td>",
             html_escape(key),
-            if mono { " mono" } else { "" },
+            if mono { " class=\"mono\"" } else { "" },
             html_escape(value)
-        ));
+        )
     };
-    fact("Uptime", &status.server.uptime, false);
-    fact("Target", &status.target, true);
-    fact("Runtime", &status.runtime_engine, true);
-    fact(
-        "Storage",
-        &format!("{} ({})", status.storage.engine, status.storage.mode),
-        false,
-    );
-    fact("Tables", &status.counts.loaded_tables.to_string(), false);
-    fact(
-        "Functions",
-        &status.counts.loaded_functions.to_string(),
-        false,
-    );
-    fact(
-        "Live subscriptions",
-        &status.counts.live_subscriptions.to_string(),
-        false,
-    );
-    fact("Cron jobs", &status.counts.cron_jobs.to_string(), false);
-    fact("Capabilities", &status.capabilities.summary, false);
-    fact("Bind", &status.server.bind, true);
+    let mut out = String::new();
+    out.push_str("<table>\n<tbody>\n");
+    for pair in facts.chunks(2) {
+        out.push_str("<tr>");
+        for (key, value, mono) in pair {
+            out.push_str(&cell(key, value, *mono));
+        }
+        if pair.len() == 1 {
+            out.push_str("<th scope=\"row\"></th><td></td>");
+        }
+        out.push_str("</tr>\n");
+    }
+    // The one sentence-length fact gets the full row width instead of
+    // squeezing into a half-width value cell.
     out.push_str(&format!(
-        "<div class=\"fact wide\"><div class=\"k\">Admin access</div><div class=\"v\">{}</div></div>\n",
+        "<tr><th scope=\"row\">Admin access</th><td colspan=\"3\">{}</td></tr>\n",
         html_escape(&status.admin.access)
     ));
+    out.push_str("</tbody>\n</table>\n");
     out
+}
+
+fn non_empty(value: &Option<String>) -> Option<&str> {
+    value.as_deref().filter(|value| !value.trim().is_empty())
 }
 
 fn html_escape(value: &str) -> String {

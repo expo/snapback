@@ -25,7 +25,7 @@
     --ink: #111111;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --radius: 10px;
+    --radius: 8px;
     --shadow: 0 1px 2px rgba(17, 20, 24, 0.04), 0 1px 3px rgba(17, 20, 24, 0.06);
   }
   @media (prefers-color-scheme: dark) {
@@ -61,7 +61,7 @@
 
   header.topbar {
     display: flex; align-items: center; gap: 16px;
-    padding: 12px 20px;
+    padding: 12px 24px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
@@ -70,48 +70,75 @@
     color: var(--ink); text-decoration: none;
   }
   .brand svg { height: 18px; width: auto; display: block; }
-  .brand .wordmark { font-weight: 700; font-size: 15px; letter-spacing: -0.02em; color: var(--text); }
+  .brand .wordmark { font-weight: 700; font-size: 15px; letter-spacing: 0; color: var(--text); }
   .brand small { color: var(--muted); font-weight: 500; }
-  .topbar .spacer { flex: 1; }
-  .topbar a.console { font-size: 13px; font-weight: 550; text-decoration: none; }
-  .topbar a.console:hover { text-decoration: underline; }
+  main { width: 100%; max-width: 980px; margin: 0; padding: 30px 24px 20px; flex: 1; }
 
-  main { width: 100%; max-width: 760px; margin: 0 auto; padding: 36px 20px 20px; flex: 1; }
-
-  .hero { text-align: center; padding: 12px 0 26px; }
+  .hero { text-align: left; padding: 8px 0 22px; }
   .hero .snapback-mark svg { height: 56px; width: auto; color: var(--ink); }
-  .hero img.app-icon { max-height: 72px; max-width: 72px; border-radius: 16px; display: block; margin: 0 auto 14px; }
-  .hero img.app-wordmark { max-height: 44px; max-width: 320px; display: block; margin: 0 auto; }
-  .hero h1 { margin: 10px 0 0; font-size: 26px; letter-spacing: -0.02em; }
-  .hero p.desc { margin: 10px auto 0; max-width: 540px; color: var(--muted); font-size: 15px; }
+  .hero .identity { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; }
+  .hero img.app-icon { height: 72px; width: 72px; border-radius: 16px; display: block; object-fit: cover; border: 1px solid var(--border); background: var(--surface); }
+  .hero img.app-wordmark { max-height: 44px; max-width: min(420px, 100%); display: block; }
+  .hero h1 { margin: 0; font-size: 28px; letter-spacing: 0; line-height: 1.15; }
+  .hero p.desc { margin: 10px 0 0; max-width: 680px; color: var(--muted); font-size: 15px; }
   .hero p.sub { margin: 6px 0 0; color: var(--faint); font-size: 13px; }
 
-  .actions { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-bottom: 28px; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-bottom: 24px; }
   .actions a.primary {
-    display: inline-block; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 9px; text-decoration: none;
     background: var(--accent); color: #fff;
     font-weight: 600; font-size: 14px;
-    padding: 10px 22px; border-radius: 9px;
+    padding: 10px 22px; border-radius: 8px;
     box-shadow: var(--shadow);
   }
+  .actions a.primary svg { width: 16px; height: 16px; stroke-width: 2.2; flex: 0 0 auto; }
   .actions a.primary:hover { filter: brightness(1.05); }
-  .actions .small-links { color: var(--faint); font-size: 12.5px; }
-  .actions .small-links a { color: var(--muted); font-family: var(--mono); font-size: 12px; text-decoration: none; }
-  .actions .small-links a:hover { color: var(--accent); text-decoration: underline; }
 
-  .facts {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px;
-    padding-bottom: 26px;
+  .facts { padding-bottom: 26px; }
+  .facts h2 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0;
   }
-  .fact {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: var(--shadow); padding: 10px 12px; min-width: 0;
+  .facts table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
   }
-  .fact .k { color: var(--faint); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-  .fact .v { font-size: 14px; font-weight: 550; margin-top: 2px; overflow-wrap: break-word; }
-  .fact .v.mono { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
-  .fact.wide { grid-column: 1 / -1; }
-  .fact.wide .v { font-weight: 450; color: var(--muted); font-size: 13px; }
+  .facts th, .facts td {
+    text-align: left;
+    vertical-align: top;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .facts tr:last-child th, .facts tr:last-child td { border-bottom: 0; }
+  .facts th {
+    width: 16%;
+    white-space: nowrap;
+    color: var(--faint);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    background: var(--surface-2);
+  }
+  /* Divider between the two key/value pair columns. */
+  .facts td + th { border-left: 1px solid var(--border); }
+  .facts td {
+    width: 34%;
+    font-size: 14px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+  .facts td.mono { font-family: var(--mono); font-size: 12.5px; }
 
   details.details {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -128,42 +155,38 @@
     background: var(--surface-2); color: var(--text);
     border-radius: 0 0 var(--radius) var(--radius);
   }
-  details.details .alt-formats {
-    margin: 0; padding: 9px 14px; font-size: 12px; color: var(--faint);
-    border-top: 1px solid var(--border);
+  .utility-links {
+    display: grid; gap: 4px;
+    margin: -12px 0 24px;
+    font-family: var(--mono); font-size: 12px;
   }
-
-  footer {
-    padding: 16px 20px 22px; text-align: center;
-    color: var(--faint); font-size: 12px;
-  }
-  footer a { color: var(--muted); text-decoration: none; }
-  footer a:hover { text-decoration: underline; }
+  .utility-links a { color: var(--muted); text-decoration: none; }
+  .utility-links a:hover { color: var(--accent); text-decoration: underline; }
 </style>
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/">__SNAPBACK_MARK__<span class="wordmark">Snapback</span></a>
-  <span class="spacer"></span>
-  <a class="console" href="/_snapback/admin">Admin console</a>
+  <a class="brand" href="https://github.com/ccheever/snapback">__SNAPBACK_MARK__<span class="wordmark">Snapback</span></a>
 </header>
 <main>
   <section class="hero">
 __HERO__
   </section>
   <section class="actions">
-    <a class="primary" href="/_snapback/admin">Open admin console</a>
-    <span class="small-links"><a href="/_snapback/api/health">/_snapback/api/health</a> &middot; <a href="/_snapback/api/inspect">/_snapback/api/inspect</a></span>
+    <a class="primary" href="/_snapback/admin">__LOCK_ICON__<span>Open admin console</span></a>
   </section>
   <section class="facts">
+    <h2>Instance properties</h2>
 __FACTS__
   </section>
   <details class="details">
-    <summary>Instance details</summary>
+    <summary>More details</summary>
     <pre>__DETAILS_YAML__</pre>
-    <p class="alt-formats">This status as <a href="/?format=yaml">YAML</a> &middot; <a href="/?format=json">JSON</a> &middot; <a href="/?format=md">Markdown</a></p>
   </details>
+  <nav class="utility-links" aria-label="Instance endpoints">
+    <a href="/_snapback/api/health">/_snapback/api/health</a>
+    <a href="/_snapback/api/inspect">/_snapback/api/inspect</a>
+  </nav>
 </main>
-<footer>Powered by Snapback</footer>
 </body>
 </html>
