@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-03 (ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added)
+**Revised:** 2026-07-03 (ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0024
 
 ## Summary
@@ -121,6 +121,41 @@ suggested-next-checks vocabulary of the diagnostic shape below, without
 writing to the tree. It emits text lines plus an exit status, not the
 machine-readable diagnostic objects that section specifies for product
 surfaces.
+
+### Bootstrap diagnostic codes
+
+`scripts/bootstrap-ibex-runtime` fails with a stable `SNAPBACK_*` code prefix on
+every failure path, and `scripts/ibex-doctor` reuses the same vocabulary, so
+agents match on codes rather than prose. The submodule-state codes (ENG-22595):
+
+- `SNAPBACK_IBEX_SOURCE_MISSING` — `vendor/ibex` has no sources and is not a
+  known git submodule in this tree.
+- `SNAPBACK_IBEX_SUBMODULE_UNINITIALIZED` — recorded gitlink, empty path, never
+  initialized (doctor's clean-fresh-worktree finding).
+- `SNAPBACK_IBEX_SUBMODULE_WEDGED` — uninitialized gitlink over stray content
+  that `git submodule update --init` cannot check out; bootstrap prints the
+  move-aside recovery steps.
+- `SNAPBACK_IBEX_SUBMODULE_INIT_FAILED` — `git submodule update --init` failed
+  (network/credentials).
+- `SNAPBACK_IBEX_SUBMODULE_BROKEN` — initialized but `Cargo.toml` still missing.
+- `SNAPBACK_IBEX_SUBMODULE_DRIFT` (warning) / `SNAPBACK_IBEX_SUBMODULE_CONFLICT`
+  — doctor-only checkout-state findings.
+
+The remaining (non-submodule) bootstrap failure paths carry codes too
+(ENG-22660):
+
+- `SNAPBACK_IBEX_HOST_UNSUPPORTED` — the host OS has no bootstrap/doctor artifact
+  probe; use `vendor/ibex` platform setup directly.
+- `SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING` — prepared Hermes
+  headers/frameworks/tools are still incomplete after the copy/download attempt.
+  Shared with `scripts/ibex-doctor` and `demos/_kit/server-process.mjs`, so an
+  agent sees one code for this state across bootstrap, doctor, and the demo
+  runner.
+- `SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED` — the vendored `download-hermes.sh`
+  fallback failed and no sibling Ibex artifacts were available.
+- `SNAPBACK_IBEX_CARGO_CHECK_FAILED` — artifacts verified, but the
+  Snapback/vendored-runtime build did not compile (a code error, not a missing
+  artifact).
 
 Valet's local-dev orchestrator (a Vite plugin) already implemented most of this and
 is worth copying: spawn the server child process, codegen-on-save with debounced
