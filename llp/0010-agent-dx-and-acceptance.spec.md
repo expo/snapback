@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 R2: V1 implementation charter ratified, superseding the V0 charter)
+**Revised:** 2026-07-03 (ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0024
 
 ## Summary
@@ -87,7 +87,16 @@ The Snapback bootstrap contract is:
 
 - Normal Snapback agents run `scripts/bootstrap-ibex-runtime` before `cargo
   build`, `cargo test`, or `cargo run` on a clean checkout.
-- The bootstrap first validates the vendored Ibex artifact locations expected by
+- The bootstrap resolves the `vendor/ibex` submodule checkout state before it
+  writes anything into that path (ENG-22595). A fresh clone or worktree that
+  has not run `git submodule update --init` gets the submodule initialized
+  automatically. If the submodule is uninitialized but the directory already
+  holds stray files, the bootstrap still attempts the init — a retained
+  submodule gitdir can check out over regenerable artifacts — and only when
+  git cannot complete it refuses with `SNAPBACK_IBEX_SUBMODULE_WEDGED`,
+  printing the recovery commands (move the stray directory aside, init the
+  submodule, re-run the bootstrap) rather than deleting anything.
+- The bootstrap then validates the vendored Ibex artifact locations expected by
   `vendor/ibex/build.rs`.
 - If those are incomplete, it prefers a sibling `../ibex` checkout with prepared
   Hermes artifacts and an optional prebuilt `ibex` binary, copying/linking those
@@ -102,6 +111,16 @@ The Snapback bootstrap contract is:
 This keeps the local target honest without making every Snapback agent rediscover
 Hermes packaging details. A failed bootstrap should point at the missing artifact
 class, not leave the next agent to infer it from a C++ build failure.
+
+`scripts/ibex-doctor` is the read-only companion: it classifies the
+`vendor/ibex` states an operator hits during bring-up (source missing,
+submodule uninitialized, submodule wedged — with or without Ibex sources in
+the directory — checkout drift, prepared Hermes artifacts missing) as
+human-readable findings that reuse the stable codes, severities, and
+suggested-next-checks vocabulary of the diagnostic shape below, without
+writing to the tree. It emits text lines plus an exit status, not the
+machine-readable diagnostic objects that section specifies for product
+surfaces.
 
 Valet's local-dev orchestrator (a Vite plugin) already implemented most of this and
 is worth copying: spawn the server child process, codegen-on-save with debounced

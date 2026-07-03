@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+#
+# ibex-doctor — read-only diagnosis of the vendor/ibex runtime checkout.
+#
+# Classifies the states an operator actually hits bringing up a fresh clone or
+# worktree (ENG-22595), with a stable code, a severity, and the exact recovery
+# commands. Never writes to the tree; scripts/bootstrap-ibex-runtime is the
+# authoritative fixer for artifact problems.
+#
+# Exit status: 0 when vendor/ibex is healthy enough to bootstrap/build,
+# 1 when any error-severity finding is reported.
+#
+# @ref LLP 0010#diagnostic-shape -- findings reuse that section's stable-code
+# + severity + suggested-next-checks vocabulary, but as human-readable text
+# lines plus an exit status, not the machine-readable diagnostic object it
+# specifies for product surfaces.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENDOR_IBEX="$ROOT/vendor/ibex"
+TARGET_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+FINDINGS=0
+
+report() {
+    # report <severity> <code> <message>
+    local severity="$1" code="$2" message="$3"
+    printf '[ibex-doctor] %s %s: %s\n' "$severity" "$code" "$message"
+    if [ "$severity" = "ERROR" ]; then
+        FINDINGS=$((FINDINGS + 1))
+    fi
+}
+
+hint() {
+    printf '[ibex-doctor]   fix: %s\n' "$*"
+}
+
+note() {
+    printf '[ibex-doctor] %s\n' "$*"
+}
+
+# --- 1. Submodule checkout state (the ENG-22595 wedge lives here) -----------
+
+submodule_status="$(git -C "$ROOT" submodule status -- vendor/ibex 2>/dev/null || true)"
+
+if [ -f "$VENDOR_IBEX/Cargo.toml" ]; then
+    note "OK vendor/ibex sources are present ($VENDOR_IBEX/Cargo.toml)"
+    case "$submodule_status" in
+        -*)
+            # Sources are present (e.g. a sibling ../ibex checkout copied in
+            # by hand) but the gitlink was never initialized in this
+            # worktree: cargo may build, yet `git submodule update --init`
+            # still hits the ENG-22595 failure unless a retained submodule
+            # gitdir can be reused.
+            report ERROR SNAPBACK_IBEX_SUBMODULE_WEDGED \
+                "vendor/ibex holds Ibex sources but the submodule is not initialized in this worktree; builds may work (the bootstrap tolerates a populated dir), but git submodule update --init can fail permanently over the existing contents"
+            hint "git -C $ROOT submodule update --init --recursive -- vendor/ibex  # succeeds only if git can check out over the existing contents"
+            hint "if the init fails: mv $VENDOR_IBEX $VENDOR_IBEX.wedged.\$(date +%Y%m%d%H%M%S), re-run the init, then $ROOT/scripts/bootstrap-ibex-runtime  # the moved-aside copy keeps any local edits"
+            ;;
+        +*)
+            report WARN SNAPBACK_IBEX_SUBMODULE_DRIFT \
+                "vendor/ibex checkout does not match the commit this Snapback revision pins"
+            hint "git -C $ROOT submodule update --recursive -- vendor/ibex  # if the drift is not intentional"
+            ;;
+        U*)
+            report ERROR SNAPBACK_IBEX_SUBMODULE_CONFLICT \
+                "vendor/ibex has unresolved merge conflicts"
+            hint "resolve the submodule conflict, then: git -C $ROOT submodule update --recursive -- vendor/ibex"
+            ;;
+    esac
+elif [ -z "$submodule_status" ]; then
+    report ERROR SNAPBACK_IBEX_SOURCE_MISSING \
+        "vendor/ibex has no Cargo.toml and this tree does not know it as a git submodule"
+    hint "re-fetch a complete Snapback source tree: git clone <snapback>, then git submodule update --init --recursive"
+else
+    case "$submodule_status" in
+        -*)
+            if [ -d "$VENDOR_IBEX" ] && [ -n "$(ls -A "$VENDOR_IBEX" 2>/dev/null)" ]; then
+                # The ENG-22595 wedge: gitlink never initialized, but stray
+                # files (typically bootstrap artifacts: ios/, linux/, tools/,
+                # target/) occupy the path. A fresh clone refuses over the
+                # non-empty directory; a retained submodule gitdir can still
+                # check out over untracked artifacts, so try the init first.
+                report ERROR SNAPBACK_IBEX_SUBMODULE_WEDGED \
+                    "vendor/ibex is an uninitialized submodule but the directory is not empty; git submodule update --init fails here unless a retained submodule gitdir can be reused"
+                hint "$ROOT/scripts/bootstrap-ibex-runtime  # attempts the init and prints recovery steps if git cannot complete it"
+                hint "if the init fails: mv $VENDOR_IBEX $VENDOR_IBEX.wedged.\$(date +%Y%m%d%H%M%S), then git -C $ROOT submodule update --init --recursive -- vendor/ibex, then re-run the bootstrap"
+            else
+                report ERROR SNAPBACK_IBEX_SUBMODULE_UNINITIALIZED \
+                    "vendor/ibex submodule has not been initialized in this worktree"
+                hint "git -C $ROOT submodule update --init --recursive  # or just run scripts/bootstrap-ibex-runtime, which now does this"
+            fi
+            ;;
+        *)
+            report ERROR SNAPBACK_IBEX_SUBMODULE_BROKEN \
+                "vendor/ibex is initialized but $VENDOR_IBEX/Cargo.toml is missing"
+            hint "git -C $ROOT submodule update --force --checkout --recursive -- vendor/ibex"
+            ;;
+    esac
+fi
+
+# --- 2. Prepared Hermes artifacts (coarse; bootstrap validates fully) --------
+
+if [ -f "$VENDOR_IBEX/Cargo.toml" ]; then
+    artifacts_ok=1
+    case "$TARGET_OS" in
+        darwin)
+            [ -f "$VENDOR_IBEX/ios/Frameworks/hermes-headers/hermes/hermes.h" ] || artifacts_ok=0
+            find "$VENDOR_IBEX/tools/hermes" -name 'hermesc*' -print -quit 2>/dev/null | grep -q . || artifacts_ok=0
+            ;;
+        linux)
+            [ -f "$VENDOR_IBEX/linux/hermes-headers/hermes/hermes.h" ] || artifacts_ok=0
+            find "$VENDOR_IBEX/linux/lib" -name 'libhermesvm*' -print -quit 2>/dev/null | grep -q . || artifacts_ok=0
+            ;;
+        *)
+            report WARN SNAPBACK_IBEX_HOST_UNSUPPORTED \
+                "no doctor artifact probe for host '$TARGET_OS'; use vendor/ibex platform setup directly"
+            artifacts_ok=1
+            ;;
+    esac
+
+    if [ "$artifacts_ok" = "1" ]; then
+        note "OK prepared Hermes artifacts look present for $TARGET_OS (bootstrap validates the full set)"
+    else
+        report ERROR SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING \
+            "prepared Hermes headers/tools are missing under vendor/ibex; cargo will fail with native Hermes errors"
+        hint "$ROOT/scripts/bootstrap-ibex-runtime  # set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex if the prepared checkout is not ../ibex"
+    fi
+fi
+
+# --- Verdict -----------------------------------------------------------------
+
+if [ "$FINDINGS" -eq 0 ]; then
+    note "vendor/ibex is healthy"
+    exit 0
+fi
+
+note "$FINDINGS error finding(s); apply the fixes above, then re-run scripts/ibex-doctor"
+exit 1

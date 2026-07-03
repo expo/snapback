@@ -175,11 +175,24 @@ builds will work. For normal Snapback work, use the root bootstrap:
 scripts/bootstrap-ibex-runtime
 ```
 
-The script first reuses prepared artifacts from a sibling `../ibex` checkout
-when they are present, copying them into the ignored `vendor/ibex/ios`,
-`vendor/ibex/linux`, and `vendor/ibex/tools/hermes` locations that Ibex's
-`build.rs` already expects. If no complete sibling artifact set exists, it falls
-back to `vendor/ibex/scripts/download-hermes.sh`, which may download or build
+The script first makes sure the `vendor/ibex` submodule checkout itself
+exists, running `git submodule update --init --recursive -- vendor/ibex` when a
+fresh clone or worktree has not initialized it yet. If the submodule is
+uninitialized but the directory already contains stray files, it still
+attempts the init (a retained submodule gitdir can check out over regenerable
+artifacts); only when git cannot complete it does it refuse with
+`SNAPBACK_IBEX_SUBMODULE_WEDGED` and print the recovery commands, without
+writing anything itself (writing artifacts into an uninitialized submodule
+path is how fresh worktrees used to get permanently blocked at
+`git submodule update --init`). `scripts/ibex-doctor` diagnoses these states
+read-only.
+
+With the checkout in place, the script reuses prepared artifacts from a sibling
+`../ibex` checkout when they are present, copying them into the ignored
+`vendor/ibex/ios`, `vendor/ibex/linux`, and `vendor/ibex/tools/hermes`
+locations that Ibex's `build.rs` already expects. If no complete sibling
+artifact set exists, it falls back to
+`vendor/ibex/scripts/download-hermes.sh`, which may download or build
 Hermes for the current platform. On macOS, this matters because the release
 Hermes xcframework does not contain the pure macOS framework Cargo links. Set
 `SNAPBACK_IBEX_CHECKOUT=/path/to/ibex` if your prepared checkout is not the
