@@ -178,11 +178,14 @@ scripts/bootstrap-ibex-runtime
 The script first makes sure the `vendor/ibex` submodule checkout itself
 exists, running `git submodule update --init --recursive -- vendor/ibex` when a
 fresh clone or worktree has not initialized it yet. If the submodule is
-uninitialized but the directory already contains stray files, it refuses with
-`SNAPBACK_IBEX_SUBMODULE_WEDGED` and prints the recovery commands instead of
-writing anything (writing artifacts into an uninitialized submodule path used
-to permanently block `git submodule update --init`). `scripts/ibex-doctor`
-diagnoses these states read-only.
+uninitialized but the directory already contains stray files, it still
+attempts the init (a retained submodule gitdir can check out over regenerable
+artifacts); only when git cannot complete it does it refuse with
+`SNAPBACK_IBEX_SUBMODULE_WEDGED` and print the recovery commands, without
+writing anything itself (writing artifacts into an uninitialized submodule
+path is how fresh worktrees used to get permanently blocked at
+`git submodule update --init`). `scripts/ibex-doctor` diagnoses these states
+read-only.
 
 With the checkout in place, the script reuses prepared artifacts from a sibling
 `../ibex` checkout when they are present, copying them into the ignored

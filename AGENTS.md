@@ -93,9 +93,10 @@ them after normal checkout/merge operations in this local clone.
   run `scripts/bootstrap-ibex-runtime`. Snapback links the vendored
   `ibex-runtime` crate, which needs ignored Hermes headers/frameworks and tools.
   The bootstrap script first initializes the `vendor/ibex` submodule if a fresh
-  clone or worktree has not done so yet (it refuses with
-  `SNAPBACK_IBEX_SUBMODULE_WEDGED` and recovery steps if stray files already
-  occupy the uninitialized path), then uses prepared artifacts from the sibling
+  clone or worktree has not done so yet (if stray files already occupy the
+  uninitialized path it attempts the init anyway and refuses with
+  `SNAPBACK_IBEX_SUBMODULE_WEDGED` plus recovery steps only when git cannot
+  complete it), then uses prepared artifacts from the sibling
   `../ibex` checkout when available, then falls back to the vendored Ibex setup
   script. Set `SNAPBACK_IBEX_CHECKOUT=/path/to/ibex` if the prepared checkout
   lives somewhere else. Do not start by building Hermes from source unless you

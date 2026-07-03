@@ -91,9 +91,10 @@ The Snapback bootstrap contract is:
   writes anything into that path (ENG-22595). A fresh clone or worktree that
   has not run `git submodule update --init` gets the submodule initialized
   automatically. If the submodule is uninitialized but the directory already
-  holds stray files — the state that used to permanently block the submodule
-  clone — the bootstrap refuses with `SNAPBACK_IBEX_SUBMODULE_WEDGED` and
-  prints the recovery commands (move the stray directory aside, init the
+  holds stray files, the bootstrap still attempts the init — a retained
+  submodule gitdir can check out over regenerable artifacts — and only when
+  git cannot complete it refuses with `SNAPBACK_IBEX_SUBMODULE_WEDGED`,
+  printing the recovery commands (move the stray directory aside, init the
   submodule, re-run the bootstrap) rather than deleting anything.
 - The bootstrap then validates the vendored Ibex artifact locations expected by
   `vendor/ibex/build.rs`.
@@ -113,9 +114,13 @@ class, not leave the next agent to infer it from a C++ build failure.
 
 `scripts/ibex-doctor` is the read-only companion: it classifies the
 `vendor/ibex` states an operator hits during bring-up (source missing,
-submodule uninitialized, submodule wedged, checkout drift, prepared Hermes
-artifacts missing) as coded diagnostics in the shape below, with the exact
-recovery commands, without writing to the tree.
+submodule uninitialized, submodule wedged — with or without Ibex sources in
+the directory — checkout drift, prepared Hermes artifacts missing) as
+human-readable findings that reuse the stable codes, severities, and
+suggested-next-checks vocabulary of the diagnostic shape below, without
+writing to the tree. It emits text lines plus an exit status, not the
+machine-readable diagnostic objects that section specifies for product
+surfaces.
 
 Valet's local-dev orchestrator (a Vite plugin) already implemented most of this and
 is worth copying: spawn the server child process, codegen-on-save with debounced

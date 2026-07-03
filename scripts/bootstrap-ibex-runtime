@@ -178,7 +178,9 @@ copy_peer_artifacts() {
 # is not an empty directory").
 ensure_vendor_ibex_checkout() {
     # Populated checkout (submodule initialized, or a non-git source export
-    # that vendors the Ibex sources directly): nothing to do.
+    # that vendors the Ibex sources directly): nothing to do. This
+    # deliberately also tolerates sources copied in over an uninitialized
+    # gitlink — builds work, and scripts/ibex-doctor flags the git state.
     if [ -f "$VENDOR_IBEX/Cargo.toml" ]; then
         return 0
     fi
@@ -194,22 +196,32 @@ ensure_vendor_ibex_checkout() {
         -*)
             # Gitlink recorded but the submodule worktree was never
             # initialized (git submodule status prefixes these with '-').
+            local stray=0
             if [ -d "$VENDOR_IBEX" ] && [ -n "$(ls -A "$VENDOR_IBEX" 2>/dev/null)" ]; then
                 # Stray files already occupy the uninitialized path (for
-                # example a previous bootstrap run wrote artifacts here);
-                # `git submodule update --init` will refuse to clone over
-                # them. Refuse rather than delete someone's files.
-                printf '[snapback-bootstrap] error: SNAPBACK_IBEX_SUBMODULE_WEDGED: vendor/ibex is an uninitialized git submodule but the directory is not empty, so git cannot clone it\n' >&2
-                printf '[snapback-bootstrap] the stray contents are usually regenerable bootstrap artifacts (ios/, linux/, tools/, target/); recover with:\n' >&2
-                printf '[snapback-bootstrap]   mv %q %q\n' "$VENDOR_IBEX" "$VENDOR_IBEX.wedged.$(date +%Y%m%d%H%M%S)" >&2
-                printf '[snapback-bootstrap]   git -C %q submodule update --init --recursive -- vendor/ibex\n' "$ROOT" >&2
-                printf '[snapback-bootstrap]   %q\n' "$ROOT/scripts/bootstrap-ibex-runtime" >&2
-                printf '[snapback-bootstrap] (scripts/ibex-doctor re-checks this state)\n' >&2
-                exit 1
+                # example an older bootstrap wrote artifacts here). A fresh
+                # clone refuses over a non-empty directory, but a retained
+                # submodule gitdir (rm -rf'd checkout in a
+                # previously-initialized worktree) checks out fine over
+                # untracked artifacts — so attempt the init and refuse only
+                # if git itself cannot complete it. Never delete the files.
+                stray=1
+                log "vendor/ibex submodule is not initialized and the directory already has content; attempting: git submodule update --init --recursive -- vendor/ibex"
+            else
+                log "vendor/ibex submodule is not initialized; running: git submodule update --init --recursive -- vendor/ibex"
             fi
-            log "vendor/ibex submodule is not initialized; running: git submodule update --init --recursive -- vendor/ibex"
-            git -C "$ROOT" submodule update --init --recursive -- vendor/ibex \
-                || fail "SNAPBACK_IBEX_SUBMODULE_INIT_FAILED: git submodule update --init --recursive -- vendor/ibex failed; fix the error above (network/credentials) and re-run this script"
+            if ! git -C "$ROOT" submodule update --init --recursive -- vendor/ibex; then
+                if [ "$stray" = "1" ]; then
+                    printf '[snapback-bootstrap] error: SNAPBACK_IBEX_SUBMODULE_WEDGED: git could not initialize the vendor/ibex submodule over the existing directory contents (see the git error above)\n' >&2
+                    printf '[snapback-bootstrap] the stray contents are usually regenerable bootstrap artifacts (ios/, linux/, tools/, target/); recover with:\n' >&2
+                    printf '[snapback-bootstrap]   mv %q %q\n' "$VENDOR_IBEX" "$VENDOR_IBEX.wedged.$(date +%Y%m%d%H%M%S)" >&2
+                    printf '[snapback-bootstrap]   git -C %q submodule update --init --recursive -- vendor/ibex\n' "$ROOT" >&2
+                    printf '[snapback-bootstrap]   %q\n' "$ROOT/scripts/bootstrap-ibex-runtime" >&2
+                    printf '[snapback-bootstrap] (scripts/ibex-doctor re-checks this state)\n' >&2
+                    exit 1
+                fi
+                fail "SNAPBACK_IBEX_SUBMODULE_INIT_FAILED: git submodule update --init --recursive -- vendor/ibex failed; fix the error above (network/credentials) and re-run this script"
+            fi
             ;;
     esac
 

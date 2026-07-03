@@ -10,8 +10,10 @@
 # Exit status: 0 when vendor/ibex is healthy enough to bootstrap/build,
 # 1 when any error-severity finding is reported.
 #
-# @ref LLP 0010#diagnostic-shape -- stable code + severity + concise message
-# + suggested next checks, without requiring log scraping.
+# @ref LLP 0010#diagnostic-shape -- findings reuse that section's stable-code
+# + severity + suggested-next-checks vocabulary, but as human-readable text
+# lines plus an exit status, not the machine-readable diagnostic object it
+# specifies for product surfaces.
 
 set -euo pipefail
 
@@ -45,6 +47,17 @@ submodule_status="$(git -C "$ROOT" submodule status -- vendor/ibex 2>/dev/null |
 if [ -f "$VENDOR_IBEX/Cargo.toml" ]; then
     note "OK vendor/ibex sources are present ($VENDOR_IBEX/Cargo.toml)"
     case "$submodule_status" in
+        -*)
+            # Sources are present (e.g. a sibling ../ibex checkout copied in
+            # by hand) but the gitlink was never initialized in this
+            # worktree: cargo may build, yet `git submodule update --init`
+            # still hits the ENG-22595 failure unless a retained submodule
+            # gitdir can be reused.
+            report ERROR SNAPBACK_IBEX_SUBMODULE_WEDGED \
+                "vendor/ibex holds Ibex sources but the submodule is not initialized in this worktree; builds may work (the bootstrap tolerates a populated dir), but git submodule update --init can fail permanently over the existing contents"
+            hint "git -C $ROOT submodule update --init --recursive -- vendor/ibex  # succeeds only if git can check out over the existing contents"
+            hint "if the init fails: mv $VENDOR_IBEX $VENDOR_IBEX.wedged.\$(date +%Y%m%d%H%M%S), re-run the init, then $ROOT/scripts/bootstrap-ibex-runtime  # the moved-aside copy keeps any local edits"
+            ;;
         +*)
             report WARN SNAPBACK_IBEX_SUBMODULE_DRIFT \
                 "vendor/ibex checkout does not match the commit this Snapback revision pins"
@@ -66,12 +79,13 @@ else
             if [ -d "$VENDOR_IBEX" ] && [ -n "$(ls -A "$VENDOR_IBEX" 2>/dev/null)" ]; then
                 # The ENG-22595 wedge: gitlink never initialized, but stray
                 # files (typically bootstrap artifacts: ios/, linux/, tools/,
-                # target/) occupy the path, so git refuses to clone into it.
+                # target/) occupy the path. A fresh clone refuses over the
+                # non-empty directory; a retained submodule gitdir can still
+                # check out over untracked artifacts, so try the init first.
                 report ERROR SNAPBACK_IBEX_SUBMODULE_WEDGED \
-                    "vendor/ibex is an uninitialized submodule but the directory is not empty; git submodule update --init cannot clone over it"
-                hint "mv $VENDOR_IBEX $VENDOR_IBEX.wedged.\$(date +%Y%m%d%H%M%S)"
-                hint "git -C $ROOT submodule update --init --recursive -- vendor/ibex"
-                hint "$ROOT/scripts/bootstrap-ibex-runtime"
+                    "vendor/ibex is an uninitialized submodule but the directory is not empty; git submodule update --init fails here unless a retained submodule gitdir can be reused"
+                hint "$ROOT/scripts/bootstrap-ibex-runtime  # attempts the init and prints recovery steps if git cannot complete it"
+                hint "if the init fails: mv $VENDOR_IBEX $VENDOR_IBEX.wedged.\$(date +%Y%m%d%H%M%S), then git -C $ROOT submodule update --init --recursive -- vendor/ibex, then re-run the bootstrap"
             else
                 report ERROR SNAPBACK_IBEX_SUBMODULE_UNINITIALIZED \
                     "vendor/ibex submodule has not been initialized in this worktree"
