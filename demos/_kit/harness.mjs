@@ -91,9 +91,23 @@ export function assert(cond, message) {
 }
 
 export function assertEqual(actual, expected, message) {
-  const a = JSON.stringify(actual);
-  const e = JSON.stringify(expected);
+  const a = stableStringify(actual);
+  const e = stableStringify(expected);
   if (a !== e) throw new Error(`${message ?? 'mismatch'}: expected ${e}, got ${a}`);
+}
+
+// ENG-22658: compare by canonical (sorted-key) JSON so two deeply-equal objects
+// that differ only in key insertion order are equal. Arrays keep their order —
+// element order is meaningful — while object keys are sorted at every depth.
+// Every other JSON.stringify semantic is unchanged, so this fixes the key-order
+// paper cut without changing what counts as equal in any other way. The
+// replacer returns a reordered object for each plain object; JSON.stringify then
+// recurses into it, so the canonicalization propagates to every nesting level.
+function stableStringify(value) {
+  return JSON.stringify(value, (_key, val) =>
+    (val && typeof val === 'object' && !Array.isArray(val)
+      ? Object.fromEntries(Object.keys(val).sort().map((k) => [k, val[k]]))
+      : val));
 }
 
 export async function assertThrows(fn, code, message) {
