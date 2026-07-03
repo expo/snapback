@@ -50,6 +50,21 @@ link ../skills .cursor/skills
 link ../skills .pi/skills
 link ../skills .opencode/skills
 
+# vendor/ibex is deliberately NOT auto-initialized here. Unlike vendor/llp and
+# vendor/ccheever-skills (small skill repos), it is a full Ibex runtime checkout
+# (tens of MB plus history) that most Snapback work — docs, demos, JavaScript —
+# never needs, so cloning it on every checkout/worktree-add would be a
+# disproportionate cost. scripts/bootstrap-ibex-runtime initializes it safely on
+# demand, resolving the submodule state before writing artifacts (ENG-22595).
+# But leaving a fresh worktree with vendor/ibex silently uninitialized is the
+# wedge trap: print a one-line hint (to stderr, even when --quiet) so an operator
+# knows the remaining runtime step, instead of discovering it as a native build
+# failure (ENG-22659).
+ibex_status="$(git submodule status -- vendor/ibex 2>/dev/null || true)"
+if [ ! -f vendor/ibex/Cargo.toml ] && printf '%s' "$ibex_status" | grep -q '^-'; then
+  printf 'note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).\n' >&2
+fi
+
 if [ "$quiet" -eq 0 ]; then
   printf 'Synced agent skills from vendor/llp and vendor/ccheever-skills.\n'
 fi

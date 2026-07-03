@@ -79,6 +79,15 @@ The aggregate entries are symlinks into `vendor/llp` and
 skill changes; this repo also uses tracked Git hooks in `.githooks/` to refresh
 them after normal checkout/merge operations in this local clone.
 
+The skills sync (and therefore the checkout/merge hooks) initializes only the
+small `vendor/llp` and `vendor/ccheever-skills` submodules. It deliberately does
+**not** auto-initialize `vendor/ibex`, which is a full Ibex runtime checkout that
+most Snapback work never needs — cloning it on every checkout would be
+disproportionate. When `vendor/ibex` is uninitialized the sync prints a one-line
+hint pointing at `scripts/bootstrap-ibex-runtime`, which initializes the
+submodule safely on demand (ENG-22595); it does not leave a fresh worktree as a
+silent wedge trap (ENG-22659).
+
 ## Working on this project
 
 - Read relevant LLP documents before implementing features or fixing bugs in
