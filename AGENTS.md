@@ -112,3 +112,13 @@ silent wedge trap (ENG-22659).
   are specifically changing Ibex or Hermes. When the runtime state looks wrong,
   run `scripts/ibex-doctor` for a read-only coded diagnosis before repairing
   anything by hand.
+- The bootstrap validates by building and launching the `snapback` binary (with
+  `DYLD_*` scrubbed on macOS), not just `cargo check`, so the macOS
+  framework-load wedge is caught at bootstrap time. On macOS the binary carries
+  an `LC_RPATH` emitted by `build.rs`, so `cargo run` finds
+  `hermesvm.framework` without `DYLD_FRAMEWORK_PATH` even under SIP. Every
+  bootstrap failure path fails with a stable `SNAPBACK_*` code (see LLP 0010,
+  "Bootstrap diagnostic codes"): the submodule states, plus
+  `SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING`, `SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED`,
+  `SNAPBACK_IBEX_CARGO_BUILD_FAILED`, `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`, and
+  `SNAPBACK_IBEX_HOST_UNSUPPORTED`.

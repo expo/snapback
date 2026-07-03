@@ -198,6 +198,16 @@ Hermes xcframework does not contain the pure macOS framework Cargo links. Set
 `SNAPBACK_IBEX_CHECKOUT=/path/to/ibex` if your prepared checkout is not the
 sibling `../ibex` directory.
 
+With the artifacts in place, the script validates by actually **building and
+launching** the `snapback` binary (with `DYLD_*` scrubbed on macOS), not just by
+`cargo check`. On macOS the binary loads `hermesvm.framework` through an
+`@rpath`-relative install name, so `build.rs` bakes in the matching `LC_RPATH`;
+that is why `cargo run` works in a fresh worktree without setting
+`DYLD_FRAMEWORK_PATH`, even though macOS SIP strips `DYLD_*` for protected
+process trees. If the binary cannot load the framework at launch, the bootstrap
+fails with `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` instead of leaving the crash for
+the first real run.
+
 If you specifically need to build the vendored runtime CLI rather than use the
 sibling prebuilt binary, run:
 
