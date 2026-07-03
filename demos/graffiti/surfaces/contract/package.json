@@ -1,0 +1,9 @@
+{
+  "name": "snapback-graffiti-contract-surface",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cd ../../../../../exact && bun --bun node_modules/.bin/vite --config ../snapback/demos/graffiti/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5179",
+    "build": "cd ../../../../../exact && bun --bun node_modules/.bin/vite build --config ../snapback/demos/graffiti/surfaces/contract/vite.config.ts"
+  }
+}

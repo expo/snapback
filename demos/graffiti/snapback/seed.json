@@ -1,0 +1,478 @@
+{
+  "tables": {
+    "cells": [
+      {
+        "_id": "seed_cell_001",
+        "boardId": "wall",
+        "x": 5,
+        "y": 3,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_002",
+        "boardId": "wall",
+        "x": 6,
+        "y": 3,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_003",
+        "boardId": "wall",
+        "x": 9,
+        "y": 3,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_004",
+        "boardId": "wall",
+        "x": 10,
+        "y": 3,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_005",
+        "boardId": "wall",
+        "x": 4,
+        "y": 4,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_006",
+        "boardId": "wall",
+        "x": 5,
+        "y": 4,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_007",
+        "boardId": "wall",
+        "x": 6,
+        "y": 4,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_008",
+        "boardId": "wall",
+        "x": 7,
+        "y": 4,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_009",
+        "boardId": "wall",
+        "x": 8,
+        "y": 4,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_010",
+        "boardId": "wall",
+        "x": 9,
+        "y": 4,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_011",
+        "boardId": "wall",
+        "x": 10,
+        "y": 4,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_012",
+        "boardId": "wall",
+        "x": 11,
+        "y": 4,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_013",
+        "boardId": "wall",
+        "x": 4,
+        "y": 5,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_014",
+        "boardId": "wall",
+        "x": 5,
+        "y": 5,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_015",
+        "boardId": "wall",
+        "x": 6,
+        "y": 5,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_016",
+        "boardId": "wall",
+        "x": 7,
+        "y": 5,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_017",
+        "boardId": "wall",
+        "x": 8,
+        "y": 5,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_018",
+        "boardId": "wall",
+        "x": 9,
+        "y": 5,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_019",
+        "boardId": "wall",
+        "x": 10,
+        "y": 5,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_020",
+        "boardId": "wall",
+        "x": 11,
+        "y": 5,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_021",
+        "boardId": "wall",
+        "x": 5,
+        "y": 6,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_022",
+        "boardId": "wall",
+        "x": 6,
+        "y": 6,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_023",
+        "boardId": "wall",
+        "x": 7,
+        "y": 6,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_024",
+        "boardId": "wall",
+        "x": 8,
+        "y": 6,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_025",
+        "boardId": "wall",
+        "x": 9,
+        "y": 6,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_026",
+        "boardId": "wall",
+        "x": 10,
+        "y": 6,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_027",
+        "boardId": "wall",
+        "x": 6,
+        "y": 7,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_028",
+        "boardId": "wall",
+        "x": 7,
+        "y": 7,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_029",
+        "boardId": "wall",
+        "x": 8,
+        "y": 7,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_030",
+        "boardId": "wall",
+        "x": 9,
+        "y": 7,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_031",
+        "boardId": "wall",
+        "x": 7,
+        "y": 8,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_032",
+        "boardId": "wall",
+        "x": 8,
+        "y": 8,
+        "color": "#e5484d",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_033",
+        "boardId": "wall",
+        "x": 16,
+        "y": 4,
+        "color": "#3e63dd",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_034",
+        "boardId": "wall",
+        "x": 17,
+        "y": 4,
+        "color": "#3e63dd",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_035",
+        "boardId": "wall",
+        "x": 18,
+        "y": 4,
+        "color": "#3e63dd",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_036",
+        "boardId": "wall",
+        "x": 16,
+        "y": 5,
+        "color": "#3e63dd",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_037",
+        "boardId": "wall",
+        "x": 16,
+        "y": 6,
+        "color": "#3e63dd",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_038",
+        "boardId": "wall",
+        "x": 17,
+        "y": 6,
+        "color": "#3e63dd",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_039",
+        "boardId": "wall",
+        "x": 18,
+        "y": 6,
+        "color": "#3e63dd",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_040",
+        "boardId": "wall",
+        "x": 18,
+        "y": 7,
+        "color": "#3e63dd",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_041",
+        "boardId": "wall",
+        "x": 16,
+        "y": 8,
+        "color": "#3e63dd",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_042",
+        "boardId": "wall",
+        "x": 17,
+        "y": 8,
+        "color": "#3e63dd",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_043",
+        "boardId": "wall",
+        "x": 18,
+        "y": 8,
+        "color": "#3e63dd",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_044",
+        "boardId": "wall",
+        "x": 20,
+        "y": 4,
+        "color": "#f5d90a",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_045",
+        "boardId": "wall",
+        "x": 20,
+        "y": 5,
+        "color": "#f5d90a",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_046",
+        "boardId": "wall",
+        "x": 20,
+        "y": 6,
+        "color": "#f5d90a",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_047",
+        "boardId": "wall",
+        "x": 20,
+        "y": 7,
+        "color": "#f5d90a",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_048",
+        "boardId": "wall",
+        "x": 20,
+        "y": 8,
+        "color": "#f5d90a",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_049",
+        "boardId": "wall",
+        "x": 21,
+        "y": 4,
+        "color": "#f5d90a",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_050",
+        "boardId": "wall",
+        "x": 21,
+        "y": 6,
+        "color": "#f5d90a",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_051",
+        "boardId": "wall",
+        "x": 21,
+        "y": 8,
+        "color": "#f5d90a",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_052",
+        "boardId": "wall",
+        "x": 22,
+        "y": 5,
+        "color": "#f5d90a",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_053",
+        "boardId": "wall",
+        "x": 22,
+        "y": 7,
+        "color": "#f5d90a",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_054",
+        "boardId": "wall",
+        "x": 6,
+        "y": 11,
+        "color": "#30a46c",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_055",
+        "boardId": "wall",
+        "x": 7,
+        "y": 11,
+        "color": "#30a46c",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_056",
+        "boardId": "wall",
+        "x": 8,
+        "y": 11,
+        "color": "#30a46c",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_057",
+        "boardId": "wall",
+        "x": 9,
+        "y": 11,
+        "color": "#30a46c",
+        "authorId": "user_ada"
+      },
+      {
+        "_id": "seed_cell_058",
+        "boardId": "wall",
+        "x": 10,
+        "y": 11,
+        "color": "#30a46c",
+        "authorId": "user_grace"
+      },
+      {
+        "_id": "seed_cell_059",
+        "boardId": "wall",
+        "x": 11,
+        "y": 11,
+        "color": "#30a46c",
+        "authorId": "user_ada"
+      }
+    ]
+  }
+}

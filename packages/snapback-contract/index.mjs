@@ -142,8 +142,10 @@ export async function createSnapbackContractSurface({
   ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS,
   // Multi-query mode (LLP 0034 §6 ownership row 3 — the All Aboard proof):
   // name the manifest's live queries to bind each over the shared stream with
-  // its own boundary key and per-query connection axis. Legacy single-query
-  // options (queryName/boundaryKey/queryArgs/optimisticReducers) do not apply.
+  // its own boundary key and per-query connection axis. An entry is a name or
+  // `{ name, args }` for scoped live queries (the graffiti wall's board-scoped
+  // listCells). Legacy single-query options (queryName/boundaryKey/queryArgs/
+  // optimisticReducers) do not apply.
   liveQueries = null,
 }) {
   const pending = new Set();
@@ -991,7 +993,13 @@ async function createMultiLiveContractSurface({
   }
   const queryNames = Object.keys(manifest?.queries ?? {});
   const mutationNames = Object.keys(manifest?.mutations ?? {});
-  for (const name of liveQueries) {
+  // A liveQueries entry is a name or `{ name, args }` — a scoped live query
+  // (e.g. graffiti's board-scoped listCells) subscribes with its validated
+  // args; bare-name entries keep the original zero-arg behavior.
+  const liveQueryEntries = liveQueries.map((entry) =>
+    typeof entry === 'string' ? { name: entry, args: {} } : { name: entry.name, args: entry.args ?? {} });
+  const liveQueryNames = liveQueryEntries.map((entry) => entry.name);
+  for (const name of liveQueryNames) {
     if (!manifest?.queries?.[name]) {
       throw new Error(`liveQueries names an unknown manifest query "${name}".`);
     }
@@ -1042,10 +1050,10 @@ async function createMultiLiveContractSurface({
     initialRows[name] = [];
   }
   if (wantLivePush) {
-    for (const name of liveQueries) {
+    for (const { name, args } of liveQueryEntries) {
       const handle = await client.liveQuery(name, {
         connectionId: sharedConnectionId,
-        args: {},
+        args,
         userId,
         transport: 'stream',
         stream: liveStreamOptions,
@@ -1093,7 +1101,7 @@ async function createMultiLiveContractSurface({
       await client.mutate(name, {
         args,
         userId,
-        correlation: { rootId, bindingIds: [...liveQueries] },
+        correlation: { rootId, bindingIds: [...liveQueryNames] },
       });
     } catch (error) {
       publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
@@ -1179,15 +1187,15 @@ async function createMultiLiveContractSurface({
     declaredQueries: queryNames,
     declaredMutations: mutationNames,
     livePush: wantLivePush,
-    liveQueries: [...liveQueries],
+    liveQueries: [...liveQueryNames],
     connectionId: sharedConnectionId,
     rootId,
     receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
     ephemeralSourceStarts: ephemeralWiring.sourceStarts,
     prewarmEphemeral: ephemeralWiring.prewarmScope,
     // Per-query connection facts; no argument = the first live query.
-    connection: (name = liveQueries[0]) => connectionFor(name),
-    connections: () => Object.fromEntries(liveQueries.map((name) => [name, connectionFor(name)])),
+    connection: (name = liveQueryNames[0]) => connectionFor(name),
+    connections: () => Object.fromEntries(liveQueryNames.map((name) => [name, connectionFor(name)])),
     mount: (component, options = {}) => {
       assertActive();
       return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));

@@ -1,0 +1,123 @@
+{
+  "id": "graffiti",
+  "title": "Collaborative graffiti wall",
+  "description": "One shared pixel wall where every painter sees each other's strokes appear live and each other's cursors move in real time. Durable marks (cells) are server-owned, last-writer-wins per coordinate, and stream over the live-query lane; presence (boardCursors) is a TTL-bounded ephemeral collection that never touches SQLite. Exercises LLP 0013 ephemeral realtime alongside the generated app-data surface, projected into Contract through the generated ephemeral read binding and the authored rated publish line.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Sync", "Realtime", "Ephemeral", "Developer experience", "Contract/Exact"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "host-plan",
+    "liveSubscriptions": true,
+    "syncableLiveQuery": true,
+    "ephemeralRealtime": true,
+    "ephemeralWebSocketPublish": true,
+    "ephemeralLocalRoomAuthority": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node demos/_kit/codegen.mjs demos/graffiti/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json",
+      "snapback/generated/contract/runtime-links.ts",
+      "snapback/generated/contract/listCells.query.ts",
+      "snapback/generated/contract/paintCell.mutation.ts",
+      "snapback/generated/contract/boardCursors.ephemeral.ts",
+      "snapback/generated/contract/boardCursors.publish.ts",
+      "snapback/generated/contract/*.contract-meta.ts"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json",
+    "rows": { "cells": 59 },
+    "note": "Seed art: a red heart, a blue/yellow 'SB' tag, and a green sprig, painted by two seed authors."
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "runner": "node demos/graffiti/tests/acceptance/headless.mjs",
+      "toolchain": "node>=22 (built-in fetch + WebSocket); cargo to build/run the local server"
+    },
+    "contract": {
+      "requirement": "optional",
+      "runner": "bun demos/graffiti/tests/acceptance/contract.mjs",
+      "browserRunner": "SNAPBACK_GRAFFITI_API=http://127.0.0.1:4431 bun run --cwd demos/graffiti/surfaces/contract dev",
+      "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
+      "platforms": ["web"],
+      "exact": {
+        "requiredCapabilities": ["contractCompiler", "runtime", "dataBinding", "ephemeralBinding", "valueChannels"],
+        "resolver": "demos/_kit/exact-resolver.mjs (SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact | vendor/exact)",
+        "mismatchPolicy": "skip-with-diagnostic-when-missing; run-and-fail-on-error-when-present",
+        "toolchain": "bun (to load Exact package exports from an install or local checkout)"
+      }
+    },
+    "macosNative": {
+      "requirement": "blocked",
+      "expectedDiagnostic": "EXACT_MACOS_APPKIT_HOST_NOT_BUILT",
+      "note": "The same graffiti.contract compiles for the macOS native (AppKit/Hermes) target, but Exact has no runnable macOS NSApplication host yet (only iOS runs native today). The runnable GUI target is the web surface, which works in any macOS browser."
+    },
+    "react": {
+      "requirement": "blocked",
+      "expectedDiagnostic": "REACT_ADAPTER_NOT_BUILT",
+      "note": "React/Expo adapter is a v0 capability gap; the headless SnapbackClient is the framework-neutral core a React adapter would bind over."
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "schema load registers cells table + boardCursors ephemeral collection",
+      "generated functions load + inspectable (listCells syncable-live, paintCell); capability manifest reports websocket ephemeral publish",
+      "deterministic reset + declarative seed (59 cells)",
+      "paint is server-authoritative with owned system fields",
+      "paint by one painter live-syncs to a peer connection",
+      "append-only marks resolve last-writer-wins per coordinate",
+      "ephemeral presence requires the board room permission (SNAPBACK_EPHEMERAL_UNAUTHORIZED)",
+      "cursor presence publishes, fans out to a peer, and coalesces to latest",
+      "cursor presence never advances the durable wall version",
+      "cursor subscribe + publish ride the live WebSocket, not a private route",
+      "disconnect removes the connection-owned cursor",
+      "TTL expiry prunes an idle cursor without durable tombstones",
+      "over-rate publishes rejected (SNAPBACK_EPHEMERAL_RATE_LIMITED) and observable in diagnostics",
+      "oversize cursor payload rejected (SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE)",
+      "durable lane stays first under a cursor flood on one connection",
+      "inspect distinguishes ephemeral fan-out pressure from durable delivery"
+    ],
+    "contract": [
+      "graffiti.contract compiles against generated descriptors (honest compile)",
+      "generated ephemeral read binding + rated publish resolve through Exact (presence publish is not a durable mutation)",
+      "Exact row-shape analysis catches a bad presence field (shape_unknown_member)"
+    ],
+    "browser": [
+      "wall renders the full pixel grid",
+      "local paint flips a cell and persists",
+      "two tabs see each other's pixels via durable live push",
+      "two tabs see each other's live mouse cursors via the ephemeral binding + channel publish",
+      "idle cursors drop on TTL; closed tabs drop on disconnect"
+    ]
+  },
+  "capabilityGaps": [
+    "exact_macos_appkit_host (the macOS native GUI host is not built yet; web is the runnable target)",
+    "offline_mutation_replay",
+    "postgres",
+    "cloudflare",
+    "external_auth (the browser surface asserts its own boardMember room permission; a real auth provider would mint it server-side)",
+    "assets",
+    "notifications",
+    "react_adapter",
+    "ephemeral_hosted_adapter"
+  ],
+  "notClaiming": [
+    "offline-first / local handler replay (this is an Online-class integration)",
+    "Partiful-scale throughput (this is a demo shape, not a benchmark)",
+    "freehand vector drawing (Contract has no canvas primitive in v0; the wall is a pixel grid — the pointer channel carries presence only)",
+    "a standalone macOS .app (awaits the Exact AppKit host; the wall runs on web, including in macOS browsers)"
+  ]
+}

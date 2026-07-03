@@ -1,0 +1,95 @@
+// Snapback Graffiti Wall — one shared pixel wall with live presence.
+//
+// Two lanes, visible side by side:
+//   - DURABLE: each grid cell is a server-owned mark. Pressing a cell runs the
+//     generated paintCell mutation; the live listCells query streams the wall to
+//     every other painter over the shared socket, and wallCells() renders it
+//     last-writer-wins per coordinate.
+//   - EPHEMERAL: the other painters' live mouse cursors are the generated
+//     boardCursors `ephemeral` binding — TTL-bounded latest-state, never stored.
+//     The pointer stream rides a value channel: pointermove on the board binds
+//     the channel, and the authored rated `publish` line feeds the generated
+//     boardCursors publish descriptor at 15Hz, inside its sustainedHz=20 budget
+//     (the Exact analyzer checks the rate at build time).
+//
+// Coordinates are baked into each cell's press handler at compile time, which is
+// how a declarative Contract view drives a pixel grid without pointer-coordinate
+// events; the channel carries the raw pointer for presence only. Palette and
+// spacing literals match the Facet light theme.
+
+use listCells from "../../snapback/generated/contract/listCells.query.ts"
+use paintCell from "../../snapback/generated/contract/paintCell.mutation.ts"
+use boardCursors from "../../snapback/generated/contract/boardCursors.ephemeral.ts"
+use boardCursorsPublish from "../../snapback/generated/contract/boardCursors.publish.ts"
+use pointerChannel from "@exact/contract/channels"
+use palette from "./data.ts"
+use wallCells from "./data.ts"
+use blankWall from "./data.ts"
+use remoteCursors from "./data.ts"
+use cursorLeft from "./data.ts"
+use cursorTop from "./data.ts"
+use swatchRing from "./data.ts"
+use initial from "./data.ts"
+use presenceHeading from "./data.ts"
+
+component GraffitiWall
+  props
+    painterName: string
+    painterColor: string
+
+  state draftColor = painterColor
+
+  query cells = listCells({ boardId: "wall" })
+  ephemeral cursors = boardCursors({ boardId: "wall" })
+  mutation paint = paintCell
+
+  action pickColor(color) writes draftColor
+    draftColor = color
+
+  action paintAt(x, y) mutates paint
+    paint({ boardId: "wall", x: x, y: y, color: draftColor })
+
+  use pointer = pointerChannel()
+
+  view
+    column align="center" padding=24 gap=18 background="#fbfbfc" width="100%" minHeight="100vh"
+      column gap=4 align="center"
+        text "Snapback Graffiti Wall" size=26 weight=800 color="#1c1d21"
+        text "One shared wall · durable pixels + live presence" size=13 color="#5f636c"
+
+      row gap=8 align="center" wrap="wrap" justify="center" maxWidth=560
+        each swatch in palette() key=swatch.id
+          button press=pickColor(swatch.color) label=`Paint with ${swatch.label}` testId=`swatch-${swatch.id}` width=30 height=30 radius=8 background=swatch.color borderWidth=2 borderColor=swatchRing(swatch.color, draftColor)
+
+      stack position="relative" width=528 height=308 radius=10 background="#ffffff" borderWidth=1 borderColor="#e4e4e9" overflow="hidden" pointermove=pointer.self testId="board"
+        publish pointer.self -> boardCursorsPublish rate=15 payload={ boardId: "wall", value: { x: Math.round(sample.x), y: Math.round(sample.y), color: painterColor, name: painterName } }
+        async cells
+          loading
+            column width=528 height=308 align="center" justify="center"
+              text "Loading wall…" size=14 color="#5f636c" testId="wall-loading"
+          error err
+            column width=528 height=308 align="center" justify="center"
+              text err.message size=14 color="#c4392f" testId="wall-error"
+          empty
+            row wrap="wrap" width=528 height=308
+              each cell in blankWall() key=cell.id
+                button press=paintAt(cell.x, cell.y) label=`Paint cell ${cell.id}` testId=`cell-${cell.x}-${cell.y}` width=22 height=22 padding=0 radius=0 background=cell.color borderWidth=1 borderColor="#00000010"
+          ready rows
+            row wrap="wrap" width=528 height=308
+              each cell in wallCells(rows) key=cell.id
+                button press=paintAt(cell.x, cell.y) label=`Paint cell ${cell.id}` testId=`cell-${cell.x}-${cell.y}` width=22 height=22 padding=0 radius=0 background=cell.color borderWidth=1 borderColor="#00000010"
+        each person in remoteCursors(cursors.entries) key=person.key
+          column position="absolute" left=cursorLeft(person) top=cursorTop(person) width=16 height=16 radius=999 zIndex=5 background=person.value.color borderWidth=2 borderColor="#ffffff" align="center" justify="center" transition="left 80ms linear, top 80ms linear" testId=`cursor-${person.key}`
+            text initial(person) size=9 weight=800 color="#ffffff"
+        column position="absolute" left=8 top=278 zIndex=7 background="#1c1d21" radius=999 paddingLeft=10 paddingRight=10 paddingTop=3 paddingBottom=3
+          text presenceHeading(cursors.entries) size=11 weight=700 color="#ffffff" testId="presence-heading"
+
+      row gap=24 align="center" wrap="wrap" justify="center"
+        column gap=6 align="center"
+          text "Your brush" size=11 weight=700 color="#5f636c"
+          column width=34 height=34 radius=8 background=draftColor borderWidth=2 borderColor="#1c1d21"
+
+        column gap=3 maxWidth=360
+          text "Move your mouse over the wall — other painters see your cursor live." size=11 color="#8a8f98"
+          text "Durable: every pixel is a server-owned mark, last-writer-wins." size=11 color="#8a8f98"
+          text "Ephemeral: cursors are TTL presence, coalesced and never stored." size=11 color="#8a8f98"
