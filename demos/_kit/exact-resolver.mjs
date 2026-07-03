@@ -14,8 +14,17 @@ import { join } from 'node:path';
 const CONTRACT = 'packages/exact-contract/src';
 const DEVTOOLS = 'packages/exact-devtools/src';
 
-export function resolveExact({ repoRoot } = {}) {
+// Every resolution requires at least these; a demo may require more via
+// `requiredCapabilities` (for example graffiti's ephemeralBinding +
+// valueChannels).
+const BASELINE_CAPABILITIES = ['contractCompiler', 'runtime', 'dataBinding'];
+
+export function resolveExact({ repoRoot, requiredCapabilities = [] } = {}) {
   const root = repoRoot ?? process.cwd();
+  // A required capability the probe table does not know stays in `missing`
+  // and fails the candidate loudly here, instead of failing deep inside a
+  // compile against an old checkout.
+  const required = [...new Set([...BASELINE_CAPABILITIES, ...requiredCapabilities])];
   const candidates = [];
 
   if (process.env.SNAPBACK_EXACT_ROOT) {
@@ -34,7 +43,8 @@ export function resolveExact({ repoRoot } = {}) {
   for (const candidate of candidates) {
     if (!candidate.path || !existsSync(candidate.path)) continue;
     const caps = probeCapabilities(candidate.path);
-    if (caps.contractCompiler && caps.runtime && caps.dataBinding) {
+    const missing = required.filter((name) => caps[name] !== true);
+    if (missing.length === 0) {
       return {
         sourceKind: candidate.kind,
         path: candidate.path,
@@ -45,11 +55,12 @@ export function resolveExact({ repoRoot } = {}) {
     }
     // Present but incompatible — record why, keep probing.
     candidate.caps = caps;
+    candidate.missing = missing;
   }
 
   const probed = candidates
     .filter((c) => c.path && existsSync(c.path))
-    .map((c) => `${c.kind}@${c.path} (caps: ${JSON.stringify(c.caps ?? {})})`);
+    .map((c) => `${c.kind}@${c.path} (missing: ${(c.missing ?? []).join(', ')}; caps: ${JSON.stringify(c.caps ?? {})})`);
 
   return {
     sourceKind: 'missing',
@@ -61,9 +72,10 @@ export function resolveExact({ repoRoot } = {}) {
         severity: 'warning',
         subsystem: 'contract-integration',
         message:
-          'No Exact checkout with the required Contract compiler + runtime + data-binding capability was found.',
+          `No Exact checkout with the required capabilities (${required.join(', ')}) was found.`,
         details: {
           target_surface: 'Contract/Exact',
+          requiredCapabilities: required,
           searched: candidates.map((c) => `${c.kind}:${c.path}`),
           probed,
         },
@@ -82,7 +94,25 @@ function probeCapabilities(root) {
     // just any Exact checkout — this is the "probe the feature, not the directory" rule.
     dataBinding: existsSync(join(root, CONTRACT, 'runtime', 'data-provider.ts')),
     agentApi: existsSync(join(root, DEVTOOLS, 'agent', 'server.ts')),
+    // The `ephemeral` binding kind (Exact LLP 0284 §2.5 / ENG-22479): probe the
+    // provider seam for its handle projection, not just the file.
+    ephemeralBinding: fileContains(
+      join(root, CONTRACT, 'runtime', 'data-provider.ts'),
+      'createProviderEphemeralHandle',
+    ),
+    // Value channels + the authored rated publish line (Exact LLP 0281 stage 0 /
+    // ENG-22524): the channels export the .contract `use ... from
+    // "@exact/contract/channels"` resolves.
+    valueChannels: fileContains(join(root, CONTRACT, 'channels.ts'), 'pointerChannel'),
   };
+}
+
+function fileContains(path, needle) {
+  try {
+    return existsSync(path) && readFileSync(path, 'utf8').includes(needle);
+  } catch {
+    return false;
+  }
 }
 
 function gitCommit(root) {

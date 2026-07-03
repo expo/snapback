@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
 **Revised:** 2026-07-02 (OQ1 resolved — row diffs ship as an additive `live_delta` wire kind for the analyzable HostPlan subset, closing DK-3's op-log-delta leg on the M3 evidence; server + client + tests landed, LLP 0008 §Decision DK-3 governs). 2026-07-01 (rev 2 — LLP 0005 review incorporation, one GPT (Codex/gpt-5.5) + one fresh-context Claude (Opus 4.8) review, artifacts in `llp/reviews/0034-contract-source-seam-provider-side.{gpt,claude}.md`, run blind to each other and convergent. Load-bearing corrections: **added D0** — the connection axis requires a server keepalive that does not exist (the stream sends nothing when idle and no-ops Ping/Pong), so "wiring, not server work" was oversold; **collapsed the version story to the existing global durable commit version** (rev 1's "updates are unnumbered" was false — every `live_replace` already carries it) and specified the ephemeral `(scopeEpoch, entryVersion)` mapping, deleting the invented per-subscription sequence; **split receipts into provider-populated vs adapter-stitched keys** with an inbound-correlation convention (several 0284 §2.6 keys are Exact-runtime concepts a provider cannot originate); **rewrote reconnect around reality** — socket close disposes durable subscriptions server-side, so reconnect is always a fresh `subscribe_live`, and `resume_live` is permission-epoch-driven retain/resnapshot with no version replay; corrected D3's baseline (in-tree, ephemeral collections project only as `ephemeralCollectionReference` — the query/mutation presence pair exists only in the off-tree graffiti worktree, so the ephemeral kind is net-new emission, simpler than a migration); re-grounded presence proofs on `cursors-web`; rewrote D4 as three concrete boot edits plus the AdminWrite-vs-profile distinction; promoted old OQ6 to a stated fact (ephemeral has no resume path; it always re-snapshots); reframed OQ1 (the server already pushes full replacement rows — a poke would be a regression); added the durable-over-ephemeral drain-priority invariant, the permission-epoch receipt reason, the §5 ownership table, DO-hibernation and key-mode identity OQs. Accepted same day by the author's decision, the round's blocking concerns being resolved in this revision. rev 1 — initial draft)
-**Related:** Exact LLP 0284 (Contract Source Seam, rev 3 — the interface this implements; its acceptance gates on this document), Exact LLP 0263 (Contract Data Bindings — the manifest/adapter surface), Exact LLP 0278 (Verification Depth — §D consumes the receipts specified here; D2 is the provider home for its OQ2), Exact LLP 0281 (Transient Reactivity Lane — rated `publish` compiles against the budget facts D3 emits), Exact LLP 0275 (the realtime gap report), LLP 0013 (Ephemeral Realtime State — the shipped subsystem D1/D3 expose), LLP 0008 (Local-First Sync and Realtime), LLP 0011 (Auth and Permissions — permission epochs), LLP 0012 (Headless Integration Contract), LLP 0014 (Cloudflare Strategy — OQ5's hibernation semantics), LLP 0020 (Core Authoring Surface), LLP 0021 (Contract/Exact Integration Hardening — the program this lands in), LLP 0025 (Web Cursor Presence Demo — the idempotent-ensure lineage), LLP 0026 (Ephemeral Backend Abstraction), LLP 0027 / LLP 0029 (All Aboard demo + gap closure — the first proof's home), LLP 0031 (Server Route Taxonomy — D4's gating home), LLP 0032 (Decision and Implementation Hardening), diaries 0001 (snapshot-with-subscribe praised), 0004 (provider-conformance lineage), 0006 (graffiti acceptance — off-tree worktree), 0008 (All Aboard glue); **reviews:** `llp/reviews/0034-contract-source-seam-provider-side.{gpt,claude}.md`
+**Related:** Exact LLP 0284 (Contract Source Seam, rev 3 — the interface this implements; its acceptance gates on this document), Exact LLP 0263 (Contract Data Bindings — the manifest/adapter surface), Exact LLP 0278 (Verification Depth — §D consumes the receipts specified here; D2 is the provider home for its OQ2), Exact LLP 0281 (Transient Reactivity Lane — rated `publish` compiles against the budget facts D3 emits), Exact LLP 0275 (the realtime gap report), LLP 0013 (Ephemeral Realtime State — the shipped subsystem D1/D3 expose), LLP 0008 (Local-First Sync and Realtime), LLP 0011 (Auth and Permissions — permission epochs), LLP 0012 (Headless Integration Contract), LLP 0014 (Cloudflare Strategy — OQ5's hibernation semantics), LLP 0020 (Core Authoring Surface), LLP 0021 (Contract/Exact Integration Hardening — the program this lands in), LLP 0025 (Web Cursor Presence Demo — the idempotent-ensure lineage), LLP 0026 (Ephemeral Backend Abstraction), LLP 0027 / LLP 0029 (All Aboard demo + gap closure — the first proof's home), LLP 0031 (Server Route Taxonomy — D4's gating home), LLP 0032 (Decision and Implementation Hardening), diaries 0001 (snapshot-with-subscribe praised), 0004 (provider-conformance lineage), 0006 (graffiti acceptance — landed as demos/graffiti via ENG-22219, §10.4), 0008 (All Aboard glue); **reviews:** `llp/reviews/0034-contract-source-seam-provider-side.{gpt,claude}.md`
 
 ---
 
@@ -654,3 +654,40 @@ checking — stay named-not-scheduled):
   the Exact 0284 §2.4 fact names (`mode`, `livePush`,
   `initialSnapshot`, `pollCadenceMs`, `transport`, `ephemeral`) per
   binding, for the exact-side ENG-22526 consumption track.
+
+### 10.4 Graffiti wall port (2026-07-03, ENG-22219)
+
+The collaborative graffiti wall (`demos/graffiti/`; Diary 0006) is the first
+surface to combine, in one `.contract`, everything this seam shipped: a
+durable live `query` binding (board-scoped `listCells` over the shared
+stream), the generated `ephemeral` binding (`boardCursors.ephemeral.ts`),
+and the authored rated `publish` line (Exact LLP 0281) against the D3
+publish-budget facts. One adapter gap surfaced and was closed additively:
+
+- **Scoped live queries in multi-query mode.** `createSnapbackContractSurface`
+  multi-live mode subscribed every named query with empty args (fine for All
+  Aboard's zero-arg descriptors, unusable for a board-scoped wall). A
+  `liveQueries` entry now accepts `{ name, args }` alongside bare names;
+  the subscription binds with the validated args and everything else
+  (boundary key, connection axis, correlation) is unchanged.
+
+  The honest invariant (adversarial-review hardening, same round): the
+  configured entry's args are the ONLY args that reach the server — one
+  subscription per query name, established at surface creation, validated
+  server-side at subscribe. **Binding-site args are not consulted on the
+  multi-live read path.** Two guard rails keep that from becoming silent
+  wrong-data: duplicate `liveQueries` names are rejected at creation with
+  `SNAPBACK_CONTRACT_LIVEQUERY_DUPLICATE` (the handles and boundary are
+  keyed by name, so a duplicate would clobber its sibling), and a binding
+  whose args deep-differ from the configured entry's records
+  `SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH` in the surface diagnostics
+  plus a dev warning — it is still served the configured scope's rows, but
+  never silently. Per-binding argful subscriptions (N scopes of one query on
+  one surface) remain future work; today's contract is one scope per query
+  name. Gated by `regression-multilive-scoped.mjs`.
+
+The demo's row-shape acceptance check also confirms the §10.3 note about the
+Exact-side ephemeral `queryResultTypes` gap in practice: `shape_unknown_member`
+fires through helper-declared shapes (the surface mirrors the generated
+`BoardCursorsEntry`/`Value` shapes in its `data.contract-meta.ts`), not through
+the `ephemeral` binding itself — still an ENG-22526 (Exact 0284 §8) item.

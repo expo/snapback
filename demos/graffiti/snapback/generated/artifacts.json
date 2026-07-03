@@ -1,0 +1,47 @@
+{
+  "appId": "graffiti",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "contract/runtime-links.ts",
+    "contract/boardCursors.ephemeral.ts",
+    "contract/boardCursors.ephemeral.contract-meta.ts",
+    "contract/boardCursors.publish.ts",
+    "contract/boardCursors.publish.contract-meta.ts",
+    "contract/listCells.query.ts",
+    "contract/listCells.query.contract-meta.ts",
+    "contract/paintCell.mutation.ts",
+    "contract/paintCell.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:ffa0d3f4f668e6d6",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [
+    "boardCursors"
+  ],
+  "functions": [
+    {
+      "id": "graffiti:listCells",
+      "kind": "LiveQuery",
+      "name": "listCells"
+    },
+    {
+      "id": "graffiti:paintCell",
+      "kind": "Mutation",
+      "name": "paintCell"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "f3bc2f2b20f1fad1998f4872ceae0f3039abe55d302c9ca968cba5152fa4bd46",
+  "schemaHash": "sha256:5a816c04259658fc",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "cells"
+  ]
+}

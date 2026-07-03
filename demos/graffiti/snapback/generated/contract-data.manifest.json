@@ -1,0 +1,186 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:ffa0d3f4f668e6d6",
+  "capabilities": {
+    "branchableFixtures": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {
+    "boardCursors": {
+      "coalesce": true,
+      "defaultTtlMs": 5000,
+      "deliveryMode": "latest",
+      "ephemeral": true,
+      "keyMode": "Connection",
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 30000,
+      "name": "boardCursors",
+      "publishBudget": {
+        "burst": 12,
+        "maxValueBytes": 1024,
+        "sustainedHz": 20
+      },
+      "routingFields": [
+        "boardId"
+      ],
+      "scopeFields": [
+        "boardId"
+      ]
+    }
+  },
+  "inputsHash": "f3bc2f2b20f1fad1998f4872ceae0f3039abe55d302c9ca968cba5152fa4bd46",
+  "manifestVersion": 2,
+  "mutations": {
+    "paintCell": {
+      "argOrder": [
+        "boardId",
+        "x",
+        "y",
+        "color"
+      ],
+      "args": {
+        "boardId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "color": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "x": {
+          "name": "number",
+          "shape": "primitive"
+        },
+        "y": {
+          "name": "number",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "cells"
+      ],
+      "name": "paintCell",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "cells"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "boardCursors": {
+      "argOrder": [
+        "boardId"
+      ],
+      "args": {
+        "boardId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 5000,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "Connection",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 30000,
+      "mode": "live",
+      "name": "boardCursors",
+      "result": {
+        "kind": "list",
+        "row": {
+          "shape": "unknown"
+        }
+      },
+      "scopeFields": [
+        "boardId"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listCells": {
+      "argOrder": [
+        "boardId"
+      ],
+      "args": {
+        "boardId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listCells",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "cells"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "boardId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "color": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "x": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "y": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "none",
+  "schemaHash": "sha256:5a816c04259658fc",
+  "schemaVersion": "snapback.v0"
+}

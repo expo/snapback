@@ -1,0 +1,125 @@
+{
+  "appId": "graffiti",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:ffa0d3f4f668e6d6",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "listCells",
+      "exportedName": "listCells",
+      "id": "graffiti:listCells",
+      "kind": "LiveQuery",
+      "name": "listCells",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "cells",
+        "tables": [
+          "cells"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "boardId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "boardId"
+                }
+              }
+            ],
+            "indexed_by": "by_board",
+            "limit": null,
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "cells"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "paintCell",
+      "exportedName": "paintCell",
+      "id": "graffiti:paintCell",
+      "kind": "Mutation",
+      "name": "paintCell",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "cellId"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "cellId",
+                  "table": "cells",
+                  "values": {
+                    "authorId": "AuthUserId",
+                    "boardId": {
+                      "Arg": "boardId"
+                    },
+                    "color": {
+                      "Arg": "color"
+                    },
+                    "x": {
+                      "Arg": "x"
+                    },
+                    "y": {
+                      "Arg": "y"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "cells",
+        "tables": [
+          "cells"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "f3bc2f2b20f1fad1998f4872ceae0f3039abe55d302c9ca968cba5152fa4bd46",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

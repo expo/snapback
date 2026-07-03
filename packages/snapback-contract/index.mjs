@@ -142,8 +142,10 @@ export async function createSnapbackContractSurface({
   ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS,
   // Multi-query mode (LLP 0034 §6 ownership row 3 — the All Aboard proof):
   // name the manifest's live queries to bind each over the shared stream with
-  // its own boundary key and per-query connection axis. Legacy single-query
-  // options (queryName/boundaryKey/queryArgs/optimisticReducers) do not apply.
+  // its own boundary key and per-query connection axis. An entry is a name or
+  // `{ name, args }` for scoped live queries (the graffiti wall's board-scoped
+  // listCells). Legacy single-query options (queryName/boundaryKey/queryArgs/
+  // optimisticReducers) do not apply.
   liveQueries = null,
 }) {
   const pending = new Set();
@@ -942,6 +944,21 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
   };
 }
 
+// Key-order-insensitive canonical form for args comparison (the multi-live
+// binding-args mismatch check): plain objects get sorted keys recursively;
+// arrays and primitives pass through.
+function sortValueDeep(value) {
+  if (Array.isArray(value)) return value.map(sortValueDeep);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([key, entry]) => [key, sortValueDeep(entry)]),
+    );
+  }
+  return value;
+}
+
 function defaultContractRootId() {
   const unique = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
   return `root_${unique}`;
@@ -991,10 +1008,37 @@ async function createMultiLiveContractSurface({
   }
   const queryNames = Object.keys(manifest?.queries ?? {});
   const mutationNames = Object.keys(manifest?.mutations ?? {});
-  for (const name of liveQueries) {
+  // A liveQueries entry is a name or `{ name, args }` — a scoped live query
+  // (e.g. graffiti's board-scoped listCells) subscribes with its validated
+  // args; bare-name entries keep the original zero-arg behavior.
+  //
+  // INVARIANT (LLP 0034 §10.4): the configured entry's args are the ONLY args
+  // that reach the server — one subscription per query name, established here.
+  // Binding-site args on the read path are not consulted; a binding whose args
+  // deep-differ from the configured entry's gets a structured
+  // SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH diagnostic (plus a dev warning)
+  // instead of silently receiving the other scope's rows unlabeled.
+  const liveQueryEntries = liveQueries.map((entry) =>
+    typeof entry === 'string' ? { name: entry, args: {} } : { name: entry.name, args: entry.args ?? {} });
+  const liveQueryNames = liveQueryEntries.map((entry) => entry.name);
+  const configuredLiveArgs = new Map(liveQueryEntries.map((entry) => [entry.name, entry.args]));
+  for (const name of liveQueryNames) {
     if (!manifest?.queries?.[name]) {
       throw new Error(`liveQueries names an unknown manifest query "${name}".`);
     }
+  }
+  // Duplicate names would silently clobber each other (liveHandles and the
+  // boundary are keyed by name only) — reject with a structured diagnostic.
+  if (configuredLiveArgs.size !== liveQueryEntries.length) {
+    const duplicates = [...new Set(liveQueryNames.filter((name, i) => liveQueryNames.indexOf(name) !== i))];
+    const diagnostic = contractDiagnostic(
+      'SNAPBACK_CONTRACT_LIVEQUERY_DUPLICATE',
+      `liveQueries names each query at most once; duplicates: ${duplicates.join(', ')}. One subscription per query name — to scope it, pass { name, args } once.`,
+      { duplicates },
+    );
+    const error = new Error(diagnostic.message);
+    error.diagnostic = diagnostic;
+    throw error;
   }
 
   let disposed = false;
@@ -1024,6 +1068,29 @@ async function createMultiLiveContractSurface({
     return diagnostic;
   };
 
+  // Binding-site args are not consulted on the multi-live read path (the
+  // configured entry owns the one subscription) — so a binding that ASKS for
+  // a different scope must be told it is not getting it, not silently served
+  // the configured scope's rows (LLP 0034 §10.4). Diagnosed once per
+  // (query, distinct binding args).
+  const argsMismatchSeen = new Set();
+  const stableArgsKey = (value) => JSON.stringify(sortValueDeep(value ?? {}));
+  const warnOnBindingArgsMismatch = (name, bindingArgs) => {
+    const configured = configuredLiveArgs.get(name);
+    if (configured === undefined) return;
+    const bindingKey = stableArgsKey(bindingArgs);
+    if (bindingKey === stableArgsKey(configured)) return;
+    const seenKey = `${name} ${bindingKey}`;
+    if (argsMismatchSeen.has(seenKey)) return;
+    argsMismatchSeen.add(seenKey);
+    const diagnostic = publishDiagnostic(
+      'SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH',
+      `query binding "${name}" passed args that differ from the configured liveQueries entry; the subscription serves the configured args only.`,
+      { query: name, bindingArgs: bindingArgs ?? {}, configuredArgs: configured },
+    );
+    console.warn(`[snapback-contract] ${diagnostic.message}`, { bindingArgs, configuredArgs: configured });
+  };
+
   const connectionFor = (name) =>
     (wantLivePush && liveHandles.has(name) ? liveHandles.get(name).connection ?? 'connecting' : null);
 
@@ -1042,10 +1109,10 @@ async function createMultiLiveContractSurface({
     initialRows[name] = [];
   }
   if (wantLivePush) {
-    for (const name of liveQueries) {
+    for (const { name, args } of liveQueryEntries) {
       const handle = await client.liveQuery(name, {
         connectionId: sharedConnectionId,
-        args: {},
+        args,
         userId,
         transport: 'stream',
         stream: liveStreamOptions,
@@ -1093,7 +1160,7 @@ async function createMultiLiveContractSurface({
       await client.mutate(name, {
         args,
         userId,
-        correlation: { rootId, bindingIds: [...liveQueries] },
+        correlation: { rootId, bindingIds: [...liveQueryNames] },
       });
     } catch (error) {
       publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
@@ -1130,6 +1197,7 @@ async function createMultiLiveContractSurface({
   const provider = {
     ...baseProvider,
     subscribe(subscribedQuery, args, observer) {
+      warnOnBindingArgsMismatch(subscribedQuery, args);
       if (!liveHandles.has(subscribedQuery)) {
         return baseProvider.subscribe(subscribedQuery, args, observer);
       }
@@ -1179,15 +1247,15 @@ async function createMultiLiveContractSurface({
     declaredQueries: queryNames,
     declaredMutations: mutationNames,
     livePush: wantLivePush,
-    liveQueries: [...liveQueries],
+    liveQueries: [...liveQueryNames],
     connectionId: sharedConnectionId,
     rootId,
     receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
     ephemeralSourceStarts: ephemeralWiring.sourceStarts,
     prewarmEphemeral: ephemeralWiring.prewarmScope,
     // Per-query connection facts; no argument = the first live query.
-    connection: (name = liveQueries[0]) => connectionFor(name),
-    connections: () => Object.fromEntries(liveQueries.map((name) => [name, connectionFor(name)])),
+    connection: (name = liveQueryNames[0]) => connectionFor(name),
+    connections: () => Object.fromEntries(liveQueryNames.map((name) => [name, connectionFor(name)])),
     mount: (component, options = {}) => {
       assertActive();
       return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));

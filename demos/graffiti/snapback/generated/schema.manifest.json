@@ -1,0 +1,82 @@
+{
+  "appId": "graffiti",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [
+    {
+      "burst": 12,
+      "defaultTtlMs": 5000,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 30000,
+      "maxValueBytes": 1024,
+      "name": "boardCursors",
+      "publish": {
+        "RequireRoomPermission": {
+          "prefix": "boardMember"
+        }
+      },
+      "routingFields": [
+        "boardId"
+      ],
+      "scopeFields": [
+        "boardId"
+      ],
+      "subscribe": {
+        "RequireRoomPermission": {
+          "prefix": "boardMember"
+        }
+      },
+      "sustainedHz": 20
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "f3bc2f2b20f1fad1998f4872ceae0f3039abe55d302c9ca968cba5152fa4bd46",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:5a816c04259658fc",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "boardId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "x",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "y",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "color",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "boardId"
+          ],
+          "name": "by_board"
+        }
+      ],
+      "name": "cells",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}
