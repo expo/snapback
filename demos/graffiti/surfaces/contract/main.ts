@@ -126,9 +126,19 @@ async function boot(): Promise<void> {
     functionManifest: functionsManifest,
     // The board-scoped live query binds with its args over the shared stream.
     liveQueries: [{ name: 'listCells', args: { boardId: BOARD_ID } }],
-    // boardCursors publish/subscribe require the board's room permission; the
-    // local dev server trusts the client-asserted permission the same way the
-    // headless suite does (a real auth provider would mint it server-side).
+    // SECURITY — DEMO ONLY, DO NOT COPY THIS AUTH PATTERN INTO A REAL APP.
+    // boardCursors publish/subscribe require the board's `boardMember` room
+    // permission (schema.mjs enforces it server-side via
+    // `allow.roomPermission('boardMember')`). Here the *client* mints that
+    // permission and sends it with every request, and the local dev server
+    // trusts it — because this demo declares `external_auth` as a capability gap
+    // (see demo.snapback.json `capabilityGaps`): there is no auth provider to
+    // decide membership, so the client stands in for one. That is an auth check
+    // in the wrong place. In a real app a trusted server-side external_auth
+    // provider must decide board membership and mint this permission; a client
+    // must NEVER assert its own room membership (a copy-paster who keeps this
+    // line ships an app where anyone can join any room). Only the trusted
+    // *minting* is stubbed here — the server-side *enforcement* point is real.
     ephemeralPermissions: (_name: string, scope: Record<string, unknown>) => [
       SnapbackClient.roomPermission('boardMember', scope),
     ],

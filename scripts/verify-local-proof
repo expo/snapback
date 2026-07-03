@@ -53,6 +53,7 @@ if [ "$VERIFY_EXACT" != "0" ]; then
         run bun demos/todo-v2/tests/acceptance/contract.mjs
         run bun demos/_kit/tests/regression-optimistic-clobber.mjs
         run bun demos/_kit/tests/regression-ephemeral-wiring.mjs
+        run bun demos/_kit/tests/regression-multilive-scoped.mjs
         run bash -lc 'cd admin-ui && ./build.sh && npm test'
     elif [ "$VERIFY_EXACT" = "1" ]; then
         printf '[snapback-verify] error: SNAPBACK_VERIFY_EXACT=1 but bun or an Exact checkout is unavailable\n' >&2

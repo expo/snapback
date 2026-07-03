@@ -100,7 +100,18 @@ compile time, and the pointer channel carries presence only. The same
 `graffiti.contract` compiles for the macOS native (AppKit/Hermes) target, but
 Exact has no runnable macOS NSApplication host yet (only iOS runs native
 today), so the runnable GUI is the **web** surface, which works in any macOS
-browser. The browser surface asserts its own `boardMember` room permission the
-same way the headless suite does — a real auth provider would mint it
-server-side (`external_auth` is a declared capability gap). See
-`demo.snapback.json` `capabilityGaps` / `notClaiming`.
+browser.
+
+> **Security — do not copy the client-side room-permission pattern.** The
+> browser surface (`surfaces/contract/main.ts`) and the headless suite mint their
+> own `boardMember` room permission on the *client* and send it with every
+> ephemeral request; the local dev server trusts it. This is honest only because
+> the demo declares `external_auth` as a capability gap — there is no auth
+> provider, so the client stands in for one. It models an auth check in the wrong
+> place. A real app must have a **trusted server-side external_auth provider**
+> decide board membership and mint the permission; a client must never assert its
+> own room membership. The server-side *enforcement* point is real (`schema.mjs`
+> `allow.roomPermission('boardMember')`, proven by the
+> `SNAPBACK_EPHEMERAL_UNAUTHORIZED` acceptance check) — only the trusted *minting*
+> is stubbed by the client here. See `demo.snapback.json` `capabilityGaps` /
+> `notClaiming`.
