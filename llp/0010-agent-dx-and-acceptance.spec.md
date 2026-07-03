@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-03 (ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added)
+**Revised:** 2026-07-03 (ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0024
 
 ## Summary
@@ -112,6 +112,19 @@ This keeps the local target honest without making every Snapback agent rediscove
 Hermes packaging details. A failed bootstrap should point at the missing artifact
 class, not leave the next agent to infer it from a C++ build failure.
 
+On macOS the built `snapback` binary loads `hermesvm.framework` through an
+`@rpath`-relative install name. Cargo does not propagate the vendored
+`ibex-runtime` build script's `-rpath` link-arg to the final binary (only
+`rustc-link-lib`/`rustc-link-search` flow through), so `build.rs` in the
+Snapback crate emits the matching `LC_RPATH` itself. Without it, a fresh
+worktree's first `cargo run` crashed at launch (`Library not loaded:
+@rpath/hermesvm.framework/...`, `Reason: no LC_RPATH's found`) because macOS SIP
+strips `DYLD_*` for protected process trees, and `cargo check` — which never
+links or loads the framework — could not catch it (ENG-22664). The bootstrap now
+validates by building and launching the binary with `DYLD_*` scrubbed (a real
+link + load), not by `cargo check` alone, so that wedge surfaces at bootstrap
+time with `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` instead of at first run.
+
 `scripts/ibex-doctor` is the read-only companion: it classifies the
 `vendor/ibex` states an operator hits during bring-up (source missing,
 submodule uninitialized, submodule wedged — with or without Ibex sources in
@@ -121,6 +134,47 @@ suggested-next-checks vocabulary of the diagnostic shape below, without
 writing to the tree. It emits text lines plus an exit status, not the
 machine-readable diagnostic objects that section specifies for product
 surfaces.
+
+### Bootstrap diagnostic codes
+
+`scripts/bootstrap-ibex-runtime` fails with a stable `SNAPBACK_*` code prefix on
+every failure path, and `scripts/ibex-doctor` reuses the same vocabulary, so
+agents match on codes rather than prose. The submodule-state codes (ENG-22595):
+
+- `SNAPBACK_IBEX_SOURCE_MISSING` — `vendor/ibex` has no sources and is not a
+  known git submodule in this tree.
+- `SNAPBACK_IBEX_SUBMODULE_UNINITIALIZED` — recorded gitlink, empty path, never
+  initialized (doctor's clean-fresh-worktree finding).
+- `SNAPBACK_IBEX_SUBMODULE_WEDGED` — uninitialized gitlink over stray content
+  that `git submodule update --init` cannot check out; bootstrap prints the
+  move-aside recovery steps.
+- `SNAPBACK_IBEX_SUBMODULE_INIT_FAILED` — `git submodule update --init` failed
+  (network/credentials).
+- `SNAPBACK_IBEX_SUBMODULE_BROKEN` — initialized but `Cargo.toml` still missing.
+- `SNAPBACK_IBEX_SUBMODULE_DRIFT` (warning) / `SNAPBACK_IBEX_SUBMODULE_CONFLICT`
+  — doctor-only checkout-state findings.
+
+The remaining (non-submodule) bootstrap failure paths carry codes too
+(ENG-22660):
+
+- `SNAPBACK_IBEX_HOST_UNSUPPORTED` — the host OS has no bootstrap/doctor artifact
+  probe; use `vendor/ibex` platform setup directly.
+- `SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING` — prepared Hermes
+  headers/frameworks/tools are still incomplete after the copy/download attempt.
+  Shared with `scripts/ibex-doctor` and `demos/_kit/server-process.mjs`, so an
+  agent sees one code for this state across bootstrap, doctor, and the demo
+  runner.
+- `SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED` — the vendored `download-hermes.sh`
+  fallback failed and no sibling Ibex artifacts were available.
+- `SNAPBACK_IBEX_CARGO_BUILD_FAILED` — artifacts verified, but the
+  Snapback/vendored-runtime build did not compile or link (a code error, not a
+  missing artifact).
+- `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` — the binary links but cannot load
+  `hermesvm.framework` at launch without `DYLD_*` set, i.e. it is missing the
+  `LC_RPATH` that `build.rs` emits (ENG-22664).
+
+The bootstrap validation step links and launches, not just `cargo check`, so the
+last two are caught at bootstrap time rather than at the first real run.
 
 Valet's local-dev orchestrator (a Vite plugin) already implemented most of this and
 is worth copying: spawn the server child process, codegen-on-save with debounced

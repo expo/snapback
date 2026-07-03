@@ -79,6 +79,15 @@ The aggregate entries are symlinks into `vendor/llp` and
 skill changes; this repo also uses tracked Git hooks in `.githooks/` to refresh
 them after normal checkout/merge operations in this local clone.
 
+The skills sync (and therefore the checkout/merge hooks) initializes only the
+small `vendor/llp` and `vendor/ccheever-skills` submodules. It deliberately does
+**not** auto-initialize `vendor/ibex`, which is a full Ibex runtime checkout that
+most Snapback work never needs — cloning it on every checkout would be
+disproportionate. When `vendor/ibex` is uninitialized the sync prints a one-line
+hint pointing at `scripts/bootstrap-ibex-runtime`, which initializes the
+submodule safely on demand (ENG-22595); it does not leave a fresh worktree as a
+silent wedge trap (ENG-22659).
+
 ## Working on this project
 
 - Read relevant LLP documents before implementing features or fixing bugs in
@@ -103,3 +112,13 @@ them after normal checkout/merge operations in this local clone.
   are specifically changing Ibex or Hermes. When the runtime state looks wrong,
   run `scripts/ibex-doctor` for a read-only coded diagnosis before repairing
   anything by hand.
+- The bootstrap validates by building and launching the `snapback` binary (with
+  `DYLD_*` scrubbed on macOS), not just `cargo check`, so the macOS
+  framework-load wedge is caught at bootstrap time. On macOS the binary carries
+  an `LC_RPATH` emitted by `build.rs`, so `cargo run` finds
+  `hermesvm.framework` without `DYLD_FRAMEWORK_PATH` even under SIP. Every
+  bootstrap failure path fails with a stable `SNAPBACK_*` code (see LLP 0010,
+  "Bootstrap diagnostic codes"): the submodule states, plus
+  `SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING`, `SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED`,
+  `SNAPBACK_IBEX_CARGO_BUILD_FAILED`, `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`, and
+  `SNAPBACK_IBEX_HOST_UNSUPPORTED`.

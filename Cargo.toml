@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 default-run = "snapback"
+# build.rs emits the macOS LC_RPATH for hermesvm.framework (ENG-22664); a
+# dependency's rustc-link-arg does not propagate to this binary's link step.
+build = "build.rs"
 
 [lib]
 name = "snapback"

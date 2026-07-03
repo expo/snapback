@@ -135,7 +135,7 @@ has_target_artifacts() {
         darwin) has_darwin_artifacts "$base" ;;
         linux) has_linux_artifacts "$base" ;;
         *)
-            fail "unsupported bootstrap host '$TARGET_OS'; use vendor/ibex platform setup directly"
+            fail "SNAPBACK_IBEX_HOST_UNSUPPORTED: unsupported bootstrap host '$TARGET_OS'; use vendor/ibex platform setup directly"
             ;;
     esac
 }
@@ -240,15 +240,40 @@ else
     else
         log "no complete sibling Ibex artifact set found at $PEER_IBEX"
         log "running vendored Ibex Hermes bootstrap; this may download or build native artifacts"
-        "$VENDOR_IBEX/scripts/download-hermes.sh"
+        # @ref LLP 0010#native-runtime-bootstrap -- coded failure so agents and
+        # scripts/ibex-doctor can match on a stable code, not on prose.
+        "$VENDOR_IBEX/scripts/download-hermes.sh" || fail "SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED: vendor/ibex/scripts/download-hermes.sh failed and no sibling Ibex artifacts were available; fix the download error above (network/toolchain) or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a prepared checkout"
     fi
 fi
 
-has_target_artifacts "$VENDOR_IBEX" || fail "Ibex/Hermes artifacts are still incomplete"
+# @ref LLP 0010#native-runtime-bootstrap -- reuse the shared Hermes-artifacts
+# code (also emitted by scripts/ibex-doctor and demos/_kit/server-process.mjs)
+# so bootstrap, doctor, and the demo runner all report one code for this state.
+has_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING: prepared Ibex/Hermes artifacts are still incomplete under $VENDOR_IBEX after copy/download; run scripts/ibex-doctor for a read-only diagnosis, or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a complete prepared checkout"
 
 if [ "$RUN_CHECK" != "0" ]; then
-    log "validating Snapback Rust build with cargo check"
-    (cd "$ROOT" && cargo check -q)
+    # @ref LLP 0010#native-runtime-bootstrap -- validate with a real link + launch,
+    # not just `cargo check`. cargo check never links or loads hermesvm.framework,
+    # so it could not catch the missing-LC_RPATH launch wedge that made a fresh
+    # worktree's first `cargo run` crash (ENG-22664). Build the binary (real link)
+    # and, on macOS, launch it with DYLD_* scrubbed to mirror the SIP-stripped
+    # environment of a protected process tree; the framework must load from the
+    # LC_RPATH baked in by build.rs. Artifacts were verified above, so a failure
+    # here is a Snapback/vendored-runtime compile/link or runtime-load problem,
+    # not a missing artifact.
+    log "validating Snapback native runtime: cargo build + launch smoke"
+    (cd "$ROOT" && cargo build -q --bin snapback) || fail "SNAPBACK_IBEX_CARGO_BUILD_FAILED: cargo build failed after the Ibex/Hermes artifacts were prepared; the artifact locations look complete, so this is a Snapback or vendored-runtime compile/link error (see the cargo output above), not a bootstrap-artifact problem"
+
+    snapback_bin="$ROOT/target/debug/snapback"
+    if [ "$TARGET_OS" = "darwin" ] && [ -x "$snapback_bin" ]; then
+        if env -u DYLD_FRAMEWORK_PATH -u DYLD_LIBRARY_PATH \
+               -u DYLD_FALLBACK_FRAMEWORK_PATH -u DYLD_FALLBACK_LIBRARY_PATH \
+               "$snapback_bin" --help >/dev/null 2>&1; then
+            log "launch smoke passed: hermesvm.framework loads from a baked-in LC_RPATH (no DYLD_* needed)"
+        else
+            fail "SNAPBACK_IBEX_RUNTIME_LOAD_FAILED: the built snapback binary cannot load hermesvm.framework at launch without DYLD_* set (macOS SIP strips DYLD_* for protected process trees). The binary needs an LC_RPATH pointing at the Hermes framework directory, which build.rs emits; run scripts/ibex-doctor, then rebuild. Inspect with: otool -l '$snapback_bin' | grep -A2 LC_RPATH"
+        fi
+    fi
 fi
 
 log "Ibex runtime bootstrap complete"

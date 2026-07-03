@@ -7,6 +7,17 @@
 # commands. Never writes to the tree; scripts/bootstrap-ibex-runtime is the
 # authoritative fixer for artifact problems.
 #
+# The codes here match the codes scripts/bootstrap-ibex-runtime fails with, for
+# both the submodule paths (ENG-22595) and the non-submodule artifact/host paths
+# (ENG-22660): SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING for incomplete prepared
+# Hermes artifacts and SNAPBACK_IBEX_HOST_UNSUPPORTED for an unsupported host. A
+# compile/link failure past a healthy artifact set is bootstrap's
+# SNAPBACK_IBEX_CARGO_BUILD_FAILED, and a binary that links but cannot load
+# hermesvm.framework at launch (missing LC_RPATH) is
+# SNAPBACK_IBEX_RUNTIME_LOAD_FAILED; this doctor stays read-only and does not
+# compile or launch, so it reports the artifact precondition rather than
+# reproducing those build/link failures.
+#
 # Exit status: 0 when vendor/ibex is healthy enough to bootstrap/build,
 # 1 when any error-severity finding is reported.
 #
