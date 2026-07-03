@@ -10,13 +10,13 @@
 //! sequence.
 
 use serde_json::{Map, Value, json};
+use snapback::ephemeral::RealtimeEnvelope;
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationPlan, MutationStep,
     QueryPlan, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
 };
-use snapback::ephemeral::RealtimeEnvelope;
 use std::collections::BTreeMap;
 
 /// The committed row that enters/leaves/updates a subscription's result is
@@ -30,7 +30,10 @@ fn live_delta_is_emitted_for_an_unordered_filtered_query() {
 
     // A matching insert → one `add` op.
     let created = snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "mine", "userId": "ada" }), "ada"))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "mine", "userId": "ada" }), "ada"),
+        )
         .expect("create");
     let id = created.result.as_str().expect("id").to_owned();
 
@@ -46,7 +49,10 @@ fn live_delta_is_emitted_for_an_unordered_filtered_query() {
     // A non-matching insert (different user) → the subscription is not affected,
     // no delivery at all.
     snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "theirs", "userId": "bob" }), "bob"))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "theirs", "userId": "bob" }), "bob"),
+        )
         .expect("create other");
     assert!(
         drain(&mut snapback, "conn").is_empty(),
@@ -63,7 +69,10 @@ fn ordered_query_falls_back_to_live_replace() {
         .subscribe_live("listMineOrdered", sub_input("conn", "ada"))
         .expect("subscribe");
     snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "mine", "userId": "ada" }), "ada"))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "mine", "userId": "ada" }), "ada"),
+        )
         .expect("create");
 
     let update = drain_one_update(&mut snapback, "conn");
@@ -152,7 +161,10 @@ fn null_field_never_phantoms_into_a_range_filter() {
     let urgent = snapback
         .invoke_mutation(
             "createWithPriority",
-            input(json!({ "title": "urgent", "userId": "ada", "priority": 1 }), "ada"),
+            input(
+                json!({ "title": "urgent", "userId": "ada", "priority": 1 }),
+                "ada",
+            ),
         )
         .expect("create urgent")
         .result
@@ -167,7 +179,10 @@ fn null_field_never_phantoms_into_a_range_filter() {
     // `NULL < 3` as true and delivered a phantom add; the server's debug
     // convergence assertion would fire on that delta.)
     let _null_row = snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "someday", "userId": "ada" }), "ada"))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "someday", "userId": "ada" }), "ada"),
+        )
         .expect("create null-priority");
     apply_deltas(&mut client, drain(&mut snapback, "conn"));
 
@@ -180,7 +195,10 @@ fn null_field_never_phantoms_into_a_range_filter() {
         .filter_map(|r| r["_id"].as_str().map(str::to_owned))
         .collect();
     assert_eq!(
-        client.keys().cloned().collect::<std::collections::BTreeSet<_>>(),
+        client
+            .keys()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>(),
         fresh_ids,
         "the NULL-priority row must not phantom into `priority < 3`"
     );
@@ -241,7 +259,11 @@ fn seed_delivers_to_a_hostplan_subscriber() {
         "seed must deliver the seeded state to the live subscriber"
     );
     apply_deltas(&mut client, envelopes);
-    assert_eq!(client.len(), 1, "the seeded matching row reaches the subscriber");
+    assert_eq!(
+        client.len(),
+        1,
+        "the seeded matching row reaches the subscriber"
+    );
 }
 
 /* ---------- client-apply simulation (mirrors demos/_kit/client.mjs) ---------- */
@@ -300,7 +322,10 @@ fn drain_one_update(snapback: &mut LocalSnapback, connection: &str) -> Value {
 
 fn create(snapback: &mut LocalSnapback, title: &str, user: &str) -> String {
     snapback
-        .invoke_mutation("createTodo", input(json!({ "title": title, "userId": user }), user))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": title, "userId": user }), user),
+        )
         .expect("create")
         .result
         .as_str()
@@ -310,13 +335,19 @@ fn create(snapback: &mut LocalSnapback, title: &str, user: &str) -> String {
 
 fn set_user(snapback: &mut LocalSnapback, id: &str, user: &str) {
     snapback
-        .invoke_mutation("setUser", input(json!({ "id": id, "userId": user }), "admin"))
+        .invoke_mutation(
+            "setUser",
+            input(json!({ "id": id, "userId": user }), "admin"),
+        )
         .expect("set user");
 }
 
 fn set_title(snapback: &mut LocalSnapback, id: &str, title: &str) {
     snapback
-        .invoke_mutation("setTitle", input(json!({ "id": id, "title": title }), "admin"))
+        .invoke_mutation(
+            "setTitle",
+            input(json!({ "id": id, "title": title }), "admin"),
+        )
         .expect("set title");
 }
 
@@ -371,10 +402,22 @@ fn schema() -> SchemaManifest {
         tables: vec![TableManifest {
             name: "todos".to_owned(),
             fields: vec![
-                FieldManifest { name: "title".to_owned(), field_type: FieldType::String, optional: false },
-                FieldManifest { name: "userId".to_owned(), field_type: FieldType::String, optional: false },
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "userId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
                 // Optional → a row that omits it stores SQL NULL (finding A).
-                FieldManifest { name: "priority".to_owned(), field_type: FieldType::Integer, optional: true },
+                FieldManifest {
+                    name: "priority".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: true,
+                },
             ],
             indexes: Vec::new(),
             syncable: true,

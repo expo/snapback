@@ -293,8 +293,14 @@ fn dk4_global_add_does_not_leak_between_invocations() {
         .invoke_mutation("setLeak", input(json!({ "value": "leaked" })))
         .expect("setLeak");
     let row = query_row(&snapback, "readLeak");
-    assert_eq!(row["leak"], "undefined", "string-keyed global must be swept: {row:?}");
-    assert_eq!(row["sym"], "undefined", "symbol-keyed global must be swept: {row:?}");
+    assert_eq!(
+        row["leak"], "undefined",
+        "string-keyed global must be swept: {row:?}"
+    );
+    assert_eq!(
+        row["sym"], "undefined",
+        "symbol-keyed global must be swept: {row:?}"
+    );
     assert_eq!(
         row["consoleStash"], "undefined",
         "data stashed on the console host global must be swept: {row:?}"
@@ -343,8 +349,14 @@ fn dk4_prototype_pollution_swept() {
         .invoke_mutation("pollute", input(json!({})))
         .expect("pollute");
     let row = query_row(&snapback, "checkPollution");
-    assert_eq!(row["protoClean"], true, "Object.prototype addition must be swept: {row:?}");
-    assert_eq!(row["mapResult"], "ab", "Array.prototype.map must be restored: {row:?}");
+    assert_eq!(
+        row["protoClean"], true,
+        "Object.prototype addition must be swept: {row:?}"
+    );
+    assert_eq!(
+        row["mapResult"], "ab",
+        "Array.prototype.map must be restored: {row:?}"
+    );
 }
 
 /// Obligation 3: an unsettled promise's resolver and reactions from one
@@ -357,8 +369,14 @@ fn dk4_unsettled_promise_does_not_carry_over() {
         .invoke_mutation("danglePromise", input(json!({})))
         .expect("danglePromise");
     let row = query_row(&snapback, "checkDangle");
-    assert_eq!(row["fire"], "undefined", "the stored resolver must be swept: {row:?}");
-    assert_eq!(row["fired"], "undefined", "the dangling reaction must never fire: {row:?}");
+    assert_eq!(
+        row["fire"], "undefined",
+        "the stored resolver must be swept: {row:?}"
+    );
+    assert_eq!(
+        row["fired"], "undefined",
+        "the dangling reaction must never fire: {row:?}"
+    );
 }
 
 /// Fail-closed: when the reset cannot restore (a frozen `globalThis` makes
@@ -395,7 +413,11 @@ fn dk4_mutations_share_the_warm_vm_and_are_swept() {
         .expect("listCounts")
         .rows;
     let ns: Vec<u64> = rows.iter().filter_map(|row| row["n"].as_u64()).collect();
-    assert_eq!(ns, vec![1, 2], "mutations must reuse one warm VM (module counter advances)");
+    assert_eq!(
+        ns,
+        vec![1, 2],
+        "mutations must reuse one warm VM (module counter advances)"
+    );
     assert_eq!(
         query_row(&snapback, "readMutationLeak")["leak"],
         "undefined",
@@ -424,7 +446,11 @@ fn dk4_load_functions_resets_warm_state() {
     assert_eq!(count(&snapback), 1);
     assert_eq!(count(&snapback), 2);
     snapback.load_functions(leak_functions());
-    assert_eq!(count(&snapback), 1, "load_functions must clear the warm pool");
+    assert_eq!(
+        count(&snapback),
+        1,
+        "load_functions must clear the warm pool"
+    );
 }
 
 /// App reset invalidates the pool too.
@@ -442,7 +468,10 @@ fn dk4_app_reset_clears_warm_state() {
 fn dk4_capability_manifest_reports_vm_lifecycle() {
     let mut snapback = configured();
     let inspect = snapback.inspect().expect("inspect");
-    assert_eq!(inspect.capability_manifest.vm_lifecycle, "warm-pooled-reset");
+    assert_eq!(
+        inspect.capability_manifest.vm_lifecycle,
+        "warm-pooled-reset"
+    );
 }
 
 /// THE cross-context regression test (adversarial-review HIGH, 2026-07-02).
@@ -459,10 +488,16 @@ fn dk4_capability_manifest_reports_vm_lifecycle() {
 fn dk4_stale_continuation_cannot_inject_into_another_invocation() {
     let mut snapback = configured();
     snapback
-        .invoke_mutation("stashCtx", input_as("alice", json!({ "n": 1, "who": "alice" })))
+        .invoke_mutation(
+            "stashCtx",
+            input_as("alice", json!({ "n": 1, "who": "alice" })),
+        )
         .expect("alice stash");
     snapback
-        .invoke_mutation("fireStashed", input_as("bob", json!({ "n": 2, "who": "bob" })))
+        .invoke_mutation(
+            "fireStashed",
+            input_as("bob", json!({ "n": 2, "who": "bob" })),
+        )
         .expect("bob fire");
 
     let rows = snapback
@@ -497,7 +532,11 @@ fn dk4_stale_continuation_cannot_inject_into_another_invocation() {
 fn dk4_iterator_prototype_pollution_is_swept() {
     let snapback = configured();
     assert_eq!(count(&snapback), 1);
-    assert_eq!(count(&snapback), 2, "warm VM must be reused for this to be meaningful");
+    assert_eq!(
+        count(&snapback),
+        2,
+        "warm VM must be reused for this to be meaningful"
+    );
 
     snapback
         .invoke_query("poisonIterator", input(json!({})))

@@ -513,11 +513,7 @@ mod tests {
             "undeclaredThing": "value",
         });
         let outcome = store
-            .import_env_blob(
-                blob.as_object().unwrap(),
-                &["caltrainFeed".to_owned()],
-                7,
-            )
+            .import_env_blob(blob.as_object().unwrap(), &["caltrainFeed".to_owned()], 7)
             .unwrap();
         assert_eq!(outcome.imported, vec!["caltrainFeed".to_owned()]);
         assert_eq!(outcome.ignored, vec!["undeclaredThing".to_owned()]);

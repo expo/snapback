@@ -93,7 +93,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         println!(
             "config: {} required entr{} missing ({}) → http://{local_addr}/_snapback/admin/setup",
             missing_config.len(),
-            if missing_config.len() == 1 { "y" } else { "ies" },
+            if missing_config.len() == 1 {
+                "y"
+            } else {
+                "ies"
+            },
             missing_config.join(", "),
         );
     }

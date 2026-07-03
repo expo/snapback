@@ -12,13 +12,13 @@ use libc::{c_char, c_int, c_void, size_t};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::cell::RefCell;
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
 use std::env;
 use std::ffi::{CStr, CString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr;
-use std::cmp::Ordering;
-use std::collections::BTreeSet;
 use std::time::Instant;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -611,14 +611,14 @@ impl<'a> IbexHostContext<'a> {
         }
 
         if !plan.order.is_empty() {
-            merged.sort_by(|left, right| {
-                match (sort_key(plan, left), sort_key(plan, right)) {
+            merged.sort_by(
+                |left, right| match (sort_key(plan, left), sort_key(plan, right)) {
                     (Some(left_key), Some(right_key)) => {
                         compare_sort_keys(plan, &left_key, &right_key).unwrap_or(Ordering::Equal)
                     }
                     _ => Ordering::Equal,
-                }
-            });
+                },
+            );
         }
         if let Some(limit) = plan.limit {
             merged.truncate(limit);
@@ -1056,12 +1056,18 @@ fn invocation_iife_source(
     // f64 safe-integer range; JS concatenates it onto every host op. Baking it
     // into this per-invocation IIFE (and thus into the `ctx` closures the
     // bootstrap builds) is what lets the host reject a stale continuation.
-    let epoch_literal = serde_json::to_string(&invocation.epoch().to_string())
-        .map_err(handler_serialize_error)?;
+    let epoch_literal =
+        serde_json::to_string(&invocation.epoch().to_string()).map_err(handler_serialize_error)?;
 
     Ok(format!(
         "(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
-        export_json, args_literal, auth_literal, mode_json, run_literal, secrets_literal, epoch_literal,
+        export_json,
+        args_literal,
+        auth_literal,
+        mode_json,
+        run_literal,
+        secrets_literal,
+        epoch_literal,
     ))
 }
 

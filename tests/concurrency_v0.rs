@@ -37,7 +37,10 @@ fn l6_concurrent_reads_proceed_during_a_long_write() {
     configure(&mut snapback);
     seed_todo(&mut snapback, "before the busy write");
     let lane = snapback.read_lane();
-    assert!(lane.available(), "file-backed instance must have a read lane");
+    assert!(
+        lane.available(),
+        "file-backed instance must have a read lane"
+    );
 
     let shared = Arc::new(Mutex::new(snapback));
     let writer = {
@@ -388,7 +391,10 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
         ("GET admin data", get("/_snapback/api/data/todos")),
         (
             "POST admin function run",
-            post_json("/_snapback/api/functions/listTodos/run", handler_body.clone()),
+            post_json(
+                "/_snapback/api/functions/listTodos/run",
+                handler_body.clone(),
+            ),
         ),
         (
             "POST admin cron tick",
@@ -408,7 +414,10 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
                 serde_json::to_value(concurrency_functions()).expect("functions json"),
             ),
         ),
-        ("POST app reset", post_json("/_snapback/api/app/reset", json!({}))),
+        (
+            "POST app reset",
+            post_json("/_snapback/api/app/reset", json!({})),
+        ),
         (
             "POST disconnect",
             post_json(
@@ -523,7 +532,8 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     let started = Instant::now();
     let response = tokio::time::timeout(
         Duration::from_secs(2),
-        app.clone().oneshot(post_json("/ephemeral/publish", subscribe)),
+        app.clone()
+            .oneshot(post_json("/ephemeral/publish", subscribe)),
     )
     .await
     .expect("publish must not stall behind the busy mutation")

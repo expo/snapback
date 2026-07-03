@@ -25,9 +25,7 @@ use crate::manifest::{
     FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, QueryPlan, ReadDependency,
     SchemaManifest, TableManifest, ValueExpr,
 };
-use crate::storage::{
-    BufferedWrite, CapturedReadDependency, CapturedReadKind, LocalDatabase,
-};
+use crate::storage::{BufferedWrite, CapturedReadDependency, CapturedReadKind, LocalDatabase};
 
 /// Dials for the harness. The bin runs a full-scale config; the smoke test runs
 /// a tiny one and asserts order-of-magnitude bounds.
@@ -387,8 +385,8 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
     let skip_per_commit = micros_per(start, config.iterations);
     // Subtract the baseline single-commit cost measured with no subscriptions.
     let baseline = single_commit_baseline(config, "createOther", "label")?;
-    let matcher_skip_us_per_sub = ((skip_per_commit - baseline).max(0.0))
-        / config.subscriptions.max(1) as f64;
+    let matcher_skip_us_per_sub =
+        ((skip_per_commit - baseline).max(0.0)) / config.subscriptions.max(1) as f64;
 
     // Full path: subscriptions watch `todos` and we commit to `todos`, so every
     // subscription is affected (re-query + serialize + enqueue).
@@ -413,8 +411,8 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
     }
     let affected_per_commit = micros_per(start, config.iterations);
     let baseline_todos = single_commit_baseline(config, "createTodo", "title")?;
-    let fanout_us_per_affected_sub = ((affected_per_commit - baseline_todos).max(0.0))
-        / config.subscriptions.max(1) as f64;
+    let fanout_us_per_affected_sub =
+        ((affected_per_commit - baseline_todos).max(0.0)) / config.subscriptions.max(1) as f64;
 
     Ok((matcher_skip_us_per_sub, fanout_us_per_affected_sub))
 }
@@ -561,7 +559,7 @@ fn measure_read_set_validation(config: &BenchConfig) -> crate::diagnostic::Snapb
         });
     }
     let with_read_set = |title: &str, read_set: Vec<ReadDependency>| HandlerInput {
-    correlation: None,
+        correlation: None,
         args: json!({ "title": title }),
         auth: auth(),
         read_set,
@@ -849,7 +847,10 @@ mod tests {
         // ms on a dev machine and ~180 ms on the slowest observed 2-core
         // shared CI runner, so 1 s still catches a true order-of-magnitude
         // regression without flaking on runner contention.
-        assert!(report.vm_cost_us > 0.0 && report.vm_cost_us < 1_000_000.0, "{report:?}");
+        assert!(
+            report.vm_cost_us > 0.0 && report.vm_cost_us < 1_000_000.0,
+            "{report:?}"
+        );
         assert!(report.vm_create_us >= 0.0, "{report:?}");
         // DK-4: the warm path must be meaningfully cheaper than a fresh VM —
         // if it regressed to fresh (silent fallback, broken reset burning
@@ -890,8 +891,7 @@ mod tests {
         // the wall-clock busy window.
         let busy_us = (BenchConfig::smoke().busy_write_ms * 1_000) as f64;
         assert!(
-            report.read_during_write_via_read_lane_us * 2.0
-                < report.read_during_write_via_lock_us,
+            report.read_during_write_via_read_lane_us * 2.0 < report.read_during_write_via_lock_us,
             "read lane must decisively beat the queued mutex path: {report:?}"
         );
         assert!(

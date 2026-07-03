@@ -665,11 +665,14 @@ mod delta_tests {
             &ids(&[]),
             &[change("a", ChangeOp::Insert, Some(row("a", "u1")))],
         ));
-        assert_eq!(add, vec![LiveDeltaOp {
-            kind: LiveDeltaKind::Add,
-            id: "a".to_owned(),
-            row: Some(row("a", "u1")),
-        }]);
+        assert_eq!(
+            add,
+            vec![LiveDeltaOp {
+                kind: LiveDeltaKind::Add,
+                id: "a".to_owned(),
+                row: Some(row("a", "u1")),
+            }]
+        );
 
         let update = delta(compute_live_delta(
             &plan,
@@ -685,11 +688,14 @@ mod delta_tests {
             &ids(&["a"]),
             &[change("a", ChangeOp::Delete, None)],
         ));
-        assert_eq!(remove, vec![LiveDeltaOp {
-            kind: LiveDeltaKind::Remove,
-            id: "a".to_owned(),
-            row: None,
-        }]);
+        assert_eq!(
+            remove,
+            vec![LiveDeltaOp {
+                kind: LiveDeltaKind::Remove,
+                id: "a".to_owned(),
+                row: None,
+            }]
+        );
     }
 
     #[test]
@@ -710,9 +716,16 @@ mod delta_tests {
             &plan,
             &input,
             &ids(&[]),
-            &[change("b", ChangeOp::Insert, Some(row("b", "someone-else")))],
+            &[change(
+                "b",
+                ChangeOp::Insert,
+                Some(row("b", "someone-else")),
+            )],
         ));
-        assert!(nonmatching.is_empty(), "a non-matching insert yields no delta");
+        assert!(
+            nonmatching.is_empty(),
+            "a non-matching insert yields no delta"
+        );
     }
 
     #[test]
@@ -734,13 +747,20 @@ mod delta_tests {
             &plan,
             &input,
             &ids(&["a"]),
-            &[change("a", ChangeOp::Update, Some(row("a", "someone-else")))],
+            &[change(
+                "a",
+                ChangeOp::Update,
+                Some(row("a", "someone-else")),
+            )],
         ));
-        assert_eq!(moved_out, vec![LiveDeltaOp {
-            kind: LiveDeltaKind::Remove,
-            id: "a".to_owned(),
-            row: None,
-        }]);
+        assert_eq!(
+            moved_out,
+            vec![LiveDeltaOp {
+                kind: LiveDeltaKind::Remove,
+                id: "a".to_owned(),
+                row: None,
+            }]
+        );
 
         // Member, still matches → in-place Update.
         let stayed = delta(compute_live_delta(
@@ -773,7 +793,10 @@ mod delta_tests {
             changed_fields: Vec::new(),
         };
         let cross = delta(compute_live_delta(&plan, &input, &ids(&[]), &[other_table]));
-        assert!(cross.is_empty(), "a change to another table is not this query's delta");
+        assert!(
+            cross.is_empty(),
+            "a change to another table is not this query's delta"
+        );
     }
 
     #[test]

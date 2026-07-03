@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex as StdMutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, MutexGuard, PoisonError, RwLock};
 
 use serde::{Deserialize, Serialize};
@@ -81,7 +81,16 @@ pub type Millis = u64;
 pub type ConnectionId = String;
 
 #[derive(
-    Clone, Debug, Default, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize,
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Hash,
+    Serialize,
     schemars::JsonSchema,
 )]
 #[serde(transparent)]
@@ -1083,10 +1092,7 @@ impl LocalEphemeralBackend {
         let outcome = match self.with_room_create(&room_id, |room| {
             self.sweep_room_locked(room, &room_id, Some(&collection), now_ms);
 
-            let replaced_bytes = room
-                .entries
-                .get(&key)
-                .map(|record| record.serialized_bytes);
+            let replaced_bytes = room.entries.get(&key).map(|record| record.serialized_bytes);
             if replaced_bytes.is_none()
                 && room.entries.len() >= self.shared.limits.max_entries_per_room
             {
@@ -1254,7 +1260,10 @@ impl LocalEphemeralBackend {
             // The outbox exists before the registration becomes visible, so a
             // racing publish that sees this subscriber has somewhere to
             // enqueue.
-            self.ensure_outbox(&request.connection_id, collection.max_pending_ephemeral_keys);
+            self.ensure_outbox(
+                &request.connection_id,
+                collection.max_pending_ephemeral_keys,
+            );
             let entries = room
                 .entries
                 .iter()
@@ -1518,7 +1527,9 @@ impl LocalEphemeralBackend {
             if room.retired {
                 continue;
             }
-            let f = f.take().expect("retire retry runs the closure at most once");
+            let f = f
+                .take()
+                .expect("retire retry runs the closure at most once");
             return Ok(f(&mut room));
         }
     }
@@ -1537,7 +1548,9 @@ impl LocalEphemeralBackend {
             if room.retired {
                 continue;
             }
-            let f = f.take().expect("retire retry runs the closure at most once");
+            let f = f
+                .take()
+                .expect("retire retry runs the closure at most once");
             return Some(f(&mut room));
         }
     }
@@ -1804,11 +1817,17 @@ impl LocalEphemeralBackend {
         }
     }
 
-    fn ensure_outbox(&self, connection_id: &str, max_pending_ephemeral_keys: usize) -> SharedOutbox {
+    fn ensure_outbox(
+        &self,
+        connection_id: &str,
+        max_pending_ephemeral_keys: usize,
+    ) -> SharedOutbox {
         lock(&self.shared.outboxes)
             .entry(connection_id.to_owned())
             .or_insert_with(|| {
-                Arc::new(StdMutex::new(OutboundQueue::new(max_pending_ephemeral_keys)))
+                Arc::new(StdMutex::new(OutboundQueue::new(
+                    max_pending_ephemeral_keys,
+                )))
             })
             .clone()
     }
@@ -1865,15 +1884,17 @@ fn room_id_for(collection: &EphemeralCollection, scope: &Scope) -> Result<RoomId
         }
     }
 
-    let routing_key = scope.routed_key(&collection.routing_fields).ok_or_else(|| {
-        EphemeralError::new(
-            EphemeralErrorCode::InvalidScope,
-            format!(
-                "scope is missing at least one routing field for {}",
-                collection.name
-            ),
-        )
-    })?;
+    let routing_key = scope
+        .routed_key(&collection.routing_fields)
+        .ok_or_else(|| {
+            EphemeralError::new(
+                EphemeralErrorCode::InvalidScope,
+                format!(
+                    "scope is missing at least one routing field for {}",
+                    collection.name
+                ),
+            )
+        })?;
 
     Ok(RoomId {
         collection: collection.name.clone(),
@@ -1933,9 +1954,7 @@ fn entry_key_for_publish(
             .clone()
             .or_else(|| request.auth.user_id.clone())
             .map(EntryKey)
-            .ok_or_else(|| {
-                EphemeralError::new(EphemeralErrorCode::MissingKey, "missing user key")
-            }),
+            .ok_or_else(|| EphemeralError::new(EphemeralErrorCode::MissingKey, "missing user key")),
         KeyMode::Custom => request.custom_key.clone().map(EntryKey).ok_or_else(|| {
             EphemeralError::new(EphemeralErrorCode::MissingKey, "missing custom key")
         }),
@@ -1961,9 +1980,7 @@ fn entry_key_for_delete(
             .clone()
             .or_else(|| request.auth.user_id.clone())
             .map(EntryKey)
-            .ok_or_else(|| {
-                EphemeralError::new(EphemeralErrorCode::MissingKey, "missing user key")
-            }),
+            .ok_or_else(|| EphemeralError::new(EphemeralErrorCode::MissingKey, "missing user key")),
         KeyMode::Custom => request.custom_key.clone().map(EntryKey).ok_or_else(|| {
             EphemeralError::new(EphemeralErrorCode::MissingKey, "missing custom key")
         }),
@@ -2685,8 +2702,12 @@ mod tests {
             auth: AuthContext::default(),
         };
 
-        backend.publish(publish("k1", b"aaa", "board-1"), 1_000).unwrap();
-        backend.publish(publish("k2", b"bbb", "board-1"), 1_000).unwrap();
+        backend
+            .publish(publish("k1", b"aaa", "board-1"), 1_000)
+            .unwrap();
+        backend
+            .publish(publish("k2", b"bbb", "board-1"), 1_000)
+            .unwrap();
 
         // Entry cap: a third key is rejected.
         let entry_cap = backend
@@ -2748,9 +2769,7 @@ mod tests {
     #[test]
     fn l9_recreated_room_gets_a_fresh_scope_epoch() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(
-            EphemeralCollection::local_cursor("boardCursors", "boardId"),
-        );
+        backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
         let publish = |value: &[u8]| PublishRequest {
             collection: "boardCursors".to_owned(),
             scope: Scope::from_pairs([("boardId", "board-1")]),
@@ -2818,9 +2837,7 @@ mod tests {
     #[test]
     fn l9_cleanup_expired_visits_due_rooms_and_prunes_empty_ones() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(
-            EphemeralCollection::local_cursor("boardCursors", "boardId"),
-        );
+        backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
         let publish = |board: &str, ttl_ms: Millis| PublishRequest {
             collection: "boardCursors".to_owned(),
             scope: Scope::from_pairs([("boardId", board)]),
@@ -2921,9 +2938,7 @@ mod tests {
         use std::sync::atomic::AtomicU64 as ClockCell;
 
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(
-            EphemeralCollection::local_cursor("boardCursors", "boardId"),
-        );
+        backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
         let clock = Arc::new(ClockCell::new(1_000));
         let publishers = 4usize;
         let publishes_per_publisher = 50u64;

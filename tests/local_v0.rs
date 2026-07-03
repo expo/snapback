@@ -929,7 +929,10 @@ fn l5_cron_activity_flag_tracks_arming() {
             },
         )
         .expect("subscribe arms the demand-gated cron");
-    assert!(flag.load(Ordering::Relaxed), "a watcher must arm the ticker");
+    assert!(
+        flag.load(Ordering::Relaxed),
+        "a watcher must arm the ticker"
+    );
 
     snapback.disconnect("watcher", 1_000);
     assert!(
@@ -1091,7 +1094,10 @@ fn e3_hostplan_conflict_uses_client_baseline() {
     let bump = snapback
         .invoke_mutation(
             "setCompleted",
-            input(json!({ "id": todo_id.clone(), "completed": true }), "user_1"),
+            input(
+                json!({ "id": todo_id.clone(), "completed": true }),
+                "user_1",
+            ),
         )
         .expect("advance to v1");
     let v1 = bump.version;
@@ -1141,7 +1147,10 @@ fn e3_hostplan_conflict_uses_client_baseline() {
 fn e3_hostplan_without_baseline_commits_against_changed_state() {
     let mut snapback = configured_snapback();
     let created = snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "E3 no-op" }), "user_1"))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "E3 no-op" }), "user_1"),
+        )
         .expect("create todo");
     let todo_id = created.result.as_str().unwrap().to_owned();
 
@@ -1155,7 +1164,10 @@ fn e3_hostplan_without_baseline_commits_against_changed_state() {
     let bump = snapback
         .invoke_mutation(
             "setCompleted",
-            input(json!({ "id": todo_id.clone(), "completed": true }), "user_1"),
+            input(
+                json!({ "id": todo_id.clone(), "completed": true }),
+                "user_1",
+            ),
         )
         .expect("advance to v1");
     assert!(bump.version > v0);
@@ -1171,7 +1183,10 @@ fn e3_hostplan_without_baseline_commits_against_changed_state() {
     let committed = snapback
         .invoke_mutation(
             "setCompleted",
-            input(json!({ "id": todo_id.clone(), "completed": false }), "user_1"),
+            input(
+                json!({ "id": todo_id.clone(), "completed": false }),
+                "user_1",
+            ),
         )
         .expect("unconditional host-plan mutation commits with no baseline");
     assert_eq!(committed.changed_count, 1);
@@ -1275,13 +1290,16 @@ fn ephemeral_unsubscribe_removes_only_the_requester_registration() {
     };
 
     // Two observers on one room; only `observer` unsubscribes.
-    api.subscribe(request("observer"), 1_000).expect("subscribe");
+    api.subscribe(request("observer"), 1_000)
+        .expect("subscribe");
     api.subscribe(request("bystander"), 1_000)
         .expect("subscribe bystander");
     api.drain_outbox("observer");
     api.drain_outbox("bystander");
 
-    let removed = api.unsubscribe(request("observer"), 1_100).expect("unsubscribe");
+    let removed = api
+        .unsubscribe(request("observer"), 1_100)
+        .expect("unsubscribe");
     assert!(removed, "the requester's own registration is removed");
 
     // A publish reaches the bystander but never the unsubscribed observer;
@@ -1312,8 +1330,13 @@ fn ephemeral_unsubscribe_removes_only_the_requester_registration() {
 
     // Unsubscribing again (or for a room already pruned) is a quiet no-op —
     // best-effort teardown may race disconnect cleanup.
-    let again = api.unsubscribe(request("observer"), 1_300).expect("second unsubscribe");
-    assert!(!again, "a second unsubscribe is a quiet no-op (removed:false)");
+    let again = api
+        .unsubscribe(request("observer"), 1_300)
+        .expect("second unsubscribe");
+    assert!(
+        !again,
+        "a second unsubscribe is a quiet no-op (removed:false)"
+    );
 }
 
 #[test]
@@ -2575,8 +2598,14 @@ fn s5_d1_action_calling_ibex_mutation_preserves_context() {
         .iter()
         .filter_map(|row| row["title"].as_str())
         .collect();
-    assert!(titles.contains(&"first"), "first nested insert missing: {titles:?}");
-    assert!(titles.contains(&"second"), "second nested insert missing: {titles:?}");
+    assert!(
+        titles.contains(&"first"),
+        "first nested insert missing: {titles:?}"
+    );
+    assert!(
+        titles.contains(&"second"),
+        "second nested insert missing: {titles:?}"
+    );
 }
 
 fn ibex_nested_reentry_functions() -> FunctionManifest {
@@ -2837,7 +2866,10 @@ fn e2_handler_reads_its_own_buffered_writes() {
     let r = &commit.result;
 
     // insert-then-query sees the buffered row layered over the committed rows.
-    assert_eq!(r["queryCount"], 3, "buffered insert must appear in the query");
+    assert_eq!(
+        r["queryCount"], 3,
+        "buffered insert must appear in the query"
+    );
     assert_eq!(r["queryHasBuffered"], true);
     // get returns the buffered row.
     assert_eq!(r["gotTitle"], "buffered");
@@ -2975,9 +3007,7 @@ fn l9_reap_vs_revival_subscribe_leaves_no_unreapable_zombie() {
     use std::sync::{Arc, Mutex};
 
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor(
-        "cursors", "roomId",
-    ));
+    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
     // The off-lock ephemeral lane shares the store and the liveness map with
     // the snapback now behind the write mutex.
     let api = snapback.ephemeral_api();
@@ -3078,11 +3108,17 @@ fn l3_journal_retention_prune_floor_and_index() {
     // Generate a run of committed changes (one per mutation → one version each).
     for n in 0..12 {
         snapback
-            .invoke_mutation("createTodo", input(json!({ "title": format!("t{n}") }), "user_1"))
+            .invoke_mutation(
+                "createTodo",
+                input(json!({ "title": format!("t{n}") }), "user_1"),
+            )
             .expect("create todo");
     }
     let before = snapback.change_journal_len().unwrap();
-    assert!(before >= 12, "expected the journal to hold each change, got {before}");
+    assert!(
+        before >= 12,
+        "expected the journal to hold each change, got {before}"
+    );
     // Nothing pruned yet → the replay floor is 0 (no resnapshot forced).
     assert_eq!(snapback.journal_floor_version().unwrap(), 0);
 
@@ -3095,7 +3131,10 @@ fn l3_journal_retention_prune_floor_and_index() {
     let after = snapback.change_journal_len().unwrap();
     assert!(after < before, "journal must shrink: {after} !< {before}");
     let floor = snapback.journal_floor_version().unwrap();
-    assert!(floor > 1, "replay floor must rise after pruning, got {floor}");
+    assert!(
+        floor > 1,
+        "replay floor must rise after pruning, got {floor}"
+    );
 
     // A resume from below the retained floor must resnapshot; from the floor or
     // later can replay.
@@ -3116,7 +3155,10 @@ fn l3_journal_retention_prune_floor_and_index() {
         plan.contains("_snapback_changes_by_table_version"),
         "read-set validation must use the table_name index; plan was: {plan}"
     );
-    assert!(!plan.to_uppercase().contains("SCAN "), "plan should not scan: {plan}");
+    assert!(
+        !plan.to_uppercase().contains("SCAN "),
+        "plan should not scan: {plan}"
+    );
 }
 
 /// LLP 0032 L3 — regression for the review's HIGH finding: pruning must never
@@ -3137,7 +3179,9 @@ fn l3_prune_preserves_cold_table_validation_version() {
         indexes: Vec::new(),
         syncable: false,
     });
-    snapback.apply_schema(schema).expect("apply two-table schema");
+    snapback
+        .apply_schema(schema)
+        .expect("apply two-table schema");
 
     const SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
@@ -3179,7 +3223,10 @@ globalThis.__snapbackHandlers = {
     assert!(cold_version >= 1);
     for n in 0..12 {
         snapback
-            .invoke_mutation("createTodo", input(json!({ "title": format!("t{n}") }), "u"))
+            .invoke_mutation(
+                "createTodo",
+                input(json!({ "title": format!("t{n}") }), "u"),
+            )
             .expect("create todo");
     }
 
@@ -3331,7 +3378,10 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
 
     // Plain duplicates COEXIST: both fan out.
     snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "both live" }), "user_1"))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "both live" }), "user_1"),
+        )
         .expect("create todo");
     let updates: Vec<Value> = snapback
         .drain_outbox("client_a")
@@ -3356,7 +3406,10 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
         )
         .expect("superseding subscribe");
     snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "after supersede" }), "user_1"))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "after supersede" }), "user_1"),
+        )
         .expect("create todo");
     let ids: Vec<Value> = snapback
         .drain_outbox("client_a")
@@ -3369,9 +3422,18 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
         .map(|update: Value| update["subscription_id"].clone())
         .collect();
     assert_eq!(ids.len(), 2, "the survivor and the superseder fan out");
-    assert!(ids.contains(&json!(second.subscription_id)), "the untouched duplicate survives");
-    assert!(ids.contains(&json!(third.subscription_id)), "the superseder is live");
-    assert!(!ids.contains(&json!(first.subscription_id)), "the named predecessor is disposed");
+    assert!(
+        ids.contains(&json!(second.subscription_id)),
+        "the untouched duplicate survives"
+    );
+    assert!(
+        ids.contains(&json!(third.subscription_id)),
+        "the superseder is live"
+    );
+    assert!(
+        !ids.contains(&json!(first.subscription_id)),
+        "the named predecessor is disposed"
+    );
 
     let receipts = snapback.receipts_snapshot(Some("client_a"));
     let ring = receipts["receipts"].as_array().expect("connection ring");
@@ -3420,7 +3482,11 @@ fn d2_collection_replace_bumps_epoch_and_signals_resync() {
             1_000,
         )
         .expect("subscribe");
-    let EphemeralMessage::Snapshot { scope_epoch: first_epoch, .. } = snapshot else {
+    let EphemeralMessage::Snapshot {
+        scope_epoch: first_epoch,
+        ..
+    } = snapshot
+    else {
         panic!("expected snapshot");
     };
 
@@ -3452,9 +3518,9 @@ fn d2_collection_replace_bumps_epoch_and_signals_resync() {
         .drain_outbox("observer")
         .into_iter()
         .find_map(|envelope| match envelope {
-            RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired { scope_epoch, .. }) => {
-                Some(scope_epoch)
-            }
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
+                scope_epoch, ..
+            }) => Some(scope_epoch),
             _ => None,
         })
         .expect("attached subscriber must receive the resync boundary");
@@ -3474,7 +3540,11 @@ fn d2_collection_replace_bumps_epoch_and_signals_resync() {
             2_000,
         )
         .expect("re-subscribe");
-    let EphemeralMessage::Snapshot { scope_epoch: second_epoch, .. } = fresh else {
+    let EphemeralMessage::Snapshot {
+        scope_epoch: second_epoch,
+        ..
+    } = fresh
+    else {
         panic!("expected fresh snapshot");
     };
     assert!(
@@ -3528,10 +3598,16 @@ fn d2_unsubscribe_live_disposes_and_enforces_ownership() {
         disposed.receipt.as_ref().expect("receipt")["event"],
         "disposed"
     );
-    assert_eq!(disposed.receipt.as_ref().expect("receipt")["reason"], "unsubscribed");
+    assert_eq!(
+        disposed.receipt.as_ref().expect("receipt")["reason"],
+        "unsubscribed"
+    );
 
     snapback
-        .invoke_mutation("createTodo", input(json!({ "title": "after dispose" }), "user_1"))
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "after dispose" }), "user_1"),
+        )
         .expect("create todo");
     let durable = snapback
         .drain_outbox("client_a")
@@ -3588,7 +3664,10 @@ fn d2_mutation_receipts_echo_correlation_and_declare_affected_tables() {
     assert_eq!(receipt["rollbackReason"], Value::Null);
     assert_eq!(receipt["affectedTables"], json!(["todos"]));
     assert_eq!(receipt["snapshotVersion"], json!(output.version));
-    assert_eq!(receipt["correlation"], correlation, "correlation echoed verbatim");
+    assert_eq!(
+        receipt["correlation"], correlation,
+        "correlation echoed verbatim"
+    );
     assert!(receipt["mutationId"].as_str().unwrap().starts_with("mut_"));
 
     // Declared-nothing: EXPLICITLY unknown (null), never silently empty.
@@ -3604,7 +3683,10 @@ fn d2_mutation_receipts_echo_correlation_and_declare_affected_tables() {
         snapback.invoke_mutation_recording("nope", input(json!({}), "user_1"));
     assert!(rejected.is_err());
     assert_eq!(rejected_receipt["outcome"], "rejected");
-    assert_eq!(rejected_receipt["rollbackReason"], "SNAPBACK_UNKNOWN_FUNCTION");
+    assert_eq!(
+        rejected_receipt["rollbackReason"],
+        "SNAPBACK_UNKNOWN_FUNCTION"
+    );
 
     // Retention: all three receipts are in the bounded global ring.
     let receipts = snapback.receipts_snapshot(None);
@@ -3636,11 +3718,15 @@ fn d2_disconnect_receipts_disposal_and_drops_the_connection_ring() {
     snapback.disconnect("client_gone", 1_000);
     let receipts = snapback.receipts_snapshot(None);
     assert!(
-        receipts["global"].as_array().unwrap().iter().any(|receipt| {
-            receipt["event"] == "disposed"
-                && receipt["reason"] == "disconnected"
-                && receipt["subscriptionId"] == sub.subscription_id
-        }),
+        receipts["global"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|receipt| {
+                receipt["event"] == "disposed"
+                    && receipt["reason"] == "disconnected"
+                    && receipt["subscriptionId"] == sub.subscription_id
+            }),
         "disconnect disposal must be receipted globally: {receipts}"
     );
     assert!(

@@ -158,8 +158,14 @@ fn non_secret_and_default_entries_are_rejected_fail_closed() {
     };
     let diagnostics = snapback.load_functions(manifest);
     let codes: Vec<&str> = diagnostics.iter().map(|d| d.code.as_str()).collect();
-    assert!(codes.contains(&"SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED"), "{codes:?}");
-    assert!(codes.contains(&"SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED"), "{codes:?}");
+    assert!(
+        codes.contains(&"SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED"),
+        "{codes:?}"
+    );
+    assert!(
+        codes.contains(&"SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED"),
+        "{codes:?}"
+    );
     // Fail closed: rejected entries are not part of the effective declaration.
     assert!(snapback.config_status().entries.is_empty());
 }
@@ -196,8 +202,14 @@ fn uses_naming_unknown_entries_and_missing_required_are_diagnosed() {
     let diagnostics = snapback.load_functions(manifest);
     let codes: Vec<&str> = diagnostics.iter().map(|d| d.code.as_str()).collect();
     assert!(codes.contains(&"SNAPBACK_CONFIG_USES_UNKNOWN"), "{codes:?}");
-    assert!(codes.contains(&"SNAPBACK_CONFIG_REQUIRED_MISSING"), "{codes:?}");
-    assert_eq!(snapback.required_missing_config(), vec!["feedKeys".to_owned()]);
+    assert!(
+        codes.contains(&"SNAPBACK_CONFIG_REQUIRED_MISSING"),
+        "{codes:?}"
+    );
+    assert_eq!(
+        snapback.required_missing_config(),
+        vec!["feedKeys".to_owned()]
+    );
 }
 
 // --- Grants, handles, rotation, redaction ---------------------------------------
@@ -230,7 +242,11 @@ fn granted_handles_rotate_the_pool_and_redact_every_materialization() {
     );
 
     let second = run_action(&mut snapback, "useKeys");
-    assert_eq!(second.result.unwrap()["exposed"], "k2", "rotation walks the pool");
+    assert_eq!(
+        second.result.unwrap()["exposed"],
+        "k2",
+        "rotation walks the pool"
+    );
 }
 
 #[test]
@@ -239,10 +255,7 @@ fn missing_and_undeclared_access_map_to_structured_codes() {
     // Declared but unset → SNAPBACK_CONFIG_MISSING.
     let missing = run_action(&mut snapback, "useKeysRaw");
     assert!(!missing.ok);
-    assert_eq!(
-        missing.diagnostic.unwrap().code,
-        "SNAPBACK_CONFIG_MISSING"
-    );
+    assert_eq!(missing.diagnostic.unwrap().code, "SNAPBACK_CONFIG_MISSING");
 
     snapback
         .set_config_entry("feedKeys", vec!["k1".into()], false, "cli")
@@ -513,12 +526,12 @@ async fn envelopes_and_status_never_contain_values() {
     assert_eq!(entry["memberCount"], json!(2));
 
     // The diagnostics ring (admin inspect) carries audit facts, not values.
-    let inspect = open
-        .oneshot(get("/_snapback/api/inspect"))
-        .await
-        .unwrap();
+    let inspect = open.oneshot(get("/_snapback/api/inspect")).await.unwrap();
     let inspect_raw = body_json(inspect).await.to_string();
-    assert!(!inspect_raw.contains("super-secret-value"), "audit leaked a value");
+    assert!(
+        !inspect_raw.contains("super-secret-value"),
+        "audit leaked a value"
+    );
 }
 
 #[tokio::test]
@@ -531,7 +544,10 @@ async fn setup_wizard_page_is_served_from_the_static_lane() {
         .unwrap();
     let html = String::from_utf8_lossy(&bytes);
     assert!(html.contains("Set up this app"), "wizard page served");
-    assert!(html.contains("/_snapback/api/config/"), "wizard drives the gated ops");
+    assert!(
+        html.contains("/_snapback/api/config/"),
+        "wizard drives the gated ops"
+    );
     // ENG-22581: the ready banner must acknowledge unset optional entries and
     // cards must distinguish required from optional, or the page contradicts
     // itself ("app is ready" above a warning asking for a key).

@@ -40,13 +40,28 @@ pub struct SchemaArtifact {
 /// generated output and the gate can never diverge.
 pub fn artifact_schemas() -> Vec<SchemaArtifact> {
     vec![
-        finish("schema.manifest.schema.json", schemars::schema_for!(SchemaManifest)),
-        finish("functions.manifest.schema.json", schemars::schema_for!(FunctionManifest)),
-        finish("capability.manifest.schema.json", schemars::schema_for!(CapabilityManifest)),
+        finish(
+            "schema.manifest.schema.json",
+            schemars::schema_for!(SchemaManifest),
+        ),
+        finish(
+            "functions.manifest.schema.json",
+            schemars::schema_for!(FunctionManifest),
+        ),
+        finish(
+            "capability.manifest.schema.json",
+            schemars::schema_for!(CapabilityManifest),
+        ),
         finish("diagnostic.schema.json", schemars::schema_for!(Diagnostic)),
         finish("inspect.schema.json", schemars::schema_for!(InspectState)),
-        finish("inspect.public.schema.json", schemars::schema_for!(PublicInspect)),
-        finish("storage-info.schema.json", schemars::schema_for!(StorageInfo)),
+        finish(
+            "inspect.public.schema.json",
+            schemars::schema_for!(PublicInspect),
+        ),
+        finish(
+            "storage-info.schema.json",
+            schemars::schema_for!(StorageInfo),
+        ),
     ]
 }
 

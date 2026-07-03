@@ -1098,9 +1098,22 @@ mod tests {
 
     /// Evaluates `spec` at a civil UTC instant via the production
     /// `utc_parts` decomposition.
-    fn matches_at(spec: &CronExpr, year: i64, month: u32, day: u32, hour: u32, minute: u32) -> bool {
+    fn matches_at(
+        spec: &CronExpr,
+        year: i64,
+        month: u32,
+        day: u32,
+        hour: u32,
+        minute: u32,
+    ) -> bool {
         let parts = utc_parts(ms_at(year, month, day, hour, minute)).expect("representable time");
-        spec.matches(parts.minute, parts.hour, parts.day, parts.month, parts.weekday)
+        spec.matches(
+            parts.minute,
+            parts.hour,
+            parts.day,
+            parts.month,
+            parts.weekday,
+        )
     }
 
     fn action_stub(name: &str) -> FunctionDefinition {
@@ -1345,8 +1358,7 @@ mod tests {
         // Fail closed: the job gets no runtime state and is never claimed.
         let mut runtime = LocalCronRuntime::default();
         runtime.reconcile(&manifest);
-        let claims =
-            runtime.claim_due_runs(&manifest, &BTreeSet::new(), ms_at(2026, 7, 1, 0, 0));
+        let claims = runtime.claim_due_runs(&manifest, &BTreeSet::new(), ms_at(2026, 7, 1, 0, 0));
         assert!(claims.is_empty(), "unsatisfiable job must not be scheduled");
     }
 

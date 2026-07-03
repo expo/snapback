@@ -86,8 +86,10 @@ fn dk7_committed_schemas_match_rust_types() {
 /// failure, not a silent gap.
 #[test]
 fn dk7_every_artifact_has_a_committed_schema_file() {
-    let generated: std::collections::BTreeSet<String> =
-        artifact_schemas().into_iter().map(|a| a.file.to_owned()).collect();
+    let generated: std::collections::BTreeSet<String> = artifact_schemas()
+        .into_iter()
+        .map(|a| a.file.to_owned())
+        .collect();
     let committed: std::collections::BTreeSet<String> = fs::read_dir(schemas_dir())
         .expect("read schemas/ dir")
         .filter_map(|entry| entry.ok())
@@ -211,7 +213,10 @@ fn dk7_committed_demo_manifests_validate_against_schemas() {
     let pairs = [
         ("schema.manifest.schema.json", "schema.manifest.json"),
         ("functions.manifest.schema.json", "functions.manifest.json"),
-        ("capability.manifest.schema.json", "capability.manifest.json"),
+        (
+            "capability.manifest.schema.json",
+            "capability.manifest.json",
+        ),
     ];
     for (schema_file, manifest_file) in pairs {
         let schema = committed(schema_file);
@@ -253,7 +258,9 @@ fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
                 .expect("read functions manifest"),
         )
         .unwrap_or_else(|error| panic!("{backend}: functions manifest rejected: {error}"));
-        functions.validate_artifact().expect("functions artifact header");
+        functions
+            .validate_artifact()
+            .expect("functions artifact header");
         let _capability: CapabilityManifest = serde_json::from_str(
             &fs::read_to_string(dir.join("capability.manifest.json"))
                 .expect("read capability manifest"),

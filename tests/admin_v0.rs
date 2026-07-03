@@ -57,8 +57,8 @@ async fn root_path_serves_yaml_instance_status() {
 }
 
 /// A browser `Accept` header gets the branded HTML homepage instead of YAML,
-/// with the emphasized admin-console link and the smaller machine-endpoint
-/// links.
+/// with the admin-console action below the identity and the key properties in
+/// a four-column table (two key/value pairs per row).
 #[tokio::test]
 async fn root_negotiates_html_for_browsers() {
     let app = loopback_app(seeded_snapback());
@@ -83,11 +83,37 @@ async fn root_negotiates_html_for_browsers() {
     let body = text(resp).await;
     assert!(body.contains("<svg"), "inline Snapback mark is embedded");
     assert!(body.contains("Snapback"), "wordmark is present");
+    assert!(
+        !body.contains("class=\"console\""),
+        "the header must not carry a second admin-console link"
+    );
     assert!(body.contains("Open admin console"));
     assert!(body.contains("href=\"/_snapback/admin\""));
+    assert!(
+        body.contains("aria-hidden=\"true\""),
+        "button icon is embedded"
+    );
     assert!(body.contains("/_snapback/api/health"));
     assert!(body.contains("/_snapback/api/inspect"));
+    assert!(body.contains("<table>"), "instance facts render as a table");
+    assert!(
+        body.contains("<th scope=\"row\">Uptime</th><td>"),
+        "facts rows carry paired key/value cells"
+    );
+    assert!(
+        body.contains("</td><th scope=\"row\">Bind</th>"),
+        "two key/value pairs share one table row"
+    );
+    assert!(
+        body.contains("<td colspan=\"3\">"),
+        "the sentence-length admin-access fact spans the full row"
+    );
     assert!(body.contains("<details"), "expandable instance details");
+    assert!(
+        body.contains("<summary>More details</summary>"),
+        "the expandable section is titled More details"
+    );
+    assert!(!body.contains("Instance details"));
     assert!(
         body.contains("schemaVersion: &quot;snapback.v0&quot;"),
         "details carry the full metadata object"
@@ -122,10 +148,7 @@ async fn root_negotiates_json_and_markdown() {
         "undeclared identity fields are omitted from JSON"
     );
 
-    let resp = app
-        .oneshot(get_accept("/", "text/markdown"))
-        .await
-        .unwrap();
+    let resp = app.oneshot(get_accept("/", "text/markdown")).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let ctype = resp
         .headers()
@@ -211,7 +234,12 @@ async fn root_renders_declared_app_identity_escaped() {
     assert!(yaml.contains("  name: \"Todo <Deluxe> & Friends\""));
     assert!(yaml.contains("  iconUrl: \"/assets/icon.png?v=1&theme=dark\""));
 
-    let body = json(app.oneshot(get_accept("/", "application/json")).await.unwrap()).await;
+    let body = json(
+        app.oneshot(get_accept("/", "application/json"))
+            .await
+            .unwrap(),
+    )
+    .await;
     assert_eq!(body["app"]["name"], "Todo <Deluxe> & Friends");
     assert_eq!(body["app"]["description"], "The \"best\" list app");
 }
@@ -588,10 +616,7 @@ async fn s1_gated_writes_require_token_when_configured_even_on_loopback() {
             serde_json::to_value(todo_functions()).unwrap(),
         ),
         ("/_snapback/api/app/reset", json!({})),
-        (
-            "/_snapback/api/connections/some-conn/disconnect",
-            json!({}),
-        ),
+        ("/_snapback/api/connections/some-conn/disconnect", json!({})),
     ];
     for (uri, body) in gated_posts {
         let resp = app.clone().oneshot(post(uri, body)).await.unwrap();
@@ -605,7 +630,11 @@ async fn s1_gated_writes_require_token_when_configured_even_on_loopback() {
     }
 
     let allowed = app
-        .oneshot(post_with_token("/_snapback/api/app/reset", json!({}), "sekrit"))
+        .oneshot(post_with_token(
+            "/_snapback/api/app/reset",
+            json!({}),
+            "sekrit",
+        ))
         .await
         .unwrap();
     assert_eq!(allowed.status(), StatusCode::OK);
@@ -633,7 +662,11 @@ async fn s1_gated_writes_fail_closed_on_non_loopback_binds() {
     assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
 
     let allowed = with_token
-        .oneshot(post_with_token("/_snapback/api/app/reset", json!({}), "sekrit"))
+        .oneshot(post_with_token(
+            "/_snapback/api/app/reset",
+            json!({}),
+            "sekrit",
+        ))
         .await
         .unwrap();
     assert_eq!(allowed.status(), StatusCode::OK);
@@ -755,7 +788,9 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
 
     // Gated /_snapback/api/inspect: the full payload retains the sensitive fact.
     let gated = json(app.oneshot(get("/_snapback/api/inspect")).await.unwrap()).await;
-    let gated_subs = gated["subscriptions"].as_array().expect("gated subscriptions");
+    let gated_subs = gated["subscriptions"]
+        .as_array()
+        .expect("gated subscriptions");
     assert!(
         gated_subs
             .iter()
@@ -1071,7 +1106,8 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
         .await
         .unwrap();
 
-    let text = |frame: Value| tokio_tungstenite::tungstenite::Message::Text(frame.to_string().into());
+    let text =
+        |frame: Value| tokio_tungstenite::tungstenite::Message::Text(frame.to_string().into());
     let unsubscribe_frame = |connection_id: &str| {
         json!({
             "type": "ephemeral_unsubscribe",
@@ -1109,7 +1145,10 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(sub_ack["kind"], "ephemeral_ack", "subscribe acked: {sub_ack}");
+    assert_eq!(
+        sub_ack["kind"], "ephemeral_ack",
+        "subscribe acked: {sub_ack}"
+    );
 
     // An attacker who knows the owner's connection id (in Connection key mode
     // it is BROADCAST as the entry key) tries to evict it over ITS OWN socket:
@@ -1151,7 +1190,10 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(ack["kind"], "ephemeral_ack", "self-unsubscribe acked: {ack}");
+    assert_eq!(
+        ack["kind"], "ephemeral_ack",
+        "self-unsubscribe acked: {ack}"
+    );
     assert_eq!(
         ack["removed"],
         json!(true),

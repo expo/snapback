@@ -138,7 +138,10 @@ impl WarmVmPool {
     /// until check-in or drop.
     pub(crate) fn checkout(&self, module_source: &str) -> SnapbackResult<WarmVm> {
         let generation = {
-            let mut inner = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut inner = self
+                .inner
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             if let Some(vms) = inner.vms.get_mut(module_source)
                 && let Some(vm) = vms.pop()
             {
@@ -172,7 +175,10 @@ impl WarmVmPool {
     }
 
     fn check_in(&self, vm: WarmVm) {
-        let mut inner = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         // A VM checked out before a `clear()` carries a stale generation; drop
         // it rather than return pre-reload module state to the cleared pool.
         if vm.generation != inner.generation {
@@ -193,7 +199,10 @@ impl WarmVmPool {
     /// read holding a pre-clear VM.
     pub(crate) fn clear(&self) {
         let drained = {
-            let mut inner = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut inner = self
+                .inner
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             inner.pooled = 0;
             inner.generation = inner.generation.wrapping_add(1);
             std::mem::take(&mut inner.vms)
@@ -478,7 +487,11 @@ globalThis.__snapbackHandlers = {{
         snapback.load_functions(counter_manifest("disabled"));
         snapback.set_warm_vms_enabled(false);
         assert_eq!(count(&snapback), 1);
-        assert_eq!(count(&snapback), 1, "fresh path must not retain module state");
+        assert_eq!(
+            count(&snapback),
+            1,
+            "fresh path must not retain module state"
+        );
     }
 
     /// DK-4 pool bound: check-ins beyond the cap destroy the VM instead of
