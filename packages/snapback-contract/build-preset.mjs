@@ -5,6 +5,7 @@
 //   Snapback admin base-path rewrite are product recipe, not admin-local lore.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -144,7 +145,21 @@ export async function contractViteBaseConfig({
       ],
       resolve: {
         alias: workspaceAliases,
-        dedupe: ['react', 'react-dom'],
+        // ENG-22600: only dedupe react when the app root can actually resolve
+        // it. Vite's dedupe forces bare `react` resolution to start from the
+        // app root (tryNodeResolve: `if (dedupe.includes(pkgId)) basedir =
+        // root`); admin-ui has no node_modules of its own, so that resolution
+        // failed, the dep never registered with the dev optimizer, and the
+        // browser was handed Exact's raw CJS react/index.js — which has no
+        // ESM named exports ("does not provide an export named
+        // 'isValidElement'"). Without dedupe the import resolves from the
+        // Exact source importer and the optimizer prebundles it (verified:
+        // imports rewrite to /node_modules/.vite/deps/react.js). Keep dedupe
+        // when the root can resolve react, since that is the dual-React guard
+        // for surfaces that install their own copy.
+        // @ref LLP 0023#shared-vite-config-the-anti-drift-move — the preset
+        // owns this seam for both build.sh and dev.mjs.
+        dedupe: resolveRootResolvableDedupe(appRoot, ['react', 'react-dom']),
       },
     },
   };
@@ -341,6 +356,23 @@ function resolveExactRoot(exactRoot) {
       process.env.SNAPBACK_EXACT_ROOT ??
       resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'exact'),
   );
+}
+
+// ENG-22600: see the `resolve.dedupe` comment in contractViteBaseConfig.
+// Dedupe entries are only safe when node resolution from the app root can
+// find the package; otherwise they silently disable Vite's dep optimizer for
+// that package and dev serve ships raw CJS to the browser. Exported for
+// build-preset.test.mjs (drop-out and re-arm coverage).
+export function resolveRootResolvableDedupe(appRoot, packageNames) {
+  const requireFromRoot = createRequire(resolve(appRoot, 'package.json'));
+  return packageNames.filter((name) => {
+    try {
+      requireFromRoot.resolve(`${name}/package.json`);
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }
 
 function preflightAppFile({ appRoot, relativePath, code, label }) {

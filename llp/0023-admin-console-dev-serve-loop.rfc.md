@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Contract/Exact, Tooling, Testing
 **Author:** Claude (Opus 4.8)
 **Date:** 2026-06-27
-**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the dev-serve loop and built-dist serving shipped; 2026-06-27 review passes: GPT-5 clarified HMR verification, loopback proxy defaults, structured proxy failures, generated-binding lifecycle, and shared compile config; Claude hardened API-target resolution, non-fatal startup preflight, same-machine proxy risks, env naming, and Exact/bun prerequisites; GPT-5 re-review corrected memory-server port discovery and separated SSE from WebSocket proxy requirements; 2026-06-27 corrected the layout-bug characterization — a Contract `dom-mirror` `flex-shrink` default mismatch, not a kernel measurement bug — and recorded its upstream Exact fix, ENG-22199, verified under ENG-22214)
+**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the dev-serve loop and built-dist serving shipped; 2026-06-27 review passes: GPT-5 clarified HMR verification, loopback proxy defaults, structured proxy failures, generated-binding lifecycle, and shared compile config; Claude hardened API-target resolution, non-fatal startup preflight, same-machine proxy risks, env naming, and Exact/bun prerequisites; GPT-5 re-review corrected memory-server port discovery and separated SSE from WebSocket proxy requirements; 2026-06-27 corrected the layout-bug characterization — a Contract `dom-mirror` `flex-shrink` default mismatch, not a kernel measurement bug — and recorded its upstream Exact fix, ENG-22199, verified under ENG-22214); 2026-07-03 (ENG-22600: fixed the dev-serve React 19 CJS/ESM interop crash — `resolve.dedupe` is now conditional on app-root resolvability; see "Shared Vite config")
 **Related:** LLP 0017 (admin console; Serving Model), LLP 0021 (Contract/Exact integration hardening; the build preset), [diary 0005](../diaries/0005-admin-console-redesign.diary.md); Exact LLP 0268 (static platform manifests)
 
 ## Summary
@@ -183,6 +183,38 @@ rewrite). A new `serveSnapbackContractApp` reuses the base config and adds only
 serve concerns (`server.host`, `server.port`, `server.proxy`, and HMR/reload
 behavior). Dev and build then share the Exact/Contract compile path without
 forcing the browser dev server to emit LLP 0268 native artifacts.
+
+**React dedupe is conditional on root resolvability (ENG-22600).** The shared
+config originally set `resolve.dedupe: ['react', 'react-dom']` unconditionally.
+Vite's dedupe forces bare `react` resolution to start from the *app root*
+(admin-ui), which has no `node_modules` of its own; that resolution failed, so
+the dep never registered with the dev optimizer, and the browser was served
+Exact's raw CommonJS `react/index.js` — which provides no ESM named exports and
+crashes the boot with `does not provide an export named 'isValidElement'`. The
+bug was dev-serve-only because dev serves unbundled modules straight to the
+browser and relies on the dep optimizer for CJS interop — exactly the step the
+failed dedupe resolution bypassed — while both build legs bundle with their own
+CJS→ESM interop (rolldown for the web assets, the native envelope's Hermes
+module pipeline for `startup.js`). `contractViteBaseConfig` now dedupes only packages that node
+resolution from the app root can actually find
+(`resolveRootResolvableDedupe`): with no root react, dedupe drops out, react
+resolves from its Exact-source importers, and the dev optimizer prebundles it
+(imports rewrite to `/node_modules/.vite/deps/react.js`, with vite's
+`__vite__cjsImport` interop rewrite in consumers). If a surface later installs
+its own react, dedupe re-arms automatically and keeps the single-copy
+guarantee.
+
+Verified with a real browser boot (headless Chrome DOM dump: `#exact-root`
+mounts the Contract host tree, console shows only vite connect messages, no
+`isValidElement` SyntaxError) and guarded by two committed checks:
+`packages/snapback-contract/build-preset.test.mjs` unit-tests the
+drop-out/re-arm behavior of `resolveRootResolvableDedupe` (run by
+`scripts/verify-local-proof`), and `admin-ui/tests/dev-serve-react-esm.mjs`
+boots the dev serve, crawls the served module graph, asserts every react
+import rewrites to the dep-optimizer chunk (no raw CJS served), and evaluates
+the chunk to check `default.isValidElement` (run by admin-ui `npm test`,
+which `scripts/verify-local-proof` invokes after the admin build; skips
+without an Exact checkout unless `SNAPBACK_REQUIRE_EXACT=1`).
 
 ### HMR and remount behavior
 
