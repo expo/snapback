@@ -23,13 +23,13 @@ import {
 // --- Config -------------------------------------------------------------------
 
 // @ref LLP 0036#declared-configuration-in-the-manifest — the demo declares the
-// key pool the live feed will need. Optional while the demo runs the recorded
-// feed (G5's live half is not built); the declaration is what the setup wizard
-// and `config.status` render, and refreshFeed already carries the grant.
+// key pools its egress actions use. Optional means the app can still boot on
+// recorded feed + haversine fallback, while the setup wizard renders exactly
+// what real Caltrain/routing data needs.
 export const appConfig = defineConfig({
   caltrainFeed: {
     description: '511.org Open Data API key',
-    purpose: 'Fetches the Caltrain GTFS-Realtime feed for live departures',
+    purpose: 'Fetches Caltrain StopMonitoring predictions for live delay overlays',
     required: false,
     pool: true,
     howToGet:
@@ -40,6 +40,22 @@ export const appConfig = defineConfig({
       kind: 'email-delay',
       inputs: ['name', 'email', 'intended use'],
       cost: 'free',
+      humanCommitment: ['terms'],
+    },
+  },
+  directions: {
+    description: 'OpenRouteService / HeiGIT Directions API key',
+    purpose: 'Computes walking and biking ETAs from the rider location to a station',
+    required: false,
+    pool: true,
+    howToGet:
+      'Create a free OpenRouteService token at https://openrouteservice.org/dev/ ' +
+      'or use a compatible HeiGIT openrouteservice key.',
+    acquisition: {
+      url: 'https://openrouteservice.org/dev/',
+      kind: 'self-serve',
+      inputs: ['email'],
+      cost: 'free tier available',
       humanCommitment: ['terms'],
     },
   },
@@ -89,10 +105,31 @@ export const feedState = defineLiveQuery({
 // Advances the recorded feed by one tick and writes trainStatus + feedRefreshState.
 // This is the only write path; it fires the realtime fan-out for free.
 export const applyFeedTick = defineJsMutation({
-  args: { trigger: v.optional(v.string()) },
+  args: {
+    trigger: v.optional(v.string()),
+    source: v.optional(v.string()),
+    lastError: v.optional(v.string()),
+  },
   source: 'handlers.mjs',
   exportName: 'applyFeedTick',
   reads: ['feedRefreshState', 'feedTicks', 'trainStatus'],
+  writes: ['trainStatus', 'feedRefreshState'],
+});
+
+// Applies a real feed snapshot already fetched by the action. The handler maps
+// external predictions onto the six committed service-pattern ids, then this
+// mutation is the durable write that fans out over liveQuery.
+export const applyLiveFeedSnapshot = defineJsMutation({
+  args: {
+    trigger: v.optional(v.string()),
+    source: v.optional(v.string()),
+    delays: v.json(),
+    note: v.optional(v.string()),
+    lastError: v.optional(v.string()),
+  },
+  source: 'handlers.mjs',
+  exportName: 'applyLiveFeedSnapshot',
+  reads: ['feedRefreshState', 'trainStatus'],
   writes: ['trainStatus', 'feedRefreshState'],
 });
 
@@ -105,17 +142,40 @@ export const resetFeed = defineJsMutation({
   writes: ['trainStatus', 'feedRefreshState'],
 });
 
-// The thing cron runs. In v0 it advances the recorded feed through applyFeedTick;
-// Phase 3 would fetch the real Caltrain feed here (egress) before the mutation.
+// The thing cron runs. With a 511 key it fetches the real Caltrain feed and
+// commits a live snapshot; without one it advances the recorded fallback feed.
 // @ref LLP 0027#external-data-and-action-egress — egress stays out of the
 //   transactional path: the action fetches, then calls a mutation to write.
 export const refreshFeed = defineAction({
-  args: { trigger: v.optional(v.string()) },
+  args: {
+    trigger: v.optional(v.string()),
+    source: v.optional(v.string()),
+    feedUrl: v.optional(v.string()),
+  },
   js: { source: 'handlers.mjs', exportName: 'refreshFeed' },
   // @ref LLP 0036#declared-configuration-in-the-manifest — D8: the grant that
-  // hands Phase 3's live fetch its rotating key via ctx.secrets.
+  // hands the live fetch its rotating key via ctx.secrets.
   uses: ['caltrainFeed'],
   writes: ['trainStatus', 'feedRefreshState'],
+});
+
+// Per-request walking/biking directions. The browser passes only coordinates;
+// the API key stays server-side on the action grant, and the handler falls back
+// to deterministic haversine if egress/config is unavailable.
+// @ref LLP 0028#open-questions — action generality covers All Aboard's
+//   user-triggered routing egress, not only cron.
+export const routeEstimate = defineAction({
+  args: {
+    fromLat: v.real(),
+    fromLng: v.real(),
+    toLat: v.real(),
+    toLng: v.real(),
+    mode: v.string(),
+    baseUrl: v.optional(v.string()),
+  },
+  js: { source: 'handlers.mjs', exportName: 'routeEstimate' },
+  uses: ['directions'],
+  writes: [],
 });
 
 // --- Cron ---------------------------------------------------------------------

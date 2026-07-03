@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-02 (G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Revised:** 2026-07-03 (G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
 **Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0036, Diary 0008
 
 ## Summary
@@ -177,18 +177,17 @@ floor (same territory as G3).
 
 ### G5 — No live external feed polling
 
-**What & evidence.** `refreshFeed` advances a committed cycle of recorded feed ticks
-through a mutation; it never fetches a real feed. Live 511.org/Caltrain GTFS-Realtime
-integration is Phase 3's live half and is not built.
+**Closed (2026-07-03).** `refreshFeed` now uses the action egress class and the
+declared `caltrainFeed` grant to fetch 511 SIRI StopMonitoring JSON, map mappable
+Caltrain visits onto the six committed service-pattern `trainStatus` rows, and
+commit through `applyLiveFeedSnapshot`. Missing config, disabled outbound actions,
+or a malformed feed fall back to the recorded tick path and write `lastError` into
+`feedRefreshState`. Verified without touching the real network by
+`demos/all-aboard/tests/acceptance/real-data.mjs`.
 
-**Impact.** The app is "live" against recorded data, not the world. Fine for a
-deterministic demo; not a real departure board.
-
-**Closing it.** With G3 + G4 in place, the egress action fetches the real feed
-(511.org GTFS-RT or Caltrain's own), maps entities → `trainStatus` delays/positions,
-and commits through the existing `applyFeedTick`-shaped mutation. Add rate-limit
-handling via the rotating key pool and cache-by-freshness. Keep the recorded path as
-the test/offline default.
+**Residual non-claim.** This is a live delay overlay for the demo schedule, not
+exact static-GTFS schedule parity or GTFS-RT trip-to-schedule identity matching.
+That limitation is now called out in `demo.snapback.json`.
 
 **Effort.** M. **Owner.** [LLP 0027](./0027-all-aboard-caltrain-demo.plan.md) over
 [LLP 0028](./0028-cron-scheduled-execution.rfc.md); depends on G3, G4.
@@ -232,8 +231,11 @@ LLP 0028 specifies. Surface `catching-up` in the activation state.
 ### G8 — Native macOS/iOS surface not built or run
 
 **What & evidence.** The same `app.contract` is native-ready (it renders through
-Exact's Rust kernel host), but this repo does not build or run the Swift `ExactApp`
-host; the demo marks `native` as `expected_missing`. Snapback's admin can *serve*
+Exact's Rust kernel host), and the Contract surface build now emits macOS/iOS
+static native envelopes. With the current registry Exact devtools package those
+envelopes use module-bundle fallback payloads rather than startup.js/HBC because
+the package does not include Exact host runtime source assets. This repo still
+does not build or run the Swift `ExactApp` host. Snapback's admin can *serve*
 static native discovery artifacts only when `SNAPBACK_ADMIN_DIST` is configured
 (`src/contract_exact.rs`, `src/admin.rs`), otherwise it returns
 `SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE`.
@@ -242,12 +244,12 @@ static native discovery artifacts only when `SNAPBACK_ADMIN_DIST` is configured
 hosts) but not *demonstrated* — no one has watched All Aboard run on a Mac or a
 phone.
 
-**Closing it.** Build `ExactApp` for `mac`/`ios`, point it at a native-enabled Exact
-dev server for the All Aboard surface (the `.contract` unchanged; the `main.ts` boot
-and host differ), and add a native acceptance check (structured tree, like the web
-one). Optionally wire `SNAPBACK_ADMIN_DIST` so the Snapback admin can serve the
-native envelope. Note: native geolocation would use the Exact location module (see
-G9).
+**Closing it.** Build `ExactApp` for `mac`/`ios`, point it at either the emitted
+static envelope or a native-enabled Exact dev server for the All Aboard surface
+(the `.contract` unchanged; the `main.ts` boot and host differ), and add a native
+acceptance check (structured tree, like the web one). Optionally wire
+`SNAPBACK_ADMIN_DIST` so the Snapback admin can serve the native envelope. Note:
+native geolocation would use the Exact location module (see G9).
 
 **Effort.** M (toolchain + a Swift build, not new UI). **Owner.** Exact host +
 [LLP 0015](./0015-demo-application-suite.plan.md) surface conventions.
@@ -304,17 +306,13 @@ Online. This is a capability-class upgrade, not a rewrite.
 
 ### G12 — Walk/bike is haversine, not routing
 
-**What & evidence.** v0 computes walk (~3 mph) and bike (~9 mph) ETAs by haversine
-from seed coordinates — zero egress, deterministic. Real routing
-(OpenRouteService, Mapbox alternative) is the declared Phase-3 accuracy upgrade.
-
-**Impact.** ETAs ignore streets, hills, and crossings — good enough to decide, off
-by a few minutes.
-
-**Closing it.** A routing egress action (default OpenRouteService) proxied through
-Snapback (key in the secrets seam, G4), cached by (location-bucket, station) to
-respect the free quota, replacing the haversine estimate. A Maps deep-link
-complements it. Depends on G3/G4.
+**Closed (2026-07-03).** `routeEstimate` is a server-side action with a declared
+`directions` grant. The web surfaces install a route-estimate invoker, cache by
+rounded rider location + station + mode, and use OpenRouteService/HeiGIT summaries
+for the selected station card. Missing config, disabled outbound actions, or
+transport failures fall back to the deterministic haversine estimate; station-list
+rows intentionally keep the local estimate to avoid bursty quota use. Verified by
+`demos/all-aboard/tests/acceptance/real-data.mjs`.
 
 **Effort.** M. **Owner.** [LLP 0027](./0027-all-aboard-caltrain-demo.plan.md);
 depends on G3, G4.

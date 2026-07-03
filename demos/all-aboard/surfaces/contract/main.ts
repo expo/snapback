@@ -14,7 +14,6 @@
 // LLP 0275 C4 footgun).
 
 import { mount, reset } from '@exact/contract/runtime';
-import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
@@ -28,11 +27,12 @@ import {
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
 import { installGestures } from './gestures';
-import { setDeviceLocation } from './data';
+import { setDeviceLocation, setRouteEstimateInvoker } from './data';
 import app from './app.contract';
 
 let activeSurface: { dispose?: () => void } | null = null;
 let disposeGestures: (() => void) | null = null;
+let disposeRefreshAction: (() => void) | null = null;
 
 // Build-time API origin injected by vite.config.ts `define`.
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
@@ -102,11 +102,35 @@ function watchLocation(): void {
   );
 }
 
+function installRefreshAction(rootEl: HTMLElement, client: SnapbackClient): () => void {
+  const listener = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (!target.closest('[data-testid="refresh"]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    client.action('refreshFeed', { args: { trigger: 'manual' } }).catch((error: unknown) => {
+      console.warn('[all-aboard] refreshFeed action failed', error);
+    });
+  };
+  rootEl.addEventListener('click', listener, true);
+  return () => rootEl.removeEventListener('click', listener, true);
+}
+
 async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnType<typeof createSnapbackContractSurface>> }> {
   installWebChrome();
   status('Connecting to Snapback…');
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
+  setRouteEstimateInvoker(async (args) => {
+    const run = await client.action('routeEstimate', { args });
+    if (!run?.ok) {
+      const message = run?.diagnostic?.message ?? 'routeEstimate action failed';
+      throw new Error(message);
+    }
+    return run.result ?? {};
+  });
 
   // The single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
   // the server inspects, provisions only what is missing, and seeds only
@@ -138,13 +162,19 @@ async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnT
   watchLocation();
 
   status('Mounting…');
-  installContractWebHost();
+  if (typeof document !== 'undefined') {
+    const { installContractWebHost } = await import('@exact/renderer/web-host');
+    installContractWebHost();
+  }
   mount(app);
 
   // Gesture-first interaction as web surface glue (LLP 0029 G1): swipes and
   // arrow keys drive the same press affordances the .contract declares.
   const rootEl = typeof document !== 'undefined' ? document.getElementById('exact-root') : null;
-  if (rootEl) disposeGestures = installGestures(rootEl);
+  if (rootEl) {
+    disposeGestures = installGestures(rootEl);
+    disposeRefreshAction = installRefreshAction(rootEl, client);
+  }
   status('Ready', 'ready');
   return { provisioned, surface };
 }
@@ -172,7 +202,11 @@ void ready.then(({ surface, provisioned }) => {
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
+    if (disposeRefreshAction) disposeRefreshAction();
     if (disposeGestures) disposeGestures();
+    disposeRefreshAction = null;
+    disposeGestures = null;
+    setRouteEstimateInvoker(null);
     activeSurface?.dispose?.();
     activeSurface = null;
     resetSnapbackContractLinks();

@@ -30,6 +30,30 @@ export interface FeedRow {
 }
 
 export type ConnectionValue = 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected' | null;
+export type EtaMode = 'walk' | 'bike';
+
+export interface RouteStation {
+  id?: string;
+  lat: number;
+  lng: number;
+}
+
+export interface RouteEstimateArgs {
+  fromLat: number;
+  fromLng: number;
+  toLat: number;
+  toLng: number;
+  mode: EtaMode;
+}
+
+export interface RouteEstimateResult {
+  mode?: string;
+  minutes?: number;
+  distanceMiles?: number;
+  source?: string;
+  cacheTtlMs?: number;
+  error?: string;
+}
 
 export interface LiveState {
   delayRows: DelayRow[]; // liveTrainStatus rows (live-pushed)
@@ -38,6 +62,7 @@ export interface LiveState {
   connections: { liveTrainStatus: ConnectionValue; feedState: ConnectionValue };
   location: LatLng | null; // device location, or null => default
   locationSource: LocationSource;
+  routeEstimates: Record<string, { estimate: RouteEstimateResult; storedAt: number }>;
 }
 
 let state: LiveState = {
@@ -47,8 +72,12 @@ let state: LiveState = {
   connections: { liveTrainStatus: null, feedState: null },
   location: null,
   locationSource: 'default',
+  routeEstimates: {},
 };
 const listeners = new Set<() => void>();
+const ROUTE_CACHE_TTL_MS = 5 * 60 * 1000;
+let routeEstimateInvoker: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null = null;
+const routeInFlight = new Set<string>();
 
 function emit(next: LiveState): void {
   state = next;
@@ -69,6 +98,53 @@ export function setConnection(name: 'liveTrainStatus' | 'feedState', value: Conn
 
 export function setLocation(location: LatLng | null, source?: LocationSource): void {
   emit({ ...state, location, locationSource: source ?? (location ? 'device' : 'default') });
+}
+
+export function setRouteEstimateInvoker(invoker: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null): void {
+  routeEstimateInvoker = invoker;
+  routeInFlight.clear();
+  emit({ ...state, routeEstimates: {} });
+}
+
+export function routeEstimateKey(location: LatLng, station: RouteStation, mode: EtaMode): string {
+  const stationKey = station.id ?? `${station.lat.toFixed(5)},${station.lng.toFixed(5)}`;
+  return `${mode}:${location.lat.toFixed(4)},${location.lng.toFixed(4)}:${stationKey}`;
+}
+
+export function cachedRouteEstimate(location: LatLng, station: RouteStation, mode: EtaMode): RouteEstimateResult | null {
+  const key = routeEstimateKey(location, station, mode);
+  const cached = state.routeEstimates[key];
+  if (!cached) return null;
+  const maxAge = cached.estimate.cacheTtlMs ?? ROUTE_CACHE_TTL_MS;
+  return Date.now() - cached.storedAt < maxAge ? cached.estimate : null;
+}
+
+export function requestRouteEstimate(location: LatLng, station: RouteStation, mode: EtaMode): void {
+  if (!routeEstimateInvoker) return;
+  const key = routeEstimateKey(location, station, mode);
+  const cached = cachedRouteEstimate(location, station, mode);
+  if (cached || routeInFlight.has(key)) return;
+  routeInFlight.add(key);
+  routeEstimateInvoker({
+    fromLat: location.lat,
+    fromLng: location.lng,
+    toLat: station.lat,
+    toLng: station.lng,
+    mode,
+  }).then((estimate) => {
+    if (!estimate || typeof estimate !== 'object') return;
+    emit({
+      ...state,
+      routeEstimates: {
+        ...state.routeEstimates,
+        [key]: { estimate, storedAt: Date.now() },
+      },
+    });
+  }).catch(() => {
+    // Transport failures leave the local deterministic ETA in place.
+  }).finally(() => {
+    routeInFlight.delete(key);
+  });
 }
 
 function subscribe(listener: () => void): () => void {

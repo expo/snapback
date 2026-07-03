@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:c4d882fbd052a402",
+  "bundleHash": "sha256:18261136d2f74449",
   "capabilities": {
     "branchableFixtures": false,
     "forceStates": true,
@@ -13,20 +13,67 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "616ce51a5f430b115ac3057fe87ca201273f808b9507b203dd88b2d6e660bb63",
+  "inputsHash": "77430b06fdc76ebed80a825b8374f6ac4e23fb42a070fa5d43c1845873bf046d",
   "manifestVersion": 2,
   "mutations": {
     "applyFeedTick": {
       "argOrder": [
-        "trigger"
+        "trigger",
+        "source",
+        "lastError"
       ],
       "args": {
+        "lastError": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "source": {
+          "name": "string",
+          "shape": "primitive"
+        },
         "trigger": {
           "name": "string",
           "shape": "primitive"
         }
       },
       "name": "applyFeedTick",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "trainStatus",
+        "feedRefreshState"
+      ]
+    },
+    "applyLiveFeedSnapshot": {
+      "argOrder": [
+        "trigger",
+        "source",
+        "delays",
+        "note",
+        "lastError"
+      ],
+      "args": {
+        "delays": {
+          "shape": "unknown"
+        },
+        "lastError": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "note": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "source": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "trigger": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "applyLiveFeedSnapshot",
       "optimistic": false,
       "serverRunnable": true,
       "writes": [

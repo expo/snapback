@@ -30,11 +30,13 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value>
 export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
-  applyFeedTick: FunctionReference<'applyFeedTick', 'Mutation', { trigger: string | undefined }>;
+  applyFeedTick: FunctionReference<'applyFeedTick', 'Mutation', { trigger: string | undefined; source: string | undefined; lastError: string | undefined }>;
+  applyLiveFeedSnapshot: FunctionReference<'applyLiveFeedSnapshot', 'Mutation', { trigger: string | undefined; source: string | undefined; delays: unknown; note: string | undefined; lastError: string | undefined }>;
   feedState: FunctionReference<'feedState', 'LiveQuery', Record<string, never>>;
   liveTrainStatus: FunctionReference<'liveTrainStatus', 'LiveQuery', Record<string, never>>;
-  refreshFeed: FunctionReference<'refreshFeed', 'Action', { trigger: string | undefined }>;
+  refreshFeed: FunctionReference<'refreshFeed', 'Action', { trigger: string | undefined; source: string | undefined; feedUrl: string | undefined }>;
   resetFeed: FunctionReference<'resetFeed', 'Mutation', Record<string, never>>;
+  routeEstimate: FunctionReference<'routeEstimate', 'Action', { fromLat: number; fromLng: number; toLat: number; toLng: number; mode: string; baseUrl: string | undefined }>;
   stationsQuery: FunctionReference<'stationsQuery', 'Query', Record<string, never>>;
   stopTimesByStation: FunctionReference<'stopTimesByStation', 'Query', { stationId: string }>;
   tripsQuery: FunctionReference<'tripsQuery', 'Query', Record<string, never>>;

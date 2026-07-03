@@ -141,7 +141,7 @@ async function main() {
       return { position };
     });
 
-    await suite.check('Refresh press drives the applyFeedTick mutation; freshness goes live', async () => {
+    await suite.check('Refresh press drives refreshFeed action; freshness goes live', async () => {
       const before = await page.text('freshness');
       await page.click('refresh');
       const after = await page.evalPoll(`document.querySelector('[data-testid="freshness"]').textContent`, (t) => /Updated/.test(t), 5000);
@@ -176,7 +176,7 @@ async function main() {
 
     await suite.check('cron-authored delta reaches the browser through the handles (no pump)', async () => {
       // Trigger the demo's own cron job server-side (the admin manual-run
-      // route): refreshFeed -> applyFeedTick -> live fan-out. The browser
+      // route): refreshFeed -> snapshot/fallback mutation -> live fan-out. The browser
       // performs no interaction and owns no poll timer for these queries —
       // the freshness marker must go "just now" purely from the push.
       const client = new SnapbackClient(apiUrl);

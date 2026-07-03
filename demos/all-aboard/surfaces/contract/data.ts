@@ -40,12 +40,40 @@ const DEFAULT_LOCATION = { lat: 37.3894, lng: -122.0819 }; // Mountain View fall
 // --- Device location (device-capability glue, set by main.ts) -----------------
 
 type LatLng = { lat: number; lng: number };
+type RouteMode = 'walk' | 'bike';
+type RouteStation = { id?: string; lat: number; lng: number };
+type RouteEstimateArgs = {
+  fromLat: number;
+  fromLng: number;
+  toLat: number;
+  toLng: number;
+  mode: RouteMode;
+};
+type RouteEstimateResult = {
+  mode?: string;
+  minutes?: number;
+  distanceMiles?: number;
+  source?: string;
+  cacheTtlMs?: number;
+  error?: string;
+};
+
+const ROUTE_CACHE_TTL_MS = 5 * 60 * 1000;
 let deviceLocation: LatLng | null = null;
 let deviceLocationSource = 'default'; // 'device' | 'default' | 'denied' | 'unavailable'
+let routeEstimateInvoker: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null = null;
+const routeCache = new Map<string, { estimate: RouteEstimateResult; storedAt: number }>();
+const routeInFlight = new Set<string>();
 
 export function setDeviceLocation(location: LatLng | null, source?: string): void {
   deviceLocation = location ?? null;
   deviceLocationSource = source ?? (location ? 'device' : 'default');
+}
+
+export function setRouteEstimateInvoker(invoker: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null): void {
+  routeEstimateInvoker = invoker;
+  routeCache.clear();
+  routeInFlight.clear();
 }
 
 // --- Location + station selection --------------------------------------------
@@ -231,19 +259,68 @@ export function etaModeLabel(mode: string): string {
   return mode === 'bike' ? '🚴 Bike' : '🚶 Walk';
 }
 
-export function walkBikeSummary(station: { lat: number; lng: number }, mode: string, _tick?: number): string {
-  const location = getUserLocation();
-  const minutes = mode === 'bike' ? estimateBikeMinutes(location, station) : estimateWalkMinutes(location, station);
+function normalizedRouteMode(mode: string): RouteMode {
+  return mode === 'bike' ? 'bike' : 'walk';
+}
+
+function routeCacheKey(location: LatLng, station: RouteStation, mode: RouteMode): string {
+  const stationKey = station.id ?? `${station.lat.toFixed(5)},${station.lng.toFixed(5)}`;
+  return `${mode}:${location.lat.toFixed(4)},${location.lng.toFixed(4)}:${stationKey}`;
+}
+
+function fallbackRouteEstimate(station: RouteStation, mode: RouteMode, location: LatLng): RouteEstimateResult {
   const miles = estimateDistanceMiles(location, station);
-  return `${minutes} min ${mode === 'bike' ? 'bike' : 'walk'} · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+  const minutes = mode === 'bike' ? estimateBikeMinutes(location, station) : estimateWalkMinutes(location, station);
+  return { mode, minutes, distanceMiles: miles, source: 'haversine' };
+}
+
+function cachedRouteEstimate(station: RouteStation, modeInput: string, location: LatLng): RouteEstimateResult {
+  const mode = normalizedRouteMode(modeInput);
+  const key = routeCacheKey(location, station, mode);
+  const now = Date.now();
+  const cached = routeCache.get(key);
+  const maxAge = cached?.estimate.cacheTtlMs ?? ROUTE_CACHE_TTL_MS;
+  if (cached && now - cached.storedAt < maxAge) return cached.estimate;
+
+  if (routeEstimateInvoker && !routeInFlight.has(key)) {
+    routeInFlight.add(key);
+    routeEstimateInvoker({
+      fromLat: location.lat,
+      fromLng: location.lng,
+      toLat: station.lat,
+      toLng: station.lng,
+      mode,
+    }).then((estimate) => {
+      if (estimate && typeof estimate === 'object') {
+        routeCache.set(key, { estimate, storedAt: Date.now() });
+      }
+    }).catch(() => {
+      // The server action already has a fallback path. If the transport itself
+      // fails, keep rendering the deterministic local estimate.
+    }).finally(() => {
+      routeInFlight.delete(key);
+    });
+  }
+
+  return fallbackRouteEstimate(station, mode, location);
+}
+
+export function walkBikeSummary(station: RouteStation, mode: string, _tick?: number): string {
+  const location = getUserLocation();
+  const estimate = cachedRouteEstimate(station, mode, location);
+  const minutes = Math.max(1, Math.round(Number(estimate.minutes) || 1));
+  const miles = Number(estimate.distanceMiles) || 0;
+  const label = normalizedRouteMode(mode) === 'bike' ? 'bike' : 'walk';
+  return `${minutes} min ${label} · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 
 // Compact ETA for the stations-list rows: the mode's minutes plus distance
 // (the full summary is too wide there).
-export function distanceLabel(station: { lat: number; lng: number }, mode: string, _tick?: number): string {
+export function distanceLabel(station: RouteStation, mode: string, _tick?: number): string {
   const location = getUserLocation();
-  const minutes = mode === 'bike' ? estimateBikeMinutes(location, station) : estimateWalkMinutes(location, station);
-  const miles = estimateDistanceMiles(location, station);
+  const estimate = fallbackRouteEstimate(station, normalizedRouteMode(mode), location);
+  const minutes = Math.max(1, Math.round(Number(estimate.minutes) || 1));
+  const miles = Number(estimate.distanceMiles) || 0;
   return `${minutes} min · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 

@@ -88,7 +88,8 @@ await runAcceptance(suite, async () => {
     const state = (await db.query('feedState', {})).rows[0];
     assert(state.tickIndex >= 1, 'feedRefreshState advanced');
     assertEqual(state.lastRunTrigger, 'cron', 'written by the cron action');
-    assertEqual(state.lastSource, 'recorded', 'source is the recorded feed');
+    assertEqual(state.lastSource, 'recorded-fallback', 'no configured feed falls back to recorded data');
+    assert(/caltrainFeed|fetch|config/i.test(state.lastError ?? ''), `fallback records the reason, got ${state.lastError}`);
   });
 
   await suite.check('run is recorded in the cron ledger', async () => {

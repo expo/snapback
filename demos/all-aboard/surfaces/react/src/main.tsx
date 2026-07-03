@@ -26,7 +26,7 @@ import schemaManifest from '../../../snapback/generated/schema.manifest.json';
 import seed from '../../../snapback/seed.json';
 import { App } from './App.tsx';
 import { installGestures } from './gestures.ts';
-import { setConnection, setDelayRows, setFeedRows, setLocation } from './store.ts';
+import { setConnection, setDelayRows, setFeedRows, setLocation, setRouteEstimateInvoker } from './store.ts';
 
 const CONNECTION = `all-aboard-react-${(globalThis.crypto?.randomUUID?.() ?? String(Math.round(performance.now())))}`;
 
@@ -125,6 +125,14 @@ async function boot(): Promise<{ provisioned: string[]; connections: () => Recor
   status('Connecting to Snapback…');
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
+  setRouteEstimateInvoker(async (args) => {
+    const run = await client.action('routeEstimate', { args });
+    if (!run?.ok) {
+      const message = run?.diagnostic?.message ?? 'routeEstimate action failed';
+      throw new Error(message);
+    }
+    return run.result ?? {};
+  });
 
   status('Checking provisioning (inspect-first)…');
   const provisioned = await ensureProvisioned(client);
@@ -158,7 +166,7 @@ async function boot(): Promise<{ provisioned: string[]; connections: () => Recor
   const rootEl = document.getElementById('root');
   if (!rootEl) throw new Error('#root not found');
   const refresh = () => {
-    client.mutate('applyFeedTick', { args: { trigger: 'manual' } }).catch((error: unknown) => {
+    client.action('refreshFeed', { args: { trigger: 'manual' } }).catch((error: unknown) => {
       console.warn('[all-aboard-react] refresh failed', error);
     });
   };
@@ -205,6 +213,7 @@ void ready.then(({ provisioned, connections }) => {
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
+    setRouteEstimateInvoker(null);
     if (disposeGestures) disposeGestures();
     for (const handle of liveHandles) handle.dispose();
     liveHandles = [];

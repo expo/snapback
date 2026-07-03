@@ -5,7 +5,7 @@
 import { getSnapbackContractLinks } from './runtime-links';
 
 export const descriptor = 'applyFeedTick';
-export type ApplyFeedTickArgs = { trigger: string | undefined };
+export type ApplyFeedTickArgs = { trigger: string | undefined; source: string | undefined; lastError: string | undefined };
 
 export function applyFeedTick(args: ApplyFeedTickArgs) {
   return getSnapbackContractLinks().applyFeedTick(args);

@@ -8,7 +8,7 @@
 //     selects the nearest station to the default location (Mountain View);
 //   - press affordances drive navigation (station prev, direction flip, open
 //     trip) — the portable stand-in for the swipe gesture gap;
-//   - a Contract action drives the generated applyFeedTick mutation and the live
+//   - the refresh button drives the refreshFeed action and the live
 //     freshness marker updates (server write -> live delta -> view).
 //
 // Integration lane: needs bun + the surface's own node_modules (`bun install`
@@ -158,7 +158,7 @@ async function main() {
       return { position };
     });
 
-    await suite.check('Contract action drives the generated mutation; freshness goes live', async () => {
+    await suite.check('Refresh press drives refreshFeed action; freshness goes live', async () => {
       const before = await page.text('freshness');
       await page.click('refresh');
       const after = await page.evalPoll(`document.querySelector('[data-testid="freshness"]').textContent`, (t) => /Updated/.test(t), 5000);

@@ -12,6 +12,8 @@
     "contract/runtime-links.ts",
     "contract/applyFeedTick.mutation.ts",
     "contract/applyFeedTick.mutation.contract-meta.ts",
+    "contract/applyLiveFeedSnapshot.mutation.ts",
+    "contract/applyLiveFeedSnapshot.mutation.contract-meta.ts",
     "contract/feedState.query.ts",
     "contract/feedState.query.contract-meta.ts",
     "contract/liveTrainStatus.query.ts",
@@ -25,10 +27,15 @@
     "contract/tripsQuery.query.ts",
     "contract/tripsQuery.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:c4d882fbd052a402",
+  "bundleHash": "sha256:18261136d2f74449",
   "config": [
     {
       "name": "caltrainFeed",
+      "pool": true,
+      "required": false
+    },
+    {
+      "name": "directions",
       "pool": true,
       "required": false
     }
@@ -46,6 +53,11 @@
       "id": "all-aboard:applyFeedTick",
       "kind": "Mutation",
       "name": "applyFeedTick"
+    },
+    {
+      "id": "all-aboard:applyLiveFeedSnapshot",
+      "kind": "Mutation",
+      "name": "applyLiveFeedSnapshot"
     },
     {
       "id": "all-aboard:feedState",
@@ -68,6 +80,11 @@
       "name": "resetFeed"
     },
     {
+      "id": "all-aboard:routeEstimate",
+      "kind": "Action",
+      "name": "routeEstimate"
+    },
+    {
       "id": "all-aboard:stationsQuery",
       "kind": "Query",
       "name": "stationsQuery"
@@ -84,7 +101,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "616ce51a5f430b115ac3057fe87ca201273f808b9507b203dd88b2d6e660bb63",
+  "inputsHash": "77430b06fdc76ebed80a825b8374f6ac4e23fb42a070fa5d43c1845873bf046d",
   "schemaHash": "sha256:c7f25a2cc6da8499",
   "schemaVersion": "snapback.v0",
   "tables": [

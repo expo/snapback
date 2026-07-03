@@ -9,6 +9,14 @@ export const api = Object.freeze({
     "name": "applyFeedTick",
     "schemaVersion": "snapback.v0"
   },
+  "applyLiveFeedSnapshot": {
+    "appId": "all-aboard",
+    "artifactKind": "functionReference",
+    "id": "all-aboard:applyLiveFeedSnapshot",
+    "kind": "Mutation",
+    "name": "applyLiveFeedSnapshot",
+    "schemaVersion": "snapback.v0"
+  },
   "ephemeral": {},
   "feedState": {
     "appId": "all-aboard",
@@ -40,6 +48,14 @@ export const api = Object.freeze({
     "id": "all-aboard:resetFeed",
     "kind": "Mutation",
     "name": "resetFeed",
+    "schemaVersion": "snapback.v0"
+  },
+  "routeEstimate": {
+    "appId": "all-aboard",
+    "artifactKind": "functionReference",
+    "id": "all-aboard:routeEstimate",
+    "kind": "Action",
+    "name": "routeEstimate",
     "schemaVersion": "snapback.v0"
   },
   "stationsQuery": {

@@ -533,12 +533,14 @@ export async function generate(backendDir) {
 
   const generatedAt = generatedAtMillis();
   const appId = inferAppId(backendDir);
+  const appIdentity = readDemoAppIdentity(backendDir, appId, diagnostics);
   const schemaHash = `sha256:${schemaContentHash.slice(0, 16)}`;
   const bundleHash = `sha256:${bundleContentHash.slice(0, 16)}`;
   const schemaManifest = {
     artifactKind: 'schemaManifest',
     schemaVersion: SCHEMA_VERSION,
     appId,
+    ...(appIdentity ? { app: appIdentity } : {}),
     schemaHash,
     inputsHash,
     generatedAt,
@@ -1817,6 +1819,45 @@ function jsonLiteral(value) {
 
 function inferAppId(backendDir) {
   return resolve(backendDir).split(/[\\/]/).slice(-2, -1)[0] || 'local-app';
+}
+
+function readDemoAppIdentity(backendDir, appId, diagnostics) {
+  const demoManifestPath = resolve(backendDir, '..', 'demo.snapback.json');
+  if (!existsSync(demoManifestPath)) return null;
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(demoManifestPath, 'utf8'));
+  } catch (cause) {
+    diagnostics.push({
+      code: 'DEMO_MANIFEST_INVALID_JSON',
+      severity: 'error',
+      subsystem: 'codegen',
+      message: `demo manifest ${demoManifestPath} is not valid JSON: ${cause.message}`,
+      path: demoManifestPath,
+    });
+    return null;
+  }
+  const app = manifest.app && typeof manifest.app === 'object' ? manifest.app : {};
+  const identity = cleanObject({
+    name: readString(app.name) ?? readString(manifest.title),
+    description: readString(app.description) ?? readString(manifest.description),
+    iconUrl: readString(app.iconUrl) ?? readString(app.icon_url) ?? readString(manifest.iconUrl) ?? readString(manifest.icon_url),
+    wordmarkUrl: readString(app.wordmarkUrl) ?? readString(app.wordmark_url) ?? readString(manifest.wordmarkUrl) ?? readString(manifest.wordmark_url),
+  });
+  if (identity.name === appId) delete identity.name;
+  return Object.keys(identity).length === 0 ? null : identity;
+}
+
+function readString(value) {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function cleanObject(value) {
+  const out = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry !== null && entry !== undefined) out[key] = entry;
+  }
+  return out;
 }
 
 function generatedAtMillis() {

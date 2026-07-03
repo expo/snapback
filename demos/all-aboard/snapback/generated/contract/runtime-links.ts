@@ -2,7 +2,8 @@
 // @ref LLP 0021#phase-1-specify-contractdatamanifest - Contract runtime links are projected from Snapback generated artifacts.
 
 export interface SnapbackContractLinks {
-  applyFeedTick(args: { trigger: string | undefined }): unknown;
+  applyFeedTick(args: { trigger: string | undefined; source: string | undefined; lastError: string | undefined }): unknown;
+  applyLiveFeedSnapshot(args: { trigger: string | undefined; source: string | undefined; delays: unknown; note: string | undefined; lastError: string | undefined }): unknown;
   feedState(args: Record<string, never>): unknown;
   liveTrainStatus(args: Record<string, never>): unknown;
   resetFeed(args: Record<string, never>): unknown;

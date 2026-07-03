@@ -18,6 +18,7 @@ import {
   getUpcomingDepartures,
   serviceColor,
 } from '../../../snapback/shared/model.mjs';
+import { cachedRouteEstimate, requestRouteEstimate } from './store.ts';
 import type { DelayRow, FeedRow, LatLng, LocationSource } from './store.ts';
 
 export const DEFAULT_LOCATION: LatLng = { lat: 37.3894, lng: -122.0819 }; // Mountain View fallback
@@ -201,9 +202,15 @@ export function etaModeLabel(mode: EtaMode): string {
   return mode === 'bike' ? '🚴 Bike' : '🚶 Walk';
 }
 
-export function walkBikeSummary(station: { lat: number; lng: number }, mode: EtaMode, location: LatLng): string {
-  const minutes = mode === 'bike' ? estimateBikeMinutes(location, station) : estimateWalkMinutes(location, station);
-  const miles = estimateDistanceMiles(location, station);
+export function walkBikeSummary(station: { id?: string; lat: number; lng: number }, mode: EtaMode, location: LatLng): string {
+  requestRouteEstimate(location, station, mode);
+  const routed = cachedRouteEstimate(location, station, mode);
+  const minutes = routed?.minutes
+    ? Math.max(1, Math.round(routed.minutes))
+    : mode === 'bike'
+      ? estimateBikeMinutes(location, station)
+      : estimateWalkMinutes(location, station);
+  const miles = routed?.distanceMiles ?? estimateDistanceMiles(location, station);
   return `${minutes} min ${mode === 'bike' ? 'bike' : 'walk'} · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 

@@ -544,3 +544,89 @@ servers (both egress-on and egress-off runtimes); manual drive of a
 file-backed instance: printed setup line, wizard page served, set via the
 wizard source, `dev.sqlite3.config.json` at 0600, values surviving a server
 restart, status never echoing a value.
+
+## 2026-07-03 — Real 511 feed + routed walk/bike actions
+
+Turned the Phase-3 egress plan into the product path. `refreshFeed` now tries
+511 SIRI StopMonitoring with the declared `caltrainFeed` key, maps observed
+Caltrain visits onto the six service-pattern delay rows, and commits through a
+new `applyLiveFeedSnapshot` mutation. If outbound actions or config are absent
+it falls back to the recorded ticks and writes the reason into `lastError`.
+`routeEstimate` now calls OpenRouteService/HeiGIT directions through a
+server-side action with the `directions` key; the station card caches the
+result by rounded location/station/mode, while the station picker keeps the
+cheap local estimate to avoid a burst of routing calls.
+
+### What felt good
+
+- **The action/config split was exactly the right place for this.** The keys
+  stayed out of the browser, queries/mutations still have no fetch, and cron
+  can run the same `refreshFeed` action that manual refresh uses.
+- **The existing fallback made this shippable.** Without real keys the demo
+  still behaves deterministically, but now the fallback is an explicit runtime
+  state (`recorded-fallback` + `lastError`) instead of an invisible omission.
+- **Local HTTP mocks were enough.** The new `real-data.mjs` suite proves 511
+  parsing, action routing, and ORS response handling without burning API quota
+  or making CI depend on external services.
+
+### What felt bad or surprising
+
+- **The product had an egress seam, not a product call path.** `refreshFeed`
+  carried a grant, but still called `applyFeedTick`; the shared client had no
+  app-data `action()` method; Contract could only bind generated mutations, so
+  the refresh button needed a small web-host bridge.
+- **Directions had to use GET.** The embedded fetch shim supports headers and
+  text/arrayBuffer responses, but not request bodies or `response.json()`, so
+  the ORS call uses the simple GET endpoint and parses `await response.text()`.
+- **Exact trip identity is still a real gap.** The seeded schedule is a
+  synthetic six-pattern model, not static GTFS trips, so the live feed maps
+  service/direction delays onto patterns. That is useful for the demo board but
+  not a claim of exact GTFS-RT trip matching.
+
+### Verification
+
+Regenerated All Aboard artifacts with `SNAPBACK_OUTBOUND_ACTIONS=1`; added
+`demos/all-aboard/tests/acceptance/real-data.mjs` to exercise app-data actions
+against local 511/ORS mocks. Full verification for this change is recorded in
+the task transcript with the code change.
+
+## 2026-07-03 — Contract production build and static native artifacts
+
+Fixed the remaining Contract `vite build` failure for the registry-installed
+Exact toolchain. There were two stacked Exact-side issues: Vite's native
+optimizer left an ignored relative `./inspector.js` import inside optimized
+host-ops chunks without copying the sibling file, and the static native startup
+artifact path assumed devtools lived inside an Exact repo checkout with
+`packages/exact-host-windows/src/runtime.rs` plus the vendored Ibex URL builtin.
+
+The surface now declares native-environment `optimizeDeps.exclude` entries for
+the Contract runtime / renderer host-ops path, and carries a temporary Bun patch
+for `@ccheever/exact-devtools@0.1.0`. The patch falls back to emitting a static
+`module-bundle.json` when the registry package lacks host startup source assets;
+the native host already supports that envelope path.
+
+### What felt good
+
+- **The host fallback path was already there.** Once I noticed static envelopes
+  can omit `startup` and carry `moduleBundle`, the fix avoided vendoring 160 KB
+  of Exact host/runtime source into the demo.
+- **Bun package patches are a workable pin.** The workaround survives reinstall
+  and keeps the demo on registry packages instead of reopening the sibling
+  checkout dependency.
+
+### What felt bad or surprising
+
+- **The first failure hid the second.** Fixing the optimizer miss revealed the
+  registry-packaging assumption immediately afterward; the build could not have
+  emitted startup.js/HBC from the published package alone.
+- **The native build output is large.** The fallback module bundle is about
+  3.5 MB per target before gzip. That is fine for proving the static artifact
+  path, but Exact should package startup assets and go back to startup.js/HBC
+  when the upstream fix lands.
+
+### Verification
+
+`bun install --cwd demos/all-aboard/surfaces/contract --frozen-lockfile` and a
+cold-cache `bun run --cwd demos/all-aboard/surfaces/contract build` both pass.
+The build emits `__exact/platform-manifest.json`, mac/iOS `exact-native.json`
+envelopes, and per-target `module-bundle.json` payloads.
