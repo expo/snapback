@@ -31,6 +31,12 @@ const ADA = 'painter_ada';
 const GRACE = 'painter_grace';
 const BOARD = 'wall';
 const scope = { boardId: BOARD };
+// DEMO/TEST ONLY: the client mints its own `boardMember` room permission to
+// exercise the server-side check. This is the demo's declared `external_auth`
+// capability gap — a real app must have a trusted server-side auth provider mint
+// this, never the client. See surfaces/contract/main.ts for the full note; the
+// "requires the board room permission" check below proves the server DOES
+// enforce it (an unpermissioned request is rejected SNAPBACK_EPHEMERAL_UNAUTHORIZED).
 const perms = [SnapbackClient.roomPermission('boardMember', scope)];
 const cursorRef = api.ephemeral.boardCursors;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

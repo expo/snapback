@@ -238,12 +238,25 @@ Felt bad, still true today:
   wiring`, `regression-optimistic-clobber`) crash under plain `node` with the
   current Exact checkout (`.js`-suffixed TS imports); they pass under `bun`.
   Nothing in the file headers says which runner a given suite needs.
+  _Resolved (ENG-22655): a `requireBunRuntime` harness guard turns the crash
+  into a clear "run under bun" message + exit 3, the file headers state the
+  requirement, and `demos/_kit/tests/README.md` maps every suite to its runner._
 - **The room permission is client-asserted.** The browser surface mints its
   own `boardMember` room permission the way the headless suite does. Honest
   for local dev, and declared as the `external_auth` capability gap — but an
   agent copying the surface could mistake it for an auth pattern.
+  _Resolved (ENG-22657, docs/demo-hardening): the gap can't be closed in-demo
+  (there is no server-side membership authority to build without inventing the
+  external_auth provider the demo declares as missing), so the client-side
+  assertion sites now carry loud "DEMO ONLY — do not copy; a real app enforces
+  membership server-side via external_auth" comments, plus a prominent README
+  security callout. Server-side enforcement stays real; only the trusted minting
+  is stubbed._
 - **`assertEqual` is key-order-sensitive** (JSON string compare), which cost
   one confusing test failure on an object that was deep-equal.
+  _Resolved (ENG-22658): the harness now canonicalizes object key order (arrays
+  stay ordered) before the string compare, so key-order-only differences pass
+  while genuine inequalities still fail._
 
 ### Addendum (same day) — adversarial-review hardening
 
