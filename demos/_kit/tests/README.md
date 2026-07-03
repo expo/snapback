@@ -11,9 +11,12 @@ bun-only suite crashes** — this file is the map.
 | **`node`** (>= 22, built-in `fetch`/`WebSocket`) | `client-errors`, `provider-live-conformance`, `regression-reconnect-nuke`, `regression-fake-live`, `regression-gc-starvation`, `regression-overlay-crossroom`, `regression-mixed-transport`, `live-delta-e2e` | Pure Snapback-kit JS; no Exact import. |
 | **`bun`** (required — do **not** use node) | `regression-ephemeral-wiring`, `regression-optimistic-clobber`, `regression-multilive-scoped` | Import the Exact **Contract runtime**, whose `.js`-suffixed TypeScript imports (e.g. `./signals.js` → `signals.ts`) resolve **only** under bun. |
 
-`scripts/verify-local-proof` already runs each suite under its correct runtime
-(node suites directly; the Exact-importing suites under `bun`, gated on an Exact
-checkout being resolvable).
+`scripts/verify-local-proof` runs every suite under its correct runtime — the
+node suites directly, and all three Exact-importing suites under `bun`. The bun
+block is gated: it runs only when an Exact checkout resolves (see
+`exact-resolver.mjs`) and is skipped when Exact is unavailable or when
+`SNAPBACK_VERIFY_EXACT=0`. Run it with an Exact checkout present (or
+`SNAPBACK_VERIFY_EXACT=1`) to exercise the bun suites.
 
 ## Why the bun-only suites crash under node
 
