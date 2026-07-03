@@ -5,8 +5,14 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-02 (L9 landed per LLP 0026 Phase 1+2, closing Phase 3 —
-L1–L9 all landed. Same day: DK-6 decided as POSIX OR — ratified by Charlie same day, ledgered in LLP 0000 — with the calendar-cron and cron-retry test-debt rows closed; and L6+L7 landed as the dedicated reviewed concurrency arc: design note, register entries with measured numbers, and the review's HIGH `GET /` fix recorded. Earlier: 2026-07-01 accepted by Charlie after the two-family review loop; same day, revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification)
+**Revised:** 2026-07-03 (§Phase 5 stranding note: Phase 5 was executed end to
+end on 2026-07-02 on a pre-origin-sync line now preserved as
+`backup/main-before-origin-sync-20260702`; its doc-only decision records —
+X1/DK-2, X2/DK-5, X4/DK-9, DK-10, the LLP 0011 and LLP 0036 ratifications,
+the X5 idle audit — re-landed onto main today, and the code phases are
+tracked for adapted re-landing in ENG-22680. Earlier: 2026-07-02 (L9 landed
+per LLP 0026 Phase 1+2, closing Phase 3 —
+L1–L9 all landed. Same day: DK-6 decided as POSIX OR — ratified by Charlie same day, ledgered in LLP 0000 — with the calendar-cron and cron-retry test-debt rows closed; and L6+L7 landed as the dedicated reviewed concurrency arc: design note, register entries with measured numbers, and the review's HIGH `GET /` fix recorded. Earlier: 2026-07-01 accepted by Charlie after the two-family review loop; same day, revision applying the GPT-5 and Claude-family reviews — S0/R7 fast lanes, R1 ratification split, docket status column and full acceptance coverage, register corrections from independent re-verification))
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031
 
 ## Summary
@@ -1033,6 +1039,23 @@ the flagship Contract surface, and the codegen pipeline — the component the
 agent-first philosophy leans on hardest — is the least fed-back component in
 the repo. This phase makes the JS estate product-grade. It can run in
 parallel with Phase 3.
+
+> **Status (2026-07-03) — executed on a stranded line; re-landing required
+> (ENG-22680).** Phase 5 was executed end to end on 2026-07-02 — P1–P8,
+> Milestone C, and the X1/X2/X4/X5 close-outs — but on a local main that had
+> diverged from origin/main; the origin sync kept the origin lineage (the
+> LLP 0034 D1–D3 arc, the `live_delta` DK-3 landing, the admin-console,
+> secrets and cursors-web work, and the 2026-07-03 review sweeps). The
+> 22-commit execution is preserved unmerged on
+> `backup/main-before-origin-sync-20260702`. The doc-only decision records
+> (X1/DK-2, X2/DK-5, X4/DK-9, DK-10, the LLP 0011 and LLP 0036
+> ratifications, the X5 idle audit) were re-landed onto main on 2026-07-03;
+> the code phases were not, and each must be re-landed *adapted to the
+> post-sync main*, not cherry-picked blind — P7's doctor and P5's
+> `store.mjs` retirement already exist here in different form, P4 must
+> reconcile with the `live_delta` landing, and P8 must reconcile with the
+> React-19 dev-serve, secrets-module, and registry-package changes. Until
+> ENG-22680 lands, the P1–P8 done-whens below remain open on this line.
 
 - **P1 — Promote codegen out of `demos/_kit`.** `demos/_kit/codegen.mjs`
   (1,281 lines) is the only writer of the manifests, typed API, and Contract
