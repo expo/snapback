@@ -210,10 +210,17 @@ try {
     // The client overlay prunes by server-provided expiry even if the remove
     // delta is lost (LLP 0013: the TTL is the universal backstop).
     await sleep(400);
-    assert(!observer.currentEntries().some((e) => e.key === 'idler'), 'TTL should prune the idle cursor');
-    // A fresh subscription snapshot also excludes the expired entry.
+    assert(!observer.currentEntries({ prune: true }).some((e) => e.key === 'idler'), 'client TTL backstop should prune the idle cursor');
+    // A fresh subscription snapshot excludes the expired entry SERVER-SIDE:
+    // prune:false so the assertion observes what the server actually sent,
+    // not the client backstop re-hiding a server bug.
     const fresh = await db.subscribeEphemeral(cursorRef, { connectionId: 'ttlRejoin', scope, userId: GRACE, permissions: perms });
-    assert(!fresh.currentEntries().some((e) => e.key === 'idler'), 'fresh snapshot must exclude the expired cursor');
+    assert(!fresh.currentEntries({ prune: false }).some((e) => e.key === 'idler'), 'fresh snapshot must exclude the expired cursor server-side');
+    // That subscribe swept the room (src/ephemeral.rs sweep_room_locked),
+    // fanning a Remove delta out to existing subscribers — observe it landing
+    // in the first observer's overlay, again without the client backstop.
+    await observer.drain();
+    assert(!observer.currentEntries({ prune: false }).some((e) => e.key === 'idler'), 'server expiry Remove fan-out must clear the cursor from live subscribers');
     assertEqual((await db.inspect()).storage.version, durableBefore, 'TTL expiry must not touch the durable version');
     const wallAfter = (await db.query(api.listCells, { args: { boardId: BOARD }, userId: GRACE })).rows.length;
     assertEqual(wallAfter, wallBefore, 'TTL expiry must not write durable tombstones');
@@ -270,7 +277,10 @@ try {
     assert(state.ephemeral.coalesced_updates >= 1, 'expected coalesced updates');
     assert(state.ephemeral.rate_limited_publishes >= 1, 'expected rate-limited publish counters');
     assert(typeof state.ephemeral.room_count === 'number', 'missing ephemeral room count');
-    assert(typeof state.liveDelivery.total_deliveries === 'number', 'missing liveDelivery stats');
+    // The suite has provably delivered durable updates by now (the live-sync
+    // and flood checks), so the durable-lane counter must be positive, not
+    // merely present.
+    assert(state.liveDelivery.total_deliveries >= 1, `expected durable deliveries, got ${state.liveDelivery.total_deliveries}`);
     return {
       coalesced: state.ephemeral.coalesced_updates,
       rateLimited: state.ephemeral.rate_limited_publishes,

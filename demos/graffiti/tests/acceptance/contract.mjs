@@ -37,7 +37,10 @@ const demoManifest = JSON.parse(readFileSync(join(here, '..', '..', 'demo.snapba
 const artifactIndex = gen('artifacts.json');
 const contractDataManifest = gen('contract-data.manifest.json');
 
-const exact = resolveExact({ repoRoot });
+// Resolve with the demo's full declared capability set (ephemeralBinding +
+// valueChannels beyond the baseline) so an older checkout that would fail deep
+// in the compile instead skips with the coded capability diagnostic.
+const exact = resolveExact({ repoRoot, requiredCapabilities: demoManifest.surfaces.contract.exact.requiredCapabilities });
 if (exact.sourceKind === 'missing') {
   const expected = demoManifest.surfaces.contract;
   console.log(JSON.stringify({ title: 'graffiti / contract', skipped: true, reason: 'SNAPBACK_CAPABILITY_EXACT_MISSING', diagnostics: exact.diagnostics }, null, 2));

@@ -671,6 +671,21 @@ publish-budget facts. One adapter gap surfaced and was closed additively:
   the subscription binds with the validated args and everything else
   (boundary key, connection axis, correlation) is unchanged.
 
+  The honest invariant (adversarial-review hardening, same round): the
+  configured entry's args are the ONLY args that reach the server — one
+  subscription per query name, established at surface creation, validated
+  server-side at subscribe. **Binding-site args are not consulted on the
+  multi-live read path.** Two guard rails keep that from becoming silent
+  wrong-data: duplicate `liveQueries` names are rejected at creation with
+  `SNAPBACK_CONTRACT_LIVEQUERY_DUPLICATE` (the handles and boundary are
+  keyed by name, so a duplicate would clobber its sibling), and a binding
+  whose args deep-differ from the configured entry's records
+  `SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH` in the surface diagnostics
+  plus a dev warning — it is still served the configured scope's rows, but
+  never silently. Per-binding argful subscriptions (N scopes of one query on
+  one surface) remain future work; today's contract is one scope per query
+  name. Gated by `regression-multilive-scoped.mjs`.
+
 The demo's row-shape acceptance check also confirms the §10.3 note about the
 Exact-side ephemeral `queryResultTypes` gap in practice: `shape_unknown_member`
 fires through helper-declared shapes (the surface mirrors the generated

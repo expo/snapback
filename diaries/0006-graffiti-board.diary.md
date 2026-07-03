@@ -245,6 +245,35 @@ Felt bad, still true today:
 - **`assertEqual` is key-order-sensitive** (JSON string compare), which cost
   one confusing test failure on an object that was deep-equal.
 
+### Addendum (same day) — adversarial-review hardening
+
+A 25-agent adversarial review of the landing confirmed one major finding and a
+handful of minors, all fixed in the follow-up commit:
+
+- **The TTL acceptance check was vacuous** — `currentEntries()` defaults to
+  `{ prune: true }`, so the "fresh snapshot excludes the expired cursor"
+  assertion was being satisfied by the client backstop no matter what the
+  server sent. A prune-by-default overlay is right for product code and
+  quietly wrong for acceptance assertions: the fix reads with
+  `{ prune: false }` and also drains the original observer to watch the
+  server's expiry Remove fan-out (`sweep_room_locked`) actually land. Lesson
+  for the suite pattern: when the client has a backstop, acceptance checks
+  must explicitly disable it to observe the server.
+- **The `{ name, args }` seam invited silent wrong-data** — binding-site args
+  are not consulted on the multi-live read path, and duplicate `liveQueries`
+  names would clobber each other. Now: duplicates are rejected
+  (`SNAPBACK_CONTRACT_LIVEQUERY_DUPLICATE`), deep-differing binding args are
+  diagnosed (`SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH`) plus dev-warned,
+  the invariant is stated in LLP 0034 §10.4, and a new
+  `regression-multilive-scoped.mjs` (5 checks) gates all of it — the kit
+  change finally has an automated test of its own.
+- **The demo manifest declared capabilities the resolver never probed**
+  (`ephemeralBinding`, `valueChannels`) — an older Exact checkout failed deep
+  in the compile instead of skipping with the coded diagnostic. The resolver
+  now takes `requiredCapabilities`, probes each (provider-seam content probe
+  for the ephemeral handle, channels module for value channels), and the
+  missing diagnostic names exactly what a candidate lacked.
+
 ### Net
 
 The wall is now an on-main reference app: one schema generating both lanes'
