@@ -21,9 +21,44 @@
 // package.json scripts), which loads this TS config and the TS preset from
 // node_modules.
 
+import { realpathSync } from 'node:fs';
+
 import { exactContractWeb } from '@exact/devtools/contract-web';
 
 const snapbackTarget = process.env.SNAPBACK_ALL_ABOARD_API ?? 'http://127.0.0.1:4420';
+
+// ENG-22753: dev-only source-provenance probe. The acceptance suites reuse an
+// already-running Vite only after this probe proves it serves THIS checkout's
+// tree against THIS run's API origin (the Diary 0008 2026-07-01 :4420 gotcha:
+// a Vite from a different working tree squatting the default port). The path
+// and response shape pair with demos/_kit/provenance.mjs
+// (VITE_SOURCE_PROBE_PATH / verifyViteProvenance).
+const sourceProvenanceProbe = {
+  name: 'snapback-source-provenance',
+  configureServer(server: {
+    middlewares: {
+      use: (
+        path: string,
+        handler: (
+          req: unknown,
+          res: { setHeader: (k: string, v: string) => void; end: (body: string) => void },
+        ) => void,
+      ) => void;
+    };
+  }) {
+    server.middlewares.use('/__snapback/source', (_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(
+        JSON.stringify({
+          app: 'all-aboard',
+          surface: 'contract',
+          root: realpathSync(__dirname),
+          apiOrigin: snapbackTarget,
+        }),
+      );
+    });
+  },
+};
 const exactNativeOptimizerEscapeHatch = {
   optimizeDeps: {
     // Exact's native startup builder walks the Contract runtime source graph.
@@ -53,6 +88,7 @@ export default ({ command }: { command: 'serve' | 'build' }) => ({
   root: __dirname,
   environments: exactNativeEnvironments,
   plugins: [
+    sourceProvenanceProbe,
     exactContractWeb({
       data: 'snapback',
       app: {

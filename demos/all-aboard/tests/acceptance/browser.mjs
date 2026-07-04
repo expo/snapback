@@ -20,7 +20,8 @@
 // failure instead of a skip-as-pass.
 //
 // Run: node demos/all-aboard/tests/acceptance/browser.mjs
-//   (reuses an already-running API :4420 + Vite :5178, else starts them).
+//   (reuses an already-running API :4420 + Vite :5178 only after verifying
+//   their provenance, else starts fresh ones — ENG-22753).
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -30,18 +31,29 @@ import { fileURLToPath } from 'node:url';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
+import {
+  freePort,
+  readCommittedBundleHash,
+  verifyApiProvenance,
+  verifyViteProvenance,
+} from '../../../_kit/provenance.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const surfaceDir = join(repoRoot, 'demos', 'all-aboard', 'surfaces', 'contract');
+const artifactsJsonPath = join(repoRoot, 'demos', 'all-aboard', 'snapback', 'generated', 'artifacts.json');
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-// Env-overridable so the suite can run isolated from other checkouts' demo
-// servers squatting the defaults (the 2026-07-01 diary gotcha: reuse-if-healthy
-// trusts whatever answers /health on the port, even a different engine).
+// Env-overridable so the suite can run pinned away from other checkouts' demo
+// servers squatting the defaults. On the chosen ports, reuse is *verified*,
+// never assumed (ENG-22753; the Diary 0008 2026-07-01 :4420 gotcha:
+// reuse-if-healthy trusted whatever answered /health on the port, even a
+// different engine serving a different working tree): a running server is
+// reused only when its provenance matches this checkout, otherwise the suite
+// falls back — loudly — to a fresh server on a fresh OS-assigned port.
 const API_PORT = Number(process.env.ALL_ABOARD_API_PORT ?? 4420);
 const VITE_PORT = Number(process.env.ALL_ABOARD_VITE_PORT ?? 5178);
-const apiUrl = `http://127.0.0.1:${API_PORT}`;
-const viteUrl = `http://127.0.0.1:${VITE_PORT}`;
+let apiUrl = `http://127.0.0.1:${API_PORT}`;
+let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
 // ENG-22480: the surface consumes Exact from the npm registry (alias deps in
 // surfaces/contract/package.json, pinned by its bun.lock), so the capability
@@ -64,12 +76,30 @@ let cdp = null;
 let page = null;
 
 async function ensureApi() {
-  if (await urlOk(`${apiUrl}/health`)) return;
+  let port = API_PORT;
+  if (await urlOk(`${apiUrl}/health`)) {
+    // Something healthy answers on the port — reuse it ONLY if it is verifiably
+    // running this checkout's committed app (ENG-22753). "Healthy" alone was
+    // the Diary 0008 bug: a weeks-old server from another checkout squatting
+    // :4420 contaminated runs with code that wasn't in the reused surface.
+    const committed = readCommittedBundleHash(artifactsJsonPath);
+    const verdict = await verifyApiProvenance(apiUrl, { appId: 'all-aboard', bundleHash: committed });
+    if (verdict.ok) {
+      console.log(`REUSED API server at :${port} (bundleHash ${verdict.bundleHash})`);
+      return;
+    }
+    port = await freePort();
+    console.error(
+      `PROVENANCE MISMATCH: a server answers /health on :${API_PORT} but ${verdict.reason}. ` +
+      `NOT reusing it — starting a fresh isolated API server on :${port} (pin with ALL_ABOARD_API_PORT).`,
+    );
+    apiUrl = `http://127.0.0.1:${port}`;
+  }
   const env = { ...process.env };
   if (process.platform === 'darwin' && !env.DYLD_FRAMEWORK_PATH) {
     env.DYLD_FRAMEWORK_PATH = join(repoRoot, 'vendor', 'ibex', 'ios', 'Frameworks');
   }
-  const child = spawn('cargo', ['run', '--quiet', '--', '--port', String(API_PORT), '--memory'], { cwd: repoRoot, env, stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn('cargo', ['run', '--quiet', '--', '--port', String(port), '--memory'], { cwd: repoRoot, env, stdio: ['ignore', 'ignore', 'pipe'] });
   cleanups.push(() => child.kill('SIGTERM'));
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) { if (await urlOk(`${apiUrl}/health`)) return; if (child.exitCode !== null) throw new Error('API server exited'); await sleep(500); }
@@ -77,8 +107,24 @@ async function ensureApi() {
 }
 
 async function ensureVite() {
-  if (await urlOk(viteUrl)) return;
-  const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--config', 'vite.config.ts', '--host', '127.0.0.1', '--port', String(VITE_PORT)],
+  let port = VITE_PORT;
+  if (await urlOk(viteUrl)) {
+    // Same rule as the API server (ENG-22753): a Vite answering on the port is
+    // reused only when its source-provenance probe proves it serves THIS
+    // checkout's surface tree against THIS run's API origin.
+    const verdict = await verifyViteProvenance(viteUrl, { app: 'all-aboard', surface: 'contract', root: surfaceDir, apiOrigin: apiUrl });
+    if (verdict.ok) {
+      console.log(`REUSED Vite at :${port} (root ${verdict.info.root}, api ${verdict.info.apiOrigin})`);
+      return;
+    }
+    port = await freePort();
+    console.error(
+      `PROVENANCE MISMATCH: a server answers on Vite :${VITE_PORT} but ${verdict.reason}. ` +
+      `NOT reusing it — starting a fresh isolated Vite on :${port} (pin with ALL_ABOARD_VITE_PORT).`,
+    );
+    viteUrl = `http://127.0.0.1:${port}`;
+  }
+  const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--config', 'vite.config.ts', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
     { cwd: surfaceDir, env: { ...process.env, SNAPBACK_ALL_ABOARD_API: apiUrl }, stdio: ['ignore', 'ignore', 'pipe'] });
   cleanups.push(() => child.kill('SIGTERM'));
   const deadline = Date.now() + 60_000;
