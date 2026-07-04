@@ -27,6 +27,7 @@ export interface FeedRow {
   fetchedAt: number;
   tickIndex: number;
   lastSource?: string;
+  lastError?: string;
 }
 
 export type ConnectionValue = 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected' | null;

@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Cron, Realtime, Data gateway, Contract/Exact, Notifications, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (redesign pass: full-bleed poster-stylized station art with the board typeset on it, hero-selection state, and the LLP interaction model implemented for real on web via gesture surface glue — see [Station identity](#station-identity), [Interaction model](#interaction-model), [Implementation](#implementation), Diary 0008; earlier same day — LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
+**Revised:** 2026-07-04 (ENG-22751 real-data path made debuggable: every failed live refresh now commits an actionable, key-redacted `lastError` and both surfaces render it as a `feed-problem` line — see [Deterministic data](#deterministic-data); README real-data flow corrected (persistent `--db` so setup keys survive restarts; app-first boot order); real-data suite now serves the 511 mock as the real API responds (BOM + gzip + plain-text 401) and exercises the `/_snapback/api/config/set` setup path; 2026-07-01 redesign pass: full-bleed poster-stylized station art with the board typeset on it, hero-selection state, and the LLP interaction model implemented for real on web via gesture surface glue — see [Station identity](#station-identity), [Interaction model](#interaction-model), [Implementation](#implementation), Diary 0008; earlier same day — LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
 **Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0009, LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0024, LLP 0028, LLP 0029, Diary 0008, https://github.com/ccheever/ibex, https://openrouteservice.org, https://en.wikipedia.org/wiki/List_of_Caltrain_stations, https://511.org/open-data/transit
 
 ## Summary
@@ -487,6 +487,29 @@ seeded** data:
 This is what lets Phases 0–1 prove the UI, the next-train math, and the realtime
 delta path *before* Cron or outbound HTTP exist, with those capabilities marked
 `expected_missing` rather than stubbed silently.
+
+Because the recorded feed doubles as the *fallback* for every failed live
+refresh, "demo data" must never be a silent dead end (ENG-22751 — a rider with
+real keys couldn't tell why the board stayed canned). Three rules, as built:
+
+- **Every fallback commits an actionable reason.** `refreshFeed` translates the
+  two setup mistakes into instructions in `feedRefreshState.lastError` — server
+  started without `SNAPBACK_OUTBOUND_ACTIONS=1` → say so; no `caltrainFeed` key
+  → point at `/_snapback/admin/setup`; anything else keeps the transport error
+  (`live 511 fetch failed: …`).
+- **The reason is rider-visible.** Both surfaces render a `feed-problem` line
+  under the board footer whenever `lastSource` is not the live 511 source *and*
+  `lastError` is non-empty. An intentional demo run (no keys ever configured,
+  explicit `source: 'recorded'`, reset) has no error and shows nothing.
+- **`lastError` is client-visible state, so it is redacted.** The 511 key rides
+  in the request query string and HTTP errors quote the URL; the handler scrubs
+  `api_key=…` before the message becomes durable, queryable state.
+
+The real-data acceptance suite serves its 511 mock the way `api.511.org`
+actually responds — UTF-8 BOM before the JSON, gzip content-encoding, plain-text
+401 for a bad key — and drives the key through `/_snapback/api/config/set` (the
+setup-page path), not only the deprecated env blob, so the user-visible path is
+the tested path.
 
 ## Capabilities this demo drives
 

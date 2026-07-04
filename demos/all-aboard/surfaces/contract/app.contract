@@ -63,6 +63,7 @@ use etaModeLabel from "./data.ts"
 use walkBikeSummary from "./data.ts"
 use distanceLabel from "./data.ts"
 use feedFreshness from "./data.ts"
+use feedProblem from "./data.ts"
 use positionFraction from "./data.ts"
 use positionLabel from "./data.ts"
 use fractionPercent from "./data.ts"
@@ -93,6 +94,7 @@ component AllAboard
   derive nextStationId = adjacentStationId(station.id, 1)
   derive walkBike = walkBikeSummary(station, etaMode, nowMs)
   derive freshness = feedFreshness(nowMs, feedRows)
+  derive feedIssue = feedProblem(feedRows)
   derive matches = searchStations(query, nowMs)
   derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows) : null
 
@@ -165,9 +167,9 @@ component AllAboard
                   row justify="center" width="100%"
                     row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background="#fbbf2422" borderWidth=1 borderColor="#fbbf2447"
                       text "Reconnecting — showing last-known delays" size=11 weight=700 color="#fbbf24" testId="delays-stale"
-                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
               ready rows
-                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
         else
           when screen == "stations"
             StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, etaMode=etaMode, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
@@ -220,6 +222,7 @@ component DirectionBoard
     oppositeBoard: object
     serviceFilter: string
     freshness: string
+    feedIssue: string
     photoCredit: string
     delayRows: object[]
     toggleDirection: (next) => void
@@ -300,6 +303,10 @@ component DirectionBoard
         text freshness size=12 color="#ffffff73" testId="freshness"
         button press=doRefresh label="Refresh" testId="refresh" paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
           text "Refresh" size=12 weight=700 color="#ffffffe6"
+      // Why the board is on the recorded feed instead of live 511 — the
+      // actionable lastError refreshFeed commits on fallback (ENG-22751).
+      when feedIssue != ""
+        text feedIssue size=11 color="#fbbf24" width="100%" testId="feed-problem"
       when photoCredit != ""
         text photoCredit size=10 color="#ffffff4d" textAlign="center" width="100%" testId="photo-credit"
 

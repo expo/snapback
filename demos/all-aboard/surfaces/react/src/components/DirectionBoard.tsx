@@ -24,6 +24,7 @@ export function DirectionBoard(props: {
   oppositeBoard: OppositeBoard;
   serviceFilter: string;
   freshness: string;
+  feedIssue: string;
   photoCredit: string;
   delayRows: readonly DelayRow[];
   onToggleDirection: (next: string) => void;
@@ -288,6 +289,13 @@ export function DirectionBoard(props: {
           <div style={{ fontSize: 12, fontWeight: 700, color: palette.inkStrong }}>Refresh</div>
         </Press>
       </div>
+      {/* Why the board is on the recorded feed instead of live 511 — the
+          actionable lastError refreshFeed commits on fallback (ENG-22751). */}
+      {props.feedIssue !== '' && (
+        <div data-testid="feed-problem" style={{ fontSize: 11, color: '#fbbf24', width: '100%' }}>
+          {props.feedIssue}
+        </div>
+      )}
       {props.photoCredit !== '' && (
         <div
           data-testid="photo-credit"

@@ -30,6 +30,7 @@ import {
   boardTrains,
   delaysFrom,
   feedFreshness,
+  feedProblem,
   locationHint,
   oppositeDirection,
   walkBikeSummary,
@@ -72,6 +73,7 @@ export function App(props: { onRefresh: () => void }) {
   const nextStationId = getAdjacentStation(station.id, 1)?.id ?? station.id;
   const trip = tripId ? (getTrainRun(tripId, nowMs, delaysFrom(live.delayRows)) as Trip | null) : null;
   const freshness = feedFreshness(nowMs, live.feedRows);
+  const feedIssue = feedProblem(live.feedRows);
 
   // The delays region dispatches on the live subscription the way the
   // Contract `async delayRows` block does: `stale` wins over `ready` while
@@ -213,6 +215,7 @@ export function App(props: { onRefresh: () => void }) {
                   oppositeBoard={oppositeBoard}
                   serviceFilter={serviceFilter}
                   freshness={freshness}
+                  feedIssue={feedIssue}
                   photoCredit={photoCredit}
                   delayRows={live.delayRows}
                   onToggleDirection={toggleDirection}

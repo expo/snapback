@@ -630,3 +630,60 @@ the native host already supports that envelope path.
 cold-cache `bun run --cwd demos/all-aboard/surfaces/contract build` both pass.
 The build emits `__exact/platform-manifest.json`, mac/iOS `exact-native.json`
 envelopes, and per-target `module-bundle.json` payloads.
+
+## 2026-07-04 — "Why is it still demo data?" (ENG-22751)
+
+The issue read "make it so the All Aboard app uses real data — right now I
+can't get it to do anything except use demo data." The punchline of the
+investigation: the live path already worked. Driving the whole user path
+against the running server — admin `config/set`, then `refreshFeed` through the
+real Ibex action fetch — committed live snapshots fine, including against a
+mock that mimics the real `api.511.org` wire shape (UTF-8 BOM before the JSON,
+gzip content-encoding). What was broken was the *experience around failure*:
+four distinct setup mistakes (no egress flag, key set before the app booted,
+`--memory` eating the key on restart, an invalid key) all landed in the same
+visible state — a normal-looking board on canned data, with the reason buried
+in `feedRefreshState.lastError` where no surface ever showed it.
+
+The fix is mostly about honesty rather than plumbing: `refreshFeed` now
+commits an actionable `lastError` (naming `SNAPBACK_OUTBOUND_ACTIONS=1` or the
+setup URL), both surfaces render it as a `feed-problem` line under the board
+footer, the README's real-data flow is corrected (persistent `--db`, app-first
+boot order), and the real-data suite now tests the setup-page path and the
+real-511 response shape instead of an idealized mock.
+
+### What felt good
+
+- **`lastError` was already durable, live-pushed state.** Surfacing it was a
+  derive + one conditional row in each surface; the realtime fan-out delivered
+  it with zero new machinery. This is the Snapback model paying off.
+- **The acceptance harness made the diagnosis fast.** Booting the real server
+  and driving the real action path from a scratch script took minutes; the
+  mocked real-data suite passing while the user's path failed pointed straight
+  at the seams between them.
+
+### What felt bad or surprising
+
+- **Silent fallback is a trap amplifier.** The recorded feed doubling as the
+  error fallback meant every misconfiguration *looked like success*. A demo
+  that can fake its own data needs to say when and why it is doing so.
+- **The error message leaked the API key.** `fetchJson` quotes the failing URL
+  in its error, the 511 key rides in the query string, and `lastError` is
+  client-visible via the `feedState` live query. Redaction had to be added the
+  moment the error became user-facing — it should have been there the moment
+  the error became *durable*.
+- **The tested path was not the user's path.** The suite injected keys via the
+  deprecated env blob and served idealized JSON; the user goes through the
+  setup page against the real API. The gap is exactly where the bug lived.
+- **Docs steered into two of the traps.** The README's own run command used
+  `--memory` (so setup keys die with the process) and said "open setup after
+  the app boots" without saying the app page must be opened first for the
+  config entries to exist at all.
+
+### Verification
+
+`real-data.mjs` (now 5 checks: BOM+gzip mock, config/set path, redacted
+actionable fallback), `browser.mjs` and `browser-react.mjs` (15/15 with the
+new feed-problem check), plus `headless.mjs`, `cron.mjs`, and `egress.mjs`
+unchanged. Full end-to-end against the real 511 API still needs a real key
+(free, email-delivered) — everything short of that is exercised.

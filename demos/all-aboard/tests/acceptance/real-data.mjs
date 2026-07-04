@@ -15,6 +15,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
@@ -52,8 +53,23 @@ async function startMockApi() {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     requests.push({ method: req.method, path: url.pathname, search: url.search });
     if (url.pathname === '/transit/StopMonitoring') {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(stopMonitoringPayload()));
+      // Serve the shape the real api.511.org sends, not an idealized one: a
+      // UTF-8 BOM before the JSON and a gzip content-encoding (ENG-22751).
+      const body = Buffer.concat([
+        Buffer.from([0xef, 0xbb, 0xbf]),
+        Buffer.from(JSON.stringify(stopMonitoringPayload())),
+      ]);
+      res.writeHead(200, {
+        'content-type': 'application/json; charset=utf-8',
+        'content-encoding': 'gzip',
+      });
+      res.end(gzipSync(body));
+      return;
+    }
+    if (url.pathname === '/unauthorized/transit/StopMonitoring') {
+      // The real 511 response for a wrong/unactivated key: plain-text 401.
+      res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end('This API key provided is invalid.');
       return;
     }
     if (url.pathname === '/openrouteservice/v2/directions/foot-walking') {
@@ -188,6 +204,42 @@ await runAcceptance(suite, async () => {
     const feedState = (await db.query('feedState', {})).rows[0];
     assertEqual(feedState.lastSource, '511-siri-stop-monitoring', 'feed source marker');
     assertEqual(feedState.lastError ?? '', '', 'no feed error');
+  });
+
+  await suite.check('a key set through the admin config API reaches the live fetch (the setup-page path)', async () => {
+    // The user path is /_snapback/admin/setup -> /_snapback/api/config/set,
+    // not the deprecated SNAPBACK_ACTION_SECRETS env blob the boot imported.
+    const set = await fetch(`${server.baseUrl}/_snapback/api/config/set`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ entry: 'caltrainFeed', value: 'config-set-key', source: 'acceptance' }),
+    });
+    assert(set.ok, `config/set failed: ${set.status}`);
+    const before = mock.requests.length;
+    const result = await db.action('refreshFeed', {
+      args: { trigger: 'test', feedUrl: `${mock.baseUrl}/transit/StopMonitoring` },
+    });
+    assert(result.ok, `refreshFeed failed: ${JSON.stringify(result.diagnostic)}`);
+    assertEqual(result.result.source, '511-siri-stop-monitoring', 'snapshot source');
+    const request = mock.requests.slice(before).find((r) => r.path === '/transit/StopMonitoring');
+    assert(request, 'mock saw the refresh fetch');
+    assert(request.search.includes('api_key=config-set-key'), `fetch used the admin-set key: ${request.search}`);
+  });
+
+  await suite.check('a failing live fetch records an actionable, redacted lastError and falls back', async () => {
+    const result = await db.action('refreshFeed', {
+      args: { trigger: 'test', feedUrl: `${mock.baseUrl}/unauthorized/transit/StopMonitoring` },
+    });
+    assert(result.ok, `refreshFeed action errored: ${JSON.stringify(result.diagnostic)}`);
+    const feedState = (await db.query('feedState', {})).rows[0];
+    assertEqual(feedState.lastSource, 'recorded-fallback', 'fell back to the recorded feed');
+    const lastError = feedState.lastError ?? '';
+    assert(lastError.startsWith('live 511 fetch failed:'), `actionable prefix: ${lastError}`);
+    assert(lastError.includes('HTTP 401'), `carries the HTTP status: ${lastError}`);
+    // lastError is client-visible state (feedState live query + the surface's
+    // feed-problem line): the API key must never appear in it.
+    assert(!lastError.includes('config-set-key'), `api key leaked into lastError: ${lastError}`);
+    assert(lastError.includes('api_key=[redacted]'), `key is redacted, not dropped silently: ${lastError}`);
   });
 }, {
   cleanups: [

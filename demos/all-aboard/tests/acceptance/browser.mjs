@@ -56,7 +56,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 14;
+const EXPECTED_CHECKS = 15;
 
 const suite = createSuite('all-aboard browser (Phase 1)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];
@@ -167,6 +167,22 @@ async function main() {
       const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
       if (!(feed.fetchedAt > 0)) throw new Error('feedRefreshState.fetchedAt not stamped');
       return { before, after, tickIndex: feed.tickIndex };
+    });
+
+    await suite.check('feed-problem line says why the board is not on live 511 data', async () => {
+      // No caltrainFeed key is configured in this suite, so the refresh above
+      // fell back to the recorded feed; the board must say why — with the
+      // actionable setup hint — instead of leaving the reason buried in
+      // feedRefreshState.lastError (ENG-22751).
+      const problem = await page.evalPoll(
+        `(document.querySelector('[data-testid="feed-problem"]') || {}).textContent || ''`,
+        (t) => /live 511 fetch unavailable/.test(t),
+        5000,
+      );
+      if (!/add caltrainFeed at \/_snapback\/admin\/setup/.test(problem)) throw new Error(`expected the actionable setup hint: ${problem}`);
+      const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
+      if (feed.lastSource !== 'recorded-fallback') throw new Error(`expected recorded-fallback, got ${feed.lastSource}`);
+      return { problem, lastSource: feed.lastSource };
     });
 
     // --- The paved path (LLP 0034 §6 ownership row 3; Exact 0284 §5.3 item 3):

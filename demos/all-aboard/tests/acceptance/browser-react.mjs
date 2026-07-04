@@ -45,7 +45,7 @@ const viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 // failure, not a pass — a pre-check throw must never exit "PASS — 0/0". The
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486).
-const EXPECTED_CHECKS = 14;
+const EXPECTED_CHECKS = 15;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
@@ -150,6 +150,22 @@ async function main() {
       const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
       if (!(feed.fetchedAt > 0)) throw new Error('feedRefreshState.fetchedAt not stamped');
       return { before, after, tickIndex: feed.tickIndex };
+    });
+
+    await suite.check('feed-problem line says why the board is not on live 511 data', async () => {
+      // No caltrainFeed key is configured in this suite, so the refresh above
+      // fell back to the recorded feed; the board must say why — with the
+      // actionable setup hint — instead of leaving the reason buried in
+      // feedRefreshState.lastError (ENG-22751).
+      const problem = await page.evalPoll(
+        `(document.querySelector('[data-testid="feed-problem"]') || {}).textContent || ''`,
+        (t) => /live 511 fetch unavailable/.test(t),
+        5000,
+      );
+      if (!/add caltrainFeed at \/_snapback\/admin\/setup/.test(problem)) throw new Error(`expected the actionable setup hint: ${problem}`);
+      const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
+      if (feed.lastSource !== 'recorded-fallback') throw new Error(`expected recorded-fallback, got ${feed.lastSource}`);
+      return { problem, lastSource: feed.lastSource };
     });
 
     // --- The paved path, React arm (LLP 0034 D1): server push through two

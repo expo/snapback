@@ -84,7 +84,7 @@
       "devServer": "bun run --cwd demos/all-aboard/surfaces/react dev (stock React 19 + Vite from the surface's own node_modules)",
       "build": "bun run --cwd demos/all-aboard/surfaces/react build -> surfaces/react/dist/",
       "url": "http://127.0.0.1:5179",
-      "note": "Red-team control arm (ENG-22435; re-baselined to the redesigned poster-board product by ENG-22450): the same product, testIds, D4 boot, and stream-transport live push over the shared kit client, web-only. Its suite mirrors the contract browser list check-for-check (14/14)."
+      "note": "Red-team control arm (ENG-22435; re-baselined to the redesigned poster-board product by ENG-22450): the same product, testIds, D4 boot, and stream-transport live push over the shared kit client, web-only. Its suite mirrors the contract browser list check-for-check (15/15)."
     }
   },
   "acceptanceChecks": {
@@ -111,8 +111,10 @@
     ],
     "real-data": [
       "/action/{name} runs only actions and rejects non-actions without executing them",
-      "refreshFeed parses 511 StopMonitoring JSON and commits mappable Caltrain delays to trainStatus",
-      "routeEstimate uses a server-side OpenRouteService/HeiGIT directions call for station-card walk/bike ETAs"
+      "refreshFeed parses 511 StopMonitoring JSON — served the way the real api.511.org sends it (UTF-8 BOM + gzip) — and commits mappable Caltrain delays to trainStatus",
+      "routeEstimate uses a server-side OpenRouteService/HeiGIT directions call for station-card walk/bike ETAs",
+      "a caltrainFeed key set through /_snapback/api/config/set (the setup-page path) reaches the live fetch",
+      "a failing live fetch falls back to the recorded feed with an actionable lastError that never contains the API key"
     ],
     "contract": [
       ".contract compiles against generated Snapback descriptors and mounts against a live backend",
@@ -120,6 +122,7 @@
       "press affordances drive station navigation and direction toggle (identical on web and native)",
       "tapping a train opens its detail with ordered stops and a position indicator",
       "the refresh affordance drives refreshFeed through the app action route and the freshness marker goes live",
+      "the feed-problem line says why the board is not on live 511 data (actionable fallback reason, ENG-22751)",
       "paved path: liveTrainStatus + feedState bind with server push over the shared stream; connections report live (LLP 0034 D1)",
       "cron-authored delta reaches the browser through generated bindings with no poll pump (Exact LLP 0284 §5.3 item 3)",
       "second window boot is inspect-first and does not clear the first window (LLP 0034 D4 / LLP 0275 C4)",
@@ -128,7 +131,7 @@
       "the station-card ETA mode toggles walk/bike estimates app-wide (E4, ENG-22450)"
     ],
     "react-control": [
-      "mirrors the contract browser list check-for-check against the React surface (same twelve product checks plus the E3/E4 checks; gestures dispatch against #root)"
+      "mirrors the contract browser list check-for-check against the React surface (same thirteen product checks plus the E3/E4 checks; gestures dispatch against #root)"
     ]
   },
   "capabilityGaps": [

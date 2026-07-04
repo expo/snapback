@@ -233,6 +233,17 @@ export function feedFreshness(nowMs: number, feedRows: readonly FeedRow[]): stri
   return `Updated ${Math.round(ageSeconds / 60)} min ago`;
 }
 
+// Why the board is NOT on live 511 data, when there is a recorded reason.
+// refreshFeed commits an actionable lastError on every fallback (ENG-22751);
+// an intentional demo run (seed/recorded, no error) stays quiet.
+export function feedProblem(feedRows: readonly FeedRow[]): string {
+  const feed = feedRows?.[0] ?? null;
+  if (!feed || (feed.lastSource ?? '') === '511-siri-stop-monitoring') return '';
+  const error = (feed.lastError ?? '').trim();
+  if (!error) return '';
+  return error.length > 180 ? `${error.slice(0, 177)}…` : error;
+}
+
 // --- Position indicator (for the train detail continuum) -------------------------
 
 export interface TripPosition {

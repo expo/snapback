@@ -65,7 +65,10 @@ native fallback.
 bun install --cwd demos/all-aboard/surfaces/contract
 
 # 1. Snapback API (macOS first run: scripts/bootstrap-ibex-runtime)
-SNAPBACK_OUTBOUND_ACTIONS=1 cargo run -- --port 4420 --memory
+#    SNAPBACK_OUTBOUND_ACTIONS=1 is what allows live 511/directions fetches;
+#    the persistent --db is what lets keys set in the setup page survive a
+#    server restart (with --memory the config store is in-memory too).
+SNAPBACK_OUTBOUND_ACTIONS=1 cargo run -- --port 4420 --db .snapback/all-aboard.sqlite3
 
 # 2. Vite dev server (separate terminal):
 bun run --cwd demos/all-aboard/surfaces/contract dev
@@ -75,10 +78,30 @@ bun run --cwd demos/all-aboard/surfaces/contract dev
 The page self-initializes on boot (inspect-first: schema/functions load and the
 seed runs only when the backend needs them).
 
-For real data, open `http://127.0.0.1:4420/_snapback/admin/setup` after the
-app boots and set `caltrainFeed` (511.org token) plus `directions`
-(OpenRouteService/HeiGIT key). Without those keys, `refreshFeed` falls back to
-the recorded feed ticks and station-card walk/bike ETAs fall back to haversine.
+## Real data (live 511 delays + routed ETAs)
+
+Without keys the app runs entirely on the seeded schedule and recorded feed
+ticks — that is demo data, and every failed live refresh falls back to it.
+To get real data:
+
+1. Start the API server **with `SNAPBACK_OUTBOUND_ACTIONS=1`** (above). Without
+   it, action fetch is denied and every refresh silently falls back.
+2. Open the app once (`http://127.0.0.1:5178`) so the backend provisions
+   itself — the setup page renders the app's declared config entries, and they
+   only exist after this first boot.
+3. Open `http://127.0.0.1:4420/_snapback/admin/setup` and set `caltrainFeed`
+   (511.org token, free at <https://511.org/open-data/token>) plus optionally
+   `directions` (OpenRouteService/HeiGIT key) for routed walk/bike ETAs.
+4. Press **Refresh** on the board (or wait for the minute cron while the page
+   is open).
+
+When a live 511 snapshot commits, `feedState.lastSource` is
+`511-siri-stop-monitoring`. When the board is still on the recorded feed for a
+*reason* (egress off, no key, bad key, 511 outage), the reason now shows
+directly under the board footer (testId `feed-problem`) — the same actionable
+message `refreshFeed` commits to `feedRefreshState.lastError` (with the API
+key redacted). An intentional demo run (no keys, no error) shows nothing.
+Station-card walk/bike ETAs fall back to haversine without a `directions` key.
 
 ## Production web build
 

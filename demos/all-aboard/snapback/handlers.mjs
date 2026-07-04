@@ -20,6 +20,27 @@ function errorMessage(error) {
   return error && error.message ? error.message : String(error);
 }
 
+// Feed errors are committed to feedRefreshState.lastError, which the feedState
+// live query streams to every client — scrub credentials (the 511 key rides in
+// the query string) before an error message becomes durable, queryable state.
+function redactSecrets(text) {
+  return String(text).replace(/api_key=[^&\s"']+/gi, 'api_key=[redacted]');
+}
+
+// Turn a live-fetch failure into a lastError the rider can act on. The two
+// setup mistakes (server started without the egress flag; no 511 key set) are
+// otherwise indistinguishable "demo data forever" states (ENG-22751).
+function liveFeedFailureMessage(error) {
+  const raw = redactSecrets(errorMessage(error));
+  if (/SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED/.test(raw)) {
+    return 'live 511 fetch unavailable: outbound actions are off — start the server with SNAPBACK_OUTBOUND_ACTIONS=1 (see the README)';
+  }
+  if (/SNAPBACK_CONFIG_MISSING/.test(raw)) {
+    return 'live 511 fetch unavailable: no 511.org key is set — add caltrainFeed at /_snapback/admin/setup';
+  }
+  return `live 511 fetch failed: ${raw}`;
+}
+
 function finiteNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -375,7 +396,7 @@ globalThis.__snapbackHandlers = {
       return await ctx.runMutation('applyFeedTick', {
         trigger,
         source: 'recorded-fallback',
-        lastError: errorMessage(error),
+        lastError: liveFeedFailureMessage(error),
       });
     }
   },
