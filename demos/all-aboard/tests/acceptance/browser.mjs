@@ -426,13 +426,31 @@ async function connectCdp(url) {
   const socket = new WebSocket(url);
   const pending = new Map();
   let nextId = 1;
+  // A dropped DevTools WebSocket used to hang the suite forever: a command sent
+  // on a dead socket gets no response, and there was no timeout, close/error
+  // handler, or error propagation here, so every pending send() stayed
+  // unresolved and the run wedged instead of failing (ENG-22804). Fail loudly
+  // instead — settle() clears a command's per-response timeout, and rejectAll()
+  // drains every in-flight command when the socket drops.
+  const COMMAND_TIMEOUT_MS = 30_000;
+  const settle = (id) => { const p = pending.get(id); if (p) clearTimeout(p.timer); pending.delete(id); return p; };
+  const rejectAll = (reason) => { for (const id of [...pending.keys()]) settle(id)?.reject(new Error(reason)); };
   socket.addEventListener('message', async (e) => {
     const text = typeof e.data === 'string' ? e.data : await e.data.text();
     const msg = JSON.parse(text);
-    if (msg.id && pending.has(msg.id)) { const p = pending.get(msg.id); pending.delete(msg.id); msg.error ? p.reject(new Error(msg.error.message)) : p.resolve(msg.result || {}); }
+    if (msg.id && pending.has(msg.id)) { const p = settle(msg.id); msg.error ? p.reject(new Error(msg.error.message)) : p.resolve(msg.result || {}); }
   });
+  socket.addEventListener('close', () => rejectAll('CDP DevTools WebSocket closed while commands were in flight (socket dropped mid-run)'));
+  socket.addEventListener('error', () => rejectAll('CDP DevTools WebSocket errored while commands were in flight (socket dropped mid-run)'));
   await new Promise((res, rej) => { socket.addEventListener('open', res, { once: true }); socket.addEventListener('error', () => rej(new Error('CDP failed')), { once: true }); });
-  const send = (method, params = {}, sessionId = null) => { const id = nextId++; socket.send(JSON.stringify(sessionId ? { id, method, params, sessionId } : { id, method, params })); return new Promise((res, rej) => pending.set(id, { resolve: res, reject: rej })); };
+  const send = (method, params = {}, sessionId = null) => {
+    const id = nextId++;
+    socket.send(JSON.stringify(sessionId ? { id, method, params, sessionId } : { id, method, params }));
+    return new Promise((res, rej) => {
+      const timer = setTimeout(() => { settle(id); rej(new Error(`CDP command timed out after ${COMMAND_TIMEOUT_MS}ms with no response: ${method} (id ${id}) — DevTools socket may be wedged`)); }, COMMAND_TIMEOUT_MS);
+      pending.set(id, { resolve: res, reject: rej, timer });
+    });
+  };
   return {
     close: () => socket.close(),
     newPage: async () => {
