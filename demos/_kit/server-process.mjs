@@ -12,27 +12,50 @@
 // silently reused. A running server is reused only when the caller declares
 // its committed app identity (`provenance: { appId, artifactsPath }` — or an
 // explicit `bundleHash`) AND the live server's loaded bundle
-// (`GET /inspect` → functions.appId/bundleHash) matches it. Every other
-// outcome — no provenance declared, unreachable /inspect, unprovisioned
-// server, foreign app, hash drift — refuses reuse and starts a fresh
-// isolated server on an OS-assigned port instead (so the returned `baseUrl`
-// may differ from the requested port; callers must use the returned value).
+// (`GET /inspect` → functions.appId/bundleHash) matches it.
+//
+// Bundle provenance can only identify a server that has loaded a functions
+// bundle. For a server that never will — externally started + unprovisioned,
+// or schema-only (`ensureApp({ schema })`) — the caller may pass
+// `binaryProvenance: true` to fall back to the server-binary identity now on
+// `/health` (build git commit + crate version; ENG-22798), reused only when it
+// matches this checkout's clean build. Every other outcome — no provenance
+// declared, unreachable /inspect, a wrong bundle, a dirty/mismatched binary —
+// refuses reuse and starts a fresh isolated server on an OS-assigned port
+// instead (so the returned `baseUrl` may differ from the requested port;
+// callers must use the returned value).
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
-import { freePort, readCommittedBundleHash, verifyApiProvenance } from './provenance.mjs';
+import {
+  freePort,
+  readCheckoutBinaryIdentity,
+  readCommittedBundleHash,
+  verifyApiProvenance,
+  verifyBinaryProvenance,
+} from './provenance.mjs';
 
-export async function startServer({ port = 4399, db = ':memory:', cwd = process.cwd(), provenance = null } = {}) {
+export async function startServer({
+  port = 4399,
+  db = ':memory:',
+  cwd = process.cwd(),
+  provenance = null,
+  // When true (or an identity object), a healthy server with NO loaded bundle
+  // — unprovisioned or schema-only, which bundle provenance can never verify —
+  // may still be reused if its /health server-binary identity matches this
+  // checkout's clean build (ENG-22798). Default stays refuse-when-unverifiable.
+  binaryProvenance = null,
+} = {}) {
   let baseUrl = `http://127.0.0.1:${port}`;
 
   // Something answers on the port. Reuse it ONLY on verified provenance;
   // otherwise fall back — loudly — to a fresh isolated server (ENG-22757).
   if (await isHealthy(baseUrl)) {
-    const verdict = await reuseVerdict(baseUrl, provenance);
+    const verdict = await reuseVerdict(baseUrl, { provenance, binaryProvenance, cwd });
     if (verdict.ok) {
-      console.log(`REUSED snapback server at :${port} (bundleHash ${verdict.bundleHash})`);
+      console.log(`REUSED snapback server at :${port} (${verdict.detail})`);
       return { baseUrl, stop: async () => {}, reused: true };
     }
     const isolated = await freePort();
@@ -73,21 +96,46 @@ export async function startServer({ port = 4399, db = ':memory:', cwd = process.
   throw new Error(`snapback server did not become healthy on ${baseUrl}:\n${log}`);
 }
 
-// The reuse verdict for a healthy port. Without a declared committed
-// identity there is nothing to verify against — /health carries no
-// engine/build identity — so an externally started server is refused
-// (the safe default, not an error).
-async function reuseVerdict(baseUrl, provenance) {
-  if (!provenance) {
-    return {
-      ok: false,
-      reason:
-        'this caller declares no committed app identity to verify it against ' +
-        '(pass `provenance: { appId, artifactsPath }` to startServer to enable verified reuse)',
-    };
+// The reuse verdict for a healthy port. Bundle provenance is strongest (it
+// pins the exact app + generated bundle), so it is tried first. Only when the
+// server has NO loaded bundle (unprovisioned or schema-only — the one case
+// bundle provenance cannot cover) does it fall back to binary provenance, if
+// the caller opted in. A bundle that is present but WRONG (foreign app or hash
+// drift) is a hard refusal, never a binary fallback. With neither declared
+// there is nothing to verify against, so reuse is refused (the safe default).
+async function reuseVerdict(baseUrl, { provenance, binaryProvenance, cwd }) {
+  if (provenance) {
+    const bundleHash = provenance.bundleHash ?? readCommittedBundleHash(provenance.artifactsPath);
+    const bundle = await verifyApiProvenance(baseUrl, { appId: provenance.appId ?? null, bundleHash });
+    if (bundle.ok) {
+      return { ok: true, detail: `bundleHash ${bundle.bundleHash}` };
+    }
+    // Only "no loaded bundle" is eligible for a binary fallback; a present-but-
+    // wrong bundle definitively identifies a different app — refuse.
+    if (bundle.code !== 'no-bundle') {
+      return { ok: false, reason: bundle.reason };
+    }
   }
-  const bundleHash = provenance.bundleHash ?? readCommittedBundleHash(provenance.artifactsPath);
-  return verifyApiProvenance(baseUrl, { appId: provenance.appId ?? null, bundleHash });
+
+  if (binaryProvenance) {
+    const expected =
+      typeof binaryProvenance === 'object' && binaryProvenance.identity
+        ? binaryProvenance.identity
+        : readCheckoutBinaryIdentity(cwd);
+    const binary = await verifyBinaryProvenance(baseUrl, expected);
+    if (binary.ok) {
+      return { ok: true, detail: `binary commit ${binary.gitCommit.slice(0, 12)}` };
+    }
+    return { ok: false, reason: binary.reason };
+  }
+
+  return {
+    ok: false,
+    reason:
+      'this caller declares no identity to verify it against ' +
+      '(pass `provenance: { appId, artifactsPath }` for bundle provenance, or ' +
+      '`binaryProvenance: true` to verify an unprovisioned server by its /health build identity)',
+  };
 }
 
 async function isHealthy(baseUrl) {

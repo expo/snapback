@@ -77,6 +77,14 @@ pub struct HealthResponse {
     pub target: String,
     pub sqlite_version: u64,
     pub ibex_available: bool,
+    /// Server-binary identity (ENG-22798): build/git provenance + a per-process
+    /// startup nonce, so an externally started — possibly unprovisioned or
+    /// schema-only — server is provenance-verifiable before any app bundle loads.
+    ///
+    /// @ref LLP 0031#server-binary-identity-on-health — build identity rides the
+    /// ungated public /health; the reuse-provenance verdict falls back to it when
+    /// bundle identity (`/inspect` appId/bundleHash) is unavailable.
+    pub binary: crate::identity::BinaryIdentity,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -1162,6 +1170,7 @@ async fn health(
         sqlite_version: version,
         ibex_available: capabilities.ibex_cli.available
             || capabilities.ibex_ctx_db_host_bridge == CapabilityState::Available,
+        binary: crate::identity::binary_identity(),
     }))
 }
 

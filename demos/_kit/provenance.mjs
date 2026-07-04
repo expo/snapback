@@ -21,8 +21,10 @@
 // Callers must not reuse on a not-ok verdict: fall back to a fresh isolated
 // port (`freePort()`), logging loudly.
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync, realpathSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { join } from 'node:path';
 
 /// Dev-only provenance probe path served by the demo surfaces' vite configs.
 /// The response shape is `{ app, surface, root, apiOrigin }` with `root`
@@ -61,30 +63,36 @@ export async function verifyApiProvenance(apiUrl, { appId, bundleHash }) {
   try {
     const res = await fetch(`${apiUrl}/inspect`, { signal: AbortSignal.timeout(2000) });
     if (!res.ok) {
-      return { ok: false, reason: `its identity is unavailable (GET /inspect → HTTP ${res.status})` };
+      return { ok: false, code: 'unreachable', reason: `its identity is unavailable (GET /inspect → HTTP ${res.status})` };
     }
     inspect = await res.json();
   } catch (error) {
-    return { ok: false, reason: `its identity is unavailable (GET /inspect failed: ${error.message})` };
+    return { ok: false, code: 'unreachable', reason: `its identity is unavailable (GET /inspect failed: ${error.message})` };
   }
   const loadedApp = inspect?.functions?.appId ?? null;
   const loadedHash = inspect?.functions?.bundleHash ?? null;
   if (!loadedHash) {
+    // No functions bundle loaded — an unprovisioned or schema-only server. This
+    // is the one not-ok case where binary provenance (verifyBinaryProvenance
+    // over /health) can still identify the server; `code` lets startServer fall
+    // back rather than treat it as a wrong-app refusal.
     return {
       ok: false,
+      code: 'no-bundle',
       reason: 'it reports no loaded app bundle (unprovisioned, or a stale/foreign server)',
     };
   }
   if (appId && loadedApp !== appId) {
-    return { ok: false, reason: `it is serving app "${loadedApp}", not "${appId}"` };
+    return { ok: false, code: 'app-mismatch', reason: `it is serving app "${loadedApp}", not "${appId}"` };
   }
   if (loadedHash !== bundleHash) {
     return {
       ok: false,
+      code: 'hash-mismatch',
       reason: `its loaded bundleHash ${loadedHash} does not match the committed artifacts.json bundleHash ${bundleHash} (stale server or different checkout)`,
     };
   }
-  return { ok: true, appId: loadedApp, bundleHash: loadedHash };
+  return { ok: true, code: 'ok', appId: loadedApp, bundleHash: loadedHash };
 }
 
 /// Verdict on reusing an already-running Vite dev server. `ok: true` only when
@@ -137,4 +145,134 @@ export async function verifyViteProvenance(viteUrl, { app, surface, root, apiOri
     };
   }
   return { ok: true, info };
+}
+
+// --- Server-binary provenance (ENG-22798) -------------------------------------
+//
+// Bundle provenance (verifyApiProvenance) can only identify a server that has
+// loaded a functions bundle. An externally started UNPROVISIONED server, or a
+// schema-only server (`ensureApp({ schema })`, no functions) like the
+// cursors-web web surfaces, reports no bundle identity and is always refused.
+//
+// The server now stamps a build identity onto the ungated `/health` payload —
+// `{ binary: { crateVersion, gitCommit, gitDirty, buildProfile, startupNonce } }`
+// — so "is this MY checkout's binary?" is answerable before any app is
+// provisioned. `verifyBinaryProvenance` is the verdict; `readCheckoutBinaryIdentity`
+// computes the expected identity from a checkout. Refuse-when-unverifiable stays
+// the default: a dirty/unknown build on either side is NOT soundly identifiable,
+// so it is a not-ok verdict, never a silent reuse.
+
+/// The expected server-binary identity of a Snapback checkout: its committed
+/// git commit, whether the working tree is dirty, and the crate version from
+/// `Cargo.toml`. A dirty tree means the built bytes are not pinned to a commit,
+/// so `gitDirty: true` — which `verifyBinaryProvenance` treats as unverifiable.
+/// `git` failures (not a checkout, git absent) yield `gitCommit: 'unknown'` and
+/// `gitDirty: true`, i.e. "cannot identify" rather than a throw.
+export function readCheckoutBinaryIdentity(cwd = process.cwd()) {
+  const git = (args) => {
+    try {
+      return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    } catch {
+      return null;
+    }
+  };
+  const gitCommit = git(['rev-parse', 'HEAD']);
+  const status = git(['status', '--porcelain']);
+  const crateVersion = readCrateVersion(cwd);
+  return {
+    crateVersion,
+    gitCommit: gitCommit || 'unknown',
+    // Unknown commit or a non-empty status ⇒ not pinned to a clean commit.
+    gitDirty: !gitCommit || status === null || status.length > 0,
+  };
+}
+
+/// The `version` from the repo-root `Cargo.toml` (`[package] version = "..."`),
+/// matching what the server reports as `binary.crateVersion` (`CARGO_PKG_VERSION`).
+/// Returns `null` if it cannot be read — a null expected version simply is not
+/// compared (it is not, on its own, an identifying field).
+function readCrateVersion(cwd) {
+  try {
+    const toml = readFileSync(join(cwd, 'Cargo.toml'), 'utf8');
+    // First `version = "x"` after the `[package]` header.
+    const pkg = toml.split(/^\s*\[/m).find((section) => section.startsWith('package]'));
+    const match = (pkg ?? toml).match(/^\s*version\s*=\s*"([^"]+)"/m);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/// Verdict on reusing an already-running server by its BINARY identity, for the
+/// case bundle provenance cannot cover (unprovisioned / schema-only). `ok: true`
+/// only when the server's `/health` reports a build identity that is soundly
+/// pinned (clean on both sides) AND every declared expected field matches. Every
+/// other outcome — unreachable, no identity block (a pre-ENG-22798 or foreign
+/// server), a dirty/unknown build on either side, or a field mismatch — is a
+/// not-ok verdict with a human-readable `reason`. Never throws on network failure.
+///
+/// `expected` is a checkout identity from `readCheckoutBinaryIdentity`
+/// (`{ crateVersion, gitCommit, gitDirty }`). An optional `startupNonce` is
+/// compared too, for callers confirming a server *they* spawned still answers
+/// (a spawner knows the nonce; an external verifier does not).
+export async function verifyBinaryProvenance(healthUrl, expected = {}) {
+  if (!expected.gitCommit || expected.gitCommit === 'unknown') {
+    return { ok: false, reason: 'this checkout has no committed git identity to verify a binary against (dirty or not a checkout)' };
+  }
+  if (expected.gitDirty) {
+    return {
+      ok: false,
+      reason: `this checkout is dirty (built bytes are not pinned to commit ${short(expected.gitCommit)}), so no running binary can be soundly identified as its build`,
+    };
+  }
+
+  let health;
+  try {
+    const res = await fetch(`${healthUrl}/health`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) {
+      return { ok: false, reason: `its identity is unavailable (GET /health → HTTP ${res.status})` };
+    }
+    health = await res.json();
+  } catch (error) {
+    return { ok: false, reason: `its identity is unavailable (GET /health failed: ${error.message})` };
+  }
+
+  const binary = health?.binary;
+  if (!binary || typeof binary !== 'object') {
+    return { ok: false, reason: 'it reports no server-binary identity on /health (a pre-ENG-22798 or foreign server)' };
+  }
+  if (!binary.gitCommit || binary.gitCommit === 'unknown') {
+    return { ok: false, reason: 'the running server was built without a git commit stamp (built outside a checkout), so it cannot be soundly identified' };
+  }
+  if (binary.gitDirty) {
+    return { ok: false, reason: `the running server was built from a dirty tree (commit ${short(binary.gitCommit)} + uncommitted changes), so its exact bytes cannot be verified` };
+  }
+  if (binary.gitCommit !== expected.gitCommit) {
+    return {
+      ok: false,
+      reason: `it is running commit ${short(binary.gitCommit)}, not this checkout's ${short(expected.gitCommit)} (a different checkout or a stale build)`,
+    };
+  }
+  if (expected.crateVersion && binary.crateVersion && binary.crateVersion !== expected.crateVersion) {
+    return {
+      ok: false,
+      reason: `it reports crate version ${binary.crateVersion}, not this checkout's ${expected.crateVersion}`,
+    };
+  }
+  if (expected.startupNonce && binary.startupNonce !== expected.startupNonce) {
+    return {
+      ok: false,
+      reason: `its startup nonce changed (${binary.startupNonce} ≠ the expected ${expected.startupNonce}) — the server restarted or is a different process`,
+    };
+  }
+  return {
+    ok: true,
+    gitCommit: binary.gitCommit,
+    crateVersion: binary.crateVersion ?? null,
+    startupNonce: binary.startupNonce ?? null,
+  };
+}
+
+function short(commit) {
+  return typeof commit === 'string' ? commit.slice(0, 12) : String(commit);
 }

@@ -567,6 +567,7 @@ async fn admin_health(
         sqlite_version: inspect.storage.version,
         ibex_available: inspect.runtime.ibex_cli.available
             || inspect.runtime.ibex_ctx_db_host_bridge == CapabilityState::Available,
+        binary: crate::identity::binary_identity(),
     }))
 }
 

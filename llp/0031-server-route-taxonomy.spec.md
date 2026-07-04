@@ -5,7 +5,7 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-07-01 (status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt.)
+**Revised:** 2026-07-01 (status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands.)
 **Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030
 
 ## Summary
@@ -370,6 +370,60 @@ exposes no route introspection, it is the only mechanical guarantee proxies can
 rely on, and it now also carries the WebSocket message-kind assertion. The
 field-level inspect trim (D3) rides alongside it as a separate typed-projection
 test.
+
+## Server-binary identity on /health
+
+`/health` is the ungated, always-present root endpoint the acceptance suites
+probe to decide whether to reuse a server on a default port. The reuse-provenance
+scheme (ENG-22753/ENG-22757) verifies that decision by matching `GET /inspect` →
+`functions.appId`/`bundleHash` against the committed `artifacts.json`. That
+identity exists only once a **functions bundle** is loaded, so two classes of
+server can never be verified and are always refused:
+
+- an externally started but **unprovisioned** server (no bundle at all), and
+- a **schema-only** server (`ensureApp({ schema })`, no functions) — e.g. the
+  cursors-web web surfaces — which is correctly provisioned yet reports no bundle
+  identity.
+
+To shrink that unverifiable set, `/health` carries a **server-binary identity**
+block (ENG-22798): `{ crateVersion, gitCommit, gitDirty, buildProfile,
+startupNonce }`. `crateVersion` is `CARGO_PKG_VERSION`; `gitCommit`/`gitDirty` are
+stamped by `build.rs` at build time (overridable via the matching
+`SNAPBACK_BUILD_GIT_COMMIT`/`SNAPBACK_BUILD_GIT_DIRTY` env vars for a
+deterministic CI stamp); `startupNonce` is a per-process UUIDv7 boot id. Together
+they answer "is this MY checkout's binary?" before any app is provisioned.
+`demos/_kit/provenance.mjs` grows a `verifyBinaryProvenance` verdict beside
+`verifyApiProvenance`, and `startServer` falls back to it only when bundle
+identity is unavailable (the `code: 'no-bundle'` verdict); a present-but-wrong
+bundle (foreign app or hash drift) stays a hard refusal, never a binary fallback.
+
+**Why extend `/health` rather than add an endpoint.** `/health` is already the
+ungated root endpoint, already classified `app-data`/`public` in the route
+registry, and already the surface the reuse decision is made against. Adding
+non-sensitive identity fields to its JSON body changes neither its class nor the
+route registry, and adds no second surface for the suites to probe. A new root
+identity endpoint would need its own registry entry and enforcement coverage for
+no gain.
+
+**Sensitivity.** The build-identity facts are provenance, not an environment
+leak, so they stay on the *public* payload — consistent with the D3 line: the two
+facts D3 removes from public `/inspect` are the connection-id enumeration list and
+the absolute on-disk DB path, and a crate version, a commit hash, and a random
+boot id are none of those. Because these fields live on `/health`, not `/inspect`,
+they are outside the field-level public-inspect projection test, and
+`HealthResponse` is not part of the LLP 0037 schema drift gate, so extending it is
+additive.
+
+**Verification is conservative (refuse-when-unverifiable holds).** Binary
+provenance is sound only when the build is pinned to a **clean** commit on *both*
+sides: a dirty or commitless build on the checkout *or* the running server is a
+not-ok verdict, because dirty bytes are not pinned to any commit. In practice this
+earns reuse for clean checkouts (CI) and still refuses a dirty local dev tree — a
+strict shrink of the unverifiable set, never a widening of trust. The
+`startupNonce` is deliberately *not* part of the "is this my binary?" verdict (an
+external verifier cannot know the expected nonce); it lets a caller that spawned a
+server confirm the port still answers the same process, and makes a restart
+observable.
 
 ## Open questions
 

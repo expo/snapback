@@ -13,10 +13,16 @@
 // where `rustc-link-arg` actually applies to its bins, tests, and benches.
 
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=HERMES_LIB_DIR");
+
+    // Stamp the server-binary provenance the ungated `/health` reports so an
+    // externally started server is verifiable before any app bundle loads
+    // (ENG-22798). Runs on every target, so it precedes the macOS-only rpath work.
+    emit_build_identity();
     // Re-run if the prepared framework dir appears or changes (bootstrap copies
     // it in), so a first build after bootstrap picks up the real location.
     println!("cargo:rerun-if-changed=vendor/ibex/ios/Frameworks");
@@ -67,6 +73,89 @@ fn main() {
             lib_root.display()
         );
     }
+}
+
+/// Emit the git commit + dirty state the running binary reports as its
+/// server-binary identity on `/health` (ENG-22798). Both are best-effort: a
+/// build outside a git checkout (or without git) leaves the commit unset, which
+/// the runtime reports as `"unknown"`, and an unknown/dirty tree is treated as
+/// dirty by provenance consumers so a not-soundly-identifiable build never
+/// enables reuse. `SNAPBACK_BUILD_GIT_COMMIT` / `SNAPBACK_BUILD_GIT_DIRTY` can
+/// be set explicitly (e.g. a deterministic CI stamp) and win over the git probe.
+///
+/// @ref LLP 0031#server-binary-identity-on-health — the build/provenance facts
+/// answering "is this MY checkout's binary?" on the ungated public /health.
+fn emit_build_identity() {
+    println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_COMMIT");
+    println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_DIRTY");
+
+    let manifest_dir = PathBuf::from(
+        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
+    );
+
+    // Re-stamp when HEAD or the index moves so the commit/dirty pair stays fresh
+    // (git dirs also cover linked worktrees, whose `.git` is a file).
+    if let Some(git_dir) = resolve_git_dir(&manifest_dir) {
+        for name in ["HEAD", "index"] {
+            let path = git_dir.join(name);
+            if path.exists() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+    }
+
+    let commit = env_nonempty("SNAPBACK_BUILD_GIT_COMMIT")
+        .or_else(|| git(&manifest_dir, &["rev-parse", "HEAD"]));
+    if let Some(commit) = commit {
+        println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_COMMIT={commit}");
+    }
+
+    let dirty = env_nonempty("SNAPBACK_BUILD_GIT_DIRTY")
+        .and_then(|v| match v.as_str() {
+            "true" | "1" => Some(true),
+            "false" | "0" => Some(false),
+            _ => None,
+        })
+        .or_else(|| git(&manifest_dir, &["status", "--porcelain"]).map(|s| !s.trim().is_empty()));
+    // Only a proven-clean tree emits "false"; an unknown result stays unset and
+    // the runtime defaults it to dirty (conservative: no reuse on doubt).
+    if let Some(dirty) = dirty {
+        println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_DIRTY={dirty}");
+    }
+}
+
+fn env_nonempty(name: &str) -> Option<String> {
+    std::env::var(name).ok().filter(|v| !v.is_empty())
+}
+
+/// Run `git <args>` in `dir`, returning trimmed stdout on success.
+fn git(dir: &Path, args: &[&str]) -> Option<String> {
+    let output = Command::new("git")
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(output.stdout).ok()?;
+    let trimmed = text.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+/// The real git directory for `manifest_dir`, handling a linked worktree whose
+/// `.git` is a `gitdir: <path>` pointer file rather than a directory.
+fn resolve_git_dir(manifest_dir: &Path) -> Option<PathBuf> {
+    let dot_git = manifest_dir.join(".git");
+    let meta = std::fs::metadata(&dot_git).ok()?;
+    if meta.is_dir() {
+        return Some(dot_git);
+    }
+    let content = std::fs::read_to_string(&dot_git).ok()?;
+    let path = content
+        .lines()
+        .find_map(|line| line.strip_prefix("gitdir:"))?;
+    Some(PathBuf::from(path.trim()))
 }
 
 fn framework_present(dir: &Path) -> bool {

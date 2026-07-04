@@ -25,8 +25,10 @@ import { fileURLToPath } from 'node:url';
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import {
   freePort,
+  readCheckoutBinaryIdentity,
   readCommittedBundleHash,
   verifyApiProvenance,
+  verifyBinaryProvenance,
   verifyViteProvenance,
 } from '../../../_kit/provenance.mjs';
 
@@ -40,8 +42,11 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
 // gotcha): a running server is reused only when its provenance matches this
 // checkout, otherwise the suite falls back — loudly — to a fresh server on a
 // fresh OS-assigned port. Note the web surfaces provision schema-only (no
-// functions bundle), so an externally started API server usually reports no
-// loaded-bundle identity and is refused; that refusal is the safe default.
+// functions bundle), so an externally started API server reports no
+// loaded-bundle identity — bundle provenance can never verify it. In that one
+// case reuse falls back to the /health server-binary identity (ENG-22798):
+// reuse the running server only when it is verifiably THIS checkout's clean
+// build. Anything unverifiable is still refused — the safe default holds.
 const API_PORT = Number(process.env.CURSORS_REACT_API_PORT ?? 4426);
 const VITE_PORT = Number(process.env.CURSORS_REACT_VITE_PORT ?? 5187);
 let apiPort = API_PORT;
@@ -112,6 +117,18 @@ async function ensureApi() {
     if (verdict.ok) {
       console.log(`REUSED API server at :${apiPort} (bundleHash ${verdict.bundleHash})`);
       return;
+    }
+    // cursors-web provisions schema-only, so a correctly provisioned server
+    // reports no functions bundle (`no-bundle`) — bundle provenance can never
+    // verify it. Fall back to the /health server-binary identity (ENG-22798).
+    // Any OTHER bundle outcome (a real foreign app or hash drift) stays a hard
+    // refusal — never fall back for a present-but-wrong bundle.
+    if (verdict.code === 'no-bundle') {
+      const binary = await verifyBinaryProvenance(apiUrl, readCheckoutBinaryIdentity(repoRoot));
+      if (binary.ok) {
+        console.log(`REUSED API server at :${apiPort} (binary commit ${binary.gitCommit.slice(0, 12)}; schema-only, no bundle to verify)`);
+        return;
+      }
     }
     apiPort = await freePort();
     console.error(

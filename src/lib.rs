@@ -10,6 +10,7 @@ pub mod diagnostic;
 pub mod ephemeral;
 pub mod exec_guard;
 pub mod host_ops;
+pub mod identity;
 pub mod instance_lock;
 pub(crate) mod live_matcher;
 pub mod local;
