@@ -2,9 +2,9 @@
 
 **Demo:** Web cursor presence (`demos/cursors-web/`)
 **Surfaces:** contract (required; the web arm was deleted 2026-07-02 — see the ENG-22524 entry below)
-**Author:** Codex (2026-06-28); Claude (Fable 5) (2026-07-02 entry)
+**Author:** Codex (2026-06-28); Claude (Fable 5) (2026-07-02 entry); Claude (Opus 4.8) (2026-07-04 entry)
 **Date:** 2026-06-28
-**Related:** LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0025, LLP 0034, Diary 0006, Exact LLP 0281/0284, ENG-22524
+**Related:** LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0025, LLP 0034, Diary 0006, Exact LLP 0281/0284/0264, ENG-22524, ENG-22797, ENG-22564, ENG-22480
 
 ## 2026-06-28 - Building the LLP 0025 reset
 
@@ -183,3 +183,68 @@ direction**. 840 deleted lines, one `.contract` file, one bootstrap
 module. The framework-free reference implementation this diary
 originally documented now exists only in git history — which is exactly
 the graduation LLP 0025 and the deletion budget wanted.
+
+## 2026-07-04 - The last sibling-checkout surface breaks (ENG-22797)
+
+### What broke
+
+The `contract-browser` acceptance suite went 0/7 with the opaque "surface
+never booted", while the React control arm stayed 7/7 — so the backend and
+harness were fine. `vite build` of the contract surface names the real cause:
+`@exact/contract/runtime` / `@exact/renderer/web-host` (imported by `main.ts`)
+no longer resolve. This surface is the **last** one still consuming Exact from
+the sibling `../exact` **source** checkout. The `exactContractWeb` preset used
+to inject `@exact/*` source aliases (`contractWebSourceAliases`), but exact
+`162e2b7e` (LLP 0264 §4.2) deleted that whole machinery when All Aboard moved
+to published registry packages (ENG-22480). cursors-web never migrated, so a
+`main.ts` living outside the Exact tree has nothing to resolve `@exact/*`
+against once the aliases are gone.
+
+### Why the durable fix is blocked
+
+The real fix is the all-aboard-style migration to published
+`@ccheever/exact-*` (ENG-22564). But only `0.1.0` is on the registry, and
+`0.1.0`'s Contract compiler predates the rated `publish` view line this
+surface's `app.contract` is authored against (LLP 0281 stage 0, exact
+`70e5df8f` — packed after `0.1.0`). Migration needs `0.1.1` published, which
+is OTP-gated external work (ENG-22564), not landable from here.
+
+### Interim bridge + honest failure (what I shipped)
+
+Re-homed a trimmed copy of the retired `contractWebSourceAliases` into the
+surface's own `vite.config.ts` (LOCAL to this one pinned surface, so nothing in
+Exact carries it again), plus a preflight that hard-fails with a clear
+diagnostic — naming the missing files and pointing at ENG-22564/ENG-22797 —
+when the sibling checkout can't satisfy the imports. That honors LLP 0015's
+"capability, not directory" rule: a stale peer checkout must fail loudly, never
+hang. Because a `vite.config` throw exits vite non-zero, the suite surfaces it
+through its existing "Vite exited" path instead of the 20s boot timeout.
+
+### Observations (Exact/Contract vs the migrated path)
+
+- The friction is entirely in Exact **consumption topology**, not Contract
+  authoring: against current `../exact` source the `.contract` compiles clean
+  (`publish` view line and all) — a full 136-module `vite build` succeeds. This
+  is the same class of pothole as 2026-06-28 #4 (cross-repo `@exact/*`
+  resolution), and it keeps recurring precisely because this surface rides the
+  sibling-source seam that all-aboard already left behind.
+- Retiring the source-alias machinery in Exact was right for migrated surfaces
+  but stranded the last un-migrated one; the sibling-source world is inherently
+  fragile to the sibling's HEAD, which is the whole thesis of ENG-22797. The
+  published-package world (`@ccheever/exact-*` in the surface's own
+  `node_modules` + a committed `bun.lock`, as all-aboard now has) deletes this
+  failure class outright. This surface is the canary for finishing ENG-22564.
+- Snapback itself was blameless here (React arm green); the coupling is purely
+  the surface↔Exact-source seam.
+
+### Verification and its limit
+
+Verified the fix at the resolution layer both ways: `vite build` clean (136
+modules), and `vite dev` serves `main.ts` (200) with `@exact/renderer/web-host`
+resolving to the sibling source and the ENG-22757 `/__snapback/source`
+provenance probe still answering 200 under `--strictPort`. The loud-failure
+path was verified by pointing `SNAPBACK_EXACT_ROOT` at an incompatible dir —
+vite exits 1 with the diagnostic. I could **not** run the full 7/7: the suite
+cold-builds the Rust/ibex backend (`cargo run … --memory`), too heavy to bring
+up reliably here (a sibling worktree was mid-build). Runtime 7/7 remains
+dependent on the sibling checkout's state until ENG-22564 lands.
