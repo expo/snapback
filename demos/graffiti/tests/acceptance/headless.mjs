@@ -142,7 +142,7 @@ try {
     await observer.drain();
     const entries = observer.currentEntries();
     assertEqual(entries.map((e) => e.value), [{ x: 7, y: 8, color: '#e5484d', name: 'Ada' }], 'coalesced to latest cursor');
-    return { coalesced: (await db.inspect()).ephemeral.coalesced_updates };
+    return { coalesced: (await db.inspect()).ephemeral.coalescedUpdates };
   });
 
   await suite.check('cursor presence never advances the durable wall version', async () => {
@@ -250,8 +250,8 @@ try {
     assert(rateLimited >= 1, 'burst should trip the rate limiter');
     assert(accepted >= 12, `burst budget should accept at least the declared burst, accepted ${accepted}`);
     const stats = (await db.inspect()).ephemeral;
-    assert(stats.rate_limited_publishes >= rateLimited, 'rate-limited publishes must be observable in diagnostics');
-    return { accepted, rateLimited, observable: stats.rate_limited_publishes };
+    assert(stats.rateLimitedPublishes >= rateLimited, 'rate-limited publishes must be observable in diagnostics');
+    return { accepted, rateLimited, observable: stats.rateLimitedPublishes };
   });
 
   await suite.check('oversize cursor payload is rejected', async () => {
@@ -280,18 +280,18 @@ try {
 
   await suite.check('inspect distinguishes ephemeral fan-out pressure from durable delivery', async () => {
     const state = await db.inspect();
-    assert(state.ephemeral.coalesced_updates >= 1, 'expected coalesced updates');
-    assert(state.ephemeral.rate_limited_publishes >= 1, 'expected rate-limited publish counters');
-    assert(typeof state.ephemeral.room_count === 'number', 'missing ephemeral room count');
+    assert(state.ephemeral.coalescedUpdates >= 1, 'expected coalesced updates');
+    assert(state.ephemeral.rateLimitedPublishes >= 1, 'expected rate-limited publish counters');
+    assert(typeof state.ephemeral.roomCount === 'number', 'missing ephemeral room count');
     // The suite has provably delivered durable updates by now (the live-sync
     // and flood checks), so the durable-lane counter must be positive, not
     // merely present.
-    assert(state.liveDelivery.total_deliveries >= 1, `expected durable deliveries, got ${state.liveDelivery.total_deliveries}`);
+    assert(state.liveDelivery.totalDeliveries >= 1, `expected durable deliveries, got ${state.liveDelivery.totalDeliveries}`);
     return {
-      coalesced: state.ephemeral.coalesced_updates,
-      rateLimited: state.ephemeral.rate_limited_publishes,
-      rooms: state.ephemeral.room_count,
-      durableDeliveries: state.liveDelivery.total_deliveries,
+      coalesced: state.ephemeral.coalescedUpdates,
+      rateLimited: state.ephemeral.rateLimitedPublishes,
+      rooms: state.ephemeral.roomCount,
+      durableDeliveries: state.liveDelivery.totalDeliveries,
     };
   });
 

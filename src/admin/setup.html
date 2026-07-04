@@ -133,7 +133,7 @@
   function renderPosture(inspect) {
     var posture = $("#posture");
     if (!inspect || !inspect.admin) { posture.hidden = true; return; }
-    if (!inspect.admin.token_configured && inspect.admin.bind_loopback) {
+    if (!inspect.admin.tokenConfigured && inspect.admin.bindLoopback) {
       // @ref LLP 0036#the-setup-wizard-d3 — single-user-machine posture said
       // plainly: visibility, not an auth fork.
       posture.className = "banner warn";
