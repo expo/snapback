@@ -16,7 +16,7 @@
   },
   "backend": {
     "source": "snapback/schema.mjs + snapback/functions.mjs",
-    "codegen": "node demos/_kit/codegen.mjs demos/graffiti/snapback",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/graffiti/snapback",
     "generated": [
       "snapback/generated/schema.manifest.json",
       "snapback/generated/functions.manifest.json",

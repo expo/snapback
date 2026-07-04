@@ -1,4 +1,8 @@
 {
+  "app": {
+    "description": "One shared pixel wall where every painter sees each other's strokes appear live and each other's cursors move in real time. Durable marks (cells) are server-owned, last-writer-wins per coordinate, and stream over the live-query lane; presence (boardCursors) is a TTL-bounded ephemeral collection that never touches SQLite. Exercises LLP 0013 ephemeral realtime alongside the generated app-data surface, projected into Contract through the generated ephemeral read binding and the authored rated publish line.",
+    "name": "Collaborative graffiti wall"
+  },
   "appId": "graffiti",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
@@ -33,7 +37,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "f3bc2f2b20f1fad1998f4872ceae0f3039abe55d302c9ca968cba5152fa4bd46",
+  "inputsHash": "02562356958f95ea405b0409b0884d344d4d3918135429f12eb51dc12c4064c4",
   "portabilityFlags": [],
   "schemaHash": "sha256:5a816c04259658fc",
   "schemaVersion": "snapback.v0",

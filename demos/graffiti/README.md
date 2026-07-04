@@ -44,7 +44,7 @@ graffiti/
 
 ```sh
 # 1. Regenerate the manifests + Contract bindings from source.
-node demos/_kit/codegen.mjs demos/graffiti/snapback
+node packages/snapback-codegen/index.mjs demos/graffiti/snapback
 
 # 2. Headless acceptance (the required surface; boots the Rust server itself).
 node demos/graffiti/tests/acceptance/headless.mjs

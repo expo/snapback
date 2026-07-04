@@ -27,7 +27,7 @@
   "backend": {
     "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/handlers.mjs + snapback/shared/model.mjs",
     "seedGenerator": "node demos/all-aboard/snapback/seed.gen.mjs",
-    "codegen": "node demos/_kit/codegen.mjs demos/all-aboard/snapback",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/all-aboard/snapback",
     "generated": [
       "snapback/generated/schema.manifest.json",
       "snapback/generated/functions.manifest.json",

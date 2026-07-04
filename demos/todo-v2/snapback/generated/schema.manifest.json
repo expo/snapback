@@ -1,4 +1,8 @@
 {
+  "app": {
+    "description": "A second todo reference app used to test LLP 0021 Phase 0-2: a richer row shape, a generated Contract binding surface with an extra mutation, Exact project checks for generated descriptors, a wrong-native-server-shape capability diagnostic, and an Exact-owned provider conformance fixture.",
+    "name": "Todo list v2"
+  },
   "appId": "todo-v2",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
@@ -25,7 +29,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "2ad83dbea4d3f8750aa73fb4c005ebf1b108f84ce2f4077b7c9541dd55444f7c",
+  "inputsHash": "2d1a3ef7ec56a6132c5668365989f0fe005c44eb93df217a09ce48e038936188",
   "portabilityFlags": [],
   "schemaHash": "sha256:933c5591717c22bc",
   "schemaVersion": "snapback.v0",

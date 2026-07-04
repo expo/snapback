@@ -1,0 +1,11 @@
+{
+  "name": "@snapback/codegen",
+  "private": true,
+  "type": "module",
+  "description": "Snapback codegen: executes source-authored schema/function definitions and emits the generated manifests, typed API, and Contract binding modules.",
+  "exports": {
+    ".": "./index.mjs",
+    "./define": "./define.mjs",
+    "./contract-emitter": "./contract-emitter.mjs"
+  }
+}

@@ -232,7 +232,7 @@ priority and specifically exercises the LLP 0021 Contract/Exact hardening slice;
 see [`diaries/0004-todo-v2.diary.md`](./diaries/0004-todo-v2.diary.md).
 
 ```sh
-node demos/_kit/codegen.mjs demos/todo/snapback   # generate manifests from source
+node packages/snapback-codegen/index.mjs demos/todo/snapback   # generate manifests from source
 node demos/todo/tests/acceptance/headless.mjs     # required surface (node)
 bun  demos/todo/tests/acceptance/contract.mjs     # Contract/Exact surface (needs ../exact)
 ```
