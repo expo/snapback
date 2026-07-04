@@ -630,6 +630,13 @@ pub struct ConfigStatus {
     pub generation: u64,
     #[serde(rename = "backendClass")]
     pub backend_class: String,
+    /// ENG-22752: whether any app has loaded a functions manifest on this
+    /// instance yet. With inspect-first boot the answer is "no" until the app
+    /// page is opened once, so empty `entries` means "nothing declared *yet*"
+    /// rather than "this app declares no configuration" — the setup wizard
+    /// needs the distinction to say which one is true.
+    #[serde(rename = "appProvisioned", default)]
+    pub app_provisioned: bool,
     pub entries: Vec<ConfigEntryStatus>,
     #[serde(rename = "requiredMissing")]
     pub required_missing: Vec<String>,
@@ -676,6 +683,11 @@ pub struct ConfigVerifyOutcome {
 pub struct LocalSnapback {
     db: LocalDatabase,
     functions: FunctionManifest,
+    // ENG-22752: starts false and flips when the first functions manifest
+    // loads (provision/ensure). Distinguishes "no app has booted yet" from
+    // "the loaded app declares no config" for `config_status` consumers —
+    // the empty default manifest is indistinguishable by content alone.
+    functions_loaded: bool,
     // @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — the config store
     // is deployment state beside the database, never inside it; `reset()`
     // deliberately does not touch it (D2).
@@ -786,6 +798,7 @@ impl LocalSnapback {
         }
 
         self.functions = manifest;
+        self.functions_loaded = true;
         // New code means new warm-VM setup state; content keying already
         // prevents stale reuse, clearing also frees the old VMs' memory.
         self.warm_vms.clear();
@@ -1855,6 +1868,7 @@ impl LocalSnapback {
             } else {
                 "in-memory".to_owned()
             },
+            app_provisioned: self.functions_loaded,
             entries,
             required_missing: self.required_missing_config(),
         }
@@ -2351,6 +2365,7 @@ impl LocalSnapback {
         Ok(Self {
             db,
             functions: FunctionManifest::default(),
+            functions_loaded: false,
             config: ConfigStore::in_memory(),
             runtime,
             ephemeral: LocalEphemeralBackend::new(),

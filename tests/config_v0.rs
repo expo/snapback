@@ -565,4 +565,65 @@ async fn setup_wizard_page_is_served_from_the_static_lane() {
         html.contains(r#"input.setAttribute("type", show ? "text" : "password")"#),
         "value input has a show/hide toggle"
     );
+    // ENG-22752: an empty entry list on a not-yet-provisioned instance must
+    // say why the wizard is empty and what to do, not render nothing.
+    assert!(
+        html.contains("No app has booted on this instance yet"),
+        "wizard explains the pre-provision empty state"
+    );
+    assert!(
+        html.contains("status.appProvisioned"),
+        "wizard branches on the appProvisioned status fact"
+    );
+    assert!(
+        html.contains("This app declares no configuration"),
+        "wizard still reports the provisioned-but-nothing-declared state"
+    );
+}
+
+// ENG-22752: `config.status` distinguishes "no app has booted yet" from "the
+// loaded app declares no config" so the wizard's empty state can say which.
+#[test]
+fn config_status_reports_whether_an_app_has_provisioned() {
+    let mut snapback = LocalSnapback::memory().unwrap();
+    let status = snapback.config_status();
+    assert!(!status.app_provisioned, "fresh instance: no app booted yet");
+    assert!(status.entries.is_empty());
+
+    // Loading any functions manifest — even one declaring no config — flips
+    // the fact: now empty entries mean "nothing to configure".
+    let diagnostics = snapback.load_functions(FunctionManifest::default());
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d.severity == snapback::diagnostic::DiagnosticSeverity::Error),
+        "unexpected load errors: {diagnostics:?}"
+    );
+    let status = snapback.config_status();
+    assert!(status.app_provisioned, "manifest loaded: app has provisioned");
+    assert!(status.entries.is_empty(), "still no declared entries");
+}
+
+#[tokio::test]
+async fn config_status_carries_app_provisioned_over_http() {
+    // Fresh server, nothing provisioned (the ENG-22752 repro): the wire
+    // payload must carry the fact the wizard branches on.
+    let fresh = app(LocalSnapback::memory().unwrap(), context(true, None));
+    let resp = fresh
+        .oneshot(get("/_snapback/api/config/status"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(body["appProvisioned"], json!(false));
+    assert_eq!(body["entries"], json!([]));
+
+    // Once an app's manifest is loaded, the same payload says so.
+    let provisioned = app(configured(), context(true, None));
+    let resp = provisioned
+        .oneshot(get("/_snapback/api/config/status"))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["appProvisioned"], json!(true));
 }

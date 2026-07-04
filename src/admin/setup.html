@@ -155,8 +155,19 @@
       return !entry.required && !entry.set;
     });
     if (!status.entries.length) {
-      summary.className = "banner";
-      summary.textContent = "This app declares no configuration. Nothing to set up.";
+      // ENG-22752: with inspect-first boot no app has provisioned until its
+      // page is opened once, so an empty entry list usually means "nothing
+      // declared YET". Say which case this is instead of rendering nothing.
+      if (status.appProvisioned) {
+        summary.className = "banner";
+        summary.textContent = "This app declares no configuration. Nothing to set up.";
+      } else {
+        summary.className = "banner warn";
+        summary.textContent =
+          "No app has booted on this instance yet, so there is nothing to " +
+          "configure — configuration entries come from the app's manifest. " +
+          "Open the app page once so it can provision, then reload this setup page.";
+      }
     } else if (missing.length) {
       summary.className = "banner warn";
       summary.textContent = missing.length + " of " + required.length +

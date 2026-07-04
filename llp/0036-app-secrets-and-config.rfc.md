@@ -5,7 +5,7 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-02 (ratified Accepted by Charlie — the shipped v1 design with honest gaps banner; ledgered in LLP 0000. Also later same day, ENG-22598: the admin console — Contract console and embedded fallback — gained a Secrets surface projecting `config.status` with per-entry probe verify and grants legibility; see LLP 0017 §Implementation status. Earlier: v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
+**Revised:** 2026-07-04 (ENG-22752: the wizard's pre-provision empty state — `config.status` gained `appProvisioned` and the setup page now explains "no app has booted yet, open the app page once" instead of rendering nothing. Earlier, 2026-07-02: ratified Accepted by Charlie — the shipped v1 design with honest gaps banner; ledgered in LLP 0000. Also later same day, ENG-22598: the admin console — Contract console and embedded fallback — gained a Secrets surface projecting `config.status` with per-entry probe verify and grants legibility; see LLP 0017 §Implementation status. Earlier: v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0015, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0027, LLP 0028, LLP 0029, LLP 0031, Diary 0008
 
 ## Summary
@@ -552,6 +552,12 @@ entirely from manifest declarations plus `config.status`:
   `config: 2 required entries missing → http://127.0.0.1:<port>/_snapback/admin/setup`
   when applicable. That printed line *is* the install instruction for the
   open-source case; the README step is "start it and open the link."
+- **Pre-provision:** with inspect-first boot no manifest has loaded until the
+  app page is opened once, so a fresh instance's `config.status` has no
+  entries. The status payload carries `appProvisioned` so the wizard can say
+  "no app has booted on this instance yet — open the app page once, then
+  reload" instead of rendering an empty page, and can distinguish that from a
+  provisioned app that genuinely declares no configuration (ENG-22752).
 - **Per entry, one card:** description, purpose, `howToGet` prose with the
   acquisition link, a paste field (pooled entries get "add another key"), a
   **Verify** button that runs `config.verify`, and the resulting state. A
