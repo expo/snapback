@@ -35,10 +35,13 @@ export interface Station {
 
 // A friendly, on-card signal of whether the nearest station came from the device
 // or a fallback — so a denied/dismissed permission prompt is legible, not silent.
+// The denied line says what to do about it: once the user re-allows access
+// (the hint press re-prompts; a site-settings flip fires the permission change
+// event main.tsx listens for), the board adopts the real location, no reload.
 export function locationHint(source: LocationSource): string {
   switch (source) {
     case 'device': return '📍 Using your location';
-    case 'denied': return 'Location blocked — showing a default stop';
+    case 'denied': return 'Location blocked — allow location for this site, then tap here';
     case 'unavailable': return 'Location unavailable — showing a default stop';
     default: return 'Allow location for your nearest stop';
   }

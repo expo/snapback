@@ -728,3 +728,65 @@ instruction-ordering assertions), `browser.mjs` 15/15, `browser-react.mjs`
 `egress.mjs` green; manual: fresh server + Vite, headless Chrome render of
 the board showing the actionable, redacted 401 line straight from the real
 511 API.
+
+## 2026-07-04 — location permission that actually asks (ENG-22795)
+
+### What I built
+
+The bug: on web, the board settled on "Location blocked — showing a default
+stop" without the user ever seeing a permission prompt. Chrome had auto-denied
+the boot-time `getCurrentPosition` (quiet prompt UI, or a per-origin block
+inherited from whatever previously ran on `127.0.0.1:5178` — dev-server ports
+are shared origins, so one old "Block" outlives the app that earned it), and
+the surface treated that one answer as final.
+
+Both web arms now ask permission-state-first: `navigator.permissions.query`
+decides whether to skip a doomed request (hard-blocked), actively request
+(promptable), or just fetch (granted); a `change` listener adopts the real
+location the moment access is granted — a site-settings flip lands with no
+reload. The location-hint line became a press affordance that re-requests a
+fresh fix (`maximumAge: 0`) from a real user gesture, which is what Chrome's
+quiet prompt and Safari want before they will show UI. Denied copy now says
+what to do: "allow location for this site, then tap here".
+
+### What felt good
+
+- The whole fix is web-surface glue. Snapback (backend, schema, functions,
+  live queries) is untouched; the shared model's nearest-station selection
+  consumed the new location with zero changes. The blast radius a permission
+  bug *should* have.
+- The two arms stayed structurally parallel: the same `watchLocation` shape,
+  the same hint copy, the same press semantics — one in DOM-interception
+  idiom, one in prop-drilling idiom (main → App → StationCard). Diffing them
+  side by side is still a fair React-vs-Contract comparison.
+- CDP made the paved path machine-checkable end to end:
+  `Emulation.setGeolocationOverride` + `Browser.grantPermissions`, then assert
+  the hint flips to "📍 Using your location" and the station snaps to the
+  pinned position. Order matters — pin the position *before* granting, or the
+  permission-change listener races to read the host's real location.
+
+### What felt bad or surprising
+
+- Contract has no geolocation binding (a declared gap since Phase 1), so the
+  press affordance can't mean anything inside the `.contract`: the button's
+  declared action just re-stamps the clock, and the real behavior is a
+  capture-phase DOM interception in `main.ts` — the exact idiom the refresh
+  button already used. It works, but the app's most browser-native behavior
+  lives invisibly outside the declared tree.
+- The hint had to become a *button* for an unrelated reason: the bare-tap
+  gesture (flip direction) exempts only `button, a, input, …, [role="button"]`
+  targets, so a tappable plain-text hint would have flipped the board on every
+  press. Gesture layers make "just make it clickable" a two-step decision.
+- The first test run parked the board on San Francisco — end of the line —
+  and two downstream checks quietly depended on the Mountain View start
+  (prev-station clamps at orderIndex 0; no Baby Bullet in that direction).
+  Fixed by making the press request a fresh fix and moving the pin back
+  through the same affordance, which doubled as the assertion that a retry
+  press re-reads the position instead of serving the 60s cache.
+
+### Verification
+
+`browser.mjs` 16/16 and `browser-react.mjs` 16/16 (each adds the
+grant→adopt→fresh-retry check; both self-isolated off the squatted :4420/:5178
+via the ENG-22753 provenance guard), react-surface `tsc --noEmit` clean,
+`./ref-check --verbose` 0 errors.

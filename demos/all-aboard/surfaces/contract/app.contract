@@ -119,6 +119,11 @@ component AllAboard
     heroOffset = 0
   action toggleEtaMode writes etaMode
     etaMode = etaMode == "walk" ? "bike" : "walk"
+  // The real geolocation re-request is web-surface glue (main.ts intercepts
+  // the location-hint press, ENG-22795); the action re-stamps the clock so the
+  // hint re-derives immediately once the glue updates the device location.
+  action requestLocation writes nowMs
+    nowMs = now()
   action openStations writes screen, query
     screen = "stations"
     query = ""
@@ -154,7 +159,7 @@ component AllAboard
 
         when screen == "home"
           column position="absolute" top=0 left=0 right=0 bottom=0 justify="space-between" testId="board-content"
-            StationCard(station=station, walkBike=walkBike, locHint=locHint, etaMode=etaMode, openStations=openStations, toggleEtaMode=toggleEtaMode)
+            StationCard(station=station, walkBike=walkBike, locHint=locHint, etaMode=etaMode, openStations=openStations, toggleEtaMode=toggleEtaMode, requestLocation=requestLocation)
             // The delays region dispatches on the live binding: `stale` (Exact
             // LLP 0284 §2.2 sugar) wins over `ready` while the connection is
             // degraded — same board, last-known delays, a visible note.
@@ -193,6 +198,7 @@ component StationCard
     etaMode: string
     openStations: () => void
     toggleEtaMode: () => void
+    requestLocation: () => void
 
   view
     column gap=4 paddingTop=20 paddingLeft=22 paddingRight=22 width="100%" maxWidth=620 alignSelf="center" testId="station-card"
@@ -207,7 +213,11 @@ component StationCard
         text `Zone ${station.zone} · ${walkBike}` size=13 color="#ffffffb8" testId="walk-bike"
         button press=toggleEtaMode label="Toggle ETA mode" testId="eta-mode" paddingTop=4 paddingBottom=4 paddingLeft=10 paddingRight=10 radius=999 background="#ffffff12" borderWidth=1 borderColor="#ffffff1a"
           text etaModeLabel(etaMode) size=11 weight=700 color="#ffffffe6"
-      text locHint size=12 color="#ffffff73" testId="location-hint"
+      // A button, not bare text: pressing re-requests the geolocation prompt
+      // from a user gesture (ENG-22795), and button-ness keeps the bare-tap
+      // direction-flip gesture from also firing on this line (gestures.ts).
+      button press=requestLocation label="Use my location" testId="location-hint" background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0
+        text locHint size=12 color="#ffffff73"
 
 // The board: direction row, the giant hero countdown expanded with its stops,
 // the ▲▼ train-selection arrows, the three departures after it, the opposite

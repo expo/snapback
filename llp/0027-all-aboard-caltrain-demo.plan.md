@@ -750,8 +750,16 @@ Diary acceptance (lands as `diaries/0008-all-aboard.diary.md` with the build):
   view is added). Client-direct ORS stays a labeled throwaway-key shortcut; a Maps
   deep-link is a free turn-by-turn complement. Still open: location-bucket
   granularity and cache TTL.
-- **Geolocation UX in Contract** — permission flow and the fallback when location
-  is denied (manual station pick, or default to San Francisco?).
+- **Geolocation UX in Contract** — *resolved (ENG-22795):* the boot request is
+  permission-state-first (Permissions API when present): a hard-blocked
+  permission skips the doomed `getCurrentPosition` and shows actionable copy,
+  a promptable state actively requests, and a `change` listener adopts the
+  real location the moment access is granted — including a later site-settings
+  flip — with no reload. The location-hint line is a press that re-requests a
+  fresh fix from a user gesture (Chrome's quiet prompt and Safari need one).
+  The denied fallback stays nearest-to-default (Mountain View), with manual
+  station pick always available; both browser suites assert the grant→adopt
+  path end to end via a CDP geolocation override.
 - **Station photos** — Wikipedia licensing/attribution, hotlinking vs pulling
   through the asset pipeline, and whether drawings are preferable to photos for a
   consistent look.

@@ -68,7 +68,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 15;
+const EXPECTED_CHECKS = 16;
 
 const suite = createSuite('all-aboard browser (Phase 1)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];
@@ -175,6 +175,29 @@ async function main() {
       if (!/^\d+$/.test(heroMinutes ?? '')) throw new Error(`hero minutes not numeric: ${heroMinutes}`);
       if (!/walk/.test(walkBike ?? '')) throw new Error(`walk/bike missing: ${walkBike}`);
       return { stationName, heroMinutes, walkBike, view };
+    });
+
+    // ENG-22795: granting geolocation must move the board onto the real
+    // location — via the permission change listener and the location-hint
+    // press (the gesture-driven retry) — instead of dead-ending on a silent
+    // auto-denied prompt. Position pinned to San Francisco 4th & King, far
+    // from the Mountain View default, so nearest-station selection is
+    // unambiguous. Runs before any station navigation sets stationId.
+    await suite.check('granting location adopts the real position; hint press retries the prompt', async () => {
+      await page.setGeolocation(37.77639, -122.39472);
+      await page.click('location-hint');
+      const hint = await page.pollText('location-hint', 'Using your location', 8000);
+      if (!/Using your location/.test(hint ?? '')) throw new Error(`hint did not adopt device location: ${hint}`);
+      const granted = await page.pollText('station-name', '^San Francisco$', 8000);
+      if (granted !== 'San Francisco') throw new Error(`nearest station not selected: ${granted}`);
+      // The press asks for a fresh fix (maximumAge 0), not the cached one:
+      // move the pinned position and tap again — the board must follow. This
+      // also restores the Mountain View start downstream checks assume.
+      await page.setGeolocation(37.3894, -122.0819);
+      await page.click('location-hint');
+      const restored = await page.pollText('station-name', '^Mountain View$', 8000);
+      if (restored !== 'Mountain View') throw new Error(`hint press did not re-read the position: ${restored}`);
+      return { hint, granted, restored };
     });
 
     await suite.check('press affordance: previous-station changes the station card', async () => {
@@ -425,6 +448,13 @@ async function connectCdp(url) {
       const sel = (id) => `[data-testid="${id}"]`;
       return {
         navigate: (url) => send('Page.navigate', { url }, sessionId),
+        // ENG-22795: pin the emulated position BEFORE granting, so the
+        // surface's permission-change listener never reads the host's real
+        // location in the gap between the two calls.
+        setGeolocation: async (latitude, longitude) => {
+          await send('Emulation.setGeolocationOverride', { latitude, longitude, accuracy: 5 }, sessionId);
+          await send('Browser.grantPermissions', { permissions: ['geolocation'] });
+        },
         eval: evalRaw,
         text: (id) => evalRaw(`document.querySelector('${sel(id)}')?.textContent.trim() ?? null`),
         exists: (id) => evalRaw(`!!document.querySelector('${sel(id)}')`),

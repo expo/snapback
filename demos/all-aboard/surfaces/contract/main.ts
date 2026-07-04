@@ -33,6 +33,7 @@ import app from './app.contract';
 let activeSurface: { dispose?: () => void } | null = null;
 let disposeGestures: (() => void) | null = null;
 let disposeRefreshAction: (() => void) | null = null;
+let disposeLocationRequest: (() => void) | null = null;
 
 // Build-time API origin injected by vite.config.ts `define`.
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
@@ -64,6 +65,7 @@ function installWebChrome(): void {
     #exact-root { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
     #exact-root input, #exact-root textarea { -webkit-user-select: text; user-select: text; }
     [data-testid="board-content"] { touch-action: none; }
+    [data-testid="location-hint"] { cursor: pointer; }
     input::placeholder { color: rgba(255, 255, 255, 0.4); }
     #boot-status { position: fixed; left: 16px; bottom: 16px; z-index: 99; max-width: min(520px, calc(100vw - 32px));
       padding: 10px 12px; border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; background: #0d1322;
@@ -90,7 +92,10 @@ function status(message: string, state: 'booting' | 'ready' | 'error' = 'booting
   console.log(`[all-aboard] ${message}`);
 }
 
-function watchLocation(): void {
+// A press-driven retry asks for a fresh fix (maximumAge 0): the user is
+// explicitly saying "locate me now", so a stale cached position won't do.
+// Boot keeps the 60s cache for a fast first paint.
+function requestDeviceLocation(fresh = false): void {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     setDeviceLocation(null, 'unavailable');
     return;
@@ -98,8 +103,53 @@ function watchLocation(): void {
   navigator.geolocation.getCurrentPosition(
     (pos) => setDeviceLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 'device'),
     (err) => setDeviceLocation(null, err.code === 1 ? 'denied' : 'unavailable'),
-    { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 },
+    { enableHighAccuracy: true, maximumAge: fresh ? 0 : 60_000, timeout: 10_000 },
   );
+}
+
+// ENG-22795: one fire-and-forget getCurrentPosition at boot could be
+// auto-denied without the user ever seeing a prompt (Chrome's quiet prompt UI;
+// a per-origin block inherited from an earlier dev server on this port), and
+// the hint dead-ended there. Ask permission-state-first: skip the doomed call
+// when access is hard-blocked, request when the browser can still prompt, and
+// adopt the real location whenever access is granted — including a later
+// site-settings flip, via the permission change event, with no reload.
+async function watchLocation(): Promise<void> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    setDeviceLocation(null, 'unavailable');
+    return;
+  }
+  try {
+    const permission = await navigator.permissions.query({ name: 'geolocation' });
+    permission.addEventListener('change', () => {
+      if (permission.state === 'granted') requestDeviceLocation();
+      else setDeviceLocation(null, permission.state === 'denied' ? 'denied' : 'default');
+    });
+    if (permission.state === 'denied') {
+      setDeviceLocation(null, 'denied');
+      return;
+    }
+  } catch {
+    // No Permissions API (older Safari): fall through and just ask.
+  }
+  requestDeviceLocation();
+}
+
+// The location-hint press re-runs the geolocation request from a user gesture
+// (the .contract's press is intercepted here the same way the refresh button
+// is: geolocation is web-surface glue, not contract state).
+function installLocationRequest(rootEl: HTMLElement): () => void {
+  const listener = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (!target.closest('[data-testid="location-hint"]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    requestDeviceLocation(true);
+  };
+  rootEl.addEventListener('click', listener, true);
+  return () => rootEl.removeEventListener('click', listener, true);
 }
 
 function installRefreshAction(rootEl: HTMLElement, client: SnapbackClient): () => void {
@@ -159,7 +209,7 @@ async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnT
   });
   activeSurface = surface;
   configureSnapbackContractLinks(surface.links as never);
-  watchLocation();
+  void watchLocation();
 
   status('Mounting…');
   if (typeof document !== 'undefined') {
@@ -174,6 +224,7 @@ async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnT
   if (rootEl) {
     disposeGestures = installGestures(rootEl);
     disposeRefreshAction = installRefreshAction(rootEl, client);
+    disposeLocationRequest = installLocationRequest(rootEl);
   }
   status('Ready', 'ready');
   return { provisioned, surface };
@@ -204,8 +255,10 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     if (disposeRefreshAction) disposeRefreshAction();
     if (disposeGestures) disposeGestures();
+    if (disposeLocationRequest) disposeLocationRequest();
     disposeRefreshAction = null;
     disposeGestures = null;
+    disposeLocationRequest = null;
     setRouteEstimateInvoker(null);
     activeSurface?.dispose?.();
     activeSurface = null;

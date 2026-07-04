@@ -12,6 +12,7 @@ export function StationCard(props: {
   etaMode: EtaMode;
   onOpenStations: () => void;
   onToggleEtaMode: () => void;
+  onRequestLocation: () => void;
 }) {
   const { station } = props;
 
@@ -54,9 +55,18 @@ export function StationCard(props: {
           <div style={{ fontSize: 11, fontWeight: 700, color: palette.inkStrong }}>{etaModeLabel(props.etaMode)}</div>
         </Press>
       </div>
-      <div data-testid="location-hint" style={{ fontSize: 12, color: palette.inkFaint }}>
+      {/* A press, not bare text: it re-requests the geolocation prompt from a
+          user gesture (ENG-22795 — Chrome's quiet prompt and Safari need one),
+          and button-ness keeps the bare-tap direction-flip gesture from also
+          firing on this line (gestures.ts). */}
+      <Press
+        onPress={props.onRequestLocation}
+        label="Use my location"
+        testId="location-hint"
+        style={{ fontSize: 12, color: palette.inkFaint }}
+      >
         {props.locHint}
-      </div>
+      </Press>
     </div>
   );
 }

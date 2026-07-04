@@ -75,7 +75,10 @@ function status(message: string, state: 'booting' | 'ready' | 'error' = 'booting
   console.log(`[all-aboard-react] ${message}`);
 }
 
-function watchLocation(): void {
+// A press-driven retry asks for a fresh fix (maximumAge 0): the user is
+// explicitly saying "locate me now", so a stale cached position won't do.
+// Boot keeps the 60s cache for a fast first paint.
+function requestDeviceLocation(fresh = false): void {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     setLocation(null, 'unavailable');
     return;
@@ -83,8 +86,38 @@ function watchLocation(): void {
   navigator.geolocation.getCurrentPosition(
     (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 'device'),
     (err) => setLocation(null, err.code === 1 ? 'denied' : 'unavailable'),
-    { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 },
+    { enableHighAccuracy: true, maximumAge: fresh ? 0 : 60_000, timeout: 10_000 },
   );
+}
+
+// ENG-22795: one fire-and-forget getCurrentPosition at boot could be
+// auto-denied without the user ever seeing a prompt (Chrome's quiet prompt UI;
+// a per-origin block inherited from an earlier dev server on this port), and
+// the hint dead-ended there. Ask permission-state-first: skip the doomed call
+// when access is hard-blocked, request when the browser can still prompt, and
+// adopt the real location whenever access is granted — including a later
+// site-settings flip, via the permission change event, with no reload. The
+// location-hint press (StationCard) re-requests from a user gesture, which
+// Chrome's quiet prompt and Safari need before they will show the prompt.
+async function watchLocation(): Promise<void> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    setLocation(null, 'unavailable');
+    return;
+  }
+  try {
+    const permission = await navigator.permissions.query({ name: 'geolocation' });
+    permission.addEventListener('change', () => {
+      if (permission.state === 'granted') requestDeviceLocation();
+      else setLocation(null, permission.state === 'denied' ? 'denied' : 'default');
+    });
+    if (permission.state === 'denied') {
+      setLocation(null, 'denied');
+      return;
+    }
+  } catch {
+    // No Permissions API (older Safari): fall through and just ask.
+  }
+  requestDeviceLocation();
 }
 
 // D4 edits 1-3 (LLP 0034 §5): mount lifecycle = connect + health +
@@ -160,7 +193,7 @@ async function boot(): Promise<{ provisioned: string[]; connections: () => Recor
   setFeedRows(feedLive.rows as never);
   setConnection('liveTrainStatus', delaysLive.connection as never);
   setConnection('feedState', feedLive.connection as never);
-  watchLocation();
+  void watchLocation();
 
   status('Mounting…');
   const rootEl = document.getElementById('root');
@@ -173,7 +206,7 @@ async function boot(): Promise<{ provisioned: string[]; connections: () => Recor
   reactRoot = createRoot(rootEl);
   reactRoot.render(
     <StrictMode>
-      <App onRefresh={refresh} />
+      <App onRefresh={refresh} onRequestLocation={() => requestDeviceLocation(true)} />
     </StrictMode>,
   );
 

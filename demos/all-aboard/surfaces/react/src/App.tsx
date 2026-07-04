@@ -47,7 +47,7 @@ import { column, palette } from './ui.tsx';
 
 type Screen = 'home' | 'stations' | 'trip';
 
-export function App(props: { onRefresh: () => void }) {
+export function App(props: { onRefresh: () => void; onRequestLocation: () => void }) {
   const nowMs = useNow(1000);
   const live = useLiveState();
   const [stationId, setStationId] = useState<string | null>(null);
@@ -173,6 +173,7 @@ export function App(props: { onRefresh: () => void }) {
               etaMode={etaMode}
               onOpenStations={openStations}
               onToggleEtaMode={toggleEtaMode}
+              onRequestLocation={props.onRequestLocation}
             />
             {delaysLoading ? (
               <div
