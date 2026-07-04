@@ -57,7 +57,8 @@ let db = null;
 // runAcceptance (ENG-22486) surfaces a setup throw and exits nonzero on a
 // zero-check run — previously a pre-check failure here exited "PASS — 0/0".
 await runAcceptance(suite, async () => {
-  server = await startServer({ port: 4408, db: ':memory:', cwd: repoRoot });
+  server = await startServer({ port: 4408, db: ':memory:', cwd: repoRoot,
+    provenance: { appId: 'all-aboard', artifactsPath: join(repoRoot, 'demos', 'all-aboard', 'snapback', 'generated', 'artifacts.json') } });
   db = new SnapbackClient(server.baseUrl);
 
   await db.loadSchema(gen('schema.manifest.json'));

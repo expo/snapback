@@ -25,15 +25,30 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
+import {
+  freePort,
+  readCommittedBundleHash,
+  verifyApiProvenance,
+  verifyViteProvenance,
+} from '../../../_kit/provenance.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const surfaceDir = join(repoRoot, 'demos', 'cursors-web', 'surfaces', 'contract');
+const artifactsJsonPath = join(repoRoot, 'demos', 'cursors-web', 'snapback', 'generated', 'artifacts.json');
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+// Env-overridable pins. On the chosen ports, reuse is *verified*, never
+// assumed (ENG-22757, the ENG-22753 pattern; the Diary 0008 2026-07-01 :4420
+// gotcha): a running server is reused only when its provenance matches this
+// checkout, otherwise the suite falls back — loudly — to a fresh server on a
+// fresh OS-assigned port. Note the web surfaces provision schema-only (no
+// functions bundle), so an externally started API server usually reports no
+// loaded-bundle identity and is refused; that refusal is the safe default.
 const API_PORT = Number(process.env.CURSORS_CONTRACT_API_PORT ?? 4425);
 const VITE_PORT = Number(process.env.CURSORS_CONTRACT_VITE_PORT ?? 5184);
-const apiUrl = `http://127.0.0.1:${API_PORT}`;
-const viteUrl = `http://127.0.0.1:${VITE_PORT}`;
+let apiPort = API_PORT;
+let apiUrl = `http://127.0.0.1:${API_PORT}`;
+let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
 const exactRoot = process.env.SNAPBACK_EXACT_ROOT
   ? resolve(process.env.SNAPBACK_EXACT_ROOT)
@@ -57,7 +72,7 @@ async function spawnApi() {
   if (process.platform === 'darwin' && !env.DYLD_FRAMEWORK_PATH) {
     env.DYLD_FRAMEWORK_PATH = join(repoRoot, 'vendor', 'ibex', 'ios', 'Frameworks');
   }
-  const child = spawn('cargo', ['run', '--quiet', '--', '--port', String(API_PORT), '--memory'], { cwd: repoRoot, env, stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn('cargo', ['run', '--quiet', '--', '--port', String(apiPort), '--memory'], { cwd: repoRoot, env, stdio: ['ignore', 'ignore', 'pipe'] });
   apiChild = child;
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) { if (await urlOk(`${apiUrl}/health`)) return; if (child.exitCode !== null) throw new Error('API server exited'); await sleep(500); }
@@ -93,13 +108,46 @@ async function provisionApi() {
 }
 
 async function ensureApi() {
-  if (await urlOk(`${apiUrl}/health`)) return;
+  if (await urlOk(`${apiUrl}/health`)) {
+    // Something healthy answers on the port — reuse it ONLY if it is
+    // verifiably running this checkout's committed app (ENG-22757, the
+    // ENG-22753 rule). "Healthy" alone was the Diary 0008 bug: /health says
+    // nothing about which server (or whose checkout) is answering.
+    const committed = readCommittedBundleHash(artifactsJsonPath);
+    const verdict = await verifyApiProvenance(apiUrl, { appId: 'cursors-web', bundleHash: committed });
+    if (verdict.ok) {
+      console.log(`REUSED API server at :${apiPort} (bundleHash ${verdict.bundleHash})`);
+      return;
+    }
+    apiPort = await freePort();
+    console.error(
+      `PROVENANCE MISMATCH: a server answers /health on :${API_PORT} but ${verdict.reason}. ` +
+      `NOT reusing it — starting a fresh isolated API server on :${apiPort} (pin with CURSORS_CONTRACT_API_PORT).`,
+    );
+    apiUrl = `http://127.0.0.1:${apiPort}`;
+  }
   await spawnApi();
 }
 
 async function ensureVite() {
-  if (await urlOk(viteUrl)) return;
-  const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--config', join(surfaceDir, 'vite.config.ts'), '--host', '127.0.0.1', '--port', String(VITE_PORT)],
+  let vitePort = VITE_PORT;
+  if (await urlOk(viteUrl)) {
+    // Same rule as the API server (ENG-22757): a Vite answering on the port
+    // is reused only when its source-provenance probe proves it serves THIS
+    // checkout's surface tree against THIS run's API origin.
+    const verdict = await verifyViteProvenance(viteUrl, { app: 'cursors-web', surface: 'contract', root: surfaceDir, apiOrigin: apiUrl });
+    if (verdict.ok) {
+      console.log(`REUSED Vite at :${vitePort} (root ${verdict.info.root}, api ${verdict.info.apiOrigin})`);
+      return;
+    }
+    vitePort = await freePort();
+    console.error(
+      `PROVENANCE MISMATCH: a server answers on Vite :${VITE_PORT} but ${verdict.reason}. ` +
+      `NOT reusing it — starting a fresh isolated Vite on :${vitePort} (pin with CURSORS_CONTRACT_VITE_PORT).`,
+    );
+    viteUrl = `http://127.0.0.1:${vitePort}`;
+  }
+  const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--config', join(surfaceDir, 'vite.config.ts'), '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'],
     { cwd: exactRoot, env: { ...process.env, SNAPBACK_CURSORS_API: apiUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
   let viteLog = '';
   child.stdout.on('data', (d) => { viteLog += d; });

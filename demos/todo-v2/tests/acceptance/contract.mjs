@@ -64,7 +64,8 @@ console.log(`  capabilities: ${JSON.stringify(exact.capabilities)}`);
 const compilerMod = await importExactContractCompiler({ exactRoot: exact.path });
 const runtimeMod = await importExactContractRuntime({ exactRoot: exact.path });
 
-const server = await startServer({ port: 4404, db: ':memory:', cwd: repoRoot });
+const server = await startServer({ port: 4404, db: ':memory:', cwd: repoRoot,
+  provenance: { appId: 'todo-v2', artifactsPath: join(repoRoot, 'demos', 'todo-v2', 'snapback', 'generated', 'artifacts.json') } });
 const db = new SnapbackClient(server.baseUrl);
 const suite = createSuite('todo-v2 / contract');
 

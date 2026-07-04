@@ -384,7 +384,11 @@ try {
       // close→disconnect) and NO in-band needs_resync ever arrives.
       await server.stop();
       await waitFor(() => cells.at(-1)?.connection === 'stale', "honest 'stale' during the outage", 20_000);
-      server = await startServer({ port: 4436, db: ':memory:', cwd: repoRoot });
+      // Respawn on the port the first server ACTUALLY got: with the
+      // ENG-22757 provenance gate, a squatter on 4436 moves the first spawn
+      // to an isolated port, and `db` (bound to server.baseUrl) must find the
+      // restarted server at that same origin.
+      server = await startServer({ port: Number(new URL(server.baseUrl).port), db: ':memory:', cwd: repoRoot });
       await db.loadSchema(schemaManifest);
       await db.loadFunctions(functionsManifest);
 

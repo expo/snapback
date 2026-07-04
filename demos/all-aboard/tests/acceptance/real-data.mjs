@@ -162,7 +162,8 @@ await runAcceptance(suite, async () => {
   process.env.SNAPBACK_ACTION_SECRETS = ACTION_SECRETS;
   mock = await startMockApi();
 
-  server = await startServer({ port: 4410, db: ':memory:', cwd: repoRoot });
+  server = await startServer({ port: 4410, db: ':memory:', cwd: repoRoot,
+    provenance: { appId: 'all-aboard', artifactsPath: join(repoRoot, 'demos', 'all-aboard', 'snapback', 'generated', 'artifacts.json') } });
   db = new SnapbackClient(server.baseUrl);
   await db.loadSchema(gen('schema.manifest.json'));
   await db.loadFunctions(gen('functions.manifest.json'));

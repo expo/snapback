@@ -74,7 +74,8 @@ const importSemantics = {
 };
 
 // --- Live backend ------------------------------------------------------------
-const server = await startServer({ port: 4401, db: ':memory:', cwd: repoRoot });
+const server = await startServer({ port: 4401, db: ':memory:', cwd: repoRoot,
+  provenance: { appId: 'todo', artifactsPath: join(repoRoot, 'demos', 'todo', 'snapback', 'generated', 'artifacts.json') } });
 const db = new SnapbackClient(server.baseUrl);
 const suite = createSuite('todo / contract');
 

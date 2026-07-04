@@ -4,17 +4,44 @@
 //   reuse an already-running server via a health probe, and tear down with
 //   SIGTERM->SIGKILL. The two corrections from that section apply: never serve
 //   stale output, and local tooling must exit cleanly.
+//
+// Reuse is *verified*, never assumed (ENG-22757, extending ENG-22753's
+// browser-suite fix; the Diary 0008 2026-07-01 :4420 gotcha): "something
+// answers /health on the port" says nothing about WHICH server it is — a
+// weeks-old binary from another checkout squatting the port used to be
+// silently reused. A running server is reused only when the caller declares
+// its committed app identity (`provenance: { appId, artifactsPath }` — or an
+// explicit `bundleHash`) AND the live server's loaded bundle
+// (`GET /inspect` → functions.appId/bundleHash) matches it. Every other
+// outcome — no provenance declared, unreachable /inspect, unprovisioned
+// server, foreign app, hash drift — refuses reuse and starts a fresh
+// isolated server on an OS-assigned port instead (so the returned `baseUrl`
+// may differ from the requested port; callers must use the returned value).
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
-export async function startServer({ port = 4399, db = ':memory:', cwd = process.cwd() } = {}) {
-  const baseUrl = `http://127.0.0.1:${port}`;
+import { freePort, readCommittedBundleHash, verifyApiProvenance } from './provenance.mjs';
 
-  // Reuse an already-running server (health probe) rather than fighting the port.
+export async function startServer({ port = 4399, db = ':memory:', cwd = process.cwd(), provenance = null } = {}) {
+  let baseUrl = `http://127.0.0.1:${port}`;
+
+  // Something answers on the port. Reuse it ONLY on verified provenance;
+  // otherwise fall back — loudly — to a fresh isolated server (ENG-22757).
   if (await isHealthy(baseUrl)) {
-    return { baseUrl, stop: async () => {}, reused: true };
+    const verdict = await reuseVerdict(baseUrl, provenance);
+    if (verdict.ok) {
+      console.log(`REUSED snapback server at :${port} (bundleHash ${verdict.bundleHash})`);
+      return { baseUrl, stop: async () => {}, reused: true };
+    }
+    const isolated = await freePort();
+    console.error(
+      `PROVENANCE MISMATCH: a server answers /health on :${port} but ${verdict.reason}. ` +
+        `NOT reusing it — starting a fresh isolated server on :${isolated} (ENG-22757).`,
+    );
+    port = isolated;
+    baseUrl = `http://127.0.0.1:${port}`;
   }
 
   const runtimeEnv = preflightLocalRuntime({ cwd });
@@ -44,6 +71,23 @@ export async function startServer({ port = 4399, db = ':memory:', cwd = process.
   }
   await stopChild(child);
   throw new Error(`snapback server did not become healthy on ${baseUrl}:\n${log}`);
+}
+
+// The reuse verdict for a healthy port. Without a declared committed
+// identity there is nothing to verify against — /health carries no
+// engine/build identity — so an externally started server is refused
+// (the safe default, not an error).
+async function reuseVerdict(baseUrl, provenance) {
+  if (!provenance) {
+    return {
+      ok: false,
+      reason:
+        'this caller declares no committed app identity to verify it against ' +
+        '(pass `provenance: { appId, artifactsPath }` to startServer to enable verified reuse)',
+    };
+  }
+  const bundleHash = provenance.bundleHash ?? readCommittedBundleHash(provenance.artifactsPath);
+  return verifyApiProvenance(baseUrl, { appId: provenance.appId ?? null, bundleHash });
 }
 
 async function isHealthy(baseUrl) {

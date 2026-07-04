@@ -18,7 +18,8 @@ const repoRoot = join(here, '..', '..', '..', '..');
 const backendDir = join(here, '..', '..', 'snapback');
 const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'utf8'));
 
-const server = await startServer({ port: 4402, db: ':memory:', cwd: repoRoot });
+const server = await startServer({ port: 4402, db: ':memory:', cwd: repoRoot,
+  provenance: { appId: 'todo-v2', artifactsPath: join(repoRoot, 'demos', 'todo-v2', 'snapback', 'generated', 'artifacts.json') } });
 const db = new SnapbackClient(server.baseUrl);
 const ADA = 'user_ada';
 const print = (rows) => rows.map((r) => `   [${r.completed ? 'x' : ' '}] ${r.priority.padEnd(6)} ${r.title}`).join('\n');
