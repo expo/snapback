@@ -101,7 +101,11 @@ When a live 511 snapshot commits, `feedState.lastSource` is
 directly under the board footer (testId `feed-problem`) — the same actionable
 message `refreshFeed` commits to `feedRefreshState.lastError` (with the API
 key redacted). An intentional demo run (no keys, no error) shows nothing.
-Station-card walk/bike ETAs fall back to haversine without a `directions` key.
+The board footer shows which one you are looking at: an amber **DEMO DATA**
+badge (testId `data-source`) while delays come from the seeded/recorded feed,
+flipping to a green **LIVE** badge only after a real 511 snapshot commits
+(`feedRefreshState.lastSource`). Haversine walk/bike ETAs are prefixed `~`;
+routed OpenRouteService ETAs show plain.
 
 ## Production web build
 

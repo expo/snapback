@@ -68,7 +68,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 16;
+const EXPECTED_CHECKS = 17;
 
 const suite = createSuite('all-aboard browser (Phase 1)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];
@@ -254,6 +254,16 @@ async function main() {
       return { problem, lastSource: feed.lastSource };
     });
 
+    await suite.check('data-source badge says DEMO DATA while the feed is recorded, not live 511', async () => {
+      // No 511 key in this suite, so the refresh commits recorded-fallback;
+      // the badge must say demo data instead of posing as live data.
+      const badge = await page.text('data-source');
+      if (!/DEMO DATA/.test(badge ?? '')) throw new Error(`expected the demo-data badge: ${badge}`);
+      const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
+      if (feed.lastSource === '511-siri-stop-monitoring') throw new Error('recorded suite unexpectedly marked live');
+      return { badge, lastSource: feed.lastSource };
+    });
+
     // --- The paved path (LLP 0034 §6 ownership row 3; Exact 0284 §5.3 item 3):
     // server push through generated bindings, no hand-written pump, D4 boot.
 
@@ -282,14 +292,17 @@ async function main() {
       // performs no interaction and owns no poll timer for these queries —
       // the freshness marker must go "just now" purely from the push.
       const client = new SnapbackClient(apiUrl);
-      const tickBefore = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
+      const feedBefore = (await client.query('feedState', {})).rows[0] ?? {};
+      const tickBefore = feedBefore.tickIndex ?? -1;
+      const tickCount = feedBefore.tickCount ?? 0;
       const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
       const record = await run.json();
       const fresh = await page.pollText('freshness', 'Updated just now', 6000);
       if (fresh !== 'Updated just now') throw new Error(`cron delta did not reach the browser: freshness=${fresh}`);
       const tickAfter = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
-      if (!(tickAfter > tickBefore)) throw new Error(`cron run did not advance the feed (${tickBefore} -> ${tickAfter})`);
+      // Recorded feed ticks are cyclic: 5 -> 0 is a valid advance.
+      if (tickCount > 1 && tickAfter === tickBefore) throw new Error(`cron run did not advance the feed (${tickBefore} -> ${tickAfter})`);
       const conns = await page.eval('window.allAboard.connections()');
       if (conns.liveTrainStatus !== 'live') throw new Error(`connection degraded during push: ${JSON.stringify(conns)}`);
       return { cronOutcome: record.outcome, tickBefore, tickAfter, connections: conns };

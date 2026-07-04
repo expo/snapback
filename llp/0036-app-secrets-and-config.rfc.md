@@ -5,8 +5,8 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-04 (ENG-22752: the wizard's pre-provision empty state — `config.status` gained `appProvisioned` and the setup page now explains "no app has booted yet, open the app page once" instead of rendering nothing. Earlier, 2026-07-02: ratified Accepted by Charlie — the shipped v1 design with honest gaps banner; ledgered in LLP 0000. Also later same day, ENG-22598: the admin console — Contract console and embedded fallback — gained a Secrets surface projecting `config.status` with per-entry probe verify and grants legibility; see LLP 0017 §Implementation status. Earlier: v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0015, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0027, LLP 0028, LLP 0029, LLP 0031, Diary 0008
+**Revised:** 2026-07-04 (ENG-22752: the wizard's pre-provision empty state — `config.status` gained `appProvisioned` and the setup page now explains "no app has booted yet, open the app page once" instead of rendering nothing. D9 added — a read-only `.env`/JSON file *source* plus a durable store-path override (`--config-file`) that decouples the config store from the database, so `--memory` instances keep secrets across restarts; generalizes the `.env`-style source the v1 order named but shipped only as the deprecated `SNAPBACK_ACTION_SECRETS` env-blob. Design only — not yet built; see Implementation order §Near-term. Earlier, 2026-07-02: ratified Accepted by Charlie — the shipped v1 design with honest gaps banner; ledgered in LLP 0000. Also later same day, ENG-22598: the admin console — Contract console and embedded fallback — gained a Secrets surface projecting `config.status` with per-entry probe verify and grants legibility; see LLP 0017 §Implementation status. Earlier: v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0015, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, Diary 0008
 
 ## Summary
 
@@ -144,6 +144,7 @@ Settled questions, each argued in its section below:
 | D6 | Agent acquisition | Structured acquisition metadata + the ordinary set/verify operations are the seam; a ladder of automation levels, with human commitments (terms, payment) named per entry and reserved for humans absent explicit delegation |
 | D7 | Hosted write/apply semantics | Store backends are explicit classes, not target names; writes may be out-of-band of the running server (operator-side locus); `pending` is writer-computed, `applied` is attested via per-app config generations |
 | D8 | Per-action scoping | Functions declare the entries they use (`uses`); undeclared access is denied at runtime and `uses` names are validated at manifest load — grants ship in v1, not later |
+| D9 | Local file source vs durable store path | Two distinct seams: a read-only `.env`/JSON **source** seeds declared entries at startup (generalizing the deprecated `SNAPBACK_ACTION_SECRETS` blob to a file); an explicit **store path** (`--config-file`) makes the 0600 store durable independent of the database, so `--memory` instances keep config across restarts. Precedence: source < store < live write; pools need JSON, not `.env` |
 
 ## Design
 
@@ -395,6 +396,116 @@ password manager is. Stated consequences, so nobody discovers them later:
   Snapback cannot export them, by design. The declaration, acquisition
   metadata, and wizard/CLI are what make re-provisioning cheap. This is a
   designed consequence of D1's no-read-back inheritance, not an oversight.
+
+### External file source and durable store path (D9)
+
+The local baseline derives the store's path from the database file (§The store
+and the target seam): `.snapback/dev.sqlite3` → `.snapback/dev.sqlite3.config.json`.
+Two consequences D1 did not address follow. First, an **in-memory** instance
+(`--memory`, [LLP 0002](./0002-canonical-local-target.decision.md)) has no
+database file, so its store is memory-only and its configuration evaporates on
+stop — correct for a throwaway instance, a surprise for an operator who
+configured keys through the wizard and restarted. Second, nothing lets two
+instances, or two successive `--memory` runs, share one set of values. The v1
+slice shipped only the deprecated `SNAPBACK_ACTION_SECRETS` env-blob import
+(§Motivation); the general "`.env`-style input as a source" that item 2 of the
+v1 order and [LLP 0009](./0009-code-execution-security.rfc.md) §Secrets both
+name was never built as a file. D9 specifies both, and separates the two things
+"a file for secrets" conflates:
+
+- A **source** is read-only input the *operator* owns: a `.env` or JSON file
+  Snapback reads at startup to seed declared entries and never writes back. The
+  store stays authoritative; the source only fills entries the store leaves
+  unset.
+- A **store path** is read-write persistence Snapback *owns*: the versioned
+  0600 JSON store (§The store and the target seam), at a path decoupled from
+  the database so it survives independently. This is what carries wizard edits
+  between `--memory` runs.
+
+They are not interchangeable, and the format forces the split: a hand-authored
+`.env`/plain-JSON file carries no set-at, source, verified, or pool-cursor
+metadata, so it can *seed* the model but cannot *be* the store without silently
+dropping that state on the first write. `.env`/JSON is a source; the store
+keeps its own format.
+
+**Store path override.** A `--config-file <path>` flag sets the store's path
+explicitly, independent of `--memory` and `--db`.
+`snapback --memory --config-file .snapback/secrets.json` gives an ephemeral
+database with a durable secrets store: `config.set`/wizard writes round-trip to
+the file, verification state persists, and the next run reads them back.
+Mechanically this is small — the store is already a separate sibling file, so
+D9 makes its path a first-class input rather than a mechanical derivative of
+`--db`. Under this flag the store keeps every existing invariant unchanged:
+0600 mode, atomic replace (write-temp-then-rename), the single-instance
+advisory lock (§Multi-replica limit), the versioned format, and verification
+reset on any value change.
+
+**File source.** A `--config-source <path>` seeds declared entries at startup,
+generalizing the env-blob import from an env var to a file (and whether a
+conventional `.env` in the instance dir is auto-loaded is an open question
+below). It obeys the env-blob's rules unchanged: **only declared names are
+imported**, everything else is reported `ignored` — a stray `.env` var never
+silently becomes a secret — and each import is recorded `source: file-import`
+so `config.status` stays honest about provenance. This is the near-term down
+payment on the v2+ `external-resolver` backend class (§The store and the target
+seam): the simplest member of that family, a flat file rather than 1Password or
+Vault.
+
+**Precedence.** When more than one populates an entry, later-and-more-
+authoritative wins: **file source (seed) < persisted store < live `config.set`**.
+A seed fills an unset entry; a value already in the store (something the
+operator set) is not overwritten by a seed on the next boot; an explicit write
+beats both. This is the ordinary `.env` < real-secret-manager layering, stated
+so it is not emergent.
+
+**Pools.** A `.env` file cannot express an ordered pool of *n* values under one
+name without an ad-hoc convention, and the driving case is a pool (the All
+Aboard 511.org key pool,
+[LLP 0027](./0027-all-aboard-caltrain-demo.plan.md), absorbing
+[LLP 0029](./0029-all-aboard-gap-closure.plan.md) §G4). So the rule is
+explicit: **`.env` sources set single-value entries only; pools require JSON**
+(an array per entry) or the store. Flat-file convenience never quietly
+amputates rotation.
+
+**What it must not become.** The point of this subsystem was to replace
+`SNAPBACK_ACTION_SECRETS`'s flat process-wide blob with a declared, scoped,
+pooled, verified model (§Motivation). A file source *feeds* that model — values
+map to declared entries, cross the handler edge as handles, and stay scoped by
+`uses` (D8) — it is not a bypass back to "a bag of env vars." No-read-back is
+unchanged: values arriving from a file are still never readable through admin
+or any op ([LLP 0009](./0009-code-execution-security.rfc.md) §Secrets); the
+file feeds the store, and the store feeds only the runtime grant path.
+
+Alternatives considered:
+
+- **Make `--memory` config persistent by default** (auto-write a
+  `.snapback/config.json` even with no database file). Rejected: an ephemeral
+  database with durable secrets is a surprising split, and `--memory` means
+  "throwaway instance." Persistence should be opt-in via `--config-file`, not a
+  default that contradicts the flag the operator chose. The admin surface
+  already reports storage mode ([LLP 0017](./0017-admin-console-inspection-surface.rfc.md));
+  the wizard additionally warning "in-memory — configuration will not persist"
+  is the honest floor when neither flag is set.
+- **Store secrets in the in-memory database** so they share the instance's
+  lifecycle. Rejected already by D1 — the database is exported, dumped, and
+  reset freely and must not carry keys; an in-memory database is the same class
+  of artifact and inherits the same objection.
+- **Use the `.env`/JSON file as the read-write store** (write edits back into
+  it). Rejected: plain `.env`/JSON has nowhere to record set-at, source,
+  verified, and pool cursors, so admin writes would drop that metadata. A
+  source stays read-only and the store keeps its versioned format; an operator
+  who wants durable edits uses `--config-file`, one who wants an authoritative
+  hand-maintained file treats it as a source and re-seeds.
+
+**Security posture.** The store Snapback writes stays 0600. A source the
+operator owns is outside Snapback's control, so Snapback **warns** (does not
+fail) when a source file is group- or world-readable, and the docs carry the
+same gitignore caution D1's `config.json` already earns — a source with live
+keys committed to the repo is the classic footgun
+([LLP 0009](./0009-code-execution-security.rfc.md) §Secrets bans secrets in the
+repo and generated bundles). The transit rule (§The store and the target seam)
+does not apply: these are local files, not a value-carrying request over the
+wire.
 
 ### Runtime exposure (D5, D8)
 
@@ -713,6 +824,17 @@ legible to the agent at each step, which is what the test demands.
    Verify and the D3 posture banner.
 6. All Aboard migrated; G4 closed — storage *and* scoping halves.
 
+**Near-term (D9), design-complete, not yet built:** the durable store-path
+override (`--config-file`, decoupling the store from `--db`/`--memory`) and the
+general `.env`/JSON file *source* (`--config-source`, generalizing the shipped
+`SNAPBACK_ACTION_SECRETS` env-blob import), with the source < store < live-write
+precedence, the `.env`-single-value / JSON-pool rule, `source: file-import`
+provenance, and the group/world-readable-source warning. Small in surface: the
+store is already a separate sibling file, so this makes its path an explicit
+input and adds a read-only seed path that reuses the existing declared-names-
+only import. Pairs with the wizard/console "in-memory — will not persist"
+warning noted in D9's alternatives.
+
 **v2+:** non-secret entries and the host-maintained status/config tables
 (after the LLP 0004/0007 reserved-table coordination); CLI and MCP
 projections (with LLP 0032 P6); hosted store backends by class per target
@@ -735,7 +857,12 @@ has no path to config; an action reading an entry outside its `uses` grant
 gets `CONFIG_UNDECLARED`; `JSON.stringify`, template coercion, `console.log`,
 and thrown-error paths through a handle all yield redaction; a non-loopback
 plaintext `config.set` is refused; no operation, log line, or console
-response ever contains a set value; app-data export contains no values.
+response ever contains a set value; app-data export contains no values. For D9:
+a value set under `--memory --config-file <path>` is present after a restart
+with the same flag and absent under `--memory` alone; a `.env`/JSON source
+seeds declared entries and reports undeclared names as `ignored`; and neither
+path opens a value read-back — the durable store and the seeded entries still
+return names and status only.
 
 ## Open questions
 
@@ -771,3 +898,12 @@ response ever contains a set value; app-data export contains no values.
   [LLP 0009](./0009-code-execution-security.rfc.md) §Invocation Isolation) or
   values are read per-invocation; the v1 slice should read through the store
   per invocation and leave caching to the DK-4 machinery.
+- **File source ergonomics (D9)** — whether Snapback auto-loads a conventional
+  `.env`/`config.json` from the instance dir or requires an explicit
+  `--config-source`, and whether a source is read once at startup or watched
+  for change. A watched source blurs the source < store precedence and can
+  silently resurrect a value the operator unset, so D9's first cut reads once
+  at startup and requires the explicit flag, leaving auto-detection and
+  watching to evidence. Also open: whether `--config-file` and `--config-source`
+  are the right names next to the existing `--db`/`--memory`, and whether a
+  single flag with a read-only/read-write mode is cleaner than two.

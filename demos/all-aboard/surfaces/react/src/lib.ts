@@ -214,7 +214,10 @@ export function walkBikeSummary(station: { id?: string; lat: number; lng: number
       ? estimateBikeMinutes(location, station)
       : estimateWalkMinutes(location, station);
   const miles = routed?.distanceMiles ?? estimateDistanceMiles(location, station);
-  return `${minutes} min ${mode === 'bike' ? 'bike' : 'walk'} · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+  // A routed ETA (openrouteservice) shows plain; the straight-line haversine
+  // fallback is marked approximate so estimated numbers never pose as routed.
+  const approx = routed?.source === 'openrouteservice' ? '' : '~';
+  return `${approx}${minutes} min ${mode === 'bike' ? 'bike' : 'walk'} · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 
 // Compact ETA for the stations-list rows: the mode's minutes plus distance
@@ -236,15 +239,40 @@ export function feedFreshness(nowMs: number, feedRows: readonly FeedRow[]): stri
   return `Updated ${Math.round(ageSeconds / 60)} min ago`;
 }
 
+// --- Data-source badge (live 511 feed vs the recorded demo feed) -----------------
+//
+// feedRefreshState.lastSource records where the last committed refresh came
+// from (handlers.mjs): '511-siri-stop-monitoring' only when a real 511 fetch
+// landed; 'seed' / 'recorded' / 'recorded-fallback' / 'reset' all mean the
+// board is showing the canned demo feed. The badge makes that distinction
+// visible on the board instead of leaving demo data to pose as live data.
+
+const LIVE_FEED_SOURCE = '511-siri-stop-monitoring';
+
 // Why the board is NOT on live 511 data, when there is a recorded reason.
 // refreshFeed commits an actionable lastError on every fallback (ENG-22751);
 // an intentional demo run (seed/recorded, no error) stays quiet.
 export function feedProblem(feedRows: readonly FeedRow[]): string {
   const feed = feedRows?.[0] ?? null;
-  if (!feed || (feed.lastSource ?? '') === '511-siri-stop-monitoring') return '';
+  if (!feed || (feed.lastSource ?? '') === LIVE_FEED_SOURCE) return '';
   const error = (feed.lastError ?? '').trim();
   if (!error) return '';
   return error.length > 180 ? `${error.slice(0, 177)}…` : error;
+}
+
+export interface FeedSourceBadge {
+  live: boolean;
+  label: string;
+  color: string;
+  tint: string;
+  border: string;
+}
+
+export function feedSourceBadge(feedRows: readonly FeedRow[]): FeedSourceBadge {
+  const live = (feedRows?.[0]?.lastSource ?? '') === LIVE_FEED_SOURCE;
+  return live
+    ? { live, label: 'LIVE', color: '#34d399', tint: '#34d3991f', border: '#34d39947' }
+    : { live, label: 'DEMO DATA', color: '#fbbf24', tint: '#fbbf241f', border: '#fbbf2447' };
 }
 
 // --- Position indicator (for the train detail continuum) -------------------------

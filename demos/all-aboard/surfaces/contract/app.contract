@@ -64,6 +64,7 @@ use walkBikeSummary from "./data.ts"
 use distanceLabel from "./data.ts"
 use feedFreshness from "./data.ts"
 use feedProblem from "./data.ts"
+use feedSourceBadge from "./data.ts"
 use positionFraction from "./data.ts"
 use positionLabel from "./data.ts"
 use fractionPercent from "./data.ts"
@@ -95,6 +96,7 @@ component AllAboard
   derive walkBike = walkBikeSummary(station, etaMode, nowMs)
   derive freshness = feedFreshness(nowMs, feedRows)
   derive feedIssue = feedProblem(feedRows)
+  derive feedSource = feedSourceBadge(feedRows)
   derive matches = searchStations(query, nowMs)
   derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows) : null
 
@@ -145,6 +147,7 @@ component AllAboard
     has button "Change station"
     when screen == "home" then has button "Flip direction"
     when screen == "home" then has node testId="service-filter"
+    when screen == "home" then has node testId="data-source"
     when screen == "stations" then has input label="Search stations"
 
   view
@@ -172,9 +175,9 @@ component AllAboard
                   row justify="center" width="100%"
                     row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background="#fbbf2422" borderWidth=1 borderColor="#fbbf2447"
                       text "Reconnecting — showing last-known delays" size=11 weight=700 color="#fbbf24" testId="delays-stale"
-                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
               ready rows
-                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
         else
           when screen == "stations"
             StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, etaMode=etaMode, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
@@ -233,6 +236,7 @@ component DirectionBoard
     serviceFilter: string
     freshness: string
     feedIssue: string
+    feedSource: object
     photoCredit: string
     delayRows: object[]
     toggleDirection: (next) => void
@@ -310,7 +314,12 @@ component DirectionBoard
               text "min" size=11 color="#ffffff73"
 
       row justify="space-between" align="center" width="100%" paddingTop=2
-        text freshness size=12 color="#ffffff73" testId="freshness"
+        // The data-source badge: amber "DEMO DATA" on the recorded/seed feed,
+        // green "LIVE" only after a real 511 snapshot commits (lastSource).
+        row gap=7 align="center"
+          row radius=999 paddingLeft=8 paddingRight=8 paddingTop=3 paddingBottom=3 background=feedSource.tint borderWidth=1 borderColor=feedSource.border
+            text feedSource.label size=10 weight=800 letterSpacing=1 color=feedSource.color testId="data-source"
+          text freshness size=12 color="#ffffff73" testId="freshness"
         button press=doRefresh label="Refresh" testId="refresh" paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
           text "Refresh" size=12 weight=700 color="#ffffffe6"
       // Why the board is on the recorded feed instead of live 511 — the

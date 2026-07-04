@@ -790,3 +790,42 @@ what to do: "allow location for this site, then tap here".
 grant→adopt→fresh-retry check; both self-isolated off the squatted :4420/:5178
 via the ENG-22753 provenance guard), react-surface `tsc --noEmit` clean,
 `./ref-check --verbose` 0 errors.
+
+## 2026-07-04 — demo/live source honesty
+
+The `feed-problem` line answered "why did live data fail?", but the normal
+demo state still looked too much like live transit. This pass makes the board
+state explicit in both surfaces: a `data-source` badge says **DEMO DATA** for
+seeded/recorded/fallback delays and flips to **LIVE** only when
+`feedRefreshState.lastSource` is `511-siri-stop-monitoring`. Walk/bike ETAs now
+also prefix haversine fallback estimates with `~`, while routed
+OpenRouteService estimates stay plain.
+
+### What felt good
+
+- The source signal was already in Snapback state. Adding the badge was a pure
+  derive + footer row in Contract and React; no backend shape or live-query
+  plumbing changed.
+- The new check fits the existing browser acceptance path: press Refresh,
+  observe `recorded-fallback`, assert the board still says DEMO DATA. That made
+  the data-honesty rule concrete instead of leaving it as documentation.
+
+### What felt bad or surprising
+
+- Merging this after the ENG-22751/ENG-22795 upstream work was a useful reminder
+  that "fallback reason" and "current source" are separate UI facts. Collapsing
+  them would have made intentional demo runs noisy or failed live runs vague.
+- The browser cron checks had a latent false negative: recorded feed ticks wrap,
+  so a reused server at tick 5 legitimately advances to 0. The test needed to
+  assert change across a cyclic sequence, not numeric monotonicity.
+- The two hand-written surfaces still need parallel edits for every tiny
+  user-facing truth. This was low-risk, but it is exactly the drift pressure a
+  shared adapter or generated surface helper should eventually reduce.
+
+### Compared to React + Convex / Supabase
+
+In a plain React + Convex app this would be one component edit, but the data
+source would still need to be modeled deliberately. Snapback's advantage here
+is that `lastSource` is durable, queryable, and shared with the Contract surface
+and tests; the cost is keeping the Contract and React presentation layers in
+lockstep until that duplication is retired.

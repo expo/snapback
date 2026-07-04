@@ -4,7 +4,7 @@
 
 import { directionTitle, formatClockTime, formatCountdownMinutes, serviceColor } from '../../../../snapback/shared/model.mjs';
 import { delayColor, delayLabel, serviceFilterOptions, serviceTint, shortHeadsign, upcomingStops } from '../lib.ts';
-import type { Departure, HeroBoard } from '../lib.ts';
+import type { Departure, FeedSourceBadge, HeroBoard } from '../lib.ts';
 import type { DelayRow } from '../store.ts';
 import { Press, ServicePill, column, mono, palette, pill, row } from '../ui.tsx';
 
@@ -25,6 +25,7 @@ export function DirectionBoard(props: {
   serviceFilter: string;
   freshness: string;
   feedIssue: string;
+  feedSource: FeedSourceBadge;
   photoCredit: string;
   delayRows: readonly DelayRow[];
   onToggleDirection: (next: string) => void;
@@ -282,8 +283,32 @@ export function DirectionBoard(props: {
       )}
 
       <div style={{ ...row, justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: 2 }}>
-        <div data-testid="freshness" style={{ fontSize: 12, color: palette.inkFaint }}>
-          {props.freshness}
+        {/* The data-source badge: amber "DEMO DATA" on the recorded/seed feed,
+            green "LIVE" only after a real 511 snapshot commits (lastSource). */}
+        <div style={{ ...row, gap: 7, alignItems: 'center' }}>
+          <div
+            data-testid="data-source"
+            title={
+              props.feedSource.live
+                ? 'Live delays from the 511.org Caltrain feed'
+                : 'Simulated delays from the recorded demo feed — add a 511.org key for live data'
+            }
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: 1,
+              color: props.feedSource.color,
+              background: props.feedSource.tint,
+              border: `1px solid ${props.feedSource.border}`,
+              borderRadius: 999,
+              padding: '3px 8px',
+            }}
+          >
+            {props.feedSource.label}
+          </div>
+          <div data-testid="freshness" style={{ fontSize: 12, color: palette.inkFaint }}>
+            {props.freshness}
+          </div>
         </div>
         <Press onPress={props.onRefresh} label="Refresh" testId="refresh" style={pill({ padding: '5px 12px' })}>
           <div style={{ fontSize: 12, fontWeight: 700, color: palette.inkStrong }}>Refresh</div>
