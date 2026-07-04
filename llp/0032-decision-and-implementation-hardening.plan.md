@@ -5,7 +5,7 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-03 (§Phase 5 stranding note: Phase 5 was executed end to
+**Revised:** 2026-07-03 (Phase 5 re-landed adapted to the post-sync main — ENG-22680: P1–P8 done-whens closed on this line, Milestone C reached, docket + acceptance status records restored; per-phase adaptation notes in §Phase 5). 2026-07-03 (§Phase 5 stranding note: Phase 5 was executed end to
 end on 2026-07-02 on a pre-origin-sync line now preserved as
 `backup/main-before-origin-sync-20260702`; its doc-only decision records —
 X1/DK-2, X2/DK-5, X4/DK-9, DK-10, the LLP 0011 and LLP 0036 ratifications,
@@ -485,6 +485,13 @@ Each fix lands with a failing-then-passing test named for the step id.
 
 **Phase 1 Done when:** all S-steps closed; `cargo test` includes every new
 regression test; the 0031 registry test is in CI.
+
+**Phase 1 completed 2026-07-02** (record re-landed 2026-07-03, ENG-22680).
+The two legs deliberately deferred at the 07-01 sweep closed with their
+owning steps: S5.D5 resolved with P4 (recovery-by-snapshot; the outbox dies
+with the connection) and S4 closed with P6 (reconciled to LLP 0034 D4's
+boot semantics; destructive class gated). Every other S-step landed
+2026-07-01 with regression tests.
 
 ## Phase 2 — Execution-semantics honesty
 
@@ -1063,22 +1070,27 @@ agent-first philosophy leans on hardest — is the least fed-back component in
 the repo. This phase makes the JS estate product-grade. It can run in
 parallel with Phase 3.
 
-> **Status (2026-07-03) — executed on a stranded line; re-landing required
-> (ENG-22680).** Phase 5 was executed end to end on 2026-07-02 — P1–P8,
-> Milestone C, and the X1/X2/X4/X5 close-outs — but on a local main that had
-> diverged from origin/main; the origin sync kept the origin lineage (the
-> LLP 0034 D1–D3 arc, the `live_delta` DK-3 landing, the admin-console,
-> secrets and cursors-web work, and the 2026-07-03 review sweeps). The
-> 22-commit execution is preserved unmerged on
+**Phase 5 completed (P1–P8) — Milestone C reached** (executed 2026-07-02 on
+the stranded line; re-landed 2026-07-03, ENG-22680). The one Milestone C
+leg that only a future event can measure: acceptance #6's glue-inventory
+drop is recorded by the *next* demo's diary.
+
+> **Status (2026-07-03) — Phase 5 re-landed; Milestone C reached
+> (ENG-22680).** Phase 5 was first executed end to end on 2026-07-02 on a
+> local main that had diverged from origin/main; the origin sync kept the
+> origin lineage and the 22-commit execution was preserved unmerged on
 > `backup/main-before-origin-sync-20260702`. The doc-only decision records
-> (X1/DK-2, X2/DK-5, X4/DK-9, DK-10, the LLP 0011 and LLP 0036
-> ratifications, the X5 idle audit) were re-landed onto main on 2026-07-03;
-> the code phases were not, and each must be re-landed *adapted to the
-> post-sync main*, not cherry-picked blind — P7's doctor and P5's
-> `store.mjs` retirement already exist here in different form, P4 must
-> reconcile with the `live_delta` landing, and P8 must reconcile with the
-> React-19 dev-serve, secrets-module, and registry-package changes. Until
-> ENG-22680 lands, the P1–P8 done-whens below remain open on this line.
+> were re-landed 2026-07-03 (morning), and the code phases were re-landed
+> the same day *adapted to the post-sync main* (ENG-22680): P1–P6 as
+> adapted cherry-picks that preserve this line's DK-7 emit-time
+> validation, ENG-22527 liveness facts, ENG-22525 publish descriptors,
+> live_delta protocol, ensureApp boot, graffiti demo, and schema_export
+> generator; P7 as a coverage port onto ENG-22595's doctor (the stranded
+> `ibex-artifacts.sh` extraction deliberately dropped — superseded by
+> ENG-22660/22664); P8 legs 2+3 (one admin client, camelCase typed
+> inspect) with leg 1's pin ceremony superseded by the
+> registry-packages-over-pinned-checkout direction (b64336a). Per-phase
+> adaptation notes live in each P-row below.
 
 - **P1 — Promote codegen out of `demos/_kit`.** `demos/_kit/codegen.mjs`
   (1,281 lines) is the only writer of the manifests, typed API, and Contract
@@ -1464,7 +1476,10 @@ Decisions this program forces. Each lands as a revision to its owner doc
 (new Decision LLP only where noted), gets ledgered in LLP 0000, and cites
 its gating evidence. **Program acceptance requires every row ledgered —
 decided, or explicitly deferred with a named revisit trigger.** Update the
-Status column in place as rows close.
+Status column in place as rows close. **All ten rows closed as of
+2026-07-02** (DK-1's E3 leg stays a pinned design question inside the
+decided implement-up direction; DK-5 is an explicit defer with four named
+revisit triggers).
 
 | Id | Decision | Options (recommendation first) | Gate | Lands in | Status |
 | --- | --- | --- | --- | --- | --- |
@@ -1577,7 +1592,9 @@ Intermediate milestones, so partial completion is a legible state:
 Guardrails while executing:
 
 - **Do not start new demos before P5 lands** — each one hand-rolls the same
-  live-push glue (five diaries of evidence).
+  live-push glue (five diaries of evidence). *(Satisfied: P5 landed — the
+  next demo builds on the packaged adapter's live push and must report a
+  lower glue count than Diary 0008's, per acceptance #6.)*
 - **Do not port to Cloudflare before X1 and X2** — the version-allocator and
   runtime-conformance answers change what gets ported.
 - **Do not pin further wire-protocol surface (LLP 0012 extensions) before
@@ -1589,6 +1606,17 @@ Guardrails while executing:
   on every step.
 
 ## Program acceptance
+
+**Status 2026-07-02 (record re-landed 2026-07-03, ENG-22680):** properties
+1–5 hold (Phases 0–5 complete; every docket row ledgered; the gating
+Phase 6 steps X1, X2's decision, X4, and X5 landed — X3 is
+scheduled-not-gating per its own step). What remains for full program
+acceptance: property 6's final leg (the *next* demo diary's glue inventory
+reporting a lower count than Diary 0008's — a future demo event by
+construction) and property 7's three still-open test-debt rows (additive
+`ALTER TABLE` migration on a populated DB; seed with duplicate `_id`s +
+function-manifest reload under live subscriptions; CORS middleware
+behavior), each of which needs a test or a recorded won't-test rationale.
 
 The program is complete when the seven end-state properties hold, checked
 concretely as:
