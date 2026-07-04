@@ -687,3 +687,44 @@ actionable fallback), `browser.mjs` and `browser-react.mjs` (15/15 with the
 new feed-problem check), plus `headless.mjs`, `cron.mjs`, and `egress.mjs`
 unchanged. Full end-to-end against the real 511 API still needs a real key
 (free, email-delivered) — everything short of that is exercised.
+
+## 2026-07-04 — second pass: walking the README against the real 511 API (ENG-22751)
+
+The issue stayed open after the first landing, so this pass re-walked the
+documented real-data flow from scratch — fresh worktree, fresh `--db`, both
+servers on isolated ports — but this time let the refresh hit the **real**
+`api.511.org` instead of a loopback mock. The whole path holds: open the app
+(backend provisions, both config entries appear), set a key through
+`/_snapback/api/config/set` (the setup-page lane), press Refresh, and the
+fetch goes out over the real Ibex action egress. With an invalid key the
+board renders `feed-problem`: `live 511 fetch failed: HTTP 401 from
+https://api.511.org/…api_key=[redacted]… This API key provided is invalid.`
+— redaction confirmed against the live wire, not just the mock. The
+ENG-22753 provenance guard also proved itself en route: both browser suites
+refused the stale June-29 `--memory` server still squatting :4420 (bundleHash
+mismatch) and self-isolated.
+
+What that walk exposed: the 401 message named the failure but not the fix.
+The no-key and no-egress fallbacks give instructions; a *rejected* key — the
+exact state a rider hits the moment their emailed 511 key is mistyped or not
+yet activated — dumped a raw transport error. Same for HTTP 429, which is a
+plausible steady state (the warm poll runs at 60/hr against a per-key
+window). Both now map to instructions, placed ahead of the diagnostic so the
+surface's 180-char tail truncation can never eat the actionable part; the
+suite asserts that ordering.
+
+Also checked, for the record: there is no keyless live Caltrain source to
+fall back to — `api.511.org` 401s without a key ("The API key is not
+provided."), and caltrain.com serves only HTML redirects, no public JSON.
+The credential is the true boundary, and the board now narrates every state
+up to it. What still stands between a rider and live data is exactly one
+free emailed key — nothing in the repo.
+
+### Verification
+
+`real-data.mjs` 6/6 (adds the 429 pooling check and the 401
+instruction-ordering assertions), `browser.mjs` 15/15, `browser-react.mjs`
+15/15 (both self-isolated off the squatted ports), `headless.mjs`, `cron.mjs`,
+`egress.mjs` green; manual: fresh server + Vite, headless Chrome render of
+the board showing the actionable, redacted 401 line straight from the real
+511 API.

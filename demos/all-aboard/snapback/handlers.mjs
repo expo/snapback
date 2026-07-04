@@ -29,7 +29,11 @@ function redactSecrets(text) {
 
 // Turn a live-fetch failure into a lastError the rider can act on. The two
 // setup mistakes (server started without the egress flag; no 511 key set) are
-// otherwise indistinguishable "demo data forever" states (ENG-22751).
+// otherwise indistinguishable "demo data forever" states (ENG-22751), and the
+// two likely 511 responses (401 for a mistyped or not-yet-activated key, 429
+// when the shared rate window is exhausted) deserve a next step, not just a
+// transport error. Instruction goes BEFORE the diagnostic detail: the surface
+// truncates long messages tail-first, and the tail is the expendable part.
 function liveFeedFailureMessage(error) {
   const raw = redactSecrets(errorMessage(error));
   if (/SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED/.test(raw)) {
@@ -37,6 +41,12 @@ function liveFeedFailureMessage(error) {
   }
   if (/SNAPBACK_CONFIG_MISSING/.test(raw)) {
     return 'live 511 fetch unavailable: no 511.org key is set — add caltrainFeed at /_snapback/admin/setup';
+  }
+  if (/HTTP 401\b/.test(raw)) {
+    return `live 511 fetch failed: 511 rejected the API key (mistyped, or not yet activated) — update caltrainFeed at /_snapback/admin/setup (${raw})`;
+  }
+  if (/HTTP 429\b/.test(raw)) {
+    return `live 511 fetch failed: 511 rate limit hit — add another caltrainFeed key at /_snapback/admin/setup (keys rotate) or wait for the next window (${raw})`;
   }
   return `live 511 fetch failed: ${raw}`;
 }

@@ -72,6 +72,14 @@ async function startMockApi() {
       res.end('This API key provided is invalid.');
       return;
     }
+    if (url.pathname === '/ratelimited/transit/StopMonitoring') {
+      // 511 keys share a per-key rate window; the exact 429 body is not
+      // pinned to the real wire shape (verifying it needs a live key) — this
+      // check covers OUR mapping of any HTTP 429 to an actionable lastError.
+      res.writeHead(429, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end('Rate limit exceeded.');
+      return;
+    }
     if (url.pathname === '/openrouteservice/v2/directions/foot-walking') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(routePayload(1609.344, 600)));
@@ -236,10 +244,30 @@ await runAcceptance(suite, async () => {
     const lastError = feedState.lastError ?? '';
     assert(lastError.startsWith('live 511 fetch failed:'), `actionable prefix: ${lastError}`);
     assert(lastError.includes('HTTP 401'), `carries the HTTP status: ${lastError}`);
+    // A rejected key must say where to fix it — and the instruction must sit
+    // BEFORE the diagnostic detail so the surface's tail-first truncation
+    // (feedProblem, 180 chars) can never eat it.
+    const instructionAt = lastError.indexOf('update caltrainFeed at /_snapback/admin/setup');
+    assert(instructionAt >= 0, `names the fix location: ${lastError}`);
+    assert(instructionAt < 180 && instructionAt < lastError.indexOf('HTTP 401'), `instruction precedes the diagnostic: ${lastError}`);
     // lastError is client-visible state (feedState live query + the surface's
     // feed-problem line): the API key must never appear in it.
     assert(!lastError.includes('config-set-key'), `api key leaked into lastError: ${lastError}`);
     assert(lastError.includes('api_key=[redacted]'), `key is redacted, not dropped silently: ${lastError}`);
+  });
+
+  await suite.check('a rate-limited live fetch tells the rider about key pooling and falls back', async () => {
+    const result = await db.action('refreshFeed', {
+      args: { trigger: 'test', feedUrl: `${mock.baseUrl}/ratelimited/transit/StopMonitoring` },
+    });
+    assert(result.ok, `refreshFeed action errored: ${JSON.stringify(result.diagnostic)}`);
+    const feedState = (await db.query('feedState', {})).rows[0];
+    assertEqual(feedState.lastSource, 'recorded-fallback', 'fell back to the recorded feed');
+    const lastError = feedState.lastError ?? '';
+    assert(lastError.includes('rate limit'), `names the cause: ${lastError}`);
+    assert(lastError.includes('add another caltrainFeed key at /_snapback/admin/setup'), `names the fix: ${lastError}`);
+    assert(lastError.includes('HTTP 429'), `carries the HTTP status: ${lastError}`);
+    assert(lastError.includes('api_key=[redacted]'), `key is redacted: ${lastError}`);
   });
 }, {
   cleanups: [
