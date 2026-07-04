@@ -32,23 +32,58 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR_IBEX="$ROOT/vendor/ibex"
 TARGET_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 
+# --json (LLP 0032 P7): emit a structured report instead of text lines.
+JSON_MODE=0
+if [ "${1:-}" = "--json" ]; then
+    JSON_MODE=1
+fi
+
 FINDINGS=0
+JSON_CHECKS=""
+
+json_escape() {
+    printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null \
+        || printf '"%s"' "$(printf '%s' "$1" | sed 's/"/\\"/g')"
+}
+
+json_append() {
+    # json_append <severity> <code> <message>
+    local entry
+    entry="{\"severity\":$(json_escape "$1"),\"code\":$(json_escape "$2"),\"message\":$(json_escape "$3")}"
+    if [ -n "$JSON_CHECKS" ]; then
+        JSON_CHECKS="$JSON_CHECKS,$entry"
+    else
+        JSON_CHECKS="$entry"
+    fi
+}
 
 report() {
     # report <severity> <code> <message>
     local severity="$1" code="$2" message="$3"
-    printf '[ibex-doctor] %s %s: %s\n' "$severity" "$code" "$message"
+    if [ "$JSON_MODE" = 1 ]; then
+        json_append "$severity" "$code" "$message"
+    else
+        printf '[ibex-doctor] %s %s: %s\n' "$severity" "$code" "$message"
+    fi
     if [ "$severity" = "ERROR" ]; then
         FINDINGS=$((FINDINGS + 1))
     fi
 }
 
 hint() {
-    printf '[ibex-doctor]   fix: %s\n' "$*"
+    if [ "$JSON_MODE" = 1 ]; then
+        json_append "FIX" "remediation" "$*"
+    else
+        printf '[ibex-doctor]   fix: %s\n' "$*"
+    fi
 }
 
 note() {
-    printf '[ibex-doctor] %s\n' "$*"
+    if [ "$JSON_MODE" = 1 ]; then
+        json_append "NOTE" "note" "$*"
+    else
+        printf '[ibex-doctor] %s\n' "$*"
+    fi
 }
 
 # --- 1. Submodule checkout state (the ENG-22595 wedge lives here) -----------
@@ -138,9 +173,105 @@ if [ -f "$VENDOR_IBEX/Cargo.toml" ]; then
             "prepared Hermes headers/tools are missing under vendor/ibex; cargo will fail with native Hermes errors"
         hint "$ROOT/scripts/bootstrap-ibex-runtime  # set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex if the prepared checkout is not ../ibex"
     fi
+
+    # macOS runtime framework (LLP 0032 P7: the launch-SIGABRT shape is a
+    # missing hermesvm/hermes framework, distinct from missing headers). The
+    # candidate list matches scripts/bootstrap-ibex-runtime's
+    # has_macos_framework; bootstrap remains the authoritative validator.
+    if [ "$TARGET_OS" = "darwin" ]; then
+        frameworks="$VENDOR_IBEX/ios/Frameworks"
+        framework_ok=0
+        for candidate in \
+            "$frameworks/hermes.framework/hermes" \
+            "$frameworks/hermes.framework/Versions/Current/hermes" \
+            "$frameworks/macosx/hermes.framework/hermes" \
+            "$frameworks/macosx/hermes.framework/Versions/Current/hermes" \
+            "$frameworks/hermesvm.framework/hermesvm" \
+            "$frameworks/hermesvm.framework/Versions/Current/hermesvm" \
+            "$frameworks/hermes.xcframework/macos-arm64_x86_64/hermesvm.framework/hermesvm" \
+            "$frameworks/hermes.xcframework/macos-arm64/hermesvm.framework/hermesvm"
+        do
+            if [ -f "$candidate" ]; then framework_ok=1; break; fi
+        done
+        if [ "$framework_ok" = "1" ]; then
+            note "OK macOS Hermes runtime framework present under ios/Frameworks"
+        else
+            report ERROR SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING \
+                "no macOS Hermes runtime framework under $frameworks — binaries build-fail or SIGABRT loading hermesvm at launch"
+            hint "$ROOT/scripts/bootstrap-ibex-runtime  # installs the framework and bakes the LC_RPATH (ENG-22664)"
+        fi
+    fi
+fi
+
+# --- 3. Runtime library path (the spawned-process dyld SIGABRT shape) --------
+
+if [ "$TARGET_OS" = "darwin" ]; then
+    # macOS SIP strips DYLD_* variables when execution crosses a protected
+    # binary (/bin/bash included), so this doctor can NEVER observe the
+    # caller's DYLD_FRAMEWORK_PATH — the very mechanism behind the "exported
+    # it and the spawned server still SIGABRTs" diary confusion. Since
+    # ENG-22664 the bootstrap bakes the LC_RPATH into built binaries, so
+    # DYLD_FRAMEWORK_PATH is only needed for binaries built before that or
+    # built outside the bootstrap; this stays standing guidance, not an
+    # observation.
+    note "INFO DYLD guidance: if a test-spawned server SIGABRTs loading Hermes, re-run $ROOT/scripts/bootstrap-ibex-runtime (bakes LC_RPATH); SIP strips DYLD_* so the doctor cannot verify your shell's value"
+elif [ "$TARGET_OS" = "linux" ]; then
+    LIB_DIR="$VENDOR_IBEX/linux/lib"
+    case ":${LD_LIBRARY_PATH:-}:" in
+        *":$LIB_DIR:"*)
+            note "OK LD_LIBRARY_PATH includes the vendored Hermes libs"
+            ;;
+        *)
+            report WARN SNAPBACK_IBEX_LD_LIBRARY_PATH \
+                "LD_LIBRARY_PATH does not include $LIB_DIR — spawned server binaries may fail to load libhermesvm (scripts/verify-local-proof sets this automatically)"
+            hint "export LD_LIBRARY_PATH=\"$LIB_DIR\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\""
+            ;;
+    esac
+fi
+
+# --- 4. Vendored Ibex CLI (optional capability; the server reports the gap) --
+
+if [ -x "$VENDOR_IBEX/target/debug/ibex" ] || [ -x "$VENDOR_IBEX/target/release/ibex" ]; then
+    note "OK vendored Ibex CLI present"
+else
+    report WARN SNAPBACK_IBEX_CLI_MISSING \
+        "vendored Ibex CLI not built — the server runs, reporting the ibex_cli capability gap"
+    hint "$ROOT/scripts/bootstrap-ibex-runtime  # links the sibling checkout's CLI when one exists"
+fi
+
+# --- 5. Toolchain -------------------------------------------------------------
+
+if command -v cargo >/dev/null 2>&1; then
+    note "OK cargo present ($(cargo --version 2>/dev/null | head -1))"
+else
+    report ERROR SNAPBACK_TOOLCHAIN_CARGO_MISSING "cargo not found"
+    hint "install Rust via rustup (https://rustup.rs)"
+fi
+
+if command -v node >/dev/null 2>&1; then
+    note "OK node present ($(node --version 2>/dev/null))"
+else
+    report ERROR SNAPBACK_TOOLCHAIN_NODE_MISSING "node not found (the demo acceptance suites need node >= 22)"
+    hint "install Node 22+"
+fi
+
+if command -v bun >/dev/null 2>&1; then
+    note "OK bun present ($(bun --version 2>/dev/null))"
+else
+    report WARN SNAPBACK_TOOLCHAIN_BUN_MISSING "bun not found — only the Exact-dependent Contract suites need it"
+    hint "install bun (https://bun.sh)"
 fi
 
 # --- Verdict -----------------------------------------------------------------
+
+if [ "$JSON_MODE" = 1 ]; then
+    OK_VALUE=true
+    [ "$FINDINGS" -gt 0 ] && OK_VALUE=false
+    printf '{"schemaVersion":"snapback.v0","resultKind":"ibexDoctorReport","os":"%s","ok":%s,"errorFindings":%s,"checks":[%s]}\n' \
+        "$TARGET_OS" "$OK_VALUE" "$FINDINGS" "$JSON_CHECKS"
+    [ "$FINDINGS" -eq 0 ] && exit 0
+    exit 1
+fi
 
 if [ "$FINDINGS" -eq 0 ]; then
     note "vendor/ibex is healthy"

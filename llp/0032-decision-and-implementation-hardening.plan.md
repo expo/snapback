@@ -1304,7 +1304,23 @@ parallel with Phase 3.
   or add a host-op): detect frameworks, paths, env, and print
   diagnostic-coded remediation. **Done when:** a fresh clone on macOS goes
   red→green through doctor guidance alone, and a CI lane exercises the
-  doctor.
+  doctor. **Re-landed 2026-07-03 (ENG-22680), reconciled with ENG-22595's
+  doctor** — main had independently built `scripts/ibex-doctor`
+  (adversarially reviewed: the fine-grained submodule wedge states
+  WEDGED/DRIFT/CONFLICT/UNINITIALIZED/BROKEN/SOURCE_MISSING) plus the
+  ENG-22660/22664 bootstrap evolution (stable non-submodule diagnostic
+  codes; baked LC_RPATH + launch smoke). That doctor is kept as the base;
+  the stranded P7's *additional* coverage is ported onto it: the macOS
+  runtime-framework probe (the launch-SIGABRT shape, distinct from missing
+  headers), the SIP/DYLD standing guidance (macOS strips `DYLD_*` across
+  protected binaries so the doctor structurally cannot observe the
+  caller's env — kept as info, with the real `LD_LIBRARY_PATH` check on
+  Linux), the vendored-CLI presence check, the cargo/node/bun toolchain
+  checks, and `--json` structured output. The stranded
+  `scripts/lib/ibex-artifacts.sh` extraction is deliberately dropped —
+  ENG-22664's bootstrap (LC_RPATH baking + launch smoke) superseded the
+  detection helpers it would have shared. `verify-local-proof` runs the
+  doctor's green path.
 - **P8 — One admin client, typed inspect.** The embedded console and the
   Contract admin-ui duplicate client and view-model logic, which is where
   the diary-0005 casing bug lived; `/inspect` still mixes camelCase,

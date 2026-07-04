@@ -270,6 +270,8 @@ try {
     return realLingerSubscribe(...args);
   };
   const lingerSurface = await createSnapbackContractSurface({
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
     runtime,
     client: lingerClient,
     userId: ADA,
