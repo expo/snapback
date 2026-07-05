@@ -245,18 +245,9 @@ async fn root_renders_declared_app_identity_escaped() {
 }
 
 #[tokio::test]
-async fn p8_both_consoles_consume_the_one_embedded_admin_client() {
+async fn admin_client_module_is_served_from_the_shared_package() {
     let app = loopback_app(seeded_snapback());
 
-    // The embedded console imports the shared client module…
-    let html = text(app.clone().oneshot(get("/_snapback/admin")).await.unwrap()).await;
-    assert!(
-        html.contains(r#"import { AdminClient } from "/_snapback/admin/client.mjs""#),
-        "embedded console imports the shared admin client"
-    );
-
-    // …and the server serves that exact module embedded, with no dist and no
-    // build step (the LLP 0017 bootstrap property).
     let module = app
         .clone()
         .oneshot(get("/_snapback/admin/client.mjs"))
@@ -270,7 +261,10 @@ async fn p8_both_consoles_consume_the_one_embedded_admin_client() {
         .to_str()
         .unwrap()
         .to_owned();
-    assert!(ctype.starts_with("text/javascript"), "served as a JS module");
+    assert!(
+        ctype.starts_with("text/javascript"),
+        "served as a JS module"
+    );
     let source = text(module).await;
     assert!(
         source.contains("export class AdminClient"),
@@ -284,11 +278,11 @@ async fn p8_both_consoles_consume_the_one_embedded_admin_client() {
 }
 
 #[tokio::test]
-async fn console_and_inspect_serve_from_one_server_without_vite() {
+async fn missing_console_dist_is_explicit_and_inspect_still_serves() {
     let app = loopback_app(seeded_snapback());
 
     let html = app.clone().oneshot(get("/_snapback/admin")).await.unwrap();
-    assert_eq!(html.status(), StatusCode::OK);
+    assert_eq!(html.status(), StatusCode::SERVICE_UNAVAILABLE);
     let ctype = html
         .headers()
         .get("content-type")
@@ -296,11 +290,15 @@ async fn console_and_inspect_serve_from_one_server_without_vite() {
         .to_str()
         .unwrap()
         .to_owned();
-    assert!(ctype.starts_with("text/html"), "console served as HTML");
+    assert!(ctype.starts_with("text/html"), "diagnostic served as HTML");
     let body = text(html).await;
     assert!(
-        body.contains("Snapback Admin Console"),
-        "console bundle is embedded"
+        body.contains("SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING"),
+        "missing dist reports a stable capability diagnostic"
+    );
+    assert!(
+        body.contains("admin-ui") && body.contains("./build.sh"),
+        "diagnostic tells the developer how to build the Contract console"
     );
 
     let inspect = json(app.oneshot(get("/_snapback/api/inspect")).await.unwrap()).await;
@@ -544,16 +542,6 @@ async fn native_exact_request_with_browser_only_dist_returns_capability_diagnost
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING"
     );
     assert_eq!(body["diagnostic"]["details"]["admin_dist_configured"], true);
-}
-
-#[tokio::test]
-async fn embedded_console_is_the_fallback_without_a_dist() {
-    // With no dist configured, the embedded single-file console is served.
-    let app = loopback_app(seeded_snapback());
-    let resp = app.oneshot(get("/_snapback/admin")).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    // "auto-refresh" appears only in the embedded console, not a built bundle.
-    assert!(text(resp).await.contains("auto-refresh"));
 }
 
 #[tokio::test]
@@ -811,7 +799,8 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
     assert!(public["functions"].is_object());
     assert!(public["storage"]["version"].is_number());
     assert!(
-        public["storage"].get("sqlitePath").is_none() && public["storage"].get("sqlite_path").is_none(),
+        public["storage"].get("sqlitePath").is_none()
+            && public["storage"].get("sqlite_path").is_none(),
         "public /inspect must not expose the on-disk DB path"
     );
     let subs = public["subscriptions"].as_array().expect("subscriptions");
@@ -841,7 +830,7 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
 /* ---------- harness ---------- */
 
 fn loopback_app(snapback: LocalSnapback) -> axum::Router {
-    app_with_context(snapback, ServerContext::detached())
+    app_with_context(snapback, loopback_context(None))
 }
 
 fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {

@@ -17,18 +17,45 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
-/// The packaged web admin console: a single self-contained file embedded in the
-/// binary so a built `snapback` serves a working console with no Node, Vite, or
-/// browser toolchain.
-///
-/// @ref LLP 0017#serving-model — production and ordinary local inspection must
-/// work without starting Vite; the bundle ships embedded.
-const CONSOLE_HTML: &str = include_str!("admin/console.html");
+/// A tiny failure shell, not a second admin UI. The admin console itself is the
+/// Contract/Exact bundle in `admin-ui/dist`; when that snapshot is unavailable,
+/// browsers get an explicit capability diagnostic instead of a separate
+/// handwritten console.
+const MISSING_ADMIN_DIST_HTML: &str = r#"<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Snapback Admin Console unavailable</title>
+<style>
+  body { margin: 0; font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f8; color: #1f2328; }
+  main { max-width: 760px; margin: 64px auto; padding: 0 24px; }
+  h1 { font-size: 24px; margin: 0 0 12px; }
+  p { line-height: 1.55; margin: 0 0 14px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: #fff; border: 1px solid #d8dee4; border-radius: 6px; padding: 14px; overflow: auto; }
+  a { color: #4455c7; }
+</style>
+</head>
+<body>
+<main>
+<h1>Snapback Admin Console unavailable</h1>
+<p><code>SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING</code></p>
+<p>The Snapback admin console is served from the Contract/Exact static build. Build it, or set <code>SNAPBACK_ADMIN_DIST</code> to a built admin snapshot.</p>
+<pre>cd admin-ui
+./build.sh
+cargo run --manifest-path ../Cargo.toml -- --memory</pre>
+<p>The headless admin API is still available at <a href="/_snapback/api/inspect"><code>/_snapback/api/inspect</code></a>.</p>
+</main>
+</body>
+</html>
+"#;
 
 /// The config setup wizard: one self-contained page rendered entirely from
 /// manifest declarations plus `config.status`, embedded like the console.
@@ -91,11 +118,9 @@ fn resolve_profile(raw: Option<&str>, loopback: bool) -> ServerProfile {
     }
 }
 
-/// The one admin HTTP client, shared by both consoles (LLP 0032 P8): the
-/// embedded console imports this exact module from
-/// `/_snapback/admin/client.mjs`, and the Contract admin-ui imports the same
-/// file as the `@snapback/admin-client` workspace package — one client, no
-/// per-console drift.
+/// The one admin HTTP client. Contract admin-ui imports the same source as the
+/// `@snapback/admin-client` workspace package, and the server also exposes it at
+/// `/_snapback/admin/client.mjs` for external tooling — one client, no drift.
 const ADMIN_CLIENT_MJS: &str = include_str!("../packages/snapback-admin-client/index.mjs");
 
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
@@ -110,12 +135,13 @@ pub struct ServerContext {
     pub started: Instant,
     pub started_at_ms: u64,
     pub admin_token: Option<String>,
-    /// Directory of a built static console bundle (`SNAPBACK_ADMIN_DIST`). When
-    /// present, the Contract console is served from here; otherwise the embedded
-    /// single-file console is the fallback.
+    /// Directory of a built static console bundle (`SNAPBACK_ADMIN_DIST`, or the
+    /// repo-local `admin-ui/dist` when it has already been built). When present,
+    /// the Contract console is served from here; otherwise `/_snapback/admin`
+    /// returns an explicit missing-dist diagnostic.
     ///
     /// @ref LLP 0017#serving-model — serve a built `admin/dist` snapshot when
-    /// present, keeping the embedded console as the always-works fallback.
+    /// present; the admin UI has a single Contract/Exact implementation.
     pub admin_dist: Option<PathBuf>,
 }
 
@@ -164,9 +190,27 @@ fn env_admin_token() -> Option<String> {
 }
 
 fn env_admin_dist() -> Option<PathBuf> {
-    std::env::var_os("SNAPBACK_ADMIN_DIST")
-        .map(PathBuf::from)
+    resolve_admin_dist(
+        std::env::var_os("SNAPBACK_ADMIN_DIST"),
+        default_admin_dist(),
+    )
+}
+
+fn resolve_admin_dist(raw: Option<OsString>, default: Option<PathBuf>) -> Option<PathBuf> {
+    raw.map(PathBuf::from)
         .filter(|path| !path.as_os_str().is_empty())
+        .or(default)
+}
+
+fn default_admin_dist() -> Option<PathBuf> {
+    let dist = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("admin-ui")
+        .join("dist");
+    if dist.join("index.html").is_file() {
+        Some(dist)
+    } else {
+        None
+    }
 }
 
 /// Shared application state: the Snapback instance (write lane), the lock-free
@@ -462,18 +506,23 @@ pub fn admin_routes() -> Router<AppState> {
         )
 }
 
-/// Serve the console page: the built Contract bundle's `index.html` when a
-/// static dist is configured, otherwise the embedded single-file console.
+/// Serve the console page: the built Contract bundle's `index.html`.
 ///
 /// @ref LLP 0017#serving-model — the built snapshot is served by the same Rust
-/// server; the embedded console is the always-works fallback.
+/// server; missing assets report a capability diagnostic instead of falling
+/// through to a second UI.
 async fn console(State(ctx): State<Arc<ServerContext>>) -> Response {
     if let Some(dist) = &ctx.admin_dist
         && let Ok(bytes) = tokio::fs::read(dist.join("index.html")).await
     {
         return ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], bytes).into_response();
     }
-    Html(CONSOLE_HTML).into_response()
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        MISSING_ADMIN_DIST_HTML,
+    )
+        .into_response()
 }
 
 /// Serve the embedded setup wizard (`/_snapback/admin/setup`) — system-static
@@ -484,7 +533,7 @@ async fn setup() -> Response {
 }
 
 /// Serve a static asset of the built console bundle (`/_snapback/admin/<path>`).
-/// Only active when a dist is configured; the embedded console has no assets.
+/// Only active when a dist is configured.
 async fn console_asset(
     State(ctx): State<Arc<ServerContext>>,
     Path(path): Path<String>,
@@ -496,10 +545,9 @@ async fn console_asset(
     {
         return StatusCode::NOT_FOUND.into_response();
     }
-    // The shared admin client is always served embedded — the bootstrap
-    // property (LLP 0017): the console and its client work with no dist and
-    // no build step, and a dist cannot shadow the client the embedded
-    // console's import resolves.
+    // The shared admin client stays embedded so external tooling has a stable
+    // module URL, and a dist cannot shadow the package source the Contract
+    // admin-ui bundles.
     if path == "client.mjs" {
         return (
             [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
@@ -736,6 +784,37 @@ mod tests {
         assert_eq!(resolve_profile(Some(""), true), ServerProfile::Dev);
         assert_eq!(resolve_profile(None, false), ServerProfile::Prod);
         assert_eq!(resolve_profile(Some(""), false), ServerProfile::Prod);
+    }
+
+    #[test]
+    fn explicit_admin_dist_wins_over_checkout_default() {
+        assert_eq!(
+            resolve_admin_dist(
+                Some(OsString::from("/tmp/explicit-admin-dist")),
+                Some(PathBuf::from("/tmp/default-admin-dist")),
+            ),
+            Some(PathBuf::from("/tmp/explicit-admin-dist"))
+        );
+    }
+
+    #[test]
+    fn missing_or_empty_admin_dist_uses_checkout_default_when_present() {
+        assert_eq!(
+            resolve_admin_dist(None, Some(PathBuf::from("/tmp/default-admin-dist"))),
+            Some(PathBuf::from("/tmp/default-admin-dist"))
+        );
+        assert_eq!(
+            resolve_admin_dist(
+                Some(OsString::from("")),
+                Some(PathBuf::from("/tmp/default-admin-dist")),
+            ),
+            Some(PathBuf::from("/tmp/default-admin-dist"))
+        );
+    }
+
+    #[test]
+    fn missing_admin_dist_without_checkout_default_stays_unconfigured() {
+        assert_eq!(resolve_admin_dist(None, None), None);
     }
 
     #[test]

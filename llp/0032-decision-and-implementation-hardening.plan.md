@@ -1333,14 +1333,14 @@ drop is recorded by the *next* demo's diary.
   ENG-22664's bootstrap (LC_RPATH baking + launch smoke) superseded the
   detection helpers it would have shared. `verify-local-proof` runs the
   doctor's green path.
-- **P8 — One admin client, typed inspect.** The embedded console and the
-  Contract admin-ui duplicate client and view-model logic, which is where
+- **P8 — One admin client, typed inspect.** The original embedded console and
+  the Contract admin-ui duplicated client and view-model logic, which is where
   the diary-0005 casing bug lived; `/inspect` still mixes camelCase,
   snake_case, and PascalCase in one payload [confirmed]. Extract the shared
   admin client (LLP 0017 open question), normalize or typed-project the
   inspect payload (pairs with 0031 D3's trimmed public inspect). **Done
-  when:** both consoles consume one client package and a typed inspect
-  schema; a casing-consistency test exists. **Scope addition (2026-07-02,
+  when:** admin UI/tooling consumers share one client package and a typed
+  inspect schema; a casing-consistency test exists. **Scope addition (2026-07-02,
   found by the Phase 5 full-proof run):** admin-ui still consumes the
   sibling Exact checkout at live HEAD — its `./build.sh` broke against
   Exact commits landed the same day ("pure context calls opaque import
@@ -1357,10 +1357,10 @@ drop is recorded by the *next* demo's diary.
   hash. The stranded `theme.contract-meta.ts` pure() declarations were
   independently superseded by ENG-22665's version on this line. (2) *One admin client:*
   `@snapback/admin-client` — the Contract admin-ui imports the workspace
-  package, the embedded console imports the byte-identical module served
-  embedded at `/_snapback/admin/client.mjs`
-  (`p8_both_consoles_consume_the_one_embedded_admin_client`); the console's
-  inline `api()` duplicate is deleted. (3) *Typed inspect:* the payload is
+  package, and the server exposes the byte-identical module at
+  `/_snapback/admin/client.mjs` for tooling; the old embedded console's inline
+  `api()` duplicate was deleted before the embedded console itself was removed
+  on 2026-07-04. (3) *Typed inspect:* the payload is
   camelCase end to end (StorageInfo, RuntimeCapabilities, delivery/
   ephemeral/cron counters, the server/admin blocks; `DiagnosticSeverity`
   now serializes lowercase, conforming Rust to the JS diagnostic family it

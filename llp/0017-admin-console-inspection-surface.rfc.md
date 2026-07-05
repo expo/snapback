@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-03 (instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface added to both consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
+**Revised:** 2026-07-04 (admin serving now has a single UI implementation: the Contract/Exact `admin-ui/dist` snapshot. The server auto-discovers a built repo-local dist when `SNAPBACK_ADMIN_DIST` is unset; if no dist is available, `/_snapback/admin` returns a missing-dist diagnostic instead of the deleted handwritten fallback console. Earlier: 2026-07-03 instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface was added to the then-existing admin consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036
 
 ## Summary
@@ -289,10 +289,14 @@ is well-formed and decode-compatible with the loosened host decoder (LLP 0268
 made the dev-only fields optional), but loading the served URL in ExactAppMac
 against this snapshot has not yet been run end-to-end.
 
-The packaged single-file web console (`src/admin/console.html`, embedded in the
-binary) remains the always-works baseline and the fallback the server serves when
-no `dist/` is configured. It needs no Exact toolchain, satisfying *Core Snapback
-tests must not require Exact*.
+The server now auto-discovers a repo-local `admin-ui/dist` when it has already
+been built and `SNAPBACK_ADMIN_DIST` is unset, making the Contract/Exact console
+the default in a prepared checkout. `SNAPBACK_ADMIN_DIST` still pins a specific
+snapshot. The handwritten single-file console has been removed; if no built
+dist is available, `/_snapback/admin` returns a small missing-dist diagnostic
+with build instructions and the headless admin API remains available. This keeps
+core Snapback tests independent of Exact while avoiding two admin UI
+implementations.
 
 ## Headless Admin Contract
 
@@ -529,9 +533,9 @@ Landed (steps 1–7 of the sketch):
 
 - the reserved `/_snapback/*` namespace, served by the same Rust server beside
   the v0 routes as aliases (`src/server.rs`, `src/admin.rs`);
-- the packaged web console: a single self-contained file embedded in the binary
-  and served at `/_snapback/admin`, with no Vite, Node, or browser toolchain
-  (`src/admin/console.html`);
+- the admin shell route at `/_snapback/admin`, which serves the built
+  Contract/Exact dist when available and otherwise reports
+  `SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING`;
 - `/_snapback/api/inspect`, which extends the existing inspect state **in place**
   with a `server` block (host, port, loopback, pid, uptime, storage mode) and an
   `admin` capability block, rather than forking a parallel schema;
@@ -557,15 +561,15 @@ A **Contract/Exact console** also landed (`admin-ui/`): a statically built
 Contract app served by the same Rust server from a `dist/` snapshot (see *Static
 bundling and the native shell*), rendering the server/storage/runtime facts,
 capability gaps, schema, functions with read/write sets, ephemeral counters, and
-diagnostics from `/_snapback/api/inspect`. It is the richer UI; the embedded
-single-file console is the baseline and fallback. The two do not yet share one
-admin client package (the Contract app has its own `AdminClient`, the embedded
-console its own inline fetch) — consolidating them is follow-on work.
+diagnostics from `/_snapback/api/inspect`. It is now the only admin dashboard UI.
+The server still exposes the shared admin client module at
+`/_snapback/admin/client.mjs` for tooling.
 
 On 2026-06-27 the Contract console was **rebuilt from scratch** as an app-shell
 layout — a fixed sidebar (the Snapback toggle mark, navigation, light/dark
-switch) beside a scrolling content pane — and now meets or exceeds the embedded
-console (see [diary 0005](../diaries/0005-admin-console-redesign.diary.md)). It
+switch) beside a scrolling content pane — after initially being compared against
+the now-deleted embedded console (see
+[diary 0005](../diaries/0005-admin-console-redesign.diary.md)). It
 adds a dedicated **Capabilities** surface (the full `capabilityManifest`:
 engines, feature flags, supported query forms, resource limits, gaps), a richer
 **Realtime** surface (durable subscriptions, live-delivery stats, the complete
@@ -590,21 +594,24 @@ verified under ENG-22214). The console's workarounds (explicit `minHeight` on
 dynamic rows, fixed-height `scroll` blocks for code/JSON output) predate that
 fix and can be retired when convenient.
 
-On 2026-07-02 both consoles gained a **Secrets** surface over the LLP 0036
+On 2026-07-02 the admin console gained a **Secrets** surface over the LLP 0036
 config ops (ENG-22598): stat tiles (declared / set / missing required /
 verified), per-entry status cards with a probe **Verify** control, "used by"
 badges joined from each function's `uses` grants, and a link to the setup
-wizard, which stays the only place values are written. The Contract console
-also raises a `config: N required missing` badge in the status strip and shows
-per-function config grants in the Functions detail. Both render names and
-states only — the view model never carries a value.
+wizard, which stays the only place values are written. The console raises a
+`config: N required missing` badge in the status strip and shows per-function
+config grants in the Functions detail. It renders names and states only — the
+view model never carries a value.
 
 ## Validation Requirements
 
 Before this RFC moves beyond Draft, acceptance should prove:
 
-- a fresh local `snapback` process serves `/_snapback/admin/` and
-  `/_snapback/api/inspect` from the same server without Vite;
+- a prepared local `snapback` process serves the built Contract/Exact
+  `/_snapback/admin/` and `/_snapback/api/inspect` from the same server without
+  Vite;
+- a no-dist local process returns `SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING`
+  for `/_snapback/admin/` while keeping `/_snapback/api/inspect` available;
 - the admin dashboard reports host, port, target profile, storage mode, SQLite
   path or in-memory status, database version, runtime engine, and capability
   gaps;
@@ -626,9 +633,8 @@ Before this RFC moves beyond Draft, acceptance should prove:
   writes;
 - a missing Exact/Contract toolchain is reported as a capability diagnostic and
   does not break core admin API tests;
-- a Contract/Exact admin surface and the packaged web console consume the same
-  admin contract for at least health, schema, functions, diagnostics, and
-  capabilities;
+- the Contract/Exact admin surface consumes the same headless admin contract
+  available to CLI, tests, agents, and future adapters;
 - no admin UI path depends on hidden backend state unavailable to CLI or agents.
 
 ## Alternatives Considered
@@ -670,18 +676,14 @@ where possible.
 
 ## Open Questions
 
-- The packaged plain web console is the required baseline (core admin tests must
-  not require Exact; it must serve without Vite) and **both surfaces now exist**:
-  the embedded single-file console is the baseline/fallback, and a statically
-  built Contract/Exact console is the richer UI served from a `dist/` snapshot
-  (*Static bundling and the native shell*). The remaining open items are narrower:
-  (a) ~~the two do not yet **share one admin client package**~~ — **resolved
-  2026-07-02 (LLP 0032 P8):** `@snapback/admin-client` is the one client; the
-  Contract admin-ui imports the workspace package and the embedded console
-  imports the byte-identical module the server serves at
-  `/_snapback/admin/client.mjs` (embedded via `include_str!`, so the
-  bootstrap property holds with no dist and no build step; test
-  `p8_both_consoles_consume_the_one_embedded_admin_client`). The same pass
+- The Contract/Exact console is the single admin dashboard UI. Core admin tests
+  must not require Exact, so the no-dist path is a diagnostic, not a second UI.
+  The remaining open items are narrower:
+  (a) ~~the admin surfaces did not share one admin client package~~ — **resolved
+  2026-07-02 (LLP 0032 P8), simplified 2026-07-04:** `@snapback/admin-client`
+  is the one client; the Contract admin-ui imports the workspace package and the
+  server exposes the byte-identical module at `/_snapback/admin/client.mjs` for
+  tooling. The same pass
   normalized the inspect payload to camelCase end to end (aliases keep old
   spellings parsing; the embedded v0 artifacts keep their LLP 0012-pinned
   shapes), committed typed schemas for both payloads

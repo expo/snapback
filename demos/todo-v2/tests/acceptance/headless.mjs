@@ -5,7 +5,8 @@
 // @ref LLP 0021#phase-0-codify-the-current-bridge-and-recipe — v2 also proves
 //   the wrong native Exact server shape reports a Snapback capability diagnostic.
 
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
@@ -21,12 +22,25 @@ const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'ut
 const schemaManifest = gen('schema.manifest.json');
 const functionManifest = gen('functions.manifest.json');
 const seed = JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8'));
+const browserOnlyAdminDist = mkdtempSync(join(tmpdir(), 'snapback-browser-only-admin-'));
+writeFileSync(
+  join(browserOnlyAdminDist, 'index.html'),
+  '<!doctype html><title>Browser-only admin fixture</title>',
+);
 
 const ADA = 'user_ada';
 const GRACE = 'user_grace';
 
-const server = await startServer({ port: 4403, db: ':memory:', cwd: repoRoot,
-  provenance: { appId: 'todo-v2', artifactsPath: join(repoRoot, 'demos', 'todo-v2', 'snapback', 'generated', 'artifacts.json') } });
+const server = await startServer({
+  port: 4403,
+  db: ':memory:',
+  cwd: repoRoot,
+  env: { SNAPBACK_ADMIN_DIST: browserOnlyAdminDist },
+  provenance: {
+    appId: 'todo-v2',
+    artifactsPath: join(repoRoot, 'demos', 'todo-v2', 'snapback', 'generated', 'artifacts.json'),
+  },
+});
 const db = new SnapbackClient(server.baseUrl);
 const suite = createSuite('todo-v2 / headless');
 
@@ -172,16 +186,17 @@ try {
     return { code: err.diagnostic.code };
   });
 
-  await suite.check('diagnostic: native Exact request to embedded browser console fails loud', async () => {
+  await suite.check('diagnostic: native Exact request to browser-only admin dist fails loud', async () => {
     const res = await fetch(`${server.baseUrl}/_snapback/admin/__exact/platform-manifest.json`);
     assertEqual(res.status, 400, 'native artifact diagnostic status');
     const body = await res.json();
     assertEqual(
       body.diagnostic.code,
-      'SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE',
+      'SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING',
       'native artifact diagnostic code',
     );
     assertEqual(body.diagnostic.details.target_surface, 'native Exact', 'target surface');
+    assertEqual(body.diagnostic.details.admin_dist_configured, true, 'admin dist configured detail');
     return body.diagnostic;
   });
 
@@ -197,9 +212,11 @@ try {
   console.log('\n--- machine-readable report ---');
   console.log(JSON.stringify(report));
   await server.stop();
+  rmSync(browserOnlyAdminDist, { recursive: true, force: true });
   process.exit(report.ok ? 0 : 1);
 } catch (error) {
   console.error('acceptance harness crashed:', error);
   await server.stop();
+  rmSync(browserOnlyAdminDist, { recursive: true, force: true });
   process.exit(2);
 }

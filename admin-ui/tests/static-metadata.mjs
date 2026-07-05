@@ -34,16 +34,6 @@ assert.match(
   'route screen title should match the admin document title',
 );
 
-const fallbackConsole = readFileSync(
-  resolve(adminRoot, '..', 'src', 'admin', 'console.html'),
-  'utf8',
-);
-assert.match(
-  fallbackConsole,
-  /<title>Snapback Admin Console<\/title>/,
-  'embedded fallback console title should match the admin document title',
-);
-
 console.log('admin static metadata: ok');
 
 function exactStyleCreateAppLiteral(source) {

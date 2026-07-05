@@ -1,11 +1,9 @@
 // The one HTTP client for the Snapback headless admin API (`/_snapback/api/*`).
 //
-// Both admin consoles consume this module (LLP 0032 P8): the Contract
-// admin-ui imports it as a workspace package, and the embedded single-file
-// console imports the same file served by the server at
-// `/_snapback/admin/client.mjs` — so client behavior (auth header, error
-// shaping, verb set) cannot drift one console at a time, which is where the
-// diary-0005 casing bug class lived.
+// The Contract admin-ui imports it as a workspace package, and the server also
+// exposes the same file at `/_snapback/admin/client.mjs` for tooling — so client
+// behavior (auth header, error shaping, verb set) has one implementation, which
+// is where the diary-0005 casing bug class lived.
 //
 // The admin console is a *system app*: it talks to this privileged admin
 // contract, never to ordinary app tables through generated application

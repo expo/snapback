@@ -41,6 +41,7 @@ export async function startServer({
   port = 4399,
   db = ':memory:',
   cwd = process.cwd(),
+  env = {},
   provenance = null,
   // When true (or an identity object), a healthy server with NO loaded bundle
   // — unprovisioned or schema-only, which bundle provenance can never verify —
@@ -75,7 +76,7 @@ export async function startServer({
 
   const child = spawn('cargo', args, {
     cwd,
-    env: { ...process.env, ...runtimeEnv },
+    env: { ...process.env, ...env, ...runtimeEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let log = '';

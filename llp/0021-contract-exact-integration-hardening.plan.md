@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, Client integration, Developer experience, Testing, Packaging, Admin console, Runtime
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-01 (linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
+**Revised:** 2026-07-05 (admin-console serving language caught up with LLP 0017's single-UI model: no-dist is now a missing-dist diagnostic, and stale/browser-only dists still fail native Exact artifact requests with structured diagnostics. Earlier: 2026-07-01 linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
 **Related:** LLP 0005, LLP 0012, LLP 0016, LLP 0017, LLP 0020, LLP 0023, LLP 0030, Diary 0001, Diary 0002, Diary 0003, Valet LLP 0088 (retired prior-art), Exact 0263, Exact 0265, Exact 0268
 
 ## Summary
@@ -430,8 +430,8 @@ Done:
   inventories demo/admin glue, lifecycle, launch shapes, static/native recipe,
   and product-versus-prototype ownership.
 - [x] Snapback emits structured `SNAPBACK_CAPABILITY_EXACT_*` diagnostics when a
-  native Exact shell requests artifacts from the embedded browser-only admin
-  console or from a stale/browser-only dist.
+  native Exact shell requests artifacts with no admin dist configured, or from a
+  stale/browser-only dist.
 
 Open:
 
@@ -586,9 +586,9 @@ Open:
 - [ ] Decide what to do with [`admin-ui/admin-client.mjs`](../admin-ui/admin-client.mjs)
   and admin view-model shaping: package it as a documented admin client or bless
   it as the system-app exception.
-- [ ] Keep the embedded vanilla-JS admin console as the always-works baseline
-  until the Contract/Exact path can fail gracefully without blocking ordinary
-  inspection.
+- [x] The embedded vanilla-JS admin console baseline was retired after the
+  Contract/Exact path gained graceful missing-dist diagnostics that do not block
+  ordinary inspection.
 
 ### Phase 5: Exact-side ergonomics
 

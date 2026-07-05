@@ -13,14 +13,14 @@ pub fn is_exact_static_artifact_path(path: &str) -> bool {
     path == "__exact/platform-manifest.json" || path.starts_with("__exact/native/")
 }
 
-/// A native Exact shell requested static/native artifacts from a server that is
-/// only serving the embedded browser admin console.
+/// A native Exact shell requested static/native artifacts from a server that
+/// has no admin dist configured.
 pub fn native_artifacts_unavailable(path: &str) -> SnapbackError {
     SnapbackError::new(
         Diagnostic::error(
             "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
             "contract-integration",
-            "native Exact artifacts were requested, but this Snapback server is serving the embedded browser-only admin console",
+            "native Exact artifacts were requested, but this Snapback server has no built admin dist configured",
         )
         .with_details(json!({
             "target_surface": "native Exact",
@@ -33,7 +33,7 @@ pub fn native_artifacts_unavailable(path: &str) -> SnapbackError {
             ],
             "next_checks": [
                 "build admin-ui with ./build.sh",
-                "start Snapback with SNAPBACK_ADMIN_DIST pointing at admin-ui/dist"
+                "serve the built admin-ui/dist snapshot, or let Snapback auto-discover it in a prepared checkout"
             ]
         })),
     )

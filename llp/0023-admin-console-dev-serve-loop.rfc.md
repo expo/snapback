@@ -84,8 +84,9 @@ What is missing is a `serve`-mode entry that reuses that configuration.
 which runs a programmatic Vite `build()` with `configFile: false`, the exact +
 contract plugins, workspace aliases, the LLP 0268 route-registry/subdir-entry
 preflights and native targets, and a post-build URL rewrite for the
-`/_snapback/admin/` mount. The Rust server then serves `dist/` (or the embedded
-`src/admin/console.html` fallback when `SNAPBACK_ADMIN_DIST` is unset).
+`/_snapback/admin/` mount. The Rust server then serves `dist/`; if no built
+snapshot is available it returns a missing-dist diagnostic instead of a second
+admin UI.
 
 The basePath rewrite and the native-export preflights exist **only because of the
 static, subpath-mounted production target**. A dev server served at root needs

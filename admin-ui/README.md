@@ -72,13 +72,14 @@ loading.
 ## Serve
 
 ```sh
-SNAPBACK_ADMIN_DIST="$(pwd)/dist" cargo run --manifest-path ../Cargo.toml -- --memory
+cargo run --manifest-path ../Cargo.toml -- --memory
 # then open the printed admin console URL
 ```
 
-When `SNAPBACK_ADMIN_DIST` is unset, the server falls back to the embedded
-single-file console (`src/admin/console.html`) — the always-works baseline that
-needs no Exact toolchain.
+After `./build.sh`, the server auto-discovers the repo-local `admin-ui/dist`
+when `SNAPBACK_ADMIN_DIST` is unset. Set `SNAPBACK_ADMIN_DIST` to pin a different
+snapshot. If no built dist is available, the server returns a missing-dist
+diagnostic instead of serving a second admin UI implementation.
 
 ## Loading in the Exact macOS shell
 

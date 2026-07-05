@@ -130,7 +130,7 @@ The admin build path is now a preset invocation:
 ```sh
 cd admin-ui
 ./build.sh
-SNAPBACK_ADMIN_DIST="$(pwd)/dist" cargo run --manifest-path ../Cargo.toml -- --memory
+cargo run --manifest-path ../Cargo.toml -- --memory
 ```
 
 `admin-ui/build.mjs` regenerates the admin Contract binding modules, then calls
@@ -143,7 +143,11 @@ The preset requires and checks:
 - programmatic Vite `build()` with `configFile: false`;
 - post-build URL rewriting for the `/_snapback/admin/` mount until Exact owns basePath support.
 
-The Snapback server serves the generated `dist/` snapshot under `/_snapback/admin/`. Without `SNAPBACK_ADMIN_DIST`, it serves the embedded single-file browser console from `src/admin/console.html`.
+The Snapback server serves the generated `dist/` snapshot under `/_snapback/admin/`.
+`SNAPBACK_ADMIN_DIST` can pin a specific snapshot; when it is unset, a local
+checkout auto-discovers `admin-ui/dist` if `./build.sh` has produced one. If no
+built dist is available, the server returns a missing-dist diagnostic rather than
+serving a second admin UI implementation.
 
 ## Admin Browser Dev Loop
 
@@ -185,7 +189,7 @@ Static browser/native admin:
 ```sh
 cd admin-ui
 ./build.sh
-SNAPBACK_ADMIN_DIST="$(pwd)/dist" cargo run --manifest-path ../Cargo.toml -- --memory
+cargo run --manifest-path ../Cargo.toml -- --memory
 # browser: open the printed admin console URL
 # native Exact shell: EXACT_APP_CUSTOM_URL=<printed admin console URL>
 ```
@@ -213,7 +217,7 @@ Current structured diagnostics:
 - `SNAPBACK_CAPABILITY_EXACT_MISSING`: no Exact checkout with the required Contract compiler, runtime, and data-provider capability was found.
 - `SNAPBACK_CAPABILITY_EXACT_PACKAGE_EXPORT_MISSING`: Exact is present, but the requested `@exact/contract` package export could not be resolved from installed packages or the configured Exact checkout.
 - `SNAPBACK_CAPABILITY_EXACT_PROVIDER_CONFORMANCE_MISSING`: Exact is present, but no Exact-owned `data-provider-conformance` suite is registered or present at known candidate paths. This remains the stale/missing-Exact diagnostic even though current local Exact checkouts should expose the suite.
-- `SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE`: a native Exact artifact was requested while Snapback is serving only the embedded browser console.
+- `SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE`: a native Exact artifact was requested while Snapback has no built admin dist configured.
 - `SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING`: a dist is configured, but the requested native Exact artifact is absent from it.
 - `SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH`: a Contract data manifest was generated from different inputs than the Snapback artifact index.
 - `SNAPBACK_STALE_CONTRACT_DATA_ARTIFACT_VERSION`, `SNAPBACK_STALE_CONTRACT_DATA_SCHEMA_HASH`, and `SNAPBACK_STALE_CONTRACT_DATA_BUNDLE_HASH`: Contract data manifest version/hash mismatches against generated Snapback artifacts.

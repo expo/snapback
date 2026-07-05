@@ -79,7 +79,7 @@
       "read-set mutation conflict (SNAPBACK_MUTATION_CONFLICT)",
       "invalid schema diagnostic (SNAPBACK_SCHEMA_SYSTEM_FIELD)",
       "invalid query diagnostic (SNAPBACK_UNKNOWN_FIELD)",
-      "wrong native Exact server shape diagnostic (SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE)",
+      "wrong native Exact server shape diagnostic (SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING)",
       "codegen fails closed (QUERY_UNKNOWN_FIELD)"
     ],
     "contract": [
@@ -113,6 +113,7 @@
   ],
   "llp0021Diagnostics": [
     "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
+    "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING",
     "SNAPBACK_CAPABILITY_EXACT_PACKAGE_EXPORT_MISSING",
     "SNAPBACK_CAPABILITY_EXACT_PROVIDER_CONFORMANCE_MISSING",
     "SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH"
