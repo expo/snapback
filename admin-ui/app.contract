@@ -482,7 +482,9 @@ component Kv
   view
     row gap=12 align="center" paddingTop=7 paddingBottom=7 width="100%"
       text k size=13 color=c.textMuted family=f.sans flex=1 minWidth=0
-      text v size=13 weight=500 color=vColor family=mono ? f.mono : f.sans textAlign="right"
+      // value shares the row (flex=1 minWidth=0) so a long SQLite path wraps inside
+      // the card instead of overflowing over the label and past the edge (ENG-22831)
+      text v size=13 weight=500 color=vColor family=mono ? f.mono : f.sans textAlign="right" flex=1 minWidth=0
 
 component StatTile
   props
