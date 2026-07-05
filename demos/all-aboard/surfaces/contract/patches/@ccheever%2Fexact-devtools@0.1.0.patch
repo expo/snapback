@@ -1,170 +1,178 @@
 diff --git a/src/vite-plugin.ts b/src/vite-plugin.ts
-index d8d08ba77e4181ad23610a4cbf5b58ec122204bd..efd330fc2517f768a89bf16c28ad4e0c7960b1ef 100644
+index d8d08ba77e4181ad23610a4cbf5b58ec122204bd..77dc969e4fb958b1ab4a012af3b318587c190f51 100644
 --- a/src/vite-plugin.ts
 +++ b/src/vite-plugin.ts
-@@ -765,7 +765,8 @@ interface ExactStaticNativeEnvelope {
-   entry: string;
-   initialPath?: string;
-   appConfig: StaticAppConfig;
--  startup: NativeStartupArtifactManifest;
-+  moduleBundle?: string;
-+  startup?: NativeStartupArtifactManifest;
-   agent?: ExactNativeAgentConfig;
-   assets?: ExactStaticAsset[];
-   allowSourceFallback?: boolean;
-@@ -4760,27 +4761,46 @@ export function exactVitePlugin(
-       const platform = targetDescriptor.platform ?? 'native';
-       const targetId = exactStaticTargetId(targetDescriptor);
-       const targetDirectory = `__exact/native/${targetId}`;
--      const startup = await resolveExactNativeStartupArtifact(
--        prerenderServer,
--        rootDir,
--        {
-+      let startup: Awaited<ReturnType<typeof resolveExactNativeStartupArtifact>> | null = null;
-+      let staticStartupManifest: NativeStartupArtifactManifest | null = null;
-+      let moduleBundleFileName: string | null = null;
-+      let moduleBundleSource: string | null = null;
-+      try {
-+        startup = await resolveExactNativeStartupArtifact(
-+          prerenderServer,
-+          rootDir,
-+          {
-+            targetDescriptor,
-+            platform,
-+            entry: resolvedApp.entry,
-+            initialPath: '/',
-+            serverOrigin: '',
-+            websocketURL: '',
-+            serverFsRoot: '',
-+            appConfig,
-+            agent: resolveNativeAgentConfig({ EXACT_AGENT_BOOT: '0' }),
-+          },
-+        );
-+        staticStartupManifest = rewriteNativeStartupManifestForStatic(
-+          startup.manifest,
-+        );
-+      } catch (error) {
-+        if (!isExactNativeStartupPackageAssetMissing(error)) {
-+          throw error;
-+        }
-+        const moduleBundle = await collectExactModuleBundle(
-+          prerenderServer,
-+          resolvedApp.entry,
-           targetDescriptor,
--          platform,
--          entry: resolvedApp.entry,
--          initialPath: '/',
--          serverOrigin: '',
--          websocketURL: '',
--          serverFsRoot: '',
--          appConfig,
--          agent: resolveNativeAgentConfig({ EXACT_AGENT_BOOT: '0' }),
--        },
--      );
--      const staticStartupManifest = rewriteNativeStartupManifestForStatic(
--        startup.manifest,
--      );
--      const compatibility = resolveExactStaticTargetCompatibility(
--        staticStartupManifest,
--      );
-+          rootDir,
-+          { initialPath: '/' },
-+        );
-+        moduleBundleFileName = `${targetDirectory}/module-bundle.json`;
-+        moduleBundleSource = formatJsonAsset(moduleBundle);
-+      }
-+      const compatibility = staticStartupManifest
-+        ? resolveExactStaticTargetCompatibility(staticStartupManifest)
-+        : undefined;
-       const envelope: ExactStaticNativeEnvelope = {
-         kind: EXACT_STATIC_NATIVE_ENVELOPE_KIND,
-         version: 1,
-@@ -4790,9 +4810,11 @@ export function exactVitePlugin(
-         entry: resolvedApp.entry,
-         initialPath: '/',
-         appConfig,
--        startup: staticStartupManifest,
-+        ...(staticStartupManifest ? { startup: staticStartupManifest } : {}),
-+        ...(moduleBundleFileName ? { moduleBundle: './module-bundle.json' } : {}),
-         agent: resolveNativeAgentConfig({ EXACT_AGENT_BOOT: '0' }),
--        allowSourceFallback: staticStartupManifest.hbc?.status !== 'ready',
-+        allowSourceFallback: moduleBundleFileName != null ||
-+          staticStartupManifest?.hbc?.status !== 'ready',
-       };
-       const envelopeFileName = `${targetDirectory}/exact-native.json`;
-       const envelopeSource = formatJsonAsset(envelope);
-@@ -4806,16 +4828,26 @@ export function exactVitePlugin(
-           fileName: envelopeFileName,
-           source: envelopeSource,
-         },
--        {
--          fileName: `${targetDirectory}/startup.js`,
--          source: readFileSync(startup.sourcePath),
--        },
--        {
--          fileName: `${targetDirectory}/diagnostics.json`,
--          source: readFileSync(startup.diagnosticsPath),
--        },
-       );
--      if (existsSync(startup.hbcPath) && staticStartupManifest.hbc?.status === 'ready') {
-+      if (startup && staticStartupManifest) {
-+        files.push(
-+          {
-+            fileName: `${targetDirectory}/startup.js`,
-+            source: readFileSync(startup.sourcePath),
-+          },
-+          {
-+            fileName: `${targetDirectory}/diagnostics.json`,
-+            source: readFileSync(startup.diagnosticsPath),
-+          },
-+        );
-+      }
-+      if (moduleBundleFileName && moduleBundleSource) {
-+        files.push({
-+          fileName: moduleBundleFileName,
-+          source: moduleBundleSource,
-+        });
-+      }
-+      if (startup && staticStartupManifest && existsSync(startup.hbcPath) && staticStartupManifest.hbc?.status === 'ready') {
-         files.push({
-           fileName: `${targetDirectory}/startup.hbc`,
-           source: readFileSync(startup.hbcPath),
-@@ -4843,10 +4875,11 @@ export function exactVitePlugin(
-       buildFingerprintTargets.push({
-         id: targetId,
-         target: targetDescriptor,
--        cacheKey: staticStartupManifest.cacheKey,
--        sourceEtag: staticStartupManifest.source.etag,
--        hbcStatus: staticStartupManifest.hbc?.status ?? null,
--        hbcEtag: staticStartupManifest.hbc?.etag ?? null,
-+        cacheKey: staticStartupManifest?.cacheKey ?? null,
-+        sourceEtag: staticStartupManifest?.source.etag ?? null,
-+        hbcStatus: staticStartupManifest?.hbc?.status ?? null,
-+        hbcEtag: staticStartupManifest?.hbc?.etag ?? null,
-+        moduleBundleHash: moduleBundleSource ? exactSha256(moduleBundleSource) : null,
-       });
-     }
- 
-@@ -4953,6 +4986,22 @@ function rewriteNativeStartupManifestForStatic(
-   };
- }
- 
-+function isExactNativeStartupPackageAssetMissing(error: unknown): boolean {
-+  const message = error instanceof Error
-+    ? error.message
-+    : typeof error === 'string'
-+      ? error
-+      : '';
-+  if (!message.includes('ENOENT')) {
-+    return false;
+@@ -176,15 +176,83 @@ const EXACT_APP_ICON_ALIAS_FALLBACK = resolve(
+ // dev-server root, which is the app directory (e.g. `examples/markdown-viewer`)
+ // and not `js/`, so it would point at a file that does not exist. Address the
+ // real file via `/@fs/<abs>` so it resolves regardless of which app is served.
+-const EXACT_NATIVE_AGENT_BOOTSTRAP_ENTRY = `/@fs${resolve(
++const EXACT_NATIVE_AGENT_BOOTSTRAP_PATH = resolve(
+   DEVTOOLS_SRC_DIR,
+   '..',
+   '..',
+   '..',
+   'js',
+   'src/agent-bootstrap.native.ts',
+-)}`;
++);
++const EXACT_NATIVE_AGENT_BOOTSTRAP_ENTRY = `/@fs${EXACT_NATIVE_AGENT_BOOTSTRAP_PATH}`;
+ const EXACT_NATIVE_AGENT_BOOTSTRAP_RUNTIME_ENTRY = '/src/agent-bootstrap.native.ts';
++
++// ENG-22828: native startup generation embeds sources that ship with the
++// Exact monorepo, not with this published package (the startup bootstrap
++// template and the URL builtin). Resolve the root that carries them:
++// package-relative first (monorepo layout), then SNAPBACK_EXACT_ROOT, then a
++// sibling `exact` checkout discovered by walking up from the surface. Same
++// interim posture as the cursors-web bridge (ENG-22797); the durable fix is
++// a published Exact package that ships these assets (ENG-22564).
++let exactEmbeddedSourceRootCache: string | null | undefined;
++function resolveExactEmbeddedSourceRoot(): string | null {
++  if (exactEmbeddedSourceRootCache !== undefined) {
++    return exactEmbeddedSourceRootCache;
 +  }
-+  return (
-+    (message.includes('exact-host-windows') && message.includes('runtime.rs')) ||
-+    (message.includes('vendor/ibex') && message.includes('builtins/url.js')) ||
-+    (message.includes('exact-runtime') && message.includes('builtins/url.js'))
-+  );
++  const marker = (root: string) =>
++    existsSync(resolve(root, 'packages', 'exact-devtools', 'src', 'native-startup-bootstrap.template.js')) ||
++    existsSync(resolve(root, 'packages', 'exact-host-windows', 'src', 'runtime.rs'));
++  const candidates: string[] = [EXACT_REPO_ROOT];
++  if (process.env.SNAPBACK_EXACT_ROOT) {
++    candidates.push(process.env.SNAPBACK_EXACT_ROOT);
++  }
++  let dir = process.cwd();
++  for (let depth = 0; depth < 8; depth += 1) {
++    candidates.push(resolve(dir, 'exact'));
++    const parent = resolve(dir, '..');
++    if (parent === dir) break;
++    dir = parent;
++  }
++  for (const candidate of candidates) {
++    if (marker(candidate)) {
++      exactEmbeddedSourceRootCache = candidate;
++      return candidate;
++    }
++  }
++  exactEmbeddedSourceRootCache = null;
++  return null;
++}
++function requireExactEmbeddedSourceRoot(what: string): string {
++  const root = resolveExactEmbeddedSourceRoot();
++  if (root == null) {
++    throw new Error(
++      `[exact-vite-plugin] cannot serve native bundles: ${what} is not shipped in the published ` +
++        '@ccheever/exact-devtools package and no Exact checkout was found. Set SNAPBACK_EXACT_ROOT to an ' +
++        'Exact repo root or keep a sibling `exact` checkout (interim ENG-22828 bridge; durable fix ENG-22564).',
++    );
++  }
++  return root;
 +}
 +
- function resolveExactStaticTargetCompatibility(
-   startup: NativeStartupArtifactManifest,
- ): ExactStaticTargetCompatibility | undefined {
++// ENG-22828: the bootstrap ships with the Exact monorepo's `js/` app, not
++// with this published package, so registry consumers resolve it to a
++// nonexistent `node_modules/js/src/...` path. Merging a dead entry 500s every
++// native bundle fetch; degrade to the app bundle without the agent server.
++let warnedMissingNativeAgentBootstrap = false;
++function exactNativeAgentBootstrapAvailable(): boolean {
++  if (existsSync(EXACT_NATIVE_AGENT_BOOTSTRAP_PATH)) {
++    return true;
++  }
++  if (!warnedMissingNativeAgentBootstrap) {
++    warnedMissingNativeAgentBootstrap = true;
++    console.warn(
++      `[exact-vite-plugin] native agent bootstrap not found at ${EXACT_NATIVE_AGENT_BOOTSTRAP_PATH} — ` +
++        'this Exact distribution does not ship the dev agent server; serving native bundles without it ' +
++        '(native agent ops disabled, app rendering unaffected).',
++    );
++  }
++  return false;
++}
+ const EXACT_CLASSNAME_RESOLVE_ALIAS_FALLBACK = resolve(
+   DEVTOOLS_SRC_DIR,
+   '..',
+@@ -7196,7 +7264,7 @@ async function collectExactModuleGraphForNativeRuntime(
+     rootDir,
+     options,
+   );
+-  if (!includeAgentBundle) {
++  if (!includeAgentBundle || !exactNativeAgentBootstrapAvailable()) {
+     return graph;
+   }
+ 
+@@ -7233,7 +7301,7 @@ async function collectExactModuleBundleForNativeRuntime(
+     rootDir,
+     options,
+   );
+-  if (!includeAgentBundle) {
++  if (!includeAgentBundle || !exactNativeAgentBootstrapAvailable()) {
+     return bundle;
+   }
+ 
+@@ -7673,7 +7741,15 @@ async function buildExactNativeStartupSource(
+       moduleRecord,
+     ]),
+   );
+-  if (options.agent.enabled) {
++  // ENG-22828: keep the template's agent config coherent with the table —
++  // when the bootstrap is unavailable, the runtime must not attempt agent
++  // boot against a module the table cannot serve.
++  const agentBootstrapUsable =
++    options.agent.enabled && exactNativeAgentBootstrapAvailable();
++  const agent = agentBootstrapUsable
++    ? options.agent
++    : { ...options.agent, enabled: false };
++  if (agentBootstrapUsable) {
+     const agentBundle = await collectExactModuleBundle(
+       server,
+       EXACT_NATIVE_AGENT_BOOTSTRAP_ENTRY,
+@@ -7707,7 +7783,7 @@ async function buildExactNativeStartupSource(
+   const source = await applyExactNativeStartupTemplate({
+     moduleTable,
+     appConfig: options.appConfig,
+-    agent: options.agent,
++    agent,
+     entry: options.entry,
+     envelopeEntry,
+     initialPath: options.initialPath,
+@@ -7988,7 +8064,24 @@ function readExactNativeStartupTemplate(): string {
+     return exactNativeStartupTemplateCache;
+   }
+ 
+-  const runtimePath = resolve(EXACT_REPO_ROOT, 'packages', 'exact-host-windows', 'src', 'runtime.rs');
++  // ENG-22828: prefer the shared template file (ENG-22806 moved the single
++  // authority there; current runtime.rs uses concat!/include_str! and no
++  // longer carries the r#" literal this version scanned for). Fall back to
++  // the historical runtime.rs extraction for older checkouts.
++  const embeddedRoot = requireExactEmbeddedSourceRoot('the native startup bootstrap template');
++  const templatePath = resolve(
++    embeddedRoot,
++    'packages',
++    'exact-devtools',
++    'src',
++    'native-startup-bootstrap.template.js',
++  );
++  if (existsSync(templatePath)) {
++    exactNativeStartupTemplateCache = readFileSync(templatePath, 'utf8').replace(/\n$/, '');
++    return exactNativeStartupTemplateCache;
++  }
++
++  const runtimePath = resolve(embeddedRoot, 'packages', 'exact-host-windows', 'src', 'runtime.rs');
+   const runtimeSource = readFileSync(runtimePath, 'utf8');
+   const marker = 'const NATIVE_MODULE_BOOTSTRAP_TEMPLATE: &str = r#"';
+   const startIndex = runtimeSource.indexOf(marker);
+@@ -8023,12 +8116,15 @@ function readExactWindowsUrlBuiltinSource(): string {
+ }
+ 
+ function resolveExactWindowsUrlBuiltinSourcePath(): string {
+-  const ibexPath = resolve(EXACT_REPO_ROOT, 'vendor', 'ibex', 'src', 'builtins', 'url.js');
++  // ENG-22828: the URL builtin ships with the monorepo (vendor/ibex), not
++  // with this published package — resolve via the bridged root.
++  const embeddedRoot = requireExactEmbeddedSourceRoot('the URL builtin source');
++  const ibexPath = resolve(embeddedRoot, 'vendor', 'ibex', 'src', 'builtins', 'url.js');
+   if (existsSync(ibexPath)) {
+     return ibexPath;
+   }
+ 
+-  return resolve(EXACT_REPO_ROOT, 'packages', 'exact-runtime', 'src', 'builtins', 'url.js');
++  return resolve(embeddedRoot, 'packages', 'exact-runtime', 'src', 'builtins', 'url.js');
+ }
+ 
+ async function readCompactExactWindowsUrlBuiltinSource(): Promise<string> {

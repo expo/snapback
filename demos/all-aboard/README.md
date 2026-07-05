@@ -58,7 +58,16 @@ by editing the alias versions, running `bun install`, re-verifying, and
 committing the lockfile. The surface also carries a temporary Bun patch for
 `@ccheever/exact-devtools@0.1.0`; remove it when a published Exact devtools
 package owns the native optimizer escape hatch and registry-safe static
-native fallback.
+native fallback. The patch also carries the ENG-22828 native-dev-serving
+fixes (upstreamed to Exact main, not yet published): missing agent
+bootstrap degrades instead of 500ing every native bundle fetch, and the
+native startup template + URL builtin — which no published package ships —
+resolve through `SNAPBACK_EXACT_ROOT` or a sibling `exact` checkout
+discovered by walking up from the surface. Native macOS serving therefore
+still needs an Exact checkout nearby until ENG-22564 publishes packages
+that ship those assets; the app then boots to live data, though the pinned
+0.1.0 runtime still cannot paint against a current ExactAppMac host
+(protocol drift — see ENG-22564).
 
 ```sh
 # 0. One-time (and after dependency bumps): install the surface's packages
