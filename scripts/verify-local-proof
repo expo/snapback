@@ -40,6 +40,17 @@ run scripts/ibex-doctor
 run scripts/check-generated-artifacts
 run scripts/check-generated-types
 run scripts/check-demo-surfaces
+# ENG-22543 (Diary 0011 flip-condition 2): production-build every REQUIRED demo
+# web surface so a dev-green/ship-broken surface can't recur silently. Registry
+# surfaces (all-aboard) build here unconditionally; the interim sibling-checkout
+# surface (cursors-web) builds when an Exact checkout is present and loud-skips
+# with a declared reason otherwise (core lane). SNAPBACK_VERIFY_EXACT=1 also
+# forbids that skip (integration lane / cold-clone discipline).
+if [ "$VERIFY_EXACT" = "1" ]; then
+    run env SNAPBACK_REQUIRE_EXACT=1 node scripts/check-required-surface-builds.mjs
+else
+    run node scripts/check-required-surface-builds.mjs
+fi
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
 run cargo clippy --all-targets -- -D warnings
 run cargo test

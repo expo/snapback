@@ -1,0 +1,53 @@
+name: required-surface-builds
+
+# ENG-22543 (Diary 0011 flip-condition 2; Exact LLP 0286 cadence run #3): the
+# required cursors-web Contract surface was DEV-GREEN, SHIP-BROKEN on the pin —
+# it had never been production-built, so a `vite build` regression shipped
+# silently behind a green dev loop. This lane production-builds EVERY REQUIRED
+# demo web surface (derived from demos/*/demo.snapback.json) on every push/PR,
+# so a pin bump (all-aboard: surfaces/contract/bun.lock; cursors-web:
+# surfaces/contract/exact.pin.json) that breaks a required build fails here
+# instead of shipping. scripts/check-required-surface-builds.mjs is the
+# canonical gate; verify-local-proof runs the same script, so local runs and
+# CI exercise one code path.
+#
+# This is the CORE lane (LLP 0015 §Peer Checkout Versus Submodule): no Exact checkout. Registry
+# surfaces (all-aboard — @exact/* from npm, bun.lock is the pin) build here;
+# the interim sibling-checkout surface (cursors-web, ENG-22797) LOUD-SKIPS with
+# a declared reason and is production-built by the integration lane
+# (verify-local-proof with an Exact checkout, and the all-aboard-cold-clone
+# lane) until ENG-22564 migrates it onto published @ccheever/exact-* packages.
+#
+# NOTE: GitHub Actions is billing-blocked for this account as of 2026-07-02
+# (see all-aboard-cold-clone.yml), so this lane is verified by local runs of
+# the same script until CI unblocks.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Agents push to main in bursts; only the newest commit's proof matters.
+concurrency:
+  group: required-surface-builds-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  required-surface-builds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - uses: oven-sh/setup-bun@v2
+
+      # Build-only gate: no engine, no submodules, no Hermes — just the web
+      # production builds of every required surface. Registry surfaces install
+      # inside the script (bun install --frozen-lockfile); a lockfile that
+      # drifts fails, not resolves.
+      - name: Production-build every required demo web surface
+        run: node scripts/check-required-surface-builds.mjs

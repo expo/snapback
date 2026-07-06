@@ -11,6 +11,7 @@ import { createRoot } from 'react-dom/client';
 import { SnapbackClient } from '../../../../_kit/client.mjs';
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
 import { App, type Identity } from './App';
+import { ErrorBoundary } from './ErrorBoundary';
 import { CURSOR_PALETTE } from './palette';
 
 const ROOM = 'lobby';
@@ -51,7 +52,9 @@ async function boot() {
   if (!container) throw new Error('missing #root container');
   createRoot(container).render(
     <StrictMode>
-      <App client={client} roomId={ROOM} identity={identity} />
+      <ErrorBoundary>
+        <App client={client} roomId={ROOM} identity={identity} />
+      </ErrorBoundary>
     </StrictMode>,
   );
   return { client, identity };
