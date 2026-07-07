@@ -137,7 +137,13 @@ fn emit_build_identity() {
             "false" | "0" => Some(false),
             _ => None,
         })
-        .or_else(|| git(&manifest_dir, &["status", "--porcelain"]).map(|s| !s.trim().is_empty()));
+        .or_else(|| {
+            // Must go through `git_output`, not `git`: a clean tree is exactly
+            // the success-with-empty-output case, which `git` conflates with
+            // failure — under `git` the probe could never yield Some(false)
+            // and every clean build was stamped dirty-by-default (ENG-23419).
+            git_output(&manifest_dir, &["status", "--porcelain"]).map(|s| !s.is_empty())
+        });
     // Only a proven-clean tree emits "false"; an unknown result stays unset and
     // the runtime defaults it to dirty (conservative: no reuse on doubt).
     if let Some(dirty) = dirty {
@@ -149,8 +155,11 @@ fn env_nonempty(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.is_empty())
 }
 
-/// Run `git <args>` in `dir`, returning trimmed stdout on success.
-fn git(dir: &Path, args: &[&str]) -> Option<String> {
+/// Run `git <args>` in `dir`, returning trimmed stdout on success — including
+/// an *empty* string when the command succeeded with no output (e.g.
+/// `git status --porcelain` on a clean tree). `None` means only "the command
+/// failed or git is unavailable" (ENG-23419).
+fn git_output(dir: &Path, args: &[&str]) -> Option<String> {
     let output = Command::new("git")
         .current_dir(dir)
         .args(args)
@@ -160,8 +169,13 @@ fn git(dir: &Path, args: &[&str]) -> Option<String> {
         return None;
     }
     let text = String::from_utf8(output.stdout).ok()?;
-    let trimmed = text.trim();
-    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+    Some(text.trim().to_owned())
+}
+
+/// Run `git <args>` in `dir`, returning trimmed stdout only when non-empty —
+/// for probes like `rev-parse HEAD` where empty output is as useless as failure.
+fn git(dir: &Path, args: &[&str]) -> Option<String> {
+    git_output(dir, args).filter(|s| !s.is_empty())
 }
 
 /// The shared git directory holding the ref store (`refs/`, `packed-refs`).
