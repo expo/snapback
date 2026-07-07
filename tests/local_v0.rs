@@ -1052,6 +1052,48 @@ fn ibex_handler_ambient_capability_denial_is_structured() {
 }
 
 #[test]
+fn ibex_handler_error_messages_do_not_spoof_snapback_codes() {
+    let snapback = configured_ibex_snapback(
+        r#"
+        globalThis.__snapbackHandlers = {
+          async listTodos() {
+            throw new Error("expected SNAPBACK_CONFIG_MISSING to be handled upstream");
+          },
+          async createTodo() {
+            return null;
+          }
+        };
+        "#,
+    );
+
+    let error = snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect_err("handler should throw");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+}
+
+#[test]
+fn ibex_handler_lone_surrogate_strings_are_sanitized() {
+    let snapback = configured_ibex_snapback(
+        r#"
+        globalThis.__snapbackHandlers = {
+          async listTodos() {
+            return ["\uD800"];
+          },
+          async createTodo() {
+            return null;
+          }
+        };
+        "#,
+    );
+
+    let output = snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect("lone surrogate should not break JSON transport");
+    assert_eq!(output.rows, vec![json!("\u{FFFD}")]);
+}
+
+#[test]
 fn cron_tick_runs_host_action_through_mutation_and_live_delivery() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback.apply_schema(todo_schema()).expect("apply schema");
@@ -3213,6 +3255,97 @@ fn e2_handler_reads_its_own_buffered_writes() {
     // delete-then-get misses.
     assert_eq!(r["deleteExisted"], true);
     assert_eq!(r["afterDeleteNull"], true);
+}
+
+#[test]
+fn repeated_handler_point_reads_are_deduped() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', { title: args.title, completed: false, userId: 'u' });
+  },
+  async repeatGets(ctx, args) {
+    for (let i = 0; i < 20; i++) {
+      await ctx.db.get('todos', args.id);
+    }
+    return true;
+  }
+};
+"#;
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    let mut functions = ibex_todo_functions(SOURCE);
+    let mut repeat = FunctionDefinition::new(
+        "repeatGets",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "repeatGets".to_owned(),
+        }),
+    );
+    repeat.required_capabilities = vec![
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+    ];
+    repeat.write_set_summary.tables = vec!["todos".to_owned()];
+    functions.functions.push(repeat);
+    snapback.load_functions(functions);
+
+    let id = snapback
+        .invoke_mutation("createTodo", input(json!({ "title": "dedupe" }), "u"))
+        .expect("create")
+        .result
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let result = snapback.run_function("repeatGets", input(json!({ "id": id }), "u"));
+    assert!(result.ok, "{result:?}");
+    let row_reads = result
+        .captured_reads
+        .iter()
+        .filter(|dependency| dependency.kind == CapturedReadKind::Row)
+        .count();
+    assert_eq!(row_reads, 1, "repeated identical reads should dedupe");
+}
+
+#[test]
+fn query_builder_first_restores_limit_after_throw() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', { title: args.title, completed: false, userId: 'u' });
+  },
+  async firstThenCollect(ctx) {
+    try {
+      await ctx.db.query('missingTable').first();
+    } catch (_) {}
+    return [(await ctx.db.query('todos').collect()).length];
+  }
+};
+"#;
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    let mut functions = ibex_todo_functions(SOURCE);
+    let query = FunctionDefinition::new(
+        "firstThenCollect",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "firstThenCollect".to_owned(),
+        }),
+    );
+    functions.functions.push(query);
+    snapback.load_functions(functions);
+
+    for title in ["one", "two"] {
+        snapback
+            .invoke_mutation("createTodo", input(json!({ "title": title }), "u"))
+            .expect("create");
+    }
+    let output = snapback
+        .invoke_query("firstThenCollect", input(json!({}), "u"))
+        .expect("query after failed first");
+    assert_eq!(output.rows, vec![json!(2)]);
 }
 
 const RYW_HANDLER_SOURCE: &str = r#"

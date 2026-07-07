@@ -17,6 +17,8 @@
 use crate::diagnostic::SnapbackResult;
 use crate::runtime::{HermesRuntimeOpaque, RuntimeGuard, eval};
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -39,9 +41,11 @@ const RESET_CALL_SOURCE: &str = "globalThis.__snapbackReset()";
 /// between checkout and check-in. Dropping it destroys the runtime ("burn").
 pub(crate) struct WarmVm {
     guard: RuntimeGuard,
-    /// The pool key: the exact module source this VM was (or will be) set up
-    /// with. Key equality is the correctness check — no digest, no collision.
+    /// The exact module source this VM was (or will be) set up with. The map
+    /// buckets by a precomputed hash to keep the pool mutex cheap, but checkout
+    /// still compares this exact text before reuse — no digest-only keying.
     key: String,
+    source_hash: u64,
     /// Whether the setup eval (ambient + module + bootstrap + reset install)
     /// has completed. Setup runs inside the invocation's host-context window
     /// so first-invocation module top-level host calls match the fresh path.
@@ -55,6 +59,7 @@ pub(crate) struct WarmVm {
     ///
     /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — generation guard.
     generation: u64,
+    last_pooled_at: u64,
 }
 
 // SAFETY: a WarmVm is moved between OS threads (tokio blocking-pool threads
@@ -86,11 +91,12 @@ impl WarmVm {
 
 #[derive(Default)]
 struct PoolInner {
-    vms: HashMap<String, Vec<WarmVm>>,
+    vms: HashMap<u64, Vec<WarmVm>>,
     pooled: usize,
     /// Bumped by `clear()`; a VM checked out under an older generation is
     /// dropped on check-in rather than pooled.
     generation: u64,
+    next_lru_tick: u64,
 }
 
 /// The per-instance warm VM pool. One per `LocalSnapback` — two local app
@@ -137,14 +143,24 @@ impl WarmVmPool {
     /// creation (~ms) runs unlocked, and the returned VM is exclusively owned
     /// until check-in or drop.
     pub(crate) fn checkout(&self, module_source: &str) -> SnapbackResult<WarmVm> {
+        let source_hash = module_source_hash(module_source);
         let generation = {
             let mut inner = self
                 .inner
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            if let Some(vms) = inner.vms.get_mut(module_source)
-                && let Some(vm) = vms.pop()
-            {
+            let mut remove_bucket = false;
+            let mut checkout = None;
+            if let Some(vms) = inner.vms.get_mut(&source_hash) {
+                if let Some(index) = vms.iter().rposition(|vm| vm.key == module_source) {
+                    checkout = Some(vms.remove(index));
+                    remove_bucket = vms.is_empty();
+                }
+            }
+            if remove_bucket {
+                inner.vms.remove(&source_hash);
+            }
+            if let Some(vm) = checkout {
                 inner.pooled -= 1;
                 return Ok(vm);
             }
@@ -153,8 +169,10 @@ impl WarmVmPool {
         Ok(WarmVm {
             guard: RuntimeGuard::create()?,
             key: module_source.to_owned(),
+            source_hash,
             set_up: false,
             generation,
+            last_pooled_at: 0,
         })
     }
 
@@ -185,11 +203,16 @@ impl WarmVmPool {
             return;
         }
         if inner.pooled >= WARM_VM_POOL_CAP {
-            return; // drop beyond the bound
+            evict_oldest_locked(&mut inner);
         }
+        if inner.pooled >= WARM_VM_POOL_CAP {
+            return; // cap is zero or eviction found nothing; drop = burn
+        }
+        let mut vm = vm;
+        vm.last_pooled_at = inner.next_lru_tick;
+        inner.next_lru_tick = inner.next_lru_tick.wrapping_add(1);
         inner.pooled += 1;
-        let key = vm.key.clone();
-        inner.vms.entry(key).or_default().push(vm);
+        inner.vms.entry(vm.source_hash).or_default().push(vm);
     }
 
     /// Drop every pooled VM and advance the generation. Called on
@@ -216,6 +239,40 @@ impl WarmVmPool {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .pooled
+    }
+}
+
+fn module_source_hash(module_source: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    module_source.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn evict_oldest_locked(inner: &mut PoolInner) {
+    let mut oldest: Option<(u64, usize, u64)> = None;
+    for (source_hash, vms) in &inner.vms {
+        for (index, vm) in vms.iter().enumerate() {
+            if oldest
+                .map(|(_, _, tick)| vm.last_pooled_at < tick)
+                .unwrap_or(true)
+            {
+                oldest = Some((*source_hash, index, vm.last_pooled_at));
+            }
+        }
+    }
+    let Some((source_hash, index, _)) = oldest else {
+        return;
+    };
+    let mut remove_bucket = false;
+    if let Some(vms) = inner.vms.get_mut(&source_hash)
+        && index < vms.len()
+    {
+        vms.remove(index);
+        remove_bucket = vms.is_empty();
+        inner.pooled = inner.pooled.saturating_sub(1);
+    }
+    if remove_bucket {
+        inner.vms.remove(&source_hash);
     }
 }
 
@@ -511,6 +568,39 @@ globalThis.__snapbackHandlers = {{
             pool.check_in(vm);
         }
         assert_eq!(pool.pooled_count(), WARM_VM_POOL_CAP);
+    }
+
+    /// DK-4 global cap eviction: an active fifth bundle must be able to reuse
+    /// its VM instead of being dropped forever behind four older idle bundles.
+    #[test]
+    fn dk4_pool_evicts_oldest_idle_vm_for_new_active_bundle() {
+        let pool = WarmVmPool::from_env();
+        pool.set_enabled(true);
+        for n in 0..WARM_VM_POOL_CAP {
+            let mut vm = pool
+                .checkout(&format!("// idle bundle {n}"))
+                .expect("checkout");
+            vm.mark_set_up();
+            pool.check_in(vm);
+        }
+        assert_eq!(pool.pooled_count(), WARM_VM_POOL_CAP);
+
+        let active_source = "// active fifth bundle";
+        let mut active = pool.checkout(active_source).expect("active checkout");
+        active.mark_set_up();
+        pool.check_in(active);
+        assert_eq!(pool.pooled_count(), WARM_VM_POOL_CAP);
+
+        let active_again = pool.checkout(active_source).expect("active reuse");
+        assert!(
+            active_again.is_set_up(),
+            "active fifth bundle should evict an idle VM and remain pooled"
+        );
+        let oldest_again = pool.checkout("// idle bundle 0").expect("oldest checkout");
+        assert!(
+            !oldest_again.is_set_up(),
+            "oldest idle bundle should have been evicted to make room"
+        );
     }
 
     /// DK-4 keying soundness: queries and mutations share one warm VM per

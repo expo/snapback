@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::env;
 use std::ffi::{CStr, CString};
 use std::path::{Path, PathBuf};
@@ -326,6 +326,7 @@ struct IbexHostContext<'a> {
     mode: IbexInvocationMode,
     writes: Vec<BufferedWrite>,
     reads: Vec<CapturedReadDependency>,
+    read_keys: HashSet<String>,
     now_ms: u64,
     action_run: Option<CronRunMetadata>,
     action_host: Option<&'a mut dyn IbexActionHost>,
@@ -343,6 +344,7 @@ struct IbexHostContext<'a> {
 impl<'a> IbexHostContext<'a> {
     fn new(db: DbRead<'a>, input: HandlerInput, writable: bool) -> Self {
         let reads = auth_dependencies(&input);
+        let read_keys = read_dependency_keys(&reads);
         Self {
             db: Some(db),
             input,
@@ -353,6 +355,7 @@ impl<'a> IbexHostContext<'a> {
             },
             writes: Vec::new(),
             reads,
+            read_keys,
             now_ms: now_millis(),
             action_run: None,
             action_host: None,
@@ -368,12 +371,14 @@ impl<'a> IbexHostContext<'a> {
         grants: Value,
     ) -> Self {
         let reads = auth_dependencies(&input);
+        let read_keys = read_dependency_keys(&reads);
         Self {
             db: None,
             input,
             mode: IbexInvocationMode::Action,
             writes: Vec::new(),
             reads,
+            read_keys,
             now_ms: run.due_at_ms,
             action_run: Some(run),
             action_host: Some(host),
@@ -444,7 +449,7 @@ impl<'a> IbexHostContext<'a> {
                     };
                     QueryOutput {
                         version,
-                        rows: self.merge_buffered_into_query(&plan, base_rows),
+                        rows: self.merge_buffered_into_query(&plan, base_rows)?,
                     }
                 } else {
                     output
@@ -623,7 +628,11 @@ impl<'a> IbexHostContext<'a> {
     /// uses. `base_rows` must be unlimited when the plan carries a limit.
     ///
     /// @ref LLP 0032#phase-2--execution-semantics-honesty — E2.
-    fn merge_buffered_into_query(&self, plan: &QueryPlan, base_rows: Vec<Value>) -> Vec<Value> {
+    fn merge_buffered_into_query(
+        &self,
+        plan: &QueryPlan,
+        base_rows: Vec<Value>,
+    ) -> SnapbackResult<Vec<Value>> {
         let touched: BTreeSet<&str> = self
             .writes
             .iter()
@@ -642,7 +651,7 @@ impl<'a> IbexHostContext<'a> {
             .collect();
 
         for id in &touched {
-            let stored = self.db().get(&plan.table, id).ok().flatten();
+            let stored = self.db().get(&plan.table, id)?;
             if let Some(row) = self.apply_buffered_to_point(&plan.table, id, stored)
                 && row_matches_query_filters(plan, &self.input, &row) == Some(true)
             {
@@ -651,19 +660,24 @@ impl<'a> IbexHostContext<'a> {
         }
 
         if !plan.order.is_empty() {
-            merged.sort_by(
-                |left, right| match (sort_key(plan, left), sort_key(plan, right)) {
+            merged.sort_by(|left, right| {
+                let ordering = match (sort_key(plan, left), sort_key(plan, right)) {
                     (Some(left_key), Some(right_key)) => {
                         compare_sort_keys(plan, &left_key, &right_key).unwrap_or(Ordering::Equal)
                     }
                     _ => Ordering::Equal,
-                },
-            );
+                };
+                if ordering == Ordering::Equal {
+                    row_id_for_sort(left).cmp(&row_id_for_sort(right))
+                } else {
+                    ordering
+                }
+            });
         }
         if let Some(limit) = plan.limit {
             merged.truncate(limit);
         }
-        merged
+        Ok(merged)
     }
 
     fn ensure_action(&self, op: &str) -> SnapbackResult<()> {
@@ -776,7 +790,8 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn push_read_dependency(&mut self, dependency: CapturedReadDependency) {
-        if !self.reads.contains(&dependency) {
+        let key = read_dependency_key(&dependency);
+        if self.read_keys.insert(key) {
             self.reads.push(dependency);
         }
     }
@@ -971,6 +986,30 @@ fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<V
         && envelope.len() == 1
         && let Some(result) = envelope.remove("r")
     {
+        if let Some(object) = result.as_object()
+            && let Some(ok) = object.get("__snapbackOk").and_then(Value::as_bool)
+        {
+            if ok {
+                return Ok(object.get("value").cloned().unwrap_or(Value::Null));
+            }
+            let code = object
+                .get("code")
+                .and_then(Value::as_str)
+                .map(handler_envelope_code)
+                .unwrap_or("SNAPBACK_HANDLER_FAILED");
+            let message = object
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("JavaScript handler failed");
+            return Err(
+                SnapbackError::error(code, "runtime", "JavaScript handler failed").with_details(
+                    json!({
+                        "function": module.export,
+                        "message": message,
+                    }),
+                ),
+            );
+        }
         return Ok(result);
     }
     Err(SnapbackError::error(
@@ -1190,16 +1229,55 @@ fn invocation_iife_source(
     // Obligation 3's settlement assumption is enforced, not assumed: an
     // unsettled invocation is a failed invocation, and its buffered writes
     // never commit.
-    Ok(format!(
-        "(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {}, {});\n  var body = JSON.stringify(value === undefined ? null : value);\n  if (body === undefined) {{\n    throw new Error(\"SNAPBACK_HANDLER_RESULT_INVALID: handler returned a value that is not JSON-serializable\");\n  }}\n  return '{{\"r\":' + body + '}}';\n}})()",
-        export_json,
-        args_literal,
-        auth_literal,
-        mode_json,
-        run_literal,
-        secrets_literal,
-        epoch_literal,
-    ))
+    Ok(r#"(async function() {
+  function __snapbackSafeString(value) {
+    var text = String(value);
+    var out = "";
+    for (var i = 0; i < text.length; i++) {
+      var code = text.charCodeAt(i);
+      if (code >= 0xD800 && code <= 0xDBFF) {
+        if (i + 1 < text.length) {
+          var next = text.charCodeAt(i + 1);
+          if (next >= 0xDC00 && next <= 0xDFFF) {
+            out += text.charAt(i) + text.charAt(i + 1);
+            i++;
+            continue;
+          }
+        }
+        out += "\uFFFD";
+      } else if (code >= 0xDC00 && code <= 0xDFFF) {
+        out += "\uFFFD";
+      } else {
+        out += text.charAt(i);
+      }
+    }
+    return out;
+  }
+  function __snapbackJsonReplacer(_key, value) {
+    return typeof value === "string" ? __snapbackSafeString(value) : value;
+  }
+  try {
+    var value = await globalThis.__snapbackInvoke(__SNAPBACK_EXPORT__, __SNAPBACK_ARGS__, __SNAPBACK_AUTH__, __SNAPBACK_MODE__, __SNAPBACK_RUN__, __SNAPBACK_SECRETS__, __SNAPBACK_EPOCH__);
+    var encodedValue = JSON.stringify(value === undefined ? null : value, __snapbackJsonReplacer);
+    if (encodedValue === undefined) {
+      var resultError = new Error("handler returned a value that is not JSON-serializable");
+      try { Object.defineProperty(resultError, "__snapbackCode", { value: "SNAPBACK_HANDLER_RESULT_INVALID" }); } catch (_) { resultError.__snapbackCode = "SNAPBACK_HANDLER_RESULT_INVALID"; }
+      throw resultError;
+    }
+    return '{"r":{"__snapbackOk":true,"value":' + encodedValue + '}}';
+  } catch (error) {
+    var code = error && error.__snapbackCode || null;
+    var message = __snapbackSafeString(error && error.message || error);
+    return JSON.stringify({ r: { __snapbackOk: false, code: code, message: message } }, __snapbackJsonReplacer);
+  }
+})()"#
+    .replace("__SNAPBACK_EXPORT__", &export_json)
+    .replace("__SNAPBACK_ARGS__", &args_literal)
+    .replace("__SNAPBACK_AUTH__", &auth_literal)
+    .replace("__SNAPBACK_MODE__", &mode_json)
+    .replace("__SNAPBACK_RUN__", &run_literal)
+    .replace("__SNAPBACK_SECRETS__", &secrets_literal)
+    .replace("__SNAPBACK_EPOCH__", &epoch_literal))
 }
 
 /// The once-per-VM warm setup eval: ambient restriction + module source +
@@ -1252,19 +1330,28 @@ fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) 
         );
     }
     format!(
-        "(function(g) {{\n  function deny(name) {{\n    return function() {{ throw new Error(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED: \" + name); }};\n  }}\n{denials}}})(globalThis);\n"
+        "(function(g) {{\n  function snapbackError(code, message) {{\n    var error = new Error(code + \": \" + message);\n    try {{ Object.defineProperty(error, \"__snapbackCode\", {{ value: code }}); }} catch (_) {{ error.__snapbackCode = code; }}\n    return error;\n  }}\n  function deny(name) {{\n    return function() {{ throw snapbackError(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\", name); }};\n  }}\n{denials}}})(globalThis);\n"
     )
 }
 
 fn ctx_bootstrap_source() -> &'static str {
     r#"
 (function(g) {
+  function snapbackError(code, message) {
+    var error = new Error(code + ": " + message);
+    try { Object.defineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
+    return error;
+  }
+  function codeFromMessage(message) {
+    var match = String(message || "").match(/^(?:Error:\s*)?(SNAPBACK_[A-Z0-9_]+)(?::|\b)/);
+    return match ? match[1] : null;
+  }
   function literal(value) { return { Literal: value }; }
   function normalizeDirection(direction) {
     return String(direction || "asc").toLowerCase() === "desc" ? "Desc" : "Asc";
   }
   function readonlyDenied(op) {
-    return function() { throw new Error("SNAPBACK_HANDLER_WRITE_IN_QUERY: " + op); };
+    return function() { throw snapbackError("SNAPBACK_HANDLER_WRITE_IN_QUERY", op); };
   }
   // The opaque secret handle (LLP 0036 D5/D8): every accidental
   // materialization path — stringify, JSON, template coercion, console —
@@ -1293,10 +1380,10 @@ fn ctx_bootstrap_source() -> &'static str {
     function lookup(name, rotate) {
       var entry = entries[name];
       if (!entry) {
-        throw new Error("SNAPBACK_CONFIG_UNDECLARED: " + name + " is not in this function's uses grant");
+        throw snapbackError("SNAPBACK_CONFIG_UNDECLARED", name + " is not in this function's uses grant");
       }
       if (!entry.set || !entry.values || !entry.values.length) {
-        throw new Error("SNAPBACK_CONFIG_MISSING: " + name + " has no value set");
+        throw snapbackError("SNAPBACK_CONFIG_MISSING", name + " has no value set");
       }
       var index = rotate ? (entry.cursor || 0) % entry.values.length : 0;
       return makeSecretHandle(name, entry.values[index]);
@@ -1375,7 +1462,15 @@ fn ctx_bootstrap_source() -> &'static str {
   // routing it through whatever invocation is currently live on this VM.
   g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch) {
     function host(op, args) {
-      return g.__hostCall(epoch + "|" + op, JSON.stringify(args || {}));
+      try {
+        return g.__hostCall(epoch + "|" + op, JSON.stringify(args || {}));
+      } catch (error) {
+        var code = codeFromMessage(error && error.message);
+        if (code) {
+          try { Object.defineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
+        }
+        throw error;
+      }
     }
     function makeBuilder(table) {
       var plan = { table: table, filters: [], order: [], limit: null, indexed_by: null };
@@ -1414,9 +1509,12 @@ fn ctx_bootstrap_source() -> &'static str {
         first: function() {
           var old = plan.limit;
           plan.limit = 1;
-          var rows = host("db.query", { plan: plan }).rows;
-          plan.limit = old;
-          return rows.length ? rows[0] : null;
+          try {
+            var rows = host("db.query", { plan: plan }).rows;
+            return rows.length ? rows[0] : null;
+          } finally {
+            plan.limit = old;
+          }
         }
       };
       return builder;
@@ -1458,13 +1556,13 @@ fn ctx_bootstrap_source() -> &'static str {
       };
     } else {
       ctx.runMutation = function() {
-        throw new Error("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE: runMutation");
+        throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");
       };
     }
     var handlers = g.__snapbackHandlers || {};
     var handler = handlers[name] || g[name];
     if (typeof handler !== "function") {
-      throw new Error("SNAPBACK_HANDLER_EXPORT_MISSING: " + name);
+      throw snapbackError("SNAPBACK_HANDLER_EXPORT_MISSING", name);
     }
     return await handler(ctx, args);
   };
@@ -1527,6 +1625,33 @@ fn auth_dependencies(input: &HandlerInput) -> Vec<CapturedReadDependency> {
         });
     }
     reads
+}
+
+fn read_dependency_keys(reads: &[CapturedReadDependency]) -> HashSet<String> {
+    reads.iter().map(read_dependency_key).collect()
+}
+
+fn read_dependency_key(dependency: &CapturedReadDependency) -> String {
+    serde_json::to_string(dependency).unwrap_or_else(|_| format!("{dependency:?}"))
+}
+
+fn row_id_for_sort(row: &Value) -> &str {
+    row.get("_id").and_then(Value::as_str).unwrap_or("")
+}
+
+fn handler_envelope_code(code: &str) -> &str {
+    match code {
+        "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED" => "SNAPBACK_HANDLER_CAPABILITY_DENIED",
+        "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        | "SNAPBACK_HANDLER_EXPORT_MISSING"
+        | "SNAPBACK_HANDLER_RESULT_INVALID"
+        | "SNAPBACK_HANDLER_STALE_CONTINUATION"
+        | "SNAPBACK_CONFIG_UNDECLARED"
+        | "SNAPBACK_CONFIG_MISSING"
+        | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE" => code,
+        code if code.starts_with("SNAPBACK_HANDLER_HOST_CALL_") => code,
+        _ => "SNAPBACK_HANDLER_FAILED",
+    }
 }
 
 fn c_string_to_string(ptr: *const c_char) -> SnapbackResult<String> {
