@@ -595,7 +595,15 @@ gated in `verify-local-proof`):
 - **Lane registry:** durable socket frames route through the same
   per-connection lane registry as HTTP drains (single delivery,
   mixed-transport regression) — the §10.1 cross-lane footgun fix, taken
-  the code route; overlays filter by room identity.
+  the code route; overlays filter by room identity. Both fan-out choke
+  points isolate each consumer invocation (ENG-23391, extending review
+  fix G's receipt-listener rule): `GET /outbox/:id` is a destructive
+  drain, so a throwing app callback must never discard the envelopes
+  dequeued behind it (including a `resync_required` sentinel), and a
+  socket-path throw must not escape the async message listener as an
+  unhandled rejection. A durable payload that fails to decode surfaces
+  as a `SNAPBACK_ENVELOPE_DECODE_FAILED` diagnostic on the drain result
+  instead of aborting the batch.
 - **`maxDeltaRateHz` re-scoped (correcting §2.1/D3's premise):** L8's
   event-driven delivery removed the 33 ms dispatch window, so the fact
   now means the *coalescing bound for drain-paced consumers*; the

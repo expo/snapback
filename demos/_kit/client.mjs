@@ -384,23 +384,42 @@ export class SnapbackClient {
   // connection's outbox is ONE queue carrying both lanes, so every drain
   // routes each envelope to the registered consumers of ITS lane instead of
   // destructively discarding the other lane's traffic. Returns the decoded
-  // durable updates and the raw ephemeral envelopes of this drain.
+  // durable updates and the raw ephemeral envelopes of this drain, plus the
+  // structured diagnostics of any envelopes that failed to decode.
+  //
+  // GET /outbox/:id is a DESTRUCTIVE drain — the server has already dequeued
+  // this whole batch — so nothing per-envelope may abort the loop (ENG-23391):
+  // each consumer invocation is isolated (a throwing app callback must never
+  // discard the envelopes behind it, including a resync_required sentinel —
+  // the ENG-22478 fix-G principle applied to delivery), and a payload that
+  // fails to decode is surfaced as a SNAPBACK_ENVELOPE_DECODE_FAILED
+  // diagnostic in `decodeFailures` instead of an aborted batch.
   async drainConnection(connectionId) {
     const envelopes = await this.drainEnvelopes(connectionId);
     const consumers = this.__laneConsumers.get(connectionId);
     const durable = [];
     const ephemeral = [];
+    const decodeFailures = [];
     for (const env of envelopes) {
       if (env && env.Durable) {
-        const update = JSON.parse(decodeDurablePayload(env.Durable.payload));
+        let update;
+        try {
+          update = JSON.parse(decodeDurablePayload(env.Durable.payload));
+        } catch (error) {
+          decodeFailures.push({
+            code: 'SNAPBACK_ENVELOPE_DECODE_FAILED',
+            message: `durable envelope payload did not decode as JSON: ${error?.message ?? error}`,
+          });
+          continue;
+        }
         durable.push(update);
-        for (const consumer of [...(consumers?.durable ?? [])]) consumer(update);
+        for (const consumer of [...(consumers?.durable ?? [])]) deliverIsolated(consumer, update);
       } else if (env) {
         ephemeral.push(env);
-        for (const consumer of [...(consumers?.ephemeral ?? [])]) consumer(env);
+        for (const consumer of [...(consumers?.ephemeral ?? [])]) deliverIsolated(consumer, env);
       }
     }
-    return { durable, ephemeral };
+    return { durable, ephemeral, decodeFailures };
   }
 
   // Drains a connection's outbox and decodes durable live-query updates.
@@ -1172,13 +1191,17 @@ class LiveStreamManager {
     if (frame.kind === 'pong' || frame.kind === 'ephemeral_ack' || frame.kind === 'ephemeral_error') {
       return; // uncorrelated control frames only refresh lastActivityMs
     }
+    // Every fan-out below is isolated per consumer (ENG-23391): #dispatch
+    // runs inside an async 'message' listener, so an uncaught consumer throw
+    // would both starve the remaining consumers of this frame and escape as
+    // an unhandled rejection (fatal to a headless Node process by default).
     if (frame.kind === 'ephemeral') {
-      for (const listener of [...this.ephemeralListeners]) listener(frame);
+      for (const listener of [...this.ephemeralListeners]) deliverIsolated(listener, frame);
       // The lane registry is transport-agnostic (LLP 0034 §10.1 / ENG-22478):
       // when the socket owns the connection's outbox, registered ephemeral
       // consumers (EphemeralOverlays) still receive their lane's frames.
       const consumers = this.client.__laneConsumers?.get(this.connectionId);
-      for (const consumer of [...(consumers?.ephemeral ?? [])]) consumer(frame);
+      for (const consumer of [...(consumers?.ephemeral ?? [])]) deliverIsolated(consumer, frame);
       return;
     }
     // Durable-lane payloads arrive unwrapped (live_replace / resync_required)
@@ -1188,9 +1211,9 @@ class LiveStreamManager {
     // unification). liveQuery handles consume durable traffic ONLY via the
     // registry — onDurable is for external socket-frame listeners and must
     // not be combined with a registry registration (double delivery).
-    for (const listener of [...this.durableListeners]) listener(frame);
+    for (const listener of [...this.durableListeners]) deliverIsolated(listener, frame);
     const consumers = this.client.__laneConsumers?.get(this.connectionId);
-    for (const consumer of [...(consumers?.durable ?? [])]) consumer(frame);
+    for (const consumer of [...(consumers?.durable ?? [])]) deliverIsolated(consumer, frame);
   }
 
   /// Send a live-socket request (ephemeral_subscribe/publish/delete or ping)
@@ -1266,6 +1289,19 @@ function cappedCorrelation(correlation) {
     // Unserializable correlation: keep the honest marker.
   }
   return size > CORRELATION_ECHO_MAX_BYTES ? { correlationTruncated: true, bytes: size } : correlation;
+}
+
+// Consumer isolation at the delivery choke points (ENG-23391), mirroring
+// recordReceipt's receipt-listener isolation (ENG-22478 review fix G) and
+// EphemeralOverlay.#notifyChange: a throwing app callback must never discard
+// the rest of a destructively drained batch or escape an async socket
+// listener as an unhandled rejection.
+function deliverIsolated(consumer, payload) {
+  try {
+    consumer(payload);
+  } catch {
+    // Consumer errors are the consumer's problem, not the delivery's.
+  }
 }
 
 function resyncReason(serverReason) {
