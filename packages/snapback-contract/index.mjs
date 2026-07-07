@@ -172,321 +172,341 @@ export async function createSnapbackContractSurface({
   const detachReceiptListener = onReceipt && typeof client.onReceipt === 'function'
     ? client.onReceipt(onReceipt)
     : null;
-  if (Array.isArray(liveQueries)) {
-    return createMultiLiveContractSurface({
-      runtime,
-      client,
-      userId,
-      manifest,
-      liveQueries,
-      livePush,
-      connectionId,
-      liveStreamOptions,
-      onConnectionChange,
-      onSubscriptionEvent,
-      rootId: surfaceRootId,
-      detachReceiptListener,
-      ephemeralPermissions,
-      ephemeralIdleLingerMs,
-      diagnostics,
-      pending,
-      mountedHandles,
-    });
-  }
-  if (!queryName || !boundaryKey) {
-    const diagnostic = contractDiagnostic(
-      'SNAPBACK_CONTRACT_SURFACE_BINDING_REQUIRED',
-      'createSnapbackContractSurface requires queryName and boundaryKey in single-query mode (or liveQueries: [...] for a multi-query surface).',
-      { queryName: queryName ?? null, boundaryKey: boundaryKey ?? null },
-    );
-    const error = new Error(diagnostic.message);
-    error.diagnostic = diagnostic;
-    throw error;
-  }
-  // The adapter-stitched correlation (LLP 0034 §3.2): echoed verbatim on
-  // every receipt this surface's operations produce.
-  const surfaceCorrelation = { rootId: surfaceRootId, bindingIds: [boundaryKey] };
-  let optimisticSeq = 0;
-  let disposed = false;
-  const queryNames = Object.keys(manifest?.queries ?? {});
-  const mutationNames = Object.keys(manifest?.mutations ?? {});
-
-  // The C1 fix (LLP 0034 D1; Exact LLP 0284 §5.3): when the bound descriptor
-  // is live (manifest v2 `mode`/`defaultLive`, or the legacy `subscription`
-  // field), the surface subscribes over the kit's stream transport and pushes
-  // server-authored rows into the Contract boundary as they arrive — no
-  // app-code pump. The initial rows come from the same snapshot-with-subscribe
-  // operation, so there is no prime race. Non-live descriptors keep the
-  // pre-D1 behavior: one snapshot read plus reconcile-on-mutate.
-  const boundDescriptor = manifest?.queries?.[queryName] ?? null;
-  const descriptorIsLive = Boolean(
-    boundDescriptor
-      && (boundDescriptor.mode === 'live' || boundDescriptor.subscription === 'initial-snapshot')
-      && boundDescriptor.defaultLive !== false,
-  );
-  const wantLivePush = livePush && descriptorIsLive && typeof client.liveQuery === 'function';
-
-  let boundary = null;
   let liveHandle = null;
-  const liveCellObservers = new Set();
-  const surfaceConnectionId = connectionId ?? defaultContractConnectionId();
-  const ephemeralWiring = buildEphemeralWiring({
-    client,
-    manifest,
-    connectionId: surfaceConnectionId,
-    userId,
-    ephemeralPermissions,
-    ephemeralIdleLingerMs,
-  });
-
-  // In-flight optimistic mutations (LLP 0034 review fix 3): with live push, a
-  // concurrent live_replace can arrive DURING a local mutation's in-flight
-  // window carrying authoritative rows that legitimately lack the optimistic
-  // row (it is not committed yet) at a valid higher version — so version
-  // checks cannot help. Every boundary write of server rows re-applies the
-  // still-in-flight optimistic reducers on top, so the user's own row never
-  // flashes out. Interim until D2 receipts correlate fan-outs to mutations.
-  const inFlightOptimistic = new Set();
-
-  const applyOptimisticOverlay = (rows) => {
-    let out = rows;
-    for (const op of inFlightOptimistic) {
-      out = op.reducer(out, op.args, { userId, optimisticId: op.optimisticId });
-    }
-    return out;
-  };
-
-  const writeServerRows = (rows) => {
-    if (disposed || !boundary) return rows;
-    const overlaid = applyOptimisticOverlay(rows);
-    boundary.write(boundaryKey, () => overlaid);
-    return overlaid;
-  };
-
-  const surfaceConnection = () => (wantLivePush ? liveHandle?.connection ?? 'connecting' : null);
-
-  let initial;
-  if (wantLivePush) {
-    liveHandle = await client.liveQuery(queryName, {
-      connectionId: surfaceConnectionId,
-      args: queryArgs,
-      userId,
-      transport: 'stream',
-      stream: liveStreamOptions,
-      correlation: surfaceCorrelation,
-      onUpdate: (rows) => {
-        writeServerRows(rows);
-      },
-      onConnectionChange: (connection, detail) => {
-        // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each live
-        // observer's last cell with the new connection value so slot sugar
-        // and agent inspection see transitions without a data change.
-        for (const record of [...liveCellObservers]) {
-          if (record.lastCell) record.emit({ ...record.lastCell, connection });
-        }
-        onConnectionChange?.(connection, detail);
-      },
-      onSubscriptionEvent,
-    });
-    initial = liveHandle.rows;
-  } else {
-    initial = (await client.query(queryName, { args: queryArgs, userId })).rows;
-  }
-  boundary = runtime.createContractMockQueryBoundary({ [boundaryKey]: initial });
-  if (wantLivePush && liveHandle.rows !== initial) {
-    // An update that raced boundary creation is not lost: rewrite from the
-    // handle's latest rows (idempotent when nothing changed).
-    boundary.write(boundaryKey, () => liveHandle.rows);
-  }
-  // Zero-scope presence rooms subscribe once up front so an `ephemeral`
-  // binding's first snapshot delivers synchronously (ENG-22479).
-  await ephemeralWiring.prewarm();
-
-  const assertActive = () => {
-    if (disposed) {
-      throw new Error('Snapback Contract surface was used after dispose().');
-    }
-  };
-
-  const publishDiagnostic = (code, message, details = {}) => {
-    const diagnostic = contractDiagnostic(code, message, details);
-    diagnostics.push(diagnostic);
-    return diagnostic;
-  };
-
-  // Reconcile fetches authoritative rows and writes them with the in-flight
-  // optimistic overlay applied (other mutations may still be in flight);
-  // returns the rows as written.
-  const reconcile = async () => {
-    const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
-    return writeServerRows(rows);
-  };
-
-  const track = (promise) => {
-    const task = Promise.resolve(promise);
-    pending.add(task);
-    task.then(
-      () => pending.delete(task),
-      () => pending.delete(task),
-    );
-    return task;
-  };
-
-  const persistMutation = async (name, args, optimisticOp = null) => {
-    try {
-      // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
-      // into this correlation when the runtime supplies them.
-      await client.mutate(name, { args, userId, correlation: surfaceCorrelation });
-      // The commit landed: drop the optimistic op BEFORE reconciling so the
-      // authoritative row is not doubled by its own overlay.
-      if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
-      await reconcile();
-    } catch (error) {
-      if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
-      publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
-        mutation: name,
-        args,
+  let ephemeralWiring = null;
+  try {
+    if (Array.isArray(liveQueries)) {
+      return await createMultiLiveContractSurface({
+        runtime,
+        client,
+        userId,
+        manifest,
+        liveQueries,
+        livePush,
+        connectionId,
+        liveStreamOptions,
+        onConnectionChange,
+        onSubscriptionEvent,
+        rootId: surfaceRootId,
+        detachReceiptListener,
+        ephemeralPermissions,
+        ephemeralIdleLingerMs,
+        diagnostics,
+        pending,
+        mountedHandles,
       });
-      await reconcile();
+    }
+    if (!queryName || !boundaryKey) {
+      const diagnostic = contractDiagnostic(
+        'SNAPBACK_CONTRACT_SURFACE_BINDING_REQUIRED',
+        'createSnapbackContractSurface requires queryName and boundaryKey in single-query mode (or liveQueries: [...] for a multi-query surface).',
+        { queryName: queryName ?? null, boundaryKey: boundaryKey ?? null },
+      );
+      const error = new Error(diagnostic.message);
+      error.diagnostic = diagnostic;
       throw error;
     }
-  };
+    // The adapter-stitched correlation (LLP 0034 §3.2): echoed verbatim on
+    // every receipt this surface's operations produce.
+    const surfaceCorrelation = { rootId: surfaceRootId, bindingIds: [boundaryKey] };
+    let optimisticSeq = 0;
+    let disposed = false;
+    const queryNames = Object.keys(manifest?.queries ?? {});
+    const mutationNames = Object.keys(manifest?.mutations ?? {});
 
-  const links = {};
-  for (const name of queryNames) {
-    links[name] = (_args) => {
-      assertActive();
-      return boundary.query(boundaryKey, (rows) => rows, { key: boundaryKey });
-    };
-  }
-  for (const name of mutationNames) {
-    links[name] = (args) => {
-      assertActive();
-      const reducer = optimisticReducers[name];
-      let optimisticOp = null;
-      if (typeof reducer === 'function') {
-        optimisticOp = { reducer, args, optimisticId: `optimistic_${++optimisticSeq}` };
-        inFlightOptimistic.add(optimisticOp);
-        boundary.write(boundaryKey, (rows) =>
-          reducer(rows, args, { userId, optimisticId: optimisticOp.optimisticId }),
-        );
+    // The C1 fix (LLP 0034 D1; Exact LLP 0284 §5.3): when the bound descriptor
+    // is live (manifest v2 `mode`/`defaultLive`, or the legacy `subscription`
+    // field), the surface subscribes over the kit's stream transport and pushes
+    // server-authored rows into the Contract boundary as they arrive — no
+    // app-code pump. The initial rows come from the same snapshot-with-subscribe
+    // operation, so there is no prime race. Non-live descriptors keep the
+    // pre-D1 behavior: one snapshot read plus reconcile-on-mutate.
+    const boundDescriptor = manifest?.queries?.[queryName] ?? null;
+    const descriptorIsLive = Boolean(
+      boundDescriptor
+        && (boundDescriptor.mode === 'live' || boundDescriptor.subscription === 'initial-snapshot')
+        && boundDescriptor.defaultLive !== false,
+    );
+    const wantLivePush = livePush && descriptorIsLive && typeof client.liveQuery === 'function';
+
+    let boundary = null;
+    const liveCellObservers = new Set();
+    const surfaceConnectionId = connectionId ?? defaultContractConnectionId();
+    ephemeralWiring = buildEphemeralWiring({
+      client,
+      manifest,
+      connectionId: surfaceConnectionId,
+      userId,
+      ephemeralPermissions,
+      ephemeralIdleLingerMs,
+    });
+
+    // In-flight optimistic mutations (LLP 0034 review fix 3): with live push, a
+    // concurrent live_replace can arrive DURING a local mutation's in-flight
+    // window carrying authoritative rows that legitimately lack the optimistic
+    // row (it is not committed yet) at a valid higher version — so version
+    // checks cannot help. Every boundary write of server rows re-applies the
+    // still-in-flight optimistic reducers on top, so the user's own row never
+    // flashes out. Interim until D2 receipts correlate fan-outs to mutations.
+    const inFlightOptimistic = new Set();
+
+    const applyOptimisticOverlay = (rows) => {
+      let out = rows;
+      for (const op of inFlightOptimistic) {
+        out = op.reducer(out, op.args, { userId, optimisticId: op.optimisticId });
       }
-      return track(persistMutation(name, args, optimisticOp));
+      return out;
     };
-  }
 
-  const providerQueries = {};
-  for (const name of queryNames) {
-    providerQueries[name] = (_args, qb) => qb.query(boundaryKey, (rows) => rows, { key: boundaryKey });
-  }
-  const providerMutations = {};
-  for (const name of mutationNames) {
-    providerMutations[name] = async (args, qb) => {
-      assertActive();
-      await track((async () => {
-        await client.mutate(name, { args, userId, correlation: surfaceCorrelation });
-        // reconcile writes overlaid rows; write the same rows through the
-        // provider's boundary handle so concurrent optimistic ops survive.
-        const rows = await reconcile();
-        qb.write(boundaryKey, () => rows);
-      })());
+    const writeServerRows = (rows) => {
+      if (disposed || !boundary) return rows;
+      const overlaid = applyOptimisticOverlay(rows);
+      boundary.write(boundaryKey, () => overlaid);
+      return overlaid;
     };
-  }
 
-  // Manifest v2 is declared natively: Exact's runtime/conformance accepts
-  // manifestVersion 1 | 2 since the LLP 0284 connection-axis merge (the interim
-  // v1 projection this adapter carried is gone).
-  const baseProvider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
-    queries: providerQueries,
-    mutations: providerMutations,
-    ephemerals: ephemeralWiring.sources,
-    rowSyncState: async (_table, rowId) => {
-      const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
-      const row = rows.find((r) => r._id === rowId);
-      return row
-        ? { syncedVersion: row._version, approxSyncedAt: null, pendingMutations: pending.size > 0 }
-        : null;
-    },
-  });
+    const surfaceConnection = () => (wantLivePush ? liveHandle?.connection ?? 'connecting' : null);
 
-  // DataCellV2 connection axis (Exact LLP 0284 §2.2): cells emitted for the
-  // live-bound descriptor carry `connection`; the field is absent for
-  // non-subscription descriptors — its absence is itself a fact. Additive: a
-  // consumer that ignores the extra field behaves exactly as before.
-  const provider = wantLivePush
-    ? {
-        ...baseProvider,
-        subscribe(subscribedQuery, args, observer) {
-          if (subscribedQuery !== queryName) {
-            return baseProvider.subscribe(subscribedQuery, args, observer);
-          }
-          const record = {
-            lastCell: null,
-            emit: (cell) => observer(cell),
-          };
-          liveCellObservers.add(record);
-          const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
-            record.lastCell = cell;
-            observer({ ...cell, connection: surfaceConnection() });
-          });
-          return {
-            dispose() {
-              liveCellObservers.delete(record);
-              subscription.dispose();
-            },
-          };
+    let initial;
+    if (wantLivePush) {
+      liveHandle = await client.liveQuery(queryName, {
+        connectionId: surfaceConnectionId,
+        args: queryArgs,
+        userId,
+        transport: 'stream',
+        stream: liveStreamOptions,
+        correlation: surfaceCorrelation,
+        onUpdate: (rows) => {
+          writeServerRows(rows);
         },
+        onConnectionChange: (connection, detail) => {
+          // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each live
+          // observer's last cell with the new connection value so slot sugar
+          // and agent inspection see transitions without a data change.
+          for (const record of [...liveCellObservers]) {
+            if (record.lastCell) record.emit({ ...record.lastCell, connection });
+          }
+          onConnectionChange?.(connection, detail);
+        },
+        onSubscriptionEvent,
+      });
+      initial = liveHandle.rows;
+    } else {
+      initial = (await client.query(queryName, { args: queryArgs, userId })).rows;
+    }
+    boundary = runtime.createContractMockQueryBoundary({ [boundaryKey]: initial });
+    if (wantLivePush && liveHandle.rows !== initial) {
+      // An update that raced boundary creation is not lost: rewrite from the
+      // handle's latest rows (idempotent when nothing changed).
+      boundary.write(boundaryKey, () => liveHandle.rows);
+    }
+    // Zero-scope presence rooms subscribe once up front so an `ephemeral`
+    // binding's first snapshot delivers synchronously (ENG-22479).
+    await ephemeralWiring.prewarm();
+
+    const assertActive = () => {
+      if (disposed) {
+        throw new Error('Snapback Contract surface was used after dispose().');
       }
-    : baseProvider;
+    };
 
-  // Ephemeral binding + publish links resolve through the finished provider
-  // (the `ephemeral` grammar's initializer expects a provider-backed handle).
-  Object.assign(links, ephemeralWiring.buildLinks(provider, runtime));
+    const publishDiagnostic = (code, message, details = {}) => {
+      const diagnostic = contractDiagnostic(code, message, details);
+      diagnostics.push(diagnostic);
+      return diagnostic;
+    };
 
-  return {
-    adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
-    capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
-    boundary,
-    links,
-    provider,
-    diagnostics,
-    pendingCount: () => pending.size,
-    declaredQueries: queryNames,
-    declaredMutations: mutationNames,
-    // LLP 0034 D1 facts: whether the bound descriptor streams server push, and
-    // the current Exact LLP 0284 §2.2 connection value (null when not
-    // subscription-backed).
-    livePush: wantLivePush,
-    connection: surfaceConnection,
-    // Receipt surface (LLP 0034 §3 / ENG-22478): the kit ring, adapter-facing.
-    rootId: surfaceRootId,
-    receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
-    // Ephemeral facts (ENG-22479): the conformance gate's LOCAL-ONLY probe
-    // reads source starts; prewarmScope subscribes a scoped room up front.
-    ephemeralSourceStarts: ephemeralWiring.sourceStarts,
-    prewarmEphemeral: ephemeralWiring.prewarmScope,
-    mount: (component, options = {}) => {
-      assertActive();
-      return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
-    },
-    flush: async () => {
-      await Promise.all([...pending]);
-    },
-    dispose: () => {
-      disposed = true;
-      detachReceiptListener?.();
-      ephemeralWiring.dispose();
+    // Reconcile fetches authoritative rows and writes them with the in-flight
+    // optimistic overlay applied (other mutations may still be in flight);
+    // returns the rows as written.
+    const reconcile = async () => {
+      const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
+      return writeServerRows(rows);
+    };
+
+    const track = (promise) => {
+      const task = Promise.resolve(promise);
+      pending.add(task);
+      task.then(
+        () => pending.delete(task),
+        () => pending.delete(task),
+      );
+      return task;
+    };
+
+    const persistMutation = async (name, args, optimisticOp = null) => {
+      try {
+        // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
+        // into this correlation when the runtime supplies them.
+        await client.mutate(name, { args, userId, correlation: surfaceCorrelation });
+        // The commit landed: drop the optimistic op BEFORE reconciling so the
+        // authoritative row is not doubled by its own overlay.
+        if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
+        await reconcile();
+      } catch (error) {
+        if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
+        publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
+          mutation: name,
+          args,
+        });
+        await reconcile();
+        throw error;
+      }
+    };
+
+    const links = {};
+    for (const name of queryNames) {
+      links[name] = (_args) => {
+        assertActive();
+        return boundary.query(boundaryKey, (rows) => rows, { key: boundaryKey });
+      };
+    }
+    for (const name of mutationNames) {
+      links[name] = (args) => {
+        assertActive();
+        const reducer = optimisticReducers[name];
+        let optimisticOp = null;
+        if (typeof reducer === 'function') {
+          optimisticOp = { reducer, args, optimisticId: `optimistic_${++optimisticSeq}` };
+          inFlightOptimistic.add(optimisticOp);
+          boundary.write(boundaryKey, (rows) =>
+            reducer(rows, args, { userId, optimisticId: optimisticOp.optimisticId }),
+          );
+        }
+        return track(persistMutation(name, args, optimisticOp));
+      };
+    }
+
+    const providerQueries = {};
+    for (const name of queryNames) {
+      providerQueries[name] = (_args, qb) => qb.query(boundaryKey, (rows) => rows, { key: boundaryKey });
+    }
+    const providerMutations = {};
+    for (const name of mutationNames) {
+      providerMutations[name] = async (args, qb) => {
+        assertActive();
+        await track((async () => {
+          await client.mutate(name, { args, userId, correlation: surfaceCorrelation });
+          // reconcile writes overlaid rows; write the same rows through the
+          // provider's boundary handle so concurrent optimistic ops survive.
+          const rows = await reconcile();
+          qb.write(boundaryKey, () => rows);
+        })());
+      };
+    }
+
+    // Manifest v2 is declared natively: Exact's runtime/conformance accepts
+    // manifestVersion 1 | 2 since the LLP 0284 connection-axis merge (the interim
+    // v1 projection this adapter carried is gone).
+    const baseProvider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
+      queries: providerQueries,
+      mutations: providerMutations,
+      ephemerals: ephemeralWiring.sources,
+      rowSyncState: async (_table, rowId) => {
+        const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
+        const row = rows.find((r) => r._id === rowId);
+        return row
+          ? { syncedVersion: row._version, approxSyncedAt: null, pendingMutations: pending.size > 0 }
+          : null;
+      },
+    });
+
+    // DataCellV2 connection axis (Exact LLP 0284 §2.2): cells emitted for the
+    // live-bound descriptor carry `connection`; the field is absent for
+    // non-subscription descriptors — its absence is itself a fact. Additive: a
+    // consumer that ignores the extra field behaves exactly as before.
+    const provider = wantLivePush
+      ? {
+          ...baseProvider,
+          subscribe(subscribedQuery, args, observer) {
+            if (subscribedQuery !== queryName) {
+              return baseProvider.subscribe(subscribedQuery, args, observer);
+            }
+            const record = {
+              lastCell: null,
+              emit: (cell) => observer(cell),
+            };
+            liveCellObservers.add(record);
+            const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
+              record.lastCell = cell;
+              observer({ ...cell, connection: surfaceConnection() });
+            });
+            return {
+              dispose() {
+                liveCellObservers.delete(record);
+                subscription.dispose();
+              },
+            };
+          },
+        }
+      : baseProvider;
+
+    // Ephemeral binding + publish links resolve through the finished provider
+    // (the `ephemeral` grammar's initializer expects a provider-backed handle).
+    Object.assign(links, ephemeralWiring.buildLinks(provider, runtime));
+
+    return {
+      adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
+      capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
+      boundary,
+      links,
+      provider,
+      diagnostics,
+      pendingCount: () => pending.size,
+      declaredQueries: queryNames,
+      declaredMutations: mutationNames,
+      // LLP 0034 D1 facts: whether the bound descriptor streams server push, and
+      // the current Exact LLP 0284 §2.2 connection value (null when not
+      // subscription-backed).
+      livePush: wantLivePush,
+      connection: surfaceConnection,
+      // Receipt surface (LLP 0034 §3 / ENG-22478): the kit ring, adapter-facing.
+      rootId: surfaceRootId,
+      receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
+      // Ephemeral facts (ENG-22479): the conformance gate's LOCAL-ONLY probe
+      // reads source starts; prewarmScope subscribes a scoped room up front.
+      ephemeralSourceStarts: ephemeralWiring.sourceStarts,
+      prewarmEphemeral: ephemeralWiring.prewarmScope,
+      mount: (component, options = {}) => {
+        assertActive();
+        return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
+      },
+      flush: async () => {
+        await Promise.all([...pending]);
+      },
+      dispose: () => {
+        disposed = true;
+        detachReceiptListener?.();
+        ephemeralWiring.dispose();
+        liveHandle?.dispose();
+        liveHandle = null;
+        liveCellObservers.clear();
+        inFlightOptimistic.clear();
+        for (const handle of [...mountedHandles]) {
+          handle.dispose();
+        }
+        mountedHandles.clear();
+        pending.clear();
+      },
+    };
+  } catch (error) {
+    // ENG-23383: the receipt listener attaches before any fallible work, so
+    // every construction failure past this point must detach it and release
+    // whatever the attempt already established, or app-level retries
+    // accumulate receipt listeners and leak live server subscriptions.
+    try {
       liveHandle?.dispose();
-      liveHandle = null;
-      liveCellObservers.clear();
-      inFlightOptimistic.clear();
-      for (const handle of [...mountedHandles]) {
-        handle.dispose();
-      }
-      mountedHandles.clear();
-      pending.clear();
-    },
-  };
+    } catch {
+      // Best-effort teardown: the construction error is the one to surface.
+    }
+    try {
+      ephemeralWiring?.dispose();
+    } catch {
+      // Best-effort teardown: the construction error is the one to surface.
+    }
+    detachReceiptListener?.();
+    throw error;
+  }
 }
 
 
@@ -1017,284 +1037,310 @@ async function createMultiLiveContractSurface({
   pending,
   mountedHandles,
 }) {
-  if (typeof runtime.createProviderQueryHandle !== 'function') {
-    throw new Error(
-      'createSnapbackContractSurface liveQueries mode requires an Exact runtime with createProviderQueryHandle (LLP 0284 §2.2).',
-    );
-  }
-  const queryNames = Object.keys(manifest?.queries ?? {});
-  const mutationNames = Object.keys(manifest?.mutations ?? {});
-  // A liveQueries entry is a name or `{ name, args }` — a scoped live query
-  // (e.g. graffiti's board-scoped listCells) subscribes with its validated
-  // args; bare-name entries keep the original zero-arg behavior.
-  //
-  // INVARIANT (LLP 0034 §10.4): the configured entry's args are the ONLY args
-  // that reach the server — one subscription per query name, established here.
-  // Binding-site args on the read path are not consulted; a binding whose args
-  // deep-differ from the configured entry's gets a structured
-  // SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH diagnostic (plus a dev warning)
-  // instead of silently receiving the other scope's rows unlabeled.
-  const liveQueryEntries = liveQueries.map((entry) =>
-    typeof entry === 'string' ? { name: entry, args: {} } : { name: entry.name, args: entry.args ?? {} });
-  const liveQueryNames = liveQueryEntries.map((entry) => entry.name);
-  const configuredLiveArgs = new Map(liveQueryEntries.map((entry) => [entry.name, entry.args]));
-  for (const name of liveQueryNames) {
-    if (!manifest?.queries?.[name]) {
-      throw new Error(`liveQueries names an unknown manifest query "${name}".`);
-    }
-  }
-  // Duplicate names would silently clobber each other (liveHandles and the
-  // boundary are keyed by name only) — reject with a structured diagnostic.
-  if (configuredLiveArgs.size !== liveQueryEntries.length) {
-    const duplicates = [...new Set(liveQueryNames.filter((name, i) => liveQueryNames.indexOf(name) !== i))];
-    const diagnostic = contractDiagnostic(
-      'SNAPBACK_CONTRACT_LIVEQUERY_DUPLICATE',
-      `liveQueries names each query at most once; duplicates: ${duplicates.join(', ')}. One subscription per query name — to scope it, pass { name, args } once.`,
-      { duplicates },
-    );
-    const error = new Error(diagnostic.message);
-    error.diagnostic = diagnostic;
-    throw error;
-  }
-
-  let disposed = false;
-  let boundary = null;
-  const sharedConnectionId = connectionId ?? defaultContractConnectionId();
   const liveHandles = new Map(); // query name -> kit live handle
-  const liveCellObservers = new Map(); // query name -> Set<record>
-  const wantLivePush = livePush && typeof client.liveQuery === 'function';
-  const ephemeralWiring = buildEphemeralWiring({
-    client,
-    manifest,
-    connectionId: sharedConnectionId,
-    userId,
-    ephemeralPermissions,
-    ephemeralIdleLingerMs,
-  });
-
-  const assertActive = () => {
-    if (disposed) {
-      throw new Error('Snapback Contract surface was used after dispose().');
+  let ephemeralWiring = null;
+  try {
+    if (typeof runtime.createProviderQueryHandle !== 'function') {
+      throw new Error(
+        'createSnapbackContractSurface liveQueries mode requires an Exact runtime with createProviderQueryHandle (LLP 0284 §2.2).',
+      );
     }
-  };
-
-  const publishDiagnostic = (code, message, details = {}) => {
-    const diagnostic = contractDiagnostic(code, message, details);
-    diagnostics.push(diagnostic);
-    return diagnostic;
-  };
-
-  // Binding-site args are not consulted on the multi-live read path (the
-  // configured entry owns the one subscription) — so a binding that ASKS for
-  // a different scope must be told it is not getting it, not silently served
-  // the configured scope's rows (LLP 0034 §10.4). Diagnosed once per
-  // (query, distinct binding args).
-  const argsMismatchSeen = new Set();
-  const stableArgsKey = (value) => JSON.stringify(sortValueDeep(value ?? {}));
-  const warnOnBindingArgsMismatch = (name, bindingArgs) => {
-    const configured = configuredLiveArgs.get(name);
-    if (configured === undefined) return;
-    const bindingKey = stableArgsKey(bindingArgs);
-    if (bindingKey === stableArgsKey(configured)) return;
-    const seenKey = `${name} ${bindingKey}`;
-    if (argsMismatchSeen.has(seenKey)) return;
-    argsMismatchSeen.add(seenKey);
-    const diagnostic = publishDiagnostic(
-      'SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH',
-      `query binding "${name}" passed args that differ from the configured liveQueries entry; the subscription serves the configured args only.`,
-      { query: name, bindingArgs: bindingArgs ?? {}, configuredArgs: configured },
-    );
-    console.warn(`[snapback-contract] ${diagnostic.message}`, { bindingArgs, configuredArgs: configured });
-  };
-
-  const connectionFor = (name) =>
-    (wantLivePush && liveHandles.has(name) ? liveHandles.get(name).connection ?? 'connecting' : null);
-
-  const reemitCells = (name, connection) => {
-    for (const record of [...(liveCellObservers.get(name) ?? [])]) {
-      if (record.lastCell) record.emit({ ...record.lastCell, connection });
+    const queryNames = Object.keys(manifest?.queries ?? {});
+    const mutationNames = Object.keys(manifest?.mutations ?? {});
+    // A liveQueries entry is a name or `{ name, args }` — a scoped live query
+    // (e.g. graffiti's board-scoped listCells) subscribes with its validated
+    // args; bare-name entries keep the original zero-arg behavior.
+    //
+    // INVARIANT (LLP 0034 §10.4): the configured entry's args are the ONLY args
+    // that reach the server — one subscription per query name, established here.
+    // Binding-site args on the read path are not consulted; a binding whose args
+    // deep-differ from the configured entry's gets a structured
+    // SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH diagnostic (plus a dev warning)
+    // instead of silently receiving the other scope's rows unlabeled.
+    const liveQueryEntries = liveQueries.map((entry) =>
+      typeof entry === 'string' ? { name: entry, args: {} } : { name: entry.name, args: entry.args ?? {} });
+    const liveQueryNames = liveQueryEntries.map((entry) => entry.name);
+    const configuredLiveArgs = new Map(liveQueryEntries.map((entry) => [entry.name, entry.args]));
+    for (const name of liveQueryNames) {
+      if (!manifest?.queries?.[name]) {
+        throw new Error(`liveQueries names an unknown manifest query "${name}".`);
+      }
     }
-  };
-
-  // Establish every live subscription (snapshot-with-subscribe each; one
-  // shared socket via the connection id) before the boundary exists, then
-  // build the boundary from the snapshots.
-  const initialRows = {};
-  for (const name of queryNames) {
-    if (manifest?.queries?.[name]?.ephemeral === true) continue;
-    initialRows[name] = [];
-  }
-  if (wantLivePush) {
-    for (const { name, args } of liveQueryEntries) {
-      const handle = await client.liveQuery(name, {
-        connectionId: sharedConnectionId,
-        args,
-        userId,
-        transport: 'stream',
-        stream: liveStreamOptions,
-        // Adapter-stitched correlation (LLP 0034 §3.2); TODO(Exact LLP
-        // 0231/0278): thread action/wave ids when the runtime supplies them.
-        correlation: { rootId, bindingIds: [name] },
-        onUpdate: (rows) => {
-          if (!disposed && boundary) boundary.write(name, () => rows);
-        },
-        onConnectionChange: (connection, detail) => {
-          // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit last
-          // cells so slot sugar sees transitions without a data change.
-          reemitCells(name, connection);
-          onConnectionChange?.(connection, { ...detail, queryName: name });
-        },
-        onSubscriptionEvent: onSubscriptionEvent
-          ? (event) => onSubscriptionEvent({ ...event, queryName: name })
-          : null,
-      });
-      liveHandles.set(name, handle);
-      liveCellObservers.set(name, new Set());
-      initialRows[name] = handle.rows;
-    }
-  }
-  boundary = runtime.createContractMockQueryBoundary(initialRows);
-  for (const [name, handle] of liveHandles) {
-    if (handle.rows !== initialRows[name]) {
-      // An update that raced boundary creation is not lost.
-      boundary.write(name, () => handle.rows);
-    }
-  }
-
-  const track = (promise) => {
-    const task = Promise.resolve(promise);
-    pending.add(task);
-    task.then(
-      () => pending.delete(task),
-      () => pending.delete(task),
-    );
-    return task;
-  };
-
-  const persistMutation = async (name, args) => {
-    try {
-      await client.mutate(name, {
-        args,
-        userId,
-        correlation: { rootId, bindingIds: [...liveQueryNames] },
-      });
-    } catch (error) {
-      publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
-        mutation: name,
-        args,
-      });
+    // Duplicate names would silently clobber each other (liveHandles and the
+    // boundary are keyed by name only) — reject with a structured diagnostic.
+    if (configuredLiveArgs.size !== liveQueryEntries.length) {
+      const duplicates = [...new Set(liveQueryNames.filter((name, i) => liveQueryNames.indexOf(name) !== i))];
+      const diagnostic = contractDiagnostic(
+        'SNAPBACK_CONTRACT_LIVEQUERY_DUPLICATE',
+        `liveQueries names each query at most once; duplicates: ${duplicates.join(', ')}. One subscription per query name — to scope it, pass { name, args } once.`,
+        { duplicates },
+      );
+      const error = new Error(diagnostic.message);
+      error.diagnostic = diagnostic;
       throw error;
     }
-  };
 
-  const providerQueries = {};
-  for (const name of queryNames) {
-    if (manifest?.queries?.[name]?.ephemeral === true) continue; // §2.4 kind split
-    providerQueries[name] = (_args, qb) => qb.query(name, (rows) => rows, { key: name });
-  }
-  const providerMutations = {};
-  for (const name of mutationNames) {
-    providerMutations[name] = async (args) => {
-      assertActive();
-      await track(persistMutation(name, args));
-    };
-  }
+    let disposed = false;
+    let boundary = null;
+    const sharedConnectionId = connectionId ?? defaultContractConnectionId();
+    const liveCellObservers = new Map(); // query name -> Set<record>
+    const wantLivePush = livePush && typeof client.liveQuery === 'function';
+    ephemeralWiring = buildEphemeralWiring({
+      client,
+      manifest,
+      connectionId: sharedConnectionId,
+      userId,
+      ephemeralPermissions,
+      ephemeralIdleLingerMs,
+    });
 
-  await ephemeralWiring.prewarm();
-
-  const baseProvider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
-    queries: providerQueries,
-    mutations: providerMutations,
-    ephemerals: ephemeralWiring.sources,
-  });
-
-  // DataCellV2 connection axis: cells for live-bound queries carry their own
-  // query's connection; the field stays absent elsewhere.
-  const provider = {
-    ...baseProvider,
-    subscribe(subscribedQuery, args, observer) {
-      warnOnBindingArgsMismatch(subscribedQuery, args);
-      if (!liveHandles.has(subscribedQuery)) {
-        return baseProvider.subscribe(subscribedQuery, args, observer);
+    const assertActive = () => {
+      if (disposed) {
+        throw new Error('Snapback Contract surface was used after dispose().');
       }
-      const records = liveCellObservers.get(subscribedQuery);
-      const record = {
-        lastCell: null,
-        emit: (cell) => observer(cell),
+    };
+
+    const publishDiagnostic = (code, message, details = {}) => {
+      const diagnostic = contractDiagnostic(code, message, details);
+      diagnostics.push(diagnostic);
+      return diagnostic;
+    };
+
+    // Binding-site args are not consulted on the multi-live read path (the
+    // configured entry owns the one subscription) — so a binding that ASKS for
+    // a different scope must be told it is not getting it, not silently served
+    // the configured scope's rows (LLP 0034 §10.4). Diagnosed once per
+    // (query, distinct binding args).
+    const argsMismatchSeen = new Set();
+    const stableArgsKey = (value) => JSON.stringify(sortValueDeep(value ?? {}));
+    const warnOnBindingArgsMismatch = (name, bindingArgs) => {
+      const configured = configuredLiveArgs.get(name);
+      if (configured === undefined) return;
+      const bindingKey = stableArgsKey(bindingArgs);
+      if (bindingKey === stableArgsKey(configured)) return;
+      const seenKey = `${name} ${bindingKey}`;
+      if (argsMismatchSeen.has(seenKey)) return;
+      argsMismatchSeen.add(seenKey);
+      const diagnostic = publishDiagnostic(
+        'SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH',
+        `query binding "${name}" passed args that differ from the configured liveQueries entry; the subscription serves the configured args only.`,
+        { query: name, bindingArgs: bindingArgs ?? {}, configuredArgs: configured },
+      );
+      console.warn(`[snapback-contract] ${diagnostic.message}`, { bindingArgs, configuredArgs: configured });
+    };
+
+    const connectionFor = (name) =>
+      (wantLivePush && liveHandles.has(name) ? liveHandles.get(name).connection ?? 'connecting' : null);
+
+    const reemitCells = (name, connection) => {
+      for (const record of [...(liveCellObservers.get(name) ?? [])]) {
+        if (record.lastCell) record.emit({ ...record.lastCell, connection });
+      }
+    };
+
+    // Establish every live subscription (snapshot-with-subscribe each; one
+    // shared socket via the connection id) before the boundary exists, then
+    // build the boundary from the snapshots.
+    const initialRows = {};
+    for (const name of queryNames) {
+      if (manifest?.queries?.[name]?.ephemeral === true) continue;
+      initialRows[name] = [];
+    }
+    if (wantLivePush) {
+      for (const { name, args } of liveQueryEntries) {
+        const handle = await client.liveQuery(name, {
+          connectionId: sharedConnectionId,
+          args,
+          userId,
+          transport: 'stream',
+          stream: liveStreamOptions,
+          // Adapter-stitched correlation (LLP 0034 §3.2); TODO(Exact LLP
+          // 0231/0278): thread action/wave ids when the runtime supplies them.
+          correlation: { rootId, bindingIds: [name] },
+          onUpdate: (rows) => {
+            if (!disposed && boundary) boundary.write(name, () => rows);
+          },
+          onConnectionChange: (connection, detail) => {
+            // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit last
+            // cells so slot sugar sees transitions without a data change.
+            reemitCells(name, connection);
+            onConnectionChange?.(connection, { ...detail, queryName: name });
+          },
+          onSubscriptionEvent: onSubscriptionEvent
+            ? (event) => onSubscriptionEvent({ ...event, queryName: name })
+            : null,
+        });
+        liveHandles.set(name, handle);
+        liveCellObservers.set(name, new Set());
+        initialRows[name] = handle.rows;
+      }
+    }
+    boundary = runtime.createContractMockQueryBoundary(initialRows);
+    for (const [name, handle] of liveHandles) {
+      if (handle.rows !== initialRows[name]) {
+        // An update that raced boundary creation is not lost.
+        boundary.write(name, () => handle.rows);
+      }
+    }
+
+    const track = (promise) => {
+      const task = Promise.resolve(promise);
+      pending.add(task);
+      task.then(
+        () => pending.delete(task),
+        () => pending.delete(task),
+      );
+      return task;
+    };
+
+    const persistMutation = async (name, args) => {
+      try {
+        await client.mutate(name, {
+          args,
+          userId,
+          correlation: { rootId, bindingIds: [...liveQueryNames] },
+        });
+      } catch (error) {
+        publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
+          mutation: name,
+          args,
+        });
+        throw error;
+      }
+    };
+
+    const providerQueries = {};
+    for (const name of queryNames) {
+      if (manifest?.queries?.[name]?.ephemeral === true) continue; // §2.4 kind split
+      providerQueries[name] = (_args, qb) => qb.query(name, (rows) => rows, { key: name });
+    }
+    const providerMutations = {};
+    for (const name of mutationNames) {
+      providerMutations[name] = async (args) => {
+        assertActive();
+        await track(persistMutation(name, args));
       };
-      records.add(record);
-      const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
-        record.lastCell = cell;
-        observer({ ...cell, connection: connectionFor(subscribedQuery) });
-      });
-      return {
-        dispose() {
-          records.delete(record);
-          subscription.dispose();
-        },
+    }
+
+    await ephemeralWiring.prewarm();
+
+    const baseProvider = runtime.createBoundaryContractDataProvider(manifest, boundary, {
+      queries: providerQueries,
+      mutations: providerMutations,
+      ephemerals: ephemeralWiring.sources,
+    });
+
+    // DataCellV2 connection axis: cells for live-bound queries carry their own
+    // query's connection; the field stays absent elsewhere.
+    const provider = {
+      ...baseProvider,
+      subscribe(subscribedQuery, args, observer) {
+        warnOnBindingArgsMismatch(subscribedQuery, args);
+        if (!liveHandles.has(subscribedQuery)) {
+          return baseProvider.subscribe(subscribedQuery, args, observer);
+        }
+        const records = liveCellObservers.get(subscribedQuery);
+        const record = {
+          lastCell: null,
+          emit: (cell) => observer(cell),
+        };
+        records.add(record);
+        const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
+          record.lastCell = cell;
+          observer({ ...cell, connection: connectionFor(subscribedQuery) });
+        });
+        return {
+          dispose() {
+            records.delete(record);
+            subscription.dispose();
+          },
+        };
+      },
+    };
+
+    const links = {};
+    for (const name of queryNames) {
+      if (manifest?.queries?.[name]?.ephemeral === true) continue; // bound below
+      links[name] = (args = {}) => {
+        assertActive();
+        return runtime.createProviderQueryHandle(provider, name, args ?? {});
       };
-    },
-  };
+    }
+    for (const name of mutationNames) {
+      links[name] = (args) => {
+        assertActive();
+        return track(persistMutation(name, args));
+      };
+    }
+    Object.assign(links, ephemeralWiring.buildLinks(provider, runtime));
 
-  const links = {};
-  for (const name of queryNames) {
-    if (manifest?.queries?.[name]?.ephemeral === true) continue; // bound below
-    links[name] = (args = {}) => {
-      assertActive();
-      return runtime.createProviderQueryHandle(provider, name, args ?? {});
+    return {
+      adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
+      capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
+      boundary,
+      links,
+      provider,
+      diagnostics,
+      pendingCount: () => pending.size,
+      declaredQueries: queryNames,
+      declaredMutations: mutationNames,
+      livePush: wantLivePush,
+      liveQueries: [...liveQueryNames],
+      connectionId: sharedConnectionId,
+      rootId,
+      receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
+      ephemeralSourceStarts: ephemeralWiring.sourceStarts,
+      prewarmEphemeral: ephemeralWiring.prewarmScope,
+      // Per-query connection facts; no argument = the first live query.
+      connection: (name = liveQueryNames[0]) => connectionFor(name),
+      connections: () => Object.fromEntries(liveQueryNames.map((name) => [name, connectionFor(name)])),
+      mount: (component, options = {}) => {
+        assertActive();
+        return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
+      },
+      flush: async () => {
+        await Promise.all([...pending]);
+      },
+      dispose: () => {
+        disposed = true;
+        detachReceiptListener?.();
+        ephemeralWiring.dispose();
+        for (const [, handle] of liveHandles) {
+          handle.dispose();
+        }
+        liveHandles.clear();
+        liveCellObservers.clear();
+        for (const handle of [...mountedHandles]) {
+          handle.dispose();
+        }
+        mountedHandles.clear();
+        pending.clear();
+      },
     };
-  }
-  for (const name of mutationNames) {
-    links[name] = (args) => {
-      assertActive();
-      return track(persistMutation(name, args));
-    };
-  }
-  Object.assign(links, ephemeralWiring.buildLinks(provider, runtime));
-
-  return {
-    adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
-    capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
-    boundary,
-    links,
-    provider,
-    diagnostics,
-    pendingCount: () => pending.size,
-    declaredQueries: queryNames,
-    declaredMutations: mutationNames,
-    livePush: wantLivePush,
-    liveQueries: [...liveQueryNames],
-    connectionId: sharedConnectionId,
-    rootId,
-    receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
-    ephemeralSourceStarts: ephemeralWiring.sourceStarts,
-    prewarmEphemeral: ephemeralWiring.prewarmScope,
-    // Per-query connection facts; no argument = the first live query.
-    connection: (name = liveQueryNames[0]) => connectionFor(name),
-    connections: () => Object.fromEntries(liveQueryNames.map((name) => [name, connectionFor(name)])),
-    mount: (component, options = {}) => {
-      assertActive();
-      return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
-    },
-    flush: async () => {
-      await Promise.all([...pending]);
-    },
-    dispose: () => {
-      disposed = true;
-      detachReceiptListener?.();
-      ephemeralWiring.dispose();
-      for (const [, handle] of liveHandles) {
+  } catch (error) {
+    // ENG-23383: a mid-construction failure (unknown/duplicate liveQueries
+    // names, a mid-loop subscribe rejection, a failed prewarm) must not
+    // strand the handles already established — each holds a server-side
+    // live subscription, a durable-lane consumer, and onState demand on the
+    // shared LiveStreamManager, so leaking them leaves the manager
+    // reconnecting forever and the server fanning out to a connection nobody
+    // drains. Release them (and the ephemeral wiring) before the error
+    // surfaces; the caller detaches the receipt listener.
+    for (const [, handle] of liveHandles) {
+      try {
         handle.dispose();
+      } catch {
+        // Best-effort teardown: the construction error is the one to surface.
       }
-      liveHandles.clear();
-      liveCellObservers.clear();
-      for (const handle of [...mountedHandles]) {
-        handle.dispose();
-      }
-      mountedHandles.clear();
-      pending.clear();
-    },
-  };
+    }
+    liveHandles.clear();
+    try {
+      ephemeralWiring?.dispose();
+    } catch {
+      // Best-effort teardown: the construction error is the one to surface.
+    }
+    throw error;
+  }
 }
 
 // Shared bridge for Contract system surfaces such as the Snapback admin console.

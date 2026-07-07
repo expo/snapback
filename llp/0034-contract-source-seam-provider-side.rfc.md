@@ -691,3 +691,21 @@ Exact-side ephemeral `queryResultTypes` gap in practice: `shape_unknown_member`
 fires through helper-declared shapes (the surface mirrors the generated
 `BoardCursorsEntry`/`Value` shapes in its `data.contract-meta.ts`), not through
 the `ephemeral` binding itself — still an ENG-22526 (Exact 0284 §8) item.
+
+### 10.5 Construction failure releases everything already established (2026-07-06, ENG-23383)
+
+The kit already guaranteed that a failed `liveQuery()` leaves nothing running
+(§2.4's "fails loudly" contract); the adapter now guarantees the same for
+`createSnapbackContractSurface` as a whole. The receipt listener attaches
+before any fallible work, and multi-live mode establishes one live handle per
+`liveQueries` entry sequentially — so a validation throw, a rejected
+subscribe (including mid-loop, stranding earlier entries' handles), or a
+failed prewarm used to leak on every app-level retry: accumulated receipt
+listeners (callbacks firing N times per receipt) plus orphaned handles whose
+shared-stream demand never drops, leaving the manager reconnecting forever
+and the server fanning out to a connection nobody drains. Both construction
+paths now clean up on any failure — dispose the handles established so far,
+dispose the ephemeral wiring, detach the receipt listener — before the error
+(diagnostics intact) surfaces. Gated by
+`packages/snapback-contract/surface-construction-failure.test.mjs` (plain
+node, mock client/runtime).
