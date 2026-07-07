@@ -197,12 +197,13 @@ fn dk7_representative_values_validate_against_committed_schemas() {
     );
 }
 
-const GENERATED_BACKENDS: [&str; 5] = [
+const GENERATED_BACKENDS: [&str; 6] = [
     "demos/todo/snapback/generated",
     "demos/todo-v2/snapback/generated",
     "demos/all-aboard/snapback/generated",
     "demos/all-aboard/tests/egress-probe/generated",
     "demos/cursors-web/snapback/generated",
+    "demos/graffiti/snapback/generated",
 ];
 
 /// Demo-artifact gate: every committed generated demo manifest validates against

@@ -13,7 +13,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "b756030329204cc782e4e05dc5b830016fcf48633a9b1b7dbc8bad0a0d73a1c9",
+  "inputsHash": "d05d5016b3a3bbd6d3c74c70b4c4e159e0f2474b77fec8131b866f84f874eebd",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {
@@ -26,6 +26,9 @@
           "shape": "primitive"
         }
       },
+      "invalidates": [
+        "todos"
+      ],
       "name": "createTodo",
       "optimistic": false,
       "serverRunnable": true,
@@ -43,6 +46,9 @@
           "shape": "primitive"
         }
       },
+      "invalidates": [
+        "todos"
+      ],
       "name": "deleteTodo",
       "optimistic": false,
       "serverRunnable": true,
@@ -90,6 +96,9 @@
           "shape": "primitive"
         }
       },
+      "invalidates": [
+        "todos"
+      ],
       "name": "setCompleted",
       "optimistic": false,
       "serverRunnable": true,

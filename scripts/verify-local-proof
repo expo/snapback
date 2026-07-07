@@ -47,6 +47,7 @@ run node demos/todo-v2/tests/acceptance/headless.mjs
 run node demos/all-aboard/tests/acceptance/egress.mjs
 run node demos/_kit/tests/client-errors.mjs
 run node demos/_kit/tests/provenance-unit.mjs
+run node demos/_kit/tests/codegen-regressions.mjs
 run node demos/_kit/tests/provider-live-conformance.mjs
 run node demos/_kit/tests/regression-reconnect-nuke.mjs
 run node demos/_kit/tests/regression-fake-live.mjs

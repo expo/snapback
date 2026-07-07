@@ -15,7 +15,7 @@
 // Exits non-zero (writing nothing) if any error diagnostic is produced.
 
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, renameSync, realpathSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isConfigDef, isCronDef, isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
@@ -48,6 +48,7 @@ const RESERVED_WORDS = new Set([
   'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
   'eval', 'arguments',
 ]);
+const GENERATED_API_RESERVED_EXPORTS = new Set(['api', 'ephemeral']);
 const SCHEMA_VERSION = 'snapback.v0';
 const TARGET_PROFILE = 'local-dev-sqlite-ibex';
 
@@ -256,9 +257,22 @@ export async function generate(backendDir) {
   const functionsPath = join(backendDir, 'functions.mjs');
   const seedPath = join(backendDir, 'seed.json');
   const handlerSourceCache = new Map();
+  const schemaSource = readRequiredSource(schemaPath, diagnostics, {
+    code: 'SCHEMA_SOURCE_MISSING',
+    subsystem: 'schema',
+    message: `schema source ${schemaPath} could not be read`,
+  });
+  const functionsSource = readRequiredSource(functionsPath, diagnostics, {
+    code: 'FUNCTION_SOURCE_MISSING',
+    subsystem: 'function',
+    message: `functions source ${functionsPath} could not be read`,
+  });
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
 
-  const schemaModule = await import(pathToFileURL(schemaPath).href);
-  const functionsModule = await import(pathToFileURL(functionsPath).href);
+  const schemaModule = await import(moduleUrlWithSourceHash(schemaPath, schemaSource));
+  const functionsModule = await import(moduleUrlWithSourceHash(functionsPath, functionsSource));
 
   const schemaDef = schemaModule.default;
   if (!schemaDef || !schemaDef.__schema) {
@@ -267,7 +281,7 @@ export async function generate(backendDir) {
   }
 
   // --- Build + validate schema ------------------------------------------------
-  const tables = {};
+  const tables = dict();
   const seenTables = new Set();
   for (const [name, table] of Object.entries(schemaDef.tables)) {
     if (!IDENT.test(name) || name.startsWith('_snapback')) {
@@ -321,8 +335,8 @@ export async function generate(backendDir) {
   // --- Build + validate functions --------------------------------------------
   const ephemeralCollections = buildEphemeralCollections(schemaDef.ephemeral, err);
   const functions = [];
-  const contractQueries = {};
-  const contractMutations = {};
+  const contractQueries = dict();
+  const contractMutations = dict();
   const cronDefs = [];
   const configDefs = [];
 
@@ -364,6 +378,10 @@ export async function generate(backendDir) {
       checkObjectValidatorFieldIdents(def.result, 'result', (fieldName, where) => {
         err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: ${where} has invalid field identifier ${fieldName}`, { function: name, field: fieldName });
       });
+    }
+    if (GENERATED_API_RESERVED_EXPORTS.has(name)) {
+      err('FUNCTION_RESERVED_EXPORT', 'function', `${name}: function export collides with a generated API namespace`, { function: name });
+      continue;
     }
     const argNames = new Set(Object.keys(def.args));
 
@@ -464,6 +482,7 @@ export async function generate(backendDir) {
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         writes,
+        invalidates: writes,
         optimistic: false,
         serverRunnable: true,
       };
@@ -573,30 +592,37 @@ export async function generate(backendDir) {
   }
 
   // --- Hashes + emit ----------------------------------------------------------
-  const schemaSource = readFileSync(schemaPath, 'utf8');
-  const functionsSource = readFileSync(functionsPath, 'utf8');
   const seedSource = existsSync(seedPath) ? readFileSync(seedPath, 'utf8') : null;
   const defineSource = readFileSync(join(packageDir(), 'define.mjs'), 'utf8');
   const canonicalCapability = loadCanonicalCapabilityManifest(err);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
+  const appId = inferAppId(backendDir);
+  const demoMetadata = readDemoAppMetadata(backendDir, appId, diagnostics);
   // Hash inputs use the MANIFEST-RELATIVE handler path (LLP 0034 review fix
   // 4): keying by absolute path baked the checkout location into inputsHash /
   // bundleHash, so committed artifacts only reproduced from the checkout that
   // generated them.
   const handlerInputs = [];
-  for (const [sourcePath, source] of [...handlerSourceCache.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [sourcePath, source] of [...handlerSourceCache.entries()].sort(([a], [b]) => compareCodeUnits(a, b))) {
     handlerInputs.push(sourcePath, source ?? '');
   }
-  const inputs = [schemaSource, functionsSource, ...(seedSource === null ? [] : [seedSource]), defineSource, canonicalCapability.source, ...handlerInputs];
+  const inputs = [
+    schemaSource,
+    functionsSource,
+    ...(seedSource === null ? [] : [seedSource]),
+    ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
+    defineSource,
+    canonicalCapability.source,
+    ...handlerInputs,
+  ];
   const inputsHash = sha256(inputs.join('\0'));
   const schemaContentHash = sha256(schemaSource);
   const bundleContentHash = sha256([functionsSource, defineSource, ...handlerInputs].join('\0'));
 
   const generatedAt = generatedAtMillis();
-  const appId = inferAppId(backendDir);
-  const appIdentity = readDemoAppIdentity(backendDir, appId, diagnostics);
+  const appIdentity = demoMetadata.identity;
   const schemaHash = `sha256:${schemaContentHash.slice(0, 16)}`;
   const bundleHash = `sha256:${bundleContentHash.slice(0, 16)}`;
   const schemaManifest = {
@@ -690,23 +716,15 @@ export async function generate(backendDir) {
   }
 
   const outDir = join(backendDir, 'generated');
-  const contractOutDir = join(outDir, 'contract');
-  mkdirSync(outDir, { recursive: true });
-  rmSync(contractOutDir, { recursive: true, force: true });
-  mkdirSync(contractOutDir, { recursive: true });
   const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
   const apiTypes = renderApiTypes(functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
-  writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
-  writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
-  writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
-  writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
-  writeFileSync(join(outDir, 'api.mjs'), apiModule);
-  writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
-  for (const module of contractModules) {
-    writeFileSync(join(contractOutDir, module.file), module.source);
+  validateContractModuleFilenames(contractModules, err);
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
   }
-  writeFileSync(join(outDir, 'package.json'), stableJson({
+
+  const packageJson = {
     type: 'module',
     exports: {
       '.': {
@@ -718,28 +736,44 @@ export async function generate(backendDir) {
       './capabilities': './capability.manifest.json',
       './contract/*': './contract/*',
     },
-  }) + '\n');
+  };
   const contractArtifactFiles = contractModules.map((module) => `contract/${module.file}`);
-  writeFileSync(
-    join(outDir, 'artifacts.json'),
-    stableJson({
-      artifactKind: 'artifactIndex',
-      schemaVersion: SCHEMA_VERSION,
-      appId,
-      inputsHash,
-      generatedAt,
-      schemaHash,
-      bundleHash,
-      artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...contractArtifactFiles],
-      tables: Object.keys(tables),
-      ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
-      functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
-      cronJobs: cronJobs.map((job) => ({ name: job.name, action: job.action, enabled: job.enabled })),
-      // Names and requirement flags only — the index mirrors declarations,
-      // never values (LLP 0036).
-      config: configEntries.map((entry) => ({ name: entry.name, required: entry.required, pool: entry.pool })),
-    }) + '\n',
-  );
+  const artifactIndex = {
+    artifactKind: 'artifactIndex',
+    schemaVersion: SCHEMA_VERSION,
+    appId,
+    inputsHash,
+    generatedAt,
+    schemaHash,
+    bundleHash,
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...contractArtifactFiles],
+    tables: Object.keys(tables),
+    ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
+    functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
+    cronJobs: cronJobs.map((job) => ({ name: job.name, action: job.action, enabled: job.enabled })),
+    // Names and requirement flags only — the index mirrors declarations,
+    // never values (LLP 0036).
+    config: configEntries.map((entry) => ({ name: entry.name, required: entry.required, pool: entry.pool })),
+  };
+  const tmpOutDir = join(backendDir, `.generated.tmp-${process.pid}-${Date.now()}`);
+  try {
+    writeGeneratedOutput(tmpOutDir, {
+      schemaManifest,
+      functionManifest,
+      capabilityManifest,
+      contractManifest,
+      apiModule,
+      apiTypes,
+      contractModules,
+      packageJson,
+      artifactIndex,
+    });
+    replaceDirectory(tmpOutDir, outDir);
+  } catch (error) {
+    rmSync(tmpOutDir, { recursive: true, force: true });
+    err('CODEGEN_WRITE_FAILED', 'codegen', `failed to write generated artifacts transactionally: ${error.message}`, { path: outDir, error: error.message });
+    return { ok: false, diagnostics };
+  }
 
   return { ok: true, diagnostics, inputsHash, outDir, schemaManifest, functionManifest, capabilityManifest, contractManifest };
 
@@ -912,7 +946,7 @@ function contractEphemeralDescriptor(collection, schemaDef) {
 /// them; the `*.ephemeral.ts` / `*.publish.ts` descriptor-kind migration is
 /// deferred until Exact ships an `ephemeral` binding (LLP 0034 §4, deferred).
 function contractEphemeralSection(ephemeralCollections) {
-  const section = {};
+  const section = dict();
   for (const collection of ephemeralCollections) {
     section[collection.name] = {
       name: collection.name,
@@ -970,12 +1004,12 @@ function serializeMutationPlan(plan) {
     const kind = Object.keys(step)[0];
     const body = step[kind];
     if (kind === 'Insert') {
-      const values = {};
+      const values = dict();
       for (const [k, e] of Object.entries(body.values)) values[k] = serializeExpr(e);
       return { Insert: { table: body.table, values, bind_id_as: body.bind_id_as } };
     }
     if (kind === 'Patch') {
-      const values = {};
+      const values = dict();
       for (const [k, e] of Object.entries(body.values)) values[k] = serializeExpr(e);
       return { Patch: { table: body.table, id: serializeExpr(body.id), values } };
     }
@@ -1004,7 +1038,7 @@ function serializeActionPlan(plan, functionName, err) {
       err('ACTION_UNSUPPORTED_STEP', 'function', `${functionName}: unsupported action step ${kind}`, { function: functionName, step: kind });
       return null;
     }
-    const args = {};
+    const args = dict();
     for (const [k, e] of Object.entries(body.args ?? {})) {
       if (!e || !e.__expr) {
         err('ACTION_INVALID_EXPR', 'function', `${functionName}: runMutation arg ${k} is not a value expression`, { function: functionName, arg: k });
@@ -1229,11 +1263,24 @@ function checkObjectValidatorFieldIdents(val, where, report) {
 }
 
 function argDescriptors(args) {
-  const out = {};
+  const out = dict();
   for (const [name, val] of Object.entries(args)) {
-    out[name] = val.primitive === 'unknown' ? { shape: 'unknown' } : { shape: 'primitive', name: val.primitive };
+    out[name] = validatorDescriptor(val);
   }
   return out;
+}
+
+function validatorDescriptor(val) {
+  let descriptor;
+  if (!val || val.primitive === 'unknown') {
+    descriptor = { shape: 'unknown' };
+  } else if (val.primitive === 'object') {
+    descriptor = { shape: 'object', fields: argDescriptors(val.fields ?? {}) };
+  } else {
+    descriptor = { shape: 'primitive', name: val.primitive };
+  }
+  if (val?.optional) descriptor.optional = true;
+  return descriptor;
 }
 
 // JS-handler query results are typed only when declared (LLP 0032 P3): a
@@ -1261,15 +1308,18 @@ function jsQueryRowDescriptor(def, name, err) {
 }
 
 function rowDescriptor(table) {
-  const fields = {
+  const fields = dict();
+  Object.assign(fields, {
     _id: { shape: 'primitive', name: 'string' },
     _version: { shape: 'primitive', name: 'number' },
     _createdAt: { shape: 'primitive', name: 'number' },
     _updatedAt: { shape: 'primitive', name: 'number' },
-  };
+  });
   for (const f of table.fields) {
     const prim = { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[f.field_type];
-    fields[f.name] = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
+    const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
+    if (f.optional) descriptor.optional = true;
+    fields[f.name] = descriptor;
   }
   return { shape: 'object', fields };
 }
@@ -1376,11 +1426,17 @@ function scanUnsupportedHandlerSource(source) {
 }
 
 function maskCommentsAndStrings(source) {
+  const masked = maskSourceSegment(source, 0, null);
+  return masked.out;
+}
+
+function maskSourceSegment(source, start, until) {
   let out = '';
-  let i = 0;
+  let i = start;
   while (i < source.length) {
     const c = source[i];
     const n = source[i + 1];
+    if (until && c === until) break;
     if (c === '/' && n === '/') {
       out += '  ';
       i += 2;
@@ -1403,7 +1459,32 @@ function maskCommentsAndStrings(source) {
       }
       continue;
     }
-    if (c === '"' || c === "'" || c === '`') {
+    if (c === '/' && isRegexLiteralStart(source, i)) {
+      out += ' ';
+      i += 1;
+      let inClass = false;
+      while (i < source.length) {
+        const current = source[i];
+        out += current === '\n' ? '\n' : ' ';
+        if (current === '\\' && i + 1 < source.length) {
+          out += source[i + 1] === '\n' ? '\n' : ' ';
+          i += 2;
+          continue;
+        }
+        if (current === '[') inClass = true;
+        else if (current === ']') inClass = false;
+        i += 1;
+        if (current === '/' && !inClass) {
+          while (/[A-Za-z]/.test(source[i] ?? '')) {
+            out += ' ';
+            i += 1;
+          }
+          break;
+        }
+      }
+      continue;
+    }
+    if (c === '"' || c === "'") {
       const quote = c;
       out += ' ';
       i += 1;
@@ -1420,10 +1501,63 @@ function maskCommentsAndStrings(source) {
       }
       continue;
     }
+    if (c === '`') {
+      out += ' ';
+      i += 1;
+      while (i < source.length) {
+        const current = source[i];
+        const next = source[i + 1];
+        if (current === '\\' && i + 1 < source.length) {
+          out += ' ';
+          out += next === '\n' ? '\n' : ' ';
+          i += 2;
+          continue;
+        }
+        if (current === '$' && next === '{') {
+          out += '  ';
+          i += 2;
+          const expr = maskSourceSegment(source, i, '}');
+          out += expr.out;
+          i = expr.index;
+          if (source[i] === '}') {
+            out += ' ';
+            i += 1;
+          }
+          continue;
+        }
+        out += current === '\n' ? '\n' : ' ';
+        i += 1;
+        if (current === '`') break;
+      }
+      continue;
+    }
+    if (c === '{' && until === '}') {
+      out += c;
+      i += 1;
+      const inner = maskSourceSegment(source, i, '}');
+      out += inner.out;
+      i = inner.index;
+      if (source[i] === '}') {
+        out += '}';
+        i += 1;
+      }
+      continue;
+    }
     out += c;
     i += 1;
   }
-  return out;
+  return { out, index: i };
+}
+
+function isRegexLiteralStart(source, slashIndex) {
+  let i = slashIndex - 1;
+  while (i >= 0 && /\s/.test(source[i])) i -= 1;
+  if (i < 0) return true;
+  const prev = source[i];
+  if ('([{=,:;!&|?+-*~^<>%'.includes(prev)) return true;
+  const prefix = source.slice(0, i + 1);
+  const word = /([A-Za-z_$][A-Za-z0-9_$]*)$/.exec(prefix)?.[1];
+  return ['return', 'case', 'throw', 'typeof', 'delete', 'void', 'yield', 'await', 'in', 'of'].includes(word ?? '');
 }
 
 function sourcePosition(source, offset) {
@@ -1433,7 +1567,7 @@ function sourcePosition(source, offset) {
 }
 
 function renderApiModule(appId, functions, ephemeralCollections) {
-  const refs = {};
+  const refs = dict();
   for (const fn of functions) {
     refs[fn.name] = {
       artifactKind: 'functionReference',
@@ -1444,7 +1578,7 @@ function renderApiModule(appId, functions, ephemeralCollections) {
       kind: fn.kind,
     };
   }
-  const ephemeralRefs = {};
+  const ephemeralRefs = dict();
   for (const collection of ephemeralCollections) {
     ephemeralRefs[collection.name] = {
       artifactKind: 'ephemeralCollectionReference',
@@ -1666,7 +1800,7 @@ function renderContractMutationMeta(name, binding) {
     header: HEADER,
     name,
     effects: writes.map((table) => `${table}.write`),
-    invalidates: writes,
+    invalidates: binding?.invalidates ?? writes,
   });
 }
 
@@ -1735,7 +1869,7 @@ function renderContractEphemeralMeta(name, binding, def) {
 // null (the entry's value falls back to 'unknown').
 function shapeFieldsFromValidator(validator) {
   if (!validator || validator.primitive !== 'object') return null;
-  const fields = {};
+  const fields = dict();
   for (const [name, field] of Object.entries(validator.fields ?? {})) {
     const type = { string: 'string', number: 'number', boolean: 'boolean' }[field.primitive] ?? 'unknown';
     fields[name] = field.optional ? { type, optional: true } : type;
@@ -1802,9 +1936,11 @@ function publishArgsType(def) {
 
 function validatorRowDescriptor(validator) {
   if (!validator || validator.primitive !== 'object') return null;
-  const fields = {};
+  const fields = dict();
   for (const [name, field] of Object.entries(validator.fields ?? {})) {
-    fields[name] = { shape: 'primitive', name: { string: 'string', number: 'number', boolean: 'boolean' }[field.primitive] ?? 'unknown' };
+    const descriptor = { shape: 'primitive', name: { string: 'string', number: 'number', boolean: 'boolean' }[field.primitive] ?? 'unknown' };
+    if (field.optional) descriptor.optional = true;
+    fields[name] = descriptor;
   }
   return { shape: 'object', fields };
 }
@@ -1815,7 +1951,7 @@ function readTablesFromBinding(binding) {
 
 function contractShapeFields(row) {
   if (!row || row.shape !== 'object' || !row.fields) return {};
-  const out = {};
+  const out = dict();
   for (const [name, descriptor] of Object.entries(row.fields)) {
     out[name] = contractShapeField(descriptor);
   }
@@ -1823,22 +1959,27 @@ function contractShapeFields(row) {
 }
 
 function contractShapeField(descriptor) {
+  let type = 'unknown';
   if (descriptor?.shape === 'primitive') {
-    return descriptor.name ?? 'unknown';
+    type = descriptor.name ?? 'unknown';
   }
-  return 'unknown';
+  return descriptor?.optional ? { type, optional: true } : type;
 }
 
 function typeForArgs(args) {
   const entries = Object.entries(args);
   if (entries.length === 0) return 'Record<string, never>';
-  return `{ ${entries.map(([name, val]) => `${name}: ${typeForValidator(val)}`).join('; ')} }`;
+  return `{ ${entries.map(([name, val]) => typeProperty(name, val)).join('; ')} }`;
 }
 
 function typeForScope(scope) {
   const entries = Object.entries(scope);
   if (entries.length === 0) return 'Record<string, never>';
-  return `{ ${entries.map(([name, val]) => `${name}: ${typeForValidator(val)}`).join('; ')} }`;
+  return `{ ${entries.map(([name, val]) => typeProperty(name, val)).join('; ')} }`;
+}
+
+function typeProperty(name, val) {
+  return `${name}${val?.optional ? '?' : ''}: ${typeForValidator(val).replace(/ \| undefined$/, '')}`;
 }
 
 function typeForValidator(val) {
@@ -1854,12 +1995,25 @@ function inferAppId(backendDir) {
   return resolve(backendDir).split(/[\\/]/).slice(-2, -1)[0] || 'local-app';
 }
 
-function readDemoAppIdentity(backendDir, appId, diagnostics) {
+function readDemoAppMetadata(backendDir, appId, diagnostics) {
   const demoManifestPath = resolve(backendDir, '..', 'demo.snapback.json');
-  if (!existsSync(demoManifestPath)) return null;
+  if (!existsSync(demoManifestPath)) return { source: null, identity: null };
+  let source;
+  try {
+    source = readFileSync(demoManifestPath, 'utf8');
+  } catch (cause) {
+    diagnostics.push({
+      code: 'DEMO_MANIFEST_READ_FAILED',
+      severity: 'error',
+      subsystem: 'codegen',
+      message: `demo manifest ${demoManifestPath} could not be read: ${cause.message}`,
+      path: demoManifestPath,
+    });
+    return { source: null, identity: null };
+  }
   let manifest;
   try {
-    manifest = JSON.parse(readFileSync(demoManifestPath, 'utf8'));
+    manifest = JSON.parse(source);
   } catch (cause) {
     diagnostics.push({
       code: 'DEMO_MANIFEST_INVALID_JSON',
@@ -1868,7 +2022,7 @@ function readDemoAppIdentity(backendDir, appId, diagnostics) {
       message: `demo manifest ${demoManifestPath} is not valid JSON: ${cause.message}`,
       path: demoManifestPath,
     });
-    return null;
+    return { source, identity: null };
   }
   const app = manifest.app && typeof manifest.app === 'object' ? manifest.app : {};
   const identity = cleanObject({
@@ -1878,7 +2032,7 @@ function readDemoAppIdentity(backendDir, appId, diagnostics) {
     wordmarkUrl: readString(app.wordmarkUrl) ?? readString(app.wordmark_url) ?? readString(manifest.wordmarkUrl) ?? readString(manifest.wordmark_url),
   });
   if (identity.name === appId) delete identity.name;
-  return Object.keys(identity).length === 0 ? null : identity;
+  return { source, identity: Object.keys(identity).length === 0 ? null : identity };
 }
 
 function readString(value) {
@@ -1904,7 +2058,7 @@ function stableJson(value) {
   const sort = (v) => {
     if (Array.isArray(v)) return v.map(sort);
     if (v && typeof v === 'object') {
-      const out = {};
+      const out = dict();
       for (const k of Object.keys(v).sort()) out[k] = sort(v[k]);
       return out;
     }
@@ -1915,6 +2069,85 @@ function stableJson(value) {
 
 function sha256(text) {
   return createHash('sha256').update(text).digest('hex');
+}
+
+function compareCodeUnits(a, b) {
+  return a < b ? -1 : (a > b ? 1 : 0);
+}
+
+function dict() {
+  return Object.create(null);
+}
+
+function readRequiredSource(path, diagnostics, { code, subsystem, message }) {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (error) {
+    diagnostics.push({ code, severity: 'error', subsystem, message: `${message}: ${error.message}`, path, error: error.message });
+    return '';
+  }
+}
+
+function moduleUrlWithSourceHash(path, source) {
+  const url = pathToFileURL(path);
+  url.searchParams.set('snapback_codegen', sha256(source).slice(0, 16));
+  return url.href;
+}
+
+function validateContractModuleFilenames(modules, err) {
+  const seen = new Map();
+  for (const module of modules) {
+    const key = module.file.toLowerCase();
+    const prior = seen.get(key);
+    if (prior) {
+      err('CODEGEN_CONTRACT_MODULE_FILENAME_COLLISION', 'contract', `${module.file} collides case-insensitively with ${prior}`, { file: module.file, collidesWith: prior });
+    } else {
+      seen.set(key, module.file);
+    }
+  }
+}
+
+function writeGeneratedOutput(outDir, {
+  schemaManifest,
+  functionManifest,
+  capabilityManifest,
+  contractManifest,
+  apiModule,
+  apiTypes,
+  contractModules,
+  packageJson,
+  artifactIndex,
+}) {
+  const contractOutDir = join(outDir, 'contract');
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(contractOutDir, { recursive: true });
+  writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
+  writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
+  writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
+  writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
+  writeFileSync(join(outDir, 'api.mjs'), apiModule);
+  writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
+  for (const module of contractModules) {
+    writeFileSync(join(contractOutDir, module.file), module.source);
+  }
+  writeFileSync(join(outDir, 'package.json'), stableJson(packageJson) + '\n');
+  writeFileSync(join(outDir, 'artifacts.json'), stableJson(artifactIndex) + '\n');
+}
+
+function replaceDirectory(tmpDir, outDir) {
+  const backupDir = `${outDir}.bak-${process.pid}-${Date.now()}`;
+  rmSync(backupDir, { recursive: true, force: true });
+  const hadExisting = existsSync(outDir);
+  if (hadExisting) renameSync(outDir, backupDir);
+  try {
+    renameSync(tmpDir, outDir);
+    rmSync(backupDir, { recursive: true, force: true });
+  } catch (error) {
+    if (hadExisting && !existsSync(outDir) && existsSync(backupDir)) {
+      renameSync(backupDir, outDir);
+    }
+    throw error;
+  }
 }
 
 function packageDir() {
@@ -1974,6 +2207,15 @@ export async function runCodegenCli(argv = process.argv) {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+function isDirectCliInvocation(metaUrl, argv1) {
+  if (!argv1) return false;
+  try {
+    return realpathSync(fileURLToPath(metaUrl)) === realpathSync(argv1);
+  } catch {
+    return metaUrl === pathToFileURL(argv1).href;
+  }
+}
+
+if (isDirectCliInvocation(import.meta.url, process.argv[1])) {
   await runCodegenCli(process.argv);
 }

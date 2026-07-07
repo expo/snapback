@@ -30,13 +30,13 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value>
 export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
-  applyFeedTick: FunctionReference<'applyFeedTick', 'Mutation', { trigger: string | undefined; source: string | undefined; lastError: string | undefined }>;
-  applyLiveFeedSnapshot: FunctionReference<'applyLiveFeedSnapshot', 'Mutation', { trigger: string | undefined; source: string | undefined; delays: unknown; note: string | undefined; lastError: string | undefined }>;
+  applyFeedTick: FunctionReference<'applyFeedTick', 'Mutation', { trigger?: string; source?: string; lastError?: string }>;
+  applyLiveFeedSnapshot: FunctionReference<'applyLiveFeedSnapshot', 'Mutation', { trigger?: string; source?: string; delays: unknown; note?: string; lastError?: string }>;
   feedState: FunctionReference<'feedState', 'LiveQuery', Record<string, never>>;
   liveTrainStatus: FunctionReference<'liveTrainStatus', 'LiveQuery', Record<string, never>>;
-  refreshFeed: FunctionReference<'refreshFeed', 'Action', { trigger: string | undefined; source: string | undefined; feedUrl: string | undefined }>;
+  refreshFeed: FunctionReference<'refreshFeed', 'Action', { trigger?: string; source?: string; feedUrl?: string }>;
   resetFeed: FunctionReference<'resetFeed', 'Mutation', Record<string, never>>;
-  routeEstimate: FunctionReference<'routeEstimate', 'Action', { fromLat: number; fromLng: number; toLat: number; toLng: number; mode: string; baseUrl: string | undefined }>;
+  routeEstimate: FunctionReference<'routeEstimate', 'Action', { fromLat: number; fromLng: number; toLat: number; toLng: number; mode: string; baseUrl?: string }>;
   stationsQuery: FunctionReference<'stationsQuery', 'Query', Record<string, never>>;
   stopTimesByStation: FunctionReference<'stopTimesByStation', 'Query', { stationId: string }>;
   tripsQuery: FunctionReference<'tripsQuery', 'Query', Record<string, never>>;

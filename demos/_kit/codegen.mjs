@@ -5,9 +5,19 @@
 
 export { generate, crossCheckContractQueryBinding, runCodegenCli } from '../../packages/snapback-codegen/index.mjs';
 
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { realpathSync } from 'node:fs';
 import { runCodegenCli } from '../../packages/snapback-codegen/index.mjs';
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+function isDirectCliInvocation(metaUrl, argv1) {
+  if (!argv1) return false;
+  try {
+    return realpathSync(fileURLToPath(metaUrl)) === realpathSync(argv1);
+  } catch {
+    return metaUrl === pathToFileURL(argv1).href;
+  }
+}
+
+if (isDirectCliInvocation(import.meta.url, process.argv[1])) {
   await runCodegenCli(process.argv);
 }

@@ -16,6 +16,9 @@ import type {
 import type {
   GeneratedApi as CursorsApi,
 } from '../../cursors-web/snapback/generated/api';
+import type {
+  GeneratedApi as GraffitiApi,
+} from '../../graffiti/snapback/generated/api';
 
 type ArgsOf<Ref> = Ref extends { readonly __args?: infer Args } ? Args : never;
 type ValueOf<Ref> = Ref extends { readonly __value?: infer V } ? V : never;
@@ -28,11 +31,13 @@ declare const todo: TodoApi;
 declare const todoV2: TodoV2Api;
 declare const allAboard: AllAboardApi;
 declare const cursors: CursorsApi;
+declare const graffiti: GraffitiApi;
 
 export async function exerciseTypedConsumers(): Promise<void> {
   await callFunction(todo.createTodo, { title: 'typed' });
   await callFunction(todo.listTodos, {});
   await callFunction(todoV2.listTodos, {});
+  await callFunction(graffiti.listCells, { boardId: 'main' });
   // @ts-expect-error — createTodo requires a title; a silent arg-type
   // regression to `unknown` would make this line an error and fail the gate.
   await callFunction(todo.createTodo, {});
@@ -42,10 +47,11 @@ export async function exerciseTypedConsumers(): Promise<void> {
 // Pinned type-level facts.
 type _todoCreateArgs = Expect<IsExact<ArgsOf<TodoApi['createTodo']>, { title: string }>>;
 type _todoListArgs = Expect<IsExact<ArgsOf<TodoApi['listTodos']>, Record<string, never>>>;
+type _graffitiListArgs = Expect<IsExact<ArgsOf<GraffitiApi['listCells']>, { boardId: string }>>;
 // The S5.D2 regression site: cursors-web's ephemeral value type carries an
 // optional field that codegen once emitted as invalid TS (`number |`).
 type _cursorsValue = ValueOf<CursorsApi['ephemeral']['webCursors']>;
 type _cursorsOptionalField = Expect<
   IsExact<_cursorsValue extends { updatedAt?: infer T } ? T : never, number>
 >;
-export type TypedConsumerProofs = [_todoCreateArgs, _todoListArgs, _cursorsOptionalField];
+export type TypedConsumerProofs = [_todoCreateArgs, _todoListArgs, _graffitiListArgs, _cursorsOptionalField];

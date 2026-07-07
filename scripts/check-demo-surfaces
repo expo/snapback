@@ -13,10 +13,33 @@ cd "$ROOT"
 # client.reset() / app/reset / legacy root /admin/ calls in surface SOURCE —
 # build output (dist/) and generated bindings are swept by their own gates.
 PATTERN='client\.reset\(|\.reset\(\)\s*;?\s*//.*backend|app/reset|"/admin/|'"'"'/admin/'
-MATCHES="$(grep -RInE "$PATTERN" demos/*/surfaces \
-    --include='*.ts' --include='*.tsx' --include='*.mjs' --include='*.js' \
-    --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=generated \
-    2>/dev/null || true)"
+
+FILES=()
+while IFS= read -r -d '' file; do
+    FILES+=("$file")
+done < <(
+    find demos -path '*/surfaces/*' -type f \
+        \( -name '*.ts' -o -name '*.tsx' -o -name '*.mjs' -o -name '*.js' \) \
+        ! -path '*/node_modules/*' \
+        ! -path '*/dist/*' \
+        ! -path '*/generated/*' \
+        -print0
+)
+
+if [ "${#FILES[@]}" -eq 0 ]; then
+    echo "[check-demo-surfaces] FAIL: no demo surface source files were scanned" >&2
+    exit 1
+fi
+
+set +e
+MATCHES="$(grep -InE "$PATTERN" -- "${FILES[@]}")"
+STATUS=$?
+set -e
+
+if [ "$STATUS" -gt 1 ]; then
+    echo "[check-demo-surfaces] FAIL: grep failed while scanning demo surfaces" >&2
+    exit "$STATUS"
+fi
 
 if [ -n "$MATCHES" ]; then
     echo "[check-demo-surfaces] FAIL: destructive backend operations in demo surfaces:" >&2

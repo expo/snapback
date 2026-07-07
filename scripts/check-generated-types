@@ -22,6 +22,7 @@ TSC=(npx --yes --package typescript@5.9 tsc)
     demos/all-aboard/snapback/generated/api.d.ts \
     demos/all-aboard/tests/egress-probe/generated/api.d.ts \
     demos/cursors-web/snapback/generated/api.d.ts \
+    demos/graffiti/snapback/generated/api.d.ts \
     demos/_kit/tests/typed-consumer-fixture.ts
 
 echo "[check-generated-types] ok: generated .d.ts + typed consumer fixture compile clean"

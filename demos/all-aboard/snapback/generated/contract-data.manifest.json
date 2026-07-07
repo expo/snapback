@@ -13,7 +13,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "d4ca5c4c8257797c0858aa838923bfa0d0a36b1bbbedd7763034b31ca27b2428",
+  "inputsHash": "2f924bc1ec2c5ca19a67f760b69ede618fcea0cfe24f349ac2a41986d236ca46",
   "manifestVersion": 2,
   "mutations": {
     "applyFeedTick": {
@@ -25,17 +25,24 @@
       "args": {
         "lastError": {
           "name": "string",
+          "optional": true,
           "shape": "primitive"
         },
         "source": {
           "name": "string",
+          "optional": true,
           "shape": "primitive"
         },
         "trigger": {
           "name": "string",
+          "optional": true,
           "shape": "primitive"
         }
       },
+      "invalidates": [
+        "trainStatus",
+        "feedRefreshState"
+      ],
       "name": "applyFeedTick",
       "optimistic": false,
       "serverRunnable": true,
@@ -58,21 +65,29 @@
         },
         "lastError": {
           "name": "string",
+          "optional": true,
           "shape": "primitive"
         },
         "note": {
           "name": "string",
+          "optional": true,
           "shape": "primitive"
         },
         "source": {
           "name": "string",
+          "optional": true,
           "shape": "primitive"
         },
         "trigger": {
           "name": "string",
+          "optional": true,
           "shape": "primitive"
         }
       },
+      "invalidates": [
+        "trainStatus",
+        "feedRefreshState"
+      ],
       "name": "applyLiveFeedSnapshot",
       "optimistic": false,
       "serverRunnable": true,
@@ -84,6 +99,10 @@
     "resetFeed": {
       "argOrder": [],
       "args": {},
+      "invalidates": [
+        "trainStatus",
+        "feedRefreshState"
+      ],
       "name": "resetFeed",
       "optimistic": false,
       "serverRunnable": true,
@@ -135,10 +154,12 @@
             },
             "lastError": {
               "name": "string",
+              "optional": true,
               "shape": "primitive"
             },
             "lastRunTrigger": {
               "name": "string",
+              "optional": true,
               "shape": "primitive"
             },
             "lastSource": {
