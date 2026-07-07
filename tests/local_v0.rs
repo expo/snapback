@@ -3439,6 +3439,110 @@ fn e4_query_validation_is_predicate_granular() {
     }
 }
 
+/// ENG-23341 — `apply_schema` must reject a manifest that retypes an existing
+/// field (LLP 0003's migrator contract: reject type changes that would require
+/// rewriting existing data). The physical column keeps its old affinity, so a
+/// silent accept would return values decoded under the old declaration while
+/// the schema and generated client types promise the new one.
+#[test]
+fn apply_schema_rejects_field_type_change_on_existing_column() {
+    let mut db = LocalDatabase::memory().unwrap();
+    db.apply_schema(todo_schema()).expect("initial schema");
+    db.commit_buffered_writes(
+        &input(json!({}), "u"),
+        vec![BufferedWrite::Insert {
+            table: "todos".to_owned(),
+            id: db.generate_id(),
+            values: json!({ "title": "keep me", "completed": false, "rank": 7, "userId": "u" })
+                .as_object()
+                .cloned()
+                .unwrap(),
+        }],
+        Vec::new(),
+        json!(null),
+    )
+    .expect("seed row");
+
+    // Retype rank: integer -> string (INTEGER -> TEXT affinity).
+    let mut retyped = todo_schema();
+    retyped.tables[0]
+        .fields
+        .iter_mut()
+        .find(|field| field.name == "rank")
+        .expect("rank field declared")
+        .field_type = FieldType::String;
+    let error = db
+        .apply_schema(retyped)
+        .expect_err("retyping an existing field must fail schema apply");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
+    assert_eq!(error.diagnostic.details["table"], "todos");
+    assert_eq!(error.diagnostic.details["field"], "rank");
+    assert_eq!(error.diagnostic.details["existingType"], "Integer");
+    assert_eq!(error.diagnostic.details["requestedType"], "String");
+
+    // Affinity-preserving retypes still change how stored values decode
+    // (string -> json would fail JSON parsing on old rows), so they are
+    // rejected too.
+    let mut same_affinity = todo_schema();
+    same_affinity.tables[0]
+        .fields
+        .iter_mut()
+        .find(|field| field.name == "title")
+        .expect("title field declared")
+        .field_type = FieldType::Json;
+    let error = db
+        .apply_schema(same_affinity)
+        .expect_err("same-affinity retype must fail schema apply");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
+
+    // The stored manifest is untouched: rank is still declared Integer, and a
+    // matching re-apply (the normal redeploy path) still succeeds.
+    assert_eq!(
+        db.schema().tables[0]
+            .field("rank")
+            .expect("rank still declared")
+            .field_type,
+        FieldType::Integer
+    );
+    db.apply_schema(todo_schema())
+        .expect("matching schema re-apply still succeeds");
+}
+
+/// ENG-23341 — the physical-affinity backstop: even when the stored manifest
+/// no longer declares a table (so the manifest diff cannot see the retype), a
+/// re-added table whose declared column affinity disagrees with the surviving
+/// physical column is rejected at DDL time rather than silently accepted.
+#[test]
+fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
+    let mut db = LocalDatabase::memory().unwrap();
+    db.apply_schema(todo_schema()).expect("initial schema");
+
+    // Drop the table from the manifest; the physical table survives (the
+    // migrator preserves removed tables and columns).
+    let empty = SchemaManifest {
+        schema_hash: Some("todo-v1".to_owned()),
+        ..SchemaManifest::default()
+    };
+    db.apply_schema(empty).expect("table removal is additive");
+
+    // Re-add the table with rank retyped integer -> string: the manifest diff
+    // has nothing to compare against, but PRAGMA table_info still knows the
+    // column is INTEGER.
+    let mut readded = todo_schema();
+    readded.tables[0]
+        .fields
+        .iter_mut()
+        .find(|field| field.name == "rank")
+        .expect("rank field declared")
+        .field_type = FieldType::String;
+    let error = db
+        .apply_schema(readded)
+        .expect_err("affinity mismatch with the physical column must fail");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
+    assert_eq!(error.diagnostic.details["existingType"], "INTEGER");
+    assert_eq!(error.diagnostic.details["requestedType"], "TEXT");
+}
+
 /// LLP 0034 §10.1 residual / ENG-22478 (review fix A) — supersession is
 /// EXPLICIT: plain duplicate subscribes coexist (two components may share a
 /// query on one connection), while a subscribe naming `supersedes` disposes

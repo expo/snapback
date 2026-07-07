@@ -350,6 +350,7 @@ impl LocalDatabase {
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         validate_schema(&manifest)?;
+        reject_field_retypes(&self.schema, &manifest)?;
 
         let schema_json = serde_json::to_string(&manifest).map_err(|error| {
             SnapbackError::error(
@@ -1188,6 +1189,61 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     Ok(())
 }
 
+/// Reject a manifest that redeclares an existing field with a different type.
+///
+/// The migrator never rewrites stored data, so a retyped field would leave the
+/// physical column carrying values encoded under the old declaration while the
+/// stored manifest — and every generated client type — promises the new one.
+/// Even affinity-preserving changes (string → json, boolean → integer) change
+/// how stored values decode, so any declared-type change is refused.
+///
+/// @ref LLP 0003#database-model — the migrator must "reject type changes that
+/// would require rewriting existing data"; the read lane's schema-race safety
+/// argument also assumes fields are never retyped.
+fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> SnapbackResult<()> {
+    for table in &next.tables {
+        let Some(current_table) = current.tables.iter().find(|t| t.name == table.name) else {
+            continue;
+        };
+        for field in &table.fields {
+            let Some(current_field) = current_table.field(&field.name) else {
+                continue;
+            };
+            if current_field.field_type != field.field_type {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SCHEMA_FIELD_RETYPED",
+                    "schema",
+                    format!(
+                        "field {}.{} cannot change type from {} to {}; \
+                         retyping stored data is not supported — add a new field instead",
+                        table.name,
+                        field.name,
+                        field_type_name(&current_field.field_type),
+                        field_type_name(&field.field_type)
+                    ),
+                )
+                .with_detail("table", table.name.clone())
+                .with_detail("field", field.name.clone())
+                .with_detail("existingType", field_type_name(&current_field.field_type))
+                .with_detail("requestedType", field_type_name(&field.field_type)));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The manifest wire name of a field type (matches `FieldType`'s serde
+/// serialization), for error messages and diagnostics.
+fn field_type_name(field_type: &FieldType) -> &'static str {
+    match field_type {
+        FieldType::String => "String",
+        FieldType::Boolean => "Boolean",
+        FieldType::Integer => "Integer",
+        FieldType::Real => "Real",
+        FieldType::Json => "Json",
+    }
+}
+
 fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> SnapbackResult<()> {
     let mut columns = vec![
         "_id TEXT PRIMARY KEY".to_owned(),
@@ -1214,16 +1270,42 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
 
     let existing = existing_columns(tx, &table.name)?;
     for field in &table.fields {
-        if !existing.contains(&field.name) {
-            tx.execute(
-                &format!(
-                    "ALTER TABLE {} ADD COLUMN {} {}",
-                    quote_ident(&table.name)?,
-                    quote_ident(&field.name)?,
-                    sqlite_type(&field.field_type)
-                ),
-                [],
-            )?;
+        match existing.get(&field.name) {
+            None => {
+                tx.execute(
+                    &format!(
+                        "ALTER TABLE {} ADD COLUMN {} {}",
+                        quote_ident(&table.name)?,
+                        quote_ident(&field.name)?,
+                        sqlite_type(&field.field_type)
+                    ),
+                    [],
+                )?;
+            }
+            // @ref LLP 0003#database-model — the migrator is additive-only and
+            // must reject type changes that would require rewriting existing
+            // data. The physical column keeps its declared affinity forever,
+            // so silently accepting a retyped manifest would hand back values
+            // decoded under the old declaration while schema and generated
+            // types promise the new one.
+            Some(column_type) => {
+                let declared = sqlite_type(&field.field_type);
+                if !column_type.eq_ignore_ascii_case(declared) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SCHEMA_FIELD_RETYPED",
+                        "schema",
+                        format!(
+                            "field {}.{} cannot change storage type from {} to {}; \
+                             retyping stored data is not supported — add a new field instead",
+                            table.name, field.name, column_type, declared
+                        ),
+                    )
+                    .with_detail("table", table.name.clone())
+                    .with_detail("field", field.name.clone())
+                    .with_detail("existingType", column_type.clone())
+                    .with_detail("requestedType", declared));
+                }
+            }
         }
     }
 
@@ -1256,12 +1338,15 @@ fn create_index(
     Ok(())
 }
 
-fn existing_columns(tx: &Transaction<'_>, table: &str) -> SnapbackResult<BTreeSet<String>> {
+/// Existing column names and their declared SQLite types from
+/// `PRAGMA table_info`, so schema apply can detect retyped fields rather than
+/// only missing ones.
+fn existing_columns(tx: &Transaction<'_>, table: &str) -> SnapbackResult<BTreeMap<String, String>> {
     let mut statement = tx.prepare(&format!("PRAGMA table_info({})", quote_ident(table)?))?;
     let mut rows = statement.query([])?;
-    let mut columns = BTreeSet::new();
+    let mut columns = BTreeMap::new();
     while let Some(row) = rows.next()? {
-        columns.insert(row.get::<_, String>(1)?);
+        columns.insert(row.get::<_, String>(1)?, row.get::<_, String>(2)?);
     }
     Ok(columns)
 }
