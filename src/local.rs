@@ -1110,13 +1110,31 @@ impl LocalSnapback {
         input: HandlerInput,
     ) -> SnapbackResult<MutationCommit> {
         let function = self.function(name)?.clone();
-        let commit = match (&function.kind, &function.runtime) {
-            (FunctionKind::Mutation, FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))) => {
+        if function.kind != FunctionKind::Mutation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not a mutation"),
+            ));
+        }
+        // Permission-epoch scopes are evaluated BEFORE the mutation executes
+        // (ENG-23329): scope evaluation can fail (missing auth user, missing
+        // arg, empty scope), and an error raised after `tx.commit()` would
+        // report a durably-committed mutation as rejected and skip the live
+        // fan-out entirely. Failing fast here means no write ever happens for
+        // a mutation whose declared epoch bumps cannot be resolved, and the
+        // post-commit path below is infallible by construction.
+        let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
+        let commit = match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
                 self.db.execute_mutation(plan, &input)?
             }
-            (FunctionKind::Mutation, FunctionRuntime::IbexModule(module)) => self
-                .runtime
-                .invoke_ibex_mutation(module, input.clone(), &mut self.db, Some(&self.warm_vms))?,
+            FunctionRuntime::IbexModule(module) => self.runtime.invoke_ibex_mutation(
+                module,
+                input.clone(),
+                &mut self.db,
+                Some(&self.warm_vms),
+            )?,
             _ => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_FUNCTION_KIND_MISMATCH",
@@ -1127,7 +1145,7 @@ impl LocalSnapback {
         };
 
         let permission_changes = if commit.output.changed_count > 0 {
-            self.advance_permission_epochs(&function, &input)?
+            self.advance_permission_epochs(&epoch_scopes)
         } else {
             Vec::new()
         };
@@ -2940,23 +2958,18 @@ impl LocalSnapback {
         self.permission_epochs.get(scope).copied().unwrap_or(0)
     }
 
-    fn advance_permission_epochs(
-        &mut self,
-        function: &FunctionDefinition,
-        input: &HandlerInput,
-    ) -> SnapbackResult<Vec<(String, u64)>> {
-        let mut scopes = BTreeSet::new();
-        for expr in &function.permission_epoch_bumps {
-            scopes.insert(evaluate_permission_scope(expr, input)?);
-        }
-
+    /// Advance epochs for scopes already resolved pre-execution by
+    /// [`evaluate_permission_epoch_scopes`]. Infallible on purpose: this runs
+    /// after the mutation has durably committed, where an error return would
+    /// misreport the committed write as rejected (ENG-23329).
+    fn advance_permission_epochs(&mut self, scopes: &BTreeSet<String>) -> Vec<(String, u64)> {
         let mut changes = Vec::new();
         for scope in scopes {
             let epoch = self.permission_epochs.entry(scope.clone()).or_insert(0);
             *epoch += 1;
-            changes.push((scope, *epoch));
+            changes.push((scope.clone(), *epoch));
         }
-        Ok(changes)
+        changes
     }
 
     /// Post-commit permission-epoch resync fan-out. Like
@@ -3325,6 +3338,21 @@ fn current_permission_epochs_for_dependencies(
         epochs.insert(scope.to_owned(), epoch);
     }
     epochs
+}
+
+/// Resolve every declared `permission_epoch_bumps` scope for a mutation
+/// invocation. Called pre-execution so a scope that cannot be evaluated
+/// (missing auth user, missing arg, empty scope) rejects the mutation before
+/// any write, never after commit (ENG-23329).
+fn evaluate_permission_epoch_scopes(
+    function: &FunctionDefinition,
+    input: &HandlerInput,
+) -> SnapbackResult<BTreeSet<String>> {
+    let mut scopes = BTreeSet::new();
+    for expr in &function.permission_epoch_bumps {
+        scopes.insert(evaluate_permission_scope(expr, input)?);
+    }
+    Ok(scopes)
 }
 
 fn evaluate_permission_scope(

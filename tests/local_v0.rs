@@ -603,6 +603,96 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
     assert_eq!(snapback.drain_outbox("client_b"), Vec::new());
 }
 
+/// ENG-23329 — a mutation whose declared permission-epoch scope cannot be
+/// evaluated (here `authUser` without an authenticated user) must be rejected
+/// BEFORE any write executes. Previously the scope was evaluated only after
+/// the durable commit: the rows landed, the receipt said "rejected", the
+/// caller got an error, and live subscribers never heard about the committed
+/// change.
+#[test]
+fn permission_epoch_scope_failure_rejects_before_any_write() {
+    let mut functions = ibex_todo_functions(TODO_HANDLER_SOURCE);
+    let mut epoch_insert = FunctionDefinition::new(
+        "createWithEpochBump",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "todos".to_owned(),
+                values: BTreeMap::from([
+                    ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                    (
+                        "completed".to_owned(),
+                        ValueExpr::Literal(Value::Bool(false)),
+                    ),
+                    (
+                        "userId".to_owned(),
+                        ValueExpr::Literal(Value::String("user_1".to_owned())),
+                    ),
+                ]),
+                bind_id_as: None,
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
+    epoch_insert.required_capabilities = vec!["permission_epoch_resync".to_owned()];
+    epoch_insert.permission_epoch_bumps = vec![PermissionScopeExpr::AuthUser];
+    epoch_insert.write_set_summary.primary_table = Some("todos".to_owned());
+    epoch_insert.write_set_summary.tables = vec!["todos".to_owned()];
+    functions.functions.push(epoch_insert);
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(functions);
+
+    let subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+                supersedes: None,
+            },
+        )
+        .expect("subscribe live query");
+    assert_eq!(subscription.snapshot.rows.len(), 0);
+
+    let unauthenticated = HandlerInput {
+        args: json!({ "title": "No auth user" }),
+        auth: AuthInput {
+            principal: None,
+            session_id: None,
+            user_id: None,
+        },
+        read_set: Vec::new(),
+        correlation: None,
+    };
+    let (result, receipt) =
+        snapback.invoke_mutation_recording("createWithEpochBump", unauthenticated);
+    let error = result.expect_err("unevaluable permission scope must reject the mutation");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_USER_MISSING");
+    assert_eq!(receipt["outcome"], "rejected");
+    assert_eq!(receipt["rollbackReason"], "SNAPBACK_AUTH_USER_MISSING");
+
+    // The rejection happened before any write: nothing committed, and no live
+    // update or resync reached the subscriber.
+    let query = snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect("list todos");
+    assert_eq!(query.rows.len(), 0);
+    assert_eq!(snapback.drain_outbox("client_a"), Vec::new());
+
+    // The same mutation with an authenticated user still commits, bumps the
+    // epoch, and fans out to the live subscriber.
+    let committed = snapback
+        .invoke_mutation(
+            "createWithEpochBump",
+            input(json!({ "title": "With auth user" }), "user_1"),
+        )
+        .expect("authenticated mutation commits");
+    assert_eq!(committed.changed_count, 1);
+    assert!(!snapback.drain_outbox("client_a").is_empty());
+}
+
 #[test]
 fn live_resume_resnapshots_when_recorded_permission_epoch_is_stale() {
     let mut functions = ibex_todo_functions(TODO_HANDLER_SOURCE);
