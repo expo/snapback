@@ -843,7 +843,12 @@ fn run_ibex_handler_with_context(
         *slot.borrow_mut() = previous_context;
     });
 
-    parse_handler_output(module, eval_result?)
+    let output = eval_result?;
+    let rejections = take_unhandled_rejections(runtime.0)?;
+    if !rejections.is_empty() {
+        return Err(unhandled_rejection_error(module, rejections));
+    }
+    parse_handler_output(module, output)
 }
 
 /// The DK-4 warm path: check out a VM keyed by the exact module source, run
@@ -886,15 +891,72 @@ fn run_warm_handler_with_context(
     });
 
     match eval_result {
-        Ok(output) => {
-            pool.reset_and_check_in(vm);
-            parse_handler_output(module, output)
-        }
+        Ok(output) => match take_unhandled_rejections(vm.runtime()) {
+            Ok(rejections) => {
+                // The sweep drained the ledger, so the VM carries no stale
+                // rejection state into the next invocation; the pool's
+                // reset-and-verify decides whether it survives as usual.
+                pool.reset_and_check_in(vm);
+                if !rejections.is_empty() {
+                    return Err(unhandled_rejection_error(module, rejections));
+                }
+                parse_handler_output(module, output)
+            }
+            Err(error) => {
+                drop(vm); // burn: the sweep eval itself failed, state untrusted
+                Err(error)
+            }
+        },
         Err(error) => {
             drop(vm); // burn: an errored eval's VM state is not trusted
             Err(error)
         }
     }
+}
+
+/// Post-eval sweep of the bootstrap's unhandled-rejection ledger (ENG-23361).
+/// Runs after `ex_hermes_eval` returned, i.e. after the *full* microtask
+/// drain — so it also observes detached chains that rejected after the
+/// invocation promise settled, which an in-IIFE check would miss. The source
+/// is a fixed string that makes no host calls, so (like the warm reset eval)
+/// it runs outside the host-context window.
+fn take_unhandled_rejections(runtime: *mut HermesRuntimeOpaque) -> SnapbackResult<Vec<String>> {
+    const TAKE_SOURCE: &str = r#"(function() {
+  var take = globalThis.__snapbackTakeUnhandledRejections;
+  if (typeof take !== "function") { return "null"; }
+  try { return JSON.stringify(take()); } catch (_) { return "null"; }
+})()"#;
+    let output = eval(runtime, "<snapback-rejection-sweep>", TAKE_SOURCE)?;
+    let report = serde_json::from_str::<Value>(&output).unwrap_or(Value::Null);
+    Ok(report
+        .get("rejections")
+        .and_then(Value::as_array)
+        .map(|rejections| {
+            rejections
+                .iter()
+                .map(|reason| reason.as_str().unwrap_or("unserializable rejection reason"))
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default())
+}
+
+/// A handler that completes while a detached promise chain it spawned
+/// rejected unobserved did *partial* work: the chain's earlier host calls
+/// are buffered, its later ones silently skipped. Reporting success would
+/// commit that partial work (ENG-23361), so the invocation fails closed and
+/// the buffer is discarded — Node crashes on unhandled rejections and Convex
+/// fails the mutation; silently swallowing them is the one wrong option.
+fn unhandled_rejection_error(module: &IbexModule, rejections: Vec<String>) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
+        "runtime",
+        "handler completed with unhandled promise rejection(s) — the invocation failed and committed no writes",
+    )
+    .with_details(json!({
+        "function": module.export,
+        "rejections": rejections,
+    }))
 }
 
 /// Unwrap the invoke IIFE's tagged completion envelope. The tag is
@@ -1244,6 +1306,68 @@ fn ctx_bootstrap_source() -> &'static str {
       rotating: function(name) { return lookup(name, true); }
     };
   }
+  // Unhandled-rejection ledger (ENG-23361). The vendored eval loop drains
+  // every microtask before the host reads the invocation result, but the
+  // only promise anything observes is the invoke IIFE's own — a rejection
+  // in a detached chain the handler spawned (forEach(async ...) is the
+  // classic shape) is observed by nobody, so its earlier ctx.db.* writes
+  // stayed buffered while its later ones were silently skipped, and the
+  // invocation still reported success. The vendored polyfill exposes
+  // then/promise's internal hook slots on __OriginalPromise: _C fires on
+  // every rejection, _B whenever a handler is attached or dispatched
+  // (handlers attached before the rejection re-enter handle() during
+  // finale, so they clear their entry too). A promise still in the ledger
+  // after the final drain therefore rejected with no handler at completion.
+  // The host sweeps the ledger after every successful eval and fails the
+  // invocation if entries remain.
+  //
+  // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
+  // Obligation 3: settlement of the invocation promise does not prove the
+  // handler's detached chains succeeded; the ledger closes that gap.
+  (function installRejectionLedger() {
+    if (typeof g.__snapbackTakeUnhandledRejections === "function") return;
+    var OriginalPromise = g.__OriginalPromise;
+    var ledger = OriginalPromise && typeof Map === "function" ? new Map() : null;
+    if (ledger) {
+      OriginalPromise._C = function(promise, reason) { ledger.set(promise, reason); };
+      OriginalPromise._B = function(promise) { ledger.delete(promise); };
+      // Self-check: if a vendored-runtime upgrade moves the pinned hook
+      // slots, disable detection (reverting to rejections going unseen)
+      // rather than misreport; tests/unhandled_rejection_v0.rs pins that
+      // detection works on the vendored runtime, so an upgrade that breaks
+      // this fails CI instead of shipping silently.
+      var working = false;
+      try {
+        var probe = new OriginalPromise(function(_, rej) { rej("snapback-ledger-probe"); });
+        working = ledger.get(probe) === "snapback-ledger-probe";
+        probe.then(undefined, function() {});
+        working = working && !ledger.has(probe);
+      } catch (_) { working = false; }
+      if (!working) {
+        OriginalPromise._C = null;
+        OriginalPromise._B = null;
+        ledger = null;
+      }
+    }
+    function describeReason(reason) {
+      try {
+        if (reason instanceof Error && reason.message) { return String(reason.message); }
+        return String(reason);
+      } catch (_) { return "unserializable rejection reason"; }
+    }
+    var take = function() {
+      if (!ledger) { return { supported: false, rejections: [] }; }
+      var rejections = [];
+      ledger.forEach(function(reason) { rejections.push(describeReason(reason)); });
+      ledger.clear();
+      return { supported: true, rejections: rejections };
+    };
+    try {
+      Object.defineProperty(g, "__snapbackTakeUnhandledRejections", {
+        value: take, configurable: false, writable: false
+      });
+    } catch (_) { g.__snapbackTakeUnhandledRejections = take; }
+  })();
   // `host`, `makeBuilder`, and the whole `ctx` are built *per invocation* so
   // that they close over this invocation's `epoch`. A continuation captured
   // in module scope by a prior invocation therefore carries that prior

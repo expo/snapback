@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
+**Revised:** 2026-07-07 (ENG-23361: an unhandled rejection in a detached promise chain now fails the invocation instead of committing its partial work as success — the ctx bootstrap installs a rejection ledger on the vendored then/promise hook slots and the host sweeps it after every successful eval, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed; §Invocation Isolation Obligation 3 updated); 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, LLP 0036, https://github.com/ccheever/ibex
 
 ## Summary
@@ -483,7 +483,30 @@ poisoned VM never sits in the pool.
   IIFE's tagged completion envelope (ENG-23430) turns it into
   `SNAPBACK_HANDLER_DID_NOT_SETTLE`, a failed invocation whose buffered writes
   never commit, so "settled" is proven by the envelope rather than inferred
-  from eval status. Every continuation that does run therefore runs inside
+  from eval status. Settlement of the invocation promise still does not prove
+  the handler's *detached* chains succeeded: a rejection in a chain nothing
+  awaits (`forEach(async …)` is the classic shape) was observed by nobody —
+  the vendored unwrap shim watches only the invocation promise — so the
+  chain's earlier `ctx.db.*` writes stayed in the commit buffer while its
+  later ones were silently skipped, and the invocation reported success
+  (ENG-23361). The engine's own tracker
+  (`HermesInternal.enablePromiseRejectionTracker`) cannot close this: it
+  defers its unhandled verdict through `setTimeout`, which the ambient layer
+  denies. Instead the ctx bootstrap installs an unhandled-rejection ledger on
+  the vendored then/promise constructor's hook slots (`__OriginalPromise._C`
+  fires on every rejection, `._B` on every handler attachment or dispatch —
+  including handlers attached before the rejection, which re-enter `handle()`
+  during finale), and after every successful eval — i.e. after the *full*
+  microtask drain, so chains that reject after the invocation promise
+  settles are still seen — the host sweeps the ledger and fails the
+  invocation (`SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed) if
+  entries remain. Rejections handled anywhere before completion never trip
+  it. The hook-slot names are pinned-runtime internals: the ledger
+  self-checks at install and disables itself (reverting to rejections going
+  unseen) rather than misreport if a vendored-runtime upgrade moves them,
+  and `tests/unhandled_rejection_v0.rs` pins that detection works — warm,
+  fresh, and action paths — so such an upgrade fails CI instead of shipping
+  a silent regression. Every continuation that does run therefore runs inside
   the invocation that scheduled it. The
   residual hazard — a promise resolver or callback **captured in module scope**
   by invocation A and fired during invocation B — is *not* benign inert data
