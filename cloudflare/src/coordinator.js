@@ -15,6 +15,15 @@
 // setTimeout/setInterval, so it can hibernate while holding live sockets
 // (LLP 0040 §Idle economics).
 //
+// Durable Objects interleave requests at await points, and the handler seam is
+// an await — so every invocation-bearing entry point (query, mutation,
+// subscribe) runs under one coordinator-local mutex (`runExclusive`). One
+// handler executes, commits, and fans out at a time; captured read sets are
+// recorded but not yet validated, so serialization is what enforces the
+// isolation the manifest declares (`coordinator-serialized-invocations`,
+// ENG-23575). The re-entrant /host-call path deliberately stays OUTSIDE the
+// mutex: it is how the invocation holding the mutex makes progress.
+//
 // Handler code runs in a SEPARATE, globally stripped isolate — the
 // single-sourced LLP 0048 harness Worker (HANDLER binding) — reached over an
 // async, RPC-shaped seam. Handlers touch storage only through the `ctx`
@@ -22,10 +31,14 @@
 // storage handle, env, or ambient global (LLP 0009, verified by the
 // ambient-power denial test).
 
-import { HostContext } from './host-ops.js';
-import { schema, functions } from '../app/notes.app.js';
+import { HostContext, physicalTableName } from './host-ops.js';
+import { parseHandlerEnvelope } from '../../packages/snapback-harness/envelope.mjs';
+import { bundleHash, schema, functions } from '../app/notes.app.js';
 
 const APP_SCHEMA_HASH = schema.schemaHash;
+const APP_BUNDLE_HASH = bundleHash;
+const APP_TABLES = new Set(schema.tables.map((table) => table.name));
+const CHANGE_JOURNAL_RETAIN_VERSIONS = 1000;
 
 export class Coordinator {
   constructor(ctx, env) {
@@ -36,7 +49,23 @@ export class Coordinator {
     // (routed back from the handler isolate) finds its HostContext. Purely
     // in-memory and request-scoped: nothing across eviction depends on it.
     this.activeInvocations = new Map();
+    // The invocation mutex (ENG-23575): chains every invocation-bearing
+    // request so handler execution + commit + fan-out (and subscription
+    // snapshot + registration) are one critical section each.
+    this.invocationChain = Promise.resolve();
+    this.startupError = null;
     this.ensureSchema();
+  }
+
+  // Serialize `task` behind every previously queued invocation. Failures
+  // propagate to the caller but never poison the chain.
+  runExclusive(task) {
+    const run = this.invocationChain.then(() => task());
+    this.invocationChain = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
   }
 
   ensureSchema() {
@@ -57,27 +86,121 @@ export class Coordinator {
        )`
     );
     // Storage-backed subscription registry (one-way door 4): query identity,
-    // args, cursor, connection id — rehydrated lazily on wake. In-memory
-    // registries die at eviction while their sockets live on.
+    // args, and connection id — rehydrated lazily on wake. In-memory
+    // registries die at eviction while their sockets live on. The identity
+    // uniqueness is the idempotence contract for React StrictMode/retry paths.
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS _snapback_subscriptions (
          subscription_id TEXT PRIMARY KEY,
          connection_id TEXT NOT NULL,
          function_name TEXT NOT NULL,
          args_json TEXT NOT NULL,
-         last_version INTEGER NOT NULL,
-         auth_epoch INTEGER NOT NULL
+         UNIQUE(connection_id, function_name, args_json)
        )`
     );
+    this.migrateSubscriptionsSchema();
     for (const table of schema.tables) {
       this.sql.exec(
-        `CREATE TABLE IF NOT EXISTS app_${table.name} (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)`
+        `CREATE TABLE IF NOT EXISTS ${this.physicalTable(table.name)} (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)`
       );
     }
+    this.startupError = this.validateDeploymentMetadata();
+    if (!this.startupError) this.writeDeploymentMetadata();
+  }
+
+  migrateSubscriptionsSchema() {
+    this.sql.exec('DROP TABLE IF EXISTS _snapback_subscriptions_next');
     this.sql.exec(
-      `INSERT OR REPLACE INTO _snapback_meta (key, value) VALUES ('schema_hash', ?)`,
-      APP_SCHEMA_HASH
+      `CREATE TABLE IF NOT EXISTS _snapback_subscriptions_next (
+         subscription_id TEXT PRIMARY KEY,
+         connection_id TEXT NOT NULL,
+         function_name TEXT NOT NULL,
+         args_json TEXT NOT NULL,
+         UNIQUE(connection_id, function_name, args_json)
+       )`
     );
+    this.sql.exec(
+      `INSERT OR IGNORE INTO _snapback_subscriptions_next (subscription_id, connection_id, function_name, args_json)
+       SELECT subscription_id, connection_id, function_name, args_json
+       FROM _snapback_subscriptions
+       ORDER BY subscription_id`
+    );
+    this.sql.exec('DROP TABLE _snapback_subscriptions');
+    this.sql.exec('ALTER TABLE _snapback_subscriptions_next RENAME TO _snapback_subscriptions');
+  }
+
+  expectedMetadata() {
+    return {
+      schema_hash: APP_SCHEMA_HASH,
+      bundle_hash: APP_BUNDLE_HASH,
+    };
+  }
+
+  readMeta(key) {
+    for (const record of this.sql.exec('SELECT value FROM _snapback_meta WHERE key = ?', key)) {
+      return String(record.value);
+    }
+    return null;
+  }
+
+  hasPersistentAppState() {
+    if (this.currentVersion() > 0) return true;
+    for (const table of schema.tables) {
+      for (const record of this.sql.exec(`SELECT COUNT(*) AS count FROM ${this.physicalTable(table.name)}`)) {
+        if (Number(record.count) > 0) return true;
+      }
+    }
+    for (const record of this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_changes')) {
+      if (Number(record.count) > 0) return true;
+    }
+    for (const record of this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_subscriptions')) {
+      if (Number(record.count) > 0) return true;
+    }
+    return false;
+  }
+
+  validateDeploymentMetadata() {
+    const expected = this.expectedMetadata();
+    const nonEmpty = this.hasPersistentAppState();
+    for (const [key, expectedValue] of Object.entries(expected)) {
+      const storedValue = this.readMeta(key);
+      if (storedValue == null && nonEmpty) {
+        return staleArtifact(
+          'SNAPBACK_STALE_CLOUDFLARE_ARTIFACT_METADATA',
+          `stored app state has no ${key}; reset or migrate before serving this deployment`,
+          { key, expected: expectedValue, actual: null }
+        );
+      }
+      if (storedValue != null && storedValue !== expectedValue) {
+        return staleArtifact(
+          key === 'schema_hash' ? 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH' : 'SNAPBACK_STALE_CLOUDFLARE_BUNDLE_HASH',
+          `stored ${key} does not match this deployment; reset or migrate before serving it`,
+          { key, expected: expectedValue, actual: storedValue }
+        );
+      }
+    }
+    return null;
+  }
+
+  writeDeploymentMetadata() {
+    for (const [key, value] of Object.entries(this.expectedMetadata())) {
+      this.sql.exec(
+        `INSERT INTO _snapback_meta (key, value) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+        key,
+        value
+      );
+    }
+  }
+
+  // Every table name that reaches SQL identifier position goes through the
+  // manifest-derived gate, even schema-sourced ones (ENG-23578).
+  physicalTable(table) {
+    const physical = physicalTableName(table, APP_TABLES);
+    if (!physical) {
+      throw new Error(`SNAPBACK_HANDLER_HOST_CALL_INVALID: table "${table}" is not declared in the app schema`);
+    }
+    return physical;
   }
 
   currentVersion() {
@@ -101,20 +224,42 @@ export class Coordinator {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // A deployment/state mismatch refuses the data plane (fail closed) but
+    // leaves /health for diagnosis and /reset for recovery.
+    if (this.startupError && path !== '/health' && path !== '/reset' && path !== '/__test/corrupt-meta') {
+      return json(409, this.startupError);
+    }
     if (path === '/host-call') {
       return this.serveHostCall(request);
     }
     if (path === '/health') {
-      return json(200, { ok: true, version: this.currentVersion(), schemaHash: APP_SCHEMA_HASH });
+      if (this.startupError) {
+        return json(409, { ...this.startupError, version: this.currentVersion() });
+      }
+      return json(200, {
+        ok: true,
+        version: this.currentVersion(),
+        schemaHash: APP_SCHEMA_HASH,
+        bundleHash: APP_BUNDLE_HASH,
+      });
     }
     if (path === '/reset') {
-      return this.reset();
+      // Destructive admin surface: token-gated and POST-only (ENG-23587),
+      // and under the invocation mutex — a reset interleaving with an
+      // in-flight mutation would let pre-reset buffered writes commit into
+      // the freshly reset store (ENG-23575's rationale applies here too).
+      return this.adminGated(request, () => this.runExclusive(() => this.reset()));
+    }
+    if (path === '/__test/corrupt-meta') {
+      return this.testingGated(request, async () => this.corruptMetaForTest(await request.json()));
     }
     if (path === '/query') {
-      return this.handleQuery(await request.json());
+      const payload = await request.json();
+      return this.runExclusive(() => this.handleQuery(payload));
     }
     if (path === '/mutation') {
-      return this.handleMutation(await request.json());
+      const payload = await request.json();
+      return this.runExclusive(() => this.handleMutation(payload));
     }
     if (path === '/live/stream') {
       return this.acceptLiveSocket(request);
@@ -122,15 +267,69 @@ export class Coordinator {
     if (path === '/evict') {
       // CI surrogate for real eviction (LLP 0040 §Acceptance): discard all
       // in-memory state so the next commit must rehydrate from storage.
-      this.activeInvocations.clear();
-      return json(200, { evicted: true });
+      // Admin-gated: an open /evict lets any client invalidate a
+      // decisive-evidence measurement run (ENG-23587).
+      return this.adminGated(request, () =>
+        this.runExclusive(() => {
+          this.activeInvocations.clear();
+          return json(200, { evicted: true });
+        })
+      );
     }
     return json(404, { error: 'not found' });
   }
 
+  // The shared-secret gate for the destructive admin endpoints, the same
+  // pattern /host-call uses for its per-invocation token (ENG-23587). Fails
+  // closed: no configured token means no admin surface at all.
+  adminGated(request, run) {
+    if (request.method !== 'POST') {
+      return json(405, { ok: false, code: 'SNAPBACK_ADMIN_METHOD_NOT_ALLOWED', message: 'admin endpoints are POST-only' });
+    }
+    const expected = this.env.SNAPBACK_ADMIN_TOKEN;
+    if (typeof expected !== 'string' || expected.length === 0) {
+      return json(403, {
+        ok: false,
+        code: 'SNAPBACK_ADMIN_DISABLED',
+        message: 'no SNAPBACK_ADMIN_TOKEN is configured; the admin surface is disabled',
+      });
+    }
+    const presented = request.headers.get('x-snapback-admin-token') || '';
+    if (presented !== expected) {
+      return json(403, { ok: false, code: 'SNAPBACK_ADMIN_TOKEN_INVALID', message: 'missing or invalid admin token' });
+    }
+    return run();
+  }
+
+  testingGated(request, run) {
+    if (this.env.SNAPBACK_TESTING !== '1') {
+      return json(404, { error: 'not found' });
+    }
+    if (request.method !== 'POST') {
+      return json(405, { ok: false, code: 'SNAPBACK_TEST_METHOD_NOT_ALLOWED', message: 'test endpoints are POST-only' });
+    }
+    return run();
+  }
+
+  corruptMetaForTest(payload) {
+    this.sql.exec(
+      `INSERT INTO _snapback_meta (key, value) VALUES ('schema_hash', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      payload.schemaHash || 'stale-schema'
+    );
+    this.sql.exec(
+      `INSERT INTO _snapback_meta (key, value) VALUES ('bundle_hash', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      payload.bundleHash || APP_BUNDLE_HASH
+    );
+    this.sql.exec('UPDATE _snapback_version SET version = 1 WHERE id = 1');
+    this.startupError = this.validateDeploymentMetadata();
+    return json(200, { startupError: this.startupError });
+  }
+
   // --- handler invocation across the RPC seam ----------------------------
 
-  async invokeHandler(fnName, mode, args, authEpoch) {
+  async invokeHandler(fnName, mode, args) {
     const fn = this.functionByName(fnName);
     if (!fn) {
       return { ok: false, code: 'SNAPBACK_HANDLER_EXPORT_MISSING', message: `no function ${fnName}` };
@@ -143,6 +342,7 @@ export class Coordinator {
       nowMs: Date.now(),
       epoch,
       newId: () => this.newId(),
+      tables: APP_TABLES,
     });
     this.activeInvocations.set(token, host);
     try {
@@ -164,18 +364,39 @@ export class Coordinator {
         }),
       });
       const result = await response.json();
+      // The checks below mirror src/workerd_exec.rs order for the twin leg:
+      // fatal → unhandled rejections → detection support → envelope.
       if (result.fatal) {
         return { ok: false, code: 'SNAPBACK_V8_RUNNER_INVOKE_FAILED', message: result.fatal };
+      }
+      if (result.didNotSettle) {
+        return {
+          ok: false,
+          code: 'SNAPBACK_HANDLER_DID_NOT_SETTLE',
+          message: 'handler did not settle before the harness deadline; the invocation failed and committed no writes',
+        };
       }
       if (result.unhandledRejections && result.unhandledRejections.length > 0) {
         return {
           ok: false,
           code: 'SNAPBACK_HANDLER_UNHANDLED_REJECTION',
-          message: 'handler completed with unhandled promise rejection(s)',
+          message: 'handler completed with unhandled promise rejection(s) — the invocation failed and committed no writes',
+          details: { rejections: result.unhandledRejections },
         };
       }
-      const parsed = parseEnvelope(result.envelope);
-      return { ...parsed, host };
+      if (result.rejectionDetectionSupported === false) {
+        // Fail closed exactly as the twin does (ENG-23586): without rejection
+        // detection, a detached chain's partial writes could commit unseen
+        // (the ENG-23361 hole), so the invocation is refused instead.
+        return {
+          ok: false,
+          code: 'SNAPBACK_V8_REJECTION_DETECTION_UNAVAILABLE',
+          message:
+            'the handler isolate could not install unhandled-rejection detection; the LLP 0009 conformance floor requires it on every engine',
+        };
+      }
+      const parsed = parseHandlerEnvelope(result.envelope);
+      return { ...parsed, host, observedVersion: host.observedVersion || this.currentVersion() };
     } finally {
       this.activeInvocations.delete(token);
     }
@@ -183,7 +404,9 @@ export class Coordinator {
 
   // The re-entrant host-call endpoint: the handler isolate's ctx host calls
   // land here (routed by the gateway using x-snapback-do-id). Reads and
-  // buffering only — the commit happens after the handler settles.
+  // buffering only — the commit happens after the handler settles. Never
+  // behind the invocation mutex: the invocation holding the mutex progresses
+  // through these calls.
   async serveHostCall(request) {
     const token = request.headers.get('x-snapback-host-token') || '';
     const body = await request.json();
@@ -221,60 +444,81 @@ export class Coordinator {
   // --- query -------------------------------------------------------------
 
   async handleQuery(payload) {
-    const result = await this.invokeHandler(payload.name, 'query', payload.args, 0);
-    if (!result.ok) return json(200, { ok: false, code: result.code, message: result.message });
-    return json(200, { ok: true, version: this.currentVersion(), rows: result.value });
+    const result = await this.invokeHandler(payload.name, 'query', payload.args);
+    if (!result.ok) return json(200, failure(result));
+    return json(200, { ok: true, version: result.observedVersion ?? this.currentVersion(), rows: result.value });
   }
 
   // --- mutation + commit -------------------------------------------------
 
   async handleMutation(payload) {
-    const result = await this.invokeHandler(payload.name, 'mutation', payload.args, 0);
-    if (!result.ok) return json(200, { ok: false, code: result.code, message: result.message });
+    const result = await this.invokeHandler(payload.name, 'mutation', payload.args);
+    if (!result.ok) return json(200, failure(result));
     const commit = this.commit(result.host);
     // Push from the commit path — no timer, no polling (LLP 0040 §Version
     // contract). Rehydrates subscriptions from storage first, so a woken or
-    // freshly-evicted object still delivers.
-    this.fanOut(commit);
+    // freshly-evicted object still delivers. Awaited: floating work after the
+    // response is not a delivery contract on real Workers (ENG-23576).
+    await this.fanOut(commit);
     return json(200, { ok: true, version: commit.version, changedCount: commit.changes.length, result: result.value });
   }
 
   // Version allocation + row writes + journal append as ONE local
-  // transaction (LLP 0007 gap-free visibility by construction). An empty
-  // changeset does not advance the version.
+  // transaction (LLP 0007 gap-free visibility by construction). The version
+  // advances only when the EFFECTIVE changeset is non-empty — a mutation
+  // whose writes all degrade to no-ops (patch on a missing row, empty-values
+  // patch, delete of a missing row) keeps the current version, matching
+  // src/storage.rs (ENG-23583).
   commit(host) {
     if (host.writes.length === 0) {
       return { version: this.currentVersion(), changes: [] };
     }
     const nowMs = Date.now();
-    let version = this.currentVersion();
+    const currentVersion = this.currentVersion();
+    const nextVersion = currentVersion + 1;
     const changes = [];
     this.ctx.storage.transactionSync(() => {
-      version = this.currentVersion() + 1;
       for (const write of host.writes) {
-        const table = `app_${write.table}`;
+        const table = this.physicalTable(write.table);
         if (write.kind === 'insert') {
-          const row = { _id: write.id, _version: version, _createdAt: nowMs, _updatedAt: nowMs, ...write.values };
+          const row = { _id: write.id, _version: nextVersion, _createdAt: nowMs, _updatedAt: nowMs, ...write.values };
           this.sql.exec(`INSERT INTO ${table} (id, row_json) VALUES (?, ?)`, write.id, JSON.stringify(row));
-          this.recordChange(version, write.table, write.id, 'insert', row, nowMs);
+          this.recordChange(nextVersion, write.table, write.id, 'insert', row, nowMs);
           changes.push({ table: write.table, id: write.id, op: 'insert' });
         } else if (write.kind === 'patch') {
+          // Empty-values patches are no-ops on the local target
+          // (src/storage.rs); they must not journal or advance the version
+          // here either.
+          if (Object.keys(write.values).length === 0) continue;
           const existing = this.readRow(table, write.id);
           if (existing) {
-            const row = { ...existing, ...write.values, _id: write.id, _version: version, _updatedAt: nowMs };
+            const row = { ...existing, ...write.values, _id: write.id, _version: nextVersion, _updatedAt: nowMs };
             this.sql.exec(`UPDATE ${table} SET row_json = ? WHERE id = ?`, JSON.stringify(row), write.id);
-            this.recordChange(version, write.table, write.id, 'patch', row, nowMs);
+            this.recordChange(nextVersion, write.table, write.id, 'patch', row, nowMs);
             changes.push({ table: write.table, id: write.id, op: 'patch' });
           }
         } else if (write.kind === 'delete') {
-          this.sql.exec(`DELETE FROM ${table} WHERE id = ?`, write.id);
-          this.recordChange(version, write.table, write.id, 'delete', null, nowMs);
-          changes.push({ table: write.table, id: write.id, op: 'delete' });
+          // A delete of a missing row is a no-op change-wise, as on the local
+          // target (delete_document returns false → nothing journaled).
+          const existing = this.readRow(table, write.id);
+          if (existing) {
+            this.sql.exec(`DELETE FROM ${table} WHERE id = ?`, write.id);
+            this.recordChange(nextVersion, write.table, write.id, 'delete', null, nowMs);
+            changes.push({ table: write.table, id: write.id, op: 'delete' });
+          }
         }
       }
-      this.sql.exec('UPDATE _snapback_version SET version = ? WHERE id = 1', version);
+      if (changes.length > 0) {
+        this.sql.exec('UPDATE _snapback_version SET version = ? WHERE id = 1', nextVersion);
+        // Bounded journal (delta consumers beyond the retention window get a
+        // resync, not unbounded storage growth).
+        this.sql.exec(
+          'DELETE FROM _snapback_changes WHERE version <= ?',
+          nextVersion - CHANGE_JOURNAL_RETAIN_VERSIONS
+        );
+      }
     });
-    return { version, changes };
+    return { version: changes.length > 0 ? nextVersion : currentVersion, changes };
   }
 
   readRow(table, id) {
@@ -304,10 +548,10 @@ export class Coordinator {
     const connectionId = crypto.randomUUID();
     // Hibernation API: acceptWebSocket (NOT server.accept()) so the object can
     // be evicted while holding the socket (LLP 0040 §Hibernation). The
-    // per-socket attachment carries only connection identity and auth epoch
-    // (≤16 KB) — the subscription registry lives in SQLite.
+    // per-socket attachment carries only connection identity (≤16 KB) — the
+    // subscription registry lives in SQLite.
     this.ctx.acceptWebSocket(server, [connectionId]);
-    server.serializeAttachment({ connectionId, authEpoch: 0 });
+    server.serializeAttachment({ connectionId });
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -325,7 +569,11 @@ export class Coordinator {
     }
     const connectionId = this.connectionIdFor(ws);
     if (parsed.type === 'subscribe') {
-      await this.subscribe(ws, connectionId, parsed);
+      // Under the invocation mutex: the snapshot query, the version read, and
+      // the registry insert must not interleave with a commit, or the rows
+      // the snapshot carried predate a commit whose fan-out never saw the
+      // registration — a silently skipped delta (ENG-23575).
+      await this.runExclusive(() => this.subscribe(ws, connectionId, parsed));
     } else if (parsed.type === 'unsubscribe') {
       this.sql.exec('DELETE FROM _snapback_subscriptions WHERE subscription_id = ?', parsed.subscriptionId);
     } else if (parsed.type === 'ping') {
@@ -342,23 +590,34 @@ export class Coordinator {
     // Authoritative initial snapshot BEFORE any delta (LLP 0040 §Acceptance):
     // run the query, record the subscription at the resulting version, then
     // send the snapshot tagged with that version.
-    const result = await this.invokeHandler(parsed.name, 'query', parsed.args, 0);
+    const result = await this.invokeHandler(parsed.name, 'query', parsed.args);
     if (!result.ok) {
       ws.send(JSON.stringify({ type: 'error', code: result.code, message: result.message }));
       return;
     }
-    const version = this.currentVersion();
-    const subscriptionId = `sub_${crypto.randomUUID()}`;
+    const version = result.observedVersion ?? this.currentVersion();
+    const argsJson = canonicalJson(parsed.args || {});
+    // Subscription identity is (connection, function, args) — a re-subscribe
+    // from React StrictMode or a client retry reuses the existing row and id
+    // instead of double-registering (the UNIQUE constraint above).
     this.sql.exec(
-      `INSERT INTO _snapback_subscriptions (subscription_id, connection_id, function_name, args_json, last_version, auth_epoch)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      subscriptionId,
+      `INSERT INTO _snapback_subscriptions (subscription_id, connection_id, function_name, args_json)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(connection_id, function_name, args_json) DO NOTHING`,
+      `sub_${crypto.randomUUID()}`,
       connectionId,
       parsed.name,
-      JSON.stringify(parsed.args || {}),
-      version,
-      0
+      argsJson
     );
+    let subscriptionId = null;
+    for (const record of this.sql.exec(
+      'SELECT subscription_id FROM _snapback_subscriptions WHERE connection_id = ? AND function_name = ? AND args_json = ?',
+      connectionId,
+      parsed.name,
+      argsJson
+    )) {
+      subscriptionId = String(record.subscription_id);
+    }
     ws.send(
       JSON.stringify({
         type: 'snapshot',
@@ -374,14 +633,16 @@ export class Coordinator {
   // Fan out a commit to affected subscriptions. Rehydrates from storage
   // (never an in-memory registry), re-runs each subscription's query, and
   // pushes a live_replace tagged with the new version — a re-query fallback
-  // that is correct across eviction because the registry is durable.
-  fanOut(commit) {
+  // that is correct across eviction because the registry is durable. Awaited
+  // by the mutation path: every push settles (or records its failure) before
+  // the mutation response returns (ENG-23576).
+  async fanOut(commit) {
     if (commit.changes.length === 0) return;
     const changedTables = new Set(commit.changes.map((change) => change.table));
     const affectedFunctions = new Set(
       functions
         .filter((fn) => fn.kind === 'LiveQuery')
-        .filter((fn) => changedTables.has(tableForFunction(fn)))
+        .filter((fn) => functionTables(fn).some((table) => changedTables.has(table)))
         .map((fn) => fn.name)
     );
     const sockets = this.ctx.getWebSockets();
@@ -394,33 +655,59 @@ export class Coordinator {
     for (const record of this.sql.exec('SELECT * FROM _snapback_subscriptions')) {
       subs.push(record);
     }
+    const groups = new Map();
     for (const sub of subs) {
       if (!affectedFunctions.has(sub.function_name)) continue;
       const ws = byConnection.get(sub.connection_id);
       if (!ws) continue;
-      // A woken object may have no live HostContext; re-run the query
-      // synchronously through a fresh query invocation. Because handler
-      // execution is async (RPC seam), schedule it and let it push.
-      this.pushReplace(ws, sub, commit.version);
+      const key = `${sub.function_name}\0${sub.args_json}`;
+      let group = groups.get(key);
+      if (!group) {
+        group = { functionName: String(sub.function_name), argsJson: String(sub.args_json), members: [] };
+        groups.set(key, group);
+      }
+      group.members.push({ ws, subscriptionId: String(sub.subscription_id) });
     }
+    const pushes = [];
+    for (const group of groups.values()) {
+      // A woken object may have no live HostContext; re-run the query through
+      // a fresh query invocation and share the result across identical
+      // subscription shapes.
+      pushes.push(this.pushReplaceGroup(group));
+    }
+    await Promise.all(pushes);
   }
 
-  async pushReplace(ws, sub, version) {
-    const result = await this.invokeHandler(sub.function_name, 'query', JSON.parse(sub.args_json), sub.auth_epoch);
-    if (!result.ok) return;
-    this.sql.exec('UPDATE _snapback_subscriptions SET last_version = ? WHERE subscription_id = ?', version, sub.subscription_id);
+  async pushReplaceGroup(group) {
     try {
-      ws.send(
-        JSON.stringify({
-          type: 'live_replace',
-          subscriptionId: sub.subscription_id,
-          function: sub.function_name,
-          version,
-          rows: result.value,
-        })
-      );
-    } catch (_) {
-      // socket gone; the disconnect handler prunes the registry
+      const result = await this.invokeHandler(group.functionName, 'query', JSON.parse(group.argsJson));
+      if (!result.ok) {
+        console.warn('snapback fan-out query failed', group.functionName, result.code);
+        return;
+      }
+      const version = result.observedVersion ?? this.currentVersion();
+      for (const member of group.members) {
+        // Per-member isolation: one dead socket (a hibernation socket can
+        // race its close event) must not suppress delivery to the rest of
+        // the group.
+        try {
+          member.ws.send(
+            JSON.stringify({
+              type: 'live_replace',
+              subscriptionId: member.subscriptionId,
+              function: group.functionName,
+              version,
+              rows: result.value,
+            })
+          );
+        } catch (error) {
+          console.warn('snapback fan-out send failed', member.subscriptionId, String(error));
+        }
+      }
+    } catch (error) {
+      // Diagnostics, never control flow: a failed push must not fail the
+      // committed mutation. A dead socket is pruned by the disconnect handler.
+      console.warn('snapback fan-out push failed', group.functionName, String(error));
     }
   }
 
@@ -440,8 +727,12 @@ export class Coordinator {
     this.sql.exec('UPDATE _snapback_version SET version = 0 WHERE id = 1');
     this.sql.exec('DELETE FROM _snapback_subscriptions');
     for (const table of schema.tables) {
-      this.sql.exec(`DELETE FROM app_${table.name}`);
+      this.sql.exec(`DELETE FROM ${this.physicalTable(table.name)}`);
     }
+    // A reset empties the persistent state, so this deployment's metadata is
+    // now authoritative — recover from a stale-artifact refusal.
+    this.writeDeploymentMetadata();
+    this.startupError = null;
     for (const ws of this.ctx.getWebSockets()) {
       try {
         ws.send(JSON.stringify({ type: 'resync_required', reason: 'reset' }));
@@ -451,23 +742,36 @@ export class Coordinator {
   }
 }
 
-function tableForFunction(fn) {
-  // The proof's single-table live query maps to the app's one syncable table.
-  return schema.tables[0].name;
+// A stale-deployment refusal (SNAPBACK_STALE_CLOUDFLARE_*): served on every
+// data-plane request until the operator resets or migrates, never silently
+// served over mismatched persistent state.
+function staleArtifact(code, message, details) {
+  return { ok: false, code, message, details };
 }
 
-function parseEnvelope(envelope) {
-  try {
-    const parsed = JSON.parse(envelope);
-    if (parsed && parsed.r && typeof parsed.r === 'object') {
-      const r = parsed.r;
-      if (r.__snapbackOk === true) return { ok: true, value: r.value };
-      if (r.__snapbackOk === false) {
-        return { ok: false, code: r.code || 'SNAPBACK_HANDLER_FAILED', message: r.message || 'handler failed' };
-      }
-    }
-  } catch (_) {}
-  return { ok: false, code: 'SNAPBACK_HANDLER_DID_NOT_SETTLE', message: 'handler produced no tagged envelope' };
+function functionTables(fn) {
+  if (Array.isArray(fn.tables) && fn.tables.length > 0) return fn.tables;
+  return [schema.tables[0].name];
+}
+
+function canonicalJson(value) {
+  return JSON.stringify(sortJson(value ?? {}));
+}
+
+function sortJson(value) {
+  if (Array.isArray(value)) return value.map(sortJson);
+  if (!value || typeof value !== 'object') return value;
+  const sorted = {};
+  for (const key of Object.keys(value).sort()) {
+    sorted[key] = sortJson(value[key]);
+  }
+  return sorted;
+}
+
+function failure(result) {
+  const body = { ok: false, code: result.code, message: result.message };
+  if (result.details) body.details = result.details;
+  return body;
 }
 
 function json(status, value) {

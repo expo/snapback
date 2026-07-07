@@ -27,15 +27,27 @@ if (!base) {
 }
 
 const results = [];
+const EXPECTED_CHECKS = 10;
 function check(name, condition, detail) {
   results.push({ name, ok: !!condition, detail: condition ? undefined : detail });
   console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${name}${condition ? '' : ` — ${detail ?? ''}`}`);
 }
 
+const adminToken = process.env.SNAPBACK_ADMIN_TOKEN || '';
+
 async function post(path, body) {
+  const headers = { 'content-type': 'application/json' };
+  // /reset and /evict are token-gated on the deployed gateway (ENG-23587).
+  if (path === '/reset' || path === '/evict') {
+    if (!adminToken) {
+      console.error('set SNAPBACK_ADMIN_TOKEN to drive the admin endpoints on a real deploy');
+      process.exit(2);
+    }
+    headers['x-snapback-admin-token'] = adminToken;
+  }
   const response = await fetch(`${base}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify(body ?? {}),
   });
   return response.json();
@@ -52,26 +64,39 @@ function openSocket(path) {
     const ws = new WebSocket(url);
     const queue = [];
     const waiters = [];
+    function deliver(message) {
+      const index = waiters.findIndex((waiter) => waiter.type === message.type);
+      if (index < 0) {
+        queue.push(message);
+        return;
+      }
+      const [waiter] = waiters.splice(index, 1);
+      clearTimeout(waiter.timer);
+      waiter.resolve(message);
+    }
     ws.addEventListener('message', (event) => {
       const message = JSON.parse(event.data);
-      const waiter = waiters.shift();
-      if (waiter) waiter(message);
-      else queue.push(message);
+      deliver(message);
     });
     ws.addEventListener('open', () =>
       resolve({
         send: (value) => ws.send(JSON.stringify(value)),
-        waitFor: (type, timeoutMs = 8000) =>
-          new Promise((res, rej) => {
-            const deadline = Date.now() + timeoutMs;
-            const pump = () => {
-              const index = queue.findIndex((m) => m.type === type);
-              if (index >= 0) return res(queue.splice(index, 1)[0]);
-              if (Date.now() > deadline) return rej(new Error(`timeout waiting for ${type}`));
-              waiters.push(() => pump());
+        waitFor: (type, timeoutMs = 8000) => {
+          const index = queue.findIndex((message) => message.type === type);
+          if (index >= 0) return Promise.resolve(queue.splice(index, 1)[0]);
+          return new Promise((resolveFrame, rejectFrame) => {
+            const waiter = {
+              type,
+              resolve: resolveFrame,
+              timer: setTimeout(() => {
+                const waiterIndex = waiters.indexOf(waiter);
+                if (waiterIndex >= 0) waiters.splice(waiterIndex, 1);
+                rejectFrame(new Error(`timeout waiting for ${type}`));
+              }, timeoutMs),
             };
-            pump();
-          }),
+            waiters.push(waiter);
+          });
+        },
         close: () => ws.close(),
       })
     );
@@ -83,6 +108,10 @@ async function main() {
   await post('/reset');
   const manifest = await get('/inspect');
   check('capability manifest served', manifest.targetProfileId === 'cloudflare-do-sqlite-v8', JSON.stringify(manifest.targetProfileId));
+  check('capability manifest does not claim deployed auth impersonation',
+    manifest.authImpersonation === false, JSON.stringify(manifest.authImpersonation));
+  check('capability manifest reports coordinator-serialized mutation isolation',
+    manifest.mutationIsolationMode === 'coordinator-serialized-invocations', JSON.stringify(manifest.mutationIsolationMode));
 
   // Cold start: first request after a quiet window (best-effort — a truly cold
   // object requires the idle window below to have elapsed first).
@@ -123,16 +152,23 @@ async function main() {
     'SKIPPED: set CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID to read GB-s/requests over the idle windows');
 
   const passed = results.filter((r) => r.ok).length;
+  const shortfall = results.length === 0
+    ? 'zero checks ran'
+    : results.length !== EXPECTED_CHECKS
+      ? `ran ${results.length}/${EXPECTED_CHECKS} expected checks`
+      : null;
   const report = {
     title: 'LLP 0040 Cloudflare narrow proof — REAL Cloudflare acceptance',
     surface: 'real-cloudflare',
     origin: base,
     passed,
     total: results.length,
-    ok: passed === results.length,
+    expectedChecks: EXPECTED_CHECKS,
+    ok: passed === results.length && shortfall === null,
     billingCountersRead: billingRead,
     results,
   };
+  if (shortfall) report.shortfall = shortfall;
   console.log('\n--- machine-readable report ---');
   console.log(JSON.stringify(report));
   process.exit(report.ok ? 0 : 1);

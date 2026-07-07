@@ -299,6 +299,8 @@ fn runner_error(code: &str, message: impl Into<String>, details: Value) -> Snapb
 #[derive(Debug, Deserialize)]
 struct InvokeResponse {
     envelope: Option<String>,
+    #[serde(default, rename = "didNotSettle")]
+    did_not_settle: bool,
     #[serde(default, rename = "unhandledRejections")]
     unhandled_rejections: Vec<String>,
     #[serde(default, rename = "rejectionDetectionSupported")]
@@ -343,27 +345,23 @@ pub(crate) fn run_handler_workerd(
             )
         })?
         .port();
-    let worker_port = {
-        let probe = TcpListener::bind("127.0.0.1:0").map_err(|error| {
+    let worker_probe = TcpListener::bind("127.0.0.1:0").map_err(|error| {
+        runner_error(
+            "SNAPBACK_V8_RUNNER_START_FAILED",
+            "could not reserve a workerd socket port",
+            json!({ "error": error.to_string() }),
+        )
+    })?;
+    let worker_port = worker_probe
+        .local_addr()
+        .map_err(|error| {
             runner_error(
                 "SNAPBACK_V8_RUNNER_START_FAILED",
-                "could not reserve a workerd socket port",
+                "could not read the reserved workerd port",
                 json!({ "error": error.to_string() }),
             )
-        })?;
-        let port = probe
-            .local_addr()
-            .map_err(|error| {
-                runner_error(
-                    "SNAPBACK_V8_RUNNER_START_FAILED",
-                    "could not read the reserved workerd port",
-                    json!({ "error": error.to_string() }),
-                )
-            })?
-            .port();
-        drop(probe);
-        port
-    };
+        })?
+        .port();
     let token = uuid::Uuid::new_v4().to_string();
 
     // Materialize the single-sourced harness plus this invocation's handler
@@ -411,6 +409,9 @@ pub(crate) fn run_handler_workerd(
             json!({ "error": error.to_string() }),
         )
     })?;
+    // Keep the reservation until immediately before spawn. workerd itself has
+    // to bind the port, but the TOCTOU window is now just the spawn handoff.
+    drop(worker_probe);
     let child = Command::new(&workerd)
         .arg("serve")
         .arg(dir.join("config.capnp"))
@@ -427,8 +428,14 @@ pub(crate) fn run_handler_workerd(
         })?;
     let mut child = ChildGuard(child);
 
-    // Readiness: the workerd socket accepts once the config is live.
+    // Readiness: prove the accepted socket is THIS harness, not merely
+    // something listening on the reserved port.
     let worker_addr = format!("127.0.0.1:{worker_port}");
+    let readiness_nonce = uuid::Uuid::new_v4().to_string();
+    let readiness_url = format!("http://{worker_addr}/__snapback/health?nonce={readiness_nonce}");
+    let readiness_agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_millis(300))
+        .build();
     loop {
         if Instant::now() >= deadline {
             return Err(startup_failure(&stderr_path, timeout_ms));
@@ -436,11 +443,18 @@ pub(crate) fn run_handler_workerd(
         if let Ok(Some(_)) = child.0.try_wait() {
             return Err(startup_failure(&stderr_path, timeout_ms));
         }
-        match TcpStream::connect_timeout(
-            &worker_addr.parse().expect("loopback addr parses"),
-            Duration::from_millis(100),
-        ) {
-            Ok(_) => break,
+        match readiness_agent.get(&readiness_url).call() {
+            Ok(response) => {
+                let body = response.into_string().unwrap_or_default();
+                let parsed: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
+                let ok = parsed.get("ok").and_then(Value::as_bool) == Some(true);
+                let harness = parsed.get("harness").and_then(Value::as_str) == Some("snapback-workerd-v8");
+                let nonce = parsed.get("nonce").and_then(Value::as_str) == Some(readiness_nonce.as_str());
+                if ok && harness && nonce {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
             Err(_) => std::thread::sleep(Duration::from_millis(5)),
         }
     }
@@ -456,6 +470,7 @@ pub(crate) fn run_handler_workerd(
         "secretsJson": Value::Null,
         "epoch": invocation.epoch().to_string(),
         "token": token,
+        "settlementTimeoutMs": timeout_ms.saturating_sub(250).max(1),
     })
     .to_string();
     let invoke_url = format!("http://{worker_addr}/invoke");
@@ -494,27 +509,7 @@ pub(crate) fn run_handler_workerd(
             Ok(Ok(body)) => break body,
             Ok(Err(message)) => {
                 let _ = invoke_thread.join();
-                // workerd's hung-request detection is this leg's settlement
-                // signal: the runtime proved the invocation promise can never
-                // settle, which is exactly the Ibex no-progress fallback's
-                // meaning — same failure, same stable code, nothing committed.
                 let stderr = stderr_tail(&stderr_path);
-                let hang_signal = format!("{message} {stderr}").to_ascii_lowercase();
-                if hang_signal.contains("never generate a response")
-                    || hang_signal.contains("hung")
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_HANDLER_DID_NOT_SETTLE",
-                        "runtime",
-                        "handler promise never settled — the invocation produced no result and \
-                         committed no writes",
-                    )
-                    .with_details(json!({
-                        "function": module.export,
-                        "engine": "workerd-v8",
-                        "signal": "workerd hung-request detection",
-                    })));
-                }
                 return Err(runner_error(
                     "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
                     format!("the workerd invocation transport failed: {message}; stderr: {stderr}"),
@@ -577,6 +572,19 @@ pub(crate) fn run_handler_workerd(
             json!({ "error": fatal }),
         ));
     }
+    if response.did_not_settle {
+        return Err(SnapbackError::error(
+            "SNAPBACK_HANDLER_DID_NOT_SETTLE",
+            "runtime",
+            "handler promise did not settle before the harness deadline — the invocation \
+             produced no result and committed no writes",
+        )
+        .with_details(json!({
+            "function": module.export,
+            "engine": "workerd-v8",
+            "signal": "structured harness settlement deadline",
+        })));
+    }
     if !response.unhandled_rejections.is_empty() {
         return Err(unhandled_rejection_error(
             module,
@@ -619,6 +627,7 @@ fn stderr_tail(path: &Path) -> String {
 // minimal loopback HTTP handling for the host-call channel
 
 fn serve_host_call_connection(stream: TcpStream, ctx: &mut IbexHostContext<'_>, token: &str) {
+    let _ = stream.set_nonblocking(false);
     let _ = stream.set_read_timeout(Some(Duration::from_millis(2_000)));
     let _ = stream.set_write_timeout(Some(Duration::from_millis(2_000)));
     let mut reader = BufReader::new(stream);

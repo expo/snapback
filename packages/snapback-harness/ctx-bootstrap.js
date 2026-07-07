@@ -122,10 +122,19 @@
   // in module scope by a prior invocation therefore carries that prior
   // epoch, and the host rejects it (stale-continuation guard) rather than
   // routing it through whatever invocation is currently live on this VM.
-  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch) {
+  //
+  // `hostCall` is optional and invocation-local (ENG-23574): the workerd
+  // handler server passes the transport carrying THIS invocation's token and
+  // routing headers, captured here once, so an overlapping invocation on the
+  // same isolate can never swap it mid-flight. The Ibex leg passes nothing
+  // and uses the host-injected `__hostCall` FFI global, which is
+  // process-stable (the epoch guard, not the transport, is its staleness
+  // defense).
+  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall) {
+    var hostCallFn = typeof hostCall === "function" ? hostCall : g.__hostCall;
     function host(op, args) {
       try {
-        return g.__hostCall(epoch + "|" + op, JSON.stringify(args || {}));
+        return hostCallFn(epoch + "|" + op, JSON.stringify(args || {}));
       } catch (error) {
         var code = codeFromMessage(error && error.message);
         if (code) {
@@ -198,9 +207,12 @@
       return builder;
     }
     // Diagnostics-routed console (allowlist slice 1): the routed console shim
-    // forwards to this sink, which carries the invocation's epoch through the
-    // ordinary host-call path. Logging is diagnostics, never control flow — a
-    // failed or stale sink call is dropped, not raised.
+    // forwards to this sink, which carries the invocation's epoch AND its
+    // invocation-local transport through the ordinary host-call path (the
+    // `host` closure above). The global slot is per-invocation; on workerd
+    // the handler server serializes invocations, so it cannot be swapped
+    // mid-invocation (ENG-23574). Logging is diagnostics, never control
+    // flow — a failed or stale sink call is dropped, not raised.
     try {
       g.__snapbackConsoleSink = function(level, parts) {
         try {
@@ -252,7 +264,7 @@
       };
     }
     var handlers = g.__snapbackHandlers || {};
-    var handler = handlers[name] || g[name];
+    var handler = handlers[name];
     if (typeof handler !== "function") {
       throw snapbackError("SNAPBACK_HANDLER_EXPORT_MISSING", name);
     }
@@ -289,9 +301,9 @@
   // The envelope is only constructed after the awaited handler value exists,
   // so an untagged output on any engine means the handler never settled
   // (SNAPBACK_HANDLER_DID_NOT_SETTLE on the host side).
-  g.__snapbackSettle = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch) {
+  g.__snapbackSettle = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall) {
     try {
-      var value = await g.__snapbackInvoke(name, argsJson, authJson, mode, runJson, secretsJson, epoch);
+      var value = await g.__snapbackInvoke(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall);
       var encodedValue = JSON.stringify(value === undefined ? null : value, __snapbackJsonReplacer);
       if (encodedValue === undefined) {
         var resultError = new Error("handler returned a value that is not JSON-serializable");

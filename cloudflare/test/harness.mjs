@@ -7,12 +7,23 @@
 // Object, its embedded SQLite, WebSocket Hibernation, and the cross-Worker
 // service bindings that carry the ctx host-call channel.
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import path from 'node:path';
 import esbuild from 'esbuild';
 import { Miniflare } from 'miniflare';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
+const repoRoot = path.resolve(root, '..');
+const compatConfig = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, 'packages/snapback-harness/compat.json'), 'utf8')
+);
+const compatibilityOptions = {
+  compatibilityDate: compatConfig.compatibilityDate,
+  compatibilityFlags: compatConfig.compatibilityFlags || [],
+};
+
+export const ADMIN_TOKEN = 'miniflare-admin-token';
 
 async function bundle(entry) {
   const result = await esbuild.build({
@@ -38,14 +49,17 @@ export async function startProof() {
       {
         name: 'snapback-notes-proof',
         modules: [{ type: 'ESModule', path: path.join(root, 'src/gateway.js'), contents: gatewayScript }],
-        compatibilityDate: '2026-07-01',
+        ...compatibilityOptions,
         durableObjects: { COORDINATOR: { className: 'Coordinator', useSQLite: true } },
         serviceBindings: { HANDLER: 'snapback-notes-handler' },
+        // The admin-token gate on /reset and /evict (ENG-23587); the client
+        // below presents it, and the acceptance suite asserts its absence 403s.
+        bindings: { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1' },
       },
       {
         name: 'snapback-notes-handler',
         modules: [{ type: 'ESModule', path: path.join(root, 'src/handler-worker.js'), contents: handlerScript }],
-        compatibilityDate: '2026-07-01',
+        ...compatibilityOptions,
         serviceBindings: { HOST: 'snapback-notes-proof' },
       },
     ],
@@ -76,13 +90,35 @@ class ProofClient {
   }
 
   async reset() {
-    const response = await this.mf.dispatchFetch(`${this.base}/reset`, { method: 'POST' });
+    const response = await this.mf.dispatchFetch(`${this.base}/reset`, {
+      method: 'POST',
+      headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+    });
     return response.json();
   }
 
   async evict() {
-    const response = await this.mf.dispatchFetch(`${this.base}/evict`, { method: 'POST' });
+    const response = await this.mf.dispatchFetch(`${this.base}/evict`, {
+      method: 'POST',
+      headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+    });
     return response.json();
+  }
+
+  async corruptMeta(payload) {
+    const response = await this.mf.dispatchFetch(`${this.base}/__test/corrupt-meta`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload ?? {}),
+    });
+    return { status: response.status, body: await response.json() };
+  }
+
+  // Raw admin request without credentials — the acceptance suite uses this to
+  // assert the gate fails closed (ENG-23587).
+  async adminWithoutToken(pathName, method = 'POST') {
+    const response = await this.mf.dispatchFetch(`${this.base}${pathName}`, { method });
+    return { status: response.status, body: await response.json() };
   }
 
   async query(name, args) {

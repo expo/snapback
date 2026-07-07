@@ -16,8 +16,12 @@ import { startProof } from './harness.mjs';
 
 function percentile(sorted, p) {
   if (sorted.length === 0) return null;
-  const index = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
-  return sorted[index];
+  if (sorted.length === 1) return sorted[0];
+  const rank = (p / 100) * (sorted.length - 1);
+  const lower = Math.floor(rank);
+  const upper = Math.ceil(rank);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (rank - lower);
 }
 
 function stats(samples) {

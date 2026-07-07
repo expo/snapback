@@ -28,13 +28,22 @@ export const schema = {
   ],
 };
 
+export const bundleHash = 'notes-app-bundle-v1';
+
 export const functions = [
-  { name: 'listNotes', kind: 'LiveQuery', export: 'listNotes' },
-  { name: 'addNote', kind: 'Mutation', export: 'addNote' },
+  { name: 'listNotes', kind: 'LiveQuery', export: 'listNotes', tables: ['notes'] },
+  { name: 'addNote', kind: 'Mutation', export: 'addNote', tables: ['notes'] },
   // A probe used only by the ambient-power denial acceptance test (LLP 0040
   // §Acceptance). It reports what the handler isolate can and cannot reach, so
   // the test asserts denial against the *deployed* handler, not just the twin.
   { name: 'probeAmbient', kind: 'Query', export: 'probeAmbient' },
+  // Regression probes for the Miniflare acceptance suite: no-op commits must
+  // not advance the version (ENG-23583), off-schema tables must be refused
+  // (ENG-23578), and a detached rejection parked on a host call must fail the
+  // mutation with nothing committed (ENG-23584/ENG-23585).
+  { name: 'touchNote', kind: 'Mutation', export: 'touchNote', tables: ['notes'] },
+  { name: 'probeBadTable', kind: 'Mutation', export: 'probeBadTable', tables: ['notes'] },
+  { name: 'addNoteDetachedFailure', kind: 'Mutation', export: 'addNoteDetachedFailure', tables: ['notes'] },
 ];
 
 // One handler module, the same `globalThis.__snapbackHandlers` contract the
@@ -59,6 +68,32 @@ globalThis.__snapbackHandlers = {
       authorId: args.authorId || null,
     });
     return { id };
+  },
+  async touchNote(ctx, args) {
+    // Patches an arbitrary (usually missing) id, optionally with an empty
+    // values object — both must be commit no-ops that leave the version
+    // untouched, matching the local target (ENG-23583).
+    const existed = await ctx.db.patch('notes', args.id || 'missing-note-id', args.values || {});
+    return { existed };
+  },
+  async probeBadTable(ctx) {
+    try {
+      await ctx.db.insert('not_a_table', { text: 'nope' });
+      return { inserted: true };
+    } catch (error) {
+      return { inserted: false, message: String((error && error.message) || error) };
+    }
+  },
+  async addNoteDetachedFailure(ctx, args) {
+    // The ENG-23361 shape parked on a host call: the detached chain buffers a
+    // write over the async RPC seam and THEN rejects. The invocation must
+    // fail closed with nothing committed (ENG-23584), and only THIS
+    // invocation may fail (ENG-23585).
+    [1, 2].forEach(async (rank) => {
+      await ctx.db.insert('notes', { boardId: args.boardId, text: `detached-${rank}` });
+      throw new Error(`detached failure ${rank}`);
+    });
+    return { launched: true };
   },
   // Probe both denial directions (LLP 0040 §App subset): ambient globals
   // (fetch/env/bindings) and direct host-object reach-through (a Durable

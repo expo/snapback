@@ -34,6 +34,11 @@ const functions = gen('functions.manifest.json');
 const SECRETS = '{"feedKeys":["key-a","key-b"]}';
 const REDACTED = '[snapback secret feedKeys]';
 
+// The suite spawns its own servers (not demos/_kit/server-process.mjs), so it
+// wires the ENG-23443/ENG-23508 admin token itself: one fixed token for the
+// spawned servers (inherited via process.env) and for every SnapbackClient.
+process.env.SNAPBACK_ADMIN_TOKEN = process.env.SNAPBACK_ADMIN_TOKEN || 'egress-suite-admin-token';
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
 
@@ -54,10 +59,12 @@ async function startApi(port, extraEnv) {
   throw new Error('API did not become healthy');
 }
 
+const adminHeaders = () => ({ 'x-snapback-admin-token': process.env.SNAPBACK_ADMIN_TOKEN });
+
 async function runAction(url, name) {
   const res = await fetch(`${url}/_snapback/api/functions/${name}/run`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...adminHeaders() },
     body: JSON.stringify({ args: {}, read_set: [] }),
   });
   if (!res.ok) throw new Error(`run ${name} failed: ${res.status} ${await res.text()}`);
@@ -67,7 +74,7 @@ async function runAction(url, name) {
 async function configApi(url, method, path, body) {
   const res = await fetch(`${url}/_snapback/api/config/${path}`, {
     method,
-    headers: body === undefined ? {} : { 'content-type': 'application/json' },
+    headers: body === undefined ? adminHeaders() : { 'content-type': 'application/json', ...adminHeaders() },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));

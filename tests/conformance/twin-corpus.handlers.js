@@ -9,6 +9,9 @@ globalThis.__snapbackHandlers = {
     var id = await ctx.db.insert('items', { label: args.label, rank: args.rank });
     return { id: id };
   },
+  async listItems(ctx) {
+    return await ctx.db.query('items').order('rank', 'asc').collect();
+  },
   async listRanked(ctx, args) {
     return await ctx.db
       .query('items')
@@ -50,14 +53,26 @@ globalThis.__snapbackHandlers = {
     var bytes = encoder.encode(args.text);
     var decoder = new TextDecoder();
     var roundTrip = decoder.decode(bytes);
+    var encoded = btoa('snapback');
+    var decoded = atob(encoded);
     var byteList = [];
     for (var i = 0; i < bytes.length; i++) { byteList.push(bytes[i]); }
+    console.log('allowlist slice exercised', args.text);
     return [{
       bytes: byteList,
       roundTrip: roundTrip,
-      encoded: btoa('snapback conformance'),
-      decoded: atob('c25hcGJhY2s=')
+      encoded: encoded,
+      decoded: decoded
     }];
+  },
+  async atobRejectsGarbage(ctx) {
+    try {
+      atob('%%%not-base64%%%');
+      return [{ threw: false }];
+    } catch (error) {
+      var message = String(error && error.message || error);
+      return [{ threw: true, coded: message.indexOf('SNAPBACK_HANDLER_INVALID_CHARACTER') === 0 }];
+    }
   },
   async writeInQuery(ctx) {
     await ctx.db.insert('items', { label: 'nope', rank: 0 });
@@ -98,6 +113,43 @@ globalThis.__snapbackHandlers = {
       return [{ reachable: true, how: 'callable-throws' }];
     }
   },
+  async probeGlobalName(ctx, args) {
+    var name = args.name;
+    var value = globalThis[name];
+    if (value === undefined || value === null) {
+      return [{ name: name, reachable: false, how: 'absent' }];
+    }
+    if (typeof value === 'function') {
+      try {
+        value();
+        return [{ name: name, reachable: true, how: 'callable' }];
+      } catch (error) {
+        var message = String(error && error.message || error);
+        if (message.indexOf('SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED') === 0) {
+          return [{ name: name, reachable: false, how: 'denied' }];
+        }
+        return [{ name: name, reachable: true, how: 'callable-throws' }];
+      }
+    }
+    return [{ name: name, reachable: true, how: 'value' }];
+  },
+  async probeMember(ctx, args) {
+    var parts = args.name.split('.');
+    var holder = globalThis[parts[0]];
+    if (!holder) { return [{ reachable: false, how: 'absent' }]; }
+    var member = holder[parts[1]];
+    if (typeof member !== 'function') { return [{ reachable: false, how: 'absent' }]; }
+    try {
+      member.call(holder);
+      return [{ reachable: true, how: 'callable' }];
+    } catch (error) {
+      var message = String(error && error.message || error);
+      if (message.indexOf('SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED') === 0) {
+        return [{ reachable: false, how: 'denied' }];
+      }
+      return [{ reachable: true, how: 'callable-throws' }];
+    }
+  },
   async probeDateNow(ctx) {
     try {
       Date.now();
@@ -105,6 +157,88 @@ globalThis.__snapbackHandlers = {
     } catch (error) {
       return [{ reachable: false }];
     }
+  },
+  async detachedHostCallRejection(ctx) {
+    // The ENG-23361 shape parked on a HOST CALL (ENG-23584): the rejection
+    // fires only after the async host round trip on the V8 leg, so a fixed
+    // microtask-tick drain would sweep too early and commit partial writes.
+    [1, 2].forEach(async function (rank) {
+      await ctx.db.insert('items', { label: 'detached-' + rank, rank: rank });
+      throw new Error('detached failure after host call ' + rank);
+    });
+    return { launched: true };
+  },
+  async detachedHostCallSuccess(ctx, args) {
+    Promise.resolve().then(async function () {
+      await ctx.db.insert('items', { label: args.label || 'detached-ok', rank: args.rank || 7 });
+    });
+    return { launched: true };
+  },
+  async probeDateConstructor(ctx) {
+    var out = { explicit: new Date(1000).getTime() === 1000 };
+    try {
+      new Date();
+      out.zeroArgReachable = true;
+    } catch (error) {
+      var message = String(error && error.message || error);
+      out.zeroArgReachable = message.indexOf('SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED') !== 0;
+    }
+    try {
+      Date();
+      out.callReachable = true;
+    } catch (error2) {
+      var message2 = String(error2 && error2.message || error2);
+      out.callReachable = message2.indexOf('SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED') !== 0;
+    }
+    return [out];
+  },
+  async decoderFidelity(ctx) {
+    var encoder = new TextEncoder();
+    var decoder = new TextDecoder();
+    var buf = encoder.encode('abcdef').buffer;
+    var out = {
+      dataViewWindow: decoder.decode(new DataView(buf, 2, 3)),
+      int8Window: decoder.decode(new Int8Array(buf, 4, 2)),
+      truncated: decoder.decode(new Uint8Array([0xE2, 0x82])),
+      invalidByte: decoder.decode(new Uint8Array([0xFF])),
+      badContinuation: decoder.decode(new Uint8Array([0xC3, 0x41])),
+      bomStripped: decoder.decode(new Uint8Array([0xEF, 0xBB, 0xBF, 0x61])),
+      bomKept: new TextDecoder('utf-8', { ignoreBOM: true }).decode(new Uint8Array([0xEF, 0xBB, 0xBF, 0x61])) === '\uFEFFa',
+      encodeIntoFit: (function () {
+        var dest = new Uint8Array(4);
+        var r = encoder.encodeInto('h\u00e9!', dest);
+        return r.read + ':' + r.written + ':' + Array.prototype.join.call(dest, ',');
+      })(),
+      encodeIntoTruncates: (function () {
+        var dest = new Uint8Array(2);
+        var r = encoder.encodeInto('a\u00e9z', dest);
+        return r.read + ':' + r.written;
+      })()
+    };
+    try {
+      new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array([0xFF]));
+      out.fatalThrew = false;
+    } catch (_) {
+      out.fatalThrew = true;
+    }
+    return [out];
+  },
+  async queueMicrotaskInterleave(ctx) {
+    // Declared engine fact (ENG-23593): the fine-grained interleave of
+    // queueMicrotask jobs with promise reactions differs between V8 and the
+    // Ibex vendored promise polyfill. This case records the order so the
+    // divergence stays DECLARED in the twin report instead of unobserved.
+    var order = [];
+    queueMicrotask(function () { order.push('qm1'); });
+    var chain = Promise.resolve()
+      .then(function () { order.push('p1'); })
+      .then(function () { order.push('p2'); });
+    queueMicrotask(function () { order.push('qm2'); });
+    var thenable = { then: function (resolve) { order.push('t1'); resolve(null); } };
+    var adopted = Promise.resolve().then(function () { return thenable; });
+    await chain;
+    await adopted;
+    return [{ order: order.join(',') }];
   },
   async dumpItems(ctx) {
     return await ctx.db.query('items').order('rank', 'asc').collect();

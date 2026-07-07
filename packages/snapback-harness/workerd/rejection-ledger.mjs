@@ -6,6 +6,12 @@
 // Ibex pins the vendored promise polyfill's hook slots; workerd dispatches
 // the standard `unhandledrejection` / `rejectionhandled` events.
 //
+// The ledger is isolate-global (the `unhandledrejection` event carries no
+// invocation identity), so attribution rests on the handler server's
+// invocation mutex: exactly one invocation runs — and drains to quiescence —
+// at a time, so everything `take()` returns belongs to the invocation that
+// just finished (ENG-23585).
+//
 // This module must evaluate before ctx-bootstrap.js: the bootstrap's
 // hook-slot installer no-ops when a take function is already defined.
 import { kept } from "./strip.mjs";

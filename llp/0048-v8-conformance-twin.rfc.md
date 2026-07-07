@@ -394,8 +394,51 @@ proposed (harness envelope, `ctx` host-call corpus for the proof's app
 surface, two-direction denial, one end-to-end V8 mutation, busy-loop kill);
 the twin leg runs with no Cloudflare credentials.
 
+## Review hardening (2026-07-07, ENG-23574–ENG-23593)
+
+The review of the as-built twin surfaced enforcement holes in the harness;
+all are fixed and gated by the twin suites and the conformance corpus:
+
+- **Invocation scoping** (ENG-23574/ENG-23585): the handler server serializes
+  invocations per isolate and hands each invocation an invocation-local
+  host-call transport through `__snapbackSettle` (the Ibex leg keeps its
+  process-stable FFI global and epoch guard). The isolate-global rejection
+  ledger is attributable because exactly one invocation runs — and drains to
+  quiescence — at a time.
+- **Drain contract** (ENG-23584): the fixed 32-tick microtask drain is
+  replaced by a quiescence contract — wait for this invocation's in-flight
+  host calls, then yield real tasks (workerd defers `unhandledrejection`
+  dispatch to task boundaries) until a full round adds no ledger entries.
+  Corpus case `unhandled-detached-rejection-after-host-call` gates it on
+  both engines.
+- **Strip self-check** (ENG-23590): the V8 init probe covers the full
+  `bannedEverywhere` set (plus the twin-pinned `stripProbes` subset), and
+  the Ibex denier gained a symmetric post-install probe that fails the
+  invocation (`SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE`) on any survivor
+  except the declared `HermesInternal` fact.
+  `tests/workerd_twin_v0.rs` parses its probe list from `allowlist.json`
+  instead of a retyped literal.
+- **Date constructor** (ENG-23588): zero-arg `new Date()` and `Date()` as a
+  function are denied by the V8 strip (explicit-timestamp construction and
+  `parse`/`UTC` stay); the Ibex leg keeps it reachable as part of the same
+  declared deterministic-member asymmetry, pinned by the twin and the
+  `deterministic-date-constructor` corpus case.
+- **Allowlist fidelity** (ENG-23593): the Ibex `TextDecoder` polyfill is
+  WHATWG-faithful (view windows, U+FFFD maximal-subpart replacement,
+  `fatal`/`ignoreBOM`), converging with native — gated by the
+  `allowlist-decoder-fidelity` corpus case and a spec-pinned twin test. The
+  `queueMicrotask` entry is re-worded as a declared engine fact (fine-grained
+  interleave with promise reactions differs on the vendored polyfill), with
+  a `queue-microtask-interleave` corpus case recording the divergence.
+- **Egress posture** (ENG-23581): the data-driven denial applies to queries
+  and mutations only; egress-enabled actions restore the pre-0048 surface
+  (deny exactly `process`/`require`/`WebSocket`), so the lazily-installed
+  configurable `fetch` and the wide compute surface stay reachable.
+  `tests/egress_ambient_v0.rs` pins this in `cargo test`.
+
 ## Status
 
-Draft (as-built sections landed 2026-07-07). This RFC executes the DK-5
+Draft (as-built sections landed 2026-07-07; review-hardening batch
+ENG-23574–ENG-23593 landed the same day). This RFC executes the DK-5
 re-decision (LLP 0009 §Decision DK-5); its conformance gate is green and the
 harness is the single-sourced artifact LLP 0040 deploys.

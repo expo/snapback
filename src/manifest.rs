@@ -1140,8 +1140,10 @@ impl CapabilityManifest {
     /// missing features are product facts, not TODO comments (LLP 0040
     /// §Capability report). Storage is the coordinator Durable Object's
     /// embedded SQLite; the runtime is V8; the live transport is
-    /// Durable-Object-owned hibernating WebSockets. Limit fields are computed
-    /// on the real runtime (DK-5) and carried in `runtime_facts`.
+    /// Durable-Object-owned hibernating WebSockets. Runtime facts are
+    /// declared platform/deployment facts here; decisive measurements live in
+    /// the generated benchmark/acceptance reports, not in this static
+    /// manifest.
     pub fn cloudflare_do_sqlite_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
@@ -1149,6 +1151,15 @@ impl CapabilityManifest {
         manifest.runtime_engine = "v8".to_owned();
         manifest.local_server_lifecycle = false;
         manifest.vm_lifecycle = "fresh-isolate-per-deploy".to_owned();
+        // The narrow proof has no external auth adapter and does not
+        // impersonate users on the deployed Cloudflare target (ENG-23589).
+        manifest.auth_impersonation = false;
+        // Honest isolation claim (ENG-23575): the coordinator records captured
+        // reads but does not yet VALIDATE them at commit; what it enforces is a
+        // per-object mutex serializing handler execution + commit (and
+        // subscription snapshot + registration). Do not inherit the local
+        // target's read-set-validation claim.
+        manifest.mutation_isolation_mode = "coordinator-serialized-invocations".to_owned();
         // The ephemeral/presence lane, cron, and the durable-only local
         // niceties are not in the narrow proof; report them honestly.
         manifest.ephemeral_realtime = false;
@@ -1172,6 +1183,8 @@ impl CapabilityManifest {
             "postgres".to_owned(),
             "hosted_untrusted_code".to_owned(),
             "external_auth".to_owned(),
+            "auth_impersonation".to_owned(),
+            "handler_captured_read_set_validation".to_owned(),
             "assets".to_owned(),
             "outbound_actions".to_owned(),
             "notifications".to_owned(),

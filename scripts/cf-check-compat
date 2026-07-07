@@ -10,27 +10,40 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 compat="$repo_root/packages/snapback-harness/compat.json"
 
 expected_date=$(node -e "console.log(require('$compat').compatibilityDate)")
+expected_flags=$(node -e "console.log(JSON.stringify(require('$compat').compatibilityFlags || []))")
 
 fail=0
 for config in "$repo_root/cloudflare/wrangler.jsonc" "$repo_root/cloudflare/wrangler.handler.jsonc"; do
   # Strip // comments so JSON parses.
-  actual_date=$(node -e "
+  actual=$(node -e "
     const fs=require('fs');
     const raw=fs.readFileSync('$config','utf8').replace(/^\s*\/\/.*$/gm,'');
     const cfg=JSON.parse(raw);
-    if((cfg.compatibility_flags||[]).some(f=>f.startsWith('nodejs_compat'))){
+    const flags=cfg.compatibility_flags||[];
+    if(flags.some(f=>f.startsWith('nodejs_compat'))){
       console.error('REFUSED: $config carries a nodejs_compat flag'); process.exit(3);
     }
-    console.log(cfg.compatibility_date);
+    console.log(JSON.stringify({date: cfg.compatibility_date, flags}));
   ")
+  actual_date=$(node -e "console.log(JSON.parse(process.argv[1]).date)" "$actual")
+  actual_flags=$(node -e "console.log(JSON.stringify(JSON.parse(process.argv[1]).flags))" "$actual")
   if [[ "$actual_date" != "$expected_date" ]]; then
     echo "MISMATCH: $config compatibility_date=$actual_date, expected $expected_date" >&2
     fail=1
   fi
+  if [[ "$actual_flags" != "$expected_flags" ]]; then
+    echo "MISMATCH: $config compatibility_flags=$actual_flags, expected $expected_flags" >&2
+    fail=1
+  fi
 done
+
+if grep -Eq "compatibilityDate:[[:space:]]*['\"][0-9]{4}-[0-9]{2}-[0-9]{2}['\"]" "$repo_root/cloudflare/test/harness.mjs"; then
+  echo "MISMATCH: cloudflare/test/harness.mjs hardcodes a compatibilityDate instead of compat.json" >&2
+  fail=1
+fi
 
 if [[ "$fail" -ne 0 ]]; then
   echo "cf-check-compat: deploy config drifted from the single-sourced compat.json" >&2
   exit 1
 fi
-echo "cf-check-compat: compat pins match ($expected_date), no nodejs_compat flags"
+echo "cf-check-compat: compat pins match ($expected_date flags=$expected_flags), no nodejs_compat flags"

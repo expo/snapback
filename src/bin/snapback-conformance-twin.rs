@@ -57,6 +57,34 @@ fn corpus() -> Vec<Case> {
         Case { name: "result-not-serializable", handler: "returnsFunction", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
         Case { name: "settlement-hang", handler: "hangForever", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
         Case { name: "unhandled-detached-rejection", handler: "detachedRejection", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
+        // ENG-23584: the detached chain parks on a HOST CALL before rejecting,
+        // so the V8 leg only observes it if the drain waits for host-call
+        // quiescence instead of a fixed microtask-tick count.
+        Case { name: "unhandled-detached-rejection-after-host-call", handler: "detachedHostCallRejection", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
+        Case { name: "detached-host-call-success", handler: "detachedHostCallSuccess", kind: FunctionKind::Mutation, args: json!({"label": "detached-ok", "rank": 7}), engines: Engines::Both, declared_fact: None },
+        // ENG-23593: decoder fidelity on view windows and invalid utf-8 must
+        // CONVERGE — the Ibex polyfill is spec-corrected, not declared.
+        Case { name: "allowlist-decoder-fidelity", handler: "decoderFidelity", kind: FunctionKind::Query, args: json!({}), engines: Engines::Both, declared_fact: None },
+        Case {
+            name: "deterministic-date-constructor",
+            handler: "probeDateConstructor",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: Some(
+                "the zero-arg Date constructor (like Date.now/Math.random) is denied by the V8                  strip but reachable (codegen-banned only) on Ibex in v1 — the same declared                  engine fact, extended to the constructor path (ENG-23588)",
+            ),
+        },
+        Case {
+            name: "queue-microtask-interleave",
+            handler: "queueMicrotaskInterleave",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: Some(
+                "the fine-grained interleave of queueMicrotask jobs with promise reactions                  differs between V8 and the Ibex vendored promise polyfill (thenable adoption                  and chained .then land at different ticks) — declared engine fact; handlers                  must not depend on cross-engine job ordering (ENG-23593)",
+            ),
+        },
         Case { name: "ambient-denial-fetch", handler: "probeFetch", kind: FunctionKind::Query, args: json!({}), engines: Engines::Both, declared_fact: None },
         Case {
             name: "busy-loop-wall-clock-kill",
@@ -137,26 +165,59 @@ fn input(args: Value) -> HandlerInput {
 /// clock values (host-supplied on both legs, but per-run) cannot masquerade
 /// as engine divergence.
 fn normalize(value: &Value, ids: &mut Vec<String>) -> Value {
+    normalize_with_context(value, ids, None, None)
+}
+
+fn normalize_with_context(
+    value: &Value,
+    ids: &mut Vec<String>,
+    key: Option<&str>,
+    parent_op: Option<&str>,
+) -> Value {
     match value {
         Value::String(text) => Value::String(normalize_ids_in_string(text, ids)),
         Value::Number(number) => {
-            if let Some(ms) = number.as_i64() {
-                // Epoch-millisecond range (2001-09-09 .. 2286-11-20).
-                if (1_000_000_000_000..10_000_000_000_000).contains(&ms) {
-                    return Value::String("$MS".to_owned());
-                }
+            if should_normalize_ms(key, parent_op, number.as_i64()) {
+                return Value::String("$MS".to_owned());
             }
             value.clone()
         }
-        Value::Array(items) => Value::Array(items.iter().map(|item| normalize(item, ids)).collect()),
-        Value::Object(entries) => Value::Object(
-            entries
+        Value::Array(items) => Value::Array(
+            items
                 .iter()
-                .map(|(key, item)| (key.clone(), normalize(item, ids)))
-                .collect::<Map<String, Value>>(),
+                .map(|item| normalize_with_context(item, ids, key, parent_op))
+                .collect(),
         ),
+        Value::Object(entries) => {
+            let op = entries
+                .get("op")
+                .and_then(Value::as_str)
+                .or(parent_op);
+            Value::Object(
+                entries
+                    .iter()
+                    .map(|(entry_key, item)| {
+                        (
+                            entry_key.clone(),
+                            normalize_with_context(item, ids, Some(entry_key), op),
+                        )
+                    })
+                    .collect::<Map<String, Value>>(),
+            )
+        }
         _ => value.clone(),
     }
+}
+
+fn should_normalize_ms(key: Option<&str>, parent_op: Option<&str>, value: Option<i64>) -> bool {
+    let Some(ms) = value else {
+        return false;
+    };
+    if !(1_000_000_000_000..10_000_000_000_000).contains(&ms) {
+        return false;
+    }
+    matches!(key, Some("_createdAt" | "_updatedAt" | "now"))
+        || (key == Some("outcome") && parent_op == Some("runtime.now"))
 }
 
 /// Replace every uuid-shaped (8-4-4-4-12 hex) substring, wherever it appears —

@@ -18,115 +18,7 @@ use snapback::workerd_exec::{
     HandlerBackend, detect_workerd_binary, with_forced_backend, with_wall_clock_timeout_ms,
 };
 
-const TWIN_MODULE_SOURCE: &str = r#"
-globalThis.__snapbackHandlers = {
-  async addItem(ctx, args) {
-    var id = await ctx.db.insert('items', { label: args.label, rank: args.rank });
-    return { id: id };
-  },
-  async listItems(ctx) {
-    return await ctx.db.query('items').order('rank', 'asc').collect();
-  },
-  async firstItem(ctx) {
-    var row = await ctx.db.query('items').order('rank', 'asc').first();
-    return row ? [row] : [];
-  },
-  async readYourWrites(ctx, args) {
-    await ctx.db.insert('items', { label: args.label, rank: 1 });
-    var rows = await ctx.db.query('items').eq('label', args.label).collect();
-    return { visible: rows.length };
-  },
-  async patchAndDelete(ctx, args) {
-    var id = await ctx.db.insert('items', { label: 'temp', rank: 9 });
-    var existed = await ctx.db.patch('items', id, { label: 'patched' });
-    var seen = await ctx.db.get('items', id);
-    var removed = await ctx.db.delete('items', id);
-    return { existed: existed, label: seen && seen.label, removed: removed };
-  },
-  async writeInQuery(ctx) {
-    await ctx.db.insert('items', { label: 'nope', rank: 0 });
-    return [];
-  },
-  async hangForever(ctx) {
-    await new Promise(function () {});
-    return {};
-  },
-  async detachedRejection(ctx, args) {
-    Promise.resolve().then(function () {
-      throw new Error('detached failure');
-    });
-    await ctx.db.insert('items', { label: args.label, rank: 3 });
-    return {};
-  },
-  async busyLoop(ctx) {
-    await ctx.db.insert('items', { label: 'pre-kill', rank: 5 });
-    for (;;) {}
-  },
-  async probeGlobalName(ctx, args) {
-    var name = args.name;
-    var value = globalThis[name];
-    if (value === undefined || value === null) {
-      return [{ name: name, reachable: false, how: 'absent' }];
-    }
-    if (typeof value === 'function') {
-      try {
-        value();
-        return [{ name: name, reachable: true, how: 'callable' }];
-      } catch (error) {
-        var message = String(error && error.message || error);
-        if (message.indexOf('SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED') === 0) {
-          return [{ name: name, reachable: false, how: 'denied' }];
-        }
-        return [{ name: name, reachable: true, how: 'callable-throws' }];
-      }
-    }
-    return [{ name: name, reachable: true, how: 'value' }];
-  },
-  async probeMember(ctx, args) {
-    var parts = args.name.split('.');
-    var holder = globalThis[parts[0]];
-    if (!holder) { return [{ reachable: false, how: 'absent' }]; }
-    var member = holder[parts[1]];
-    if (typeof member !== 'function') { return [{ reachable: false, how: 'absent' }]; }
-    try {
-      member.call(holder);
-      return [{ reachable: true, how: 'callable' }];
-    } catch (error) {
-      var message = String(error && error.message || error);
-      if (message.indexOf('SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED') === 0) {
-        return [{ reachable: false, how: 'denied' }];
-      }
-      return [{ reachable: true, how: 'callable-throws' }];
-    }
-  },
-  async allowlistSlice(ctx, args) {
-    var encoder = new TextEncoder();
-    var bytes = encoder.encode(args.text);
-    var decoder = new TextDecoder();
-    var roundTrip = decoder.decode(bytes);
-    var encoded = btoa('snapback');
-    var decoded = atob(encoded);
-    console.log('allowlist slice exercised', args.text);
-    var byteList = [];
-    for (var i = 0; i < bytes.length; i++) { byteList.push(bytes[i]); }
-    return [{
-      bytes: byteList,
-      roundTrip: roundTrip,
-      encoded: encoded,
-      decoded: decoded
-    }];
-  },
-  async atobRejectsGarbage(ctx) {
-    try {
-      atob('%%%not-base64%%%');
-      return [{ threw: false }];
-    } catch (error) {
-      var message = String(error && error.message || error);
-      return [{ threw: true, coded: message.indexOf('SNAPBACK_HANDLER_INVALID_CHARACTER') === 0 }];
-    }
-  }
-};
-"#;
+const TWIN_MODULE_SOURCE: &str = include_str!("conformance/twin-corpus.handlers.js");
 
 fn schema() -> SchemaManifest {
     SchemaManifest {
@@ -178,6 +70,10 @@ fn functions() -> FunctionManifest {
             define("probeMember", FunctionKind::Query),
             define("allowlistSlice", FunctionKind::Query),
             define("atobRejectsGarbage", FunctionKind::Query),
+            define("detachedHostCallRejection", FunctionKind::Mutation),
+            define("detachedHostCallSuccess", FunctionKind::Mutation),
+            define("probeDateConstructor", FunctionKind::Query),
+            define("decoderFidelity", FunctionKind::Query),
         ],
         ..FunctionManifest::default()
     }
@@ -275,7 +171,9 @@ fn v8_and_ibex_agree_on_query_and_read_your_writes() {
 fn settlement_floor_is_engine_neutral() {
     require_workerd!();
     let mut snapback = configured();
-    let error = on_v8(|| snapback.invoke_mutation("hangForever", input(json!({}))))
+    let error = with_wall_clock_timeout_ms(1_500, || {
+        on_v8(|| snapback.invoke_mutation("hangForever", input(json!({}))))
+    })
         .expect_err("an unsettled handler must fail on the V8 leg too");
     assert_eq!(
         error.diagnostic.code, "SNAPBACK_HANDLER_DID_NOT_SETTLE",
@@ -325,32 +223,25 @@ fn write_in_query_is_denied_on_both_engines() {
 fn ambient_powers_are_unreachable_on_both_engines() {
     require_workerd!();
     let snapback = configured();
-    let probes = [
-        "fetch",
-        "WebSocket",
-        "setTimeout",
-        "setInterval",
-        "performance",
-        "navigator",
-        "caches",
-        "crypto",
-        "scheduler",
-        "process",
-        "require",
-        "Buffer",
-        "print",
-        "URL",
-        "URLSearchParams",
-        "structuredClone",
-        "Request",
-        "Response",
-        "Headers",
-        "ReadableStream",
-        "WebAssembly",
-        "addEventListener",
-    ];
+    // The probe list is the allowlist itself (ENG-23590): a retyped literal
+    // drifts, so parse bannedEverywhere.globals from the single source. The
+    // one exclusion is HermesInternal, the declared engine fact pinned by
+    // deterministic_member_denial_is_a_declared_engine_fact below.
+    let allowlist: Value = serde_json::from_str(include_str!(
+        "../packages/snapback-harness/allowlist.json"
+    ))
+    .expect("allowlist.json parses");
+    let probes: Vec<String> = allowlist["bannedEverywhere"]["globals"]
+        .as_array()
+        .expect("bannedEverywhere.globals is an array")
+        .iter()
+        .filter_map(Value::as_str)
+        .filter(|name| *name != "HermesInternal")
+        .map(ToOwned::to_owned)
+        .collect();
+    assert!(probes.len() >= 40, "allowlist banned set unexpectedly small: {}", probes.len());
     for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
-        for name in probes {
+        for name in &probes {
             let result = probe(&snapback, backend, "probeGlobalName", name);
             assert_eq!(
                 result.get("reachable"),
@@ -385,6 +276,33 @@ fn deterministic_member_denial_is_a_declared_engine_fact() {
             "ibex: {member} is expected reachable in v1 (codegen-banned, declared fact); got {on_ibex}"
         );
     }
+    // The Date CONSTRUCTOR's ambient clock read is part of the same declared
+    // asymmetry (ENG-23588): denied by the V8 strip (zero-arg construction
+    // and Date() as a function), still reachable on Ibex in v1 like Date.now.
+    // Explicit-timestamp construction stays usable on both engines.
+    let ctor_workerd = probe(&snapback, HandlerBackend::WorkerdV8, "probeDateConstructor", "");
+    assert_eq!(
+        ctor_workerd.get("explicit"),
+        Some(&json!(true)),
+        "workerd-v8: new Date(ms) must stay usable; got {ctor_workerd}"
+    );
+    assert_eq!(
+        ctor_workerd.get("zeroArgReachable"),
+        Some(&json!(false)),
+        "workerd-v8: new Date() must be denied; got {ctor_workerd}"
+    );
+    assert_eq!(
+        ctor_workerd.get("callReachable"),
+        Some(&json!(false)),
+        "workerd-v8: Date() as a function must be denied; got {ctor_workerd}"
+    );
+    let ctor_ibex = probe(&snapback, HandlerBackend::Ibex, "probeDateConstructor", "");
+    assert_eq!(
+        ctor_ibex.get("zeroArgReachable"),
+        Some(&json!(true)),
+        "ibex: new Date() is expected reachable in v1 (declared fact); got {ctor_ibex}"
+    );
+
     // HermesInternal is non-configurable AND non-writable on the vendored
     // engine, so it cannot be shadowed at the JS layer; it carries engine
     // introspection, not ambient authority. Declared engine fact until the
@@ -449,6 +367,92 @@ fn allowlist_slice_agrees_on_both_engines() {
             output.rows[0],
             json!({ "threw": true, "coded": true }),
             "{backend:?}: atob must reject garbage with the Snapback-owned code"
+        );
+    }
+}
+
+/// ENG-23584: a detached chain that rejects only AFTER awaiting a host call
+/// must still fail the invocation on the V8 leg, where the host call is a
+/// real async round trip — the drain must be a quiescence contract, not a
+/// fixed microtask-tick count. Both legs must refuse to commit the chain's
+/// partial writes.
+#[test]
+fn detached_rejection_after_host_call_fails_closed_on_both_engines() {
+    require_workerd!();
+    let mut snapback = configured();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let error = with_forced_backend(backend, || {
+            snapback.invoke_mutation("detachedHostCallRejection", input(json!({})))
+        })
+        .expect_err("a detached rejection parked on a host call must fail the invocation");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
+            "{backend:?}: unexpected diagnostic: {error}"
+        );
+        let rows = snapback
+            .invoke_query("listItems", input(json!({})))
+            .expect("query")
+            .rows;
+        assert!(
+            rows.is_empty(),
+            "{backend:?}: a failed invocation must commit none of its detached writes"
+        );
+    }
+}
+
+/// ENG-23579: the same detached-host-call drain must not overcorrect by
+/// dropping legitimate all-good detached writes. A detached chain that awaits
+/// a host call and resolves cleanly is drained before commit on both legs.
+#[test]
+fn detached_success_after_host_call_commits_on_both_engines() {
+    require_workerd!();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let mut snapback = configured();
+        let output = with_forced_backend(backend, || {
+            snapback.invoke_mutation(
+                "detachedHostCallSuccess",
+                input(json!({ "label": format!("{backend:?}"), "rank": 7 })),
+            )
+        })
+        .unwrap_or_else(|error| panic!("{backend:?} detachedHostCallSuccess failed: {error}"));
+        assert_eq!(output.changed_count, 1, "{backend:?}: detached write must commit");
+        let rows = snapback
+            .invoke_query("listItems", input(json!({})))
+            .expect("query")
+            .rows;
+        assert_eq!(rows.len(), 1, "{backend:?}: committed detached write must be visible");
+        assert_eq!(rows[0].get("rank"), Some(&json!(7)), "{backend:?}: got {rows:?}");
+    }
+}
+
+/// ENG-23593: TextDecoder must agree byte-for-byte across engines on view
+/// windows, invalid utf-8 (U+FFFD replacement), BOM handling, and fatal mode
+/// — and agree with the WHATWG-expected values, so both legs being wrong the
+/// same way cannot pass.
+#[test]
+fn decoder_fidelity_agrees_on_both_engines_and_with_the_spec() {
+    require_workerd!();
+    let snapback = configured();
+    let expected = json!({
+        "dataViewWindow": "cde",
+        "int8Window": "ef",
+        "truncated": "\u{FFFD}",
+        "invalidByte": "\u{FFFD}",
+        "badContinuation": "\u{FFFD}A",
+        "bomStripped": "a",
+        "bomKept": true,
+        "encodeIntoFit": "3:4:104,195,169,33",
+        "encodeIntoTruncates": "1:1",
+        "fatalThrew": true
+    });
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let output = with_forced_backend(backend, || {
+            snapback.invoke_query("decoderFidelity", input(json!({})))
+        })
+        .unwrap_or_else(|error| panic!("{backend:?} decoderFidelity failed: {error}"));
+        assert_eq!(
+            output.rows[0], expected,
+            "{backend:?}: TextDecoder fidelity diverged from the WHATWG-expected values"
         );
     }
 }

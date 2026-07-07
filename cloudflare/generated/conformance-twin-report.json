@@ -4,9 +4,9 @@
   "generatedBy": "snapback-conformance-twin",
   "gate": "green",
   "summary": {
-    "total": 16,
-    "convergent": 14,
-    "declaredEngineFacts": 2,
+    "total": 21,
+    "convergent": 17,
+    "declaredEngineFacts": 4,
     "contractViolations": 0
   },
   "capabilityManifest": {
@@ -863,7 +863,7 @@
                   174
                 ],
                 "roundTrip": "héllo ✓ 𝒮",
-                "encoded": "c25hcGJhY2sgY29uZm9ybWFuY2U=",
+                "encoded": "c25hcGJhY2s=",
                 "decoded": "snapback"
               }
             ]
@@ -900,7 +900,7 @@
                   174
                 ],
                 "roundTrip": "héllo ✓ 𝒮",
-                "encoded": "c25hcGJhY2sgY29uZm9ybWFuY2U=",
+                "encoded": "c25hcGJhY2s=",
                 "decoded": "snapback"
               }
             ]
@@ -1103,6 +1103,322 @@
             "outcome": "$ID:0"
           }
         ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "unhandled-detached-rejection-after-host-call",
+      "handler": "detachedHostCallRejection",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-1",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-2",
+                "rank": 2
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:1"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-1",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-2",
+                "rank": 2
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:1"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "detached-host-call-success",
+      "handler": "detachedHostCallSuccess",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "launched": true
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-ok",
+                "rank": 7
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "detached-ok",
+              "rank": 7
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "launched": true
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-ok",
+                "rank": 7
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "detached-ok",
+              "rank": 7
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "allowlist-decoder-fidelity",
+      "handler": "decoderFidelity",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "dataViewWindow": "cde",
+                "int8Window": "ef",
+                "truncated": "�",
+                "invalidByte": "�",
+                "badContinuation": "�A",
+                "bomStripped": "a",
+                "bomKept": true,
+                "encodeIntoFit": "3:4:104,195,169,33",
+                "encodeIntoTruncates": "1:1",
+                "fatalThrew": true
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "dataViewWindow": "cde",
+                "int8Window": "ef",
+                "truncated": "�",
+                "invalidByte": "�",
+                "badContinuation": "�A",
+                "bomStripped": "a",
+                "bomKept": true,
+                "encodeIntoFit": "3:4:104,195,169,33",
+                "encodeIntoTruncates": "1:1",
+                "fatalThrew": true
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "deterministic-date-constructor",
+      "handler": "probeDateConstructor",
+      "class": "declared_engine_fact",
+      "notes": "the zero-arg Date constructor (like Date.now/Math.random) is denied by the V8                  strip but reachable (codegen-banned only) on Ibex in v1 — the same declared                  engine fact, extended to the constructor path (ENG-23588)",
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "explicit": true,
+                "zeroArgReachable": true,
+                "callReachable": true
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "explicit": true,
+                "zeroArgReachable": false,
+                "callReachable": false
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "queue-microtask-interleave",
+      "handler": "queueMicrotaskInterleave",
+      "class": "declared_engine_fact",
+      "notes": "the fine-grained interleave of queueMicrotask jobs with promise reactions                  differs between V8 and the Ibex vendored promise polyfill (thenable adoption                  and chained .then land at different ticks) — declared engine fact; handlers                  must not depend on cross-engine job ordering (ENG-23593)",
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "order": "qm1,p1,qm2,t1,p2"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "order": "qm1,p1,qm2,p2,t1"
+              }
+            ]
+          }
+        },
+        "trace": [],
         "committed": {
           "version": 0,
           "rows": []

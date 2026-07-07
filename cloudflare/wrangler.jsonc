@@ -9,6 +9,10 @@
   "main": "src/gateway.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": [],
+  // The destructive admin endpoints (/reset, /evict) are disabled unless a
+  // SNAPBACK_ADMIN_TOKEN secret is set (ENG-23587):
+  //   npx wrangler secret put SNAPBACK_ADMIN_TOKEN --config wrangler.jsonc
+  // deploy.sh sets it from the environment. Never commit a token value here.
   "services": [
     // The handler isolate: the single-sourced LLP 0048 harness with the app
     // bundle compiled in. The coordinator reaches it over this binding (the

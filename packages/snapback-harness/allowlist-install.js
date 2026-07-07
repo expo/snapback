@@ -69,10 +69,57 @@
     TextEncoderPolyfill.prototype.encode = function (text) {
       return utf8Encode(text);
     };
+    // WHATWG encodeInto (the allowlist declares it; workerd has it natively —
+    // ENG-23593 review finding): encode whole code points while they fit,
+    // reporting UTF-16 units read and bytes written.
+    TextEncoderPolyfill.prototype.encodeInto = function (source, destination) {
+      if (!(destination instanceof Uint8Array)) {
+        throw new TypeError("TextEncoder.encodeInto requires a Uint8Array destination");
+      }
+      var text = String(source === undefined ? "" : source);
+      var read = 0;
+      var written = 0;
+      var i = 0;
+      while (i < text.length) {
+        var units = 1;
+        var code = text.charCodeAt(i);
+        if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
+          var next = text.charCodeAt(i + 1);
+          if (next >= 0xdc00 && next <= 0xdfff) units = 2;
+        }
+        var encoded = utf8Encode(text.slice(i, i + units));
+        if (written + encoded.length > destination.length) break;
+        destination.set(encoded, written);
+        written += encoded.length;
+        read += units;
+        i += units;
+      }
+      return { read: read, written: written };
+    };
     g.TextEncoder = TextEncoderPolyfill;
   }
   if (typeof g.TextDecoder !== "function") {
-    var TextDecoderPolyfill = function TextDecoder(label) {
+    // WHATWG-faithful UTF-8 decode (ENG-23593): honors any ArrayBufferView's
+    // byteOffset/byteLength window, emits U+FFFD per the maximal-subpart rule
+    // on invalid or truncated sequences (or throws when `fatal`), and strips
+    // a leading BOM unless `ignoreBOM`. The previous hand decoder viewed the
+    // WHOLE backing buffer for non-Uint8Array views and produced garbage on
+    // invalid input — silent divergence from the native decoder the workerd
+    // leg runs.
+    var toDecodeBytes = function (input) {
+      if (input === undefined) return new Uint8Array(0);
+      if (input instanceof Uint8Array) return input;
+      if (typeof ArrayBuffer !== "undefined") {
+        if (typeof ArrayBuffer.isView === "function" && ArrayBuffer.isView(input)) {
+          return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+        }
+        if (input instanceof ArrayBuffer) {
+          return new Uint8Array(input);
+        }
+      }
+      throw new TypeError("TextDecoder.decode requires an ArrayBuffer or ArrayBufferView");
+    };
+    var TextDecoderPolyfill = function TextDecoder(label, options) {
       if (!(this instanceof TextDecoderPolyfill)) {
         throw new TypeError("Constructor TextDecoder requires 'new'");
       }
@@ -81,37 +128,69 @@
         throw new RangeError("TextDecoder label " + normalized + " is not supported in allowlist slice 1");
       }
       this.encoding = "utf-8";
-      this.fatal = false;
-      this.ignoreBOM = false;
+      this.fatal = !!(options && options.fatal);
+      this.ignoreBOM = !!(options && options.ignoreBOM);
     };
     TextDecoderPolyfill.prototype.decode = function (input) {
-      if (input === undefined) return "";
-      var bytes =
-        input instanceof Uint8Array
-          ? input
-          : new Uint8Array(input.buffer !== undefined ? input.buffer : input);
+      var bytes = toDecodeBytes(input);
+      var fatal = this.fatal;
       var out = "";
       var i = 0;
+      if (!this.ignoreBOM && bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+        i = 3;
+      }
+      var fail = function () {
+        if (fatal) {
+          throw new TypeError("TextDecoder.decode: the encoded data was not valid utf-8");
+        }
+        out += "\uFFFD";
+      };
       while (i < bytes.length) {
-        var byte1 = bytes[i++];
-        var codePoint;
-        if (byte1 < 0x80) {
-          codePoint = byte1;
-        } else if (byte1 >= 0xc0 && byte1 < 0xe0) {
-          codePoint = ((byte1 & 0x1f) << 6) | (bytes[i++] & 0x3f);
-        } else if (byte1 >= 0xe0 && byte1 < 0xf0) {
-          codePoint =
-            ((byte1 & 0x0f) << 12) |
-            ((bytes[i++] & 0x3f) << 6) |
-            (bytes[i++] & 0x3f);
-        } else if (byte1 >= 0xf0) {
-          codePoint =
-            ((byte1 & 0x07) << 18) |
-            ((bytes[i++] & 0x3f) << 12) |
-            ((bytes[i++] & 0x3f) << 6) |
-            (bytes[i++] & 0x3f);
+        var byte1 = bytes[i];
+        if (byte1 <= 0x7f) {
+          out += String.fromCharCode(byte1);
+          i++;
+          continue;
+        }
+        var needed, codePoint, lower, upper;
+        if (byte1 >= 0xc2 && byte1 <= 0xdf) {
+          needed = 1; codePoint = byte1 & 0x1f; lower = 0x80; upper = 0xbf;
+        } else if (byte1 >= 0xe0 && byte1 <= 0xef) {
+          needed = 2; codePoint = byte1 & 0x0f;
+          lower = byte1 === 0xe0 ? 0xa0 : 0x80;
+          upper = byte1 === 0xed ? 0x9f : 0xbf;
+        } else if (byte1 >= 0xf0 && byte1 <= 0xf4) {
+          needed = 3; codePoint = byte1 & 0x07;
+          lower = byte1 === 0xf0 ? 0x90 : 0x80;
+          upper = byte1 === 0xf4 ? 0x8f : 0xbf;
         } else {
-          codePoint = 0xfffd;
+          // 0x80–0xC1 and 0xF5–0xFF can never start a sequence.
+          fail();
+          i++;
+          continue;
+        }
+        i++;
+        var ok = true;
+        for (var k = 0; k < needed; k++) {
+          if (i >= bytes.length) {
+            ok = false;
+            break;
+          }
+          var cont = bytes[i];
+          var lo = k === 0 ? lower : 0x80;
+          var hi = k === 0 ? upper : 0xbf;
+          if (cont < lo || cont > hi) {
+            // Maximal subpart: the offending byte is NOT consumed; decoding
+            // restarts at it.
+            ok = false;
+            break;
+          }
+          codePoint = (codePoint << 6) | (cont & 0x3f);
+          i++;
+        }
+        if (!ok) {
+          fail();
+          continue;
         }
         if (codePoint > 0xffff) {
           codePoint -= 0x10000;

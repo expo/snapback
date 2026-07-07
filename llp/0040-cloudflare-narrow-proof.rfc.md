@@ -408,9 +408,49 @@ Miniflare surrogate structurally cannot produce (§Measurements evidence
 split); they gate on a valid API token, not on further build work. Everything
 else on the checklist is demonstrated locally.
 
+## Review hardening (2026-07-07, ENG-23574–ENG-23593)
+
+The review of the as-built proof surfaced a batch of correctness and security
+gaps; all are fixed and regression-pinned by the Miniflare acceptance suite:
+
+- **Admin surface** (ENG-23587): `/reset` and `/evict` are POST-only and
+  gated on a `SNAPBACK_ADMIN_TOKEN` shared secret (the `/host-call` token
+  pattern), failing closed when no token is configured. `deploy.sh` sets the
+  secret from the environment; the handler Worker carries
+  `workers_dev: false` so `/invoke` has no public route.
+- **Isolation honesty** (ENG-23575): Durable Objects interleave requests at
+  awaits, so every invocation-bearing entry point (query, mutation,
+  subscribe) is serialized behind a coordinator-local mutex; `/host-call`
+  stays outside it. The manifest now claims
+  `coordinator-serialized-invocations`, not the local target's
+  read-set-validation mode (captured reads are recorded, not yet validated).
+- **Version contract** (ENG-23583): the commit advances `_snapback_version`
+  only when the effective changeset is non-empty — patches on missing rows,
+  empty-values patches, and deletes of missing rows are commit no-ops,
+  matching `src/storage.rs`.
+- **Fan-out delivery** (ENG-23576): `fanOut` is awaited by the mutation
+  response; floating post-response work is not a delivery contract on real
+  Workers. Push failures are diagnostics, never mutation failures.
+- **Host-op parity** (ENG-23582): the JS op table now mirrors
+  `src/runtime.rs` point-for-point — patch-on-missing stays a miss, query
+  overlays re-fetch full stored rows, the overlay stamps the frozen handler
+  clock, and point reads are captured on patch/delete.
+- **Schema boundary** (ENG-23578): handler-provided table names pass a
+  manifest-derived allowlist (plus identifier gate) before reaching SQL
+  identifier position; field names are identifier-gated in `fieldExpr`;
+  every value rides a bind parameter. Unknown tables fail with
+  `SNAPBACK_HANDLER_HOST_CALL_INVALID`.
+- **Envelope taxonomy** (ENG-23586): the coordinator decodes handler
+  envelopes through the shared `packages/snapback-harness/envelope.mjs`,
+  which mirrors `handler_envelope_code` in `src/runtime.rs`, and fails
+  closed when the harness reports `rejectionDetectionSupported: false` —
+  the same refusal as `src/workerd_exec.rs`. Rejection reasons ride
+  `details.rejections`.
+
 ## Status
 
-Draft (as-built sections landed 2026-07-07). The behavioral proof is complete
+Draft (as-built sections landed 2026-07-07; review-hardening batch
+ENG-23574–ENG-23593 landed the same day). The behavioral proof is complete
 under the Miniflare regression surface and deploy-ready; acceptance as a
 *proof* awaits the real-Cloudflare eviction and idle-billing runs, which are
 blocked only on a valid Cloudflare API token.

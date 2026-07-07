@@ -25,7 +25,7 @@
     },
     {
       "name": "queueMicrotask",
-      "semantics": "deterministic microtask scheduling; ordering-only, carries no clock or entropy, native on both engines"
+      "semantics": "microtask scheduling; ordering-only, carries no clock or entropy. Declared engine fact (ENG-23593): the FINE-GRAINED interleave of queueMicrotask jobs with promise reactions differs between V8 and the Ibex vendored promise polyfill, so handlers must not depend on cross-engine job ordering beyond same-source FIFO"
     }
   ],
   "deferredSecondSlice": [

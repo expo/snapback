@@ -28,6 +28,17 @@ npx wrangler deploy --config wrangler.handler.jsonc
 echo "==> deploying gateway + coordinator (snapback-notes-proof)"
 npx wrangler deploy --config wrangler.jsonc
 
+# The destructive admin endpoints (/reset, /evict) are token-gated and fail
+# closed when no token is configured (ENG-23587). Set the secret from the
+# environment so the acceptance/measurement suites can drive them.
+if [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" ]]; then
+  echo "==> setting SNAPBACK_ADMIN_TOKEN secret on snapback-notes-proof"
+  printf '%s' "$SNAPBACK_ADMIN_TOKEN" | npx wrangler secret put SNAPBACK_ADMIN_TOKEN --config wrangler.jsonc
+else
+  echo "==> SNAPBACK_ADMIN_TOKEN not set: /reset and /evict stay disabled on this deploy."
+  echo "    Export SNAPBACK_ADMIN_TOKEN and re-run, or: npx wrangler secret put SNAPBACK_ADMIN_TOKEN --config wrangler.jsonc"
+fi
+
 echo "==> deployed. Run the real-Cloudflare acceptance + measurement suite with:"
 echo "    SNAPBACK_PROOF_URL=https://snapback-notes-proof.<subdomain>.workers.dev \\"
 echo "      node test/acceptance.remote.mjs"

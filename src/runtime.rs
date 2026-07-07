@@ -1398,16 +1398,16 @@ fn outbound_actions_enabled() -> bool {
 //   execution class only; the transactional query/mutation path never gets network.
 // @ref LLP 0009#capability-model — the JS ambient layer gates ambient powers by
 //   handler kind; the coarse Ibex network:fetch grant is opened only for egress.
-/// Ambient names an egress-enabled ACTION keeps (the LLP 0027 seam): network
-/// plus the timers a polling fetch loop legitimately needs. Queries and
-/// mutations never keep any of these.
-const EGRESS_KEPT_AMBIENT: [&str; 5] = [
-    "fetch",
-    "setTimeout",
-    "setInterval",
-    "clearTimeout",
-    "clearInterval",
-];
+/// Ambient names an egress-enabled ACTION still denies (ENG-23581). Egress
+/// actions keep the wide compute-plus-fetch surface they always had (the
+/// all-aboard 511.org poller uses fetch/URL/Headers/AbortController/crypto):
+/// the LLP 0048 data-driven denial applies only to queries and mutations,
+/// while egress actions restore the pre-0048 posture — deny exactly the
+/// process/require introspection pair and WebSocket. In particular, `fetch`
+/// must never be pre-shadowed here: Ibex installs it lazily as a
+/// *configurable* property, and a non-configurable deny stub in its slot
+/// makes the installer itself throw.
+const EGRESS_DENIED_AMBIENT: [&str; 3] = ["process", "require", "WebSocket"];
 
 /// Banned names shadowed as plain `undefined` rather than a denier function:
 /// host/introspection objects where "absent" is the truthful surface (and the
@@ -1442,25 +1442,55 @@ fn banned_ambient_globals() -> &'static Vec<String> {
 fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) -> String {
     let egress = outbound_enabled && matches!(mode, IbexInvocationMode::Action);
     let mut denials = String::new();
-    for name in banned_ambient_globals() {
-        if egress && EGRESS_KEPT_AMBIENT.contains(&name.as_str()) {
-            continue;
-        }
-        if UNDEFINED_SHADOWED_AMBIENT.contains(&name.as_str()) {
+    // Names installed as callable deny stubs, collected for the post-install
+    // probe below (ENG-23590): every one of them must be unreachable after
+    // this source evaluates, or the invocation fails instead of running with
+    // a survivor.
+    let mut probed: Vec<&str> = Vec::new();
+    let denied: Vec<&str> = if egress {
+        EGRESS_DENIED_AMBIENT.to_vec()
+    } else {
+        banned_ambient_globals()
+            .iter()
+            .map(String::as_str)
+            .collect()
+    };
+    for name in denied {
+        if UNDEFINED_SHADOWED_AMBIENT.contains(&name) {
             // Some engine-provided globals (HermesInternal) are
             // non-configurable, so defineProperty throws; fall through
             // delete -> defineProperty -> plain assignment until one sticks.
             denials.push_str(&format!(
                 "  try {{ delete g[\"{name}\"]; }} catch (_) {{}}\n  if (g[\"{name}\"] !== undefined) {{ try {{ Object.defineProperty(g, \"{name}\", {{ value: undefined, configurable: false, writable: false }}); }} catch (_) {{}} }}\n  if (g[\"{name}\"] !== undefined) {{ try {{ g[\"{name}\"] = undefined; }} catch (_) {{}} }}\n"
             ));
+            // HermesInternal is non-configurable AND non-writable on the
+            // vendored engine — a declared engine fact pinned by
+            // tests/workerd_twin_v0.rs — so it is the one shadow the probe
+            // must tolerate surviving.
+            if name != "HermesInternal" {
+                probed.push(name);
+            }
         } else {
             denials.push_str(&format!(
                 "  try {{ Object.defineProperty(g, \"{name}\", {{ value: deny(\"{name}\"), configurable: false, writable: false }}); }} catch (_) {{}}\n"
             ));
+            probed.push(name);
         }
     }
+    // Symmetric to the V8 strip's init self-check (ENG-23590): the denial
+    // loop above swallows defineProperty failures, so verify every denied
+    // name actually became unreachable and fail the eval — and with it the
+    // invocation — on any survivor.
+    let probe_list = probed
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let probe = format!(
+        "  var __snapbackDenySurvivors = [];\n  [{probe_list}].forEach(function(name) {{\n    var value;\n    try {{ value = g[name]; }} catch (_) {{ return; }}\n    if (value === undefined || value === null) {{ return; }}\n    if (typeof value === \"function\") {{\n      try {{ value(); }} catch (error) {{\n        if (String((error && error.message) || \"\").indexOf(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\") === 0) {{ return; }}\n      }}\n    }}\n    __snapbackDenySurvivors.push(name);\n  }});\n  if (__snapbackDenySurvivors.length > 0) {{\n    throw snapbackError(\"SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE\", \"banned globals survived the ambient denial: \" + __snapbackDenySurvivors.join(\", \"));\n  }}\n"
+    );
     format!(
-        "(function(g) {{\n  function snapbackError(code, message) {{\n    var error = new Error(code + \": \" + message);\n    try {{ Object.defineProperty(error, \"__snapbackCode\", {{ value: code }}); }} catch (_) {{ error.__snapbackCode = code; }}\n    return error;\n  }}\n  function deny(name) {{\n    return function() {{ throw snapbackError(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\", name); }};\n  }}\n{denials}}})(globalThis);\n"
+        "(function(g) {{\n  function snapbackError(code, message) {{\n    var error = new Error(code + \": \" + message);\n    try {{ Object.defineProperty(error, \"__snapbackCode\", {{ value: code }}); }} catch (_) {{ error.__snapbackCode = code; }}\n    return error;\n  }}\n  function deny(name) {{\n    return function() {{ throw snapbackError(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\", name); }};\n  }}\n{denials}{probe}}})(globalThis);\n"
     )
 }
 

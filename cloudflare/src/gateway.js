@@ -56,8 +56,15 @@ export default {
     if (path === '/health') return stub.fetch('http://coordinator/health');
     if (path === '/query') return forward(stub, 'http://coordinator/query', request);
     if (path === '/mutation') return forward(stub, 'http://coordinator/mutation', request);
-    if (path === '/reset') return stub.fetch('http://coordinator/reset', { method: 'POST' });
-    if (path === '/evict') return stub.fetch('http://coordinator/evict', { method: 'POST' });
+    // Destructive admin endpoints: forwarded with the caller's method and
+    // headers so the coordinator can enforce the POST-only, token-gated admin
+    // surface (ENG-23587). The gateway itself never mints admin authority.
+    if (path === '/reset' || path === '/evict') {
+      return stub.fetch(`http://coordinator${path}`, { method: request.method, headers: request.headers });
+    }
+    if (path === '/__test/corrupt-meta') {
+      return forward(stub, 'http://coordinator/__test/corrupt-meta', request);
+    }
     if (path === '/live/stream') {
       if (request.headers.get('upgrade') !== 'websocket') {
         return json(426, { error: 'expected websocket upgrade' });

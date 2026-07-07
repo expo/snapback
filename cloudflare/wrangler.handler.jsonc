@@ -8,5 +8,9 @@
   "main": "src/handler-worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": [],
+  // No public route: the handler isolate is reachable only over the
+  // coordinator's HANDLER service binding. A workers.dev route would expose
+  // /invoke to the open internet (ENG-23587 hardening).
+  "workers_dev": false,
   "services": [{ "binding": "HOST", "service": "snapback-notes-proof" }]
 }

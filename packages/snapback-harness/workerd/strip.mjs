@@ -15,9 +15,22 @@ export const kept = {
   Response: globalThis.Response,
   Request: globalThis.Request,
   Headers: globalThis.Headers,
+  URL: globalThis.URL,
   addEventListener:
     typeof globalThis.addEventListener === "function"
       ? globalThis.addEventListener.bind(globalThis)
+      : null,
+  // Harness-internal macrotask boundary: workerd defers `unhandledrejection`
+  // dispatch to a task boundary, so the handler server's rejection drain
+  // must be able to yield a real task (ENG-23584/ENG-23585). Never
+  // re-exposed to handlers — globalThis.setTimeout stays denied.
+  setTimeout:
+    typeof globalThis.setTimeout === "function"
+      ? globalThis.setTimeout.bind(globalThis)
+      : null,
+  clearTimeout:
+    typeof globalThis.clearTimeout === "function"
+      ? globalThis.clearTimeout.bind(globalThis)
       : null,
 };
 
@@ -78,6 +91,89 @@ try {
   Math.random = deny("Math.random");
 } catch (_) {}
 
+// The Date CONSTRUCTOR's ambient clock read is denied too (ENG-23588):
+// zero-arg `new Date()` and `Date()` called as a function read the engine
+// wall clock, which breaks LLP 0007 deterministic replay exactly like
+// `Date.now`. Explicit-timestamp construction and the static parsers stay —
+// they are pure functions of their arguments. On the Ibex leg the whole
+// deterministic-member surface is a declared engine fact (codegen-banned
+// only), pinned by tests/workerd_twin_v0.rs; this extends the V8 side of
+// that same declared asymmetry to the constructor path.
+const NativeDate = Date;
+try {
+  const WrappedDate = function Date() {
+    if (!new.target) {
+      throw snapbackError("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED", "Date()");
+    }
+    if (arguments.length === 0) {
+      throw snapbackError("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED", "new Date()");
+    }
+    return Reflect.construct(NativeDate, arguments, new.target);
+  };
+  WrappedDate.prototype = NativeDate.prototype;
+  WrappedDate.parse = NativeDate.parse;
+  WrappedDate.UTC = NativeDate.UTC;
+  WrappedDate.now = deny("Date.now");
+  // Close the `new Date(0).constructor` escape back to the native clock.
+  Object.defineProperty(NativeDate.prototype, "constructor", { value: WrappedDate });
+  Object.defineProperty(globalThis, "Date", {
+    value: WrappedDate,
+    configurable: false,
+    writable: false,
+  });
+} catch (_) {
+  // Verified by the probe below: a still-reachable ambient Date clock fails init.
+}
+
+// Intl and Temporal are KEEP intrinsics, but two of their entry points read
+// the ambient clock natively (they do not go through the patched Date):
+// zero-argument Intl.DateTimeFormat format()/formatToParts() format the
+// CURRENT time per ECMA-402, and Temporal.Now is a clock namespace outright
+// (ENG-23588 review finding). Deny exactly the clock reads; formatting an
+// explicit value stays.
+try {
+  const denyZeroArgFormat = (proto, name, member) => {
+    const desc = Object.getOwnPropertyDescriptor(proto, name);
+    if (!desc) return;
+    if (desc.get) {
+      // `format` is an accessor returning a bound formatter.
+      Object.defineProperty(proto, name, {
+        get() {
+          const native = desc.get.call(this);
+          return function (value) {
+            if (value === undefined) {
+              throw snapbackError("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED", member);
+            }
+            return native(value);
+          };
+        },
+        configurable: false,
+      });
+    } else if (typeof desc.value === "function") {
+      const native = desc.value;
+      Object.defineProperty(proto, name, {
+        value: function (value) {
+          if (value === undefined) {
+            throw snapbackError("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED", member);
+          }
+          return native.call(this, value);
+        },
+        configurable: false,
+        writable: false,
+      });
+    }
+  };
+  if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+    denyZeroArgFormat(Intl.DateTimeFormat.prototype, "format", "Intl.DateTimeFormat.format()");
+    denyZeroArgFormat(Intl.DateTimeFormat.prototype, "formatToParts", "Intl.DateTimeFormat.formatToParts()");
+  }
+  if (typeof Temporal !== "undefined" && Temporal && Temporal.Now) {
+    Object.defineProperty(Temporal, "Now", { value: deny("Temporal.Now"), configurable: false, writable: false });
+  }
+} catch (_) {
+  // Verified by the probe below.
+}
+
 // Negative probe: the generated allowlist names what must now be unreachable.
 // A survivor is a structured init failure, not a warning — the strip is the
 // V8 leg's whole security posture until Workers for Platforms enforces it
@@ -106,10 +202,24 @@ function unreachable(name) {
 }
 
 const survivors = [];
-for (const name of allowlist.stripProbes.globals) {
+// The probe covers the FULL banned surface, not a curated subset
+// (ENG-23590): the shadow loop above swallows defineProperty/assignment
+// failures, so an engine release that makes any banned name non-configurable
+// and non-writable would otherwise survive with full authority. Probing a
+// name that never existed is a harmless no-op, so probing everything is
+// cheap. `stripProbes` remains the twin-pinned cross-engine subset.
+const probeGlobals = new Set([
+  ...allowlist.bannedEverywhere.globals,
+  ...allowlist.stripProbes.globals,
+]);
+const probeMembers = new Set([
+  ...allowlist.bannedEverywhere.members,
+  ...allowlist.stripProbes.members,
+]);
+for (const name of probeGlobals) {
   if (!unreachable(name)) survivors.push(name);
 }
-for (const member of allowlist.stripProbes.members) {
+for (const member of probeMembers) {
   const [holder, prop] = member.split(".");
   const target = globalThis[holder];
   const value = target ? target[prop] : undefined;
@@ -127,6 +237,37 @@ for (const member of allowlist.stripProbes.members) {
       }
     }
   }
+}
+// The ambient clocks (ENG-23588): zero-arg Date construction and the Intl
+// current-time formatting path must both be denied, while explicit-value
+// use stays.
+const denied = (probe) => {
+  try {
+    probe();
+    return false;
+  } catch (error) {
+    return (
+      String((error && error.message) || "").indexOf(
+        "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED"
+      ) === 0
+    );
+  }
+};
+if (!denied(() => new globalThis.Date())) survivors.push("new Date()");
+if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+  if (!denied(() => new Intl.DateTimeFormat("en").format())) {
+    survivors.push("Intl.DateTimeFormat.format()");
+  }
+  try {
+    if (new Intl.DateTimeFormat("en", { timeZone: "UTC" }).format(0) !== new Intl.DateTimeFormat("en", { timeZone: "UTC" }).format(0)) {
+      survivors.push("Intl.DateTimeFormat.format(value) broke");
+    }
+  } catch (_) {
+    survivors.push("Intl.DateTimeFormat.format(value) broke");
+  }
+}
+if (typeof Temporal !== "undefined" && Temporal && typeof Temporal.Now === "object") {
+  survivors.push("Temporal.Now");
 }
 
 if (survivors.length > 0) {
