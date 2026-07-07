@@ -17,9 +17,10 @@ use snapback::admin::AppState;
 use snapback::cron::CronRunOutcome;
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
-    CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode,
-    CronRetryPolicy, CronSchedule, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
-    FunctionManifest, FunctionRuntime, IbexModule, SchemaManifest, TableManifest,
+    ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
+    CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
+    FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, IbexModule,
+    SchemaManifest, TableManifest,
 };
 use std::time::{Duration, Instant};
 use tower::ServiceExt;
@@ -73,6 +74,18 @@ globalThis.__snapbackHandlers = {
 
   async cronAction(ctx) {
     return await ctx.runMutation('createTodo', { title: 'cron write' });
+  },
+
+  async quickProbe(ctx) {
+    return { ok: true };
+  },
+
+  async hungProbe(ctx) {
+    // The config-verify stand-in for a hung probe fetch (ENG-23493): longer
+    // than the watchdog, shorter than the test's patience.
+    const start = Date.now();
+    while (Date.now() - start < 1600) {}
+    return { ok: true };
   }
 };
 "#;
@@ -106,6 +119,22 @@ fn watchdog_schema() -> SchemaManifest {
     }
 }
 
+fn config_entry(name: &str, probe: &str) -> ConfigEntryDefinition {
+    ConfigEntryDefinition {
+        name: name.to_owned(),
+        description: Some("watchdog test entry".to_owned()),
+        purpose: None,
+        secret: true,
+        required: false,
+        pool: false,
+        probe: Some(probe.to_owned()),
+        how_to_get: None,
+        acquisition: None,
+        default: None,
+        source_span: None,
+    }
+}
+
 fn watchdog_functions() -> FunctionManifest {
     let ibex = |export: &str, kind: FunctionKind| {
         FunctionDefinition::new(
@@ -126,6 +155,12 @@ fn watchdog_functions() -> FunctionManifest {
             ibex("lateWriteAction", FunctionKind::Action),
             ibex("readAction", FunctionKind::Action),
             ibex("cronAction", FunctionKind::Action),
+            ibex("quickProbe", FunctionKind::Action),
+            ibex("hungProbe", FunctionKind::Action),
+        ],
+        config: vec![
+            config_entry("quickKey", "quickProbe"),
+            config_entry("hungKey", "hungProbe"),
         ],
         ..FunctionManifest::default()
     };
@@ -371,6 +406,125 @@ async fn detached_action_ctx_db_stays_denied() {
         details.contains("SNAPBACK_HANDLER_WRITE_IN_QUERY"),
         "denial must be the readonly/action policy error: {action_body}"
     );
+}
+
+/// ENG-23493: the config-verify probe runs through the same staged flow —
+/// a hung probe no longer wedges the instance, the caller gets the watchdog
+/// timeout as a failed verification in bounded time, and the outcome is
+/// recorded in verification state either way.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn config_verify_probe_runs_detached_under_the_watchdog() {
+    set_watchdog_env();
+    let app = watchdog_app();
+
+    for entry in ["quickKey", "hungKey"] {
+        let set = app
+            .clone()
+            .oneshot(post_json(
+                "/_snapback/api/config/set",
+                json!({ "entry": entry, "value": "k1" }),
+            ))
+            .await
+            .expect("config set response");
+        assert_eq!(set.status(), 200, "config set must succeed for {entry}");
+    }
+
+    // A well-behaved probe verifies over the route exactly as before.
+    let quick = app
+        .clone()
+        .oneshot(post_json(
+            "/_snapback/api/config/verify",
+            json!({ "entry": "quickKey" }),
+        ))
+        .await
+        .expect("quick verify response");
+    let quick_body = body_json(quick).await;
+    assert_eq!(quick_body["ok"], true, "quick probe must pass: {quick_body}");
+    assert_eq!(quick_body["verified"]["ok"], true, "{quick_body}");
+
+    // Kick off a verify whose probe outlives the watchdog.
+    let verify_started = Instant::now();
+    let verify = {
+        let app = app.clone();
+        tokio::spawn(async move {
+            let response = app
+                .oneshot(post_json(
+                    "/_snapback/api/config/verify",
+                    json!({ "entry": "hungKey" }),
+                ))
+                .await
+                .expect("hung verify response");
+            (body_json(response).await, Instant::now())
+        })
+    };
+
+    tokio::time::sleep(Duration::from_millis(150)).await;
+
+    // Mid-probe, a mutation must not queue behind the probe run: the probe
+    // holds no instance lock while it occupies its VM thread.
+    let mutation_started = Instant::now();
+    let mutation = tokio::time::timeout(
+        Duration::from_secs(2),
+        app.clone().oneshot(post_json(
+            "/mutation/createTodo",
+            handler_body(json!({ "title": "mid-probe write" })),
+        )),
+    )
+    .await
+    .expect("mutation must not stall behind the hung probe")
+    .expect("mutation response");
+    let mutation_elapsed = mutation_started.elapsed();
+    let mutation_body = body_json(mutation).await;
+    assert!(
+        mutation_body.get("version").is_some(),
+        "mid-probe mutation must commit: {mutation_body}"
+    );
+    assert!(
+        mutation_elapsed < Duration::from_millis(450),
+        "the mutation must not queue behind the hung probe ({mutation_elapsed:?})"
+    );
+
+    // The caller gets the watchdog outcome at ~WATCHDOG_MS, not at probe end,
+    // recorded as a failed verification rather than an HTTP error.
+    let (verify_body, verify_finished) = verify.await.expect("verify task");
+    let verify_elapsed = verify_finished - verify_started;
+    assert_eq!(
+        verify_body["ok"], false,
+        "timed-out probe must record failure: {verify_body}"
+    );
+    let diagnostic = verify_body["verified"]["diagnostic"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        diagnostic.contains("SNAPBACK_ACTION_TIMEOUT"),
+        "the record must carry the watchdog code: {verify_body}"
+    );
+    assert!(
+        verify_elapsed >= Duration::from_millis(WATCHDOG_MS - 100)
+            && verify_elapsed < Duration::from_millis(1500),
+        "verify must answer at ~{WATCHDOG_MS}ms, not at probe end ({verify_elapsed:?})"
+    );
+
+    // Both outcomes landed in verification state through the finish window.
+    let status = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/_snapback/api/config/status")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("status response");
+    let status_body = body_json(status).await;
+    let verified_ok = |entry: &str| {
+        status_body["entries"]
+            .as_array()
+            .and_then(|entries| entries.iter().find(|e| e["name"] == entry))
+            .map(|e| e["verified"]["ok"].clone())
+    };
+    assert_eq!(verified_ok("quickKey"), Some(json!(true)), "{status_body}");
+    assert_eq!(verified_ok("hungKey"), Some(json!(false)), "{status_body}");
 }
 
 /// The admin cron tick drives the detached claim → execute → finish flow end

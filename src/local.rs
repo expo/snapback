@@ -482,6 +482,24 @@ pub(crate) struct AppActionStage {
     pub mode: StagedAction,
 }
 
+/// Staging outcome for a config-verify probe run (ENG-23493): entry checks
+/// and the cooldown claim happen under the lock; a probe that cannot even
+/// stage (unknown function, non-action) is recorded as a failed verification
+/// in the same lock window, so `Done` carries a finished outcome.
+pub(crate) enum StagedConfigVerify {
+    Done(Box<ConfigVerifyOutcome>),
+    Ready(Box<ConfigVerifyStage>),
+}
+
+pub(crate) struct ConfigVerifyStage {
+    pub probe: String,
+    /// Cooldown-claim wall time; also the `at_ms` of the eventual record.
+    pub started_ms: u64,
+    pub input: HandlerInput,
+    pub metadata: CronRunMetadata,
+    pub mode: StagedAction,
+}
+
 /// Assemble the `FunctionRunResult` envelope for an action run — shared by
 /// the in-lock path and the server's detached path (ENG-23324).
 pub(crate) fn action_run_result(
@@ -2221,12 +2239,31 @@ impl LocalSnapback {
         })
     }
 
-    /// Run an entry's probe action and record the verification outcome.
+    /// Run an entry's probe action and record the verification outcome, all
+    /// under the caller's borrow. The server route instead stages with
+    /// [`Self::stage_config_verify`], runs an Ibex probe detached under the
+    /// action watchdog, and records with [`Self::finish_config_verify`]
+    /// (ENG-23493); this in-lock convenience remains for embedded use and
+    /// tests.
     ///
     /// @ref LLP 0036#operations-and-projections-llp-0024 — probes run only on
     /// explicit verify, under cooldown, as ordinary actions with no special
     /// network powers; results land in verification state, never raw in logs.
     pub fn verify_config_entry(&mut self, name: &str) -> SnapbackResult<ConfigVerifyOutcome> {
+        match self.stage_config_verify(name)? {
+            StagedConfigVerify::Done(outcome) => Ok(*outcome),
+            StagedConfigVerify::Ready(stage) => {
+                let result = self.invoke_action(&stage.probe, stage.input, stage.metadata);
+                self.finish_config_verify(name, stage.started_ms, result)
+            }
+        }
+    }
+
+    /// Stage a config-verify probe run: entry checks and the cooldown claim
+    /// happen here, under the global mutex, so concurrent verifies linearize
+    /// through the cooldown stamp even when the probe itself runs off-lock
+    /// (ENG-23493).
+    pub(crate) fn stage_config_verify(&mut self, name: &str) -> SnapbackResult<StagedConfigVerify> {
         let definition = self.config_definition(name)?.clone();
         let Some(probe) = definition.probe.clone() else {
             return Err(SnapbackError::error(
@@ -2260,7 +2297,34 @@ impl LocalSnapback {
             read_set: Vec::new(),
             correlation: None,
         };
-        let record = match self.invoke_action(&probe, input, metadata) {
+        let mode = match self.stage_action_invocation(&probe) {
+            Ok(mode) => mode,
+            // A probe that cannot stage (unknown function, non-action) is a
+            // failed verification, exactly as the in-lock run reported it.
+            Err(error) => {
+                return Ok(StagedConfigVerify::Done(Box::new(
+                    self.finish_config_verify(name, now, Err(error))?,
+                )));
+            }
+        };
+        Ok(StagedConfigVerify::Ready(Box::new(ConfigVerifyStage {
+            probe,
+            started_ms: now,
+            input,
+            metadata,
+            mode,
+        })))
+    }
+
+    /// Record the outcome of a probe run — in-lock or detached — as the
+    /// entry's verification state and shape the `config.verify` envelope.
+    pub(crate) fn finish_config_verify(
+        &mut self,
+        name: &str,
+        at_ms: u64,
+        result: SnapbackResult<Value>,
+    ) -> SnapbackResult<ConfigVerifyOutcome> {
+        let record = match result {
             Ok(value) => {
                 let ok = value.get("ok").and_then(Value::as_bool).unwrap_or(true);
                 let diagnostic = if ok {
@@ -2276,13 +2340,13 @@ impl LocalSnapback {
                 };
                 VerificationRecord {
                     ok,
-                    at_ms: now,
+                    at_ms,
                     diagnostic,
                 }
             }
             Err(error) => VerificationRecord {
                 ok: false,
-                at_ms: now,
+                at_ms,
                 diagnostic: Some(format!(
                     "{}: {}",
                     error.diagnostic.code, error.diagnostic.message

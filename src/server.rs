@@ -5,8 +5,9 @@ use crate::ephemeral::{
     DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
 };
 use crate::local::{
-    AppActionStage, EphemeralApi, FunctionRunResult, InspectState, LiveResumeInput,
-    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction, StagedAppAction,
+    AppActionStage, ConfigVerifyStage, EphemeralApi, FunctionRunResult, InspectState,
+    LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction,
+    StagedAppAction, StagedConfigVerify,
 };
 use crate::manifest::{
     FunctionManifest, HandlerInput, MutationOutput, QueryOutput, QueryPlan, SchemaManifest,
@@ -1808,6 +1809,11 @@ async fn config_unset(
 }
 
 /// `config.verify` — run the entry's probe action under the cooldown.
+///
+/// Entry checks and the cooldown claim stage under the lock; an Ibex probe
+/// then runs detached under the action watchdog so a hung probe fetch cannot
+/// wedge the instance, and a second short lock window records the
+/// verification outcome (ENG-23493, the same staged flow as ENG-23324).
 async fn config_verify(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
@@ -1816,8 +1822,37 @@ async fn config_verify(
 ) -> Result<Json<crate::local::ConfigVerifyOutcome>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
     let entry = body.entry;
-    let outcome =
-        with_snapback(&state, move |snapback| snapback.verify_config_entry(&entry)).await?;
+    let staged = {
+        let entry = entry.clone();
+        with_snapback(&state, move |snapback| snapback.stage_config_verify(&entry)).await?
+    };
+    let outcome = match staged {
+        StagedConfigVerify::Done(outcome) => *outcome,
+        StagedConfigVerify::Ready(stage) => {
+            let ConfigVerifyStage {
+                probe,
+                started_ms,
+                input,
+                metadata,
+                mode,
+            } = *stage;
+            let result = match mode {
+                StagedAction::Detached(action) => {
+                    run_detached_ibex_action(&state, action, input, metadata).await
+                }
+                StagedAction::InLock => {
+                    with_snapback(&state, move |snapback| {
+                        snapback.invoke_action(&probe, input, metadata)
+                    })
+                    .await
+                }
+            };
+            with_snapback(&state, move |snapback| {
+                snapback.finish_config_verify(&entry, started_ms, result)
+            })
+            .await?
+        }
+    };
     Ok(Json(outcome))
 }
 

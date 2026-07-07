@@ -19,12 +19,12 @@ pub const CONFIG_STORE_FORMAT_VERSION: u32 = 1;
 ///
 /// @ref LLP 0036#operations-and-projections-llp-0024 — probe rules: a probe is
 /// a quota-burn tool pointed at a vendor, so verify is cooldown-limited. The
-/// hard wall-clock timeout the RFC also wants is still a partial gap:
-/// server-triggered actions run detached under the ENG-23324 watchdog
-/// (`action_wall_clock_timeout` reports `Enforced`), but the probe path here
-/// runs the action under the instance lock without a timeout, and
-/// queries/mutations have none either (`wall_clock_timeout` reports
-/// `Missing`).
+/// hard wall-clock timeout the RFC also wants now covers probes too: the
+/// server's verify route stages the probe under the lock, runs it detached
+/// under the ENG-23324 action watchdog, and records the outcome in a second
+/// short lock window (ENG-23493; `action_wall_clock_timeout` reports
+/// `Enforced`). Queries/mutations still have no timeout
+/// (`wall_clock_timeout` reports `Missing`).
 pub const VERIFY_COOLDOWN_MS: u64 = 5_000;
 
 /// The result a probe verification leaves behind. Never carries a value.
@@ -241,6 +241,16 @@ impl ConfigStore {
     ) -> SnapbackResult<()> {
         let mut state = self.state.clone();
         if let Some(entry) = state.entries.get_mut(name) {
+            // Probes run off-lock (ENG-23493), so a hung run can finish after
+            // a newer retry already recorded; a record never replaces one
+            // with a later cooldown-claim stamp.
+            if entry
+                .verified
+                .as_ref()
+                .is_some_and(|existing| existing.at_ms > record.at_ms)
+            {
+                return Ok(());
+            }
             entry.verified = Some(record);
             self.persist_state(&state)?;
             self.state = state;
@@ -509,6 +519,54 @@ mod tests {
         );
         // Any value change resets verification — it attested the old values.
         assert!(store.entry("caltrainFeed").unwrap().verified.is_none());
+    }
+
+    #[test]
+    fn stale_verification_never_overwrites_a_newer_record() {
+        // ENG-23493: probes run off-lock, so a hung run's late failure can
+        // race a newer retry's success; the older cooldown-claim stamp loses.
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = store_in(&dir);
+        store
+            .set("caltrainFeed", vec!["key-1".into()], false, "http", 1)
+            .unwrap();
+        store
+            .record_verification(
+                "caltrainFeed",
+                VerificationRecord {
+                    ok: true,
+                    at_ms: 10,
+                    diagnostic: None,
+                },
+            )
+            .unwrap();
+        store
+            .record_verification(
+                "caltrainFeed",
+                VerificationRecord {
+                    ok: false,
+                    at_ms: 5,
+                    diagnostic: Some("SNAPBACK_ACTION_TIMEOUT: abandoned".into()),
+                },
+            )
+            .unwrap();
+        let verified = store.entry("caltrainFeed").unwrap().verified.as_ref();
+        assert_eq!(verified.map(|record| record.ok), Some(true));
+        assert_eq!(verified.map(|record| record.at_ms), Some(10));
+
+        // A same-or-newer stamp still overwrites (the in-lock serial case).
+        store
+            .record_verification(
+                "caltrainFeed",
+                VerificationRecord {
+                    ok: false,
+                    at_ms: 10,
+                    diagnostic: Some("newer run".into()),
+                },
+            )
+            .unwrap();
+        let verified = store.entry("caltrainFeed").unwrap().verified.as_ref();
+        assert_eq!(verified.map(|record| record.ok), Some(false));
     }
 
     #[test]
