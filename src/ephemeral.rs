@@ -29,6 +29,11 @@ fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
 /// socket now owns. `register` returns the registration's generation;
 /// `unregister` removes the waker — and reports ownership — only when that
 /// generation is still current, and the caller gates `disconnect` on it.
+/// `is_current` lets the delivery loop make the same check mid-life
+/// (ENG-23425): the per-connection outbox is keyed by connection id alone,
+/// so a superseded task that keeps draining steals the new socket's
+/// messages into its dead socket — it must stop draining, not just skip
+/// teardown.
 #[derive(Default)]
 struct DeliveryNotifierState {
     next_generation: u64,
@@ -68,6 +73,17 @@ impl DeliveryNotifier {
             }
             _ => false,
         }
+    }
+
+    /// Whether `generation` still owns the connection's waker. A superseded
+    /// delivery task (its registration replaced by a reconnect on the same
+    /// connection id) gets `false` and must stop draining the shared outbox:
+    /// the messages in it now belong to the new socket (ENG-23425).
+    pub fn is_current(&self, connection_id: &str, generation: u64) -> bool {
+        matches!(
+            lock(&self.state).waiters.get(connection_id),
+            Some((current, _)) if *current == generation
+        )
     }
 
     fn wake(&self, connection_id: &str) {
@@ -2155,6 +2171,30 @@ mod tests {
 
         // The new task still owns teardown.
         assert!(notifier.unregister("conn", new_generation));
+    }
+
+    /// ENG-23425 — the delivery loop's mid-life ownership check: a superseded
+    /// registration reads as not-current (so its task stops draining the
+    /// shared outbox instead of stealing the new socket's messages), the
+    /// current registration reads as current, and after unregister nobody
+    /// does.
+    #[test]
+    fn is_current_tracks_supersession_and_unregister() {
+        let notifier = DeliveryNotifier::default();
+
+        let (old_generation, _old_waker) = notifier.register("conn");
+        assert!(notifier.is_current("conn", old_generation));
+
+        // The reconnect supersedes the old registration: only the new
+        // generation may keep draining the connection's outbox.
+        let (new_generation, _new_waker) = notifier.register("conn");
+        assert!(!notifier.is_current("conn", old_generation));
+        assert!(notifier.is_current("conn", new_generation));
+
+        // Unknown connections and unregistered generations are not current.
+        assert!(!notifier.is_current("other", new_generation));
+        assert!(notifier.unregister("conn", new_generation));
+        assert!(!notifier.is_current("conn", new_generation));
     }
 
     fn scope() -> Scope {

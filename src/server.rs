@@ -1597,9 +1597,10 @@ async fn live_stream(
     // plus this register-before-first-drain: a push the drain below misses
     // happened after the drain took the outbox lock, and its wake then finds
     // the already-registered waker and stores a permit.
-    if drain_and_send(&ephemeral, &connection_id, &mut sender)
-        .await
-        .is_break()
+    if !notify.is_current(&connection_id, generation)
+        || drain_and_send(&ephemeral, &connection_id, &mut sender)
+            .await
+            .is_break()
     {
         teardown_live_stream(&state, &notify, &connection_id, generation).await;
         return;
@@ -1647,12 +1648,24 @@ async fn live_stream(
                 true
             }
         };
-        if drain
-            && drain_and_send(&ephemeral, &connection_id, &mut sender)
+        if drain {
+            // ENG-23425: a superseded task must not drain. The outbox is
+            // keyed by connection id alone, so after a reconnect replaces
+            // this registration the queued messages belong to the NEW
+            // socket's task — draining them here writes them into a dead,
+            // half-open socket (or discards them on send failure) and they
+            // never reach the live client. Exit instead; the
+            // generation-guarded teardown below then skips `disconnect`,
+            // leaving the new socket's registration and subscriptions intact.
+            if !notify.is_current(&connection_id, generation) {
+                break 'stream;
+            }
+            if drain_and_send(&ephemeral, &connection_id, &mut sender)
                 .await
                 .is_break()
-        {
-            break 'stream;
+            {
+                break 'stream;
+            }
         }
     }
 

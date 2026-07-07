@@ -469,6 +469,13 @@ tests) produced five pre-merge fixes, all landed:
    subscriptions and delivery waker (previously masked forever by
    stateless ping). Consequence: an overlapping reconnect now keeps its
    subscriptions; superseded-subscription GC remains the D2-adjacent gap.
+   Extended by ENG-23425: the guard now covers the *drain*, not just
+   teardown — the per-connection outbox is keyed by connection id alone,
+   so a superseded task that kept draining (its 30 s safety-net tick, or
+   a stale wake permit) stole the new socket's queued messages into the
+   dead half-open socket. The delivery loop checks
+   `DeliveryNotifier::is_current` before every drain and exits when
+   superseded, leaving the outbox to the socket that owns it.
 2. **Honest resubscribe** — `live` is claimed only when a subscribe
    actually lands; failures surface, retry on bounded backoff, and every
    drain tick re-enters the fresh subscribe while needed (covers the
