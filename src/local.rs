@@ -447,6 +447,108 @@ pub struct FunctionRunResult {
     pub diagnostic: Option<Diagnostic>,
 }
 
+/// How a staged action must execute.
+///
+/// Staging runs under the global instance mutex; execution of the
+/// `Detached` arm deliberately does not — the server runs Ibex actions on a
+/// watchdogged thread whose host calls reacquire the mutex per call, so a
+/// hung outbound fetch can no longer wedge writes, cron, and in-memory
+/// queries (ENG-23324).
+pub(crate) enum StagedAction {
+    /// Host-plan actions run bounded mutation steps with no egress; they
+    /// execute under the lock exactly as before.
+    InLock,
+    /// Ibex-module actions may perform egress; everything the runtime needs
+    /// is cloned out so the run can proceed without borrowing the instance.
+    Detached(Box<DetachedIbexAction>),
+}
+
+pub(crate) struct DetachedIbexAction {
+    pub module: crate::manifest::IbexModule,
+    pub grants: Value,
+    pub runtime: RuntimeManager,
+}
+
+/// Staging outcome for the app-action envelope surface: either a ready
+/// (error) envelope, or the envelope inputs plus the execution mode.
+pub(crate) enum StagedAppAction {
+    Done(Box<FunctionRunResult>),
+    Ready(AppActionStage),
+}
+
+pub(crate) struct AppActionStage {
+    pub reads: Vec<String>,
+    pub writes: Vec<String>,
+    pub mode: StagedAction,
+}
+
+/// Assemble the `FunctionRunResult` envelope for an action run — shared by
+/// the in-lock path and the server's detached path (ENG-23324).
+pub(crate) fn action_run_result(
+    name: &str,
+    reads: Vec<String>,
+    writes: Vec<String>,
+    elapsed_ms: u64,
+    result: SnapbackResult<Value>,
+) -> FunctionRunResult {
+    let base = FunctionRunResult {
+        ok: true,
+        function: name.to_owned(),
+        kind: Some(FunctionKind::Action),
+        reads,
+        writes,
+        captured_reads: Vec::new(),
+        captured_writes: Vec::new(),
+        elapsed_ms,
+        version: None,
+        changed_count: None,
+        rows: None,
+        result: None,
+        diagnostic: None,
+    };
+    match result {
+        Ok(value) => FunctionRunResult {
+            result: Some(value),
+            ..base
+        },
+        Err(error) => FunctionRunResult {
+            ok: false,
+            diagnostic: Some(error.diagnostic),
+            ..base
+        },
+    }
+}
+
+/// The metadata a manually triggered (non-cron) action run carries; `prefix`
+/// names the triggering surface (`action` for the app-data route, `admin`
+/// for the function runner).
+pub(crate) fn manual_action_metadata(prefix: &str, name: &str) -> CronRunMetadata {
+    let now = now_millis();
+    CronRunMetadata {
+        job_name: format!("{prefix}:{name}"),
+        run_id: format!("{prefix}:{name}:{now}"),
+        scheduled_at_ms: None,
+        due_at_ms: now,
+        idempotency_key: format!("{prefix}:{name}:manual"),
+        slot_key: format!("{prefix}:{name}:manual"),
+        attempt: 1,
+        trigger: CronRunTrigger::Manual,
+    }
+}
+
+/// The handler input a claimed cron run passes to its action.
+pub(crate) fn cron_claim_input(claim: &CronRunClaim) -> HandlerInput {
+    HandlerInput {
+        args: json!({
+            "run": claim.metadata,
+            "job": claim.job.name,
+        }),
+        auth: Default::default(),
+        read_set: Vec::new(),
+        correlation: None,
+    }
+}
+
 /// Shared per-connection last-seen map for the L2 reaper. Ephemeral
 /// operations and outbox drains count as liveness but no longer take the
 /// global write mutex (L9), so the map is a small internally locked handle
@@ -784,6 +886,19 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
         // The embedded runtime calls host functions synchronously on the same
         // thread; this pointer is valid only for the duration of one action run.
         unsafe { (&mut *self.snapback).invoke_mutation(name, input) }
+    }
+
+    // The reads below derive their reference from the same provenance root as
+    // `run_mutation`'s write, one synchronous host call at a time — no read
+    // borrow is ever held across a mutation, which is what keeps the aliasing
+    // sound under Stacked Borrows (ENG-23324 removed the long-lived raw db
+    // pointer this path used to carry).
+    fn query(&mut self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
+        unsafe { (*self.snapback).db.query(plan, input) }
+    }
+
+    fn get(&mut self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
+        unsafe { (*self.snapback).db.get(table, id) }
     }
 }
 
@@ -1561,16 +1676,7 @@ impl LocalSnapback {
                 },
             },
             FunctionKind::Action => {
-                let metadata = CronRunMetadata {
-                    job_name: format!("admin:{name}"),
-                    run_id: format!("admin:{name}:{}", now_millis()),
-                    scheduled_at_ms: None,
-                    due_at_ms: now_millis(),
-                    idempotency_key: format!("admin:{name}:manual"),
-                    slot_key: format!("admin:{name}:manual"),
-                    attempt: 1,
-                    trigger: CronRunTrigger::Manual,
-                };
+                let metadata = manual_action_metadata("admin", name);
                 match self.invoke_action(name, input, metadata) {
                     Ok(result) => FunctionRunResult {
                         elapsed_ms: elapsed_ms(started),
@@ -1596,8 +1702,23 @@ impl LocalSnapback {
     /// for app-triggered egress, not only scheduled cron runs.
     pub fn run_app_action(&mut self, name: &str, input: HandlerInput) -> FunctionRunResult {
         let started = Instant::now();
+        let stage = match self.stage_app_action(name) {
+            StagedAppAction::Done(result) => return *result,
+            StagedAppAction::Ready(stage) => stage,
+        };
+        let metadata = manual_action_metadata("action", name);
+        let result = self.invoke_action(name, input, metadata);
+        action_run_result(name, stage.reads, stage.writes, elapsed_ms(started), result)
+    }
+
+    /// Stage an app-action run: resolve the function, reject non-actions with
+    /// a ready envelope, and clone out what a detached execution needs. Runs
+    /// under the global mutex; the returned stage does not borrow the
+    /// instance (ENG-23324).
+    pub(crate) fn stage_app_action(&mut self, name: &str) -> StagedAppAction {
+        let started = Instant::now();
         let Some(definition) = self.functions.function(name).cloned() else {
-            return FunctionRunResult {
+            return StagedAppAction::Done(Box::new(FunctionRunResult {
                 ok: false,
                 function: name.to_owned(),
                 kind: None,
@@ -1618,31 +1739,24 @@ impl LocalSnapback {
                     )
                     .diagnostic,
                 ),
-            };
+            }));
         };
 
         let (reads, writes) = plan_io(&definition);
-        let kind = definition.kind.clone();
-        let base = FunctionRunResult {
-            ok: true,
-            function: name.to_owned(),
-            kind: Some(kind.clone()),
-            reads,
-            writes,
-            captured_reads: Vec::new(),
-            captured_writes: Vec::new(),
-            elapsed_ms: 0,
-            version: None,
-            changed_count: None,
-            rows: None,
-            result: None,
-            diagnostic: None,
-        };
-
-        if !matches!(kind, FunctionKind::Action) {
-            return FunctionRunResult {
+        if !matches!(definition.kind, FunctionKind::Action) {
+            return StagedAppAction::Done(Box::new(FunctionRunResult {
                 ok: false,
+                function: name.to_owned(),
+                kind: Some(definition.kind.clone()),
+                reads,
+                writes,
+                captured_reads: Vec::new(),
+                captured_writes: Vec::new(),
                 elapsed_ms: elapsed_ms(started),
+                version: None,
+                changed_count: None,
+                rows: None,
+                result: None,
                 diagnostic: Some(
                     SnapbackError::error(
                         "SNAPBACK_FUNCTION_KIND_MISMATCH",
@@ -1651,34 +1765,61 @@ impl LocalSnapback {
                     )
                     .diagnostic,
                 ),
-                ..base
-            };
+            }));
         }
 
-        let now = now_millis();
-        let metadata = CronRunMetadata {
-            job_name: format!("action:{name}"),
-            run_id: format!("action:{name}:{now}"),
-            scheduled_at_ms: None,
-            due_at_ms: now,
-            idempotency_key: format!("action:{name}:manual"),
-            slot_key: format!("action:{name}:manual"),
-            attempt: 1,
-            trigger: CronRunTrigger::Manual,
-        };
-        match self.invoke_action(name, input, metadata) {
-            Ok(result) => FunctionRunResult {
-                elapsed_ms: elapsed_ms(started),
-                result: Some(result),
-                ..base
-            },
-            Err(error) => FunctionRunResult {
-                ok: false,
-                elapsed_ms: elapsed_ms(started),
-                diagnostic: Some(error.diagnostic),
-                ..base
-            },
+        let mode = self.staged_mode(&definition);
+        StagedAppAction::Ready(AppActionStage {
+            reads,
+            writes,
+            mode,
+        })
+    }
+
+    /// Stage one action invocation for the cron flow (no envelope shaping):
+    /// unknown functions and non-actions are `SnapbackError`s, exactly as
+    /// `invoke_action` would report them (ENG-23324).
+    pub(crate) fn stage_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
+        let function = self.function(name)?.clone();
+        if !matches!(function.kind, FunctionKind::Action) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not an action"),
+            ));
         }
+        Ok(self.staged_mode(&function))
+    }
+
+    fn staged_mode(&mut self, definition: &FunctionDefinition) -> StagedAction {
+        match &definition.runtime {
+            FunctionRuntime::IbexModule(module) => {
+                StagedAction::Detached(Box::new(DetachedIbexAction {
+                    module: module.clone(),
+                    // @ref LLP 0036#runtime-exposure-d5-d8 — grants are
+                    // computed per invocation from the function's `uses`
+                    // declaration, at staging time, under the lock.
+                    grants: self.config_grants(definition),
+                    runtime: self.runtime.clone(),
+                }))
+            }
+            _ => StagedAction::InLock,
+        }
+    }
+
+    /// One-call read accessors for the detached action host: each `ctx.db`
+    /// host call of a detached action takes the global mutex just long enough
+    /// for one read (ENG-23324).
+    pub(crate) fn db_query(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+    ) -> SnapbackResult<QueryOutput> {
+        self.db.query(plan, input)
+    }
+
+    pub(crate) fn db_get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
+        self.db.get(table, id)
     }
 
     /// Validate declared config entries fail-closed, validate per-function
@@ -2306,8 +2447,7 @@ impl LocalSnapback {
         match self.tick_cron(now_ms) {
             Ok(records) => records,
             Err(error) => {
-                self.cron_tick_errors += 1;
-                self.record_diagnostics(vec![error.diagnostic]);
+                self.record_cron_tick_error(error);
                 Vec::new()
             }
         }
@@ -2320,17 +2460,46 @@ impl LocalSnapback {
     }
 
     pub fn tick_cron(&mut self, now_ms: u64) -> SnapbackResult<Vec<CronRunRecord>> {
+        let claims = self.claim_due_cron_runs(now_ms)?;
+        self.execute_cron_claims(claims)
+    }
+
+    /// Claim (and persist) the due cron runs without executing them. The
+    /// server's detached cron flow uses this as the first lock window; the
+    /// claims then execute off the global mutex and land back through
+    /// [`Self::finish_cron_claim`] (ENG-23324).
+    pub(crate) fn claim_due_cron_runs(&mut self, now_ms: u64) -> SnapbackResult<Vec<CronRunClaim>> {
         let active_live_functions = self.active_live_functions();
         let claims = self
             .cron
             .claim_due_runs(&self.functions, &active_live_functions, now_ms);
         self.persist_cron_state()?;
-        self.execute_cron_claims(claims)
+        Ok(claims)
+    }
+
+    /// Claim (and persist) a manual run of one cron job — the detached-flow
+    /// counterpart of [`Self::run_cron_job_now`]'s claim step (ENG-23324).
+    pub(crate) fn claim_manual_cron_run(
+        &mut self,
+        name: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<CronRunClaim> {
+        let claim = self.cron.claim_manual_run(&self.functions, name, now_ms)?;
+        self.persist_cron_state()?;
+        Ok(claim)
+    }
+
+    /// Route a cron tick's *machinery* error (claim/persist/finish failure)
+    /// into the diagnostics ring with a counter — the same policy as
+    /// [`Self::tick_cron_recording`], callable from the server's detached
+    /// cron flow.
+    pub(crate) fn record_cron_tick_error(&mut self, error: SnapbackError) {
+        self.cron_tick_errors += 1;
+        self.record_diagnostics(vec![error.diagnostic]);
     }
 
     pub fn run_cron_job_now(&mut self, name: &str, now_ms: u64) -> SnapbackResult<CronRunRecord> {
-        let claim = self.cron.claim_manual_run(&self.functions, name, now_ms)?;
-        self.persist_cron_state()?;
+        let claim = self.claim_manual_cron_run(name, now_ms)?;
         let mut records = self.execute_cron_claims(vec![claim])?;
         records.pop().ok_or_else(|| {
             SnapbackError::error(
@@ -2543,39 +2712,45 @@ impl LocalSnapback {
             let result = self
                 .invoke_action(
                     &claim.job.action,
-                    HandlerInput {
-                        args: json!({
-                            "run": claim.metadata,
-                            "job": claim.job.name,
-                        }),
-                        auth: Default::default(),
-                        read_set: Vec::new(),
-                        correlation: None,
-                    },
+                    cron_claim_input(&claim),
                     claim.metadata.clone(),
                 )
                 .map_err(|error| error.diagnostic);
-            // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D8
-            // (semantics LLP 0029 G6): measure real wall-clock around the run so
-            // durationMs is not always zero. finished_at stays logically
-            // consistent with the claim's start (start + elapsed), so a run's
-            // duration reflects actual execution time on any clock the caller
-            // stamped the claim with.
-            let elapsed_ms = now_millis().saturating_sub(started_wall_ms);
-            let finished_at_ms = claim.started_at_ms.saturating_add(elapsed_ms);
-            let record = self.cron.finish_run(claim, finished_at_ms, result);
-            self.persist_cron_state()?;
-            if record.outcome == CronRunOutcome::Failed
-                && let Some(diagnostic) = &record.diagnostic
-            {
-                self.record_diagnostics(vec![diagnostic.clone()]);
-            }
-            records.push(record);
+            records.push(self.finish_cron_claim(claim, started_wall_ms, result)?);
         }
         Ok(records)
     }
 
-    fn invoke_action(
+    /// Record the outcome of one claimed cron run: finish the claim, persist
+    /// cron state, and route a failed run's diagnostic into the ring. Split
+    /// from [`Self::execute_cron_claims`] so the server can execute the claim
+    /// *between* the claim and finish lock windows — off the global mutex —
+    /// for Ibex actions that may perform egress (ENG-23324).
+    pub(crate) fn finish_cron_claim(
+        &mut self,
+        claim: CronRunClaim,
+        started_wall_ms: u64,
+        result: Result<Value, Diagnostic>,
+    ) -> SnapbackResult<CronRunRecord> {
+        // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D8
+        // (semantics LLP 0029 G6): measure real wall-clock around the run so
+        // durationMs is not always zero. finished_at stays logically
+        // consistent with the claim's start (start + elapsed), so a run's
+        // duration reflects actual execution time on any clock the caller
+        // stamped the claim with.
+        let elapsed_ms = now_millis().saturating_sub(started_wall_ms);
+        let finished_at_ms = claim.started_at_ms.saturating_add(elapsed_ms);
+        let record = self.cron.finish_run(claim, finished_at_ms, result);
+        self.persist_cron_state()?;
+        if record.outcome == CronRunOutcome::Failed
+            && let Some(diagnostic) = &record.diagnostic
+        {
+            self.record_diagnostics(vec![diagnostic.clone()]);
+        }
+        Ok(record)
+    }
+
+    pub(crate) fn invoke_action(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -2593,18 +2768,16 @@ impl LocalSnapback {
                 // store is read through on every run (no caching), leaving VM
                 // reuse questions to the DK-4 machinery.
                 let grants = self.config_grants(&function);
-                // One provenance root: the db pointer is derived from the same
-                // *mut the action host writes through (ctx.runMutation), so
-                // the write does not invalidate the read pointer under
-                // Stacked Borrows. Behavior is unchanged; host calls remain
-                // synchronous on this thread and never overlap a live borrow.
+                // One provenance root: every host call — mutation writes and
+                // ctx.db reads alike — derives its reference from this *mut
+                // per call, so no read borrow outlives a write under Stacked
+                // Borrows. Host calls remain synchronous on this thread.
                 let snapback = self as *mut LocalSnapback;
-                let db = unsafe { &raw const (*snapback).db };
                 let mut host = LocalIbexActionHost {
                     snapback,
                     _marker: PhantomData,
                 };
-                runtime.invoke_ibex_action(module, input, db, metadata, &mut host, grants)
+                runtime.invoke_ibex_action(module, input, metadata, &mut host, grants)
             }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_KIND_MISMATCH",

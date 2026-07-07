@@ -692,16 +692,38 @@ async fn admin_run_function(
     Path(name): Path<String>,
     Json(input): Json<HandlerInput>,
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
-    let result = crate::server::with_snapback(&snapback, move |snapback| -> Result<_, ApiError> {
-        // A mutation is a write; a query (or unknown function) is a read.
-        let write = matches!(
-            snapback.function_kind(&name),
-            Some(FunctionKind::Mutation | FunctionKind::Action)
-        );
-        authorize(&ctx, &headers, write)?;
-        Ok(snapback.run_function(&name, input))
-    })
-    .await?;
+    // Actions leave the lock window and run detached under the watchdog
+    // (ENG-23324); everything else runs under the lock as before.
+    enum Routed {
+        Done(Box<crate::local::FunctionRunResult>),
+        Action(crate::local::AppActionStage),
+    }
+    let routed = {
+        let name = name.clone();
+        let input = input.clone();
+        crate::server::with_snapback(&snapback, move |snapback| -> Result<Routed, ApiError> {
+            // A mutation is a write; a query (or unknown function) is a read.
+            let write = matches!(
+                snapback.function_kind(&name),
+                Some(FunctionKind::Mutation | FunctionKind::Action)
+            );
+            authorize(&ctx, &headers, write)?;
+            if matches!(snapback.function_kind(&name), Some(FunctionKind::Action)) {
+                return Ok(match snapback.stage_app_action(&name) {
+                    crate::local::StagedAppAction::Done(result) => Routed::Done(result),
+                    crate::local::StagedAppAction::Ready(stage) => Routed::Action(stage),
+                });
+            }
+            Ok(Routed::Done(Box::new(snapback.run_function(&name, input))))
+        })
+        .await?
+    };
+    let result = match routed {
+        Routed::Done(result) => *result,
+        Routed::Action(stage) => {
+            crate::server::run_staged_app_action(&snapback, &name, input, stage, "admin").await
+        }
+    };
     Ok(Json(result))
 }
 
@@ -712,8 +734,9 @@ async fn admin_cron_tick(
 ) -> Result<Json<Vec<crate::cron::CronRunRecord>>, ApiError> {
     authorize(&ctx, &headers, true)?;
     let now = now_millis();
-    let runs =
-        crate::server::with_snapback(&snapback, move |snapback| snapback.tick_cron(now)).await?;
+    // Detached flow (ENG-23324): claims and finishes take the lock; the
+    // action runs themselves execute off it.
+    let runs = crate::server::cron_tick_detached(&snapback, now).await?;
     Ok(Json(runs))
 }
 
@@ -725,10 +748,14 @@ async fn admin_run_cron_job(
 ) -> Result<Json<crate::cron::CronRunRecord>, ApiError> {
     authorize(&ctx, &headers, true)?;
     let now = now_millis();
-    let record = crate::server::with_snapback(&snapback, move |snapback| {
-        snapback.run_cron_job_now(&name, now)
-    })
-    .await?;
+    let claim = {
+        let name = name.clone();
+        crate::server::with_snapback(&snapback, move |snapback| {
+            snapback.claim_manual_cron_run(&name, now)
+        })
+        .await?
+    };
+    let record = crate::server::execute_cron_claim_detached(&snapback, claim).await?;
     Ok(Json(record))
 }
 

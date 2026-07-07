@@ -19,9 +19,12 @@ pub const CONFIG_STORE_FORMAT_VERSION: u32 = 1;
 ///
 /// @ref LLP 0036#operations-and-projections-llp-0024 — probe rules: a probe is
 /// a quota-burn tool pointed at a vendor, so verify is cooldown-limited. The
-/// hard wall-clock timeout the RFC also wants is an honest gap in v1: the
-/// local runtime has no handler timeout at all yet (`wall_clock_timeout`
-/// reports `Missing` in the capability manifest).
+/// hard wall-clock timeout the RFC also wants is still a partial gap:
+/// server-triggered actions run detached under the ENG-23324 watchdog
+/// (`action_wall_clock_timeout` reports `Enforced`), but the probe path here
+/// runs the action under the instance lock without a timeout, and
+/// queries/mutations have none either (`wall_clock_timeout` reports
+/// `Missing`).
 pub const VERIFY_COOLDOWN_MS: u64 = 5_000;
 
 /// The result a probe verification leaves behind. Never carries a value.

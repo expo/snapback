@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated. Previously 2026-07-02: §Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
+**Revised:** 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, LLP 0036, https://github.com/ccheever/ibex
 
 ## Summary
@@ -150,12 +150,24 @@ Why defer rather than build now:
   platform — engine, limits, and isolation together — with more fidelity
   than a synthetic local embed, and without maintaining a second native
   bring-up (the repo's #1 recurring DX pain; see LLP 0032 P7).
-- **The busy-loop risk that argued for "now" was re-scoped by L6/L7.** A
-  `while(true){}` handler once wedged the whole process while holding the
-  global lock; today it costs one blocking-pool thread plus the write lane —
-  reads, ephemeral, and health stay live. Preemption remains owned by
-  §Resource Limits, with the capability report honestly declaring
-  `wall_clock_timeout`/`cpu_budget` **Missing** on this target.
+- **The busy-loop risk that argued for "now" was re-scoped by L6/L7, then
+  again by ENG-23324.** A `while(true){}` handler once wedged the whole
+  process while holding the global lock; after L6/L7 it cost one
+  blocking-pool thread plus the write lane — reads, ephemeral, and health
+  stay live. ENG-23324 closed the remaining wedge for **actions** (the only
+  egress-capable class, so the only one that can block on a hung outbound
+  fetch): an action now executes detached from the write mutex — staged
+  under the lock, run on its own thread, each host call reacquiring the
+  mutex for just that call — under a coarse wall-clock watchdog
+  (`SNAPBACK_ACTION_TIMEOUT_MS`, default 30s). On timeout the caller gets
+  `SNAPBACK_ACTION_TIMEOUT` and the run is abandoned: the abandonment flag
+  flips *under the instance mutex*, so no host call can commit after the
+  caller was told the action failed; mutations committed before the timeout
+  stand (actions are not transactions, LLP 0028), and the unkillable VM
+  thread runs out with its result discarded. Preemption for queries and
+  mutations remains owned by §Resource Limits, with the capability report
+  honestly declaring `wall_clock_timeout`/`cpu_budget` **Missing** on this
+  target while `action_wall_clock_timeout` reports **Enforced**.
 
 **Capability truthfulness note.** `async_handler_completion: Available` is a
 constant in the capability report, *verified by the conformance-floor tests*

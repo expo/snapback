@@ -36,6 +36,10 @@
       "status": "Missing"
     },
     {
+      "name": "action_wall_clock_timeout",
+      "status": "Enforced"
+    },
+    {
       "name": "cpu_budget",
       "status": "Missing"
     },

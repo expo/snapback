@@ -1,14 +1,18 @@
 use crate::admin::{AppState, ServerContext};
-use crate::diagnostic::{Diagnostic, SnapbackError};
+use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
     DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
 };
+use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::local::{
-    EphemeralApi, InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
-    LocalSnapback,
+    AppActionStage, EphemeralApi, FunctionRunResult, InspectState, LiveResumeInput,
+    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction, StagedAppAction,
 };
-use crate::manifest::{FunctionManifest, HandlerInput, SchemaManifest, SeedData};
-use crate::runtime::CapabilityState;
+use crate::manifest::{
+    FunctionManifest, HandlerInput, MutationOutput, QueryOutput, QueryPlan, SchemaManifest,
+    SeedData,
+};
+use crate::runtime::{CapabilityState, IbexActionHost};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
@@ -20,7 +24,8 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, interval};
@@ -69,6 +74,220 @@ where
     })
     .await
     .expect("read-lane blocking task panicked")
+}
+
+/// Default coarse wall-clock watchdog for detached Ibex actions (ENG-23324):
+/// the caller gets `SNAPBACK_ACTION_TIMEOUT` after this long even when the
+/// action's VM thread is stuck inside a hung outbound fetch.
+const ACTION_WATCHDOG_DEFAULT_MS: u64 = 30_000;
+
+fn action_watchdog_timeout_ms() -> u64 {
+    std::env::var("SNAPBACK_ACTION_TIMEOUT_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|ms| *ms > 0)
+        .unwrap_or(ACTION_WATCHDOG_DEFAULT_MS)
+}
+
+/// The action host for detached (off-mutex) Ibex action runs: each host call
+/// reacquires the global instance mutex for just that one call, and checks
+/// the watchdog's abandonment flag *after* acquiring it. The watchdog flips
+/// the flag while holding the same mutex, so a timeout has an unambiguous
+/// linearization point: a `ctx.runMutation` either committed before the flag
+/// flipped, or is rejected — never "commits after the caller was told the
+/// action failed".
+///
+/// @ref LLP 0028#execution-the-action-class — ENG-23324: actions no longer
+/// hold the global write mutex for the duration of the run.
+struct DetachedActionHost {
+    state: SharedSnapback,
+    abandoned: Arc<AtomicBool>,
+}
+
+impl DetachedActionHost {
+    fn lock_live(&self, op: &str) -> SnapbackResult<tokio::sync::OwnedMutexGuard<LocalSnapback>> {
+        let guard = self.state.clone().blocking_lock_owned();
+        if self.abandoned.load(Ordering::SeqCst) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ACTION_TIMEOUT",
+                "runtime",
+                format!(
+                    "ctx.{op} rejected: the action exceeded its wall-clock watchdog and was abandoned"
+                ),
+            ));
+        }
+        Ok(guard)
+    }
+}
+
+impl IbexActionHost for DetachedActionHost {
+    fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
+        let mut snapback = self.lock_live("runMutation")?;
+        snapback.invoke_mutation(name, input)
+    }
+
+    fn query(&mut self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
+        let snapback = self.lock_live("db.query")?;
+        snapback.db_query(plan, input)
+    }
+
+    fn get(&mut self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
+        let snapback = self.lock_live("db.get")?;
+        snapback.db_get(table, id)
+    }
+}
+
+/// Run a staged Ibex action on a detached thread under a wall-clock watchdog.
+///
+/// The action holds no instance lock while it runs — its host calls reacquire
+/// the mutex per call — so a hung outbound fetch stalls only this action, not
+/// writes, cron, or in-memory queries. On timeout the run is *abandoned*: the
+/// VM thread cannot be killed mid-eval, so it is left to run out with every
+/// further host call rejected, and its eventual result is discarded.
+/// Mutations the action committed before the timeout remain committed —
+/// actions are not transactions (LLP 0028).
+async fn run_detached_ibex_action(
+    state: &SharedSnapback,
+    action: Box<crate::local::DetachedIbexAction>,
+    input: HandlerInput,
+    metadata: CronRunMetadata,
+) -> SnapbackResult<Value> {
+    let timeout_ms = action_watchdog_timeout_ms();
+    let abandoned = Arc::new(AtomicBool::new(false));
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    let spawned = std::thread::Builder::new()
+        .name("snapback-action".to_owned())
+        .spawn({
+            let state = state.clone();
+            let abandoned = abandoned.clone();
+            move || {
+                let crate::local::DetachedIbexAction {
+                    module,
+                    grants,
+                    runtime,
+                } = *action;
+                let mut host = DetachedActionHost { state, abandoned };
+                let _ =
+                    sender.send(runtime.invoke_ibex_action(&module, input, metadata, &mut host, grants));
+            }
+        });
+    if let Err(error) = spawned {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ACTION_THREAD_SPAWN_FAILED",
+            "runtime",
+            "action execution thread could not be spawned",
+        )
+        .with_details(json!({ "error": error.to_string() })));
+    }
+    match tokio::time::timeout(Duration::from_millis(timeout_ms), receiver).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(_closed)) => Err(SnapbackError::error(
+            "SNAPBACK_ACTION_THREAD_FAILED",
+            "runtime",
+            "action execution thread terminated without reporting a result",
+        )),
+        Err(_elapsed) => {
+            // Flip the abandonment flag while holding the instance mutex: a
+            // host call already past the flag check finishes its commit first
+            // (it holds the mutex), and every later call is rejected.
+            let guard = state.lock().await;
+            abandoned.store(true, Ordering::SeqCst);
+            drop(guard);
+            Err(SnapbackError::error(
+                "SNAPBACK_ACTION_TIMEOUT",
+                "runtime",
+                format!(
+                    "action exceeded the {timeout_ms}ms wall-clock watchdog and was abandoned; \
+                     mutations it committed before the timeout remain committed"
+                ),
+            )
+            .with_details(json!({ "timeoutMs": timeout_ms })))
+        }
+    }
+}
+
+/// Execute a staged app/admin action and shape the run-result envelope.
+/// `metadata_prefix` names the triggering surface (`action` for the app-data
+/// route, `admin` for the function runner).
+pub(crate) async fn run_staged_app_action(
+    state: &SharedSnapback,
+    name: &str,
+    input: HandlerInput,
+    stage: AppActionStage,
+    metadata_prefix: &str,
+) -> FunctionRunResult {
+    let started = Instant::now();
+    let metadata = crate::local::manual_action_metadata(metadata_prefix, name);
+    let result = match stage.mode {
+        StagedAction::InLock => {
+            let name = name.to_owned();
+            with_snapback(state, move |snapback| {
+                snapback.invoke_action(&name, input, metadata)
+            })
+            .await
+        }
+        StagedAction::Detached(action) => {
+            run_detached_ibex_action(state, action, input, metadata).await
+        }
+    };
+    crate::local::action_run_result(
+        name,
+        stage.reads,
+        stage.writes,
+        started.elapsed().as_millis() as u64,
+        result,
+    )
+}
+
+/// One cron tick in the detached flow: claim due runs under the lock, execute
+/// each claim off the lock (watchdogged for Ibex actions), finish each claim
+/// back under the lock (ENG-23324).
+pub(crate) async fn cron_tick_detached(
+    state: &SharedSnapback,
+    now_ms: u64,
+) -> SnapbackResult<Vec<CronRunRecord>> {
+    let claims = with_snapback(state, move |snapback| snapback.claim_due_cron_runs(now_ms)).await?;
+    let mut records = Vec::with_capacity(claims.len());
+    for claim in claims {
+        records.push(execute_cron_claim_detached(state, claim).await?);
+    }
+    Ok(records)
+}
+
+/// Execute one claimed cron run without holding the global mutex across the
+/// action, then finish the claim.
+pub(crate) async fn execute_cron_claim_detached(
+    state: &SharedSnapback,
+    claim: CronRunClaim,
+) -> SnapbackResult<CronRunRecord> {
+    let started_wall_ms = now_millis();
+    let input = crate::local::cron_claim_input(&claim);
+    let metadata = claim.metadata.clone();
+    let action = claim.job.action.clone();
+    let staged = {
+        let action = action.clone();
+        with_snapback(state, move |snapback| {
+            snapback.stage_action_invocation(&action)
+        })
+        .await
+    };
+    let result = match staged {
+        Ok(StagedAction::Detached(action)) => {
+            run_detached_ibex_action(state, action, input, metadata).await
+        }
+        Ok(StagedAction::InLock) => {
+            with_snapback(state, move |snapback| {
+                snapback.invoke_action(&action, input, metadata)
+            })
+            .await
+        }
+        Err(error) => Err(error),
+    }
+    .map_err(|error| error.diagnostic);
+    with_snapback(state, move |snapback| {
+        snapback.finish_cron_claim(claim, started_wall_ms, result)
+    })
+    .await
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -1100,12 +1319,16 @@ pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
                 continue;
             }
             // A due tick persists cron state and may run actions (Hermes) —
-            // off the async worker (L7).
+            // off the async worker (L7). Claims and finishes take the lock;
+            // the action runs themselves execute detached from it, so a slow
+            // or hung cron action no longer wedges the instance (ENG-23324).
             let now = now_millis();
-            with_snapback(&state, move |snapback| {
-                snapback.tick_cron_recording(now);
-            })
-            .await;
+            if let Err(error) = cron_tick_detached(&state, now).await {
+                // Tick-machinery errors go to the diagnostics ring; the
+                // recording is memory-only, so an inline lock is fine (the
+                // same argument as disconnect's inline lock).
+                state.lock().await.record_cron_tick_error(error);
+            }
         }
     })
 }
@@ -1495,18 +1718,28 @@ async fn invoke_mutation(
 /// browser clients can trigger action egress without reaching through the admin
 /// function runner, while writes still happen only through declared mutations.
 ///
+/// Ibex actions are staged under the lock, then run detached from it under a
+/// wall-clock watchdog, so a hung outbound fetch cannot wedge the instance.
+///
 /// @ref LLP 0031#the-invariant — app-data routes live at the root.
 /// @ref LLP 0028#open-questions — per-request app actions
 /// include the All Aboard walk/bike routing call, not just cron jobs.
+/// @ref LLP 0028#execution-the-action-class — ENG-23324 detached execution.
 async fn invoke_action(
     State(state): State<SharedSnapback>,
     Path(name): Path<String>,
     Json(input): Json<HandlerInput>,
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
-    let result = with_snapback(&state, move |snapback| {
-        snapback.run_app_action(&name, input)
-    })
-    .await;
+    let staged = {
+        let name = name.clone();
+        with_snapback(&state, move |snapback| snapback.stage_app_action(&name)).await
+    };
+    let result = match staged {
+        StagedAppAction::Done(result) => *result,
+        StagedAppAction::Ready(stage) => {
+            run_staged_app_action(&state, &name, input, stage, "action").await
+        }
+    };
     Ok(Json(result))
 }
 

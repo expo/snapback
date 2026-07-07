@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
+**Revised:** 2026-07-07 (ENG-23324: §Execution: the action class gains the as-built detached-execution note — server-triggered Ibex actions are staged under the global mutex but run off it on a watchdogged thread with per-host-call lock reacquisition; cron ticks claim under the lock, execute detached, and finish under the lock; `action_wall_clock_timeout` reports Enforced); 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027
 
 ## Summary
@@ -305,6 +305,33 @@ The shape is therefore always: *a scheduler, manual control, recovery path, or
 demand/read-through trigger runs an action; the action fetches; the action calls
 mutations.* This keeps the deterministic mutation/commit model intact and reuses
 the realtime machinery rather than inventing a second write path.
+
+**As built (ENG-23324, 2026-07-07): detached execution and the watchdog.**
+Server-triggered Ibex actions no longer run under the global write mutex.
+The invocation is *staged* under the lock (module source, per-invocation
+config grants, and runtime handle cloned out), then executed on a dedicated
+thread with no instance lock held; every host call — `ctx.runMutation`, and
+any raw `db.*` host call arriving in action mode — reacquires the mutex for
+just that one call. A hung outbound fetch therefore stalls only its own
+action. The run is bounded by a coarse wall-clock watchdog
+(`SNAPBACK_ACTION_TIMEOUT_MS`, default 30s; `action_wall_clock_timeout`
+reports **Enforced** in the capability manifest, while query/mutation
+`wall_clock_timeout` stays Missing). On timeout the caller receives
+`SNAPBACK_ACTION_TIMEOUT` and the run is abandoned — the abandonment flag
+flips *while holding the instance mutex*, so a host call either committed
+before the flag flipped or is rejected; no commit can land after the caller
+was told the action failed. Mutations committed before the timeout stand,
+which is exactly the no-action-level-transaction contract below. The VM
+thread cannot be killed mid-eval; it runs out and its result is discarded.
+Cron follows the same structure: a tick *claims* due runs under the lock,
+executes each claim detached (same watchdog), and *finishes* each claim back
+under the lock — the claim-to-finish window now spans the real run duration,
+and claims are stateful, so concurrent tickers (scheduler, admin tick,
+manual run) cannot double-claim a NoOverlap job. Host-plan actions (bounded
+mutation steps, no egress) and the config-verify probe path still execute
+under the lock. `POST /action/{name}`, the admin function runner, the cron
+scheduler, `/_snapback/api/cron/tick`, and manual cron runs all route
+through the detached flow.
 
 Actions should not receive the mutation surface of `ctx.db`. If an action needs
 durable state before deciding what to write, it can call a query or call a

@@ -64,8 +64,18 @@ pub struct IbexQueryRun {
     pub read_dependencies: Vec<CapturedReadDependency>,
 }
 
+/// The seam through which an action reaches instance state. Every db-touching
+/// host call an action-mode VM can make flows through one host, so the host
+/// implementation decides the locking policy: the in-lock host serves calls
+/// through the borrow it already holds, while the server's detached host
+/// reacquires the instance mutex per call so the action itself never holds it
+/// (ENG-23324). The JS ambient layer denies `ctx.db` to actions today —
+/// `query`/`get` here are the fail-safe boundary for a raw `db.*` host call
+/// arriving in action mode, not a sanctioned surface.
 pub trait IbexActionHost {
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput>;
+    fn query(&mut self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput>;
+    fn get(&mut self, table: &str, id: &str) -> SnapbackResult<Option<Value>>;
 }
 
 impl RuntimeManager {
@@ -146,13 +156,11 @@ impl RuntimeManager {
         &self,
         module: &IbexModule,
         input: HandlerInput,
-        db: *const LocalDatabase,
         run: CronRunMetadata,
         host: &mut dyn IbexActionHost,
         grants: Value,
     ) -> SnapbackResult<Value> {
-        let mut invocation =
-            IbexHostContext::new_action(DbRead::LiveRaw(db), input, run, host, grants);
+        let mut invocation = IbexHostContext::new_action(input, run, host, grants);
         // Actions always run fresh — no pool, by the DK-4 scope fence. That
         // fence is also what keeps per-invocation config grants (LLP 0036)
         // out of any reused VM: granted values ride the composed source of a
@@ -301,8 +309,19 @@ fn next_invocation_epoch() -> u64 {
     NEXT_INVOCATION_EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
+fn action_host_missing() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ACTION_HOST_MISSING",
+        "runtime",
+        "action host call ran without an action host",
+    )
+}
+
 struct IbexHostContext<'a> {
-    db: DbRead<'a>,
+    /// The storage view for query/mutation invocations. Actions carry `None`:
+    /// their `ctx.db` reads route through the action host, whose
+    /// implementation chooses the locking policy (ENG-23324).
+    db: Option<DbRead<'a>>,
     input: HandlerInput,
     mode: IbexInvocationMode,
     writes: Vec<BufferedWrite>,
@@ -325,7 +344,7 @@ impl<'a> IbexHostContext<'a> {
     fn new(db: DbRead<'a>, input: HandlerInput, writable: bool) -> Self {
         let reads = auth_dependencies(&input);
         Self {
-            db,
+            db: Some(db),
             input,
             mode: if writable {
                 IbexInvocationMode::Mutation
@@ -343,7 +362,6 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn new_action(
-        db: DbRead<'a>,
         input: HandlerInput,
         run: CronRunMetadata,
         host: &'a mut dyn IbexActionHost,
@@ -351,7 +369,7 @@ impl<'a> IbexHostContext<'a> {
     ) -> Self {
         let reads = auth_dependencies(&input);
         Self {
-            db,
+            db: None,
             input,
             mode: IbexInvocationMode::Action,
             writes: Vec::new(),
@@ -365,7 +383,9 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn db(&self) -> &DbRead<'a> {
-        &self.db
+        self.db
+            .as_ref()
+            .expect("query/mutation invocation carries a db view")
     }
 
     fn epoch(&self) -> u64 {
@@ -386,6 +406,23 @@ impl<'a> IbexHostContext<'a> {
                     )
                     .with_details(json!({ "error": error.to_string() }))
                 })?;
+                if self.mode == IbexInvocationMode::Action {
+                    // Actions read through the host (which decides locking —
+                    // ENG-23324) and skip read capture: an action is not a
+                    // transaction, so its read set is never consumed. No
+                    // buffered-write overlay either — actions cannot buffer
+                    // writes (`ensure_writable` rejects them).
+                    let host = self.action_host.as_deref_mut().ok_or_else(action_host_missing)?;
+                    let output = host.query(&plan, &self.input)?;
+                    return serde_json::to_value(output).map_err(|error| {
+                        SnapbackError::error(
+                            "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
+                            "runtime",
+                            "ctx.db.query output could not be serialized",
+                        )
+                        .with_details(json!({ "error": error.to_string() }))
+                    });
+                }
                 let output = self.db().query(&plan, &self.input)?;
                 // Capture the read dependency on the storage result the plan
                 // declared (its limit included) — the buffered overlay below is
@@ -424,6 +461,12 @@ impl<'a> IbexHostContext<'a> {
             "db.get" => {
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
+                if self.mode == IbexInvocationMode::Action {
+                    // Host-routed, capture-free read — same rationale as the
+                    // action arm of db.query above (ENG-23324).
+                    let host = self.action_host.as_deref_mut().ok_or_else(action_host_missing)?;
+                    return Ok(host.get(&table, &id)?.unwrap_or(Value::Null));
+                }
                 let stored = self.db().get(&table, &id)?;
                 self.capture_point_read(&table, &id, stored.as_ref())?;
                 // E2: read-your-writes — fold buffered writes over the stored row.
@@ -467,7 +510,9 @@ impl<'a> IbexHostContext<'a> {
                 Ok(Value::Bool(existed))
             }
             "runtime.now" => Ok(json!(self.now_ms)),
-            "runtime.id" => Ok(Value::String(self.db().generate_id())),
+            // Id generation is storage-independent, so it stays available to
+            // actions, whose context carries no db view (ENG-23324).
+            "runtime.id" => Ok(Value::String(crate::storage::new_id())),
             "action.metadata" => serde_json::to_value(self.action_run.as_ref()).map_err(|error| {
                 SnapbackError::error(
                     "SNAPBACK_ACTION_METADATA_SERIALIZE_FAILED",
@@ -489,13 +534,7 @@ impl<'a> IbexHostContext<'a> {
                     read_set: Vec::new(),
                     correlation: None,
                 };
-                let host = self.action_host.as_deref_mut().ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_ACTION_HOST_MISSING",
-                        "runtime",
-                        "action host call ran without an action host",
-                    )
-                })?;
+                let host = self.action_host.as_deref_mut().ok_or_else(action_host_missing)?;
                 let output = host.run_mutation(&name, input)?;
                 Ok(output.result)
             }

@@ -964,17 +964,15 @@ pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
 /// A read-only storage view for query execution on either lane.
 ///
 /// `Live` borrows the write connection (serialized under the global instance
-/// mutex). `LiveRaw` is the action path's deliberately raw alias of the same
-/// connection — an action holds `&mut LocalSnapback` through its host while
-/// its `ctx.db` reads go to the same database, so the borrow is expressed as
-/// a pointer exactly as it was before this enum existed. `Pinned` is a pooled
-/// read-only connection inside a WAL read transaction: every read through it
-/// (rows, versions, change high-waters) comes from one snapshot.
+/// mutex). `Pinned` is a pooled read-only connection inside a WAL read
+/// transaction: every read through it (rows, versions, change high-waters)
+/// comes from one snapshot. Actions carry no view at all — their `ctx.db`
+/// reads route through the action host, which chooses the locking policy per
+/// call (ENG-23324).
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
 pub enum DbRead<'a> {
     Live(&'a LocalDatabase),
-    LiveRaw(*const LocalDatabase),
     Pinned {
         conn: &'a Connection,
         schema: &'a SchemaManifest,
@@ -985,12 +983,6 @@ impl DbRead<'_> {
     fn live(&self) -> Option<&LocalDatabase> {
         match self {
             DbRead::Live(db) => Some(db),
-            // SAFETY: `LiveRaw` is constructed only by the action invocation
-            // path, from a `LocalDatabase` that outlives the invocation; the
-            // pointer is dereferenced only during synchronous host calls on
-            // the invocation's own thread (the same contract the previous
-            // `*const LocalDatabase` field carried).
-            DbRead::LiveRaw(db) => Some(unsafe { &**db }),
             DbRead::Pinned { .. } => None,
         }
     }
@@ -2314,7 +2306,7 @@ fn expect_string(value: Value, label: &str) -> SnapbackResult<String> {
     })
 }
 
-fn new_id() -> String {
+pub(crate) fn new_id() -> String {
     Uuid::now_v7().to_string()
 }
 

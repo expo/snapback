@@ -1049,6 +1049,16 @@ impl CapabilityManifest {
                     name: "wall_clock_timeout".to_owned(),
                     status: ResourceLimitStatus::Missing,
                 },
+                // ENG-23324: actions (the only egress-capable class) run
+                // detached under a coarse wall-clock watchdog — the caller is
+                // guaranteed an answer within the budget even when the VM
+                // thread is stuck in a hung fetch. Queries/mutations still
+                // have no timeout, so `wall_clock_timeout` above stays
+                // honestly Missing.
+                ResourceLimit {
+                    name: "action_wall_clock_timeout".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
                 ResourceLimit {
                     name: "cpu_budget".to_owned(),
                     status: ResourceLimitStatus::Missing,
