@@ -333,6 +333,14 @@ epochs now use v0 function metadata (`permissionEpochBumps`) to advance
 `resync_required` messages instead of a `live_replace`. Reconnect/resume
 stale-epoch comparison remains open.
 
+Implementation note, 2026-07-07 (ENG-23420): the dependency gate now consults
+captured `Row`/`MissingRow` point-read facts alongside `Query` predicates — a
+change landing on a point-read's `(table, id)` wakes the subscription even when
+every query predicate proves disjoint. Previously an Ibex live query that did
+`ctx.db.get` and folded the row into its result went permanently stale when
+only that row changed, because the gate filtered captured reads to `Query`
+dependencies before deciding to skip.
+
 #### Remaining Phase 4 design: dependency vocabulary and auth epochs
 
 The next implementation slice must extend one shared dependency vocabulary rather

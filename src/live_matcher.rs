@@ -158,15 +158,47 @@ fn live_subscription_may_be_affected_by_dependencies(
     read_dependencies: &[CapturedReadDependency],
     changes: &[ChangedRow],
 ) -> Option<bool> {
-    let query_dependencies = read_dependencies
-        .iter()
-        .filter(|dependency| dependency.kind == CapturedReadKind::Query)
-        .collect::<Vec<_>>();
-    if query_dependencies.is_empty() {
+    // Point reads participate in the disjointness proof alongside query
+    // predicates: an Ibex handler that does `ctx.db.get` and folds the row
+    // into its result captures a `Row`/`MissingRow` dependency the query
+    // predicates know nothing about, so a change landing on that (table, id)
+    // must wake the subscription even when no query predicate matches —
+    // otherwise the subscription goes permanently stale (ENG-23420).
+    //
+    // @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs —
+    // the matcher may skip only when every changed row is disjoint from every
+    // captured dependency; Row/MissingRow facts serve skip decisions too.
+    let mut saw_query_dependency = false;
+    for dependency in read_dependencies {
+        match dependency.kind {
+            CapturedReadKind::Row | CapturedReadKind::MissingRow => {
+                let (Some(table), Some(id)) =
+                    (dependency.table.as_deref(), dependency.id.as_deref())
+                else {
+                    return Some(true);
+                };
+                if changes
+                    .iter()
+                    .any(|change| change.table == table && change.id == id)
+                {
+                    return Some(true);
+                }
+            }
+            CapturedReadKind::Query => saw_query_dependency = true,
+            CapturedReadKind::Auth | CapturedReadKind::Permission => {}
+        }
+    }
+    if !saw_query_dependency {
+        // Without a query dependency the captured reads do not summarize the
+        // handler's full read set (e.g. a handler that never ran, or captured
+        // nothing); fall back to the conservative read-set-summary arm.
         return None;
     }
 
-    for dependency in query_dependencies {
+    for dependency in read_dependencies
+        .iter()
+        .filter(|dependency| dependency.kind == CapturedReadKind::Query)
+    {
         let Some(table) = dependency.table.as_deref() else {
             return Some(true);
         };
@@ -588,6 +620,217 @@ pub(crate) fn compute_live_delta(
         }
     }
     LiveDeltaOutcome::Delta(ops)
+}
+
+#[cfg(test)]
+mod dependency_gate_tests {
+    use super::*;
+    use crate::manifest::{AuthInput, FunctionDefinition, FunctionKind, IbexModule};
+
+    fn input() -> HandlerInput {
+        HandlerInput {
+            args: json!({}),
+            auth: AuthInput::default(),
+            read_set: Vec::new(),
+            correlation: None,
+        }
+    }
+
+    fn ibex_live_query() -> FunctionDefinition {
+        let mut definition = FunctionDefinition::new(
+            "listTodos",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "unused".to_owned(),
+                export: "listTodos".to_owned(),
+            }),
+        );
+        definition.read_set_summary.tables = vec!["todos".to_owned()];
+        definition
+    }
+
+    fn empty_dependency(kind: CapturedReadKind) -> CapturedReadDependency {
+        CapturedReadDependency {
+            kind,
+            table: None,
+            id: None,
+            version: None,
+            predicate: None,
+            rows: Vec::new(),
+            field: None,
+            value: None,
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        }
+    }
+
+    fn point_dependency(kind: CapturedReadKind, table: &str, id: &str) -> CapturedReadDependency {
+        CapturedReadDependency {
+            table: Some(table.to_owned()),
+            id: Some(id.to_owned()),
+            version: Some(1),
+            ..empty_dependency(kind)
+        }
+    }
+
+    /// A captured query on `todos` filtered to `completed = true`.
+    fn completed_todos_query_dependency() -> CapturedReadDependency {
+        let plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "completed".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::Bool(true)),
+            }],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        CapturedReadDependency {
+            table: Some("todos".to_owned()),
+            version: Some(1),
+            predicate: Some(serde_json::to_value(&plan).expect("serialize plan")),
+            ..empty_dependency(CapturedReadKind::Query)
+        }
+    }
+
+    fn update(table: &str, id: &str, row: Value, changed_fields: &[&str]) -> ChangedRow {
+        ChangedRow {
+            table: table.to_owned(),
+            id: id.to_owned(),
+            op: ChangeOp::Update,
+            row: Some(row),
+            changed_fields: changed_fields.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    // ENG-23420: a change landing on a `Row` point-read dependency must wake
+    // the subscription even when no query predicate matches the change —
+    // previously the gate consulted only `Query` dependencies and returned a
+    // skip verdict, leaving the subscription permanently stale.
+    #[test]
+    fn cross_table_row_dependency_hit_wakes_subscription() {
+        let definition = ibex_live_query();
+        let dependencies = vec![
+            point_dependency(CapturedReadKind::Row, "users", "u1"),
+            completed_todos_query_dependency(),
+        ];
+        let changes = vec![update(
+            "users",
+            "u1",
+            json!({ "_id": "u1", "name": "Ada v2" }),
+            &["name"],
+        )];
+        assert!(live_subscription_may_be_affected(
+            &definition,
+            &input(),
+            &dependencies,
+            &changes,
+        ));
+    }
+
+    #[test]
+    fn missing_row_dependency_hit_wakes_subscription() {
+        let definition = ibex_live_query();
+        let dependencies = vec![
+            point_dependency(CapturedReadKind::MissingRow, "users", "u2"),
+            completed_todos_query_dependency(),
+        ];
+        let changes = vec![ChangedRow {
+            table: "users".to_owned(),
+            id: "u2".to_owned(),
+            op: ChangeOp::Insert,
+            row: Some(json!({ "_id": "u2", "name": "New" })),
+            changed_fields: Vec::new(),
+        }];
+        assert!(live_subscription_may_be_affected(
+            &definition,
+            &input(),
+            &dependencies,
+            &changes,
+        ));
+    }
+
+    // The same-table variant: a point-read row that fails the query filter is
+    // still a dependency; an update to its non-filter fields must wake the
+    // subscription.
+    #[test]
+    fn same_table_point_read_outside_predicate_wakes_subscription() {
+        let definition = ibex_live_query();
+        let dependencies = vec![
+            point_dependency(CapturedReadKind::Row, "todos", "pinned"),
+            completed_todos_query_dependency(),
+        ];
+        let changes = vec![update(
+            "todos",
+            "pinned",
+            json!({ "_id": "pinned", "completed": false, "title": "v2" }),
+            &["title"],
+        )];
+        assert!(live_subscription_may_be_affected(
+            &definition,
+            &input(),
+            &dependencies,
+            &changes,
+        ));
+    }
+
+    // The skip lever stays armed: changes disjoint from every captured
+    // dependency — point reads and query predicates alike — are still skipped.
+    #[test]
+    fn changes_disjoint_from_point_reads_and_predicates_still_skip() {
+        let definition = ibex_live_query();
+        let dependencies = vec![
+            point_dependency(CapturedReadKind::Row, "users", "u1"),
+            point_dependency(CapturedReadKind::MissingRow, "users", "u2"),
+            completed_todos_query_dependency(),
+        ];
+        let changes = vec![
+            update(
+                "users",
+                "u9",
+                json!({ "_id": "u9", "name": "x" }),
+                &["name"],
+            ),
+            update(
+                "todos",
+                "other",
+                json!({ "_id": "other", "completed": false, "title": "t" }),
+                &["title"],
+            ),
+        ];
+        assert!(!live_subscription_may_be_affected(
+            &definition,
+            &input(),
+            &dependencies,
+            &changes,
+        ));
+    }
+
+    // A malformed point-read dependency (missing table/id) cannot prove
+    // disjointness, so the gate goes conservative.
+    #[test]
+    fn point_read_dependency_without_identity_is_conservative() {
+        let definition = ibex_live_query();
+        let dependencies = vec![
+            empty_dependency(CapturedReadKind::Row),
+            completed_todos_query_dependency(),
+        ];
+        let changes = vec![update(
+            "todos",
+            "other",
+            json!({ "_id": "other", "completed": false, "title": "t" }),
+            &["title"],
+        )];
+        assert!(live_subscription_may_be_affected(
+            &definition,
+            &input(),
+            &dependencies,
+            &changes,
+        ));
+    }
 }
 
 #[cfg(test)]

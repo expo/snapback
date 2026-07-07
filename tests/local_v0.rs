@@ -300,6 +300,90 @@ fn live_matcher_uses_captured_equality_predicates_beyond_auth_scope() {
     assert_eq!(inspect.live_delivery.last_skipped, 0);
 }
 
+/// ENG-23420: an Ibex live query that point-reads a row (`ctx.db.get`) and
+/// folds it into its result must be woken when that row changes, even when the
+/// change is disjoint from every captured query predicate. Previously the
+/// dependency gate consulted only `Query` dependencies, skipped the
+/// subscription, and the client stayed permanently stale.
+#[test]
+fn live_matcher_wakes_ibex_point_read_dependency() {
+    let mut functions = ibex_todo_functions(PINNED_TODOS_HANDLER_SOURCE);
+    let list = functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "listTodos")
+        .expect("listTodos function");
+    list.read_set_summary.auth_scope_field = None;
+    let mut set_title = FunctionDefinition::new(
+        "setTitle",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: PINNED_TODOS_HANDLER_SOURCE.to_owned(),
+            export: "setTitle".to_owned(),
+        }),
+    );
+    set_title.required_capabilities = vec![
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+    ];
+    set_title.write_set_summary.primary_table = Some("todos".to_owned());
+    set_title.write_set_summary.tables = vec!["todos".to_owned()];
+    set_title.write_set_summary.mode = Some("handlerDeclared".to_owned());
+    functions.functions.push(set_title);
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(functions);
+
+    let pinned = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "Pinned", "completed": false }), "user_1"),
+        )
+        .expect("create pinned todo");
+    let pinned_id = pinned.result.as_str().unwrap().to_owned();
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "Member", "completed": true }), "user_1"),
+        )
+        .expect("create member todo");
+
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({ "pinnedId": pinned_id }), "user_1"),
+                supersedes: None,
+            },
+        )
+        .expect("subscribe pinned todos");
+    snapback.drain_outbox("client_a");
+
+    // Retitle the pinned row. It fails the query's `completed = true`
+    // predicate and the patch does not touch a filter field, so only the
+    // captured Row dependency can wake the subscription.
+    snapback
+        .invoke_mutation(
+            "setTitle",
+            input(json!({ "id": pinned_id, "title": "Pinned v2" }), "user_1"),
+        )
+        .expect("retitle pinned todo");
+
+    let messages = snapback.drain_outbox("client_a");
+    assert_eq!(messages.len(), 1, "point-read change must be delivered");
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable live update");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("live update json");
+    assert_eq!(update["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(update["rows"][0]["pinnedTitle"], "Pinned v2");
+    let inspect = snapback.inspect().expect("inspect point-read delivery");
+    assert_eq!(inspect.live_delivery.last_deliveries, 1);
+    assert_eq!(inspect.live_delivery.last_skipped, 0);
+}
+
 #[test]
 fn live_matcher_uses_captured_in_predicates() {
     let mut functions = ibex_todo_functions(IN_TODOS_HANDLER_SOURCE);
@@ -2072,6 +2156,37 @@ globalThis.__snapbackHandlers = {
     const todo = await ctx.db.get('todos', args.id);
     if (!todo) return 0;
     return (await ctx.db.delete('todos', args.id)) ? 1 : 0;
+  }
+};
+"#;
+
+const PINNED_TODOS_HANDLER_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async listTodos(ctx, args) {
+    const pinned = await ctx.db.get('todos', args.pinnedId);
+    const rows = await ctx.db
+      .query('todos')
+      .eq('completed', true)
+      .order('_createdAt', 'asc')
+      .collect();
+    return rows.map((row) => ({
+      ...row,
+      pinnedTitle: pinned ? pinned.title : null,
+    }));
+  },
+
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', {
+      title: args.title,
+      completed: args.completed === true,
+      userId: ctx.auth.userId,
+    });
+  },
+
+  async setTitle(ctx, args) {
+    return (await ctx.db.patch('todos', args.id, {
+      title: args.title,
+    })) ? 1 : 0;
   }
 };
 "#;
