@@ -10,6 +10,6 @@
     "./exact-project-check": "./exact-project-check.mjs"
   },
   "scripts": {
-    "test": "node build-preset.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs"
+    "test": "node build-preset.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs && node multi-live-poll-reconcile.test.mjs"
   }
 }

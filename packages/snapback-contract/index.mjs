@@ -1211,7 +1211,8 @@ async function createMultiLiveContractSurface({
 
     // Establish every live subscription (snapshot-with-subscribe each; one
     // shared socket via the connection id) before the boundary exists, then
-    // build the boundary from the snapshots.
+    // build the boundary from the snapshots. Non-configured (non-live) query
+    // cells stay [] in both modes; only the configured entries carry data.
     const initialRows = {};
     for (const name of queryNames) {
       if (manifest?.queries?.[name]?.ephemeral === true) continue;
@@ -1245,6 +1246,16 @@ async function createMultiLiveContractSurface({
         liveCellObservers.set(name, new Set());
         initialRows[name] = handle.rows;
       }
+    } else {
+      // `livePush: false` (or a client without liveQuery()) is the documented
+      // poll/reconcile opt-out (LLP 0034 D1) — the same contract single-query
+      // mode honors: seed each configured entry from a client.query snapshot
+      // here, and reconcile all entries after every mutation below. Without
+      // this every cell stayed [] with ready status forever while mutations
+      // silently committed server-side (ENG-23386).
+      for (const { name, args } of liveQueryEntries) {
+        initialRows[name] = (await client.query(name, { args, userId })).rows;
+      }
     }
     boundary = runtime.createContractMockQueryBoundary(initialRows);
     for (const [name, handle] of liveHandles) {
@@ -1264,6 +1275,17 @@ async function createMultiLiveContractSurface({
       return task;
     };
 
+    // Without live push there is no server fan-out to refresh the boundary,
+    // so mutations reconcile every configured entry from an authoritative
+    // snapshot (ENG-23386). Under push this never runs: the subscriptions'
+    // onUpdate fan-out owns the boundary.
+    const reconcileLiveQueries = async () => {
+      for (const { name, args } of liveQueryEntries) {
+        const rows = (await client.query(name, { args, userId })).rows;
+        if (!disposed && boundary) boundary.write(name, () => rows);
+      }
+    };
+
     const persistMutation = async (name, args) => {
       try {
         await client.mutate(name, {
@@ -1277,6 +1299,20 @@ async function createMultiLiveContractSurface({
           args,
         });
         throw error;
+      }
+      if (!wantLivePush) {
+        try {
+          await reconcileLiveQueries();
+        } catch (reconcileError) {
+          // The mutation committed; only the refresh failed. Surface that
+          // honestly (stale boundary, not a failed mutation) and propagate.
+          publishDiagnostic(
+            'SNAPBACK_CONTRACT_RECONCILE_FAILED',
+            reconcileError instanceof Error ? reconcileError.message : String(reconcileError),
+            { mutation: name, args },
+          );
+          throw reconcileError;
+        }
       }
     };
 

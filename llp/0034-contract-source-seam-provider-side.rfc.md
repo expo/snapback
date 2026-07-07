@@ -729,3 +729,21 @@ dispose the ephemeral wiring, detach the receipt listener — before the error
 (diagnostics intact) surfaces. Gated by
 `packages/snapback-contract/surface-construction-failure.test.mjs` (plain
 node, mock client/runtime).
+
+### 10.6 Multi-live mode honors the poll/reconcile opt-out (2026-07-07, ENG-23386)
+
+`livePush: false` — or a client without `liveQuery()` — is D1's documented
+opt-out: "poll/reconcile only". Single-query mode always honored it (one
+`client.query` snapshot plus reconcile-on-mutate); multi-live mode did not —
+with `wantLivePush` false it skipped the subscribe loop, left every
+non-ephemeral cell `[]`, and its `persistMutation` never reconciled, so every
+binding served permanently empty *ready* data while mutations silently
+committed server-side. Multi-live mode now matches the single-mode contract:
+each configured `liveQueries` entry seeds from a `client.query` snapshot with
+its configured args, and every mutation reconciles all configured entries
+from fresh snapshots. A reconcile failure after a committed mutation is
+diagnosed as `SNAPBACK_CONTRACT_RECONCILE_FAILED` (not a mutation failure)
+and propagates. Non-configured query cells stay `[]` in both modes, and the
+push path is unchanged (no polling; fan-out owns the boundary). Gated by
+`packages/snapback-contract/multi-live-poll-reconcile.test.mjs` (plain node,
+mock client/runtime).
