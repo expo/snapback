@@ -20,18 +20,21 @@
 // a FAILURE (the original cursors-web bug), never a skip.
 //
 // Two consumption modes, matching LLP 0015's two-lane CI model:
-//   * registry  — self-contained; @exact/* installed from npm, the surface's
-//                 bun.lock is the pin (all-aboard). Builds in BOTH lanes.
+//   * registry  — @exact/* installed from npm; the surface's bun.lock is the
+//                 package pin (all-aboard). Today @ccheever/exact-devtools
+//                 still needs SNAPBACK_EXACT_ROOT as a native-asset bridge
+//                 until ENG-22564 publishes packages that ship those assets.
 //   * checkout  — interim sibling-Exact-source bridge, pinned by exact.pin.json
-//                 (cursors-web, ENG-22797; durable fix ENG-22564). Builds in the
-//                 integration lane (Exact checkout present) and LOUD-SKIPS in the
-//                 core lane with a declared reason — never a silent gap.
+//                 (cursors-web, ENG-22797; durable fix ENG-22564). Builds only
+//                 in the integration lane when a clean checkout at the pinned
+//                 revision is present; otherwise LOUD-SKIPS in the core lane
+//                 with a declared reason — never a silent gap.
 //
 // SNAPBACK_REQUIRE_EXACT=1 upgrades every checkout-mode skip into a hard
 // failure (the integration lane / cold-clone discipline: required means
 // required, never skip).
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,18 +54,17 @@ function fail(msg) {
 }
 
 // The interim checkout bridge (ENG-22797) resolves @exact/* against a sibling
-// Exact SOURCE checkout. Same discovery order the surface vite.config uses.
-function exactCheckoutRoot() {
+// Exact SOURCE checkout. Same discovery order the surface vite.config uses,
+// but the gate only treats a clean checkout at exact.pin.json as integration
+// proof. A random sibling worktree must not silently bless a required surface.
+function exactCheckoutCandidates() {
   if (process.env.SNAPBACK_EXACT_ROOT) {
     const p = resolve(process.env.SNAPBACK_EXACT_ROOT);
-    return existsSync(p) ? p : null;
+    return existsSync(p) ? [p] : [];
   }
-  for (const candidate of [resolve(ROOT, '../exact'), resolve(ROOT, 'vendor/exact')]) {
-    if (existsSync(join(candidate, 'packages/exact-devtools/src/contract-web.ts'))) {
-      return candidate;
-    }
-  }
-  return null;
+  return [resolve(ROOT, '../exact'), resolve(ROOT, 'vendor/exact')].filter((candidate) =>
+    existsSync(join(candidate, 'packages/exact-devtools/src/contract-web.ts')),
+  );
 }
 
 // Collect the gated surfaces from the demo manifests (single source of truth).
@@ -99,8 +101,59 @@ function classify(surface) {
   const hasBuild = Boolean(pkg.scripts?.build);
   // exact.pin.json marks the interim sibling-checkout bridge; a registry
   // surface pins through its committed lockfile instead.
-  const mode = existsSync(join(surface.surfaceDir, 'exact.pin.json')) ? 'checkout' : 'registry';
-  return { ...surface, hasBuild, mode };
+  const pinPath = join(surface.surfaceDir, 'exact.pin.json');
+  const mode = existsSync(pinPath) ? 'checkout' : 'registry';
+  const exactPin = mode === 'checkout' ? readExactPin(pinPath) : null;
+  return { ...surface, hasBuild, mode, exactPin };
+}
+
+function readExactPin(pinPath) {
+  try {
+    const parsed = JSON.parse(readFileSync(pinPath, 'utf8'));
+    return typeof parsed.revision === 'string' && parsed.revision.length > 0
+      ? parsed.revision
+      : null;
+  } catch (err) {
+    fail(`${pinPath.replace(ROOT + '/', '')} is not valid JSON: ${err.message}`);
+  }
+}
+
+function gitOutput(root, args) {
+  const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  return result.stdout.trim();
+}
+
+function resolvePinnedExactCheckout(surface) {
+  const candidates = exactCheckoutCandidates();
+  if (candidates.length === 0) {
+    return {
+      ok: false,
+      reason: process.env.SNAPBACK_EXACT_ROOT
+        ? `SNAPBACK_EXACT_ROOT does not exist or is not an Exact checkout: ${process.env.SNAPBACK_EXACT_ROOT}`
+        : 'no Exact checkout is available (set SNAPBACK_EXACT_ROOT or place a checkout at ../exact)',
+    };
+  }
+
+  const rejected = [];
+  for (const root of candidates) {
+    const head = gitOutput(root, ['rev-parse', 'HEAD']);
+    if (!head) {
+      rejected.push(`${root}: not a git checkout`);
+      continue;
+    }
+    if (surface.exactPin && head !== surface.exactPin) {
+      rejected.push(`${root}: HEAD ${head.slice(0, 12)} != exact.pin.json ${surface.exactPin.slice(0, 12)}`);
+      continue;
+    }
+    const dirty = gitOutput(root, ['status', '--porcelain', '--untracked-files=no']);
+    if (dirty) {
+      rejected.push(`${root}: checkout has tracked local changes`);
+      continue;
+    }
+    return { ok: true, root, head };
+  }
+  return { ok: false, reason: rejected.join('; ') };
 }
 
 function distHasArtifact(surfaceDir) {
@@ -185,7 +238,6 @@ async function main() {
   }
   if (LIST_ONLY) return;
 
-  const exactRoot = exactCheckoutRoot();
   let built = 0;
   let skipped = 0;
 
@@ -201,8 +253,9 @@ async function main() {
     const env = { SNAPBACK_REQUIRE_EXACT: REQUIRE_EXACT ? '1' : process.env.SNAPBACK_REQUIRE_EXACT ?? '' };
 
     if (surface.mode === 'checkout') {
-      if (!exactRoot) {
-        const reason = `${id} consumes Exact from a sibling SOURCE checkout (interim ENG-22797 bridge; durable fix ENG-22564) and no Exact checkout is available (set SNAPBACK_EXACT_ROOT or place a checkout at ../exact).`;
+      const checkout = resolvePinnedExactCheckout(surface);
+      if (!checkout.ok) {
+        const reason = `${id} consumes Exact from a pinned sibling SOURCE checkout (interim ENG-22797 bridge; durable fix ENG-22564), but no clean checkout at ${surface.exactPin?.slice(0, 12) ?? 'the pinned revision'} is available: ${checkout.reason}.`;
         if (REQUIRE_EXACT) {
           fail(`${reason} SNAPBACK_REQUIRE_EXACT=1 forbids skipping a required surface build.`);
         }
@@ -211,8 +264,8 @@ async function main() {
         skipped += 1;
         continue;
       }
-      env.SNAPBACK_EXACT_ROOT = exactRoot;
-      log(`using Exact checkout: ${exactRoot}`);
+      env.SNAPBACK_EXACT_ROOT = checkout.root;
+      log(`using Exact checkout: ${checkout.root} @ ${checkout.head.slice(0, 12)}`);
     } else {
       const install = await ensureRegistryInstall(surface);
       if (!install.ok) fail(`${id}: ${install.reason}`);

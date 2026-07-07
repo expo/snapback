@@ -11,12 +11,14 @@ name: required-surface-builds
 # canonical gate; verify-local-proof runs the same script, so local runs and
 # CI exercise one code path.
 #
-# This is the CORE lane (LLP 0015 §Peer Checkout Versus Submodule): no Exact checkout. Registry
-# surfaces (all-aboard — @exact/* from npm, bun.lock is the pin) build here;
-# the interim sibling-checkout surface (cursors-web, ENG-22797) LOUD-SKIPS with
-# a declared reason and is production-built by the integration lane
-# (verify-local-proof with an Exact checkout, and the all-aboard-cold-clone
-# lane) until ENG-22564 migrates it onto published @ccheever/exact-* packages.
+# This is the CORE lane (LLP 0015 §Peer Checkout Versus Submodule): registry
+# surfaces (all-aboard — @exact/* from npm, bun.lock is the pin) build here.
+# Until ENG-22564 publishes Exact packages that ship every native embedded
+# source, this lane checks out a pinned Exact asset source only for the patched
+# registry package's native startup bridge. That checkout is NOT integration
+# proof for sibling-checkout surfaces: scripts/check-required-surface-builds.mjs
+# still LOUD-SKIPS cursors-web unless the checkout is clean and exactly matches
+# surfaces/contract/exact.pin.json.
 #
 # NOTE: GitHub Actions is billing-blocked for this account as of 2026-07-02
 # (see all-aboard-cold-clone.yml), so this lane is verified by local runs of
@@ -39,6 +41,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # ENG-22564 bridge: @ccheever/exact-devtools@0.1.0 still needs the
+      # native startup template + Ibex URL builtin from an Exact source tree.
+      # Keep this ref pinned; when the packages publish those assets, remove
+      # this checkout and SNAPBACK_EXACT_ROOT from the build step.
+      - uses: actions/checkout@v7
+        with:
+          repository: ccheever/exact
+          ref: 9d085610145dca01aec8c83e50d844ad6ae8f6b5
+          path: exact
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -50,4 +64,6 @@ jobs:
       # inside the script (bun install --frozen-lockfile); a lockfile that
       # drifts fails, not resolves.
       - name: Production-build every required demo web surface
+        env:
+          SNAPBACK_EXACT_ROOT: ${{ github.workspace }}/exact
         run: node scripts/check-required-surface-builds.mjs
