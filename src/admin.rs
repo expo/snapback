@@ -11,6 +11,7 @@ use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{ApiError, ConnectionRegistry, HealthResponse, SharedSnapback};
+use anyhow::Context as _;
 use axum::extract::{FromRef, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
@@ -69,8 +70,9 @@ const SETUP_HTML: &str = include_str!("admin/setup.html");
 /// answers "is this operation appropriate in this environment?". Destructive
 /// and provisioning operations require BOTH. Resolution: `SNAPBACK_PROFILE`
 /// (dev|demo|test|prod) wins; otherwise loopback binds default to `dev` (the
-/// zero-config local posture, mirroring the loopback-open AdminWrite stance —
-/// OQ7 stands) and non-loopback binds default to `prod`.
+/// zero-config local posture — OQ7 stands; since ENG-23443 the AdminWrite side
+/// of that posture is a minted token rather than loopback-open) and
+/// non-loopback binds default to `prod`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ServerProfile {
     Dev,
@@ -135,6 +137,13 @@ pub struct ServerContext {
     pub started: Instant,
     pub started_at_ms: u64,
     pub admin_token: Option<String>,
+    /// True when `admin_token` was auto-minted at serve time rather than
+    /// configured via `SNAPBACK_ADMIN_TOKEN` (ENG-23443).
+    pub admin_token_minted: bool,
+    /// Where the minted token is persisted (0600), when it is persisted at
+    /// all. Reading this file as the same user is what makes a local process
+    /// admin (LLP 0036 D3); a browser page on another localhost port cannot.
+    pub admin_token_file: Option<PathBuf>,
     /// Directory of a built static console bundle (`SNAPBACK_ADMIN_DIST`, or the
     /// repo-local `admin-ui/dist` when it has already been built). When present,
     /// the Contract console is served from here; otherwise `/_snapback/admin`
@@ -158,6 +167,8 @@ impl ServerContext {
             started: Instant::now(),
             started_at_ms: now_millis(),
             admin_token: env_admin_token(),
+            admin_token_minted: false,
+            admin_token_file: None,
             admin_dist: env_admin_dist(),
         }
     }
@@ -174,8 +185,19 @@ impl ServerContext {
             started: Instant::now(),
             started_at_ms: now_millis(),
             admin_token: env_admin_token(),
+            admin_token_minted: false,
+            admin_token_file: None,
             admin_dist: env_admin_dist(),
         }
+    }
+
+    /// Install a serve-time resolved admin token (ENG-23443): the serve path
+    /// calls this when `SNAPBACK_ADMIN_TOKEN` is unset on a loopback bind, so
+    /// a served instance is never tokenless for writes.
+    pub fn install_minted_token(&mut self, resolved: &ResolvedAdminToken) {
+        self.admin_token = Some(resolved.token.clone());
+        self.admin_token_minted = resolved.minted;
+        self.admin_token_file = resolved.file.clone();
     }
 
     pub fn uptime_ms(&self) -> u64 {
@@ -187,6 +209,111 @@ fn env_admin_token() -> Option<String> {
     std::env::var("SNAPBACK_ADMIN_TOKEN")
         .ok()
         .filter(|token| !token.is_empty())
+}
+
+/// The admin token the serve path settled on, and how it was obtained.
+#[derive(Clone, Debug)]
+pub struct ResolvedAdminToken {
+    pub token: String,
+    /// False only when the token came from `SNAPBACK_ADMIN_TOKEN`.
+    pub minted: bool,
+    /// Freshly generated this call (vs loaded from the token file or env) —
+    /// the value is printed once, on the start that minted it (LLP 0036 D3).
+    pub fresh: bool,
+    /// The 0600 file the minted token persists in, when there is one.
+    pub file: Option<PathBuf>,
+}
+
+/// Mint a local admin capability token: 122 bits of CSPRNG randomness.
+pub fn mint_admin_token() -> String {
+    format!("sbat_{}", uuid::Uuid::new_v4().simple())
+}
+
+/// The sibling file a minted admin token persists in, next to the artifact
+/// that names the instance (the SQLite database, or the readiness descriptor
+/// for in-memory instances) — the same sibling convention as the
+/// `.snapback.lock` instance lock.
+pub fn admin_token_sibling(path: &std::path::Path) -> PathBuf {
+    let mut name = path
+        .file_name()
+        .map(|name| name.to_os_string())
+        .unwrap_or_default();
+    name.push(".admin-token");
+    path.with_file_name(name)
+}
+
+/// Serve-time admin-token resolution (ENG-23443): an explicit
+/// `SNAPBACK_ADMIN_TOKEN` wins; otherwise the existing token file is reused;
+/// otherwise a fresh token is minted (and persisted 0600 when a file path is
+/// available). The serve path calls this on every loopback bind, so admin
+/// writes over HTTP are never tokenless — the localhost-CORS reflection in
+/// `local_dev_cors` would otherwise let any local web page drive them.
+///
+/// @ref LLP 0017#security-defaults — writes require an admin token or
+/// equivalent local capability even on loopback; the minted token is that
+/// capability.
+pub fn resolve_serve_admin_token(
+    env_token: Option<String>,
+    token_file: Option<PathBuf>,
+) -> anyhow::Result<ResolvedAdminToken> {
+    if let Some(token) = env_token.filter(|token| !token.is_empty()) {
+        return Ok(ResolvedAdminToken {
+            token,
+            minted: false,
+            fresh: false,
+            file: None,
+        });
+    }
+    let Some(path) = token_file else {
+        return Ok(ResolvedAdminToken {
+            token: mint_admin_token(),
+            minted: true,
+            fresh: true,
+            file: None,
+        });
+    };
+    match std::fs::read_to_string(&path) {
+        Ok(existing) => {
+            let existing = existing.trim();
+            if !existing.is_empty() {
+                return Ok(ResolvedAdminToken {
+                    token: existing.to_owned(),
+                    minted: true,
+                    fresh: false,
+                    file: Some(path),
+                });
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("failed to read admin token file {}", path.display()));
+        }
+    }
+    let token = mint_admin_token();
+    write_token_file(&path, &token)
+        .with_context(|| format!("failed to write admin token file {}", path.display()))?;
+    Ok(ResolvedAdminToken {
+        token,
+        minted: true,
+        fresh: true,
+        file: Some(path),
+    })
+}
+
+/// Persist a minted token owner-readable only: the file being 0600 is what
+/// scopes the capability to the current user on shared machines.
+fn write_token_file(path: &std::path::Path, token: &str) -> std::io::Result<()> {
+    use std::io::Write as _;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path)?;
+    writeln!(file, "{token}")
 }
 
 fn env_admin_dist() -> Option<PathBuf> {
@@ -324,6 +451,12 @@ pub struct AdminCapabilities {
     pub token_configured: bool,
     pub writes_require_token: bool,
     pub bind_loopback: bool,
+    /// Path of the auto-minted admin token file, when the serve path
+    /// persisted one (ENG-23443). Local tooling reads the token from here:
+    /// same-user filesystem access *is* local admin (LLP 0036 D3), while a
+    /// browser page on another localhost origin cannot read files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_file: Option<String>,
 }
 
 /// The canonical admin inspect payload: the existing `InspectState` extended in
@@ -364,6 +497,10 @@ impl AdminInspect {
             token_configured,
             writes_require_token: token_configured || !ctx.loopback,
             bind_loopback: ctx.loopback,
+            token_file: ctx
+                .admin_token_file
+                .as_ref()
+                .map(|path| path.display().to_string()),
         };
         Self {
             inspect,
@@ -388,6 +525,12 @@ pub enum AdminAccess {
 /// @ref LLP 0017#security-defaults — loopback reads are convenient; writes are
 /// token-gated when a token is set even on loopback; a non-loopback bind without
 /// a valid token disables admin.
+///
+/// The tokenless-loopback-open write branch is reachable only from embedded,
+/// in-process routers (`server::router`, `AppState::detached`): the serve path
+/// always resolves a token first (`resolve_serve_admin_token`, ENG-23443), so
+/// no HTTP-served instance accepts tokenless writes — otherwise the reflected
+/// localhost CORS would hand admin writes to any local web page.
 pub fn evaluate_access(
     loopback: bool,
     configured: Option<&str>,
@@ -930,6 +1073,71 @@ mod tests {
         assert_eq!(
             evaluate_access(false, Some("secret"), Some("secret"), true),
             AdminAccess::Allowed
+        );
+    }
+
+    #[test]
+    fn explicit_env_token_wins_and_mints_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("app.sqlite3.admin-token");
+        let resolved =
+            resolve_serve_admin_token(Some("from-env".to_owned()), Some(file.clone())).unwrap();
+        assert_eq!(resolved.token, "from-env");
+        assert!(!resolved.minted);
+        assert!(!resolved.fresh);
+        assert_eq!(resolved.file, None);
+        assert!(!file.exists(), "env token must not create a token file");
+    }
+
+    #[test]
+    fn minted_token_persists_owner_only_and_is_stable_across_restarts() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("app.sqlite3.admin-token");
+
+        let first = resolve_serve_admin_token(None, Some(file.clone())).unwrap();
+        assert!(first.minted && first.fresh);
+        assert!(first.token.starts_with("sbat_"));
+        assert_eq!(first.file.as_deref(), Some(file.as_path()));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&file).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "token file must be owner-readable only");
+        }
+
+        // A restart loads the same capability instead of rotating it.
+        let second = resolve_serve_admin_token(None, Some(file.clone())).unwrap();
+        assert!(second.minted && !second.fresh);
+        assert_eq!(second.token, first.token);
+    }
+
+    #[test]
+    fn blank_token_file_is_re_minted_and_no_file_means_ephemeral() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("app.sqlite3.admin-token");
+        std::fs::write(&file, "  \n").unwrap();
+        let resolved = resolve_serve_admin_token(None, Some(file.clone())).unwrap();
+        assert!(resolved.minted && resolved.fresh);
+        assert!(!resolved.token.trim().is_empty());
+
+        // No file path (in-memory, no ready file): a per-process token, never
+        // absent — the regression ENG-23443 guards against is a tokenless
+        // served instance.
+        let a = resolve_serve_admin_token(None, None).unwrap();
+        let b = resolve_serve_admin_token(None, None).unwrap();
+        assert!(a.minted && a.fresh && a.file.is_none());
+        assert_ne!(a.token, b.token);
+    }
+
+    #[test]
+    fn token_sibling_mirrors_the_lock_sibling_convention() {
+        assert_eq!(
+            admin_token_sibling(std::path::Path::new("/data/app.sqlite3")),
+            PathBuf::from("/data/app.sqlite3.admin-token")
+        );
+        assert_eq!(
+            admin_token_sibling(std::path::Path::new("ready.json")),
+            PathBuf::from("ready.json.admin-token")
         );
     }
 

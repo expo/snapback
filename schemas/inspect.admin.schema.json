@@ -159,6 +159,13 @@
         "tokenConfigured": {
           "type": "boolean"
         },
+        "tokenFile": {
+          "description": "Path of the auto-minted admin token file, when the serve path\npersisted one (ENG-23443). Local tooling reads the token from here:\nsame-user filesystem access *is* local admin (LLP 0036 D3), while a\nbrowser page on another localhost origin cannot read files.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "writesRequireToken": {
           "type": "boolean"
         }

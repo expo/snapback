@@ -245,7 +245,9 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
     let token = target
         .token
         .clone()
-        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok());
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or_else(|| discover_minted_token(target, &url));
     let mut http = ureq::post(&format!("{url}/_snapback/api/host-ops"));
     if let Some(token) = token.filter(|token| !token.is_empty()) {
         http = http.set("x-snapback-admin-token", &token);
@@ -261,6 +263,33 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
             .context("host-ops error response was not JSON")?),
         Err(error) => Err(error).context("host-ops request failed"),
     }
+}
+
+/// Minted-token discovery (ENG-23443): when the caller passed no explicit
+/// token, read the auto-minted token file the server points at — via the
+/// readiness descriptor's `adminTokenFile` or, for `--url` targets, the
+/// loopback-open admin inspect's `admin.tokenFile`. Being able to read that
+/// 0600 file as this user is what makes the CLI local admin (LLP 0036 D3);
+/// discovery failing just means the request goes out tokenless and surfaces
+/// the server's structured refusal.
+fn discover_minted_token(target: &TargetArgs, url: &str) -> Option<String> {
+    let file = if let Some(path) = &target.ready_file {
+        read_json_file(path)
+            .ok()?
+            .get("adminTokenFile")?
+            .as_str()?
+            .to_owned()
+    } else {
+        let inspect: Value = ureq::get(&format!("{url}/_snapback/api/inspect"))
+            .call()
+            .ok()?
+            .into_json()
+            .ok()?;
+        inspect.get("admin")?.get("tokenFile")?.as_str()?.to_owned()
+    };
+    let token = std::fs::read_to_string(file).ok()?;
+    let token = token.trim();
+    (!token.is_empty()).then(|| token.to_owned())
 }
 
 /// Print the envelope; returns envelope `ok` (missing/false → false).
@@ -451,9 +480,34 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // @ref LLP 0017#serving-model — capture the bound address so the admin API
     // reports host/port/uptime and gates by loopback vs non-loopback.
     let loopback = local_addr.ip().is_loopback();
-    let server_context =
+    let mut server_context =
         ServerContext::new(local_addr.ip().to_string(), local_addr.port(), loopback);
+    // @ref LLP 0017#security-defaults — a served loopback instance is never
+    // tokenless (ENG-23443): with the reflected localhost CORS, tokenless
+    // writes would be drivable by any local web page. Without
+    // SNAPBACK_ADMIN_TOKEN we mint a local token, persisted 0600 next to the
+    // database (or the ready file for in-memory instances). Non-loopback
+    // binds keep admin disabled until an explicit token is set.
+    let mut minted_token = None;
+    if loopback && server_context.admin_token.is_none() {
+        let token_file = database_path
+            .as_deref()
+            .or(args.ready_file.as_deref())
+            .map(crate::admin::admin_token_sibling);
+        let resolved = crate::admin::resolve_serve_admin_token(None, token_file)?;
+        server_context.install_minted_token(&resolved);
+        minted_token = Some(resolved);
+    }
     let token_configured = server_context.admin_token.is_some();
+    let ready_sibling_token_file = if database_path.is_none() {
+        server_context.admin_token_file.clone()
+    } else {
+        None
+    };
+    let admin_token_file_display = server_context
+        .admin_token_file
+        .as_ref()
+        .map(|path| path.display().to_string());
     let cron_scheduler = server::spawn_cron_scheduler(state.clone());
     let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral.clone());
     let app = server::app(AppState::new(state, read_lane, ephemeral, server_context));
@@ -494,6 +548,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                 .map(|elapsed| elapsed.as_millis() as u64)
                 .unwrap_or(0),
             admin_gated: token_configured || !loopback,
+            admin_token_file: admin_token_file_display.clone(),
             diagnostics: Vec::new(),
         };
         write_ready_file_atomic(
@@ -514,10 +569,21 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         println!(
             "admin: DISABLED on this non-loopback bind — set SNAPBACK_ADMIN_TOKEN to enable it"
         );
-    } else if token_configured {
-        println!("admin: writes require SNAPBACK_ADMIN_TOKEN");
+    } else if let Some(minted) = &minted_token {
+        // The minted-token surfacing (ENG-23443): the value is printed on the
+        // start that minted it; afterwards the 0600 file is the capability
+        // hand-off — reading it as this user is what local admin means.
+        println!(
+            "admin: writes require the minted local admin token (SNAPBACK_ADMIN_TOKEN unset)"
+        );
+        if minted.fresh {
+            println!("admin token: {}", minted.token);
+        }
+        if let Some(file) = &minted.file {
+            println!("admin token file: {}", file.display());
+        }
     } else {
-        println!("admin: open on loopback (set SNAPBACK_ADMIN_TOKEN to require it for writes)");
+        println!("admin: writes require SNAPBACK_ADMIN_TOKEN");
     }
     // @ref LLP 0036#the-setup-wizard-d3 — the printed setup line is the
     // install instruction. Artifacts usually load after boot (the same line
@@ -543,6 +609,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     maintenance_worker.abort();
     drop(database_lock);
     if let Some(path) = args.ready_file.as_ref() {
+        let _ = std::fs::remove_file(path);
+    }
+    // An in-memory instance's minted token dies with the process; remove the
+    // ready-file-sibling token file it was handed off through (ENG-23443).
+    // File-backed instances keep their token file across restarts.
+    if let Some(path) = ready_sibling_token_file.as_ref() {
         let _ = std::fs::remove_file(path);
     }
     server_result?;
@@ -736,6 +808,7 @@ mod tests {
             },
             started_at_ms: 0,
             admin_gated: false,
+            admin_token_file: None,
             diagnostics: Vec::new(),
         }
     }

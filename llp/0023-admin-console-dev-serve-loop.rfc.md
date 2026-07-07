@@ -127,7 +127,10 @@ running Snapback server. The browser sees a single origin, so:
 - No Rust changes — Snapback is just a normal local server in another terminal.
 - The privileged proxy is not accidentally exposed on the LAN. (Loopback binding
   does not by itself stop a page *in the dev browser* from driving the proxy —
-  the admin API is open on loopback by default; see Open questions.)
+  which is why, since ENG-23443, a served instance always has an admin token
+  gating writes: auto-minted when `SNAPBACK_ADMIN_TOKEN` is unset, per
+  [LLP 0017](./0017-admin-console-inspection-surface.rfc.md) §Security
+  Defaults.)
 
 The developer loop is two terminals:
 

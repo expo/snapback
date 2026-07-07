@@ -396,6 +396,8 @@ fn context(loopback: bool, token: Option<&str>) -> ServerContext {
         started: Instant::now(),
         started_at_ms: 0,
         admin_token: token.map(ToOwned::to_owned),
+        admin_token_minted: false,
+        admin_token_file: None,
         admin_dist: None,
     }
 }

@@ -688,6 +688,72 @@ async fn s1_gated_writes_require_token_when_configured_even_on_loopback() {
     assert_eq!(allowed.status(), StatusCode::OK);
 }
 
+/// ENG-23443 — the serve path always resolves an admin token on loopback, so
+/// the reflected localhost CORS can no longer be combined with a tokenless
+/// instance: a write from an arbitrary localhost origin without the minted
+/// token fails closed (even though the origin itself is reflected), and goes
+/// through only with the minted token in hand. The read-open inspect names
+/// the token file so same-user tooling can pick up the capability — a browser
+/// page cannot read files.
+#[tokio::test]
+async fn minted_token_blocks_writes_from_arbitrary_localhost_origins() {
+    let dir = tempfile::tempdir().unwrap();
+    let token_file = snapback::admin::admin_token_sibling(&dir.path().join("app.sqlite3"));
+    let resolved =
+        snapback::admin::resolve_serve_admin_token(None, Some(token_file.clone())).unwrap();
+    let mut ctx = loopback_context(None);
+    ctx.install_minted_token(&resolved);
+    let app = app_with_context(seeded_snapback(), ctx);
+
+    let evil_origin_write = Request::builder()
+        .method("POST")
+        .uri("/_snapback/api/app/reset")
+        .header("content-type", "application/json")
+        .header("origin", "http://localhost:5173")
+        .body(Body::from(json!({}).to_string()))
+        .unwrap();
+    let denied = app.clone().oneshot(evil_origin_write).await.unwrap();
+    // The origin is reflected (local dev CORS)…
+    assert_eq!(
+        denied
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|value| value.to_str().ok()),
+        Some("http://localhost:5173")
+    );
+    // …but the write fails closed without the minted token.
+    assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+    let body = json(denied).await;
+    assert_eq!(body["diagnostic"]["code"], "SNAPBACK_ADMIN_TOKEN_REQUIRED");
+
+    let inspect = json(
+        app.clone()
+            .oneshot(get("/_snapback/api/inspect"))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(
+        inspect["admin"]["tokenConfigured"], true,
+        "a minted token must report as configured"
+    );
+    assert_eq!(
+        inspect["admin"]["tokenFile"],
+        json!(token_file.display().to_string()),
+        "inspect must name the minted token file for same-user tooling"
+    );
+
+    let allowed = app
+        .oneshot(post_with_token(
+            "/_snapback/api/app/reset",
+            json!({}),
+            &resolved.token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(allowed.status(), StatusCode::OK);
+}
+
 /// LLP 0032 S1 (was S0) — on a non-loopback bind the gated writes are disabled
 /// without a token and token-gated with one.
 #[tokio::test]
@@ -1184,6 +1250,8 @@ fn loopback_context(token: Option<&str>) -> ServerContext {
         started: Instant::now(),
         started_at_ms: 0,
         admin_token: token.map(ToOwned::to_owned),
+        admin_token_minted: false,
+        admin_token_file: None,
         admin_dist: None,
     }
 }
@@ -1198,6 +1266,8 @@ fn exposed_context(token: Option<&str>) -> ServerContext {
         started: Instant::now(),
         started_at_ms: 0,
         admin_token: token.map(ToOwned::to_owned),
+        admin_token_minted: false,
+        admin_token_file: None,
         admin_dist: None,
     }
 }
@@ -1212,6 +1282,8 @@ fn dist_context(dist: std::path::PathBuf) -> ServerContext {
         started: Instant::now(),
         started_at_ms: 0,
         admin_token: None,
+        admin_token_minted: false,
+        admin_token_file: None,
         admin_dist: Some(dist),
     }
 }

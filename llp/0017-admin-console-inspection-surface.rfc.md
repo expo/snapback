@@ -478,6 +478,20 @@ Local defaults:
   should either be disabled by default or require an explicit admin token;
 - write operations should require an admin token or equivalent local capability
   even when read-only health is public on loopback;
+- when no `SNAPBACK_ADMIN_TOKEN` is configured, the serve path **auto-mints**
+  that local capability rather than leaving loopback writes open (ENG-23443):
+  the reflected localhost CORS (any `http(s)://127.0.0.1|localhost|[::1]:*`
+  origin) would otherwise let any local web page drive admin writes. The
+  minted token persists 0600 next to the SQLite database (or the ready file
+  for in-memory instances, or per-process when there is neither), is printed
+  on the start that minted it, and is discoverable by same-user tooling
+  through the readiness descriptor's `adminTokenFile` and the admin inspect's
+  `admin.tokenFile` — reading the 0600 file *is* the local-admin capability
+  (LLP 0036 D3), and a browser page cannot read files. Non-loopback binds do
+  not mint: admin there stays disabled until an operator sets an explicit
+  token. Embedded in-process routers (`server::router`,
+  `AppState::detached`) keep the loopback-open default — they are not
+  HTTP-served;
 - destructive or whole-dataset controls such as reset, seed, import, export, raw
   SQL, connection disconnect, forced ephemeral resync, and simulated publish
   should require the same explicit local capability;
@@ -546,7 +560,12 @@ Landed (steps 1–7 of the sketch):
   silent-namespace failure;
 - the *Security Defaults* model as a pure, unit-tested policy: loopback reads
   open, loopback writes token-gated once `SNAPBACK_ADMIN_TOKEN` is set, and a
-  non-loopback bind disabled without a valid token;
+  non-loopback bind disabled without a valid token; since ENG-23443 the serve
+  path always resolves a token on loopback — auto-minting one
+  (`resolve_serve_admin_token`, persisted 0600, surfaced via startup output,
+  `adminTokenFile` in the readiness descriptor, and `admin.tokenFile` in
+  inspect) whenever `SNAPBACK_ADMIN_TOKEN` is unset — so no HTTP-served
+  instance accepts tokenless admin writes;
 - the one safe ephemeral control: token-gated cleanup of expired entries.
 
 Reported as honest capability gaps in the `admin` block, not as placeholder

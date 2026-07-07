@@ -138,7 +138,7 @@ Settled questions, each argued in its section below:
 |---|----------|----------|
 | D1 | Local at-rest form | 0600 JSON file in the instance dir, **not** the app SQLite database; pluggable store seam for keychain/encrypted/hosted backends |
 | D2 | Does config survive `app.reset`? | Yes — deployment-owned, not app data; explicit separate operation to wipe it |
-| D3 | Wizard bootstrap auth | Inherit the LLP 0031 admin model — no secrets-specific auth fork; auto-minted tokens recommended to land with or before the wizard; v1 loopback-open value writes are an explicit single-user-machine posture with a visible warning |
+| D3 | Wizard bootstrap auth | Inherit the LLP 0031 admin model — no secrets-specific auth fork; the recommended auto-mint landed (ENG-23443, LLP 0017 §Security Defaults): a served loopback instance without `SNAPBACK_ADMIN_TOKEN` mints a local admin token (persisted 0600, printed once, discoverable by same-user tooling), so config writes are never tokenless over HTTP |
 | D4 | Can app code see config status? | Queries/mutations: only via a host-maintained status table through the normal commit path (v2); never via a host API that reads outside the snapshot. v1 floor: ops surfaces only |
 | D5 | Secrets vs plain config | One declaration mechanism, `secret: true` by default; secret entries get handles in actions, non-secret entries get readable values |
 | D6 | Agent acquisition | Structured acquisition metadata + the ordinary set/verify operations are the seam; a ladder of automation levels, with human commitments (terms, payment) named per entry and reserved for humans absent explicit delegation |
@@ -691,9 +691,13 @@ entirely from manifest declarations plus `config.status`:
 
 **Bootstrap authorization.** How does a fresh `git clone` operator get write
 access to `/_snapback/api/config/*`? Decision: **inherit the LLP 0031 admin
-model unchanged** — today that is: open on loopback when `SNAPBACK_ADMIN_TOKEN`
-is unset; token required for writes when set; admin disabled entirely on a
-non-loopback bind without a token (`src/admin.rs`). Rationale: `config.set` is
+model unchanged** — since ENG-23443 that is: an explicit `SNAPBACK_ADMIN_TOKEN`
+gates writes when set; without one, a served loopback instance **auto-mints** a
+local admin token (persisted 0600 next to the database or ready file, printed
+on the minting start, discoverable via the readiness descriptor's
+`adminTokenFile` and inspect's `admin.tokenFile`); admin stays disabled
+entirely on a non-loopback bind without a token (`src/admin.rs`). Rationale:
+`config.set` is
 not a new authority class — the same lane already exposes `app.reset`, which is
 *more* destructive — and a subsystem-private auth scheme would fork the admin
 model and dodge the 0031 registry. Alternatives considered:
@@ -702,17 +706,17 @@ model and dodge the 0031 registry. Alternatives considered:
   the instance dir, printed once): strictly safer on shared/multi-user
   machines, where loopback-open means any local user's process holds admin.
   Right direction, wrong scope — it should harden the *whole* admin surface,
-  so this RFC recommends it to
+  so this RFC recommended it to
   [LLP 0031](./0031-server-route-taxonomy.spec.md)/[LLP 0017](./0017-admin-console-inspection-surface.rfc.md)
   as a change that should land **with or before the wizard** rather than
-  special-casing config. The GPT-5 review pushed here, and the push is fair:
+  special-casing config. The GPT-5 review pushed here, and the push was fair:
   `config.set` is less destructive than `app.reset` but more *sensitive* — it
-  captures live provider credentials — so v1's loopback-open write posture is
-  explicitly a **single-user-machine posture**, and both the startup line and
-  the wizard banner say plainly that any local user can administer the
-  instance until a token exists. Visibility, not a fork. The wizard needs no
-  changes when auto-mint lands: agents read the token file (filesystem access
-  *is* local admin, honestly stated), humans follow the printed link.
+  captures live provider credentials. **This landed as ENG-23443** (LLP 0017
+  §Security Defaults): the serve path now always resolves an admin token on
+  loopback, so the interim loopback-open single-user-machine posture is
+  retired for served instances. The wizard needed no changes, as predicted:
+  agents read the token file (filesystem access *is* local admin, honestly
+  stated), humans paste the token the minting start printed.
 - **Require a manually-set token before the wizard works:** fails the
   install story on step one; rejected.
 - **Token embedded in the printed URL:** rejected — query strings land in
@@ -885,10 +889,10 @@ return names and status only.
   hook, rollout watcher) versus CLI-only attestation is per target strategy
   LLP. Cloudflare's account-level Secrets Store, as it matures, may also
   offer a runtime-writable backend class there `[inferred]`.
-- **Admin token auto-mint** — recommended to
-  [LLP 0031](./0031-server-route-taxonomy.spec.md)/[LLP 0017](./0017-admin-console-inspection-surface.rfc.md)
-  as a whole-surface hardening landing with or before the wizard; this RFC
-  takes whatever the admin model decides.
+- **Admin token auto-mint** — resolved: landed as ENG-23443 in
+  [LLP 0017](./0017-admin-console-inspection-surface.rfc.md) §Security
+  Defaults (whole-surface hardening, no config special case); this RFC
+  inherits it through the admin model as designed.
 - **Environment scopes** — whether `local`/`test`/`preview`/`staging`/
   `production` scopes (per-scope values, fake-provider profiles, preview TTL
   and cleanup) are part of this subsystem or a deployment-profile concern;

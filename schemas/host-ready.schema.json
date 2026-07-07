@@ -86,6 +86,13 @@
     "adminGated": {
       "type": "boolean"
     },
+    "adminTokenFile": {
+      "description": "Where the serve path persisted its auto-minted admin token\n(ENG-23443), when it minted one. Tooling that can read this 0600 file\nis already local admin (LLP 0036 D3); a browser page is not.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "database": {
       "$ref": "#/$defs/HostReadyDatabase"
     },

@@ -603,9 +603,11 @@ The default is local-only:
 - Vite host defaults to `127.0.0.1`.
 - Snapback host defaults to `127.0.0.1`.
 - Non-loopback Vite or Snapback hosts require explicit opt-in.
-- If the Snapback admin API is open on loopback, proxying it through Vite is no
-  more powerful than direct loopback access, but exposing Vite beyond loopback
-  can expose that power to the network.
+- Admin writes on a served instance are always token-gated (auto-minted when
+  `SNAPBACK_ADMIN_TOKEN` is unset — ENG-23443, LLP 0017 §Security Defaults),
+  so proxying the admin API through Vite is no more powerful than direct
+  loopback access; but exposing Vite beyond loopback can still expose the
+  read surface and the token-gated lane to the network.
 - The plugin must never place admin tokens or secrets into browser-visible
   virtual modules.
 - Child-process environment should be explicit and redacted in diagnostics. The

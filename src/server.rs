@@ -1410,8 +1410,19 @@ fn svg_data_uri(svg: &str) -> String {
 fn admin_access_summary(ctx: &ServerContext) -> String {
     match (ctx.loopback, ctx.admin_token.is_some()) {
         (true, false) => {
+            // Reachable only from embedded routers: the serve path always
+            // resolves a token on loopback (ENG-23443).
             "Open on loopback; set SNAPBACK_ADMIN_TOKEN to require a token for writes".to_owned()
         }
+        (true, true) if ctx.admin_token_minted => match &ctx.admin_token_file {
+            Some(file) => format!(
+                "Reads open on loopback; writes require the minted admin token ({})",
+                file.display()
+            ),
+            None => "Reads open on loopback; writes require the minted admin token \
+                     (printed at startup, this run only)"
+                .to_owned(),
+        },
         (true, true) => "Reads open on loopback; writes require SNAPBACK_ADMIN_TOKEN".to_owned(),
         (false, false) => {
             "Admin API disabled on this non-loopback bind until SNAPBACK_ADMIN_TOKEN is set"

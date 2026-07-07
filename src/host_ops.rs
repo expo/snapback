@@ -136,6 +136,15 @@ pub struct HostReadyDescriptor {
     pub started_at_ms: u64,
     #[serde(rename = "adminGated")]
     pub admin_gated: bool,
+    /// Where the serve path persisted its auto-minted admin token
+    /// (ENG-23443), when it minted one. Tooling that can read this 0600 file
+    /// is already local admin (LLP 0036 D3); a browser page is not.
+    #[serde(
+        rename = "adminTokenFile",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub admin_token_file: Option<String>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
