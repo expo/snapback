@@ -482,7 +482,20 @@ tests) produced five pre-merge fixes, all landed:
    destroyed-outbox-drains-empty polling variant).
 3. **In-flight optimistic rows survive concurrent `live_replace`** — the
    adapter re-applies pending optimistic reducers on every server-rows
-   write (interim mechanism until D2 receipts).
+   write (interim mechanism until D2 receipts). The re-apply has a dual
+   hazard (ENG-23385): server rows arriving during the window may already
+   *contain* the mutation's committed row (the server can commit and fan
+   out before the `mutate()` response resolves — the client's own
+   `live_replace` racing the HTTP response, or a concurrent mutation's
+   reconcile), so a naive insert reducer appends a duplicate optimistic
+   copy for the rest of the window. Optimistic reducers are therefore
+   spec'd **idempotent**: id-keyed update/delete reducers already are;
+   insert reducers must skip appending when a committed match is present.
+   The adapter records each op's `baseVersion` (the server rows' max
+   durable `_version` when the mutation fired) and passes it in the
+   reducer context so an insert reducer can distinguish its own landed
+   commit (a matching committed row *newer* than `baseVersion`) from a
+   pre-existing look-alike row.
 4. **Path-independent generated hashes** — handler sources hash by
    manifest-relative path; the conformance cross-check generates into a
    temp copy and gained a real freshness guard (regen inputsHash must

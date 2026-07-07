@@ -125,7 +125,15 @@ export async function createSnapbackContractSurface({
   boundaryKey,
   queryArgs = {},
   // Optimistic reducers are app logic (how this app's mutations transform
-  // its rows during the in-flight window); the package ships none.
+  // its rows during the in-flight window); the package ships none. Contract
+  // (ENG-23385): a reducer MUST be idempotent — while its mutation is in
+  // flight it is re-applied to every authoritative server-rows write, and
+  // those rows may already contain the mutation's committed effect (the
+  // server can commit and fan out before the mutate() response resolves).
+  // Update/delete reducers keyed by row id are naturally idempotent; insert
+  // reducers must skip appending when a committed match is already present —
+  // ctx.baseVersion (the server rows' max durable version when the mutation
+  // fired) distinguishes "my commit landed" from a pre-existing look-alike.
   optimisticReducers = {},
   // LLP 0034 D1 (Exact LLP 0284 §2.3): live descriptors bind with server push
   // by default; `livePush: false` opts the surface out (poll/reconcile only).
@@ -247,8 +255,27 @@ export async function createSnapbackContractSurface({
     // row (it is not committed yet) at a valid higher version — so version
     // checks cannot help. Every boundary write of server rows re-applies the
     // still-in-flight optimistic reducers on top, so the user's own row never
-    // flashes out. Interim until D2 receipts correlate fan-outs to mutations.
+    // flashes out. The dual hazard (ENG-23385): those server rows may already
+    // CONTAIN the mutation's committed row (the server can commit and fan out
+    // before the mutate() response resolves — own live_replace racing the HTTP
+    // response, or a concurrent mutation's reconcile), so reducers are spec'd
+    // idempotent and each op records baseVersion at mutation time so insert
+    // reducers can recognize their own landed commit. Interim until D2
+    // receipts correlate fan-outs to mutations.
     const inFlightOptimistic = new Set();
+
+    // The highest durable commit version among the given server rows (0 when
+    // none carries one). Recorded per-op when its mutation fires: a committed
+    // row matching an insert reducer's args at a version ABOVE the op's
+    // baseVersion is the mutation's own landed commit (or an equivalent
+    // concurrent one), not a pre-existing look-alike row (ENG-23385).
+    const maxServerRowVersion = (rows) => {
+      let max = 0;
+      for (const row of rows ?? []) {
+        if (typeof row?._version === 'number' && row._version > max) max = row._version;
+      }
+      return max;
+    };
 
     // Last authoritative server rows (ENG-23384): when a reconcile after a
     // failed mutation cannot reach the server either (same outage, usually),
@@ -260,7 +287,11 @@ export async function createSnapbackContractSurface({
     const applyOptimisticOverlay = (rows) => {
       let out = rows;
       for (const op of inFlightOptimistic) {
-        out = op.reducer(out, op.args, { userId, optimisticId: op.optimisticId });
+        out = op.reducer(out, op.args, {
+          userId,
+          optimisticId: op.optimisticId,
+          baseVersion: op.baseVersion,
+        });
       }
       return out;
     };
@@ -398,10 +429,19 @@ export async function createSnapbackContractSurface({
         const reducer = optimisticReducers[name];
         let optimisticOp = null;
         if (typeof reducer === 'function') {
-          optimisticOp = { reducer, args, optimisticId: `optimistic_${++optimisticSeq}` };
+          optimisticOp = {
+            reducer,
+            args,
+            optimisticId: `optimistic_${++optimisticSeq}`,
+            baseVersion: maxServerRowVersion(lastServerRows),
+          };
           inFlightOptimistic.add(optimisticOp);
           boundary.write(boundaryKey, (rows) =>
-            reducer(rows, args, { userId, optimisticId: optimisticOp.optimisticId }),
+            reducer(rows, args, {
+              userId,
+              optimisticId: optimisticOp.optimisticId,
+              baseVersion: optimisticOp.baseVersion,
+            }),
           );
         }
         return track(persistMutation(name, args, optimisticOp));
