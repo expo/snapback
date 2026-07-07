@@ -2546,10 +2546,14 @@ impl LocalSnapback {
     /// [`Self::finish_cron_claim`] (ENG-23324).
     pub(crate) fn claim_due_cron_runs(&mut self, now_ms: u64) -> SnapbackResult<Vec<CronRunClaim>> {
         let active_live_functions = self.active_live_functions();
+        let before_claim = self.cron.clone();
         let claims = self
             .cron
             .claim_due_runs(&self.functions, &active_live_functions, now_ms);
-        self.persist_cron_state()?;
+        if let Err(error) = self.persist_cron_state() {
+            self.cron = before_claim;
+            return Err(error);
+        }
         Ok(claims)
     }
 
@@ -2560,8 +2564,12 @@ impl LocalSnapback {
         name: &str,
         now_ms: u64,
     ) -> SnapbackResult<CronRunClaim> {
+        let before_claim = self.cron.clone();
         let claim = self.cron.claim_manual_run(&self.functions, name, now_ms)?;
-        self.persist_cron_state()?;
+        if let Err(error) = self.persist_cron_state() {
+            self.cron = before_claim;
+            return Err(error);
+        }
         Ok(claim)
     }
 

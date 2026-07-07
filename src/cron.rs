@@ -162,7 +162,9 @@ impl LocalCronRuntime {
         let Some(value) = value else {
             return Self::default();
         };
-        serde_json::from_value(value).unwrap_or_default()
+        let mut runtime: Self = serde_json::from_value(value).unwrap_or_default();
+        runtime.strip_result_payloads();
+        runtime
     }
 
     pub fn persisted_value(&self) -> SnapbackResult<Value> {
@@ -188,7 +190,8 @@ impl LocalCronRuntime {
         active_live_functions: &BTreeSet<String>,
     ) -> bool {
         manifest.cron_jobs.iter().any(|job| {
-            job.enabled
+            self.states.contains_key(&job.name)
+                && job.enabled
                 && activation_state(job, active_live_functions) == CronActivationState::Armed
         })
     }
@@ -564,7 +567,7 @@ impl LocalCronRuntime {
                 }
             }
         }
-        self.record_run(record.clone());
+        self.record_run(ledger_record(&record));
         record
     }
 
@@ -624,6 +627,12 @@ impl LocalCronRuntime {
         }
         while self.diagnostics.len() > MAX_RECENT_RUNS {
             self.diagnostics.pop_back();
+        }
+    }
+
+    fn strip_result_payloads(&mut self) {
+        for record in &mut self.recent_runs {
+            record.result = None;
         }
     }
 }
@@ -725,6 +734,40 @@ pub fn validate_cron_manifest(manifest: &FunctionManifest) -> Vec<Diagnostic> {
                 ),
             )),
         }
+
+        if job.activation.kind == CronActivationKind::WhileLive {
+            if job.activation.while_live.is_empty() {
+                diagnostics.push(cron_error(
+                    "SNAPBACK_CRON_WHILE_LIVE_EMPTY",
+                    job,
+                    format!(
+                        "cron job {} has whileLive activation with no live query names",
+                        job.name
+                    ),
+                ));
+            }
+            for name in &job.activation.while_live {
+                match manifest.function(name) {
+                    Some(function) if function.kind == FunctionKind::LiveQuery => {}
+                    Some(_) => diagnostics.push(cron_error(
+                        "SNAPBACK_CRON_WHILE_LIVE_KIND_MISMATCH",
+                        job,
+                        format!(
+                            "cron job {} whileLive target {} is not a live query",
+                            job.name, name
+                        ),
+                    )),
+                    None => diagnostics.push(cron_error(
+                        "SNAPBACK_CRON_WHILE_LIVE_MISSING",
+                        job,
+                        format!(
+                            "cron job {} references unknown whileLive target {}",
+                            job.name, name
+                        ),
+                    )),
+                }
+            }
+        }
     }
     diagnostics
 }
@@ -786,6 +829,9 @@ fn next_nominal_after(
     now_ms: u64,
 ) -> Option<u64> {
     if let Some(every_ms) = job.schedule.every_ms {
+        if every_ms == 0 {
+            return None;
+        }
         let previous = previous_nominal_at_ms.unwrap_or(0);
         if previous > now_ms {
             return Some(previous);
@@ -794,6 +840,12 @@ fn next_nominal_after(
         return Some(previous.saturating_add(missed.saturating_mul(every_ms)));
     }
     next_calendar_nominal_after(job, previous_nominal_at_ms, now_ms)
+}
+
+fn ledger_record(record: &CronRunRecord) -> CronRunRecord {
+    let mut record = record.clone();
+    record.result = None;
+    record
 }
 
 /// Upper bound (in days) on the calendar scan in [`next_cron_match_after`].
@@ -1183,6 +1235,17 @@ mod tests {
         FunctionDefinition::new(
             name,
             FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "bundle.js".to_owned(),
+                export: name.to_owned(),
+            }),
+        )
+    }
+
+    fn live_query_stub(name: &str) -> FunctionDefinition {
+        FunctionDefinition::new(
+            name,
+            FunctionKind::LiveQuery,
             FunctionRuntime::IbexModule(IbexModule {
                 source: "bundle.js".to_owned(),
                 export: name.to_owned(),
@@ -1641,6 +1704,119 @@ mod tests {
                 .claim_due_runs(&manifest, &BTreeSet::new(), 600_000)
                 .is_empty(),
             "stale-hash state must not produce claims"
+        );
+    }
+
+    #[test]
+    fn while_live_targets_are_validated_and_do_not_arm_invalid_jobs() {
+        let mut typo = interval_job("typoDemand", 60_000);
+        typo.activation = CronActivationPolicy {
+            kind: CronActivationKind::WhileLive,
+            while_live: vec!["missingQuery".to_owned()],
+        };
+        let mut wrong_kind = interval_job("wrongKindDemand", 60_000);
+        wrong_kind.activation = CronActivationPolicy {
+            kind: CronActivationKind::WhileLive,
+            while_live: vec!["refreshAction".to_owned()],
+        };
+        let manifest = FunctionManifest {
+            functions: vec![action_stub("refreshAction"), live_query_stub("listTodos")],
+            cron_jobs: vec![typo, wrong_kind],
+            ..FunctionManifest::default()
+        };
+
+        let diagnostics = validate_cron_manifest(&manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_CRON_WHILE_LIVE_MISSING")
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_CRON_WHILE_LIVE_KIND_MISMATCH")
+        );
+
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        assert!(
+            !runtime.any_armed(&manifest, &BTreeSet::from(["missingQuery".to_owned()])),
+            "invalid demand-gated jobs must not arm the ticker"
+        );
+    }
+
+    #[test]
+    fn zero_interval_jobs_fail_closed_without_scheduler_division() {
+        let zero = interval_job("zero", 0);
+        let manifest = manifest_with_jobs(vec![zero.clone()]);
+        let diagnostics = validate_cron_manifest(&manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_CRON_INVALID_INTERVAL")
+        );
+        assert_eq!(next_nominal_after(&zero, Some(0), 1_000), None);
+
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        assert!(!runtime.any_armed(&manifest, &BTreeSet::new()));
+        assert!(
+            runtime
+                .claim_due_runs(&manifest, &BTreeSet::new(), 1_000)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn retained_run_ledger_strips_action_result_payloads() {
+        let mut runtime = LocalCronRuntime::default();
+        let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        runtime.reconcile(&manifest);
+        let claim = runtime
+            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("claim");
+
+        let returned = runtime.finish_run(
+            claim,
+            5,
+            Ok(json!({ "large": "x".repeat(1024), "keptForCaller": true })),
+        );
+        assert!(
+            returned.result.is_some(),
+            "the immediate caller keeps the result"
+        );
+        assert_eq!(
+            runtime.recent_runs.front().expect("ledger record").result,
+            None,
+            "retained cron history must not keep action payloads"
+        );
+        let persisted = runtime.persisted_value().expect("persist cron");
+        assert!(
+            !persisted.to_string().contains("keptForCaller"),
+            "persisted cron state must not include stripped result payloads"
+        );
+
+        let reloaded = LocalCronRuntime::from_persisted(Some(json!({
+            "recent_runs": [{
+                "runId": "old",
+                "jobName": "poll",
+                "dueAtMs": 0,
+                "startedAtMs": 0,
+                "trigger": "Scheduled",
+                "attempt": 1,
+                "outcome": "Succeeded",
+                "idempotencyKey": "old",
+                "slotKey": "old",
+                "result": { "legacy": "payload" }
+            }]
+        })));
+        assert_eq!(
+            reloaded
+                .recent_runs
+                .front()
+                .and_then(|record| record.result.as_ref()),
+            None
         );
     }
 
