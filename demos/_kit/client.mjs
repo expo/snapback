@@ -78,6 +78,86 @@ export class SnapbackClient {
     // consumer registries so one connection's durable and ephemeral lanes
     // never destructively discard each other's envelopes on drain.
     this.__laneConsumers = new Map();
+    // ENG-23442 connection grants: caller label -> Promise<{id, token}>.
+    this.__connectionGrants = new Map();
+  }
+
+  // ENG-23442: connection ids are server-granted capabilities, not bare
+  // caller-chosen strings. The kit opens a grant transparently the first time
+  // a connection id is used: `POST /connection/open` adopts the caller's
+  // readable id in non-prod profiles (demos, acceptance suites, and
+  // gated-inspect output keep meaningful ids) or mints an unguessable one
+  // (prod, or a suggestion colliding with a live grant). Every wire operation
+  // uses the GRANTED id plus its bearer token; callers keep addressing the
+  // kit by their own label. Registries (lane consumers, stream managers) stay
+  // label-keyed, so a caller never needs to learn the wire id.
+  //
+  // @ref LLP 0031#connection-capability-grants — the client half of the handshake.
+  connectionGrant(connectionId) {
+    if (!connectionId) {
+      return Promise.reject(new TypeError('Snapback connectionId is required for connection-scoped operations'));
+    }
+    let grant = this.__connectionGrants.get(connectionId);
+    if (!grant) {
+      grant = this.#openGrant(connectionId, null);
+      this.__connectionGrants.set(connectionId, grant);
+    }
+    return grant;
+  }
+
+  /// Re-run the handshake for a label whose grant looks stale (a rejected
+  /// token, a socket that never opened — typically a restarted server whose
+  /// grant registry is empty). The previous token rides along so a still-live
+  /// server returns the SAME grant idempotently; a restarted server adopts
+  /// the label afresh. Either way the connection identity survives.
+  refreshConnectionGrant(connectionId) {
+    const stale = this.__connectionGrants.get(connectionId) ?? null;
+    let grant;
+    grant = (stale ? stale.catch(() => null) : Promise.resolve(null)).then(
+      (previous) => this.#openGrant(connectionId, previous?.token ?? null, () => grant),
+    );
+    this.__connectionGrants.set(connectionId, grant);
+    return grant;
+  }
+
+  #openGrant(connectionId, previousToken, storedAs = null) {
+    let grant;
+    grant = this.#req('POST', '/connection/open', {
+      connectionId,
+      ...(previousToken ? { previousToken } : {}),
+    }).then(
+      (granted) => ({ id: granted.connectionId, token: granted.connectionToken }),
+      (error) => {
+        // A failed open must not poison the label: drop the cached promise
+        // so the next operation retries the handshake. The cache may hold
+        // this promise directly (first open) or a wrapper derived from it
+        // (refresh) — compare against whichever the caller stored.
+        const stored = this.__connectionGrants.get(connectionId);
+        if (stored === grant || (storedAs && stored === storedAs())) {
+          this.__connectionGrants.delete(connectionId);
+        }
+        throw error;
+      },
+    );
+    return grant;
+  }
+
+  /// Run one connection-scoped operation; on a token rejection, refresh the
+  /// grant once (server restart recovery) and retry the operation.
+  async #withGrant(connectionId, run) {
+    const cached = this.connectionGrant(connectionId);
+    const grant = await cached;
+    try {
+      return await run(grant);
+    } catch (error) {
+      if (error?.diagnostic?.code !== 'SNAPBACK_CONNECTION_TOKEN_INVALID') throw error;
+      // Another operation may have refreshed the grant already; only refresh
+      // when this operation still holds the rejected one.
+      if (this.__connectionGrants.get(connectionId) === cached) {
+        await this.refreshConnectionGrant(connectionId);
+      }
+      return run(await this.connectionGrant(connectionId));
+    }
   }
 
   /// Record a receipt into the bounded kit ring and notify listeners.
@@ -136,10 +216,14 @@ export class SnapbackClient {
     return `${prefix}:${normalizedScopeKey(scope)}`;
   }
 
-  async #req(method, path, body) {
+  async #req(method, path, body, headers) {
+    const merged = {
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...(headers ?? {}),
+    };
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
-      headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+      headers: Object.keys(merged).length > 0 ? merged : undefined,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await res.text();
@@ -255,13 +339,15 @@ export class SnapbackClient {
     const name = functionName(ref);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
-    const body = { connection_id: connectionId, input };
-    // Explicit supersession (ENG-22478 review fix A): name the subscription
-    // this fresh subscribe replaces (the kit's own resubscribe paths only);
-    // the server disposes exactly that id. Never inferred — plain duplicate
-    // subscribes coexist.
-    if (supersedes) body.supersedes = supersedes;
-    const response = await this.#req('POST', `/live/${name}/subscribe`, body);
+    const response = await this.#withGrant(connectionId, (grant) => {
+      const body = { connection_id: grant.id, input };
+      // Explicit supersession (ENG-22478 review fix A): name the subscription
+      // this fresh subscribe replaces (the kit's own resubscribe paths only);
+      // the server disposes exactly that id. Never inferred — plain duplicate
+      // subscribes coexist.
+      if (supersedes) body.supersedes = supersedes;
+      return this.#req('POST', `/live/${name}/subscribe`, body, connectionTokenHeader(grant));
+    });
     if (response?.receipt) this.recordReceipt(response.receipt);
     return response;
   }
@@ -270,39 +356,39 @@ export class SnapbackClient {
   /// live subscription; ownership mirrors resume_live.
   async unsubscribeLive(ref, { subscriptionId, connectionId, userId } = {}) {
     const name = functionName(ref);
-    const response = await this.#req('POST', `/live/${name}/unsubscribe`, {
+    const response = await this.#withGrant(connectionId, (grant) => this.#req('POST', `/live/${name}/unsubscribe`, {
       subscription_id: subscriptionId,
-      connection_id: connectionId,
+      connection_id: grant.id,
       auth: SnapbackClient.auth(userId),
-    });
+    }, connectionTokenHeader(grant)));
     if (response?.receipt) this.recordReceipt(response.receipt);
     return response;
   }
 
-  subscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
+  async subscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
     const collection = collectionName(ref);
-    return this.#req('POST', '/ephemeral/subscribe', {
+    return this.#withGrant(connectionId, (grant) => this.#req('POST', '/ephemeral/subscribe', {
       collection,
       scope,
-      connection_id: connectionId,
+      connection_id: grant.id,
       auth: SnapbackClient.auth(userId, { permissions }),
-    }).then((snapshot) => new EphemeralOverlay(this, ref, { connectionId, scope, userId, permissions, snapshot }));
+    }, connectionTokenHeader(grant))).then((snapshot) => new EphemeralOverlay(this, ref, { connectionId, scope, userId, permissions, snapshot }));
   }
 
   async publishEphemeral(ref, { connectionId, scope = {}, value, ttlMs = null, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
     const collection = collectionName(ref);
     try {
-      const outcome = await this.#req('POST', '/ephemeral/publish', {
+      const outcome = await this.#withGrant(connectionId, (grant) => this.#req('POST', '/ephemeral/publish', {
         collection,
         scope,
-        connection_id: connectionId,
+        connection_id: grant.id,
         session_id: sessionId,
         user_id: ownerUserId,
         custom_key: customKey,
         value: encodeEphemeralValue(value),
         ttl_ms: ttlMs,
         auth: SnapbackClient.auth(userId, { permissions }),
-      });
+      }, connectionTokenHeader(grant)));
       // Ephemeral one-version story (LLP 0034 §3.1): snapshotVersion is the
       // entryVersion, valid WITHIN a scopeEpoch; the epoch rides in the
       // snapback-namespaced field. Privacy (§3.3): never the payload value.
@@ -339,12 +425,16 @@ export class SnapbackClient {
     if (!manager.isOpen()) {
       return { removed: false, skipped: 'socket-not-open' };
     }
+    // The socket's path identity is the GRANTED id (the manager connected
+    // with it), so the frame must carry the same — the server's sender gate
+    // compares them. The grant is already resolved here (the manager is open).
+    const grant = await this.connectionGrant(connectionId);
     const ack = await manager.request({
       type: 'ephemeral_unsubscribe',
       request: {
         collection: collectionName(ref),
         scope,
-        connection_id: connectionId,
+        connection_id: grant.id,
         auth: SnapbackClient.auth(userId, { permissions }),
       },
     });
@@ -358,26 +448,31 @@ export class SnapbackClient {
     return { removed: ack?.removed ?? false, receipt: ack?.receipt };
   }
 
-  deleteEphemeral(ref, { connectionId, scope = {}, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
-    return this.#req('POST', '/ephemeral/delete', {
+  async deleteEphemeral(ref, { connectionId, scope = {}, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
+    return this.#withGrant(connectionId, (grant) => this.#req('POST', '/ephemeral/delete', {
       collection: collectionName(ref),
       scope,
-      connection_id: connectionId,
+      connection_id: grant.id,
       session_id: sessionId,
       user_id: ownerUserId,
       custom_key: customKey,
       auth: SnapbackClient.auth(userId, { permissions }),
-    });
+    }, connectionTokenHeader(grant)));
   }
 
   // @ref LLP 0031#resolved-decisions — D2: connection teardown is system/control,
   //   moved under the gated /_snapback/api/* namespace.
-  disconnect(connectionId) {
-    return this.#req('POST', `/_snapback/api/connections/${connectionId}/disconnect`);
+  async disconnect(connectionId) {
+    // Admin teardown addresses the WIRE id; do not open a grant just to tear
+    // one down — an unopened label falls through verbatim.
+    const grant = this.__connectionGrants.has(connectionId)
+      ? await this.connectionGrant(connectionId)
+      : null;
+    return this.#req('POST', `/_snapback/api/connections/${grant?.id ?? connectionId}/disconnect`);
   }
 
   async drainEnvelopes(connectionId) {
-    return this.#req('GET', `/outbox/${connectionId}`);
+    return this.#withGrant(connectionId, (grant) => this.#req('GET', `/outbox/${grant.id}`, undefined, connectionTokenHeader(grant)));
   }
 
   // The shared drain choke point (LLP 0034 §10.1 residual / ENG-22478): a
@@ -430,38 +525,51 @@ export class SnapbackClient {
   }
 
   openLiveStream(connectionId) {
-    const url = `${this.baseUrl.replace(/^http/, 'ws')}/live/${connectionId}/stream`;
-    const ws = new WebSocket(url);
     const queue = [];
     const waiters = [];
     let streamError = null;
+    let wsRef = null;
     const fail = (error) => {
       streamError ??= error; // first failure wins; a later close never masks it
       while (waiters.length > 0) waiters.shift().reject(streamError);
     };
-    ws.addEventListener('message', async (event) => {
-      try {
-        const update = JSON.parse(await websocketText(event.data));
-        const waiter = waiters.shift();
-        if (waiter) waiter.resolve(update);
-        else queue.push(update);
-      } catch (error) {
-        fail(error);
-      }
+    // The grant resolves before the socket exists (ENG-23442): the upgrade
+    // carries the connection token as a subprotocol, and the URL addresses
+    // the granted wire id.
+    const wsPromise = this.connectionGrant(connectionId).then((grant) => {
+      const url = `${this.baseUrl.replace(/^http/, 'ws')}/live/${grant.id}/stream`;
+      const ws = new WebSocket(url, liveStreamProtocols(grant));
+      wsRef = ws;
+      ws.addEventListener('message', async (event) => {
+        try {
+          const update = JSON.parse(await websocketText(event.data));
+          const waiter = waiters.shift();
+          if (waiter) waiter.resolve(update);
+          else queue.push(update);
+        } catch (error) {
+          fail(error);
+        }
+      });
+      ws.addEventListener('error', () => fail(new Error(`Snapback live stream failed: ${url}`)), { once: true });
+      // @ref LLP 0032#confirmed-defect-register — S5.D7: latch unconditionally on
+      //   close (not just when waiters are pending) so a later nextUpdate() rejects
+      //   immediately instead of hanging until its timeout.
+      ws.addEventListener('close', () => fail(new Error(`Snapback live stream closed: ${url}`)), { once: true });
+      return ws;
     });
-    ws.addEventListener('error', () => fail(new Error(`Snapback live stream failed: ${url}`)), { once: true });
-    // @ref LLP 0032#confirmed-defect-register — S5.D7: latch unconditionally on
-    //   close (not just when waiters are pending) so a later nextUpdate() rejects
-    //   immediately instead of hanging until its timeout.
-    ws.addEventListener('close', () => fail(new Error(`Snapback live stream closed: ${url}`)), { once: true });
+    wsPromise.catch((error) => fail(error));
 
     return {
-      ready: new Promise((resolve, reject) => {
+      ready: wsPromise.then((ws) => new Promise((resolve, reject) => {
+        if (ws.readyState === 1) return resolve(undefined); // already OPEN
         ws.addEventListener('open', resolve, { once: true });
-        ws.addEventListener('error', () => reject(new Error(`Snapback live stream failed: ${url}`)), { once: true });
-      }),
-      close: () => ws.close(),
-      sendJson: (message) => ws.send(JSON.stringify(message)),
+        ws.addEventListener('error', () => reject(new Error('Snapback live stream failed to open')), { once: true });
+      })),
+      close: () => wsPromise.then((ws) => ws.close(), () => {}),
+      sendJson: (message) => {
+        if (!wsRef) throw new Error('Snapback live stream is not open yet (await ready first)');
+        wsRef.send(JSON.stringify(message));
+      },
       nextUpdate: (timeoutMs = 2_000) => {
         if (queue.length > 0) return Promise.resolve(queue.shift());
         if (streamError) return Promise.reject(streamError);
@@ -1012,6 +1120,12 @@ class LiveStreamManager {
     this.heartbeatTimer = null;
     this.lastActivityMs = Date.now();
     this.requestSeq = 0;
+    // True while the ENG-23442 grant handshake for a connect is in flight
+    // (there is no this.ws yet, so #ensureSocket needs its own latch).
+    this.connectPending = false;
+    // Set when a socket fails WITHOUT ever opening — the signature of a
+    // stale grant (restarted server): the next connect refreshes the grant.
+    this.grantSuspect = false;
   }
 
   #demand() {
@@ -1048,7 +1162,7 @@ class LiveStreamManager {
   }
 
   #ensureSocket() {
-    if (this.closed || this.ws || this.reconnectTimer) return;
+    if (this.closed || this.ws || this.reconnectTimer || this.connectPending) return;
     this.#connect();
   }
 
@@ -1057,20 +1171,46 @@ class LiveStreamManager {
   /// the Vite proxy, which needs `ws: true` to upgrade), which `new WebSocket`
   /// cannot take — resolve against the page origin first; headless clients
   /// always pass absolute bases.
-  #socketUrl() {
+  #socketUrl(grant) {
     const base = this.client.baseUrl;
     const absolute = /^https?:/i.test(base) || !globalThis.location
       ? base
       : new URL(base, globalThis.location.href).toString().replace(/\/$/, '');
-    return `${absolute.replace(/^http/, 'ws')}/live/${this.connectionId}/stream`;
+    return `${absolute.replace(/^http/, 'ws')}/live/${grant.id}/stream`;
   }
 
+  /// Resolve the connection grant, then open the socket. A failed handshake
+  /// (server down, restarted server that lost the grant namespace) is a loss
+  /// like any other: fallback engages and the backoff loop retries — and the
+  /// grant cache self-clears on failure, so a retry re-opens the handshake.
   #connect() {
-    const url = this.#socketUrl();
+    if (this.connectPending) return;
+    this.connectPending = true;
     this.#emitState('connecting');
+    const grantPromise = this.grantSuspect
+      ? this.client.refreshConnectionGrant(this.connectionId)
+      : this.client.connectionGrant(this.connectionId);
+    this.grantSuspect = false;
+    grantPromise.then(
+      (grant) => {
+        this.connectPending = false;
+        if (this.closed) return;
+        this.#openSocket(grant);
+      },
+      () => {
+        this.connectPending = false;
+        if (this.closed) return;
+        if (this.attempts === 0) this.#emitState('lost', { wasOpen: false });
+        this.#scheduleReconnect();
+      },
+    );
+  }
+
+  #openSocket(grant) {
+    const url = this.#socketUrl(grant);
     let ws;
     try {
-      ws = new WebSocket(url);
+      ws = new WebSocket(url, liveStreamProtocols(grant));
     } catch {
       // Constructor failure (bad URL, blocked context) is a loss like any
       // other: let consumers engage their fallback on the first failure.
@@ -1123,6 +1263,9 @@ class LiveStreamManager {
       this.#stopHeartbeat();
       this.#failPendingRequests(new Error(`Snapback live stream lost: ${url}`));
       if (this.closed) return;
+      // A socket that never opened may have been refused at the upgrade gate
+      // (stale grant after a server restart): re-run the handshake next try.
+      if (!wasOpen) this.grantSuspect = true;
       // Emit on an open socket's loss and on the first failed connect (so
       // consumers can engage their fallback); silent on later retry failures.
       if (wasOpen || this.attempts === 0) this.#emitState('lost', { wasOpen });
@@ -1496,6 +1639,18 @@ export class EphemeralOverlay {
       entryVersion: entry.entryVersion,
     }));
   }
+}
+
+// ENG-23442 transports: HTTP carries the grant token as a header; a WebSocket
+// upgrade carries it as the `snapback.connection-token.<token>` subprotocol
+// (browser WebSockets cannot set headers), alongside `snapback.v1` so the
+// server has a legal subprotocol to echo.
+function connectionTokenHeader(grant) {
+  return { 'x-snapback-connection-token': grant.token };
+}
+
+function liveStreamProtocols(grant) {
+  return ['snapback.v1', `snapback.connection-token.${grant.token}`];
 }
 
 function functionName(ref) {

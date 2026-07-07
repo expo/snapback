@@ -46,6 +46,22 @@ const stubFetch = (status, body) => async () => ({
   text: async () => body,
 });
 
+// ENG-23442: openLiveStream resolves a connection grant before constructing
+// the socket, so stream tests stub the grant response and await the async
+// socket construction instead of grabbing it synchronously.
+const grantFetch = (connectionId) => stubFetch(200, JSON.stringify({
+  connectionId,
+  connectionToken: 'sct_stub_token',
+}));
+
+const nextSocket = async (countBefore) => {
+  for (let i = 0; i < 200; i += 1) {
+    if (FakeWebSocket.instances.length > countBefore) return FakeWebSocket.instances.at(-1);
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  throw new Error('stub WebSocket was never constructed');
+};
+
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
 // Node's experimental localStorage global throws without a backing file; give
@@ -108,9 +124,11 @@ try {
 
   await suite.check('s5_d7: close with no pending waiters latches; later nextUpdate() rejects immediately', async () => {
     globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_close_latch');
     const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
     const stream = db.openLiveStream('conn_close_latch');
-    const ws = FakeWebSocket.instances.at(-1);
+    const ws = await nextSocket(before);
     ws.dispatch('open', {});
     await stream.ready;
     ws.dispatch('close', {}); // clean close, zero waiters pending
@@ -122,9 +140,11 @@ try {
 
   await suite.check('s5_d7: updates before close still resolve; the close error follows', async () => {
     globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_update_then_close');
     const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
     const stream = db.openLiveStream('conn_update_then_close');
-    const ws = FakeWebSocket.instances.at(-1);
+    const ws = await nextSocket(before);
     const pending = stream.nextUpdate(1_000);
     ws.dispatch('message', { data: JSON.stringify({ subscription_id: 'sub_1', rows: [{ id: 1 }] }) });
     const update = await pending;
@@ -137,9 +157,11 @@ try {
 
   await suite.check('s5_d7: the first stream failure wins; a later close does not mask it', async () => {
     globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_first_failure');
     const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
     const stream = db.openLiveStream('conn_first_failure');
-    const ws = FakeWebSocket.instances.at(-1);
+    const ws = await nextSocket(before);
     const pending = stream.nextUpdate(1_000);
     ws.dispatch('message', { data: '{not json' });
     const first = await assertThrows(() => pending, undefined, 'expected parse failure');
@@ -206,11 +228,14 @@ try {
 
   await suite.check('eng_23391: a throwing consumer on the socket path starves nobody and leaves no unhandled rejection', async () => {
     globalThis.WebSocket = FakeWebSocket;
+    // ENG-23442: the manager resolves a connection grant before the socket.
+    globalThis.fetch = grantFetch('conn_dispatch_iso');
     const db = new SnapbackClient('http://stub');
     const conn = 'conn_dispatch_iso';
     const rejections = [];
     const onRejection = (reason) => rejections.push(reason);
     process.on('unhandledRejection', onRejection);
+    const before = FakeWebSocket.instances.length;
     const manager = db.liveStreamManager(conn);
     try {
       const seenListener = [];
@@ -231,7 +256,7 @@ try {
         throw new Error('overlay observer error');
       });
       db.registerEphemeralConsumer(conn, (env) => seenEphemeral.push(env));
-      const ws = FakeWebSocket.instances.at(-1);
+      const ws = await nextSocket(before);
       ws.dispatch('open', {});
       ws.dispatch('message', { data: JSON.stringify({ kind: 'live_replace', subscription_id: 'sub_s', rows: [{ id: 1 }], version: 3 }) });
       ws.dispatch('message', { data: JSON.stringify({ kind: 'ephemeral', message: {} }) });

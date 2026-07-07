@@ -29,6 +29,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, interval};
+use uuid::Uuid;
 
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
 
@@ -290,6 +291,191 @@ pub(crate) async fn execute_cron_claim_detached(
     .await
 }
 
+/// Transport-level connection grants (ENG-23442). Connection ids used to be
+/// caller-chosen bearerless capabilities: knowledge of an id alone was enough
+/// to drain `/outbox/{id}` or attach `/live/{id}/stream` and read another
+/// client's queued live results. Connections are now opened through
+/// `POST /connection/open`, which returns the connection id paired with a
+/// server-minted `connectionToken`; every connection-scoped operation must
+/// present that token. Grants are process-lifetime by design: a socket close
+/// triggers a server-side `disconnect` that clears delivery state, but the
+/// grant survives so the kit's reconnect path can re-subscribe under the same
+/// connection identity without re-opening.
+///
+/// @ref LLP 0031#connection-capability-grants — server-issued grants; the
+/// ConnectionAuth policy class marks every route this gate covers.
+#[derive(Clone, Default)]
+pub struct ConnectionRegistry {
+    grants: Arc<std::sync::Mutex<std::collections::HashMap<String, String>>>,
+}
+
+/// The `POST /connection/open` response: the (possibly adopted) connection id
+/// and the bearer the caller must present on every connection-scoped call.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ConnectionGrant {
+    #[serde(rename = "connectionId")]
+    pub connection_id: String,
+    #[serde(rename = "connectionToken")]
+    pub connection_token: String,
+}
+
+impl ConnectionRegistry {
+    /// Open a grant. A caller-suggested id is adopted only in non-prod
+    /// profiles (trusted local: readable ids keep demos, acceptance suites,
+    /// and gated-inspect output debuggable) and only while unclaimed — a
+    /// suggestion that collides with a live grant gets a minted id instead of
+    /// a token rotation, so an existing connection's bearer can never be
+    /// displaced by a later caller. Prod always mints: connection ids leaving
+    /// the trusted posture are unguessable, never caller-selected.
+    ///
+    /// Re-open idempotence: a caller presenting the id's CURRENT token gets
+    /// the same grant back (any profile — possession of the bearer already
+    /// proves ownership). This is what lets a client hold one connection
+    /// identity across reconnects and server restarts: after a restart the
+    /// registry is empty, so the suggestion is simply adopted afresh.
+    pub fn open(
+        &self,
+        suggested: Option<String>,
+        previous_token: Option<&str>,
+        allow_suggested: bool,
+    ) -> ConnectionGrant {
+        let mut grants = self.lock();
+        if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token) {
+            if let Some(existing) = grants.get(id) {
+                if constant_time_str_eq(existing, previous) {
+                    return ConnectionGrant {
+                        connection_id: id.clone(),
+                        connection_token: existing.clone(),
+                    };
+                }
+            }
+        }
+        let connection_id = match suggested {
+            Some(id) if allow_suggested && !id.is_empty() && !grants.contains_key(&id) => id,
+            _ => loop {
+                let minted = format!("conn_{}", Uuid::new_v4().simple());
+                if !grants.contains_key(&minted) {
+                    break minted;
+                }
+            },
+        };
+        let connection_token = format!("sct_{}", Uuid::new_v4().simple());
+        grants.insert(connection_id.clone(), connection_token.clone());
+        ConnectionGrant {
+            connection_id,
+            connection_token,
+        }
+    }
+
+    /// Verify a presented token for one connection-scoped operation. Unknown
+    /// connections and token mismatches share one diagnostic code so the gate
+    /// is not an existence oracle for the connection-id namespace.
+    pub fn verify(&self, connection_id: &str, presented: Option<&str>) -> Result<(), ApiError> {
+        let Some(presented) = presented else {
+            return Err(connection_auth_error(
+                "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
+                "connection-scoped operations require the connection token issued by POST /connection/open",
+                connection_id,
+            ));
+        };
+        let grants = self.lock();
+        match grants.get(connection_id) {
+            Some(expected) if constant_time_str_eq(expected, presented) => Ok(()),
+            _ => Err(connection_auth_error(
+                "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                "connection is not open on this server or the token does not match",
+                connection_id,
+            )),
+        }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, String>> {
+        self.grants
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
+fn connection_auth_error(code: &str, message: &str, connection_id: &str) -> ApiError {
+    ApiError(
+        SnapbackError::new(
+            Diagnostic::error(code, "realtime", message)
+                .with_details(json!({ "connection_id": connection_id })),
+        ),
+        None,
+    )
+}
+
+/// Constant-time token comparison (length is public: tokens are fixed-form).
+fn constant_time_str_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
+
+/// The connection-token transports: the header for HTTP callers, the query
+/// parameter and `snapback.connection-token.<token>` subprotocol for WebSocket
+/// upgrades (a browser `WebSocket` cannot set request headers).
+const CONNECTION_TOKEN_HEADER: &str = "x-snapback-connection-token";
+const CONNECTION_TOKEN_SUBPROTOCOL_PREFIX: &str = "snapback.connection-token.";
+/// The negotiated live-stream subprotocol. The kit always offers this
+/// alongside the token subprotocol so the server has a legal echo (a browser
+/// fails the connection when it offered subprotocols and the server selected
+/// none).
+const LIVE_STREAM_SUBPROTOCOL: &str = "snapback.v1";
+
+fn header_connection_token(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get(CONNECTION_TOKEN_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned)
+}
+
+fn subprotocol_connection_token(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get_all(header::SEC_WEBSOCKET_PROTOCOL)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .map(str::trim)
+        .find_map(|proto| proto.strip_prefix(CONNECTION_TOKEN_SUBPROTOCOL_PREFIX))
+        .map(str::to_owned)
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ConnectionTokenQuery {
+    #[serde(default)]
+    connection_token: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct OpenConnectionBody {
+    #[serde(default, rename = "connectionId", alias = "connection_id")]
+    connection_id: Option<String>,
+    /// The token from a previous grant of the same id, for idempotent
+    /// re-open across kit reconnects and server restarts.
+    #[serde(default, rename = "previousToken", alias = "previous_token")]
+    previous_token: Option<String>,
+}
+
+/// `POST /connection/open` — the connection handshake (ENG-23442). Public by
+/// design: it GRANTS a capability rather than exercising one, exactly like
+/// `/app/ensure`. The profile decides whether a caller-suggested id may be
+/// adopted (non-prod only).
+async fn open_connection(
+    State(connections): State<ConnectionRegistry>,
+    State(ctx): State<Arc<ServerContext>>,
+    body: Option<Json<OpenConnectionBody>>,
+) -> Json<ConnectionGrant> {
+    let (suggested, previous_token) = body
+        .map(|Json(body)| (body.connection_id, body.previous_token))
+        .unwrap_or_default();
+    let allow_suggested = ctx.profile.allows_provisioning();
+    Json(connections.open(suggested, previous_token.as_deref(), allow_suggested))
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct HealthResponse {
     pub ok: bool,
@@ -331,6 +517,7 @@ fn core_routes() -> Router<AppState> {
         .route("/mutation/{name}", post(invoke_mutation))
         .route("/action/{name}", post(invoke_action))
         .route("/app/ensure", post(ensure_app))
+        .route("/connection/open", post(open_connection))
         .route("/live/{name}/subscribe", post(subscribe_live))
         .route("/live/{name}/resume", post(resume_live))
         .route("/live/{name}/unsubscribe", post(unsubscribe_live))
@@ -403,10 +590,17 @@ pub enum RouteClass {
 /// The authorization policy a route carries. `AppAuth` means the handler may
 /// enforce the app-supplied `ctx.auth` — not that the transport authenticates
 /// the caller (in local v0 it does not; see LLP 0031 §The invariant).
+/// `ConnectionAuth` strengthens that: the transport requires the
+/// server-issued per-connection token from `POST /connection/open` (the
+/// handler may still additionally enforce `ctx.auth`).
+///
+/// @ref LLP 0031#connection-capability-grants — ConnectionAuth marks every
+/// route that exercises a connection-scoped capability.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RoutePolicy {
     Public,
     AppAuth,
+    ConnectionAuth,
     AdminRead,
     AdminWrite,
 }
@@ -430,7 +624,7 @@ pub struct RouteSpec {
 /// @ref LLP 0031#enforcement — registry-driven enforcement; the classified unit is the operation.
 pub fn route_registry() -> Vec<RouteSpec> {
     use RouteClass::{AppData, SystemApi, SystemStatic};
-    use RoutePolicy::{AdminRead, AdminWrite, AppAuth, Public};
+    use RoutePolicy::{AdminRead, AdminWrite, AppAuth, ConnectionAuth, Public};
     let spec = |method, path, class, policy| RouteSpec {
         method,
         path,
@@ -446,15 +640,23 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("POST", "/mutation/{name}", AppData, AppAuth),
         spec("POST", "/action/{name}", AppData, AppAuth),
         spec("POST", "/app/ensure", AppData, Public),
-        spec("POST", "/live/{name}/subscribe", AppData, AppAuth),
-        spec("POST", "/live/{name}/resume", AppData, AppAuth),
-        spec("POST", "/live/{name}/unsubscribe", AppData, AppAuth),
-        spec("GET", "/live/{connection_id}/stream", AppData, AppAuth),
-        spec("GET", "/outbox/{connection_id}", AppData, Public),
+        // Grants the connection capability (like /app/ensure grants app
+        // provisioning): public entry, everything it guards is ConnectionAuth.
+        spec("POST", "/connection/open", AppData, Public),
+        spec("POST", "/live/{name}/subscribe", AppData, ConnectionAuth),
+        spec("POST", "/live/{name}/resume", AppData, ConnectionAuth),
+        spec("POST", "/live/{name}/unsubscribe", AppData, ConnectionAuth),
+        spec(
+            "GET",
+            "/live/{connection_id}/stream",
+            AppData,
+            ConnectionAuth,
+        ),
+        spec("GET", "/outbox/{connection_id}", AppData, ConnectionAuth),
         spec("POST", "/ephemeral/collections/ensure", AppData, Public),
-        spec("POST", "/ephemeral/publish", AppData, Public),
-        spec("POST", "/ephemeral/subscribe", AppData, Public),
-        spec("POST", "/ephemeral/delete", AppData, Public),
+        spec("POST", "/ephemeral/publish", AppData, ConnectionAuth),
+        spec("POST", "/ephemeral/subscribe", AppData, ConnectionAuth),
+        spec("POST", "/ephemeral/delete", AppData, ConnectionAuth),
         // System API — migrated gated writes (LLP 0031 D5/D2).
         spec("POST", "/_snapback/api/schema/load", SystemApi, AdminWrite),
         spec(
@@ -1355,7 +1557,9 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("content-type, authorization, x-snapback-admin-token"),
+        HeaderValue::from_static(
+            "content-type, authorization, x-snapback-admin-token, x-snapback-connection-token",
+        ),
     );
     response
 }
@@ -1763,9 +1967,15 @@ async fn ensure_app(
 
 async fn subscribe_live(
     State(state): State<SharedSnapback>,
+    State(connections): State<ConnectionRegistry>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(input): Json<LiveSubscribeInput>,
 ) -> Result<Json<crate::local::LiveSubscribeOutput>, ApiError> {
+    connections.verify(
+        &input.connection_id,
+        header_connection_token(&headers).as_deref(),
+    )?;
     let output = with_snapback(&state, move |snapback| {
         snapback.subscribe_live(&name, input)
     })
@@ -1775,18 +1985,30 @@ async fn subscribe_live(
 
 async fn resume_live(
     State(state): State<SharedSnapback>,
+    State(connections): State<ConnectionRegistry>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(input): Json<LiveResumeInput>,
 ) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
+    connections.verify(
+        &input.connection_id,
+        header_connection_token(&headers).as_deref(),
+    )?;
     let output = with_snapback(&state, move |snapback| snapback.resume_live(&name, input)).await?;
     Ok(Json(output))
 }
 
 async fn unsubscribe_live(
     State(state): State<SharedSnapback>,
+    State(connections): State<ConnectionRegistry>,
     Path(name): Path<String>,
+    headers: HeaderMap,
     Json(input): Json<LiveUnsubscribeInput>,
 ) -> Result<Json<crate::local::LiveUnsubscribeOutput>, ApiError> {
+    connections.verify(
+        &input.connection_id,
+        header_connection_token(&headers).as_deref(),
+    )?;
     // L7 offload: disposal reads the storage version (rusqlite) for its
     // receipt, so it runs on the blocking lane like every other write path.
     let output = with_snapback(&state, move |snapback| {
@@ -1799,10 +2021,26 @@ async fn unsubscribe_live(
 async fn stream_live(
     State(state): State<SharedSnapback>,
     State(ephemeral): State<EphemeralApi>,
+    State(connections): State<ConnectionRegistry>,
     Path(connection_id): Path<String>,
+    Query(query): Query<ConnectionTokenQuery>,
+    headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
-    ws.on_upgrade(move |socket| live_stream(socket, state, ephemeral, connection_id))
+    // The token gate runs BEFORE the upgrade: an unauthorized caller gets the
+    // structured 401/403 diagnostic, never a socket. Browser WebSockets cannot
+    // set headers, so the token may ride the query string or the
+    // `snapback.connection-token.<token>` subprotocol instead.
+    let presented = header_connection_token(&headers)
+        .or(query.connection_token)
+        .or_else(|| subprotocol_connection_token(&headers));
+    if let Err(error) = connections.verify(&connection_id, presented.as_deref()) {
+        return error.into_response();
+    }
+    // Select the negotiated subprotocol when offered (a browser fails the
+    // connection if it offered subprotocols and the server echoed none).
+    ws.protocols([LIVE_STREAM_SUBPROTOCOL])
+        .on_upgrade(move |socket| live_stream(socket, state, ephemeral, connection_id))
 }
 
 async fn live_stream(
@@ -2201,11 +2439,20 @@ fn merge_json_object(target: &mut Value, source: Value) {
 }
 
 /// Outbox drain reaches the room authority directly — no global mutex (L9).
+/// The drain is destructive (a bearerless drain was the ENG-23442 data-theft
+/// vector), so it demands the connection token like every connection-scoped
+/// operation; polling clients may pass it as `?connection_token=` when headers
+/// are inconvenient.
 async fn drain_outbox(
     State(ephemeral): State<EphemeralApi>,
+    State(connections): State<ConnectionRegistry>,
     Path(connection_id): Path<String>,
-) -> Json<Vec<crate::ephemeral::RealtimeEnvelope>> {
-    Json(ephemeral.drain_outbox(&connection_id))
+    Query(query): Query<ConnectionTokenQuery>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::ephemeral::RealtimeEnvelope>>, ApiError> {
+    let presented = header_connection_token(&headers).or(query.connection_token);
+    connections.verify(&connection_id, presented.as_deref())?;
+    Ok(Json(ephemeral.drain_outbox(&connection_id)))
 }
 
 #[derive(Debug, Deserialize)]
@@ -2247,8 +2494,14 @@ async fn ensure_ephemeral_collections(
 
 async fn publish_ephemeral(
     State(ephemeral): State<EphemeralApi>,
+    State(connections): State<ConnectionRegistry>,
+    headers: HeaderMap,
     Json(request): Json<PublishRequest>,
 ) -> Result<Json<crate::ephemeral::PublishOutcome>, ApiError> {
+    connections.verify(
+        &request.connection_id,
+        header_connection_token(&headers).as_deref(),
+    )?;
     ephemeral
         .publish(request, now_millis())
         .map(Json)
@@ -2257,8 +2510,14 @@ async fn publish_ephemeral(
 
 async fn subscribe_ephemeral(
     State(ephemeral): State<EphemeralApi>,
+    State(connections): State<ConnectionRegistry>,
+    headers: HeaderMap,
     Json(request): Json<SubscribeRequest>,
 ) -> Result<Json<crate::ephemeral::EphemeralMessage>, ApiError> {
+    connections.verify(
+        &request.connection_id,
+        header_connection_token(&headers).as_deref(),
+    )?;
     ephemeral
         .subscribe(request, now_millis())
         .map(Json)
@@ -2267,8 +2526,14 @@ async fn subscribe_ephemeral(
 
 async fn delete_ephemeral(
     State(ephemeral): State<EphemeralApi>,
+    State(connections): State<ConnectionRegistry>,
+    headers: HeaderMap,
     Json(request): Json<DeleteRequest>,
 ) -> Result<Json<Option<crate::ephemeral::EphemeralMessage>>, ApiError> {
+    connections.verify(
+        &request.connection_id,
+        header_connection_token(&headers).as_deref(),
+    )?;
     ephemeral
         .delete(request, now_millis())
         .map(Json)
@@ -2337,8 +2602,11 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // (forbidden) from "needs the configured token" (unauthorized).
         "SNAPBACK_ADMIN_DISABLED"
         | "SNAPBACK_LIVE_RESUME_OWNERSHIP"
+        | "SNAPBACK_CONNECTION_TOKEN_INVALID"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
-        "SNAPBACK_ADMIN_TOKEN_REQUIRED" => StatusCode::UNAUTHORIZED,
+        "SNAPBACK_ADMIN_TOKEN_REQUIRED" | "SNAPBACK_CONNECTION_TOKEN_REQUIRED" => {
+            StatusCode::UNAUTHORIZED
+        }
         "SNAPBACK_SQLITE_ERROR" | "SNAPBACK_INTERNAL_ERROR" => StatusCode::INTERNAL_SERVER_ERROR,
         _ => StatusCode::BAD_REQUEST,
     }
@@ -2400,10 +2668,62 @@ mod tests {
     }
 
     use super::{
-        LiveSocketClientMessage, RouteClass, RoutePolicy, live_socket_operation_name,
-        live_socket_operations, route_registry,
+        ConnectionRegistry, LiveSocketClientMessage, RouteClass, RoutePolicy,
+        live_socket_operation_name, live_socket_operations, route_registry,
     };
     use crate::ephemeral::{DeleteRequest, PublishRequest, Scope, SubscribeRequest};
+
+    /// ENG-23442 — grant semantics: adopted suggestions, collision minting,
+    /// prod minting, and token verification outcomes.
+    #[test]
+    fn connection_registry_grants_and_verifies() {
+        let registry = ConnectionRegistry::default();
+
+        let adopted = registry.open(Some("readable".to_owned()), None, true);
+        assert_eq!(adopted.connection_id, "readable");
+        assert!(adopted.connection_token.starts_with("sct_"));
+
+        // A colliding suggestion mints instead of rotating the live grant.
+        let collided = registry.open(Some("readable".to_owned()), None, true);
+        assert_ne!(collided.connection_id, "readable");
+        assert!(collided.connection_id.starts_with("conn_"));
+        assert!(
+            registry
+                .verify("readable", Some(&adopted.connection_token))
+                .is_ok(),
+            "the original grant must survive a colliding open"
+        );
+
+        // Idempotent re-open: presenting the current token returns the same
+        // grant (any profile) — a wrong previous token mints instead.
+        let reopened = registry.open(
+            Some("readable".to_owned()),
+            Some(&adopted.connection_token),
+            false,
+        );
+        assert_eq!(reopened.connection_id, "readable");
+        assert_eq!(reopened.connection_token, adopted.connection_token);
+        let stolen = registry.open(Some("readable".to_owned()), Some("sct_wrong"), true);
+        assert_ne!(stolen.connection_id, "readable");
+
+        // Prod never adopts caller-selected ids.
+        let minted = registry.open(Some("chosen".to_owned()), None, false);
+        assert!(minted.connection_id.starts_with("conn_"));
+
+        // Verification: missing token, unknown connection, mismatched token.
+        assert!(registry.verify("readable", None).is_err());
+        assert!(registry.verify("never_opened", Some("sct_x")).is_err());
+        assert!(
+            registry
+                .verify("readable", Some(&collided.connection_token))
+                .is_err()
+        );
+        assert!(
+            registry
+                .verify(&collided.connection_id, Some(&collided.connection_token))
+                .is_ok()
+        );
+    }
 
     const RESERVED_PREFIX: &str = "/_snapback/";
 
@@ -2432,7 +2752,12 @@ mod tests {
                         route.path
                     );
                     assert!(
-                        matches!(route.policy, RoutePolicy::Public | RoutePolicy::AppAuth),
+                        matches!(
+                            route.policy,
+                            RoutePolicy::Public
+                                | RoutePolicy::AppAuth
+                                | RoutePolicy::ConnectionAuth
+                        ),
                         "app-data route carries an admin policy: {}",
                         route.path
                     );

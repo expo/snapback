@@ -397,6 +397,14 @@ An ephemeral subscription is identified by:
 - target capabilities;
 - optional client id / connection id.
 
+As built (ENG-23442), the connection id is no longer a bare caller-chosen
+string: it is a granted capability from `POST /connection/open`, and every
+ephemeral publish/subscribe/delete, outbox drain, and live-stream upgrade must
+present the grant's per-connection token
+([LLP 0031](./0031-server-route-taxonomy.spec.md) §Connection capability
+grants). The kit handles the handshake transparently; app code still passes
+readable connection-id labels.
+
 The server returns:
 
 - a snapshot of current non-expired entries visible to the subscriber,

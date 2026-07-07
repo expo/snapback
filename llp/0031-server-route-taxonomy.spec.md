@@ -5,7 +5,7 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-07-01 (status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands. 2026-07-07 (ENG-23441): D3 tightened — the public `functions` manifest is now itself a typed projection (`PublicFunctionManifest`) that drops executable handler bodies (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan`; full handler source lives only on the gated twin, and the field-level trim test gains a whole-payload source-sentinel assertion. Same-family Claude pass; the cross-family review debt stands. 2026-07-07 (ENG-23365): §Server-binary identity — the build.rs stamp now tracks the binary's real inputs (src/, Cargo.toml, Cargo.lock, refs/heads, packed-refs) so incremental rebuilds and ref-only moves re-stamp instead of replaying a stale commit/dirty pair. 2026-07-07 (ENG-23419): §Server-binary identity — the dirty probe now maps `git status --porcelain` success-with-empty-output to `gitDirty: false` instead of conflating it with command failure, so a clean checkout can actually earn binary-provenance reuse.)
+**Revised:** 2026-07-01 (status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands. 2026-07-07 (ENG-23441): D3 tightened — the public `functions` manifest is now itself a typed projection (`PublicFunctionManifest`) that drops executable handler bodies (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan`; full handler source lives only on the gated twin, and the field-level trim test gains a whole-payload source-sentinel assertion. Same-family Claude pass; the cross-family review debt stands. 2026-07-07 (ENG-23365): §Server-binary identity — the build.rs stamp now tracks the binary's real inputs (src/, Cargo.toml, Cargo.lock, refs/heads, packed-refs) so incremental rebuilds and ref-only moves re-stamp instead of replaying a stale commit/dirty pair. 2026-07-07 (ENG-23419): §Server-binary identity — the dirty probe now maps `git status --porcelain` success-with-empty-output to `gitDirty: false` instead of conflating it with command failure, so a clean checkout can actually earn binary-provenance reuse. 2026-07-07 (ENG-23442): added §Connection capability grants and the `connection-auth` registry policy — connection ids are no longer caller-chosen bearerless capabilities; `POST /connection/open` mints a per-connection token (idempotent re-open under the current token; suggested ids adopted only in non-prod), and `/live/*`, `/outbox/{id}`, and the ephemeral publish/subscribe/delete routes require it, with `/outbox/{id}` reclassified from Public. Same-family Claude pass; review debt stands.)
 **Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030
 
 ## Summary
@@ -107,9 +107,10 @@ and its target home:
 | `/health` | none | app-data | root — keep |
 | `/query/{name}` | app auth | app-data | root — keep |
 | `/mutation/{name}` | app auth | app-data | root — keep |
-| `/live/{name}/subscribe`, `/live/{name}/resume`, `/live/{id}/stream` | app auth | app-data | root — keep |
-| `/outbox/{id}` | none | app-data | root — keep |
-| `/ephemeral/publish`, `/ephemeral/subscribe` | none | app-data | root — keep |
+| `/connection/open` | none (grants, never exercises) | app-data | root — added by ENG-23442 (§Connection capability grants) |
+| `/live/{name}/subscribe`, `/live/{name}/resume`, `/live/{id}/stream` | connection token + app auth | app-data | root — keep (connection-auth since ENG-23442) |
+| `/outbox/{id}` | connection token | app-data | root — keep (connection-auth since ENG-23442; was Public) |
+| `/ephemeral/publish`, `/ephemeral/subscribe` | connection token | app-data | root — keep (connection-auth since ENG-23442) |
 | `/admin/schema` | **none** | system (loads schema) | add gated `/_snapback/api/schema/load`, retire root (D5) |
 | `/admin/functions` | **none** | system (loads code) | add gated `/_snapback/api/functions/load`, retire root (D5) |
 | `/admin/reset` | **none** | system (destructive) | add gated `/_snapback/api/app/reset`, retire root (D5) |
@@ -137,10 +138,13 @@ test has two viable shapes:
 
 - **Registry-driven (preferred):** build the router from a single declared route
   registry that tags each entry with its path class (`app-data`, `system-static`,
-  or `system-api`) and auth policy (`public`, `app-auth`, `admin-read`,
-  `admin-write`). Here `app-auth` means the handler may enforce the app's own
-  `ctx.auth`, not that the transport authenticates the caller — in local v0 it
-  does not (see the invariant). The test then asserts every `app-data` entry is a root path,
+  or `system-api`) and auth policy (`public`, `app-auth`, `connection-auth`,
+  `admin-read`, `admin-write`). Here `app-auth` means the handler may enforce the
+  app's own `ctx.auth`, not that the transport authenticates the caller — in
+  local v0 it does not (see the invariant); `connection-auth` (ENG-23442) means
+  the transport additionally requires the server-issued per-connection token
+  from `POST /connection/open` (§Connection capability grants). The test then
+  asserts every `app-data` entry is a root path,
   every `system-*` entry is under `/_snapback/*`, every `system-api` entry carries
   an admin auth policy, and the router is built from that registry and nothing
   else. Static console routes (`/_snapback/admin*`) are allowed to be public only
@@ -450,6 +454,79 @@ strict shrink of the unverifiable set, never a widening of trust. The
 external verifier cannot know the expected nonce); it lets a caller that spawned a
 server confirm the port still answers the same process, and makes a restart
 observable.
+
+## Connection capability grants
+
+Until ENG-23442, connection identity was a **caller-chosen bearerless
+capability**: `GET /outbox/{connection_id}` was classified Public,
+`GET /live/{connection_id}/stream` upgraded with no check, and the live/ephemeral
+POST bodies carried whatever `connection_id` the caller asserted. Knowledge of a
+connection id — guessed, leaked through logs or devtools, or remembered by a
+past participant — was sufficient to drain another client's durable live results
+and ephemeral messages or to attach a competing stream. The S3 socket-frame gate
+bound frames to *a* socket's id but never established ownership of the id
+itself.
+
+The fix makes the connection a **granted capability**:
+
+- **`POST /connection/open`** (app-data, Public — it *grants* a capability the
+  way `/app/ensure` grants provisioning, exercising nothing) returns
+  `{ connectionId, connectionToken }`. The token is always server-minted
+  (`sct_<uuid4>`, CSPRNG). A caller-suggested id is **adopted only in non-prod
+  profiles** (trusted local: readable ids keep demos, acceptance suites, and
+  gated-inspect output debuggable) and only while unclaimed; a suggestion that
+  collides with a live grant gets a minted id rather than a token rotation, so
+  an existing connection's bearer can never be displaced. Prod profiles always
+  mint (`conn_<uuid4>`): ids leaving the trusted posture are unguessable and
+  never caller-selected.
+- **Re-open is idempotent under the current token.** `POST /connection/open`
+  with `{ connectionId, previousToken }` returns the *same* grant when the token
+  matches (any profile — possession of the bearer proves ownership). This is
+  what lets a client keep one connection identity across reconnects and server
+  restarts: the registry is process-lifetime in-memory, so after a restart the
+  suggestion is simply adopted afresh under a new token.
+- **Every connection-scoped operation demands the token** — the
+  `connection-auth` registry policy: `/live/{name}/subscribe|resume|unsubscribe`
+  (body `connection_id`), `/ephemeral/publish|subscribe|delete` (body
+  `connection_id`), `GET /outbox/{connection_id}`, and the
+  `/live/{connection_id}/stream` upgrade. Verification is registry-lookup plus
+  constant-time compare in a dedicated small lock — never the global write
+  mutex, so the L9 "ephemeral proceeds while a mutation holds the write lane"
+  latency bounds still hold (the l9 concurrency test now runs with grants).
+  Failures are structured: missing token → 401
+  `SNAPBACK_CONNECTION_TOKEN_REQUIRED`; unknown connection or wrong token → 403
+  `SNAPBACK_CONNECTION_TOKEN_INVALID` (one code for both, so the gate is not an
+  existence oracle over the id namespace).
+- **Token transports.** HTTP: the `x-snapback-connection-token` header (GET
+  `/outbox` also accepts `?connection_token=` for header-less pollers). The WS
+  upgrade additionally accepts the `snapback.connection-token.<token>`
+  subprotocol, because a browser `WebSocket` cannot set headers; the kit always
+  offers `snapback.v1` alongside it and the server echoes `snapback.v1`, so the
+  negotiation stays legal. Socket **frames** need no per-frame token: the
+  upgrade authenticated the socket, and the existing S3 sender gate keeps every
+  frame bound to that socket's connection id.
+- **The socket-close disconnect does not revoke the grant.** `live_stream`
+  teardown still calls `disconnect` (dropping subscriptions and the outbox),
+  but the grant survives so the kit's reconnect re-enters under the same
+  identity. Grants live for the server process lifetime; there is no reaping.
+  A hostile local caller could grow the registry by looping `/connection/open`
+  — accepted under the trusted-local posture (the same caller can grow rooms
+  and subscriptions today), revisit if grants ever carry more than two small
+  strings.
+- **The kit half.** `demos/_kit/client.mjs` opens grants transparently on first
+  use of a connection-id label, threads the token through every wire operation
+  (label-keyed registries, granted-id-keyed wire traffic — in dev they are the
+  same string), refreshes the grant once on a token rejection or a socket that
+  fails without ever opening (the restart signature), and passes
+  `previousToken` on refresh so a still-live server re-issues the same grant.
+  Demo and app code keeps passing readable `connectionId` labels and never sees
+  tokens.
+
+`AppAuth` on these routes previously meant "the handler may enforce app-supplied
+`ctx.auth`"; `ConnectionAuth` strengthens it to "the transport requires the
+connection grant, and the handler may additionally enforce `ctx.auth`". True
+row-level/user auth remains LLP 0011 land — the grant authenticates the
+*connection*, not the user.
 
 ## Open questions
 

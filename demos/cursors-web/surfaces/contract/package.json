@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cd ../../../../../exact && bun --bun node_modules/.bin/vite --config ../snapback/demos/cursors-web/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5184",
-    "build": "cd ../../../../../exact && bun --bun node_modules/.bin/vite build --config ../snapback/demos/cursors-web/surfaces/contract/vite.config.ts"
+    "dev": "cfg=$PWD/vite.config.ts && cd ../../../../../exact && bun --bun node_modules/.bin/vite --config \"$cfg\" --host 127.0.0.1 --port 5184",
+    "build": "cfg=$PWD/vite.config.ts && cd ../../../../../exact && bun --bun node_modules/.bin/vite build --config \"$cfg\""
   }
 }

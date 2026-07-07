@@ -10,7 +10,7 @@ use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
-use crate::server::{ApiError, HealthResponse, SharedSnapback};
+use crate::server::{ApiError, ConnectionRegistry, HealthResponse, SharedSnapback};
 use axum::extract::{FromRef, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
@@ -224,6 +224,9 @@ pub struct AppState {
     pub read: ReadLane,
     pub ephemeral: EphemeralApi,
     pub server: Arc<ServerContext>,
+    /// Per-connection capability grants (ENG-23442): connection-scoped routes
+    /// demand the token minted by `POST /connection/open`.
+    pub connections: ConnectionRegistry,
 }
 
 impl AppState {
@@ -238,6 +241,7 @@ impl AppState {
             read,
             ephemeral,
             server: Arc::new(server),
+            connections: ConnectionRegistry::default(),
         }
     }
 
@@ -275,6 +279,12 @@ impl FromRef<AppState> for EphemeralApi {
 impl FromRef<AppState> for Arc<ServerContext> {
     fn from_ref(state: &AppState) -> Self {
         state.server.clone()
+    }
+}
+
+impl FromRef<AppState> for ConnectionRegistry {
+    fn from_ref(state: &AppState) -> Self {
+        state.connections.clone()
     }
 }
 

@@ -39,8 +39,14 @@ const suite = createSuite('_kit regression / reconnect-nuke (LLP 0034 review fix
 const ADA = 'user_ada';
 const X = 'race_conn';
 
-const openSocket = (label) => {
-  const ws = new WebSocket(`${server.baseUrl.replace(/^http/, 'ws')}/live/${X}/stream`);
+const openSocket = async (label) => {
+  // ENG-23442: raw sockets authenticate the upgrade with the connection
+  // grant's token subprotocol, exactly like the kit's managed socket.
+  const grant = await db.connectionGrant(X);
+  const ws = new WebSocket(
+    `${server.baseUrl.replace(/^http/, 'ws')}/live/${grant.id}/stream`,
+    ['snapback.v1', `snapback.connection-token.${grant.token}`],
+  );
   const frames = [];
   ws.addEventListener('message', async (e) => {
     const text = typeof e.data === 'string' ? e.data : await e.data.text();

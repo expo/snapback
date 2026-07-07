@@ -350,7 +350,12 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
     })
     .await
     .expect("setup");
-    let app = snapback::server::app(AppState::detached(snapback));
+    // ENG-23442: connection-scoped routes demand the /connection/open grant.
+    let state = AppState::detached(snapback);
+    let sweep_grant = state
+        .connections
+        .open(Some("conn_sweep".to_owned()), None, true);
+    let app = snapback::server::app(state);
 
     let get = |uri: &str| {
         Request::builder()
@@ -363,6 +368,10 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
         ("GET /", get("/")),
         ("GET /health", get("/health")),
         ("GET /inspect", get("/inspect")),
+        (
+            "POST /connection/open",
+            post_json("/connection/open", json!({})),
+        ),
         (
             "POST /query (host plan)",
             post_json("/query/listTodos", handler_body.clone()),
@@ -380,12 +389,19 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
         ),
         (
             "POST /live/subscribe",
-            post_json(
+            post_json_conn(
                 "/live/listTodos/subscribe",
                 json!({ "connection_id": "conn_sweep", "input": handler_body.clone() }),
+                &sweep_grant.connection_token,
             ),
         ),
-        ("GET /outbox", get("/outbox/conn_sweep")),
+        (
+            "GET /outbox",
+            get(&format!(
+                "/outbox/conn_sweep?connection_token={}",
+                sweep_grant.connection_token
+            )),
+        ),
         ("GET admin health", get("/_snapback/api/health")),
         ("GET admin inspect", get("/_snapback/api/inspect")),
         ("GET admin data", get("/_snapback/api/data/todos")),
@@ -465,7 +481,18 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     })
     .await
     .expect("setup");
-    let app = snapback::server::app(AppState::detached(snapback));
+    // ENG-23442: grants for the three connections this test exercises. The
+    // registry is its own small lock, so verification cannot queue behind the
+    // busy write lane — which is exactly what the latency bounds below prove.
+    let state = AppState::detached(snapback);
+    let observer_grant = state
+        .connections
+        .open(Some("l9-observer".to_owned()), None, true);
+    let publisher_grant = state
+        .connections
+        .open(Some("l9-publisher".to_owned()), None, true);
+    let ws_grant = state.connections.open(Some("l9-ws".to_owned()), None, true);
+    let app = snapback::server::app(state);
 
     // Serve the same app on a real listener for the WebSocket leg.
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -513,8 +540,11 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     let mut subscribe = ephemeral_request("l9-observer");
     let response = tokio::time::timeout(
         Duration::from_secs(2),
-        app.clone()
-            .oneshot(post_json("/ephemeral/subscribe", subscribe.clone())),
+        app.clone().oneshot(post_json_conn(
+            "/ephemeral/subscribe",
+            subscribe.clone(),
+            &observer_grant.connection_token,
+        )),
     )
     .await
     .expect("subscribe must not stall behind the busy mutation")
@@ -532,8 +562,11 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     let started = Instant::now();
     let response = tokio::time::timeout(
         Duration::from_secs(2),
-        app.clone()
-            .oneshot(post_json("/ephemeral/publish", subscribe)),
+        app.clone().oneshot(post_json_conn(
+            "/ephemeral/publish",
+            subscribe,
+            &publisher_grant.connection_token,
+        )),
     )
     .await
     .expect("publish must not stall behind the busy mutation")
@@ -550,7 +583,10 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     let started = Instant::now();
     let (mut socket, _) = tokio::time::timeout(
         Duration::from_secs(2),
-        tokio_tungstenite::connect_async(format!("ws://{addr}/live/l9-ws/stream")),
+        tokio_tungstenite::connect_async(format!(
+            "ws://{addr}/live/l9-ws/stream?connection_token={}",
+            ws_grant.connection_token
+        )),
     )
     .await
     .expect("ws connect must not stall behind the busy mutation")
@@ -588,7 +624,10 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
         Duration::from_secs(2),
         app.clone().oneshot(
             Request::builder()
-                .uri("/outbox/l9-observer")
+                .uri(format!(
+                    "/outbox/l9-observer?connection_token={}",
+                    observer_grant.connection_token
+                ))
                 .body(Body::empty())
                 .expect("drain request"),
         ),
@@ -932,6 +971,17 @@ fn post_json(uri: &str, body: Value) -> Request<Body> {
         .method("POST")
         .uri(uri)
         .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .expect("request")
+}
+
+/// `post_json` carrying the ENG-23442 connection token.
+fn post_json_conn(uri: &str, body: Value, connection_token: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("content-type", "application/json")
+        .header("x-snapback-connection-token", connection_token)
         .body(Body::from(body.to_string()))
         .expect("request")
 }

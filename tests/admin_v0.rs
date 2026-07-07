@@ -384,6 +384,10 @@ async fn function_runner_runs_query_and_mutation_with_read_write_sets() {
 async fn websocket_live_stream_pushes_existing_live_updates() {
     let state = AppState::detached(seeded_snapback());
     let shared = state.snapback.clone();
+    // ENG-23442: the stream upgrade demands the connection grant.
+    let grant = state
+        .connections
+        .open(Some("client_ws".to_owned()), None, true);
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
@@ -391,9 +395,12 @@ async fn websocket_live_stream_pushes_existing_live_updates() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let (mut stream, _) = connect_async(format!("ws://{addr}/live/client_ws/stream"))
-        .await
-        .unwrap();
+    let (mut stream, _) = connect_async(format!(
+        "ws://{addr}/live/client_ws/stream?connection_token={}",
+        grant.connection_token
+    ))
+    .await
+    .unwrap();
 
     {
         let mut snapback = shared.lock().await;
@@ -780,13 +787,18 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
     let app = app_with_context(seeded_snapback(), loopback_context(None));
 
     // A live subscription so the public payload has a subscription to trim.
+    let token = open_connection(app.clone(), "conn_secret").await;
     let sub = json!({
         "connection_id": "conn_secret",
         "input": { "args": {}, "auth": { "user_id": "user_1" } }
     });
     let subbed = app
         .clone()
-        .oneshot(post("/live/listTodos/subscribe", sub))
+        .oneshot(post_with_connection_token(
+            "/live/listTodos/subscribe",
+            sub,
+            &token,
+        ))
         .await
         .unwrap();
     assert_eq!(subbed.status(), StatusCode::OK);
@@ -913,6 +925,228 @@ async fn s1_public_inspect_redacts_handler_source() {
     );
 }
 
+/// ENG-23442 — the connection handshake: a dev-profile server adopts a
+/// caller-suggested connection id (readable ids for demos/tests) but never
+/// lets a second open displace a live grant, and a prod-profile server always
+/// mints an unguessable id.
+#[tokio::test]
+async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+
+    let first = json(
+        app.clone()
+            .oneshot(post(
+                "/connection/open",
+                json!({ "connectionId": "readable_conn" }),
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(first["connectionId"], "readable_conn");
+    let token = first["connectionToken"].as_str().expect("token");
+    assert!(token.starts_with("sct_"), "server-minted token: {token}");
+
+    // A colliding suggestion gets a minted id — the existing grant's bearer
+    // is never rotated out from under the connection that holds it.
+    let second = json(
+        app.clone()
+            .oneshot(post(
+                "/connection/open",
+                json!({ "connectionId": "readable_conn" }),
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let second_id = second["connectionId"].as_str().expect("id");
+    assert_ne!(second_id, "readable_conn");
+    assert!(second_id.starts_with("conn_"), "minted id: {second_id}");
+
+    // Prod never adopts caller-selected ids.
+    let prod = app_with_context(
+        seeded_snapback(),
+        ServerContext {
+            profile: snapback::admin::ServerProfile::Prod,
+            ..loopback_context(None)
+        },
+    );
+    let minted = json(
+        prod.oneshot(post(
+            "/connection/open",
+            json!({ "connectionId": "attacker_chosen" }),
+        ))
+        .await
+        .unwrap(),
+    )
+    .await;
+    let minted_id = minted["connectionId"].as_str().expect("id");
+    assert_ne!(minted_id, "attacker_chosen");
+    assert!(minted_id.starts_with("conn_"), "minted id: {minted_id}");
+}
+
+/// ENG-23442 — connection ids are no longer bearerless capabilities: an
+/// outbox drain or live subscribe without the grant's token is refused, a
+/// drain with ANOTHER connection's token is refused, and the refused attempts
+/// do not consume the victim's queued update.
+#[tokio::test]
+async fn outbox_drain_and_live_subscribe_demand_the_connection_token() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+
+    let victim_token = open_connection(app.clone(), "victim_conn").await;
+    let attacker_token = open_connection(app.clone(), "attacker_conn").await;
+
+    // A caller-chosen id that was never opened is refused even with a token.
+    let squatted = app
+        .clone()
+        .oneshot(post_with_connection_token(
+            "/live/listTodos/subscribe",
+            json!({
+                "connection_id": "squatter_conn",
+                "input": { "args": {}, "auth": { "user_id": "user_1" } }
+            }),
+            &attacker_token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(squatted.status(), StatusCode::FORBIDDEN);
+
+    // The victim subscribes and a mutation queues a durable update.
+    let subbed = app
+        .clone()
+        .oneshot(post_with_connection_token(
+            "/live/listTodos/subscribe",
+            json!({
+                "connection_id": "victim_conn",
+                "input": { "args": {}, "auth": { "user_id": "user_1" } }
+            }),
+            &victim_token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(subbed.status(), StatusCode::OK);
+    let mutated = app
+        .clone()
+        .oneshot(post(
+            "/mutation/createTodo",
+            json!({ "args": { "title": "queued for victim" }, "auth": { "user_id": "user_1" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(mutated.status(), StatusCode::OK);
+
+    // Bare drain: 401 (token required).
+    let bare = app
+        .clone()
+        .oneshot(get("/outbox/victim_conn"))
+        .await
+        .unwrap();
+    assert_eq!(bare.status(), StatusCode::UNAUTHORIZED);
+    let bare_body = json(bare).await;
+    assert_eq!(
+        bare_body["diagnostic"]["code"],
+        "SNAPBACK_CONNECTION_TOKEN_REQUIRED"
+    );
+
+    // Another connection's valid token: 403 (not an existence oracle either).
+    let cross = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/outbox/victim_conn")
+                .header("x-snapback-connection-token", &attacker_token)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(cross.status(), StatusCode::FORBIDDEN);
+    let cross_body = json(cross).await;
+    assert_eq!(
+        cross_body["diagnostic"]["code"],
+        "SNAPBACK_CONNECTION_TOKEN_INVALID"
+    );
+
+    // The rightful owner drains (query-param transport): the refused attempts
+    // consumed nothing — the queued durable update is still there.
+    let drained = json(
+        app.clone()
+            .oneshot(get(&format!(
+                "/outbox/victim_conn?connection_token={victim_token}"
+            )))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let envelopes = drained.as_array().expect("envelope array");
+    assert!(
+        envelopes
+            .iter()
+            .any(|envelope| envelope.get("Durable").is_some()),
+        "the victim's queued live update must survive refused drains: {drained}"
+    );
+}
+
+/// ENG-23442 — the live-stream upgrade is token-gated before the socket
+/// exists, and the browser-compatible `snapback.connection-token.<token>`
+/// subprotocol transport authenticates (with `snapback.v1` echoed).
+#[tokio::test]
+async fn stream_upgrade_requires_the_connection_token() {
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+
+    let state = AppState::detached(seeded_snapback());
+    let grant = state
+        .connections
+        .open(Some("gated_ws".to_owned()), None, true);
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = snapback::server::app(state);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let upgrade_status = |error: tokio_tungstenite::tungstenite::Error| match error {
+        tokio_tungstenite::tungstenite::Error::Http(response) => response.status().as_u16(),
+        other => panic!("expected an HTTP refusal, got {other:?}"),
+    };
+
+    // Bare upgrade: refused with 401 before any socket exists.
+    let bare = connect_async(format!("ws://{addr}/live/gated_ws/stream")).await;
+    assert_eq!(upgrade_status(bare.expect_err("must refuse")), 401);
+
+    // Wrong token: refused with 403.
+    let wrong = connect_async(format!(
+        "ws://{addr}/live/gated_ws/stream?connection_token=sct_not_the_token"
+    ))
+    .await;
+    assert_eq!(upgrade_status(wrong.expect_err("must refuse")), 403);
+
+    // Subprotocol transport (what a browser client uses): authenticates, and
+    // the server echoes the negotiated `snapback.v1`.
+    let mut request = format!("ws://{addr}/live/gated_ws/stream")
+        .into_client_request()
+        .unwrap();
+    request.headers_mut().insert(
+        "sec-websocket-protocol",
+        format!(
+            "snapback.v1, snapback.connection-token.{}",
+            grant.connection_token
+        )
+        .parse()
+        .unwrap(),
+    );
+    let (_stream, response) = connect_async(request).await.expect("token upgrade");
+    assert_eq!(
+        response
+            .headers()
+            .get("sec-websocket-protocol")
+            .and_then(|value| value.to_str().ok()),
+        Some("snapback.v1")
+    );
+
+    server.abort();
+}
+
 /* ---------- harness ---------- */
 
 fn loopback_app(snapback: LocalSnapback) -> axum::Router {
@@ -994,6 +1228,35 @@ fn post_with_token(uri: &str, body: Value, token: &str) -> Request<Body> {
         .header("x-snapback-admin-token", token)
         .body(Body::from(body.to_string()))
         .unwrap()
+}
+
+fn post_with_connection_token(uri: &str, body: Value, token: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("content-type", "application/json")
+        .header("x-snapback-connection-token", token)
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+/// Open a connection grant over HTTP (ENG-23442) and return its token. In the
+/// dev-profile test contexts the suggested id is adopted verbatim.
+async fn open_connection(app: axum::Router, connection_id: &str) -> String {
+    let resp = app
+        .oneshot(post(
+            "/connection/open",
+            json!({ "connectionId": connection_id }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let grant = json(resp).await;
+    assert_eq!(grant["connectionId"], connection_id);
+    grant["connectionToken"]
+        .as_str()
+        .expect("connectionToken")
+        .to_owned()
 }
 
 fn handler_input(args: Value, user_id: &str) -> HandlerInput {
@@ -1125,6 +1388,9 @@ fn todo_functions() -> FunctionManifest {
 #[tokio::test]
 async fn s3_websocket_frames_bind_to_the_socket_connection() {
     let state = AppState::detached(seeded_snapback());
+    let grant = state
+        .connections
+        .open(Some("client_ws_a".to_owned()), None, true);
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
@@ -1132,9 +1398,12 @@ async fn s3_websocket_frames_bind_to_the_socket_connection() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let (mut stream, _) = connect_async(format!("ws://{addr}/live/client_ws_a/stream"))
-        .await
-        .unwrap();
+    let (mut stream, _) = connect_async(format!(
+        "ws://{addr}/live/client_ws_a/stream?connection_token={}",
+        grant.connection_token
+    ))
+    .await
+    .unwrap();
 
     let frame = |connection_id: &str| {
         json!({
@@ -1209,6 +1478,9 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
     let mut snapback = seeded_snapback();
     snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
     let state = AppState::detached(snapback);
+    let grant = state
+        .connections
+        .open(Some("owner_ws".to_owned()), None, true);
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
@@ -1216,9 +1488,12 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let (mut stream, _) = connect_async(format!("ws://{addr}/live/owner_ws/stream"))
-        .await
-        .unwrap();
+    let (mut stream, _) = connect_async(format!(
+        "ws://{addr}/live/owner_ws/stream?connection_token={}",
+        grant.connection_token
+    ))
+    .await
+    .unwrap();
 
     let text =
         |frame: Value| tokio_tungstenite::tungstenite::Message::Text(frame.to_string().into());
