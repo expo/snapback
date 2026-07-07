@@ -50,6 +50,7 @@ run node demos/_kit/tests/provenance-unit.mjs
 run node demos/_kit/tests/provider-live-conformance.mjs
 run node demos/_kit/tests/regression-reconnect-nuke.mjs
 run node demos/_kit/tests/regression-fake-live.mjs
+run node demos/_kit/tests/regression-handshake-loss.mjs
 run node demos/_kit/tests/regression-gc-starvation.mjs
 run node demos/_kit/tests/regression-overlay-crossroom.mjs
 run node demos/_kit/tests/regression-mixed-transport.mjs

@@ -636,9 +636,16 @@ export class SnapbackClient {
     // True while the HTTP drain fallback owns delivery (socket down).
     let fellBack = false;
     // True when the server has (or may have) dropped this connection's durable
-    // subscriptions — an OPEN socket's close triggers server-side disconnect —
-    // and a fresh snapshot-with-subscribe has not landed yet.
+    // subscriptions and a fresh snapshot-with-subscribe has not landed yet.
+    // ANY socket death can trigger the server-side disconnect that drops
+    // them: live_stream registers on upgrade completion, before any frame,
+    // so even a socket that never fired client 'open' may have reached the
+    // server (ENG-23428).
     let needsResubscribe = false;
+    // Bumped on every socket loss; a subscribe that was in flight across a
+    // loss must not clear needsResubscribe (the dying socket's server-side
+    // disconnect may have destroyed the subscription it just created).
+    let socketLossEpoch = 0;
     let pendingResubscribeReason = 'reconnect';
     let resubscribeRetryTimer = null;
     let resubscribeAttempts = 0;
@@ -748,12 +755,19 @@ export class SnapbackClient {
       // This handle's OWN previous subscription (reconnect/resync/resume
       // paths) is explicitly superseded; the first establish has none.
       const supersedes = handle.subscriptionId ?? null;
+      const epochAtStart = socketLossEpoch;
       const sub = await client.subscribeLive(name, { connectionId, args, userId, correlation, supersedes });
       // Any successful fresh subscribe satisfies an outstanding need — clear
-      // it here so every path (establish, resume, resubscribe) agrees.
-      needsResubscribe = false;
-      resubscribeAttempts = 0;
-      clearResubscribeRetry();
+      // it here so every path (establish, resume, resubscribe) agrees —
+      // UNLESS a socket loss raced the in-flight request (ENG-23428): the
+      // lost socket's server-side disconnect may have destroyed the very
+      // subscription this call created, so the need persists and the
+      // retry/grace/drain paths re-enter with a fresh subscribe.
+      if (socketLossEpoch === epochAtStart) {
+        needsResubscribe = false;
+        resubscribeAttempts = 0;
+        clearResubscribeRetry();
+      }
       handle.subscriptionId = sub.subscription_id;
       handle.version = sub.snapshot.version;
       handle.rows = sub.snapshot.rows;
@@ -895,8 +909,9 @@ export class SnapbackClient {
             setConnection('connecting');
             void resubscribe('reconnect');
           } else {
-            // The current subscription is valid (re-created by the fallback
-            // path, or the original if the socket never opened); the regained
+            // The current subscription is valid (re-created since the last
+            // loss by the fallback/grace/retry paths, or the original when no
+            // constructed socket has died since it landed); the regained
             // socket drains the same connection outbox — no second snapshot.
             setConnection('live');
           }
@@ -905,30 +920,32 @@ export class SnapbackClient {
         if (state === 'lost') {
           streamedSinceSubscribe = false;
           emitEstablishedOnce(); // transport settled: poll fallback
-          if (detail.wasOpen) {
-            // An OPEN socket's close makes the server drop this connection's
-            // durable subscriptions (src/server.rs live_stream -> disconnect;
-            // when a reconnect superseded this socket server-side the
-            // generation guard skips the drop, and the fresh subscribe below
-            // is merely redundant). A socket that never opened dropped
-            // nothing.
-            needsResubscribe = true;
-            pendingResubscribeReason = 'reconnect';
-          }
+          // EVERY loss requires a fresh subscribe (ENG-23428): the server
+          // registers the stream task at upgrade completion, before any
+          // frame, and its teardown runs disconnect — dropping this
+          // connection's durable subscriptions AND its outbox. So a socket
+          // that never fired client 'open' (stalled 101, connect-budget
+          // force-close) may still have destroyed them, and the client
+          // cannot tell. A redundant fresh subscribe is safe — it
+          // explicitly supersedes its own predecessor — while a skipped one
+          // is permanent silent staleness on a destroyed outbox. (When a
+          // reconnect superseded this socket server-side the generation
+          // guard skips the drop; the subscribe is then merely redundant.)
+          socketLossEpoch += 1;
+          needsResubscribe = true;
+          pendingResubscribeReason = 'reconnect';
           if (fallbackToPoll) {
             setConnection('polling');
             fellBack = true;
-            if (detail.wasOpen) {
-              // First re-subscribe attempt after a short grace so the server
-              // has processed the close; failures are covered by the retry
-              // loop AND every fallback drain tick (needsResubscribe gates
-              // all of them, so exactly one fresh subscribe lands).
-              setTimeout(() => {
-                if (!disposed && !paused && needsResubscribe && handle.subscriptionId !== null) {
-                  void resubscribe('reconnect');
-                }
-              }, RESUBSCRIBE_AFTER_LOSS_DELAY_MS).unref?.();
-            }
+            // First re-subscribe attempt after a short grace so the server
+            // has processed the close; failures are covered by the retry
+            // loop AND every fallback drain tick (needsResubscribe gates
+            // all of them, so exactly one fresh subscribe lands).
+            setTimeout(() => {
+              if (!disposed && !paused && needsResubscribe && handle.subscriptionId !== null) {
+                void resubscribe('reconnect');
+              }
+            }, RESUBSCRIBE_AFTER_LOSS_DELAY_MS).unref?.();
             startFallback();
           } else {
             // Fallback disabled: hold at 'stale' with last-known rows; the
@@ -1266,9 +1283,15 @@ class LiveStreamManager {
       // A socket that never opened may have been refused at the upgrade gate
       // (stale grant after a server restart): re-run the handshake next try.
       if (!wasOpen) this.grantSuspect = true;
-      // Emit on an open socket's loss and on the first failed connect (so
-      // consumers can engage their fallback); silent on later retry failures.
-      if (wasOpen || this.attempts === 0) this.#emitState('lost', { wasOpen });
+      // Emit on EVERY death of a constructed socket, retries included
+      // (ENG-23428): the server registers the stream task at upgrade
+      // completion, before any frame, so a retry socket that died without
+      // firing client 'open' may still have reached the server and triggered
+      // the disconnect that destroys the connection's subscriptions and
+      // outbox. Consumers must hear about every such loss to know a fresh
+      // subscribe is needed; swallowing retry failures left handles
+      // fake-healthy on a destroyed outbox.
+      this.#emitState('lost', { wasOpen });
       this.#scheduleReconnect();
     };
     ws.addEventListener('close', onLoss, { once: true });

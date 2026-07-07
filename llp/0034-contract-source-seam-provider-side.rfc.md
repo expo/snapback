@@ -156,7 +156,13 @@ agree (0284 §2.1 rule 3).
   Fresh subscribe is snapshot-with-subscribe, so no prime race by
   construction; the adapter emits `resubscribed` with
   `reason: 'reconnect'`. A subscription-survival grace window is future
-  work, not v1.
+  work, not v1. The server registers the stream task at upgrade
+  completion, before any frame, so the kit treats **every** death of a
+  constructed socket — including one that never fired client `open`
+  (handshake-window death: stalled 101, connect-budget force-close) — as
+  requiring the fresh subscribe (ENG-23428); a redundant subscribe is
+  safe because it explicitly supersedes its own predecessor, while a
+  skipped one strands the handle fake-healthy on a destroyed outbox.
 - **`resume_live` is a same-socket repoint, not a reconnect mechanism.** It
   takes `{subscription_id, connection_id, auth, recorded_permission_epochs}`
   — no versions — and returns `mode: 'retained' | 'resnapshot'` driven by
