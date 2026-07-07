@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
+**Revised:** 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated. Previously 2026-07-02: §Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, LLP 0036, https://github.com/ccheever/ibex
 
 ## Summary
@@ -104,7 +104,15 @@ does not meet it. The conformance floor, made precise by the Ibex evidence, is:
   microtask drains** — the lock is acquired per tick or per commit, not for the
   whole handler, so slow or concurrent handlers do not serialize all writes.
 
-Ibex passes this floor (the poll loop exists and releases the lock per tick);
+Ibex passes this floor with one caveat: the poll loop exists and releases the
+lock per tick, but when no timer or pending host work can advance a
+still-pending promise, `ex_hermes_eval` returns the raw promise with *success*
+status rather than spin. Snapback therefore enforces the completion half of
+the floor at the result channel instead of assuming it: the invoke IIFE
+resolves to a tagged `{"r": …}` envelope constructed only after the awaited
+handler value exists, and an untagged output is a failed invocation —
+`SNAPBACK_HANDLER_DID_NOT_SETTLE`, nothing committed (ENG-23430; pinned by
+`tests/handler_settlement_v0.rs`).
 V8 passes natively. Absent a host meeting that floor, "pluggable runtime, one
 programming model" is not true — which is exactly what bit Valet, and which the
 `0003` execution-boundary revision now addresses at the integration level.
@@ -457,8 +465,14 @@ poisoned VM never sits in the pool.
   `setInterval` are denied as non-configurable ambient globals for
   queries/mutations before module code ever runs, and actions (which may get
   timers) never pool. Microtasks: `ex_hermes_eval` drains the microtask queue
-  and pumps the event loop until the invocation's promise settles, so every
-  reachable continuation runs inside the invocation that scheduled it. The
+  and pumps the event loop until the invocation's promise settles — or, when
+  no timer or host work can advance it further, returns the still-pending
+  promise with success status. That fallback is not a completion: the invoke
+  IIFE's tagged completion envelope (ENG-23430) turns it into
+  `SNAPBACK_HANDLER_DID_NOT_SETTLE`, a failed invocation whose buffered writes
+  never commit, so "settled" is proven by the envelope rather than inferred
+  from eval status. Every continuation that does run therefore runs inside
+  the invocation that scheduled it. The
   residual hazard — a promise resolver or callback **captured in module scope**
   by invocation A and fired during invocation B — is *not* benign inert data
   (the earlier draft mistakenly folded a captured *callable* into the

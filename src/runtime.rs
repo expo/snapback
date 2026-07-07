@@ -858,22 +858,29 @@ fn run_warm_handler_with_context(
     }
 }
 
+/// Unwrap the invoke IIFE's tagged completion envelope. The tag is
+/// load-bearing: a status-0 eval does NOT prove the handler ran to
+/// completion, because the eval loop's no-progress fallback returns the
+/// still-pending invocation promise (stringified to "{}"). Only the IIFE
+/// constructs the {"r": ...} envelope, and only after the awaited handler
+/// value exists — so anything untagged on this channel means the handler
+/// never settled and must fail closed with nothing committed (ENG-23430).
 fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
-    if output.trim().is_empty() || output.trim() == "undefined" {
-        return Ok(Value::Null);
+    if let Ok(Value::Object(mut envelope)) = serde_json::from_str(&output)
+        && envelope.len() == 1
+        && let Some(result) = envelope.remove("r")
+    {
+        return Ok(result);
     }
-    serde_json::from_str(&output).map_err(|error| {
-        SnapbackError::error(
-            "SNAPBACK_HANDLER_RESULT_INVALID",
-            "runtime",
-            "handler returned a value that is not JSON-serializable",
-        )
-        .with_details(json!({
-            "function": module.export,
-            "error": error.to_string(),
-            "output": output,
-        }))
-    })
+    Err(SnapbackError::error(
+        "SNAPBACK_HANDLER_DID_NOT_SETTLE",
+        "runtime",
+        "handler promise never settled — the invocation produced no result and committed no writes",
+    )
+    .with_details(json!({
+        "function": module.export,
+        "output": output,
+    })))
 }
 
 pub(crate) fn eval(
@@ -927,6 +934,11 @@ pub(crate) fn eval(
         "SNAPBACK_CONFIG_UNDECLARED"
     } else if output.contains("SNAPBACK_CONFIG_MISSING") {
         "SNAPBACK_CONFIG_MISSING"
+    } else if output.contains("SNAPBACK_HANDLER_RESULT_INVALID") {
+        // The invoke IIFE throws this for non-JSON-serializable returns
+        // (function/symbol), which only JS can still distinguish from a
+        // pending promise (ENG-23430).
+        "SNAPBACK_HANDLER_RESULT_INVALID"
     } else {
         "SNAPBACK_HANDLER_FAILED"
     };
@@ -1060,8 +1072,25 @@ fn invocation_iife_source(
     let epoch_literal =
         serde_json::to_string(&invocation.epoch().to_string()).map_err(handler_serialize_error)?;
 
+    // The IIFE resolves to a tagged envelope ({"r": ...}), never a bare
+    // value. The vendored eval loop cannot always drive the promise to
+    // settlement: with no timers and no pending host work it falls back to
+    // returning the still-pending Promise with SUCCESS status, which
+    // JSON-stringifies to "{}" — indistinguishable from a handler that
+    // legitimately returned {} if the channel is untagged. The envelope is
+    // only ever constructed after the awaited handler value exists, so an
+    // untagged output proves the handler never settled (ENG-23430).
+    // Non-JSON-serializable returns (function/symbol) are rejected here in
+    // JS, the only place they are still distinguishable — JSON.stringify
+    // yields undefined for them, which an untagged channel silently turned
+    // into a null result.
+    //
+    // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
+    // Obligation 3's settlement assumption is enforced, not assumed: an
+    // unsettled invocation is a failed invocation, and its buffered writes
+    // never commit.
     Ok(format!(
-        "(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {}, {});\n  return JSON.stringify(value === undefined ? null : value);\n}})()",
+        "(async function() {{\n  var value = await globalThis.__snapbackInvoke({}, {}, {}, {}, {}, {}, {});\n  var body = JSON.stringify(value === undefined ? null : value);\n  if (body === undefined) {{\n    throw new Error(\"SNAPBACK_HANDLER_RESULT_INVALID: handler returned a value that is not JSON-serializable\");\n  }}\n  return '{{\"r\":' + body + '}}';\n}})()",
         export_json,
         args_literal,
         auth_literal,
