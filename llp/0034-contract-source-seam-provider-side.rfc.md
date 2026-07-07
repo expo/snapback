@@ -476,6 +476,29 @@ tests) produced five pre-merge fixes, all landed:
    dead half-open socket. The delivery loop checks
    `DeliveryNotifier::is_current` before every drain and exits when
    superseded, leaving the outbox to the socket that owns it.
+   Extended again by ENG-23426: the ownership check is now atomic with
+   the destructive act. The original guard was check-then-act —
+   `unregister` passed, then the task awaited the global write mutex
+   (unbounded, behind any slow write) before `disconnect`, so a
+   reconnect that registered and re-subscribed inside that await got its
+   fresh subscriptions, ephemeral registrations, and outbox wiped by the
+   stalled task. Teardown now acquires the mutex *first* and unregisters
+   under it, which closes the durable window (a fresh `subscribe_live`
+   serializes behind the same mutex, and a reconnect registers its
+   socket before re-subscribing, so a fresh durable subscription implies
+   a registration the unregister then fails on); the ephemeral wipe runs
+   off that mutex, so `disconnect_guarded` re-verifies
+   `DeliveryNotifier::is_registered` under each room/outbox lock as it
+   wipes and aborts the moment the id is reclaimed (a reconnect's
+   subscribe needs the very lock the checking step holds); on abort it
+   re-indexes the unvisited rooms into the ENG-23348 reverse index so
+   the connection's eventual final disconnect still reaches them. The
+   reaper and the admin disconnect route keep the unconditional wipe.
+   Residual:
+   ownership is defined by registration order — a client that
+   `subscribe_live`s durably *before* opening its WebSocket can still
+   lose that subscription to a stalled teardown, since the server has no
+   registration to attribute it to.
 2. **Honest resubscribe** — `live` is claimed only when a subscribe
    actually lands; failures surface, retry on bounded backoff, and every
    drain tick re-enters the fresh subscribe while needed (covers the

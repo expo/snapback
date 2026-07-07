@@ -2378,6 +2378,24 @@ impl LocalSnapback {
     }
 
     pub fn disconnect(&mut self, connection_id: &str, now_ms: u64) {
+        self.disconnect_inner(connection_id, now_ms, false);
+    }
+
+    /// Generation-guarded disconnect for the WS teardown path (ENG-23426):
+    /// the caller proved ownership with `DeliveryNotifier::unregister` while
+    /// already holding the global write mutex, so the durable wipe below is
+    /// atomic against fresh `subscribe_live` calls (they serialize behind
+    /// the same mutex, and a reconnect registers its socket before it
+    /// re-subscribes). The ephemeral wipe runs off that mutex, so it uses
+    /// `LocalEphemeralBackend::disconnect_guarded`, which aborts step-by-step
+    /// if a reconnect re-registers the id mid-wipe. The reaper and the admin
+    /// disconnect route keep the unconditional `disconnect`: they must tear
+    /// down even a connection with a live registration.
+    pub fn disconnect_guarded(&mut self, connection_id: &str, now_ms: u64) {
+        self.disconnect_inner(connection_id, now_ms, true);
+    }
+
+    fn disconnect_inner(&mut self, connection_id: &str, now_ms: u64, guarded: bool) {
         // Remove the liveness entry FIRST, before tearing down any ephemeral
         // registration/outbox or durable subscription (MEDIUM finding 2). The
         // ephemeral store is off the global mutex, so an async-worker
@@ -2391,8 +2409,16 @@ impl LocalSnapback {
         // disconnect. The banned state — a registration with no activity
         // entry, an unreapable zombie subscriber whose room never prunes —
         // cannot occur.
+        // (On the guarded path an aborted ephemeral wipe can leave the NEW
+        // registration briefly without an activity entry; that is the
+        // self-healing residual — the live socket's next pong/op/drain
+        // touches it back within the 30s safety-net cadence.)
         self.connections_last_seen.remove(connection_id);
-        self.ephemeral.disconnect(connection_id, now_ms);
+        if guarded {
+            self.ephemeral.disconnect_guarded(connection_id, now_ms);
+        } else {
+            self.ephemeral.disconnect(connection_id, now_ms);
+        }
         // A connection's durable live subscriptions are dead once the connection
         // goes away — there is no way to deliver further deltas. Dropping them lets
         // a demand-activated cron job deactivate when its last watcher leaves.

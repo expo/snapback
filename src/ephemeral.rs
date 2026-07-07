@@ -33,7 +33,10 @@ fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
 /// (ENG-23425): the per-connection outbox is keyed by connection id alone,
 /// so a superseded task that keeps draining steals the new socket's
 /// messages into its dead socket — it must stop draining, not just skip
-/// teardown.
+/// teardown. `is_registered` extends the guard through the destructive act
+/// itself (ENG-23426): teardown unregisters under the global write mutex,
+/// and the ephemeral wipe re-checks for a re-registration under each
+/// room/outbox lock, so a reconnect landing mid-teardown keeps its state.
 #[derive(Default)]
 struct DeliveryNotifierState {
     next_generation: u64,
@@ -84,6 +87,18 @@ impl DeliveryNotifier {
             lock(&self.state).waiters.get(connection_id),
             Some((current, _)) if *current == generation
         )
+    }
+
+    /// Whether ANY registration currently exists for the connection id
+    /// (ENG-23426). After a teardown's `unregister` succeeded, the waiters
+    /// map has no entry for the id, so a later presence can only mean a
+    /// reconnect re-registered it — the connection's state now belongs to
+    /// the new socket. `disconnect_guarded` re-checks this under each
+    /// destructive step's own lock, which is what makes the check atomic
+    /// with the act: a reconnect always registers *before* it subscribes,
+    /// and its subscribe needs the lock the checking step holds.
+    pub fn is_registered(&self, connection_id: &str) -> bool {
+        lock(&self.state).waiters.contains_key(connection_id)
     }
 
     fn wake(&self, connection_id: &str) {
@@ -1336,6 +1351,31 @@ impl LocalEphemeralBackend {
     ///
     /// @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — disconnect cost scales with the connection, not the store.
     pub fn disconnect(&self, connection_id: &str, now_ms: Millis) {
+        self.disconnect_inner(connection_id, now_ms, false);
+    }
+
+    /// Generation-guarded disconnect for the WS teardown path (ENG-23426).
+    /// The caller has already proven ownership by a successful `unregister`,
+    /// but WS-lane ephemeral operations bypass the global write mutex, so a
+    /// reconnect can register and re-subscribe *while this wipe runs*. Each
+    /// destructive step therefore re-verifies — under that step's own lock —
+    /// that no reconnect has re-registered the connection id, and the wipe
+    /// aborts the moment the id is reclaimed: everything from that point on
+    /// belongs to the new socket. Returns whether the wipe ran to completion
+    /// (`false` = aborted because the id was reclaimed; any old-life residue
+    /// left behind is removed by the connection's eventual final disconnect
+    /// or entry TTL, and the reaper still uses the unconditional path).
+    pub fn disconnect_guarded(&self, connection_id: &str, now_ms: Millis) -> bool {
+        self.disconnect_inner(connection_id, now_ms, true)
+    }
+
+    fn disconnect_inner(&self, connection_id: &str, now_ms: Millis, guarded: bool) -> bool {
+        // Cheap early-out for the guarded path: the reconnect already owns
+        // the id, so consuming the reverse index below would only orphan the
+        // new socket's rooms from their eventual cleanup.
+        if guarded && self.shared.delivery.is_registered(connection_id) {
+            return false;
+        }
         let touched = lock(&self.shared.connection_rooms)
             .remove(connection_id)
             .unwrap_or_default();
@@ -1351,9 +1391,20 @@ impl LocalEphemeralBackend {
         };
 
         let mut maybe_empty = Vec::new();
-        for (room_id, room_arc) in rooms {
+        let mut reclaimed_at = None;
+        for (visited, (room_id, room_arc)) in rooms.iter().enumerate() {
             let collection = self.collection_if_loaded(&room_id.collection);
-            let mut room = lock(&room_arc);
+            let mut room = lock(room_arc);
+            // ENG-23426: check-under-the-room-lock. A reconnect registers
+            // first (needing only the notifier lock) and its subscribe then
+            // takes this room lock, so either its registration is visible
+            // here (skip the wipe) or its subscribe lands after this room's
+            // removals (and survives). Room→notifier is the established
+            // lock order (`fan_out_locked` wakes under the room lock).
+            if guarded && self.shared.delivery.is_registered(connection_id) {
+                reclaimed_at = Some(visited);
+                break;
+            }
             if room.retired {
                 continue;
             }
@@ -1392,14 +1443,38 @@ impl LocalEphemeralBackend {
             }
         }
         for room_id in maybe_empty {
-            self.prune_room_if_empty(&room_id);
+            self.prune_room_if_empty(room_id);
+        }
+        if let Some(visited) = reclaimed_at {
+            // ENG-23426: the reverse index was consumed above, but the rooms
+            // from the tripping one onward were not wiped. Re-index them so
+            // the connection's eventual final disconnect still visits them —
+            // otherwise an old-life subscriber entry could survive as a
+            // zombie the index no longer reaches (the ENG-23348 invariant).
+            // Rooms already wiped held no new-socket state: new state needs
+            // a registration, and the very next room check trips on one.
+            for (room_id, _) in &rooms[visited..] {
+                self.index_connection_room(connection_id, room_id);
+            }
+            return false;
         }
 
-        lock(&self.shared.outboxes).remove(connection_id);
+        {
+            // ENG-23426: same check-under-the-lock for the shared outbox. A
+            // reconnect's first enqueue goes through `ensure_outbox`, which
+            // needs this map lock, so a registration invisible here can only
+            // enqueue into a fresh entry created after this removal.
+            let mut outboxes = lock(&self.shared.outboxes);
+            if guarded && self.shared.delivery.is_registered(connection_id) {
+                return false;
+            }
+            outboxes.remove(connection_id);
+        }
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D6:
         // rate buckets are keyed connection-first; drop this connection's
         // buckets on disconnect so they do not leak forever.
         lock(&self.shared.rate_buckets).remove(connection_id);
+        true
     }
 
     /// Prune expired entries through the expiry index: only rooms whose
@@ -2527,6 +2602,103 @@ mod tests {
             matches!(snapshot, EphemeralMessage::Snapshot { entries, .. } if entries.is_empty())
         );
         assert_eq!(published.key, EntryKey("a".to_owned()));
+    }
+
+    /// ENG-23426 — the generation-guarded wipe re-verifies ownership at every
+    /// destructive step: once a reconnect re-registers the connection id, a
+    /// stalled teardown must abort instead of destroying the new socket's
+    /// room subscription, published entries, queued outbox messages, and
+    /// reverse-index membership.
+    #[test]
+    fn guarded_disconnect_aborts_once_the_connection_reregisters() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+        let notifier = backend.delivery_notifier();
+
+        // The reconnected socket's fresh state: registration first (the WS
+        // task registers at upgrade, before any subscribe), then a room
+        // subscription and a published presence entry.
+        let (_generation, _waker) = notifier.register("a");
+        backend
+            .publish(publish_request("a", b"cursor"), 1_000)
+            .unwrap();
+        backend.subscribe(subscribe_request("a"), 1_001).unwrap();
+        backend
+            .publish(publish_request("a", b"cursor-2"), 1_002)
+            .unwrap();
+
+        // The stalled old task's teardown (it passed `unregister` before the
+        // reconnect) reaches the destructive act late: it must walk away.
+        assert!(
+            !backend.disconnect_guarded("a", 1_100),
+            "a wipe racing a re-registration must abort"
+        );
+
+        // The reverse index still reaches the connection's room, so the
+        // eventual final disconnect can clean it (ENG-23348 invariant).
+        assert!(
+            lock(&backend.shared.connection_rooms)
+                .get("a")
+                .is_some_and(|rooms| !rooms.is_empty()),
+            "the reverse index must survive the aborted wipe"
+        );
+
+        // The new socket's subscription still receives fan-out, its entry
+        // survived, and its queued update was not destroyed with the outbox.
+        let update = first_ephemeral(backend.drain_outbox("a"));
+        assert!(
+            matches!(update, EphemeralMessage::Upsert { .. }),
+            "queued update must survive the aborted wipe, got {update:?}"
+        );
+        let snapshot = backend.subscribe(subscribe_request("b"), 1_101).unwrap();
+        assert!(
+            matches!(&snapshot, EphemeralMessage::Snapshot { entries, .. } if entries.len() == 1),
+            "the published entry must survive the aborted wipe"
+        );
+        backend
+            .publish(publish_request("b", b"peer"), 1_102)
+            .unwrap();
+        assert!(
+            matches!(
+                first_ephemeral(backend.drain_outbox("a")),
+                EphemeralMessage::Upsert { .. }
+            ),
+            "the room subscription must survive the aborted wipe"
+        );
+    }
+
+    /// ENG-23426 — with no re-registration the guarded wipe behaves exactly
+    /// like the unconditional disconnect: subscriber, owned entries, outbox,
+    /// rate buckets, and reverse index are all torn down.
+    #[test]
+    fn guarded_disconnect_without_reregistration_wipes_everything() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+
+        backend
+            .publish(publish_request("a", b"cursor"), 1_000)
+            .unwrap();
+        backend.subscribe(subscribe_request("a"), 1_001).unwrap();
+
+        assert!(backend.disconnect_guarded("a", 1_100));
+
+        assert!(
+            !lock(&backend.shared.outboxes).contains_key("a"),
+            "outbox must be removed"
+        );
+        assert!(
+            !lock(&backend.shared.rate_buckets).contains_key("a"),
+            "rate buckets must be removed"
+        );
+        assert!(
+            !lock(&backend.shared.connection_rooms).contains_key("a"),
+            "reverse index must be consumed"
+        );
+        let snapshot = backend.subscribe(subscribe_request("b"), 1_101).unwrap();
+        assert!(
+            matches!(snapshot, EphemeralMessage::Snapshot { entries, .. } if entries.is_empty()),
+            "owned entries must be removed"
+        );
     }
 
     /// LLP 0032 L1 — a never-draining durable subscriber cannot accumulate

@@ -1912,17 +1912,33 @@ async fn live_stream(
 /// late; without the guard its teardown would remove the NEW socket's waker
 /// and destroy the NEW subscriptions while the new socket keeps answering
 /// pings (permanent silent staleness reported as 'live').
+///
+/// The ownership check is atomic with the destructive act (ENG-23426): the
+/// global mutex is acquired FIRST and `unregister` runs under it. Unregister-
+/// before-lock was check-then-act — a reconnect that registered and
+/// re-subscribed during the (unbounded, behind any slow write) mutex await
+/// got its fresh state wiped by the stalled task. A reconnect's durable
+/// `subscribe_live` serializes behind this same mutex and its socket
+/// registers before it re-subscribes, so a fresh durable subscription always
+/// implies a registration this unregister then fails on. WS-lane ephemeral
+/// subscribes bypass the mutex entirely; `disconnect_guarded` covers them by
+/// re-verifying ownership under each room/outbox lock as it wipes.
 async fn teardown_live_stream(
     state: &SharedSnapback,
     notify: &crate::ephemeral::DeliveryNotifier,
     connection_id: &str,
     generation: u64,
 ) {
-    if !notify.unregister(connection_id, generation) {
+    // Fast path: a task that already knows it is superseded (ENG-23425 exits,
+    // pre-drain supersession) never contends on the global mutex.
+    if !notify.is_current(connection_id, generation) {
         return;
     }
     let mut snapback = state.lock().await;
-    snapback.disconnect(connection_id, now_millis());
+    if !notify.unregister(connection_id, generation) {
+        return;
+    }
+    snapback.disconnect_guarded(connection_id, now_millis());
 }
 
 /// Drain a connection's outbox and send each message. The drain reaches the
