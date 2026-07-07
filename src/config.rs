@@ -201,15 +201,17 @@ impl ConfigStore {
             .get(name)
             .map(|existing| existing.values != next)
             .unwrap_or(true);
+        let mut state = self.state.clone();
         let entry = StoredEntry {
             values: next,
             set_at_ms: now_ms,
             source: source.to_owned(),
             verified: None,
         };
-        self.state.entries.insert(name.to_owned(), entry);
-        self.state.generation += 1;
-        self.persist()?;
+        state.entries.insert(name.to_owned(), entry);
+        state.generation += 1;
+        self.persist_state(&state)?;
+        self.state = state;
         Ok(WriteOutcome {
             value_changed,
             generation: self.state.generation,
@@ -219,10 +221,12 @@ impl ConfigStore {
     /// Remove an entry entirely. Removing an entry that is not set is a no-op
     /// that still reports `value_changed: false`.
     pub fn unset(&mut self, name: &str) -> SnapbackResult<WriteOutcome> {
-        let value_changed = self.state.entries.remove(name).is_some();
+        let mut state = self.state.clone();
+        let value_changed = state.entries.remove(name).is_some();
         if value_changed {
-            self.state.generation += 1;
-            self.persist()?;
+            state.generation += 1;
+            self.persist_state(&state)?;
+            self.state = state;
         }
         Ok(WriteOutcome {
             value_changed,
@@ -235,9 +239,11 @@ impl ConfigStore {
         name: &str,
         record: VerificationRecord,
     ) -> SnapbackResult<()> {
-        if let Some(entry) = self.state.entries.get_mut(name) {
+        let mut state = self.state.clone();
+        if let Some(entry) = state.entries.get_mut(name) {
             entry.verified = Some(record);
-            self.persist()?;
+            self.persist_state(&state)?;
+            self.state = state;
         }
         Ok(())
     }
@@ -263,6 +269,7 @@ impl ConfigStore {
                 skipped_existing_store: true,
             });
         }
+        let mut state = self.state.clone();
         for (name, value) in blob {
             if !declared.contains(name) {
                 ignored.push(name.clone());
@@ -284,7 +291,7 @@ impl ConfigStore {
                 ignored.push(name.clone());
                 continue;
             }
-            self.state.entries.insert(
+            state.entries.insert(
                 name.clone(),
                 StoredEntry {
                     values,
@@ -296,8 +303,9 @@ impl ConfigStore {
             imported.push(name.clone());
         }
         if !imported.is_empty() {
-            self.state.generation += 1;
-            self.persist()?;
+            state.generation += 1;
+            self.persist_state(&state)?;
+            self.state = state;
         }
         Ok(EnvImportOutcome {
             imported,
@@ -336,11 +344,11 @@ impl ConfigStore {
 
     /// Atomic replace with owner-only permissions: write a 0600 temp sibling,
     /// then rename over the store file.
-    fn persist(&self) -> SnapbackResult<()> {
+    fn persist_state(&self, state: &ConfigFileState) -> SnapbackResult<()> {
         let Some(path) = &self.path else {
             return Ok(());
         };
-        let bytes = serde_json::to_vec_pretty(&self.state).map_err(|error| {
+        let bytes = serde_json::to_vec_pretty(state).map_err(|error| {
             SnapbackError::error(
                 "SNAPBACK_CONFIG_STORE_IO",
                 "config",
@@ -416,6 +424,44 @@ mod tests {
         assert_eq!(reloaded.values("caltrainFeed"), Some(&["key-1".into()][..]));
         assert_eq!(reloaded.generation(), 1);
         assert_eq!(reloaded.entry("caltrainFeed").unwrap().source, "http");
+    }
+
+    #[test]
+    fn failed_persist_does_not_mutate_memory() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing_parent = dir.path().join("missing");
+        let mut store = ConfigStore::open(missing_parent.join("dev.sqlite3.config.json")).unwrap();
+
+        let error = store
+            .set("caltrainFeed", vec!["key-1".into()], false, "http", 42)
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_STORE_IO");
+        assert_eq!(store.generation(), 0);
+        assert_eq!(store.values("caltrainFeed"), None);
+
+        let mut memory = ConfigStore::in_memory();
+        memory
+            .set("caltrainFeed", vec!["key-1".into()], false, "http", 1)
+            .unwrap();
+        let mut failing = ConfigStore {
+            path: Some(missing_parent.join("verify.sqlite3.config.json")),
+            state: memory.state.clone(),
+            rotation: BTreeMap::new(),
+            verify_attempts: BTreeMap::new(),
+        };
+        let before = failing.state.clone();
+        let error = failing
+            .record_verification(
+                "caltrainFeed",
+                VerificationRecord {
+                    ok: true,
+                    at_ms: 2,
+                    diagnostic: None,
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_STORE_IO");
+        assert_eq!(failing.state, before);
     }
 
     #[cfg(unix)]

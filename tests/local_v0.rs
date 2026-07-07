@@ -6,12 +6,13 @@ use snapback::ephemeral::{
 };
 use snapback::local::{LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback};
 use snapback::manifest::{
-    ActionPlan, ActionReturnValue, ActionStep, AuthInput, CronActivationKind, CronActivationPolicy,
-    CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
-    CronSchedule, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
-    FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
-    MutationPlan, MutationStep, OrderDirection, OrderExpr, PermissionScopeExpr, QueryPlan,
-    ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
+    ActionPlan, ActionReturnValue, ActionStep, AuthInput, ConfigEntryDefinition,
+    CronActivationKind, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
+    CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
+    FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+    HandlerInput, HandlerPlan, IbexModule, IndexManifest, MutationPlan, MutationStep,
+    OrderDirection, OrderExpr, PermissionScopeExpr, QueryPlan, ReadDependency, ReturnValue,
+    SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use snapback::runtime::CapabilityState;
 use snapback::storage::{
@@ -4681,6 +4682,84 @@ fn d4_ensure_app_provisions_once_and_seeds_only_if_empty() {
     assert_eq!(rows.rows.len(), 1, "the seed ran exactly once");
 }
 
+#[test]
+fn ensure_app_with_config_errors_is_idempotent_and_still_seeds() {
+    use snapback::local::EnsureAppInput;
+
+    let mut functions = todo_functions();
+    let action = FunctionDefinition::new(
+        "usesMissingConfig",
+        FunctionKind::Action,
+        FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+            steps: Vec::new(),
+            return_value: Some(ActionReturnValue::Literal(json!(null))),
+        })),
+    );
+    let mut action = action;
+    action.uses = vec!["STRIPE_KEY".to_owned()];
+    functions.functions.push(action);
+    functions.config = vec![ConfigEntryDefinition {
+        name: "DECLARED_KEY".to_owned(),
+        description: None,
+        purpose: None,
+        secret: true,
+        required: false,
+        pool: false,
+        probe: None,
+        how_to_get: None,
+        acquisition: None,
+        default: None,
+        source_span: None,
+    }];
+
+    let seed = SeedData {
+        tables: std::collections::BTreeMap::from([(
+            "todos".to_owned(),
+            vec![serde_json::from_value::<Map<String, Value>>(
+                json!({ "_id": "seed_1", "title": "Seeded", "completed": false, "userId": "user_1" }),
+            )
+            .expect("seed row")],
+        )]),
+    };
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let first = snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(todo_schema()),
+                functions: Some(functions.clone()),
+                seed: Some(seed.clone()),
+            },
+            true,
+            "dev",
+        )
+        .expect("config diagnostics should not make ensure non-idempotent");
+    assert_eq!(first.functions, "provisioned");
+    assert_eq!(first.seed, "seeded");
+    assert!(
+        snapback
+            .inspect()
+            .expect("inspect")
+            .recent_diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "SNAPBACK_CONFIG_USES_UNKNOWN"),
+        "the config error is retained as a diagnostic"
+    );
+
+    let second = snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(todo_schema()),
+                functions: Some(functions),
+                seed: Some(seed),
+            },
+            true,
+            "dev",
+        )
+        .expect("retry stays idempotent");
+    assert_eq!(second.functions, "matched");
+    assert_eq!(second.seed, "skipped-nonempty");
+}
+
 /// ENG-22527 — the profile capability gates the PROVISIONING half of ensure:
 /// under a prod profile the operation inspects and reports 'gated' instead
 /// of writing; matched halves still report 'matched'.
@@ -4758,4 +4837,50 @@ fn d4_ensure_app_reports_gated_under_prod() {
         .expect("prod inspect");
     assert_eq!(matched.schema, "matched");
     assert_eq!(matched.functions, "matched");
+}
+
+#[test]
+fn diagnostic_ring_evicts_low_severity_before_errors() {
+    let mut functions = todo_functions();
+    functions.config = vec![ConfigEntryDefinition {
+        name: "feedKeys".to_owned(),
+        description: None,
+        purpose: None,
+        secret: true,
+        required: false,
+        pool: false,
+        probe: None,
+        how_to_get: None,
+        acquisition: None,
+        default: None,
+        source_span: None,
+    }];
+    let mut bad_action = FunctionDefinition::new(
+        "badAction",
+        FunctionKind::Action,
+        FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+            steps: Vec::new(),
+            return_value: Some(ActionReturnValue::Literal(json!(null))),
+        })),
+    );
+    bad_action.uses = vec!["missingConfig".to_owned()];
+    functions.functions.push(bad_action);
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    snapback.load_functions(functions);
+    for n in 0..140 {
+        snapback
+            .set_config_entry("feedKeys", vec![format!("key-{n}")], false, "test")
+            .expect("config set");
+    }
+
+    let diagnostics = snapback.inspect().expect("inspect").recent_diagnostics;
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "SNAPBACK_CONFIG_USES_UNKNOWN"),
+        "error diagnostics should survive lower-severity churn"
+    );
+    assert!(diagnostics.len() <= 100);
 }

@@ -842,7 +842,7 @@ pub struct LocalSnapback {
     // global mutex, so refreshes are ordered; readers clone the Arcs/maps and
     // never take the global mutex.
     read_manifests: Arc<RwLock<Arc<ReadManifests>>>,
-    read_epochs: Arc<RwLock<BTreeMap<String, u64>>>,
+    read_epochs: Arc<RwLock<Arc<BTreeMap<String, u64>>>>,
     receipts: ReceiptLog,
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // per-instance warm VM pool (never process-global: two local app
@@ -1066,12 +1066,10 @@ impl LocalSnapback {
                     "matched"
                 } else if provisioning_allowed {
                     let diagnostics = self.load_functions(manifest);
-                    if let Some(error) = diagnostics.iter().find(|diagnostic| {
-                        matches!(
-                            diagnostic.severity,
-                            DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
-                        )
-                    }) {
+                    if let Some(error) = diagnostics
+                        .iter()
+                        .find(|diagnostic| matches!(diagnostic.severity, DiagnosticSeverity::Fatal))
+                    {
                         return Err(SnapbackError::new(error.clone()));
                     }
                     "provisioned"
@@ -2721,7 +2719,7 @@ impl LocalSnapback {
             reaped_connections: 0,
             warm_vms: Arc::new(crate::warm_vm::WarmVmPool::from_env()),
             read_manifests,
-            read_epochs: Arc::new(RwLock::new(BTreeMap::new())),
+            read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
             receipts: ReceiptLog::default(),
         })
     }
@@ -2779,7 +2777,7 @@ impl LocalSnapback {
     /// (post-commit, still under the global mutex — same ordering argument as
     /// [`Self::refresh_read_manifests`]).
     fn refresh_read_epochs(&self) {
-        let snapshot = self.permission_epochs.clone();
+        let snapshot = Arc::new(self.permission_epochs.clone());
         *self
             .read_epochs
             .write()
@@ -3436,16 +3434,19 @@ impl LocalSnapback {
 
     fn record_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) {
         for diagnostic in diagnostics {
-            if matches!(
-                diagnostic.severity,
-                DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
-            ) {
-                self.recent_diagnostics.push_front(diagnostic);
-            } else {
-                self.recent_diagnostics.push_back(diagnostic);
-            }
+            self.recent_diagnostics.push_back(diagnostic);
             while self.recent_diagnostics.len() > MAX_RECENT_DIAGNOSTICS {
-                self.recent_diagnostics.pop_front();
+                let evict = self
+                    .recent_diagnostics
+                    .iter()
+                    .position(|diagnostic| {
+                        !matches!(
+                            diagnostic.severity,
+                            DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+                        )
+                    })
+                    .unwrap_or(0);
+                self.recent_diagnostics.remove(evict);
             }
         }
     }
@@ -3494,7 +3495,7 @@ struct ReadManifests {
 #[derive(Clone)]
 pub struct ReadLane {
     manifests: Arc<RwLock<Arc<ReadManifests>>>,
-    epochs: Arc<RwLock<BTreeMap<String, u64>>>,
+    epochs: Arc<RwLock<Arc<BTreeMap<String, u64>>>>,
     pool: Option<Arc<ReaderPool>>,
     // Shared with the write lane: concurrent readers check out distinct VMs
     // (exclusive ownership per checkout), warming extras on miss up to the
@@ -3570,7 +3571,7 @@ impl ReadLane {
                 conn: &tx,
                 schema: &manifests.schema,
             },
-            &epochs,
+            epochs.as_ref(),
             input,
             Some(&self.warm_vms),
         )?;
