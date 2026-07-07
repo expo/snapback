@@ -6,6 +6,14 @@ use std::collections::BTreeMap;
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 pub const TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX: &str = "local-dev-sqlite-ibex";
+/// The LLP 0048 conformance twin's internal profile — named to be
+/// unmistakably non-public so generated clients cannot mistake it for a
+/// supported `local-dev-sqlite-v8` target.
+pub const TARGET_PROFILE_LOCAL_CONFORMANCE_SQLITE_WORKERD_V8: &str =
+    "local-conformance-sqlite-workerd-v8";
+/// The LLP 0040 Cloudflare narrow-proof profile (LLP 0014 §Resolution:
+/// everything on Durable Objects).
+pub const TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8: &str = "cloudflare-do-sqlite-v8";
 
 fn schema_manifest_kind() -> String {
     "schemaManifest".to_owned()
@@ -942,6 +950,17 @@ pub struct CapabilityManifest {
         default = "vm_lifecycle_fresh"
     )]
     pub vm_lifecycle: String,
+    /// Target-computed runtime facts (LLP 0048 §Single-sourced runtime flags,
+    /// DK-5 capability truthfulness): the workerd release id, pinned
+    /// compatibility date and flags, kill-domain shape, and computed limit
+    /// values. Absent on targets that assert their limits statically.
+    #[serde(
+        default,
+        rename = "runtimeFacts",
+        alias = "runtime_facts",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub runtime_facts: Option<Value>,
 }
 
 pub(crate) fn vm_lifecycle_fresh() -> String {
@@ -1083,7 +1102,114 @@ impl CapabilityManifest {
             // Conservative default; `LocalSnapback::inspect` overrides it
             // with the live per-instance value (warm pool enabled or not).
             vm_lifecycle: vm_lifecycle_fresh(),
+            runtime_facts: None,
         }
+    }
+
+    /// The LLP 0048 conformance twin's internal manifest: the local target's
+    /// declaration with the executor swapped and the limits the workerd leg
+    /// actually enforces. `runtime_facts` carries the computed values —
+    /// workerd version, compat pins, kill domain, measured wall-clock budget
+    /// — per DK-5's computed-not-asserted rule. Deliberately NOT a public
+    /// target profile (LLP 0048 §Non-goals).
+    pub fn conformance_workerd_v8(runtime_facts: Value) -> Self {
+        let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
+        manifest.target_profile_id = TARGET_PROFILE_LOCAL_CONFORMANCE_SQLITE_WORKERD_V8.to_owned();
+        manifest.runtime_engine = "workerd-v8".to_owned();
+        // Ephemeral, cron, and actions stay on the canonical server; the twin
+        // swaps only query/mutation handler execution.
+        manifest
+            .capability_gaps
+            .push("v8_action_execution".to_owned());
+        manifest.vm_lifecycle = "fresh-process-per-invocation".to_owned();
+        for limit in &mut manifest.resource_limits {
+            // The service boundary makes wall-clock enforcement real on this
+            // leg (LLP 0047 via LLP 0048 §Limits testbed): the host owns the
+            // workerd process and kills it. cpu_budget stays honestly
+            // Missing — workerd offers no per-worker CPU budget locally.
+            if limit.name == "wall_clock_timeout" {
+                limit.status = ResourceLimitStatus::Enforced;
+            }
+        }
+        manifest.runtime_facts = Some(runtime_facts);
+        manifest
+    }
+
+    /// The LLP 0040 Cloudflare narrow-proof capability manifest
+    /// (`cloudflare-do-sqlite-v8`). Distinct from `local-dev-sqlite-ibex`; its
+    /// missing features are product facts, not TODO comments (LLP 0040
+    /// §Capability report). Storage is the coordinator Durable Object's
+    /// embedded SQLite; the runtime is V8; the live transport is
+    /// Durable-Object-owned hibernating WebSockets. Limit fields are computed
+    /// on the real runtime (DK-5) and carried in `runtime_facts`.
+    pub fn cloudflare_do_sqlite_v8(runtime_facts: Value) -> Self {
+        let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
+        manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
+        manifest.storage_engine = "durable-object-sqlite".to_owned();
+        manifest.runtime_engine = "v8".to_owned();
+        manifest.local_server_lifecycle = false;
+        manifest.vm_lifecycle = "fresh-isolate-per-deploy".to_owned();
+        // The ephemeral/presence lane, cron, and the durable-only local
+        // niceties are not in the narrow proof; report them honestly.
+        manifest.ephemeral_realtime = false;
+        manifest.ephemeral_websocket_publish = false;
+        manifest.ephemeral_local_room_authority = false;
+        manifest.cron = false;
+        // The proof's supported query subset is single-table only (LLP 0040
+        // §Measurements: evidence for the supported query subset only).
+        manifest.supported_query_forms = vec![
+            "ibex-ctx-db-single-table-eq".to_owned(),
+            "ibex-ctx-db-single-table-in".to_owned(),
+            "ibex-ctx-db-single-table-range".to_owned(),
+            "v8-live-eq-replace".to_owned(),
+            "websocket-live-replace".to_owned(),
+        ];
+        // The gaps the narrow proof does not close (LLP 0040 §App subset /
+        // §Non-goals). `code_hot_load` is structural: the deployed Workers
+        // runtime forbids dynamic eval, so an app-code change is a deploy.
+        manifest.capability_gaps = vec![
+            "offline_mutation_replay".to_owned(),
+            "postgres".to_owned(),
+            "hosted_untrusted_code".to_owned(),
+            "external_auth".to_owned(),
+            "assets".to_owned(),
+            "outbound_actions".to_owned(),
+            "notifications".to_owned(),
+            "cron".to_owned(),
+            "ephemeral_realtime".to_owned(),
+            "code_hot_load".to_owned(),
+            "multiple_apps_per_deployment".to_owned(),
+            "hosted_marketplace".to_owned(),
+            "retained_version_resume".to_owned(),
+        ];
+        manifest.resource_limits = vec![
+            // V8 wall-clock is enforced by the platform (the object/request is
+            // killed); measured value carried in runtime_facts.
+            ResourceLimit {
+                name: "wall_clock_timeout".to_owned(),
+                status: ResourceLimitStatus::Enforced,
+            },
+            ResourceLimit {
+                name: "cpu_budget".to_owned(),
+                status: ResourceLimitStatus::Enforced,
+            },
+            // The 2 MB row/BLOB cap is a hard platform limit (LLP 0014
+            // one-way door 8) — a declared divergence from the local target.
+            ResourceLimit {
+                name: "maximum_row_bytes".to_owned(),
+                status: ResourceLimitStatus::Enforced,
+            },
+            ResourceLimit {
+                name: "maximum_storage_bytes".to_owned(),
+                status: ResourceLimitStatus::Enforced,
+            },
+            ResourceLimit {
+                name: "maximum_subscription_count".to_owned(),
+                status: ResourceLimitStatus::Advisory,
+            },
+        ];
+        manifest.runtime_facts = Some(runtime_facts);
+        manifest
     }
 }
 

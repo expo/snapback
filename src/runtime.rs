@@ -319,7 +319,7 @@ fn action_host_missing() -> SnapbackError {
     )
 }
 
-struct IbexHostContext<'a> {
+pub(crate) struct IbexHostContext<'a> {
     /// The storage view for query/mutation invocations. Actions carry `None`:
     /// their `ctx.db` reads route through the action host, whose
     /// implementation chooses the locking policy (ENG-23324).
@@ -344,7 +344,7 @@ struct IbexHostContext<'a> {
 }
 
 impl<'a> IbexHostContext<'a> {
-    fn new(db: DbRead<'a>, input: HandlerInput, writable: bool) -> Self {
+    pub(crate) fn new(db: DbRead<'a>, input: HandlerInput, writable: bool) -> Self {
         let reads = auth_dependencies(&input);
         let read_keys = read_dependency_keys(&reads);
         Self {
@@ -395,8 +395,20 @@ impl<'a> IbexHostContext<'a> {
             .expect("query/mutation invocation carries a db view")
     }
 
-    fn epoch(&self) -> u64 {
+    pub(crate) fn epoch(&self) -> u64 {
         self.epoch
+    }
+
+    pub(crate) fn input(&self) -> &HandlerInput {
+        &self.input
+    }
+
+    pub(crate) fn mode_str(&self) -> &'static str {
+        match self.mode {
+            IbexInvocationMode::Query => "query",
+            IbexInvocationMode::Mutation => "mutation",
+            IbexInvocationMode::Action => "action",
+        }
     }
 
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
@@ -523,6 +535,22 @@ impl<'a> IbexHostContext<'a> {
                 Ok(Value::Bool(existed))
             }
             "runtime.now" => Ok(json!(self.now_ms)),
+            // Diagnostics-routed console (LLP 0048 allowlist slice 1): the
+            // routed console shim forwards handler console output here. It is
+            // diagnostics, never data — recorded on the host-call trace (both
+            // engines route through dispatch_host_call) and optionally echoed
+            // to stderr, but the handler-visible result is always null.
+            "runtime.log" => {
+                if matches!(
+                    env::var("SNAPBACK_HANDLER_CONSOLE").ok().as_deref(),
+                    Some("stderr")
+                ) {
+                    let level = args.get("level").and_then(Value::as_str).unwrap_or("log");
+                    let message = args.get("message").cloned().unwrap_or(Value::Null);
+                    eprintln!("[snapback handler console.{level}] {message}");
+                }
+                Ok(Value::Null)
+            }
             // Id generation is storage-independent, so it stays available to
             // actions, whose context carries no db view (ENG-23324).
             "runtime.id" => Ok(Value::String(crate::storage::new_id())),
@@ -810,10 +838,74 @@ impl<'a> IbexHostContext<'a> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum IbexInvocationMode {
+pub(crate) enum IbexInvocationMode {
     Query,
     Mutation,
     Action,
+}
+
+/// One recorded handler host call. The trace is the LLP 0048 equivalence
+/// artifact: the V8 and Ibex legs must produce equivalent traces before their
+/// user-visible outputs are compared, so both engines' host calls route
+/// through [`dispatch_host_call`], which records identically for either leg.
+#[derive(Clone, Debug, Serialize)]
+pub struct HostCallTraceEntry {
+    pub seq: usize,
+    pub op: String,
+    pub args: Value,
+    pub ok: bool,
+    /// The successful result value, or the stable diagnostic code on failure.
+    pub outcome: Value,
+}
+
+thread_local! {
+    static HOST_CALL_TRACE: RefCell<Option<Vec<HostCallTraceEntry>>> = const { RefCell::new(None) };
+}
+
+/// Run `f` while recording every handler host call on this thread, returning
+/// the result alongside the machine-readable trace (LLP 0048 §Architecture:
+/// the logical protocol is the invariant; the trace is its evidence).
+pub fn with_host_call_trace<T>(f: impl FnOnce() -> T) -> (T, Vec<HostCallTraceEntry>) {
+    let previous = HOST_CALL_TRACE.with(|slot| slot.borrow_mut().replace(Vec::new()));
+    let result = f();
+    let trace = HOST_CALL_TRACE.with(|slot| {
+        let mut borrowed = slot.borrow_mut();
+        let trace = borrowed.take().unwrap_or_default();
+        *borrowed = previous;
+        trace
+    });
+    (result, trace)
+}
+
+/// The single host-call dispatch seam shared by both engines: the Ibex FFI
+/// trampoline and the workerd HTTP host server both land here, so the op
+/// table, its diagnostics, and the recorded trace cannot differ per engine.
+pub(crate) fn dispatch_host_call(
+    ctx: &mut IbexHostContext<'_>,
+    op: &str,
+    args: Value,
+) -> SnapbackResult<Value> {
+    let tracing = HOST_CALL_TRACE.with(|slot| slot.borrow().is_some());
+    let traced_args = if tracing { Some(args.clone()) } else { None };
+    let result = ctx.handle_host_call(op, args);
+    if let Some(args) = traced_args {
+        HOST_CALL_TRACE.with(|slot| {
+            if let Some(trace) = slot.borrow_mut().as_mut() {
+                let (ok, outcome) = match &result {
+                    Ok(value) => (true, value.clone()),
+                    Err(error) => (false, Value::String(error.diagnostic.code.clone())),
+                };
+                trace.push(HostCallTraceEntry {
+                    seq: trace.len(),
+                    op: op.to_owned(),
+                    args,
+                    ok,
+                    outcome,
+                });
+            }
+        });
+    }
+    result
 }
 
 /// Test seam for the DK-4 keying invariant: the warm pool keys by module
@@ -838,6 +930,17 @@ fn run_ibex_handler_with_context(
     invocation: &mut IbexHostContext<'_>,
     pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<Value> {
+    // @ref LLP 0048#architecture — the twin swaps only the handler executor:
+    // storage, host-op implementation, and the logical host-call protocol are
+    // this same context either way. Actions stay on Ibex (egress and secrets
+    // powers are not in the twin's scope; the capability manifest says so).
+    if matches!(
+        crate::workerd_exec::selected_backend(),
+        crate::workerd_exec::HandlerBackend::WorkerdV8
+    ) && !matches!(invocation.mode, IbexInvocationMode::Action)
+    {
+        return crate::workerd_exec::run_handler_workerd(module, invocation);
+    }
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // scope fences: only queries and mutations take the warm path; actions
     // always run fresh (secrets/cron/egress powers, and keeping the outer
@@ -974,7 +1077,7 @@ fn take_unhandled_rejections(runtime: *mut HermesRuntimeOpaque) -> SnapbackResul
 /// commit that partial work (ENG-23361), so the invocation fails closed and
 /// the buffer is discarded — Node crashes on unhandled rejections and Convex
 /// fails the mutation; silently swallowing them is the one wrong option.
-fn unhandled_rejection_error(module: &IbexModule, rejections: Vec<String>) -> SnapbackError {
+pub(crate) fn unhandled_rejection_error(module: &IbexModule, rejections: Vec<String>) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
         "runtime",
@@ -993,7 +1096,7 @@ fn unhandled_rejection_error(module: &IbexModule, rejections: Vec<String>) -> Sn
 /// constructs the {"r": ...} envelope, and only after the awaited handler
 /// value exists — so anything untagged on this channel means the handler
 /// never settled and must fail closed with nothing committed (ENG-23430).
-fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
+pub(crate) fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
     if let Ok(Value::Object(mut envelope)) = serde_json::from_str(&output)
         && envelope.len() == 1
         && let Some(result) = envelope.remove("r")
@@ -1158,7 +1261,7 @@ extern "C" fn snapback_host_call(op: *const c_char, args_json: *const c_char) ->
                      host call against the current invocation; rejected",
                 ));
             }
-            ctx.handle_host_call(op, args)
+            dispatch_host_call(ctx, op, args)
         })
     });
 
@@ -1174,12 +1277,22 @@ fn invocation_source(
     invocation: &IbexHostContext<'_>,
 ) -> SnapbackResult<String> {
     Ok(format!(
-        "{}\n{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}",
         ambient_restriction_source(invocation.mode, outbound_actions_enabled()),
+        allowlist_install_source(),
         module.source,
         ctx_bootstrap_source(),
         invocation_iife_source(module, invocation)?,
     ))
+}
+
+/// The additive half of the Workers-dialect allowlist (LLP 0048
+/// §Handler-visible API surface): single-sourced with the workerd leg, where
+/// the same file evaluates as a side-effect module. It runs before the module
+/// source so top-level handler code observes the same surface on both
+/// engines.
+fn allowlist_install_source() -> &'static str {
+    include_str!("../packages/snapback-harness/allowlist-install.js")
 }
 
 /// The per-invocation tail of the eval source: the async IIFE that calls
@@ -1241,48 +1354,7 @@ fn invocation_iife_source(
     // Obligation 3's settlement assumption is enforced, not assumed: an
     // unsettled invocation is a failed invocation, and its buffered writes
     // never commit.
-    Ok(r#"(async function() {
-  function __snapbackSafeString(value) {
-    var text = String(value);
-    var out = "";
-    for (var i = 0; i < text.length; i++) {
-      var code = text.charCodeAt(i);
-      if (code >= 0xD800 && code <= 0xDBFF) {
-        if (i + 1 < text.length) {
-          var next = text.charCodeAt(i + 1);
-          if (next >= 0xDC00 && next <= 0xDFFF) {
-            out += text.charAt(i) + text.charAt(i + 1);
-            i++;
-            continue;
-          }
-        }
-        out += "\uFFFD";
-      } else if (code >= 0xDC00 && code <= 0xDFFF) {
-        out += "\uFFFD";
-      } else {
-        out += text.charAt(i);
-      }
-    }
-    return out;
-  }
-  function __snapbackJsonReplacer(_key, value) {
-    return typeof value === "string" ? __snapbackSafeString(value) : value;
-  }
-  try {
-    var value = await globalThis.__snapbackInvoke(__SNAPBACK_EXPORT__, __SNAPBACK_ARGS__, __SNAPBACK_AUTH__, __SNAPBACK_MODE__, __SNAPBACK_RUN__, __SNAPBACK_SECRETS__, __SNAPBACK_EPOCH__);
-    var encodedValue = JSON.stringify(value === undefined ? null : value, __snapbackJsonReplacer);
-    if (encodedValue === undefined) {
-      var resultError = new Error("handler returned a value that is not JSON-serializable");
-      try { Object.defineProperty(resultError, "__snapbackCode", { value: "SNAPBACK_HANDLER_RESULT_INVALID" }); } catch (_) { resultError.__snapbackCode = "SNAPBACK_HANDLER_RESULT_INVALID"; }
-      throw resultError;
-    }
-    return '{"r":{"__snapbackOk":true,"value":' + encodedValue + '}}';
-  } catch (error) {
-    var code = error && error.__snapbackCode || null;
-    var message = __snapbackSafeString(error && error.message || error);
-    return JSON.stringify({ r: { __snapbackOk: false, code: code, message: message } }, __snapbackJsonReplacer);
-  }
-})()"#
+    Ok(include_str!("../packages/snapback-harness/invocation-iife.js")
     .replace("__SNAPBACK_EXPORT__", &export_json)
     .replace("__SNAPBACK_ARGS__", &args_literal)
     .replace("__SNAPBACK_AUTH__", &auth_literal)
@@ -1301,8 +1373,9 @@ fn invocation_iife_source(
 /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — keying.
 fn warm_setup_source(module: &IbexModule) -> String {
     format!(
-        "{}\n{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}",
         ambient_restriction_source(IbexInvocationMode::Query, outbound_actions_enabled()),
+        allowlist_install_source(),
         module.source,
         ctx_bootstrap_source(),
         crate::warm_vm::RESET_INSTALL_SOURCE,
@@ -1325,21 +1398,66 @@ fn outbound_actions_enabled() -> bool {
 //   execution class only; the transactional query/mutation path never gets network.
 // @ref LLP 0009#capability-model — the JS ambient layer gates ambient powers by
 //   handler kind; the coarse Ibex network:fetch grant is opened only for egress.
+/// Ambient names an egress-enabled ACTION keeps (the LLP 0027 seam): network
+/// plus the timers a polling fetch loop legitimately needs. Queries and
+/// mutations never keep any of these.
+const EGRESS_KEPT_AMBIENT: [&str; 5] = [
+    "fetch",
+    "setTimeout",
+    "setInterval",
+    "clearTimeout",
+    "clearInterval",
+];
+
+/// Banned names shadowed as plain `undefined` rather than a denier function:
+/// host/introspection objects where "absent" is the truthful surface (and the
+/// historical behavior for `process`/`require`).
+const UNDEFINED_SHADOWED_AMBIENT: [&str; 3] = ["process", "require", "HermesInternal"];
+
+/// The Ibex leg's ambient denial list is generated from the same
+/// `allowlist.json` data the V8 strip consumes (LLP 0048 §Handler-visible API
+/// surface): banned-everywhere globals are denied here, so surface parity is
+/// data-driven rather than two hand-maintained lists.
+fn banned_ambient_globals() -> &'static Vec<String> {
+    static BANNED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    BANNED.get_or_init(|| {
+        let allowlist: Value =
+            serde_json::from_str(include_str!("../packages/snapback-harness/allowlist.json"))
+                .expect("packages/snapback-harness/allowlist.json parses");
+        allowlist
+            .get("bannedEverywhere")
+            .and_then(|banned| banned.get("globals"))
+            .and_then(Value::as_array)
+            .map(|names| {
+                names
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect()
+            })
+            .expect("allowlist bannedEverywhere.globals is a string array")
+    })
+}
+
 fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) -> String {
     let egress = outbound_enabled && matches!(mode, IbexInvocationMode::Action);
-    let mut denials = String::from(
-        r#"  try { Object.defineProperty(g, "process", { value: undefined, configurable: false, writable: false }); } catch (_) {}
-  try { Object.defineProperty(g, "require", { value: undefined, configurable: false, writable: false }); } catch (_) {}
-  try { Object.defineProperty(g, "WebSocket", { value: deny("WebSocket"), configurable: false, writable: false }); } catch (_) {}
-"#,
-    );
-    if !egress {
-        denials.push_str(
-            r#"  try { Object.defineProperty(g, "fetch", { value: deny("fetch"), configurable: false, writable: false }); } catch (_) {}
-  try { Object.defineProperty(g, "setTimeout", { value: deny("setTimeout"), configurable: false, writable: false }); } catch (_) {}
-  try { Object.defineProperty(g, "setInterval", { value: deny("setInterval"), configurable: false, writable: false }); } catch (_) {}
-"#,
-        );
+    let mut denials = String::new();
+    for name in banned_ambient_globals() {
+        if egress && EGRESS_KEPT_AMBIENT.contains(&name.as_str()) {
+            continue;
+        }
+        if UNDEFINED_SHADOWED_AMBIENT.contains(&name.as_str()) {
+            // Some engine-provided globals (HermesInternal) are
+            // non-configurable, so defineProperty throws; fall through
+            // delete -> defineProperty -> plain assignment until one sticks.
+            denials.push_str(&format!(
+                "  try {{ delete g[\"{name}\"]; }} catch (_) {{}}\n  if (g[\"{name}\"] !== undefined) {{ try {{ Object.defineProperty(g, \"{name}\", {{ value: undefined, configurable: false, writable: false }}); }} catch (_) {{}} }}\n  if (g[\"{name}\"] !== undefined) {{ try {{ g[\"{name}\"] = undefined; }} catch (_) {{}} }}\n"
+            ));
+        } else {
+            denials.push_str(&format!(
+                "  try {{ Object.defineProperty(g, \"{name}\", {{ value: deny(\"{name}\"), configurable: false, writable: false }}); }} catch (_) {{}}\n"
+            ));
+        }
     }
     format!(
         "(function(g) {{\n  function snapbackError(code, message) {{\n    var error = new Error(code + \": \" + message);\n    try {{ Object.defineProperty(error, \"__snapbackCode\", {{ value: code }}); }} catch (_) {{ error.__snapbackCode = code; }}\n    return error;\n  }}\n  function deny(name) {{\n    return function() {{ throw snapbackError(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\", name); }};\n  }}\n{denials}}})(globalThis);\n"
@@ -1347,239 +1465,10 @@ fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) 
 }
 
 fn ctx_bootstrap_source() -> &'static str {
-    r#"
-(function(g) {
-  function snapbackError(code, message) {
-    var error = new Error(code + ": " + message);
-    try { Object.defineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
-    return error;
-  }
-  function codeFromMessage(message) {
-    var match = String(message || "").match(/^(?:Error:\s*)?(SNAPBACK_[A-Z0-9_]+)(?::|\b)/);
-    return match ? match[1] : null;
-  }
-  function literal(value) { return { Literal: value }; }
-  function normalizeDirection(direction) {
-    return String(direction || "asc").toLowerCase() === "desc" ? "Desc" : "Asc";
-  }
-  function readonlyDenied(op) {
-    return function() { throw snapbackError("SNAPBACK_HANDLER_WRITE_IN_QUERY", op); };
-  }
-  // The opaque secret handle (LLP 0036 D5/D8): every accidental
-  // materialization path — stringify, JSON, template coercion, console —
-  // yields a redacted marker; expose() is the explicit, greppable escape
-  // hatch; asBearer() is v1 sugar over expose() (a true host-boundary unwrap
-  // awaits host-mediated fetch on the egress seam). Pure helpers: they close
-  // over nothing invocation-specific, and actions run on fresh VMs (DK-4
-  // scope fence), so module scope is safe.
-  function makeSecretHandle(name, value) {
-    var marker = "[snapback secret " + name + "]";
-    var handle = {
-      expose: function() { return value; },
-      asBearer: function() { return "Bearer " + value; },
-      toString: function() { return marker; },
-      toJSON: function() { return marker; }
-    };
-    try {
-      Object.defineProperty(handle, Symbol.toPrimitive, {
-        value: function() { return marker; }
-      });
-    } catch (_) {}
-    return handle;
-  }
-  function makeSecrets(grants) {
-    var entries = (grants && grants.entries) || {};
-    function lookup(name, rotate) {
-      var entry = entries[name];
-      if (!entry) {
-        throw snapbackError("SNAPBACK_CONFIG_UNDECLARED", name + " is not in this function's uses grant");
-      }
-      if (!entry.set || !entry.values || !entry.values.length) {
-        throw snapbackError("SNAPBACK_CONFIG_MISSING", name + " has no value set");
-      }
-      var index = rotate ? (entry.cursor || 0) % entry.values.length : 0;
-      return makeSecretHandle(name, entry.values[index]);
-    }
-    return {
-      get: function(name) { return lookup(name, false); },
-      rotating: function(name) { return lookup(name, true); }
-    };
-  }
-  // Unhandled-rejection ledger (ENG-23361). The vendored eval loop drains
-  // every microtask before the host reads the invocation result, but the
-  // only promise anything observes is the invoke IIFE's own — a rejection
-  // in a detached chain the handler spawned (forEach(async ...) is the
-  // classic shape) is observed by nobody, so its earlier ctx.db.* writes
-  // stayed buffered while its later ones were silently skipped, and the
-  // invocation still reported success. The vendored polyfill exposes
-  // then/promise's internal hook slots on __OriginalPromise: _C fires on
-  // every rejection, _B whenever a handler is attached or dispatched
-  // (handlers attached before the rejection re-enter handle() during
-  // finale, so they clear their entry too). A promise still in the ledger
-  // after the final drain therefore rejected with no handler at completion.
-  // The host sweeps the ledger after every successful eval and fails the
-  // invocation if entries remain.
-  //
-  // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
-  // Obligation 3: settlement of the invocation promise does not prove the
-  // handler's detached chains succeeded; the ledger closes that gap.
-  (function installRejectionLedger() {
-    if (typeof g.__snapbackTakeUnhandledRejections === "function") return;
-    var OriginalPromise = g.__OriginalPromise;
-    var ledger = OriginalPromise && typeof Map === "function" ? new Map() : null;
-    if (ledger) {
-      OriginalPromise._C = function(promise, reason) { ledger.set(promise, reason); };
-      OriginalPromise._B = function(promise) { ledger.delete(promise); };
-      // Self-check: if a vendored-runtime upgrade moves the pinned hook
-      // slots, disable detection (reverting to rejections going unseen)
-      // rather than misreport; tests/unhandled_rejection_v0.rs pins that
-      // detection works on the vendored runtime, so an upgrade that breaks
-      // this fails CI instead of shipping silently.
-      var working = false;
-      try {
-        var probe = new OriginalPromise(function(_, rej) { rej("snapback-ledger-probe"); });
-        working = ledger.get(probe) === "snapback-ledger-probe";
-        probe.then(undefined, function() {});
-        working = working && !ledger.has(probe);
-      } catch (_) { working = false; }
-      if (!working) {
-        OriginalPromise._C = null;
-        OriginalPromise._B = null;
-        ledger = null;
-      }
-    }
-    function describeReason(reason) {
-      try {
-        if (reason instanceof Error && reason.message) { return String(reason.message); }
-        return String(reason);
-      } catch (_) { return "unserializable rejection reason"; }
-    }
-    var take = function() {
-      if (!ledger) { return { supported: false, rejections: [] }; }
-      var rejections = [];
-      ledger.forEach(function(reason) { rejections.push(describeReason(reason)); });
-      ledger.clear();
-      return { supported: true, rejections: rejections };
-    };
-    try {
-      Object.defineProperty(g, "__snapbackTakeUnhandledRejections", {
-        value: take, configurable: false, writable: false
-      });
-    } catch (_) { g.__snapbackTakeUnhandledRejections = take; }
-  })();
-  // `host`, `makeBuilder`, and the whole `ctx` are built *per invocation* so
-  // that they close over this invocation's `epoch`. A continuation captured
-  // in module scope by a prior invocation therefore carries that prior
-  // epoch, and the host rejects it (stale-continuation guard) rather than
-  // routing it through whatever invocation is currently live on this VM.
-  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch) {
-    function host(op, args) {
-      try {
-        return g.__hostCall(epoch + "|" + op, JSON.stringify(args || {}));
-      } catch (error) {
-        var code = codeFromMessage(error && error.message);
-        if (code) {
-          try { Object.defineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
-        }
-        throw error;
-      }
-    }
-    function makeBuilder(table) {
-      var plan = { table: table, filters: [], order: [], limit: null, indexed_by: null };
-      var builder = {
-        withIndex: function(name) { plan.indexed_by = name; return builder; },
-        eq: function(field, value) {
-          plan.filters.push({ field: field, op: "Eq", value: literal(value) });
-          return builder;
-        },
-        in: function(field, values) {
-          plan.filters.push({ field: field, op: "In", value: literal(values) });
-          return builder;
-        },
-        lt: function(field, value) {
-          plan.filters.push({ field: field, op: "Lt", value: literal(value) });
-          return builder;
-        },
-        lte: function(field, value) {
-          plan.filters.push({ field: field, op: "Lte", value: literal(value) });
-          return builder;
-        },
-        gt: function(field, value) {
-          plan.filters.push({ field: field, op: "Gt", value: literal(value) });
-          return builder;
-        },
-        gte: function(field, value) {
-          plan.filters.push({ field: field, op: "Gte", value: literal(value) });
-          return builder;
-        },
-        order: function(field, direction) {
-          plan.order.push({ field: field, direction: normalizeDirection(direction) });
-          return builder;
-        },
-        take: function(limit) { plan.limit = Number(limit); return builder; },
-        collect: function() { return host("db.query", { plan: plan }).rows; },
-        first: function() {
-          var old = plan.limit;
-          plan.limit = 1;
-          try {
-            var rows = host("db.query", { plan: plan }).rows;
-            return rows.length ? rows[0] : null;
-          } finally {
-            plan.limit = old;
-          }
-        }
-      };
-      return builder;
-    }
-    var args = JSON.parse(argsJson || "{}");
-    var auth = JSON.parse(authJson || "{}");
-    var run = runJson ? JSON.parse(runJson) : null;
-    if (auth.user_id && !auth.userId) auth.userId = auth.user_id;
-    var db = {
-      get: function(table, id) { return host("db.get", { table: table, id: id }); },
-      query: makeBuilder,
-      insert: function(table, values) { return host("db.insert", { table: table, values: values }); },
-      patch: function(table, id, values) { return host("db.patch", { table: table, id: id, values: values }); },
-      delete: function(table, id) { return host("db.delete", { table: table, id: id }); }
-    };
-    if (mode !== "mutation") {
-      db.insert = readonlyDenied("insert");
-      db.patch = readonlyDenied("patch");
-      db.delete = readonlyDenied("delete");
-    }
-    if (mode === "action") {
-      db.get = readonlyDenied("get");
-      db.query = readonlyDenied("query");
-    }
-    var ctx = {
-      auth: auth,
-      db: db,
-      runtime: {
-        now: function() { return host("runtime.now", {}); },
-        id: function() { return host("runtime.id", {}); }
-      }
-    };
-    if (mode === "action") {
-      ctx.run = run || host("action.metadata", {});
-      ctx.cron = ctx.run;
-      ctx.secrets = makeSecrets(secretsJson ? JSON.parse(secretsJson) : null);
-      ctx.runMutation = function(mutationName, mutationArgs) {
-        return host("action.runMutation", { name: mutationName, args: mutationArgs || {} });
-      };
-    } else {
-      ctx.runMutation = function() {
-        throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");
-      };
-    }
-    var handlers = g.__snapbackHandlers || {};
-    var handler = handlers[name] || g[name];
-    if (typeof handler !== "function") {
-      throw snapbackError("SNAPBACK_HANDLER_EXPORT_MISSING", name);
-    }
-    return await handler(ctx, args);
-  };
-})(globalThis);
-"#
+    // @ref LLP 0048#architecture — the ctx bootstrap is the single-sourced
+    // handler harness core, shared byte-for-byte with the workerd/V8 leg and
+    // the LLP 0040 deploy template.
+    include_str!("../packages/snapback-harness/ctx-bootstrap.js")
 }
 
 fn required_string(args: &Value, key: &str) -> SnapbackResult<String> {

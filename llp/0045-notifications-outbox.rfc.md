@@ -1,0 +1,160 @@
+# LLP 0045: Notifications outbox
+
+**Type:** RFC
+**Status:** Draft
+**Systems:** Notifications, Runtime, API, Security, Auth, Cron, Developer experience, Deployment, Testing
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-07-07
+**Revised:** 2026-07-07 (cross-family review revisions, ratified by Charlie — see
+`reviews/0045-notifications-outbox.claude.md`: runner pinned to 0028's cron
+machinery, delivery grants grounded in 0036's `uses` model, auth-code handoff
+with 0039 recorded; initial same day)
+**Related:** LLP 0000, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0027, LLP 0028, LLP 0029, LLP 0036, LLP 0038, LLP 0039
+
+## Summary
+
+This RFC defines Snapback's first notifications subsystem as a durable outbox
+over provider adapters. App code enqueues notification intents; Snapback records,
+authorizes, deduplicates, retries, and delivers them through configured email,
+SMS, and push providers.
+
+The first slice is email-first with local capture, then provider delivery once
+secrets/config grants exist. This document owns the **local capture mailbox**
+design; [LLP 0039](./0039-auth-vertical-slice.rfc.md)'s auth slice ships a
+minimal capture path first and migrates onto this outbox once it is stable —
+that handoff decision is recorded here, resolving what was previously deferred
+in both documents.
+
+## Motivation
+
+Notifications are part of the "complete backend" promise and appear naturally in
+the reference apps: party invites/reminders, transit alerts, messaging, task
+assignment, auth email codes, and account lifecycle.
+
+They are also dangerous to hand-roll. Without an outbox, apps will send provider
+requests inside mutations/actions with weak idempotency, poor diagnostics, and
+no retry story.
+
+## Design
+
+### Durable intent, side-effectful delivery
+
+App code creates a notification intent:
+
+- recipient principal or address;
+- channel;
+- template id or rendered payload;
+- idempotency key;
+- schedule/expiry;
+- provider preference;
+- authorization/audit context.
+
+The mutation that creates the intent commits durable app state. Delivery is a
+separate side effect owned by the delivery path below. This keeps the database
+commit and provider delivery from pretending to be one transaction — exactly
+[LLP 0028](./0028-cron-scheduled-execution.rfc.md)'s action contract ("an
+action-level read followed by `ctx.runMutation` is not a transaction").
+
+The outbox promises no cross-intent delivery ordering; apps must not depend on
+enqueue order surviving to delivery order.
+
+### The runner is 0028's machinery, not a new executor
+
+There is no durable background-work subsystem in Snapback, and this RFC does
+not assume one. The v1 delivery runner (ratified by Charlie, 2026-07-07, along
+with the delivery-as-action grant model below and this document's ownership of
+the capture mailbox) is a **cron sweep over the outbox**:
+`WhileLive` demand activation, `NoOverlap`, at-least-once with claim, and
+deterministic jitter — all existing 0028 semantics. Each sweep claims due
+intents, attempts delivery, and records the result via the normal mutation
+path. If a dedicated durable work queue is designed later it needs its own
+LLP; this outbox becomes its first consumer.
+
+Delivery executes as an **action carrying a `uses` grant** for the provider
+credential, per [LLP 0036](./0036-app-secrets-and-config.rfc.md)'s D8 model —
+the grant unit is the function, so delivery is a (possibly generated) action
+declaring `uses: [<providerCredential>]`, not Snapback system code holding
+credentials outside the grant model. This keeps notifications inside 0036's
+redaction and never-pooled-VM rules with no new grant identity class.
+
+### Channels
+
+The first channel is email:
+
+- local capture mailbox for dev and tests (owned here; consumed by 0039);
+- SMTP or provider-API adapter later;
+- provider credentials through LLP 0036 config/secrets;
+- stable delivery diagnostics.
+
+SMS and push share the same outbox shape but can remain capability gaps until
+provider adapters and device-token/app registration models are designed.
+
+### Templates
+
+Templates may be source-authored and generated into a manifest. The first slice
+may also allow explicit rendered text/html payloads for tests and simple apps.
+
+Templates should declare:
+
+- channel;
+- required variables;
+- preview data;
+- sensitive fields to redact from diagnostics.
+
+### Idempotency and retry
+
+Every notification intent has an idempotency key scoped to app and provider.
+The runner records attempts, provider message ids, retry schedule, terminal
+failure, cancellation, and expiry.
+
+Provider errors are classified as:
+
+- retryable;
+- permanent recipient failure;
+- configuration failure;
+- rate limited;
+- unknown.
+
+### Authorization
+
+Enqueuing a notification is an app operation and must run under normal
+authorization. Admin/provider credentials only authorize delivery to the
+provider; they do not authorize app code to contact arbitrary recipients.
+
+## Non-goals
+
+- Marketing automation.
+- Full push notification device-token lifecycle in the first slice.
+- Inbound email/SMS handling.
+- Provider marketplace.
+- Guaranteed exactly-once delivery across provider retries.
+- Cross-intent delivery ordering guarantees.
+- Notification UI components.
+
+## Acceptance
+
+- A local app can enqueue an email notification and read it from a local capture
+  mailbox in tests.
+- Duplicate idempotency keys do not send duplicate messages.
+- A failed provider attempt records a structured diagnostic and retry state.
+- Delivery runs as an action whose `uses` grant controls which provider
+  credentials it may read; an intent whose delivery action lacks the grant
+  fails with a configuration diagnostic, not silent credential access.
+- The outbox sweep respects `NoOverlap` — two concurrent sweeps cannot
+  double-deliver a claimed intent.
+- The All Aboard "leave now" reminder can be represented as an intent even if
+  SMS/push delivery remains a gap.
+
+## Open Questions
+
+- Should a permanent recipient failure persist as a suppression fact that
+  blocks future intents to that address (bounce/complaint hygiene protects
+  provider standing), and where does that fact live?
+- What is the first push provider and how are device tokens modeled?
+- Does scheduled (future) delivery need anything beyond the sweep's due-time
+  claim, or is the cron sweep sufficient until volume proves otherwise?
+
+## Status
+
+Draft. This RFC splits notifications from assets and gives provider delivery a
+durable outbox shape.

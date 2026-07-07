@@ -1,0 +1,31 @@
+{
+  // LLP 0040 Cloudflare narrow proof — the checked-in deploy config
+  // (§Acceptance: a single-command deploy). compatibility_date and the empty
+  // compatibility_flags are single-sourced from
+  // packages/snapback-harness/compat.json (LLP 0048 §Single-sourced runtime
+  // flags); scripts/cf-check-compat asserts they match and refuses
+  // nodejs_compat*.
+  "name": "snapback-notes-proof",
+  "main": "src/gateway.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [],
+  "services": [
+    // The handler isolate: the single-sourced LLP 0048 harness with the app
+    // bundle compiled in. The coordinator reaches it over this binding (the
+    // async, RPC-shaped seam), and its own HOST binding points back at the
+    // gateway so ctx host calls route to the coordinator that owns the
+    // invocation.
+    { "binding": "HANDLER", "service": "snapback-notes-handler" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "COORDINATOR", "class_name": "Coordinator" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      // new_sqlite_classes: the coordinator uses embedded SQLite storage
+      // (ctx.storage.sql), the LLP 0014 §Resolution store.
+      "new_sqlite_classes": ["Coordinator"]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Assert the Cloudflare deploy configs' compatibility pins match the
+# single-sourced packages/snapback-harness/compat.json, and that neither the
+# harness nor the deploy configs carry a nodejs_compat* flag (LLP 0048
+# §Single-sourced runtime flags — the twin's workerd config and LLP 0040's
+# deploy config are generated from one source; Node compatibility surface
+# would silently re-widen the handler-visible dialect).
+set -euo pipefail
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+compat="$repo_root/packages/snapback-harness/compat.json"
+
+expected_date=$(node -e "console.log(require('$compat').compatibilityDate)")
+
+fail=0
+for config in "$repo_root/cloudflare/wrangler.jsonc" "$repo_root/cloudflare/wrangler.handler.jsonc"; do
+  # Strip // comments so JSON parses.
+  actual_date=$(node -e "
+    const fs=require('fs');
+    const raw=fs.readFileSync('$config','utf8').replace(/^\s*\/\/.*$/gm,'');
+    const cfg=JSON.parse(raw);
+    if((cfg.compatibility_flags||[]).some(f=>f.startsWith('nodejs_compat'))){
+      console.error('REFUSED: $config carries a nodejs_compat flag'); process.exit(3);
+    }
+    console.log(cfg.compatibility_date);
+  ")
+  if [[ "$actual_date" != "$expected_date" ]]; then
+    echo "MISMATCH: $config compatibility_date=$actual_date, expected $expected_date" >&2
+    fail=1
+  fi
+done
+
+if [[ "$fail" -ne 0 ]]; then
+  echo "cf-check-compat: deploy config drifted from the single-sourced compat.json" >&2
+  exit 1
+fi
+echo "cf-check-compat: compat pins match ($expected_date), no nodejs_compat flags"

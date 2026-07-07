@@ -10,6 +10,16 @@
     "check:artifacts": "scripts/check-generated-artifacts",
     "check:types": "scripts/check-generated-types",
     "check:surfaces": "scripts/check-demo-surfaces",
-    "verify": "scripts/verify-local-proof"
+    "verify": "scripts/verify-local-proof",
+    "cf:accept": "node cloudflare/test/acceptance.mjs",
+    "cf:measure": "node cloudflare/test/measure.mjs",
+    "cf:compat": "scripts/cf-check-compat"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "esbuild": "^0.28.1",
+    "miniflare": "^4.20260701.0",
+    "workerd": "^1.20260707.1",
+    "wrangler": "^4.107.0"
   }
 }

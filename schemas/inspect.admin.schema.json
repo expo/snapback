@@ -301,6 +301,9 @@
         "runtimeEngine": {
           "type": "string"
         },
+        "runtimeFacts": {
+          "description": "Target-computed runtime facts (LLP 0048 §Single-sourced runtime flags,\nDK-5 capability truthfulness): the workerd release id, pinned\ncompatibility date and flags, kill-domain shape, and computed limit\nvalues. Absent on targets that assert their limits statically."
+        },
         "schemaVersion": {
           "default": "snapback.v0",
           "type": "string"

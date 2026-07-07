@@ -1,0 +1,77 @@
+{
+  "artifactKind": "cloudflareProofMeasurements",
+  "surface": "miniflare-local",
+  "comparability": "NOT comparable to LLP 0035 (in-process) nor to real Cloudflare (no cold start / placement / hibernation / billing)",
+  "deployOnlyEvidenceStillMissing": [
+    "cold_start_and_first_request_latency",
+    "idle_no_connections_billable_usage",
+    "idle_connected_hibernating_billable_usage",
+    "post_eviction_wake_and_rehydrate",
+    "maximum_practical_subscribers",
+    "do_storage_and_cpu_limit_contention"
+  ],
+  "measurements": [
+    {
+      "metric": "mutation_latency",
+      "fixture": {
+        "handler": "addNote (V8)",
+        "writeRatePerCall": 1,
+        "rowsWritten": 1
+      },
+      "n": 50,
+      "p50Ms": 0.94,
+      "p95Ms": 1.69,
+      "maxMs": 4.5
+    },
+    {
+      "metric": "initial_snapshot_latency",
+      "fixture": {
+        "query": "listNotes eq boardId='bench'",
+        "snapshotRows": 50
+      },
+      "n": 30,
+      "p50Ms": 0.69,
+      "p95Ms": 1.85,
+      "maxMs": 1.92
+    },
+    {
+      "metric": "live_update_latency",
+      "fixture": {
+        "query": "listNotes eq boardId='bench'",
+        "deltaShape": "live_replace (full re-query of the supported subset)",
+        "connectionCount": 1
+      },
+      "n": 30,
+      "p50Ms": 1.23,
+      "p95Ms": 1.42,
+      "maxMs": 1.5
+    },
+    {
+      "metric": "fanout_all_subscribers_latency",
+      "fixture": {
+        "query": "listNotes eq boardId='fanout'",
+        "connectionCount": 1,
+        "note": "evidence for the supported single-table query subset only, not a general Cloudflare fan-out claim"
+      },
+      "allDeliveredMs": 1.02
+    },
+    {
+      "metric": "fanout_all_subscribers_latency",
+      "fixture": {
+        "query": "listNotes eq boardId='fanout'",
+        "connectionCount": 10,
+        "note": "evidence for the supported single-table query subset only, not a general Cloudflare fan-out claim"
+      },
+      "allDeliveredMs": 3.04
+    },
+    {
+      "metric": "fanout_all_subscribers_latency",
+      "fixture": {
+        "query": "listNotes eq boardId='fanout'",
+        "connectionCount": 50,
+        "note": "evidence for the supported single-table query subset only, not a general Cloudflare fan-out claim"
+      },
+      "allDeliveredMs": 12.94
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  // The handler isolate Worker (LLP 0040 §App subset). Its HOST binding points
+  // at the gateway so the ctx host-call channel routes back to the coordinator
+  // Durable Object that owns the live invocation. It has no other bindings —
+  // no env, no storage, no network — matching the host-mediated capability
+  // posture of the local target.
+  "name": "snapback-notes-handler",
+  "main": "src/handler-worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [],
+  "services": [{ "binding": "HOST", "service": "snapback-notes-proof" }]
+}

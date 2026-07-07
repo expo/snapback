@@ -1,0 +1,83 @@
+{
+  "artifactKind": "capabilityManifest",
+  "schemaVersion": "snapback.v0",
+  "targetProfileId": "cloudflare-do-sqlite-v8",
+  "storageEngine": "durable-object-sqlite",
+  "runtimeEngine": "v8",
+  "localServerLifecycle": false,
+  "liveSubscriptions": true,
+  "syncableLiveQueries": true,
+  "onlineOnlyQueries": true,
+  "replaceOnlyQueries": true,
+  "ephemeralRealtime": false,
+  "ephemeralWebSocketPublish": false,
+  "ephemeralLocalRoomAuthority": false,
+  "ephemeralHostedAdapter": false,
+  "offlineRetention": false,
+  "optimisticReplay": false,
+  "mutationIsolationMode": "handler-captured-read-set-validation",
+  "authImpersonation": true,
+  "permissionDiagnostics": false,
+  "assetUpload": false,
+  "outboundActions": false,
+  "cron": false,
+  "notifications": false,
+  "supportedQueryForms": [
+    "ibex-ctx-db-single-table-eq",
+    "ibex-ctx-db-single-table-in",
+    "ibex-ctx-db-single-table-range",
+    "v8-live-eq-replace",
+    "websocket-live-replace"
+  ],
+  "portabilityOptOuts": [],
+  "resourceLimits": [
+    {
+      "name": "wall_clock_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "cpu_budget",
+      "status": "Enforced"
+    },
+    {
+      "name": "maximum_row_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "maximum_storage_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "maximum_subscription_count",
+      "status": "Advisory"
+    }
+  ],
+  "capabilityGaps": [
+    "offline_mutation_replay",
+    "postgres",
+    "hosted_untrusted_code",
+    "external_auth",
+    "assets",
+    "outbound_actions",
+    "notifications",
+    "cron",
+    "ephemeral_realtime",
+    "code_hot_load",
+    "multiple_apps_per_deployment",
+    "hosted_marketplace",
+    "retained_version_resume"
+  ],
+  "vmLifecycle": "fresh-isolate-per-deploy",
+  "runtimeFacts": {
+    "platform": "cloudflare-workers",
+    "storage": "durable-object-sqlite",
+    "liveTransport": "durable-object-websocket-hibernation",
+    "versionAuthority": "coordinator-durable-object",
+    "commit": "single-transactionSync (version + rows + journal)",
+    "maxRowBytes": 2000000,
+    "maxObjectStorageBytes": 10000000000,
+    "wallClockNote": "enforced by the platform (object/request kill); measured value in the benchmark report",
+    "codeHotLoad": "missing — deployed Workers forbid dynamic eval; an app-code change is a deploy",
+    "handlerHarness": "single-sourced LLP 0048 harness (packages/snapback-harness)"
+  }
+}

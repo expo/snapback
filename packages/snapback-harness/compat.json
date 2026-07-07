@@ -1,0 +1,5 @@
+{
+  "$comment": "Single-sourced Workers runtime compatibility config (LLP 0048 §Single-sourced runtime flags). The local workerd twin config and LLP 0040's wrangler deploy config are both generated from this file; a mismatch between the two is a structured failure, and nodejs_compat* flags are refused by every generator.",
+  "compatibilityDate": "2026-07-01",
+  "compatibilityFlags": []
+}

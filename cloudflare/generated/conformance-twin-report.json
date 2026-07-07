@@ -1,0 +1,1233 @@
+{
+  "artifactKind": "conformanceTwinReport",
+  "schemaVersion": "snapback.v0",
+  "generatedBy": "snapback-conformance-twin",
+  "gate": "green",
+  "summary": {
+    "total": 16,
+    "convergent": 14,
+    "declaredEngineFacts": 2,
+    "contractViolations": 0
+  },
+  "capabilityManifest": {
+    "artifactKind": "capabilityManifest",
+    "schemaVersion": "snapback.v0",
+    "targetProfileId": "local-conformance-sqlite-workerd-v8",
+    "storageEngine": "sqlite",
+    "runtimeEngine": "workerd-v8",
+    "localServerLifecycle": true,
+    "liveSubscriptions": true,
+    "syncableLiveQueries": true,
+    "onlineOnlyQueries": true,
+    "replaceOnlyQueries": true,
+    "ephemeralRealtime": true,
+    "ephemeralWebSocketPublish": true,
+    "ephemeralLocalRoomAuthority": true,
+    "ephemeralHostedAdapter": false,
+    "offlineRetention": false,
+    "optimisticReplay": false,
+    "mutationIsolationMode": "handler-captured-read-set-validation",
+    "authImpersonation": true,
+    "permissionDiagnostics": false,
+    "assetUpload": false,
+    "outboundActions": false,
+    "cron": true,
+    "notifications": false,
+    "supportedQueryForms": [
+      "host-plan-single-table-eq",
+      "host-plan-single-table-in",
+      "host-plan-single-table-range",
+      "host-plan-live-replace",
+      "ibex-ctx-db-single-table-eq",
+      "ibex-ctx-db-single-table-in",
+      "ibex-ctx-db-single-table-range",
+      "ibex-live-eq-replace",
+      "ibex-live-in-replace",
+      "ibex-live-range-replace",
+      "ibex-live-limited-boundary-replace",
+      "websocket-live-replace",
+      "ephemeral-latest-state-local",
+      "websocket-ephemeral-publish",
+      "cron-fixed-interval-local",
+      "cron-calendar-local",
+      "cron-action-run-mutation"
+    ],
+    "portabilityOptOuts": [],
+    "resourceLimits": [
+      {
+        "name": "wall_clock_timeout",
+        "status": "Enforced"
+      },
+      {
+        "name": "action_wall_clock_timeout",
+        "status": "Enforced"
+      },
+      {
+        "name": "cpu_budget",
+        "status": "Missing"
+      },
+      {
+        "name": "maximum_result_size",
+        "status": "Advisory"
+      },
+      {
+        "name": "maximum_subscription_count",
+        "status": "Advisory"
+      },
+      {
+        "name": "ephemeral_value_size",
+        "status": "Enforced"
+      },
+      {
+        "name": "ephemeral_publish_rate",
+        "status": "Enforced"
+      },
+      {
+        "name": "ephemeral_durable_lane_priority",
+        "status": "Enforced"
+      }
+    ],
+    "capabilityGaps": [
+      "offline_mutation_replay",
+      "postgres",
+      "cloudflare",
+      "hosted_untrusted_code",
+      "external_auth",
+      "assets",
+      "outbound_actions",
+      "notifications",
+      "ephemeral_hosted_adapter",
+      "ephemeral_multi_instance_sticky_routing",
+      "v8_action_execution"
+    ],
+    "vmLifecycle": "fresh-process-per-invocation",
+    "runtimeFacts": {
+      "workerdVersion": "workerd 2026-07-07",
+      "workerdBinary": "/Users/ccheever/projects/snapback-llp-0040-0048/node_modules/.bin/workerd",
+      "compatibilityDate": "2026-07-01",
+      "compatibilityFlags": [],
+      "killDomain": "process-per-invocation",
+      "wallClockTimeoutMs": 10000,
+      "hostCallTransport": "loopback-http-service-binding",
+      "allowlist": "packages/snapback-harness/allowlist.json"
+    }
+  },
+  "cases": [
+    {
+      "name": "mutation-insert",
+      "handler": "addItem",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "id": "$ID:0"
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "alpha",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "alpha",
+              "rank": 1
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "id": "$ID:0"
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "alpha",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "alpha",
+              "rank": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "query-order-filter-take",
+      "handler": "listRanked",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 0
+                    }
+                  }
+                ],
+                "order": [
+                  {
+                    "field": "rank",
+                    "direction": "Asc"
+                  }
+                ],
+                "limit": 10,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": []
+            }
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 0
+                    }
+                  }
+                ],
+                "order": [
+                  {
+                    "field": "rank",
+                    "direction": "Asc"
+                  }
+                ],
+                "limit": 10,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": []
+            }
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "query-first",
+      "handler": "firstItem",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [],
+                "order": [
+                  {
+                    "field": "rank",
+                    "direction": "Asc"
+                  }
+                ],
+                "limit": 1,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": []
+            }
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [],
+                "order": [
+                  {
+                    "field": "rank",
+                    "direction": "Asc"
+                  }
+                ],
+                "limit": 1,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": []
+            }
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "read-your-writes",
+      "handler": "readYourWrites",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "visible": 1
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "ryw",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "label",
+                    "op": "Eq",
+                    "value": {
+                      "Literal": "ryw"
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": null,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "ryw",
+                  "rank": 1
+                }
+              ]
+            }
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "ryw",
+              "rank": 1
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "visible": 1
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "ryw",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "label",
+                    "op": "Eq",
+                    "value": {
+                      "Literal": "ryw"
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": null,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "ryw",
+                  "rank": 1
+                }
+              ]
+            }
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "ryw",
+              "rank": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "patch-get-delete",
+      "handler": "patchAndDelete",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 3,
+            "result": {
+              "existed": true,
+              "label": "patched",
+              "removed": true
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "temp",
+                "rank": 9
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "label": "patched"
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 2,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "patched",
+              "rank": 9
+            }
+          },
+          {
+            "seq": 3,
+            "op": "db.delete",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": true
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 3,
+            "result": {
+              "existed": true,
+              "label": "patched",
+              "removed": true
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "temp",
+                "rank": 9
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "label": "patched"
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 2,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "patched",
+              "rank": 9
+            }
+          },
+          {
+            "seq": 3,
+            "op": "db.delete",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": true
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "runtime-now-id",
+      "handler": "nowAndId",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "now": "$MS",
+              "idLength": 36
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "runtime.now",
+            "args": {},
+            "ok": true,
+            "outcome": "$MS"
+          },
+          {
+            "seq": 1,
+            "op": "runtime.id",
+            "args": {},
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 2,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "stamped-$ID:0",
+                "rank": 2
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:1"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:1",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stamped-$ID:0",
+              "rank": 2
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "now": "$MS",
+              "idLength": 36
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "runtime.now",
+            "args": {},
+            "ok": true,
+            "outcome": "$MS"
+          },
+          {
+            "seq": 1,
+            "op": "runtime.id",
+            "args": {},
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 2,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "stamped-$ID:0",
+                "rank": 2
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:1"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:1",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stamped-$ID:0",
+              "rank": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "console-diagnostics-routed",
+      "handler": "logsThings",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "allowlist-slice-encoding-base64",
+      "handler": "allowlistSlice",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "bytes": [
+                  104,
+                  195,
+                  169,
+                  108,
+                  108,
+                  111,
+                  32,
+                  226,
+                  156,
+                  147,
+                  32,
+                  240,
+                  157,
+                  146,
+                  174
+                ],
+                "roundTrip": "héllo ✓ 𝒮",
+                "encoded": "c25hcGJhY2sgY29uZm9ybWFuY2U=",
+                "decoded": "snapback"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "bytes": [
+                  104,
+                  195,
+                  169,
+                  108,
+                  108,
+                  111,
+                  32,
+                  226,
+                  156,
+                  147,
+                  32,
+                  240,
+                  157,
+                  146,
+                  174
+                ],
+                "roundTrip": "héllo ✓ 𝒮",
+                "encoded": "c25hcGJhY2sgY29uZm9ybWFuY2U=",
+                "decoded": "snapback"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "write-in-query-denied",
+      "handler": "writeInQuery",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "export-missing",
+      "handler": "noSuchExport",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_EXPORT_MISSING"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_EXPORT_MISSING"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "result-not-serializable",
+      "handler": "returnsFunction",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_RESULT_INVALID"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "should-not-commit",
+                "rank": 4
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_RESULT_INVALID"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "should-not-commit",
+                "rank": 4
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "settlement-hang",
+      "handler": "hangForever",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_DID_NOT_SETTLE"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_DID_NOT_SETTLE"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "unhandled-detached-rejection",
+      "handler": "detachedRejection",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "should-not-commit",
+                "rank": 3
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "should-not-commit",
+                "rank": 3
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "ambient-denial-fetch",
+      "handler": "probeFetch",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false,
+                "how": "denied"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false,
+                "how": "denied"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "busy-loop-wall-clock-kill",
+      "handler": "busyLoop",
+      "class": "declared_engine_fact",
+      "notes": "wall-clock kill is enforceable only at the workerd service boundary; the Ibex leg declares wall_clock_timeout Missing and running this case there would hang (LLP 0047 via LLP 0048 §Limits testbed)",
+      "ibex": {
+        "skipped": "declared engine fact — not runnable on this leg"
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "pre-kill",
+                "rank": 5
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "deterministic-members-date-now",
+      "handler": "probeDateNow",
+      "class": "declared_engine_fact",
+      "notes": "Date.now/Math.random are denied by the V8 strip but reachable (codegen-banned only) on Ibex in v1 — declared engine fact pinned by the twin gate tests",
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": true
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    }
+  ]
+}
