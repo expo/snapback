@@ -1318,18 +1318,26 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
     let todo_id = created.result.as_str().unwrap().to_owned();
     drop(setup);
 
+    let (read_tx, read_rx) = std::sync::mpsc::channel();
+    let _read_hook =
+        snapback::runtime::set_captured_point_read_debug_hook("todos", &todo_id, read_tx);
     let thread_path = db_path.clone();
     let thread_id = todo_id.clone();
     let first = thread::spawn(move || {
         let mut snapback = LocalSnapback::open(thread_path).expect("open first snapback");
         snapback.load_functions(ibex_todo_functions(CONFLICT_HANDLER_SOURCE));
-        snapback.invoke_mutation(
-            "setCompleted",
-            input(json!({ "id": thread_id, "completed": true }), "user_1"),
-        )
+        snapback
+            .invoke_mutation(
+                "setCompleted",
+                input(json!({ "id": thread_id, "completed": true }), "user_1"),
+            )
+            .err()
+            .map(|error| error.diagnostic)
     });
 
-    thread::sleep(Duration::from_millis(500));
+    read_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("first handler captured the stale row read");
 
     let mut concurrent = LocalSnapback::open(&db_path).expect("open concurrent snapback");
     concurrent.load_functions(todo_functions());
@@ -1340,15 +1348,15 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
         )
         .expect("concurrent patch");
 
-    let error = first
+    let diagnostic = first
         .join()
         .expect("first thread joins")
-        .expect_err("captured stale row read should conflict");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
-    assert_eq!(error.diagnostic.details["retryPolicy"], "reject");
-    assert_eq!(error.diagnostic.details["dependency"]["kind"], "row");
-    assert_eq!(error.diagnostic.details["dependency"]["table"], "todos");
-    assert_eq!(error.diagnostic.details["dependency"]["id"], todo_id);
+        .expect("captured stale row read should conflict");
+    assert_eq!(diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    assert_eq!(diagnostic.details["retryPolicy"], "reject");
+    assert_eq!(diagnostic.details["dependency"]["kind"], "row");
+    assert_eq!(diagnostic.details["dependency"]["table"], "todos");
+    assert_eq!(diagnostic.details["dependency"]["id"], todo_id);
 }
 
 // @ref LLP 0032#phase-2--execution-semantics-honesty — E3: host-plan mutation
@@ -1679,6 +1687,30 @@ fn ephemeral_unsubscribe_removes_only_the_requester_registration() {
     assert!(
         !again,
         "a second unsubscribe is a quiet no-op (removed:false)"
+    );
+}
+
+#[test]
+fn ephemeral_unsubscribe_unknown_collection_still_touches_liveness() {
+    let snapback = LocalSnapback::memory().expect("memory snapback");
+    let api = snapback.ephemeral_api();
+
+    let removed = api
+        .unsubscribe(
+            SubscribeRequest {
+                collection: "removedCollection".to_owned(),
+                scope: Scope::from_pairs([("boardId", "board_1")]),
+                connection_id: "observer".to_owned(),
+                auth: AuthContext::default(),
+            },
+            1_100,
+        )
+        .expect("unknown unsubscribe is a teardown no-op");
+    assert!(!removed);
+    assert_eq!(
+        snapback.active_connection_count(),
+        1,
+        "a failed/no-op unsubscribe still proves the connection is alive"
     );
 }
 
@@ -4069,6 +4101,7 @@ fn e4_query_validation_is_predicate_granular() {
             Vec::new(),
             json!(null),
         )
+        .expect("commit concurrent todo");
     };
 
     // Non-matching concurrent write → no conflict (the E4 win).
@@ -4076,7 +4109,7 @@ fn e4_query_validation_is_predicate_granular() {
         let mut db = LocalDatabase::memory().unwrap();
         db.apply_schema(todo_schema()).unwrap();
         let captured = db.table_change_version("todos").unwrap();
-        commit_todo(&mut db, "not-completed", false).expect("concurrent non-matching write");
+        commit_todo(&mut db, "not-completed", false);
         let mut dep = filtered_query();
         dep.version = Some(captured);
         let result = db.commit_buffered_writes(
@@ -4103,7 +4136,7 @@ fn e4_query_validation_is_predicate_granular() {
         let mut db = LocalDatabase::memory().unwrap();
         db.apply_schema(todo_schema()).unwrap();
         let captured = db.table_change_version("todos").unwrap();
-        commit_todo(&mut db, "completed", true).expect("concurrent matching write");
+        commit_todo(&mut db, "completed", true);
         let mut dep = filtered_query();
         dep.version = Some(captured);
         let error = db

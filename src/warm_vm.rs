@@ -151,11 +151,11 @@ impl WarmVmPool {
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
             let mut remove_bucket = false;
             let mut checkout = None;
-            if let Some(vms) = inner.vms.get_mut(&source_hash) {
-                if let Some(index) = vms.iter().rposition(|vm| vm.key == module_source) {
-                    checkout = Some(vms.remove(index));
-                    remove_bucket = vms.is_empty();
-                }
+            if let Some(vms) = inner.vms.get_mut(&source_hash)
+                && let Some(index) = vms.iter().rposition(|vm| vm.key == module_source)
+            {
+                checkout = Some(vms.remove(index));
+                remove_bucket = vms.is_empty();
             }
             if remove_bucket {
                 inner.vms.remove(&source_hash);

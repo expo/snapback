@@ -7,6 +7,9 @@ use crate::storage::{CapturedReadDependency, CapturedReadKind, ChangeOp, Changed
 use serde_json::{Value, json};
 use std::cmp::Ordering;
 
+pub(crate) type QueryDependencyMetadata =
+    (Option<Value>, Option<usize>, Option<usize>, Option<Value>);
+
 pub(crate) fn query_dependencies_from_plan(
     plan: &QueryPlan,
     input: &HandlerInput,
@@ -84,7 +87,7 @@ pub(crate) fn query_dependencies_from_plan(
 pub(crate) fn query_dependency_metadata(
     plan: &QueryPlan,
     rows: &[Value],
-) -> SnapbackResult<(Option<Value>, Option<usize>, Option<usize>, Option<Value>)> {
+) -> SnapbackResult<QueryDependencyMetadata> {
     let order = if plan.order.is_empty() {
         None
     } else {
@@ -133,18 +136,17 @@ pub(crate) fn live_subscription_may_be_affected(
             if relevant.is_empty() {
                 return false;
             }
-            if definition.read_set_summary.auth_scope_field.as_deref() == Some("userId") {
-                if let Some(user_id) = input.auth.user_id.as_deref() {
-                    if relevant.iter().all(|change| {
-                        field_scope_change_is_disjoint(
-                            change,
-                            "userId",
-                            &Value::String(user_id.to_owned()),
-                        )
-                    }) {
-                        return false;
-                    }
-                }
+            if definition.read_set_summary.auth_scope_field.as_deref() == Some("userId")
+                && let Some(user_id) = input.auth.user_id.as_deref()
+                && relevant.iter().all(|change| {
+                    field_scope_change_is_disjoint(
+                        change,
+                        "userId",
+                        &Value::String(user_id.to_owned()),
+                    )
+                })
+            {
+                return false;
             }
             true
         }
@@ -374,12 +376,11 @@ fn field_scope_change_is_disjoint(change: &ChangedRow, field: &str, expected: &V
     if values_equal(actual, expected) {
         return false;
     }
-    if change.op == ChangeOp::Update {
-        if change.changed_fields.is_empty()
-            || change.changed_fields.iter().any(|name| name == field)
-        {
-            return false;
-        }
+    if change.op == ChangeOp::Update
+        && (change.changed_fields.is_empty()
+            || change.changed_fields.iter().any(|name| name == field))
+    {
+        return false;
     }
     true
 }

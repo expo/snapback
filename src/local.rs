@@ -875,6 +875,16 @@ enum DeltaFanout {
 }
 
 struct LocalIbexActionHost<'a> {
+    // SAFETY invariant for the raw action host bridge:
+    // - constructed only inside `LocalSnapback::invoke_action` from `&'a mut self`;
+    // - never sent to another thread and used only by synchronous Ibex host calls
+    //   during that one action invocation;
+    // - the read-only db pointer handed to the runtime is derived from this same
+    //   provenance root before any host call can reborrow `self`.
+    //
+    // The S5.D1 nested-action test exercises the important behavioral edge:
+    // a JS action can call back into an Ibex mutation and then make a second host
+    // call after the nested invocation returns without losing or aliasing context.
     snapback: *mut LocalSnapback,
     _marker: PhantomData<&'a mut LocalSnapback>,
 }
@@ -1382,26 +1392,26 @@ impl LocalSnapback {
         // identical subscribers (two components sharing a query on one
         // connection) coexist. An unknown id is a quiet no-op: reconnects
         // race disconnect teardown, which may have dropped it already.
-        if let Some(old_id) = &input.supersedes {
-            if let Some(existing) = self.subscriptions.get(old_id) {
-                let owner = &existing.input.auth;
-                let same_connection = existing.connection_id == input.connection_id;
-                let same_owner = owner.principal == subscription_input.auth.principal
-                    && owner.user_id == subscription_input.auth.user_id;
-                if same_connection && same_owner {
-                    self.subscriptions.remove(old_id);
-                    let receipt = json!({
-                        "kind": "subscription",
-                        "event": "disposed",
-                        "reason": "superseded",
-                        "subscriptionId": old_id,
-                        "supersededBy": subscription_id.clone(),
-                        "scope": subscription_input.args.clone(),
-                        "snapshotVersion": query.output.version,
-                        "receivedAtMs": now_millis(),
-                    });
-                    self.receipts.push_connection(&input.connection_id, receipt);
-                }
+        if let Some(old_id) = &input.supersedes
+            && let Some(existing) = self.subscriptions.get(old_id)
+        {
+            let owner = &existing.input.auth;
+            let same_connection = existing.connection_id == input.connection_id;
+            let same_owner = owner.principal == subscription_input.auth.principal
+                && owner.user_id == subscription_input.auth.user_id;
+            if same_connection && same_owner {
+                self.subscriptions.remove(old_id);
+                let receipt = json!({
+                    "kind": "subscription",
+                    "event": "disposed",
+                    "reason": "superseded",
+                    "subscriptionId": old_id,
+                    "supersededBy": subscription_id.clone(),
+                    "scope": subscription_input.args.clone(),
+                    "snapshotVersion": query.output.version,
+                    "receivedAtMs": now_millis(),
+                });
+                self.receipts.push_connection(&input.connection_id, receipt);
             }
         }
 

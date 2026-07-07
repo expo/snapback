@@ -1,5 +1,10 @@
 //! Core Snapback runtime components.
 
+// SnapbackResult intentionally carries structured diagnostic details across the
+// public API; narrowing it is a larger compatibility decision than clippy's
+// result-size heuristic.
+#![allow(clippy::result_large_err)]
+
 pub mod admin;
 pub mod bench;
 pub mod cli;

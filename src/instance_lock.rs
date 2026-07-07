@@ -50,6 +50,7 @@ impl DatabaseInstanceLock {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&lock_path)
             .with_context(|| {
                 format!(
@@ -245,6 +246,11 @@ mod platform {
     const LOCKFILE_EXCLUSIVE_LOCK: Dword = 0x00000002;
     const LOCKFILE_FAIL_IMMEDIATELY: Dword = 0x00000001;
     const ERROR_LOCK_VIOLATION: i32 = 33;
+    // Keep the byte-range lock away from the metadata JSON at the start of the
+    // sidecar file. Windows enforces byte-range locks against normal reads, so
+    // locking byte 0 made contenders unable to read the owner diagnostic.
+    const LOCK_BYTE_OFFSET_LOW: Dword = 0xFFFF_FFFF;
+    const LOCK_BYTE_OFFSET_HIGH: Dword = 0xFFFF_FFFF;
 
     #[repr(C)]
     struct Overlapped {
@@ -256,12 +262,12 @@ mod platform {
     }
 
     impl Overlapped {
-        fn zero() -> Self {
+        fn lock_byte() -> Self {
             Self {
                 internal: 0,
                 internal_high: 0,
-                offset: 0,
-                offset_high: 0,
+                offset: LOCK_BYTE_OFFSET_LOW,
+                offset_high: LOCK_BYTE_OFFSET_HIGH,
                 h_event: null_mut(),
             }
         }
@@ -287,7 +293,7 @@ mod platform {
     }
 
     pub fn try_lock_exclusive(file: &File) -> io::Result<()> {
-        let mut overlapped = Overlapped::zero();
+        let mut overlapped = Overlapped::lock_byte();
         let result = unsafe {
             LockFileEx(
                 file.as_raw_handle() as Handle,
@@ -311,7 +317,7 @@ mod platform {
     }
 
     pub fn unlock(file: &File) -> io::Result<()> {
-        let mut overlapped = Overlapped::zero();
+        let mut overlapped = Overlapped::lock_byte();
         let result =
             unsafe { UnlockFileEx(file.as_raw_handle() as Handle, 0, 1, 0, &mut overlapped) };
         if result != 0 {

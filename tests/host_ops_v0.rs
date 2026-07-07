@@ -48,7 +48,10 @@ fn p6_served_ops_round_trip_through_envelopes() {
         "schema hash reported"
     );
     assert_eq!(loaded["target"]["appId"], json!("todo"));
-    assert_eq!(loaded["target"]["targetProfile"], json!("local-dev-sqlite-ibex"));
+    assert_eq!(
+        loaded["target"]["targetProfile"],
+        json!("local-dev-sqlite-ibex")
+    );
 
     // functions.load
     let functions = envelope(
@@ -97,7 +100,11 @@ fn p6_served_ops_round_trip_through_envelopes() {
             "userId": "user_ada",
         }),
     );
-    assert_eq!(mutation["ok"], json!(true), "function.run mutation: {mutation}");
+    assert_eq!(
+        mutation["ok"],
+        json!(true),
+        "function.run mutation: {mutation}"
+    );
     assert!(mutation["data"]["mutationCommit"].is_object());
     assert!(mutation["artifacts"]["databaseVersion"].as_u64().unwrap() > before);
 

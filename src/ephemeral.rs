@@ -106,6 +106,18 @@ impl DeliveryNotifier {
             notify.notify_one();
         }
     }
+
+    fn wake_many(&self, connection_ids: &[ConnectionId]) {
+        if connection_ids.is_empty() {
+            return;
+        }
+        let state = lock(&self.state);
+        for connection_id in connection_ids {
+            if let Some((_, notify)) = state.waiters.get(connection_id) {
+                notify.notify_one();
+            }
+        }
+    }
 }
 
 pub type Millis = u64;
@@ -491,6 +503,22 @@ impl EphemeralMessage {
             Self::Error { .. } => None,
         }
     }
+
+    fn resync_room_epoch(&self) -> Option<(RoomId, u64)> {
+        match self {
+            Self::Snapshot {
+                room, scope_epoch, ..
+            }
+            | Self::Remove {
+                room, scope_epoch, ..
+            }
+            | Self::ResyncRequired {
+                room, scope_epoch, ..
+            } => Some((room.clone(), *scope_epoch)),
+            Self::Upsert { room, entry } => Some((room.clone(), entry.scope_epoch)),
+            Self::Error { .. } => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -594,7 +622,7 @@ impl EntryRecord {
 
 #[derive(Clone, Debug)]
 struct SubscriberState {
-    auth: AuthContext,
+    outbox: SharedOutbox,
 }
 
 #[derive(Clone, Debug)]
@@ -604,6 +632,10 @@ struct RoomState {
     entries: BTreeMap<EntryKey, EntryRecord>,
     owner_connections: BTreeMap<EntryOwner, BTreeSet<ConnectionId>>,
     subscribers: BTreeMap<ConnectionId, SubscriberState>,
+    /// Exact per-room expiry counts. `indexed_deadline` is allowed to be a
+    /// stale lower bound so the global cleanup index can wake early; this map
+    /// is the room-local truth used to skip no-op hot-path sweeps.
+    expiry_counts: BTreeMap<Millis, usize>,
     /// Running aggregate of stored value bytes, for the room byte limit and
     /// diagnostics; maintained on every insert/replace/remove.
     value_bytes: usize,
@@ -632,6 +664,7 @@ impl RoomState {
             entries: BTreeMap::new(),
             owner_connections: BTreeMap::new(),
             subscribers: BTreeMap::new(),
+            expiry_counts: BTreeMap::new(),
             value_bytes: 0,
             indexed_deadline: None,
             retired: false,
@@ -685,15 +718,20 @@ impl RateBucket {
 #[derive(Clone, Debug)]
 struct OutboundQueue {
     durable: VecDeque<DurableMessage>,
-    resync: VecDeque<EphemeralMessage>,
-    ephemeral: BTreeMap<(RoomId, EntryKey), EphemeralMessage>,
-    max_pending_ephemeral_keys: usize,
+    resync: VecDeque<Arc<EphemeralMessage>>,
+    ephemeral: BTreeMap<(RoomId, EntryKey), Arc<EphemeralMessage>>,
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1: the durable
     // and resync lanes are bounded like the ephemeral map. A subscriber that
     // never drains cannot accumulate unbounded query-result payloads; a lane at
     // capacity converts the whole queue to a single resync signal (sticky until
     // drained), never a silent drop.
     overflowed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct QueueOverflow {
+    overflowed: bool,
+    resync_count: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -704,12 +742,11 @@ struct QueuePush {
 }
 
 impl OutboundQueue {
-    fn new(max_pending_ephemeral_keys: usize) -> Self {
+    fn new() -> Self {
         Self {
             durable: VecDeque::new(),
             resync: VecDeque::new(),
             ephemeral: BTreeMap::new(),
-            max_pending_ephemeral_keys,
             overflowed: false,
         }
     }
@@ -721,9 +758,15 @@ impl OutboundQueue {
     ///
     /// @ref LLP 0008#realtime-delivery — overflow is a resync signal, never a drop.
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
-    fn overflow(&mut self) -> bool {
+    fn overflow(&mut self, extra_ephemeral: Option<&EphemeralMessage>) -> QueueOverflow {
         if self.overflowed {
-            return false;
+            return QueueOverflow::default();
+        }
+        let mut resync_epochs = self.pending_resync_epochs();
+        if let Some(message) = extra_ephemeral
+            && let Some((room, scope_epoch)) = message.resync_room_epoch()
+        {
+            resync_epochs.insert(room, scope_epoch);
         }
         self.durable.clear();
         self.resync.clear();
@@ -737,37 +780,64 @@ impl OutboundQueue {
             .unwrap_or_default(),
         });
         self.overflowed = true;
-        true
+        let resync_count = resync_epochs.len();
+        for (room, scope_epoch) in resync_epochs {
+            self.resync
+                .push_back(Arc::new(EphemeralMessage::ResyncRequired {
+                    room,
+                    scope_epoch,
+                    reason: ResyncReason::QueueOverflow,
+                }));
+        }
+        QueueOverflow {
+            overflowed: true,
+            resync_count,
+        }
     }
 
     /// Push a non-coalescable message (resync/remove) into the resync lane,
     /// escalating to a full overflow signal if the lane is at capacity.
-    fn push_resync(&mut self, message: EphemeralMessage) {
+    fn push_resync(&mut self, message: Arc<EphemeralMessage>) -> QueuePush {
         if self.overflowed {
-            return;
+            return QueuePush {
+                resync_count: self.record_overflow_resync(message.as_ref()),
+                ..QueuePush::default()
+            };
         }
         if self.resync.len() >= MAX_OUTBOX_BACKLOG {
-            self.overflow();
-            return;
+            let overflow = self.overflow(Some(message.as_ref()));
+            return QueuePush {
+                resync_count: overflow.resync_count,
+                overflowed: overflow.overflowed,
+                ..QueuePush::default()
+            };
         }
         self.resync.push_back(message);
+        QueuePush::default()
     }
 
-    fn push_ephemeral(&mut self, message: EphemeralMessage) -> QueuePush {
+    fn push_ephemeral(
+        &mut self,
+        message: Arc<EphemeralMessage>,
+        max_pending_ephemeral_keys: usize,
+    ) -> QueuePush {
         if self.overflowed {
-            return QueuePush::default();
+            return QueuePush {
+                resync_count: self.record_overflow_resync(message.as_ref()),
+                ..QueuePush::default()
+            };
         }
         let Some(key) = message.coalesce_key() else {
             let before = self.overflowed;
-            self.push_resync(message);
+            let result = self.push_resync(message);
             return QueuePush {
+                resync_count: result.resync_count,
                 overflowed: self.overflowed && !before,
                 ..QueuePush::default()
             };
         };
 
-        if !self.ephemeral.contains_key(&key)
-            && self.ephemeral.len() >= self.max_pending_ephemeral_keys
+        if !self.ephemeral.contains_key(&key) && self.ephemeral.len() >= max_pending_ephemeral_keys
         {
             let mut resync_epochs = self
                 .ephemeral
@@ -783,11 +853,11 @@ impl OutboundQueue {
 
             let resync_count = resync_epochs.len();
             for (room, scope_epoch) in resync_epochs {
-                self.push_resync(EphemeralMessage::ResyncRequired {
+                self.push_resync(Arc::new(EphemeralMessage::ResyncRequired {
                     room,
                     scope_epoch,
                     reason: ResyncReason::QueueOverflow,
-                });
+                }));
             }
             return QueuePush {
                 coalesced: false,
@@ -807,15 +877,15 @@ impl OutboundQueue {
     /// push caused an overflow-to-resync.
     ///
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
-    fn push_durable(&mut self, message: DurableMessage) -> bool {
+    fn push_durable(&mut self, message: DurableMessage) -> QueueOverflow {
         if self.overflowed {
-            return false;
+            return QueueOverflow::default();
         }
         if self.durable.len() >= MAX_OUTBOX_BACKLOG {
-            return self.overflow();
+            return self.overflow(None);
         }
         self.durable.push_back(message);
-        false
+        QueueOverflow::default()
     }
 
     /// Drop the lanes that belong to the ephemeral epoch world — the
@@ -839,14 +909,47 @@ impl OutboundQueue {
             messages.push(RealtimeEnvelope::Durable(message));
         }
         while let Some(message) = self.resync.pop_front() {
-            messages.push(RealtimeEnvelope::Ephemeral(message));
+            messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
         }
         for (_, message) in std::mem::take(&mut self.ephemeral) {
-            messages.push(RealtimeEnvelope::Ephemeral(message));
+            messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
         }
         // Drained: the queue can accept fresh state again.
         self.overflowed = false;
         messages
+    }
+
+    fn pending_resync_epochs(&self) -> BTreeMap<RoomId, u64> {
+        self.resync
+            .iter()
+            .chain(self.ephemeral.values())
+            .filter_map(|message| message.resync_room_epoch())
+            .collect()
+    }
+
+    fn record_overflow_resync(&mut self, message: &EphemeralMessage) -> usize {
+        let Some((room, scope_epoch)) = message.resync_room_epoch() else {
+            return 0;
+        };
+        let already_queued = self.resync.iter().any(|pending| {
+            matches!(
+                pending.as_ref(),
+                EphemeralMessage::ResyncRequired {
+                    room: pending_room,
+                    ..
+                } if pending_room == &room
+            )
+        });
+        if already_queued {
+            return 0;
+        }
+        self.resync
+            .push_back(Arc::new(EphemeralMessage::ResyncRequired {
+                room,
+                scope_epoch,
+                reason: ResyncReason::QueueOverflow,
+            }));
+        1
     }
 }
 
@@ -1218,7 +1321,9 @@ impl LocalEphemeralBackend {
             let entry = record.to_entry(&key);
             if let Some(previous) = room.entries.insert(key.clone(), record) {
                 room.value_bytes = room.value_bytes.saturating_sub(previous.serialized_bytes);
+                forget_expiry_locked(room, previous.expires_at_ms);
             }
+            remember_expiry_locked(room, expires_at_ms);
             room.value_bytes += value_len;
             self.index_room_deadline(room, &room_id, expires_at_ms);
             self.fan_out_locked(
@@ -1283,11 +1388,15 @@ impl LocalEphemeralBackend {
     /// idle-room teardown). Dropping observation is never privileged — the
     /// HTTP layer binds the connection identity exactly as for the other
     /// ephemeral operations. Returns whether a registration was removed;
-    /// an unknown room/registration is a quiet no-op (teardown races
-    /// disconnect/reap).
+    /// an unknown collection, invalid room, or unknown registration is a quiet
+    /// no-op (teardown races schema replacement, disconnect, and reap).
     pub fn unsubscribe(&self, request: SubscribeRequest) -> Result<bool, EphemeralError> {
-        let collection = self.collection(&request.collection)?;
-        let room_id = room_id_for(&collection, &request.scope)?;
+        let Some(collection) = self.collection_if_loaded(&request.collection) else {
+            return Ok(false);
+        };
+        let Ok(room_id) = room_id_for(&collection, &request.scope) else {
+            return Ok(false);
+        };
         let room_arc = {
             let rooms = lock(&self.shared.rooms);
             rooms.get(&room_id).cloned()
@@ -1343,22 +1452,16 @@ impl LocalEphemeralBackend {
             }
             // The outbox exists before the registration becomes visible, so a
             // racing publish that sees this subscriber has somewhere to
-            // enqueue.
-            self.ensure_outbox(
-                &request.connection_id,
-                collection.max_pending_ephemeral_keys,
-            );
+            // enqueue. Fan-out keeps this handle and does not take the
+            // store-global outbox map on the hot path.
+            let outbox = self.ensure_outbox(&request.connection_id);
             let entries = room
                 .entries
                 .iter()
                 .map(|(key, record)| record.to_entry(key))
                 .collect();
-            room.subscribers.insert(
-                request.connection_id.clone(),
-                SubscriberState {
-                    auth: request.auth.clone(),
-                },
-            );
+            room.subscribers
+                .insert(request.connection_id.clone(), SubscriberState { outbox });
             Ok(EphemeralMessage::Snapshot {
                 room: room_id.clone(),
                 scope_epoch: room.scope_epoch,
@@ -1523,19 +1626,27 @@ impl LocalEphemeralBackend {
             && !subscribed_rooms.is_empty()
             && self.shared.delivery.is_registered(connection_id)
         {
-            let outbox = self.ensure_outbox(connection_id, default_max_pending_ephemeral_keys());
+            let outbox = self.ensure_outbox(connection_id);
             {
                 let mut outbox = lock(&outbox);
                 for (room, scope_epoch) in subscribed_rooms {
-                    outbox.push_resync(EphemeralMessage::ResyncRequired {
+                    let result = outbox.push_resync(Arc::new(EphemeralMessage::ResyncRequired {
                         room,
                         scope_epoch,
                         reason: ResyncReason::Disconnected,
-                    });
-                    self.shared
-                        .counters
-                        .resync_required
-                        .fetch_add(1, Ordering::Relaxed);
+                    }));
+                    if result.overflowed {
+                        self.shared
+                            .counters
+                            .outbox_overflows
+                            .fetch_add(1, Ordering::Relaxed);
+                    }
+                    if result.resync_count > 0 {
+                        self.shared
+                            .counters
+                            .resync_required
+                            .fetch_add(result.resync_count as u64, Ordering::Relaxed);
+                    }
                 }
             }
             self.shared.delivery.wake(connection_id);
@@ -1578,12 +1689,7 @@ impl LocalEphemeralBackend {
                         room.indexed_deadline = None;
                     }
                     self.sweep_room_locked(room, &room_id, collection.as_ref(), now_ms);
-                    if let Some(earliest) = room
-                        .entries
-                        .values()
-                        .map(|record| record.expires_at_ms)
-                        .min()
-                    {
+                    if let Some(earliest) = next_expiry_deadline(room) {
                         self.index_room_deadline(room, &room_id, earliest);
                     }
                     room.entries.is_empty() && room.subscribers.is_empty()
@@ -1597,13 +1703,19 @@ impl LocalEphemeralBackend {
 
     pub fn enqueue_durable(&self, connection_id: impl Into<String>, payload: Vec<u8>) {
         let connection_id = connection_id.into();
-        let outbox = self.ensure_outbox(&connection_id, default_max_pending_ephemeral_keys());
-        let overflowed = lock(&outbox).push_durable(DurableMessage { payload });
-        if overflowed {
+        let outbox = self.ensure_outbox(&connection_id);
+        let overflow = lock(&outbox).push_durable(DurableMessage { payload });
+        if overflow.overflowed {
             self.shared
                 .counters
                 .outbox_overflows
                 .fetch_add(1, Ordering::Relaxed);
+        }
+        if overflow.resync_count > 0 {
+            self.shared
+                .counters
+                .resync_required
+                .fetch_add(overflow.resync_count as u64, Ordering::Relaxed);
         }
         // Push-before-wake: the L8 lost-wakeup argument relies on the message
         // being drainable by the time the waker fires (see LLP 0026's L6/L7
@@ -1846,12 +1958,25 @@ impl LocalEphemeralBackend {
         }
 
         for (connection_id, message) in resyncs {
-            let outbox = self.ensure_outbox(&connection_id, default_max_pending_ephemeral_keys());
-            lock(&outbox).push_resync(message);
-            self.shared
-                .counters
-                .resync_required
-                .fetch_add(1, Ordering::Relaxed);
+            let outbox = self.ensure_outbox(&connection_id);
+            let result = lock(&outbox).push_resync(Arc::new(message));
+            if result.overflowed {
+                self.shared
+                    .counters
+                    .outbox_overflows
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            if result.resync_count > 0 {
+                self.shared
+                    .counters
+                    .resync_required
+                    .fetch_add(result.resync_count as u64, Ordering::Relaxed);
+            } else {
+                self.shared
+                    .counters
+                    .resync_required
+                    .fetch_add(1, Ordering::Relaxed);
+            }
             self.shared.delivery.wake(&connection_id);
         }
     }
@@ -1962,6 +2087,11 @@ impl LocalEphemeralBackend {
         collection: Option<&EphemeralCollection>,
         now_ms: Millis,
     ) {
+        match next_expiry_deadline(room) {
+            Some(deadline) if deadline <= now_ms => {}
+            _ => return,
+        }
+
         let expired_keys = room
             .entries
             .iter()
@@ -1988,24 +2118,24 @@ impl LocalEphemeralBackend {
     fn fan_out_locked(
         &self,
         room: &RoomState,
-        room_id: &RoomId,
+        _room_id: &RoomId,
         collection: &EphemeralCollection,
         message: EphemeralMessage,
     ) {
         let recipients = room
             .subscribers
             .iter()
-            .filter_map(|(connection_id, subscriber)| {
-                collection
-                    .subscribe
-                    .allows(&room_id.scope, &subscriber.auth)
-                    .then_some(connection_id.clone())
-            })
+            .map(|(connection_id, subscriber)| (connection_id.clone(), subscriber.outbox.clone()))
             .collect::<Vec<_>>();
+        if recipients.is_empty() {
+            return;
+        }
 
-        for connection_id in recipients {
-            let outbox = self.ensure_outbox(&connection_id, collection.max_pending_ephemeral_keys);
-            let result = lock(&outbox).push_ephemeral(message.clone());
+        let message = Arc::new(message);
+        let mut wakees = Vec::with_capacity(recipients.len());
+        for (connection_id, outbox) in recipients {
+            let result = lock(&outbox)
+                .push_ephemeral(message.clone(), collection.max_pending_ephemeral_keys);
             if result.coalesced {
                 self.shared
                     .counters
@@ -2024,9 +2154,11 @@ impl LocalEphemeralBackend {
                     .outbox_overflows
                     .fetch_add(1, Ordering::Relaxed);
             }
-            // L8: wake the subscriber's delivery task (push-before-wake).
-            self.shared.delivery.wake(&connection_id);
+            wakees.push(connection_id);
         }
+        // L8: wake subscriber delivery tasks after all messages are drainable
+        // (push-before-wake), with one notifier-map lock for the whole fan-out.
+        self.shared.delivery.wake_many(&wakees);
     }
 
     /// Record that `connection_id` has touched `room_id` (subscribed or
@@ -2044,18 +2176,10 @@ impl LocalEphemeralBackend {
             .insert(room_id.clone());
     }
 
-    fn ensure_outbox(
-        &self,
-        connection_id: &str,
-        max_pending_ephemeral_keys: usize,
-    ) -> SharedOutbox {
+    fn ensure_outbox(&self, connection_id: &str) -> SharedOutbox {
         lock(&self.shared.outboxes)
             .entry(connection_id.to_owned())
-            .or_insert_with(|| {
-                Arc::new(StdMutex::new(OutboundQueue::new(
-                    max_pending_ephemeral_keys,
-                )))
-            })
+            .or_insert_with(|| Arc::new(StdMutex::new(OutboundQueue::new())))
             .clone()
     }
 
@@ -2087,6 +2211,7 @@ fn remove_entry_locked(
 ) -> Option<EphemeralMessage> {
     let record = room.entries.remove(key)?;
     room.value_bytes = room.value_bytes.saturating_sub(record.serialized_bytes);
+    forget_expiry_locked(room, record.expires_at_ms);
     room.owner_connections.remove(&record.owner);
     let entry_version = room.allocate_version();
     Some(EphemeralMessage::Remove {
@@ -2096,6 +2221,27 @@ fn remove_entry_locked(
         entry_version,
         reason,
     })
+}
+
+fn remember_expiry_locked(room: &mut RoomState, expires_at_ms: Millis) {
+    *room.expiry_counts.entry(expires_at_ms).or_insert(0) += 1;
+}
+
+fn forget_expiry_locked(room: &mut RoomState, expires_at_ms: Millis) {
+    let remove = match room.expiry_counts.get_mut(&expires_at_ms) {
+        Some(count) => {
+            *count = count.saturating_sub(1);
+            *count == 0
+        }
+        None => false,
+    };
+    if remove {
+        room.expiry_counts.remove(&expires_at_ms);
+    }
+}
+
+fn next_expiry_deadline(room: &RoomState) -> Option<Millis> {
+    room.expiry_counts.keys().next().copied()
 }
 
 fn room_id_for(collection: &EphemeralCollection, scope: &Scope) -> Result<RoomId, EphemeralError> {
@@ -3113,6 +3259,203 @@ mod tests {
         assert_eq!(backend.diagnostics().resync_required, 2);
     }
 
+    #[test]
+    fn eng_23349_pending_key_cap_is_not_first_outbox_creator_wins() {
+        let backend = LocalEphemeralBackend::new();
+        let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
+        collection.max_pending_ephemeral_keys = 1;
+        backend.register_collection(collection);
+        let scope = Scope::from_pairs([("boardId", "board-1")]);
+
+        // A durable message creates the outbox before the collection-specific
+        // ephemeral subscription arrives. The collection's cap must still
+        // govern later ephemeral inserts.
+        backend.enqueue_durable("observer", b"{\"kind\":\"live_replace\"}".to_vec());
+        backend
+            .subscribe(
+                SubscribeRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: scope.clone(),
+                    connection_id: "observer".to_owned(),
+                    auth: AuthContext::default(),
+                },
+                1_000,
+            )
+            .unwrap();
+
+        for connection_id in ["pub-a", "pub-b"] {
+            backend
+                .publish(
+                    PublishRequest {
+                        collection: "boardCursors".to_owned(),
+                        scope: scope.clone(),
+                        connection_id: connection_id.to_owned(),
+                        session_id: None,
+                        user_id: None,
+                        custom_key: None,
+                        value: connection_id.as_bytes().to_vec(),
+                        ttl_ms: None,
+                        auth: AuthContext::default(),
+                    },
+                    1_001,
+                )
+                .unwrap();
+        }
+
+        let messages = backend.drain_outbox("observer");
+        assert!(
+            messages
+                .iter()
+                .any(|message| matches!(message, RealtimeEnvelope::Durable(_))),
+            "the durable first-creator message should still drain"
+        );
+        assert!(
+            messages.iter().any(|message| matches!(
+                message,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
+                    reason: ResyncReason::QueueOverflow,
+                    ..
+                })
+            )),
+            "the collection's max_pending_ephemeral_keys=1 must force a room resync"
+        );
+        assert!(
+            !messages.iter().any(|message| matches!(
+                message,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { .. })
+            )),
+            "overflowed latest-state keys must not drain as if the stream stayed current"
+        );
+    }
+
+    #[test]
+    fn eng_23432_full_overflow_preserves_ephemeral_room_resyncs() {
+        let backend = LocalEphemeralBackend::new();
+        let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
+        collection.max_pending_ephemeral_keys = 1;
+        backend.register_collection(collection);
+
+        let subscribe = |board: &str| {
+            backend
+                .subscribe(
+                    SubscribeRequest {
+                        collection: "boardCursors".to_owned(),
+                        scope: Scope::from_pairs([("boardId", board)]),
+                        connection_id: "observer".to_owned(),
+                        auth: AuthContext::default(),
+                    },
+                    1_000,
+                )
+                .unwrap();
+        };
+        for board in ["one", "two", "three"] {
+            subscribe(board);
+        }
+
+        let publish = |board: &str, connection_id: &str, now_ms: Millis| {
+            backend
+                .publish(
+                    PublishRequest {
+                        collection: "boardCursors".to_owned(),
+                        scope: Scope::from_pairs([("boardId", board)]),
+                        connection_id: connection_id.to_owned(),
+                        session_id: None,
+                        user_id: None,
+                        custom_key: None,
+                        value: board.as_bytes().to_vec(),
+                        ttl_ms: None,
+                        auth: AuthContext::default(),
+                    },
+                    now_ms,
+                )
+                .unwrap();
+        };
+
+        // The collection cap converts the first two pending room updates into
+        // per-room ephemeral resyncs.
+        publish("one", "pub-one", 1_001);
+        publish("two", "pub-two", 1_002);
+
+        // Then the durable lane overflows the whole outbox. The overflow must
+        // preserve those room resyncs instead of replacing them with only a
+        // durable connection-wide sentinel.
+        for n in 0..=MAX_OUTBOX_BACKLOG {
+            backend.enqueue_durable("observer", format!("{{\"n\":{n}}}").into_bytes());
+        }
+
+        // A new room update that arrives while the queue is sticky-overflowed
+        // must also be represented by a room resync before the drain resets
+        // the overflow flag.
+        publish("three", "pub-three", 1_003);
+
+        let messages = backend.drain_outbox("observer");
+        assert!(
+            messages
+                .iter()
+                .any(|message| matches!(message, RealtimeEnvelope::Durable(_))),
+            "full overflow still emits the durable resync sentinel"
+        );
+        let resync_rooms = messages
+            .iter()
+            .filter_map(|message| match message {
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
+                    room,
+                    reason: ResyncReason::QueueOverflow,
+                    ..
+                }) => Some(room.routing_key.clone()),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            resync_rooms,
+            BTreeSet::from([
+                "7:boardId=3:one".to_owned(),
+                "7:boardId=3:two".to_owned(),
+                "7:boardId=5:three".to_owned(),
+            ]),
+            "every room whose ephemeral lane was dropped must be told to resnapshot"
+        );
+    }
+
+    #[test]
+    fn eng_23347_subscriber_registration_carries_outbox_for_hot_fanout() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+        backend
+            .subscribe(subscribe_request("observer"), 1_000)
+            .unwrap();
+
+        let room_id = room();
+        let room_arc = lock(&backend.shared.rooms)
+            .get(&room_id)
+            .cloned()
+            .expect("room exists");
+        let subscriber_outbox = {
+            let room = lock(&room_arc);
+            room.subscribers
+                .get("observer")
+                .expect("subscriber registered")
+                .outbox
+                .clone()
+        };
+        let mapped_outbox = lock(&backend.shared.outboxes)
+            .get("observer")
+            .cloned()
+            .expect("outbox exists");
+        assert!(
+            Arc::ptr_eq(&subscriber_outbox, &mapped_outbox),
+            "fan-out should use the outbox handle captured at registration"
+        );
+
+        backend
+            .publish(publish_request("publisher", b"cursor"), 1_001)
+            .unwrap();
+        assert!(
+            !backend.drain_outbox("observer").is_empty(),
+            "the captured outbox handle must still receive fan-out"
+        );
+    }
+
     /// LLP 0032 L9 / LLP 0026 Phase 2 — every hard limit (entries per room,
     /// aggregate room bytes, subscribers per room, active rooms) rejects with
     /// a structured `RoomLimitExceeded` and leaves the room snapshot exactly
@@ -3309,6 +3652,62 @@ mod tests {
         assert_eq!(diagnostics.expired_entries, 2);
         assert_eq!(diagnostics.entry_count, 0);
         assert_eq!(diagnostics.room_count, 0);
+    }
+
+    #[test]
+    fn eng_23350_room_expiry_gauge_skips_not_yet_due_sweeps() {
+        let backend = LocalEphemeralBackend::new();
+        let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
+        collection.key_mode = KeyMode::Custom;
+        backend.register_collection(collection.clone());
+        let room_id =
+            room_id_for(&collection, &Scope::from_pairs([("boardId", "board-1")])).unwrap();
+
+        let publish = |key: &str, ttl_ms: Millis, now_ms: Millis| {
+            backend
+                .publish(
+                    PublishRequest {
+                        collection: "boardCursors".to_owned(),
+                        scope: Scope::from_pairs([("boardId", "board-1")]),
+                        connection_id: "publisher".to_owned(),
+                        session_id: None,
+                        user_id: None,
+                        custom_key: Some(key.to_owned()),
+                        value: key.as_bytes().to_vec(),
+                        ttl_ms: Some(ttl_ms),
+                        auth: AuthContext::default(),
+                    },
+                    now_ms,
+                )
+                .unwrap();
+        };
+
+        publish("early", 5_000, 1_000); // expires at 6_000
+        publish("later", 7_000, 1_000); // expires at 8_000
+        publish("early", 10_000, 2_000); // replacing earliest moves it to 12_000
+
+        let room_arc = lock(&backend.shared.rooms)
+            .get(&room_id)
+            .cloned()
+            .expect("room exists");
+        assert_eq!(
+            next_expiry_deadline(&lock(&room_arc)),
+            Some(8_000),
+            "the exact room-local expiry gauge should advance when the earliest entry is refreshed"
+        );
+
+        // The global room index may still wake at the stale 6_000 lower bound,
+        // but the exact room gauge proves nothing is due and avoids scanning
+        // the whole room's entry map.
+        backend.cleanup_expired(6_500);
+        let diagnostics = backend.diagnostics();
+        assert_eq!(diagnostics.expired_entries, 0);
+        assert_eq!(diagnostics.entry_count, 2);
+
+        backend.cleanup_expired(8_000);
+        let diagnostics = backend.diagnostics();
+        assert_eq!(diagnostics.expired_entries, 1);
+        assert_eq!(diagnostics.entry_count, 1);
     }
 
     /// LLP 0032 L9 — the resync-boundary machinery is live with the ratified

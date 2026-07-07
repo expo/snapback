@@ -19,6 +19,8 @@ use std::ffi::{CStr, CString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr;
+#[cfg(debug_assertions)]
+use std::sync::{Mutex as StdMutex, OnceLock, mpsc};
 use std::time::Instant;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -668,7 +670,7 @@ impl<'a> IbexHostContext<'a> {
                     _ => Ordering::Equal,
                 };
                 if ordering == Ordering::Equal {
-                    row_id_for_sort(left).cmp(&row_id_for_sort(right))
+                    row_id_for_sort(left).cmp(row_id_for_sort(right))
                 } else {
                     ordering
                 }
@@ -729,6 +731,7 @@ impl<'a> IbexHostContext<'a> {
             }
         };
         self.push_read_dependency(dependency);
+        notify_captured_point_read(table, id);
         Ok(())
     }
 
@@ -1653,6 +1656,69 @@ fn handler_envelope_code(code: &str) -> &str {
         _ => "SNAPBACK_HANDLER_FAILED",
     }
 }
+
+#[cfg(debug_assertions)]
+#[derive(Clone)]
+struct CapturedPointReadDebugHook {
+    table: String,
+    id: String,
+    sender: mpsc::Sender<()>,
+}
+
+#[cfg(debug_assertions)]
+static CAPTURED_POINT_READ_DEBUG_HOOK: OnceLock<StdMutex<Option<CapturedPointReadDebugHook>>> =
+    OnceLock::new();
+
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub struct CapturedPointReadDebugHookGuard;
+
+#[cfg(debug_assertions)]
+impl Drop for CapturedPointReadDebugHookGuard {
+    fn drop(&mut self) {
+        *captured_point_read_debug_hook()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    }
+}
+
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub fn set_captured_point_read_debug_hook(
+    table: &str,
+    id: &str,
+    sender: mpsc::Sender<()>,
+) -> CapturedPointReadDebugHookGuard {
+    *captured_point_read_debug_hook()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(CapturedPointReadDebugHook {
+        table: table.to_owned(),
+        id: id.to_owned(),
+        sender,
+    });
+    CapturedPointReadDebugHookGuard
+}
+
+#[cfg(debug_assertions)]
+fn captured_point_read_debug_hook() -> &'static StdMutex<Option<CapturedPointReadDebugHook>> {
+    CAPTURED_POINT_READ_DEBUG_HOOK.get_or_init(|| StdMutex::new(None))
+}
+
+#[cfg(debug_assertions)]
+fn notify_captured_point_read(table: &str, id: &str) {
+    let sender = captured_point_read_debug_hook()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .as_ref()
+        .filter(|hook| hook.table == table && hook.id == id)
+        .map(|hook| hook.sender.clone());
+    if let Some(sender) = sender {
+        let _ = sender.send(());
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn notify_captured_point_read(_table: &str, _id: &str) {}
 
 fn c_string_to_string(ptr: *const c_char) -> SnapbackResult<String> {
     if ptr.is_null() {

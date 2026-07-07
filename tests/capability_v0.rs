@@ -60,12 +60,10 @@ fn p2_committed_capability_manifest_matches_the_declared_server_manifest() {
         );
         fs::write(&path, rendered).expect("write committed capability manifest");
     }
-    let committed: Value = serde_json::from_str(
-        &fs::read_to_string(&path).expect(
-            "schemas/capability.manifest.local-dev-sqlite-ibex.json is missing; regenerate with \
+    let committed: Value = serde_json::from_str(&fs::read_to_string(&path).expect(
+        "schemas/capability.manifest.local-dev-sqlite-ibex.json is missing; regenerate with \
              SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_",
-        ),
-    )
+    ))
     .expect("parse committed capability manifest");
     assert_eq!(
         committed, declared,

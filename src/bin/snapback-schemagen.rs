@@ -14,13 +14,23 @@
 //!   schemas that make the Rust types the single source of truth.
 //! @ref LLP 0032#decision-docket — DK-7 / P3(c) regeneration entry point.
 
-use snapback::schema_export::artifact_schemas;
-use std::path::PathBuf;
+use snapback::schema_export::{SchemaArtifact, artifact_schemas};
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 
 fn main() -> std::io::Result<()> {
     let schemas_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("schemas");
-    std::fs::create_dir_all(&schemas_dir)?;
-    for artifact in artifact_schemas() {
+    let artifacts = artifact_schemas();
+    write_schema_artifacts(&schemas_dir, &artifacts)
+}
+
+fn write_schema_artifacts(schemas_dir: &Path, artifacts: &[SchemaArtifact]) -> std::io::Result<()> {
+    std::fs::create_dir_all(schemas_dir)?;
+    let expected = artifacts
+        .iter()
+        .map(|artifact| artifact.file)
+        .collect::<BTreeSet<_>>();
+    for artifact in artifacts {
         let path = schemas_dir.join(artifact.file);
         let rendered = format!(
             "{}\n",
@@ -29,5 +39,42 @@ fn main() -> std::io::Result<()> {
         std::fs::write(&path, rendered)?;
         println!("wrote {}", path.display());
     }
+    for entry in std::fs::read_dir(schemas_dir)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        if !file_type.is_file() {
+            continue;
+        }
+        let file_name = entry.file_name();
+        let file_name = file_name.to_string_lossy();
+        if file_name.ends_with(".json") && !expected.contains(file_name.as_ref()) {
+            std::fs::remove_file(entry.path())?;
+            println!("removed stale {}", entry.path().display());
+        }
+    }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn schemagen_removes_orphaned_schema_json_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("keep.schema.json"), "{}\n").expect("write keep");
+        std::fs::write(dir.path().join("stale.schema.json"), "{}\n").expect("write stale");
+        std::fs::write(dir.path().join("README.md"), "notes\n").expect("write notes");
+        let artifacts = [SchemaArtifact {
+            file: "keep.schema.json",
+            schema: json!({ "title": "Keep" }),
+        }];
+
+        write_schema_artifacts(dir.path(), &artifacts).expect("write schemas");
+
+        assert!(dir.path().join("keep.schema.json").is_file());
+        assert!(!dir.path().join("stale.schema.json").exists());
+        assert!(dir.path().join("README.md").is_file());
+    }
 }

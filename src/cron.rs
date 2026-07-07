@@ -557,14 +557,12 @@ impl LocalCronRuntime {
             } else {
                 state.consecutive_failures = 0;
             }
-            if claim.metadata.trigger == CronRunTrigger::Scheduled {
-                if let Some(next_nominal) =
+            if claim.metadata.trigger == CronRunTrigger::Scheduled
+                && let Some(next_nominal) =
                     next_nominal_after(&claim.job, claim.metadata.scheduled_at_ms, finished_at_ms)
-                {
-                    state.next_nominal_at_ms = Some(next_nominal);
-                    state.next_due_at_ms =
-                        Some(next_nominal.saturating_add(state.jitter_offset_ms));
-                }
+            {
+                state.next_nominal_at_ms = Some(next_nominal);
+                state.next_due_at_ms = Some(next_nominal.saturating_add(state.jitter_offset_ms));
             }
         }
         self.record_run(ledger_record(&record));
@@ -1157,7 +1155,7 @@ fn parse_cron_field(
             return Err(());
         }
         let values = (min..=max)
-            .filter(|candidate| (candidate - min) % step == 0)
+            .filter(|candidate| (candidate - min).is_multiple_of(step))
             .map(|candidate| normalize_cron_value(candidate, normalize_weekdays))
             .collect();
         return Ok(CronField { any: false, values });

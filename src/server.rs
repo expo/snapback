@@ -1,9 +1,9 @@
 use crate::admin::{AppState, ServerContext};
+use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
     DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
 };
-use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::local::{
     AppActionStage, EphemeralApi, FunctionRunResult, InspectState, LiveResumeInput,
     LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction, StagedAppAction,
@@ -13,6 +13,7 @@ use crate::manifest::{
     SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
+use axum::extract::rejection::JsonRejection;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
@@ -1879,8 +1880,9 @@ async fn invoke_query(
     State(state): State<SharedSnapback>,
     State(read): State<crate::local::ReadLane>,
     Path(name): Path<String>,
-    Json(input): Json<HandlerInput>,
+    input: Result<Json<HandlerInput>, JsonRejection>,
 ) -> Result<Json<crate::manifest::QueryOutput>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let output = if read.available() {
         with_read_lane(&read, move |lane| lane.invoke_query(&name, input)).await?
     } else {
@@ -1896,8 +1898,9 @@ async fn invoke_query(
 async fn invoke_mutation(
     State(state): State<SharedSnapback>,
     Path(name): Path<String>,
-    Json(input): Json<HandlerInput>,
+    input: Result<Json<HandlerInput>, JsonRejection>,
 ) -> Result<Json<Value>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     // Receipt emission rides the L7 blocking offload: the recording call
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
     // assembled from its (result, receipt) pair back on the async side.
@@ -1932,8 +1935,9 @@ async fn invoke_mutation(
 async fn invoke_action(
     State(state): State<SharedSnapback>,
     Path(name): Path<String>,
-    Json(input): Json<HandlerInput>,
+    input: Result<Json<HandlerInput>, JsonRejection>,
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let staged = {
         let name = name.clone();
         with_snapback(&state, move |snapback| snapback.stage_app_action(&name)).await
@@ -1954,8 +1958,9 @@ async fn invoke_action(
 async fn ensure_app(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
-    Json(input): Json<crate::local::EnsureAppInput>,
+    input: Result<Json<crate::local::EnsureAppInput>, JsonRejection>,
 ) -> Result<Json<crate::local::EnsureAppOutcome>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let provisioning_allowed = ctx.profile.allows_provisioning();
     let profile = ctx.profile.as_str().to_owned();
     let outcome = with_snapback(&state, move |snapback| {
@@ -1970,8 +1975,9 @@ async fn subscribe_live(
     State(connections): State<ConnectionRegistry>,
     Path(name): Path<String>,
     headers: HeaderMap,
-    Json(input): Json<LiveSubscribeInput>,
+    input: Result<Json<LiveSubscribeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveSubscribeOutput>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     connections.verify(
         &input.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -1988,8 +1994,9 @@ async fn resume_live(
     State(connections): State<ConnectionRegistry>,
     Path(name): Path<String>,
     headers: HeaderMap,
-    Json(input): Json<LiveResumeInput>,
+    input: Result<Json<LiveResumeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     connections.verify(
         &input.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -2003,8 +2010,9 @@ async fn unsubscribe_live(
     State(connections): State<ConnectionRegistry>,
     Path(name): Path<String>,
     headers: HeaderMap,
-    Json(input): Json<LiveUnsubscribeInput>,
+    input: Result<Json<LiveUnsubscribeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveUnsubscribeOutput>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     connections.verify(
         &input.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -2484,8 +2492,9 @@ impl EnsureEphemeralCollectionsInput {
 /// L7 exec guard's blocking classes do not apply).
 async fn ensure_ephemeral_collections(
     State(ephemeral): State<EphemeralApi>,
-    Json(input): Json<EnsureEphemeralCollectionsInput>,
+    input: Result<Json<EnsureEphemeralCollectionsInput>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::CollectionEnsureOutcome>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     ephemeral
         .ensure_collections(input.into_collections())
         .map(Json)
@@ -2496,8 +2505,9 @@ async fn publish_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     headers: HeaderMap,
-    Json(request): Json<PublishRequest>,
+    request: Result<Json<PublishRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::PublishOutcome>, ApiError> {
+    let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     connections.verify(
         &request.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -2512,8 +2522,9 @@ async fn subscribe_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     headers: HeaderMap,
-    Json(request): Json<SubscribeRequest>,
+    request: Result<Json<SubscribeRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::EphemeralMessage>, ApiError> {
+    let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     connections.verify(
         &request.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -2528,8 +2539,9 @@ async fn delete_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     headers: HeaderMap,
-    Json(request): Json<DeleteRequest>,
+    request: Result<Json<DeleteRequest>, JsonRejection>,
 ) -> Result<Json<Option<crate::ephemeral::EphemeralMessage>>, ApiError> {
+    let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     connections.verify(
         &request.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -2563,6 +2575,18 @@ pub struct ApiError(SnapbackError, Option<Value>);
 impl ApiError {
     fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
         Self(SnapbackError::new(diagnostic_from_ephemeral(error)), None)
+    }
+
+    fn from_json_rejection(error: JsonRejection) -> Self {
+        Self(
+            SnapbackError::error(
+                "SNAPBACK_REQUEST_JSON_INVALID",
+                "server",
+                "request body was not valid JSON for this operation",
+            )
+            .with_details(json!({ "error": error.to_string() })),
+            None,
+        )
     }
 
     /// Attach a receipt to an error response (a REJECTED mutation still

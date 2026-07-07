@@ -39,7 +39,7 @@ fn live_delta_is_emitted_for_an_unordered_filtered_query() {
 
     let update = drain_one_update(&mut snapback, "conn");
     assert_eq!(update["kind"], "live_delta");
-    assert_eq!(update["subscription_id"].is_string(), true);
+    assert!(update["subscription_id"].is_string());
     let ops = update["ops"].as_array().expect("ops");
     assert_eq!(ops.len(), 1);
     assert_eq!(ops[0]["op"], "add");

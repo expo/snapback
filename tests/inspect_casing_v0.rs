@@ -91,8 +91,7 @@ fn p8_admin_inspect_payload_is_camel_case() {
 #[test]
 fn p8_public_inspect_payload_is_camel_case() {
     let mut snapback = configured_snapback();
-    let public =
-        snapback::local::PublicInspect::from(snapback.inspect().expect("inspect"));
+    let public = snapback::local::PublicInspect::from(snapback.inspect().expect("inspect"));
     let payload = serde_json::to_value(&public).expect("serialize public inspect");
 
     let mut offenders = Vec::new();
@@ -109,7 +108,10 @@ fn p8_diagnostic_severity_serializes_lowercase() {
     // The LLP 0012 diagnostic family is lowercase on the JS side; the Rust
     // serialization drifted PascalCase until P8. Old spellings still parse.
     let severity = snapback::diagnostic::DiagnosticSeverity::Error;
-    assert_eq!(serde_json::to_value(&severity).unwrap(), Value::String("error".into()));
+    assert_eq!(
+        serde_json::to_value(&severity).unwrap(),
+        Value::String("error".into())
+    );
     let parsed: snapback::diagnostic::DiagnosticSeverity =
         serde_json::from_value(Value::String("Error".into())).expect("old spelling parses");
     assert_eq!(parsed, snapback::diagnostic::DiagnosticSeverity::Error);

@@ -288,8 +288,8 @@ pub fn execute_host_op(
     match operation.as_str() {
         "app.inspect" => match snapback.inspect() {
             Ok(state) => {
-                let runtime_state =
-                    serde_json::to_value(&state).unwrap_or_else(|_| Value::Object(Default::default()));
+                let runtime_state = serde_json::to_value(&state)
+                    .unwrap_or_else(|_| Value::Object(Default::default()));
                 envelope(
                     snapback,
                     true,
@@ -362,9 +362,9 @@ pub fn execute_host_op(
             };
             match snapback.apply_schema(schema) {
                 Ok(diagnostics) => {
-                    let ok = !diagnostics
-                        .iter()
-                        .any(|diagnostic| diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error);
+                    let ok = !diagnostics.iter().any(|diagnostic| {
+                        diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
+                    });
                     envelope(
                         snapback,
                         ok,
@@ -398,9 +398,9 @@ pub fn execute_host_op(
             };
             let function_count = functions.functions.len();
             let diagnostics = snapback.load_functions(functions);
-            let ok = !diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error);
+            let ok = !diagnostics.iter().any(|diagnostic| {
+                diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
+            });
             envelope(
                 snapback,
                 ok,
@@ -449,7 +449,13 @@ pub fn execute_host_op(
 fn run_function(
     snapback: &mut LocalSnapback,
     request: &HostOpsRequest,
-    envelope: impl Fn(&LocalSnapback, bool, Option<HostOpsAuthority>, Value, Vec<Diagnostic>) -> HostOpsResult,
+    envelope: impl Fn(
+        &LocalSnapback,
+        bool,
+        Option<HostOpsAuthority>,
+        Value,
+        Vec<Diagnostic>,
+    ) -> HostOpsResult,
 ) -> HostOpsResult {
     let authority = authority_dev_user(request.user_id.as_deref());
     let Some(function) = request.function.clone() else {
@@ -493,26 +499,39 @@ fn run_function(
         correlation: None,
     };
     match kind {
-        FunctionKind::Query | FunctionKind::LiveQuery => match snapback.invoke_query(&name, input)
-        {
-            Ok(output) => {
-                let result = serde_json::to_value(&output)
-                    .unwrap_or_else(|_| Value::Object(Default::default()));
-                envelope(snapback, true, authority, json!({ "functionResult": result }), Vec::new())
+        FunctionKind::Query | FunctionKind::LiveQuery => {
+            match snapback.invoke_query(&name, input) {
+                Ok(output) => {
+                    let result = serde_json::to_value(&output)
+                        .unwrap_or_else(|_| Value::Object(Default::default()));
+                    envelope(
+                        snapback,
+                        true,
+                        authority,
+                        json!({ "functionResult": result }),
+                        Vec::new(),
+                    )
+                }
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority,
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
             }
-            Err(error) => envelope(
-                snapback,
-                false,
-                authority,
-                Value::Object(Default::default()),
-                vec![error.diagnostic],
-            ),
-        },
+        }
         FunctionKind::Mutation => match snapback.invoke_mutation(&name, input) {
             Ok(output) => {
                 let commit = serde_json::to_value(&output)
                     .unwrap_or_else(|_| Value::Object(Default::default()));
-                envelope(snapback, true, authority, json!({ "mutationCommit": commit }), Vec::new())
+                envelope(
+                    snapback,
+                    true,
+                    authority,
+                    json!({ "mutationCommit": commit }),
+                    Vec::new(),
+                )
             }
             Err(error) => envelope(
                 snapback,

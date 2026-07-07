@@ -641,16 +641,11 @@ impl Default for CronJitterPolicy {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronOverlapPolicy {
+    #[default]
     NoOverlap,
     Allow,
-}
-
-impl Default for CronOverlapPolicy {
-    fn default() -> Self {
-        Self::NoOverlap
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]

@@ -600,7 +600,10 @@ fn config_status_reports_whether_an_app_has_provisioned() {
         "unexpected load errors: {diagnostics:?}"
     );
     let status = snapback.config_status();
-    assert!(status.app_provisioned, "manifest loaded: app has provisioned");
+    assert!(
+        status.app_provisioned,
+        "manifest loaded: app has provisioned"
+    );
     assert!(status.entries.is_empty(), "still no declared entries");
 }
 

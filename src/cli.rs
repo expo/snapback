@@ -537,7 +537,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         );
     }
 
-    let server_result = axum::serve(listener, app).await;
+    let server_result = axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await;
     cron_scheduler.abort();
     maintenance_worker.abort();
     drop(database_lock);
@@ -546,6 +548,32 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     server_result?;
     Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+
+    #[cfg(unix)]
+    {
+        let terminate = async {
+            if let Ok(mut signal) =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            {
+                signal.recv().await;
+            } else {
+                std::future::pending::<()>().await;
+            }
+        };
+        tokio::select! {
+            _ = ctrl_c => {}
+            _ = terminate => {}
+        }
+    }
+
+    #[cfg(not(unix))]
+    ctrl_c.await;
 }
 
 fn write_ready_file_atomic(path: &Path, content: &str) -> anyhow::Result<()> {

@@ -394,7 +394,7 @@ pub fn evaluate_access(
     provided: Option<&str>,
     write: bool,
 ) -> AdminAccess {
-    let token_ok = matches!((configured, provided), (Some(c), Some(p)) if c == p);
+    let token_ok = matches!((configured, provided), (Some(c), Some(p)) if token_eq(c, p));
     if write {
         match configured {
             Some(_) => {
@@ -417,6 +417,19 @@ pub fn evaluate_access(
     } else {
         AdminAccess::Disabled
     }
+}
+
+fn token_eq(configured: &str, provided: &str) -> bool {
+    let configured = configured.as_bytes();
+    let provided = provided.as_bytes();
+    let len = configured.len().max(provided.len());
+    let mut diff = configured.len() ^ provided.len();
+    for index in 0..len {
+        let left = configured.get(index).copied().unwrap_or(0);
+        let right = provided.get(index).copied().unwrap_or(0);
+        diff |= usize::from(left ^ right);
+    }
+    diff == 0
 }
 
 /// Route-level profile gate (ENG-22527): destructive/provisioning system
@@ -886,6 +899,14 @@ mod tests {
             evaluate_access(true, Some("secret"), Some("wrong"), true),
             AdminAccess::TokenRequired
         );
+    }
+
+    #[test]
+    fn admin_token_compare_requires_exact_match() {
+        assert!(token_eq("secret-token", "secret-token"));
+        assert!(!token_eq("secret-token", "secret-tokem"));
+        assert!(!token_eq("secret-token", "secret-token-extra"));
+        assert!(!token_eq("secret-token", "secret"));
     }
 
     #[test]

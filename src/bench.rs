@@ -699,10 +699,10 @@ fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::Snapbac
             vec![query_read],
             Value::Null,
         );
-        if let Err(error) = result {
-            if error.diagnostic.code == "SNAPBACK_MUTATION_CONFLICT" {
-                conflicts += 1;
-            }
+        if let Err(error) = result
+            && error.diagnostic.code == "SNAPBACK_MUTATION_CONFLICT"
+        {
+            conflicts += 1;
         }
     }
     Ok(conflicts as f64 / config.conflict_trials.max(1) as f64)

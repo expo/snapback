@@ -346,6 +346,20 @@ async fn unknown_table_is_a_not_found_diagnostic() {
 }
 
 #[tokio::test]
+async fn malformed_app_data_json_uses_snapback_diagnostic_envelope() {
+    let app = loopback_app(seeded_snapback());
+
+    let resp = app
+        .oneshot(post_raw_json("/query/listTodos", "{not-json"))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let body = json(resp).await;
+    assert_eq!(body["diagnostic"]["code"], "SNAPBACK_REQUEST_JSON_INVALID");
+}
+
+#[tokio::test]
 async fn function_runner_runs_query_and_mutation_with_read_write_sets() {
     let app = loopback_app(seeded_snapback());
 
@@ -1217,6 +1231,15 @@ fn post(uri: &str, body: Value) -> Request<Body> {
         .uri(uri)
         .header("content-type", "application/json")
         .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+fn post_raw_json(uri: &str, body: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_owned()))
         .unwrap()
 }
 
