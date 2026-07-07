@@ -1902,7 +1902,7 @@ async fn invoke_mutation(
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
     // assembled from its (result, receipt) pair back on the async side.
     let (result, receipt) = with_snapback(&state, move |snapback| {
-        snapback.invoke_mutation_recording(&name, input)
+        snapback.invoke_mutation_recording_with_transport(&name, input, "http")
     })
     .await;
     match result {

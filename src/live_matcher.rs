@@ -202,8 +202,14 @@ fn live_subscription_may_be_affected_by_dependencies(
         let Some(table) = dependency.table.as_deref() else {
             return Some(true);
         };
+        let Some(predicate) = dependency.predicate.as_ref() else {
+            return Some(true);
+        };
+        let Ok(plan) = serde_json::from_value::<QueryPlan>(predicate.clone()) else {
+            return Some(true);
+        };
         for change in changes.iter().filter(|change| change.table == table) {
-            if query_dependency_change_may_affect(input, dependency, change) {
+            if change_may_affect_query_plan(&plan, input, change, Some(dependency)) {
                 return Some(true);
             }
         }
@@ -349,9 +355,13 @@ fn update_may_have_changed_query_membership(plan: &QueryPlan, change: &ChangedRo
     if change.changed_fields.is_empty() {
         return true;
     }
-    plan.filters
-        .iter()
-        .any(|filter| change.changed_fields.contains(&filter.field))
+    plan.filters.iter().any(|filter| {
+        system_field_changes_on_update(&filter.field)
+            || change
+                .changed_fields
+                .iter()
+                .any(|field| field == &filter.field)
+    })
 }
 
 fn field_scope_change_is_disjoint(change: &ChangedRow, field: &str, expected: &Value) -> bool {
@@ -416,7 +426,7 @@ pub(crate) fn compare_sort_keys(plan: &QueryPlan, left: &Value, right: &Value) -
 
 fn eval_match_expr(expr: &ValueExpr, input: &HandlerInput) -> Option<Value> {
     match expr {
-        ValueExpr::Arg(name) => input.args.get(name).cloned(),
+        ValueExpr::Arg(path) => lookup_path(&input.args, path).cloned(),
         ValueExpr::AuthUserId => input.auth.user_id.clone().map(Value::String),
         ValueExpr::Literal(value) => Some(value.clone()),
         ValueExpr::Binding(_) | ValueExpr::RuntimeId | ValueExpr::RuntimeNow => None,
@@ -425,7 +435,7 @@ fn eval_match_expr(expr: &ValueExpr, input: &HandlerInput) -> Option<Value> {
 
 fn values_equal(actual: &Value, expected: &Value) -> bool {
     match (actual, expected) {
-        (Value::Number(a), Value::Number(b)) => a.as_f64() == b.as_f64(),
+        (Value::Number(a), Value::Number(b)) => json_number_cmp(a, b) == Some(Ordering::Equal),
         _ => actual == expected,
     }
 }
@@ -434,7 +444,7 @@ fn json_value_cmp(left: &Value, right: &Value) -> Option<Ordering> {
     match (left, right) {
         (Value::Null, Value::Null) => Some(Ordering::Equal),
         (Value::Bool(left), Value::Bool(right)) => Some(left.cmp(right)),
-        (Value::Number(left), Value::Number(right)) => left.as_f64()?.partial_cmp(&right.as_f64()?),
+        (Value::Number(left), Value::Number(right)) => json_number_cmp(left, right),
         (Value::String(left), Value::String(right)) => Some(left.cmp(right)),
         _ => {
             let left_rank = scalar_rank(left)?;
@@ -442,6 +452,35 @@ fn json_value_cmp(left: &Value, right: &Value) -> Option<Ordering> {
             Some(left_rank.cmp(&right_rank))
         }
     }
+}
+
+fn system_field_changes_on_update(field: &str) -> bool {
+    matches!(field, "_updatedAt" | "_version")
+}
+
+fn lookup_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+    let mut current = value;
+    for segment in path.split('.') {
+        current = current.as_object()?.get(segment)?;
+    }
+    Some(current)
+}
+
+fn json_number_cmp(left: &serde_json::Number, right: &serde_json::Number) -> Option<Ordering> {
+    if let (Some(left), Some(right)) = (integer_value(left), integer_value(right)) {
+        return Some(left.cmp(&right));
+    }
+    left.as_f64()?.partial_cmp(&right.as_f64()?)
+}
+
+fn integer_value(number: &serde_json::Number) -> Option<i128> {
+    if let Some(value) = number.as_i64() {
+        return Some(value as i128);
+    }
+    if let Some(value) = number.as_u64() {
+        return Some(value as i128);
+    }
+    None
 }
 
 fn scalar_rank(value: &Value) -> Option<u8> {
@@ -856,6 +895,71 @@ mod delta_tests {
             limit: None,
             indexed_by: None,
         }
+    }
+
+    #[test]
+    fn numeric_equality_keeps_large_integers_exact() {
+        let plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "seq".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(json!(9_007_199_254_740_993_u64)),
+            }],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+
+        assert_eq!(
+            row_matches_query_filters(
+                &plan,
+                &input(json!({})),
+                &json!({ "seq": 9_007_199_254_740_992_u64 })
+            ),
+            Some(false),
+            "distinct integers above the f64 safe range must not collapse"
+        );
+        assert_eq!(
+            row_matches_query_filters(
+                &plan,
+                &input(json!({})),
+                &json!({ "seq": 9_007_199_254_740_993_u64 })
+            ),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn arg_filters_follow_the_same_dotted_paths_as_storage() {
+        let plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "userId".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Arg("filter.userId".to_owned()),
+            }],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+
+        assert_eq!(
+            row_matches_query_filters(
+                &plan,
+                &input(json!({ "filter": { "userId": "ada" } })),
+                &json!({ "userId": "ada" })
+            ),
+            Some(true)
+        );
+        assert_eq!(
+            row_matches_query_filters(
+                &plan,
+                &input(json!({ "filter": { "userId": "grace" } })),
+                &json!({ "userId": "ada" })
+            ),
+            Some(false)
+        );
     }
 
     fn user_filtered_plan() -> QueryPlan {

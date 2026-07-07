@@ -205,6 +205,44 @@ fn live_matcher_skips_hidden_row_patches_and_deletes() {
 }
 
 #[test]
+fn zero_change_mutation_does_not_fan_out_or_count_delivery_attempts() {
+    let mut functions = todo_functions();
+    functions.functions.push(FunctionDefinition::new(
+        "noOp",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: Vec::new(),
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    ));
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    snapback.load_functions(functions);
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client".to_owned(),
+                input: input(json!({}), "user_1"),
+                supersedes: None,
+            },
+        )
+        .expect("subscribe");
+
+    let output = snapback
+        .invoke_mutation("noOp", input(json!({}), "user_1"))
+        .expect("no-op mutation");
+    assert_eq!(output.changed_count, 0);
+    assert_eq!(snapback.drain_outbox("client"), Vec::new());
+    let inspect = snapback.inspect().expect("inspect live stats");
+    assert_eq!(inspect.live_delivery.total_fanout_attempts, 0);
+    assert_eq!(inspect.live_delivery.last_fanout_subscriptions, 0);
+    assert_eq!(inspect.live_delivery.last_deliveries, 0);
+    assert_eq!(inspect.live_delivery.last_skipped, 0);
+}
+
+#[test]
 fn live_matcher_keeps_unmarked_ibex_queries_conservative() {
     let mut functions = ibex_todo_functions(ALL_TODOS_HANDLER_SOURCE);
     let list = functions
@@ -685,6 +723,12 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
     assert_eq!(update["epoch"], 1);
     assert_eq!(update["clear_retained"], true);
     assert_eq!(snapback.drain_outbox("client_b"), Vec::new());
+
+    let inspect = snapback.inspect().expect("inspect live delivery stats");
+    assert_eq!(inspect.live_delivery.total_fanout_attempts, 2);
+    assert_eq!(inspect.live_delivery.last_fanout_subscriptions, 2);
+    assert_eq!(inspect.live_delivery.last_deliveries, 1);
+    assert_eq!(inspect.live_delivery.last_skipped, 1);
 }
 
 /// ENG-23329 — a mutation whose declared permission-epoch scope cannot be
@@ -963,6 +1007,26 @@ fn function_runner_surfaces_captured_handler_read_and_write_facts() {
     assert!(toggled.captured_writes.iter().any(|dependency| {
         dependency.op == ChangeOp::Update && dependency.table == "todos" && dependency.id == todo_id
     }));
+}
+
+#[test]
+fn function_runner_reports_action_declared_write_tables_not_mutation_names() {
+    let mut functions = todo_functions_with_cron(false);
+    let action = functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "pollTodosAction")
+        .expect("poll action");
+    action.write_set_summary.primary_table = Some("todos".to_owned());
+    action.write_set_summary.tables = vec!["todos".to_owned()];
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    snapback.load_functions(functions);
+
+    let result = snapback.run_function("pollTodosAction", input(json!({}), "cron"));
+    assert!(result.ok, "{result:?}");
+    assert_eq!(result.writes, vec!["todos"]);
 }
 
 #[test]
@@ -4339,6 +4403,7 @@ fn d2_mutation_receipts_echo_correlation_and_declare_affected_tables() {
     assert_eq!(receipt["rollbackReason"], Value::Null);
     assert_eq!(receipt["affectedTables"], json!(["todos"]));
     assert_eq!(receipt["snapshotVersion"], json!(output.version));
+    assert_eq!(receipt["transport"], "local");
     assert_eq!(
         receipt["correlation"], correlation,
         "correlation echoed verbatim"

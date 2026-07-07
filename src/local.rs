@@ -27,7 +27,7 @@ use crate::storage::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::sync::Mutex as StdMutex;
@@ -1244,6 +1244,15 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> (SnapbackResult<MutationOutput>, Value) {
+        self.invoke_mutation_recording_with_transport(name, input, "local")
+    }
+
+    pub fn invoke_mutation_recording_with_transport(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        transport: &str,
+    ) -> (SnapbackResult<MutationOutput>, Value) {
         let correlation = capped_correlation(input.correlation.clone());
         // affectedTables from DECLARED writes; a function that declares none
         // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
@@ -1272,7 +1281,7 @@ impl LocalSnapback {
             "rollbackReason": rollback_reason,
             "affectedTables": affected_tables,
             "snapshotVersion": snapshot_version,
-            "transport": "http",
+            "transport": transport,
             "correlation": correlation,
             "receivedAtMs": now_millis(),
         });
@@ -1335,8 +1344,13 @@ impl LocalSnapback {
         if !permission_changes.is_empty() {
             self.refresh_read_epochs();
         }
-        self.notify_permission_resyncs(&permission_changes);
-        self.notify_live_subscriptions(&commit.changes);
+        if !permission_changes.is_empty() || !commit.changes.is_empty() {
+            self.begin_live_delivery_frame(self.subscriptions.len());
+            let resynced = self.notify_permission_resyncs_in_frame(&permission_changes);
+            if !commit.changes.is_empty() {
+                self.notify_live_subscriptions_in_frame(&commit.changes, &resynced);
+            }
+        }
         Ok(commit)
     }
 
@@ -2958,12 +2972,23 @@ impl LocalSnapback {
             return;
         }
 
-        self.live_delivery.total_fanout_attempts += self.subscriptions.len() as u64;
-        self.live_delivery.last_fanout_subscriptions = self.subscriptions.len();
+        self.begin_live_delivery_frame(self.subscriptions.len());
+        self.notify_live_subscriptions_in_frame(changes, &BTreeSet::new());
+    }
+
+    fn begin_live_delivery_frame(&mut self, subscriptions: usize) {
+        self.live_delivery.total_fanout_attempts += subscriptions as u64;
+        self.live_delivery.last_fanout_subscriptions = subscriptions;
         self.live_delivery.last_deliveries = 0;
         self.live_delivery.last_skipped = 0;
         self.live_delivery.last_failed = 0;
+    }
 
+    fn notify_live_subscriptions_in_frame(
+        &mut self,
+        changes: &[ChangedRow],
+        already_resynced: &BTreeSet<String>,
+    ) {
         // Cheap affected prefilter over borrowed subscriptions: only the
         // survivors are cloned for the mutable delivery loop below (ENG-23334
         // — the old upfront `values().cloned()` deep-copied every retained
@@ -2991,6 +3016,9 @@ impl LocalSnapback {
         let mut skipped = 0u64;
         let mut affected: Vec<(LiveSubscription, Option<QueryPlan>)> = Vec::new();
         for subscription in self.subscriptions.values() {
+            if already_resynced.contains(&subscription.id) {
+                continue;
+            }
             let Some(function) = self.functions.function(&subscription.function) else {
                 skipped += 1;
                 continue;
@@ -3173,17 +3201,28 @@ impl LocalSnapback {
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
             && let Some(dependency) = stored.read_dependencies.get_mut(query_dep_index)
         {
+            let mut removes: HashSet<&str> = HashSet::new();
+            let mut adds: Vec<String> = Vec::new();
             for op in &ops {
                 match op.kind {
                     LiveDeltaKind::Add => {
-                        if !dependency.rows.contains(&op.id) {
-                            dependency.rows.push(op.id.clone());
-                        }
+                        adds.push(op.id.clone());
                     }
                     LiveDeltaKind::Remove => {
-                        dependency.rows.retain(|id| id != &op.id);
+                        removes.insert(op.id.as_str());
                     }
                     LiveDeltaKind::Update => {}
+                }
+            }
+            if !removes.is_empty() {
+                dependency.rows.retain(|id| !removes.contains(id.as_str()));
+            }
+            if !adds.is_empty() {
+                let mut existing: HashSet<String> = dependency.rows.iter().cloned().collect();
+                for id in &adds {
+                    if existing.insert(id.clone()) {
+                        dependency.rows.push(id.clone());
+                    }
                 }
             }
             if let Some(fresh) = fresh_table_version {
@@ -3295,37 +3334,33 @@ impl LocalSnapback {
     /// mutation.
     ///
     /// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D4.
-    fn notify_permission_resyncs(&mut self, changes: &[(String, u64)]) {
+    fn notify_permission_resyncs_in_frame(
+        &mut self,
+        changes: &[(String, u64)],
+    ) -> BTreeSet<String> {
+        let mut resynced = BTreeSet::new();
         if changes.is_empty() || self.subscriptions.is_empty() {
-            return;
+            return resynced;
         }
-
-        self.live_delivery.total_fanout_attempts += self.subscriptions.len() as u64;
-        self.live_delivery.last_fanout_subscriptions = self.subscriptions.len();
-        self.live_delivery.last_deliveries = 0;
-        self.live_delivery.last_skipped = 0;
-        self.live_delivery.last_failed = 0;
 
         // Same prefilter shape as `notify_live_subscriptions` (ENG-23334):
         // the staleness check only borrows, so clone just the subscriptions
         // whose captured permission epochs the commit actually outran.
-        let mut skipped = 0u64;
         let mut stale: Vec<(LiveSubscription, String, u64)> = Vec::new();
         for subscription in self.subscriptions.values() {
-            match subscription_stale_permission_change(subscription, changes) {
-                Some((scope, epoch)) => stale.push((subscription.clone(), scope.clone(), *epoch)),
-                None => skipped += 1,
-            }
+            let Some((scope, epoch)) = subscription_stale_permission_change(subscription, changes)
+            else {
+                continue;
+            };
+            stale.push((subscription.clone(), scope.clone(), *epoch));
         }
-        self.live_delivery.total_skipped += skipped;
-        self.live_delivery.last_skipped += skipped as usize;
 
         for (subscription, scope, epoch) in stale {
             let payload = match serde_json::to_vec(&LiveResyncRequired {
                 kind: "resync_required".to_owned(),
                 reason: "permission_epoch_changed".to_owned(),
                 subscription_id: subscription.id.clone(),
-                scope,
+                scope: scope.clone(),
                 epoch,
                 clear_retained: true,
             }) {
@@ -3348,7 +3383,9 @@ impl LocalSnapback {
                 .enqueue_durable(subscription.connection_id, payload);
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
+            resynced.insert(subscription.id);
         }
+        resynced
     }
 
     fn subscription_has_stale_permission(&self, subscription: &LiveSubscription) -> bool {
@@ -3837,16 +3874,10 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
             }
             (reads.into_iter().collect(), writes.into_iter().collect())
         }
-        FunctionRuntime::HostPlan(HandlerPlan::Action(plan)) => {
-            let writes = plan
-                .steps
-                .iter()
-                .map(|step| match step {
-                    ActionStep::RunMutation { name, .. } => name.clone(),
-                })
-                .collect();
-            (Vec::new(), writes)
-        }
+        FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => (
+            definition.read_set_summary.tables.clone(),
+            definition.write_set_summary.tables.clone(),
+        ),
         FunctionRuntime::IbexModule(_) => (
             definition.read_set_summary.tables.clone(),
             definition.write_set_summary.tables.clone(),

@@ -266,6 +266,28 @@ fn seed_delivers_to_a_hostplan_subscriber() {
     );
 }
 
+/// Updates always change `_version` even when the user-field change list does
+/// not include it. A subscription whose predicate mentions `_version` must
+/// therefore be treated as affected or stale rows remain in the client.
+#[test]
+fn system_field_predicates_are_affected_by_updates() {
+    let mut snapback = configured();
+    let id = create(&mut snapback, "versioned", "ada");
+    let subscription = snapback
+        .subscribe_live("listVersionOne", sub_input("conn", "ada"))
+        .expect("subscribe");
+    assert_eq!(subscription.snapshot.rows.len(), 1);
+
+    set_title(&mut snapback, &id, "versioned-again");
+
+    let update = drain_one_update(&mut snapback, "conn");
+    assert_eq!(update["kind"], "live_delta");
+    let ops = update["ops"].as_array().expect("ops");
+    assert_eq!(ops.len(), 1);
+    assert_eq!(ops[0]["op"], "remove");
+    assert_eq!(ops[0]["id"], id);
+}
+
 /* ---------- client-apply simulation (mirrors demos/_kit/client.mjs) ---------- */
 
 fn apply_deltas(client: &mut BTreeMap<String, Value>, envelopes: Vec<RealtimeEnvelope>) {
@@ -512,6 +534,21 @@ fn functions() -> FunctionManifest {
             indexed_by: None,
         })),
     );
+    let list_version_one = FunctionDefinition::new(
+        "listVersionOne",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "_version".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(json!(1)),
+            }],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        })),
+    );
     let create_with_priority = FunctionDefinition::new(
         "createWithPriority",
         FunctionKind::Mutation,
@@ -564,6 +601,7 @@ fn functions() -> FunctionManifest {
                 }],
             ),
             list_urgent,
+            list_version_one,
             insert,
             create_with_priority,
             create_then_delete,
