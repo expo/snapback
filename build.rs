@@ -93,11 +93,32 @@ fn emit_build_identity() {
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
     );
 
-    // Re-stamp when HEAD or the index moves so the commit/dirty pair stays fresh
-    // (git dirs also cover linked worktrees, whose `.git` is a file).
+    // The stamp must track the binary's *real* inputs, not just git metadata:
+    // cargo replays cached `rustc-env` output unless a tracked input changes, so
+    // without these an incremental rebuild after a source edit recompiled the
+    // crate with the previous build's commit/dirty pair — a binary containing
+    // uncommitted code that self-reported the old clean commit (ENG-23365).
+    // Directory paths are scanned recursively by cargo.
+    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo:rerun-if-changed=Cargo.lock");
+    println!("cargo:rerun-if-changed=src");
+
+    // Re-stamp when the git side moves: HEAD and the index live in the
+    // (possibly per-worktree) git dir; the branch-tip ref store lives in the
+    // *common* git dir. Tracking refs/heads + packed-refs catches ref-only
+    // moves (`git reset --soft`, `git update-ref`) that touch neither HEAD —
+    // still the same symbolic ref — nor the index (ENG-23365).
     if let Some(git_dir) = resolve_git_dir(&manifest_dir) {
-        for name in ["HEAD", "index"] {
-            let path = git_dir.join(name);
+        let common_dir = resolve_common_dir(&git_dir);
+        let inputs = [
+            git_dir.join("HEAD"),
+            git_dir.join("index"),
+            common_dir.join("refs").join("heads"),
+            common_dir.join("packed-refs"),
+        ];
+        for path in inputs {
+            // Only existing paths: cargo treats a missing tracked path as
+            // always-changed, which would rerun this script on every build.
             if path.exists() {
                 println!("cargo:rerun-if-changed={}", path.display());
             }
@@ -141,6 +162,24 @@ fn git(dir: &Path, args: &[&str]) -> Option<String> {
     let text = String::from_utf8(output.stdout).ok()?;
     let trimmed = text.trim();
     (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+/// The shared git directory holding the ref store (`refs/`, `packed-refs`).
+/// A linked worktree's per-worktree git dir carries a `commondir` file pointing
+/// (often relatively) at the main repository's git dir; a primary checkout has
+/// no such file and is its own common dir.
+fn resolve_common_dir(git_dir: &Path) -> PathBuf {
+    match std::fs::read_to_string(git_dir.join("commondir")) {
+        Ok(content) => {
+            let pointed = PathBuf::from(content.trim());
+            if pointed.is_absolute() {
+                pointed
+            } else {
+                git_dir.join(pointed)
+            }
+        }
+        Err(_) => git_dir.to_path_buf(),
+    }
 }
 
 /// The real git directory for `manifest_dir`, handling a linked worktree whose
