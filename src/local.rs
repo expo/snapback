@@ -2723,22 +2723,45 @@ impl LocalSnapback {
             return;
         }
 
-        let subscriptions = self.subscriptions.values().cloned().collect::<Vec<_>>();
-        self.live_delivery.total_fanout_attempts += subscriptions.len() as u64;
-        self.live_delivery.last_fanout_subscriptions = subscriptions.len();
+        self.live_delivery.total_fanout_attempts += self.subscriptions.len() as u64;
+        self.live_delivery.last_fanout_subscriptions = self.subscriptions.len();
         self.live_delivery.last_deliveries = 0;
         self.live_delivery.last_skipped = 0;
         self.live_delivery.last_failed = 0;
 
-        for subscription in subscriptions {
+        // Cheap affected prefilter over borrowed subscriptions: only the
+        // survivors are cloned for the mutable delivery loop below (ENG-23334
+        // — the old upfront `values().cloned()` deep-copied every retained
+        // result-membership id vector on every commit, even when all
+        // subscribers were skipped as unaffected). The checks read only
+        // `self.functions`, `self.permission_epochs`, and each subscription's
+        // own captured dependencies — none of which the delivery loop changes
+        // for *other* subscriptions — so filtering before delivering is
+        // equivalent to the old interleaved order.
+        //
+        // @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 —
+        // op-log delta fast path: for an analyzable HostPlan single-table
+        // query, ship the classified add/update/remove ops instead of
+        // re-running the query in a VM. Extract the plan here (an owned
+        // clone, cheap) so the immutable `function` borrow ends before the
+        // delivery loop takes `&mut self`. `try_live_delta_fanout` returns
+        // `Some` when it owns the subscription's delivery and `None` when the
+        // caller must fall back to the re-query + `live_replace` path.
+        // Empty `changes` is the seed/refresh signal (`seed()` calls
+        // `notify_live_subscriptions(&[])` with no change list): it means
+        // "re-evaluate from scratch", which only the re-query + replace
+        // path can honour (the matcher treats empty `changes` as affected).
+        // Skipping the delta path here keeps seed delivering to HostPlan
+        // subscribers (DK-3 review finding C).
+        let mut skipped = 0u64;
+        let mut affected: Vec<(LiveSubscription, Option<QueryPlan>)> = Vec::new();
+        for subscription in self.subscriptions.values() {
             let Some(function) = self.functions.function(&subscription.function) else {
-                self.live_delivery.total_skipped += 1;
-                self.live_delivery.last_skipped += 1;
+                skipped += 1;
                 continue;
             };
-            if self.subscription_has_stale_permission(&subscription) {
-                self.live_delivery.total_skipped += 1;
-                self.live_delivery.last_skipped += 1;
+            if self.subscription_has_stale_permission(subscription) {
+                skipped += 1;
                 continue;
             }
             if !live_subscription_may_be_affected(
@@ -2747,30 +2770,21 @@ impl LocalSnapback {
                 &subscription.read_dependencies,
                 changes,
             ) {
-                self.live_delivery.total_skipped += 1;
-                self.live_delivery.last_skipped += 1;
+                skipped += 1;
                 continue;
             }
-
-            // @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 —
-            // op-log delta fast path: for an analyzable HostPlan single-table
-            // query, ship the classified add/update/remove ops instead of
-            // re-running the query in a VM. Extract the plan (an owned clone,
-            // cheap) so the immutable `function` borrow ends before the fast
-            // path takes `&mut self`. `try_live_delta_fanout` returns `Some`
-            // when it owns the subscription's delivery and `None` when the
-            // caller must fall back to the re-query + `live_replace` path.
-            // Empty `changes` is the seed/refresh signal (`seed()` calls
-            // `notify_live_subscriptions(&[])` with no change list): it means
-            // "re-evaluate from scratch", which only the re-query + replace
-            // path can honour. Skipping the delta path here keeps seed
-            // delivering to HostPlan subscribers (DK-3 review finding C).
             let delta_plan = match &function.runtime {
                 FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) if !changes.is_empty() => {
                     Some(plan.clone())
                 }
                 _ => None,
             };
+            affected.push((subscription.clone(), delta_plan));
+        }
+        self.live_delivery.total_skipped += skipped;
+        self.live_delivery.last_skipped += skipped as usize;
+
+        for (subscription, delta_plan) in affected {
             if let Some(plan) = &delta_plan {
                 match self.try_live_delta_fanout(&subscription, plan, changes) {
                     Some(DeltaFanout::Delivered) => {
@@ -3051,27 +3065,33 @@ impl LocalSnapback {
             return;
         }
 
-        let subscriptions = self.subscriptions.values().cloned().collect::<Vec<_>>();
-        self.live_delivery.total_fanout_attempts += subscriptions.len() as u64;
-        self.live_delivery.last_fanout_subscriptions = subscriptions.len();
+        self.live_delivery.total_fanout_attempts += self.subscriptions.len() as u64;
+        self.live_delivery.last_fanout_subscriptions = self.subscriptions.len();
         self.live_delivery.last_deliveries = 0;
         self.live_delivery.last_skipped = 0;
         self.live_delivery.last_failed = 0;
 
-        for subscription in subscriptions {
-            let Some((scope, epoch)) = subscription_stale_permission_change(&subscription, changes)
-            else {
-                self.live_delivery.total_skipped += 1;
-                self.live_delivery.last_skipped += 1;
-                continue;
-            };
+        // Same prefilter shape as `notify_live_subscriptions` (ENG-23334):
+        // the staleness check only borrows, so clone just the subscriptions
+        // whose captured permission epochs the commit actually outran.
+        let mut skipped = 0u64;
+        let mut stale: Vec<(LiveSubscription, String, u64)> = Vec::new();
+        for subscription in self.subscriptions.values() {
+            match subscription_stale_permission_change(subscription, changes) {
+                Some((scope, epoch)) => stale.push((subscription.clone(), scope.clone(), *epoch)),
+                None => skipped += 1,
+            }
+        }
+        self.live_delivery.total_skipped += skipped;
+        self.live_delivery.last_skipped += skipped as usize;
 
+        for (subscription, scope, epoch) in stale {
             let payload = match serde_json::to_vec(&LiveResyncRequired {
                 kind: "resync_required".to_owned(),
                 reason: "permission_epoch_changed".to_owned(),
                 subscription_id: subscription.id.clone(),
-                scope: scope.clone(),
-                epoch: *epoch,
+                scope,
+                epoch,
                 clear_retained: true,
             }) {
                 Ok(payload) => payload,
