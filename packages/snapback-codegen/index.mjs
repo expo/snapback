@@ -398,6 +398,11 @@ export async function generate(backendDir) {
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
+        // Mirror the HostPlan branch: the declared read-set must reach the
+        // contract binding, or every JS query's .contract-meta.ts emits
+        // `reads: []` and a per-function cacheKey, breaking Exact's
+        // table-dependency/invalidation mapping (ENG-23421).
+        reads: readTables,
         result: { kind: 'list', row: jsQueryRowDescriptor(def, name, err) },
         serverRunnable: true,
         localRunnable: false,

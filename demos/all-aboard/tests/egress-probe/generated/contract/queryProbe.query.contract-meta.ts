@@ -2,5 +2,5 @@
 import { defineContractModule, query } from '@exact/contract/exports';
 
 export default defineContractModule('./queryProbe.query.ts', {
-  queryProbe: query({ reads: [], readMode: 'async', cacheKey: 'queryProbe', result: 'unknown[]', mode: "snapshot", livePush: false, initialSnapshot: false, ephemeral: false }),
+  queryProbe: query({ reads: ["probe"], readMode: 'async', cacheKey: 'probe', result: 'unknown[]', mode: "snapshot", livePush: false, initialSnapshot: false, ephemeral: false }),
 });

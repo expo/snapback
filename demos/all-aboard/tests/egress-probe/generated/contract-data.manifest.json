@@ -28,6 +28,9 @@
       "localRunnable": false,
       "mode": "snapshot",
       "name": "queryProbe",
+      "reads": [
+        "probe"
+      ],
       "result": {
         "kind": "list",
         "row": {
