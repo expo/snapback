@@ -556,7 +556,13 @@ a target learns a change happened.
 >   one handle; the connection-wide sentinel (no `subscription_id` — outbox
 >   overflow) re-snapshots every handle on the connection. Ephemeral overlays
 >   record `needsResync` and recovery is consumer-driven (the adapter
->   resubscribes on the change signal).
+>   resubscribes on the change signal). `app.reset` drops every durable
+>   subscription, so it enqueues a subscription-scoped `resync_required`
+>   (reason `reset`) per dropped subscription — after the ephemeral runtime
+>   reset, whose outbox wipe would otherwise discard the signal — plus a
+>   global `disposed` receipt mirroring disconnect's markers; a connected
+>   tab re-snapshots the post-reset state instead of freezing on pre-reset
+>   data (ENG-23333).
 > - **Loss on a dying socket is recovered by snapshot, not requeue** (the
 >   S5.D4/S5.D5 class): a send failure tears the socket down, reconnect
 >   fresh-snapshots, and per-subscription non-decreasing versions filter

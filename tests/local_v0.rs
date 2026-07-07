@@ -1313,6 +1313,68 @@ fn reset_and_seed_are_deterministic_handler_bypass_paths() {
     assert_eq!(query.rows[0]["title"], "Seeded");
 }
 
+/// ENG-23333 — `reset()` drops every live subscription, so each dropped
+/// subscription's connection must receive a `resync_required` (reason
+/// "reset") and the global receipts ring must record the disposal. Without
+/// the signal a connected tab keeps rendering pre-reset (now-deleted) data
+/// forever — its subscription ids no longer exist server-side, so no future
+/// commit (including a post-reset seed) ever delivers to it.
+#[test]
+fn reset_signals_dropped_live_subscriptions() {
+    let mut snapback = configured_snapback();
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "Before reset" }), "user_1"),
+        )
+        .expect("create before reset");
+    let subscription = snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_a".to_owned(),
+                input: input(json!({}), "user_1"),
+                supersedes: None,
+            },
+        )
+        .expect("subscribe live query");
+    assert_eq!(subscription.snapshot.rows.len(), 1);
+    // Discard anything already queued so the assertions see only what the
+    // reset itself enqueues.
+    snapback.drain_outbox("client_a");
+
+    snapback.reset().expect("reset");
+
+    let messages = snapback.drain_outbox("client_a");
+    assert_eq!(
+        messages.len(),
+        1,
+        "reset must enqueue exactly one resync for the dropped subscription"
+    );
+    let RealtimeEnvelope::Durable(message) = &messages[0] else {
+        panic!("expected durable resync message");
+    };
+    let update: Value = serde_json::from_slice(&message.payload).expect("resync json");
+    assert_eq!(update["kind"], "resync_required");
+    assert_eq!(update["reason"], "reset");
+    assert_eq!(update["subscription_id"], subscription.subscription_id);
+    assert_eq!(update["clear_retained"], true);
+
+    let receipts = snapback.receipts_snapshot(None);
+    assert!(
+        receipts["global"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|receipt| {
+                receipt["event"] == "disposed"
+                    && receipt["reason"] == "reset"
+                    && receipt["subscriptionId"] == subscription.subscription_id
+            }),
+        "reset disposal must be receipted globally: {receipts}"
+    );
+}
+
 #[test]
 fn local_snapback_reuses_in_memory_ephemeral_store() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");

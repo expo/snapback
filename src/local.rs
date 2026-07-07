@@ -851,12 +851,61 @@ impl LocalSnapback {
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.db.reset()?;
         self.warm_vms.clear();
+        // ENG-23333: capture the live subscriptions being dropped so their
+        // clients can be told. Clearing the map alone leaves every connected
+        // client's WebSocket open on subscription ids that no longer exist
+        // server-side — no future commit (including a post-reset seed) would
+        // ever deliver to them, so a tab would render pre-reset data forever,
+        // indistinguishable from a healthy idle app.
+        let dropped_subscriptions: Vec<LiveSubscription> =
+            self.subscriptions.values().cloned().collect();
         self.subscriptions.clear();
         self.permission_epochs.clear();
         self.refresh_read_epochs();
         self.ephemeral.reset_runtime_state();
         self.cron.reset_runtime_state(&self.functions);
         self.live_delivery = LiveDeliveryStats::default();
+        // Signal the dropped subscriptions AFTER `reset_runtime_state`: the
+        // ephemeral reset clears every connection outbox, so anything
+        // enqueued earlier would be wiped.
+        // @ref LLP 0008#realtime-delivery — resync sentinels: a dropped
+        // subscription must get a resync signal, never a silent freeze.
+        // Counters were just reset, so the reset's own signals are counted —
+        // the same convention as the ephemeral reset's `Restarted` resyncs.
+        // Each client gets a `resync_required`
+        // (reason "reset") on its still-open connection so it re-snapshots
+        // instead of silently freezing, and the global receipts ring gets the
+        // same `disposed` markers `disconnect` pushes.
+        if !dropped_subscriptions.is_empty() {
+            self.live_delivery.total_fanout_attempts += dropped_subscriptions.len() as u64;
+            self.live_delivery.last_fanout_subscriptions = dropped_subscriptions.len();
+            let now_ms = now_millis();
+            for subscription in &dropped_subscriptions {
+                self.receipts.push_global(json!({
+                    "kind": "subscription",
+                    "event": "disposed",
+                    "reason": "reset",
+                    "subscriptionId": subscription.id.clone(),
+                    "scope": subscription.input.args.clone(),
+                    "snapshotVersion": Value::Null,
+                    "receivedAtMs": now_ms,
+                }));
+                let Ok(payload) = serde_json::to_vec(&LiveResyncRequired {
+                    kind: "resync_required".to_owned(),
+                    reason: "reset".to_owned(),
+                    subscription_id: subscription.id.clone(),
+                    scope: String::new(),
+                    epoch: 0,
+                    clear_retained: true,
+                }) else {
+                    continue;
+                };
+                self.ephemeral
+                    .enqueue_durable(subscription.connection_id.clone(), payload);
+                self.live_delivery.total_deliveries += 1;
+                self.live_delivery.last_deliveries += 1;
+            }
+        }
         // Clearing subscriptions can disarm a demand-gated cron job (L5).
         self.refresh_cron_active();
         self.persist_cron_state()?;
