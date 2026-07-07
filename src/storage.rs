@@ -385,6 +385,10 @@ impl LocalDatabase {
             tx.execute(&format!("DELETE FROM {}", quote_ident(&table.name)?), [])?;
         }
         tx.execute("DELETE FROM _snapback_changes", [])?;
+        tx.execute(
+            "DELETE FROM _snapback_meta WHERE key = ?1",
+            params![META_RETENTION_FLOOR],
+        )?;
         tx.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
         tx.commit()?;
         Ok(())
@@ -1659,7 +1663,7 @@ fn validate_captured_read_set(
                 // changes were pruned and we cannot tell, so conflict
                 // conservatively.
                 let floor = retention_floor_from_tx(tx)?;
-                let affected = if expected < floor {
+                let affected = if expected.saturating_add(1) < floor {
                     true
                 } else {
                     changes_to_table_since(tx, table_name, expected)?
@@ -1731,15 +1735,12 @@ fn get_row_version(
     table: &TableManifest,
     id: &str,
 ) -> SnapbackResult<Option<u64>> {
-    let version: Option<i64> = tx
-        .query_row(
-            &format!(
-                "SELECT _version FROM {} WHERE _id = ?1",
-                quote_ident(&table.name)?
-            ),
-            params![id],
-            |row| row.get(0),
-        )
+    let mut statement = tx.prepare_cached(&format!(
+        "SELECT _version FROM {} WHERE _id = ?1",
+        quote_ident(&table.name)?
+    ))?;
+    let version: Option<i64> = statement
+        .query_row(params![id], |row| row.get(0))
         .optional()?;
     Ok(version.map(|version| version as u64))
 }
@@ -1754,11 +1755,9 @@ fn table_change_version_from_connection(conn: &Connection, table: &str) -> Snapb
 }
 
 fn table_change_version_from_tx(tx: &Transaction<'_>, table: &str) -> SnapbackResult<u64> {
-    let version: Option<i64> = tx.query_row(
-        "SELECT MAX(version) FROM _snapback_changes WHERE table_name = ?1",
-        params![table],
-        |row| row.get(0),
-    )?;
+    let mut statement =
+        tx.prepare_cached("SELECT MAX(version) FROM _snapback_changes WHERE table_name = ?1")?;
+    let version: Option<i64> = statement.query_row(params![table], |row| row.get(0))?;
     Ok(version.unwrap_or(0) as u64)
 }
 
@@ -1772,7 +1771,7 @@ fn changes_to_table_since(
     table: &str,
     version: u64,
 ) -> SnapbackResult<Vec<ChangedRow>> {
-    let mut statement = tx.prepare(
+    let mut statement = tx.prepare_cached(
         "SELECT row_id, op, row_json FROM _snapback_changes \
          WHERE table_name = ?1 AND version > ?2 ORDER BY version, id",
     )?;
@@ -1959,13 +1958,11 @@ fn insert_document(
         .map(|column| quote_ident(column))
         .collect::<SnapbackResult<Vec<_>>>()?
         .join(", ");
-    tx.execute(
-        &format!(
-            "INSERT INTO {} ({quoted_columns}) VALUES ({placeholders})",
-            quote_ident(&table.name)?
-        ),
-        params_from_iter(values.iter()),
-    )?;
+    let mut statement = tx.prepare_cached(&format!(
+        "INSERT INTO {} ({quoted_columns}) VALUES ({placeholders})",
+        quote_ident(&table.name)?
+    ))?;
+    statement.execute(params_from_iter(values.iter()))?;
 
     Ok(Value::Object(document))
 }
@@ -2002,22 +1999,21 @@ fn patch_document(
     }
     values.push(SqlValue::Text(id.to_owned()));
 
-    tx.execute(
-        &format!(
-            "UPDATE {} SET {} WHERE _id = ?",
-            quote_ident(&table.name)?,
-            assignments.join(", ")
-        ),
-        params_from_iter(values.iter()),
-    )?;
+    let mut statement = tx.prepare_cached(&format!(
+        "UPDATE {} SET {} WHERE _id = ?",
+        quote_ident(&table.name)?,
+        assignments.join(", ")
+    ))?;
+    statement.execute(params_from_iter(values.iter()))?;
     Ok(true)
 }
 
 fn delete_document(tx: &Transaction<'_>, table: &TableManifest, id: &str) -> SnapbackResult<bool> {
-    let changed = tx.execute(
-        &format!("DELETE FROM {} WHERE _id = ?1", quote_ident(&table.name)?),
-        params![id],
-    )?;
+    let mut statement = tx.prepare_cached(&format!(
+        "DELETE FROM {} WHERE _id = ?1",
+        quote_ident(&table.name)?
+    ))?;
+    let changed = statement.execute(params![id])?;
     Ok(changed > 0)
 }
 
@@ -2027,7 +2023,7 @@ fn get_document_from_tx(
     id: &str,
 ) -> SnapbackResult<Option<Value>> {
     let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
-    let mut statement = tx.prepare(&sql)?;
+    let mut statement = tx.prepare_cached(&sql)?;
     let columns = statement
         .column_names()
         .into_iter()
@@ -2050,22 +2046,22 @@ fn record_change(
     row: Option<&Value>,
     now_ms: u64,
 ) -> SnapbackResult<()> {
-    tx.execute(
+    let mut statement = tx.prepare_cached(
         "INSERT INTO _snapback_changes(version, table_name, row_id, op, row_json, changed_at_ms)
          VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
-        params![
-            version as i64,
-            table,
-            id,
-            match op {
-                ChangeOp::Insert => "insert",
-                ChangeOp::Update => "update",
-                ChangeOp::Delete => "delete",
-            },
-            row.map(Value::to_string),
-            now_ms as i64
-        ],
     )?;
+    statement.execute(params![
+        version as i64,
+        table,
+        id,
+        match op {
+            ChangeOp::Insert => "insert",
+            ChangeOp::Update => "update",
+            ChangeOp::Delete => "delete",
+        },
+        row.map(Value::to_string),
+        now_ms as i64
+    ])?;
     Ok(())
 }
 

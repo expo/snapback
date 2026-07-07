@@ -3661,6 +3661,30 @@ fn l3_journal_retention_prune_floor_and_index() {
     );
 }
 
+#[test]
+fn l3_reset_clears_retention_floor() {
+    let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
+    for n in 0..8 {
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                input(json!({ "title": format!("t{n}") }), "user_1"),
+            )
+            .expect("create todo");
+    }
+    snapback
+        .prune_change_journal(2_000_000_000_000, 1, 0)
+        .expect("prune");
+    assert!(snapback.journal_floor_version().unwrap() > 0);
+
+    snapback.reset().expect("reset");
+    assert_eq!(snapback.journal_floor_version().unwrap(), 0);
+    assert!(
+        !snapback.journal_resume_requires_resnapshot(0).unwrap(),
+        "a fresh reset database has no pruned replay gap"
+    );
+}
+
 /// LLP 0032 L3 — regression for the review's HIGH finding: pruning must never
 /// drop a cold table's MAX(version), or read-set validation would spuriously
 /// conflict a mutation that only *read* the cold table (captured expected
@@ -3740,6 +3764,126 @@ globalThis.__snapbackHandlers = {
         snapback.table_change_version("notes").unwrap(),
         cold_version,
         "pruning must preserve a cold table's MAX(version) for read-set validation"
+    );
+}
+
+#[test]
+fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
+    let mut schema = todo_schema();
+    schema.tables.push(TableManifest {
+        name: "notes".to_owned(),
+        fields: vec![FieldManifest {
+            name: "body".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        }],
+        indexes: Vec::new(),
+        syncable: false,
+    });
+    let mut db = LocalDatabase::memory().unwrap();
+    db.apply_schema(schema).unwrap();
+
+    let insert = |db: &mut LocalDatabase, table: &str, id: &str, values: Value| {
+        db.commit_buffered_writes(
+            &input(json!({}), "u"),
+            vec![BufferedWrite::Insert {
+                table: table.to_owned(),
+                id: id.to_owned(),
+                values: values.as_object().cloned().unwrap(),
+            }],
+            Vec::new(),
+            json!(null),
+        )
+        .expect("insert")
+    };
+
+    db.commit_buffered_writes(
+        &input(json!({}), "u"),
+        vec![
+            BufferedWrite::Insert {
+                table: "todos".to_owned(),
+                id: "todo-v1".to_owned(),
+                values: json!({ "title": "hot", "completed": false, "userId": "u" })
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+            },
+            BufferedWrite::Insert {
+                table: "notes".to_owned(),
+                id: "note-v1".to_owned(),
+                values: json!({ "body": "baseline" }).as_object().cloned().unwrap(),
+            },
+        ],
+        Vec::new(),
+        json!(null),
+    )
+    .expect("seed both tables");
+    let captured_notes_version = db.table_change_version("notes").unwrap();
+    assert_eq!(captured_notes_version, 1);
+
+    insert(
+        &mut db,
+        "todos",
+        "todo-v2",
+        json!({ "title": "hotter", "completed": false, "userId": "u" }),
+    );
+    db.prune_change_journal(2_000_000_000_000, 0, 0)
+        .expect("prune boundary");
+    assert_eq!(
+        db.journal_floor_version().unwrap(),
+        captured_notes_version + 1
+    );
+
+    insert(
+        &mut db,
+        "notes",
+        "note-disjoint",
+        json!({ "body": "other" }),
+    );
+
+    let dependency = CapturedReadDependency {
+        kind: CapturedReadKind::Query,
+        table: Some("notes".to_owned()),
+        id: None,
+        version: Some(captured_notes_version),
+        predicate: Some(
+            serde_json::to_value(QueryPlan {
+                table: "notes".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "body".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Literal(json!("needle")),
+                }],
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })
+            .unwrap(),
+        ),
+        rows: Vec::new(),
+        field: None,
+        value: None,
+        order: None,
+        limit: None,
+        result_count: Some(0),
+        boundary: None,
+    };
+    let result = db.commit_buffered_writes(
+        &input(json!({}), "u"),
+        vec![BufferedWrite::Insert {
+            table: "todos".to_owned(),
+            id: "reader-write".to_owned(),
+            values: json!({ "title": "reader", "completed": false, "userId": "u" })
+                .as_object()
+                .cloned()
+                .unwrap(),
+        }],
+        vec![dependency],
+        json!(null),
+    );
+    assert!(
+        result.is_ok(),
+        "when expected + 1 is exactly the floor, all needed changes are retained: {result:?}"
     );
 }
 
