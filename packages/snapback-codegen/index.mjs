@@ -878,10 +878,19 @@ function buildEphemeralCollections(ephemeralDef, err) {
       err('EPHEMERAL_UNSUPPORTED_DELIVERY_MODE', 'ephemeral', `${name} uses unsupported delivery mode ${def.delivery?.mode}`, { collection: name, mode: def.delivery?.mode });
     }
 
+    const resolvedKeyMode = keyMode(def.key);
+    if (!resolvedKeyMode) {
+      err('EPHEMERAL_UNSUPPORTED_KEY_MODE', 'ephemeral', `${name} declares unsupported ephemeral key mode ${def.key}`, {
+        collection: name,
+        key: def.key,
+        supportedKeys: ['connection', 'session', 'user', 'custom'],
+      });
+    }
+
     collections.push({
       name,
       scopeFields,
-      keyMode: keyMode(def.key),
+      keyMode: resolvedKeyMode ?? 'Connection',
       routingFields,
       defaultTtlMs: def.ttlMs ?? 0,
       maxTtlMs: def.maxTtlMs,
@@ -904,7 +913,7 @@ function keyMode(key) {
     session: 'Session',
     user: 'User',
     custom: 'Custom',
-  }[key] ?? 'Connection';
+  }[key] ?? null;
 }
 
 /// The Contract read descriptor for one ephemeral collection (ENG-22479;

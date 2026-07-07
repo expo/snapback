@@ -12,6 +12,8 @@
 
 export const todoOptimisticReducers = {
   createTodo: (rows, args, { userId, optimisticId, baseVersion = null }) => {
+    const title = String(args.title ?? '').trim();
+    if (!title) return rows;
     // Skip the optimistic append when this mutation's commit already landed
     // in the rows: a non-optimistic row matching the args at a version NEWER
     // than the rows the mutation fired against (baseVersion). The version
@@ -21,7 +23,7 @@ export const todoOptimisticReducers = {
       (row) =>
         row.optimistic !== true
         && row.userId === userId
-        && row.title === args.title
+        && row.title === title
         && (typeof row._version !== 'number'
           || baseVersion === null
           || row._version > baseVersion),
@@ -33,6 +35,7 @@ export const todoOptimisticReducers = {
         completed: false,
         userId,
         ...args,
+        title,
         _id: optimisticId,
         optimistic: true,
       },

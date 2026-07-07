@@ -110,6 +110,17 @@ try {
     return { id: created.result, version: row._version };
   });
 
+  await suite.check('mutation: createTodo rejects empty titles', async () => {
+    const before = (await db.query(api.listTodos, { userId: ADA })).rows.length;
+    await assertThrows(
+      () => db.mutate(api.createTodo, { args: { title: '   ' }, userId: ADA }),
+      null,
+      'expected blank title rejection',
+    );
+    const after = (await db.query(api.listTodos, { userId: ADA })).rows.length;
+    assertEqual(after, before, 'blank title must not insert a row');
+  });
+
   await suite.check('mutations: toggle, edit, delete', async () => {
     const id = (await db.query(api.listTodos, { userId: ADA })).rows[0]._id;
     await db.mutate(api.setCompleted, { args: { id, completed: true }, userId: ADA });

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
+import { freePort } from '../../../_kit/provenance.mjs';
 import { generate } from '../../../_kit/codegen.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../../../_kit/harness.mjs';
 
@@ -30,9 +31,10 @@ writeFileSync(
 
 const ADA = 'user_ada';
 const GRACE = 'user_grace';
+const serverPort = await freePort();
 
 const server = await startServer({
-  port: 4403,
+  port: serverPort,
   db: ':memory:',
   cwd: repoRoot,
   env: { SNAPBACK_ADMIN_DIST: browserOnlyAdminDist },

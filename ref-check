@@ -106,7 +106,7 @@ class Report:
 def parse_target(rest):
     """Split an annotation body into (kind, target, anchor)."""
     rest = rest.strip()
-    rest = re.split(r"\s+[—–]|\s+--\s", rest)[0].strip()  # drop gloss
+    rest = re.split(r"\s+(?:[—–]|--|-)(?:\s+|$)", rest)[0].strip()  # drop gloss
     rest = re.sub(r"\s*\[[a-z-]+\]\s*$", "", rest)        # drop [relation]
     m = LLP_TARGET_RE.match(rest)
     if m:

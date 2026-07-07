@@ -203,6 +203,18 @@ try {
     return { items };
   });
 
+  await suite.check('Contract UI disables empty-title submits', async () => {
+    const input = collectByTestId(handle.container, 'todo-input')[0];
+    assert(input, 'input not found');
+    const changeFn = (input.originalProps ?? {}).onChange ?? (input.originalProps ?? {}).onChangeText ?? (input.originalProps ?? {}).change;
+    assert(typeof changeFn === 'function', 'no change handler on input');
+    changeFn('   ');
+    await settle();
+    const add = collectByTestId(handle.container, 'todo-add')[0];
+    assert(add, 'add button not found');
+    assertEqual((add.originalProps ?? {}).disabled, true, 'empty title must disable submit');
+  });
+
   await suite.check('Contract action drives createTodo with priority; tree updates optimistically', async () => {
     const input = collectByTestId(handle.container, 'todo-input')[0];
     const high = collectByTestId(handle.container, 'draft-priority-high')[0];

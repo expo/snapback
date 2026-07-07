@@ -13,7 +13,7 @@
 // failures, so one throwing app callback never discards the rest of a
 // destructively drained batch or escapes as an unhandled rejection.
 
-import { SnapbackClient } from '../client.mjs';
+import { EphemeralOverlay, SnapbackClient } from '../client.mjs';
 import { AdminClient } from '../../../packages/snapback-admin-client/index.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
@@ -73,6 +73,31 @@ Object.defineProperty(globalThis, 'localStorage', {
   writable: true,
 });
 const suite = createSuite('_kit client / error paths');
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const waitFor = async (predicate, label, timeoutMs = 1_000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await sleep(10);
+  }
+  throw new Error(`timed out waiting for ${label}`);
+};
+const encodedValue = (value) => [...new TextEncoder().encode(JSON.stringify(value))];
+const overlayRoom = { collection: 'presence', routing_key: '4:room=1:a' };
+const snapshot = (scopeEpoch, entries = []) => ({
+  Snapshot: {
+    room: overlayRoom,
+    scope_epoch: scopeEpoch,
+    entries: entries.map(({ key, version, value }) => ({
+      key,
+      value: encodedValue(value),
+      received_at_ms: 100 + version,
+      expires_at_ms: 10_000,
+      scope_epoch: scopeEpoch,
+      entry_version: version,
+    })),
+  },
+});
 
 try {
   await suite.check('s5_d3: non-JSON 502 body throws structured SNAPBACK_HTTP_ERROR', async () => {
@@ -272,6 +297,105 @@ try {
       manager.close();
       process.off('unhandledRejection', onRejection);
     }
+  });
+
+  await suite.check('eng_23392: dispose racing a resubscribe unsubscribes the late server subscription', async () => {
+    const db = new SnapbackClient('http://stub');
+    const unsubscribed = [];
+    let subscribeCalls = 0;
+    let resolveLateSubscribe;
+    let lateSubscribeStarted = false;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      if (subscribeCalls === 1) {
+        return { subscription_id: 'sub_initial', snapshot: { version: 1, rows: [] } };
+      }
+      lateSubscribeStarted = true;
+      return new Promise((resolve) => {
+        resolveLateSubscribe = () => resolve({ subscription_id: 'sub_late', snapshot: { version: 2, rows: [] } });
+      });
+    };
+    db.unsubscribeLive = async (_ref, { subscriptionId }) => {
+      unsubscribed.push(subscriptionId);
+      return { ok: true };
+    };
+
+    const handle = await db.liveQuery('listTodos', { connectionId: 'dispose_race_conn' });
+    const consumers = db.__laneConsumers.get('dispose_race_conn');
+    for (const consumer of [...consumers.durable]) consumer({ kind: 'resync_required' });
+    await waitFor(() => lateSubscribeStarted, 'resubscribe in flight');
+
+    handle.dispose();
+    resolveLateSubscribe();
+    await waitFor(() => unsubscribed.includes('sub_late'), 'late subscription unsubscribe');
+    assert(unsubscribed.includes('sub_initial'), 'dispose still unsubscribes the original subscription');
+    return { unsubscribed };
+  });
+
+  await suite.check('eng_23393: a healthy fallback drain restores polling after a stale drain failure', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('fallback_heals_conn');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    let drainCalls = 0;
+    const transitions = [];
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      return { subscription_id: `sub_${subscribeCalls}`, snapshot: { version: subscribeCalls, rows: [] } };
+    };
+    db.unsubscribeLive = async () => ({ ok: true });
+    db.drainConnection = async () => {
+      drainCalls += 1;
+      if (drainCalls === 1) throw new Error('SNAPBACK_TRANSIENT_DRAIN_FAILURE');
+      return { durable: [], ephemeral: [] };
+    };
+
+    const handle = await db.liveQuery('listTodos', {
+      connectionId: 'fallback_heals_conn',
+      transport: 'stream',
+      pollCadenceMs: 20,
+      stream: { heartbeatIntervalMs: 5_000, freshnessBudgetMs: 20_000, reconnectBaseDelayMs: 20_000, reconnectMaxDelayMs: 20_000 },
+      onConnectionChange: (next) => transitions.push(next),
+    });
+    const ws = FakeWebSocket.instances.at(-1);
+    ws.dispatch('open', {});
+    await waitFor(() => handle.connection === 'live', 'initial live');
+    ws.dispatch('close', {});
+    await waitFor(() => handle.connection === 'stale', 'stale after failed fallback drain');
+    await waitFor(() => handle.connection === 'polling', 'polling after healthy fallback drain');
+    handle.dispose();
+    return { drainCalls, transitions };
+  });
+
+  await suite.check('eng_23433: ephemeral snapshots are guarded by epoch and entry-version high-water', async () => {
+    const client = {
+      registerEphemeralConsumer: () => () => {},
+      recordReceipt: () => {},
+    };
+    const overlay = new EphemeralOverlay(client, 'presence', {
+      connectionId: 'overlay_epoch_conn',
+      scope: { room: 'a' },
+      userId: 'user_ada',
+      permissions: [],
+      snapshot: snapshot(2, [{ key: 'cursor_a', version: 5, value: { x: 5 } }]),
+    });
+
+    assertEqual(overlay.currentEntries({ prune: false }).map((entry) => entry.key), ['cursor_a'], 'initial snapshot applied');
+    assertEqual(
+      overlay.apply(snapshot(1, [{ key: 'cursor_old', version: 1, value: { x: 1 } }])),
+      'ignored_stale',
+      'older epoch snapshot ignored',
+    );
+    assertEqual(overlay.currentEntries({ prune: false }).map((entry) => entry.key), ['cursor_a'], 'older epoch did not clear entries');
+    assertEqual(
+      overlay.apply(snapshot(2, [{ key: 'cursor_a', version: 4, value: { x: 4 } }])),
+      'ignored_stale',
+      'same-epoch lower-version snapshot ignored',
+    );
+    assertEqual(overlay.currentEntries({ prune: false })[0].entryVersion, 5, 'same-epoch stale snapshot did not regress entry version');
+    assertEqual(overlay.apply(snapshot(3, [])), 'applied', 'newer epoch snapshot is a resubscribe boundary');
+    assertEqual(overlay.currentEntries({ prune: false }), [], 'newer epoch snapshot replaces the map');
+    return { epoch: overlay.scopeEpoch };
   });
 } finally {
   globalThis.fetch = originalFetch;

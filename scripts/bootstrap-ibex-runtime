@@ -163,9 +163,14 @@ copy_peer_artifacts() {
         peer_bin="$PEER_IBEX/target/release/ibex"
     fi
 
-    if [ -n "$peer_bin" ] && [ ! -e "$VENDOR_IBEX/target/debug/ibex" ]; then
+    local target_bin="$VENDOR_IBEX/target/debug/ibex"
+    if [ -n "$peer_bin" ] && [ -L "$target_bin" ] && [ ! -e "$target_bin" ]; then
+        rm "$target_bin"
+        log "removed dangling vendored Ibex CLI symlink at $target_bin"
+    fi
+    if [ -n "$peer_bin" ] && [ ! -e "$target_bin" ]; then
         mkdir -p "$VENDOR_IBEX/target/debug"
-        ln -s "$peer_bin" "$VENDOR_IBEX/target/debug/ibex"
+        ln -s "$peer_bin" "$target_bin"
         log "linked vendored Ibex CLI to $peer_bin"
     fi
 }

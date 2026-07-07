@@ -53,7 +53,7 @@ let apiPort = API_PORT;
 let apiUrl = `http://127.0.0.1:${API_PORT}`;
 let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
-const EXPECTED_CHECKS = 7;
+const EXPECTED_CHECKS = 9;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
@@ -221,6 +221,29 @@ await runAcceptance(suite, async () => {
     })()`);
   };
 
+  const pickColor = async (page, index) => {
+    await page.activate();
+    await page.eval(`(async () => {
+      const swatch = document.querySelector('[data-testid="color-swatch-${index}"]');
+      if (!swatch) throw new Error('color swatch ${index} missing');
+      swatch.click();
+      await new Promise(r => setTimeout(r, 180));
+    })()`);
+  };
+
+  const pollRemoteDot = (page, key, expression, ms = 8000) => page.eval(`(async () => {
+    const d = Date.now() + ${ms};
+    let value = null;
+    for (;;) {
+      const cursor = document.querySelector('[data-testid="cursor-${key}"]');
+      const dot = cursor?.firstElementChild;
+      value = dot ? (${expression}) : null;
+      if (value) return value;
+      if (Date.now() > d) return value;
+      await new Promise(r => setTimeout(r, 100));
+    }
+  })()`);
+
   await suite.check("client B's cursor reaches client A's subscribed overlay through the hand-throttled publish (and vice versa)", async () => {
     await moveCursor(pageA, 210, 260);
     await moveCursor(pageB, 340, 180);
@@ -241,6 +264,42 @@ await runAcceptance(suite, async () => {
     const count = await pageA.text('cursor-count');
     if (!/^2 /.test(count ?? '')) throw new Error(`expected 2 cursors on A, got: ${count}`);
     return { badgeOnA, badgeOnB, selfOnA, count };
+  });
+
+  await suite.check('color picker republishes cursor color to the other window', async () => {
+    await pickColor(pageA, 3);
+    await moveCursor(pageA, 230, 270);
+    const rgb = await pollRemoteDot(
+      pageB,
+      a.connection,
+      `getComputedStyle(dot).backgroundColor === 'rgb(225, 79, 98)' ? getComputedStyle(dot).backgroundColor : null`,
+    );
+    if (rgb !== 'rgb(225, 79, 98)') throw new Error(`remote cursor did not take the selected color: ${rgb}`);
+    const label = await pageB.text(`cursor-name-${a.connection}`);
+    if (label !== 'alice') throw new Error(`color update changed the cursor identity: ${label}`);
+    return { rgb, label };
+  });
+
+  await suite.check('idle cursors fade after 5s and restore on fresh movement', async () => {
+    await moveCursor(pageA, 260, 280);
+    await sleep(6500);
+    const faded = await pollRemoteDot(
+      pageB,
+      a.connection,
+      `Number(getComputedStyle(cursor).opacity) <= 0.3 ? getComputedStyle(cursor).opacity : null`,
+      4000,
+    );
+    const fadedOpacity = Number(faded);
+    if (!(fadedOpacity > 0 && fadedOpacity <= 0.3)) throw new Error(`remote cursor did not fade while idle: ${faded}`);
+    await moveCursor(pageA, 285, 305);
+    const restored = await pollRemoteDot(
+      pageB,
+      a.connection,
+      `Number(getComputedStyle(cursor).opacity) >= 0.9 ? getComputedStyle(cursor).opacity : null`,
+      8000,
+    );
+    if (Number(restored) < 0.9) throw new Error(`remote cursor did not restore after movement: ${restored}`);
+    return { faded, restored };
   });
 
   await suite.check('the pointer glue drives the self dot through direct ref writes (synchronous with the input event)', async () => {

@@ -188,18 +188,32 @@ export function toRadians(value) {
   return (value * Math.PI) / 180;
 }
 
+function finiteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function latLng(value) {
+  if (!value || typeof value !== 'object') return null;
+  const lat = finiteNumber(value.lat ?? value.latitude);
+  const lng = finiteNumber(value.lng ?? value.longitude);
+  return lat === null || lng === null ? null : { lat, lng };
+}
+
 // Great-circle miles between a location and a station (haversine).
 export function estimateDistanceMiles(from, station) {
-  if (!from || !station) return 0;
+  const origin = latLng(from);
+  const target = latLng(station);
+  if (!origin || !target) return 0;
   const earthRadiusMiles = 3958.8;
-  const lat1 = toRadians(from.lat ?? from.latitude);
-  const lon1 = toRadians(from.lng ?? from.longitude);
-  const lat2 = toRadians(station.lat);
-  const lon2 = toRadians(station.lng);
+  const lat1 = toRadians(origin.lat);
+  const lon1 = toRadians(origin.lng);
+  const lat2 = toRadians(target.lat);
+  const lon2 = toRadians(target.lng);
   const dLat = lat2 - lat1;
   const dLon = lon2 - lon1;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 2 * earthRadiusMiles * Math.asin(Math.sqrt(a));
+  return 2 * earthRadiusMiles * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
 // Walk ~3 mph, bike ~9 mph (LLP 0027: haversine v0, zero egress, deterministic).
@@ -212,8 +226,10 @@ export function estimateBikeMinutes(from, station) {
 }
 
 export function getNearestStations(from, count = 3) {
+  const origin = latLng(from);
+  if (!origin) return STATIONS.slice(0, count);
   return [...STATIONS]
-    .map((station) => ({ station, miles: estimateDistanceMiles(from, station) }))
+    .map((station) => ({ station, miles: estimateDistanceMiles(origin, station) }))
     .sort((a, b) => a.miles - b.miles)
     .slice(0, count)
     .map((entry) => entry.station);
@@ -228,12 +244,13 @@ export function searchStations(query, from) {
   const base = normalized
     ? STATIONS.filter((s) => s.name.toLowerCase().includes(normalized) || s.shortName.toLowerCase().includes(normalized))
     : [...STATIONS];
-  if (!from) return base;
+  const origin = latLng(from);
+  if (!origin) return base;
   return base.sort((a, b) => estimateDistanceMiles(from, a) - estimateDistanceMiles(from, b));
 }
 
 export function getSelectedStation(explicitStationId, from) {
-  return getStationById(explicitStationId) ?? (from ? getNearestStation(from) : STATION_BY_ORDER.get(0));
+  return getStationById(explicitStationId) ?? (latLng(from) ? getNearestStation(from) : STATION_BY_ORDER.get(0));
 }
 
 export function getAdjacentStation(stationId, delta) {

@@ -17,6 +17,13 @@ export async function createAdminSurface({ runtime, client }) {
   // the Secrets surface can show "verify ran and said X" next to durable state.
   let lastVerify = null;
   const loadView = async () => buildView(...(await loadFacts(client)), lastVerify);
+  const loadCommandView = async () => {
+    try {
+      return await loadView();
+    } catch (error) {
+      return buildInspectFailureView(error, lastVerify);
+    }
+  };
   return createSnapbackSystemContractSurface({
     runtime,
     targetSurface: 'Snapback admin Contract',
@@ -30,13 +37,21 @@ export async function createAdminSurface({ runtime, client }) {
         // An explicit refresh drops the transient probe-result note; the
         // durable verified state on each entry is what remains authoritative.
         lastVerify = null;
-        publishOne('inspect', await loadView());
+        publishOne('inspect', await loadCommandView());
       },
       // The data explorer's parameterized read: fetch a page, pre-shape rows into
       // {key,text,sys} cells so the .contract uses static access, then republish.
       loadTable: async ({ table, offset }, { publishOne }) => {
         try {
-          const scan = await client.scanTable(table, PAGE, offset || 0);
+          const requestedOffset = normalizeOffset(offset);
+          let scan = await client.scanTable(table, PAGE, requestedOffset);
+          const total = normalizeTotal(scan.total, scan.rows);
+          if ((scan.rows || []).length === 0 && total > 0 && requestedOffset >= total) {
+            const lastOffset = Math.floor((total - 1) / PAGE) * PAGE;
+            if (lastOffset !== requestedOffset) {
+              scan = await client.scanTable(table, PAGE, lastOffset);
+            }
+          }
           publishOne('tableScan', shapeScan(scan));
         } catch (error) {
           publishOne('tableScan', { ...emptyScan(), loaded: true, table, error: error.message });
@@ -78,7 +93,7 @@ export async function createAdminSurface({ runtime, client }) {
         } catch {
           /* surfaced on the next inspect; the panel stays usable */
         }
-        publishOne('inspect', await loadView());
+        publishOne('inspect', await loadCommandView());
       },
       // config.verify: run the entry's probe, remember the outcome (ok or the
       // failure diagnostic — never a value), and republish so the Secrets
@@ -95,7 +110,7 @@ export async function createAdminSurface({ runtime, client }) {
         } catch (error) {
           lastVerify = { entry, ok: false, detail: error.message };
         }
-        publishOne('inspect', await loadView());
+        publishOne('inspect', await loadCommandView());
       },
     },
   });
@@ -127,34 +142,53 @@ function emptyScan() {
     prevDisabled: true,
     nextDisabled: true,
     offset: 0,
+    prevOffset: 0,
+    nextOffset: 0,
   };
 }
 
 function shapeScan(scan) {
-  const to = scan.offset + scan.rows.length;
+  const rows = Array.isArray(scan.rows) ? scan.rows : [];
+  const columns = Array.isArray(scan.columns) ? scan.columns : [];
+  const offset = normalizeOffset(scan.offset);
+  const total = normalizeTotal(scan.total, rows);
+  const to = Math.min(total, offset + rows.length);
   return {
     id: 'scan',
     loaded: true,
     table: scan.table,
     error: '',
-    columns: scan.columns,
-    empty: scan.rows.length === 0,
-    rangeLabel: scan.total === 0 ? 'no rows' : `${scan.offset + 1}–${to} of ${scan.total}`,
-    countLabel: `${scan.total} ${scan.total === 1 ? 'row' : 'rows'}`,
-    canPrev: scan.offset > 0,
-    canNext: to < scan.total,
-    prevDisabled: scan.offset <= 0,
-    nextDisabled: to >= scan.total,
-    offset: scan.offset,
-    rows: scan.rows.map((row, index) => ({
-      id: String(scan.offset + index),
-      cells: scan.columns.map((col) => ({
+    columns,
+    empty: rows.length === 0,
+    rangeLabel: total === 0 ? 'no rows' : `${offset + 1}–${to} of ${total}`,
+    countLabel: `${total} ${total === 1 ? 'row' : 'rows'}`,
+    canPrev: offset > 0,
+    canNext: to < total,
+    prevDisabled: offset <= 0,
+    nextDisabled: to >= total,
+    offset,
+    prevOffset: Math.max(0, offset - PAGE),
+    nextOffset: to < total ? offset + PAGE : offset,
+    rows: rows.map((row, index) => ({
+      id: String(offset + index),
+      cells: columns.map((col) => ({
         key: col,
         text: cellText(row[col]),
         sys: col.charAt(0) === '_',
       })),
     })),
   };
+}
+
+function normalizeOffset(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+}
+
+function normalizeTotal(value, rows = []) {
+  const n = Number(value);
+  if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
+  return Array.isArray(rows) ? rows.length : 0;
 }
 
 function cellText(value) {
@@ -271,13 +305,18 @@ function buildView(s, configResult, lastVerify) {
   const tables = sc.tables || [];
   const fns = fnManifest.functions || [];
 
-  const errorDiagnostics = diags.filter((d) => d.severity === 'Error' || d.severity === 'Fatal').length;
+  const errorDiagnostics = diags.filter((d) => {
+    const severity = String(d.severity || '').toLowerCase();
+    return severity === 'error' || severity === 'fatal';
+  }).length;
   const config = shapeConfig(configResult, fns, lastVerify);
 
   return {
     id: 'inspect',
     ui: {
       config,
+      hasInspectError: false,
+      inspectError: '',
       // identity + status strip
       target: s.target || '—',
       loadedAt: `updated ${timeLabel()}`,
@@ -410,31 +449,31 @@ function buildView(s, configResult, lastVerify) {
       subCountLabel: String(subs.length),
       subscriptions: subs.map((x, i) => ({
         key: String(i),
-        id: x.id,
-        connection: x.connection_id,
-        function: x.function,
+        id: coalesce(x, 'id'),
+        connection: coalesce(x, 'connectionId', 'connection_id'),
+        function: coalesce(x, 'function', 'functionName', 'function_name'),
       })),
       delivery: [
-        { key: 'fa', label: 'Fanout attempts', value: String(ld.totalFanoutAttempts || 0) },
-        { key: 'd', label: 'Deliveries', value: String(ld.totalDeliveries || 0) },
-        { key: 's', label: 'Skipped', value: String(ld.totalSkipped || 0) },
-        { key: 'lfs', label: 'Last fanout subs', value: String(ld.lastFanoutSubscriptions || 0) },
-        { key: 'ld', label: 'Last deliveries', value: String(ld.lastDeliveries || 0) },
-        { key: 'ls', label: 'Last skipped', value: String(ld.lastSkipped || 0) },
+        { key: 'fa', label: 'Fanout attempts', value: String(numberField(ld, 'totalFanoutAttempts', 'total_fanout_attempts')) },
+        { key: 'd', label: 'Deliveries', value: String(numberField(ld, 'totalDeliveries', 'total_deliveries')) },
+        { key: 's', label: 'Skipped', value: String(numberField(ld, 'totalSkipped', 'total_skipped')) },
+        { key: 'lfs', label: 'Last fanout subs', value: String(numberField(ld, 'lastFanoutSubscriptions', 'last_fanout_subscriptions')) },
+        { key: 'ld', label: 'Last deliveries', value: String(numberField(ld, 'lastDeliveries', 'last_deliveries')) },
+        { key: 'ls', label: 'Last skipped', value: String(numberField(ld, 'lastSkipped', 'last_skipped')) },
       ],
       ephemeral: [
-        { key: 'rooms', label: 'Rooms', value: String(eph.roomCount || 0), alert: false },
-        { key: 'entries', label: 'Entries', value: String(eph.entryCount || 0), alert: false },
-        { key: 'subs', label: 'Subscribers', value: String(eph.subscriberCount || 0), alert: false },
-        { key: 'bytes', label: 'Value bytes', value: fmtBytes(eph.valueBytes || 0), alert: false },
-        { key: 'coalesced', label: 'Coalesced', value: String(eph.coalescedUpdates || 0), alert: false },
-        { key: 'resync', label: 'Resync required', value: String(eph.resyncRequired || 0), alert: (eph.resyncRequired || 0) > 0 },
-        { key: 'rejected', label: 'Rejected', value: String(eph.rejectedPublishes || 0), alert: (eph.rejectedPublishes || 0) > 0 },
-        { key: 'rate', label: 'Rate-limited', value: String(eph.rateLimitedPublishes || 0), alert: (eph.rateLimitedPublishes || 0) > 0 },
-        { key: 'oversized', label: 'Oversized', value: String(eph.oversizedPublishes || 0), alert: (eph.oversizedPublishes || 0) > 0 },
-        { key: 'unauth', label: 'Unauthorized', value: String(eph.unauthorizedRequests || 0), alert: (eph.unauthorizedRequests || 0) > 0 },
-        { key: 'expired', label: 'Expired', value: String(eph.expiredEntries || 0), alert: false },
-        { key: 'disc', label: 'Disconnected', value: String(eph.disconnectedEntries || 0), alert: false },
+        { key: 'rooms', label: 'Rooms', value: String(numberField(eph, 'roomCount', 'room_count')), alert: false },
+        { key: 'entries', label: 'Entries', value: String(numberField(eph, 'entryCount', 'entry_count')), alert: false },
+        { key: 'subs', label: 'Subscribers', value: String(numberField(eph, 'subscriberCount', 'subscriber_count')), alert: false },
+        { key: 'bytes', label: 'Value bytes', value: fmtBytes(numberField(eph, 'valueBytes', 'value_bytes')), alert: false },
+        { key: 'coalesced', label: 'Coalesced', value: String(numberField(eph, 'coalescedUpdates', 'coalesced_updates')), alert: false },
+        { key: 'resync', label: 'Resync required', value: String(numberField(eph, 'resyncRequired', 'resync_required')), alert: numberField(eph, 'resyncRequired', 'resync_required') > 0 },
+        { key: 'rejected', label: 'Rejected', value: String(numberField(eph, 'rejectedPublishes', 'rejected_publishes')), alert: numberField(eph, 'rejectedPublishes', 'rejected_publishes') > 0 },
+        { key: 'rate', label: 'Rate-limited', value: String(numberField(eph, 'rateLimitedPublishes', 'rate_limited_publishes')), alert: numberField(eph, 'rateLimitedPublishes', 'rate_limited_publishes') > 0 },
+        { key: 'oversized', label: 'Oversized', value: String(numberField(eph, 'oversizedPublishes', 'oversized_publishes')), alert: numberField(eph, 'oversizedPublishes', 'oversized_publishes') > 0 },
+        { key: 'unauth', label: 'Unauthorized', value: String(numberField(eph, 'unauthorizedRequests', 'unauthorized_requests')), alert: numberField(eph, 'unauthorizedRequests', 'unauthorized_requests') > 0 },
+        { key: 'expired', label: 'Expired', value: String(numberField(eph, 'expiredEntries', 'expired_entries')), alert: false },
+        { key: 'disc', label: 'Disconnected', value: String(numberField(eph, 'disconnectedEntries', 'disconnected_entries')), alert: false },
       ],
       canCleanup: !!admin.ephemeralCleanup,
 
@@ -455,6 +494,55 @@ function buildView(s, configResult, lastVerify) {
   };
 }
 
+function buildInspectFailureView(error, lastVerify) {
+  const message = errorMessage(error);
+  const row = buildView(
+    {
+      target: 'admin inspect unavailable',
+      server: {
+        host: '—',
+        port: '—',
+        loopback: true,
+        uptimeMs: null,
+        pid: '—',
+        storageMode: 'unknown',
+      },
+      storage: {},
+      runtime: {},
+      schema: { tables: [] },
+      functions: { functions: [] },
+      capabilityManifest: {},
+      ephemeral: {},
+      liveDelivery: {},
+      subscriptions: [],
+      recentDiagnostics: [inspectFailureDiagnostic(error, message)],
+      admin: {},
+    },
+    { available: false, error: 'inspect unavailable' },
+    lastVerify,
+  );
+  row.ui.hasInspectError = true;
+  row.ui.inspectError = message;
+  return row;
+}
+
+function inspectFailureDiagnostic(error, message) {
+  const diagnostic = error && typeof error === 'object' ? error.diagnostic || error.details?.diagnostic || {} : {};
+  return {
+    code: diagnostic.code || 'SNAPBACK_ADMIN_INSPECT_FAILED',
+    severity: diagnostic.severity || 'Error',
+    subsystem: diagnostic.subsystem || 'admin-ui',
+    message: diagnostic.message || `Inspect failed: ${message}`,
+    details: diagnostic.details || { error: message },
+  };
+}
+
+function errorMessage(error) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) return String(error.message);
+  return String(error ?? 'unknown error');
+}
+
 /* ---------------- config / secrets ---------------- */
 
 // @ref LLP 0036#status-model-and-app-visibility-d4 — one status primitive,
@@ -465,6 +553,7 @@ function shapeConfig(configResult, fns, lastVerify) {
     return {
       available: false,
       error: (configResult && configResult.error) || '',
+      appProvisioned: false,
       declaredCount: 0,
       missingCount: 0,
       tiles: [],
@@ -475,17 +564,21 @@ function shapeConfig(configResult, fns, lastVerify) {
       readyLabel: '',
       readyTone: 'muted',
       missingLabel: '',
+      emptyTitle: 'Config status is unavailable.',
+      emptyMessage: 'This server did not return the config status endpoint.',
       setupHref: SETUP_HREF,
     };
   }
   const status = configResult.status || {};
   const entries = status.entries || [];
   const missing = status.required_missing || status.requiredMissing || [];
+  const appProvisioned = status.appProvisioned ?? status.app_provisioned ?? true;
   const setCount = entries.filter((e) => e.set).length;
   const verifiedOk = entries.filter((e) => e.verified && e.verified.ok).length;
   return {
     available: true,
     error: '',
+    appProvisioned,
     declaredCount: entries.length,
     missingCount: missing.length,
     tiles: [
@@ -496,11 +589,19 @@ function shapeConfig(configResult, fns, lastVerify) {
     ],
     generationLabel: `generation ${status.generation ?? 0}`,
     backendClass: status.backendClass || status.backend_class || '—',
-    readyLabel: missing.length === 0
+    readyLabel: !appProvisioned
+      ? 'app config not provisioned yet'
+      : missing.length === 0
       ? 'all required entries set'
       : `${missing.length} required ${missing.length === 1 ? 'entry' : 'entries'} missing`,
-    readyTone: missing.length === 0 ? 'ok' : 'warn',
+    readyTone: !appProvisioned ? 'muted' : missing.length === 0 ? 'ok' : 'warn',
     missingLabel: missing.join(', '),
+    emptyTitle: appProvisioned
+      ? 'This app declares no configuration entries.'
+      : 'No app configuration has been provisioned yet.',
+    emptyMessage: appProvisioned
+      ? 'Secrets and config entries appear here once the app manifest declares them.'
+      : 'Open an app surface once so Snapback can provision its config manifest, then refresh this page.',
     setupHref: SETUP_HREF,
     hasEntries: entries.length > 0,
     entries: entries.map((e) => shapeConfigEntry(e, fns, lastVerify)),
@@ -619,6 +720,20 @@ function kv(key, k, v, opts = {}) {
   return { key, k, v, mono: !!opts.mono, tone: opts.tone || '' };
 }
 
+function coalesce(object, ...keys) {
+  for (const key of keys) {
+    const value = object?.[key];
+    if (value !== undefined && value !== null) return value;
+  }
+  return '';
+}
+
+function numberField(object, ...keys) {
+  const value = coalesce(object, ...keys);
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function kindLabel(kind) {
   if (!kind) return '';
   if (kind === 'LiveQuery') return 'live query';
@@ -642,8 +757,9 @@ function stateTone(state) {
 }
 
 function severityTone(sev) {
-  if (sev === 'Error' || sev === 'Fatal') return 'err';
-  if (sev === 'Warning') return 'warn';
+  const severity = String(sev || '').toLowerCase();
+  if (severity === 'error' || severity === 'fatal') return 'err';
+  if (severity === 'warning' || severity === 'warn') return 'warn';
   return 'info';
 }
 

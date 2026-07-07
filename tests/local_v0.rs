@@ -2037,10 +2037,10 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
         functions.bundle_hash.as_deref(),
         // Path-independent since the LLP 0034 review fix 4 (handler sources
         // hash by manifest-relative path): reproducible from any checkout.
-        // Re-pinned when LLP 0032 P3 added the declared listTodos result
-        // validator; previously for the P1 define.mjs move and the LLP 0036
-        // `uses`/`config` additions.
-        Some("sha256:772d53aaf70ee050")
+        // Re-pinned when the todo demo handler rejected empty titles;
+        // previously for the LLP 0032 P3 declared listTodos result validator,
+        // the P1 define.mjs move, and the LLP 0036 `uses`/`config` additions.
+        Some("sha256:ebbf32fb96fa8ebc")
     );
 
     let list = functions

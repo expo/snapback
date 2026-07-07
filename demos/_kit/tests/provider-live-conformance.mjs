@@ -277,16 +277,19 @@ try {
         await clientA.mutate('createTodo', { args: { title: `burst ${i}` }, userId: ADA });
       }
       await recorder.waitFor(() => handle.rows.length === 8, 'burst delivery');
-      const versions = recorder.updates.filter((u) => u.kind === 'live_replace').map((u) => u.version);
-      assert(versions.length > 0, 'no live_replace updates recorded');
+      const versionedUpdates = recorder.updates.filter((u) => u.kind === 'live_replace' || u.kind === 'live_delta');
+      const versions = versionedUpdates.map((u) => u.version);
+      assert(versions.length > 0, 'no versioned live updates recorded');
       for (const version of versions) {
+        assert(typeof version === 'number', `update carried a non-numeric version: ${JSON.stringify(version)}`);
         assert(version >= snapshotVersion, `update version ${version} below snapshot ${snapshotVersion}`);
       }
       for (let i = 1; i < versions.length; i += 1) {
         assert(versions[i] >= versions[i - 1], `versions regressed: ${versions.join(', ')}`);
       }
+      assert(versions.at(-1) > snapshotVersion, `burst did not advance the observed version: snapshot=${snapshotVersion}, versions=${versions.join(', ')}`);
       assertEqual(handle.version, versions.at(-1), 'handle tracks the latest server version');
-      return { snapshotVersion, versions };
+      return { snapshotVersion, versions, kinds: versionedUpdates.map((u) => u.kind) };
     } finally {
       handle.dispose();
     }
@@ -390,6 +393,7 @@ try {
     try {
       const tmpBackend = join(tmpRoot, 'snapback');
       cpSync(todoBackend, tmpBackend, { recursive: true });
+      cpSync(join(todoBackend, '..', 'demo.snapback.json'), join(tmpRoot, 'demo.snapback.json'));
       rmSync(join(tmpBackend, 'generated'), { recursive: true, force: true });
       result = await generate(tmpBackend);
     } finally {

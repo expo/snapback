@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { createAdminSurface } from '../admin-boundary.mjs';
 import { adminContractBindings } from '../contract-bindings.mjs';
 import { generateAdminContractBindings } from '../generate-contract-bindings.mjs';
+import { initialTab } from '../theme.ts';
 
 const adminRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -43,6 +44,8 @@ assert.equal(view.ui.cap.storageEngine, 'sqlite', 'capability manifest is flatte
 assert.ok(view.ui.cap.flags.some((f) => f.label === 'Live subscriptions' && f.on), 'capability flags shape');
 assert.equal(view.ui.functions[0].auth, 'optional-user', 'function auth metadata is surfaced');
 assert.equal(view.ui.functions[0].kindLabel, 'live query', 'LiveQuery renders a friendly kind label');
+assert.equal(view.ui.subscriptions[0].connection, 'conn_a', 'Realtime tab accepts camelCase connectionId');
+assert.equal(view.ui.delivery.find((entry) => entry.key === 'lfs').value, '2', 'Realtime delivery counters accept camelCase');
 assert.equal(surface.queryRows('tableScan')[0].loaded, false, 'tableScan starts empty');
 assert.equal(surface.queryRows('runResult')[0].ran, false, 'runResult starts empty');
 
@@ -50,6 +53,7 @@ assert.equal(surface.queryRows('runResult')[0].ran, false, 'runResult starts emp
 // names and states only; the view model must never carry a value field.
 const config = view.ui.config;
 assert.equal(config.available, true, 'config status hydrates');
+assert.equal(config.appProvisioned, true, 'appProvisioned is surfaced');
 assert.equal(config.declaredCount, 2, 'declared entries are counted');
 assert.equal(config.missingCount, 1, 'required missing is surfaced');
 assert.equal(view.ui.showConfigAlert, true, 'missing required config raises the strip badge');
@@ -65,6 +69,18 @@ assert.equal(directions.setTone, 'warn', 'missing required entries warn');
 assert.equal(directions.canVerify, false, 'unset entries cannot verify');
 assert.equal(JSON.stringify(config).includes('sekret-value'), false, 'no value ever reaches the view model');
 
+client.configAppProvisioned = false;
+client.configEntries = [];
+client.configMissing = [];
+await surface.links.refresh({});
+const unprovisionedConfig = surface.queryRows('inspect')[0].ui.config;
+assert.equal(unprovisionedConfig.appProvisioned, false, 'appProvisioned=false is preserved');
+assert.match(unprovisionedConfig.emptyTitle, /No app.*provisioned/i, 'Secrets empty state distinguishes unprovisioned apps');
+client.configAppProvisioned = true;
+client.configEntries = null;
+client.configMissing = null;
+await surface.links.refresh({});
+
 await surface.links.verifyConfig({ entry: 'caltrainFeed' });
 const verifiedView = surface.queryRows('inspect')[0];
 const verifiedFeed = verifiedView.ui.config.entries.find((e) => e.name === 'caltrainFeed');
@@ -74,6 +90,13 @@ assert.equal(verifiedFeed.verifyOk, true, 'verify outcome reports the probe resu
 await surface.links.loadTable({ table: 'todos', offset: 0 });
 assert.equal(surface.queryRows('tableScan')[0].loaded, true, 'loadTable publishes scan state');
 assert.equal(surface.queryRows('tableScan')[0].rows[0].cells[0].text, 'todo_1', 'scan row is shaped');
+await surface.links.loadTable({ table: 'todos', offset: -50 });
+assert.equal(client.scanOffsets.at(-1), 0, 'negative offsets clamp to zero before scan');
+assert.equal(surface.queryRows('tableScan')[0].prevOffset, 0, 'previous offset cannot go negative');
+await surface.links.loadTable({ table: 'todos', offset: 999 });
+assert.deepEqual(client.scanOffsets.slice(-2), [999, 100], 'oversized offset refetches the final page');
+assert.equal(surface.queryRows('tableScan')[0].offset, 100, 'final page offset is published');
+assert.equal(surface.queryRows('tableScan')[0].rangeLabel, '101–125 of 125', 'range reflects the clamped final page');
 
 await surface.links.runFunction({ name: 'listTodos', argsText: '{}', userId: 'user_ada' });
 assert.equal(surface.queryRows('runResult')[0].ok, true, 'runFunction publishes success state');
@@ -81,6 +104,21 @@ assert.match(surface.queryRows('runResult')[0].payload, /Read the Snapback expla
 
 await surface.links.cleanup({});
 assert.equal(surface.queryRows('inspect')[0].id, 'inspect', 'cleanup republishes a fresh inspect view');
+
+for (const [name, invoke] of [
+  ['refresh', () => surface.links.refresh({})],
+  ['cleanup', () => surface.links.cleanup({})],
+  ['verifyConfig', () => surface.links.verifyConfig({ entry: 'caltrainFeed' })],
+]) {
+  client.failInspect = true;
+  await invoke();
+  const failedView = surface.queryRows('inspect')[0];
+  assert.equal(failedView.ui.hasInspectError, true, `${name} renders inspect failures instead of throwing`);
+  assert.equal(failedView.ui.diagnostics[0].code, 'SNAPBACK_ADMIN_INSPECT_FAILED', `${name} diagnostic code`);
+  assert.equal(surface.pendingCount(), 0, `${name} leaves no pending command on inspect failure`);
+  client.failInspect = false;
+  await surface.links.refresh({});
+}
 
 await surface.links.refresh({});
 assert.equal(surface.pendingCount(), 0, 'completed commands leave no pending work');
@@ -92,6 +130,12 @@ assert.equal(
 
 surface.dispose();
 assert.throws(() => surface.links.inspect({}), /used after dispose/, 'disposed links fail closed');
+
+globalThis.location = { hash: '#%E0%A4%A' };
+assert.equal(initialTab(), 'Overview', 'malformed hash falls back without throwing');
+globalThis.location = { hash: '#Realtime' };
+assert.equal(initialTab(), 'Realtime', 'valid hash still selects the tab');
+delete globalThis.location;
 
 console.log('admin contract bindings smoke: ok');
 
@@ -121,8 +165,16 @@ function createFakeRuntime() {
 }
 
 function createFakeAdminClient() {
-  return {
+  const client = {
+    failInspect: false,
+    scanOffsets: [],
+    configAppProvisioned: true,
+    configEntries: null,
+    configMissing: null,
     async inspect() {
+      if (client.failInspect) {
+        throw new Error('inspect transport failed');
+      }
       return {
         target: 'local-dev-sqlite-ibex',
         server: {
@@ -166,8 +218,15 @@ function createFakeAdminClient() {
           supportedQueryForms: ['host-plan-single-table-eq'],
           capabilityGaps: ['postgres'],
         },
-        subscriptions: [],
-        liveDelivery: { totalFanoutAttempts: 0, totalDeliveries: 0, totalSkipped: 0 },
+        subscriptions: [{ id: 'sub_a', connectionId: 'conn_a', function: 'listTodos' }],
+        liveDelivery: {
+          totalFanoutAttempts: 4,
+          totalDeliveries: 3,
+          totalSkipped: 1,
+          lastFanoutSubscriptions: 2,
+          lastDeliveries: 2,
+          lastSkipped: 0,
+        },
         // schema carries the camelCase schemaHash the live server actually emits.
         schema: {
           schemaHash: 'sha256:test',
@@ -210,7 +269,7 @@ function createFakeAdminClient() {
             },
           ],
         },
-        recentDiagnostics: [],
+        recentDiagnostics: [{ code: 'snapback_info', severity: 'info', subsystem: 'test', message: 'lowercase severity' }],
         ephemeral: {
           roomCount: 0,
           entryCount: 0,
@@ -228,41 +287,43 @@ function createFakeAdminClient() {
     // string below exists only to prove the shaping never touches values —
     // it is deliberately not part of the status payload shape.
     async configStatus() {
+      const defaultEntries = [
+        {
+          name: 'caltrainFeed',
+          description: '511.org Open Data API key',
+          purpose: 'Fetches the Caltrain GTFS-Realtime feed',
+          secret: true,
+          required: false,
+          pool: true,
+          probe: 'verifyCaltrainKey',
+          howToGet: 'Request a free key at https://511.org/open-data/token.',
+          set: true,
+          memberCount: 2,
+          lastChangedMs: 1750000000000,
+          source: 'wizard',
+          verified: { ok: true, atMs: 1750000300000 },
+          applyState: 'applied',
+        },
+        {
+          name: 'directionsKey',
+          description: 'Directions provider key',
+          secret: true,
+          required: true,
+          pool: false,
+          set: false,
+          memberCount: 0,
+          applyState: 'applied',
+          // A rogue field a buggy server might add: the shaping must drop
+          // anything value-shaped rather than pass entries through wholesale.
+          value: 'sekret-value',
+        },
+      ];
       return {
         generation: 3,
         backendClass: 'local-file-immediate',
-        requiredMissing: ['directionsKey'],
-        entries: [
-          {
-            name: 'caltrainFeed',
-            description: '511.org Open Data API key',
-            purpose: 'Fetches the Caltrain GTFS-Realtime feed',
-            secret: true,
-            required: false,
-            pool: true,
-            probe: 'verifyCaltrainKey',
-            howToGet: 'Request a free key at https://511.org/open-data/token.',
-            set: true,
-            memberCount: 2,
-            lastChangedMs: 1750000000000,
-            source: 'wizard',
-            verified: { ok: true, atMs: 1750000300000 },
-            applyState: 'applied',
-          },
-          {
-            name: 'directionsKey',
-            description: 'Directions provider key',
-            secret: true,
-            required: true,
-            pool: false,
-            set: false,
-            memberCount: 0,
-            applyState: 'applied',
-            // A rogue field a buggy server might add: the shaping must drop
-            // anything value-shaped rather than pass entries through wholesale.
-            value: 'sekret-value',
-          },
-        ],
+        appProvisioned: client.configAppProvisioned,
+        requiredMissing: client.configMissing ?? ['directionsKey'],
+        entries: client.configEntries ?? defaultEntries,
       };
     },
     async verifyConfigEntry(entry) {
@@ -274,12 +335,20 @@ function createFakeAdminClient() {
       };
     },
     async scanTable(table, _limit, offset) {
+      client.scanOffsets.push(offset);
+      const total = 125;
+      const rows = offset < total
+        ? Array.from({ length: Math.min(_limit, total - offset) }, (_, i) => ({
+            _id: `todo_${offset + i + 1}`,
+            title: offset + i === 0 ? 'Read the Snapback explainer' : `Todo ${offset + i + 1}`,
+          }))
+        : [];
       return {
         table,
         offset,
-        total: 1,
+        total,
         columns: ['_id', 'title'],
-        rows: [{ _id: 'todo_1', title: 'Read the Snapback explainer' }],
+        rows,
       };
     },
     async runFunction(name) {
@@ -294,4 +363,5 @@ function createFakeAdminClient() {
       };
     },
   };
+  return client;
 }

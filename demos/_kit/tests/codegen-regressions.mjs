@@ -226,6 +226,37 @@ export const listThings = defineJsQuery({
     assert(goodResult.ok, `regex literal should not trip ambient fetch scan: ${JSON.stringify(goodResult.diagnostics)}`);
     return { bad: badResult.diagnostics.map((d) => d.code), good: goodResult.inputsHash };
   });
+
+  await suite.check('invalid ephemeral key modes fail instead of defaulting to connection', async () => {
+    const { backend } = fixture('ephemeral-key-mode');
+    writeBackend(backend, {
+      schema: `
+import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '../../_kit/define.mjs';
+export default defineSchema({
+  things: defineTable({ title: v.string() }).sync(),
+}, {
+  ephemeral: defineEphemeral({
+    cursors: ephemeral.collection({
+      scope: { boardId: v.string() },
+      key: 'conection',
+      ttlMs: 5_000,
+      value: v.object({ x: v.number(), y: v.number() }),
+      publish: allow.all(),
+      subscribe: allow.all(),
+    }),
+  }),
+});
+`,
+      functions: `
+import { defineQuery } from '../../_kit/define.mjs';
+export const listThings = defineQuery({ table: 'things' });
+`,
+    });
+    const result = await generate(backend);
+    assert(!result.ok, 'invalid ephemeral key mode must fail codegen');
+    assert(result.diagnostics.some((d) => d.code === 'EPHEMERAL_UNSUPPORTED_KEY_MODE'), `missing key-mode diagnostic: ${JSON.stringify(result.diagnostics)}`);
+    return { codes: result.diagnostics.map((d) => d.code) };
+  });
 } finally {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 }

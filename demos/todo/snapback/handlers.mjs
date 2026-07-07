@@ -15,8 +15,10 @@ globalThis.__snapbackHandlers = {
   },
 
   async createTodo(ctx, args) {
+    const title = String(args.title ?? '').trim();
+    if (!title) throw new Error('todo title is required');
     return await ctx.db.insert('todos', {
-      title: args.title,
+      title,
       completed: false,
       userId: ctx.auth.userId,
     });

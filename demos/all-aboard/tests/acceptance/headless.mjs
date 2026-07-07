@@ -28,10 +28,14 @@ import { startServer } from '../../../_kit/server-process.mjs';
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import {
   assumedDirection,
+  estimateDistanceMiles,
+  estimateWalkMinutes,
   formatCountdownMinutes,
   getDirectionBoard,
   getNearestStation,
+  getSelectedStation,
   getStationById,
+  searchStations,
 } from '../../snapback/shared/model.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -98,6 +102,19 @@ await runAcceptance(suite, async () => {
     assertEqual(getNearestStation({ lat: 37.4443, lng: -122.1649 }).id, 'palo-alto', 'near Palo Alto');
     assertEqual(getNearestStation({ lat: 37.7765, lng: -122.3947 }).id, 'san-francisco', 'near SF');
     assertEqual(getNearestStation({ lat: 37.3300, lng: -121.9020 }).id, 'san-jose', 'near Diridon');
+  });
+
+  await suite.check('domain edges: invalid locations fall back without NaN ETAs', () => {
+    const invalid = { lat: 'not-a-number', lng: undefined };
+    assertEqual(getNearestStation(invalid).id, 'san-francisco', 'invalid nearest falls back to first station');
+    assertEqual(getSelectedStation('missing-station', invalid).id, 'san-francisco', 'invalid selected station fallback');
+    assertEqual(searchStations('', invalid)[0].id, 'san-francisco', 'invalid search origin preserves corridor order');
+    const paloAlto = getStationById('palo-alto');
+    const miles = estimateDistanceMiles(invalid, paloAlto);
+    const walk = estimateWalkMinutes(invalid, paloAlto);
+    assert(Number.isFinite(miles), `distance should be finite, got ${miles}`);
+    assert(Number.isFinite(walk), `walk minutes should be finite, got ${walk}`);
+    return { fallback: 'san-francisco', miles, walk };
   });
 
   await suite.check('exact next-south prediction at 9:00am from San Francisco', async () => {

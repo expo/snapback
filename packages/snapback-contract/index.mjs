@@ -221,6 +221,7 @@ export async function createSnapbackContractSurface({
     let disposed = false;
     const queryNames = Object.keys(manifest?.queries ?? {});
     const mutationNames = Object.keys(manifest?.mutations ?? {});
+    const boundQueryNames = new Set([queryName]);
 
     // The C1 fix (LLP 0034 D1; Exact LLP 0284 §5.3): when the bound descriptor
     // is live (manifest v2 `mode`/`defaultLive`, or the legacy `subscription`
@@ -418,6 +419,7 @@ export async function createSnapbackContractSurface({
 
     const links = {};
     for (const name of queryNames) {
+      if (!boundQueryNames.has(name)) continue;
       links[name] = (_args) => {
         assertActive();
         return boundary.query(boundaryKey, (rows) => rows, { key: boundaryKey });
@@ -450,6 +452,7 @@ export async function createSnapbackContractSurface({
 
     const providerQueries = {};
     for (const name of queryNames) {
+      if (!boundQueryNames.has(name)) continue;
       providerQueries[name] = (_args, qb) => qb.query(boundaryKey, (rows) => rows, { key: boundaryKey });
     }
     const providerMutations = {};
@@ -1012,10 +1015,20 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       sourceStarts[name] += 1;
       let active = true;
       let offListener = null;
+      let initialRetryTimer = null;
+      let initialRetryAttempts = 0;
       const cacheKey = `${name}\u0000${scopeKeyOf(args)}`;
       const cached = recordCache.get(cacheKey);
       const permissions = ephemeralPermissions?.(name, args) ?? [];
+      const clearInitialRetry = () => {
+        if (initialRetryTimer) {
+          clearTimeout(initialRetryTimer);
+          initialRetryTimer = null;
+        }
+      };
       const attach = (record) => {
+        clearInitialRetry();
+        initialRetryAttempts = 0;
         if (!active || disposed) {
           // The observer went away while the subscribe was in flight: give
           // the now-observerless room its linger window (ENG-22527 item 3).
@@ -1037,20 +1050,38 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
         };
         emit(toMapCell(record, descriptor));
       };
-      if (cached) {
-        // Prewarmed/shared overlay: the ready snapshot delivers synchronously.
-        attach(cached);
-      } else {
+      const scheduleInitialRetry = () => {
+        if (!active || disposed || initialRetryTimer) return;
+        const delay = Math.min(
+          RESYNC_BASE_DELAY_MS * 2 ** initialRetryAttempts,
+          RESYNC_MAX_DELAY_MS,
+        );
+        initialRetryAttempts += 1;
+        initialRetryTimer = setTimeout(() => {
+          initialRetryTimer = null;
+          tryAttach();
+        }, delay);
+        initialRetryTimer.unref?.();
+      };
+      const tryAttach = () => {
         void ensureOverlay(name, descriptor, args)
           .then((record) => attach(record))
           .catch((error) => {
             if (!active || disposed) return;
             console.warn(`[snapback-contract] ephemeral subscribe failed for "${name}"`, error);
             emit({ status: 'error', entries: [] });
+            scheduleInitialRetry();
           });
+      };
+      if (cached) {
+        // Prewarmed/shared overlay: the ready snapshot delivers synchronously.
+        attach(cached);
+      } else {
+        tryAttach();
       }
       return () => {
         active = false;
+        clearInitialRetry();
         offListener?.();
       };
     };
@@ -1251,7 +1282,7 @@ async function createMultiLiveContractSurface({
       if (configured === undefined) return;
       const bindingKey = stableArgsKey(bindingArgs);
       if (bindingKey === stableArgsKey(configured)) return;
-      const seenKey = `${name} ${bindingKey}`;
+      const seenKey = `${name}\u0000${bindingKey}`;
       if (argsMismatchSeen.has(seenKey)) return;
       argsMismatchSeen.add(seenKey);
       const diagnostic = publishDiagnostic(
@@ -1281,8 +1312,8 @@ async function createMultiLiveContractSurface({
       initialRows[name] = [];
     }
     if (wantLivePush) {
-      for (const { name, args } of liveQueryEntries) {
-        const handle = await client.liveQuery(name, {
+      const subscriptions = liveQueryEntries.map(({ name, args }) =>
+        client.liveQuery(name, {
           connectionId: sharedConnectionId,
           args,
           userId,
@@ -1303,7 +1334,18 @@ async function createMultiLiveContractSurface({
           onSubscriptionEvent: onSubscriptionEvent
             ? (event) => onSubscriptionEvent({ ...event, queryName: name })
             : null,
-        });
+        }).then((handle) => ({ name, handle }))
+      );
+      let liveResults;
+      try {
+        liveResults = await Promise.all(subscriptions);
+      } catch (error) {
+        for (const subscription of subscriptions) {
+          void subscription.then(({ handle }) => handle.dispose?.()).catch(() => {});
+        }
+        throw error;
+      }
+      for (const { name, handle } of liveResults) {
         liveHandles.set(name, handle);
         liveCellObservers.set(name, new Set());
         initialRows[name] = handle.rows;
@@ -1808,4 +1850,3 @@ function validateDescriptorSet(manifest, artifacts, diag) {
     }
   }
 }
-

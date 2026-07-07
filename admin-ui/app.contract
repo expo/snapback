@@ -66,9 +66,9 @@ component AdminConsole
     dataTable = name
     dataOffset = 0
     loadScan({ table: name, offset: 0 })
-  action pageBy(delta) writes dataOffset mutates loadScan
-    dataOffset = dataOffset + delta
-    loadScan({ table: dataTable, offset: dataOffset })
+  action pageTo(offset) writes dataOffset mutates loadScan
+    dataOffset = offset
+    loadScan({ table: dataTable, offset: offset })
   action pickFn(name) writes runName
     runName = name
   action setArgs(value) writes runArgs
@@ -134,6 +134,10 @@ component AdminConsole
                   Badge(c=c, label=s.ui.tokenLabel, tone=s.ui.tokenTone)
                   when s.ui.showConfigAlert
                     Badge(c=c, label=s.ui.configAlertLabel, tone="warn")
+                when s.ui.hasInspectError
+                  column gap=6 padding=14 radius=12 background=c.errSoft width="100%"
+                    text "Inspect refresh failed" size=12 weight=700 color=c.err family=f.sans
+                    text s.ui.inspectError size=12 color=c.err family=f.mono testId="inspect-error"
 
                 column height=1 background=c.border width="100%"
 
@@ -206,9 +210,9 @@ component AdminConsole
                               row gap=10 align="center" width="100%" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14
                                 text sv.table size=13 weight=700 color=c.text family=f.mono flex=1 minWidth=0
                                 text sv.rangeLabel size=12 color=c.textMuted family=f.sans
-                                button press=pageBy(-50) testId="data-prev" paddingTop=5 paddingBottom=5 paddingLeft=11 paddingRight=11 radius=8 borderWidth=1 borderColor=c.border background=c.surface opacity=sv.prevDisabled ? 0.4 : 1 disabled=sv.prevDisabled
+                                button press=pageTo(sv.prevOffset) testId="data-prev" paddingTop=5 paddingBottom=5 paddingLeft=11 paddingRight=11 radius=8 borderWidth=1 borderColor=c.border background=c.surface opacity=sv.prevDisabled ? 0.4 : 1 disabled=sv.prevDisabled
                                   text "‹ Prev" size=12 weight=600 color=c.textMuted family=f.sans
-                                button press=pageBy(50) testId="data-next" paddingTop=5 paddingBottom=5 paddingLeft=11 paddingRight=11 radius=8 borderWidth=1 borderColor=c.border background=c.surface opacity=sv.nextDisabled ? 0.4 : 1 disabled=sv.nextDisabled
+                                button press=pageTo(sv.nextOffset) testId="data-next" paddingTop=5 paddingBottom=5 paddingLeft=11 paddingRight=11 radius=8 borderWidth=1 borderColor=c.border background=c.surface opacity=sv.nextDisabled ? 0.4 : 1 disabled=sv.nextDisabled
                                   text "Next ›" size=12 weight=600 color=c.textMuted family=f.sans
                               when sv.error
                                 column padding=16 width="100%"
@@ -380,8 +384,9 @@ component AdminConsole
                                   column padding=12 radius=8 background=e.verifyOk ? c.surfaceRaised : c.errSoft width="100%"
                                     text e.verifyDetail size=12 color=e.verifyOk ? c.textMuted : c.err family=f.mono
                         else
-                          column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
-                            text "This app declares no configuration entries." size=13 color=c.textMuted family=f.sans
+                          column gap=6 padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                            text s.ui.config.emptyTitle size=13 weight=600 color=c.text family=f.sans
+                            text s.ui.config.emptyMessage size=12 color=c.textMuted family=f.sans textAlign="center"
                     else
                       column gap=8 padding=20 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
                         text "Config status is unavailable on this server." size=13 weight=600 color=c.text family=f.sans

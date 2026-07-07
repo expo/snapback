@@ -49,7 +49,7 @@ export function locationHint(source: LocationSource): string {
 
 // --- Direction ------------------------------------------------------------------
 
-export function activeDirection(override: string | null, station: { orderIndex: number }): string {
+export function activeDirection(override: string | null, station: { orderIndex: number } | null): string {
   if (override === 'north' || override === 'south') return override;
   return assumedDirection(station);
 }
@@ -104,9 +104,16 @@ export function serviceFilterOptions(): ServiceFilterOption[] {
   ];
 }
 
+function normalizeServiceFilter(serviceFilter: string | null | undefined): string {
+  return typeof serviceFilter === 'string' && serviceFilterOptions().some((option) => option.id === serviceFilter)
+    ? serviceFilter
+    : 'All';
+}
+
 function filterByService<T extends { service?: string }>(rows: T[], serviceFilter: string | null | undefined): T[] {
-  if (!serviceFilter || serviceFilter === 'All') return rows;
-  return rows.filter((row) => row.service === serviceFilter);
+  const normalized = normalizeServiceFilter(serviceFilter);
+  if (normalized === 'All') return rows;
+  return rows.filter((row) => row.service === normalized);
 }
 
 // The hero-selection board: `heroOffset` walks the upcoming trains (swipe
@@ -124,11 +131,12 @@ export function boardTrains(
   serviceFilter: string,
 ): HeroBoard {
   const wanted = Math.max(0, heroOffset ?? 0);
-  const unfiltered = serviceFilter && serviceFilter !== 'All';
+  const normalizedFilter = normalizeServiceFilter(serviceFilter);
+  const unfiltered = normalizedFilter !== 'All';
   const fetchLimit = unfiltered ? 40 : wanted + 5;
   const rows: Departure[] = filterByService(
     getUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), fetchLimit) as Departure[],
-    serviceFilter,
+    normalizedFilter,
   ).slice(0, wanted + 5);
   const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
   return {

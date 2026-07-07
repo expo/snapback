@@ -127,11 +127,11 @@ export function stationPhotoCredit(stationId: string): string {
 
 // --- Direction ----------------------------------------------------------------
 
-export function assumedDirection(station: { orderIndex: number }): string {
+export function assumedDirection(station: { orderIndex: number } | null): string {
   return modelAssumedDirection(station);
 }
 
-export function activeDirection(override: string | null, station: { orderIndex: number }): string {
+export function activeDirection(override: string | null, station: { orderIndex: number } | null): string {
   return override === 'north' || override === 'south' ? override : modelAssumedDirection(station);
 }
 
@@ -169,9 +169,16 @@ export function serviceFilterOptions() {
   ];
 }
 
+function normalizeServiceFilter(serviceFilter: string | null | undefined): string {
+  return typeof serviceFilter === 'string' && serviceFilterOptions().some((option) => option.id === serviceFilter)
+    ? serviceFilter
+    : 'All';
+}
+
 function filterByService<T extends { service?: string }>(rows: T[], serviceFilter: string | null | undefined): T[] {
-  if (!serviceFilter || serviceFilter === 'All') return rows;
-  return rows.filter((row) => row.service === serviceFilter);
+  const normalized = normalizeServiceFilter(serviceFilter);
+  if (normalized === 'All') return rows;
+  return rows.filter((row) => row.service === normalized);
 }
 
 // The hero-selection board: `heroOffset` walks the upcoming trains (swipe
@@ -182,11 +189,12 @@ function filterByService<T extends { service?: string }>(rows: T[], serviceFilte
 // wide window before filtering rather than filtering a pre-limited slice.
 export function boardTrains(stationId: string, direction: string, nowMs: number, heroOffset: number, delayRows: DelayRow[], serviceFilter: string) {
   const wanted = Math.max(0, heroOffset ?? 0);
-  const unfiltered = serviceFilter && serviceFilter !== 'All';
+  const normalizedFilter = normalizeServiceFilter(serviceFilter);
+  const unfiltered = normalizedFilter !== 'All';
   const fetchLimit = unfiltered ? 40 : wanted + 5;
   const rows = filterByService(
     modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), fetchLimit),
-    serviceFilter,
+    normalizedFilter,
   ).slice(0, wanted + 5);
   const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
   return {

@@ -242,7 +242,12 @@ export function tabNames(): string[] {
 // deep-linkable. Defaults to Overview. Guards for non-DOM hosts.
 export function initialTab(): string {
   if (typeof location === 'undefined' || !location.hash) return 'Overview';
-  const tab = decodeURIComponent(location.hash.slice(1));
+  let tab = location.hash.slice(1);
+  try {
+    tab = decodeURIComponent(tab);
+  } catch {
+    return 'Overview';
+  }
   return tabNames().includes(tab) ? tab : 'Overview';
 }
 

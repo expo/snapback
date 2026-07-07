@@ -716,6 +716,16 @@ export class SnapbackClient {
       emitEvent('established');
     };
 
+    const bestEffortUnsubscribeLive = (subscriptionId) => {
+      if (!subscriptionId) return;
+      void client
+        .unsubscribeLive(name, { subscriptionId, connectionId, userId })
+        .catch(() => {
+          // Best-effort: the subscription may already be gone (disconnect,
+          // supersession) or the server unreachable — the reaper covers it.
+        });
+    };
+
     const applyDurable = (update) => {
       if (disposed || paused || !update || typeof update !== 'object') return;
       if (update.kind === 'live_replace') {
@@ -768,6 +778,15 @@ export class SnapbackClient {
       const epochAtStart = socketLossEpoch;
       const demandEpochAtStart = resubscribeDemandEpoch;
       const sub = await client.subscribeLive(name, { connectionId, args, userId, correlation, supersedes });
+      if (disposed || paused) {
+        // The dispose/pause may have raced this fresh subscribe. The caller no
+        // longer owns the server registration, so tear down the late result
+        // immediately instead of leaking a zombie subscription.
+        bestEffortUnsubscribeLive(sub?.subscription_id);
+        const error = new Error('Snapback live query subscribe resolved after disposal.');
+        error.code = 'SNAPBACK_LIVE_QUERY_DISPOSED_DURING_SUBSCRIBE';
+        throw error;
+      }
       // Any successful fresh subscribe satisfies an outstanding need — clear
       // it here so every path (establish, resume, resubscribe) agrees —
       // UNLESS a socket loss raced the in-flight request (ENG-23428): the
@@ -877,8 +896,10 @@ export class SnapbackClient {
           attemptReason = pendingResubscribeReason;
         }
       } catch (error) {
-        onConnectionChange?.(connection, { previous: connection, error });
-        scheduleResubscribeRetry(pendingResubscribeReason);
+        if (!disposed && !paused) {
+          onConnectionChange?.(connection, { previous: connection, error });
+          scheduleResubscribeRetry(pendingResubscribeReason);
+        }
         return false;
       } finally {
         resubscribing = false;
@@ -900,6 +921,11 @@ export class SnapbackClient {
       // other registered consumer on the connection — no cross-lane or
       // cross-handle discards (LLP 0034 §10.1 / ENG-22478).
       await client.drainConnection(connectionId);
+      if (fellBack && fallbackToPoll && !needsResubscribe) {
+        // A transient drain failure reports 'stale'. The declared poll
+        // fallback becomes healthy again after the next successful drain.
+        setConnection('polling');
+      }
       return handle.rows;
     };
 
@@ -1126,14 +1152,7 @@ export class SnapbackClient {
       // Best-effort server-side disposal (ENG-22478 review fix F): without
       // this, unmounting a handle while the connection lives leaves the
       // §10.1 zombie fanning out until connection teardown.
-      if (staleSubscriptionId) {
-        void client
-          .unsubscribeLive(name, { subscriptionId: staleSubscriptionId, connectionId, userId })
-          .catch(() => {
-            // Best-effort: the subscription may already be gone (disconnect,
-            // supersession) or the server unreachable — the reaper covers it.
-          });
-      }
+      bestEffortUnsubscribeLive(staleSubscriptionId);
     };
 
     await establish();
@@ -1621,8 +1640,18 @@ export class EphemeralOverlay {
     if (this.room && room && !sameRoom(this.room, room)) return 'foreign_room';
     if (message.Snapshot) {
       if (!this.room && message.Snapshot.room) this.room = message.Snapshot.room;
+      const snapshotEpoch = message.Snapshot.scope_epoch;
+      if (this.scopeEpoch !== null) {
+        if (snapshotEpoch < this.scopeEpoch) return 'ignored_stale';
+        if (
+          snapshotEpoch === this.scopeEpoch
+          && snapshotMaxEntryVersion(message.Snapshot) < entriesMaxEntryVersion(this.entries)
+        ) {
+          return 'ignored_stale';
+        }
+      }
       const previousEpoch = this.scopeEpoch;
-      this.scopeEpoch = message.Snapshot.scope_epoch;
+      this.scopeEpoch = snapshotEpoch;
       this.entries.clear();
       for (const entry of message.Snapshot.entries ?? []) {
         this.entries.set(entry.key, normalizeEntry(entry));
@@ -1775,6 +1804,22 @@ function normalizeEntry(entry) {
     scopeEpoch: entry.scope_epoch,
     entryVersion: entry.entry_version,
   };
+}
+
+function snapshotMaxEntryVersion(snapshot) {
+  let max = 0;
+  for (const entry of snapshot?.entries ?? []) {
+    if (typeof entry?.entry_version === 'number' && entry.entry_version > max) max = entry.entry_version;
+  }
+  return max;
+}
+
+function entriesMaxEntryVersion(entries) {
+  let max = 0;
+  for (const entry of entries?.values?.() ?? []) {
+    if (typeof entry?.entryVersion === 'number' && entry.entryVersion > max) max = entry.entryVersion;
+  }
+  return max;
 }
 
 function normalizedScopeKey(scope) {
