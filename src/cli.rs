@@ -1,7 +1,5 @@
 use crate::admin::{AppState, ServerContext};
-use crate::host_ops::{
-    HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor,
-};
+use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
 use crate::instance_lock::DatabaseInstanceLock;
 use crate::local::LocalSnapback;
 use crate::manifest::SNAPBACK_SCHEMA_VERSION;
@@ -19,7 +17,7 @@ use uuid::Uuid;
 const DEFAULT_PORT_RANGE_START: u16 = 4287;
 const DEFAULT_PORT_RANGE_END: u16 = 4387;
 
-#[derive(Debug, Parser)]
+#[derive(Clone, Debug, Eq, Parser, PartialEq)]
 #[command(about = "Run the Snapback local development server")]
 pub struct Args {
     #[arg(long, default_value = "127.0.0.1")]
@@ -39,6 +37,18 @@ pub struct Args {
     /// bound — the out-of-band handshake managed/attach launchers read.
     #[arg(long)]
     pub ready_file: Option<PathBuf>,
+}
+
+impl Default for Args {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1".to_owned(),
+            port: None,
+            db: PathBuf::from(".snapback/dev.sqlite3"),
+            memory: false,
+            ready_file: None,
+        }
+    }
 }
 
 /// The `snapback` CLI (LLP 0024 first slice, built by LLP 0032 P6): with no
@@ -113,6 +123,7 @@ pub struct TargetArgs {
 
 pub async fn run_from_env() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    reject_misdirected_serve_flags(&cli)?;
     match cli.command {
         None => run(cli.serve).await,
         Some(HostCommand::Start(args)) => run(args).await,
@@ -161,10 +172,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             args,
             user,
         }) => {
-            let parsed_args: Value = match args {
-                Some(raw) => serde_json::from_str(&raw).context("--args must be a JSON object")?,
-                None => Value::Object(Default::default()),
-            };
+            let parsed_args = parse_run_args(args)?;
             host_op_via_http(
                 &target,
                 json!({
@@ -176,6 +184,26 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             )
         }
     }
+}
+
+fn reject_misdirected_serve_flags(cli: &Cli) -> anyhow::Result<()> {
+    if cli.command.is_some() && cli.serve != Args::default() {
+        anyhow::bail!(
+            "serve flags before a subcommand are ignored; pass them after `start` (for example: `snapback start --memory`)"
+        );
+    }
+    Ok(())
+}
+
+fn parse_run_args(args: Option<String>) -> anyhow::Result<Value> {
+    let parsed = match args {
+        Some(raw) => serde_json::from_str(&raw).context("--args must be a JSON object")?,
+        None => Value::Object(Default::default()),
+    };
+    if !parsed.is_object() {
+        anyhow::bail!("--args must be a JSON object");
+    }
+    Ok(parsed)
 }
 
 fn read_json_file(path: &Path) -> anyhow::Result<Value> {
@@ -469,15 +497,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             admin_gated: token_configured || !loopback,
             diagnostics: Vec::new(),
         };
-        if let Some(parent) = path.parent()
-            && !parent.as_os_str().is_empty()
-        {
-            std::fs::create_dir_all(parent).with_context(|| {
-                format!("failed to create ready-file directory {}", parent.display())
-            })?;
-        }
-        std::fs::write(path, format!("{}\n", serde_json::to_string_pretty(&descriptor)?))
-            .with_context(|| format!("failed to write ready file {}", path.display()))?;
+        write_ready_file_atomic(
+            path,
+            &format!("{}\n", serde_json::to_string_pretty(&descriptor)?),
+        )
+        .with_context(|| format!("failed to write ready file {}", path.display()))?;
         println!("ready file: {}", path.display());
     }
 
@@ -522,6 +546,42 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     server_result?;
     Ok(())
+}
+
+fn write_ready_file_atomic(path: &Path, content: &str) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent).with_context(|| {
+            format!("failed to create ready-file directory {}", parent.display())
+        })?;
+    }
+    let file_name = path
+        .file_name()
+        .context("ready file path must include a file name")?
+        .to_string_lossy();
+    let tmp_name = format!(".{file_name}.tmp-{}", Uuid::now_v7().simple());
+    let tmp_path = path.with_file_name(tmp_name);
+    let write_result = (|| -> anyhow::Result<()> {
+        std::fs::write(&tmp_path, content).with_context(|| {
+            format!(
+                "failed to write temporary ready file {}",
+                tmp_path.display()
+            )
+        })?;
+        std::fs::rename(&tmp_path, path).with_context(|| {
+            format!(
+                "failed to atomically publish ready file {} from {}",
+                path.display(),
+                tmp_path.display()
+            )
+        })?;
+        Ok(())
+    })();
+    if write_result.is_err() {
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+    write_result
 }
 
 fn prepare_database_path(path: &Path) -> anyhow::Result<PathBuf> {
@@ -617,7 +677,10 @@ fn describe_ports(ports: &[u16]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{Args, bind_first_available, bind_listener, prepare_database_path};
+    use super::{
+        Args, Cli, HostCommand, bind_first_available, bind_listener, parse_run_args,
+        prepare_database_path, reject_misdirected_serve_flags, write_ready_file_atomic,
+    };
     use clap::Parser;
     use serde_json::json;
     use std::path::PathBuf;
@@ -721,6 +784,58 @@ mod tests {
         assert_eq!(args.port, Some(9000));
         assert_eq!(args.db, PathBuf::from("tmp/dev.sqlite3"));
         assert!(args.memory);
+    }
+
+    #[test]
+    fn parent_serve_flags_with_subcommands_are_rejected() {
+        let cli = Cli::parse_from(["snapback", "--memory", "start"]);
+
+        let error = reject_misdirected_serve_flags(&cli).unwrap_err();
+        assert!(
+            error.to_string().contains("pass them after `start`"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn start_subcommand_accepts_serve_flags_after_subcommand() {
+        let cli = Cli::parse_from(["snapback", "start", "--memory", "--port", "9000"]);
+
+        reject_misdirected_serve_flags(&cli).unwrap();
+        match cli.command {
+            Some(HostCommand::Start(args)) => {
+                assert!(args.memory);
+                assert_eq!(args.port, Some(9000));
+            }
+            other => panic!("expected start command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn run_args_must_be_json_object() {
+        assert!(parse_run_args(Some(r#"{"title":"hello"}"#.to_owned())).is_ok());
+
+        let error = parse_run_args(Some(r#"["hello"]"#.to_owned())).unwrap_err();
+        assert!(error.to_string().contains("--args must be a JSON object"));
+    }
+
+    #[test]
+    fn ready_file_write_publishes_final_content() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("ready.json");
+
+        write_ready_file_atomic(&path, "{\"ready\":true}\n").unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "{\"ready\":true}\n"
+        );
+        let leftovers = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp-"))
+            .count();
+        assert_eq!(leftovers, 0, "temporary ready files should be cleaned up");
     }
 
     #[tokio::test]

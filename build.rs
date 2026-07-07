@@ -50,14 +50,16 @@ fn main() {
     let candidates = [
         lib_root.clone(),
         lib_root.join("macosx"),
-        lib_root.join("hermes.xcframework").join("macos-arm64_x86_64"),
+        lib_root
+            .join("hermes.xcframework")
+            .join("macos-arm64_x86_64"),
         lib_root.join("hermes.xcframework").join("macos-arm64"),
     ];
 
     let mut emitted = false;
     for dir in &candidates {
         if framework_present(dir) {
-            println!("cargo:rustc-link-arg=-Wl,-rpath,{}", dir.display());
+            emit_macos_rpath(dir);
             emitted = true;
         }
     }
@@ -67,12 +69,22 @@ fn main() {
         // missing, so a bootstrapped tree never reaches here. Emit the default
         // location anyway so the binary carries a plausible LC_RPATH rather than
         // none, and warn.
-        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_root.display());
+        emit_macos_rpath(&lib_root);
         println!(
             "cargo:warning=snapback build.rs: no Hermes framework found under {}; emitted a default LC_RPATH. Run scripts/bootstrap-ibex-runtime.",
             lib_root.display()
         );
     }
+}
+
+fn emit_macos_rpath(dir: &Path) {
+    // `-Wl,-rpath,<path>` is comma-fragile because clang splits the payload on
+    // every comma before forwarding to ld64. Separate `-Xlinker` args preserve
+    // checkout paths such as "projects, archive/snapback" verbatim.
+    println!("cargo:rustc-link-arg=-Xlinker");
+    println!("cargo:rustc-link-arg=-rpath");
+    println!("cargo:rustc-link-arg=-Xlinker");
+    println!("cargo:rustc-link-arg={}", dir.display());
 }
 
 /// Emit the git commit + dirty state the running binary reports as its
