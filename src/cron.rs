@@ -758,7 +758,13 @@ fn next_calendar_nominal_after(
 ) -> Option<u64> {
     let expr = job.schedule.cron.as_deref()?;
     let spec = parse_cron_expr(expr).ok()?;
-    let floor = previous_nominal_at_ms.unwrap_or(now_ms);
+    // A stale persisted nominal (downtime, WhileLive re-arm after idle days,
+    // a run finishing past the next slot boundary) must coalesce past now —
+    // one catch-up slot fires and the next nominal lands strictly in the
+    // future, matching the interval branch in `next_nominal_after`.
+    // @ref LLP 0028#delivery-overlap-and-missed-ticks — missed ticks run
+    // once on recovery; never backfill every missed slot.
+    let floor = previous_nominal_at_ms.map_or(now_ms, |prev| prev.max(now_ms));
     next_cron_match_after(&spec, floor)
 }
 
@@ -1311,6 +1317,38 @@ mod tests {
         assert_eq!(
             next_calendar_nominal_after(&daily, None, ms_at(2026, 1, 15, 3, 30)),
             Some(ms_at(2026, 1, 16, 3, 30))
+        );
+    }
+
+    // A previous nominal far in the past (server downtime with persisted
+    // cron state, or a WhileLive job re-armed after idle days) must not
+    // replay every missed slot: the scan floors at now, so exactly one
+    // past-due slot fires and the next nominal is strictly in the future.
+    // @ref LLP 0028#delivery-overlap-and-missed-ticks — run once on
+    // recovery; do not backfill every missed interval.
+    #[test]
+    fn next_calendar_nominal_coalesces_missed_slots_past_now() {
+        let daily = calendar_job("daily", "0 3 * * *");
+        // Down since the Jul 1 03:00 slot, back at Jul 4 12:00: the slot
+        // after the stale nominal is Jul 5 03:00, not Jul 2 03:00.
+        assert_eq!(
+            next_calendar_nominal_after(
+                &daily,
+                Some(ms_at(2026, 7, 1, 3, 0)),
+                ms_at(2026, 7, 4, 12, 0)
+            ),
+            Some(ms_at(2026, 7, 5, 3, 0))
+        );
+        // Every-minute job after a long outage coalesces the same way
+        // instead of queueing thousands of back-to-back stale replays.
+        let minutely = calendar_job("minutely", "* * * * *");
+        assert_eq!(
+            next_calendar_nominal_after(
+                &minutely,
+                Some(ms_at(2026, 7, 1, 3, 0)),
+                ms_at(2026, 7, 4, 12, 0)
+            ),
+            Some(ms_at(2026, 7, 4, 12, 1))
         );
     }
 
