@@ -1,0 +1,349 @@
+# LLP 0048: V8 conformance twin
+
+**Type:** RFC
+**Status:** Draft
+**Systems:** Runtime, Security, Testing, Developer experience, Deployment
+**Author:** Charlie Cheever / Claude
+**Date:** 2026-07-07
+**Revised:** 2026-07-07 (post-review author pass: internal manifest profile id
+pinned as `local-conformance-sqlite-workerd-v8`, `nodejs_compat` refusal test
+added to acceptance, and the two author decisions given proposed defaults
+pending Charlie's nod — first allowlist slice (encoding/URL/base64/console)
+and the minimum LLP 0040 deploy gate; earlier same day, review pass: logical
+host-call protocol clarified
+versus physical transport, workerd fidelity/security claims narrowed, V8 kill
+domains and generated runtime-surface tests pinned; later same day:
+handler-visible API surface pinned to the Workers dialect — generated allowlist,
+subtractive on the V8 leg, additive on the Ibex leg, decided by Charlie
+in-session; initial same day — executes the DK-5 re-decision recorded in
+LLP 0009 §Decision DK-5)
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0007, LLP 0009, LLP 0010, LLP 0012, LLP 0014, LLP 0035, LLP 0040, LLP 0041, LLP 0043, LLP 0047, https://github.com/cloudflare/workerd, https://developers.cloudflare.com/workers/runtime-apis/web-standards/
+
+## Summary
+
+This RFC builds Snapback's local V8 handler runtime: the same handler harness
+[LLP 0040](./0040-cloudflare-narrow-proof.rfc.md) will deploy to Cloudflare,
+hosted in local **workerd** behind the async, RPC-shaped handler↔host seam
+([LLP 0014](./0014-cloudflare-strategy.rfc.md) §One-way doors 3), driven by
+the unchanged canonical local server. It has three jobs:
+
+1. **The DK-5 conformance twin.** Run the existing conformance corpus with
+   only the handler executor swapped — storage, host operation
+   implementation, generated artifacts, and the logical host-call protocol
+   identical — so any behavioral difference is either a protocol-adapter bug
+   or an engine fact, attributable on sight, and the engine-neutral
+   handler-semantics contract becomes a standing CI gate rather than an
+   intention.
+2. **The Cloudflare proof's harness, proven first.** LLP 0040's V8 handler
+   harness (global-strip at module init, `ctx`-only powers, the tagged
+   completion envelope of LLP 0009's conformance floor) is built and passes
+   here before the first deploy — the engine half of Phase 0, de-risked
+   without wrangler, billing, or credentials.
+3. **LLP 0047's deterministic limits testbed.** Kill semantics and wall-clock
+   enforcement land first at this service boundary, where they are locally
+   testable: the busy-loop kill, structured kill diagnostics, and the first
+   V8 capability manifest whose limit fields are computed, not asserted
+   (LLP 0009 DK-5's capability-truthfulness note).
+
+This document is prerequisite-shaped for LLP 0040: the first real deploy
+consumes the harness only after the twin's conformance gate passes locally.
+
+## Motivation
+
+DK-5 ([LLP 0009](./0009-code-execution-security.rfc.md) §Decision DK-5)
+deferred a synthetic V8 twin on 2026-07-02, with four revisit triggers. The
+first two fired on 2026-07-07 — LLP 0040 starts X3, and
+[LLP 0047](./0047-hosted-execution-limits.rfc.md) begins hosted-limits work —
+and the re-decision (recorded in 0009, ratified by Charlie in-session) is to
+build the twin now. Two things changed since the deferral:
+
+- **The cost structure changed.** DK-5 correctly refused "a second native
+  bring-up — the repo's #1 recurring DX pain." The handler↔host seam is now
+  pinned async and RPC-shaped (LLP 0014 §One-way doors 3, LLP 0040 §App
+  subset), which turns a second engine from an embedding problem into a
+  protocol consumer: the twin is the 0040 harness hosted in local workerd,
+  not V8 linked into the `snapback` binary.
+- **Bi-engine became permanent, not transitional.** Cloudflare is V8 by
+  construction; Exact on devices is Hermes; and
+  [LLP 0012](./0012-headless-integration-contract.spec.md)'s parity rule
+  makes eventual on-device handler execution
+  ([LLP 0043](./0043-offline-replay-retention.rfc.md)'s direction) a Hermes
+  execution site. There is no single-engine future in either direction — the
+  enduring engine posture and the four reasons Hermes stays canonical
+  locally are recorded in 0009's DK-5 re-decision, and
+  [LLP 0002](./0002-canonical-local-target.decision.md) does not reopen.
+
+The twin is therefore not a migration tool toward either engine. It enforces
+an **engine-neutral handler-semantics contract** — the runtime analogue of
+[LLP 0007](./0007-storage-portability.spec.md)'s storage portability
+contract: portable by default, engine-specific behavior a declared fact,
+never a silent divergence.
+
+Expectations are calibrated: LLP 0009's codegen bans already remove the
+divergence-prone surface ("`import`/`process`/`fetch`/timers/`Date.now`/
+`Math.random`"; the `ctx` surface is the only power), so the twin should
+mostly *confirm* convergence. Its value is the standing gate, the limits
+testbed, and de-risking 0040's hardest new seam — more than immediate bug
+yield.
+
+## Design
+
+### Architecture
+
+The canonical local server (Ibex + SQLite, unchanged) gains an alternate
+handler-execution backend selected per run: a local workerd process hosting
+the shared handler harness, speaking the async host-call protocol over a
+private local transport. The Ibex path stays in-process and default, so the
+physical transport is intentionally not the invariant. The invariant is the
+logical protocol: request/response shapes, host-call ordering, idempotence and
+commit boundaries, diagnostic codes, and a machine-readable host-call trace.
+The V8 and Ibex legs must produce equivalent traces before their user-visible
+outputs are compared. Nothing about storage, the version stream, the matcher,
+generated artifacts, or the public wire changes — the twin swaps the handler
+executor and its adapter, not the rest of the system.
+
+The harness is the same artifact LLP 0040 deploys: ambient globals removed or
+shadowed at module init (`fetch` and friends are globals in an isolate —
+LLP 0040 §App subset), host powers reachable only through the generated async
+`ctx` surface, results delivered as the tagged completion envelope so an
+untagged output is a failed invocation (`SNAPBACK_HANDLER_DID_NOT_SETTLE`,
+LLP 0009). Harness source is single-sourced between the twin and the deploy
+template; divergence between them is a structured failure, not a drift.
+
+### Single-sourced runtime flags
+
+workerd is chosen over a Node.js host because fidelity is the point: workerd
+is based on the same runtime code as Workers and shares the
+`compatibility_date`/flag model, while Node carries different globals and its
+own V8 cadence. The twin does not assert "same production build" by trust: it
+records the workerd package/release id, the selected `compatibility_date`,
+compatibility flags, and any available runtime version facts in the capability
+manifest. The twin's workerd config and LLP 0040's deploy config are generated
+from one source, following the `schemas/` drift-gate pattern; an unsupported
+compatibility date, a compat-flag mismatch, or accidental Node compatibility
+surface (`nodejs_compat*`) fails closed.
+
+### Handler-visible API surface
+
+The reference dialect is **the Workers platform, not Ibex** (decided by
+Charlie, 2026-07-07): where handler code can see an API at all, its name and
+observable semantics match what Cloudflare provides, and gap-closing lands on
+the Ibex side — or as a codegen ban on both engines — never as a
+Snapback-invented global. Three layers:
+
+1. **ECMAScript intrinsics** (`JSON`, `Math`, `Array`, …) — both engines
+   provide them; the conformance diff covers their agreement.
+2. **Ambient authority** (`fetch`, bindings, env, timers, dynamic code) —
+   stripped by the harness on V8, absent by construction on Ibex, banned by
+   codegen either way (LLP 0009).
+3. **Compute-only platform APIs** — the deliberate middle: candidates like
+   `TextEncoder`/`TextDecoder`, `URL`/`URLSearchParams`, `atob`/`btoa`,
+   `structuredClone`, `crypto.subtle.digest`, and `console` routed to
+   diagnostics. workerd provides these natively — a major reason the runner
+   is workerd rather than raw V8, which ships no web platform and would
+   force Snapback to hand-build one, creating a third dialect. Handlers see
+   an explicit **allowlist generated as data** and asserted by the twin on
+   both engines. An API enters the allowlist only if (a) Workers provides
+   it, (b) it is deterministic under LLP 0007's replay rules — so
+   `crypto.getRandomValues`/`crypto.randomUUID` stay banned; entropy and ids
+   come from the runtime, like `now` — and (c) Ibex provides matching
+   observable semantics or gains them.
+
+The allowlist is member-granular, not object-granular. Admitting
+`crypto.subtle.digest`, for example, does not admit raw `crypto`,
+`crypto.getRandomValues`, or `crypto.randomUUID`; the harness either exposes a
+Snapback-owned wrapper or proves those members are unreachable. The generated
+allowlist also emits the negative probes: after the V8 global-strip and after
+Ibex additive installation, tests inspect `globalThis`/`self` descriptors and
+try off-list names through obvious aliases, prototype paths, constructor
+escape hatches, and host-object serialization. Codegen bans dynamic-code paths
+(`eval`, `new Function`, dynamic import) on both legs, so the runtime-surface
+test is not bypassable by asking the engine for another evaluator.
+
+The work is therefore asymmetric by design: on the V8 leg the surface is
+**subtractive** (workerd has everything; remove authority and
+nondeterminism), on the Ibex leg **additive** (a lean engine gains exactly
+the allowlisted APIs, or the API is banned for both). "Close enough" is
+measured, not hoped: the twin asserts the same list with the same behavior
+on both legs.
+
+**Proposed first slice (pending Charlie's nod):** encoding
+(`TextEncoder`/`TextDecoder`), `URL`/`URLSearchParams`, base64
+(`atob`/`btoa`), and diagnostics-routed `console`. `structuredClone` and
+`crypto.subtle.digest` enter a second slice only after the member-granular
+wrappers and negative probes are proven — the hard case is member-granular
+crypto exposure, not encoding.
+
+### The conformance contract
+
+Handler semantics are defined by Snapback, not by whichever engine runs them
+(the same rule LLP 0007 pins for query semantics). The conformance corpus
+runs on both engines and diffs. Divergences fall into exactly three classes:
+
+1. **contract violations** — same inputs, different observable handler
+   behavior: fails CI, fixed by pinning the semantics or narrowing the paved
+   path;
+2. **declared engine facts** — real, wanted differences (e.g. enforced CPU
+   limits on V8): reported in the capability manifest, per target profile;
+3. **diagnostic-flavored noise** — error strings, stack shapes, message
+   formatting: normalized before comparison, because diagnostic *text* is
+   engine-flavored and is not part of the contract (stable `SNAPBACK_*`
+   codes are).
+
+A divergence that fits none of these classes blocks the gate until it is
+classified. The report is machine-readable, like the LLP 0010 conformance
+corpus it extends.
+
+### Limits testbed (LLP 0047)
+
+The service boundary is where enforcement is real: the host owns the workerd
+process and can kill a stuck handler regardless of what the handler does. The
+first V8 runner's kill domain is **one invocation**: if enforcement is process
+termination, the runner starts one workerd process per invocation, serializes
+work so no unrelated invocation shares the kill domain, or uses an equivalent
+isolate/request cancellation primitive that proves the same collateral-free
+property. Pooling or multiplexing V8 invocations is blocked until it can prove
+LLP 0047's fresh-per-invocation isolation and burn-on-uncertainty semantics.
+On the V8 leg, LLP 0047's first acceptance items execute locally and
+deterministically — a busy-loop query killed with a stable diagnostic and no
+committed writes, an oversized result rejected, a stale continuation refused.
+The V8 leg's capability manifest — internal profile id
+`local-conformance-sqlite-workerd-v8`, named to be unmistakably non-public so
+generated clients cannot mistake it for a supported `local-dev-sqlite-v8` —
+reports its limit fields and kill-domain facts computed on the real runtime;
+the Ibex leg's manifest is untouched and stays honest
+(`wall_clock_timeout`/`cpu_budget` Missing, `action_wall_clock_timeout`
+Enforced — LLP 0009).
+
+### Security posture, stated asymmetrically
+
+The two engines are strong on different axes, and the manifests must say so
+rather than imply equivalence (LLP 0009 §Engine and threat model, extended by
+the DK-5 re-decision): Ibex denies ambient authority **by construction** —
+the host hands in capabilities and nothing else exists; the V8 leg achieves
+the same posture **by discipline** — the harness strips globals, and the
+denial suite (probing both directions: ambient globals and host-object
+reach-through, per LLP 0040) is what keeps that discipline from eroding until
+Workers for Platforms enforces it at the platform layer. Local workerd is not
+treated as a hardened sandbox; it is deterministic conformance and
+limit-preflight evidence for trusted local tooling, not proof that
+`hosted_untrusted_code` can graduate without the real platform defense-in-depth
+and LLP 0047 evidence. Conversely the V8 leg gets killability and computed
+limits Hermes cannot offer. Neither leg's report may claim the other's
+strength.
+
+### Distribution posture
+
+workerd is a dev/CI dependency (npm-distributed), never part of the product
+binary — [LLP 0041](./0041-packaged-dev-loop.rfc.md)'s runtime-distribution
+story remains Hermes-only. The twin backend is not the default, is not
+required for ordinary local development, and its absence is a capability
+fact, not an error.
+
+### Sequencing
+
+Prerequisite-shaped, without over-serializing: LLP 0040's first real deploy
+requires the twin's conformance gate green on the corpus subset that covers
+the proof's app surface. Full-corpus breadth and CI cadence can trail (see
+Open Questions). The twin can begin immediately — it needs no Cloudflare
+account, which is the point.
+
+**Proposed minimum gate for LLP 0040's first deploy (pending Charlie's
+nod):** the harness envelope suites (settlement, unhandled rejection), the
+async `ctx` host-call corpus covering the proof's app surface (its query,
+mutation, and subscription shapes), the two-direction ambient-power denial
+suite, one end-to-end V8 mutation, and the busy-loop kill path LLP 0047
+expects. Demo acceptance suites are not part of the gate; full corpus
+breadth trails in CI.
+
+### Implementation slices
+
+1. Extract the single-sourced handler harness and generated workerd/deploy
+   runtime config, including the Workers-dialect API allowlist and negative
+   probes.
+2. Add the workerd executor behind the existing handler-execution seam with a
+   one-invocation kill domain, the private host-call transport, and the
+   machine-readable trace schema.
+3. Extend the conformance runner to execute the same corpus on Ibex and V8,
+   diff host-call traces, normalize diagnostic text, and emit the classified
+   divergence report.
+4. Add the internal V8 capability manifest profile with workerd version facts,
+   compat config, kill-domain facts, and computed limits, without making it a
+   public supported target profile.
+5. Make LLP 0040's deploy template consume the same harness/config only after
+   the local gate for the proof's app-surface corpus is green.
+
+## Non-goals
+
+- Reopening [LLP 0002](./0002-canonical-local-target.decision.md): Ibex +
+  SQLite stays the canonical local target and the default engine.
+- Embedding V8 (`rusty_v8`/`deno_core`) in the `snapback` binary — the
+  second-native-bring-up cost DK-5 refused still holds.
+- A Node.js-hosted runner (wrong V8, wrong globals; fidelity is the point).
+- Claiming hosted or untrusted execution — LLP 0047 still gates that claim;
+  the twin runs trusted code as local tooling.
+- A public, supported `local-dev-sqlite-v8` target profile in v1. The runner
+  may graduate into one later if users want V8-local semantics; that is a
+  separate decision with its own manifest, docs, and support surface.
+- Replacing LLP 0040's real-Cloudflare evidence: the twin produces engine
+  evidence; hibernation, billing, placement, and platform limits remain
+  deploy-only evidence (LLP 0040 §Measurements, evidence split).
+
+## Acceptance
+
+- The conformance corpus runs against both engines with only the handler
+  executor swapped — same storage, host operation implementation, generated
+  artifacts, logical host-call protocol, and public wire. Physical transport
+  differences are hidden behind equivalent host-call traces. The runner emits
+  a machine-readable divergence report in which every divergence is a fixed
+  contract violation, a protocol-adapter bug, a declared engine fact, or
+  normalized diagnostic noise; an unclassified divergence blocks the gate.
+- The harness (global-strip, `ctx` marshaling, completion envelope) is
+  single-sourced with LLP 0040's deployed Worker, and the workerd compat
+  flags are generated from the same source as the deploy config; unsupported
+  compatibility dates, accidental Node compatibility flags, or config mismatch
+  are structured failures — including a generated-config test that requests
+  `nodejs_compat` and is refused.
+- The ambient-power denial suite passes on both engines, probing both
+  ambient globals and direct host-object reach-through.
+- The handler-visible global surface is an explicit generated allowlist in
+  the Workers dialect; the twin asserts the same member-granular list with the
+  same observable behavior on both engines, and anything off-list is
+  unreachable (covered by descriptor checks and the denial suite).
+- A busy-loop query on the V8 leg is killed with a stable `SNAPBACK_*`
+  diagnostic, no committed writes, and no collateral kill of an unrelated live
+  invocation; a killed mutation commits nothing.
+- A non-settling handler and an unhandled detached rejection produce the
+  same structured failures on both engines
+  (`SNAPBACK_HANDLER_DID_NOT_SETTLE`, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`)
+  — LLP 0009's conformance floor is engine-neutral in practice, not just in
+  prose.
+- The V8 leg serves the internal `local-conformance-sqlite-workerd-v8`
+  capability manifest, distinct from `local-dev-sqlite-ibex`, with workerd
+  version facts, compatibility config, kill-domain facts, and limit fields
+  computed on the real runtime; the Ibex leg's manifest is unchanged.
+- The twin leg runs in CI with no Cloudflare credentials.
+
+## Open Questions
+
+- Does the proposed first allowlist slice stand (encoding, URL, base64,
+  `console`; `structuredClone`/`crypto.subtle.digest` deferred), and for each
+  admitted API does Ibex gain it natively or via a harness-installed
+  implementation?
+- CI cadence: is the twin leg per-change on the conformance corpus with the
+  full demo suite nightly, or full-suite per-change?
+- Physical transport for the private host-call protocol: stdio pipe, unix
+  socket, or local HTTP — and what trace schema proves equivalence without
+  exposing a public route?
+- Does the proposed minimum gate for LLP 0040's first deploy stand (harness
+  envelope, `ctx` host-call corpus for the proof's app surface, two-direction
+  denial, one end-to-end V8 mutation, busy-loop kill), or must any demo
+  acceptance suite join it?
+- Does the twin join LLP 0035's benchmark harness in v1 (the expected shape:
+  Hermes faster at spinup, V8 faster on JITed hot paths, the gap narrowing
+  under fresh-per-invocation execution), or is that a later research pass?
+
+## Status
+
+Draft. This RFC executes the DK-5 re-decision (LLP 0009 §Decision DK-5) and
+is prerequisite-shaped for LLP 0040's first deploy.
