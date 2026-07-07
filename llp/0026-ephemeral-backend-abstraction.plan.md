@@ -5,7 +5,12 @@
 **Systems:** Realtime, Ephemeral state, Runtime, Deployment, Client integration, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-29
-**Revised:** 2026-07-02 (LLP 0032 L9 landed: Phases 1+2 marked landed with
+**Revised:** 2026-07-07 (ENG-23346: the destructive-replacement boundary
+clears only the ephemeral outbox lanes — queued durable live-query payloads
+answer subscriptions that survive the boundary and are preserved; the
+runtime reset still clears whole outboxes because it retires the durable
+world too, and its caller signals the dropped durable subscriptions).
+Previously 2026-07-02 (LLP 0032 L9 landed: Phases 1+2 marked landed with
 their tests, then reconciled with the concurrently-landed ENG-22478 D2
 resync-boundary semantics — EpochChanged on destructive replacement,
 Restarted on reset, outboxes cleared at the boundary. Earlier the same day,
@@ -134,8 +139,14 @@ incarnation allocates its `scopeEpoch` from a store-global monotonic
 counter — and a `ResyncRequired` boundary is delivered to registered
 subscribers when the authority discards their rooms: `Restarted` on explicit
 runtime reset, `EpochChanged` on destructive definition replacement (both
-covered by tests). Outboxes are cleared wholesale at the boundary —
-everything queued belongs to the retired epoch world. `AuthRevoked` and
+covered by tests). At the boundary each outbox's ephemeral lanes are
+cleared — everything queued *in those lanes* belongs to the retired epoch
+world — while the durable lane survives a definition replacement, because
+durable live-query subscriptions are not part of the ephemeral epoch world
+and no durable resync would ever signal their queued payloads' loss
+(ENG-23346; the runtime reset, which retires the durable world too, clears
+whole outboxes and its caller signals the dropped durable subscriptions —
+ENG-23333). `AuthRevoked` and
 `AuthChanged` still have no owning event — durable permission-change
 revocation is deliberately deferred (§Auth and revocation) — so those two
 variants are removed until the events that own them exist, rather than
@@ -232,10 +243,16 @@ correctness, and sharded locks match the codebase's existing style
   replacement retire every room and deliver a `ResyncRequired` boundary to
   each registered subscriber (previously: silent discard) — `Restarted` for
   reset, `EpochChanged` for replacement, the reasons ratified upstream by
-  ENG-22478 review fix D. Outboxes are cleared wholesale before the
-  boundaries are pushed: everything queued belongs to the retired epoch
-  world, and the boundary is what turns the epoch bump into a
-  resubscription instead of silent stale drops.
+  ENG-22478 review fix D. Each outbox's ephemeral lanes are cleared before
+  the boundaries are pushed: everything queued in those lanes belongs to
+  the retired epoch world, and the boundary is what turns the epoch bump
+  into a resubscription instead of silent stale drops. Durable lanes are
+  not the ephemeral store's to wipe (ENG-23346): queued
+  `live_replace`/`live_delta` payloads answer durable subscriptions that
+  survive a definition replacement, so they are preserved. Only the runtime
+  reset — which retires the durable world too — clears whole outboxes, and
+  `LocalSnapback::reset` follows it with a durable `resync_required` per
+  dropped subscription (ENG-23333), keeping the drop signaled.
 - **Expiry index.** An ordered `(deadline, RoomId)` set with at most one
   entry per room — a lower bound on the room's earliest expiry, mirrored as
   the room's `indexed_deadline`. A publish touches the index only when it

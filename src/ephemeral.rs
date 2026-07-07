@@ -818,6 +818,21 @@ impl OutboundQueue {
         false
     }
 
+    /// Drop the lanes that belong to the ephemeral epoch world — the
+    /// latest-state map and the resync lane — while preserving the durable
+    /// lane. Pending `live_replace`/`live_delta` payloads answer durable
+    /// subscriptions that survive an ephemeral boundary (`apply_schema`
+    /// leaves `LocalSnapback::subscriptions` fully live), so discarding them
+    /// here would be a silent drop no resync signal ever repairs (ENG-23346).
+    /// An overflowed queue is left as-is: its durable lane already holds
+    /// exactly the sticky connection-wide resync sentinel.
+    ///
+    /// @ref LLP 0008#realtime-delivery — never a silent drop.
+    fn clear_ephemeral_lanes(&mut self) {
+        self.resync.clear();
+        self.ephemeral.clear();
+    }
+
     fn drain(&mut self) -> Vec<RealtimeEnvelope> {
         let mut messages = Vec::new();
         while let Some(message) = self.durable.pop_front() {
@@ -1108,6 +1123,14 @@ impl LocalEphemeralBackend {
     /// resync signals are counted, since they follow the counter reset).
     pub fn reset_runtime_state(&self) {
         self.shared.counters.reset();
+        // The runtime reset retires the durable world too (the caller wipes
+        // the database and drops every live subscription), so queued durable
+        // payloads are pre-reset state: clear whole outboxes here, durable
+        // lanes included — unlike the ephemeral-only boundary in
+        // `wipe_rooms_signaling_resync` (ENG-23346). The drop is not silent:
+        // `LocalSnapback::reset` enqueues a durable `resync_required` per
+        // dropped subscription AFTER this call returns (ENG-23333).
+        lock(&self.shared.outboxes).clear();
         self.wipe_rooms_signaling_resync(ResyncReason::Restarted);
         lock(&self.shared.rate_buckets).clear();
     }
@@ -1763,11 +1786,16 @@ impl LocalEphemeralBackend {
     /// registered subscriber: runtime reset (`Restarted`) and destructive
     /// definition replacement (`EpochChanged`) discard the authority's state
     /// under live connections, and going silent would leave subscribers
-    /// believing a dead stream is current (the scope-epoch finding). Outboxes
-    /// are cleared wholesale before the boundaries are pushed — the ratified
-    /// ENG-22478 shape: everything queued belongs to the retired epoch world,
-    /// and the resync boundary is what turns the epoch bump into an overlay
-    /// resubscription instead of silent `ignored_stale` drops.
+    /// believing a dead stream is current (the scope-epoch finding). Each
+    /// outbox's *ephemeral* lanes are cleared before the boundaries are
+    /// pushed — the ratified ENG-22478 shape: everything queued in those
+    /// lanes belongs to the retired epoch world, and the resync boundary is
+    /// what turns the epoch bump into an overlay resubscription instead of
+    /// silent `ignored_stale` drops. The durable lanes survive (ENG-23346):
+    /// queued live-query payloads answer durable subscriptions that outlive
+    /// an ephemeral boundary, and no durable resync would ever signal their
+    /// loss. A boundary that retires the durable world too must clear the
+    /// outbox map itself and signal durably, as `reset_runtime_state` does.
     ///
     /// Only the retired rooms' own index entries are removed (each via its
     /// `indexed_deadline` mirror, exactly as `prune_room_if_empty` does) —
@@ -1812,7 +1840,10 @@ impl LocalEphemeralBackend {
                 ));
             }
         }
-        lock(&self.shared.outboxes).clear();
+        let outboxes: Vec<SharedOutbox> = lock(&self.shared.outboxes).values().cloned().collect();
+        for outbox in outboxes {
+            lock(&outbox).clear_ephemeral_lanes();
+        }
 
         for (connection_id, message) in resyncs {
             let outbox = self.ensure_outbox(&connection_id, default_max_pending_ephemeral_keys());
@@ -3284,9 +3315,14 @@ mod tests {
     /// ENG-22478 reasons: a destructive definition replacement delivers
     /// `ResyncRequired { reason: EpochChanged }` and an explicit runtime
     /// reset delivers `ResyncRequired { reason: Restarted }` to registered
-    /// subscribers instead of silently discarding their rooms. Outboxes are
-    /// cleared wholesale at the boundary (everything queued belongs to the
-    /// retired epoch world), so the boundary is the only message left.
+    /// subscribers instead of silently discarding their rooms. The
+    /// definition-replacement boundary is ephemeral-only: queued *ephemeral*
+    /// messages belong to the retired epoch world and are replaced by the
+    /// boundary, but queued *durable* live-query payloads answer
+    /// subscriptions that survive the boundary and must be delivered, not
+    /// silently dropped (ENG-23346). The runtime reset retires the durable
+    /// world too, so there the whole outbox goes (the caller signals the
+    /// dropped durable subscriptions itself, ENG-23333).
     #[test]
     fn l9_reset_and_destructive_replace_signal_resync_boundaries() {
         let backend = LocalEphemeralBackend::new();
@@ -3301,6 +3337,9 @@ mod tests {
         };
         backend.subscribe(subscribe.clone(), 1_000).unwrap();
         backend.enqueue_durable("observer", b"{\"kind\":\"live_replace\"}".to_vec());
+        // A connection holding only durable traffic — no ephemeral
+        // subscription — must be untouched by the ephemeral boundary.
+        backend.enqueue_durable("durable-only", b"{\"kind\":\"live_delta\"}".to_vec());
 
         // Destructive replacement: a changed definition retires the epoch.
         let mut changed = collection.clone();
@@ -3310,16 +3349,29 @@ mod tests {
         let messages = backend.drain_outbox("observer");
         assert_eq!(
             messages.len(),
-            1,
-            "the boundary replaces everything queued in the retired epoch world"
+            2,
+            "durable payload survives the ephemeral boundary; the boundary replaces the ephemeral lanes"
         );
         assert!(matches!(
             &messages[0],
+            RealtimeEnvelope::Durable(DurableMessage { payload })
+                if payload == b"{\"kind\":\"live_replace\"}"
+        ));
+        assert!(matches!(
+            &messages[1],
             RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
                 reason: ResyncReason::EpochChanged,
                 ..
             })
         ));
+        let durable_only = backend.drain_outbox("durable-only");
+        assert_eq!(
+            durable_only,
+            vec![RealtimeEnvelope::Durable(DurableMessage {
+                payload: b"{\"kind\":\"live_delta\"}".to_vec()
+            })],
+            "a durable-only connection's queue is not the ephemeral store's to wipe"
+        );
 
         // Explicit runtime reset: subscribers get the restart boundary.
         backend.subscribe(subscribe, 2_000).unwrap();
