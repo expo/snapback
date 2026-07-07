@@ -138,7 +138,11 @@ fn settled_variant_of_the_same_handler_commits_both_writes() {
         .expect("settled mutation");
     assert_eq!(output.result, json!({}));
     let rows = items(&snapback);
-    assert_eq!(rows.len(), 2, "both inserts commit when the handler settles");
+    assert_eq!(
+        rows.len(),
+        2,
+        "both inserts commit when the handler settles"
+    );
 }
 
 #[test]

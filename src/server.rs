@@ -169,8 +169,8 @@ async fn run_detached_ibex_action(
                     runtime,
                 } = *action;
                 let mut host = DetachedActionHost { state, abandoned };
-                let _ =
-                    sender.send(runtime.invoke_ibex_action(&module, input, metadata, &mut host, grants));
+                let _ = sender
+                    .send(runtime.invoke_ibex_action(&module, input, metadata, &mut host, grants));
             }
         });
     if let Err(error) = spawned {
@@ -341,15 +341,14 @@ impl ConnectionRegistry {
         allow_suggested: bool,
     ) -> ConnectionGrant {
         let mut grants = self.lock();
-        if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token) {
-            if let Some(existing) = grants.get(id) {
-                if constant_time_str_eq(existing, previous) {
-                    return ConnectionGrant {
-                        connection_id: id.clone(),
-                        connection_token: existing.clone(),
-                    };
-                }
-            }
+        if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token)
+            && let Some(existing) = grants.get(id)
+            && constant_time_str_eq(existing, previous)
+        {
+            return ConnectionGrant {
+                connection_id: id.clone(),
+                connection_token: existing.clone(),
+            };
         }
         let connection_id = match suggested {
             Some(id) if allow_suggested && !id.is_empty() && !grants.contains_key(&id) => id,

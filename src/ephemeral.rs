@@ -1541,7 +1541,7 @@ impl LocalEphemeralBackend {
             if room.retired {
                 continue;
             }
-            self.sweep_room_locked(&mut room, &room_id, collection.as_ref(), now_ms);
+            self.sweep_room_locked(&mut room, room_id, collection.as_ref(), now_ms);
             if room.subscribers.remove(connection_id).is_some() {
                 subscribed_rooms.push((room_id.clone(), room.scope_epoch));
             }
@@ -1561,14 +1561,14 @@ impl LocalEphemeralBackend {
                     .collect::<Vec<_>>();
                 for key in keys {
                     if let Some(message) =
-                        remove_entry_locked(&mut room, &room_id, &key, RemoveReason::Disconnected)
+                        remove_entry_locked(&mut room, room_id, &key, RemoveReason::Disconnected)
                     {
                         self.shared
                             .counters
                             .disconnected_entries
                             .fetch_add(1, Ordering::Relaxed);
                         if let Some(collection) = &collection {
-                            self.fan_out_locked(&room, &room_id, collection, message);
+                            self.fan_out_locked(&room, room_id, collection, message);
                         }
                     }
                 }

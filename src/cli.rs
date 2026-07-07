@@ -290,8 +290,8 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     // still answers /health as the same process (startupNonce match) before
     // signaling, so a reused PID never receives the signal (ENG-23366).
     let health = fetch_health(&descriptor.server_url);
-    let envelope = |ok: bool, data: Value, diagnostics: Vec<crate::diagnostic::Diagnostic>| {
-        HostOpsResult {
+    let envelope =
+        |ok: bool, data: Value, diagnostics: Vec<crate::diagnostic::Diagnostic>| HostOpsResult {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             result_kind: HOST_OPS_RESULT_KIND.to_owned(),
             request_id: format!("hop_{}", Uuid::now_v7().simple()),
@@ -303,8 +303,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             data,
             diagnostics,
             next: Vec::new(),
-        }
-    };
+        };
     if let Err(diagnostic) = verify_stop_target(&descriptor, &health) {
         let refused = envelope(
             false,
@@ -781,9 +780,8 @@ mod tests {
     #[test]
     fn stop_refuses_when_the_responder_reports_no_snapback_identity() {
         let descriptor = stop_descriptor(Some("nonce-a"));
-        let diagnostic =
-            super::verify_stop_target(&descriptor, &Ok(json!({ "hello": "world" })))
-                .expect_err("a non-Snapback responder must not vouch for the pid");
+        let diagnostic = super::verify_stop_target(&descriptor, &Ok(json!({ "hello": "world" })))
+            .expect_err("a non-Snapback responder must not vouch for the pid");
         assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_UNVERIFIABLE");
     }
 

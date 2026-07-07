@@ -915,7 +915,10 @@ async fn s1_public_inspect_redacts_handler_source() {
         .iter()
         .find(|f| f["name"] == "sentinelQuery")
         .expect("sentinelQuery listed");
-    assert_eq!(module_fn["runtime"]["IbexModule"]["export"], "sentinelQuery");
+    assert_eq!(
+        module_fn["runtime"]["IbexModule"]["export"],
+        "sentinelQuery"
+    );
     assert!(
         module_fn["runtime"]["IbexModule"].get("source").is_none(),
         "public runtime projection must not carry a source field"

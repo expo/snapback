@@ -419,7 +419,10 @@ impl<'a> IbexHostContext<'a> {
                     // transaction, so its read set is never consumed. No
                     // buffered-write overlay either — actions cannot buffer
                     // writes (`ensure_writable` rejects them).
-                    let host = self.action_host.as_deref_mut().ok_or_else(action_host_missing)?;
+                    let host = self
+                        .action_host
+                        .as_deref_mut()
+                        .ok_or_else(action_host_missing)?;
                     let output = host.query(&plan, &self.input)?;
                     return serde_json::to_value(output).map_err(|error| {
                         SnapbackError::error(
@@ -471,7 +474,10 @@ impl<'a> IbexHostContext<'a> {
                 if self.mode == IbexInvocationMode::Action {
                     // Host-routed, capture-free read — same rationale as the
                     // action arm of db.query above (ENG-23324).
-                    let host = self.action_host.as_deref_mut().ok_or_else(action_host_missing)?;
+                    let host = self
+                        .action_host
+                        .as_deref_mut()
+                        .ok_or_else(action_host_missing)?;
                     return Ok(host.get(&table, &id)?.unwrap_or(Value::Null));
                 }
                 let stored = self.db().get(&table, &id)?;
@@ -541,7 +547,10 @@ impl<'a> IbexHostContext<'a> {
                     read_set: Vec::new(),
                     correlation: None,
                 };
-                let host = self.action_host.as_deref_mut().ok_or_else(action_host_missing)?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
                 let output = host.run_mutation(&name, input)?;
                 Ok(output.result)
             }

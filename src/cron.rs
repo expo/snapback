@@ -1656,10 +1656,7 @@ mod tests {
                 .details
                 .get("validationErrors")
                 .and_then(Value::as_array)
-                .map(|codes| codes
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .collect::<Vec<_>>()),
+                .map(|codes| codes.iter().filter_map(Value::as_str).collect::<Vec<_>>()),
             Some(vec!["SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED"])
         );
 
@@ -1695,8 +1692,11 @@ mod tests {
         let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
         let mut runtime = LocalCronRuntime::default();
         runtime.reconcile(&manifest);
-        runtime.states.get_mut("poll").expect("state exists").schedule_hash =
-            "fnv1a:stale".to_owned();
+        runtime
+            .states
+            .get_mut("poll")
+            .expect("state exists")
+            .schedule_hash = "fnv1a:stale".to_owned();
         assert!(
             runtime
                 .claim_due_runs(&manifest, &BTreeSet::new(), 600_000)
