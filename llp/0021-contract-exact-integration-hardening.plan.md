@@ -490,6 +490,14 @@ Done:
 - [x] Runtime-link rejected mutations republish authoritative query rows and
   record `SNAPBACK_CONTRACT_MUTATION_FAILED`; Todo v2 covers this in
   [`demos/todo-v2/tests/acceptance/adapter-semantics.mjs`](../demos/todo-v2/tests/acceptance/adapter-semantics.mjs).
+- [x] When that republish itself fails (the mutation failed because the server
+  is unreachable, so reconcile's query fails too), the surface rolls the
+  boundary back from the last known authoritative rows (surviving in-flight
+  optimistic ops re-overlaid), records `SNAPBACK_CONTRACT_RECONCILE_FAILED`,
+  and rethrows the mutation error with the reconcile failure attached as
+  `cause` — no stranded phantom row, no masked mutation error (ENG-23384);
+  covered by
+  [`packages/snapback-contract/mutation-reconcile-failure.test.mjs`](../packages/snapback-contract/mutation-reconcile-failure.test.mjs).
 - [x] Runtime-link mutations and provider mutations use one shared pending set;
   `pendingCount()` is covered by the same no-server adapter semantics runner.
 - [x] `createSnapbackContractSurface` and

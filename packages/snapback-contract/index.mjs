@@ -250,6 +250,13 @@ export async function createSnapbackContractSurface({
     // flashes out. Interim until D2 receipts correlate fan-outs to mutations.
     const inFlightOptimistic = new Set();
 
+    // Last authoritative server rows (ENG-23384): when a reconcile after a
+    // failed mutation cannot reach the server either (same outage, usually),
+    // these are the local rollback source — otherwise the boundary keeps the
+    // failed mutation's optimistic row as ready data with no overlay pass
+    // owning it (non-live mode never rewrites the boundary again on its own).
+    let lastServerRows = [];
+
     const applyOptimisticOverlay = (rows) => {
       let out = rows;
       for (const op of inFlightOptimistic) {
@@ -259,6 +266,7 @@ export async function createSnapbackContractSurface({
     };
 
     const writeServerRows = (rows) => {
+      lastServerRows = rows;
       if (disposed || !boundary) return rows;
       const overlaid = applyOptimisticOverlay(rows);
       boundary.write(boundaryKey, () => overlaid);
@@ -294,10 +302,12 @@ export async function createSnapbackContractSurface({
     } else {
       initial = (await client.query(queryName, { args: queryArgs, userId })).rows;
     }
+    lastServerRows = initial;
     boundary = runtime.createContractMockQueryBoundary({ [boundaryKey]: initial });
     if (wantLivePush && liveHandle.rows !== initial) {
       // An update that raced boundary creation is not lost: rewrite from the
       // handle's latest rows (idempotent when nothing changed).
+      lastServerRows = liveHandle.rows;
       boundary.write(boundaryKey, () => liveHandle.rows);
     }
     // Zero-scope presence rooms subscribe once up front so an `ephemeral`
@@ -349,7 +359,28 @@ export async function createSnapbackContractSurface({
           mutation: name,
           args,
         });
-        await reconcile();
+        try {
+          await reconcile();
+        } catch (reconcileError) {
+          // ENG-23384: a mutation that failed because the server is
+          // unreachable almost always takes reconcile's query down with it.
+          // The failed op is already out of inFlightOptimistic, so no later
+          // overlay pass owns its row — without a local rollback the boundary
+          // presents the phantom row as ready data indefinitely, and the
+          // caller would receive the reconcile error instead of the mutation
+          // failure. Rewrite the boundary from the last known server rows
+          // (surviving in-flight ops re-overlay on top) and surface the
+          // mutation error with the reconcile failure attached as cause.
+          publishDiagnostic(
+            'SNAPBACK_CONTRACT_RECONCILE_FAILED',
+            reconcileError instanceof Error ? reconcileError.message : String(reconcileError),
+            { mutation: name, args },
+          );
+          writeServerRows(lastServerRows);
+          if (error instanceof Error && error.cause === undefined) {
+            error.cause = reconcileError;
+          }
+        }
         throw error;
       }
     };
