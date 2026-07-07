@@ -7,5 +7,8 @@
     ".": "./index.mjs",
     "./define": "./define.mjs",
     "./contract-emitter": "./contract-emitter.mjs"
+  },
+  "scripts": {
+    "test": "node identifier-validation.test.mjs"
   }
 }

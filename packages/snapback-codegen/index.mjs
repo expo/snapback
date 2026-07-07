@@ -33,6 +33,21 @@ const HEADER = generatedByHeader();
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+// ECMAScript reserved words (generated modules are always strict-mode code, so
+// the strict-only set applies too). Function export names are interpolated
+// into emitted declarations (`export function ${name}(`), where a reserved
+// word — reachable via `export { f as delete }` — is a syntax error even
+// though it passes IDENT. `eval` and `arguments` are not reserved words but
+// are equally invalid strict-mode binding names.
+const RESERVED_WORDS = new Set([
+  'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
+  'default', 'delete', 'do', 'else', 'enum', 'export', 'extends', 'false',
+  'finally', 'for', 'function', 'if', 'implements', 'import', 'in',
+  'instanceof', 'interface', 'let', 'new', 'null', 'package', 'private',
+  'protected', 'public', 'return', 'static', 'super', 'switch', 'this',
+  'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
+  'eval', 'arguments',
+]);
 const SCHEMA_VERSION = 'snapback.v0';
 const TARGET_PROFILE = 'local-dev-sqlite-ibex';
 
@@ -324,6 +339,32 @@ export async function generate(backendDir) {
       continue;
     }
     if (!isFunctionDef(def)) continue;
+    // Function export names flow unescaped into emitted declarations
+    // (`export function ${name}(`), pascal-cased type names, unquoted
+    // interface members, and contract module file paths (`${name}.query.ts`);
+    // ES2022 `export { f as "any string" }` makes arbitrary export names
+    // reachable, and `export { f as delete }` makes reserved words reachable.
+    // Fail closed like the table/field/ephemeral/cron namespaces.
+    if (!IDENT.test(name) || RESERVED_WORDS.has(name)) {
+      err('FUNCTION_INVALID_IDENTIFIER', 'function', `invalid function export name ${name}`, { function: name });
+      continue;
+    }
+    for (const [argName, argVal] of Object.entries(def.args)) {
+      // Arg names and nested v.object field names become unquoted TS property
+      // names in api.d.ts, runtime-links.ts, and the per-binding Args types.
+      if (!IDENT.test(argName)) {
+        err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: invalid arg identifier ${argName}`, { function: name, arg: argName });
+        continue;
+      }
+      checkObjectValidatorFieldIdents(argVal, `arg ${argName}`, (fieldName, where) => {
+        err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: ${where} has invalid field identifier ${fieldName}`, { function: name, arg: argName, field: fieldName });
+      });
+    }
+    if (def.result) {
+      checkObjectValidatorFieldIdents(def.result, 'result', (fieldName, where) => {
+        err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: ${where} has invalid field identifier ${fieldName}`, { function: name, field: fieldName });
+      });
+    }
     const argNames = new Set(Object.keys(def.args));
 
     const checkExpr = (expr, where) => {
@@ -751,8 +792,17 @@ function buildEphemeralCollections(ephemeralDef, err) {
     for (const field of scopeFields) {
       if (!IDENT.test(field)) {
         err('EPHEMERAL_INVALID_SCOPE_FIELD', 'ephemeral', `${name} has invalid scope field ${field}`, { collection: name, field });
+        continue;
       }
+      checkObjectValidatorFieldIdents(def.scope?.[field], `scope field ${field}`, (fieldName, where) => {
+        err('EPHEMERAL_INVALID_SCOPE_FIELD', 'ephemeral', `${name} ${where} has invalid field identifier ${fieldName}`, { collection: name, field: fieldName });
+      });
     }
+    // The value validator's nested v.object field names reach the emitted
+    // scope/value TS types (typeForValidator) unescaped, same as scope fields.
+    checkObjectValidatorFieldIdents(def.value, 'value', (fieldName, where) => {
+      err('EPHEMERAL_INVALID_VALUE_FIELD', 'ephemeral', `${name} ${where} has invalid field identifier ${fieldName}`, { collection: name, field: fieldName });
+    });
 
     const routingFields = def.routing ?? scopeFields;
     if (!Array.isArray(routingFields) || routingFields.length === 0) {
@@ -1154,6 +1204,23 @@ function mutationReadTables(plan) {
     if (kind === 'Patch' || kind === 'Delete') reads.add(body.table);
   }
   return [...reads];
+}
+
+// Nested v.object field names are emitted as unquoted TS property names by
+// typeForValidator (api.d.ts, runtime-links.ts, per-binding Args types) and as
+// manifest keys, so they must satisfy IDENT like every other codegen
+// namespace. Recurses through nested objects; reports each bad name once via
+// the caller-supplied diagnostic emitter (reserved words are fine here —
+// property positions accept them).
+function checkObjectValidatorFieldIdents(val, where, report) {
+  if (!val?.__validator || val.primitive !== 'object') return;
+  for (const [fieldName, field] of Object.entries(val.fields ?? {})) {
+    if (!IDENT.test(fieldName)) {
+      report(fieldName, where);
+      continue;
+    }
+    checkObjectValidatorFieldIdents(field, `${where}.${fieldName}`, report);
+  }
 }
 
 function argDescriptors(args) {

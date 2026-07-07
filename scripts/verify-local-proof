@@ -57,6 +57,7 @@ run node demos/_kit/tests/regression-mixed-transport.mjs
 run node demos/_kit/tests/regression-multiplexed-lanes.mjs
 run node demos/_kit/tests/live-delta-e2e.mjs
 run node packages/snapback-contract/build-preset.test.mjs
+run node packages/snapback-codegen/identifier-validation.test.mjs
 
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then
