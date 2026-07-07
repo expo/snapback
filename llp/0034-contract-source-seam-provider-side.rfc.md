@@ -173,6 +173,12 @@ agree (0284 §2.1 rule 3).
   sticky resync signal; permission changes enqueue `resync_required`
   (`src/local.rs:1404`). Both drive a fresh `subscribe_live` and a
   `resubscribed` receipt with `reason: 'overflow' | 'permission-epoch'`.
+  Because the overflow sentinel is one-shot per episode (pushes are dropped
+  while overflowed; the flag resets only on drain), a `resync_required`
+  consumed while another resubscribe is already in flight is recorded as a
+  demand — the in-flight run loops one more fresh subscribe once its POST
+  resolves, and the in-flight subscribe does not clear the outstanding need
+  (ENG-23429; `demos/_kit/tests/regression-midflight-resync.mjs`).
 - **Ephemeral never resumes (promoted from OQ to fact):** `resume_live`
   operates only on durable live-query subscriptions; ephemeral reconnect
   always re-snapshots through the resync lane. Under `stale`/`disconnected`

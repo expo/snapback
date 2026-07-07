@@ -646,6 +646,16 @@ export class SnapbackClient {
     // loss must not clear needsResubscribe (the dying socket's server-side
     // disconnect may have destroyed the subscription it just created).
     let socketLossEpoch = 0;
+    // Bumped when a resubscribe demand arrives while another resubscribe is
+    // already in flight (ENG-23429). The server's overflow sentinel is
+    // one-shot per episode (src/ephemeral.rs OutboundQueue::overflow —
+    // pushes are dropped while overflowed and the flag resets only on
+    // drain), so a resync_required consumed mid-resubscribe is the ONLY
+    // signal for the deltas dropped after the in-flight snapshot was taken.
+    // A subscribe that was in flight when the demand landed must not clear
+    // needsResubscribe, and the in-flight resubscribe loops for another
+    // fresh subscribe once it resolves.
+    let resubscribeDemandEpoch = 0;
     let pendingResubscribeReason = 'reconnect';
     let resubscribeRetryTimer = null;
     let resubscribeAttempts = 0;
@@ -756,14 +766,18 @@ export class SnapbackClient {
       // paths) is explicitly superseded; the first establish has none.
       const supersedes = handle.subscriptionId ?? null;
       const epochAtStart = socketLossEpoch;
+      const demandEpochAtStart = resubscribeDemandEpoch;
       const sub = await client.subscribeLive(name, { connectionId, args, userId, correlation, supersedes });
       // Any successful fresh subscribe satisfies an outstanding need — clear
       // it here so every path (establish, resume, resubscribe) agrees —
       // UNLESS a socket loss raced the in-flight request (ENG-23428): the
       // lost socket's server-side disconnect may have destroyed the very
       // subscription this call created, so the need persists and the
-      // retry/grace/drain paths re-enter with a fresh subscribe.
-      if (socketLossEpoch === epochAtStart) {
+      // retry/grace/drain paths re-enter with a fresh subscribe. A resync
+      // demand that landed while this request was in flight persists the
+      // need the same way (ENG-23429): this snapshot may predate the state
+      // the demand signals, and the sentinel is never re-emitted.
+      if (socketLossEpoch === epochAtStart && resubscribeDemandEpoch === demandEpochAtStart) {
         needsResubscribe = false;
         resubscribeAttempts = 0;
         clearResubscribeRetry();
@@ -830,19 +844,41 @@ export class SnapbackClient {
     // registered server-side until the connection disconnects or is reaped;
     // its updates are ignored by subscription-id filtering above.
     const resubscribe = async (reason) => {
-      if (disposed || paused || resubscribing) return false;
+      if (disposed || paused) return false;
+      if (resubscribing) {
+        // A resync demand arrived while another fresh subscribe is in
+        // flight (e.g. the connection's one-shot overflow sentinel drained
+        // mid-resubscribe, ENG-23429). Swallowing it would lose the only
+        // signal for the deltas dropped after the in-flight snapshot was
+        // taken (LLP 0008: overflow is a resync signal, never a drop) —
+        // record the demand so the in-flight run loops for another fresh
+        // subscribe once its POST resolves, and keep the need visible to
+        // the retry/drain paths in case that run fails instead.
+        resubscribeDemandEpoch += 1;
+        needsResubscribe = true;
+        pendingResubscribeReason = reason;
+        return false;
+      }
       resubscribing = true;
       needsResubscribe = true;
       pendingResubscribeReason = reason;
+      let attemptReason = reason;
       try {
-        await subscribeFresh();
-        emitEvent('resubscribed', { reason });
-        onUpdate?.(handle.rows, { version: handle.version, kind: 'snapshot' });
-        settleConnectionAfterSubscribe();
-        return true;
+        for (;;) {
+          const demandEpochBefore = resubscribeDemandEpoch;
+          await subscribeFresh();
+          emitEvent('resubscribed', { reason: attemptReason });
+          onUpdate?.(handle.rows, { version: handle.version, kind: 'snapshot' });
+          settleConnectionAfterSubscribe();
+          if (disposed || paused || resubscribeDemandEpoch === demandEpochBefore) return true;
+          // A demand landed while that subscribe was in flight: its
+          // snapshot may be stale relative to the demand — go around with
+          // another fresh subscribe (which supersedes the one just landed).
+          attemptReason = pendingResubscribeReason;
+        }
       } catch (error) {
         onConnectionChange?.(connection, { previous: connection, error });
-        scheduleResubscribeRetry(reason);
+        scheduleResubscribeRetry(pendingResubscribeReason);
         return false;
       } finally {
         resubscribing = false;
