@@ -605,6 +605,12 @@ export async function createSnapbackContractSurface({
 // ever arrives after a server restart), socket regain re-enters through a
 // fresh snapshot-with-subscribe per room, and the presented connection holds
 // 'stale' until that subscribe lands (never 'live' over a dead room).
+// Residual race (ENG-23387): the subscribe itself is an HTTP POST, so a
+// wasOpen loss can land while one is in flight — its registration dies with
+// the old socket, and a resolve from before the loss must not claim
+// subscribed. Each record carries a socket-loss epoch; a subscribe resolving
+// from a stale epoch keeps the record unsubscribed (still swapping the
+// overlay) and immediately re-enters.
 //
 // Force semantics (forceEphemeralState LOCAL-ONLY, force-reaches-live,
 // dispose-restores) come from the Exact runtime's boundary provider force
@@ -711,20 +717,45 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
   };
 
   const createRecord = async (name, args, permissions) => {
-    const overlay = await client.subscribeEphemeral(name, {
-      connectionId,
-      scope: { ...args },
-      userId,
-      permissions,
+    // ENG-23387: the subscribe is an HTTP POST independent of the shared
+    // socket, so an OPEN socket can be lost while it is in flight — the
+    // server's disconnect drops the registration this subscribe just created
+    // (src/ephemeral.rs disconnect), and no in-band needs_resync will
+    // ever arrive for the dead room. Count wasOpen losses across the initial
+    // in-flight window (this listener attaches BEFORE dispatch, closing the
+    // gap before record.offState exists); a subscribe that raced one is
+    // dead-on-arrival — the record starts unsubscribed and re-enters through
+    // attemptResync at the bottom of this function.
+    const manager = client.liveStreamManager(connectionId);
+    let subscribeLosses = 0;
+    // This temporary listener also holds shared-socket demand — detaching a
+    // manager's LAST listener closes AND releases it (demos/_kit/client.mjs
+    // #listen), so it stays attached until the record's own onState below
+    // holds demand. On failure paths it detaches last, releasing the manager
+    // exactly as if the record had never existed.
+    const offSubscribeLoss = manager.onState((state, detail = {}) => {
+      if (state === 'lost' && detail.wasOpen) subscribeLosses += 1;
     });
-    if (disposed) {
-      overlay.dispose();
-      throw new Error('surface disposed during ephemeral subscribe');
+    let overlay;
+    try {
+      overlay = await client.subscribeEphemeral(name, {
+        connectionId,
+        scope: { ...args },
+        userId,
+        permissions,
+      });
+      if (disposed) {
+        overlay.dispose();
+        throw new Error('surface disposed during ephemeral subscribe');
+      }
+    } catch (error) {
+      offSubscribeLoss();
+      throw error;
     }
     const record = {
       overlay,
       connection: 'connecting',
-      subscribed: true,
+      subscribed: subscribeLosses === 0,
       listeners: new Set(),
       offState: null,
       expiryTimer: null,
@@ -734,6 +765,10 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       tornDown: false,
       disposalEntry: null,
       resyncInFlight: false,
+      // Socket-loss epoch (ENG-23387): bumped on every wasOpen loss so a
+      // subscribe dispatched before the loss can recognize its resolve as
+      // stale (the registration it created died with the old socket).
+      socketLossEpoch: 0,
       notify: null,
     };
     record.notify = () => {
@@ -761,6 +796,7 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
         record.resyncTimer = null;
       }
       record.resyncInFlight = true;
+      const epochAtDispatch = record.socketLossEpoch;
       void client
         .subscribeEphemeral(name, { connectionId, scope: { ...args }, userId, permissions })
         .then((fresh) => {
@@ -772,9 +808,25 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
           const superseded = record.overlay;
           record.overlay = fresh;
           superseded.dispose();
-          record.subscribed = true;
           record.resyncAttempts = 0;
           fresh.onChange(handleChange);
+          if (record.socketLossEpoch !== epochAtDispatch) {
+            // ENG-23387: a wasOpen loss landed while this HTTP subscribe was
+            // in flight — the server's disconnect dropped the registration it
+            // created, so this resolve must NOT claim subscribed: the 'open'
+            // handler's !record.subscribed guard would then skip the real
+            // re-subscribe and freeze the map under a 'live' banner (the
+            // ENG-22541 state, resurfacing through this ordering). The
+            // overlay still swaps (newest snapshot; the superseded
+            // registration is equally dead) but the record stays
+            // unsubscribed and re-enters immediately — if the socket already
+            // regained, no future 'open' event would trigger it.
+            record.subscribed = false;
+            record.notify();
+            attemptResync();
+            return;
+          }
+          record.subscribed = true;
           record.notify();
         })
         .catch(() => {
@@ -811,7 +863,6 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
 
     // Connection axis: the shared live socket's state is the map's transport
     // truth (same connection the durable lanes ride).
-    const manager = client.liveStreamManager(connectionId);
     record.connection = manager.isOpen() ? 'live' : 'connecting';
     record.offState = manager.onState((state, detail = {}) => {
       // Reconnect policy (ENG-22541): mirror the kit's durable-lane
@@ -824,6 +875,7 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       // nothing. Any successful fresh subscribe (attemptResync) clears the
       // need, so a resync that landed during the outage is not repeated.
       if (state === 'lost' && detail.wasOpen) {
+        record.socketLossEpoch += 1;
         record.subscribed = false;
       }
       if (state === 'open' && !record.subscribed) {
@@ -844,6 +896,9 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
         record.notify();
       }
     });
+    // record.offState now holds the socket demand; the in-flight loss
+    // listener can detach without closing/releasing the shared manager.
+    offSubscribeLoss();
     overlay.onChange(handleChange);
     record.disposalEntry = () => {
       record.tornDown = true;
@@ -858,6 +913,13 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
     };
     disposals.add(record.disposalEntry);
     scheduleExpiryReemit(record);
+    if (!record.subscribed) {
+      // ENG-23387: the initial subscribe raced a wasOpen loss, so its
+      // registration is already dead server-side. Re-enter now — the socket
+      // may already have regained (its 'open' fired before this record's
+      // onState existed, so nothing else would trigger the re-subscribe).
+      attemptResync();
+    }
     return record;
   };
 
