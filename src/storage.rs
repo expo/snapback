@@ -1134,6 +1134,13 @@ impl WithDetail for SnapbackError {
 
 fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     let mut tables = BTreeSet::new();
+    // SQLite index names are database-global, and the physical name is
+    // `{table}_{index}` joined with `_` — a character both identifiers may
+    // contain — so distinct declarations can join to the same physical name
+    // (table `foo` + index `bar_baz` vs table `foo_bar` + index `baz`).
+    // Validate joined names globally; otherwise the second index would
+    // silently never be created (`create_index` would find the first one).
+    let mut physical_index_names: BTreeMap<String, String> = BTreeMap::new();
     for table in &manifest.tables {
         validate_user_identifier("table", &table.name)?;
         if !tables.insert(table.name.clone()) {
@@ -1171,6 +1178,25 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                     "SNAPBACK_SCHEMA_DUPLICATE_INDEX",
                     "schema",
                     format!("duplicate index {}.{}", table.name, index.name),
+                ));
+            }
+            let physical = format!("{}_{}", table.name, index.name);
+            let declaration = format!("{}.{}", table.name, index.name);
+            if let Some(previous) = physical_index_names.insert(physical.clone(), declaration) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION",
+                    "schema",
+                    format!(
+                        "index {}.{} and {previous} share the physical index name \
+                         {physical}; SQLite index names are database-global — \
+                         rename one of them",
+                        table.name, index.name
+                    ),
+                )
+                .with_detail("physicalName", physical)
+                .with_detail(
+                    "declarations",
+                    json!([previous, format!("{}.{}", table.name, index.name)]),
                 ));
             }
             if index.fields.is_empty() {
@@ -1312,6 +1338,21 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
     Ok(())
 }
 
+/// Create or rebuild a declared index so the physical index always matches
+/// the manifest.
+///
+/// SQLite index names are database-global and `CREATE INDEX IF NOT EXISTS`
+/// matches on name alone, so a bare create has two silent no-op modes: the
+/// physical name may already belong to a stale index (left on another table
+/// by an earlier schema epoch), or the index may exist with an outdated
+/// field list after the manifest changed. Either way the declared index
+/// would never exist, while `validate_query_index` keeps accepting
+/// `indexed_by` hints for it (it checks only the manifest). Compare the
+/// existing definition from `sqlite_master`/`PRAGMA index_info` and drop and
+/// recreate on any mismatch — index rebuilds are non-destructive.
+///
+/// @ref LLP 0003#database-model — the migrator keeps declared indexes in
+/// sync with the manifest rather than treating name existence as done.
 fn create_index(
     tx: &Transaction<'_>,
     table: &TableManifest,
@@ -1326,16 +1367,56 @@ fn create_index(
         })
         .collect::<SnapbackResult<Vec<_>>>()?;
     columns.push(quote_ident("_id")?);
+
+    let physical_name = format!("{}_{}", table.name, name);
+    if let Some(existing) = physical_index(tx, &physical_name)? {
+        let desired: Vec<String> = fields.iter().cloned().chain(["_id".to_owned()]).collect();
+        if existing.table == table.name && existing.columns == desired {
+            return Ok(());
+        }
+        tx.execute(&format!("DROP INDEX {}", quote_ident(&physical_name)?), [])?;
+    }
     tx.execute(
         &format!(
-            "CREATE INDEX IF NOT EXISTS {} ON {} ({})",
-            quote_ident(&format!("{}_{}", table.name, name))?,
+            "CREATE INDEX {} ON {} ({})",
+            quote_ident(&physical_name)?,
             quote_ident(&table.name)?,
             columns.join(", ")
         ),
         [],
     )?;
     Ok(())
+}
+
+/// A physical SQLite index's owning table and ordered column list, read from
+/// `sqlite_master` and `PRAGMA index_info` so schema apply can compare it
+/// against the manifest's declaration.
+struct PhysicalIndex {
+    table: String,
+    columns: Vec<String>,
+}
+
+fn physical_index(tx: &Transaction<'_>, name: &str) -> SnapbackResult<Option<PhysicalIndex>> {
+    let table = tx
+        .query_row(
+            "SELECT tbl_name FROM sqlite_master WHERE type = 'index' AND name = ?1",
+            params![name],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    let Some(table) = table else {
+        return Ok(None);
+    };
+    let mut statement = tx.prepare(&format!("PRAGMA index_info({})", quote_ident(name)?))?;
+    let mut rows = statement.query([])?;
+    let mut columns = Vec::new();
+    while let Some(row) = rows.next()? {
+        // The column name is NULL for rowid or expression members, which a
+        // manifest index never declares; mapping those to "" can never match
+        // a declared column, so the caller rebuilds the index.
+        columns.push(row.get::<_, Option<String>>(2)?.unwrap_or_default());
+    }
+    Ok(Some(PhysicalIndex { table, columns }))
 }
 
 /// Existing column names and their declared SQLite types from

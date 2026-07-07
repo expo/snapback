@@ -3673,6 +3673,141 @@ fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
     assert_eq!(error.diagnostic.details["requestedType"], "TEXT");
 }
 
+/// The owning table and ordered column list of a physical SQLite index, read
+/// directly from the database file; `None` when no index with that name
+/// exists.
+fn physical_index_definition(path: &std::path::Path, name: &str) -> Option<(String, Vec<String>)> {
+    use rusqlite::OptionalExtension;
+    let conn = rusqlite::Connection::open(path).expect("open sqlite for inspection");
+    let table: Option<String> = conn
+        .query_row(
+            "SELECT tbl_name FROM sqlite_master WHERE type = 'index' AND name = ?1",
+            [name],
+            |row| row.get(0),
+        )
+        .optional()
+        .expect("query sqlite_master");
+    let table = table?;
+    let mut statement = conn
+        .prepare(&format!("PRAGMA index_info(\"{name}\")"))
+        .expect("prepare index_info");
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(2))
+        .expect("query index_info")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect index columns");
+    Some((table, columns))
+}
+
+fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> SchemaManifest {
+    SchemaManifest {
+        schema_hash: Some(hash.to_owned()),
+        tables: vec![TableManifest {
+            name: table.to_owned(),
+            fields: vec![FieldManifest {
+                name: field.to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: vec![IndexManifest {
+                name: index.to_owned(),
+                fields: vec![field.to_owned()],
+            }],
+            syncable: false,
+        }],
+        ..SchemaManifest::default()
+    }
+}
+
+/// ENG-23342 — SQLite index names are database-global and the physical name
+/// joins `{table}_{index}` with `_`, a character both identifiers may
+/// contain, so distinct declarations can collide (table `foo` + index
+/// `bar_baz` vs table `foo_bar` + index `baz`). Schema validation must reject
+/// the collision instead of letting the second index silently never exist.
+#[test]
+fn apply_schema_rejects_cross_table_physical_index_name_collision() {
+    let mut db = LocalDatabase::memory().unwrap();
+    let mut manifest = single_index_schema("collision-v0", "foo", "a", "bar_baz");
+    manifest
+        .tables
+        .extend(single_index_schema("collision-v0", "foo_bar", "a", "baz").tables);
+    let error = db
+        .apply_schema(manifest)
+        .expect_err("colliding physical index names must fail validation");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION"
+    );
+    assert_eq!(error.diagnostic.details["physicalName"], "foo_bar_baz");
+}
+
+/// ENG-23342 — editing an existing index's field list in the manifest must
+/// rebuild the physical index. A bare `CREATE INDEX IF NOT EXISTS` would keep
+/// the stale definition forever while `indexed_by` hints kept validating
+/// against the manifest — exactly the silent no-op LLP 0032 E5 forbids.
+#[test]
+fn apply_schema_rebuilds_index_when_declared_fields_change() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("index-rebuild.db");
+    let mut db = LocalDatabase::open(&path).expect("open db");
+    db.apply_schema(todo_schema()).expect("initial schema");
+    assert_eq!(
+        physical_index_definition(&path, "todos_by_user"),
+        Some((
+            "todos".to_owned(),
+            vec!["userId".to_owned(), "_id".to_owned()]
+        ))
+    );
+
+    // Re-applying the same manifest keeps the index (the redeploy no-op path).
+    db.apply_schema(todo_schema()).expect("matching re-apply");
+
+    // Widen by_user to (userId, completed): the physical index must follow.
+    let mut widened = todo_schema();
+    widened.tables[0].indexes[0].fields = vec!["userId".to_owned(), "completed".to_owned()];
+    db.apply_schema(widened)
+        .expect("index definition change applies");
+    assert_eq!(
+        physical_index_definition(&path, "todos_by_user"),
+        Some((
+            "todos".to_owned(),
+            vec![
+                "userId".to_owned(),
+                "completed".to_owned(),
+                "_id".to_owned()
+            ]
+        ))
+    );
+}
+
+/// ENG-23342 — a stale physical index left by an earlier schema epoch (table
+/// `foo_bar` index `baz`, physical `foo_bar_baz`; the migrator preserves
+/// removed tables) must not block a later table whose declaration joins to
+/// the same physical name: the owning-table mismatch is detected and the
+/// index is rebuilt on the declaring table.
+#[test]
+fn apply_schema_reclaims_stale_physical_index_from_removed_table() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("index-reclaim.db");
+    let mut db = LocalDatabase::open(&path).expect("open db");
+
+    db.apply_schema(single_index_schema("epoch-1", "foo_bar", "a", "baz"))
+        .expect("epoch one");
+    assert_eq!(
+        physical_index_definition(&path, "foo_bar_baz"),
+        Some(("foo_bar".to_owned(), vec!["a".to_owned(), "_id".to_owned()]))
+    );
+
+    // Epoch two drops foo_bar from the manifest and declares table foo with
+    // index bar_baz — the same physical name, now owned by a different table.
+    db.apply_schema(single_index_schema("epoch-2", "foo", "b", "bar_baz"))
+        .expect("epoch two");
+    assert_eq!(
+        physical_index_definition(&path, "foo_bar_baz"),
+        Some(("foo".to_owned(), vec!["b".to_owned(), "_id".to_owned()]))
+    );
+}
+
 /// LLP 0034 §10.1 residual / ENG-22478 (review fix A) — supersession is
 /// EXPLICIT: plain duplicate subscribes coexist (two components may share a
 /// query on one connection), while a subscribe naming `supersedes` disposes
