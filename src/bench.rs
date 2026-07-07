@@ -151,6 +151,9 @@ globalThis.__snapbackHandlers = {
   async createTodo(ctx, args) {
     return await ctx.db.insert('todos', { title: args.title, done: false });
   },
+  async touchTodo(ctx, args) {
+    return (await ctx.db.patch('todos', args.id, { title: args.title })) ? args.id : null;
+  },
   async listOthers(ctx) {
     return await ctx.db.query('others').order('_createdAt', 'asc').collect();
   },
@@ -283,6 +286,7 @@ fn functions() -> FunctionManifest {
             query("listTodos", "todos"),
             query("listOthers", "others"),
             mutation("createTodo", "todos"),
+            mutation("touchTodo", "todos"),
             mutation("createOther", "others"),
             mutation("busyCreate", "todos"),
         ],
@@ -389,8 +393,11 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
         ((skip_per_commit - baseline).max(0.0)) / config.subscriptions.max(1) as f64;
 
     // Full path: subscriptions watch `todos` and we commit to `todos`, so every
-    // subscription is affected (re-query + serialize + enqueue).
+    // subscription is affected (re-query + serialize + enqueue). Keep the
+    // result set fixed across iterations: this metric is fan-out cost at a
+    // stated result size, not "query N growing rows".
     let mut affected = configured()?;
+    let affected_ids = seed_fanout_todos(&mut affected)?;
     for i in 0..config.subscriptions {
         affected.subscribe_live(
             "listTodos",
@@ -403,14 +410,18 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
     }
     let start = Instant::now();
     for n in 0..config.iterations {
-        affected.invoke_mutation("createTodo", args(json!({ "title": n.to_string() })))?;
+        let id = &affected_ids[n % affected_ids.len()];
+        affected.invoke_mutation(
+            "touchTodo",
+            args(json!({ "id": id, "title": format!("fanout-{n}") })),
+        )?;
         // Drain so outboxes do not grow unbounded and skew later commits.
         for i in 0..config.subscriptions {
             affected.drain_outbox(&format!("aff-{i}"));
         }
     }
     let affected_per_commit = micros_per(start, config.iterations);
-    let baseline_todos = single_commit_baseline(config, "createTodo", "title")?;
+    let baseline_todos = single_touch_baseline(config)?;
     let fanout_us_per_affected_sub =
         ((affected_per_commit - baseline_todos).max(0.0)) / config.subscriptions.max(1) as f64;
 
@@ -493,17 +504,13 @@ fn delta_fanout_round(
     use crate::live_matcher::{LiveDeltaKind, LiveDeltaOutcome, compute_live_delta};
     use std::collections::BTreeSet;
 
-    // The committed row belongs to `u-match`; subscriber 0 filters on it (a
-    // real Add), the rest on their own user (the matcher's cheap non-member
-    // reject) — the real fan-out mix.
+    // The metric is explicitly per affected subscriber, so every subscriber
+    // uses the matching predicate. Non-member reject cost is covered by the
+    // skip-path matcher metric above; mixing it in here would understate the
+    // affected delivery cost and overstate the derived fan-out ceiling.
     let prior_ids: BTreeSet<String> = BTreeSet::new();
-    for i in 0..subscriptions {
-        let sub_user = if i == 0 {
-            "u-match".to_owned()
-        } else {
-            format!("u-{i}")
-        };
-        let input = args(json!({ "userId": sub_user }));
+    for _ in 0..subscriptions {
+        let input = args(json!({ "userId": "u-match" }));
         let ops = match compute_live_delta(plan, &input, &prior_ids, changes) {
             LiveDeltaOutcome::Delta(ops) => ops,
             LiveDeltaOutcome::Replace => Vec::new(),
@@ -526,6 +533,43 @@ fn delta_fanout_round(
         let encoded = serde_json::to_vec(&payload).unwrap_or_default();
         std::hint::black_box(&encoded);
     }
+}
+
+const FANOUT_RESULT_ROWS: usize = 16;
+
+fn seed_fanout_todos(
+    snapback: &mut LocalSnapback,
+) -> crate::diagnostic::SnapbackResult<Vec<String>> {
+    let mut ids = Vec::with_capacity(FANOUT_RESULT_ROWS);
+    for n in 0..FANOUT_RESULT_ROWS {
+        let commit = snapback
+            .invoke_mutation("createTodo", args(json!({ "title": format!("seed-{n}") })))?;
+        if let Some(id) = commit.result.as_str() {
+            ids.push(id.to_owned());
+        }
+    }
+    Ok(ids)
+}
+
+fn single_touch_baseline(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
+    let mut snapback = configured()?;
+    let ids = seed_fanout_todos(&mut snapback)?;
+    for n in 0..4 {
+        let id = &ids[n % ids.len()];
+        snapback.invoke_mutation(
+            "touchTodo",
+            args(json!({ "id": id, "title": format!("warm-{n}") })),
+        )?;
+    }
+    let start = Instant::now();
+    for n in 0..config.iterations {
+        let id = &ids[n % ids.len()];
+        snapback.invoke_mutation(
+            "touchTodo",
+            args(json!({ "id": id, "title": format!("baseline-{n}") })),
+        )?;
+    }
+    Ok(micros_per(start, config.iterations))
 }
 
 fn single_commit_baseline(
