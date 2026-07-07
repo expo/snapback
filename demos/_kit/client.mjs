@@ -66,8 +66,9 @@ const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
 const RECEIPT_RING_CAP = 256;
 
 export class SnapbackClient {
-  constructor(baseUrl) {
+  constructor(baseUrl, { adminToken = process.env.SNAPBACK_ADMIN_TOKEN ?? null } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.adminToken = adminToken;
     // Receipt retention, kit half (LLP 0034 §3 / ENG-22478): a bounded ring
     // of every receipt this client observed (mutation receipts riding
     // responses, subscription receipts emitted by live handles, ephemeral
@@ -218,6 +219,7 @@ export class SnapbackClient {
 
   async #req(method, path, body, headers) {
     const merged = {
+      ...(this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(headers ?? {}),
     };
@@ -264,8 +266,9 @@ export class SnapbackClient {
   health() { return this.#req('GET', '/health'); }
   inspect() { return this.#req('GET', '/inspect'); }
   // @ref LLP 0031#migration-plan — system writes moved from ungated root
-  //   /admin/* aliases to the gated /_snapback/api/* namespace (D5). On loopback
-  //   with no admin token these are open, so local demos are unaffected.
+  //   /admin/* aliases to the gated /_snapback/api/* namespace (D5). Per
+  //   LLP 0017#security-defaults, served loopback writes now require a local
+  //   admin token; the shared server harness supplies it for demos/tests.
   loadSchema(manifest) { return this.#req('POST', '/_snapback/api/schema/load', manifest); }
   ensureEphemeralCollections(manifestOrCollections) {
     const collections = Array.isArray(manifestOrCollections)

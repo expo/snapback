@@ -26,6 +26,7 @@
 // callers must use the returned value).
 
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
@@ -57,7 +58,12 @@ export async function startServer({
     const verdict = await reuseVerdict(baseUrl, { provenance, binaryProvenance, cwd });
     if (verdict.ok) {
       console.log(`REUSED snapback server at :${port} (${verdict.detail})`);
-      return { baseUrl, stop: async () => {}, reused: true };
+      return {
+        baseUrl,
+        adminToken: process.env.SNAPBACK_ADMIN_TOKEN ?? null,
+        stop: async () => {},
+        reused: true,
+      };
     }
     const isolated = await freePort();
     console.error(
@@ -69,6 +75,10 @@ export async function startServer({
   }
 
   const runtimeEnv = preflightLocalRuntime({ cwd });
+  const adminToken = resolveTestAdminToken(env);
+  if (adminToken) {
+    process.env.SNAPBACK_ADMIN_TOKEN = adminToken;
+  }
 
   const args = ['run', '--quiet', '--', '--port', String(port)];
   if (db === ':memory:') args.push('--memory');
@@ -76,7 +86,7 @@ export async function startServer({
 
   const child = spawn('cargo', args, {
     cwd,
-    env: { ...process.env, ...env, ...runtimeEnv },
+    env: { ...process.env, ...env, ...runtimeEnv, ...(adminToken ? { SNAPBACK_ADMIN_TOKEN: adminToken } : {}) },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let log = '';
@@ -89,12 +99,21 @@ export async function startServer({
       throw new Error(`snapback server exited early (code ${child.exitCode}):\n${log}`);
     }
     if (await isHealthy(baseUrl)) {
-      return { baseUrl, reused: false, stop: () => stopChild(child) };
+      return { baseUrl, adminToken, reused: false, stop: () => stopChild(child) };
     }
     await sleep(250);
   }
   await stopChild(child);
   throw new Error(`snapback server did not become healthy on ${baseUrl}:\n${log}`);
+}
+
+function resolveTestAdminToken(env) {
+  // Server-backed demo tests talk through SnapbackClient, not the CLI that can
+  // discover minted token files. Give the child an explicit local token and
+  // mirror it into this process so clients created after startServer can use it.
+  const explicit = env?.SNAPBACK_ADMIN_TOKEN ?? process.env.SNAPBACK_ADMIN_TOKEN;
+  if (explicit && explicit.length > 0) return explicit;
+  return `sbat_test_${randomUUID().replace(/-/g, '')}`;
 }
 
 // The reuse verdict for a healthy port. Bundle provenance is strongest (it
