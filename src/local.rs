@@ -2429,11 +2429,13 @@ impl LocalSnapback {
         // No storage read here: disconnect runs on the WebSocket teardown
         // path (an async worker; the L7 exec guard forbids rusqlite there),
         // and a version-at-death fact is cosmetic — null is the honest value.
+        let mut dropped_subscriptions = 0_usize;
         for subscription in self
             .subscriptions
             .values()
             .filter(|subscription| subscription.connection_id == connection_id)
         {
+            dropped_subscriptions += 1;
             self.receipts.push_global(json!({
                 "kind": "subscription",
                 "event": "disposed",
@@ -2447,6 +2449,40 @@ impl LocalSnapback {
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
         self.receipts.drop_connection(connection_id);
+        // ENG-23427: an unconditional disconnect (the L2 reaper, or the admin
+        // route) that destroyed durable subscriptions while the connection
+        // still owns a delivery registration ran under an OPEN socket — the
+        // pump task is merely parked (e.g. blocked in `sender.send` on a peer
+        // that stopped reading past the idle TTL), so no socket event will
+        // ever tell the client its subscriptions are gone. Enqueue one
+        // connection-wide durable `resync_required` sentinel (no
+        // `subscription_id` — the client re-snapshots every handle on the
+        // connection, the L1 overflow-sentinel shape) into the fresh outbox;
+        // `enqueue_durable` stores a wake permit, so when the peer resumes
+        // reading the pump drains the sentinel instead of resuming a
+        // silently-stale connection. The guarded (WS teardown) path never
+        // signals: there a surviving registration can only be a reconnect's.
+        //
+        // @ref LLP 0008#realtime-delivery — a dropped subscription gets a
+        // resync signal, never a silent freeze.
+        // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2
+        // reap-under-open-socket fix (ENG-23427).
+        if !guarded
+            && dropped_subscriptions > 0
+            && self
+                .ephemeral
+                .delivery_notifier()
+                .is_registered(connection_id)
+        {
+            let payload = serde_json::to_vec(&json!({
+                "kind": "resync_required",
+                "reason": "disconnected",
+                "clearRetained": true,
+            }))
+            .unwrap_or_default();
+            self.ephemeral
+                .enqueue_durable(connection_id.to_owned(), payload);
+        }
         // Losing the last watcher of a demand-gated live query disarms its cron
         // job (L5).
         self.refresh_cron_active();

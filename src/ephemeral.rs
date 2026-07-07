@@ -429,8 +429,11 @@ pub enum RemoveReason {
 /// runtime reset discards room state under live connections; `EpochChanged`
 /// when a destructive definition replacement retires room epochs (the
 /// ENG-22478 review-fix-D reasons, ratified upstream and adopted by the
-/// sharded authority). `AuthChanged` was removed 2026-07-02: auth revocation
-/// is not integrated, so it was unreachable vocabulary.
+/// sharded authority); `Disconnected` when a server-side disconnect (the L2
+/// reaper, or the admin route) wiped the connection's room registrations
+/// while its socket was still open and registered (ENG-23427). `AuthChanged`
+/// was removed 2026-07-02: auth revocation is not integrated, so it was
+/// unreachable vocabulary.
 ///
 /// @ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — live-or-removed resolution.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -438,6 +441,7 @@ pub enum ResyncReason {
     QueueOverflow,
     EpochChanged,
     Restarted,
+    Disconnected,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1392,6 +1396,9 @@ impl LocalEphemeralBackend {
 
         let mut maybe_empty = Vec::new();
         let mut reclaimed_at = None;
+        // ENG-23427: rooms this connection actually subscribed to, so an
+        // unconditional wipe under a still-open socket can signal each one.
+        let mut subscribed_rooms = Vec::new();
         for (visited, (room_id, room_arc)) in rooms.iter().enumerate() {
             let collection = self.collection_if_loaded(&room_id.collection);
             let mut room = lock(room_arc);
@@ -1409,7 +1416,9 @@ impl LocalEphemeralBackend {
                 continue;
             }
             self.sweep_room_locked(&mut room, &room_id, collection.as_ref(), now_ms);
-            room.subscribers.remove(connection_id);
+            if room.subscribers.remove(connection_id).is_some() {
+                subscribed_rooms.push((room_id.clone(), room.scope_epoch));
+            }
             let mut owners_to_remove = Vec::new();
             for (owner, connections) in room.owner_connections.iter_mut() {
                 connections.remove(connection_id);
@@ -1474,6 +1483,40 @@ impl LocalEphemeralBackend {
         // rate buckets are keyed connection-first; drop this connection's
         // buckets on disconnect so they do not leak forever.
         lock(&self.shared.rate_buckets).remove(connection_id);
+        // ENG-23427: an unconditional wipe (reaper/admin) that ran while the
+        // connection still owns a delivery registration destroyed room
+        // subscriptions under an OPEN socket — the pump task was merely
+        // parked (e.g. in `sender.send` on a peer that stopped reading), so
+        // no socket event will ever tell the client. Seed a fresh outbox
+        // with one `ResyncRequired` per wiped room and store a wake permit;
+        // when the peer resumes reading, the pump drains the sentinels and
+        // the client re-snapshots instead of staying silently stale. The
+        // guarded (WS teardown) path never signals: there a registration can
+        // only be a reconnect's, whose fresh state was left intact above.
+        //
+        // @ref LLP 0008#realtime-delivery — a dropped subscription gets a
+        // resync signal, never a silent freeze.
+        if !guarded
+            && !subscribed_rooms.is_empty()
+            && self.shared.delivery.is_registered(connection_id)
+        {
+            let outbox = self.ensure_outbox(connection_id, default_max_pending_ephemeral_keys());
+            {
+                let mut outbox = lock(&outbox);
+                for (room, scope_epoch) in subscribed_rooms {
+                    outbox.push_resync(EphemeralMessage::ResyncRequired {
+                        room,
+                        scope_epoch,
+                        reason: ResyncReason::Disconnected,
+                    });
+                    self.shared
+                        .counters
+                        .resync_required
+                        .fetch_add(1, Ordering::Relaxed);
+                }
+            }
+            self.shared.delivery.wake(connection_id);
+        }
         true
     }
 

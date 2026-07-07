@@ -3435,6 +3435,105 @@ fn eng_23424_empty_ws_drain_is_not_liveness() {
     );
 }
 
+/// ENG-23427 — reaping a connection whose delivery registration is still
+/// current (the WS pump task parked in `sender.send` on a peer that stopped
+/// reading: socket open, no select iterations, no activity touches) must not
+/// destroy its state silently. The reap seeds a fresh outbox with a durable
+/// connection-wide `resync_required` sentinel plus one ephemeral
+/// `ResyncRequired` per wiped room, and stores a wake permit so the pump
+/// drains them the moment the peer resumes reading. A reaped connection with
+/// no registration (an HTTP poller that vanished) gets no sentinel — nothing
+/// would ever drain it.
+#[test]
+fn eng_23427_reap_under_open_registration_signals_resync() {
+    use futures_util::FutureExt;
+
+    let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
+    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
+    let api = snapback.ephemeral_api();
+
+    // A durable live query and an ephemeral room subscription on the frozen
+    // WS connection; a plain HTTP-lane connection with the same shape for
+    // contrast.
+    for connection_id in ["frozen", "poller"] {
+        snapback
+            .subscribe_live(
+                "listTodos",
+                LiveSubscribeInput {
+                    connection_id: connection_id.to_owned(),
+                    input: input(json!({}), "user_1"),
+                    supersedes: None,
+                },
+            )
+            .expect("subscribe live");
+        api.subscribe(
+            SubscribeRequest {
+                collection: "cursors".to_owned(),
+                scope: Scope::from_pairs([("roomId", "room-1")]),
+                connection_id: connection_id.to_owned(),
+                auth: AuthContext::default(),
+            },
+            1_000,
+        )
+        .expect("subscribe ephemeral");
+    }
+
+    // "frozen" has an open, registered socket: its pump task registered and
+    // is now (conceptually) parked in a blocked `sender.send`.
+    let notify = snapback.delivery_notifier();
+    let (_generation, waker) = notify.register("frozen");
+
+    // Both idle past the TTL → both reaped, all subscriptions destroyed.
+    assert_eq!(
+        snapback.reap_stale_connections(2_000_000_000_000, 120_000),
+        2
+    );
+    assert!(
+        snapback
+            .inspect()
+            .expect("inspect")
+            .subscriptions
+            .is_empty(),
+        "reaping must tear down both connections' subscriptions"
+    );
+
+    // The registered connection got a wake permit: the parked pump task's
+    // next select iteration drains instead of sleeping forever.
+    assert!(
+        waker.notified().now_or_never().is_some(),
+        "reap must store a wake permit for the still-registered pump task"
+    );
+
+    // ...and its fresh outbox carries the sentinels: durable lane first (the
+    // connection-wide resync_required), then the per-room ephemeral resync.
+    let drained = snapback.drain_live_stream("frozen");
+    assert_eq!(
+        drained.len(),
+        2,
+        "expected the two resync sentinels, got {drained:?}"
+    );
+    let durable: Value = serde_json::from_str(&drained[0]).expect("durable sentinel json");
+    assert_eq!(durable["kind"], "resync_required");
+    assert_eq!(durable["reason"], "disconnected");
+    assert!(
+        durable.get("subscription_id").is_none(),
+        "the sentinel is connection-wide: every handle must re-snapshot"
+    );
+    let ephemeral: Value = serde_json::from_str(&drained[1]).expect("ephemeral sentinel json");
+    assert_eq!(ephemeral["kind"], "ephemeral");
+    assert_eq!(
+        ephemeral["message"]["ResyncRequired"]["reason"],
+        "Disconnected"
+    );
+
+    // The unregistered connection was wiped without a sentinel — there is no
+    // pump to drain an outbox to nowhere.
+    assert!(
+        snapback.drain_live_stream("poller").is_empty(),
+        "a reaped connection with no registration gets no sentinel"
+    );
+}
+
 /// LLP 0032 L3 — the change journal is bounded by retention (prune drops old
 /// changes and raises the floor), a resume from below the retained floor is
 /// told to resnapshot, and the per-mutation validation query uses the

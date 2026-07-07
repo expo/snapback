@@ -663,7 +663,20 @@ change the concurrency architecture and should land as one reviewed arc.
   accepted):** a WebSocket wedged by >120 s of send backpressure can be reaped
   and, if it later resumes, re-register as a subscription-less connection until
   socket close — self-correcting and only under pathological backpressure;
-  reaping an unresponsive client is the intended behavior. **Review fix
+  reaping an unresponsive client is the intended behavior. *(Revisited
+  2026-07-07, ENG-23427: "self-correcting" was client-dependent — the resumed
+  socket looked healthy while every subscription was gone, and only the kit's
+  own freshness-budget reconnect recovered it. Reaping stays the intended
+  behavior, but it is no longer silent: an unconditional disconnect (reaper or
+  admin route) that runs while the connection still owns a delivery
+  registration — the pump task parked in `sender.send` on a peer that stopped
+  reading, socket open — seeds the fresh outbox with a connection-wide durable
+  `resync_required` sentinel (`reason: disconnected`, the L1 overflow shape)
+  plus one ephemeral `ResyncRequired { reason: Disconnected }` per wiped room,
+  and stores a wake permit so the pump drains the sentinels the moment the
+  peer resumes reading. The guarded WS-teardown path never signals — a
+  surviving registration there can only be a reconnect's. Test
+  `eng_23427_reap_under_open_registration_signals_resync`.)* **Review fix
   (2026-07-06, ENG-23424):** the L8 safety net defeated L2 for WS peers that
   vanish without FIN/RST — its 30 s drain touched activity even when the
   outbox was empty (and an empty drain does no socket I/O, so no send error
