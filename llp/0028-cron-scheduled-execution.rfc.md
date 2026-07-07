@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-07 (ENG-23324: §Execution: the action class gains the as-built detached-execution note — server-triggered Ibex actions are staged under the global mutex but run off it on a watchdogged thread with per-host-call lock reacquisition; cron ticks claim under the lock, execute detached, and finish under the lock; `action_wall_clock_timeout` reports Enforced); 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
+**Revised:** 2026-07-07 (ENG-23417: §Scheduler state: validation-rejected jobs hold no runtime state — a redeploy that fails validation drops the job's previously-earned state in `reconcile`, manual run-now refuses rejected jobs with `SNAPBACK_CRON_JOB_INVALID`, and `claim_due_runs` claims only from schedule-hash-matching state; closes the loophole where a stale nominal made a rejected job execute, or with an invalid expression re-execute every tick); 2026-07-07 (ENG-23324: §Execution: the action class gains the as-built detached-execution note — server-triggered Ibex actions are staged under the global mutex but run off it on a watchdogged thread with per-host-call lock reacquisition; cron ticks claim under the lock, execute detached, and finish under the lock; `action_wall_clock_timeout` reports Enforced); 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027
 
 ## Summary
@@ -276,6 +276,19 @@ The source manifest remains the definition of what jobs exist. When a job is
 renamed, removed, disabled, or its schedule changes, the runtime should reconcile
 state explicitly and report any orphaned history or migrated next-run state in
 inspect/admin output.
+
+**Validation-rejected jobs hold no runtime state (ENG-23417).** The fail-closed
+rule for invalid definitions covers redeploys, not just first deploys: when a
+previously-valid job redeploys with a definition that fails validation,
+`reconcile` *removes* its existing runtime state rather than merely skipping
+the job. Retaining the old nominal would let the rejected action fire at the
+stale due time — and for an invalid cron expression the nominal could never
+advance again, so the job would be re-claimed on every tick. The same
+invariant guards the other doors into runtime state: manual run-now refuses
+validation-rejected jobs with `SNAPBACK_CRON_JOB_INVALID` (creating state
+there would permanently arm a job `reconcile` deliberately gave none), and
+`claim_due_runs` only claims from state whose schedule hash matches the
+current definition.
 
 ### Execution: the action class
 

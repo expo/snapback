@@ -196,20 +196,28 @@ impl LocalCronRuntime {
     pub fn reconcile(&mut self, manifest: &FunctionManifest) -> Vec<Diagnostic> {
         let diagnostics = validate_cron_manifest(manifest);
         let mut recovery_diagnostics = Vec::new();
+        let rejected_names = error_job_names(&diagnostics);
         let job_names = manifest
             .cron_jobs
             .iter()
             .map(|job| job.name.clone())
             .collect::<BTreeSet<_>>();
-        self.states
-            .retain(|job_name, _state| job_names.contains(job_name));
+        // Fail closed on redeploy, not just first deploy: a job whose *new*
+        // definition fails validation loses the runtime state its previously
+        // valid definition earned. Keeping it would leave a stale claimable
+        // nominal — the rejected action would still fire, and for an invalid
+        // cron expression `finish_run` can never advance the nominal, so the
+        // job would be re-claimed on every tick (ENG-23417).
+        //
+        // @ref LLP 0028#scheduler-state-and-run-ledger — validation-rejected
+        // jobs hold no runtime state; the manifest still installs, so state
+        // removal here is what keeps the rejection fail-closed.
+        self.states.retain(|job_name, _state| {
+            job_names.contains(job_name) && !rejected_names.contains(job_name)
+        });
 
         for job in &manifest.cron_jobs {
-            if diagnostics.iter().any(|diagnostic| {
-                diagnostic.severity == DiagnosticSeverity::Error
-                    && diagnostic.details.get("jobName").and_then(Value::as_str)
-                        == Some(job.name.as_str())
-            }) {
+            if rejected_names.contains(&job.name) {
                 continue;
             }
             let schedule_hash = schedule_hash(job);
@@ -349,6 +357,15 @@ impl LocalCronRuntime {
             let Some(state) = self.states.get_mut(&job.name) else {
                 continue;
             };
+            // Defense in depth against stale state: a claimable nominal is
+            // only trusted when it was computed for *this* definition.
+            // `reconcile` resets state on any schedule change, so a mismatch
+            // here means the manifest changed without a reconcile — never
+            // execute from a nominal the current definition did not produce
+            // (ENG-23417).
+            if state.schedule_hash != schedule_hash(job) {
+                continue;
+            }
             ensure_next_due(job, state, now_ms);
             if !job.enabled
                 || activation_state(job, active_live_functions) != CronActivationState::Armed
@@ -429,6 +446,30 @@ impl LocalCronRuntime {
                 "cron",
                 format!("cron job {name} is disabled"),
             ));
+        }
+        // A manual run of a validation-rejected job must be refused, not just
+        // for the run itself: the `or_insert_with` below would create runtime
+        // state for a job `reconcile` deliberately gave none, permanently
+        // arming it for scheduled claims (ENG-23417).
+        let validation_errors = validate_cron_manifest(manifest)
+            .into_iter()
+            .filter(|diagnostic| {
+                diagnostic.severity == DiagnosticSeverity::Error
+                    && diagnostic.details.get("jobName").and_then(Value::as_str)
+                        == Some(job.name.as_str())
+            })
+            .map(|diagnostic| diagnostic.code)
+            .collect::<Vec<_>>();
+        if !validation_errors.is_empty() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CRON_JOB_INVALID",
+                "cron",
+                format!("cron job {name} failed validation and cannot run"),
+            )
+            .with_details(json!({
+                "jobName": job.name,
+                "validationErrors": validation_errors,
+            })));
         }
         let state = self.states.entry(job.name.clone()).or_insert_with(|| {
             let hash = schedule_hash(&job);
@@ -686,6 +727,22 @@ pub fn validate_cron_manifest(manifest: &FunctionManifest) -> Vec<Diagnostic> {
         }
     }
     diagnostics
+}
+
+/// Names of jobs that carry an error-severity validation diagnostic — the
+/// jobs `reconcile` refuses runtime state for.
+fn error_job_names(diagnostics: &[Diagnostic]) -> BTreeSet<String> {
+    diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        .filter_map(|diagnostic| {
+            diagnostic
+                .details
+                .get("jobName")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .collect()
 }
 
 fn cron_error(
@@ -1448,6 +1505,143 @@ mod tests {
         let next_tick = interval_job("poll", 60_000);
         assert_eq!(next_tick.retry_policy.mode, CronRetryMode::NextTick);
         assert!(validate_cron_manifest(&manifest_with_jobs(vec![next_tick])).is_empty());
+    }
+
+    // ENG-23417 redeploy door: a job that was valid (and earned a nominal)
+    // then redeploys with an invalid definition must lose its runtime state.
+    // Before the fix, `reconcile` retained the stale nominal, the rejected
+    // action fired at the old due time, and — because an invalid expression
+    // can never compute a next nominal — was re-claimed on every tick.
+    #[test]
+    fn redeploy_to_invalid_definition_drops_state_and_never_claims() {
+        let valid = manifest_with_jobs(vec![calendar_job("poll", "0 3 * * *")]);
+        let mut runtime = LocalCronRuntime::default();
+        assert!(runtime.reconcile(&valid).is_empty());
+        // A not-yet-due claim pass materializes the next nominal.
+        assert!(
+            runtime
+                .claim_due_runs(&valid, &BTreeSet::new(), ms_at(2026, 7, 1, 12, 0))
+                .is_empty()
+        );
+        assert!(
+            runtime
+                .states
+                .get("poll")
+                .is_some_and(|state| state.next_due_at_ms.is_some())
+        );
+
+        // Redeploy with a definition the v0 grammar rejects (day names).
+        let invalid = manifest_with_jobs(vec![calendar_job("poll", "0 3 * * MON")]);
+        let diagnostics = runtime.reconcile(&invalid);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_CRON_INVALID_EXPRESSION")
+        );
+        assert!(
+            !runtime.states.contains_key("poll"),
+            "rejected redeploy must drop the job's runtime state"
+        );
+
+        // The stale nominal must not fire: not at the old due time, not on
+        // the next tick, not ever.
+        for now_ms in [
+            ms_at(2026, 7, 2, 3, 30),
+            ms_at(2026, 7, 2, 3, 30) + 1_000,
+            ms_at(2026, 8, 1, 0, 0),
+        ] {
+            assert!(
+                runtime
+                    .claim_due_runs(&invalid, &BTreeSet::new(), now_ms)
+                    .is_empty(),
+                "validation-rejected job must never be claimed"
+            );
+        }
+
+        // Redeploying a valid definition recovers normal scheduling: the
+        // first pass materializes a fresh future nominal, and the pass after
+        // that slot claims it.
+        assert!(runtime.reconcile(&valid).is_empty());
+        assert!(
+            runtime
+                .claim_due_runs(&valid, &BTreeSet::new(), ms_at(2026, 8, 2, 4, 0))
+                .is_empty()
+        );
+        let claims = runtime.claim_due_runs(&valid, &BTreeSet::new(), ms_at(2026, 8, 3, 3, 30));
+        assert_eq!(claims.len(), 1);
+    }
+
+    // ENG-23417 manual door: POST run-now for a validation-rejected job must
+    // be refused. Before the fix it created runtime state for any enabled
+    // job, permanently arming computable-rejection-class jobs (Backoff
+    // retry, sub-floor cadence, everyMs 0, duplicates) for scheduled claims.
+    #[test]
+    fn manual_run_refuses_validation_rejected_jobs() {
+        let mut backoff = interval_job("pollWithBackoff", 60_000);
+        backoff.retry_policy = CronRetryPolicy {
+            mode: CronRetryMode::Backoff,
+        };
+        let manifest = manifest_with_jobs(vec![backoff]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+
+        let error = runtime
+            .claim_manual_run(&manifest, "pollWithBackoff", 600_000)
+            .expect_err("validation-rejected job must not be manually runnable");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CRON_JOB_INVALID");
+        assert_eq!(
+            error
+                .diagnostic
+                .details
+                .get("validationErrors")
+                .and_then(Value::as_array)
+                .map(|codes| codes
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()),
+            Some(vec!["SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED"])
+        );
+
+        // The refusal must not leave claimable runtime state behind.
+        assert!(!runtime.states.contains_key("pollWithBackoff"));
+        assert!(
+            runtime
+                .claim_due_runs(&manifest, &BTreeSet::new(), 1_200_000)
+                .is_empty()
+        );
+
+        // A valid job in the same manifest stays manually runnable.
+        let mixed = manifest_with_jobs(vec![
+            {
+                let mut rejected = interval_job("pollWithBackoff", 60_000);
+                rejected.retry_policy = CronRetryPolicy {
+                    mode: CronRetryMode::Backoff,
+                };
+                rejected
+            },
+            interval_job("poll", 60_000),
+        ]);
+        runtime.reconcile(&mixed);
+        assert!(runtime.claim_manual_run(&mixed, "poll", 600_000).is_ok());
+    }
+
+    // ENG-23417 defense in depth: a nominal is only trusted when it was
+    // computed for the current definition. Reconcile resets state on any
+    // schedule change, so a hash mismatch means the manifest changed without
+    // a reconcile — never claim from it.
+    #[test]
+    fn claim_due_runs_ignores_state_with_stale_schedule_hash() {
+        let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        runtime.states.get_mut("poll").expect("state exists").schedule_hash =
+            "fnv1a:stale".to_owned();
+        assert!(
+            runtime
+                .claim_due_runs(&manifest, &BTreeSet::new(), 600_000)
+                .is_empty(),
+            "stale-hash state must not produce claims"
+        );
     }
 
     #[test]
