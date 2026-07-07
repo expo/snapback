@@ -92,6 +92,9 @@ silent wedge trap (ENG-22659).
 
 - Read relevant LLP documents before implementing features or fixing bugs in
   the areas they cover.
+- If `.agent-local-secrets.md` exists at the project root, read it when a task
+  needs local credentials or API keys. It is intentionally ignored by git and
+  must not be copied into LLPs, logs, commits, or generated artifacts.
 - If you make a design decision worth preserving, write or update an LLP for it.
 - Prefer updating an existing LLP over creating a new one when the topic is
   already covered.

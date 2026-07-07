@@ -1,3 +1,4 @@
 /target/
 /.snapback/
 node_modules/
+.agent-local-secrets.md
