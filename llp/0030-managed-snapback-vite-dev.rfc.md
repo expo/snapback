@@ -358,6 +358,17 @@ written atomically by Snapback only after the listener is bound and instance-loc
 metadata has been recorded. A stale ready file must never be accepted as current
 readiness.
 
+The built descriptor carries the writing server's per-process `startupNonce`
+(the same nonce `/health` reports in `binary.startupNonce`, LLP 0031's
+server-binary identity), which is how destructive consumers enforce the
+stale-file rule: `snapback stop` re-fetches `/health` from the descriptor's URL
+and refuses to signal the descriptor's pid unless the live nonce matches — a
+descriptor orphaned by a crash or Ctrl-C can never route a signal to a reused
+PID (ENG-23366). Unverifiable cases (dead server, non-Snapback responder,
+nonce-less descriptor from an older binary) fail closed with
+`SNAPBACK_HOST_STOP_STALE_DESCRIPTOR` / `SNAPBACK_HOST_STOP_UNVERIFIABLE`
+diagnostics.
+
 ### Proxy surface
 
 The browser-facing API path should be stable and relative. The generic Snapback

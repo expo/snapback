@@ -244,9 +244,10 @@ fn print_envelope(envelope: &Value) -> bool {
     envelope.get("ok").and_then(Value::as_bool).unwrap_or(false)
 }
 
-/// host.stop: validate the readiness descriptor, signal the process, remove
-/// the file, and print a synthesized host.stop envelope (the CLI owns this
-/// operation — a server cannot stop itself over its own HTTP surface).
+/// host.stop: validate the readiness descriptor, verify the descriptor still
+/// names the live server, signal the process, remove the file, and print a
+/// synthesized host.stop envelope (the CLI owns this operation — a server
+/// cannot stop itself over its own HTTP surface).
 fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     let value = read_json_file(ready_file)?;
     let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
@@ -256,6 +257,39 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             problems.join("; ")
         )
     })?;
+    // @ref LLP 0030#readiness-and-port-discovery — "a stale ready file must
+    // never be accepted as current readiness": confirm the descriptor's server
+    // still answers /health as the same process (startupNonce match) before
+    // signaling, so a reused PID never receives the signal (ENG-23366).
+    let health = fetch_health(&descriptor.server_url);
+    let envelope = |ok: bool, data: Value, diagnostics: Vec<crate::diagnostic::Diagnostic>| {
+        HostOpsResult {
+            schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+            result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+            request_id: format!("hop_{}", Uuid::now_v7().simple()),
+            operation: "host.stop".to_owned(),
+            ok,
+            target: descriptor.target.clone(),
+            authority: None,
+            artifacts: HostOpsArtifacts::default(),
+            data,
+            diagnostics,
+            next: Vec::new(),
+        }
+    };
+    if let Err(diagnostic) = verify_stop_target(&descriptor, &health) {
+        let refused = envelope(
+            false,
+            json!({
+                "pid": descriptor.pid,
+                "serverUrl": descriptor.server_url,
+                "readyFile": ready_file.display().to_string(),
+            }),
+            vec![diagnostic],
+        );
+        print_envelope(&serde_json::to_value(&refused)?);
+        std::process::exit(1);
+    }
     let stopped = std::process::Command::new("kill")
         .arg(descriptor.pid.to_string())
         .status()
@@ -264,27 +298,103 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     if stopped {
         let _ = std::fs::remove_file(ready_file);
     }
-    let envelope = HostOpsResult {
-        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
-        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
-        request_id: format!("hop_{}", Uuid::now_v7().simple()),
-        operation: "host.stop".to_owned(),
-        ok: stopped,
-        target: descriptor.target.clone(),
-        authority: None,
-        artifacts: HostOpsArtifacts::default(),
-        data: json!({
+    let envelope = envelope(
+        stopped,
+        json!({
             "stoppedPid": descriptor.pid,
             "serverUrl": descriptor.server_url,
+            "verifiedBy": "startupNonce",
         }),
-        diagnostics: Vec::new(),
-        next: Vec::new(),
-    };
+        Vec::new(),
+    );
     let ok = print_envelope(&serde_json::to_value(&envelope)?);
     if !ok {
         std::process::exit(1);
     }
     Ok(())
+}
+
+/// GET the descriptor's `/health` and return its JSON payload, or a
+/// human-readable reason it could not be fetched.
+fn fetch_health(server_url: &str) -> Result<Value, String> {
+    let url = format!("{}/health", server_url.trim_end_matches('/'));
+    let agent = ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(2))
+        .build();
+    match agent.get(&url).call() {
+        Ok(response) => response
+            .into_json()
+            .map_err(|error| format!("{url} did not return JSON: {error}")),
+        Err(ureq::Error::Status(status, _)) => Err(format!("{url} answered HTTP {status}")),
+        Err(error) => Err(format!("{url} is unreachable: {error}")),
+    }
+}
+
+/// Decide whether the descriptor's pid may be signaled: only when the live
+/// server at `serverUrl` reports the same per-process `startupNonce` the
+/// descriptor was written with. Anything else — dead server, different
+/// process on the port, a descriptor without a nonce — refuses with a
+/// structured diagnostic instead of signaling a possibly reused PID.
+fn verify_stop_target(
+    descriptor: &HostReadyDescriptor,
+    health: &Result<Value, String>,
+) -> Result<(), crate::diagnostic::Diagnostic> {
+    let details = |reason: &str| {
+        json!({
+            "operation": "host.stop",
+            "pid": descriptor.pid,
+            "serverUrl": descriptor.server_url,
+            "reason": reason,
+        })
+    };
+    let Some(expected_nonce) = descriptor.startup_nonce.as_deref() else {
+        return Err(crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_HOST_STOP_UNVERIFIABLE",
+            "host-ops",
+            "the readiness descriptor has no startupNonce (written by an older snapback), so the \
+             pid cannot be verified as the server; stop the process manually and remove the \
+             ready file",
+        )
+        .with_details(details("descriptor predates startupNonce identity")));
+    };
+    let payload = match health {
+        Ok(payload) => payload,
+        Err(reason) => {
+            return Err(crate::diagnostic::Diagnostic::error(
+                "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
+                "host-ops",
+                format!(
+                    "the descriptor's server no longer answers ({reason}); the ready file is \
+                     stale and pid {} may belong to an unrelated process — nothing was \
+                     signaled; remove the ready file if the server is gone",
+                    descriptor.pid
+                ),
+            )
+            .with_details(details(reason)));
+        }
+    };
+    let live_nonce = payload
+        .get("binary")
+        .and_then(|binary| binary.get("startupNonce"))
+        .and_then(Value::as_str);
+    match live_nonce {
+        Some(live) if live == expected_nonce => Ok(()),
+        Some(_) => Err(crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
+            "host-ops",
+            "the server answering the descriptor's URL is a different process than the one that \
+             wrote the descriptor (startupNonce mismatch); nothing was signaled — remove the \
+             stale ready file and target the live server's own ready file",
+        )
+        .with_details(details("startupNonce mismatch"))),
+        None => Err(crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_HOST_STOP_UNVERIFIABLE",
+            "host-ops",
+            "the process answering the descriptor's URL does not report a Snapback identity \
+             (/health has no binary.startupNonce); nothing was signaled",
+        )
+        .with_details(details("no binary.startupNonce on /health"))),
+    }
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -337,6 +447,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             host: local_addr.ip().to_string(),
             port: local_addr.port(),
             pid: std::process::id(),
+            // The identity handshake `snapback stop` verifies before it
+            // signals this pid: the same per-process nonce /health reports.
+            startup_nonce: Some(crate::identity::binary_identity().startup_nonce),
             target: crate::host_ops::HostOpsTarget {
                 app_id: loaded_app_id.clone(),
                 app_root: None,
@@ -506,8 +619,82 @@ fn describe_ports(ports: &[u16]) -> String {
 mod tests {
     use super::{Args, bind_first_available, bind_listener, prepare_database_path};
     use clap::Parser;
+    use serde_json::json;
     use std::path::PathBuf;
     use tokio::net::TcpListener;
+
+    fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDescriptor {
+        crate::host_ops::HostReadyDescriptor {
+            schema_version: crate::manifest::SNAPBACK_SCHEMA_VERSION.to_owned(),
+            descriptor_kind: crate::host_ops::HOST_READY_DESCRIPTOR_KIND.to_owned(),
+            startup_id: "srt_test".to_owned(),
+            ready: true,
+            server_url: "http://127.0.0.1:4287".to_owned(),
+            host: "127.0.0.1".to_owned(),
+            port: 4287,
+            pid: 4242,
+            startup_nonce: startup_nonce.map(str::to_owned),
+            target: crate::host_ops::HostOpsTarget {
+                app_id: "app_test".to_owned(),
+                app_root: None,
+                target_profile: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                server_url: Some("http://127.0.0.1:4287".to_owned()),
+            },
+            database: crate::host_ops::HostReadyDatabase {
+                mode: "memory".to_owned(),
+                path: None,
+            },
+            started_at_ms: 0,
+            admin_gated: false,
+            diagnostics: Vec::new(),
+        }
+    }
+
+    fn health_with_nonce(nonce: &str) -> serde_json::Value {
+        json!({ "ok": true, "binary": { "startupNonce": nonce } })
+    }
+
+    #[test]
+    fn stop_signals_only_a_nonce_verified_server() {
+        let descriptor = stop_descriptor(Some("nonce-a"));
+        let verdict = super::verify_stop_target(&descriptor, &Ok(health_with_nonce("nonce-a")));
+        assert!(verdict.is_ok());
+    }
+
+    #[test]
+    fn stop_refuses_when_the_server_is_a_different_process() {
+        let descriptor = stop_descriptor(Some("nonce-a"));
+        let diagnostic = super::verify_stop_target(&descriptor, &Ok(health_with_nonce("nonce-b")))
+            .expect_err("a restarted server must not be signaled via the old descriptor");
+        assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR");
+    }
+
+    #[test]
+    fn stop_refuses_when_the_server_no_longer_answers() {
+        let descriptor = stop_descriptor(Some("nonce-a"));
+        let diagnostic =
+            super::verify_stop_target(&descriptor, &Err("connection refused".to_owned()))
+                .expect_err("a dead server means the pid may be reused; never signal it");
+        assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR");
+        assert_eq!(diagnostic.details["reason"], json!("connection refused"));
+    }
+
+    #[test]
+    fn stop_refuses_a_descriptor_without_a_nonce() {
+        let descriptor = stop_descriptor(None);
+        let diagnostic = super::verify_stop_target(&descriptor, &Ok(health_with_nonce("nonce-a")))
+            .expect_err("an unverifiable descriptor must be refused");
+        assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_UNVERIFIABLE");
+    }
+
+    #[test]
+    fn stop_refuses_when_the_responder_reports_no_snapback_identity() {
+        let descriptor = stop_descriptor(Some("nonce-a"));
+        let diagnostic =
+            super::verify_stop_target(&descriptor, &Ok(json!({ "hello": "world" })))
+                .expect_err("a non-Snapback responder must not vouch for the pid");
+        assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_UNVERIFIABLE");
+    }
 
     #[test]
     fn no_argument_defaults_start_local_dev_server() {

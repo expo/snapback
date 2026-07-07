@@ -19,7 +19,9 @@
 > - **Built:** `host.start` (CLI `snapback start`, foreground; structured
 >   readiness is the `--ready-file` descriptor —
 >   `schemas/host-ready.schema.json` — per LLP 0030's out-of-band
->   handshake), `host.stop` (CLI, via the readiness descriptor),
+>   handshake), `host.stop` (CLI, via the readiness descriptor; signals the
+>   pid only after the descriptor's `startupNonce` matches the live `/health`
+>   identity, refusing stale or unverifiable descriptors — ENG-23366),
 >   `app.inspect`, `app.reset` (with optional seed), `schema.load`,
 >   `functions.load`, `function.run` (queries and mutations; never actions)
 >   — each as CLI verb + HTTP operation, tested in `tests/host_ops_v0.rs`.

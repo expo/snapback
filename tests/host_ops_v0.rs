@@ -196,6 +196,13 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
     assert_eq!(descriptor.pid, std::process::id());
     assert!(descriptor.server_url.starts_with("http://127.0.0.1:"));
     assert_eq!(descriptor.database.mode, "memory");
+    // The stop-verification identity (ENG-23366): the descriptor carries the
+    // same per-process nonce this process reports on /health, so `snapback
+    // stop` can confirm the pid still belongs to this server before signaling.
+    assert_eq!(
+        descriptor.startup_nonce.as_deref(),
+        Some(snapback::identity::binary_identity().startup_nonce.as_str())
+    );
 
     // The attach validation actually rejects: a tampered descriptor fails.
     let mut tampered = value.clone();

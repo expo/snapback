@@ -118,6 +118,18 @@ pub struct HostReadyDescriptor {
     pub host: String,
     pub port: u16,
     pub pid: u32,
+    /// The writing server's per-process boot id (`/health` →
+    /// `binary.startupNonce`). `snapback stop` matches it against the live
+    /// server before signaling `pid`, so a stale descriptor (crash, Ctrl-C)
+    /// never routes a signal to a reused PID (ENG-23366). Optional only for
+    /// descriptors written by older binaries, which `stop` treats as
+    /// unverifiable and refuses.
+    #[serde(
+        rename = "startupNonce",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub startup_nonce: Option<String>,
     pub target: HostOpsTarget,
     pub database: HostReadyDatabase,
     #[serde(rename = "startedAtMs")]
