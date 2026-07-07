@@ -663,7 +663,17 @@ change the concurrency architecture and should land as one reviewed arc.
   accepted):** a WebSocket wedged by >120 s of send backpressure can be reaped
   and, if it later resumes, re-register as a subscription-less connection until
   socket close — self-correcting and only under pathological backpressure;
-  reaping an unresponsive client is the intended behavior.
+  reaping an unresponsive client is the intended behavior. **Review fix
+  (2026-07-06, ENG-23424):** the L8 safety net defeated L2 for WS peers that
+  vanish without FIN/RST — its 30 s drain touched activity even when the
+  outbox was empty (and an empty drain does no socket I/O, so no send error
+  ever surfaced), immortalizing a dead idle subscriber. Fixed on both sides:
+  `drain_live_stream` touches activity only when it actually drained
+  something, WS client liveness comes from `EphemeralApi::touch_connection`
+  on incoming Ping/Pong frames, and the safety-net tick now sends a WS Ping —
+  a vanished peer errors the socket within the TCP retransmission timeout,
+  and a live idle peer's Pong keeps it under the TTL. Test
+  `eng_23424_empty_ws_drain_is_not_liveness`.
 - **L3 — Change-journal retention.** `_snapback_changes` grows without bound
   (pruned only by `reset`) and its per-query
   `MAX(version) WHERE table_name = ?` check is a full scan — the only index

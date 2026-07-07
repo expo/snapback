@@ -577,11 +577,27 @@ impl EphemeralApi {
         drained
     }
 
+    /// Drain for the WS push task. Unlike `drain_outbox` (an HTTP poll, which
+    /// is client-initiated and therefore liveness), this drain is
+    /// *server-initiated* — the 30s safety net calls it even when the peer has
+    /// silently vanished. Touch activity only when something was actually
+    /// drained for delivery; an empty drain must not refresh the connection,
+    /// or a dead idle WS peer is immortal against the L2 reaper (ENG-23424).
+    /// Client liveness on the WS path comes from `touch_connection` instead.
     pub fn drain_live_stream(&self, connection_id: &str) -> Vec<String> {
-        self.drain_outbox(connection_id)
-            .into_iter()
-            .filter_map(live_stream_text)
-            .collect()
+        let drained = self.store.drain_outbox(connection_id);
+        if !drained.is_empty() {
+            self.activity.touch(connection_id, now_millis());
+        }
+        drained.into_iter().filter_map(live_stream_text).collect()
+    }
+
+    /// Record client-initiated liveness for the L2 reaper — the WS task calls
+    /// this on incoming frames (e.g. the Pong answering a safety-net Ping).
+    /// Same touch-after-op shape as `drain_outbox`: racing a `disconnect` it
+    /// re-adds only a bare activity entry (self-healing, reapable).
+    pub fn touch_connection(&self, connection_id: &str) {
+        self.activity.touch(connection_id, now_millis());
     }
 
     pub fn cleanup_expired(&self, now_ms: u64) {

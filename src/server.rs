@@ -1040,7 +1040,12 @@ pub fn router(snapback: LocalSnapback) -> Router {
 
 /// How long a connection may be idle before the reaper tears it down, and how
 /// often the reaper runs. HTTP-polling clients poll well within this window;
-/// WS clients are reaped on socket close and never reach it.
+/// WS clients are normally reaped on socket close. A WS peer that vanishes
+/// without FIN/RST (suspend, cable pull) is covered twice (ENG-23424): the
+/// safety-net Ping in `live_stream` errors the socket within the TCP
+/// retransmission timeout, and — because an empty server-initiated drain no
+/// longer counts as liveness — an idle dead peer also ages past this TTL and
+/// is reaped even before the socket error lands.
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
 const CONNECTION_IDLE_TTL_MS: u64 = 120_000;
@@ -1613,11 +1618,34 @@ async fn live_stream(
                         }
                         false
                     }
-                    Some(Ok(Message::Binary(_))) | Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => false,
+                    // A protocol Ping/Pong from the peer is client-initiated
+                    // liveness for the L2 reaper (ENG-23424) — most
+                    // importantly the Pong answering the safety-net Ping
+                    // below, which every conforming peer sends even when the
+                    // app is otherwise idle. (Ephemeral text ops touch
+                    // activity through their EphemeralApi calls; `live_ping`
+                    // stays deliberately stateless.)
+                    Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => {
+                        ephemeral.touch_connection(&connection_id);
+                        false
+                    }
+                    Some(Ok(Message::Binary(_))) => false,
                 }
             }
             _ = waker.notified() => true,
-            _ = safety_net.tick() => true,
+            _ = safety_net.tick() => {
+                // ENG-23424: probe the peer, don't just drain. A peer that
+                // vanished without FIN/RST (suspend, cable pull) never errors
+                // on an *empty* drain — no bytes are written — so without this
+                // Ping the task would live forever. The Ping forces socket
+                // I/O every 30s: a dead peer surfaces a send error within the
+                // TCP retransmission timeout, and a live one answers with a
+                // Pong that refreshes its activity above.
+                if sender.send(Message::Ping(Vec::new().into())).await.is_err() {
+                    break 'stream;
+                }
+                true
+            }
         };
         if drain
             && drain_and_send(&ephemeral, &connection_id, &mut sender)

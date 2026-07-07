@@ -3190,6 +3190,74 @@ fn l2_abandoned_connection_is_reaped_with_counters() {
     );
 }
 
+/// ENG-23424 — the WS safety net must not immortalize a silently-dead peer.
+/// The 30s tick calls `drain_live_stream` even when the outbox is empty; an
+/// empty *server-initiated* drain is not liveness and must not create or
+/// refresh the connection's L2 activity entry (before the fix it did, keeping
+/// a vanished idle subscriber permanently under the reaper's TTL). Client
+/// liveness on the WS path is `touch_connection` — the task calls it for the
+/// Pong answering the safety-net Ping.
+#[test]
+fn eng_23424_empty_ws_drain_is_not_liveness() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
+    let api = snapback.ephemeral_api();
+
+    // No liveness entry exists for the connection (as after a reap): the
+    // safety-net's empty drain must not conjure one.
+    assert_eq!(snapback.active_connection_count(), 0);
+    assert!(api.drain_live_stream("ghost").is_empty());
+    assert_eq!(
+        snapback.active_connection_count(),
+        0,
+        "an empty server-initiated WS drain must not create or refresh liveness"
+    );
+
+    // The Pong path IS client-initiated liveness.
+    api.touch_connection("ghost");
+    assert_eq!(
+        snapback.active_connection_count(),
+        1,
+        "touch_connection (Pong) must register liveness"
+    );
+
+    // A drain that actually delivers still counts: subscribe an observer,
+    // publish into its room, and the non-empty drain keeps its entry live.
+    api.subscribe(
+        SubscribeRequest {
+            collection: "cursors".to_owned(),
+            scope: Scope::from_pairs([("roomId", "room-1")]),
+            connection_id: "observer".to_owned(),
+            auth: AuthContext::default(),
+        },
+        1_000,
+    )
+    .expect("subscribe observer");
+    api.publish(
+        PublishRequest {
+            collection: "cursors".to_owned(),
+            scope: Scope::from_pairs([("roomId", "room-1")]),
+            connection_id: "publisher".to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: None,
+            value: br#"{"x":1,"y":2}"#.to_vec(),
+            ttl_ms: None,
+            auth: AuthContext::default(),
+        },
+        1_100,
+    )
+    .expect("publish");
+    assert!(
+        !api.drain_live_stream("observer").is_empty(),
+        "the published delta reaches the observer's WS drain"
+    );
+    assert!(
+        snapback.active_connection_count() >= 2,
+        "a delivering drain refreshes (or keeps) the observer's liveness entry"
+    );
+}
+
 /// LLP 0032 L3 — the change journal is bounded by retention (prune drops old
 /// changes and raises the floor), a resume from below the retained floor is
 /// told to resnapshot, and the per-mutation validation query uses the
