@@ -16,8 +16,9 @@ use crate::live_matcher::{
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AuthInput, CapabilityManifest, FunctionDefinition,
     FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
-    MutationStep, PermissionScopeExpr, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr,
+    MutationStep, PermissionScopeExpr, PublicFunctionManifest, QueryOutput, QueryPlan,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    ValueExpr,
 };
 use crate::runtime::{IbexActionHost, RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
@@ -146,10 +147,12 @@ pub struct LiveSubscriptionInfo {
 /// `/`. It is a typed allowlist: the `From<InspectState>` below destructures the
 /// full struct, so a newly-added `InspectState` (or `StorageInfo`,
 /// `LiveSubscriptionInfo`) field is a compile error here rather than a silent
-/// leak. Two facts are deliberately dropped and live only in the gated
+/// leak. Three facts are deliberately dropped and live only in the gated
 /// `/_snapback/api/inspect` twin: `subscriptions[].connection_id` (the
-/// enumerate-and-disconnect vector — LLP 0031 D2/D3) and the absolute
-/// `storage.sqlite_path` (an environment leak).
+/// enumerate-and-disconnect vector — LLP 0031 D2/D3), the absolute
+/// `storage.sqlite_path` (an environment leak), and the executable handler
+/// bodies inside `functions` (`IbexModule.source` / `HandlerPlan` bodies — a
+/// source disclosure, ENG-23441; see [`PublicFunctionManifest`]).
 ///
 /// @ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.
 #[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
@@ -164,7 +167,7 @@ pub struct PublicInspect {
     pub storage: PublicStorageInfo,
     pub runtime: RuntimeCapabilities,
     pub schema: SchemaManifest,
-    pub functions: FunctionManifest,
+    pub functions: PublicFunctionManifest,
     #[serde(rename = "capabilityManifest")]
     pub capability_manifest: CapabilityManifest,
     pub subscriptions: Vec<PublicSubscriptionInfo>,
@@ -233,7 +236,7 @@ impl From<InspectState> for PublicInspect {
             storage: PublicStorageInfo { version, tables },
             runtime,
             schema,
-            functions,
+            functions: functions.into(),
             capability_manifest,
             subscriptions: subscriptions
                 .into_iter()

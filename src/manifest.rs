@@ -362,6 +362,176 @@ pub struct IbexModule {
     pub export: String,
 }
 
+/// The public projection of [`FunctionManifest`] served inside the root
+/// `/inspect` identity descriptor. Like `PublicInspect` it is a typed
+/// allowlist: the `From` impls below destructure the full structs exhaustively,
+/// so a newly-added field is a compile error here rather than a silent leak.
+///
+/// What it keeps: identity/compat and dependency facts — app id, bundle/inputs
+/// hashes, function names/kinds/capability summaries, read/write summaries,
+/// cron and config *declarations* (never values; secrets do not ride the
+/// manifest — LLP 0036). What it drops: every executable handler body
+/// (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan` (a
+/// source-path leak). Full source stays only on the gated
+/// `/_snapback/api/inspect` twin.
+///
+/// @ref LLP 0031#resolved-decisions — D3: public `/inspect` is an identity
+///   descriptor; handler source and plan bodies are operational facts for the
+///   gated twin only (ENG-23441).
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicFunctionManifest {
+    #[serde(rename = "artifactKind")]
+    pub artifact_kind: String,
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
+    #[serde(rename = "appId")]
+    pub app_id: String,
+    #[serde(rename = "bundleHash")]
+    pub bundle_hash: Option<String>,
+    #[serde(rename = "inputsHash")]
+    pub inputs_hash: Option<String>,
+    #[serde(rename = "generatedAt")]
+    pub generated_at: Option<u64>,
+    #[serde(rename = "unsupportedDependencyDiagnostics")]
+    pub unsupported_dependency_diagnostics: Vec<Diagnostic>,
+    pub functions: Vec<PublicFunctionDefinition>,
+    #[serde(rename = "cronJobs")]
+    pub cron_jobs: Vec<CronJobDefinition>,
+    pub config: Vec<ConfigEntryDefinition>,
+}
+
+/// Public projection of [`FunctionDefinition`]: everything except the
+/// executable runtime body and the source span.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicFunctionDefinition {
+    pub id: Option<String>,
+    pub name: String,
+    #[serde(rename = "exportedName")]
+    pub exported_name: Option<String>,
+    pub kind: FunctionKind,
+    #[serde(rename = "requiredCapabilities")]
+    pub required_capabilities: Vec<String>,
+    #[serde(rename = "authRequirement")]
+    pub auth_requirement: Option<String>,
+    #[serde(rename = "syncabilityClass")]
+    pub syncability_class: Option<String>,
+    #[serde(rename = "readSetSummary")]
+    pub read_set_summary: DependencySummary,
+    #[serde(rename = "writeSetSummary")]
+    pub write_set_summary: DependencySummary,
+    #[serde(rename = "permissionEpochBumps")]
+    pub permission_epoch_bumps: Vec<PermissionScopeExpr>,
+    #[serde(rename = "bundleEntrypoint")]
+    pub bundle_entrypoint: Option<String>,
+    pub uses: Vec<String>,
+    pub runtime: PublicFunctionRuntime,
+}
+
+/// Public projection of [`FunctionRuntime`]: the runtime kind (and the export
+/// name for Ibex modules) without any executable body.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub enum PublicFunctionRuntime {
+    HostPlan(PublicHostPlanKind),
+    IbexModule(PublicIbexModule),
+}
+
+/// Which host-plan family a redacted `HostPlan` runtime executes.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub enum PublicHostPlanKind {
+    Query,
+    Mutation,
+    Action,
+}
+
+/// Public projection of [`IbexModule`]: the export name, never the source.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicIbexModule {
+    pub export: String,
+}
+
+impl From<FunctionManifest> for PublicFunctionManifest {
+    fn from(manifest: FunctionManifest) -> Self {
+        // Exhaustive destructure: a new FunctionManifest field must be
+        // classified here, not leak by default.
+        let FunctionManifest {
+            artifact_kind,
+            schema_version,
+            app_id,
+            bundle_hash,
+            inputs_hash,
+            generated_at,
+            unsupported_dependency_diagnostics,
+            functions,
+            cron_jobs,
+            config,
+        } = manifest;
+        PublicFunctionManifest {
+            artifact_kind,
+            schema_version,
+            app_id,
+            bundle_hash,
+            inputs_hash,
+            generated_at,
+            unsupported_dependency_diagnostics,
+            functions: functions.into_iter().map(Into::into).collect(),
+            cron_jobs,
+            config,
+        }
+    }
+}
+
+impl From<FunctionDefinition> for PublicFunctionDefinition {
+    fn from(definition: FunctionDefinition) -> Self {
+        let FunctionDefinition {
+            id,
+            name,
+            exported_name,
+            kind,
+            source_span: _,
+            required_capabilities,
+            auth_requirement,
+            syncability_class,
+            read_set_summary,
+            write_set_summary,
+            permission_epoch_bumps,
+            bundle_entrypoint,
+            uses,
+            runtime,
+        } = definition;
+        PublicFunctionDefinition {
+            id,
+            name,
+            exported_name,
+            kind,
+            required_capabilities,
+            auth_requirement,
+            syncability_class,
+            read_set_summary,
+            write_set_summary,
+            permission_epoch_bumps,
+            bundle_entrypoint,
+            uses,
+            runtime: runtime.into(),
+        }
+    }
+}
+
+impl From<FunctionRuntime> for PublicFunctionRuntime {
+    fn from(runtime: FunctionRuntime) -> Self {
+        match runtime {
+            FunctionRuntime::HostPlan(plan) => PublicFunctionRuntime::HostPlan(match plan {
+                HandlerPlan::Query(_) => PublicHostPlanKind::Query,
+                HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
+                HandlerPlan::Action(_) => PublicHostPlanKind::Action,
+            }),
+            // `source: _` is the redaction this projection exists for.
+            FunctionRuntime::IbexModule(IbexModule { source: _, export }) => {
+                PublicFunctionRuntime::IbexModule(PublicIbexModule { export })
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum HandlerPlan {
     Query(QueryPlan),

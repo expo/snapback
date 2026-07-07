@@ -14,9 +14,9 @@ use snapback::ephemeral::EphemeralCollection;
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AppIdentity, AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
-    FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IndexManifest, MutationPlan,
-    MutationStep, OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData, TableManifest,
-    ValueExpr,
+    FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
+    MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData,
+    TableManifest, ValueExpr,
 };
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -824,6 +824,92 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
             .iter()
             .any(|entry| entry["connectionId"] == "conn_secret"),
         "the gated inspect twin must retain connection ids"
+    );
+}
+
+/// ENG-23441 (LLP 0031 D3) — the public `/inspect` functions manifest is a
+/// redacted projection: executable handler bodies (`IbexModule.source`,
+/// `HandlerPlan` step bodies) never appear anywhere in the public payload,
+/// while the gated twin keeps the full manifest. Sentinel strings planted in
+/// both runtime shapes prove the redaction at the whole-payload level, which
+/// the field assertions above cannot.
+#[tokio::test]
+async fn s1_public_inspect_redacts_handler_source() {
+    const SOURCE_SENTINEL: &str = "SNAPBACK_ENG_23441_SOURCE_SENTINEL";
+    const PLAN_SENTINEL: &str = "SNAPBACK_ENG_23441_PLAN_LITERAL";
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    let mut manifest = todo_functions();
+    manifest.functions.push(FunctionDefinition::new(
+        "sentinelQuery",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: format!(
+                "export const sentinelQuery = async () => {{ /* {SOURCE_SENTINEL} */ return []; }};"
+            ),
+            export: "sentinelQuery".to_owned(),
+        }),
+    ));
+    manifest.functions.push(FunctionDefinition::new(
+        "sentinelMutation",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "todos".to_owned(),
+                values: BTreeMap::from([(
+                    "title".to_owned(),
+                    ValueExpr::Literal(Value::String(PLAN_SENTINEL.to_owned())),
+                )]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        })),
+    ));
+    snapback.load_functions(manifest);
+    let app = app_with_context(snapback, loopback_context(None));
+
+    // Public /inspect: no executable body anywhere in the payload…
+    let public = json(app.clone().oneshot(get("/inspect")).await.unwrap()).await;
+    let public_text = public.to_string();
+    assert!(
+        !public_text.contains(SOURCE_SENTINEL),
+        "public /inspect must not expose Ibex handler source"
+    );
+    assert!(
+        !public_text.contains(PLAN_SENTINEL),
+        "public /inspect must not expose host-plan bodies"
+    );
+    // …while the identity/compat facts stay public.
+    assert_eq!(public["functions"]["bundleHash"], "todo-functions-v0");
+    let functions = public["functions"]["functions"]
+        .as_array()
+        .expect("functions");
+    let module_fn = functions
+        .iter()
+        .find(|f| f["name"] == "sentinelQuery")
+        .expect("sentinelQuery listed");
+    assert_eq!(module_fn["runtime"]["IbexModule"]["export"], "sentinelQuery");
+    assert!(
+        module_fn["runtime"]["IbexModule"].get("source").is_none(),
+        "public runtime projection must not carry a source field"
+    );
+    let plan_fn = functions
+        .iter()
+        .find(|f| f["name"] == "sentinelMutation")
+        .expect("sentinelMutation listed");
+    assert_eq!(plan_fn["runtime"]["HostPlan"], "Mutation");
+
+    // Gated /_snapback/api/inspect: the full manifest, bodies included.
+    let gated = json(app.oneshot(get("/_snapback/api/inspect")).await.unwrap()).await;
+    let gated_text = gated.to_string();
+    assert!(
+        gated_text.contains(SOURCE_SENTINEL),
+        "gated inspect must retain handler source"
+    );
+    assert!(
+        gated_text.contains(PLAN_SENTINEL),
+        "gated inspect must retain host-plan bodies"
     );
 }
 
