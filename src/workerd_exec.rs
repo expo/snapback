@@ -207,11 +207,7 @@ pub fn refuse_node_compat(config: &CompatConfig) -> SnapbackResult<()> {
 /// single-sourced files from packages/snapback-harness; the only generated
 /// parts are the two loopback addresses and the compat pins. There is no
 /// `internet` service: the HOST binding is the isolate's only egress.
-fn render_workerd_config(
-    compat: &CompatConfig,
-    host_port: u16,
-    worker_port: u16,
-) -> String {
+fn render_workerd_config(compat: &CompatConfig, host_port: u16, worker_port: u16) -> String {
     let flags = compat
         .compatibility_flags
         .iter()
@@ -448,8 +444,10 @@ pub(crate) fn run_handler_workerd(
                 let body = response.into_string().unwrap_or_default();
                 let parsed: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
                 let ok = parsed.get("ok").and_then(Value::as_bool) == Some(true);
-                let harness = parsed.get("harness").and_then(Value::as_str) == Some("snapback-workerd-v8");
-                let nonce = parsed.get("nonce").and_then(Value::as_str) == Some(readiness_nonce.as_str());
+                let harness =
+                    parsed.get("harness").and_then(Value::as_str) == Some("snapback-workerd-v8");
+                let nonce =
+                    parsed.get("nonce").and_then(Value::as_str) == Some(readiness_nonce.as_str());
                 if ok && harness && nonce {
                     break;
                 }
@@ -695,7 +693,10 @@ fn host_call_response(ctx: &mut IbexHostContext<'_>, body: &[u8]) -> Value {
         }
     };
     let raw_op = parsed.get("rawOp").and_then(Value::as_str).unwrap_or("");
-    let args_json = parsed.get("argsJson").and_then(Value::as_str).unwrap_or("{}");
+    let args_json = parsed
+        .get("argsJson")
+        .and_then(Value::as_str)
+        .unwrap_or("{}");
 
     let Some((epoch_str, op)) = raw_op.split_once('|') else {
         return json!({

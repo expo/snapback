@@ -44,27 +44,139 @@ struct Case {
 
 fn corpus() -> Vec<Case> {
     vec![
-        Case { name: "mutation-insert", handler: "addItem", kind: FunctionKind::Mutation, args: json!({"label": "alpha", "rank": 1}), engines: Engines::Both, declared_fact: None },
-        Case { name: "query-order-filter-take", handler: "listRanked", kind: FunctionKind::Query, args: json!({"min": 0}), engines: Engines::Both, declared_fact: None },
-        Case { name: "query-first", handler: "firstItem", kind: FunctionKind::Query, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "read-your-writes", handler: "readYourWrites", kind: FunctionKind::Mutation, args: json!({"label": "ryw"}), engines: Engines::Both, declared_fact: None },
-        Case { name: "patch-get-delete", handler: "patchAndDelete", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "runtime-now-id", handler: "nowAndId", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "console-diagnostics-routed", handler: "logsThings", kind: FunctionKind::Query, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "allowlist-slice-encoding-base64", handler: "allowlistSlice", kind: FunctionKind::Query, args: json!({"text": "héllo ✓ 𝒮"}), engines: Engines::Both, declared_fact: None },
-        Case { name: "write-in-query-denied", handler: "writeInQuery", kind: FunctionKind::Query, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "export-missing", handler: "noSuchExport", kind: FunctionKind::Query, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "result-not-serializable", handler: "returnsFunction", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "settlement-hang", handler: "hangForever", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "unhandled-detached-rejection", handler: "detachedRejection", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
+        Case {
+            name: "mutation-insert",
+            handler: "addItem",
+            kind: FunctionKind::Mutation,
+            args: json!({"label": "alpha", "rank": 1}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "query-order-filter-take",
+            handler: "listRanked",
+            kind: FunctionKind::Query,
+            args: json!({"min": 0}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "query-first",
+            handler: "firstItem",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "read-your-writes",
+            handler: "readYourWrites",
+            kind: FunctionKind::Mutation,
+            args: json!({"label": "ryw"}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "patch-get-delete",
+            handler: "patchAndDelete",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "runtime-now-id",
+            handler: "nowAndId",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "console-diagnostics-routed",
+            handler: "logsThings",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "allowlist-slice-encoding-base64",
+            handler: "allowlistSlice",
+            kind: FunctionKind::Query,
+            args: json!({"text": "héllo ✓ 𝒮"}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "write-in-query-denied",
+            handler: "writeInQuery",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "export-missing",
+            handler: "noSuchExport",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "result-not-serializable",
+            handler: "returnsFunction",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "settlement-hang",
+            handler: "hangForever",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "unhandled-detached-rejection",
+            handler: "detachedRejection",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
         // ENG-23584: the detached chain parks on a HOST CALL before rejecting,
         // so the V8 leg only observes it if the drain waits for host-call
         // quiescence instead of a fixed microtask-tick count.
-        Case { name: "unhandled-detached-rejection-after-host-call", handler: "detachedHostCallRejection", kind: FunctionKind::Mutation, args: json!({}), engines: Engines::Both, declared_fact: None },
-        Case { name: "detached-host-call-success", handler: "detachedHostCallSuccess", kind: FunctionKind::Mutation, args: json!({"label": "detached-ok", "rank": 7}), engines: Engines::Both, declared_fact: None },
+        Case {
+            name: "unhandled-detached-rejection-after-host-call",
+            handler: "detachedHostCallRejection",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
+        Case {
+            name: "detached-host-call-success",
+            handler: "detachedHostCallSuccess",
+            kind: FunctionKind::Mutation,
+            args: json!({"label": "detached-ok", "rank": 7}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
         // ENG-23593: decoder fidelity on view windows and invalid utf-8 must
         // CONVERGE — the Ibex polyfill is spec-corrected, not declared.
-        Case { name: "allowlist-decoder-fidelity", handler: "decoderFidelity", kind: FunctionKind::Query, args: json!({}), engines: Engines::Both, declared_fact: None },
+        Case {
+            name: "allowlist-decoder-fidelity",
+            handler: "decoderFidelity",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
         Case {
             name: "deterministic-date-constructor",
             handler: "probeDateConstructor",
@@ -85,7 +197,14 @@ fn corpus() -> Vec<Case> {
                 "the fine-grained interleave of queueMicrotask jobs with promise reactions                  differs between V8 and the Ibex vendored promise polyfill (thenable adoption                  and chained .then land at different ticks) — declared engine fact; handlers                  must not depend on cross-engine job ordering (ENG-23593)",
             ),
         },
-        Case { name: "ambient-denial-fetch", handler: "probeFetch", kind: FunctionKind::Query, args: json!({}), engines: Engines::Both, declared_fact: None },
+        Case {
+            name: "ambient-denial-fetch",
+            handler: "probeFetch",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+        },
         Case {
             name: "busy-loop-wall-clock-kill",
             handler: "busyLoop",
@@ -118,8 +237,16 @@ fn schema() -> SchemaManifest {
         tables: vec![TableManifest {
             name: "items".to_owned(),
             fields: vec![
-                FieldManifest { name: "label".to_owned(), field_type: FieldType::String, optional: true },
-                FieldManifest { name: "rank".to_owned(), field_type: FieldType::Integer, optional: true },
+                FieldManifest {
+                    name: "label".to_owned(),
+                    field_type: FieldType::String,
+                    optional: true,
+                },
+                FieldManifest {
+                    name: "rank".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: true,
+                },
             ],
             indexes: Vec::new(),
             syncable: true,
@@ -152,11 +279,19 @@ fn functions(cases: &[Case]) -> FunctionManifest {
             export: "dumpItems".to_owned(),
         }),
     ));
-    FunctionManifest { functions, ..FunctionManifest::default() }
+    FunctionManifest {
+        functions,
+        ..FunctionManifest::default()
+    }
 }
 
 fn input(args: Value) -> HandlerInput {
-    HandlerInput { args, auth: AuthInput::default(), read_set: Vec::new(), correlation: None }
+    HandlerInput {
+        args,
+        auth: AuthInput::default(),
+        read_set: Vec::new(),
+        correlation: None,
+    }
 }
 
 /// LLP 0010-style placeholder normalization: opaque ids become `$ID:<n>` in
@@ -189,10 +324,7 @@ fn normalize_with_context(
                 .collect(),
         ),
         Value::Object(entries) => {
-            let op = entries
-                .get("op")
-                .and_then(Value::as_str)
-                .or(parent_op);
+            let op = entries.get("op").and_then(Value::as_str).or(parent_op);
             Value::Object(
                 entries
                     .iter()
@@ -230,10 +362,13 @@ fn normalize_ids_in_string(text: &str, ids: &mut Vec<String>) -> String {
     let mut i = 0usize;
     while i < bytes.len() {
         if let Some(uuid) = uuid_at(text, i) {
-            let index = ids.iter().position(|known| known == &uuid).unwrap_or_else(|| {
-                ids.push(uuid.clone());
-                ids.len() - 1
-            });
+            let index = ids
+                .iter()
+                .position(|known| known == &uuid)
+                .unwrap_or_else(|| {
+                    ids.push(uuid.clone());
+                    ids.len() - 1
+                });
             out.push_str(&format!("$ID:{index}"));
             i += uuid.len();
         } else {
@@ -274,13 +409,15 @@ fn run_case_on(case: &Case, backend: HandlerBackend) -> Value {
     snapback.load_functions(functions(&corpus()));
 
     let (outcome, trace) = with_host_call_trace(|| {
-        with_forced_backend(backend, || match case.kind {
+        with_forced_backend(backend, || {
+            match case.kind {
             FunctionKind::Mutation => snapback
                 .invoke_mutation(case.handler, input(case.args.clone()))
                 .map(|output| json!({"version": output.version, "changedCount": output.changed_count, "result": output.result})),
             _ => snapback
                 .invoke_query(case.handler, input(case.args.clone()))
                 .map(|output| json!({"version": output.version, "rows": output.rows})),
+        }
         })
     });
     let outcome = match outcome {
@@ -361,7 +498,11 @@ fn main() {
                     (ibex_run, "declared_engine_fact", json!(reason))
                 } else {
                     violations += 1;
-                    (ibex_run, "contract_violation", json!("unclassified divergence — blocks the gate"))
+                    (
+                        ibex_run,
+                        "contract_violation",
+                        json!("unclassified divergence — blocks the gate"),
+                    )
                 }
             }
         };

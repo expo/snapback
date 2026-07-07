@@ -121,8 +121,9 @@ fn probe(snapback: &LocalSnapback, backend: HandlerBackend, handler: &str, name:
 fn v8_mutation_commits_end_to_end() {
     require_workerd!();
     let mut snapback = configured();
-    let output = on_v8(|| snapback.invoke_mutation("addItem", input(json!({"label": "a", "rank": 1}))))
-        .expect("workerd mutation");
+    let output =
+        on_v8(|| snapback.invoke_mutation("addItem", input(json!({"label": "a", "rank": 1}))))
+            .expect("workerd mutation");
     assert_eq!(output.changed_count, 1);
     // The committed row is visible to a subsequent Ibex-leg query — same
     // storage, same version stream, only the executor differed.
@@ -156,13 +157,21 @@ fn v8_and_ibex_agree_on_query_and_read_your_writes() {
             snapback.invoke_query("firstItem", input(json!({})))
         })
         .unwrap_or_else(|error| panic!("{label} firstItem failed: {error}"));
-        assert_eq!(first.rows.len(), 1, "{label}: first() sees the committed row");
+        assert_eq!(
+            first.rows.len(),
+            1,
+            "{label}: first() sees the committed row"
+        );
         let patch = with_forced_backend(backend, || {
             snapback.invoke_mutation("patchAndDelete", input(json!({})))
         })
         .unwrap_or_else(|error| panic!("{label} patchAndDelete failed: {error}"));
         assert_eq!(patch.result.get("existed"), Some(&json!(true)), "{label}");
-        assert_eq!(patch.result.get("label"), Some(&json!("patched")), "{label}");
+        assert_eq!(
+            patch.result.get("label"),
+            Some(&json!("patched")),
+            "{label}"
+        );
         assert_eq!(patch.result.get("removed"), Some(&json!(true)), "{label}");
     }
 }
@@ -174,7 +183,7 @@ fn settlement_floor_is_engine_neutral() {
     let error = with_wall_clock_timeout_ms(1_500, || {
         on_v8(|| snapback.invoke_mutation("hangForever", input(json!({}))))
     })
-        .expect_err("an unsettled handler must fail on the V8 leg too");
+    .expect_err("an unsettled handler must fail on the V8 leg too");
     assert_eq!(
         error.diagnostic.code, "SNAPBACK_HANDLER_DID_NOT_SETTLE",
         "unexpected diagnostic: {error}"
@@ -190,9 +199,13 @@ fn settlement_floor_is_engine_neutral() {
 fn unhandled_rejection_floor_is_engine_neutral() {
     require_workerd!();
     let mut snapback = configured();
-    let error = on_v8(|| snapback.invoke_mutation("detachedRejection", input(json!({"label": "x"}))))
-        .expect_err("a detached rejection must fail the invocation on the V8 leg too");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_UNHANDLED_REJECTION");
+    let error =
+        on_v8(|| snapback.invoke_mutation("detachedRejection", input(json!({"label": "x"}))))
+            .expect_err("a detached rejection must fail the invocation on the V8 leg too");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
     let rows = snapback
         .invoke_query("listItems", input(json!({})))
         .expect("query")
@@ -227,10 +240,9 @@ fn ambient_powers_are_unreachable_on_both_engines() {
     // drifts, so parse bannedEverywhere.globals from the single source. The
     // one exclusion is HermesInternal, the declared engine fact pinned by
     // deterministic_member_denial_is_a_declared_engine_fact below.
-    let allowlist: Value = serde_json::from_str(include_str!(
-        "../packages/snapback-harness/allowlist.json"
-    ))
-    .expect("allowlist.json parses");
+    let allowlist: Value =
+        serde_json::from_str(include_str!("../packages/snapback-harness/allowlist.json"))
+            .expect("allowlist.json parses");
     let probes: Vec<String> = allowlist["bannedEverywhere"]["globals"]
         .as_array()
         .expect("bannedEverywhere.globals is an array")
@@ -239,7 +251,11 @@ fn ambient_powers_are_unreachable_on_both_engines() {
         .filter(|name| *name != "HermesInternal")
         .map(ToOwned::to_owned)
         .collect();
-    assert!(probes.len() >= 40, "allowlist banned set unexpectedly small: {}", probes.len());
+    assert!(
+        probes.len() >= 40,
+        "allowlist banned set unexpectedly small: {}",
+        probes.len()
+    );
     for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
         for name in &probes {
             let result = probe(&snapback, backend, "probeGlobalName", name);
@@ -280,7 +296,12 @@ fn deterministic_member_denial_is_a_declared_engine_fact() {
     // asymmetry (ENG-23588): denied by the V8 strip (zero-arg construction
     // and Date() as a function), still reachable on Ibex in v1 like Date.now.
     // Explicit-timestamp construction stays usable on both engines.
-    let ctor_workerd = probe(&snapback, HandlerBackend::WorkerdV8, "probeDateConstructor", "");
+    let ctor_workerd = probe(
+        &snapback,
+        HandlerBackend::WorkerdV8,
+        "probeDateConstructor",
+        "",
+    );
     assert_eq!(
         ctor_workerd.get("explicit"),
         Some(&json!(true)),
@@ -308,9 +329,19 @@ fn deterministic_member_denial_is_a_declared_engine_fact() {
     // introspection, not ambient authority. Declared engine fact until the
     // vendored runtime disables it at construction (follow-up filed in the
     // LLP 0048 report). Absent on the V8 leg by construction.
-    let on_workerd = probe(&snapback, HandlerBackend::WorkerdV8, "probeGlobalName", "HermesInternal");
+    let on_workerd = probe(
+        &snapback,
+        HandlerBackend::WorkerdV8,
+        "probeGlobalName",
+        "HermesInternal",
+    );
     assert_eq!(on_workerd.get("reachable"), Some(&json!(false)));
-    let on_ibex = probe(&snapback, HandlerBackend::Ibex, "probeGlobalName", "HermesInternal");
+    let on_ibex = probe(
+        &snapback,
+        HandlerBackend::Ibex,
+        "probeGlobalName",
+        "HermesInternal",
+    );
     assert_eq!(
         on_ibex.get("reachable"),
         Some(&json!(true)),
@@ -326,9 +357,15 @@ fn busy_loop_is_killed_with_no_commit_and_no_collateral() {
         on_v8(|| snapback.invoke_mutation("busyLoop", input(json!({}))))
     })
     .expect_err("a busy loop on the V8 leg must be killed");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED"
+    );
     let details = error.diagnostic.details.clone();
-    assert_eq!(details.get("killDomain"), Some(&json!("process-per-invocation")));
+    assert_eq!(
+        details.get("killDomain"),
+        Some(&json!("process-per-invocation"))
+    );
     // The pre-kill buffered insert must not have committed.
     let rows = snapback
         .invoke_query("listItems", input(json!({})))
@@ -337,8 +374,9 @@ fn busy_loop_is_killed_with_no_commit_and_no_collateral() {
     assert!(rows.is_empty(), "a killed mutation commits nothing");
     // No collateral: an unrelated invocation immediately afterwards succeeds
     // (its own fresh process on the V8 leg).
-    let output = on_v8(|| snapback.invoke_mutation("addItem", input(json!({"label": "after", "rank": 2}))))
-        .expect("post-kill invocation");
+    let output =
+        on_v8(|| snapback.invoke_mutation("addItem", input(json!({"label": "after", "rank": 2}))))
+            .expect("post-kill invocation");
     assert_eq!(output.changed_count, 1);
 }
 
@@ -415,13 +453,24 @@ fn detached_success_after_host_call_commits_on_both_engines() {
             )
         })
         .unwrap_or_else(|error| panic!("{backend:?} detachedHostCallSuccess failed: {error}"));
-        assert_eq!(output.changed_count, 1, "{backend:?}: detached write must commit");
+        assert_eq!(
+            output.changed_count, 1,
+            "{backend:?}: detached write must commit"
+        );
         let rows = snapback
             .invoke_query("listItems", input(json!({})))
             .expect("query")
             .rows;
-        assert_eq!(rows.len(), 1, "{backend:?}: committed detached write must be visible");
-        assert_eq!(rows[0].get("rank"), Some(&json!(7)), "{backend:?}: got {rows:?}");
+        assert_eq!(
+            rows.len(),
+            1,
+            "{backend:?}: committed detached write must be visible"
+        );
+        assert_eq!(
+            rows[0].get("rank"),
+            Some(&json!(7)),
+            "{backend:?}: got {rows:?}"
+        );
     }
 }
 
