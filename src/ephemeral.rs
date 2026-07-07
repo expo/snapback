@@ -893,14 +893,26 @@ type SharedOutbox = Arc<StdMutex<OutboundQueue>>;
 /// time. Never two room locks; never a room lock while holding an outbox or
 /// index lock; nothing that holds a room lock ever waits on the `rooms` map
 /// (the retire/wipe/prune paths take the map first, and prune only
-/// `try_lock`s the room).
+/// `try_lock`s the room). `rate_buckets` and `connection_rooms` are pure
+/// leaves, taken with no other lock held.
 ///
 /// @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — the sharded design and its lock order.
 struct EphemeralShared {
     collections: RwLock<BTreeMap<String, EphemeralCollection>>,
     rooms: StdMutex<BTreeMap<RoomId, SharedRoom>>,
     outboxes: StdMutex<BTreeMap<ConnectionId, SharedOutbox>>,
-    rate_buckets: StdMutex<BTreeMap<(ConnectionId, String), RateBucket>>,
+    /// Rate buckets keyed connection-first, so disconnect drops one
+    /// connection's buckets with a single map removal instead of an
+    /// O(all-buckets) retain (ENG-23348).
+    rate_buckets: StdMutex<BTreeMap<ConnectionId, BTreeMap<String, RateBucket>>>,
+    /// Reverse index: the rooms each connection has subscribed to or
+    /// published into, recorded *before* the room operation becomes visible,
+    /// so `disconnect` visits only that connection's rooms instead of
+    /// sweeping the whole store (ENG-23348). The set is a monotone superset
+    /// until disconnect consumes it: unsubscribed, pruned, or retired rooms
+    /// stay indexed and are skipped cheaply — never wrong, at worst a few
+    /// stale lookups. Leaf lock: never held while acquiring any other lock.
+    connection_rooms: StdMutex<BTreeMap<ConnectionId, BTreeSet<RoomId>>>,
     /// At most one entry per live room: `(deadline, room)` where `deadline`
     /// is a lower bound on the room's earliest entry expiry (mirrored in the
     /// room's `indexed_deadline`), so cleanup visits only due rooms instead
@@ -951,6 +963,7 @@ impl LocalEphemeralBackend {
                 rooms: StdMutex::new(BTreeMap::new()),
                 outboxes: StdMutex::new(BTreeMap::new()),
                 rate_buckets: StdMutex::new(BTreeMap::new()),
+                connection_rooms: StdMutex::new(BTreeMap::new()),
                 expiry_index: StdMutex::new(BTreeMap::new()),
                 counters: EventCounters::default(),
                 next_scope_epoch: AtomicU64::new(1),
@@ -1099,6 +1112,12 @@ impl LocalEphemeralBackend {
         let connection_id = request.connection_id;
         let value = request.value;
         let value_len = value.len();
+
+        // Index the connection→room edge BEFORE the entry becomes visible: a
+        // disconnect that runs after this publish's room mutation must find
+        // the room in the index, or the owned entry would outlive its
+        // connection until TTL expiry (ENG-23348).
+        self.index_connection_room(&connection_id, &room_id);
 
         // One room critical section: sweep, limit checks, version allocation,
         // entry replacement, expiry indexing, and subscriber fan-out — so
@@ -1257,6 +1276,11 @@ impl LocalEphemeralBackend {
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.subscribe, &request.scope, &request.auth)?;
 
+        // Index-before-registration, same as publish: a disconnect racing
+        // this subscribe must find the room in the connection's index so the
+        // registration cannot survive its connection (ENG-23348).
+        self.index_connection_room(&request.connection_id, &room_id);
+
         // @ref LLP 0013#room-store-model -- snapshot and subscriber registration must be one room operation.
         self.with_room_create(&room_id, |room| {
             self.sweep_room_locked(room, &room_id, Some(&collection), now_ms);
@@ -1301,11 +1325,30 @@ impl LocalEphemeralBackend {
         })?
     }
 
+    /// Tear down one connection: its subscriber registrations, its owned
+    /// entries, its outbox, and its rate buckets. Visits only the rooms in
+    /// the connection's reverse index — never a full-store scan — because
+    /// callers amplify this call (the reaper runs it once per stale
+    /// connection, and WS teardown runs it under the global write mutex), so
+    /// its cost must scale with the connection's footprint, not the store's
+    /// (ENG-23348). Expired entries in untouched rooms are `cleanup_expired`'s
+    /// job via the expiry index.
+    ///
+    /// @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — disconnect cost scales with the connection, not the store.
     pub fn disconnect(&self, connection_id: &str, now_ms: Millis) {
-        let rooms: Vec<(RoomId, SharedRoom)> = lock(&self.shared.rooms)
-            .iter()
-            .map(|(room_id, room)| (room_id.clone(), room.clone()))
-            .collect();
+        let touched = lock(&self.shared.connection_rooms)
+            .remove(connection_id)
+            .unwrap_or_default();
+        let rooms: Vec<(RoomId, SharedRoom)> = {
+            let rooms = lock(&self.shared.rooms);
+            touched
+                .into_iter()
+                .filter_map(|room_id| {
+                    let room = rooms.get(&room_id).cloned()?;
+                    Some((room_id, room))
+                })
+                .collect()
+        };
 
         let mut maybe_empty = Vec::new();
         for (room_id, room_arc) in rooms {
@@ -1354,9 +1397,9 @@ impl LocalEphemeralBackend {
 
         lock(&self.shared.outboxes).remove(connection_id);
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D6:
-        // rate buckets are keyed by (connection, collection); drop this
-        // connection's buckets on disconnect so they do not leak forever.
-        lock(&self.shared.rate_buckets).retain(|(conn, _), _| conn != connection_id);
+        // rate buckets are keyed connection-first; drop this connection's
+        // buckets on disconnect so they do not leak forever.
+        lock(&self.shared.rate_buckets).remove(connection_id);
     }
 
     /// Prune expired entries through the expiry index: only rooms whose
@@ -1736,7 +1779,9 @@ impl LocalEphemeralBackend {
         let allowed = {
             let mut buckets = lock(&self.shared.rate_buckets);
             let bucket = buckets
-                .entry((connection_id.to_owned(), collection.name.clone()))
+                .entry(connection_id.to_owned())
+                .or_default()
+                .entry(collection.name.clone())
                 .or_insert_with(|| RateBucket::new(collection, now_ms));
             bucket.allow(collection, now_ms)
         };
@@ -1833,6 +1878,21 @@ impl LocalEphemeralBackend {
             // L8: wake the subscriber's delivery task (push-before-wake).
             self.shared.delivery.wake(&connection_id);
         }
+    }
+
+    /// Record that `connection_id` has touched `room_id` (subscribed or
+    /// published), so `disconnect` can visit exactly the rooms that may hold
+    /// its registrations or owned entries (ENG-23348). Callers index before
+    /// the room operation becomes visible; the set is only consumed (and
+    /// dropped) by `disconnect`. Deliberately not trimmed on unsubscribe or
+    /// room prune: a stale room id costs one skipped map lookup at
+    /// disconnect, while trimming would need owner bookkeeping under extra
+    /// locks. Leaf lock — taken with no other lock held.
+    fn index_connection_room(&self, connection_id: &str, room_id: &RoomId) {
+        lock(&self.shared.connection_rooms)
+            .entry(connection_id.to_owned())
+            .or_default()
+            .insert(room_id.clone());
     }
 
     fn ensure_outbox(
@@ -2267,19 +2327,111 @@ mod tests {
             .publish(publish_request("a", b"cursor"), 1_000)
             .unwrap();
         assert!(
-            lock(&backend.shared.rate_buckets)
-                .keys()
-                .any(|(conn, _)| conn == "a"),
+            lock(&backend.shared.rate_buckets).contains_key("a"),
             "publishing should create a rate bucket for the connection"
         );
 
         backend.disconnect("a", 1_100);
         assert!(
-            !lock(&backend.shared.rate_buckets)
-                .keys()
-                .any(|(conn, _)| conn == "a"),
+            !lock(&backend.shared.rate_buckets).contains_key("a"),
             "disconnect must drop the connection's rate buckets"
         );
+    }
+
+    /// ENG-23348 — disconnect visits only the rooms in the connection's
+    /// reverse index, not every room in the store: an unrelated room's
+    /// expired entry is untouched by the disconnect (no sweep reached it)
+    /// and is later removed by `cleanup_expired` through the expiry index.
+    #[test]
+    fn disconnect_visits_only_the_connections_rooms() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+
+        // Room board-1: an entry owned by connection "x".
+        backend
+            .publish(publish_request("x", b"cursor"), 1_000)
+            .unwrap();
+
+        // Room board-2: connection "y" subscribes; it never touches board-1.
+        let scope_b = Scope::from_pairs([("boardId", "board-2")]);
+        backend
+            .subscribe(
+                SubscribeRequest {
+                    collection: "boardCursors".to_owned(),
+                    auth: auth_for(&scope_b),
+                    scope: scope_b,
+                    connection_id: "y".to_owned(),
+                },
+                1_001,
+            )
+            .unwrap();
+
+        // Well past board-1's TTL: a full-store disconnect sweep would expire
+        // the entry here. The indexed disconnect must not reach board-1.
+        backend.disconnect("y", 60_000);
+        let diag = backend.diagnostics();
+        assert_eq!(
+            diag.expired_entries, 0,
+            "disconnect of an unrelated connection must not sweep other rooms"
+        );
+        assert_eq!(
+            diag.entry_count, 1,
+            "board-1's (expired) entry is cleanup_expired's job, not disconnect's"
+        );
+        assert!(
+            !lock(&backend.shared.connection_rooms).contains_key("y"),
+            "disconnect must consume the connection's room index"
+        );
+
+        // The expiry index still owns the expired entry's removal.
+        backend.cleanup_expired(60_000);
+        let diag = backend.diagnostics();
+        assert_eq!(diag.expired_entries, 1);
+        assert_eq!(diag.entry_count, 0);
+    }
+
+    /// ENG-23348 — the reverse index records subscribe and publish edges and
+    /// disconnect still tears down state in every indexed room, including
+    /// rooms the connection only published into.
+    #[test]
+    fn connection_room_index_covers_publish_only_rooms() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+
+        // "a" publishes into board-1 (never subscribes) and subscribes to
+        // board-2 (never publishes).
+        backend
+            .publish(publish_request("a", b"cursor"), 1_000)
+            .unwrap();
+        let scope_b = Scope::from_pairs([("boardId", "board-2")]);
+        backend
+            .subscribe(
+                SubscribeRequest {
+                    collection: "boardCursors".to_owned(),
+                    auth: auth_for(&scope_b),
+                    scope: scope_b,
+                    connection_id: "a".to_owned(),
+                },
+                1_001,
+            )
+            .unwrap();
+        assert_eq!(
+            lock(&backend.shared.connection_rooms)
+                .get("a")
+                .map(BTreeSet::len),
+            Some(2),
+            "both the publish-only and subscribe-only rooms must be indexed"
+        );
+
+        backend.disconnect("a", 1_100);
+        // Both rooms are torn down: the owned entry is removed, the
+        // registration dropped, and both empty rooms pruned.
+        let diag = backend.diagnostics();
+        assert_eq!(diag.disconnected_entries, 1);
+        assert_eq!(diag.entry_count, 0);
+        assert_eq!(diag.subscriber_count, 0);
+        assert_eq!(diag.room_count, 0);
+        assert!(!lock(&backend.shared.connection_rooms).contains_key("a"));
     }
 
     #[test]

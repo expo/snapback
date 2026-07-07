@@ -251,6 +251,23 @@ correctness, and sharded locks match the codebase's existing style
   claimed it was indexed, detaching it from `cleanup_expired` forever (a room
   leaked per definition hot-reload under live connections). Guarded by
   `l9_wipe_does_not_detach_surviving_rooms_from_the_expiry_index`.
+- **Disconnect via a connection→rooms index (ENG-23348).** `disconnect`
+  visits only the rooms in a per-connection reverse index (recorded at
+  subscribe/publish time, *before* the room mutation becomes visible), never
+  a full-store scan — its cost scales with the connection's footprint, not
+  the store's. This matters because callers amplify it: the stale-connection
+  reaper runs one disconnect per stale id in a single maintenance tick, and
+  WS teardown runs it while holding the global write mutex, so at the
+  documented limits (4096 rooms × 1024 entries) the old full sweep made one
+  network blip stall all durable writes behind thousands of room locks. The
+  index is a monotone superset until disconnect consumes it (unsubscribed or
+  pruned rooms stay indexed and are skipped as cheap missing-map lookups),
+  and rate buckets are keyed connection-first so their removal is one map
+  operation instead of an O(all-buckets) retain. Expired entries in rooms
+  the connection never touched are `cleanup_expired`'s job via the expiry
+  index, no longer a disconnect side effect. Guarded by
+  `disconnect_visits_only_the_connections_rooms` and
+  `connection_room_index_covers_publish_only_rooms`.
 - **Limits (first hard defaults, answering the open question).** Store-level
   capability facts, constructor-overridable: max active rooms 4096, max
   entries per room 1024, max subscribers per room 1024, max aggregate value
