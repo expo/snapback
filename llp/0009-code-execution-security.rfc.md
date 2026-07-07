@@ -5,8 +5,8 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-07 (ENG-23361: an unhandled rejection in a detached promise chain now fails the invocation instead of committing its partial work as success — the ctx bootstrap installs a rejection ledger on the vendored then/promise hook slots and the host sweeps it after every successful eval, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed; §Invocation Isolation Obligation 3 updated); 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0014, LLP 0036, https://github.com/ccheever/ibex
+**Revised:** 2026-07-07 (DK-5 re-decided — triggers 1–2 fired with LLP 0040/LLP 0047 starting the same day; build the twin now as LLP 0048's workerd-hosted runner behind the RPC-shaped handler seam, no native embed; the enduring Hermes-local engine posture recorded — device parity with Exact, capability security by construction, footprint, spinup; ratified by Charlie in-session, applied by Claude); 2026-07-07 (ENG-23361: an unhandled rejection in a detached promise chain now fails the invocation instead of committing its partial work as success — the ctx bootstrap installs a rejection ledger on the vendored then/promise hook slots and the host sweeps it after every successful eval, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed; §Invocation Isolation Obligation 3 updated); 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0036, LLP 0040, LLP 0041, LLP 0043, LLP 0047, LLP 0048, https://github.com/ccheever/ibex
 
 ## Summary
 
@@ -187,6 +187,55 @@ Missing-declared limits are the honest posture.
 4. the missing wall-clock/CPU enforcement becomes user-facing on the local
    target (a demo or diary hits a wedged busy loop despite the L6/L7
    bounding).
+
+**Re-decision (2026-07-07): triggers 1 and 2 fired; build the twin now, as a
+protocol consumer rather than a native embed.** Ratified by Charlie
+in-session (applied by Claude the same day).
+[LLP 0040](./0040-cloudflare-narrow-proof.rfc.md) (X3's execution slice) and
+[LLP 0047](./0047-hosted-execution-limits.rfc.md) were both drafted the same
+day, firing triggers 1 and 2. What changed since the deferral: the
+handler↔host seam is now pinned async and RPC-shaped
+([LLP 0014](./0014-cloudflare-strategy.rfc.md) §One-way doors 3, LLP 0040
+§App subset), and LLP 0040 must build a V8 handler harness regardless —
+global-strip at module init, `ctx`-only powers, the tagged completion
+envelope above — so the twin is no longer "a second native bring-up" (the
+cost this decision correctly refused): it is the same harness hosted in
+local workerd, speaking the same host-call protocol.
+[LLP 0048](./0048-v8-conformance-twin.rfc.md) owns the build; it is
+prerequisite-shaped for LLP 0040's first deploy, and it is where computed
+limit fields land first (per the capability-truthfulness note above).
+
+The enduring engine posture, recorded from the author (2026-07-07) so the
+rationale outlives the conversation that produced it — Ibex/Hermes stays the
+canonical local engine ([LLP 0002](./0002-canonical-local-target.decision.md)
+does not reopen) because:
+
+1. **consistency with Exact on devices** — mobile clients run Hermes, and
+   [LLP 0012](./0012-headless-integration-contract.spec.md)'s parity rule
+   makes eventual on-device handler execution
+   ([LLP 0043](./0043-offline-replay-retention.rfc.md)'s direction) a Hermes
+   execution site, so the local server engine matches where app code will
+   actually run local-first;
+2. **the capability-security model** — ambient-authority denial is
+   constitutional in Ibex (the host hands in capabilities; nothing else
+   exists), versus deny-by-discipline on V8/workerd until Workers for
+   Platforms enforces it at the platform layer;
+3. **smaller download and footprint** — the packaged dev loop
+   ([LLP 0041](./0041-packaged-dev-loop.rfc.md)) ships one small embedded
+   engine, not a V8 build matrix;
+4. **spinup speed** — restart-heavy local development favors Hermes's
+   cold-start profile; V8's JIT throughput advantage accrues to long-running
+   hot paths, and shrinks under LLP 0047's fresh-per-invocation default.
+
+Snapback is therefore **permanently bi-engine** — V8 on Cloudflare by
+construction, Hermes on devices and the canonical local target by the facts
+above — and the twin's job is not migration toward either engine: it
+enforces the engine-neutral handler-semantics contract, the runtime analogue
+of [LLP 0007](./0007-storage-portability.spec.md)'s storage portability
+contract, as a standing CI gate. Revisit triggers 3 and 4 remain live as
+stated; either firing now escalates within LLP 0048's contract (a class-1
+divergence, or pulling the V8 leg's limits forward) rather than reopening
+this note.
 
 Concrete runtime invariants worth carrying over verbatim (`[observed - Valet LLP
 0005]`), with one now *superseded* by the execution-boundary revision in

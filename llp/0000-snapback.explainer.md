@@ -6,8 +6,8 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-05 (related index gains LLP 0038, a whole-system review. Earlier, 2026-07-02: decision ledger: DK-5 twin deferred and DK-9 store-agnostic client store decided (X2/X4); @snapback/* namespace and DK-10 adapter-owned live push decided — the P5/P6 close-out artifacts re-landed 2026-07-03 via ENG-22680; LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; same day: DK-1/E3 host-plan mutation isolation decided — Option A, client-supplied read_set baseline by design, pending Charlie's ratification (DK-1 fully resolved); DK-3 op-log deltas landed and DK-4 warm-VM leg shipped; DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation — and DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0034 and LLP 0037; related LLP index and follow-on list updated for LLP 0036; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
-**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, LLP 0038, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
+**Revised:** 2026-07-07 (latest: the Cloudflare durable-store decision ratified — everything on Durable Objects, ledgered below; later: LLP 0048 added — the V8 conformance twin executing the DK-5 re-decision, ledgered below; earlier: gap-closure RFCs LLP 0039-0047 added for auth, Cloudflare, packaged dev loop, MCP, offline replay, assets, notifications, Postgres, and hosted execution limits. Earlier, 2026-07-05: related index gains LLP 0038, a whole-system review. Earlier, 2026-07-02: decision ledger: DK-5 twin deferred and DK-9 store-agnostic client store decided (X2/X4); @snapback/* namespace and DK-10 adapter-owned live push decided — the P5/P6 close-out artifacts re-landed 2026-07-03 via ENG-22680; LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; same day: DK-1/E3 host-plan mutation isolation decided — Option A, client-supplied read_set baseline by design, pending Charlie's ratification (DK-1 fully resolved); DK-3 op-log deltas landed and DK-4 warm-VM leg shipped; DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation — and DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0034 and LLP 0037; related LLP index and follow-on list updated for LLP 0036; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, LLP 0038, LLP 0039, LLP 0040, LLP 0041, LLP 0042, LLP 0043, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0048, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
 
@@ -308,6 +308,31 @@ corpus does not rely on scattered "pending Charlie" notes.
   state + outbox, never a relational replica; nothing on the wire may
   require SQL client-side; capability reports name the physical store
   ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Decision DK-9).
+- **2026-07-07:** the V8 conformance-twin deferral (docket DK-5) is
+  **re-decided** after its first two revisit triggers fired the same day
+  (LLP 0040 starting X3; LLP 0047 beginning hosted-limits work), ratified by
+  Charlie in-session (applied by Claude): **build the twin now, as a
+  protocol consumer rather than a native embed** — the RPC-shaped
+  handler↔host seam makes the twin the same workerd-hosted harness the
+  Cloudflare proof deploys, so the second-native-bring-up cost the deferral
+  refused no longer applies. The enduring Hermes-local engine posture
+  (device parity with Exact, capability security by construction, footprint,
+  spinup) is recorded in
+  [LLP 0009](./0009-code-execution-security.rfc.md) §Decision DK-5; the
+  build is [LLP 0048](./0048-v8-conformance-twin.rfc.md),
+  prerequisite-shaped for
+  [LLP 0040](./0040-cloudflare-narrow-proof.rfc.md)'s first deploy.
+- **2026-07-07:** the Cloudflare durable-store question (LLP 0014 Profiles
+  A/B, open since 2026-06-26) is decided and **ratified by Charlie:
+  everything on Durable Objects.** The per-app data plane lives in the
+  write-owning object's SQLite — one local transaction commits version,
+  rows, and journal
+  ([LLP 0040](./0040-cloudflare-narrow-proof.rfc.md) revised in step,
+  profile `cloudflare-do-sqlite-v8`) — and the later platform control plane
+  is a registry Durable Object with gateway caching rather than D1, which
+  leaves the architecture entirely. Fallbacks are preserved as named revisit
+  triggers (data plane: LLP 0040 §Target shape; control plane:
+  [LLP 0014](./0014-cloudflare-strategy.rfc.md) §Resolution).
 
 ## Who Snapback is for
 
@@ -743,15 +768,27 @@ written) for at least:
   [`0004-application-data-api.rfc.md`](./0004-application-data-api.rfc.md).
 - The **storage abstraction** and the SQLite↔Postgres portability contract.
   Drafted as
-  [`0007-storage-portability.spec.md`](./0007-storage-portability.spec.md).
+  [`0007-storage-portability.spec.md`](./0007-storage-portability.spec.md);
+  the first Postgres graduation slice is
+  [`0046-postgres-graduation-path.rfc.md`](./0046-postgres-graduation-path.rfc.md).
 - The **local-first sync** model (partial sync, conflict handling, and the range
   of local-store sizes from a mobile slice to a desktop bulk copy), together
   with the **realtime** update mechanism. Drafted as
-  [`0008-local-first-sync-and-realtime.rfc.md`](./0008-local-first-sync-and-realtime.rfc.md).
+  [`0008-local-first-sync-and-realtime.rfc.md`](./0008-local-first-sync-and-realtime.rfc.md);
+  the first retained-read/offline-replay slice is
+  [`0043-offline-replay-retention.rfc.md`](./0043-offline-replay-retention.rfc.md).
 - The **auth** system and bring-your-own-provider boundary. Drafted as
-  [`0011-auth-and-permissions.rfc.md`](./0011-auth-and-permissions.rfc.md).
-- The **code execution** runtime model across Ibex and V8.
-- The **asset storage** and media processing pipeline.
+  [`0011-auth-and-permissions.rfc.md`](./0011-auth-and-permissions.rfc.md);
+  the first product auth slice is
+  [`0039-auth-vertical-slice.rfc.md`](./0039-auth-vertical-slice.rfc.md).
+- The **code execution** runtime model across Ibex and V8. Drafted as
+  [`0009-code-execution-security.rfc.md`](./0009-code-execution-security.rfc.md);
+  the hosted/untrusted resource-limit gate is
+  [`0047-hosted-execution-limits.rfc.md`](./0047-hosted-execution-limits.rfc.md).
+- The **asset storage** and media processing pipeline. Drafted as
+  [`0044-asset-storage-pipeline.rfc.md`](./0044-asset-storage-pipeline.rfc.md).
+- The **notifications** provider/outbox subsystem. Drafted as
+  [`0045-notifications-outbox.rfc.md`](./0045-notifications-outbox.rfc.md).
 - The **prior-art retrospective** (Research) — lessons from Valet, Zero/
   Replicache, LiveStore, Supabase, Convex, SpacetimeDB, Firebase, PlanetScale,
   Neon, Val.town, and Rails. Drafted as
@@ -763,7 +800,9 @@ written) for at least:
   [`0022-electric-powersync-turso.research.md`](./0022-electric-powersync-turso.research.md).
 - The **agent DX and validation** model for agent-authored Snapback work.
   Drafted as
-  [`0010-agent-dx-and-acceptance.spec.md`](./0010-agent-dx-and-acceptance.spec.md).
+  [`0010-agent-dx-and-acceptance.spec.md`](./0010-agent-dx-and-acceptance.spec.md);
+  the packaged public dev loop is
+  [`0041-packaged-dev-loop.rfc.md`](./0041-packaged-dev-loop.rfc.md).
 - An **admin console and inspection surface** for health, runtime state, durable
   data exploration, ephemeral rooms, generated function running, and the serving
   model for the local web console. Drafted as
@@ -772,7 +811,12 @@ written) for at least:
   instances, logical Snapback apps, client surfaces, and explicit app suites.
   Drafted as
   [`0018-app-instance-boundaries.rfc.md`](./0018-app-instance-boundaries.rfc.md).
-- The **runtime/deployment matrix**, especially Cloudflare constraints.
+- The **runtime/deployment matrix**, especially Cloudflare constraints. Drafted
+  as [`0014-cloudflare-strategy.rfc.md`](./0014-cloudflare-strategy.rfc.md);
+  the first Cloudflare proof slice is
+  [`0040-cloudflare-narrow-proof.rfc.md`](./0040-cloudflare-narrow-proof.rfc.md);
+  its engine half — the local V8 handler runtime and DK-5 conformance twin —
+  is [`0048-v8-conformance-twin.rfc.md`](./0048-v8-conformance-twin.rfc.md).
 - A **security and tenant-isolation** model: the sandbox boundary for executed
   app code, isolation between apps/tenants, and secret handling — load-bearing
   once Snapback runs user code and is hosted for other people. Drafted as
@@ -812,7 +856,9 @@ written) for at least:
   [`0012-headless-integration-contract.spec.md`](./0012-headless-integration-contract.spec.md).
 - An **agent operating surface** for host operations, CLI/HTTP/MCP projections,
   and generated app-data MCP tools. Drafted as
-  [`0024-agent-operating-surface.spec.md`](./0024-agent-operating-surface.spec.md).
+  [`0024-agent-operating-surface.spec.md`](./0024-agent-operating-surface.spec.md);
+  the first MCP implementation slice is
+  [`0042-agent-mcp-surface.rfc.md`](./0042-agent-mcp-surface.rfc.md).
 - A **Cloudflare strategy** — how to do Snapback well on Cloudflare, including
   whether to rearchitect around its model. Drafted as
   [`0014-cloudflare-strategy.rfc.md`](./0014-cloudflare-strategy.rfc.md).
