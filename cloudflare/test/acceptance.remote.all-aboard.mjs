@@ -126,6 +126,12 @@ async function main() {
   // --- query + live + mutation over the real socket -----------------------
   const stations = await client.query('stationsQuery', {});
   check('queries serve the seeded corridor', stations.rows.length === 21);
+  // The deployment is shared: real surfaces (an open browser tab, a native
+  // host) may hold live demand of their own the whole run. Record it before
+  // this suite subscribes, so the disarm check at the end asserts only what
+  // the suite controls — that ITS demand is released (ENG-23643).
+  const cronStatus = async () => (await (await fetch(`${BASE}/cron/status`)).json()).jobs[0];
+  const baselineDemand = (await cronStatus()).activation.demand;
   const connectionId = `remote-${Date.now()}`;
   const live = await client.liveQuery('liveTrainStatus', { connectionId, transport: 'stream' });
   const feedLive = await client.liveQuery('feedState', { connectionId, transport: 'stream' });
@@ -169,22 +175,30 @@ async function main() {
   );
 
   // --- warm polling: armed by demand, one real scheduled cycle -------------
-  const cronStatus = async () => (await (await fetch(`${BASE}/cron/status`)).json()).jobs[0];
+  // Real 511 delays are often unchanged between refreshes, making the
+  // trainStatus patches commit no-ops — the always-changing row is the
+  // feedRefreshState freshness marker (fetchedAt), so the guaranteed push
+  // arrives on the feedState subscription. Capture the version baseline
+  // BEFORE the ledger baseline: a run committing between the two then
+  // advances the version we compare against, instead of slipping under it.
+  const feedBeforePoll = feedLive.version;
   const armed = await cronStatus();
   check(
     'an active live subscription arms the durable alarm (60s cadence)',
     armed.activation.state === 'armed' && armed.everyMs === 60000 && armed.nextRun !== null
   );
-  // Real 511 delays are often unchanged between refreshes, making the
-  // trainStatus patches commit no-ops — the always-changing row is the
-  // feedRefreshState freshness marker (fetchedAt), so the guaranteed push
-  // arrives on the feedState subscription.
-  const feedBeforePoll = feedLive.version;
+  // The ledger's lastRun persists across suite runs (the eviction check below
+  // depends on exactly that), so "a scheduled run exists" is not evidence —
+  // require a run the baseline had not seen. Without this, every re-run
+  // against a lived-in deployment broke instantly on the previous run's
+  // ledger entry and gave the push a 10s window against a 60s alarm
+  // (ENG-23643).
+  const baselineRunId = armed.lastRun?.runId ?? null;
   const pollDeadline = Date.now() + 150_000;
   let scheduledRun = null;
   for (;;) {
     const status = await cronStatus();
-    if (status.lastRun && status.lastRun.trigger === 'scheduled') {
+    if (status.lastRun && status.lastRun.trigger === 'scheduled' && status.lastRun.runId !== baselineRunId) {
       scheduledRun = status.lastRun;
       break;
     }
@@ -211,21 +225,32 @@ async function main() {
     evict.status === 200 && postEvict.activation.state === 'armed' && postEvict.lastRun !== null
   );
 
-  // --- last-unsubscribe: idle means zero armed wakeups ----------------------
+  // --- last-unsubscribe: the suite's demand is released ---------------------
+  // With no external subscribers this proves the idle deployment arms zero
+  // warm-poll wakeups; with a real surface attached (baselineDemand > 0) it
+  // proves the suite's own demand drains back to the baseline — the alarm
+  // then legitimately stays armed for the surviving subscriber.
   live.dispose();
   feedLive.dispose();
   client.liveStreamManager(connectionId).close();
   const disarmDeadline = Date.now() + 15_000;
+  const suiteDemandReleased = (status) =>
+    baselineDemand > 0
+      ? status.activation.demand <= baselineDemand
+      : status.activation.state === 'inactive:no-demand' && status.nextRun === null;
   let disarmed = null;
   for (;;) {
     disarmed = await cronStatus();
-    if (disarmed.activation.state === 'inactive:no-demand') break;
+    if (suiteDemandReleased(disarmed)) break;
     if (Date.now() > disarmDeadline) break;
     await sleep(500);
   }
   check(
-    'losing the last subscriber cancels the alarm — the idle deployment arms zero warm-poll wakeups',
-    disarmed.activation.state === 'inactive:no-demand' && disarmed.nextRun === null
+    'losing the suite subscriber releases its warm-poll demand (zero armed wakeups once idle)',
+    suiteDemandReleased(disarmed),
+    baselineDemand > 0
+      ? `external demand ${disarmed.activation.demand} (pre-suite ${baselineDemand}) keeps the alarm armed`
+      : 'disarmed'
   );
 
   if (checks !== EXPECTED_CHECKS) {

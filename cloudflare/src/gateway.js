@@ -119,7 +119,11 @@ export default {
       if (path.startsWith('/__exact/')) {
         const asset = await env.ASSETS.fetch(request);
         const contentType = asset.headers.get('content-type') || '';
-        if (asset.ok && !contentType.includes('text/html')) {
+        // Only the SPA fallback signature (200 + HTML) is a miss here; real
+        // /__exact/ assets are JSON/JS, and non-200s (304 revalidations,
+        // 405s) must pass through untouched.
+        const isSpaFallback = asset.status === 200 && contentType.includes('text/html');
+        if (!isSpaFallback) {
           return asset;
         }
         if (path.startsWith('/__exact/agent/')) {
