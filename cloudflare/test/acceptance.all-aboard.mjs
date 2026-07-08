@@ -141,6 +141,10 @@ async function main() {
     const proofQuery = await proof.query('tripsQuery', {});
     check('proof-protocol /query still works alongside the kit routes', proofQuery.ok === true && proofQuery.rows.length === 6);
 
+    handle.dispose();
+    feedHandle.dispose();
+    client.liveStreamManager(connectionId).close();
+
     // --- reset/seed --------------------------------------------------------
     const reset = await proof.reset();
     check('admin reset re-seeds the deterministic ground state', reset.reset === true && reset.seeded === true);
@@ -148,10 +152,6 @@ async function main() {
     check('post-reset store serves the seeded corridor again', afterReset.rows.length === 21);
     const feedAfterReset = await client.query('feedState', {});
     check('post-reset feed state returns to the seed label', feedAfterReset.rows[0].lastSource === 'seed');
-
-    handle.dispose();
-    feedHandle.dispose();
-    client.liveStreamManager(connectionId).close();
 
     if (checks !== EXPECTED_CHECKS) {
       throw new Error(`expected ${EXPECTED_CHECKS} checks, ran ${checks}`);

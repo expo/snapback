@@ -1,7 +1,7 @@
 {
   "id": "all-aboard",
   "title": "All Aboard",
-  "description": "Caltrain next-train demo: nearest station, next north/south trains, live delay overlays from 511.org Caltrain data when configured, and routed walk/bike ETAs through a server-side directions action. Full-bleed poster-art Contract/Exact surface over generated Snapback artifacts — gesture-driven on web (surface glue), native macOS/iOS-ready.",
+  "description": "Caltrain next-train demo: nearest station, next north/south trains, live departure predictions from 511.org StopMonitoring when configured, and routed walk/bike ETAs through a server-side directions action. Full-bleed poster-art Contract/Exact surface over generated Snapback artifacts — gesture-driven on web (surface glue), native macOS/iOS-ready.",
   "iconUrl": "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20128%20128'%3E%3Crect%20width='128'%20height='128'%20rx='28'%20fill='%2305070f'/%3E%3Cpath%20d='M25%2082h78'%20stroke='%23f4d35e'%20stroke-width='7'%20stroke-linecap='round'/%3E%3Cpath%20d='M38%2032h52a12%2012%200%200%201%2012%2012v30a12%2012%200%200%201-12%2012H38a12%2012%200%200%201-12-12V44a12%2012%200%200%201%2012-12Z'%20fill='%23f7f7f2'/%3E%3Cpath%20d='M38%2044h52v18H38z'%20fill='%233062b5'/%3E%3Ccircle%20cx='45'%20cy='86'%20r='7'%20fill='%23f7f7f2'/%3E%3Ccircle%20cx='83'%20cy='86'%20r='7'%20fill='%23f7f7f2'/%3E%3Cpath%20d='M49%2072h30'%20stroke='%2305070f'%20stroke-width='5'%20stroke-linecap='round'/%3E%3C/svg%3E",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
@@ -111,7 +111,7 @@
     ],
     "real-data": [
       "/action/{name} runs only actions and rejects non-actions without executing them",
-      "refreshFeed parses 511 StopMonitoring JSON — served the way the real api.511.org sends it (UTF-8 BOM + gzip) — and commits mappable Caltrain delays to trainStatus",
+      "refreshFeed parses 511 StopMonitoring JSON — served the way the real api.511.org sends it (UTF-8 BOM + gzip) — and commits mappable Caltrain departure rows to liveDepartures plus coarse status rows to trainStatus",
       "routeEstimate uses a server-side OpenRouteService/HeiGIT directions call for station-card walk/bike ETAs",
       "a caltrainFeed key set through /_snapback/api/config/set (the setup-page path) reaches the live fetch",
       "a failing live fetch falls back to the recorded feed with an actionable lastError that never contains the API key"
@@ -123,7 +123,7 @@
       "tapping a train opens its detail with ordered stops and a position indicator",
       "the refresh affordance drives refreshFeed through the app action route and the freshness marker goes live",
       "the feed-problem line says why the board is not on live 511 data (actionable fallback reason, ENG-22751)",
-      "paved path: liveTrainStatus + feedState bind with server push over the shared stream; connections report live (LLP 0034 D1)",
+      "paved path: liveTrainStatus + liveDepartures + feedState bind with server push over the shared stream; connections report live (LLP 0034 D1)",
       "cron-authored delta reaches the browser through generated bindings with no poll pump (Exact LLP 0284 §5.3 item 3)",
       "second window boot is inspect-first and does not clear the first window (LLP 0034 D4 / LLP 0275 C4)",
       "gesture glue: swipe left changes station, swipe up selects the next train, bare tap flips direction (synthetic pointers)",
@@ -145,7 +145,7 @@
   ],
   "temporaryPolicy": {
     "auth": "anonymous read-only; no login",
-    "feed": "refreshFeed polls 511.org SIRI StopMonitoring for Caltrain when SNAPBACK_OUTBOUND_ACTIONS and caltrainFeed config are present; otherwise it advances recorded fallback ticks and records lastError; 60s freshness target",
+    "feed": "refreshFeed polls 511.org SIRI StopMonitoring for Caltrain when SNAPBACK_OUTBOUND_ACTIONS and caltrainFeed config are present, writing liveDepartures for real predicted board rows; otherwise it advances recorded fallback ticks and records lastError; 180s warm-poll cadence with a transactional one-poll-per-180s upstream budget (claimFeedPoll) and a 390s LIVE-badge freshness window (ENG-23642)",
     "clock": "predictions use the client's local time; the seed schedule is authored in Pacific (fixed-offset simplification)",
     "walkBike": "selected-station card uses routeEstimate through a server-side OpenRouteService/HeiGIT action when directions config is present; haversine remains the deterministic fallback and station-list estimate",
     "stationPhotos": "full-screen poster-stylized art derived from the real Wikimedia Commons station photos (Wikipedia List of Caltrain stations): fetched + stylized at build time (snapback/shared/station-photos.gen.py, Pillow; algorithmic posterize + ink edges, not an image-gen model) and base64-inlined as 640x1136 JPEG in station-photos.gen.mjs (~1.5MB source) — zero runtime egress, deterministic; legibility scrims live in the model.mjs SVG wrapper; flowing assets through the asset-storage subsystem instead of inlining is the follow-up",

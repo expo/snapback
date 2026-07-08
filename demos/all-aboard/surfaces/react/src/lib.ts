@@ -241,10 +241,9 @@ export function distanceLabel(station: { lat: number; lng: number }, mode: EtaMo
 export function feedFreshness(nowMs: number, feedRows: readonly FeedRow[]): string {
   const feed = feedRows?.[0] ?? null;
   if (!feed || !feed.fetchedAt) return 'Waiting for feed…';
-  const ageSeconds = Math.max(0, Math.round((nowMs - feed.fetchedAt) / 1000));
-  if (ageSeconds < 5) return 'Updated just now';
-  if (ageSeconds < 90) return `Updated ${ageSeconds}s ago`;
-  return `Updated ${Math.round(ageSeconds / 60)} min ago`;
+  const ageSeconds = Math.max(0, Math.floor((nowMs - feed.fetchedAt) / 1000));
+  if (ageSeconds < 60) return 'Updated a few seconds ago';
+  return `Updated ${Math.max(1, Math.floor(ageSeconds / 60))}m ago`;
 }
 
 // --- Data-source badge (live 511 feed vs the recorded demo feed) -----------------
@@ -276,11 +275,26 @@ export interface FeedSourceBadge {
   border: string;
 }
 
-export function feedSourceBadge(feedRows: readonly FeedRow[]): FeedSourceBadge {
-  const live = (feedRows?.[0]?.lastSource ?? '') === LIVE_FEED_SOURCE;
-  return live
-    ? { live, label: 'LIVE', color: '#34d399', tint: '#34d3991f', border: '#34d39947' }
-    : { live, label: 'DEMO DATA', color: '#fbbf24', tint: '#fbbf241f', border: '#fbbf2447' };
+// Fallback freshness window when the committed row predates the field; matches
+// seed.gen.mjs (two 180s warm-poll cycles + 30s grace, ENG-23642).
+const DEFAULT_STALE_AFTER_MS = 390_000;
+
+// LIVE only when the last committed refresh was a real 511 snapshot AND it is
+// younger than the freshness window; a live source whose snapshot has aged out
+// is STALE (non-live), so an advancing feed marker can't dress old rows up as
+// live data (ENG-23642).
+export function feedSourceBadge(feedRows: readonly FeedRow[], nowMs?: number): FeedSourceBadge {
+  const feed = feedRows?.[0] ?? null;
+  const liveSource = (feed?.lastSource ?? '') === LIVE_FEED_SOURCE;
+  if (!liveSource) {
+    return { live: false, label: 'DEMO DATA', color: '#fbbf24', tint: '#fbbf241f', border: '#fbbf2447' };
+  }
+  const fetchedAt = Number(feed?.fetchedAt) || 0;
+  const staleAfterMs = Number(feed?.staleAfterMs) > 0 ? Number(feed?.staleAfterMs) : DEFAULT_STALE_AFTER_MS;
+  const fresh = typeof nowMs !== 'number' || fetchedAt <= 0 || nowMs - fetchedAt <= staleAfterMs;
+  return fresh
+    ? { live: true, label: 'LIVE', color: '#34d399', tint: '#34d3991f', border: '#34d39947' }
+    : { live: false, label: 'STALE', color: '#f87171', tint: '#f871711f', border: '#f8717147' };
 }
 
 // --- Position indicator (for the train detail continuum) -------------------------

@@ -52,6 +52,8 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
 // falls back — loudly — to a fresh server on a fresh OS-assigned port.
 const API_PORT = Number(process.env.ALL_ABOARD_API_PORT ?? 4420);
 const VITE_PORT = Number(process.env.ALL_ABOARD_VITE_PORT ?? 5178);
+const API_ADMIN_TOKEN = process.env.SNAPBACK_ADMIN_TOKEN || `sbat_browser_${Date.now().toString(36)}`;
+process.env.SNAPBACK_ADMIN_TOKEN = API_ADMIN_TOKEN;
 let apiUrl = `http://127.0.0.1:${API_PORT}`;
 let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
@@ -267,14 +269,14 @@ async function main() {
     // --- The paved path (LLP 0034 §6 ownership row 3; Exact 0284 §5.3 item 3):
     // server push through generated bindings, no hand-written pump, D4 boot.
 
-    await suite.check('paved path: both live queries bind with push; connections report live', async () => {
+    await suite.check('paved path: all live queries bind with push; connections report live', async () => {
       const facts = await page.eval(`(async () => {
         const d = Date.now() + 8000;
         for (;;) {
           const aa = window.allAboard;
           const conns = aa && aa.connections ? aa.connections() : null;
           if (aa && aa.livePush === true && conns
-              && conns.liveTrainStatus === 'live' && conns.feedState === 'live') {
+              && conns.liveTrainStatus === 'live' && conns.liveDepartures === 'live' && conns.feedState === 'live') {
             return { livePush: aa.livePush, connections: conns, provisioned: aa.provisioned };
           }
           if (Date.now() > d) throw new Error('live connections never settled: ' + JSON.stringify({ livePush: aa?.livePush, conns }));
@@ -290,16 +292,23 @@ async function main() {
       // Trigger the demo's own cron job server-side (the admin manual-run
       // route): refreshFeed -> applyFeedTick -> live fan-out. The browser
       // performs no interaction and owns no poll timer for these queries —
-      // the freshness marker must go "just now" purely from the push.
+      // the freshness marker must show the stable sub-minute copy purely from the push.
       const client = new SnapbackClient(apiUrl);
+      // The Refresh press a few checks back consumed the ENG-23642 one-poll-
+      // per-180s upstream budget; a budget-denied cron run would honestly skip
+      // (no commit, no delta). Clear it so this check exercises the push lane.
+      await client.mutate('resetFeed', {});
       const feedBefore = (await client.query('feedState', {})).rows[0] ?? {};
       const tickBefore = feedBefore.tickIndex ?? -1;
       const tickCount = feedBefore.tickCount ?? 0;
-      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
+      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
+        method: 'POST',
+        headers: { 'x-snapback-admin-token': API_ADMIN_TOKEN },
+      });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
       const record = await run.json();
-      const fresh = await page.pollText('freshness', 'Updated just now', 6000);
-      if (fresh !== 'Updated just now') throw new Error(`cron delta did not reach the browser: freshness=${fresh}`);
+      const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
+      if (fresh !== 'Updated a few seconds ago') throw new Error(`cron delta did not reach the browser: freshness=${fresh}`);
       const tickAfter = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
       // Recorded feed ticks are cyclic: 5 -> 0 is a valid advance.
       if (tickCount > 1 && tickAfter === tickBefore) throw new Error(`cron run did not advance the feed (${tickBefore} -> ${tickAfter})`);
@@ -333,10 +342,13 @@ async function main() {
       // still receiving server-authored deltas after the second boot.
       const stationName = await page.text('station-name');
       if (!stationName) throw new Error('first window lost its board after the second boot');
-      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
+      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
+        method: 'POST',
+        headers: { 'x-snapback-admin-token': API_ADMIN_TOKEN },
+      });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
-      const fresh = await page.pollText('freshness', 'Updated just now', 6000);
-      if (fresh !== 'Updated just now') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
+      const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
+      if (fresh !== 'Updated a few seconds ago') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
       const conns = await page.eval('window.allAboard.connections()');
       if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
       return { second, firstStillLive: conns };

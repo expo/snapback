@@ -36,6 +36,7 @@
 
 use applyFeedTick from "../../snapback/generated/contract/applyFeedTick.mutation.ts"
 use liveTrainStatus from "../../snapback/generated/contract/liveTrainStatus.query.ts"
+use liveDepartures from "../../snapback/generated/contract/liveDepartures.query.ts"
 use feedState from "../../snapback/generated/contract/feedState.query.ts"
 
 use getSelectedStation from "./data.ts"
@@ -81,6 +82,7 @@ component AllAboard
   state etaMode = "walk"
 
   query delayRows = liveTrainStatus({})
+  query departureRows = liveDepartures({})
   query feedRows = feedState({})
 
   derive station = getSelectedStation(stationId, nowMs)
@@ -89,16 +91,16 @@ component AllAboard
   derive locHint = locationHint(nowMs)
   derive activeDir = activeDirection(directionOverride, station)
   derive oppositeDir = oppositeDirection(activeDir)
-  derive board = boardTrains(station.id, activeDir, nowMs, heroOffset, delayRows, serviceFilter)
-  derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, 1, delayRows)
+  derive board = boardTrains(station.id, activeDir, nowMs, heroOffset, delayRows, departureRows, feedRows, serviceFilter)
+  derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, 1, delayRows, departureRows, feedRows)
   derive prevStationId = adjacentStationId(station.id, -1)
   derive nextStationId = adjacentStationId(station.id, 1)
   derive walkBike = walkBikeSummary(station, etaMode, nowMs)
   derive freshness = feedFreshness(nowMs, feedRows)
   derive feedIssue = feedProblem(feedRows)
-  derive feedSource = feedSourceBadge(feedRows)
+  derive feedSource = feedSourceBadge(feedRows, nowMs)
   derive matches = searchStations(query, nowMs)
-  derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows) : null
+  derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows, departureRows) : null
 
   mutation refresh = applyFeedTick
 
@@ -175,9 +177,9 @@ component AllAboard
                   row justify="center" width="100%"
                     row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background="#fbbf2422" borderWidth=1 borderColor="#fbbf2447"
                       text "Reconnecting — showing last-known delays" size=11 weight=700 color="#fbbf24" testId="delays-stale"
-                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, photoCredit=photoCredit, delayRows=rows, departureRows=departureRows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
               ready rows
-                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, photoCredit=photoCredit, delayRows=rows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, photoCredit=photoCredit, delayRows=rows, departureRows=departureRows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
         else
           when screen == "stations"
             StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, etaMode=etaMode, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
@@ -239,6 +241,7 @@ component DirectionBoard
     feedSource: object
     photoCredit: string
     delayRows: object[]
+    departureRows: object[]
     toggleDirection: (next) => void
     openTrip: (id) => void
     trainPrev: () => void
@@ -277,7 +280,7 @@ component DirectionBoard
                     text delayLabel(board.hero) size=12 weight=700 color=delayColor(board.hero)
                 text `to ${board.hero.headsign}` size=15 weight=600 color="#ffffffd9"
                 row gap=6 wrap="wrap" width="100%"
-                  each stop in upcomingStops(board.hero.id, stationId, nowMs, 4, delayRows) key=stop.id
+                  each stop in upcomingStops(board.hero.id, stationId, nowMs, 4, delayRows, departureRows) key=stop.id
                     row radius=999 paddingLeft=10 paddingRight=10 paddingTop=4 paddingBottom=4 background=stop.isBoarding ? "#ffffff2b" : "#ffffff14"
                       text `${stop.time} ${stop.name}` size=11 weight=stop.isBoarding ? 700 : 500 family="ui-monospace, Menlo, monospace" color=stop.isBoarding ? "#ffffff" : "#ffffffb8"
             // Walk the upcoming trains (swipe up/down drives these same arrows).

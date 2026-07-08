@@ -1002,6 +1002,11 @@ export class Coordinator {
     const args = { trigger: 'cron' };
     if (this.env.SNAPBACK_TESTING === '1' && typeof this.env.SNAPBACK_TEST_FEED_URL === 'string') {
       args.feedUrl = this.env.SNAPBACK_TEST_FEED_URL;
+      // Short synthetic cadences (SNAPBACK_CRON_INTERVAL_OVERRIDE_MS) would
+      // otherwise be swallowed by the app's 180s upstream-poll budget
+      // (ENG-23642) — relax it for testing runs only. The app clamps this to
+      // its production ceiling, so it can never RAISE the budget.
+      args.pollBudgetMs = 0;
     }
     try {
       const result = await this.executeAction(job.action, args, trigger);

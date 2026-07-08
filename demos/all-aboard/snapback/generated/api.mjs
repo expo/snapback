@@ -17,6 +17,14 @@ export const api = Object.freeze({
     "name": "applyLiveFeedSnapshot",
     "schemaVersion": "snapback.v0"
   },
+  "claimFeedPoll": {
+    "appId": "all-aboard",
+    "artifactKind": "functionReference",
+    "id": "all-aboard:claimFeedPoll",
+    "kind": "Mutation",
+    "name": "claimFeedPoll",
+    "schemaVersion": "snapback.v0"
+  },
   "ephemeral": {},
   "feedState": {
     "appId": "all-aboard",
@@ -24,6 +32,14 @@ export const api = Object.freeze({
     "id": "all-aboard:feedState",
     "kind": "LiveQuery",
     "name": "feedState",
+    "schemaVersion": "snapback.v0"
+  },
+  "liveDepartures": {
+    "appId": "all-aboard",
+    "artifactKind": "functionReference",
+    "id": "all-aboard:liveDepartures",
+    "kind": "LiveQuery",
+    "name": "liveDepartures",
     "schemaVersion": "snapback.v0"
   },
   "liveTrainStatus": {

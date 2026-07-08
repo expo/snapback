@@ -14,8 +14,12 @@
     "contract/applyFeedTick.mutation.contract-meta.ts",
     "contract/applyLiveFeedSnapshot.mutation.ts",
     "contract/applyLiveFeedSnapshot.mutation.contract-meta.ts",
+    "contract/claimFeedPoll.mutation.ts",
+    "contract/claimFeedPoll.mutation.contract-meta.ts",
     "contract/feedState.query.ts",
     "contract/feedState.query.contract-meta.ts",
+    "contract/liveDepartures.query.ts",
+    "contract/liveDepartures.query.contract-meta.ts",
     "contract/liveTrainStatus.query.ts",
     "contract/liveTrainStatus.query.contract-meta.ts",
     "contract/resetFeed.mutation.ts",
@@ -27,7 +31,7 @@
     "contract/tripsQuery.query.ts",
     "contract/tripsQuery.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:d66a27219af06d57",
+  "bundleHash": "sha256:2637840bff4ced7e",
   "config": [
     {
       "name": "caltrainFeed",
@@ -60,9 +64,19 @@
       "name": "applyLiveFeedSnapshot"
     },
     {
+      "id": "all-aboard:claimFeedPoll",
+      "kind": "Mutation",
+      "name": "claimFeedPoll"
+    },
+    {
       "id": "all-aboard:feedState",
       "kind": "LiveQuery",
       "name": "feedState"
+    },
+    {
+      "id": "all-aboard:liveDepartures",
+      "kind": "LiveQuery",
+      "name": "liveDepartures"
     },
     {
       "id": "all-aboard:liveTrainStatus",
@@ -101,14 +115,15 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "c0c60ca80319ca63a11550b1209f66903428ba73e967dee19c6e0aff30cb314a",
-  "schemaHash": "sha256:c7f25a2cc6da8499",
+  "inputsHash": "c93aa60534b9c1e4bdb8170f2560eca955579a476a1e758aa795790299e4e3db",
+  "schemaHash": "sha256:12d02c2bee99feb2",
   "schemaVersion": "snapback.v0",
   "tables": [
     "stations",
     "trips",
     "stopTimes",
     "trainStatus",
+    "liveDepartures",
     "feedRefreshState",
     "feedTicks"
   ]

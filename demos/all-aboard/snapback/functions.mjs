@@ -29,7 +29,7 @@ import {
 export const appConfig = defineConfig({
   caltrainFeed: {
     description: '511.org Open Data API key',
-    purpose: 'Fetches Caltrain StopMonitoring predictions for live delay overlays',
+    purpose: 'Fetches Caltrain StopMonitoring predictions for live departure boards',
     required: false,
     pool: true,
     howToGet:
@@ -94,6 +94,16 @@ export const liveTrainStatus = defineLiveQuery({
   index: 'by_pattern',
 });
 
+// The real 511 departure board. trainStatus remains a coarse delay overlay for
+// the recorded fallback and legacy tests; liveDepartures owns actual predicted
+// departure times when the feed source is live.
+export const liveDepartures = defineLiveQuery({
+  table: 'liveDepartures',
+  args: {},
+  order: [asc('predictedDepartureMs')],
+  index: 'by_time',
+});
+
 // The read-through freshness marker ("updated N seconds ago").
 export const feedState = defineLiveQuery({
   table: 'feedRefreshState',
@@ -113,7 +123,7 @@ export const applyFeedTick = defineJsMutation({
   source: 'handlers.mjs',
   exportName: 'applyFeedTick',
   reads: ['feedRefreshState', 'feedTicks', 'trainStatus'],
-  writes: ['trainStatus', 'feedRefreshState'],
+  writes: ['trainStatus', 'liveDepartures', 'feedRefreshState'],
 });
 
 // Applies a real feed snapshot already fetched by the action. The handler maps
@@ -124,13 +134,33 @@ export const applyLiveFeedSnapshot = defineJsMutation({
     trigger: v.optional(v.string()),
     source: v.optional(v.string()),
     delays: v.json(),
+    departures: v.optional(v.json()),
     note: v.optional(v.string()),
     lastError: v.optional(v.string()),
   },
   source: 'handlers.mjs',
   exportName: 'applyLiveFeedSnapshot',
-  reads: ['feedRefreshState', 'trainStatus'],
-  writes: ['trainStatus', 'feedRefreshState'],
+  reads: ['feedRefreshState', 'trainStatus', 'liveDepartures'],
+  writes: ['trainStatus', 'liveDepartures', 'feedRefreshState'],
+});
+
+// Transactional upstream-poll budget claim (ENG-23642). refreshFeed calls this
+// BEFORE touching 511: it grants at most one claim per budget window by
+// stamping feedRefreshState.lastUpstreamPollAt inside the mutation, so
+// concurrent cron + manual refreshes serialize on the DO write path and only
+// one of them may poll upstream per window. Denied claims report retryInMs so
+// the caller can answer "updated recently" from the cached rows.
+export const claimFeedPoll = defineJsMutation({
+  args: {
+    trigger: v.optional(v.string()),
+    // Testing knob (mirrors SNAPBACK_TEST_FEED_URL): callers may LOWER the
+    // budget window, never raise it — the handler clamps to the 180s default.
+    minIntervalMs: v.optional(v.integer()),
+  },
+  source: 'handlers.mjs',
+  exportName: 'claimFeedPoll',
+  reads: ['feedRefreshState'],
+  writes: ['feedRefreshState'],
 });
 
 // Reset the feed to tick 0 / all on-time (resettable for tests).
@@ -138,8 +168,8 @@ export const resetFeed = defineJsMutation({
   args: {},
   source: 'handlers.mjs',
   exportName: 'resetFeed',
-  reads: ['feedRefreshState', 'trainStatus'],
-  writes: ['trainStatus', 'feedRefreshState'],
+  reads: ['feedRefreshState', 'trainStatus', 'liveDepartures'],
+  writes: ['trainStatus', 'liveDepartures', 'feedRefreshState'],
 });
 
 // The thing cron runs. With a 511 key it fetches the real Caltrain feed and
@@ -151,12 +181,15 @@ export const refreshFeed = defineAction({
     trigger: v.optional(v.string()),
     source: v.optional(v.string()),
     feedUrl: v.optional(v.string()),
+    // Testing knob (short-cadence acceptance rigs): lowers the upstream-poll
+    // budget window; clamped so it can never RAISE the 180s production budget.
+    pollBudgetMs: v.optional(v.integer()),
   },
   js: { source: 'handlers.mjs', exportName: 'refreshFeed' },
   // @ref LLP 0036#declared-configuration-in-the-manifest — D8: the grant that
   // hands the live fetch its rotating key via ctx.secrets.
   uses: ['caltrainFeed'],
-  writes: ['trainStatus', 'feedRefreshState'],
+  writes: ['trainStatus', 'liveDepartures', 'feedRefreshState'],
 });
 
 // Per-request walking/biking directions. The browser passes only coordinates;
@@ -180,17 +213,20 @@ export const routeEstimate = defineAction({
 
 // --- Cron ---------------------------------------------------------------------
 
-// Minute warm-poll, armed only while a client is watching trainStatus. On the
-// hosted Cloudflare profile this rides a demand-armed Durable Object alarm —
-// subscribe arms it, last-unsubscribe cancels it — so an idle deployment takes
-// zero warm-poll wakeups (LLP 0049 §Warm Polling, superseding the minute
-// Cron Trigger default LLP 0028 previously carried; the minute trigger with a
-// declared idle invocation rate is the named fallback).
+// Three-minute warm-poll, armed only while a client is watching trainStatus.
+// On the hosted Cloudflare profile this rides a demand-armed Durable Object
+// alarm — subscribe arms it, last-unsubscribe cancels it — so an idle
+// deployment takes zero warm-poll wakeups (LLP 0049 §Warm Polling, superseding
+// the minute Cron Trigger default LLP 0028 previously carried; the minute
+// trigger with a declared idle invocation rate is the named fallback).
+// 180s (not 60s) so the deployed app stays inside the 511 key's rate budget
+// (ENG-23642); claimFeedPoll enforces the same budget transactionally, so a
+// manual Refresh cannot stack extra upstream polls on top of the cadence.
 export const caltrainCron = defineCron({
   warmPoll: {
-    // jitter:false because the 60s cadence is a fixed product interval for a
+    // jitter:false because the 180s cadence is a fixed product interval for a
     // single demand-gated app; no thundering-herd concern (LLP 0028 §Jitter).
-    schedule: { everyMs: 60_000, jitter: false },
+    schedule: { everyMs: 180_000, jitter: false },
     action: 'refreshFeed',
     activation: { kind: 'WhileLive', whileLive: ['liveTrainStatus'] },
   },

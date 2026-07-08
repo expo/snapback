@@ -41,11 +41,16 @@ function check(label, condition) {
 }
 
 function siriBody() {
-  const visit = (line, destination, delay) => ({
+  const base = Date.now() + 10 * 60 * 1000;
+  const visit = (line, destination, delay, stopName = 'Palo Alto Caltrain') => ({
     MonitoredVehicleJourney: {
       LineRef: line,
       DestinationName: destination,
-      MonitoredCall: { AimedDepartureTime: '2026-07-07T10:00:00Z', ExpectedDepartureTime: `2026-07-07T10:0${delay}:00Z` },
+      MonitoredCall: {
+        StopPointName: stopName,
+        AimedDepartureTime: new Date(base).toISOString(),
+        ExpectedDepartureTime: new Date(base + delay * 60 * 1000).toISOString(),
+      },
     },
   });
   return {
@@ -133,9 +138,13 @@ async function main() {
       refresh.result.source === '511-siri-stop-monitoring' && refresh.result.patterns.length > 0
     );
     const feedState = await client.query('feedState', {});
+    const departures = await client.query('liveDepartures', {});
     check(
       'durable feed state is labeled live (not recorded/fallback)',
-      feedState.rows[0].lastSource === '511-siri-stop-monitoring' && feedState.rows[0].lastError === ''
+      feedState.rows[0].lastSource === '511-siri-stop-monitoring' &&
+        feedState.rows[0].lastError === '' &&
+        departures.rows.length === 3 &&
+        departures.rows.every((row) => row.stationId === 'palo-alto' && row.predictedDepartureMs > Date.now())
     );
 
     // --- directions path through coordinator header substitution ----------
@@ -184,6 +193,10 @@ async function main() {
     );
 
     // --- forced failures: actionable, key-redacted diagnostics ------------
+    // Each forced-failure leg clears the ENG-23642 one-poll-per-180s upstream
+    // budget first (resetFeed zeroes lastUpstreamPollAt) so the leg exercises
+    // the fetch path rather than the updated-recently guard.
+    await client.mutate('resetFeed', {});
     const run401 = await client.action('refreshFeed', { args: { trigger: 'manual', feedUrl: `${feedUrl}?mode=401` } });
     const state401 = await client.query('feedState', {});
     const text401 = JSON.stringify([run401, state401.rows[0]]);
@@ -195,6 +208,7 @@ async function main() {
         text401.includes('[redacted]') &&
         !text401.includes(FEED_KEY)
     );
+    await client.mutate('resetFeed', {}); // clear the upstream-poll budget (ENG-23642)
     const run429 = await client.action('refreshFeed', { args: { trigger: 'manual', feedUrl: `${feedUrl}?mode=429` } });
     const state429 = await client.query('feedState', {});
     check(
@@ -203,6 +217,7 @@ async function main() {
         /rate limit/.test(state429.rows[0].lastError) &&
         !JSON.stringify(state429.rows[0]).includes(FEED_KEY)
     );
+    await client.mutate('resetFeed', {}); // clear the upstream-poll budget (ENG-23642)
     const runNetwork = await client.action('refreshFeed', {
       args: { trigger: 'manual', feedUrl: 'http://127.0.0.1:9/refused' },
     });

@@ -2,5 +2,5 @@
 import { defineContractModule, mutation } from '@exact/contract/exports';
 
 export default defineContractModule('./applyFeedTick.mutation.ts', {
-  applyFeedTick: mutation({ effects: ["trainStatus.write","feedRefreshState.write"], invalidates: ["trainStatus","feedRefreshState"] }),
+  applyFeedTick: mutation({ effects: ["trainStatus.write","liveDepartures.write","feedRefreshState.write"], invalidates: ["trainStatus","liveDepartures","feedRefreshState"] }),
 });

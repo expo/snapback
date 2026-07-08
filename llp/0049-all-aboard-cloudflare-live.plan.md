@@ -5,14 +5,18 @@
 **Systems:** Demo apps, Cloudflare, Deployment, Runtime, Security, Cron, Data gateway, Realtime, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-08 (seventh pass, ENG-23643: the deployed URL now loads
+**Revised:** 2026-07-08 (eighth pass: live 511 success now writes
+`liveDepartures` and the deployed proof asserts future rows directly, closing
+the false-live-board failure where a live source could still render demo
+clock-face trains in the middle of the night; remote acceptance is now 21/21.
+Seventh pass, ENG-23643: the deployed URL now loads
 in the native Exact hosts — the handwritten Contract `index.html` carries the
 `exact:platform-manifest` discovery link (the vite plugin injects it only into
 HTML it generates itself, so the macOS host got web HTML with no manifest
 pointer and white-screened), the gateway answers `/__exact/*` asset misses
 with explicit JSON 404 instead of the SPA index.html fallback, and the remote
-acceptance suite walks the macOS host's discovery chain — root HTML → link →
-platform manifest → mac envelope → startup source — plus the agent-endpoint
+acceptance suite walks the native host discovery chain — root HTML → link →
+platform manifest → macOS/iOS envelopes → startup sources — plus the agent-endpoint
 404 shape, 20/20. Sixth pass 2026-07-07, ENG-23628–ENG-23632: all four
 implementation phases built and the plan's product claim EARNED — All Aboard
 is deployed live at
@@ -22,9 +26,12 @@ https://snapback-all-aboard-proof.ccheever-0f6.workers.dev with real 511 keys
 host-mediated action egress with both placement slots proven against the real
 511 and OpenRouteService APIs, the generated Contract surface served
 same-origin and driving `client.action` through the gateway action route, and
-the demand-armed alarm warm poll running a real 60s scheduled cycle through
+the demand-armed alarm warm poll running a real scheduled cycle through
 the hardened claimed runner with a live push to a hibernation socket
-(cloudflare/test/acceptance.remote.all-aboard.mjs, 16/16). Named remaining
+(cloudflare/test/acceptance.remote.all-aboard.mjs, 16/16; the cadence moved
+from 60s to 180s with a transactional one-poll-per-180s upstream budget
+shared by cron and manual Refresh, and a 390s LIVE-badge freshness window —
+ENG-23642). Named remaining
 limits live in the capability manifest (generalized_outbound_actions,
 egress_destination_allowlist, calendar_cron_triggers,
 http_outbox_poll_fallback, config automation); the long-window idle billing
@@ -501,9 +508,9 @@ protocol endpoints, the gateway must never let the static-assets
 single-page-application fallback answer them: a miss there returns an explicit
 JSON 404 (with a dev-server-only diagnostic for `/__exact/agent/*`, which the
 Exact Log Console probes), so web HTML is never misread as a native payload.
-The remote acceptance suite walks the same chain the macOS host walks — root
-HTML → discovery link → platform manifest → mac envelope → startup source —
-and asserts the agent-endpoint 404 shape.
+The remote acceptance suite walks the same chain the native hosts walk — root
+HTML → discovery link → platform manifest → macOS/iOS envelopes → startup
+sources — and asserts the agent-endpoint 404 shape.
 
 The surface also needs an action transport. The generated client invokes
 actions as `client.action('refreshFeed', …)` and
@@ -694,14 +701,19 @@ for each item:
   hand-rolled action HTTP.
 - **Live feed works:** a 511 response causes durable train/feed rows to update
   through the live-snapshot mutation path (`applyLiveFeedSnapshot`,
-  `lastSource: '511-siri-stop-monitoring'`) and pushes to a live subscriber;
-  recorded-tick commits do not satisfy this item.
+  `lastSource: '511-siri-stop-monitoring'`), writes `liveDepartures` rows with
+  real predicted departure times, and pushes to a live subscriber; recorded-tick
+  commits do not satisfy this item, and a live 511 snapshot with no
+  station-mappable visits must show no live trains rather than demo schedule
+  rows.
 - **Directions works:** a route estimate can use the directions key, or a
   declared remaining gap explains why this did not land in the same slice.
-- **Warm polling works:** active live subscribers cause `warmPoll` to run on a
-  minute-compatible cadence through the stage-2 hardened durable runner —
-  stage 1 (manual + alarm-only) does not earn this item (OQ6); no active
-  subscribers do not cause external fetch.
+- **Warm polling works:** active live subscribers cause `warmPoll` to run on
+  the declared cadence (180s since ENG-23642; originally proven at 60s)
+  through the stage-2 hardened durable runner — stage 1 (manual + alarm-only)
+  does not earn this item (OQ6); no active subscribers do not cause external
+  fetch, and cron + manual Refresh together never exceed one upstream 511
+  poll per 180s window (the transactional claimFeedPoll budget).
 - **Idle wakeups are honest:** the alarm shape shows zero warm-poll wakeups
   with no subscribers, or the declared Cron Trigger fallback's idle invocation
   rate is measured and named in the manifest — never silently folded into the
@@ -712,11 +724,11 @@ for each item:
   live data is labeled live only after a real external snapshot commits.
 - **Remote evidence captured:** at least one real Cloudflare run proves the path,
   not only Miniflare.
-- **Native hosts can open the deployed URL:** the served HTML carries the
-  `exact:platform-manifest` discovery link, the manifest → envelope → startup
-  chain loads with native content types, and `/__exact/*` misses answer JSON
-  404 rather than the SPA HTML fallback (ENG-23643; covered by the remote
-  acceptance suite's discovery-chain checks).
+- **Native static discovery works for macOS and iOS:** the served HTML carries
+  the `exact:platform-manifest` discovery link, the manifest → envelope →
+  startup chain loads for both targets with native content types, and
+  `/__exact/*` misses answer JSON 404 rather than the SPA HTML fallback
+  (ENG-23643; covered by the remote acceptance suite's discovery-chain checks).
 
 ## Capability Manifest Changes
 

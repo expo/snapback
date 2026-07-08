@@ -3,7 +3,8 @@
 // Proves the product actions against local HTTP mocks, not the real services:
 //   - /action/{name} runs actions as app-data and rejects non-actions;
 //   - refreshFeed fetches 511 SIRI StopMonitoring JSON, maps Caltrain visits
-//     onto trainStatus rows, and commits through applyLiveFeedSnapshot;
+//     onto liveDepartures plus coarse trainStatus rows, and commits through
+//     applyLiveFeedSnapshot;
 //   - routeEstimate calls the server-side directions action and returns a real
 //     routed distance/duration shape.
 //
@@ -103,6 +104,7 @@ async function startMockApi() {
 }
 
 function stopMonitoringPayload() {
+  const base = Date.now() + 10 * 60 * 1000;
   return {
     Siri: {
       ServiceDelivery: {
@@ -112,15 +114,15 @@ function stopMonitoringPayload() {
               line: 'Limited 312',
               direction: 'Southbound',
               destination: 'San Jose Diridon',
-              aimed: '2026-07-03T12:00:00-07:00',
-              expected: '2026-07-03T12:03:00-07:00',
+              aimed: new Date(base).toISOString(),
+              expected: new Date(base + 3 * 60 * 1000).toISOString(),
             }),
             monitoredVisit({
               line: 'Local 101',
               direction: 'Northbound',
               destination: 'San Francisco 4th & King',
-              aimed: '2026-07-03T12:10:00-07:00',
-              expected: '2026-07-03T12:11:00-07:00',
+              aimed: new Date(base + 10 * 60 * 1000).toISOString(),
+              expected: new Date(base + 11 * 60 * 1000).toISOString(),
             }),
           ],
         }],
@@ -194,7 +196,7 @@ await runAcceptance(suite, async () => {
     assert(mock.requests.some((r) => r.path.includes('/directions/foot-walking')), 'mock saw foot-walking request');
   });
 
-  await suite.check('refreshFeed maps 511 StopMonitoring delays into live trainStatus rows', async () => {
+  await suite.check('refreshFeed maps 511 StopMonitoring visits into live departure rows', async () => {
     const result = await db.action('refreshFeed', {
       args: {
         trigger: 'test',
@@ -213,14 +215,37 @@ await runAcceptance(suite, async () => {
     const feedState = (await db.query('feedState', {})).rows[0];
     assertEqual(feedState.lastSource, '511-siri-stop-monitoring', 'feed source marker');
     assertEqual(feedState.lastError ?? '', '', 'no feed error');
+    const departures = (await db.query('liveDepartures', {})).rows;
+    assertEqual(departures.length, 2, 'live departure rows');
+    assert(departures.every((row) => row.stationId === 'palo-alto'), 'departures mapped to Palo Alto');
+    assert(departures.every((row) => row.predictedDepartureMs > Date.now()), 'departures are real future times');
+  });
+
+  await suite.check('a second refresh inside the 3-minute budget answers from cache, not upstream (ENG-23642)', async () => {
+    const before = mock.requests.length;
+    const departuresBefore = (await db.query('liveDepartures', {})).rows;
+    const result = await db.action('refreshFeed', {
+      args: { trigger: 'manual', feedUrl: `${mock.baseUrl}/transit/StopMonitoring` },
+    });
+    assert(result.ok, `refreshFeed failed: ${JSON.stringify(result.diagnostic)}`);
+    assertEqual(result.result.skipped, 'updated-recently', 'denied claim reports updated-recently');
+    assert(Number(result.result.retryInMs) > 0, `denied claim reports retryInMs: ${JSON.stringify(result.result)}`);
+    assertEqual(mock.requests.length, before, 'no upstream 511 request was made');
+    const departuresAfter = (await db.query('liveDepartures', {})).rows;
+    assertEqual(departuresAfter.length, departuresBefore.length, 'committed live rows are untouched');
+    const feedState = (await db.query('feedState', {})).rows[0];
+    assertEqual(feedState.lastSource, '511-siri-stop-monitoring', 'feed marker still the live snapshot');
   });
 
   await suite.check('a key set through the admin config API reaches the live fetch (the setup-page path)', async () => {
+    // Clear the ENG-23642 upstream-poll budget so this check exercises the
+    // fetch path rather than the updated-recently guard.
+    await db.mutate('resetFeed', {});
     // The user path is /_snapback/admin/setup -> /_snapback/api/config/set,
     // not the deprecated SNAPBACK_ACTION_SECRETS env blob the boot imported.
     const set = await fetch(`${server.baseUrl}/_snapback/api/config/set`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-snapback-admin-token': server.adminToken },
       body: JSON.stringify({ entry: 'caltrainFeed', value: 'config-set-key', source: 'acceptance' }),
     });
     assert(set.ok, `config/set failed: ${set.status}`);
@@ -236,6 +261,7 @@ await runAcceptance(suite, async () => {
   });
 
   await suite.check('a failing live fetch records an actionable, redacted lastError and falls back', async () => {
+    await db.mutate('resetFeed', {}); // clear the upstream-poll budget (ENG-23642)
     const result = await db.action('refreshFeed', {
       args: { trigger: 'test', feedUrl: `${mock.baseUrl}/unauthorized/transit/StopMonitoring` },
     });
@@ -258,6 +284,7 @@ await runAcceptance(suite, async () => {
   });
 
   await suite.check('a rate-limited live fetch tells the rider about key pooling and falls back', async () => {
+    await db.mutate('resetFeed', {}); // clear the upstream-poll budget (ENG-23642)
     const result = await db.action('refreshFeed', {
       args: { trigger: 'test', feedUrl: `${mock.baseUrl}/ratelimited/transit/StopMonitoring` },
     });

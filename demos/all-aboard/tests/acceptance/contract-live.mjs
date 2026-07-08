@@ -81,10 +81,11 @@ await runAcceptance(suite, async () => {
       artifactIndex: gen('artifacts.json'),
       schemaManifest: gen('schema.manifest.json'),
       functionManifest: gen('functions.manifest.json'),
-      liveQueries: ['liveTrainStatus', 'feedState'],
+      liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
     });
     assert(surface.livePush === true, 'live push owned by the adapter');
     await waitFor(() => surface.connection('liveTrainStatus') === 'live', "liveTrainStatus 'live'");
+    await waitFor(() => surface.connection('liveDepartures') === 'live', "liveDepartures 'live'");
     await waitFor(() => surface.connection('feedState') === 'live', "feedState 'live'");
     return { connections: surface.connections() };
   });

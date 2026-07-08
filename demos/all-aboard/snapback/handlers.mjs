@@ -11,10 +11,45 @@
 const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];
 const ROUTE_CACHE_TTL_MS = 5 * 60 * 1000;
 const METERS_PER_MILE = 1609.344;
+const DEPARTED_GRACE_MS = 60 * 1000;
+
+// StopMonitoring gives station names, not the demo's station ids. Keep this
+// mapping explicit and local to the parser so a name we do not recognize fails
+// to "no live row" instead of being guessed into the wrong station.
+const STATION_NAME_ALIASES = [
+  ['san-francisco', ['san francisco 4th king', 'san francisco', '4th king', 'sf caltrain']],
+  ['twenty-second-st', ['22nd street', 'twenty second street', '22nd st']],
+  ['bayshore', ['bayshore']],
+  ['south-sf', ['south san francisco', 'south sf']],
+  ['san-bruno', ['san bruno']],
+  ['millbrae', ['millbrae']],
+  ['burlingame', ['burlingame']],
+  ['san-mateo', ['san mateo']],
+  ['hayward-park', ['hayward park']],
+  ['hillsdale', ['hillsdale']],
+  ['belmont', ['belmont']],
+  ['san-carlos', ['san carlos']],
+  ['redwood-city', ['redwood city']],
+  ['menlo-park', ['menlo park']],
+  ['palo-alto', ['palo alto']],
+  ['california-ave', ['california avenue', 'california ave']],
+  ['mountain-view', ['mountain view']],
+  ['sunnyvale', ['sunnyvale']],
+  ['lawrence', ['lawrence']],
+  ['santa-clara', ['santa clara']],
+  ['san-jose', ['san jose diridon', 'san jose', 'diridon']],
+];
 
 function nowMs(ctx) {
   return ctx.runtime && ctx.runtime.now ? ctx.runtime.now() : 0;
 }
+
+// Upstream 511 poll budget (ENG-23642): the deployed cadence is one poll per
+// 180s. The claim guard uses 5s of tolerance under that so a DO alarm that
+// fires a hair early (scheduling skew) doesn't skip a legitimate cron poll and
+// silently halve the cadence to 360s; manual Refresh rides the same guard.
+const UPSTREAM_POLL_INTERVAL_MS = 180_000;
+const UPSTREAM_POLL_GUARD_MS = UPSTREAM_POLL_INTERVAL_MS - 5_000;
 
 function errorMessage(error) {
   return error && error.message ? error.message : String(error);
@@ -77,6 +112,37 @@ function textOf(value) {
   return out == null ? '' : String(out);
 }
 
+function normalizeStationText(value) {
+  return textOf(value)
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/\bcaltrain\b/g, ' ')
+    .replace(/\bstation\b/g, ' ')
+    .replace(/\bstop\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function stationIdFromCall(call) {
+  const text = normalizeStationText([
+    textOf(call.StopPointName),
+    textOf(call.StopPointRef),
+  ].join(' '));
+  if (!text) return null;
+  const matches = [];
+  for (const [stationId, aliases] of STATION_NAME_ALIASES) {
+    for (const alias of aliases) {
+      const normalizedAlias = normalizeStationText(alias);
+      if (text === normalizedAlias || text.includes(normalizedAlias)) {
+        matches.push({ stationId, length: normalizedAlias.length });
+      }
+    }
+  }
+  matches.sort((a, b) => b.length - a.length);
+  return matches[0]?.stationId ?? null;
+}
+
 function dateMs(value) {
   const text = textOf(value);
   if (!text) return null;
@@ -122,13 +188,12 @@ function classifyDirection(mvj, call) {
     textOf(mvj.DestinationName),
     textOf(mvj.DestinationRef),
     textOf(call.DestinationDisplay),
-    textOf(call.StopPointName),
   ].join(' ').toLowerCase();
 
-  if (/san francisco|4th|king|sf caltrain|sf$/.test(text)) return 'north';
-  if (/san jose|diridon|tamien|gilroy/.test(text)) return 'south';
   if (/\b(nb|north|northbound)\b/.test(text)) return 'north';
   if (/\b(sb|south|southbound)\b/.test(text)) return 'south';
+  if (/san francisco|4th|king|sf caltrain|sf$/.test(text)) return 'north';
+  if (/san jose|diridon|tamien|gilroy/.test(text)) return 'south';
   return null;
 }
 
@@ -144,6 +209,30 @@ function classifyService(mvj) {
   if (/bullet|baby\s*bullet|\b5\d\d\b/.test(text)) return 'bullet';
   if (/limited|express|\b3\d\d\b/.test(text)) return 'limited';
   return 'local';
+}
+
+function serviceLabel(service) {
+  if (service === 'bullet') return 'Baby Bullet';
+  if (service === 'limited') return 'Limited';
+  return 'Local';
+}
+
+function trainNumberFromJourney(mvj, service) {
+  const text = [
+    textOf(mvj.PublishedLineName),
+    textOf(mvj.LineRef),
+    textOf(mvj.VehicleRef),
+    textOf(mvj.FramedVehicleJourneyRef && mvj.FramedVehicleJourneyRef.DatedVehicleJourneyRef),
+  ].join(' ');
+  const match = text.match(/\b([135]\d{2,3})\b/);
+  if (match) return match[1];
+  return service === 'bullet' ? '5xx' : service === 'limited' ? '3xx' : '1xx';
+}
+
+function headsignFromJourney(direction, mvj, call) {
+  const explicit = textOf(mvj.DestinationName) || textOf(call.DestinationDisplay);
+  if (explicit) return explicit;
+  return direction === 'north' ? 'San Francisco' : 'San Jose Diridon';
 }
 
 function delaySecondsFromVisit(visit) {
@@ -166,14 +255,68 @@ function delaySecondsFromVisit(visit) {
   return parseSiriDurationSeconds(mvj.Delay) ?? parseSiriDurationSeconds(call.Delay);
 }
 
-function aggregateCaltrainDelays(json) {
+function liveDepartureFromVisit(visit, observedAt) {
+  const mvj = visit && visit.MonitoredVehicleJourney ? scalar(visit.MonitoredVehicleJourney) : null;
+  const call = mvj && mvj.MonitoredCall ? scalar(mvj.MonitoredCall) : {};
+  if (!mvj || !call) return null;
+
+  const stationId = stationIdFromCall(call);
+  const direction = classifyDirection(mvj, call);
+  if (!stationId || !direction) return null;
+
+  const expected =
+    dateMs(call.ExpectedDepartureTime) ??
+    dateMs(call.ExpectedArrivalTime) ??
+    dateMs(call.ExpectedAimedDepartureTime) ??
+    dateMs(call.ExpectedAimedArrivalTime);
+  const aimed =
+    dateMs(call.AimedDepartureTime) ??
+    dateMs(call.AimedArrivalTime) ??
+    dateMs(mvj.OriginAimedDepartureTime) ??
+    dateMs(mvj.DestinationAimedArrivalTime);
+  const predictedDepartureMs = expected ?? aimed;
+  if (predictedDepartureMs == null || predictedDepartureMs < observedAt - DEPARTED_GRACE_MS) return null;
+
+  const delaySeconds = Number.isFinite(expected) && Number.isFinite(aimed)
+    ? Math.round((expected - aimed) / 1000)
+    : (delaySecondsFromVisit(visit) ?? 0);
+  const service = classifyService(mvj);
+  const patternId = `${direction === 'south' ? 'sb' : 'nb'}-${service}`;
+  const trainNumber = trainNumberFromJourney(mvj, service);
+  const departureId =
+    textOf(mvj.FramedVehicleJourneyRef && mvj.FramedVehicleJourneyRef.DatedVehicleJourneyRef) ||
+    `${patternId}:${stationId}:${predictedDepartureMs}:${trainNumber}`;
+
+  return {
+    departureId,
+    stationId,
+    stopName: textOf(call.StopPointName) || stationId,
+    direction,
+    service: serviceLabel(service),
+    patternId,
+    trainNumber,
+    headsign: headsignFromJourney(direction, mvj, call),
+    scheduledDepartureMs: aimed ?? predictedDepartureMs,
+    predictedDepartureMs,
+    delaySeconds: Math.max(-300, Math.min(3600, Math.round(delaySeconds || 0))),
+    status: delaySeconds >= 120 ? 'delayed' : 'on-time',
+    observedAt,
+    source: '511-siri-stop-monitoring',
+  };
+}
+
+function aggregateCaltrainSnapshot(json, observedAt) {
   const buckets = {};
+  const departures = [];
   let visited = 0;
   for (const visit of flattenVisits(json)) {
     const mvj = visit && visit.MonitoredVehicleJourney ? scalar(visit.MonitoredVehicleJourney) : null;
     const call = mvj && mvj.MonitoredCall ? scalar(mvj.MonitoredCall) : {};
     if (!mvj || !call) continue;
     visited += 1;
+
+    const departure = liveDepartureFromVisit(visit, observedAt);
+    if (departure) departures.push(departure);
 
     const direction = classifyDirection(mvj, call);
     if (!direction) continue;
@@ -191,10 +334,8 @@ function aggregateCaltrainDelays(json) {
     const average = values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
     delays[patternId] = Math.round(average);
   }
-  if (Object.keys(delays).length === 0) {
-    throw new Error(`511 StopMonitoring returned ${visited} visits but no mappable Caltrain delays`);
-  }
-  return { delays, visitCount: visited };
+  departures.sort((a, b) => a.predictedDepartureMs - b.predictedDepartureMs || a.departureId.localeCompare(b.departureId));
+  return { delays, departures, visitCount: visited };
 }
 
 function loopbackUrl(value) {
@@ -226,11 +367,11 @@ async function fetchJson(url, init) {
   return json;
 }
 
-async function fetchCaltrainDelays(ctx, args) {
+async function fetchCaltrainSnapshot(ctx, args) {
   const key = ctx.secrets.rotating('caltrainFeed').expose();
   const url = caltrainFeedUrl(args, key);
   const json = await fetchJson(url, { headers: { Accept: 'application/json' }, timeout: 15_000 });
-  return aggregateCaltrainDelays(json);
+  return aggregateCaltrainSnapshot(json, nowMs(ctx));
 }
 
 function routeModeLabel(mode) {
@@ -331,6 +472,9 @@ globalThis.__snapbackHandlers = {
       const status = delaySeconds >= 120 ? 'delayed' : 'on-time';
       await ctx.db.patch('trainStatus', patternId, { delaySeconds, status, observedAt });
     }
+    for (const row of await ctx.db.query('liveDepartures').collect()) {
+      await ctx.db.delete('liveDepartures', row._id);
+    }
 
     await ctx.db.patch('feedRefreshState', 'caltrain', {
       fetchedAt: observedAt,
@@ -347,6 +491,7 @@ globalThis.__snapbackHandlers = {
     const observedAt = nowMs(ctx);
     const trigger = (args && args.trigger) || 'manual';
     const delays = (args && args.delays) || {};
+    const departures = Array.isArray(args && args.departures) ? args.departures : [];
     const touched = [];
 
     for (const patternId of PATTERN_IDS) {
@@ -355,6 +500,27 @@ globalThis.__snapbackHandlers = {
       const status = delaySeconds >= 120 ? 'delayed' : 'on-time';
       await ctx.db.patch('trainStatus', patternId, { delaySeconds, status, observedAt });
       touched.push(patternId);
+    }
+    for (const row of await ctx.db.query('liveDepartures').collect()) {
+      await ctx.db.delete('liveDepartures', row._id);
+    }
+    for (const departure of departures) {
+      await ctx.db.insert('liveDepartures', {
+        departureId: String(departure.departureId || `${departure.patternId || 'train'}:${departure.stationId || 'station'}:${departure.predictedDepartureMs || observedAt}`),
+        stationId: String(departure.stationId || ''),
+        stopName: String(departure.stopName || departure.stationId || ''),
+        direction: departure.direction === 'north' ? 'north' : 'south',
+        service: String(departure.service || 'Local'),
+        patternId: String(departure.patternId || ''),
+        trainNumber: String(departure.trainNumber || ''),
+        headsign: String(departure.headsign || ''),
+        scheduledDepartureMs: Math.round(Number(departure.scheduledDepartureMs) || Number(departure.predictedDepartureMs) || observedAt),
+        predictedDepartureMs: Math.round(Number(departure.predictedDepartureMs) || observedAt),
+        delaySeconds: Math.max(-300, Math.min(3600, Math.round(Number(departure.delaySeconds) || 0))),
+        status: String(departure.status || 'on-time'),
+        observedAt,
+        source: '511-siri-stop-monitoring',
+      });
     }
 
     await ctx.db.patch('feedRefreshState', 'caltrain', {
@@ -371,10 +537,41 @@ globalThis.__snapbackHandlers = {
     };
   },
 
+  // Grants (or denies) permission to poll 511 upstream. Stamping
+  // lastUpstreamPollAt inside this mutation makes the budget transactional:
+  // the DO serializes mutations, so a cron tick and a manual Refresh racing
+  // each other can never both be granted within one window (ENG-23642).
+  async claimFeedPoll(ctx, args) {
+    const observedAt = nowMs(ctx);
+    const trigger = (args && args.trigger) || 'manual';
+    // minIntervalMs can only LOWER the window (testing rigs with short synthetic
+    // cadences); the 180s production budget is the ceiling, never raisable.
+    const requested = Number(args && args.minIntervalMs);
+    const guardMs = Number.isFinite(requested) && requested >= 0
+      ? Math.min(requested, UPSTREAM_POLL_GUARD_MS)
+      : UPSTREAM_POLL_GUARD_MS;
+    const state = await ctx.db.get('feedRefreshState', 'caltrain');
+    const lastPollAt = state && Number(state.lastUpstreamPollAt) > 0 ? Number(state.lastUpstreamPollAt) : 0;
+    const elapsed = observedAt - lastPollAt;
+    if (lastPollAt > 0 && elapsed >= 0 && elapsed < guardMs) {
+      return {
+        allowed: false,
+        trigger,
+        retryInMs: guardMs - elapsed,
+        lastUpstreamPollAt: lastPollAt,
+      };
+    }
+    await ctx.db.patch('feedRefreshState', 'caltrain', { lastUpstreamPollAt: observedAt });
+    return { allowed: true, trigger, retryInMs: 0, lastUpstreamPollAt: observedAt };
+  },
+
   async resetFeed(ctx) {
     const observedAt = nowMs(ctx);
     for (const patternId of PATTERN_IDS) {
       await ctx.db.patch('trainStatus', patternId, { delaySeconds: 0, status: 'on-time', observedAt });
+    }
+    for (const row of await ctx.db.query('liveDepartures').collect()) {
+      await ctx.db.delete('liveDepartures', row._id);
     }
     await ctx.db.patch('feedRefreshState', 'caltrain', {
       fetchedAt: observedAt,
@@ -382,6 +579,7 @@ globalThis.__snapbackHandlers = {
       lastSource: 'reset',
       lastRunTrigger: 'reset',
       lastError: '',
+      lastUpstreamPollAt: 0,
     });
     return { tickIndex: 0 };
   },
@@ -393,14 +591,32 @@ globalThis.__snapbackHandlers = {
     if (args && args.source === 'recorded') {
       return await ctx.runMutation('applyFeedTick', { trigger, source: 'recorded' });
     }
+    // Budget gate before any egress (ENG-23642): at most one upstream 511 poll
+    // per window, shared by cron and manual Refresh. A denied claim answers
+    // from the already-committed rows — no fetch, no writes, board unchanged.
+    const budgetOverride = Number(args && args.pollBudgetMs);
+    const claim = await ctx.runMutation('claimFeedPoll', {
+      trigger,
+      ...(Number.isFinite(budgetOverride) && budgetOverride >= 0 ? { minIntervalMs: budgetOverride } : {}),
+    });
+    if (!claim || claim.allowed !== true) {
+      return {
+        skipped: 'updated-recently',
+        trigger,
+        retryInMs: claim && Number(claim.retryInMs) > 0 ? Number(claim.retryInMs) : 0,
+      };
+    }
     try {
-      const snapshot = await fetchCaltrainDelays(ctx, args || {});
+      const snapshot = await fetchCaltrainSnapshot(ctx, args || {});
       return await ctx.runMutation('applyLiveFeedSnapshot', {
         trigger,
         source: '511-siri-stop-monitoring',
         delays: snapshot.delays,
-        note: `mapped ${snapshot.visitCount} 511 visits`,
-        lastError: '',
+        departures: snapshot.departures,
+        note: `mapped ${snapshot.departures.length} departures from ${snapshot.visitCount} 511 visits`,
+        lastError: snapshot.departures.length === 0 && snapshot.visitCount > 0
+          ? `511 StopMonitoring returned ${snapshot.visitCount} visits but no station-mappable departures; showing no live departures instead of demo trains`
+          : '',
       });
     } catch (error) {
       return await ctx.runMutation('applyFeedTick', {

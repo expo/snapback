@@ -214,7 +214,7 @@ async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnT
     artifactIndex,
     schemaManifest,
     functionManifest: functionsManifest,
-    liveQueries: ['liveTrainStatus', 'feedState'],
+    liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
   });
   activeSurface = surface;
   configureSnapbackContractLinks(surface.links as never);

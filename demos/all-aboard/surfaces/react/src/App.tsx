@@ -75,7 +75,7 @@ export function App(props: { onRefresh: () => void; onRequestLocation: () => voi
   const trip = tripId ? (getTrainRun(tripId, nowMs, delaysFrom(live.delayRows)) as Trip | null) : null;
   const freshness = feedFreshness(nowMs, live.feedRows);
   const feedIssue = feedProblem(live.feedRows);
-  const feedSource = feedSourceBadge(live.feedRows);
+  const feedSource = feedSourceBadge(live.feedRows, nowMs);
 
   // The delays region dispatches on the live subscription the way the
   // Contract `async delayRows` block does: `stale` wins over `ready` while

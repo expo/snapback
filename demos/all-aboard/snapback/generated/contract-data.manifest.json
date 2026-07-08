@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:d66a27219af06d57",
+  "bundleHash": "sha256:2637840bff4ced7e",
   "capabilities": {
     "branchableFixtures": false,
     "forceStates": true,
@@ -13,7 +13,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "c0c60ca80319ca63a11550b1209f66903428ba73e967dee19c6e0aff30cb314a",
+  "inputsHash": "c93aa60534b9c1e4bdb8170f2560eca955579a476a1e758aa795790299e4e3db",
   "manifestVersion": 2,
   "mutations": {
     "applyFeedTick": {
@@ -41,6 +41,7 @@
       },
       "invalidates": [
         "trainStatus",
+        "liveDepartures",
         "feedRefreshState"
       ],
       "name": "applyFeedTick",
@@ -48,6 +49,7 @@
       "serverRunnable": true,
       "writes": [
         "trainStatus",
+        "liveDepartures",
         "feedRefreshState"
       ]
     },
@@ -56,11 +58,16 @@
         "trigger",
         "source",
         "delays",
+        "departures",
         "note",
         "lastError"
       ],
       "args": {
         "delays": {
+          "shape": "unknown"
+        },
+        "departures": {
+          "optional": true,
           "shape": "unknown"
         },
         "lastError": {
@@ -86,6 +93,7 @@
       },
       "invalidates": [
         "trainStatus",
+        "liveDepartures",
         "feedRefreshState"
       ],
       "name": "applyLiveFeedSnapshot",
@@ -93,6 +101,34 @@
       "serverRunnable": true,
       "writes": [
         "trainStatus",
+        "liveDepartures",
+        "feedRefreshState"
+      ]
+    },
+    "claimFeedPoll": {
+      "argOrder": [
+        "trigger",
+        "minIntervalMs"
+      ],
+      "args": {
+        "minIntervalMs": {
+          "name": "number",
+          "optional": true,
+          "shape": "primitive"
+        },
+        "trigger": {
+          "name": "string",
+          "optional": true,
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "feedRefreshState"
+      ],
+      "name": "claimFeedPoll",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
         "feedRefreshState"
       ]
     },
@@ -101,6 +137,7 @@
       "args": {},
       "invalidates": [
         "trainStatus",
+        "liveDepartures",
         "feedRefreshState"
       ],
       "name": "resetFeed",
@@ -108,6 +145,7 @@
       "serverRunnable": true,
       "writes": [
         "trainStatus",
+        "liveDepartures",
         "feedRefreshState"
       ]
     }
@@ -166,6 +204,11 @@
               "name": "string",
               "shape": "primitive"
             },
+            "lastUpstreamPollAt": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
             "staleAfterMs": {
               "name": "number",
               "shape": "primitive"
@@ -176,6 +219,104 @@
             },
             "tickIndex": {
               "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "liveDepartures": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "liveDepartures",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "liveDepartures"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "delaySeconds": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "departureId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "direction": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "headsign": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "observedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "patternId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "predictedDepartureMs": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "scheduledDepartureMs": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "service": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "source": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "stationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "stopName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "trainNumber": {
+              "name": "string",
               "shape": "primitive"
             }
           },
@@ -460,6 +601,6 @@
     }
   },
   "receipts": "none",
-  "schemaHash": "sha256:c7f25a2cc6da8499",
+  "schemaHash": "sha256:12d02c2bee99feb2",
   "schemaVersion": "snapback.v0"
 }

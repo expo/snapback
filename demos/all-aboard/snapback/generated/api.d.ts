@@ -31,10 +31,12 @@ export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
   applyFeedTick: FunctionReference<'applyFeedTick', 'Mutation', { trigger?: string; source?: string; lastError?: string }>;
-  applyLiveFeedSnapshot: FunctionReference<'applyLiveFeedSnapshot', 'Mutation', { trigger?: string; source?: string; delays: unknown; note?: string; lastError?: string }>;
+  applyLiveFeedSnapshot: FunctionReference<'applyLiveFeedSnapshot', 'Mutation', { trigger?: string; source?: string; delays: unknown; departures?: unknown; note?: string; lastError?: string }>;
+  claimFeedPoll: FunctionReference<'claimFeedPoll', 'Mutation', { trigger?: string; minIntervalMs?: number }>;
   feedState: FunctionReference<'feedState', 'LiveQuery', Record<string, never>>;
+  liveDepartures: FunctionReference<'liveDepartures', 'LiveQuery', Record<string, never>>;
   liveTrainStatus: FunctionReference<'liveTrainStatus', 'LiveQuery', Record<string, never>>;
-  refreshFeed: FunctionReference<'refreshFeed', 'Action', { trigger?: string; source?: string; feedUrl?: string }>;
+  refreshFeed: FunctionReference<'refreshFeed', 'Action', { trigger?: string; source?: string; feedUrl?: string; pollBudgetMs?: number }>;
   resetFeed: FunctionReference<'resetFeed', 'Mutation', Record<string, never>>;
   routeEstimate: FunctionReference<'routeEstimate', 'Action', { fromLat: number; fromLng: number; toLat: number; toLng: number; mode: string; baseUrl?: string }>;
   stationsQuery: FunctionReference<'stationsQuery', 'Query', Record<string, never>>;

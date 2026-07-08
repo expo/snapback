@@ -917,3 +917,63 @@ startup.js) is plain HTTP + JSON, and the remote acceptance suite now walks
 exactly that chain, so the regression class is pinned. Snapback itself was
 blameless here — both defects live in the deployment/HTML seam between the
 Exact static-native contract and Cloudflare asset serving.
+
+## 2026-07-08 — live 511 departures, not demo trains with live badges
+
+The deployed app had a more serious honesty bug than the earlier DEMO/LIVE
+badge work: `refreshFeed` really fetched 511, used real keys, and stamped
+`lastSource: 511-siri-stop-monitoring`, but the board still computed next
+trains from the seeded clock-face schedule plus a coarse delay overlay. At 3am
+that could render a train in a few minutes even when the live StopMonitoring
+feed did not have that departure.
+
+### What I changed
+
+I added a `liveDepartures` sync table and made the 511 parser write one row per
+station-mappable StopMonitoring visit: station, direction, service, headsign,
+train number, scheduled time, predicted time, delay, status, source. The
+Contract surface now prefers those rows whenever `feedRefreshState.lastSource`
+is live; if 511 returns no station-mappable visits, the live board shows no
+trains instead of falling through to demo schedule rows. `trainStatus` stays as
+a coarse status/delay overlay for recorded fallback mode and legacy checks.
+
+The same parser fix went into the Cloudflare bundle, including a direction
+classification bug: the old code considered `StopPointName`, so a current stop
+such as San Francisco or San Jose could accidentally decide the train's
+direction. Direction now comes from explicit direction/destination fields first.
+
+### What felt good
+
+- The Snapback shape was exactly the right one once the data model was honest:
+  action fetches, mutation replaces the live departure snapshot, live queries
+  push `liveDepartures` over the same stream as `trainStatus` and `feedState`.
+- Exact's generated data bindings handled the new query cleanly. The paved
+  `contract-live.mjs` check now sees `liveTrainStatus`, `liveDepartures`, and
+  `feedState` connected through the shared stream.
+- The Cloudflare proof was useful as a real forcing function. The final remote
+  run mapped 69 future departures from 74 real 511 visits, and the deployed web
+  smoke booted on the live source with a future countdown instead of a fabricated
+  near-term demo train.
+
+### What felt bad or surprising
+
+- The first "real data" closure was too easy to overclaim. Real upstream fetch
+  plus a green LIVE badge is not enough if the product row shown to the rider is
+  still synthesized from seeded slots. The acceptance suite now asserts
+  `liveDepartures` directly so that mistake cannot hide behind `lastSource`.
+- StopMonitoring naming is messy. Mapping 511 stop names to the demo station IDs
+  needed explicit aliases, and unmappable visits must be a visible empty-live
+  state rather than a reason to show fallback trains.
+- A browser-only bug surfaced while testing the real Contract path:
+  `SnapbackClient` referenced `process.env` unguarded, which white-screened in
+  the browser. The fix was small, but it was another reminder that the kit client
+  is both a Node test driver and app runtime code.
+
+### Verification
+
+Local acceptance: `real-data.mjs` 6/6, Cloudflare egress 15/15, Cloudflare cron
+12/12, All Aboard Cloudflare recorded path 18/18, `contract-live.mjs` 2/2, and
+browser Contract 17/17. The deployed Cloudflare acceptance now reaches 21/21,
+including macOS/iOS native static discovery and a direct assertion that live
+511 refresh writes future `liveDepartures` rows. The deployed URL remains
+`https://snapback-all-aboard-proof.ccheever-0f6.workers.dev`.

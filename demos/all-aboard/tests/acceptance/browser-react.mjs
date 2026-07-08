@@ -272,7 +272,7 @@ async function main() {
       // Trigger the demo's own cron job server-side (the admin manual-run
       // route): refreshFeed -> snapshot/fallback mutation -> live fan-out. The browser
       // performs no interaction and owns no poll timer for these queries —
-      // the freshness marker must go "just now" purely from the push.
+      // the freshness marker must show the stable sub-minute copy purely from the push.
       const client = new SnapbackClient(apiUrl);
       const feedBefore = (await client.query('feedState', {})).rows[0] ?? {};
       const tickBefore = feedBefore.tickIndex ?? -1;
@@ -280,8 +280,8 @@ async function main() {
       const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
       const record = await run.json();
-      const fresh = await page.pollText('freshness', 'Updated just now', 6000);
-      if (fresh !== 'Updated just now') throw new Error(`cron delta did not reach the browser: freshness=${fresh}`);
+      const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
+      if (fresh !== 'Updated a few seconds ago') throw new Error(`cron delta did not reach the browser: freshness=${fresh}`);
       const tickAfter = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
       // Recorded feed ticks are cyclic: 5 -> 0 is a valid advance.
       if (tickCount > 1 && tickAfter === tickBefore) throw new Error(`cron run did not advance the feed (${tickBefore} -> ${tickAfter})`);
@@ -317,8 +317,8 @@ async function main() {
       if (!stationName) throw new Error('first window lost its board after the second boot');
       const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
-      const fresh = await page.pollText('freshness', 'Updated just now', 6000);
-      if (fresh !== 'Updated just now') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
+      const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
+      if (fresh !== 'Updated a few seconds ago') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
       const conns = await page.eval('window.allAboard.connections()');
       if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
       return { second, firstStillLive: conns };

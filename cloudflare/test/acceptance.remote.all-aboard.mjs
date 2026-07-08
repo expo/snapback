@@ -23,7 +23,7 @@ if (!BASE || !ADMIN_TOKEN) {
 }
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 
-const EXPECTED_CHECKS = 20;
+const EXPECTED_CHECKS = 21;
 let checks = 0;
 const evidence = [];
 function check(label, condition, detail) {
@@ -74,27 +74,42 @@ async function main() {
   const manifestType = manifestResponse.headers.get('content-type') || '';
   const platformManifest = manifestType.includes('json') ? await manifestResponse.json() : null;
   const macTarget = platformManifest?.targets?.find((target) => target.id === 'mac-appkit-hermes');
+  const iosTarget = platformManifest?.targets?.find((target) => target.id === 'ios-uikit-hermes');
   check(
-    'the platform manifest serves as JSON and declares the mac-appkit-hermes target',
-    manifestResponse.status === 200 && platformManifest?.kind === 'exact-static-platform-manifest' && Boolean(macTarget),
+    'the platform manifest serves as JSON and declares macOS and iOS targets',
+    manifestResponse.status === 200 &&
+      platformManifest?.kind === 'exact-static-platform-manifest' &&
+      Boolean(macTarget) &&
+      Boolean(iosTarget),
     platformManifest?.buildId
   );
-  const envelopeURL = new URL(macTarget.envelopeUrl, manifestResponse.url);
-  const envelopeResponse = await fetch(envelopeURL);
-  const envelope = (envelopeResponse.headers.get('content-type') || '').includes('json')
-    ? await envelopeResponse.json()
-    : null;
-  const startupResponse = envelope?.startup?.source?.url
-    ? await fetch(new URL(envelope.startup.source.url, envelopeURL))
-    : null;
-  const startupType = startupResponse?.headers.get('content-type') || '';
+
+  async function loadNativeTarget(target) {
+    const envelopeURL = new URL(target.envelopeUrl, manifestResponse.url);
+    const envelopeResponse = await fetch(envelopeURL);
+    const envelope = (envelopeResponse.headers.get('content-type') || '').includes('json')
+      ? await envelopeResponse.json()
+      : null;
+    const startupResponse = envelope?.startup?.source?.url
+      ? await fetch(new URL(envelope.startup.source.url, envelopeURL))
+      : null;
+    const startupType = startupResponse?.headers.get('content-type') || '';
+    const startupBytes = startupResponse ? (await startupResponse.text()).length : 0;
+    return { envelope, startupResponse, startupType, startupBytes };
+  }
+
+  const macNative = await loadNativeTarget(macTarget);
+  const iosNative = await loadNativeTarget(iosTarget);
+  const nativeOk = (native) =>
+    native.envelope?.kind === 'exact-static-native-envelope' &&
+    native.startupResponse !== null &&
+    native.startupResponse.status === 200 &&
+    /javascript/.test(native.startupType) &&
+    native.startupBytes > 100_000;
   check(
-    'the mac native envelope and its startup source load with native content types',
-    envelope?.kind === 'exact-static-native-envelope' &&
-      startupResponse !== null && startupResponse.status === 200 &&
-      /javascript/.test(startupType) &&
-      (await startupResponse.text()).length > 100_000,
-    `startup ${envelope?.startup?.source?.bytes} bytes`
+    'the macOS and iOS native envelopes and startup sources load with native content types',
+    nativeOk(macNative) && nativeOk(iosNative),
+    `mac ${macNative.envelope?.startup?.source?.bytes} bytes, ios ${iosNative.envelope?.startup?.source?.bytes} bytes`
   );
   // Dev-server-only agent endpoints must fail as explicit JSON, never fall
   // back to the SPA index.html — the Exact Log Console previews the body, so
@@ -143,17 +158,41 @@ async function main() {
   check('a mutation pushes a live update over the real socket', live.version > beforeMutation);
 
   // --- live 511 refresh through the secret path ---------------------------
+  // ENG-23642: manual refresh rides the same 180s upstream-poll budget as the
+  // warm poll. Against a lived-in deployment whose alarm polled recently, the
+  // honest outcome is a denied claim ("updated recently") on top of a fresh
+  // live snapshot — accept either a fresh commit or a budget-guarded reuse of
+  // one, never a fallback.
   const refresh = await client.action('refreshFeed', { args: { trigger: 'manual' } });
   const feedState = await client.query('feedState', {});
-  const liveWorked = refresh.ok === true && refresh.result && refresh.result.source === '511-siri-stop-monitoring';
+  const feedRow = feedState.rows[0];
+  const refreshCommitted = refresh.ok === true && refresh.result && refresh.result.source === '511-siri-stop-monitoring';
+  const refreshBudgeted =
+    refresh.ok === true &&
+    refresh.result &&
+    refresh.result.skipped === 'updated-recently' &&
+    Date.now() - feedRow.fetchedAt <= Number(feedRow.staleAfterMs || 390_000);
+  const liveWorked = (refreshCommitted || refreshBudgeted) && feedRow.lastSource === '511-siri-stop-monitoring';
   check(
-    'live 511 refresh commits through applyLiveFeedSnapshot with the real key',
-    liveWorked && feedState.rows[0].lastSource === '511-siri-stop-monitoring',
-    liveWorked ? refresh.result.note : `fell back: ${feedState.rows[0].lastError}`
+    'live 511 refresh commits through applyLiveFeedSnapshot with the real key (or budget-guards a fresh live snapshot)',
+    liveWorked,
+    refreshCommitted
+      ? refresh.result.note
+      : refreshBudgeted
+        ? `budget-guarded: retry in ${refresh.result.retryInMs}ms against a fresh snapshot`
+        : `fell back: ${feedRow.lastError}`
+  );
+  const liveDepartures = await client.query('liveDepartures', {});
+  check(
+    'live 511 refresh writes real future departure rows',
+    liveWorked &&
+      liveDepartures.rows.length > 0 &&
+      liveDepartures.rows.some((row) => row.predictedDepartureMs > Date.now()),
+    `${liveDepartures.rows.length} liveDepartures rows`
   );
   check(
     'surfaced diagnostics stay key-redacted',
-    !leaksKey(JSON.stringify([refresh, feedState.rows[0], config]))
+    !leaksKey(JSON.stringify([refresh, feedState.rows[0], liveDepartures.rows, config]))
   );
 
   // --- directions key usage ------------------------------------------------
@@ -184,34 +223,35 @@ async function main() {
   const feedBeforePoll = feedLive.version;
   const armed = await cronStatus();
   check(
-    'an active live subscription arms the durable alarm (60s cadence)',
-    armed.activation.state === 'armed' && armed.everyMs === 60000 && armed.nextRun !== null
+    'an active live subscription arms the durable alarm (180s cadence, ENG-23642)',
+    armed.activation.state === 'armed' && armed.everyMs === 180000 && armed.nextRun !== null
   );
   // The ledger's lastRun persists across suite runs (the eviction check below
   // depends on exactly that), so "a scheduled run exists" is not evidence —
   // require a run the baseline had not seen. Without this, every re-run
   // against a lived-in deployment broke instantly on the previous run's
-  // ledger entry and gave the push a 10s window against a 60s alarm
-  // (ENG-23643).
+  // ledger entry (ENG-23643). The deadline spans two 180s cadence cycles:
+  // the suite's own manual refresh above may have consumed the upstream-poll
+  // budget, making the FIRST scheduled run an honest updated-recently skip
+  // (no commit, no push) — the committing run is then the second cycle
+  // (ENG-23642).
   const baselineRunId = armed.lastRun?.runId ?? null;
-  const pollDeadline = Date.now() + 150_000;
+  const pollDeadline = Date.now() + 400_000;
   let scheduledRun = null;
   for (;;) {
     const status = await cronStatus();
     if (status.lastRun && status.lastRun.trigger === 'scheduled' && status.lastRun.runId !== baselineRunId) {
       scheduledRun = status.lastRun;
-      break;
     }
+    if (scheduledRun !== null && feedLive.version > feedBeforePoll) break;
     if (Date.now() > pollDeadline) break;
     await sleep(2000);
   }
   check(
     'the scheduled warm poll ran through the hardened runner and recorded the ledger',
     scheduledRun !== null && scheduledRun.outcome === 'ok' && scheduledRun.durationMs > 0,
-    scheduledRun ? `run ${scheduledRun.runId.slice(0, 8)}, ${scheduledRun.durationMs}ms` : 'no scheduled run within 150s'
+    scheduledRun ? `run ${scheduledRun.runId.slice(0, 8)}, ${scheduledRun.durationMs}ms` : 'no scheduled run within 400s'
   );
-  const pollPush = Date.now() + 10_000;
-  while (feedLive.version <= feedBeforePoll && Date.now() < pollPush) await sleep(200);
   check(
     'the warm poll pushed a live update to the subscriber',
     feedLive.version > feedBeforePoll && feedLive.rows[0].lastRunTrigger === 'cron'

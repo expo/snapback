@@ -32,6 +32,7 @@ function check(label, condition) {
 }
 
 function siriBody() {
+  const base = Date.now() + 10 * 60 * 1000;
   return {
     ServiceDelivery: {
       StopMonitoringDelivery: {
@@ -41,8 +42,9 @@ function siriBody() {
               LineRef: 'Local',
               DestinationName: 'San Francisco',
               MonitoredCall: {
-                AimedDepartureTime: '2026-07-07T10:00:00Z',
-                ExpectedDepartureTime: '2026-07-07T10:03:00Z',
+                StopPointName: 'Palo Alto Caltrain',
+                AimedDepartureTime: new Date(base).toISOString(),
+                ExpectedDepartureTime: new Date(base + 3 * 60 * 1000).toISOString(),
               },
             },
           },
@@ -143,9 +145,13 @@ async function main() {
       await sleep(50);
     }
     const feedState = await client.query('feedState', {});
+    const departures = await client.query('liveDepartures', {});
     check(
       'the scheduled run commits the live snapshot and pushes to the subscriber',
-      live.version > liveVersionBefore && feedState.rows[0].lastSource === '511-siri-stop-monitoring'
+      live.version > liveVersionBefore &&
+        feedState.rows[0].lastSource === '511-siri-stop-monitoring' &&
+        departures.rows.length === 1 &&
+        departures.rows[0].stationId === 'palo-alto'
     );
 
     // --- duplicate wakeup / alarm retry for a claimed slot ----------------

@@ -87,7 +87,7 @@ bun run --cwd demos/all-aboard/surfaces/contract dev
 The page self-initializes on boot (inspect-first: schema/functions load and the
 seed runs only when the backend needs them).
 
-## Real data (live 511 delays + routed ETAs)
+## Real data (live 511 departures + routed ETAs)
 
 Without keys the app runs entirely on the seeded schedule and recorded feed
 ticks — that is demo data, and every failed live refresh falls back to it.
@@ -101,20 +101,24 @@ To get real data:
 3. Open `http://127.0.0.1:4420/_snapback/admin/setup` and set `caltrainFeed`
    (511.org token, free at <https://511.org/open-data/token>) plus optionally
    `directions` (OpenRouteService/HeiGIT key) for routed walk/bike ETAs.
-4. Press **Refresh** on the board (or wait for the minute cron while the page
-   is open).
+4. Press **Refresh** on the board (or wait for the 3-minute cron while the
+   page is open). Both ride the same upstream budget (ENG-23642): at most one
+   511 poll per 180s, so a Refresh inside the window answers "updated
+   recently" from the committed rows instead of re-fetching.
 
 When a live 511 snapshot commits, `feedState.lastSource` is
-`511-siri-stop-monitoring`. When the board is still on the recorded feed for a
-*reason* (egress off, no key, bad key, 511 outage), the reason now shows
-directly under the board footer (testId `feed-problem`) — the same actionable
-message `refreshFeed` commits to `feedRefreshState.lastError` (with the API
-key redacted). An intentional demo run (no keys, no error) shows nothing.
-The board footer shows which one you are looking at: an amber **DEMO DATA**
-badge (testId `data-source`) while delays come from the seeded/recorded feed,
-flipping to a green **LIVE** badge only after a real 511 snapshot commits
-(`feedRefreshState.lastSource`). Haversine walk/bike ETAs are prefixed `~`;
-routed OpenRouteService ETAs show plain.
+`511-siri-stop-monitoring` and the board prefers `liveDepartures` rows with
+real predicted departure times. If 511 returns no station-mappable visits, the
+live board shows no trains instead of inventing clock-face demo departures.
+When the board is still on the recorded feed for a *reason* (egress off, no
+key, bad key, 511 outage), the reason now shows directly under the board footer
+(testId `feed-problem`) — the same actionable message `refreshFeed` commits to
+`feedRefreshState.lastError` (with the API key redacted). An intentional demo
+run (no keys, no error) shows nothing. The board footer shows which one you are
+looking at: an amber **DEMO DATA** badge (testId `data-source`) while the seeded
+schedule and recorded feed drive the board, flipping to a green **LIVE** badge
+only after a real 511 snapshot commits. Haversine walk/bike ETAs are prefixed
+`~`; routed OpenRouteService ETAs show plain.
 
 ## Production web build
 

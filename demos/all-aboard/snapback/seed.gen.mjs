@@ -50,7 +50,10 @@ const feedRefreshState = [
   {
     _id: 'caltrain',
     fetchedAt: 0,
-    staleAfterMs: 60_000,
+    // Freshness window for the LIVE badge: two 180s warm-poll cycles + 30s
+    // grace, so one missed/skipped poll doesn't flap the badge but a feed that
+    // stops refreshing goes visibly stale (ENG-23642).
+    staleAfterMs: 390_000,
     tickIndex: 0,
     tickCount: feedTicks.length,
     lastSource: 'seed',

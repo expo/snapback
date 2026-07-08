@@ -5,7 +5,7 @@
 import { getSnapbackContractLinks } from './runtime-links';
 
 export const descriptor = 'applyLiveFeedSnapshot';
-export type ApplyLiveFeedSnapshotArgs = { trigger?: string; source?: string; delays: unknown; note?: string; lastError?: string };
+export type ApplyLiveFeedSnapshotArgs = { trigger?: string; source?: string; delays: unknown; departures?: unknown; note?: string; lastError?: string };
 
 export function applyLiveFeedSnapshot(args: ApplyLiveFeedSnapshotArgs) {
   return getSnapbackContractLinks().applyLiveFeedSnapshot(args);

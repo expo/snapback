@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Revised:** 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
 **Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0032, LLP 0034, LLP 0036, Diary 0008
 
 ## Summary
@@ -202,8 +202,18 @@ or a malformed feed fall back to the recorded tick path and write `lastError` in
 `feedRefreshState`. Verified without touching the real network by
 `demos/all-aboard/tests/acceptance/real-data.mjs`.
 
-**Residual non-claim.** This is a live delay overlay for the demo schedule, not
-exact static-GTFS schedule parity or GTFS-RT trip-to-schedule identity matching.
+**Correction (2026-07-08).** The first closure was too weak: a live delay overlay
+on the demo clock-face schedule could still invent "next trains" at times when
+511 had no such station departure. `refreshFeed` now also writes
+`liveDepartures`, one row per mappable StopMonitoring visit, and the Contract
+surface prefers those real predicted departure rows whenever
+`feedRefreshState.lastSource` is `511-siri-stop-monitoring`; if 511 returns no
+station-mappable visits, the live board shows no trains instead of falling back
+silently to demo schedule rows.
+
+**Residual non-claim.** This is real station-level 511 departure prediction plus
+a coarse status overlay. It is still not exact static-GTFS schedule parity,
+full stop-pattern reconstruction, or GTFS-RT trip-to-schedule identity matching.
 That limitation is now called out in `demo.snapback.json`.
 
 **Effort.** M. **Owner.** [LLP 0027](./0027-all-aboard-caltrain-demo.plan.md) over

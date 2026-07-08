@@ -3,8 +3,10 @@
 
 export interface SnapbackContractLinks {
   applyFeedTick(args: { trigger?: string; source?: string; lastError?: string }): unknown;
-  applyLiveFeedSnapshot(args: { trigger?: string; source?: string; delays: unknown; note?: string; lastError?: string }): unknown;
+  applyLiveFeedSnapshot(args: { trigger?: string; source?: string; delays: unknown; departures?: unknown; note?: string; lastError?: string }): unknown;
+  claimFeedPoll(args: { trigger?: string; minIntervalMs?: number }): unknown;
   feedState(args: Record<string, never>): unknown;
+  liveDepartures(args: Record<string, never>): unknown;
   liveTrainStatus(args: Record<string, never>): unknown;
   resetFeed(args: Record<string, never>): unknown;
   stationsQuery(args: Record<string, never>): unknown;

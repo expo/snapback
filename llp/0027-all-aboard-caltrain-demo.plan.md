@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Cron, Realtime, Data gateway, Contract/Exact, Notifications, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-04 (ENG-22751 real-data path made debuggable: every failed live refresh now commits an actionable, key-redacted `lastError` and both surfaces render it as a `feed-problem` line; data honesty: surfaces also render a `data-source` badge — amber DEMO DATA for the seeded/recorded/fallback feed, green LIVE only after a real 511 snapshot commits per `feedRefreshState.lastSource` — and haversine walk/bike ETAs are `~`-prefixed, see [Deterministic data](#deterministic-data); second pass same day: the whole path was re-walked against the **real** `api.511.org` (setup-page key → live fetch → redacted 401 on the board), and the two likely 511 responses now carry instructions too — HTTP 401 → update the key at setup, HTTP 429 → add a pooled key — with the instruction placed ahead of the diagnostic so the surface's 180-char truncation can't eat it; README real-data flow corrected (persistent `--db` so setup keys survive restarts; app-first boot order); real-data suite now serves the 511 mock as the real API responds (BOM + gzip + plain-text 401) and exercises the `/_snapback/api/config/set` setup path; 2026-07-01 redesign pass: full-bleed poster-stylized station art with the board typeset on it, hero-selection state, and the LLP interaction model implemented for real on web via gesture surface glue — see [Station identity](#station-identity), [Interaction model](#interaction-model), [Implementation](#implementation), Diary 0008; earlier same day — LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
+**Revised:** 2026-07-08 (LLP 0049 correction: live 511 success now writes `liveDepartures` rows with real StopMonitoring predicted departure times and the Contract board prefers them whenever `feedRefreshState.lastSource` is `511-siri-stop-monitoring`; a live snapshot with zero station-mappable visits shows no trains instead of clock-face demo trains); 2026-07-04 (ENG-22751 real-data path made debuggable: every failed live refresh now commits an actionable, key-redacted `lastError` and both surfaces render it as a `feed-problem` line; data honesty: surfaces also render a `data-source` badge — amber DEMO DATA for the seeded/recorded/fallback feed, green LIVE only after a real 511 snapshot commits per `feedRefreshState.lastSource` — and haversine walk/bike ETAs are `~`-prefixed, see [Deterministic data](#deterministic-data); second pass same day: the whole path was re-walked against the **real** `api.511.org` (setup-page key → live fetch → redacted 401 on the board), and the two likely 511 responses now carry instructions too — HTTP 401 → update the key at setup, HTTP 429 → add a pooled key — with the instruction placed ahead of the diagnostic so the surface's 180-char truncation can't eat it; README real-data flow corrected (persistent `--db` so setup keys survive restarts; app-first boot order); real-data suite now serves the 511 mock as the real API responds (BOM + gzip + plain-text 401) and exercises the `/_snapback/api/config/set` setup path; 2026-07-01 redesign pass: full-bleed poster-stylized station art with the board typeset on it, hero-selection state, and the LLP interaction model implemented for real on web via gesture surface glue — see [Station identity](#station-identity), [Interaction model](#interaction-model), [Implementation](#implementation), Diary 0008; earlier same day — LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
 **Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0009, LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0024, LLP 0028, LLP 0029, Diary 0008, https://github.com/ccheever/ibex, https://openrouteservice.org, https://en.wikipedia.org/wiki/List_of_Caltrain_stations, https://511.org/open-data/transit
 
 ## Summary
@@ -303,19 +303,25 @@ seeded deterministically:
   status (scheduled|active|delayed|cancelled), prevStationId, nextStationId,
   progress (0..1), lat?, lng? }`. This is the train data the refresh action
   mutates; it is what makes the screen "live."
+- **`liveDepartures`** (live, refresh-written) — one row per mappable 511
+  StopMonitoring visit: station, direction, service, headsign/train number,
+  scheduled and predicted departure times, delay, status, and source. When the
+  feed source is live, the board uses these real predicted departures as the
+  primary next-train truth; it does not synthesize clock-face departures from the
+  seeded demo schedule.
 - **`feedRefreshState`** (singleton cache metadata) — `{ id: "caltrain",
   fetchedAt, staleAfter, inFlightRunId?, lastError?, lastSource }`. This is the
   read-through guardrail: it lets the server decide whether the current
-  `trainStatus` rows are fresh enough, collapse concurrent refresh requests into
-  one action, expose "updated N seconds ago" to the client, and return stale data
-  when the upstream feed fails.
+  `trainStatus`/`liveDepartures` rows are fresh enough, collapse concurrent
+  refresh requests into one action, expose "updated N seconds ago" to the client,
+  and return stale data when the upstream feed fails.
 
-Predictions ("next train in N minutes") are computed from `stopTimes` +
-`trainStatus` relative to the current time. Whether that computation is
-materialized by the refresh mutation or evaluated at query time is an open
-question; the demo should pick one and state it. The default freshness target is
-**60 seconds** so the hosted Cloudflare path can use a minute Cron Trigger rather
-than a continuously re-armed sub-minute Durable Object alarm.
+Predictions ("next train in N minutes") are computed from `liveDepartures` when
+`feedRefreshState.lastSource` is the live 511 source. The seeded `stopTimes` +
+`trainStatus` computation remains the recorded/fallback mode and coarse status
+overlay. The default freshness target is **60 seconds** so the hosted Cloudflare
+path can use a minute-compatible warm poll rather than a continuously re-armed
+sub-minute timer loop.
 
 ### Realtime model
 
@@ -389,15 +395,13 @@ refresh action outside the query transaction. The refresh action then fetches an
 commits through a mutation, preserving the query/mutation/action separation in
 [LLP 0028](./0028-cron-scheduled-execution.rfc.md).
 
-For the hosted Cloudflare shape, the default is **60s freshness** and a static
-minute Cron Trigger as the cheap wakeup. The handler checks subscriber demand and
-cache age, then early-outs if there is no useful work; because Cron Triggers are
-static, this still costs one small invocation per minute but avoids a
-continuously re-armed sub-minute Durable Object alarm. The job should also avoid
-sub-minute jitter on this profile (or declare `jitter: false`) so the target does
-not need a DO alarm merely to delay a minute wakeup by a few seconds. A dynamically
-armed DO alarm remains the option for stricter sub-minute freshness, but All
-Aboard should not require it for v1.
+For the hosted Cloudflare shape, the accepted LLP 0049 deployment uses **60s
+freshness** with a demand-armed Durable Object alarm, not a static minute Cron
+Trigger. The alarm is armed only while live subscribers exist and disarmed when
+the last suite-owned subscriber leaves, preserving the idle-economics claim that
+the deployed app should take zero warm-poll wakeups when nobody is watching. A
+Cron Trigger fallback would have to declare its per-minute idle invocations as a
+measured platform fact.
 
 All Aboard is the **first consumer** of Cron and its motivating case, but the
 general scheduled-execution contract (cadence syntax, demand activation,
@@ -405,7 +409,9 @@ overlap/at-least-once semantics, failure/retry, isolation, target behavior on
 Cloudflare Cron Triggers and alarms) is larger than one demo and is specified
 separately in
 [LLP 0028](./0028-cron-scheduled-execution.rfc.md). This Plan depends on that RFC;
-the demo's Phase 2 is blocked until 0028's local scheduler lands.
+the local scheduler, action-to-mutation runner, and Cloudflare demand-armed proof
+have now landed, with remaining target limits named in LLP 0049's capability
+manifest.
 
 ### External data and action egress
 
@@ -514,7 +520,11 @@ The real-data acceptance suite serves its 511 mock the way `api.511.org`
 actually responds — UTF-8 BOM before the JSON, gzip content-encoding, plain-text
 401 for a bad key — and drives the key through `/_snapback/api/config/set` (the
 setup-page path), not only the deprecated env blob, so the user-visible path is
-the tested path.
+the tested path. A successful live refresh writes both the coarse `trainStatus`
+overlay and `liveDepartures`; when the source is live the board takes its
+minutes-away rows from `liveDepartures`. If 511 returns visits but none map to
+the demo's station set, the live source commits with an empty departure board and
+an actionable reason rather than falling through to demo trains.
 
 Because the recorded feed is a first-class mode (not just a test harness), the
 surfaces label it honestly: the board footer renders a data-source badge
@@ -825,9 +835,9 @@ Implemented. This Plan defines the All Aboard demo and names **scheduled/demand
 refresh** as its primary forcing function — the one genuinely net-new backend
 shape it needs — with a phasing that proves the Contract/Exact product surface and
 the realtime path on recorded data first. The intended live shape is
-Cloudflare-friendly: durable read-through cache, 60s freshness target, a minute
-Cron Trigger wakeup where useful, and no always-on sub-minute DO alarm unless the
-product later requires stricter freshness. Outbound HTTP is *not* a from-scratch
+Cloudflare-friendly: durable read-through cache, 60s freshness target, and a
+demand-armed Durable Object alarm for the hosted proof, with no always-on timer
+loop and no warm-poll wakeups when nobody is subscribed. Outbound HTTP is *not* a from-scratch
 build: Ibex already implements `fetch`/`http`/`https` behind a strict-mode
 `network:fetch` capability that Snapback already installs, so the work is to
 un-deny `fetch` and grant network to a refresh/action execution class, plus a
@@ -836,6 +846,5 @@ secrets seam — sandbox-policy work governed by
 per-host egress allowlist is *not* enforced today (the fetch call site drops the
 URL host), so a real destination allowlist is a small engine change or an
 app-level check, tracked as a known gap. This Plan does not own the Cron subsystem
-design; that is specified in [LLP 0028](./0028-cron-scheduled-execution.rfc.md), and
-Phase 2 is blocked until 0028's local scheduler lands. The build experience will
-land as Diary 0008 with the demo change that produces it.
+design; that is specified in [LLP 0028](./0028-cron-scheduled-execution.rfc.md).
+The build experience is captured in Diary 0008.

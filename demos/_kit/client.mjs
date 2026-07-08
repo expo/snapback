@@ -66,7 +66,9 @@ const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
 const RECEIPT_RING_CAP = 256;
 
 export class SnapbackClient {
-  constructor(baseUrl, { adminToken = process.env.SNAPBACK_ADMIN_TOKEN ?? null } = {}) {
+  constructor(baseUrl, {
+    adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
+  } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
     // Receipt retention, kit half (LLP 0034 §3 / ENG-22478): a bounded ring

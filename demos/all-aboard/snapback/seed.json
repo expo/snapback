@@ -997,7 +997,7 @@
       {
         "_id": "caltrain",
         "fetchedAt": 0,
-        "staleAfterMs": 60000,
+        "staleAfterMs": 390000,
         "tickIndex": 0,
         "tickCount": 6,
         "lastSource": "seed",

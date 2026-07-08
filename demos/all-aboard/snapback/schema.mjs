@@ -2,12 +2,14 @@
 // tables. Seeded deterministically from demos/all-aboard/snapback/shared/model.mjs.
 //
 // @ref LLP 0027#data-model-durable — the static schedule (stations/trips/stopTimes)
-//   is committed seed data; trainStatus is the refresh-written live table and
-//   feedRefreshState is the read-through freshness marker. feedTicks is the
-//   committed "recorded feed" the refresh advances one tick at a time.
+//   is committed seed data; trainStatus is the refresh-written delay overlay,
+//   liveDepartures is the 511-written departure board, and feedRefreshState is
+//   the read-through freshness marker. feedTicks is the committed "recorded
+//   feed" the refresh advances one tick at a time.
 // @ref LLP 0027#realtime-model — trainStatus + feedRefreshState are the only
-//   syncable-live tables; a refresh write to them produces the live-query delta
-//   that makes the board update without a manual refresh.
+//   original syncable-live tables. liveDepartures is the LLP 0049 correction:
+//   a live 511 snapshot must carry real predicted departure times, not just a
+//   delay overlay on the demo clock-face schedule.
 
 import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
 
@@ -57,6 +59,29 @@ export default defineSchema({
     .index('by_pattern', ['patternId'])
     .sync(),
 
+  // Live, refresh-written. One row per mappable 511 StopMonitoring visit.
+  // This table is what prevents a 3am board from inventing clock-face trains:
+  // when feedRefreshState.lastSource is live, the surface prefers these real
+  // predicted departure rows and shows "no trains" if 511 has none.
+  liveDepartures: defineTable({
+    departureId: v.string(),
+    stationId: v.string(),
+    stopName: v.string(),
+    direction: v.string(),
+    service: v.string(),
+    patternId: v.string(),
+    trainNumber: v.string(),
+    headsign: v.string(),
+    scheduledDepartureMs: v.integer(),
+    predictedDepartureMs: v.integer(),
+    delaySeconds: v.integer(),
+    status: v.string(),
+    observedAt: v.integer(),
+    source: v.string(),
+  })
+    .index('by_time', ['predictedDepartureMs'])
+    .sync(),
+
   // Singleton read-through freshness marker (see LLP 0027#feed-refresh-and-cron).
   feedRefreshState: defineTable({
     fetchedAt: v.integer(),
@@ -66,6 +91,11 @@ export default defineSchema({
     lastSource: v.string(),
     lastError: v.optional(v.string()),
     lastRunTrigger: v.optional(v.string()),
+    // When the last upstream 511 poll was *claimed* (attempted), not just when
+    // one succeeded. claimFeedPoll stamps it transactionally before refreshFeed
+    // is allowed to touch 511, so cron + manual refresh together can never
+    // exceed one upstream poll per budget window (ENG-23642: 180s cadence).
+    lastUpstreamPollAt: v.optional(v.integer()),
   }).sync(),
 
   // The committed "recorded feed" — a cycle of delay profiles the refresh applies

@@ -15,6 +15,7 @@
 // clock is UI — countdowns tick — not transport).
 
 import {
+  computePosition,
   getAdjacentStation as modelAdjacent,
   assumedDirection as modelAssumedDirection,
   directionTitle as modelDirectionTitle,
@@ -146,6 +147,24 @@ export function directionTitle(direction: string): string {
 // --- Boards + trips (live delays arrive as liveTrainStatus rows) --------------
 
 type DelayRow = { patternId: string; delaySeconds: number };
+type FeedRow = { lastSource?: string };
+type LiveDepartureRow = {
+  _id?: string;
+  departureId?: string;
+  stationId: string;
+  direction: string;
+  service: string;
+  patternId?: string;
+  trainNumber?: string;
+  headsign?: string;
+  scheduledDepartureMs: number;
+  predictedDepartureMs: number;
+  delaySeconds?: number;
+  status?: string;
+};
+
+const LIVE_FEED_SOURCE = '511-siri-stop-monitoring';
+const DEPARTED_GRACE_MS = 60 * 1000;
 
 // liveTrainStatus rows -> the patternId -> delaySeconds map the model expects.
 function delaysFrom(delayRows: readonly DelayRow[] | null | undefined): Record<string, number> {
@@ -154,7 +173,57 @@ function delaysFrom(delayRows: readonly DelayRow[] | null | undefined): Record<s
   return delays;
 }
 
-export function getDirectionBoard(stationId: string, direction: string, nowMs: number, limit: number, delayRows: DelayRow[]) {
+function isLiveFeed(feedRows: readonly FeedRow[] | null | undefined): boolean {
+  return (feedRows?.[0]?.lastSource ?? '') === LIVE_FEED_SOURCE;
+}
+
+function liveDepartureId(row: LiveDepartureRow): string {
+  return `live:${row._id ?? row.departureId ?? `${row.stationId}:${row.predictedDepartureMs}:${row.trainNumber ?? ''}`}`;
+}
+
+function departureFromLiveRow(row: LiveDepartureRow) {
+  return {
+    id: liveDepartureId(row),
+    source: '511-siri-stop-monitoring',
+    patternId: row.patternId ?? '',
+    direction: row.direction,
+    service: row.service || 'Local',
+    trainNumber: row.trainNumber || '',
+    headsign: row.headsign || (row.direction === 'north' ? 'San Francisco' : 'San Jose Diridon'),
+    stationId: row.stationId,
+    scheduledDepartureMs: row.scheduledDepartureMs,
+    predictedDepartureMs: row.predictedDepartureMs,
+    delaySeconds: row.delaySeconds ?? 0,
+  };
+}
+
+function liveDeparturesFor(stationId: string, direction: string, nowMs: number, departureRows: readonly LiveDepartureRow[] | null | undefined, limit: number) {
+  return (departureRows ?? [])
+    .filter((row) => row.stationId === stationId && row.direction === direction)
+    .filter((row) => Number(row.predictedDepartureMs) > nowMs - DEPARTED_GRACE_MS)
+    .sort((a, b) => Number(a.predictedDepartureMs) - Number(b.predictedDepartureMs))
+    .slice(0, limit)
+    .map(departureFromLiveRow);
+}
+
+export function getDirectionBoard(
+  stationId: string,
+  direction: string,
+  nowMs: number,
+  limit: number,
+  delayRows: DelayRow[],
+  departureRows: LiveDepartureRow[],
+  feedRows: FeedRow[],
+) {
+  if (isLiveFeed(feedRows)) {
+    const departures = liveDeparturesFor(stationId, direction, nowMs, departureRows, limit);
+    return {
+      direction,
+      stationId,
+      primary: departures[0] ?? null,
+      secondary: departures.slice(1),
+    };
+  }
   return modelDirectionBoard(stationId, direction, nowMs, delaysFrom(delayRows), limit);
 }
 
@@ -187,15 +256,31 @@ function filterByService<T extends { service?: string }>(rows: T[], serviceFilte
 // selected train departs) degrades to the last remaining train. The service
 // filter (E3) applies to the whole board — hero included — so it fetches a
 // wide window before filtering rather than filtering a pre-limited slice.
-export function boardTrains(stationId: string, direction: string, nowMs: number, heroOffset: number, delayRows: DelayRow[], serviceFilter: string) {
+export function boardTrains(
+  stationId: string,
+  direction: string,
+  nowMs: number,
+  heroOffset: number,
+  delayRows: DelayRow[],
+  departureRows: LiveDepartureRow[],
+  feedRows: FeedRow[],
+  serviceFilter: string,
+) {
   const wanted = Math.max(0, heroOffset ?? 0);
   const normalizedFilter = normalizeServiceFilter(serviceFilter);
-  const unfiltered = normalizedFilter !== 'All';
-  const fetchLimit = unfiltered ? 40 : wanted + 5;
-  const rows = filterByService(
-    modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), fetchLimit),
-    normalizedFilter,
-  ).slice(0, wanted + 5);
+  const rows = isLiveFeed(feedRows)
+    ? filterByService(
+        liveDeparturesFor(stationId, direction, nowMs, departureRows, 80),
+        normalizedFilter,
+      ).slice(0, wanted + 5)
+    : (() => {
+        const unfiltered = normalizedFilter !== 'All';
+        const fetchLimit = unfiltered ? 40 : wanted + 5;
+        return filterByService(
+          modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), fetchLimit),
+          normalizedFilter,
+        ).slice(0, wanted + 5);
+      })();
   const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
   return {
     hero: rows[offset] ?? null,
@@ -225,13 +310,64 @@ export function shortHeadsign(dep: { headsign?: string } | null): string {
   return match ? match.shortName : headsign;
 }
 
-export function getTrainRun(runId: string, nowMs: number, delayRows: DelayRow[]) {
+function liveRowByRunId(runId: string, departureRows: readonly LiveDepartureRow[] | null | undefined): LiveDepartureRow | null {
+  if (!String(runId || '').startsWith('live:')) return null;
+  const key = String(runId).slice(5);
+  return (departureRows ?? []).find((row) =>
+    row._id === key ||
+    row.departureId === key ||
+    `${row.stationId}:${row.predictedDepartureMs}:${row.trainNumber ?? ''}` === key
+  ) ?? null;
+}
+
+function stationByName(name: string | null | undefined) {
+  const normalized = String(name || '').toLowerCase();
+  return modelStations().find((s: { id: string; name: string; shortName: string }) =>
+    normalized.includes(s.name.toLowerCase()) || normalized.includes(s.shortName.toLowerCase())
+  ) ?? null;
+}
+
+export function getTrainRun(runId: string, nowMs: number, delayRows: DelayRow[], departureRows: LiveDepartureRow[]) {
+  const live = liveRowByRunId(runId, departureRows);
+  if (live) {
+    const origin = getStationById(live.stationId);
+    const destination = stationByName(live.headsign) ?? getStationById(live.direction === 'north' ? 'san-francisco' : 'san-jose');
+    const stops = origin ? [{
+      station: origin,
+      sequence: 0,
+      scheduledTimeMs: live.scheduledDepartureMs,
+      predictedTimeMs: live.predictedDepartureMs,
+    }] : [];
+    if (destination && destination.id !== origin?.id) {
+      stops.push({
+        station: destination,
+        sequence: 1,
+        scheduledTimeMs: live.scheduledDepartureMs,
+        predictedTimeMs: live.predictedDepartureMs,
+      });
+    }
+    return {
+      id: runId,
+      patternId: live.patternId ?? '',
+      direction: live.direction,
+      service: live.service || 'Local',
+      trainNumber: live.trainNumber || '',
+      delaySeconds: live.delaySeconds ?? 0,
+      origin,
+      destination,
+      headsign: live.headsign || destination?.name || '',
+      stopCount: stops.length,
+      durationMinutes: 0,
+      stops,
+      position: computePosition(stops, nowMs),
+    };
+  }
   return modelTrainRun(runId, nowMs, delaysFrom(delayRows));
 }
 
 // The served stops from the boarding station onward, for the expanded hero.
-export function upcomingStops(runId: string, stationId: string, nowMs: number, limit: number, delayRows: DelayRow[]) {
-  const trip = modelTrainRun(runId, nowMs, delaysFrom(delayRows));
+export function upcomingStops(runId: string, stationId: string, nowMs: number, limit: number, delayRows: DelayRow[], departureRows: LiveDepartureRow[]) {
+  const trip = getTrainRun(runId, nowMs, delayRows, departureRows);
   if (!trip) return [];
   const boardingIndex = trip.stops.findIndex((stop: { station: { id: string } }) => stop.station.id === stationId);
   const from = boardingIndex >= 0 ? boardingIndex : 0;
@@ -343,10 +479,9 @@ export function distanceLabel(station: RouteStation, mode: string, _tick?: numbe
 export function feedFreshness(nowMs: number, feedRows: Array<{ fetchedAt?: number }>): string {
   const feed = feedRows?.[0] ?? null;
   if (!feed || !feed.fetchedAt) return 'Waiting for feed…';
-  const ageSeconds = Math.max(0, Math.round((nowMs - feed.fetchedAt) / 1000));
-  if (ageSeconds < 5) return 'Updated just now';
-  if (ageSeconds < 90) return `Updated ${ageSeconds}s ago`;
-  return `Updated ${Math.round(ageSeconds / 60)} min ago`;
+  const ageSeconds = Math.max(0, Math.floor((nowMs - feed.fetchedAt) / 1000));
+  if (ageSeconds < 60) return 'Updated a few seconds ago';
+  return `Updated ${Math.max(1, Math.floor(ageSeconds / 60))}m ago`;
 }
 
 // --- Data-source badge (live 511 feed vs the recorded demo feed) ---------------
@@ -356,8 +491,6 @@ export function feedFreshness(nowMs: number, feedRows: Array<{ fetchedAt?: numbe
 // landed; 'seed' / 'recorded' / 'recorded-fallback' / 'reset' all mean the
 // board is showing the canned demo feed. The badge makes that distinction
 // visible on the board instead of leaving demo data to pose as live data.
-
-const LIVE_FEED_SOURCE = '511-siri-stop-monitoring';
 
 // Why the board is NOT on live 511 data, when there is a recorded reason.
 // refreshFeed commits an actionable lastError on every fallback (ENG-22751);
@@ -370,17 +503,37 @@ export function feedProblem(feedRows: Array<{ lastSource?: string; lastError?: s
   return error.length > 180 ? `${error.slice(0, 177)}…` : error;
 }
 
-export function feedSourceBadge(feedRows: Array<{ lastSource?: string }>): {
+// Fallback freshness window when the committed row predates the field; matches
+// seed.gen.mjs (two 180s warm-poll cycles + 30s grace, ENG-23642).
+const DEFAULT_STALE_AFTER_MS = 390_000;
+
+// LIVE only when the last committed refresh was a real 511 snapshot AND it is
+// younger than the freshness window. A live source whose rows have aged out is
+// STALE (marked non-live), never LIVE — an advancing feed marker can no longer
+// dress old rows up as live data (ENG-23642). The rows themselves stay on
+// screen (they are real observed departures, self-expiring per departure via
+// DEPARTED_GRACE_MS) rather than being swapped for synthetic demo trains.
+export function feedSourceBadge(
+  feedRows: Array<{ lastSource?: string; fetchedAt?: number; staleAfterMs?: number }>,
+  nowMs?: number,
+): {
   live: boolean;
   label: string;
   color: string;
   tint: string;
   border: string;
 } {
-  const live = (feedRows?.[0]?.lastSource ?? '') === LIVE_FEED_SOURCE;
-  return live
-    ? { live, label: 'LIVE', color: '#34d399', tint: '#34d3991f', border: '#34d39947' }
-    : { live, label: 'DEMO DATA', color: '#fbbf24', tint: '#fbbf241f', border: '#fbbf2447' };
+  const feed = feedRows?.[0] ?? null;
+  const liveSource = (feed?.lastSource ?? '') === LIVE_FEED_SOURCE;
+  if (!liveSource) {
+    return { live: false, label: 'DEMO DATA', color: '#fbbf24', tint: '#fbbf241f', border: '#fbbf2447' };
+  }
+  const fetchedAt = Number(feed?.fetchedAt) || 0;
+  const staleAfterMs = Number(feed?.staleAfterMs) > 0 ? Number(feed?.staleAfterMs) : DEFAULT_STALE_AFTER_MS;
+  const fresh = typeof nowMs !== 'number' || fetchedAt <= 0 || nowMs - fetchedAt <= staleAfterMs;
+  return fresh
+    ? { live: true, label: 'LIVE', color: '#34d399', tint: '#34d3991f', border: '#34d39947' }
+    : { live: false, label: 'STALE', color: '#f87171', tint: '#f871711f', border: '#f8717147' };
 }
 
 // --- Position indicator (for the train detail continuum) ----------------------
