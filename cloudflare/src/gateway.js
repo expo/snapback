@@ -70,6 +70,17 @@ export default {
     // Operator config diagnosis (LLP 0049 Phase 1): names, set/missing
     // state, grants, generation — never values.
     if (path === '/config/status') return stub.fetch('http://coordinator/config/status');
+    // Cron ledger/activation status (LLP 0049 Phase 3), and the admin-gated
+    // manual run trigger — forwarded with the caller's method and headers so
+    // the coordinator enforces the token gate (ENG-23587).
+    if (path === '/cron/status') return stub.fetch('http://coordinator/cron/status');
+    if (path === '/cron/run') {
+      return stub.fetch('http://coordinator/cron/run', {
+        method: request.method,
+        headers: request.headers,
+        body: request.method === 'GET' ? undefined : await request.text(),
+      });
+    }
     if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/__test/')) {
       return forward(stub, `http://coordinator${path}`, request);
     }

@@ -123,6 +123,13 @@ export const bundleHash = functionsManifest.bundleHash;
 // `uses` — never values.
 export const config = functionsManifest.config || [];
 
+// Declared cron jobs (LLP 0028 / LLP 0049 Phase 3): warmPoll — everyMs
+// 60000, action refreshFeed, activation WhileLive(liveTrainStatus),
+// targetWakeup DynamicAlarm with the hardened durable runner. The
+// coordinator arms its Durable Object alarm only while the activation
+// policy is satisfied.
+export const cron = functionsManifest.cronJobs || [];
+
 // Deterministic seed rows with explicit ids (the demo's generated seed.json):
 // the coordinator inserts them host-side — patch-shaped mutations like
 // applyFeedTick address rows by these stable ids.

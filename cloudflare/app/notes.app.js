@@ -30,6 +30,10 @@ export const seed = null;
 // (LLP 0049 Phase 1 lands that on the All Aboard bundle).
 export const config = [];
 
+// No cron jobs: the notes proof has no scheduled execution (LLP 0049
+// Phase 3 lands warm polling on the All Aboard bundle).
+export const cron = [];
+
 export { capabilityManifest };
 
 export const schema = {

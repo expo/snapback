@@ -39,7 +39,15 @@ import { parseHandlerEnvelope } from '../../packages/snapback-harness/envelope.m
 // (../app/notes.app.js or ../app/all-aboard.app.js) at build time. The
 // Workers runtime forbids dynamic evaluation, so selection is a build fact,
 // never a runtime flag.
-import { appMeta, bundleHash, schema, functions, seed as appSeed, config as appConfig } from 'snapback-app';
+import {
+  appMeta,
+  bundleHash,
+  schema,
+  functions,
+  seed as appSeed,
+  config as appConfig,
+  cron as appCron,
+} from 'snapback-app';
 
 const APP_SCHEMA_HASH = schema.schemaHash;
 const APP_BUNDLE_HASH = bundleHash;
@@ -125,6 +133,35 @@ export class Coordinator {
       `CREATE TABLE IF NOT EXISTS _snapback_config_cursors (
          entry_name TEXT PRIMARY KEY,
          cursor INTEGER NOT NULL
+       )`
+    );
+    // Durable cron state (LLP 0028 §Scheduler state / LLP 0049 Phase 3):
+    // per-job activation + nominal schedule + last-run ledger summary, and
+    // the claim table whose stable idempotency key (jobName, scheduledAt)
+    // makes DO-alarm auto-retry safe — a duplicate wakeup for an
+    // already-claimed slot must not double-fetch or double-commit.
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_cron_state (
+         job_name TEXT PRIMARY KEY,
+         armed INTEGER NOT NULL DEFAULT 0,
+         next_nominal_at_ms INTEGER,
+         last_run_id TEXT,
+         last_scheduled_at_ms INTEGER,
+         last_trigger TEXT,
+         last_outcome TEXT,
+         last_duration_ms INTEGER,
+         last_error TEXT,
+         last_finished_at_ms INTEGER
+       )`
+    );
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_cron_claims (
+         idempotency_key TEXT PRIMARY KEY,
+         job_name TEXT NOT NULL,
+         scheduled_at_ms INTEGER NOT NULL,
+         run_id TEXT NOT NULL,
+         claimed_at_ms INTEGER NOT NULL,
+         state TEXT NOT NULL
        )`
     );
     for (const table of schema.tables) {
@@ -267,6 +304,25 @@ export class Coordinator {
     if (path === '/config/status') {
       return this.configStatus();
     }
+    if (path === '/cron/status') {
+      return this.cronStatus();
+    }
+    // Admin-gated manual run trigger on the existing SNAPBACK_ADMIN_TOKEN
+    // POST surface (LLP 0049 §Warm Polling / ENG-23587) — never a public
+    // run-now route. Manual runs claim a unique key; they never consume a
+    // scheduled slot.
+    if (path === '/cron/run') {
+      return this.adminGated(request, async () => {
+        const payload = await request.json().catch(() => ({}));
+        const job = this.alarmJobs().find((entry) => entry.name === String(payload.job || ''));
+        if (!job) {
+          return json(404, { ok: false, code: 'SNAPBACK_CRON_JOB_UNKNOWN', message: `no alarm job ${payload.job}` });
+        }
+        const runId = crypto.randomUUID();
+        const outcome = await this.runCronJob(job, 'manual', Date.now(), `manual:${runId}`);
+        return json(200, { ok: true, ...outcome });
+      });
+    }
     if (path === '/host-call') {
       return this.serveHostCall(request);
     }
@@ -303,6 +359,15 @@ export class Coordinator {
         const outcome = await this.executeAction(payload.name, payload.args || {}, 'test');
         if (!outcome.ok) return json(200, { ok: false, code: outcome.diagnostic.code, message: outcome.diagnostic.message });
         return json(200, { ok: true, result: outcome.result });
+      });
+    }
+    // Testing-only alarm trigger: fires the dispatcher exactly as a DO alarm
+    // wakeup would, so the Miniflare acceptance can exercise duplicate-slot
+    // claims and no-demand early-outs deterministically.
+    if (path === '/__test/alarm') {
+      return this.testingGated(request, async () => {
+        await this.alarm();
+        return json(200, { fired: true });
       });
     }
     // Testing-only payload echo: the exact secretsJson the coordinator would
@@ -774,6 +839,248 @@ export class Coordinator {
     }
   }
 
+  // --- warm polling: demand-armed DO alarm + hardened durable runner ------
+  // (LLP 0049 Phase 3 / LLP 0028): subscribe arms the alarm, last-unsubscribe
+  // cancels it, so an idle deployment takes ZERO warm-poll wakeups — the
+  // ratified supersession of the minute-static-wakeup default. One alarm per
+  // object (LLP 0014): alarm() is a dispatcher over every armed job's next
+  // nominal time. No setInterval, no always-awake loop; the alarm and the
+  // hibernating sockets coexist. No last-subscriber linger window — LLP 0028
+  // does not define one, and this implementation does not introduce one.
+
+  alarmJobs() {
+    return (appCron || []).filter(
+      (job) => job.enabled !== false && job.targetWakeup && job.targetWakeup.kind === 'DynamicAlarm'
+    );
+  }
+
+  jobIntervalMs(job) {
+    // Testing-only cadence override so the Miniflare acceptance can observe
+    // scheduled ticks without real 60s waits; never read on real deploys.
+    if (this.env.SNAPBACK_TESTING === '1') {
+      const override = Number(this.env.SNAPBACK_CRON_INTERVAL_OVERRIDE_MS);
+      if (Number.isFinite(override) && override > 0) return override;
+    }
+    return Number(job.schedule && job.schedule.everyMs) || 60_000;
+  }
+
+  cronDemand(job) {
+    const whileLive = (job.activation && job.activation.whileLive) || [];
+    if (job.activation && job.activation.kind !== 'WhileLive') return 1;
+    if (whileLive.length === 0) return 0;
+    const placeholders = whileLive.map(() => '?').join(', ');
+    for (const record of this.sql.exec(
+      `SELECT COUNT(*) AS count FROM _snapback_subscriptions WHERE function_name IN (${placeholders})`,
+      ...whileLive
+    )) {
+      return Number(record.count);
+    }
+    return 0;
+  }
+
+  readCronState(jobName) {
+    for (const record of this.sql.exec('SELECT * FROM _snapback_cron_state WHERE job_name = ?', jobName)) {
+      return record;
+    }
+    return null;
+  }
+
+  writeCronState(jobName, fields) {
+    this.sql.exec('INSERT OR IGNORE INTO _snapback_cron_state (job_name, armed) VALUES (?, 0)', jobName);
+    const keys = Object.keys(fields);
+    if (keys.length === 0) return;
+    const assignments = keys.map((key) => `${key} = ?`).join(', ');
+    this.sql.exec(
+      `UPDATE _snapback_cron_state SET ${assignments} WHERE job_name = ?`,
+      ...keys.map((key) => fields[key]),
+      jobName
+    );
+  }
+
+  // Reconcile activation with current demand, then recompute the single
+  // object alarm. Called from every subscribe/unsubscribe/close/reset seam.
+  async reconcileCronActivation() {
+    const nowMs = Date.now();
+    for (const job of this.alarmJobs()) {
+      const state = this.readCronState(job.name);
+      const armed = state ? Number(state.armed) === 1 : false;
+      const demand = this.cronDemand(job);
+      if (demand > 0 && !armed) {
+        // First subscriber after idle: run a catch-up poll promptly when the
+        // data is already stale (LLP 0028's missed-ticks → run once on
+        // recovery), otherwise wait out the remainder of the interval.
+        const interval = this.jobIntervalMs(job);
+        const lastFinished = state ? Number(state.last_finished_at_ms || 0) : 0;
+        const stale = nowMs - lastFinished >= interval;
+        const nextNominal = stale ? nowMs : lastFinished + interval;
+        this.writeCronState(job.name, { armed: 1, next_nominal_at_ms: nextNominal });
+      } else if (demand === 0 && armed) {
+        this.writeCronState(job.name, { armed: 0, next_nominal_at_ms: null });
+      }
+    }
+    await this.recomputeAlarm();
+  }
+
+  // The one-alarm-per-object dispatcher's arming half: the object alarm is
+  // min(next nominal) over armed jobs, or absent when none is armed.
+  async recomputeAlarm() {
+    let next = null;
+    for (const job of this.alarmJobs()) {
+      const state = this.readCronState(job.name);
+      if (!state || Number(state.armed) !== 1 || state.next_nominal_at_ms == null) continue;
+      const nominal = Number(state.next_nominal_at_ms);
+      if (next === null || nominal < next) next = nominal;
+    }
+    if (next === null) {
+      await this.ctx.storage.deleteAlarm();
+    } else {
+      await this.ctx.storage.setAlarm(Math.max(next, Date.now() + 1));
+    }
+  }
+
+  // The DO alarm handler — the dispatcher's firing half. A wakeup with no
+  // work (demand vanished, or nothing due yet) early-outs without any
+  // external fetch; a due armed job runs through the claimed runner.
+  async alarm() {
+    const nowMs = Date.now();
+    for (const job of this.alarmJobs()) {
+      const state = this.readCronState(job.name);
+      if (!state || Number(state.armed) !== 1 || state.next_nominal_at_ms == null) continue;
+      if (this.cronDemand(job) === 0) {
+        this.writeCronState(job.name, { armed: 0, next_nominal_at_ms: null });
+        continue;
+      }
+      const nominal = Number(state.next_nominal_at_ms);
+      if (nominal > nowMs + 50) continue; // not due: spurious/early wakeup
+      await this.runCronJob(job, 'scheduled', nominal);
+    }
+    await this.reconcileCronActivation();
+  }
+
+  // The hardened durable runner (LLP 0028 §Scheduler state): claim the slot
+  // by its stable idempotency key (jobName, scheduledAt) BEFORE executing.
+  // DO-alarm auto-retry re-runs the whole handler, so a duplicate wakeup for
+  // an already-claimed slot advances the schedule without fetching or
+  // committing again. Manual runs claim a unique per-run key — they never
+  // consume a scheduled slot.
+  async runCronJob(job, trigger, scheduledAtMs, idempotencyKey = null) {
+    const runId = crypto.randomUUID();
+    const key = idempotencyKey || `${job.name}@${scheduledAtMs}`;
+    this.sql.exec(
+      `INSERT OR IGNORE INTO _snapback_cron_claims (idempotency_key, job_name, scheduled_at_ms, run_id, claimed_at_ms, state)
+       VALUES (?, ?, ?, ?, ?, 'claimed')`,
+      key,
+      job.name,
+      scheduledAtMs,
+      runId,
+      Date.now()
+    );
+    let claimedBy = null;
+    for (const record of this.sql.exec(
+      'SELECT run_id FROM _snapback_cron_claims WHERE idempotency_key = ?',
+      key
+    )) {
+      claimedBy = String(record.run_id);
+    }
+    const interval = this.jobIntervalMs(job);
+    if (claimedBy !== runId) {
+      // Already claimed (duplicate wakeup / alarm retry): advance past the
+      // slot so the dispatcher re-arms for the NEXT nominal, execute nothing.
+      this.advanceNominal(job, scheduledAtMs, interval);
+      return { duplicate: true, idempotencyKey: key };
+    }
+    const startedAt = Date.now();
+    let outcome = 'ok';
+    let errorText = '';
+    // Testing-only upstream override so the Miniflare acceptance can point
+    // scheduled runs at a local mock 511; never read on real deploys.
+    const args = { trigger: 'cron' };
+    if (this.env.SNAPBACK_TESTING === '1' && typeof this.env.SNAPBACK_TEST_FEED_URL === 'string') {
+      args.feedUrl = this.env.SNAPBACK_TEST_FEED_URL;
+    }
+    try {
+      const result = await this.executeAction(job.action, args, trigger);
+      if (!result.ok) {
+        outcome = 'failed';
+        errorText = `${result.diagnostic.code}: ${result.diagnostic.message}`;
+      }
+    } catch (error) {
+      outcome = 'failed';
+      errorText = String((error && error.message) || error);
+    }
+    const finishedAt = Date.now();
+    this.sql.exec(
+      `UPDATE _snapback_cron_claims SET state = ? WHERE idempotency_key = ?`,
+      outcome === 'ok' ? 'done' : 'failed',
+      key
+    );
+    this.writeCronState(job.name, {
+      last_run_id: runId,
+      last_scheduled_at_ms: scheduledAtMs,
+      last_trigger: trigger,
+      last_outcome: outcome,
+      last_duration_ms: finishedAt - startedAt,
+      last_error: errorText,
+      last_finished_at_ms: finishedAt,
+    });
+    if (!idempotencyKey) {
+      this.advanceNominal(job, scheduledAtMs, interval);
+    }
+    return { duplicate: false, runId, outcome, idempotencyKey: key };
+  }
+
+  // Advance to the next FUTURE nominal slot: one catch-up run per recovery,
+  // never a stampede of missed ticks (LLP 0028).
+  advanceNominal(job, fromNominalMs, intervalMs) {
+    const nowMs = Date.now();
+    let next = fromNominalMs + intervalMs;
+    if (next <= nowMs) {
+      const behind = Math.ceil((nowMs - next) / intervalMs) + 1;
+      next = fromNominalMs + intervalMs * (behind + 1);
+    }
+    this.writeCronState(job.name, { next_nominal_at_ms: next });
+  }
+
+  // GET /cron/status — the ledger fields the local target exposes: last run
+  // (id, nominal, trigger, outcome, duration, failure), next run, activation
+  // state, and demand. No values, no secrets.
+  cronStatus() {
+    const jobs = [];
+    for (const job of this.alarmJobs()) {
+      const state = this.readCronState(job.name);
+      const demand = this.cronDemand(job);
+      jobs.push({
+        name: job.name,
+        action: job.action,
+        everyMs: this.jobIntervalMs(job),
+        wakeup: 'durable-object-alarm',
+        activation: {
+          kind: (job.activation && job.activation.kind) || 'AlwaysOn',
+          whileLive: (job.activation && job.activation.whileLive) || [],
+          state: state && Number(state.armed) === 1 ? 'armed' : 'inactive:no-demand',
+          demand,
+        },
+        nextRun:
+          state && Number(state.armed) === 1 && state.next_nominal_at_ms != null
+            ? { nominalAtMs: Number(state.next_nominal_at_ms) }
+            : null,
+        lastRun:
+          state && state.last_run_id
+            ? {
+                runId: String(state.last_run_id),
+                scheduledAtMs: Number(state.last_scheduled_at_ms),
+                trigger: String(state.last_trigger || ''),
+                outcome: String(state.last_outcome || ''),
+                durationMs: Number(state.last_duration_ms || 0),
+                error: String(state.last_error || ''),
+                finishedAtMs: Number(state.last_finished_at_ms || 0),
+              }
+            : null,
+      });
+    }
+    return json(200, { jobs });
+  }
+
   // --- handler invocation across the RPC seam ----------------------------
 
   async invokeHandler(fnName, mode, args, options = {}) {
@@ -1193,6 +1500,8 @@ export class Coordinator {
     )) {
       subscriptionId = String(record.subscription_id);
     }
+    // Subscribe arms the demand-gated warm poll (LLP 0049 Phase 3).
+    await this.reconcileCronActivation();
     return json(200, {
       subscription_id: subscriptionId,
       snapshot: { version, rows: result.value },
@@ -1200,12 +1509,14 @@ export class Coordinator {
     });
   }
 
-  kitUnsubscribe(payload) {
+  async kitUnsubscribe(payload) {
     this.sql.exec(
       'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?',
       String(payload.subscription_id || ''),
       String(payload.connection_id || '')
     );
+    // Last-unsubscribe cancels the warm-poll alarm (LLP 0049 Phase 3).
+    await this.reconcileCronActivation();
     return json(200, { removed: true });
   }
 
@@ -1279,8 +1590,10 @@ export class Coordinator {
       // the snapshot carried predate a commit whose fan-out never saw the
       // registration — a silently skipped delta (ENG-23575).
       await this.runExclusive(() => this.subscribe(ws, connectionId, parsed));
+      await this.reconcileCronActivation();
     } else if (parsed.type === 'unsubscribe') {
       this.sql.exec('DELETE FROM _snapback_subscriptions WHERE subscription_id = ?', parsed.subscriptionId);
+      await this.reconcileCronActivation();
     } else if (parsed.type === 'ping') {
       // The kit heartbeat expects the local server's `kind` field (any frame
       // refreshes its freshness budget); the proof protocol pins `type`.
@@ -1437,10 +1750,13 @@ export class Coordinator {
     }
   }
 
-  webSocketClose(ws) {
+  async webSocketClose(ws) {
     const connectionId = this.connectionIdFor(ws);
     if (connectionId) {
       this.sql.exec('DELETE FROM _snapback_subscriptions WHERE connection_id = ?', connectionId);
+      // A departing socket may have been the last live subscriber: cancel
+      // the warm-poll alarm so the idle object hibernates with zero wakeups.
+      await this.reconcileCronActivation();
     }
   }
 
@@ -1448,10 +1764,15 @@ export class Coordinator {
     this.webSocketClose(ws);
   }
 
-  reset() {
+  async reset() {
     this.sql.exec('DELETE FROM _snapback_changes');
     this.sql.exec('UPDATE _snapback_version SET version = 0 WHERE id = 1');
     this.sql.exec('DELETE FROM _snapback_subscriptions');
+    // App-state reset also resets cron runtime state (claims + ledger) and
+    // disarms via the reconcile below; configured secrets and rotation
+    // cursors are deployment config and deliberately survive.
+    this.sql.exec('DELETE FROM _snapback_cron_claims');
+    this.sql.exec('DELETE FROM _snapback_cron_state');
     for (const table of schema.tables) {
       this.sql.exec(`DELETE FROM ${this.physicalTable(table.name)}`);
     }
@@ -1466,6 +1787,8 @@ export class Coordinator {
     if (appSeed) {
       seeded = this.seedIfEmpty(appSeed);
     }
+    // Subscriptions and cron state are gone: drop any armed object alarm.
+    await this.reconcileCronActivation();
     for (const ws of this.ctx.getWebSockets()) {
       try {
         const frame =
