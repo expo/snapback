@@ -17,7 +17,8 @@ for config in \
   "$repo_root/cloudflare/wrangler.jsonc" \
   "$repo_root/cloudflare/wrangler.handler.jsonc" \
   "$repo_root/cloudflare/wrangler.all-aboard.jsonc" \
-  "$repo_root/cloudflare/wrangler.all-aboard.handler.jsonc"; do
+  "$repo_root/cloudflare/wrangler.all-aboard.handler.jsonc" \
+  "$repo_root/cloudflare/wrangler.all-aboard.action-handler.jsonc"; do
   # Strip // comments so JSON parses.
   actual=$(node -e "
     const fs=require('fs');

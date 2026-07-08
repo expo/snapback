@@ -40,7 +40,7 @@ export function physicalTableName(table, allowedTables) {
 // query|mutation. `nowMs` is frozen for the invocation (LLP 0007 replay).
 // `tables` is the schema-declared table-name set (ENG-23578).
 export class HostContext {
-  constructor({ sql, mode, nowMs, epoch, newId, tables }) {
+  constructor({ sql, mode, nowMs, epoch, newId, tables, runMutation = null, hostFetch = null }) {
     this.sql = sql;
     this.mode = mode;
     this.nowMs = nowMs;
@@ -50,11 +50,30 @@ export class HostContext {
     this.writes = []; // buffered BufferedWrite {kind, table, id, values}
     this.reads = []; // captured read dependencies (for the live matcher)
     this.observedVersion = null;
+    // Action-only host capabilities (LLP 0049 Phase 2): the coordinator
+    // injects these for mode 'action' — runMutation reacquires the
+    // invocation mutex per commit; hostFetch is the coordinator's
+    // secret-resolving egress boundary. Queries and mutations get neither.
+    this.runMutationHook = runMutation;
+    this.hostFetchHook = hostFetch;
   }
 
   ensureWritable(op) {
     if (this.mode !== 'mutation') {
       return snapbackFail('SNAPBACK_HANDLER_WRITE_IN_QUERY', `query handler attempted ctx.db.${op}`);
+    }
+    return null;
+  }
+
+  // Actions reach durable state only through ctx.runMutation (LLP 0028
+  // §Execution) — never through direct db host calls. The ctx bootstrap
+  // denies these client-side; this is the host-side half of the gate.
+  ensureNotAction(op) {
+    if (this.mode === 'action') {
+      return snapbackFail(
+        'SNAPBACK_HANDLER_HOST_CALL_INVALID',
+        `action handler attempted ctx.db.${op}; actions read/write durable state only through ctx.runMutation`
+      );
     }
     return null;
   }
@@ -203,10 +222,31 @@ export class HostContext {
   }
 
   // The op dispatch — the JS analogue of dispatch_host_call. Returns
-  // { ok:true, value } or { ok:false, code, message }.
+  // { ok:true, value } or { ok:false, code, message }; the action-only ops
+  // return promises (the coordinator's serveHostCall awaits).
   handle(op, args) {
     switch (op) {
+      case 'action.runMutation': {
+        if (this.mode !== 'action' || typeof this.runMutationHook !== 'function') {
+          return snapbackFail(
+            'SNAPBACK_ACTION_CONTEXT_UNAVAILABLE',
+            'ctx.runMutation is available to actions only'
+          );
+        }
+        return this.runMutationHook(String(args.name || ''), args.args || {});
+      }
+      case 'host.fetch': {
+        if (this.mode !== 'action' || typeof this.hostFetchHook !== 'function') {
+          return snapbackFail(
+            'SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED',
+            'host fetch is an action-only capability'
+          );
+        }
+        return this.hostFetchHook(args || {});
+      }
       case 'db.query': {
+        const actionDenied = this.ensureNotAction('query');
+        if (actionDenied) return actionDenied;
         const plan = args.plan;
         if (!plan || !plan.table) {
           return snapbackFail('SNAPBACK_HANDLER_HOST_CALL_INVALID', 'ctx.db.query received an invalid query plan');
@@ -232,6 +272,8 @@ export class HostContext {
         return { ok: true, value: { version, rows } };
       }
       case 'db.get': {
+        const actionDenied = this.ensureNotAction('get');
+        if (actionDenied) return actionDenied;
         const physical = this.physicalTable(args.table);
         if (!physical) return this.unknownTable('get', args.table);
         const stored = this.storageGet(physical, args.id);

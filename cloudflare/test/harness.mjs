@@ -38,6 +38,10 @@ const APPS = {
     bundle: 'app/all-aboard.app.js',
     gatewayWorker: 'snapback-all-aboard-proof',
     handlerWorker: 'snapback-all-aboard-handler',
+    // Actions run on their own isolate (LLP 0049 Phase 2): the handler
+    // server chains invocations per isolate, so a slow action fetch must
+    // not share the transactional handler Worker.
+    actionHandlerWorker: 'snapback-all-aboard-action-handler',
   },
 };
 
@@ -71,26 +75,38 @@ export async function startProof({ app = 'notes', port = null, bindings = {} } =
     bundle('src/handler-worker.js', selected.bundle),
   ]);
 
+  const workers = [
+    {
+      name: selected.gatewayWorker,
+      modules: [{ type: 'ESModule', path: path.join(root, 'src/gateway.js'), contents: gatewayScript }],
+      ...compatibilityOptions,
+      durableObjects: { COORDINATOR: { className: 'Coordinator', useSQLite: true } },
+      serviceBindings: {
+        HANDLER: selected.handlerWorker,
+        ...(selected.actionHandlerWorker ? { ACTION_HANDLER: selected.actionHandlerWorker } : {}),
+      },
+      // The admin-token gate on /reset and /evict (ENG-23587); the client
+      // below presents it, and the acceptance suite asserts its absence 403s.
+      bindings: { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1', ...bindings },
+    },
+    {
+      name: selected.handlerWorker,
+      modules: [{ type: 'ESModule', path: path.join(root, 'src/handler-worker.js'), contents: handlerScript }],
+      ...compatibilityOptions,
+      serviceBindings: { HOST: selected.gatewayWorker },
+    },
+  ];
+  if (selected.actionHandlerWorker) {
+    workers.push({
+      name: selected.actionHandlerWorker,
+      modules: [{ type: 'ESModule', path: path.join(root, 'src/handler-worker.js'), contents: handlerScript }],
+      ...compatibilityOptions,
+      serviceBindings: { HOST: selected.gatewayWorker },
+    });
+  }
   const mf = new Miniflare({
     ...(port === null ? {} : { host: '127.0.0.1', port }),
-    workers: [
-      {
-        name: selected.gatewayWorker,
-        modules: [{ type: 'ESModule', path: path.join(root, 'src/gateway.js'), contents: gatewayScript }],
-        ...compatibilityOptions,
-        durableObjects: { COORDINATOR: { className: 'Coordinator', useSQLite: true } },
-        serviceBindings: { HANDLER: selected.handlerWorker },
-        // The admin-token gate on /reset and /evict (ENG-23587); the client
-        // below presents it, and the acceptance suite asserts its absence 403s.
-        bindings: { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1', ...bindings },
-      },
-      {
-        name: selected.handlerWorker,
-        modules: [{ type: 'ESModule', path: path.join(root, 'src/handler-worker.js'), contents: handlerScript }],
-        ...compatibilityOptions,
-        serviceBindings: { HOST: selected.gatewayWorker },
-      },
-    ],
+    workers,
   });
   // Force construction / readiness.
   await mf.ready;

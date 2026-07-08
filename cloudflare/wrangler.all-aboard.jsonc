@@ -28,7 +28,10 @@
   // SNAPBACK_ADMIN_TOKEN secret is set (ENG-23587); deploy.sh sets it from
   // the environment. Never commit a token value here.
   "services": [
-    { "binding": "HANDLER", "service": "snapback-all-aboard-handler" }
+    { "binding": "HANDLER", "service": "snapback-all-aboard-handler" },
+    // Actions execute on a separate handler isolate so a slow host fetch
+    // never queues transactional invocations behind it (LLP 0049 Phase 2).
+    { "binding": "ACTION_HANDLER", "service": "snapback-all-aboard-action-handler" }
   ],
   "durable_objects": {
     "bindings": [{ "name": "COORDINATOR", "class_name": "Coordinator" }]

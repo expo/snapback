@@ -57,6 +57,13 @@ fi
 echo "==> deploying handler isolate ($handler_worker)"
 npx wrangler deploy --config "$handler_config"
 
+if [[ "$app" == "all-aboard" ]]; then
+  # The separate action-handler isolate (LLP 0049 Phase 2): slow action
+  # fetches must not queue transactional invocations behind them.
+  echo "==> deploying action handler isolate (snapback-all-aboard-action-handler)"
+  npx wrangler deploy --config wrangler.all-aboard.action-handler.jsonc
+fi
+
 echo "==> deploying gateway + coordinator ($gateway_worker)"
 npx wrangler deploy --config "$gateway_config"
 

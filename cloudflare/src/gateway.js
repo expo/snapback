@@ -25,7 +25,7 @@ const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/__test/corrupt-me
 
 // Kit wire-protocol prefixes (LLP 0049 Phase 0): the generated Contract
 // surface speaks the local server's protocol; these are its routes.
-const KIT_ROUTE = /^\/(?:query|mutation)\/[A-Za-z0-9_-]+$|^\/live\/[A-Za-z0-9_.-]+\/(?:subscribe|unsubscribe)$|^\/outbox\/[A-Za-z0-9_.-]+$/;
+const KIT_ROUTE = /^\/(?:query|mutation|action)\/[A-Za-z0-9_-]+$|^\/live\/[A-Za-z0-9_.-]+\/(?:subscribe|unsubscribe)$|^\/outbox\/[A-Za-z0-9_.-]+$/;
 const KIT_STREAM_ROUTE = /^\/live\/[A-Za-z0-9_.-]+\/stream$/;
 
 function json(status, value) {

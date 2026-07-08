@@ -299,6 +299,36 @@
       ctx.runMutation = function(mutationName, mutationArgs) {
         return host("action.runMutation", { name: mutationName, args: mutationArgs || {} });
       };
+      // Host-mediated fetch with secret placement slots (LLP 0049 §Action
+      // Egress): the action passes URL/method/headers/body/timeout plus
+      // slots that reference DESCRIPTOR handles; the host resolves each
+      // descriptor to its value only at its own fetch boundary and redacts
+      // every error envelope before it re-enters this isolate. Available in
+      // actions only; on hosts without the host.fetch op the call fails with
+      // the host's unknown-op diagnostic rather than falling back to ambient
+      // fetch.
+      ctx.fetch = function(request) {
+        var req = request || {};
+        var given = req.secretSlots || [];
+        var slots = [];
+        for (var i = 0; i < given.length; i++) {
+          var slot = given[i] || {};
+          var descriptor = slot.handle && slot.handle.__snapbackDescriptor;
+          slots.push({
+            placement: slot.placement,
+            name: slot.name,
+            secret: descriptor || slot.secret || null
+          });
+        }
+        return host("host.fetch", {
+          url: req.url,
+          method: req.method || "GET",
+          headers: req.headers || {},
+          body: req.body == null ? null : req.body,
+          timeoutMs: req.timeoutMs == null ? null : req.timeoutMs,
+          secretSlots: slots
+        });
+      };
     } else {
       ctx.runMutation = function() {
         throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");

@@ -157,12 +157,316 @@ export const functions = [
   { name: 'probeSecrets', kind: 'Action', export: 'probeSecrets', uses: ['caltrainFeed', 'directions'], tables: [] },
   { name: 'probeSecretsQuery', kind: 'Query', export: 'probeSecretsQuery' },
   { name: 'probeSecretsMutation', kind: 'Mutation', export: 'probeSecretsMutation', tables: ['trainStatus'] },
+  // Concurrency probe for the LLP 0049 Phase 2 acceptance: a deliberately
+  // slow host fetch that must not block queries, mutations, or live pushes
+  // on the same coordinator (the off-mutex execution contract).
+  { name: 'probeSlowFetch', kind: 'Action', export: 'probeSlowFetch', tables: [] },
 ];
 
 const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];
+const ROUTE_CACHE_TTL_MS = 5 * 60 * 1000;
+const METERS_PER_MILE = 1609.344;
 
 function nowMs(ctx) {
   return ctx.runtime && ctx.runtime.now ? ctx.runtime.now() : 0;
+}
+
+// --- action helpers, migrated from demos/all-aboard/snapback/handlers.mjs ---
+// (LLP 0049 §Action Egress): the Cloudflare handlers use the action-only
+// host fetch capability with secret placement slots instead of `.expose()` +
+// ambient `fetch`. The key never appears in the URL these handlers build —
+// the coordinator substitutes it into the api_key query parameter (511) or
+// the Authorization header (directions) at its own fetch boundary, and every
+// error envelope re-enters this isolate already redacted. The handler-side
+// scrub below stays as defense in depth, not the line.
+
+function errorMessage(error) {
+  return error && error.message ? error.message : String(error);
+}
+
+function redactSecrets(text) {
+  return String(text).replace(/api_key=[^&\s"']+/gi, 'api_key=[redacted]');
+}
+
+function liveFeedFailureMessage(error) {
+  const raw = redactSecrets(errorMessage(error));
+  if (/SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED/.test(raw)) {
+    return 'live 511 fetch unavailable: outbound actions are not enabled on this deployment';
+  }
+  if (/SNAPBACK_CONFIG_MISSING/.test(raw)) {
+    return 'live 511 fetch unavailable: no 511.org key is set — configure caltrainFeed via cloudflare/config-set.mjs';
+  }
+  if (/HTTP 401\b/.test(raw)) {
+    return `live 511 fetch failed: 511 rejected the API key (mistyped, or not yet activated) — update caltrainFeed via cloudflare/config-set.mjs (${raw})`;
+  }
+  if (/HTTP 429\b/.test(raw)) {
+    return `live 511 fetch failed: 511 rate limit hit — add another caltrainFeed key via cloudflare/config-set.mjs (keys rotate) or wait for the next window (${raw})`;
+  }
+  return `live 511 fetch failed: ${raw}`;
+}
+
+function finiteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function asArray(value) {
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function scalar(value) {
+  if (Array.isArray(value)) return scalar(value[0]);
+  if (value && typeof value === 'object') {
+    if (Object.prototype.hasOwnProperty.call(value, 'value')) return scalar(value.value);
+    if (Object.prototype.hasOwnProperty.call(value, '#text')) return scalar(value['#text']);
+    if (Object.prototype.hasOwnProperty.call(value, '_text')) return scalar(value._text);
+    if (Object.prototype.hasOwnProperty.call(value, '0')) return scalar(value[0]);
+  }
+  return value;
+}
+
+function textOf(value) {
+  const out = scalar(value);
+  return out == null ? '' : String(out);
+}
+
+function dateMs(value) {
+  const text = textOf(value);
+  if (!text) return null;
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseSiriDurationSeconds(value) {
+  const text = textOf(value).trim();
+  if (!text) return null;
+  const match = text.match(/^(-)?P(?:T)?(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?$/i);
+  if (!match) return null;
+  const sign = match[1] ? -1 : 1;
+  const hours = Number(match[2] || 0);
+  const minutes = Number(match[3] || 0);
+  const seconds = Number(match[4] || 0);
+  return sign * Math.round(hours * 3600 + minutes * 60 + seconds);
+}
+
+function findValues(root, key, out) {
+  if (root == null) return;
+  if (Array.isArray(root)) {
+    for (const item of root) findValues(item, key, out);
+    return;
+  }
+  if (typeof root !== 'object') return;
+  for (const [k, value] of Object.entries(root)) {
+    if (k === key) out.push(value);
+    findValues(value, key, out);
+  }
+}
+
+function flattenVisits(json) {
+  const values = [];
+  findValues(json, 'MonitoredStopVisit', values);
+  return values.flatMap((value) => asArray(value));
+}
+
+function classifyDirection(mvj, call) {
+  const text = [
+    textOf(mvj.DirectionName),
+    textOf(mvj.DirectionRef),
+    textOf(mvj.DestinationName),
+    textOf(mvj.DestinationRef),
+    textOf(call.DestinationDisplay),
+    textOf(call.StopPointName),
+  ].join(' ').toLowerCase();
+
+  if (/san francisco|4th|king|sf caltrain|sf$/.test(text)) return 'north';
+  if (/san jose|diridon|tamien|gilroy/.test(text)) return 'south';
+  if (/\b(nb|north|northbound)\b/.test(text)) return 'north';
+  if (/\b(sb|south|southbound)\b/.test(text)) return 'south';
+  return null;
+}
+
+function classifyService(mvj) {
+  const text = [
+    textOf(mvj.LineRef),
+    textOf(mvj.PublishedLineName),
+    textOf(mvj.JourneyPatternRef),
+    textOf(mvj.VehicleRef),
+    textOf(mvj.FramedVehicleJourneyRef && mvj.FramedVehicleJourneyRef.DatedVehicleJourneyRef),
+  ].join(' ').toLowerCase();
+
+  if (/bullet|baby\s*bullet|\b5\d\d\b/.test(text)) return 'bullet';
+  if (/limited|express|\b3\d\d\b/.test(text)) return 'limited';
+  return 'local';
+}
+
+function delaySecondsFromVisit(visit) {
+  const mvj = visit && visit.MonitoredVehicleJourney ? scalar(visit.MonitoredVehicleJourney) : null;
+  const call = mvj && mvj.MonitoredCall ? scalar(mvj.MonitoredCall) : {};
+  if (!mvj || !call) return null;
+
+  const expected =
+    dateMs(call.ExpectedDepartureTime) ??
+    dateMs(call.ExpectedArrivalTime) ??
+    dateMs(call.ExpectedAimedDepartureTime) ??
+    dateMs(call.ExpectedAimedArrivalTime);
+  const aimed =
+    dateMs(call.AimedDepartureTime) ??
+    dateMs(call.AimedArrivalTime) ??
+    dateMs(mvj.OriginAimedDepartureTime) ??
+    dateMs(mvj.DestinationAimedArrivalTime);
+  if (expected != null && aimed != null) return Math.round((expected - aimed) / 1000);
+
+  return parseSiriDurationSeconds(mvj.Delay) ?? parseSiriDurationSeconds(call.Delay);
+}
+
+function aggregateCaltrainDelays(json) {
+  const buckets = {};
+  let visited = 0;
+  for (const visit of flattenVisits(json)) {
+    const mvj = visit && visit.MonitoredVehicleJourney ? scalar(visit.MonitoredVehicleJourney) : null;
+    const call = mvj && mvj.MonitoredCall ? scalar(mvj.MonitoredCall) : {};
+    if (!mvj || !call) continue;
+    visited += 1;
+
+    const direction = classifyDirection(mvj, call);
+    if (!direction) continue;
+    const service = classifyService(mvj);
+    const patternId = `${direction === 'south' ? 'sb' : 'nb'}-${service}`;
+    if (!PATTERN_IDS.includes(patternId)) continue;
+
+    const delay = delaySecondsFromVisit(visit);
+    if (!Number.isFinite(delay)) continue;
+    (buckets[patternId] ||= []).push(Math.max(-300, Math.min(3600, Math.round(delay))));
+  }
+
+  const delays = {};
+  for (const [patternId, values] of Object.entries(buckets)) {
+    const average = values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+    delays[patternId] = Math.round(average);
+  }
+  if (Object.keys(delays).length === 0) {
+    throw new Error(`511 StopMonitoring returned ${visited} visits but no mappable Caltrain delays`);
+  }
+  return { delays, visitCount: visited };
+}
+
+function loopbackUrl(value) {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  if (/^http:\/\/(127\.0\.0\.1|localhost|\[::1\])(?::\d+)?\//.test(value)) return value;
+  return null;
+}
+
+// The URL the handler builds carries NO key: the api_key query parameter is
+// a coordinator-side placement slot.
+function caltrainFeedUrl(args) {
+  const override = loopbackUrl(args && args.feedUrl);
+  const base = override || 'https://api.511.org/transit/StopMonitoring';
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}agency=CT&format=json`;
+}
+
+function parseHostFetchJson(response, url) {
+  let json = null;
+  try {
+    json = response.bodyText ? JSON.parse(response.bodyText) : null;
+  } catch (_) {
+    throw new Error(`HTTP ${response.status} from ${url} returned non-JSON: ${String(response.bodyText).slice(0, 120)}`);
+  }
+  if (!response.ok) {
+    const detail = json && (json.error || json.message || json.Message || json.Error);
+    throw new Error(`HTTP ${response.status} from ${url}${detail ? `: ${detail}` : ''}`);
+  }
+  return json;
+}
+
+async function fetchCaltrainDelays(ctx, args) {
+  const handle = ctx.secrets.rotating('caltrainFeed');
+  const url = caltrainFeedUrl(args);
+  const response = await ctx.fetch({
+    url,
+    headers: { Accept: 'application/json' },
+    timeoutMs: 15_000,
+    secretSlots: [{ placement: 'query-param', name: 'api_key', handle }],
+  });
+  return aggregateCaltrainDelays(parseHostFetchJson(response, response.url || url));
+}
+
+function routeModeLabel(mode) {
+  return mode === 'bike' ? 'bike' : 'walk';
+}
+
+function routeProfile(mode) {
+  return mode === 'bike' ? 'cycling-regular' : 'foot-walking';
+}
+
+function routeBaseUrls(args) {
+  const override = loopbackUrl(args && args.baseUrl);
+  if (override) return [override.replace(/\/$/, '')];
+  return [
+    'https://api.heigit.org/openrouteservice',
+    'https://api.openrouteservice.org',
+  ];
+}
+
+function routeSummary(json) {
+  const geoSummary = json && json.features && json.features[0] && json.features[0].properties && json.features[0].properties.summary;
+  const routeSummaryValue = json && json.routes && json.routes[0] && json.routes[0].summary;
+  const summary = geoSummary || routeSummaryValue;
+  if (!summary) throw new Error('directions response did not include a route summary');
+  const distanceMeters = finiteNumber(summary.distance);
+  const durationSeconds = finiteNumber(summary.duration);
+  if (distanceMeters == null || durationSeconds == null) {
+    throw new Error('directions response summary did not include distance and duration');
+  }
+  return { distanceMeters, durationSeconds };
+}
+
+function haversineMiles(from, to) {
+  const earthMiles = 3958.8;
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const dLat = rad(to.lat - from.lat);
+  const dLng = rad(to.lng - from.lng);
+  const lat1 = rad(from.lat);
+  const lat2 = rad(to.lat);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return earthMiles * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function fallbackRouteEstimate(args, source, error) {
+  const mode = routeModeLabel(args && args.mode);
+  const from = { lat: Number(args && args.fromLat), lng: Number(args && args.fromLng) };
+  const to = { lat: Number(args && args.toLat), lng: Number(args && args.toLng) };
+  const miles = haversineMiles(from, to);
+  const mph = mode === 'bike' ? 9 : 3;
+  return {
+    mode,
+    minutes: Math.max(1, Math.round((miles / mph) * 60)),
+    distanceMiles: miles,
+    source,
+    cacheTtlMs: ROUTE_CACHE_TTL_MS,
+    error: error || '',
+  };
+}
+
+function validateRouteArgs(args) {
+  const fromLat = finiteNumber(args && args.fromLat);
+  const fromLng = finiteNumber(args && args.fromLng);
+  const toLat = finiteNumber(args && args.toLat);
+  const toLng = finiteNumber(args && args.toLng);
+  if (fromLat == null || fromLng == null || toLat == null || toLng == null) {
+    throw new Error('routeEstimate requires finite from/to coordinates');
+  }
+  return {
+    fromLat,
+    fromLng,
+    toLat,
+    toLng,
+    mode: routeModeLabel(args.mode),
+    baseUrl: args.baseUrl,
+  };
 }
 
 // Every db touch is awaited: the ctx host boundary is async and RPC-shaped on
@@ -259,6 +563,79 @@ globalThis.__snapbackHandlers = {
     return { tickIndex: 0 };
   },
 
+  // The cron-invoked action (LLP 0049 Phase 2, migrated onto host-mediated
+  // fetch): with a configured key it fetches 511 StopMonitoring through the
+  // coordinator's query-param placement slot and commits through
+  // applyLiveFeedSnapshot (the ONLY path that stamps
+  // lastSource '511-siri-stop-monitoring'); without one, or on failure, it
+  // advances the recorded feed and records why it fell back.
+  async refreshFeed(ctx, args) {
+    const trigger = (args && args.trigger) || 'cron';
+    if (args && args.source === 'recorded') {
+      return await ctx.runMutation('applyFeedTick', { trigger, source: 'recorded' });
+    }
+    try {
+      const snapshot = await fetchCaltrainDelays(ctx, args || {});
+      return await ctx.runMutation('applyLiveFeedSnapshot', {
+        trigger,
+        source: '511-siri-stop-monitoring',
+        delays: snapshot.delays,
+        note: `mapped ${snapshot.visitCount} 511 visits`,
+        lastError: '',
+      });
+    } catch (error) {
+      return await ctx.runMutation('applyFeedTick', {
+        trigger,
+        source: 'recorded-fallback',
+        lastError: liveFeedFailureMessage(error),
+      });
+    }
+  },
+
+  async routeEstimate(ctx, args) {
+    let input;
+    try {
+      input = validateRouteArgs(args || {});
+    } catch (error) {
+      return fallbackRouteEstimate(args || {}, 'haversine-fallback', errorMessage(error));
+    }
+
+    let handle;
+    try {
+      handle = ctx.secrets.rotating('directions');
+    } catch (error) {
+      return fallbackRouteEstimate(input, 'haversine-fallback', errorMessage(error));
+    }
+
+    const profile = routeProfile(input.mode);
+    const start = `${input.fromLng},${input.fromLat}`;
+    const end = `${input.toLng},${input.toLat}`;
+    let lastError = '';
+    for (const base of routeBaseUrls(input)) {
+      const url = `${base}/v2/directions/${profile}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+      try {
+        const response = await ctx.fetch({
+          url,
+          headers: { Accept: 'application/json' },
+          timeoutMs: 15_000,
+          secretSlots: [{ placement: 'header', name: 'Authorization', handle }],
+        });
+        const summary = routeSummary(parseHostFetchJson(response, response.url || url));
+        return {
+          mode: input.mode,
+          minutes: Math.max(1, Math.round(summary.durationSeconds / 60)),
+          distanceMiles: summary.distanceMeters / METERS_PER_MILE,
+          source: 'openrouteservice',
+          profile,
+          cacheTtlMs: ROUTE_CACHE_TTL_MS,
+        };
+      } catch (error) {
+        lastError = errorMessage(error);
+      }
+    }
+    return fallbackRouteEstimate(input, 'haversine-fallback', lastError);
+  },
+
   // LLP 0049 Phase 1 secret-grant probes. probeSecrets runs as an ACTION with
   // uses: ['caltrainFeed', 'directions'] and reports only redaction-safe
   // facts: the marker string every materialization path yields, the coded
@@ -308,6 +685,13 @@ globalThis.__snapbackHandlers = {
   },
   async probeSecretsQuery(ctx) {
     return { secretsType: typeof ctx.secrets };
+  },
+  async probeSlowFetch(ctx, args) {
+    const response = await ctx.fetch({
+      url: (args && args.url) || 'http://127.0.0.1:1/never',
+      timeoutMs: (args && args.timeoutMs) || 10_000,
+    });
+    return { status: response.status, ok: response.ok };
   },
   async probeSecretsMutation(ctx) {
     return { secretsType: typeof ctx.secrets };

@@ -1,0 +1,18 @@
+{
+  // The All Aboard ACTION handler isolate (LLP 0049 Phase 2). Same bundle
+  // and harness as the primary handler Worker, deployed as a separate
+  // Worker so a slow action host-fetch never queues query/mutation/fan-out
+  // invocations behind it: the handler server chains invocations per
+  // isolate (rejection-ledger attribution, ENG-23585), so isolation between
+  // the action class and the transactional class is a deploy fact — the
+  // Cloudflare analogue of the local DK-4 fresh-VM action fence.
+  "name": "snapback-all-aboard-action-handler",
+  "main": "src/handler-worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [],
+  "alias": { "snapback-app": "./app/all-aboard.app.js" },
+  // No public route: reachable only over the coordinator's ACTION_HANDLER
+  // service binding (ENG-23587 hardening).
+  "workers_dev": false,
+  "services": [{ "binding": "HOST", "service": "snapback-all-aboard-proof" }]
+}

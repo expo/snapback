@@ -300,11 +300,9 @@ export class Coordinator {
     if (path === '/__test/action') {
       return this.testingGated(request, async () => {
         const payload = await request.json();
-        return this.runExclusive(async () => {
-          const result = await this.invokeHandler(payload.name, 'action', payload.args, { trigger: 'test' });
-          if (!result.ok) return json(200, failure(result));
-          return json(200, { ok: true, result: result.value });
-        });
+        const outcome = await this.executeAction(payload.name, payload.args || {}, 'test');
+        if (!outcome.ok) return json(200, { ok: false, code: outcome.diagnostic.code, message: outcome.diagnostic.message });
+        return json(200, { ok: true, result: outcome.result });
       });
     }
     // Testing-only payload echo: the exact secretsJson the coordinator would
@@ -348,6 +346,17 @@ export class Coordinator {
       if (kitMutation) {
         const payload = await request.json();
         return this.runExclusive(() => this.kitMutation(kitMutation[1], payload));
+      }
+      // The generated client.action transport (LLP 0049 Phase 2). NOT wrapped
+      // in runExclusive: executeAction stages under the mutex, runs the
+      // handler and its external fetch off it, and reacquires per mutation
+      // commit — a slow 511 round-trip must never stall this object's
+      // queries, mutations, or live pushes.
+      const kitAction = path.match(/^\/action\/([A-Za-z0-9_-]+)$/);
+      if (kitAction) {
+        const payload = await request.json();
+        const outcome = await this.executeAction(kitAction[1], (payload && payload.args) || {}, 'manual');
+        return json(200, outcome);
       }
       if (path === '/connection/open') {
         const payload = await request.json();
@@ -598,6 +607,173 @@ export class Coordinator {
     });
   }
 
+  // --- action execution (LLP 0049 Phase 2) --------------------------------
+
+  // Execute one action: stage under the serialization mutex (the fn/state
+  // checks), run the handler OFF it, reacquire per host call — runMutation
+  // re-enters through runExclusive, and host fetch rides the un-chained
+  // /host-call path — with wall-clock watchdog parity to the local
+  // SNAPBACK_ACTION_TIMEOUT posture. No Durable Object transaction is ever
+  // held across the external fetch: transactionSync appears only inside
+  // commit(), which runs under the mutex after the fetch settled.
+  async executeAction(name, args, trigger) {
+    const staged = await this.runExclusive(() => {
+      const fn = this.functionByName(name);
+      if (!fn || fn.kind !== 'Action') {
+        return { error: { code: 'SNAPBACK_ACTION_UNKNOWN', message: `${name} is not an action on this app` } };
+      }
+      return { fn };
+    });
+    if (staged.error) {
+      return { ok: false, function: name, kind: 'Action', diagnostic: staged.error };
+    }
+    const timeoutMs = this.actionTimeoutMs();
+    let timer = null;
+    const watchdog = new Promise((resolve) => {
+      timer = setTimeout(
+        () =>
+          resolve({
+            ok: false,
+            code: 'SNAPBACK_ACTION_TIMEOUT',
+            message: `action ${name} exceeded the ${timeoutMs}ms wall-clock budget; the invocation failed`,
+          }),
+        timeoutMs
+      );
+    });
+    let result;
+    try {
+      result = await Promise.race([this.invokeHandler(name, 'action', args, { trigger }), watchdog]);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!result.ok) {
+      return {
+        ok: false,
+        function: name,
+        kind: 'Action',
+        diagnostic: { code: result.code, message: result.message, ...(result.details ? { details: result.details } : {}) },
+      };
+    }
+    return { ok: true, function: name, kind: 'Action', result: result.value };
+  }
+
+  actionTimeoutMs() {
+    const raw = Number(this.env.SNAPBACK_ACTION_TIMEOUT_MS);
+    return Number.isFinite(raw) && raw > 0 ? raw : 30_000;
+  }
+
+  // The action's durable leg: a FULL nested mutation invocation — handler,
+  // commit, fan-out — executed under the invocation mutex (the caller wraps
+  // this in runExclusive). Returns the mutation handler's value; a failure
+  // carries its code back into the action as a coded error.
+  async runMutationForAction(name, args) {
+    const fn = this.functionByName(name);
+    if (!fn || fn.kind !== 'Mutation') {
+      return { ok: false, code: 'SNAPBACK_ACTION_MUTATION_UNKNOWN', message: `${name} is not a mutation on this app` };
+    }
+    const result = await this.invokeHandler(name, 'mutation', args);
+    if (!result.ok) return { ok: false, code: result.code, message: result.message };
+    const commit = this.commit(result.host);
+    await this.fanOut(commit);
+    return { ok: true, value: result.value };
+  }
+
+  // The host-mediated fetch boundary (LLP 0049 §Action Egress): descriptors
+  // unwrap to values HERE and only here; placement slots cover query-param
+  // (511's api_key) and header (directions' Authorization); and every
+  // diagnostic that re-enters the isolate — error messages, the final URL,
+  // even the upstream body — is redacted first. The coordinator owns the
+  // scrub; handler-side redaction remains defense in depth, not the line.
+  // Destination allowlisting is not yet implemented on this profile — a
+  // named manifest fact (runtimeFacts.egress), not a silent difference.
+  async hostActionFetch(request) {
+    const urlText = String(request.url || '');
+    let url;
+    try {
+      url = new URL(urlText);
+    } catch (_) {
+      return { ok: false, code: 'SNAPBACK_HOST_FETCH_INVALID', message: 'host fetch requires an absolute URL' };
+    }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return { ok: false, code: 'SNAPBACK_HOST_FETCH_INVALID', message: `unsupported protocol ${url.protocol}` };
+    }
+    const headers = {};
+    for (const [key, value] of Object.entries(request.headers || {})) {
+      headers[String(key)] = String(value);
+    }
+    const resolvedValues = [];
+    for (const slot of request.secretSlots || []) {
+      const descriptor = slot && slot.secret;
+      if (!descriptor || typeof descriptor.name !== 'string') {
+        return { ok: false, code: 'SNAPBACK_HOST_FETCH_SLOT_INVALID', message: 'a secret slot carried no descriptor' };
+      }
+      if (!this.declaredConfigEntry(descriptor.name)) {
+        return {
+          ok: false,
+          code: 'SNAPBACK_CONFIG_UNDECLARED',
+          message: `${descriptor.name} is not a declared config entry`,
+        };
+      }
+      const value = this.resolveSecretValue(descriptor.name, descriptor.cursor);
+      if (value == null) {
+        return { ok: false, code: 'SNAPBACK_CONFIG_MISSING', message: `${descriptor.name} has no value set` };
+      }
+      resolvedValues.push(value);
+      if (slot.placement === 'query-param') {
+        url.searchParams.set(String(slot.name), value);
+      } else if (slot.placement === 'header') {
+        headers[String(slot.name)] = value;
+      } else {
+        return {
+          ok: false,
+          code: 'SNAPBACK_HOST_FETCH_SLOT_INVALID',
+          message: `unsupported secret placement ${slot.placement}`,
+        };
+      }
+    }
+    const redact = (text) => {
+      let out = String(text ?? '');
+      for (const value of resolvedValues) {
+        if (value.length > 0) out = out.split(value).join('[redacted]');
+      }
+      return out;
+    };
+    const timeoutMs = Math.min(
+      Number.isFinite(Number(request.timeoutMs)) && Number(request.timeoutMs) > 0
+        ? Number(request.timeoutMs)
+        : 15_000,
+      this.actionTimeoutMs()
+    );
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort('SNAPBACK_HOST_FETCH_TIMEOUT'), timeoutMs);
+    try {
+      const response = await fetch(url.toString(), {
+        method: String(request.method || 'GET'),
+        headers,
+        body: request.body == null ? undefined : String(request.body),
+        signal: controller.signal,
+      });
+      const bodyText = await response.text();
+      return {
+        ok: true,
+        value: {
+          status: response.status,
+          ok: response.ok,
+          url: redact(url.toString()),
+          bodyText: redact(bodyText),
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        code: 'SNAPBACK_HOST_FETCH_FAILED',
+        message: `host fetch to ${redact(url.toString())} failed: ${redact((error && error.message) || error)}`,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // --- handler invocation across the RPC seam ----------------------------
 
   async invokeHandler(fnName, mode, args, options = {}) {
@@ -625,10 +801,26 @@ export class Coordinator {
       epoch,
       newId: () => this.newId(),
       tables: APP_TABLES,
+      // Action-only host capabilities (LLP 0049 Phase 2). runMutation
+      // reacquires the invocation mutex per commit — the ENG-23324 pattern:
+      // the action itself executes OFF the mutex, so a slow external fetch
+      // never stalls queries, mutations, or live pushes on this object.
+      runMutation:
+        mode === 'action'
+          ? (name, mutationArgs) => this.runExclusive(() => this.runMutationForAction(name, mutationArgs))
+          : null,
+      hostFetch: mode === 'action' ? (request) => this.hostActionFetch(request) : null,
     });
     this.activeInvocations.set(token, host);
+    // Actions run on their own handler Worker when the deploy carries one
+    // (ACTION_HANDLER): the handler server chains invocations per isolate
+    // for rejection-ledger attribution (ENG-23585), so an action parked on a
+    // slow host fetch would otherwise queue every query/mutation/fan-out
+    // invocation behind it — the Cloudflare analogue of the local DK-4
+    // fresh-VM action fence.
+    const handlerService = mode === 'action' && this.env.ACTION_HANDLER ? this.env.ACTION_HANDLER : this.env.HANDLER;
     try {
-      const response = await this.env.HANDLER.fetch('http://handler/invoke', {
+      const response = await handlerService.fetch('http://handler/invoke', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -720,7 +912,10 @@ export class Coordinator {
     } catch (_) {
       return json(200, { ok: false, code: 'SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON', message: 'bad args json' });
     }
-    return json(200, host.handle(op, args));
+    // Awaited: the action-only ops (host.fetch, action.runMutation) are
+    // async — the external fetch runs OUTSIDE the invocation mutex on this
+    // un-chained path, and runMutation reacquires the mutex itself.
+    return json(200, await host.handle(op, args));
   }
 
   // --- query -------------------------------------------------------------
