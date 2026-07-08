@@ -1,0 +1,237 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a9c0cd"/>
+      <stop offset="0.75" stop-color="#e2ddc9"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper -->
+  <rect width="640" height="1136" fill="#f5efe1"/>
+
+  <!-- calm sky wash for UI overlay -->
+  <path d="M0,0 H640 V478 C540,488 430,476 320,484 C210,492 100,480 0,486 Z" fill="url(#sky3)"/>
+  <!-- fog bank -->
+  <path d="M0,414 C90,400 210,410 320,398 C430,388 540,402 640,392 V452 C540,462 420,450 300,460 C200,468 90,458 0,466 Z" fill="#f5efe1" opacity="0.7"/>
+  <path d="M60,180 C100,168 180,166 220,178 C254,172 300,176 312,188 C278,200 196,202 148,196 C114,200 72,192 60,180 Z" fill="#f5efe1" opacity="0.6"/>
+
+  <!-- planes on approach, stacked across the sky -->
+  <g fill="#4a4036" stroke="#4a4036" stroke-linecap="round">
+    <!-- far plane -->
+    <path d="M478,306 C486,303 502,303 508,306 C502,309 486,309 478,306 Z"/>
+    <path d="M492,306 L485,313" stroke-width="2.5" fill="none"/>
+    <path d="M504,304 L507,299 L509,306" stroke-width="2.5" fill="none"/>
+    <!-- middle plane -->
+    <path d="M318,336 C328,332 348,332 356,336 C348,340 328,340 318,336 Z"/>
+    <path d="M336,336 L327,346" stroke-width="3" fill="none"/>
+    <path d="M340,334 L346,328" stroke-width="2.5" fill="none"/>
+    <path d="M350,333 L354,327 L357,335" stroke-width="2.5" fill="none"/>
+    <!-- near plane -->
+    <path d="M130,368 C142,363 168,363 178,368 C168,373 142,373 130,368 Z"/>
+    <path d="M152,368 L141,381" stroke-width="3.5" fill="none"/>
+    <path d="M157,366 L165,357" stroke-width="3" fill="none"/>
+    <path d="M170,364 L175,356 L179,367" stroke-width="3" fill="none"/>
+  </g>
+
+  <!-- far shore -->
+  <path transform="translate(0,3)" d="M0,472 C70,466 150,472 230,466 C240,458 258,458 268,466 C340,462 420,468 500,462 C510,454 530,454 540,462 C572,460 608,464 640,460 V500 H0 Z" fill="#a8ab97" opacity="0.75"/>
+  <path d="M0,474 C90,468 190,474 290,468 C390,464 490,470 580,464 C600,466 622,462 640,464" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- bay water -->
+  <path transform="translate(0,4)" d="M0,492 H640 V876 H0 Z" fill="#8fa7b8"/>
+  <g fill="#b9c9d4" opacity="0.8" transform="translate(4,2)">
+    <path d="M60,560 C140,552 260,558 350,550 C380,556 350,566 300,566 C220,572 110,568 60,560 Z"/>
+    <path d="M330,680 C420,672 540,678 610,670 C630,676 600,686 550,686 C470,692 380,688 330,680 Z"/>
+    <path d="M40,760 C110,752 220,758 290,750 C310,756 288,766 240,766 C170,772 80,768 40,760 Z"/>
+  </g>
+  <path d="M0,496 C110,492 230,498 350,493 C460,498 560,492 640,496" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.75"/>
+  <!-- wave strokes -->
+  <g fill="none" stroke="#5f7d93" stroke-linecap="round" opacity="0.75">
+    <path d="M80,530 C110,527 140,531 168,528" stroke-width="2.5"/>
+    <path d="M380,522 C410,519 440,523 468,520" stroke-width="2.5"/>
+    <path d="M540,548 C566,545 592,549 616,546" stroke-width="2.5"/>
+    <path d="M40,612 C76,609 112,613 146,610" stroke-width="2.5"/>
+    <path d="M250,600 C286,597 322,601 356,598" stroke-width="2.5"/>
+    <path d="M470,632 C510,629 550,633 588,630" stroke-width="3"/>
+    <path d="M110,676 C152,673 194,677 234,674" stroke-width="3"/>
+    <path d="M330,720 C376,717 422,721 466,718" stroke-width="3"/>
+    <path d="M60,740 C104,737 148,741 190,738" stroke-width="3"/>
+    <path d="M420,776 C470,773 520,777 568,774" stroke-width="3.5"/>
+    <path d="M150,800 C204,797 258,801 310,798" stroke-width="3.5"/>
+    <path d="M480,830 C530,827 580,831 626,828" stroke-width="3.5"/>
+    <path d="M40,842 C90,839 140,843 188,840" stroke-width="3.5"/>
+  </g>
+  <!-- cream flecks on water -->
+  <g fill="none" stroke="#f5efe1" stroke-width="3" stroke-linecap="round" opacity="0.85">
+    <path d="M200,646 C214,644 228,646 240,644"/>
+    <path d="M520,700 C534,698 548,700 560,698"/>
+    <path d="M320,764 C336,762 352,764 366,762"/>
+    <path d="M96,708 C108,706 120,708 130,706"/>
+  </g>
+
+  <!-- kite surfer 1: terracotta kite, left -->
+  <path transform="translate(3,2)" d="M104,556 C120,524 176,516 198,544 C176,536 122,540 104,556 Z" fill="#c0714f"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M104,558 C118,528 172,518 198,546" stroke-width="3.5"/>
+    <path d="M106,558 C130,546 172,542 196,548" stroke-width="3"/>
+    <path d="M110,560 C132,596 154,634 168,662" stroke-width="1.8" opacity="0.7"/>
+    <path d="M194,550 C186,588 178,626 172,660" stroke-width="1.8" opacity="0.7"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <circle cx="170" cy="656" r="6" stroke-width="3"/>
+    <path d="M170,662 C168,672 166,680 166,686" stroke-width="3.5"/>
+    <path d="M166,668 C160,664 156,662 152,662 M166,668 C172,664 178,663 182,663" stroke-width="3"/>
+    <path d="M166,686 C162,692 158,696 156,700 M166,686 C170,692 174,696 176,700" stroke-width="3.5"/>
+    <path d="M146,702 C158,698 174,700 188,698" stroke-width="4"/>
+  </g>
+  <g fill="none" stroke="#f5efe1" stroke-width="3.5" stroke-linecap="round" opacity="0.9">
+    <path d="M138,706 C130,710 124,712 118,712"/>
+    <path d="M142,712 C134,718 126,722 118,724"/>
+  </g>
+
+  <!-- kite surfer 2: ochre kite, center -->
+  <path transform="translate(3,2)" d="M312,596 C328,566 380,558 400,584 C380,576 330,580 312,596 Z" fill="#d9b26a"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M312,598 C326,570 376,560 400,586" stroke-width="3.5"/>
+    <path d="M314,598 C336,586 376,582 398,588" stroke-width="3"/>
+    <path d="M318,600 C330,632 342,662 350,686" stroke-width="1.8" opacity="0.7"/>
+    <path d="M396,590 C384,624 372,658 362,684" stroke-width="1.8" opacity="0.7"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <circle cx="356" cy="682" r="5.5" stroke-width="3"/>
+    <path d="M356,688 C354,696 353,702 353,708" stroke-width="3.5"/>
+    <path d="M353,692 C348,688 344,687 340,687 M353,692 C359,689 364,688 368,688" stroke-width="3"/>
+    <path d="M353,708 C349,713 346,716 344,720 M353,708 C357,713 360,716 362,720" stroke-width="3.5"/>
+    <path d="M334,722 C346,718 360,720 372,718" stroke-width="4"/>
+  </g>
+  <g fill="none" stroke="#f5efe1" stroke-width="3" stroke-linecap="round" opacity="0.9">
+    <path d="M328,726 C320,730 314,732 308,732"/>
+  </g>
+
+  <!-- kite surfer 3: sage kite, right, smaller -->
+  <path transform="translate(2,2)" d="M474,542 C486,518 528,512 544,532 C528,526 488,530 474,542 Z" fill="#8a9a7b"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M474,544 C486,520 524,514 544,534" stroke-width="3"/>
+    <path d="M478,544 C494,536 524,532 542,536" stroke-width="2.5"/>
+    <path d="M480,546 C492,572 504,598 512,618" stroke-width="1.6" opacity="0.7"/>
+    <path d="M540,538 C532,566 524,594 518,616" stroke-width="1.6" opacity="0.7"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <circle cx="515" cy="616" r="4.5" stroke-width="2.5"/>
+    <path d="M515,621 C514,628 513,632 513,636" stroke-width="3"/>
+    <path d="M513,624 C509,621 506,620 503,620 M513,624 C518,622 522,621 525,621" stroke-width="2.5"/>
+    <path d="M513,636 C510,640 508,643 506,646 M513,636 C516,640 518,643 520,646" stroke-width="3"/>
+    <path d="M498,648 C508,645 519,646 529,645" stroke-width="3.5"/>
+  </g>
+  <g fill="none" stroke="#f5efe1" stroke-width="2.5" stroke-linecap="round" opacity="0.9">
+    <path d="M493,651 C487,654 482,656 478,656"/>
+  </g>
+
+  <!-- foam along shoreline -->
+  <g fill="none" stroke="#f5efe1" stroke-width="4" stroke-linecap="round" opacity="0.95">
+    <path d="M8,862 C24,854 20,868 40,858 C54,850 50,866 70,856"/>
+    <path d="M160,884 C176,876 172,890 192,880 C206,872 202,888 222,878"/>
+    <path d="M330,904 C346,896 342,910 362,900 C376,892 372,908 392,898"/>
+    <path d="M490,922 C506,914 502,928 522,918 C536,910 532,926 552,916"/>
+  </g>
+
+  <!-- shoreline rocks -->
+  <g transform="translate(4,3)">
+    <path d="M18,876 C10,852 34,834 62,838 C88,830 112,846 112,868 C112,890 84,902 54,898 C32,896 20,890 18,876 Z" fill="#9d8b74"/>
+    <path d="M118,896 C112,874 132,858 158,860 C184,854 206,868 206,888 C206,908 180,918 152,914 C132,912 122,908 118,896 Z" fill="#b7ad9c"/>
+    <path d="M214,912 C208,892 226,878 250,880 C274,874 294,886 294,904 C294,922 270,932 244,928 C226,926 218,922 214,912 Z" fill="#9d8b74"/>
+    <path d="M302,928 C298,910 314,898 336,900 C358,894 376,906 376,922 C376,938 354,946 330,943 C314,941 306,938 302,928 Z" fill="#b7ad9c"/>
+    <path d="M384,942 C380,926 394,916 414,918 C434,912 450,922 450,936 C450,950 430,958 408,955 C394,953 388,950 384,942 Z" fill="#9d8b74"/>
+    <path d="M458,956 C455,942 468,933 486,935 C504,930 518,939 518,951 C518,963 500,970 480,967 C468,965 461,963 458,956 Z" fill="#b7ad9c"/>
+    <path d="M526,968 C523,956 534,948 550,950 C566,945 578,953 578,964 C578,974 562,980 544,978 C534,977 528,974 526,968 Z" fill="#9d8b74"/>
+    <path d="M584,978 C582,968 592,961 606,963 C620,958 630,965 630,974 C630,983 616,988 600,986 C591,985 586,983 584,978 Z" fill="#b7ad9c"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M20,878 C12,854 34,836 62,840 C88,832 112,848 112,870 C110,890 84,902 56,898" stroke-width="3.5"/>
+    <path d="M120,898 C114,876 134,860 160,862 C186,856 208,870 206,890 C204,908 180,918 154,914" stroke-width="3.5"/>
+    <path d="M216,914 C210,894 228,880 252,882 C276,876 296,888 294,906 C292,922 270,932 246,928" stroke-width="3.5"/>
+    <path d="M304,930 C300,912 316,900 338,902 C360,896 378,908 376,924 C374,938 354,946 332,943" stroke-width="3.5"/>
+    <path d="M386,944 C382,928 396,918 416,920 C436,914 452,924 450,938 C448,950 430,958 410,955" stroke-width="3"/>
+    <path d="M460,958 C457,944 470,935 488,937 C506,932 520,941 518,953 C516,963 500,970 482,967" stroke-width="3"/>
+    <path d="M528,970 C525,958 536,950 552,952 C568,947 580,955 578,966 C576,974 562,980 546,978" stroke-width="3"/>
+    <path d="M586,980 C584,970 594,963 608,965 C622,960 632,967 630,976" stroke-width="2.5"/>
+  </g>
+  <!-- rock hatch shading -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.45">
+    <path d="M40,884 L30,896"/><path d="M62,888 L52,900"/><path d="M86,884 L76,896"/>
+    <path d="M142,900 L132,912"/><path d="M168,902 L158,914"/><path d="M190,896 L180,908"/>
+    <path d="M238,916 L228,928"/><path d="M264,918 L254,930"/>
+    <path d="M326,932 L316,944"/><path d="M352,934 L342,946"/>
+    <path d="M408,946 L400,957"/><path d="M432,946 L424,957"/>
+    <path d="M482,958 L474,969"/><path d="M504,958 L496,969"/>
+    <path d="M548,970 L541,980"/><path d="M604,980 L597,989"/>
+  </g>
+
+  <!-- shorebird on the big rock -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="3">
+    <path d="M62,816 C56,810 58,802 66,801 C76,799 82,806 80,812 C78,818 68,820 62,816 Z" fill="#b7ad9c"/>
+    <path d="M80,806 C85,802 89,801 92,802"/>
+    <path d="M66,820 C66,826 66,831 66,835 M74,820 C74,826 74,831 74,835"/>
+  </g>
+
+  <!-- grass strip above the path -->
+  <path transform="translate(3,3)" d="M0,948 C80,952 180,962 280,972 C400,984 520,978 640,962 V1010 C520,1024 380,1030 240,1042 C150,1050 60,1058 0,1064 Z" fill="#8a9a7b"/>
+  <g fill="none" stroke="#5f7355" stroke-width="2.5" stroke-linecap="round" opacity="0.9">
+    <path d="M60,986 C58,976 60,968 64,962 M68,988 C70,978 74,970 80,964 M76,990 C80,982 86,976 92,972"/>
+    <path d="M210,1000 C208,990 210,982 214,976 M218,1002 C220,992 224,984 230,978"/>
+    <path d="M420,996 C418,986 420,978 424,972 M428,998 C430,988 434,980 440,974"/>
+    <path d="M560,982 C558,972 560,964 564,958 M568,984 C570,974 574,966 580,960"/>
+  </g>
+
+  <!-- walking path -->
+  <path transform="translate(3,4)" d="M0,1058 C100,1046 240,1038 360,1016 C460,998 560,984 640,978 V1054 C540,1058 440,1072 340,1090 C220,1110 100,1126 0,1136 Z" fill="#e3cf9f"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M0,1060 C90,1050 200,1044 310,1026 C420,1008 540,988 640,980" stroke-width="4"/>
+    <path d="M0,1136 C90,1126 200,1112 310,1094 C420,1076 540,1060 640,1056" stroke-width="4.5"/>
+  </g>
+  <!-- path texture -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.35">
+    <path d="M96,1088 H112"/><path d="M220,1068 H236"/><path d="M356,1048 H372"/>
+    <path d="M470,1028 H486"/><path d="M560,1090 H576"/><path d="M170,1112 H186"/>
+    <path d="M420,1094 H436"/><path d="M300,1120 H316"/>
+  </g>
+
+  <!-- wooden bollards on the path edge -->
+  <path transform="translate(3,2)" d="M206,996 H222 V1046 H206 Z" fill="#d9b26a"/>
+  <path transform="translate(3,2)" d="M258,988 H274 V1036 H258 Z" fill="#d9b26a"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M207,998 C206,1014 208,1032 207,1048 M223,998 C224,1014 222,1032 223,1048 M204,997 C210,995 218,996 226,995" stroke-width="3.5"/>
+    <path d="M259,990 C258,1005 260,1022 259,1038 M275,990 C276,1005 274,1022 275,1038 M256,989 C262,987 270,988 278,987" stroke-width="3.5"/>
+    <path d="M226,1006 C238,1003 248,1002 256,1000" stroke-width="2.5" opacity="0.7"/>
+  </g>
+
+  <!-- foreground grass below path, right corner -->
+  <path transform="translate(3,2)" d="M400,1090 C480,1076 570,1064 640,1060 V1136 H360 C370,1118 384,1100 400,1090 Z" fill="#75886a"/>
+  <g fill="none" stroke="#5f7355" stroke-width="3" stroke-linecap="round" opacity="0.95">
+    <path d="M440,1108 C438,1096 440,1086 444,1078 M450,1110 C452,1098 456,1088 462,1080 M460,1112 C464,1102 470,1094 478,1088"/>
+    <path d="M540,1092 C538,1080 540,1070 544,1062 M550,1094 C552,1082 556,1072 562,1064"/>
+  </g>
+  <!-- iceplant blooms -->
+  <g fill="#c0714f" opacity="0.9">
+    <circle cx="492" cy="1104" r="4.5"/>
+    <circle cx="580" cy="1084" r="4.5"/>
+    <circle cx="428" cy="1122" r="4"/>
+  </g>
+  <!-- left foreground grass tufts on paper -->
+  <g fill="none" stroke="#5f7355" stroke-width="3" stroke-linecap="round" opacity="0.9">
+    <path d="M30,1088 C28,1076 30,1066 34,1058 M40,1090 C42,1078 46,1068 52,1060"/>
+    <path d="M110,1074 C108,1062 110,1052 114,1044 M120,1076 C122,1064 126,1054 132,1046"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24" opacity="0.8">
+    <circle cx="86" cy="1010" r="1.8"/>
+    <circle cx="300" cy="958" r="1.5"/>
+    <circle cx="512" cy="1002" r="1.6"/>
+    <circle cx="180" cy="1052" r="1.5"/>
+    <circle cx="404" cy="1064" r="1.8"/>
+    <circle cx="600" cy="1108" r="1.6"/>
+    <circle cx="70" cy="944" r="1.5"/>
+  </g>
+</svg>

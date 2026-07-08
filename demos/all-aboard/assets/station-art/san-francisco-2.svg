@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5efe1"/>
+      <stop offset="0.55" stop-color="#ebe3cd"/>
+      <stop offset="1" stop-color="#ccd8da"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect width="640" height="480" fill="url(#sky2)"/>
+
+  <!-- calm sky: faint cloud washes and one gull -->
+  <ellipse cx="150" cy="170" rx="110" ry="20" fill="#f5efe1" opacity="0.7"/>
+  <ellipse cx="470" cy="222" rx="130" ry="18" fill="#efe8d4" opacity="0.6"/>
+  <path d="M212,318 C219,311 226,311 231,316 C236,311 243,311 250,317" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- distant far shore -->
+  <path d="M-8,354 C80,342 180,348 280,342 C380,336 480,344 648,338 L648,384 L-8,384 Z" fill="#9db4c4" opacity="0.85"/>
+
+  <!-- the bay -->
+  <rect x="-8" y="360" width="656" height="290" fill="#7d97ad"/>
+  <path d="M-6,360 C60,358 130,361 200,359 M540,358 C580,359 620,357 646,358" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  <g fill="none" stroke="#9db4c4" stroke-linecap="round" stroke-width="3">
+    <path d="M60,398 C92,394 124,399 158,395"/>
+    <path d="M230,420 C260,416.6 290,421 322,417"/>
+    <path d="M520,404 C548,400.6 576,404.6 604,401"/>
+    <path d="M120,446 C154,442 188,447 224,443"/>
+    <path d="M420,442 C452,438 484,443 518,439"/>
+  </g>
+
+  <!-- Alcatraz -->
+  <path d="M392,372 C410,360 440,356 470,360 C492,363 506,370 512,376 L512,386 C470,390 430,390 392,384 Z" fill="#b8b4a8"/>
+  <rect x="424" y="344" width="40" height="20" fill="#ece2ca"/>
+  <rect x="470" y="336" width="6" height="18" fill="#ece2ca"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.5" opacity="0.8">
+    <path d="M394,378 C420,364 452,360 482,364 C496,366 506,371 511,377"/>
+    <path d="M422,346 C436,344.6 450,345.6 466,344.8 M422,346 l0.6,18 M466,345 l0,17"/>
+    <path d="M470,338 l6,-0.4 M476,338 l0.4,16"/>
+  </g>
+
+  <!-- row houses stepping down, right side -->
+  <rect x="372" y="472" width="92" height="150" fill="#d9a441"/>
+  <rect x="466" y="514" width="74" height="112" fill="#efe4c9"/>
+  <rect x="542" y="550" width="58" height="80" fill="#c96f4a"/>
+  <rect x="602" y="580" width="46" height="52" fill="#8fa68a"/>
+  <rect x="382" y="504" width="17" height="24" fill="#f5efe1"/>
+  <rect x="412" y="504" width="17" height="24" fill="#f5efe1"/>
+  <rect x="382" y="548" width="17" height="24" fill="#f5efe1"/>
+  <rect x="412" y="548" width="17" height="24" fill="#f5efe1"/>
+  <rect x="478" y="540" width="15" height="22" fill="#b8b4a8"/>
+  <rect x="504" y="540" width="15" height="22" fill="#b8b4a8"/>
+  <rect x="554" y="574" width="13" height="20" fill="#efe4c9"/>
+  <rect x="576" y="574" width="13" height="20" fill="#efe4c9"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M368,620 C367.2,570 369,520 368.2,470 C398,467.6 430,468.8 462,467.4 C463,518 461.6,570 462.6,620" stroke-width="3.5"/>
+    <path d="M366,486 C398,483.6 430,485 464,483.6" stroke-width="2.5"/>
+    <path d="M380,506 l18,-0.8 M380,505 l0.6,25 M398,505 l0.4,25 M380,530 l18,-0.6" stroke-width="2.5"/>
+    <path d="M410,506 l18,-0.6 M410,505 l0.4,25 M428,505 l0.6,25 M410,530 l18,-0.8" stroke-width="2.5"/>
+    <path d="M380,550 l18,-0.6 M380,549 l0.4,25 M398,549 l0.6,25 M380,574 l18,-0.8" stroke-width="2.5"/>
+    <path d="M410,550 l18,-0.8 M410,549 l0.6,25 M428,549 l0.4,25 M410,574 l18,-0.6" stroke-width="2.5"/>
+    <path d="M434,620 C433.4,580 434.6,540 434,502 C444,494 454,494 462,502" stroke-width="2.5"/>
+    <path d="M462,512 C488,509.6 514,511 540,509.6 C541,546 539.6,584 540.6,622" stroke-width="3.5"/>
+    <path d="M464,528 C490,526 514,527.6 538,526" stroke-width="2.5"/>
+    <path d="M476,542 l19,-0.6 M476,541 l0.6,23 M495,541 l0.4,23 M476,564 l19,-0.8" stroke-width="2.5"/>
+    <path d="M502,542 l19,-0.8 M502,541 l0.4,23 M521,541 l0.6,23 M502,564 l19,-0.6" stroke-width="2.5"/>
+    <path d="M540,548 C560,546 580,547.4 600,546 C601,572 599.6,600 600.6,626" stroke-width="3.5"/>
+    <path d="M542,562 C562,560.4 582,561.6 600,560.2" stroke-width="2.5"/>
+    <path d="M552,576 l17,-0.6 M552,575 l0.6,21 M569,575 l0.4,21 M552,596 l17,-0.8" stroke-width="2.5"/>
+    <path d="M574,576 l17,-0.8 M574,575 l0.4,21 M591,575 l0.6,21 M574,596 l17,-0.6" stroke-width="2.5"/>
+    <path d="M600,578 C616,576.4 632,577.6 646,576.4" stroke-width="3"/>
+    <path d="M446,470 l0.6,-16 M446,454 l10,-0.6 M456,453 l0.4,16" stroke-width="2.5"/>
+  </g>
+
+  <!-- row houses stepping down, left side -->
+  <rect x="182" y="480" width="86" height="142" fill="#8fa68a"/>
+  <rect x="108" y="522" width="72" height="104" fill="#c96f4a"/>
+  <rect x="48" y="558" width="58" height="72" fill="#efe4c9"/>
+  <rect x="-4" y="588" width="50" height="44" fill="#d9a441"/>
+  <rect x="196" y="510" width="16" height="24" fill="#f5efe1"/>
+  <rect x="226" y="510" width="16" height="24" fill="#f5efe1"/>
+  <rect x="196" y="552" width="16" height="24" fill="#f5efe1"/>
+  <rect x="226" y="552" width="16" height="24" fill="#f5efe1"/>
+  <rect x="120" y="548" width="15" height="22" fill="#ece2ca"/>
+  <rect x="146" y="548" width="15" height="22" fill="#ece2ca"/>
+  <rect x="60" y="582" width="13" height="20" fill="#b8b4a8"/>
+  <rect x="82" y="582" width="13" height="20" fill="#b8b4a8"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M178,622 C177.4,574 178.8,526 178,478 C208,475.6 240,476.8 272,475.4 C273,524 271.6,572 272.6,620" stroke-width="3.5"/>
+    <path d="M176,494 C208,491.6 240,493 274,491.4" stroke-width="2.5"/>
+    <path d="M194,512 l18,-0.8 M194,511 l0.6,25 M212,511 l0.4,25 M194,536 l18,-0.6" stroke-width="2.5"/>
+    <path d="M224,512 l18,-0.6 M224,511 l0.4,25 M242,511 l0.6,25 M224,536 l18,-0.8" stroke-width="2.5"/>
+    <path d="M194,554 l18,-0.6 M194,553 l0.6,25 M212,553 l0.4,25 M194,578 l18,-0.8" stroke-width="2.5"/>
+    <path d="M224,554 l18,-0.8 M224,553 l0.4,25 M242,553 l0.6,25 M224,578 l18,-0.6" stroke-width="2.5"/>
+    <path d="M178,520 C170,512 160,512 152,518 M178,620 C177.6,588 178.4,554 178,522" stroke-width="2.5"/>
+    <path d="M106,626 C105.4,592 106.6,556 106,520 C130,517.6 154,518.8 178,517.6" stroke-width="3.5"/>
+    <path d="M108,536 C132,533.6 154,535 176,533.4" stroke-width="2.5"/>
+    <path d="M118,550 l19,-0.6 M118,549 l0.6,23 M137,549 l0.4,23 M118,572 l19,-0.8" stroke-width="2.5"/>
+    <path d="M144,550 l19,-0.8 M144,549 l0.4,23 M163,549 l0.6,23 M144,572 l19,-0.6" stroke-width="2.5"/>
+    <path d="M46,630 C45.4,606 46.6,580 46,556 C66,554 86,555.4 106,554" stroke-width="3.5"/>
+    <path d="M48,570 C68,568.4 86,569.6 104,568.2" stroke-width="2.5"/>
+    <path d="M58,584 l17,-0.6 M58,583 l0.6,21 M75,583 l0.4,21 M58,604 l17,-0.8" stroke-width="2.5"/>
+    <path d="M80,584 l17,-0.8 M80,583 l0.4,21 M97,583 l0.6,21 M80,604 l17,-0.6" stroke-width="2.5"/>
+    <path d="M-6,586 C10,584.4 28,585.6 46,584.4" stroke-width="3"/>
+    <path d="M122,520 l0.6,-15 M122,505 l10,-0.6 M132,504 l0.4,15" stroke-width="2.5"/>
+  </g>
+
+  <!-- crest of the hill: everything below is near ground -->
+  <path d="M-8,648 C60,644 130,650 198,644 C240,640 288,621 320,619 C354,621 400,640 442,645 C512,651 580,645 648,649 L648,1140 L-8,1140 Z" fill="#ece2ca"/>
+  <path d="M-6,646 C58,642 128,648 196,643 M254,627 C276,621 300,617.4 322,617 M396,632 C420,638 448,642.6 476,644.6" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.75"/>
+
+  <!-- street rising to the crest -->
+  <path d="M104,1140 C160,970 224,788 289,621 L352,621 C418,788 480,970 536,1140 Z" fill="#c4c0b2"/>
+  <ellipse cx="270" cy="880" rx="46" ry="14" fill="#b0ac9e" opacity="0.5"/>
+  <ellipse cx="390" cy="1000" rx="56" ry="16" fill="#b0ac9e" opacity="0.5"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M106,1136 C142,1024 180,912 220,802 C242,742 264,680 290,623" stroke-width="3.5"/>
+    <path d="M534,1136 C498,1026 460,914 420,804 C398,744 376,682 351,623" stroke-width="3.5"/>
+    <path d="M90,1136 C126,1022 166,908 208,798 M232,738 C248,698 264,660 282,626" stroke-width="2.5" opacity="0.6"/>
+    <path d="M550,1136 C514,1024 474,910 432,800 M408,740 C392,700 375,662 358,627" stroke-width="2.5" opacity="0.6"/>
+  </g>
+
+  <!-- cobbles -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.5" opacity="0.4">
+    <path d="M124,1086 q17,-10 34,-1 q16,9 33,0 q17,-9 34,0 q16,9 33,-1 q17,-8 34,0 q16,9 33,0 q17,-9 34,-1 q16,8 33,0 q17,-9 34,0 q16,9 33,-1 q17,-8 33,1"/>
+    <path d="M148,1014 q16,-9 31,-1 q15,8 30,0 q16,-8 31,0 q15,8 30,-1 q16,-7 31,0 q15,8 30,0 q16,-8 31,-1 q15,8 30,0 q16,-8 30,1 q15,7 30,-1"/>
+    <path d="M174,946 q14,-8 28,-1 q13,7 27,0 q14,-7 28,0 q13,7 27,-1 q14,-6 28,0 q13,7 27,0 q14,-7 28,-1 q13,7 27,0 q14,-7 27,1"/>
+    <path d="M196,886 q13,-8 25,-1 q12,7 25,0 q13,-7 25,0 q12,7 25,-1 q13,-6 25,0 q12,7 25,0 q13,-7 25,-1 q12,7 25,0 q13,-7 24,1"/>
+    <path d="M214,834 q11,-7 22,-1 q11,6 22,0 q11,-6 22,0 q11,6 22,-1 q11,-5 22,0 q11,6 22,0 q11,-6 22,-1 q11,6 22,0 q11,-6 21,1"/>
+    <path d="M228,790 q10,-6 19,-1 q9,5 19,0 q10,-5 19,0 q9,5 19,-1 q10,-4 19,0 q9,5 19,0 q10,-5 19,-1 q9,5 19,0 q10,-5 18,1"/>
+    <path d="M242,752 q9,-6 17,-1 q8,5 17,0 q9,-5 17,0 q8,5 17,-1 q9,-4 17,0 q8,5 17,0 q9,-5 17,-1 q8,5 16,0"/>
+    <path d="M252,720 q8,-5 15,-1 q7,4 15,0 q8,-4 15,0 q7,4 15,-1 q8,-3 15,0 q7,4 15,0 q8,-4 15,-1 q7,4 14,0"/>
+    <path d="M260,694 q7,-5 13,-1 q6,4 13,0 q7,-4 13,0 q6,4 13,-1 q7,-3 13,0 q6,4 13,0 q7,-4 13,-1 q6,4 12,0"/>
+  </g>
+
+  <!-- rails and slot -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M204,1136 C216,1078 228,1020 240,962 C262,852 284,738 305,626" stroke-width="3.5"/>
+    <path d="M436,1136 C424,1078 412,1020 400,960 C379,852 358,738 340,626" stroke-width="3.5"/>
+    <path d="M318,1136 C318.8,1032 317.4,932 318.6,832 M319,790 C319.8,732 318.6,678 319.4,636" stroke-width="2.5"/>
+  </g>
+
+  <!-- the cable car, cresting -->
+  <ellipse cx="320" cy="646" rx="72" ry="12" fill="#8f8b7e" opacity="0.55"/>
+  <rect x="262" y="490" width="116" height="128" fill="#c96f4a"/>
+  <path d="M254,498 C258,472 284,455 320,454 C356,455 382,472 386,498 Z" fill="#9a9588"/>
+  <rect x="305" y="446" width="32" height="11" fill="#9a9588"/>
+  <rect x="272" y="502" width="96" height="44" fill="#efe4c9"/>
+  <circle cx="314" cy="518" r="7" fill="#2f2a24" opacity="0.85"/>
+  <path d="M300,546 C300,532 306,524 314,524 C322,524 328,532 328,546 Z" fill="#2f2a24" opacity="0.85"/>
+  <rect x="266" y="556" width="108" height="11" fill="#d9a441"/>
+  <circle cx="320" cy="588" r="9" fill="#d9a441"/>
+  <rect x="270" y="612" width="100" height="12" fill="#9a9588"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M258,494 C257,530 259,566 258,600 C257.6,608 258.6,616 258.2,621" stroke-width="4"/>
+    <path d="M382,494 C383,532 381,568 382.6,604 C383,610 382.4,616 382.8,621" stroke-width="4"/>
+    <path d="M258,621 C292,623.4 330,622 382.6,621.2" stroke-width="4"/>
+    <path d="M250,499 C253,473 282,451 320,450 C358,451 387,472 390,498 M250,499 C296,495.6 344,497.4 390,498" stroke-width="4"/>
+    <path d="M303,446 l35,-0.8 M303,445 l0.6,12 M338,445 l0.4,12" stroke-width="2.5"/>
+    <path d="M270,502 C302,500 334,501.6 370,500.4 M270,548 C304,546 338,547.6 370,546.2" stroke-width="2.5"/>
+    <path d="M270,501 C270.6,517 269.6,533 270.3,548 M303,501 C303.8,516 302.6,532 303.4,547 M336,501 C336.6,516 335.6,532 336.2,547 M369,501 C369.6,517 368.8,533 369.4,548" stroke-width="2.5"/>
+    <path d="M264,557 C298,555 334,556.6 372,555.2 M264,569 C300,567 336,568.4 373,567" stroke-width="2.5"/>
+    <path d="M312,581 C314,577 319,575.4 324,577.6 C328,580 329.4,585 327.6,589.6 C325,594 320,595.4 315.4,593.2 C311.6,590.6 310.4,585.6 312,581" stroke-width="2.5"/>
+    <path d="M268,611 C300,609 334,610.6 372,609.2 M268,625 C302,623 338,624.4 373,623" stroke-width="3"/>
+    <path d="M284,626 L297,650 M302,626 L309,651 M321,626 L321,652 M340,626 L333,651 M357,626 L345,650" stroke-width="3"/>
+    <path d="M294,651 C310,654 331,653 347,650.6" stroke-width="3"/>
+  </g>
+
+  <!-- lamppost, left sidewalk -->
+  <rect x="88" y="998" width="17" height="11" fill="#4a6478"/>
+  <circle cx="122" cy="672" r="9" fill="#d9a441"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M96,1000 C95.2,930 96.8,850 96,772 C95.6,742 96.4,712 96,690" stroke-width="3.5"/>
+    <path d="M96,690 C96,676 104,668 115,667" stroke-width="3"/>
+    <path d="M114,664 C120,662 126,664.6 129,670 C131,675 129.6,681 125,684 C120,686.6 114,684.6 111,680" stroke-width="2.5"/>
+    <path d="M86,997 C92,995.4 100,996.4 107,995.6 M86,1010 C93,1008.4 100,1009.4 107,1008.4" stroke-width="2.5"/>
+  </g>
+
+  <!-- fire hydrant, right sidewalk -->
+  <ellipse cx="562" cy="922" rx="20" ry="5" fill="#8f8b7e" opacity="0.5"/>
+  <path d="M550,914 C550,896 554,886 562,886 C570,886 574,896 574,914 Z" fill="#c96f4a"/>
+  <ellipse cx="562" cy="884" rx="9" ry="5" fill="#c96f4a"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M546,913 C546.6,898 550,886 558,882.6 C566,880 572.6,886 574,898 C574.8,903 575,908 574.6,913" stroke-width="3"/>
+    <path d="M551,879 C557,876.4 564,876.6 570,879.4" stroke-width="2.5"/>
+    <path d="M542,914 C552,912 564,913 574,912 M544,921 C554,919.4 564,920.4 574,919.4" stroke-width="2.5"/>
+    <path d="M544,900 C541,899.6 538.6,901 538,904 M576,899 C579,898.6 581.4,900 582,903" stroke-width="2.5"/>
+  </g>
+
+  <!-- sidewalk marks -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.5" opacity="0.35">
+    <path d="M-4,900 C24,896 52,899 82,896"/>
+    <path d="M-4,1040 C30,1035 66,1039 100,1035"/>
+    <path d="M560,1000 C588,997 616,999.6 644,997"/>
+    <path d="M574,1090 C598,1087 622,1089.4 646,1087"/>
+    <path d="M40,970 l22,-4 M568,952 l20,-3"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24" opacity="0.5">
+    <circle cx="160" cy="700" r="1.4"/>
+    <circle cx="500" cy="680" r="1.3"/>
+    <circle cx="220" cy="1080" r="1.5"/>
+    <circle cx="470" cy="880" r="1.2"/>
+    <circle cx="70" cy="760" r="1.4"/>
+    <circle cx="600" cy="720" r="1.3"/>
+    <circle cx="356" cy="960" r="1.5"/>
+    <circle cx="120" cy="430" r="1.1"/>
+  </g>
+</svg>

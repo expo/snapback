@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#adc0cb"/>
+      <stop offset="0.55" stop-color="#ccd5cf"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper base -->
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect width="640" height="560" fill="url(#sky2)"/>
+
+  <!-- calm high clouds -->
+  <path d="M70,132 C126,120 210,116 266,126 C316,134 308,152 252,157 C176,163 104,160 68,150 C44,142 48,136 70,132 Z" fill="#f2ead9" opacity="0.6"/>
+  <path d="M390,196 C436,186 512,183 560,192 C598,199 592,214 542,218 C484,223 420,220 392,212 C372,206 376,200 390,196 Z" fill="#f2ead9" opacity="0.55"/>
+
+  <!-- ============ BACKGROUND: distant hedge and neighbor roof ============ -->
+  <g transform="translate(4,3)">
+    <path d="M0,520 C40,498 96,492 140,504 C180,490 236,492 272,508 C300,498 336,502 356,516 L356,570 L0,570 Z" fill="#a8b295"/>
+    <path d="M0,560 L58,486 C62,481 68,481 72,486 L142,560 Z" fill="#a09484"/>
+    <path d="M0,560 L0,640 L142,640 L142,560 Z" fill="#cbbf9f"/>
+  </g>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4,558 C22,536 40,514 60,490 C64,485 68,485 72,490 C94,514 116,536 138,558" stroke-width="2.9" opacity="0.85"/>
+    <path d="M6,522 C28,508 56,500 84,502 M170,510 C198,498 232,498 258,508 M292,514 C312,508 336,512 350,522" stroke-width="2.5" opacity="0.6"/>
+  </g>
+
+  <!-- ============ oak canopy overhead ============ -->
+  <g transform="translate(5,-4)">
+    <path d="M250,420 C232,376 258,330 306,318 C316,290 352,274 388,282 C408,262 446,258 474,274 C498,262 532,268 548,288 C580,282 612,296 624,322 C648,330 662,354 656,380 L656,540 C636,556 604,558 582,544 C560,566 518,570 492,550 C462,572 416,570 392,546 C358,562 316,554 296,528 C268,530 246,512 242,486 C238,462 242,438 250,420 Z" fill="#7f9070"/>
+    <path d="M340,392 C332,362 354,334 388,330 C412,328 434,342 440,364 C466,360 488,378 488,402 C488,428 464,446 438,442 C428,458 402,464 382,454 C356,466 330,448 330,422 C330,410 334,400 340,392 Z" fill="#6c7d5f"/>
+    <path d="M508,398 C504,376 520,356 544,354 C566,352 584,366 588,386 C592,410 574,428 550,428 C528,428 510,416 508,398 Z" fill="#6c7d5f"/>
+  </g>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- canopy scribble edges (kept below y=300) -->
+    <path d="M282,428 C296,412 318,404 340,408 C336,388 350,370 372,366 C390,362 408,370 414,384" stroke-width="2.8" opacity="0.85"/>
+    <path d="M446,376 C460,362 482,358 500,366 C506,350 524,342 542,346" stroke-width="2.6" opacity="0.8"/>
+    <path d="M560,388 C576,380 596,384 606,398 C622,398 636,410 638,426" stroke-width="2.6" opacity="0.75"/>
+    <path d="M300,486 C318,474 342,472 360,482 C374,470 396,468 410,478 M452,496 C470,484 494,482 510,492 C524,482 544,482 556,492" stroke-width="2.6" opacity="0.8"/>
+    <path d="M262,452 C258,468 260,486 268,500 M636,458 C640,474 638,492 632,506" stroke-width="2.5" opacity="0.7"/>
+    <!-- leaf cluster squiggles -->
+    <path d="M330,520 C336,530 334,542 326,550 M394,528 C400,538 398,550 390,558 M470,534 C476,544 474,556 466,564 M540,524 C546,534 544,546 536,554" stroke-width="2.5" opacity="0.7"/>
+    <!-- branches reaching from right -->
+    <path d="M604,560 C588,528 562,506 530,494 C506,485 482,482 458,484" stroke-width="4.2"/>
+    <path d="M530,494 C516,470 494,454 468,448 M458,484 C432,486 406,494 384,508" stroke-width="3.3"/>
+    <path d="M384,508 C366,520 352,536 344,556" stroke-width="2.9"/>
+  </g>
+
+  <!-- ============ MIDGROUND: shingled house ============ -->
+  <g transform="translate(5,4)">
+    <!-- house roof -->
+    <path d="M286,566 L430,458 C436,454 444,454 450,458 L620,566 Z" fill="#8b7c6a"/>
+    <!-- chimney -->
+    <rect x="530" y="470" width="34" height="70" fill="#b56a4c"/>
+    <!-- house wall -->
+    <rect x="300" y="566" width="306" height="270" fill="#b3a48c"/>
+    <!-- windows -->
+    <rect x="330" y="612" width="58" height="82" fill="#f0e6cc"/>
+    <rect x="338" y="620" width="42" height="66" fill="#7b7264"/>
+    <rect x="516" y="612" width="58" height="82" fill="#f0e6cc"/>
+    <rect x="524" y="620" width="42" height="66" fill="#7b7264"/>
+    <!-- door + porch -->
+    <rect x="426" y="668" width="62" height="168" fill="#6e8064"/>
+    <rect x="414" y="826" width="88" height="14" fill="#cbbf9f"/>
+  </g>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- roof ink -->
+    <path d="M290,564 C328,536 366,508 404,480 C416,471 428,462 438,458 C444,456 450,456 456,460 C482,477 508,494 534,511" stroke-width="3.8"/>
+    <path d="M552,522 C574,536 596,550 618,564" stroke-width="3.4"/>
+    <path d="M280,566 C336,564 394,566 452,565 C506,564 560,566 626,565" stroke-width="4.3"/>
+    <!-- shingle rows on roof -->
+    <path d="M340,540 C376,514 412,488 448,478 C482,494 516,516 550,538 M376,556 C408,532 440,508 452,502 C486,520 518,540 552,558" stroke-width="2.5" opacity="0.55"/>
+    <!-- chimney -->
+    <path d="M534,540 L534,474 C534,472 536,470 538,470 L562,470 C564,470 566,472 566,474 L566,494" stroke-width="2.9"/>
+    <path d="M530,470 L570,469" stroke-width="3.2"/>
+    <!-- wall sides -->
+    <path d="M304,568 C303,614 304,660 303,706 C302,752 303,798 303,836" stroke-width="3.2"/>
+    <path d="M608,568 C609,616 608,664 609,712 C610,754 609,796 610,834" stroke-width="3"/>
+    <!-- shingle course dashes on wall -->
+    <path d="M312,600 L326,599 M394,602 L410,601 M498,600 L512,601 M582,602 L598,601 M312,650 L328,649 M396,652 L412,651 M582,650 L598,651 M312,706 L328,705 M498,708 L514,707 M582,706 L598,707 M312,760 L328,759 M396,762 L412,761 M498,760 L514,761 M582,762 L598,761 M340,790 L356,789 M540,792 L556,791" stroke-width="2.5" opacity="0.5"/>
+    <!-- windows ink -->
+    <path d="M334,614 L392,613 L393,696 L334,697 Z" stroke-width="3"/>
+    <path d="M363,616 L363,694 M336,655 L391,654" stroke-width="2.5"/>
+    <path d="M520,614 L578,613 L579,696 L520,697 Z" stroke-width="3"/>
+    <path d="M549,616 L549,694 M522,655 L577,654" stroke-width="2.5"/>
+    <!-- door ink -->
+    <path d="M430,838 L430,674 C430,672 432,670 434,670 L488,670 C490,670 492,672 492,674 L492,836" stroke-width="3.3"/>
+    <circle cx="482" cy="758" r="2.6" stroke-width="2.5"/>
+    <path d="M416,842 C444,840 472,842 500,841" stroke-width="3.1"/>
+  </g>
+
+  <!-- ============ the HP garage ============ -->
+  <g transform="translate(-4,4)">
+    <!-- garage roof -->
+    <path d="M74,640 L192,548 C196,545 202,545 206,548 L324,640 Z" fill="#8b7c6a"/>
+    <!-- garage wall -->
+    <rect x="94" y="640" width="210" height="200" fill="#e9dfc8"/>
+    <!-- twin green doors -->
+    <rect x="112" y="660" width="84" height="176" fill="#6e8064"/>
+    <rect x="202" y="660" width="84" height="176" fill="#6e8064"/>
+    <!-- gable vent -->
+    <path d="M186,596 L212,596 L199,576 Z" fill="#7b7264"/>
+  </g>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- garage roof ink -->
+    <path d="M66,646 C98,621 130,596 162,572 C174,563 186,554 194,550 C199,548 204,548 209,551 C224,562 239,573 254,584" stroke-width="3.9"/>
+    <path d="M268,594 C286,608 304,622 322,636" stroke-width="3.4"/>
+    <path d="M62,644 C102,642 144,644 186,643 C230,642 274,644 328,643" stroke-width="4.5"/>
+    <!-- roof shingle dashes -->
+    <path d="M116,618 C142,596 168,576 194,562 C220,578 246,598 272,618 M148,634 C166,618 184,602 196,594 C216,608 236,624 256,638" stroke-width="2.5" opacity="0.55"/>
+    <!-- garage walls -->
+    <path d="M92,646 C91,690 92,734 91,778 C90,800 91,822 91,842" stroke-width="3.3"/>
+    <path d="M300,646 C301,692 300,738 301,784 C302,804 301,824 302,842" stroke-width="3.1"/>
+    <!-- doors ink -->
+    <path d="M110,842 L110,662 C110,660 112,658 114,658 L190,658 C192,658 194,660 194,662 L194,840" stroke-width="3.4"/>
+    <path d="M200,840 L200,662 C200,660 202,658 204,658 L280,658 C282,658 284,660 284,662 L284,842" stroke-width="3.4"/>
+    <!-- door plank lines -->
+    <path d="M131,662 C130,720 131,778 130,836 M152,660 C153,718 152,776 153,834 M173,662 C172,720 173,778 172,836" stroke-width="2.5" opacity="0.7"/>
+    <path d="M221,662 C220,720 221,778 220,836 M242,660 C243,718 242,776 243,834 M263,662 C262,720 263,778 262,836" stroke-width="2.5" opacity="0.7"/>
+    <!-- hinges + handles -->
+    <path d="M112,700 L124,700 M112,790 L124,790 M282,700 L270,700 M282,790 L270,790" stroke-width="3"/>
+    <circle cx="188" cy="756" r="2.4" stroke-width="2.5"/>
+    <circle cx="206" cy="756" r="2.4" stroke-width="2.5"/>
+    <!-- gable vent -->
+    <path d="M182,600 L216,600 L199,574 Z" stroke-width="2.7"/>
+    <!-- shadow hatch under eave -->
+    <path d="M100,656 L112,648 M126,656 L138,648 M152,656 L164,648 M232,656 L244,648 M258,656 L270,648" stroke-width="2.5" opacity="0.45"/>
+  </g>
+
+  <!-- ============ oak trunk on right ============ -->
+  <g transform="translate(5,4)">
+    <path d="M574,900 C580,830 572,760 584,690 C590,650 586,600 594,560 L632,556 C628,600 634,652 628,694 C620,764 630,832 624,902 C646,908 660,918 662,930 L560,932 C560,918 566,906 574,900 Z" fill="#9c7b5c"/>
+  </g>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M578,902 C584,834 576,764 588,696 C594,654 590,602 598,560" stroke-width="4.8"/>
+    <path d="M634,558 C630,602 636,654 630,698 C622,766 632,834 628,900" stroke-width="4.4"/>
+    <path d="M600,620 C606,660 600,700 606,740 M616,780 C612,820 618,860 614,896" stroke-width="2.6" opacity="0.6"/>
+    <path d="M566,910 C560,918 556,926 556,934 M636,906 C644,914 650,924 652,934" stroke-width="3.6"/>
+  </g>
+
+  <!-- ============ lawn ============ -->
+  <g transform="translate(4,4)">
+    <path d="M0,846 C80,838 160,844 240,840 C320,836 400,842 480,838 C560,834 610,840 640,838 L640,1136 L0,1136 Z" fill="#aab585"/>
+    <path d="M230,850 C270,846 310,850 350,848 L410,1136 L180,1136 Z" fill="#d3bd8c"/>
+  </g>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2,848 C58,843 116,846 174,844 C230,842 286,845 342,843" stroke-width="3.1" opacity="0.85"/>
+    <path d="M368,844 C428,841 488,844 548,842 C578,841 610,843 638,842" stroke-width="2.9" opacity="0.85"/>
+    <path d="M236,856 C226,948 214,1040 202,1130 M348,854 C362,948 376,1040 392,1132" stroke-width="2.8" opacity="0.7"/>
+    <path d="M258,940 L332,936 M244,1030 L352,1026" stroke-width="2.5" opacity="0.4"/>
+  </g>
+
+  <!-- ============ FOREGROUND: picket fence ============ -->
+  <g transform="translate(-4,5)">
+    <path d="M0,912 L640,904 L640,922 L0,930 Z" fill="#efe6cf"/>
+    <path d="M0,996 L640,988 L640,1006 L0,1014 Z" fill="#efe6cf"/>
+    <path d="M22,1060 L20,890 L36,872 L52,888 L54,1058 Z" fill="#efe6cf"/>
+    <path d="M100,1056 L100,886 L116,868 L132,884 L132,1054 Z" fill="#efe6cf"/>
+    <path d="M180,1054 L178,884 L194,866 L210,882 L212,1052 Z" fill="#efe6cf"/>
+    <path d="M258,1052 L258,882 L274,864 L290,880 L290,1050 Z" fill="#efe6cf"/>
+    <path d="M336,1050 L334,880 L350,862 L366,878 L368,1048 Z" fill="#efe6cf"/>
+    <path d="M414,1050 L414,878 L430,860 L446,876 L446,1048 Z" fill="#efe6cf"/>
+    <path d="M492,1048 L490,876 L506,858 L522,874 L524,1046 Z" fill="#efe6cf"/>
+    <path d="M570,1046 L570,874 L586,856 L602,872 L602,1044 Z" fill="#efe6cf"/>
+  </g>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- rails -->
+    <path d="M2,916 C60,913 120,915 180,913 C240,911 300,913 358,911" stroke-width="3.2"/>
+    <path d="M382,910 C444,908 506,910 568,908 C592,907 616,908 638,907" stroke-width="3"/>
+    <path d="M2,1000 C64,997 128,999 192,997 C254,995 316,997 378,995" stroke-width="3.2"/>
+    <path d="M402,994 C462,992 522,994 582,992 C602,991 622,992 638,991" stroke-width="3"/>
+    <!-- pickets -->
+    <path d="M20,1064 L18,894 C18,892 24,882 32,875 C34,873 36,873 38,875 C44,882 50,890 50,892 L50,1062" stroke-width="3.1"/>
+    <path d="M98,1060 L98,890 C98,888 104,878 112,871 C114,869 116,869 118,871 C124,878 130,886 130,888 L128,1058" stroke-width="3.3"/>
+    <path d="M178,1058 L176,888 C176,886 182,876 190,869 C192,867 194,867 196,869 C202,876 208,884 208,886 L208,1056" stroke-width="3"/>
+    <path d="M256,1056 L256,886 C256,884 262,874 270,867 C272,865 274,865 276,867 C282,874 288,882 288,884 L286,1054" stroke-width="3.4"/>
+    <path d="M334,1054 L332,884 C332,882 338,872 346,865 C348,863 350,863 352,865 C358,872 364,880 364,882 L364,1052" stroke-width="3.1"/>
+    <path d="M412,1054 L412,882 C412,880 418,870 426,863 C428,861 430,861 432,863 C438,870 444,878 444,880 L442,1052" stroke-width="3.2"/>
+    <path d="M490,1052 L488,880 C488,878 494,868 502,861 C504,859 506,859 508,861 C514,868 520,876 520,878 L520,1050" stroke-width="3"/>
+    <path d="M568,1050 L568,878 C568,876 574,866 582,859 C584,857 586,857 588,859 C594,866 600,874 600,876 L598,1048" stroke-width="3.3"/>
+    <!-- grass tufts at picket bases -->
+    <path d="M60,1066 C64,1056 66,1046 64,1036 M74,1068 C76,1058 80,1050 86,1044 M148,1062 C152,1052 154,1042 152,1032 M240,1060 C244,1050 246,1040 244,1030 M310,1058 C314,1048 318,1040 324,1034 M388,1058 C392,1048 394,1038 392,1028 M462,1056 C466,1046 470,1038 476,1032 M544,1054 C548,1044 550,1034 548,1024 M616,1050 C620,1040 624,1032 630,1026" stroke-width="2.5" opacity="0.65"/>
+    <!-- fence shadow hatch -->
+    <path d="M30,1084 L92,1078 M110,1082 L170,1076 M270,1078 L330,1072 M424,1074 L484,1068 M578,1070 L634,1066" stroke-width="2.6" opacity="0.4"/>
+  </g>
+
+  <!-- flowers along the fence -->
+  <g>
+    <circle cx="76" cy="1044" r="6" fill="#c26b4a"/>
+    <circle cx="156" cy="1038" r="5" fill="#d9b36a"/>
+    <circle cx="322" cy="1040" r="6" fill="#c26b4a"/>
+    <circle cx="472" cy="1036" r="5" fill="#d9b36a"/>
+    <circle cx="628" cy="1030" r="6" fill="#c26b4a"/>
+    <circle cx="230" cy="1044" r="4.5" fill="#d9b36a"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="212" cy="1096" r="1.6" opacity="0.55"/>
+    <circle cx="446" cy="1104" r="1.4" opacity="0.5"/>
+    <circle cx="342" cy="1004" r="1.3" opacity="0.5"/>
+    <circle cx="540" cy="948" r="1.5" opacity="0.5"/>
+    <circle cx="96" cy="960" r="1.2" opacity="0.45"/>
+    <circle cx="376" cy="620" r="1.3" opacity="0.45"/>
+    <circle cx="252" cy="700" r="1.2" opacity="0.4"/>
+  </g>
+</svg>

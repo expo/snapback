@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a7bfcb"/>
+      <stop offset="0.55" stop-color="#c6d1cd"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+    <linearGradient id="fg1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d9c9a0"/>
+      <stop offset="1" stop-color="#c8ad7e"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect width="640" height="520" fill="url(#sky1)"/>
+
+  <!-- calm clouds -->
+  <path d="M58,148 C88,136 140,134 178,142 C210,148 238,160 224,171 C196,182 128,184 90,176 C62,170 40,158 58,148 Z" fill="#f5efe1" opacity="0.7"/>
+  <path d="M398,206 C428,194 490,192 530,200 C560,206 584,218 566,229 C534,240 460,240 422,232 C396,226 380,216 398,206 Z" fill="#f5efe1" opacity="0.55"/>
+  <path d="M248,94 C268,86 310,84 336,90 C356,95 368,105 354,112 C330,120 280,120 256,113 C238,107 232,101 248,94 Z" fill="#f5efe1" opacity="0.5"/>
+
+  <!-- far ridge, off-register wash -->
+  <path transform="translate(5,4)" d="M-10,468 C70,448 158,436 246,444 C328,451 418,434 498,428 C556,424 606,434 650,446 L650,560 L-10,560 Z" fill="#b0b7a3" opacity="0.85"/>
+  <path d="M-8,470 C30,461 68,453 110,447 C152,442 196,441 240,445 M258,447 C300,451 350,445 398,437 C440,431 486,429 528,433 C568,437 608,443 648,453" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- fog band at ridge base -->
+  <path d="M0,486 C90,476 190,482 290,478 C390,474 490,480 570,476 C600,474 640,478 640,478 L640,532 L0,532 Z" fill="#f5efe1" opacity="0.6"/>
+
+  <!-- Sign Hill: gouache wash off-register from ink -->
+  <path transform="translate(-5,4)" d="M-12,772 C40,754 92,722 142,684 C192,646 240,592 284,540 C310,509 334,484 360,472 C386,461 412,470 438,494 C472,526 506,568 540,614 C574,660 610,706 652,742 L652,910 L-12,910 Z" fill="#9fae86"/>
+  <path d="M-8,766 C20,758 48,746 76,728 C104,710 130,688 156,662 C180,638 205,610 228,582 C251,554 274,526 296,504" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M312,492 C330,478 352,468 374,472 C398,477 420,496 444,520 C469,546 494,576 519,608 C545,641 572,674 600,704 C616,721 632,736 650,748" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- shaded flank -->
+  <path transform="translate(4,2)" d="M398,522 C438,550 478,596 514,644 C542,680 572,714 602,742 L556,758 C518,726 480,680 448,632 C422,594 402,558 390,534 Z" fill="#7f8f68" opacity="0.45"/>
+
+  <!-- grass hatching -->
+  <path d="M118,700 l26,-14 M148,712 l26,-13 M178,722 l24,-13 M108,732 l24,-12 M212,676 l22,-14 M242,650 l22,-14 M196,706 l22,-12 M262,616 l20,-14 M300,586 l20,-13 M470,610 l-22,-15 M500,644 l-22,-14 M528,676 l-22,-13 M486,690 l-22,-13 M552,712 l-22,-13 M334,556 l18,-12 M368,540 l16,-10 M410,556 l-18,-13 M440,584 l-19,-13" fill="none" stroke="#5f6f4e" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- hillside sign: abstract white marks (no readable letters) -->
+  <g fill="#f8f3e6">
+    <path d="M168,550 l3,-25 l11,2 l-4,25 z"/>
+    <path d="M191,545 l4,-23 l10,2 l-4,23 z"/>
+    <path d="M214,540 l2,-26 l12,3 l-3,25 z"/>
+    <path d="M237,535 l5,-21 l9,3 l-4,20 z"/>
+    <path d="M261,531 l3,-26 l11,2 l-4,26 z"/>
+    <path d="M285,527 l3,-22 l10,2 l-3,22 z"/>
+    <path d="M309,525 l4,-26 l11,3 l-5,25 z"/>
+    <path d="M333,525 l2,-23 l11,2 l-3,23 z"/>
+    <path d="M357,527 l4,-26 l10,2 l-4,26 z"/>
+    <path d="M381,530 l3,-22 l10,3 l-3,21 z"/>
+    <path d="M405,534 l4,-26 l11,2 l-5,26 z"/>
+    <path d="M429,539 l3,-22 l10,2 l-3,22 z"/>
+    <path d="M452,545 l3,-25 l11,3 l-4,24 z"/>
+    <path d="M200,594 l3,-20 l10,2 l-4,20 z"/>
+    <path d="M230,590 l4,-19 l9,2 l-4,19 z"/>
+    <path d="M258,587 l2,-21 l10,3 l-3,20 z"/>
+    <path d="M288,585 l4,-19 l9,2 l-4,19 z"/>
+    <path d="M318,584 l2,-21 l10,2 l-3,21 z"/>
+    <path d="M348,585 l4,-19 l9,2 l-4,19 z"/>
+    <path d="M378,587 l3,-21 l10,3 l-4,20 z"/>
+    <path d="M408,590 l3,-19 l9,2 l-3,19 z"/>
+    <path d="M436,593 l3,-20 l10,2 l-4,20 z"/>
+    <path d="M128,562 l3,-16 l8,2 l-3,16 z"/>
+    <path d="M146,558 l2,-16 l9,2 l-3,16 z"/>
+  </g>
+  <path d="M168,556 C220,545 272,536 320,532 M336,532 C380,533 420,540 456,550 M204,600 C260,591 320,588 372,591 M388,592 C408,594 424,596 440,598" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- scrub trees on the hill -->
+  <path transform="translate(3,2)" d="M84,678 C78,662 90,650 104,654 C118,646 134,654 132,670 C144,676 138,692 122,694 C106,702 86,694 84,678 Z" fill="#5f6f4e"/>
+  <path d="M104,694 C105,704 103,712 104,720" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path transform="translate(-3,3)" d="M548,700 C542,684 554,672 568,676 C582,668 598,676 596,692 C608,698 602,714 586,716 C570,724 550,716 548,700 Z" fill="#5f6f4e"/>
+  <path d="M570,716 C571,726 569,734 570,742" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path transform="translate(4,2)" d="M28,724 C22,710 32,700 44,703 C56,696 70,703 68,717 C78,722 72,736 58,738 C44,744 30,738 28,724 Z" fill="#5f6f4e"/>
+
+  <!-- houses at the base: off-register body washes -->
+  <g transform="translate(4,3)">
+    <path d="M24,792 L108,792 L108,880 L24,880 Z" fill="#c1694b"/>
+    <path d="M118,800 L198,800 L198,880 L118,880 Z" fill="#efe6cf"/>
+    <path d="M208,788 L296,788 L296,880 L208,880 Z" fill="#cfa860"/>
+    <path d="M306,800 L390,800 L390,880 L306,880 Z" fill="#9db4c0"/>
+    <path d="M400,790 L492,790 L492,880 L400,880 Z" fill="#efe6cf"/>
+    <path d="M502,802 L618,802 L618,880 L502,880 Z" fill="#c1694b"/>
+  </g>
+  <g transform="translate(-3,3)">
+    <path d="M18,796 L66,752 L114,796 Z" fill="#b9b3a4"/>
+    <path d="M112,804 L158,762 L204,804 Z" fill="#b06045"/>
+    <path d="M202,792 L252,746 L302,792 Z" fill="#b9b3a4"/>
+    <path d="M300,804 L348,760 L396,804 Z" fill="#b9b3a4"/>
+    <path d="M394,794 L446,748 L498,794 Z" fill="#b06045"/>
+    <path d="M496,806 L560,756 L624,806 Z" fill="#b9b3a4"/>
+  </g>
+
+  <!-- house ink: roofs -->
+  <g fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round">
+    <path d="M14,798 C32,781 49,765 66,751 C83,765 100,781 118,797"/>
+    <path d="M108,806 C125,791 141,776 158,762 C175,776 191,791 208,805"/>
+    <path d="M198,794 C216,778 234,762 252,746 C270,762 288,778 306,793"/>
+    <path d="M296,806 C314,790 331,775 348,760 C365,775 382,790 400,805"/>
+    <path d="M390,796 C409,780 427,764 446,748 C465,764 483,780 502,795"/>
+    <path d="M492,808 C515,791 537,774 560,756 C583,774 605,791 628,807"/>
+  </g>
+  <!-- house ink: walls with pen lifts -->
+  <g fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round">
+    <path d="M25,794 C24,822 26,852 25,879 M26,880 C52,878 80,882 107,880 M108,878 C107,850 109,820 108,794"/>
+    <path d="M119,802 C118,828 120,856 119,879 M120,880 C146,879 172,881 197,879 M198,878 C197,852 199,826 198,802"/>
+    <path d="M209,790 C208,820 210,852 209,879 M210,880 C238,878 268,882 295,880 M296,878 C295,848 297,818 296,790"/>
+    <path d="M307,802 C306,828 308,856 307,879 M308,880 C335,879 362,881 389,879 M390,878 C389,852 391,826 390,802"/>
+    <path d="M401,792 C400,822 402,852 401,879 M402,880 C432,878 462,882 491,880 M492,878 C491,848 493,818 492,792"/>
+    <path d="M503,804 C502,830 504,858 503,879 M504,880 C542,878 580,882 617,880 M618,878 C617,852 619,826 618,804"/>
+  </g>
+  <!-- chimneys -->
+  <path d="M138,776 C138,768 137,760 138,752 L152,752 C152,760 153,768 152,776" fill="#c1694b" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M470,764 C470,756 469,748 470,740 L484,740 C484,748 485,756 484,764" fill="#c1694b" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- roof hatch -->
+  <path d="M34,790 l16,-16 M50,792 l18,-18 M70,790 l14,-14 M222,786 l17,-17 M244,786 l15,-15 M264,786 l14,-14 M320,798 l15,-15 M342,798 l14,-14 M362,798 l13,-13 M520,800 l17,-17 M546,800 l16,-16 M574,800 l15,-15 M598,802 l12,-12" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- windows + doors: fills off-register, then ink -->
+  <g transform="translate(3,2)" fill="#9db4c0">
+    <path d="M40,808 h18 v18 h-18 z"/><path d="M76,808 h18 v18 h-18 z"/>
+    <path d="M130,814 h18 v18 h-18 z"/><path d="M162,814 h18 v18 h-18 z"/>
+    <path d="M222,802 h18 v18 h-18 z"/><path d="M262,802 h18 v18 h-18 z"/>
+    <path d="M318,814 h18 v18 h-18 z"/><path d="M356,814 h18 v18 h-18 z"/>
+    <path d="M414,804 h18 v18 h-18 z"/><path d="M456,804 h18 v18 h-18 z"/>
+    <path d="M518,816 h18 v18 h-18 z"/><path d="M578,816 h18 v18 h-18 z"/>
+  </g>
+  <g transform="translate(2,3)" fill="#8a6a44">
+    <path d="M56,842 h20 v38 h-20 z"/><path d="M140,846 h18 v34 h-18 z"/>
+    <path d="M240,840 h20 v40 h-20 z"/><path d="M336,846 h18 v34 h-18 z"/>
+    <path d="M434,842 h20 v38 h-20 z"/><path d="M548,844 h22 v36 h-22 z"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round">
+    <path d="M40,807 l19,1 l-1,18 l-18,1 z M76,809 l18,-1 l1,18 l-19,1 z"/>
+    <path d="M130,813 l19,1 l-1,18 l-18,1 z M162,815 l18,-1 l1,18 l-19,1 z"/>
+    <path d="M222,801 l19,1 l-1,18 l-18,1 z M262,803 l18,-1 l1,18 l-19,1 z"/>
+    <path d="M318,813 l19,1 l-1,18 l-18,1 z M356,815 l18,-1 l1,18 l-19,1 z"/>
+    <path d="M414,803 l19,1 l-1,18 l-18,1 z M456,805 l18,-1 l1,18 l-19,1 z"/>
+    <path d="M518,815 l19,1 l-1,18 l-18,1 z M578,817 l18,-1 l1,18 l-19,1 z"/>
+    <path d="M56,842 l1,38 M56,841 l21,1 l-1,39 M140,846 l1,34 l18,-1 l-1,-33 l-17,0"/>
+    <path d="M240,840 l1,40 M241,839 l20,1 l-1,40 M336,846 l1,34 l18,-1 l-1,-33"/>
+    <path d="M434,842 l1,38 M435,841 l20,1 l-1,39 M548,844 l1,36 l22,-1 l-1,-35 l-21,0"/>
+  </g>
+
+  <!-- street -->
+  <path transform="translate(0,3)" d="M-10,882 L650,882 L650,938 L-10,938 Z" fill="#b9b3a4"/>
+  <path d="M-8,882 C80,879 170,884 260,881 C350,878 440,883 530,880 M548,881 C580,880 616,882 648,881" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M-8,936 C90,933 190,938 290,935 C390,932 490,937 590,934 C610,933 630,935 648,934" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <path d="M60,910 l34,-2 M140,908 l30,2 M250,910 l32,-2 M370,908 l30,2 M480,910 l34,-2 M572,908 l28,2" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- foreground wash -->
+  <rect y="938" width="640" height="198" fill="url(#fg1)"/>
+  <path d="M-8,940 C100,937 210,942 320,939 C430,936 540,941 648,938" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <path d="M70,1000 l30,-12 M96,1012 l30,-12 M120,1024 l28,-11 M420,1010 l32,-13 M450,1024 l30,-12 M478,1038 l28,-11 M220,1060 l30,-12 M250,1074 l28,-11 M540,1080 l30,-12 M566,1094 l28,-11 M120,1096 l28,-11 M148,1108 l26,-10" fill="none" stroke="#a3854e" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M310,980 l26,-10 M338,992 l24,-9 M60,1064 l26,-10" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.25"/>
+
+  <!-- corner bushes -->
+  <path transform="translate(-4,3)" d="M-10,1060 C6,1040 40,1034 66,1046 C92,1040 116,1054 114,1078 C126,1096 110,1116 86,1118 C60,1130 20,1126 -10,1112 Z" fill="#7f8f68"/>
+  <path d="M0,1062 C16,1048 40,1042 62,1050 M76,1054 C94,1058 106,1070 106,1084" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path transform="translate(5,2)" d="M650,1044 C630,1028 596,1024 572,1036 C548,1032 528,1048 532,1070 C522,1090 540,1108 564,1108 C592,1120 630,1114 650,1100 Z" fill="#7f8f68"/>
+  <path d="M640,1048 C622,1038 598,1034 578,1042 M564,1048 C548,1054 538,1066 540,1080" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="86" cy="962" r="1.6"/><circle cx="204" cy="1002" r="1.3"/><circle cx="356" cy="1046" r="1.7"/>
+    <circle cx="508" cy="972" r="1.4"/><circle cx="292" cy="1102" r="1.6"/><circle cx="452" cy="1112" r="1.3"/>
+    <circle cx="170" cy="742" r="1.4"/><circle cx="470" cy="700" r="1.3"/><circle cx="606" cy="512" r="1.2"/>
+    <circle cx="52" cy="512" r="1.2"/>
+  </g>
+</svg>

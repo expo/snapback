@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8d8b8"/>
+      <stop offset="0.4" stop-color="#eeddb4"/>
+      <stop offset="0.75" stop-color="#e9c48c"/>
+      <stop offset="1" stop-color="#dfae74"/>
+    </linearGradient>
+    <linearGradient id="lot2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c4b9a4"/>
+      <stop offset="1" stop-color="#a99f8c"/>
+    </linearGradient>
+    <radialGradient id="sun2" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f7e9c2" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#f2d9a0" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#f2d9a0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- paper + golden sky -->
+  <rect x="0" y="0" width="640" height="1136" fill="#f5efe1"/>
+  <rect x="0" y="0" width="640" height="560" fill="url(#sky2)"/>
+  <rect x="0" y="552" width="640" height="584" fill="url(#lot2)"/>
+
+  <!-- low sun glow -->
+  <circle cx="168" cy="452" r="150" fill="url(#sun2)"/>
+  <circle cx="168" cy="452" r="34" fill="#f6ecca"/>
+  <path d="M140,444 C146,432 160,424 172,425 C186,426 196,436 198,449 C199,462 191,474 178,478 C165,481 150,475 143,464 C139,458 138,450 140,444" fill="none" stroke="#2f2a24" stroke-width="2.6" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- calm high haze bands (top zone stays quiet) -->
+  <path d="M40,120 C160,112 340,112 520,120 C580,123 600,128 560,131 C400,138 200,138 70,132 C24,129 14,122 40,120 Z" fill="#f5efe1" opacity="0.35"/>
+  <path d="M120,222 C260,214 420,214 560,222 C600,225 596,231 548,233 C420,238 260,238 140,233 C96,230 92,224 120,222 Z" fill="#f2e6c6" opacity="0.4"/>
+
+  <!-- Diablo Range, faint -->
+  <path d="M-10,522 C40,504 84,494 128,500 C160,482 208,474 248,486 C284,470 340,464 388,478 C424,466 484,464 528,476 C564,468 614,472 650,484 L650,560 L-10,560 Z" fill="#a9a4b0" opacity="0.45"/>
+  <path d="M-10,542 C70,528 150,522 230,526 C310,518 400,516 480,524 C540,520 600,524 650,532 L650,566 L-10,566 Z" fill="#948fa0" opacity="0.35"/>
+  <path d="M60,512 C100,502 140,498 178,502 M300,494 C340,488 384,488 420,494 M490,492 C524,488 560,490 590,496" fill="none" stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.25"/>
+
+  <!-- ===== far tilt-up building (left) ===== -->
+  <g transform="translate(4,3)"><rect x="-10" y="556" width="270" height="86" fill="#e3cba0"/></g>
+  <path d="M-8,558 C60,554 130,552 200,553 C220,553 240,554 258,556 C259,584 258,612 259,642 C170,638 80,638 -8,642" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M-8,556 C80,551 170,550 258,554" fill="none" stroke="#2f2a24" stroke-width="2.6" stroke-linecap="round" opacity="0.7"/>
+  <!-- mirrored ribbon window catching sun -->
+  <g transform="translate(-4,3)"><path d="M6,576 L250,572 L250,606 L6,610 Z" fill="#dfae74"/></g>
+  <g transform="translate(-4,3)"><path d="M6,576 L120,574 L120,608 L6,610 Z" fill="#f0d9a4"/></g>
+  <path d="M4,578 C86,575 168,573 250,573 C251,584 250,594 251,606 C168,606 86,608 4,611 C3,600 4,589 4,578 Z" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <g stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.7">
+    <path d="M52,577 C51,588 52,598 51,609"/><path d="M100,576 C101,587 100,597 101,608"/>
+    <path d="M148,575 C147,586 148,596 147,607"/><path d="M196,574 C197,585 196,595 197,606"/>
+  </g>
+  <!-- rooftop units -->
+  <path d="M40,546 C58,544 76,544 92,546 L92,558 C76,556 58,556 40,558 Z M150,542 C170,540 190,540 208,542 L208,556 C190,554 170,554 150,556 Z" fill="#b8b3a6" stroke="#2f2a24" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- ===== main tilt-up fab (right, angled) ===== -->
+  <g transform="translate(5,4)">
+    <path d="M300,548 L560,540 L648,556 L648,676 L560,668 L300,660 Z" fill="#e8d3a8"/>
+    <path d="M560,540 L648,556 L648,676 L560,668 Z" fill="#c9ab74"/>
+  </g>
+  <path d="M302,550 C388,546 474,543 558,542 C560,582 559,624 560,668 C474,666 388,664 302,662 C301,624 302,586 302,550" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M558,542 C588,547 618,552 646,558 M646,558 C647,598 646,638 647,680 M560,668 C590,672 618,676 646,680" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M304,548 C390,544 476,541 556,540" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <!-- mirrored curtain glass, golden reflections -->
+  <g transform="translate(-4,4)">
+    <path d="M318,566 L544,560 L544,646 L318,644 Z" fill="#7d94a8"/>
+    <path d="M318,566 L544,560 L544,588 L318,592 Z" fill="#e9c48c"/>
+    <path d="M340,592 L420,590 L420,644 L340,644 Z" fill="#efd6a2" opacity="0.85"/>
+  </g>
+  <path d="M320,568 C396,565 470,562 542,561 C543,589 542,617 543,647 C470,646 396,645 320,645 C319,619 320,593 320,568 Z" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <g stroke="#2f2a24" stroke-width="2.2" stroke-linecap="round" opacity="0.75">
+    <path d="M356,567 C355,594 356,620 355,646"/><path d="M394,566 C395,592 394,618 395,645"/>
+    <path d="M432,564 C431,591 432,617 431,645"/><path d="M470,563 C471,590 470,616 471,646"/>
+    <path d="M508,562 C507,589 508,616 507,646"/>
+    <path d="M320,604 C396,601 470,600 542,600"/>
+  </g>
+  <!-- reflected range in glass -->
+  <path d="M330,600 C360,592 392,590 420,594 C450,588 486,587 512,592 L512,600 C452,598 390,600 330,606 Z" fill="#948fa0" opacity="0.4"/>
+  <!-- side wall windows -->
+  <g stroke="#2f2a24" stroke-width="2.4" stroke-linecap="round" fill="#e9c48c">
+    <path d="M574,578 C586,580 598,582 608,584 L607,640 C597,638 586,637 575,635 Z" transform="translate(-2,2)"/>
+  </g>
+  <!-- roof units on fab -->
+  <path d="M330,534 C352,532 374,532 394,534 L394,548 C374,546 352,546 330,548 Z M440,530 C464,528 488,528 510,530 L510,544 C488,542 464,542 440,544 Z" fill="#b8b3a6" stroke="#2f2a24" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M416,520 C417,530 416,540 417,550 M424,518 C425,528 424,540 425,550" fill="none" stroke="#2f2a24" stroke-width="2.6" stroke-linecap="round"/>
+
+  <!-- hedge strip in front of buildings -->
+  <g transform="translate(-3,3)">
+    <path d="M-10,660 C60,650 140,648 220,652 C300,648 400,650 480,656 C540,654 600,658 650,664 L650,692 C540,684 420,682 300,684 C200,686 90,690 -10,696 Z" fill="#94a186"/>
+  </g>
+  <path d="M-8,664 C50,657 110,653 170,653 M204,653 C280,651 360,652 436,656 M470,658 C530,660 590,664 648,668" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <g stroke="#2f2a24" stroke-width="1.7" stroke-linecap="round" opacity="0.45">
+    <path d="M60,668 C66,662 74,660 80,664"/><path d="M150,664 C156,658 164,656 170,660"/>
+    <path d="M340,662 C346,656 354,654 360,658"/><path d="M520,668 C526,662 534,660 540,664"/>
+  </g>
+
+  <!-- ===== parking lot ===== -->
+  <!-- lot wash slightly warmer near horizon -->
+  <path d="M-10,692 C210,682 430,682 650,692 L650,760 C430,748 210,748 -10,760 Z" fill="#cbbfa6" opacity="0.7"/>
+  <!-- parking stripes in perspective -->
+  <g stroke="#f5efe1" stroke-width="5" stroke-linecap="round" opacity="0.9">
+    <path d="M96,742 C90,764 84,788 77,814"/>
+    <path d="M176,740 C173,764 170,788 166,814"/>
+    <path d="M256,738 C255,762 254,787 253,813"/>
+    <path d="M336,738 C338,762 340,787 342,813"/>
+    <path d="M416,740 C421,764 426,788 432,814"/>
+    <path d="M496,742 C504,765 512,790 521,815"/>
+    <path d="M60,880 C50,916 40,954 28,996"/>
+    <path d="M170,876 C165,914 160,952 154,994"/>
+    <path d="M280,874 C279,912 278,952 277,992"/>
+    <path d="M390,876 C395,914 400,952 406,994"/>
+    <path d="M500,880 C510,916 520,954 532,996"/>
+    <path d="M22,1064 C14,1088 6,1112 -4,1138"/>
+    <path d="M180,1060 C176,1086 172,1112 168,1138"/>
+    <path d="M340,1058 C341,1084 342,1110 343,1138"/>
+    <path d="M500,1062 C507,1088 514,1112 522,1138"/>
+  </g>
+  <!-- drive lane lines -->
+  <path d="M-8,846 C210,834 430,834 648,848 M-8,1030 C210,1014 430,1014 648,1032" fill="none" stroke="#2f2a24" stroke-width="2.6" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- two parked cars, blocky -->
+  <g transform="translate(3,3)"><path d="M416,752 L500,750 L506,782 L412,784 Z" fill="#7d94a8"/></g>
+  <path d="M418,754 C446,752 474,751 498,751 C501,762 504,772 505,782 C475,784 444,785 414,786 C415,775 416,764 418,754 Z" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M432,754 C436,746 444,742 456,742 C470,742 480,745 484,752" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <g transform="translate(-3,3)"><path d="M568,756 L640,754 L646,788 L564,790 Z" fill="#c26b4a"/></g>
+  <path d="M570,758 C594,756 618,755 638,755 C641,766 644,777 645,788 C619,790 592,791 566,792 C567,781 568,769 570,758 Z" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M584,758 C588,750 596,746 606,746 C618,746 626,749 630,756" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- light poles -->
+  <path d="M76,706 C77,672 76,638 77,606 C70,604 64,604 58,606 M77,606 C84,604 90,604 96,606" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="58" cy="610" r="4.5" fill="#cf9f4e"/><circle cx="96" cy="610" r="4.5" fill="#cf9f4e"/>
+  <path d="M566,712 C567,678 566,646 567,616 C560,614 554,614 548,616 M567,616 C574,614 580,614 586,616" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="548" cy="620" r="4.5" fill="#cf9f4e"/><circle cx="586" cy="620" r="4.5" fill="#cf9f4e"/>
+
+  <!-- ===== young trees in planters, long golden shadows ===== -->
+  <!-- shadows first -->
+  <g fill="#8a8272" opacity="0.5">
+    <path d="M128,872 C180,884 240,900 288,918 C296,922 292,928 280,926 C228,914 170,900 122,886 C112,882 116,872 128,872 Z"/>
+    <path d="M414,900 C470,914 532,932 580,952 C590,957 584,963 572,960 C518,946 458,930 408,914 C398,910 402,900 414,900 Z"/>
+    <path d="M92,1046 C150,1060 216,1080 268,1100 C278,1105 272,1112 260,1109 C202,1094 138,1076 86,1060 C76,1056 80,1046 92,1046 Z"/>
+  </g>
+  <!-- tree 1 -->
+  <g transform="translate(3,-3)"><circle cx="112" cy="806" r="44" fill="#94a186"/></g>
+  <g transform="translate(-3,4)"><circle cx="100" cy="812" r="30" fill="#7c8a6e" opacity="0.7"/></g>
+  <path d="M78,796 C82,776 100,762 120,764 C140,766 154,780 156,800 C158,820 146,838 126,842 C106,846 86,834 79,816 C77,810 77,802 78,796" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M114,846 C113,860 114,872 113,884 M114,860 C106,854 100,848 96,842 M113,868 C120,862 126,856 130,850" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M100,886 C110,884 120,884 128,886 L126,902 C118,904 108,904 102,902 Z" fill="#b06a4c" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M98,882 C99,858 100,836 101,816" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <!-- tree 2 -->
+  <g transform="translate(4,-3)"><circle cx="398" cy="832" r="48" fill="#94a186"/></g>
+  <g transform="translate(-4,3)"><circle cx="386" cy="840" r="32" fill="#7c8a6e" opacity="0.7"/></g>
+  <path d="M362,820 C366,798 386,784 408,786 C428,788 444,804 445,824 C446,846 432,864 410,868 C388,872 366,858 361,838 C360,832 360,826 362,820" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M402,872 C401,888 402,902 401,916 M402,888 C394,882 388,876 384,868 M401,898 C408,892 414,886 418,878" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M386,918 C398,916 410,916 420,918 L418,936 C408,938 396,938 390,936 Z" fill="#b06a4c" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M416,914 C415,886 414,860 413,838" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <!-- tree 3, foreground -->
+  <g transform="translate(4,-4)"><circle cx="80" cy="964" r="58" fill="#94a186"/></g>
+  <g transform="translate(-4,4)"><circle cx="66" cy="974" r="38" fill="#7c8a6e" opacity="0.7"/></g>
+  <path d="M36,950 C42,924 66,906 92,910 C116,914 134,934 135,958 C136,984 118,1006 92,1010 C66,1014 42,996 36,972 C34,964 34,956 36,950" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M84,1014 C83,1034 84,1052 83,1068 M84,1032 C74,1026 66,1018 60,1010 M83,1046 C92,1040 100,1032 105,1024" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M64,1070 C78,1068 94,1068 106,1070 L104,1092 C92,1094 76,1094 68,1092 Z" fill="#b06a4c" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- stake ties on young trunks -->
+  <path d="M104,864 C105,844 104,826 105,810 M392,896 C393,874 392,854 393,836" fill="none" stroke="#cf9f4e" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <!-- canopy scribble texture -->
+  <g stroke="#2f2a24" stroke-width="1.6" stroke-linecap="round" opacity="0.4" fill="none">
+    <path d="M96,788 C104,782 114,782 120,788 C126,794 124,802 116,806"/>
+    <path d="M384,814 C392,808 402,808 408,814 C414,820 412,828 404,832"/>
+    <path d="M58,944 C68,936 80,936 88,944 C96,952 94,962 84,966"/>
+    <path d="M100,976 C108,970 118,970 124,976"/>
+  </g>
+
+  <!-- foreground curb + planter island -->
+  <path d="M-8,1108 C120,1098 300,1094 470,1100 C532,1102 592,1106 648,1112" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M-10,1112 C200,1100 440,1100 650,1116 L650,1140 L-10,1140 Z" fill="#94a186" opacity="0.8"/>
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.45">
+    <path d="M60,1122 C64,1116 68,1112 72,1118"/><path d="M190,1118 C194,1112 198,1108 202,1114"/>
+    <path d="M330,1116 C334,1110 338,1106 342,1112"/><path d="M480,1120 C484,1114 488,1110 492,1116"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="238" cy="720" r="1.5"/><circle cx="560" cy="726" r="1.4"/><circle cx="316" cy="948" r="1.7"/>
+    <circle cx="460" cy="1052" r="1.8"/><circle cx="140" cy="1132" r="1.5"/><circle cx="608" cy="900" r="1.6"/>
+    <circle cx="210" cy="978" r="1.4"/>
+  </g>
+</svg>
