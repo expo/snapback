@@ -1,0 +1,42 @@
+{
+  // LLP 0049 All Aboard on Cloudflare — the gateway + coordinator deploy
+  // config for the real-demo profile. The notes proof (wrangler.jsonc) stays
+  // deployed separately as LLP 0040's pinned regression surface; this config
+  // is the LLP 0049 Phase 0 app-selector output for All Aboard.
+  // compatibility_date and the empty compatibility_flags are single-sourced
+  // from packages/snapback-harness/compat.json (LLP 0048 §Single-sourced
+  // runtime flags); scripts/cf-check-compat asserts they match.
+  "name": "snapback-all-aboard-proof",
+  "main": "src/gateway.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [],
+  // The LLP 0049 deploy-time app selector: this deploy compiles in the
+  // All Aboard bundle.
+  "alias": { "snapback-app": "./app/all-aboard.app.js" },
+  // The built Contract web bundle, served same-origin by the gateway
+  // (LLP 0049 §Realtime And Browser Surface). run_worker_first keeps every
+  // API route ahead of asset lookup deterministically; the worker falls back
+  // to env.ASSETS.fetch for everything that is not an API route. Build the
+  // bundle before deploying (deploy.sh does this).
+  "assets": {
+    "directory": "../demos/all-aboard/surfaces/contract/dist/web",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  // The destructive admin endpoints (/reset, /evict) are disabled unless a
+  // SNAPBACK_ADMIN_TOKEN secret is set (ENG-23587); deploy.sh sets it from
+  // the environment. Never commit a token value here.
+  "services": [
+    { "binding": "HANDLER", "service": "snapback-all-aboard-handler" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "COORDINATOR", "class_name": "Coordinator" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["Coordinator"]
+    }
+  ]
+}

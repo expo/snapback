@@ -13,5 +13,7 @@ import '../../packages/snapback-harness/workerd/strip.mjs';
 import '../../packages/snapback-harness/workerd/rejection-ledger.mjs';
 import '../../packages/snapback-harness/allowlist-install.js';
 import '../../packages/snapback-harness/ctx-bootstrap.js';
-import '../app/notes.app.js';
+// The deploy-time app selector (LLP 0049 Phase 0): resolved by the build's
+// 'snapback-app' alias to the same bundle the coordinator compiled in.
+import 'snapback-app';
 export { default } from '../../packages/snapback-harness/workerd/handler-server.mjs';

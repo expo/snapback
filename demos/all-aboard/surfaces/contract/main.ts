@@ -42,6 +42,15 @@ function snapbackBaseUrl(): string {
   // Prefer the direct API origin (live WebSocket + HTTP under loopback CORS;
   // the bun-vite proxy cannot complete WebSocket upgrades — see
   // vite.config.ts). Fall back to the /snapback proxy path when absent.
+  //
+  // 'same-origin' is the LLP 0049 deployment hook (§Realtime And Browser
+  // Surface): the Cloudflare gateway serves this bundle itself and the
+  // generated bindings address the page's own origin — an empty base makes
+  // every kit path relative, and the kit resolves its WebSocket URL against
+  // the page origin. Build with SNAPBACK_ALL_ABOARD_API=same-origin.
+  if (__SNAPBACK_API_ORIGIN__ === 'same-origin') {
+    return '';
+  }
   if (typeof __SNAPBACK_API_ORIGIN__ === 'string' && __SNAPBACK_API_ORIGIN__.length > 0) {
     return __SNAPBACK_API_ORIGIN__;
   }

@@ -33,7 +33,13 @@
 
 import { HostContext, physicalTableName } from './host-ops.js';
 import { parseHandlerEnvelope } from '../../packages/snapback-harness/envelope.mjs';
-import { bundleHash, schema, functions } from '../app/notes.app.js';
+// The deploy-time app selector (LLP 0049 Phase 0): 'snapback-app' is an
+// aliased module specifier — wrangler config `alias` (and the Miniflare
+// harness's esbuild alias) resolve it to exactly one checked-in app bundle
+// (../app/notes.app.js or ../app/all-aboard.app.js) at build time. The
+// Workers runtime forbids dynamic evaluation, so selection is a build fact,
+// never a runtime flag.
+import { appMeta, bundleHash, schema, functions, seed as appSeed } from 'snapback-app';
 
 const APP_SCHEMA_HASH = schema.schemaHash;
 const APP_BUNDLE_HASH = bundleHash;
@@ -99,6 +105,17 @@ export class Coordinator {
        )`
     );
     this.migrateSubscriptionsSchema();
+    // Connection grants for the kit wire protocol (ENG-23442 shape): ids are
+    // server-granted capabilities paired with a bearer token. Durable, so a
+    // grant survives eviction/hibernation exactly like the subscriptions
+    // that reference it.
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_connections (
+         connection_id TEXT PRIMARY KEY,
+         token TEXT NOT NULL,
+         opened_at_ms INTEGER NOT NULL
+       )`
+    );
     for (const table of schema.tables) {
       this.sql.exec(
         `CREATE TABLE IF NOT EXISTS ${this.physicalTable(table.name)} (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)`
@@ -263,6 +280,63 @@ export class Coordinator {
     }
     if (path === '/live/stream') {
       return this.acceptLiveSocket(request);
+    }
+    // --- kit wire protocol (LLP 0049 Phase 0) -----------------------------
+    // The generated Contract surface speaks the local server's protocol
+    // through demos/_kit/client.mjs; these routes are that protocol's
+    // Cloudflare projection, so the browser surface runs on generated
+    // bindings with no hand-written data path (§Realtime And Browser
+    // Surface). Proof-protocol routes above stay untouched — they are
+    // LLP 0040's pinned regression surface.
+    {
+      const kitQuery = path.match(/^\/query\/([A-Za-z0-9_-]+)$/);
+      if (kitQuery) {
+        const payload = await request.json();
+        return this.runExclusive(() => this.kitQuery(kitQuery[1], payload));
+      }
+      const kitMutation = path.match(/^\/mutation\/([A-Za-z0-9_-]+)$/);
+      if (kitMutation) {
+        const payload = await request.json();
+        return this.runExclusive(() => this.kitMutation(kitMutation[1], payload));
+      }
+      if (path === '/connection/open') {
+        const payload = await request.json();
+        return this.runExclusive(() => this.kitOpenConnection(payload));
+      }
+      if (path === '/app/ensure') {
+        const payload = await request.json();
+        return this.runExclusive(() => this.kitEnsureApp(payload));
+      }
+      const kitSubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/subscribe$/);
+      if (kitSubscribe) {
+        const payload = await request.json();
+        const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
+        if (denied) return denied;
+        return this.runExclusive(() => this.kitSubscribe(kitSubscribe[1], payload));
+      }
+      const kitUnsubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/unsubscribe$/);
+      if (kitUnsubscribe) {
+        const payload = await request.json();
+        const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
+        if (denied) return denied;
+        return this.runExclusive(() => this.kitUnsubscribe(payload));
+      }
+      const kitStream = path.match(/^\/live\/([A-Za-z0-9_.-]+)\/stream$/);
+      if (kitStream) {
+        return this.acceptKitSocket(request, decodeURIComponent(kitStream[1]), url);
+      }
+      const kitOutbox = path.match(/^\/outbox\/([A-Za-z0-9_.-]+)$/);
+      if (kitOutbox) {
+        const denied = this.verifyConnection(
+          decodeURIComponent(kitOutbox[1]),
+          request.headers.get('x-snapback-connection-token')
+        );
+        if (denied) return denied;
+        // No durable outbox on this target: socket loss recovers through the
+        // kit's fresh snapshot-with-subscribe, and the HTTP poll fallback
+        // drains empty. Declared in the capability manifest, not silent.
+        return json(200, []);
+      }
     }
     if (path === '/evict') {
       // CI surrogate for real eviction (LLP 0040 §Acceptance): discard all
@@ -540,6 +614,227 @@ export class Coordinator {
     );
   }
 
+  // --- kit wire protocol handlers (LLP 0049 Phase 0) ----------------------
+
+  // Fail-closed connection-token gate for connection-scoped kit operations.
+  // Returns a diagnostic Response when denied, null when the grant is valid —
+  // the same code the kit client keys its grant-refresh recovery on.
+  verifyConnection(connectionId, presentedToken) {
+    if (!connectionId || typeof connectionId !== 'string') {
+      return kitError(400, 'SNAPBACK_CONNECTION_ID_REQUIRED', 'a connection id is required');
+    }
+    const stored = this.readConnectionToken(connectionId);
+    if (!stored || !presentedToken || presentedToken !== stored) {
+      return kitError(
+        401,
+        'SNAPBACK_CONNECTION_TOKEN_INVALID',
+        'connection-scoped operations require the connection token issued by POST /connection/open'
+      );
+    }
+    return null;
+  }
+
+  readConnectionToken(connectionId) {
+    for (const record of this.sql.exec(
+      'SELECT token FROM _snapback_connections WHERE connection_id = ?',
+      connectionId
+    )) {
+      return String(record.token);
+    }
+    return null;
+  }
+
+  // POST /connection/open (ENG-23442 shape): adopt the caller's readable id
+  // when it is free or when the caller presents the id's current token (the
+  // idempotent re-open a restarted client performs); mint a fresh wire id on
+  // a collision with a live grant so one browser tab can never hijack
+  // another's subscriptions.
+  kitOpenConnection(payload) {
+    const suggested = typeof payload.connectionId === 'string' && payload.connectionId.length > 0
+      ? payload.connectionId
+      : `conn_${crypto.randomUUID()}`;
+    const previousToken = typeof payload.previousToken === 'string' ? payload.previousToken : null;
+    const stored = this.readConnectionToken(suggested);
+    if (stored && previousToken === stored) {
+      return json(200, { connectionId: suggested, connectionToken: stored });
+    }
+    const connectionId = stored ? `conn_${crypto.randomUUID()}` : suggested;
+    const token = crypto.randomUUID();
+    this.sql.exec(
+      `INSERT INTO _snapback_connections (connection_id, token, opened_at_ms) VALUES (?, ?, ?)
+       ON CONFLICT(connection_id) DO UPDATE SET token = excluded.token, opened_at_ms = excluded.opened_at_ms`,
+      connectionId,
+      token,
+      Date.now()
+    );
+    return json(200, { connectionId, connectionToken: token });
+  }
+
+  // POST /app/ensure (LLP 0034 §5 semantics, Cloudflare projection): app code
+  // is deploy-time compiled, so provisioning different artifacts is
+  // impossible — a hash match reports 'matched', a mismatch reports 'gated'
+  // (the honest "this profile cannot provision what you posted"), and the
+  // seed half seeds only when every seed target table is empty.
+  kitEnsureApp(payload) {
+    const posted = payload || {};
+    const schemaState = !posted.schema
+      ? 'skipped-absent'
+      : posted.schema.schemaHash === APP_SCHEMA_HASH
+        ? 'matched'
+        : 'gated';
+    const functionsState = !posted.functions
+      ? 'skipped-absent'
+      : posted.functions.bundleHash === APP_BUNDLE_HASH
+        ? 'matched'
+        : 'gated';
+    let seedState = 'skipped-absent';
+    const seedSource = posted.seed || appSeed;
+    if (seedSource && schemaState !== 'gated' && functionsState !== 'gated') {
+      seedState = this.seedIfEmpty(seedSource) ? 'seeded' : 'skipped-nonempty';
+    }
+    return json(200, {
+      schema: schemaState,
+      functions: functionsState,
+      seed: seedState,
+      profile: 'cloudflare-do-sqlite-v8',
+    });
+  }
+
+  // Host-side deterministic seeding (LLP 0049 Phase 0): seed rows carry
+  // explicit ids (the demo's generated seed.json), inserted in one local
+  // transaction at version 1 — mutation handlers address these rows by
+  // stable id (patch-shaped upserts), so the seed is the schema's ground
+  // state, not an app mutation.
+  seedIfEmpty(seedSource) {
+    const tables = (seedSource && seedSource.tables) || {};
+    const names = Object.keys(tables).filter((name) => APP_TABLES.has(name));
+    if (names.length === 0) return false;
+    for (const name of names) {
+      for (const record of this.sql.exec(`SELECT COUNT(*) AS count FROM ${this.physicalTable(name)}`)) {
+        if (Number(record.count) > 0) return false;
+      }
+    }
+    const nowMs = Date.now();
+    this.ctx.storage.transactionSync(() => {
+      for (const name of names) {
+        const physical = this.physicalTable(name);
+        for (const row of tables[name]) {
+          const id = String(row._id || this.newId());
+          const stored = { ...row, _id: id, _version: 1, _createdAt: nowMs, _updatedAt: nowMs };
+          this.sql.exec(`INSERT INTO ${physical} (id, row_json) VALUES (?, ?)`, id, JSON.stringify(stored));
+        }
+      }
+      const current = this.currentVersion();
+      if (current < 1) {
+        this.sql.exec('UPDATE _snapback_version SET version = 1 WHERE id = 1');
+      }
+    });
+    return true;
+  }
+
+  // POST /query/:name — the kit's QueryOutput shape { version, rows }.
+  async kitQuery(name, payload) {
+    const result = await this.invokeHandler(name, 'query', (payload && payload.args) || {});
+    if (!result.ok) return kitFailure(result);
+    return json(200, { version: result.observedVersion ?? this.currentVersion(), rows: result.value });
+  }
+
+  // POST /mutation/:name — the kit's MutationOutput shape
+  // { version, changed_count, result }.
+  async kitMutation(name, payload) {
+    const result = await this.invokeHandler(name, 'mutation', (payload && payload.args) || {});
+    if (!result.ok) return kitFailure(result);
+    const commit = this.commit(result.host);
+    await this.fanOut(commit);
+    return json(200, { version: commit.version, changed_count: commit.changes.length, result: result.value });
+  }
+
+  // POST /live/:name/subscribe — snapshot-with-subscribe under the invocation
+  // mutex (the ENG-23575 rationale: the snapshot, the version read, and the
+  // registry insert must not interleave with a commit). The registry row is
+  // keyed by the granted connection id, so a kit socket for that connection
+  // receives this subscription's fan-out.
+  async kitSubscribe(name, payload) {
+    const fn = this.functionByName(name);
+    if (!fn || fn.kind !== 'LiveQuery') {
+      return kitError(400, 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY', `${name} is not a live query`);
+    }
+    const args = (payload && payload.input && payload.input.args) || {};
+    const result = await this.invokeHandler(name, 'query', args);
+    if (!result.ok) return kitFailure(result);
+    const version = result.observedVersion ?? this.currentVersion();
+    const argsJson = canonicalJson(args);
+    const connectionId = payload.connection_id;
+    if (payload.supersedes) {
+      this.sql.exec(
+        'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?',
+        String(payload.supersedes),
+        connectionId
+      );
+    }
+    this.sql.exec(
+      `INSERT INTO _snapback_subscriptions (subscription_id, connection_id, function_name, args_json)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(connection_id, function_name, args_json) DO NOTHING`,
+      `sub_${crypto.randomUUID()}`,
+      connectionId,
+      name,
+      argsJson
+    );
+    let subscriptionId = null;
+    for (const record of this.sql.exec(
+      'SELECT subscription_id FROM _snapback_subscriptions WHERE connection_id = ? AND function_name = ? AND args_json = ?',
+      connectionId,
+      name,
+      argsJson
+    )) {
+      subscriptionId = String(record.subscription_id);
+    }
+    return json(200, {
+      subscription_id: subscriptionId,
+      snapshot: { version, rows: result.value },
+      permission_epochs: {},
+    });
+  }
+
+  kitUnsubscribe(payload) {
+    this.sql.exec(
+      'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?',
+      String(payload.subscription_id || ''),
+      String(payload.connection_id || '')
+    );
+    return json(200, { removed: true });
+  }
+
+  // GET /live/:connectionId/stream — the kit's managed shared socket. The
+  // token gate runs BEFORE the upgrade (browser WebSockets cannot set
+  // headers, so the token rides the `snapback.connection-token.<token>`
+  // subprotocol or the query string), and the accepted socket echoes
+  // `snapback.v1` — a browser fails the connection when it offered
+  // subprotocols and the server echoed none.
+  acceptKitSocket(request, connectionId, url) {
+    if (request.headers.get('upgrade') !== 'websocket') {
+      return kitError(426, 'SNAPBACK_UPGRADE_REQUIRED', 'expected websocket upgrade');
+    }
+    const protocols = (request.headers.get('sec-websocket-protocol') || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const tokenProtocol = protocols.find((value) => value.startsWith('snapback.connection-token.'));
+    const presented =
+      request.headers.get('x-snapback-connection-token') ||
+      url.searchParams.get('connection_token') ||
+      (tokenProtocol ? tokenProtocol.slice('snapback.connection-token.'.length) : null);
+    const denied = this.verifyConnection(connectionId, presented);
+    if (denied) return denied;
+    const pair = new WebSocketPair();
+    const [client, server] = [pair[0], pair[1]];
+    this.ctx.acceptWebSocket(server, [connectionId]);
+    server.serializeAttachment({ connectionId, protocol: 'kit' });
+    const headers = protocols.includes('snapback.v1') ? { 'sec-websocket-protocol': 'snapback.v1' } : undefined;
+    return new Response(null, { status: 101, webSocket: client, headers });
+  }
+
   // --- live subscriptions ------------------------------------------------
 
   acceptLiveSocket(request) {
@@ -551,13 +846,20 @@ export class Coordinator {
     // per-socket attachment carries only connection identity (≤16 KB) — the
     // subscription registry lives in SQLite.
     this.ctx.acceptWebSocket(server, [connectionId]);
-    server.serializeAttachment({ connectionId });
+    server.serializeAttachment({ connectionId, protocol: 'proof' });
     return new Response(null, { status: 101, webSocket: client });
   }
 
   connectionIdFor(ws) {
     const attachment = ws.deserializeAttachment();
     return attachment && attachment.connectionId;
+  }
+
+  socketProtocolFor(ws) {
+    const attachment = ws.deserializeAttachment();
+    // Sockets accepted before the kit protocol existed carry no tag; they are
+    // proof-protocol by construction.
+    return (attachment && attachment.protocol) || 'proof';
   }
 
   async webSocketMessage(ws, message) {
@@ -577,7 +879,13 @@ export class Coordinator {
     } else if (parsed.type === 'unsubscribe') {
       this.sql.exec('DELETE FROM _snapback_subscriptions WHERE subscription_id = ?', parsed.subscriptionId);
     } else if (parsed.type === 'ping') {
-      ws.send(JSON.stringify({ type: 'pong' }));
+      // The kit heartbeat expects the local server's `kind` field (any frame
+      // refreshes its freshness budget); the proof protocol pins `type`.
+      if (this.socketProtocolFor(ws) === 'kit') {
+        ws.send(JSON.stringify({ kind: 'pong', requestId: parsed.requestId }));
+      } else {
+        ws.send(JSON.stringify({ type: 'pong' }));
+      }
     }
   }
 
@@ -666,7 +974,11 @@ export class Coordinator {
         group = { functionName: String(sub.function_name), argsJson: String(sub.args_json), members: [] };
         groups.set(key, group);
       }
-      group.members.push({ ws, subscriptionId: String(sub.subscription_id) });
+      group.members.push({
+        ws,
+        subscriptionId: String(sub.subscription_id),
+        protocol: this.socketProtocolFor(ws),
+      });
     }
     const pushes = [];
     for (const group of groups.values()) {
@@ -691,15 +1003,26 @@ export class Coordinator {
         // race its close event) must not suppress delivery to the rest of
         // the group.
         try {
-          member.ws.send(
-            JSON.stringify({
-              type: 'live_replace',
-              subscriptionId: member.subscriptionId,
-              function: group.functionName,
-              version,
-              rows: result.value,
-            })
-          );
+          // Frame shape follows the socket's wire protocol: the kit client
+          // consumes the local server's snake_case `kind` frames; the proof
+          // acceptance suite pins the original camelCase `type` frames.
+          const frame =
+            member.protocol === 'kit'
+              ? {
+                  kind: 'live_replace',
+                  subscription_id: member.subscriptionId,
+                  function: group.functionName,
+                  version,
+                  rows: result.value,
+                }
+              : {
+                  type: 'live_replace',
+                  subscriptionId: member.subscriptionId,
+                  function: group.functionName,
+                  version,
+                  rows: result.value,
+                };
+          member.ws.send(JSON.stringify(frame));
         } catch (error) {
           console.warn('snapback fan-out send failed', member.subscriptionId, String(error));
         }
@@ -733,12 +1056,23 @@ export class Coordinator {
     // now authoritative — recover from a stale-artifact refusal.
     this.writeDeploymentMetadata();
     this.startupError = null;
+    // Bundles that ship deterministic seed data (All Aboard) return to the
+    // seeded ground state — the local reset(seed) semantics; the notes
+    // fixture (seed: null) keeps its start-empty reset.
+    let seeded = false;
+    if (appSeed) {
+      seeded = this.seedIfEmpty(appSeed);
+    }
     for (const ws of this.ctx.getWebSockets()) {
       try {
-        ws.send(JSON.stringify({ type: 'resync_required', reason: 'reset' }));
+        const frame =
+          this.socketProtocolFor(ws) === 'kit'
+            ? { kind: 'resync_required', reason: 'reset' }
+            : { type: 'resync_required', reason: 'reset' };
+        ws.send(JSON.stringify(frame));
       } catch (_) {}
     }
-    return json(200, { reset: true });
+    return json(200, { reset: true, seeded });
   }
 }
 
@@ -772,6 +1106,19 @@ function failure(result) {
   const body = { ok: false, code: result.code, message: result.message };
   if (result.details) body.details = result.details;
   return body;
+}
+
+// Kit-protocol errors carry the local server's ApiError envelope — a non-2xx
+// status with a structured `diagnostic` — which demos/_kit/client.mjs turns
+// into its coded Error (and keys grant refresh on).
+function kitError(status, code, message) {
+  return json(status, { diagnostic: { code, message } });
+}
+
+function kitFailure(result) {
+  const body = { diagnostic: { code: result.code, message: result.message } };
+  if (result.details) body.diagnostic.details = result.details;
+  return json(500, body);
 }
 
 function json(status, value) {

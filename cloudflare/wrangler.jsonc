@@ -9,6 +9,10 @@
   "main": "src/gateway.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": [],
+  // The LLP 0049 deploy-time app selector: each deploy config resolves the
+  // 'snapback-app' module to exactly one checked-in bundle. This config is
+  // the notes fixture — LLP 0040's pinned regression surface.
+  "alias": { "snapback-app": "./app/notes.app.js" },
   // The destructive admin endpoints (/reset, /evict) are disabled unless a
   // SNAPBACK_ADMIN_TOKEN secret is set (ENG-23587):
   //   npx wrangler secret put SNAPBACK_ADMIN_TOKEN --config wrangler.jsonc

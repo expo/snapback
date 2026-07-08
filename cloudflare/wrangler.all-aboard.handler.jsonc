@@ -1,0 +1,17 @@
+{
+  // The All Aboard handler isolate Worker (LLP 0049 Phase 0). Its HOST
+  // binding points at the All Aboard gateway so the ctx host-call channel
+  // routes back to the coordinator Durable Object that owns the live
+  // invocation. It has no other bindings — no env, no storage, no network —
+  // matching the host-mediated capability posture (and LLP 0049 OQ2: app
+  // secret bindings land on the gateway Worker only, never here).
+  "name": "snapback-all-aboard-handler",
+  "main": "src/handler-worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [],
+  "alias": { "snapback-app": "./app/all-aboard.app.js" },
+  // No public route: the handler isolate is reachable only over the
+  // coordinator's HANDLER service binding (ENG-23587 hardening).
+  "workers_dev": false,
+  "services": [{ "binding": "HOST", "service": "snapback-all-aboard-proof" }]
+}

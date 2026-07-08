@@ -5,7 +5,19 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (sixth revision same day: GPT-5 re-review applied —
+**Revised:** 2026-07-07 (seventh revision same day, ENG-23628 / LLP 0049
+Phase 0: the proof gains the deploy-time app selector — the app bundle is no
+longer hardcoded; the `snapback-app` module alias (wrangler `alias` in each
+deploy config, esbuild alias in the Miniflare harness) resolves to exactly
+one checked-in bundle, `app/notes.app.js` or `app/all-aboard.app.js`. The
+notes bundle, its wrangler configs, its 36-check Miniflare acceptance, and
+its protocol are UNCHANGED and remain this RFC's pinned regression fixture;
+All Aboard deploys as separate Workers (`snapback-all-aboard-proof` /
+`-handler`) with gateway-served same-origin static assets, host-side
+deterministic seeding, and a kit wire-protocol layer (connection grants,
+`/query/:name`, `/live/:name/subscribe`, `/live/:id/stream`, empty
+`/outbox/:id` by declared design) so the generated Contract surface runs on
+this target — see LLP 0049. Sixth revision same day: GPT-5 re-review applied —
 negative evidence split out of the accepted-proof checklist so the
 non-hibernating branch cannot produce an accepted proof; snapshot-before-delta
 and reconnect-diagnostic acceptance added with the Phase 0 reconnect scope
@@ -36,7 +48,7 @@ Earlier same day: cross-family review revisions, ratified by Charlie — see
 `reviews/0040-cloudflare-narrow-proof.claude.md`: Profile A decided with a
 revisit trigger, 0014 validation requirements restored, hibernation and cost
 measurements added, V8-handler requirement pinned; initial same day)
-**Related:** LLP 0000, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0018, LLP 0028, LLP 0032, LLP 0035, LLP 0038, LLP 0046, LLP 0047, LLP 0048
+**Related:** LLP 0000, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0018, LLP 0028, LLP 0032, LLP 0035, LLP 0038, LLP 0046, LLP 0047, LLP 0048, LLP 0049
 
 ## Summary
 

@@ -8,6 +8,8 @@
   "main": "src/handler-worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": [],
+  // LLP 0049 app selector: same bundle the gateway config compiles in.
+  "alias": { "snapback-app": "./app/notes.app.js" },
   // No public route: the handler isolate is reachable only over the
   // coordinator's HANDLER service binding. A workers.dev route would expose
   // /invoke to the open internet (ENG-23587 hardening).

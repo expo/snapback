@@ -13,7 +13,11 @@ expected_date=$(node -e "console.log(require('$compat').compatibilityDate)")
 expected_flags=$(node -e "console.log(JSON.stringify(require('$compat').compatibilityFlags || []))")
 
 fail=0
-for config in "$repo_root/cloudflare/wrangler.jsonc" "$repo_root/cloudflare/wrangler.handler.jsonc"; do
+for config in \
+  "$repo_root/cloudflare/wrangler.jsonc" \
+  "$repo_root/cloudflare/wrangler.handler.jsonc" \
+  "$repo_root/cloudflare/wrangler.all-aboard.jsonc" \
+  "$repo_root/cloudflare/wrangler.all-aboard.handler.jsonc"; do
   # Strip // comments so JSON parses.
   actual=$(node -e "
     const fs=require('fs');

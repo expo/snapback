@@ -12,6 +12,22 @@
 // storage handle, Worker env, or ambient global (LLP 0009, verified by the
 // ambient-power denial test).
 
+import capabilityManifest from '../generated/capability.manifest.cloudflare-do-sqlite-v8.json';
+
+// Uniform app-bundle surface for the LLP 0049 deploy-time app selector: every
+// bundle exports appMeta/seed/capabilityManifest alongside schema/functions,
+// and the build resolves ONE bundle through the 'snapback-app' alias
+// (wrangler `alias` / esbuild `alias` in the Miniflare harness).
+export const appMeta = {
+  name: 'notes',
+  objectName: 'notes-proof',
+};
+
+// The notes fixture seeds nothing — it starts empty by design.
+export const seed = null;
+
+export { capabilityManifest };
+
 export const schema = {
   schemaHash: 'notes-app-v1',
   tables: [

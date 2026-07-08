@@ -1,20 +1,32 @@
-// The gateway Worker for the LLP 0040 Cloudflare narrow proof.
+// The gateway Worker for the LLP 0040 Cloudflare narrow proof and its
+// LLP 0049 All Aboard extension.
 //
 // It routes app HTTP and WebSocket requests to the app coordinator Durable
-// Object, and it routes the handler isolate's re-entrant host calls back to
-// the coordinator that owns the live invocation. It also serves the target
-// capability manifest.
+// Object, routes the handler isolate's re-entrant host calls back to the
+// coordinator that owns the live invocation, serves the target capability
+// manifest, and — when the deploy config carries a static-assets binding —
+// serves the built Contract web bundle same-origin (LLP 0049 §Realtime And
+// Browser Surface: API routes take precedence; assets are the fallback, so
+// the CORS surface never exists).
 //
 // App identity is registry-owned in the full plan (LLP 0014 one-way door 6);
 // the narrow proof has one app, so its object key is a fixed logical name
-// resolved to an object id here. Names, not idFromName puns, are the seam that
-// grows into the registry later.
+// resolved to an object id here. The name comes from the selected app bundle
+// (LLP 0049 Phase 0 deploy-time app selector — the 'snapback-app' alias).
 import { Coordinator } from './coordinator.js';
-import manifest from '../generated/capability.manifest.cloudflare-do-sqlite-v8.json';
+import { appMeta, capabilityManifest } from 'snapback-app';
 
 export { Coordinator };
 
-const APP_OBJECT_NAME = 'notes-proof';
+const APP_OBJECT_NAME = appMeta.objectName;
+
+// Exact-path API routes forwarded to the coordinator with a fresh POST body.
+const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/__test/corrupt-meta', '/connection/open', '/app/ensure']);
+
+// Kit wire-protocol prefixes (LLP 0049 Phase 0): the generated Contract
+// surface speaks the local server's protocol; these are its routes.
+const KIT_ROUTE = /^\/(?:query|mutation)\/[A-Za-z0-9_-]+$|^\/live\/[A-Za-z0-9_.-]+\/(?:subscribe|unsubscribe)$|^\/outbox\/[A-Za-z0-9_.-]+$/;
+const KIT_STREAM_ROUTE = /^\/live\/[A-Za-z0-9_.-]+\/stream$/;
 
 function json(status, value) {
   return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
@@ -34,9 +46,10 @@ export default {
 
     // The capability manifest (LLP 0040 §Capability report): served, honest
     // about missing features, validated against its generated JSON Schema by
-    // the acceptance suite.
+    // the acceptance suite. Each app bundle carries its own manifest — the
+    // All Aboard profile declares different facts than the notes proof.
     if (path === '/inspect' || path === '/capability') {
-      return json(200, manifest);
+      return json(200, capabilityManifest);
     }
 
     // Re-entrant host calls from the handler isolate. The coordinator id rides
@@ -54,22 +67,37 @@ export default {
     // App data plane — one coordinator for the single proof app.
     const stub = coordinatorStub(env, null);
     if (path === '/health') return stub.fetch('http://coordinator/health');
-    if (path === '/query') return forward(stub, 'http://coordinator/query', request);
-    if (path === '/mutation') return forward(stub, 'http://coordinator/mutation', request);
+    if (FORWARDED_JSON_PATHS.has(path)) {
+      return forward(stub, `http://coordinator${path}`, request);
+    }
     // Destructive admin endpoints: forwarded with the caller's method and
     // headers so the coordinator can enforce the POST-only, token-gated admin
     // surface (ENG-23587). The gateway itself never mints admin authority.
     if (path === '/reset' || path === '/evict') {
       return stub.fetch(`http://coordinator${path}`, { method: request.method, headers: request.headers });
     }
-    if (path === '/__test/corrupt-meta') {
-      return forward(stub, 'http://coordinator/__test/corrupt-meta', request);
+    if (KIT_ROUTE.test(path)) {
+      // Kit routes carry auth headers (x-snapback-connection-token), so the
+      // full header set forwards; the coordinator enforces the token gate.
+      return stub.fetch(`http://coordinator${path}`, {
+        method: request.method,
+        headers: request.headers,
+        body: request.method === 'GET' ? undefined : await request.text(),
+      });
     }
-    if (path === '/live/stream') {
+    if (path === '/live/stream' || KIT_STREAM_ROUTE.test(path)) {
       if (request.headers.get('upgrade') !== 'websocket') {
         return json(426, { error: 'expected websocket upgrade' });
       }
-      return stub.fetch('http://coordinator/live/stream', request);
+      return stub.fetch(`http://coordinator${path}${url.search}`, request);
+    }
+
+    // Static web bundle, same-origin (LLP 0049 §Realtime And Browser
+    // Surface): every API route above took precedence; anything else is an
+    // asset lookup when this deploy carries the assets binding. Deploys
+    // without assets (the notes proof) fall through to the JSON 404.
+    if (env.ASSETS) {
+      return env.ASSETS.fetch(request);
     }
     return json(404, { error: 'not found', path });
   },
