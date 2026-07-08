@@ -111,6 +111,27 @@ export default {
     // asset lookup when this deploy carries the assets binding. Deploys
     // without assets (the notes proof) fall through to the JSON 404.
     if (env.ASSETS) {
+      // /__exact/* paths are Exact protocol endpoints (platform manifest,
+      // native envelopes, dev-server agent surfaces), never SPA routes: a
+      // miss there must fail as an explicit JSON 404 instead of the
+      // single-page-application index.html fallback, or native hosts and the
+      // Exact Log Console misread web HTML as a protocol payload (ENG-23643).
+      if (path.startsWith('/__exact/')) {
+        const asset = await env.ASSETS.fetch(request);
+        const contentType = asset.headers.get('content-type') || '';
+        if (asset.ok && !contentType.includes('text/html')) {
+          return asset;
+        }
+        if (path.startsWith('/__exact/agent/')) {
+          return json(404, {
+            error: 'agent-unavailable',
+            path,
+            detail:
+              'Exact agent endpoints (logs, run-js) are dev-server features; this Cloudflare deployment serves only the static bundle and Snapback API routes.',
+          });
+        }
+        return json(404, { error: 'not found', path });
+      }
       return env.ASSETS.fetch(request);
     }
     return json(404, { error: 'not found', path });

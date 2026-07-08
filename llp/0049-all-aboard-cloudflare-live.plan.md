@@ -5,7 +5,15 @@
 **Systems:** Demo apps, Cloudflare, Deployment, Runtime, Security, Cron, Data gateway, Realtime, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (sixth pass same day, ENG-23628–ENG-23632: all four
+**Revised:** 2026-07-08 (seventh pass, ENG-23643: the deployed URL now loads
+in the native Exact hosts — the handwritten Contract `index.html` carries the
+`exact:platform-manifest` discovery link (the vite plugin injects it only into
+HTML it generates itself, so the macOS host got web HTML with no manifest
+pointer and white-screened), the gateway answers `/__exact/*` asset misses
+with explicit JSON 404 instead of the SPA index.html fallback, and the remote
+acceptance suite walks the macOS host's discovery chain — root HTML → link →
+platform manifest → mac envelope → startup source — plus the agent-endpoint
+404 shape, 20/20. Sixth pass 2026-07-07, ENG-23628–ENG-23632: all four
 implementation phases built and the plan's product claim EARNED — All Aboard
 is deployed live at
 https://snapback-all-aboard-proof.ccheever-0f6.workers.dev with real 511 keys
@@ -481,6 +489,22 @@ whose generated bindings point at the gateway origin — acceptable for the
 proof, but taking it makes the gateway's CORS posture explicit scope instead
 of a non-issue.
 
+Same-origin static serving carries one protocol obligation beyond the browser
+(ENG-23643): the deployed origin is also what the native Exact hosts open.
+The macOS/iOS loaders fetch the root URL, receive the web `index.html`, and
+discover the native artifacts through its
+`<link rel="exact:platform-manifest">` tag — the vite plugin injects that link
+only into HTML it generates, so All Aboard's handwritten `index.html` must
+carry it explicitly, pointing at the build-emitted
+`/__exact/platform-manifest.json`. And because `/__exact/*` paths are
+protocol endpoints, the gateway must never let the static-assets
+single-page-application fallback answer them: a miss there returns an explicit
+JSON 404 (with a dev-server-only diagnostic for `/__exact/agent/*`, which the
+Exact Log Console probes), so web HTML is never misread as a native payload.
+The remote acceptance suite walks the same chain the macOS host walks — root
+HTML → discovery link → platform manifest → mac envelope → startup source —
+and asserts the agent-endpoint 404 shape.
+
 The surface also needs an action transport. The generated client invokes
 actions as `client.action('refreshFeed', …)` and
 `client.action('routeEstimate', …)`; the proof's gateway exposes `/query`,
@@ -688,6 +712,11 @@ for each item:
   live data is labeled live only after a real external snapshot commits.
 - **Remote evidence captured:** at least one real Cloudflare run proves the path,
   not only Miniflare.
+- **Native hosts can open the deployed URL:** the served HTML carries the
+  `exact:platform-manifest` discovery link, the manifest → envelope → startup
+  chain loads with native content types, and `/__exact/*` misses answer JSON
+  404 rather than the SPA HTML fallback (ENG-23643; covered by the remote
+  acceptance suite's discovery-chain checks).
 
 ## Capability Manifest Changes
 

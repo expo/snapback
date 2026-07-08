@@ -886,3 +886,34 @@ posture this slice proves: secret values that structurally cannot enter the
 app isolate (fail-closed `.expose()`, descriptors-only payloads), an idle
 deployment that arms zero wakeups by construction, and a capability manifest
 that names every remaining gap instead of implying parity.
+
+## 2026-07-08 — the deployed URL white-screens in the macOS Exact host (ENG-23643)
+
+Opening the live `.workers.dev` URL in the macOS Exact host gave a white
+screen, with the Log Console reporting `Unexpected response (200):
+<!doctype html>`. Two independent defects hid behind one symptom:
+
+- **Static native discovery is opt-in for handwritten HTML.** The Exact vite
+  plugin injects the `<link rel="exact:platform-manifest">` discovery tag only
+  into HTML it generates itself (router/SSG shell mode). All Aboard keeps its
+  own `index.html` (`shell: 'auto'` preserving the surface's file), so the
+  built page never pointed at the `__exact/platform-manifest.json` the build
+  was already emitting. The native loader fetched the root, got web HTML with
+  no manifest pointer, and gave up. One static link line fixed it — but
+  nothing at build time warned that `staticPlatformTargets` was emitting
+  artifacts no HTML referenced. That's a paved-road pothole: the preset builds
+  the native artifacts and the manifest, then silently loses the only
+  discovery path to them.
+- **SPA fallback swallows protocol endpoints.** Cloudflare's
+  `not_found_handling: single-page-application` answers *every* miss with
+  `index.html` 200 — including `/__exact/agent/logs`, which the Log Console
+  probes. HTML-as-200 is the worst failure shape for a protocol client: the
+  gateway now carves `/__exact/*` out of the fallback and answers misses with
+  explicit JSON 404s.
+
+The satisfying part: the fix was diagnosable end-to-end with curl because the
+macOS loader's discovery chain (root HTML → link → manifest → envelope →
+startup.js) is plain HTTP + JSON, and the remote acceptance suite now walks
+exactly that chain, so the regression class is pinned. Snapback itself was
+blameless here — both defects live in the deployment/HTML seam between the
+Exact static-native contract and Cloudflare asset serving.

@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#05070f" />
+    <!-- Static native discovery (ENG-23643): the Exact native hosts fetch this
+         page when opening the deployed URL and follow this link to the build's
+         platform manifest (emitted by staticPlatformTargets in vite.config.ts).
+         The vite plugin only injects it into HTML it generates itself, so a
+         handwritten shell must carry it or native hosts white-screen. -->
+    <link rel="exact:platform-manifest" type="application/vnd.exact.platform-manifest+json" href="/__exact/platform-manifest.json" />
     <title>All Aboard — Caltrain</title>
     <style>
       *, *::before, *::after { box-sizing: border-box; }

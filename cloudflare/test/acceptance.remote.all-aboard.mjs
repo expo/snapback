@@ -23,7 +23,7 @@ if (!BASE || !ADMIN_TOKEN) {
 }
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 
-const EXPECTED_CHECKS = 16;
+const EXPECTED_CHECKS = 20;
 let checks = 0;
 const evidence = [];
 function check(label, condition, detail) {
@@ -58,6 +58,54 @@ async function main() {
   const assetPath = (pageText.match(/\/assets\/[A-Za-z0-9._-]+\.js/) || [])[0];
   const asset = assetPath ? await fetch(`${BASE}${assetPath}`) : null;
   check('the built asset graph loads from the same origin', asset !== null && asset.status === 200);
+
+  // --- native static discovery (ENG-23643) --------------------------------
+  // Walk the exact chain the macOS Exact host walks when opening the deployed
+  // URL: root HTML -> exact:platform-manifest link -> manifest -> mac
+  // envelope -> startup source. A regression anywhere in this chain is the
+  // white-screen failure mode.
+  const manifestHref = (pageText.match(/<link[^>]*rel="exact:platform-manifest"[^>]*href="([^"]+)"/) || [])[1];
+  check(
+    'the served HTML carries the exact:platform-manifest discovery link',
+    typeof manifestHref === 'string' && manifestHref.length > 0,
+    manifestHref
+  );
+  const manifestResponse = await fetch(new URL(manifestHref, `${BASE}/`));
+  const manifestType = manifestResponse.headers.get('content-type') || '';
+  const platformManifest = manifestType.includes('json') ? await manifestResponse.json() : null;
+  const macTarget = platformManifest?.targets?.find((target) => target.id === 'mac-appkit-hermes');
+  check(
+    'the platform manifest serves as JSON and declares the mac-appkit-hermes target',
+    manifestResponse.status === 200 && platformManifest?.kind === 'exact-static-platform-manifest' && Boolean(macTarget),
+    platformManifest?.buildId
+  );
+  const envelopeURL = new URL(macTarget.envelopeUrl, manifestResponse.url);
+  const envelopeResponse = await fetch(envelopeURL);
+  const envelope = (envelopeResponse.headers.get('content-type') || '').includes('json')
+    ? await envelopeResponse.json()
+    : null;
+  const startupResponse = envelope?.startup?.source?.url
+    ? await fetch(new URL(envelope.startup.source.url, envelopeURL))
+    : null;
+  const startupType = startupResponse?.headers.get('content-type') || '';
+  check(
+    'the mac native envelope and its startup source load with native content types',
+    envelope?.kind === 'exact-static-native-envelope' &&
+      startupResponse !== null && startupResponse.status === 200 &&
+      /javascript/.test(startupType) &&
+      (await startupResponse.text()).length > 100_000,
+    `startup ${envelope?.startup?.source?.bytes} bytes`
+  );
+  // Dev-server-only agent endpoints must fail as explicit JSON, never fall
+  // back to the SPA index.html — the Exact Log Console previews the body, so
+  // HTML here is the "Unexpected response (200): <!doctype html>" regression.
+  const agentLogs = await fetch(`${BASE}/__exact/agent/logs`);
+  const agentLogsType = agentLogs.headers.get('content-type') || '';
+  check(
+    'missing /__exact/ paths answer JSON 404, not the SPA HTML fallback',
+    agentLogs.status === 404 && agentLogsType.includes('application/json'),
+    `status ${agentLogs.status}, ${agentLogsType}`
+  );
 
   // --- provisioning + config ---------------------------------------------
   const ensured = await client.ensureApp({ seed });
