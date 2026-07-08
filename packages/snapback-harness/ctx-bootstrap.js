@@ -37,12 +37,53 @@
     } catch (_) {}
     return handle;
   }
+  // Descriptor-only handle for deploy-time-binding profiles (LLP 0049
+  // §Config And Secrets / LLP 0036 host-boundary unwrap): the isolate never
+  // holds the value. expose()/asBearer() fail CLOSED with a coded error —
+  // code that believes it holds a key must fail loudly, not silently carry a
+  // token that stopped being a key. The serializable __snapbackDescriptor is
+  // what the action-only host fetch capability accepts in a placement slot;
+  // the coordinator resolves it to the real value only at its own fetch
+  // boundary.
+  function makeDescriptorHandle(name, cursor) {
+    var marker = "[snapback secret " + name + "]";
+    function failClosed(method) {
+      return function() {
+        throw snapbackError(
+          "SNAPBACK_CONFIG_EXPOSE_UNSUPPORTED",
+          name + ": " + method + "() is unavailable on this profile — secret values resolve only at the " +
+            "host fetch boundary; pass the handle in a host-fetch placement slot instead"
+        );
+      };
+    }
+    var handle = {
+      expose: failClosed("expose"),
+      asBearer: failClosed("asBearer"),
+      toString: function() { return marker; },
+      toJSON: function() { return marker; },
+      __snapbackDescriptor: { name: name, cursor: cursor }
+    };
+    try {
+      Object.defineProperty(handle, Symbol.toPrimitive, {
+        value: function() { return marker; }
+      });
+    } catch (_) {}
+    return handle;
+  }
   function makeSecrets(grants) {
     var entries = (grants && grants.entries) || {};
+    var descriptorsOnly = !!(grants && grants.descriptorsOnly);
     function lookup(name, rotate) {
       var entry = entries[name];
       if (!entry) {
         throw snapbackError("SNAPBACK_CONFIG_UNDECLARED", name + " is not in this function's uses grant");
+      }
+      if (descriptorsOnly) {
+        if (!entry.set || !(entry.memberCount > 0)) {
+          throw snapbackError("SNAPBACK_CONFIG_MISSING", name + " has no value set");
+        }
+        var cursor = rotate ? (entry.cursor || 0) % entry.memberCount : 0;
+        return makeDescriptorHandle(name, cursor);
       }
       if (!entry.set || !entry.values || !entry.values.length) {
         throw snapbackError("SNAPBACK_CONFIG_MISSING", name + " has no value set");

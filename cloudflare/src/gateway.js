@@ -67,7 +67,10 @@ export default {
     // App data plane — one coordinator for the single proof app.
     const stub = coordinatorStub(env, null);
     if (path === '/health') return stub.fetch('http://coordinator/health');
-    if (FORWARDED_JSON_PATHS.has(path)) {
+    // Operator config diagnosis (LLP 0049 Phase 1): names, set/missing
+    // state, grants, generation — never values.
+    if (path === '/config/status') return stub.fetch('http://coordinator/config/status');
+    if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/__test/')) {
       return forward(stub, `http://coordinator${path}`, request);
     }
     // Destructive admin endpoints: forwarded with the caller's method and

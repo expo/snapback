@@ -39,7 +39,7 @@ import { parseHandlerEnvelope } from '../../packages/snapback-harness/envelope.m
 // (../app/notes.app.js or ../app/all-aboard.app.js) at build time. The
 // Workers runtime forbids dynamic evaluation, so selection is a build fact,
 // never a runtime flag.
-import { appMeta, bundleHash, schema, functions, seed as appSeed } from 'snapback-app';
+import { appMeta, bundleHash, schema, functions, seed as appSeed, config as appConfig } from 'snapback-app';
 
 const APP_SCHEMA_HASH = schema.schemaHash;
 const APP_BUNDLE_HASH = bundleHash;
@@ -114,6 +114,17 @@ export class Coordinator {
          connection_id TEXT PRIMARY KEY,
          token TEXT NOT NULL,
          opened_at_ms INTEGER NOT NULL
+       )`
+    );
+    // Pool rotation cursors (LLP 0049 §Config And Secrets, OQ1): coordinator-
+    // local durable metadata, NEVER values. Applied modulo the current member
+    // count at grant time, so a pool edit can never strand a cursor out of
+    // range. Deliberately not cleared by destructive reset — config metadata
+    // is deployment state, not app data.
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_config_cursors (
+         entry_name TEXT PRIMARY KEY,
+         cursor INTEGER NOT NULL
        )`
     );
     for (const table of schema.tables) {
@@ -242,9 +253,19 @@ export class Coordinator {
     const path = url.pathname;
 
     // A deployment/state mismatch refuses the data plane (fail closed) but
-    // leaves /health for diagnosis and /reset for recovery.
-    if (this.startupError && path !== '/health' && path !== '/reset' && path !== '/__test/corrupt-meta') {
+    // leaves /health for diagnosis, /reset for recovery, and /config/status
+    // for operator config diagnosis (deployment config, not app data).
+    if (
+      this.startupError &&
+      path !== '/health' &&
+      path !== '/reset' &&
+      path !== '/__test/corrupt-meta' &&
+      path !== '/config/status'
+    ) {
       return json(409, this.startupError);
+    }
+    if (path === '/config/status') {
+      return this.configStatus();
     }
     if (path === '/host-call') {
       return this.serveHostCall(request);
@@ -269,6 +290,35 @@ export class Coordinator {
     }
     if (path === '/__test/corrupt-meta') {
       return this.testingGated(request, async () => this.corruptMetaForTest(await request.json()));
+    }
+    // Testing-only action invocation (LLP 0049 Phase 1): exercises the
+    // action grant path — descriptor construction, fail-closed handles,
+    // MISSING/UNDECLARED codes — before Phase 2 lands the public action
+    // route with host-mediated egress. Never available without
+    // SNAPBACK_TESTING=1; the capability manifest keeps outbound_actions as
+    // a declared gap.
+    if (path === '/__test/action') {
+      return this.testingGated(request, async () => {
+        const payload = await request.json();
+        return this.runExclusive(async () => {
+          const result = await this.invokeHandler(payload.name, 'action', payload.args, { trigger: 'test' });
+          if (!result.ok) return json(200, failure(result));
+          return json(200, { ok: true, result: result.value });
+        });
+      });
+    }
+    // Testing-only payload echo: the exact secretsJson the coordinator would
+    // attach for a function — the descriptors-only fact is asserted by test,
+    // not by convention (LLP 0049 Phase 1 exit evidence).
+    if (path === '/__test/secrets-payload') {
+      return this.testingGated(request, async () => {
+        const payload = await request.json();
+        const fn = this.functionByName(payload.name);
+        if (!fn) return json(404, { error: `no function ${payload.name}` });
+        const mode = payload.mode || (fn.kind === 'Action' ? 'action' : 'query');
+        const secretsJson = mode === 'action' ? this.buildActionGrantsJson(fn, { advance: false }) : null;
+        return json(200, { name: fn.name, mode, secretsJson });
+      });
     }
     if (path === '/query') {
       const payload = await request.json();
@@ -401,13 +451,171 @@ export class Coordinator {
     return json(200, { startupError: this.startupError });
   }
 
+  // --- config / secrets backend (LLP 0049 Phase 1, LLP 0036 deploy-time-binding)
+
+  // Mechanical, app-scoped binding name: caltrainFeed on all-aboard maps to
+  // SNAPBACK_SECRET_ALL_ABOARD_CALTRAIN_FEED. The binding name is not an app
+  // API — app code still asks for ctx.secrets.rotating('caltrainFeed').
+  secretBindingName(entryName) {
+    const upper = (value) =>
+      String(value)
+        .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+        .replace(/[^A-Za-z0-9]+/g, '_')
+        .toUpperCase();
+    return `SNAPBACK_SECRET_${upper(appMeta.name)}_${upper(entryName)}`;
+  }
+
+  // Pool member count for a declared entry, from the gateway Worker's secret
+  // bindings (OQ2: the Coordinator's env IS the gateway env). One JSON-array
+  // Worker secret per pooled entry (OQ1); a bare string counts as a
+  // single-member pool. Never returns values to callers that report state.
+  poolMembers(entryName) {
+    const raw = this.env[this.secretBindingName(entryName)];
+    if (typeof raw !== 'string' || raw.length === 0) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.filter((value) => typeof value === 'string' && value.length > 0);
+    } catch (_) {
+      // Not JSON: treat the raw string as a single-member pool.
+    }
+    return [raw];
+  }
+
+  configGeneration() {
+    const raw = this.env.SNAPBACK_CONFIG_GENERATION;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+  }
+
+  // The rotation cursor advances once per grant construction (per action
+  // invocation that uses the entry) and is applied modulo the CURRENT member
+  // count, so pool edits cannot strand it (LLP 0049 OQ1). `advance: false`
+  // peeks without consuming — observation surfaces (status, the testing
+  // payload echo) must not rotate the pool.
+  nextRotationCursor(entryName, { advance = true } = {}) {
+    let cursor = 0;
+    for (const record of this.sql.exec(
+      'SELECT cursor FROM _snapback_config_cursors WHERE entry_name = ?',
+      entryName
+    )) {
+      cursor = Number(record.cursor);
+    }
+    if (advance) {
+      this.sql.exec(
+        `INSERT INTO _snapback_config_cursors (entry_name, cursor) VALUES (?, ?)
+         ON CONFLICT(entry_name) DO UPDATE SET cursor = excluded.cursor`,
+        entryName,
+        cursor + 1
+      );
+    }
+    return cursor;
+  }
+
+  declaredConfigEntry(entryName) {
+    return (appConfig || []).find((entry) => entry.name === entryName) || null;
+  }
+
+  // Action-only redacted grant descriptors (LLP 0049 §Config And Secrets):
+  // entry names, set/missing state, member count, and rotation cursor —
+  // NEVER values. The handler isolate's ctx.secrets builds fail-closed
+  // descriptor handles from this (descriptorsOnly), and the local
+  // values-in-secretsJson shape never ports to this profile.
+  buildActionGrantsJson(fn, { advance = true } = {}) {
+    const uses = Array.isArray(fn.uses) ? fn.uses : [];
+    const entries = {};
+    for (const entryName of uses) {
+      if (!this.declaredConfigEntry(entryName)) continue;
+      const members = this.poolMembers(entryName);
+      entries[entryName] = {
+        set: members.length > 0,
+        memberCount: members.length,
+        cursor: members.length > 0 ? this.nextRotationCursor(entryName, { advance }) % members.length : 0,
+      };
+    }
+    return JSON.stringify({ descriptorsOnly: true, entries });
+  }
+
+  // The value-resolution boundary (Phase 2 host-mediated fetch unwraps
+  // through this, and ONLY this): descriptor -> value, coordinator-side.
+  resolveSecretValue(entryName, cursor) {
+    const members = this.poolMembers(entryName);
+    if (members.length === 0) return null;
+    const index = Number.isInteger(cursor) ? ((cursor % members.length) + members.length) % members.length : 0;
+    return members[index];
+  }
+
+  // GET /config/status — declarations, set/missing state, grant
+  // relationships, pool member counts, rotation cursors, the active config
+  // generation (the SNAPBACK_CONFIG_GENERATION attestation carrier), and the
+  // declaration hash. Values never appear here (asserted by acceptance).
+  async configStatus() {
+    const declarations = [];
+    for (const entry of appConfig || []) {
+      const members = this.poolMembers(entry.name);
+      let cursor = 0;
+      for (const record of this.sql.exec(
+        'SELECT cursor FROM _snapback_config_cursors WHERE entry_name = ?',
+        entry.name
+      )) {
+        cursor = Number(record.cursor);
+      }
+      declarations.push({
+        name: entry.name,
+        description: entry.description || null,
+        required: !!entry.required,
+        pool: !!entry.pool,
+        binding: this.secretBindingName(entry.name),
+        state: members.length > 0 ? 'set' : 'missing',
+        poolMembers: members.length,
+        rotationCursor: members.length > 0 ? cursor % members.length : 0,
+      });
+    }
+    const grants = {};
+    for (const fn of functions) {
+      if (fn.kind === 'Action' && Array.isArray(fn.uses) && fn.uses.length > 0) {
+        grants[fn.name] = [...fn.uses];
+      }
+    }
+    const declarationText = JSON.stringify(
+      (appConfig || []).map((entry) => ({ name: entry.name, required: !!entry.required, pool: !!entry.pool }))
+    );
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(declarationText));
+    const declarationHash = [...new Uint8Array(digest)]
+      .slice(0, 8)
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    return json(200, {
+      backend: 'deploy-time-binding',
+      profile: 'cloudflare-do-sqlite-v8',
+      generation: this.configGeneration(),
+      declarationHash: `sha256:${declarationHash}`,
+      // The platform version/deployment identifier is reported when the
+      // platform exposes one to the running Worker; the Workers runtime has
+      // no ambient self-version API today, so this is honestly null.
+      platformVersionId: null,
+      declarations,
+      grants,
+    });
+  }
+
   // --- handler invocation across the RPC seam ----------------------------
 
-  async invokeHandler(fnName, mode, args) {
+  async invokeHandler(fnName, mode, args, options = {}) {
     const fn = this.functionByName(fnName);
     if (!fn) {
       return { ok: false, code: 'SNAPBACK_HANDLER_EXPORT_MISSING', message: `no function ${fnName}` };
     }
+    // Grants are action-only (LLP 0036): queries and mutations receive
+    // secretsJson null and therefore no ctx.secrets at all.
+    const secretsJson = mode === 'action' ? this.buildActionGrantsJson(fn) : null;
+    const runJson =
+      mode === 'action'
+        ? JSON.stringify({
+            runId: crypto.randomUUID(),
+            trigger: options.trigger || 'manual',
+            jobName: options.jobName || null,
+          })
+        : null;
     const token = crypto.randomUUID();
     const epoch = `${Date.now()}-${token}`;
     const host = new HostContext({
@@ -428,8 +636,8 @@ export class Coordinator {
           argsJson: JSON.stringify(args || {}),
           authJson: JSON.stringify({}),
           mode,
-          runJson: null,
-          secretsJson: null,
+          runJson,
+          secretsJson,
           epoch,
           token,
           // The host-routing header entry.mjs echoes onto every host call so

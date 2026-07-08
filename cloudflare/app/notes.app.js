@@ -26,6 +26,10 @@ export const appMeta = {
 // The notes fixture seeds nothing — it starts empty by design.
 export const seed = null;
 
+// No declared configuration: the notes proof exercises no secrets backend
+// (LLP 0049 Phase 1 lands that on the All Aboard bundle).
+export const config = [];
+
 export { capabilityManifest };
 
 export const schema = {

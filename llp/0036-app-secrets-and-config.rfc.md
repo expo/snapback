@@ -5,7 +5,15 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-07 (ENG-23493: the server's `config.verify` route now stages the probe under the instance lock, runs it detached under the ENG-23324 action watchdog, and records the outcome in a second short lock window — the "no hard timeout" probe gap is closed for server-triggered verifies; a stale detached run can no longer overwrite a newer retry's verification record. Earlier, 2026-07-04: admin console clarification: the old embedded fallback console was removed; the Contract/Exact admin console is now the single dashboard UI, with a no-dist diagnostic when its static build is unavailable. ENG-22752: the wizard's pre-provision empty state — `config.status` gained `appProvisioned` and the setup page now explains "no app has booted yet, open the app page once" instead of rendering nothing. D9 added — a read-only `.env`/JSON file *source* plus a durable store-path override (`--config-file`) that decouples the config store from the database, so `--memory` instances keep secrets across restarts; generalizes the `.env`-style source the v1 order named but shipped only as the deprecated `SNAPBACK_ACTION_SECRETS` env-blob. Design only — not yet built; see Implementation order §Near-term. Earlier, 2026-07-02: ratified Accepted by Charlie — the shipped v1 design with honest gaps banner; ledgered in LLP 0000. Also later same day, ENG-22598: the Contract admin console gained a Secrets surface projecting `config.status` with per-entry probe verify and grants legibility; see LLP 0017 §Implementation status. Earlier: v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
+**Revised:** 2026-07-07 (ENG-23629 / LLP 0049 Phase 1: the first
+`deploy-time-binding` backend landed on the Cloudflare proof target —
+descriptor-only action grants (values never enter the handler isolate),
+profile-scoped fail-closed `expose()`/`asBearer()` with
+`SNAPBACK_CONFIG_EXPOSE_UNSUPPORTED`, one JSON-array Worker secret per pooled
+entry with a durable modulo-applied rotation cursor, and the guided
+`config.set` flow attesting `applied` through the `SNAPBACK_CONFIG_GENERATION`
+secret-binding carrier; see the implementation-status banner. Earlier,
+ENG-23493: the server's `config.verify` route now stages the probe under the instance lock, runs it detached under the ENG-23324 action watchdog, and records the outcome in a second short lock window — the "no hard timeout" probe gap is closed for server-triggered verifies; a stale detached run can no longer overwrite a newer retry's verification record. Earlier, 2026-07-04: admin console clarification: the old embedded fallback console was removed; the Contract/Exact admin console is now the single dashboard UI, with a no-dist diagnostic when its static build is unavailable. ENG-22752: the wizard's pre-provision empty state — `config.status` gained `appProvisioned` and the setup page now explains "no app has booted yet, open the app page once" instead of rendering nothing. D9 added — a read-only `.env`/JSON file *source* plus a durable store-path override (`--config-file`) that decouples the config store from the database, so `--memory` instances keep secrets across restarts; generalizes the `.env`-style source the v1 order named but shipped only as the deprecated `SNAPBACK_ACTION_SECRETS` env-blob. Design only — not yet built; see Implementation order §Near-term. Earlier, 2026-07-02: ratified Accepted by Charlie — the shipped v1 design with honest gaps banner; ledgered in LLP 0000. Also later same day, ENG-22598: the Contract admin console gained a Secrets surface projecting `config.status` with per-entry probe verify and grants legibility; see LLP 0017 §Implementation status. Earlier: v1 slice implemented on the local target at Charlie's direction — see the implementation-status banner for what is built versus the honest gaps; the status transition beyond Draft is left to the ratifying source per the LLP 0032 rules. Earlier same day: first review loop applied — cross-family GPT-5/Codex review, [reviews/0036-app-secrets-and-config.gpt-5.md](./reviews/0036-app-secrets-and-config.gpt-5.md), plus an author-side stress pass over the deployment matrix; added backend classes and the write-locus split (D7), config generations with attested apply, per-action grants (D8), the secret-handle API shape, probe execution rules, the transit rule, portability/backup/graduation semantics, and a strengthened multi-user posture in D3. Earlier same day: initial draft from the secrets design discussion)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0015, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, Diary 0008
 
 ## Summary
@@ -68,14 +76,39 @@ flow drivable end-to-end by an agent through MCP instead of a browser.
 > a **Secrets surface in both admin consoles** projecting `config.status` —
 > per-entry set/verified/apply state, `uses`-grant legibility, probe verify —
 > with values write-only via the wizard (ENG-22598, LLP 0017).
-> Honest gaps: `asBearer()` is `expose()` sugar — a true host-boundary unwrap
-> awaits host-mediated fetch on the egress seam (G3); probes have a cooldown
+> Honest gaps: on the LOCAL target `asBearer()` is `expose()` sugar — the
+> true host-boundary unwrap exists on the Cloudflare deploy-time-binding
+> profile (below) and comes to the local target with host-mediated fetch on
+> the egress seam (G3); probes have a cooldown
 > and — server-triggered — the ENG-23324 action watchdog (ENG-23493 staged
 > the verify route's probe run off the instance lock; queries/mutations still
 > have no wall-clock timeout); non-secret entries fail closed as
 > unimplemented; the status/config
-> table (D4 v2), hosted backends, and acquisition levels L1+ are not built;
+> table (D4 v2), hosted backends beyond the Cloudflare deploy-time-binding
+> class, and acquisition levels L1+ are not built;
 > CLI/MCP projections await the LLP 0024 surface (LLP 0032 P6).
+>
+> **Cloudflare `deploy-time-binding` backend as-built (2026-07-07,
+> ENG-23629 / LLP 0049 Phase 1):** the first hosted backend class landed on
+> the LLP 0040/0049 proof target (`cloudflare/src/coordinator.js`). Values
+> live in gateway-Worker secret bindings under mechanical app-scoped names
+> (`SNAPBACK_SECRET_ALL_ABOARD_CALTRAIN_FEED`), one JSON-array secret per
+> pooled entry with the rotation cursor durable coordinator-side and applied
+> modulo the current member count. Grants are **descriptor-only**: the
+> handler invocation payload carries entry names, set/missing state, member
+> count, and cursor — never values (`descriptorsOnly` grants in the
+> single-sourced ctx bootstrap) — and `expose()`/`asBearer()` **fail closed**
+> with `SNAPBACK_CONFIG_EXPOSE_UNSUPPORTED` on this profile; values unwrap
+> only at the coordinator's host-fetch boundary (LLP 0049 §Action Egress,
+> Phase 2). `config.set` is the guided controller flow
+> (`cloudflare/config-set.mjs`): one `wrangler secret bulk` activation
+> carrying the changed entries plus the bumped `SNAPBACK_CONFIG_GENERATION`
+> secret-binding stamp, with `applied` **attested** by observing
+> `/config/status` report generation ≥ staged (D7); an entry write with no
+> generation-bearing activation stays `pending` — asserted by
+> `cloudflare/test/acceptance.secrets.mjs` (16 checks), which also pins
+> reset-preserves-secrets, action-only grants, and no-key-material-on-any-
+> surface.
 
 ## Motivation
 

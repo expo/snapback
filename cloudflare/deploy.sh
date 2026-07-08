@@ -71,6 +71,13 @@ else
   echo "    Export SNAPBACK_ADMIN_TOKEN and re-run, or: npx wrangler secret put SNAPBACK_ADMIN_TOKEN --config $gateway_config"
 fi
 
+if [[ "$app" == "all-aboard" ]]; then
+  echo "==> configure app secrets (LLP 0049 Phase 1 guided config.set — one bulk"
+  echo "    activation carrying entries + the SNAPBACK_CONFIG_GENERATION stamp):"
+  echo "    node config-set.mjs --url https://$gateway_worker.<subdomain>.workers.dev \\"
+  echo "      --entry caltrainFeed='[\"<511-key>\"]' --entry directions='[\"<ors-key>\"]'"
+fi
+
 echo "==> deployed. Run the real-Cloudflare acceptance + measurement suite with:"
 echo "    SNAPBACK_PROOF_URL=https://$gateway_worker.<subdomain>.workers.dev \\"
 echo "      node test/acceptance.remote.mjs"

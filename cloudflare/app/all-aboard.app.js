@@ -115,6 +115,14 @@ export const schema = {
 
 export const bundleHash = functionsManifest.bundleHash;
 
+// Declared configuration (LLP 0036 / LLP 0049 Phase 1): the demo's generated
+// manifest is the source of truth — names, pool flags, required flags, and
+// acquisition metadata. The coordinator maps each declared entry to its
+// mechanical, app-scoped Worker secret binding name and builds action-only
+// redacted grant descriptors from these declarations plus each action's
+// `uses` — never values.
+export const config = functionsManifest.config || [];
+
 // Deterministic seed rows with explicit ids (the demo's generated seed.json):
 // the coordinator inserts them host-side — patch-shaped mutations like
 // applyFeedTick address rows by these stable ids.
@@ -138,6 +146,17 @@ export const functions = [
   // (LLP 0040 §Acceptance): the V8 denial tests must keep passing against the
   // All Aboard bundle, not only the notes regression surface.
   { name: 'probeAmbient', kind: 'Query', export: 'probeAmbient' },
+  // The real All Aboard actions (LLP 0049): declared with their action-only
+  // config grants. Phase 1 wires descriptor grants; Phase 2 adds the host
+  // fetch capability, the gateway action route, and the handler migration.
+  { name: 'refreshFeed', kind: 'Action', export: 'refreshFeed', uses: ['caltrainFeed'], tables: ['trainStatus', 'feedRefreshState'] },
+  { name: 'routeEstimate', kind: 'Action', export: 'routeEstimate', uses: ['directions'], tables: [] },
+  // Secret-grant probes for the LLP 0049 Phase 1 acceptance: the action
+  // observes redacted descriptor handles (and their fail-closed expose());
+  // the query and mutation prove ctx.secrets does not exist outside actions.
+  { name: 'probeSecrets', kind: 'Action', export: 'probeSecrets', uses: ['caltrainFeed', 'directions'], tables: [] },
+  { name: 'probeSecretsQuery', kind: 'Query', export: 'probeSecretsQuery' },
+  { name: 'probeSecretsMutation', kind: 'Mutation', export: 'probeSecretsMutation', tables: ['trainStatus'] },
 ];
 
 const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];
@@ -238,6 +257,60 @@ globalThis.__snapbackHandlers = {
       lastError: '',
     });
     return { tickIndex: 0 };
+  },
+
+  // LLP 0049 Phase 1 secret-grant probes. probeSecrets runs as an ACTION with
+  // uses: ['caltrainFeed', 'directions'] and reports only redaction-safe
+  // facts: the marker string every materialization path yields, the coded
+  // error expose()/asBearer() fail closed with, and the coded errors for
+  // missing/undeclared entries. It never returns a value because it can
+  // never see one.
+  async probeSecrets(ctx) {
+    function codeOf(error) {
+      const message = String((error && error.message) || error);
+      const match = message.match(/SNAPBACK_[A-Z0-9_]+/);
+      return match ? match[0] : message;
+    }
+    function probeEntry(name) {
+      try {
+        const handle = ctx.secrets.rotating(name);
+        let exposeError = null;
+        let bearerError = null;
+        try {
+          handle.expose();
+        } catch (error) {
+          exposeError = codeOf(error);
+        }
+        try {
+          handle.asBearer();
+        } catch (error) {
+          bearerError = codeOf(error);
+        }
+        return {
+          granted: true,
+          marker: String(handle),
+          json: JSON.stringify(handle),
+          template: `${handle}`,
+          exposeError,
+          bearerError,
+          descriptor: handle.__snapbackDescriptor || null,
+        };
+      } catch (error) {
+        return { granted: false, error: codeOf(error) };
+      }
+    }
+    return {
+      secretsType: typeof ctx.secrets,
+      caltrainFeed: probeEntry('caltrainFeed'),
+      directions: probeEntry('directions'),
+      undeclared: probeEntry('notDeclaredAnywhere'),
+    };
+  },
+  async probeSecretsQuery(ctx) {
+    return { secretsType: typeof ctx.secrets };
+  },
+  async probeSecretsMutation(ctx) {
+    return { secretsType: typeof ctx.secrets };
   },
 
   // Probe both denial directions (LLP 0040 §App subset), same as the notes

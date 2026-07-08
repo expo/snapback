@@ -60,7 +60,10 @@ async function bundle(entry, appBundle) {
 // loopback port so the actual kit client (demos/_kit/client.mjs) can drive
 // the proof over HTTP + WebSocket — dispatchFetch cannot carry the kit's
 // socket upgrades.
-export async function startProof({ app = 'notes', port = null } = {}) {
+// `bindings` merges extra gateway-Worker bindings (e.g. the LLP 0049
+// deploy-time secret bindings SNAPBACK_SECRET_* and the
+// SNAPBACK_CONFIG_GENERATION attestation carrier) over the defaults.
+export async function startProof({ app = 'notes', port = null, bindings = {} } = {}) {
   const selected = APPS[app];
   if (!selected) throw new Error(`unknown proof app ${app}`);
   const [gatewayScript, handlerScript] = await Promise.all([
@@ -79,7 +82,7 @@ export async function startProof({ app = 'notes', port = null } = {}) {
         serviceBindings: { HANDLER: selected.handlerWorker },
         // The admin-token gate on /reset and /evict (ENG-23587); the client
         // below presents it, and the acceptance suite asserts its absence 403s.
-        bindings: { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1' },
+        bindings: { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1', ...bindings },
       },
       {
         name: selected.handlerWorker,
