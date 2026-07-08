@@ -623,7 +623,11 @@ globalThis.__snapbackHandlers = {
       try {
         const response = await ctx.fetch({
           url,
-          headers: { Accept: 'application/json' },
+          // ORS answers GET directions with application/geo+json; a strict
+          // application/json Accept gets a 406 from the real service (found
+          // in the LLP 0049 Phase 4 remote run — the local mocks never
+          // exercised content negotiation).
+          headers: { Accept: 'application/json, application/geo+json;q=0.9, */*;q=0.1' },
           timeoutMs: 15_000,
           secretSlots: [{ placement: 'header', name: 'Authorization', handle }],
         });

@@ -1,11 +1,32 @@
 # LLP 0049: All Aboard on Cloudflare with live data
 
 **Type:** Plan
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Demo apps, Cloudflare, Deployment, Runtime, Security, Cron, Data gateway, Realtime, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (fifth pass same day, ENG-23627: the five queued
+**Revised:** 2026-07-07 (sixth pass same day, ENG-23628–ENG-23632: all four
+implementation phases built and the plan's product claim EARNED — All Aboard
+is deployed live at
+https://snapback-all-aboard-proof.ccheever-0f6.workers.dev with real 511 keys
+(a two-member pool) and a directions key configured through the guided
+`config.set` bulk-activation flow (attested `applied` at generation 1),
+host-mediated action egress with both placement slots proven against the real
+511 and OpenRouteService APIs, the generated Contract surface served
+same-origin and driving `client.action` through the gateway action route, and
+the demand-armed alarm warm poll running a real 60s scheduled cycle through
+the hardened claimed runner with a live push to a hibernation socket
+(cloudflare/test/acceptance.remote.all-aboard.mjs, 16/16). Named remaining
+limits live in the capability manifest (generalized_outbound_actions,
+egress_destination_allowlist, calendar_cron_triggers,
+http_outbox_poll_fallback, config automation); the long-window idle billing
+counters remain LLP 0040's open measurement. Two real-world corrections from
+the remote run: actions execute on a dedicated handler Worker (the handler
+server chains invocations per isolate, so a slow fetch would have queued
+transactional work — the Cloudflare analogue of the local DK-4 fresh-VM
+fence), and first-deploy service bindings are circular, so deploy.sh
+bootstraps with `services` stripped. Status Accepted → Implemented. Fifth
+pass same day, ENG-23627: the five queued
 revision decisions ratified — host-mediated fetch with placement slots and
 fail-closed `.expose()`, the demand-armed DO alarm superseding LLP 0028's
 minute-static-wakeup All Aboard default for this deployment,

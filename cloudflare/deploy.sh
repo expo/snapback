@@ -54,6 +54,28 @@ if [[ "$app" == "all-aboard" ]]; then
   (cd ../demos/all-aboard/surfaces/contract && bun install --frozen-lockfile >/dev/null && SNAPBACK_ALL_ABOARD_API=same-origin bun run build)
 fi
 
+# Service bindings are circular (gateway <-> handler), so a FIRST deploy to a
+# fresh account fails validation (code 10143) whichever order runs. Bootstrap
+# pass: deploy every Worker once with its "services" stripped, then run the
+# real deploys — an idempotent extra activation on later runs.
+bootstrap_configs=("$handler_config" "$gateway_config")
+if [[ "$app" == "all-aboard" ]]; then
+  bootstrap_configs+=("wrangler.all-aboard.action-handler.jsonc")
+fi
+echo "==> bootstrap pass (service bindings stripped; breaks the first-deploy cycle)"
+for config in "${bootstrap_configs[@]}"; do
+  stripped=".bootstrap.$config"
+  node -e "
+    const fs = require('fs');
+    const raw = fs.readFileSync('$config', 'utf8').replace(/^\s*\/\/.*$/gm, '');
+    const cfg = JSON.parse(raw);
+    delete cfg.services;
+    fs.writeFileSync('$stripped', JSON.stringify(cfg, null, 2));
+  "
+  npx wrangler deploy --config "$stripped"
+  rm -f "$stripped"
+done
+
 echo "==> deploying handler isolate ($handler_worker)"
 npx wrangler deploy --config "$handler_config"
 

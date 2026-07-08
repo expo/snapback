@@ -19,8 +19,8 @@
   "authImpersonation": false,
   "permissionDiagnostics": false,
   "assetUpload": false,
-  "outboundActions": false,
-  "cron": false,
+  "outboundActions": true,
+  "cron": true,
   "notifications": false,
   "supportedQueryForms": [
     "ibex-ctx-db-single-table-eq",
@@ -60,10 +60,13 @@
     "auth_impersonation",
     "handler_captured_read_set_validation",
     "assets",
-    "outbound_actions",
     "notifications",
-    "cron",
-    "config_secrets_backend",
+    "egress_destination_allowlist",
+    "generalized_outbound_actions",
+    "calendar_cron_triggers",
+    "config_set_automation",
+    "non_secret_config_entries",
+    "config_acquisition_automation",
     "http_outbox_poll_fallback",
     "ephemeral_realtime",
     "code_hot_load",
@@ -83,7 +86,10 @@
     "wallClockNote": "enforced by the platform (object/request kill); measured value in the benchmark report",
     "codeHotLoad": "missing — deployed Workers forbid dynamic eval; an app-code change is a deploy",
     "handlerHarness": "single-sourced LLP 0048 harness (packages/snapback-harness)",
-    "appProfile": "all-aboard recorded-data (LLP 0049 Phase 0): query/mutation/live over the generated Contract surface with same-origin static assets; live external data, deploy-time secrets, action egress, and warm-poll cron are NOT yet enabled — feed rows advance only through recorded ticks, labeled by feedRefreshState.lastSource",
-    "kitProtocol": "kit wire protocol served (connection grants, /query/:name, /mutation/:name, /live/:name/subscribe, /live/:id/stream); GET /outbox/:id drains empty by design — socket loss recovers through fresh snapshot-with-subscribe, and the HTTP poll fallback carries no deltas on this target"
+    "appProfile": "all-aboard live-data (LLP 0049, all phases): query/mutation/live over the generated Contract surface with same-origin static assets, deploy-time secrets, host-mediated action egress, and demand-gated warm polling — proven by remote acceptance against a real Cloudflare deployment (cloudflare/test/acceptance.remote.all-aboard.mjs)",
+    "kitProtocol": "kit wire protocol served (connection grants, /query/:name, /mutation/:name, /action/:name, /live/:name/subscribe, /live/:id/stream); GET /outbox/:id drains empty by design — socket loss recovers through fresh snapshot-with-subscribe, and the HTTP poll fallback carries no deltas on this target",
+    "outboundActions": "NOT a general claim (gap generalized_outbound_actions): exactly the action shapes LLP 0049 proves — host-mediated fetch with secret placement slots, query-param (refreshFeed api_key) and header (routeEstimate Authorization) both proven against real 511/OpenRouteService endpoints; values unwrap only at the coordinator fetch boundary; .expose()/.asBearer() fail closed in the isolate; NO destination allowlist yet (gap egress_destination_allowlist); wall-clock watchdog enforced; actions run on a dedicated handler isolate so slow fetches block no transactional work",
+    "cron": "demand-armed Durable Object alarm only (the LLP 0049-ratified shape): subscribe arms, last-unsubscribe cancels, hardened durable runner with (jobName, scheduledAt) idempotency claims; an idle deployment arms ZERO warm-poll wakeups; deploy-time-static Cron Triggers / calendar schedules are NOT implemented (gap calendar_cron_triggers); the minute Cron Trigger fallback was not taken, so no per-minute idle invocations exist to declare",
+    "configBackend": "deploy-time-binding (LLP 0036): gateway-Worker secret bindings, one JSON-array secret per pooled entry, descriptor-only action grants, guided config.set via cloudflare/config-set.mjs with SNAPBACK_CONFIG_GENERATION attestation; richer set/unset automation, non-secret entries, and acquisition automation are named gaps"
   }
 }

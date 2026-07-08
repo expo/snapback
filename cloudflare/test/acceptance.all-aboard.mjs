@@ -58,12 +58,13 @@ async function main() {
     const manifest = await client.inspect();
     check('capability manifest served and schema-shaped', validateManifestShape(manifest) === null);
     check(
-      'manifest still declares actions/egress/cron/secrets unavailable (Phase 0 honesty)',
-      manifest.outboundActions === false &&
-        manifest.cron === false &&
-        manifest.capabilityGaps.includes('outbound_actions') &&
-        manifest.capabilityGaps.includes('cron') &&
-        manifest.capabilityGaps.includes('config_secrets_backend')
+      'manifest declares the earned live-data facts with named partial limits (Phase 4 honesty)',
+      manifest.outboundActions === true &&
+        manifest.cron === true &&
+        manifest.capabilityGaps.includes('generalized_outbound_actions') &&
+        manifest.capabilityGaps.includes('egress_destination_allowlist') &&
+        manifest.capabilityGaps.includes('calendar_cron_triggers') &&
+        manifest.capabilityGaps.includes('http_outbox_poll_fallback')
     );
 
     // --- ensure/seed ------------------------------------------------------

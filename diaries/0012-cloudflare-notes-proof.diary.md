@@ -100,3 +100,40 @@ facts / 0 violations), both Workers bundle clean under `wrangler deploy
 command that produces the missing evidence — `cloudflare/deploy.sh` then
 `acceptance.remote.mjs` — needs a fresh Workers+DO-scoped API token; the one in
 the key file expired 2026-06-10.
+
+## 2026-07-07 — The proof grows up: All Aboard live on real Cloudflare (LLP 0049)
+
+The narrow notes proof became a two-app target today. A deploy-time app
+selector (the `snapback-app` module alias, resolved per wrangler config and
+per Miniflare harness) keeps the notes fixture untouched as this diary's
+regression surface, while `wrangler.all-aboard.*.jsonc` deploys the real demo:
+gateway + coordinator DO, TWO handler isolates (the action class gets its own
+Worker — the handler server chains invocations per isolate, so a slow action
+fetch on the shared isolate would have queued every query and live push behind
+it), same-origin static assets for the generated Contract surface, deploy-time
+secrets with descriptor-only grants, host-mediated fetch with placement slots,
+and the demand-armed alarm warm poll.
+
+The expired-token era ended: `deploy.sh` ran for real against
+ccheever@expo.io, and immediately taught two lessons Miniflare could not —
+first-deploy service bindings are circular (gateway ↔ handler both 10143
+whichever goes first; the script now does a bootstrap pass with `services`
+stripped), and real upstreams negotiate content types (OpenRouteService 406s a
+strict `Accept: application/json`; the mocks never noticed). The guided
+`config.set` flow worked exactly as designed on the real API: one
+`wrangler secret bulk` activation carrying both entries plus the
+`SNAPBACK_CONFIG_GENERATION` stamp, `pending` until `/config/status` attested
+generation ≥ 1, then `applied`.
+
+Remote acceptance (`acceptance.remote.all-aboard.mjs`) proves the LLP 0049
+product claim against `https://snapback-all-aboard-proof.ccheever-0f6.workers.dev`:
+live 511 data (200+ real SIRI visits mapped per refresh, committed through
+`applyLiveFeedSnapshot`, key-redacted diagnostics), directions through the
+header slot (ORS's first hit from a fresh colo can blow the 15s budget — the
+suite allows one retry and says so), the 60s warm-poll cycle through the
+hardened claimed runner with a live push to a real hibernation socket, and
+disarm-on-last-unsubscribe. What this run does NOT earn: long-window billing
+counters for the three idle shapes (no-connection, connected-hibernating,
+scheduled-wakeup). Those need hours of controlled idle time; the structural
+facts stand in honestly — zero armed alarms and an empty ledger while idle —
+and the counters remain the open LLP 0040 §Measurements item.

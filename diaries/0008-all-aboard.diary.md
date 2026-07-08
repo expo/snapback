@@ -829,3 +829,60 @@ source would still need to be modeled deliberately. Snapback's advantage here
 is that `lastSource` is durable, queryable, and shared with the Contract surface
 and tests; the cost is keeping the Contract and React presentation layers in
 lockstep until that duplication is retired.
+
+## 2026-07-07 — All Aboard deployed live on Cloudflare (LLP 0049)
+
+### What I built
+
+The full LLP 0049 phase set (ENG-23627–ENG-23632): All Aboard running at
+`https://snapback-all-aboard-proof.ccheever-0f6.workers.dev` on the LLP 0040
+proof target — gateway Worker serving the built Contract web bundle
+same-origin, coordinator Durable Object with SQLite, two handler isolates
+(transactional + action), deploy-time secrets for `caltrainFeed` (a real
+two-key 511 pool) and `directions`, host-mediated action egress, and the
+demand-armed alarm warm poll. The browser surface is the UNCHANGED generated
+Contract surface; the only deployment-specific bit is the documented
+`SNAPBACK_ALL_ABOARD_API=same-origin` build hook.
+
+### What felt good
+
+- **The app bundle port was almost mechanical.** Schema, mutations, and the
+  SIRI parsing chain moved from `snapback/handlers.mjs` into the Cloudflare
+  bundle nearly verbatim — the ctx contract really is engine-neutral. The
+  mutations needed zero changes.
+- **The kit client doubled as the acceptance driver.** Because the gateway
+  speaks the kit wire protocol, `demos/_kit/client.mjs` — the same code the
+  Contract surface runs — drives Miniflare and the real deployment. When the
+  suite passes, the browser path has genuinely been exercised, snapshots,
+  hibernation socket, action transport and all.
+- **Secret placement slots fit the two real APIs exactly.** 511 wants the key
+  in a query param, ORS in a header; the two-slot design covered both with no
+  generalization pressure, and the coordinator-owned redaction meant the
+  forced-401 upstream echo test passed on the first try.
+
+### What felt bad / surprised me
+
+- **The handler server serializes invocations per isolate.** A slow action
+  fetch would have queued every query and live push behind it — invisible in
+  Miniflare timings until the concurrency check was written. The fix (a
+  separate action-handler Worker) is honest and mirrors the local fresh-VM
+  action fence, but it was a real trap: the platform's unit of concurrency is
+  the Worker, not the invocation.
+- **First-deploy service bindings are circular.** Gateway ↔ handler bindings
+  both fail validation (code 10143) on a fresh account whichever deploys
+  first; deploy.sh needed a bootstrap pass with `services` stripped. The
+  expired-token era hid this — the notes proof had never actually deployed.
+- **Real ORS 406s what the mocks accepted.** The handler sent
+  `Accept: application/json`; real OpenRouteService answers GET directions
+  with `application/geo+json` and 406s a strict accept. Mock-first testing
+  never exercises upstream content negotiation — found only in the Phase 4
+  remote run.
+
+### Compared to React + Convex / Supabase
+
+Convex gives you hosted actions/cron/env-vars out of the box, so "deploy the
+demo with live data" is an afternoon there. What it does not give you is the
+posture this slice proves: secret values that structurally cannot enter the
+app isolate (fail-closed `.expose()`, descriptors-only payloads), an idle
+deployment that arms zero wakeups by construction, and a capability manifest
+that names every remaining gap instead of implying parity.
