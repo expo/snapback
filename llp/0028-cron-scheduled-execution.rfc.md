@@ -5,8 +5,16 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-07 (ENG-23417: §Scheduler state: validation-rejected jobs hold no runtime state — a redeploy that fails validation drops the job's previously-earned state in `reconcile`, manual run-now refuses rejected jobs with `SNAPBACK_CRON_JOB_INVALID`, and `claim_due_runs` claims only from schedule-hash-matching state; closes the loophole where a stale nominal made a rejected job execute, or with an invalid expression re-execute every tick); 2026-07-07 (ENG-23324: §Execution: the action class gains the as-built detached-execution note — server-triggered Ibex actions are staged under the global mutex but run off it on a watchdogged thread with per-host-call lock reacquisition; cron ticks claim under the lock, execute detached, and finish under the lock; `action_wall_clock_timeout` reports Enforced); 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027
+**Revised:** 2026-07-07 (ENG-23627 / LLP 0049 ratification: §Scale-to-zero
+tension — the demand-armed DO alarm is now All Aboard's accepted Cloudflare
+warm-poll shape, superseding the minute-static-wakeup default this document
+previously carried; LLP 0040's idle-economics measurement makes zero idle
+wakeups a requirement for that deployment, which moves `warmPoll` to the
+decision table's DO-alarm row. The minute Cron Trigger + demand check remains
+the named fallback, taken only with its idle invocation rate measured and
+declared in the capability manifest. The All Aboard source cadence comments
+were corrected in the same change); 2026-07-07 (ENG-23417: §Scheduler state: validation-rejected jobs hold no runtime state — a redeploy that fails validation drops the job's previously-earned state in `reconcile`, manual run-now refuses rejected jobs with `SNAPBACK_CRON_JOB_INVALID`, and `claim_due_runs` claims only from schedule-hash-matching state; closes the loophole where a stale nominal made a rejected job execute, or with an invalid expression re-execute every tick); 2026-07-07 (ENG-23324: §Execution: the action class gains the as-built detached-execution note — server-triggered Ibex actions are staged under the global mutex but run off it on a watchdogged thread with per-host-call lock reacquisition; cron ticks claim under the lock, execute detached, and finish under the lock; `action_wall_clock_timeout` reports Enforced); 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027, LLP 0040, LLP 0049
 
 ## Summary
 
@@ -588,13 +596,20 @@ are two Cloudflare-compatible versions:
 - **Minute static wakeup:** a Cron Trigger fires once per minute, the durable runner
   checks subscriber demand and cache age, and it early-outs when there is no useful
   work. This still bills a tiny deployed invocation, but it avoids a continuously
-  armed sub-minute alarm and is the default All Aboard shape.
+  armed sub-minute alarm. It is All Aboard's **named fallback**, not its default:
+  taking it requires measuring and declaring the per-minute idle invocation rate in
+  the capability manifest and excluding the deployment from the
+  no-connection-idle-zero claim
+  ([LLP 0049](./0049-all-aboard-cloudflare-live.plan.md) §Warm Polling).
 - **Dynamic alarm:** the Durable Object that owns the live-query room arms a poll
   alarm only while it has ≥1 subscriber, cancels it (`deleteAlarm`) when the last
   subscriber disconnects so the object can hibernate, and fires one immediate
   catch-up poll when a subscriber re-arms it (reusing the "missed ticks → run once
   on recovery" path). This is the stricter idle→zero shape, and the required shape
-  for sub-minute freshness.
+  for sub-minute freshness. **This is All Aboard's accepted Cloudflare shape**
+  (ratified 2026-07-07, ENG-23627): LLP 0040's idle-economics measurement makes
+  zero idle wakeups a requirement for that deployment, superseding the
+  minute-static-wakeup default this document previously carried.
 
 So "it never idles" holds only for an un-gated frequent poll. Cadence is a product
 decision with a cost consequence, and demand-gating plus read-through catch-up is

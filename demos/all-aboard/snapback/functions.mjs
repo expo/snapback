@@ -180,12 +180,16 @@ export const routeEstimate = defineAction({
 
 // --- Cron ---------------------------------------------------------------------
 
-// Minute warm-poll, armed only while a client is watching trainStatus. 60s cadence
-// keeps the hosted Cloudflare profile on a minute Cron Trigger (LLP 0027 / 0028).
+// Minute warm-poll, armed only while a client is watching trainStatus. On the
+// hosted Cloudflare profile this rides a demand-armed Durable Object alarm —
+// subscribe arms it, last-unsubscribe cancels it — so an idle deployment takes
+// zero warm-poll wakeups (LLP 0049 §Warm Polling, superseding the minute
+// Cron Trigger default LLP 0028 previously carried; the minute trigger with a
+// declared idle invocation rate is the named fallback).
 export const caltrainCron = defineCron({
   warmPoll: {
-    // jitter:false so the hosted target stays on a minute cadence rather than a
-    // sub-minute re-armed alarm (LLP 0027 non-goals / LLP 0028 target seam).
+    // jitter:false because the 60s cadence is a fixed product interval for a
+    // single demand-gated app; no thundering-herd concern (LLP 0028 §Jitter).
     schedule: { everyMs: 60_000, jitter: false },
     action: 'refreshFeed',
     activation: { kind: 'WhileLive', whileLive: ['liveTrainStatus'] },
