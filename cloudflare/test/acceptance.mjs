@@ -26,7 +26,7 @@ import { startProof } from './harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-const EXPECTED_CHECKS = 36;
+const EXPECTED_CHECKS = 41;
 
 const results = [];
 function check(name, condition, detail) {
@@ -188,6 +188,36 @@ async function main() {
     const reachable = probe.ok ? probe.rows.filter((row) => row.reachable).map((row) => row.name) : ['<query failed>'];
     check('the deployed V8 handler cannot reach fetch/env/bindings nor host storage handles',
       probe.ok && reachable.length === 0, `reachable: ${JSON.stringify(reachable)}`);
+
+    // -- null/missing optional-field filters: pushdown and overlay agree -----
+    // ENG-23606: `eq('authorId', null)` (and range filters over a null field)
+    // must return the SAME rows whether the invocation reads through the SQL
+    // pushdown (no buffered writes) or the buffered-overlay matchFilter path.
+    // Canonical semantics are SQL three-valued logic, matching the Rust
+    // hosts' filter_matches_row: null/missing never matches any operator.
+    await client.reset();
+    await client.mutation('addNote', { boardId: 'b-null', text: 'null author' });
+    await client.mutation('addNote', { boardId: 'b-null', text: 'authored', authorId: 'u1' });
+    const byAuthor = await client.query('listNotesByAuthor', { authorId: 'u1' });
+    check('an authorId filter still matches real values on the pushdown path',
+      byAuthor.ok && byAuthor.rows.length === 1 && byAuthor.rows[0].text === 'authored',
+      JSON.stringify(byAuthor));
+    const byNullAuthor = await client.query('listNotesByAuthor', { authorId: null });
+    check('eq(null) on an optional field matches nothing on the pushdown path (SQL semantics)',
+      byNullAuthor.ok && byNullAuthor.rows.length === 0,
+      JSON.stringify(byNullAuthor));
+    const nullProbe = await client.mutation('probeNullSemantics', { boardId: 'b-null' });
+    const probeCounts = nullProbe.ok ? nullProbe.result : null;
+    check('eq(null) agrees across pushdown and buffered-overlay paths within one mutation',
+      probeCounts !== null && probeCounts.eqNullBefore === 0 && probeCounts.eqNullAfter === 0,
+      JSON.stringify(nullProbe));
+    check('range filters over a null field agree across pushdown and buffered-overlay paths',
+      probeCounts !== null && probeCounts.ltBefore === 1 && probeCounts.ltAfter === 1,
+      JSON.stringify(nullProbe));
+    const byNullAfterCommit = await client.query('listNotesByAuthor', { authorId: null });
+    check('the committed null-author probe row stays excluded from eq(null) after commit',
+      byNullAfterCommit.ok && byNullAfterCommit.rows.length === 0,
+      JSON.stringify(byNullAfterCommit));
 
     // -- live subscription: snapshot before delta ---------------------------
     await client.reset();

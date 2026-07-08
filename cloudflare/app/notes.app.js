@@ -66,6 +66,11 @@ export const functions = [
   // (ENG-23578), and a detached rejection parked on a host call must fail the
   // mutation with nothing committed (ENG-23584/ENG-23585).
   { name: 'touchNote', kind: 'Mutation', export: 'touchNote', tables: ['notes'] },
+  // ENG-23606 regression probes: null/missing optional-field filters must
+  // behave identically on the SQL-pushdown path (no buffered writes) and the
+  // buffered-overlay path (mid-mutation, after a write).
+  { name: 'listNotesByAuthor', kind: 'LiveQuery', export: 'listNotesByAuthor', tables: ['notes'] },
+  { name: 'probeNullSemantics', kind: 'Mutation', export: 'probeNullSemantics', tables: ['notes'] },
   { name: 'probeBadTable', kind: 'Mutation', export: 'probeBadTable', tables: ['notes'] },
   { name: 'addNoteDetachedFailure', kind: 'Mutation', export: 'addNoteDetachedFailure', tables: ['notes'] },
 ];
@@ -92,6 +97,36 @@ globalThis.__snapbackHandlers = {
       authorId: args.authorId || null,
     });
     return { id };
+  },
+  async listNotesByAuthor(ctx, args) {
+    // `authorId` may be an explicit null: the ENG-23606 canonical semantics
+    // (SQL three-valued logic, matching the Rust hosts) say `eq(field, null)`
+    // matches NOTHING — not even rows storing null.
+    return await ctx.db
+      .query('notes')
+      .eq('authorId', args.authorId === undefined ? null : args.authorId)
+      .order('_createdAt', 'asc')
+      .collect();
+  },
+  async probeNullSemantics(ctx, args) {
+    // Runs the same null-sensitive queries before any buffered write (SQL
+    // pushdown path) and after one (buffered-overlay path) inside a single
+    // invocation. The two answer sets must agree (ENG-23606).
+    const eqNullBefore = await ctx.db.query('notes').eq('authorId', null).collect();
+    const ltBefore = await ctx.db.query('notes').lt('authorId', 'zzz').collect();
+    await ctx.db.insert('notes', {
+      boardId: args.boardId,
+      text: 'null-author probe',
+      authorId: null,
+    });
+    const eqNullAfter = await ctx.db.query('notes').eq('authorId', null).collect();
+    const ltAfter = await ctx.db.query('notes').lt('authorId', 'zzz').collect();
+    return {
+      eqNullBefore: eqNullBefore.length,
+      eqNullAfter: eqNullAfter.length,
+      ltBefore: ltBefore.length,
+      ltAfter: ltAfter.length,
+    };
   },
   async touchNote(ctx, args) {
     // Patches an arbitrary (usually missing) id, optionally with an empty

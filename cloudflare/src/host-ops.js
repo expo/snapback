@@ -94,10 +94,12 @@ export class HostContext {
   // order FIELD names are handler-provided too, so fieldExpr identifier-gates
   // them (throwing into db.query's stable host-call diagnostic) and every
   // VALUE rides a bind parameter (ENG-23578). The buffered overlay still
-  // reuses applyPlan, but ordinary reads avoid full-table JS scans. On the
-  // proof's typed, non-null schema subset the SQLite comparisons agree with
-  // applyPlan/matchFilter; ties break on the id column, matching applyPlan's
-  // _id tie-break.
+  // reuses applyPlan, but ordinary reads avoid full-table JS scans. The
+  // SQLite comparisons agree with applyPlan/matchFilter, including SQL
+  // three-valued logic on null/missing fields (ENG-23606: matchFilter
+  // mirrors the NULL-never-matches WHERE semantics, same as
+  // filter_matches_row in src/live_matcher.rs); ties break on the id
+  // column, matching applyPlan's _id tie-break.
   storageQuery(physical, plan) {
     const where = [];
     const params = [];
@@ -353,6 +355,14 @@ export function applyPlan(rows, plan) {
 function matchFilter(row, filter) {
   const value = row[filter.field];
   const target = literalValue(filter.value);
+  // SQL three-valued logic, matching filter_matches_row (src/live_matcher.rs)
+  // and the storageQuery pushdown: a null/missing column value satisfies no
+  // operator, and a null literal on the right matches nothing either —
+  // `IS NULL` is not an expressible predicate in this query subset
+  // (ENG-23606: the overlay previously matched `Eq null` and ranked null
+  // below everything for ranges, so results flipped with buffered writes).
+  if (value === null || value === undefined) return false;
+  if ((target === null || target === undefined) && filter.op !== 'In') return false;
   switch (filter.op) {
     case 'Eq': return value === target;
     case 'In': return Array.isArray(target) && target.includes(value);
