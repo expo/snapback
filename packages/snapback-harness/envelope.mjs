@@ -3,16 +3,11 @@
 // `handler_envelope_code` in src/runtime.rs: the Cloudflare coordinator (the
 // only JS host today) decodes the tagged completion envelope through this one
 // module so the same handler failure surfaces the same public code on every
-// target.
-//
-// One deliberate strictness difference from the Rust decoder, recorded here
-// so it cannot pass for drift: for a `{"r": ...}` envelope whose `r` carries
-// no boolean `__snapbackOk`, the Rust side currently returns the raw value as
-// success while this decoder fails closed with
-// SNAPBACK_HANDLER_DID_NOT_SETTLE. Only the settle wrapper constructs the
-// tag, and only after the awaited handler value exists, so an untagged `r`
-// proves nothing about settlement (ENG-23430). Follow-up filed to align the
-// Rust side with the strict behavior.
+// target. Both decoders fail closed with SNAPBACK_HANDLER_DID_NOT_SETTLE for
+// a `{"r": ...}` envelope whose `r` carries no boolean `__snapbackOk`: only
+// the settle wrapper constructs the tag, and only after the awaited handler
+// value exists, so an untagged `r` proves nothing about settlement
+// (ENG-23430, aligned in ENG-23603).
 
 // Mirrors handler_envelope_code (src/runtime.rs): internal denial codes map
 // to their public names, a known allowlist passes through, host-call codes

@@ -1096,36 +1096,37 @@ pub(crate) fn unhandled_rejection_error(module: &IbexModule, rejections: Vec<Str
 /// constructs the {"r": ...} envelope, and only after the awaited handler
 /// value exists — so anything untagged on this channel means the handler
 /// never settled and must fail closed with nothing committed (ENG-23430).
+/// That includes a `{"r": ...}` whose `r` carries no boolean `__snapbackOk`:
+/// the settle wrapper always tags, so an untagged `r` proves nothing about
+/// settlement and fails closed too, matching the JS decoder in
+/// `packages/snapback-harness/envelope.mjs` (ENG-23603).
 pub(crate) fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
     if let Ok(Value::Object(mut envelope)) = serde_json::from_str(&output)
         && envelope.len() == 1
         && let Some(result) = envelope.remove("r")
+        && let Some(object) = result.as_object()
+        && let Some(ok) = object.get("__snapbackOk").and_then(Value::as_bool)
     {
-        if let Some(object) = result.as_object()
-            && let Some(ok) = object.get("__snapbackOk").and_then(Value::as_bool)
-        {
-            if ok {
-                return Ok(object.get("value").cloned().unwrap_or(Value::Null));
-            }
-            let code = object
-                .get("code")
-                .and_then(Value::as_str)
-                .map(handler_envelope_code)
-                .unwrap_or("SNAPBACK_HANDLER_FAILED");
-            let message = object
-                .get("message")
-                .and_then(Value::as_str)
-                .unwrap_or("JavaScript handler failed");
-            return Err(
-                SnapbackError::error(code, "runtime", "JavaScript handler failed").with_details(
-                    json!({
-                        "function": module.export,
-                        "message": message,
-                    }),
-                ),
-            );
+        if ok {
+            return Ok(object.get("value").cloned().unwrap_or(Value::Null));
         }
-        return Ok(result);
+        let code = object
+            .get("code")
+            .and_then(Value::as_str)
+            .map(handler_envelope_code)
+            .unwrap_or("SNAPBACK_HANDLER_FAILED");
+        let message = object
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("JavaScript handler failed");
+        return Err(
+            SnapbackError::error(code, "runtime", "JavaScript handler failed").with_details(
+                json!({
+                    "function": module.export,
+                    "message": message,
+                }),
+            ),
+        );
     }
     Err(SnapbackError::error(
         "SNAPBACK_HANDLER_DID_NOT_SETTLE",
@@ -1766,4 +1767,95 @@ fn find_on_path(binary: &str) -> Option<PathBuf> {
 
 fn is_executable(path: &Path) -> bool {
     path.is_file()
+}
+
+#[cfg(test)]
+mod parse_handler_output_tests {
+    use super::parse_handler_output;
+    use crate::manifest::IbexModule;
+    use serde_json::{Value, json};
+
+    fn module() -> IbexModule {
+        IbexModule {
+            source: String::new(),
+            export: "handler".to_owned(),
+        }
+    }
+
+    fn parse(output: &str) -> Result<Value, String> {
+        parse_handler_output(&module(), output.to_owned())
+            .map_err(|error| error.diagnostic.code.clone())
+    }
+
+    #[test]
+    fn tagged_success_unwraps_value() {
+        assert_eq!(
+            parse(r#"{"r":{"__snapbackOk":true,"value":{"a":1}}}"#),
+            Ok(json!({"a": 1}))
+        );
+        assert_eq!(parse(r#"{"r":{"__snapbackOk":true}}"#), Ok(Value::Null));
+    }
+
+    #[test]
+    fn tagged_failure_maps_code() {
+        assert_eq!(
+            parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_HANDLER_RESULT_INVALID"}}"#),
+            Err("SNAPBACK_HANDLER_RESULT_INVALID".to_owned())
+        );
+        assert_eq!(
+            parse(r#"{"r":{"__snapbackOk":false,"code":"MADE_UP_BY_HANDLER"}}"#),
+            Err("SNAPBACK_HANDLER_FAILED".to_owned())
+        );
+    }
+
+    // ENG-23603: an untagged `r` proves nothing about settlement and must
+    // fail closed, exactly like the JS decoder in
+    // packages/snapback-harness/envelope.mjs.
+    #[test]
+    fn untagged_r_object_fails_closed() {
+        assert_eq!(
+            parse(r#"{"r":{"looksLike":"a result"}}"#),
+            Err("SNAPBACK_HANDLER_DID_NOT_SETTLE".to_owned())
+        );
+    }
+
+    #[test]
+    fn non_boolean_snapback_ok_fails_closed() {
+        assert_eq!(
+            parse(r#"{"r":{"__snapbackOk":"true","value":1}}"#),
+            Err("SNAPBACK_HANDLER_DID_NOT_SETTLE".to_owned())
+        );
+    }
+
+    #[test]
+    fn non_object_r_fails_closed() {
+        for output in [
+            r#"{"r":42}"#,
+            r#"{"r":"done"}"#,
+            r#"{"r":[1,2]}"#,
+            r#"{"r":null}"#,
+        ] {
+            assert_eq!(
+                parse(output),
+                Err("SNAPBACK_HANDLER_DID_NOT_SETTLE".to_owned()),
+                "output: {output}"
+            );
+        }
+    }
+
+    #[test]
+    fn non_envelope_shapes_fail_closed() {
+        for output in [
+            "{}",
+            "not json",
+            r#"{"r":{"__snapbackOk":true},"extra":1}"#,
+            "[]",
+        ] {
+            assert_eq!(
+                parse(output),
+                Err("SNAPBACK_HANDLER_DID_NOT_SETTLE".to_owned()),
+                "output: {output}"
+            );
+        }
+    }
 }
