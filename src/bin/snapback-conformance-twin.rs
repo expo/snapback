@@ -1,14 +1,29 @@
-//! The LLP 0048 conformance twin runner: execute one handler corpus on both
+//! The LLP 0048 conformance twin runner: execute one handler corpus on the
 //! engines with only the executor swapped, diff normalized outcomes,
 //! host-call traces, and committed storage, and emit a machine-readable
 //! divergence report in which every divergence is classified — convergent,
 //! declared engine fact, or diagnostic noise. An unclassified divergence is a
 //! contract violation and blocks the gate (exit 1).
 //!
+//! Three legs (ENG-23605): the Ibex and workerd legs share the Rust host-op
+//! table with only the JS executor swapped; the Cloudflare-JS leg
+//! (cloudflare/test/twin-engine.mjs, Miniflare) runs the same corpus through
+//! the deployed target's own invocation path — coordinator, JS host-op table
+//! (cloudflare/src/host-ops.js), Durable-Object SQLite. That leg exposes no
+//! host-call trace, so it is diffed on normalized outcomes and committed
+//! storage against the workerd leg (same V8+strip engine class, which
+//! isolates host-op/coordinator semantics from engine facts).
+//!
 //! Usage: snapback-conformance-twin [--out <report.json>]
 //!
 //! Exit codes: 0 gate green; 1 contract violation / unclassified divergence;
-//! 2 workerd unavailable (capability fact — the twin is a dev/CI tool).
+//! 2 workerd or the Miniflare leg's node toolchain unavailable (capability
+//! fact — the twin is a dev/CI tool).
+
+use std::collections::HashMap;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use serde_json::{Map, Value, json};
 use snapback::local::LocalSnapback;
@@ -40,6 +55,13 @@ struct Case {
     /// divergence lands in the report as a declared engine fact, not a
     /// contract violation.
     declared_fact: Option<&'static str>,
+    /// Some(reason) when the case cannot run on the Cloudflare-JS leg — it
+    /// lands in the report as that leg's declared engine fact (ENG-23605).
+    cloudflare_skip: Option<&'static str>,
+    /// An optional committed ground-state mutation run before the traced
+    /// case on every leg, for cases that need STORED rows (the ENG-23582
+    /// buffered-overlay-over-storage shapes).
+    seed: Option<(&'static str, Value)>,
 }
 
 fn corpus() -> Vec<Case> {
@@ -51,6 +73,8 @@ fn corpus() -> Vec<Case> {
             args: json!({"label": "alpha", "rank": 1}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "query-order-filter-take",
@@ -59,6 +83,8 @@ fn corpus() -> Vec<Case> {
             args: json!({"min": 0}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "query-first",
@@ -67,6 +93,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "read-your-writes",
@@ -75,6 +103,8 @@ fn corpus() -> Vec<Case> {
             args: json!({"label": "ryw"}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "patch-get-delete",
@@ -83,6 +113,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "runtime-now-id",
@@ -91,6 +123,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "console-diagnostics-routed",
@@ -99,6 +133,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "allowlist-slice-encoding-base64",
@@ -107,6 +143,8 @@ fn corpus() -> Vec<Case> {
             args: json!({"text": "héllo ✓ 𝒮"}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "write-in-query-denied",
@@ -115,6 +153,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "export-missing",
@@ -123,6 +163,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "result-not-serializable",
@@ -131,6 +173,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "settlement-hang",
@@ -139,6 +183,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "unhandled-detached-rejection",
@@ -147,6 +193,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         // ENG-23584: the detached chain parks on a HOST CALL before rejecting,
         // so the V8 leg only observes it if the drain waits for host-call
@@ -158,6 +206,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "detached-host-call-success",
@@ -166,6 +216,8 @@ fn corpus() -> Vec<Case> {
             args: json!({"label": "detached-ok", "rank": 7}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         // ENG-23593: decoder fidelity on view windows and invalid utf-8 must
         // CONVERGE — the Ibex polyfill is spec-corrected, not declared.
@@ -176,6 +228,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "deterministic-date-constructor",
@@ -186,6 +240,8 @@ fn corpus() -> Vec<Case> {
             declared_fact: Some(
                 "the zero-arg Date constructor (like Date.now/Math.random) is denied by the V8                  strip but reachable (codegen-banned only) on Ibex in v1 — the same declared                  engine fact, extended to the constructor path (ENG-23588)",
             ),
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "queue-microtask-interleave",
@@ -196,6 +252,8 @@ fn corpus() -> Vec<Case> {
             declared_fact: Some(
                 "the fine-grained interleave of queueMicrotask jobs with promise reactions                  differs between V8 and the Ibex vendored promise polyfill (thenable adoption                  and chained .then land at different ticks) — declared engine fact; handlers                  must not depend on cross-engine job ordering (ENG-23593)",
             ),
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "ambient-denial-fetch",
@@ -204,6 +262,8 @@ fn corpus() -> Vec<Case> {
             args: json!({}),
             engines: Engines::Both,
             declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
         },
         Case {
             name: "busy-loop-wall-clock-kill",
@@ -216,6 +276,13 @@ fn corpus() -> Vec<Case> {
                  leg declares wall_clock_timeout Missing and running this case there would hang \
                  (LLP 0047 via LLP 0048 §Limits testbed)",
             ),
+            cloudflare_skip: Some(
+                "wall-clock kill on the Cloudflare target is the platform CPU limit, not a \
+                 harness capability — in the in-process Miniflare harness a busy loop would \
+                 hang the runner (the settlement deadline is a setTimeout and cannot preempt \
+                 spinning JS), so this case is a declared engine fact on this leg (LLP 0047)",
+            ),
+            seed: None,
         },
         Case {
             name: "deterministic-members-date-now",
@@ -227,6 +294,43 @@ fn corpus() -> Vec<Case> {
                 "Date.now/Math.random are denied by the V8 strip but reachable (codegen-banned \
                  only) on Ibex in v1 — declared engine fact pinned by the twin gate tests",
             ),
+            cloudflare_skip: None,
+            seed: None,
+        },
+        // The ENG-23582 divergence class (via ENG-23605): buffered-overlay
+        // semantics observable only mid-invocation — patch-on-miss stays a
+        // miss, the point overlay stamps system fields, and a buffered patch
+        // that moves a stored row into a filter set surfaces the FULL stored
+        // row. These are the shapes the JS host-op table drifted on.
+        Case {
+            name: "patch-on-missing-row",
+            handler: "patchMissing",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
+        },
+        Case {
+            name: "buffered-point-overlay-timestamps",
+            handler: "insertThenGet",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
+        },
+        Case {
+            name: "buffered-patch-into-filter-set",
+            handler: "patchIntoFilter",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+            cloudflare_skip: None,
+            seed: Some(("addItem", json!({"label": "stored-full", "rank": 1}))),
         },
     ]
 }
@@ -401,12 +505,55 @@ fn uuid_at(text: &str, start: usize) -> Option<String> {
     Some(text[start..cursor].to_owned())
 }
 
-/// One engine's observation of one case: outcome (result or stable code),
-/// the normalized host-call trace, and the committed storage afterwards.
-fn run_case_on(case: &Case, backend: HandlerBackend) -> Value {
+/// One engine's raw observation of one case: outcome (result or stable
+/// code), the host-call trace, and the committed storage afterwards —
+/// normalization is applied per comparison view (`normalize_full`,
+/// `normalize_storage_view`), because $ID placeholder indices depend on
+/// first-appearance order across the dimensions being compared.
+struct RawRun {
+    outcome: Value,
+    trace: Value,
+    committed: Value,
+}
+
+/// The full three-dimension view (outcome, trace, committed) used for the
+/// Ibex↔workerd diff; one placeholder sequence spans all three in order.
+fn normalize_full(run: &RawRun) -> Value {
+    let mut ids = Vec::new();
+    json!({
+        "outcome": normalize(&run.outcome, &mut ids),
+        "trace": normalize(&run.trace, &mut ids),
+        "committed": normalize(&run.committed, &mut ids),
+    })
+}
+
+/// The trace-free view used for the Cloudflare-JS leg diff (ENG-23605): that
+/// leg has no host-call trace, and ids often first appear in the trace on
+/// the traced legs, so the reference leg is re-normalized over the same
+/// (outcome, committed) sequence instead of reusing the full view.
+fn normalize_storage_view(outcome: &Value, committed: &Value) -> Value {
+    let mut ids = Vec::new();
+    json!({
+        "outcome": normalize(outcome, &mut ids),
+        "committed": normalize(committed, &mut ids),
+    })
+}
+
+fn run_case_on(case: &Case, backend: HandlerBackend) -> RawRun {
     let mut snapback = LocalSnapback::memory().expect("instance");
     snapback.apply_schema(schema()).expect("schema");
     snapback.load_functions(functions(&corpus()));
+
+    // Committed ground state for cases that need STORED rows (ENG-23582
+    // shapes): the seed mutation runs before the traced case, outside the
+    // trace, on the same backend.
+    if let Some((seed_handler, seed_args)) = &case.seed {
+        with_forced_backend(backend, || {
+            snapback
+                .invoke_mutation(seed_handler, input(seed_args.clone()))
+                .expect("seed mutation commits");
+        });
+    }
 
     let (outcome, trace) = with_host_call_trace(|| {
         with_forced_backend(backend, || {
@@ -438,12 +585,89 @@ fn run_case_on(case: &Case, backend: HandlerBackend) -> Value {
         .filter(|entry| entry.op != "runtime.log")
         .collect();
 
-    let mut ids = Vec::new();
-    json!({
-        "outcome": normalize(&outcome, &mut ids),
-        "trace": normalize(&serde_json::to_value(&contract_trace).unwrap_or(Value::Null), &mut ids),
-        "committed": normalize(&committed, &mut ids),
-    })
+    RawRun {
+        outcome,
+        trace: serde_json::to_value(&contract_trace).unwrap_or(Value::Null),
+        committed,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The Cloudflare-JS leg (ENG-23605): one Miniflare process runs every
+// participating case through the deployed target's invocation path and
+// reports raw per-case observations for classification here.
+
+fn cloudflare_leg_toolchain() -> Result<(PathBuf, PathBuf), String> {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let script = manifest_dir.join("cloudflare/test/twin-engine.mjs");
+    if !script.exists() {
+        return Err(format!("missing runner {}", script.display()));
+    }
+    if !manifest_dir.join("node_modules/miniflare").is_dir() {
+        return Err("the miniflare dev dependency is not installed (npm install)".to_owned());
+    }
+    Ok((script, manifest_dir.to_path_buf()))
+}
+
+fn run_cloudflare_leg(cases: &[Case]) -> Result<HashMap<String, Value>, String> {
+    let (script, repo_root) = cloudflare_leg_toolchain()?;
+    let case_list: Vec<Value> = cases
+        .iter()
+        .filter(|case| case.cloudflare_skip.is_none())
+        .map(|case| {
+            json!({
+                "name": case.name,
+                "handler": case.handler,
+                "kind": match case.kind {
+                    FunctionKind::Mutation => "mutation",
+                    _ => "query",
+                },
+                "args": case.args,
+                "seed": case.seed.as_ref().map(|(handler, args)| {
+                    json!({"handler": handler, "args": args})
+                }),
+            })
+        })
+        .collect();
+    let mut child = Command::new("node")
+        .arg(&script)
+        .current_dir(&repo_root)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("node unavailable: {error}"))?;
+    child
+        .stdin
+        .take()
+        .expect("stdin was piped")
+        .write_all(
+            serde_json::to_string(&case_list)
+                .expect("case list serializes")
+                .as_bytes(),
+        )
+        .map_err(|error| format!("writing the case list failed: {error}"))?;
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("twin-engine did not complete: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "twin-engine exited {}: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    let observations: Vec<Value> = serde_json::from_slice(&output.stdout)
+        .map_err(|error| format!("twin-engine output was not valid JSON: {error}"))?;
+    Ok(observations
+        .into_iter()
+        .filter_map(|entry| {
+            entry
+                .get("name")
+                .and_then(Value::as_str)
+                .map(|name| (name.to_owned(), entry.clone()))
+        })
+        .collect())
 }
 
 fn main() {
@@ -469,16 +693,34 @@ fn main() {
         }
     };
 
+    // The Cloudflare-JS leg runs as one batch up front (one Miniflare
+    // process, per-case reset inside); like workerd, its toolchain is a
+    // dev/CI capability, so absence is exit 2, not a silent two-leg pass.
+    let cloudflare_observations = match run_cloudflare_leg(&corpus()) {
+        Ok(observations) => observations,
+        Err(reason) => {
+            eprintln!(
+                "SNAPBACK_CAPABILITY_MINIFLARE_MISSING: the conformance twin's Cloudflare-JS \
+                 leg needs node plus the miniflare dev dependency — {reason}"
+            );
+            std::process::exit(2);
+        }
+    };
+
     let busy_loop_budget_ms: u64 = 1_500;
     let mut cases_report = Vec::new();
     let mut convergent = 0usize;
     let mut declared = 0usize;
     let mut violations = 0usize;
+    let mut cloudflare_convergent = 0usize;
+    let mut cloudflare_declared = 0usize;
+    let mut cloudflare_violations = 0usize;
 
     for case in corpus() {
-        let workerd_run = with_wall_clock_timeout_ms(busy_loop_budget_ms.max(5_000), || {
+        let workerd_raw = with_wall_clock_timeout_ms(busy_loop_budget_ms.max(5_000), || {
             run_case_on(&case, HandlerBackend::WorkerdV8)
         });
+        let workerd_run = normalize_full(&workerd_raw);
         let (ibex_run, class, notes): (Value, &str, Value) = match case.engines {
             Engines::V8Only => {
                 declared += 1;
@@ -489,7 +731,7 @@ fn main() {
                 )
             }
             Engines::Both => {
-                let ibex_run = run_case_on(&case, HandlerBackend::Ibex);
+                let ibex_run = normalize_full(&run_case_on(&case, HandlerBackend::Ibex));
                 if ibex_run == workerd_run {
                     convergent += 1;
                     (ibex_run, "convergent", Value::Null)
@@ -506,6 +748,51 @@ fn main() {
                 }
             }
         };
+        // The third-leg diff (ENG-23605): Cloudflare-JS vs workerd on the
+        // trace-free view. Both legs are V8-with-strip, so every engine fact
+        // declared for Ibex↔V8 must CONVERGE here — the only expected skips
+        // are capabilities the Miniflare harness itself cannot express.
+        let (cloudflare_run, cloudflare_class, cloudflare_notes): (Value, &str, Value) =
+            if let Some(reason) = case.cloudflare_skip {
+                cloudflare_declared += 1;
+                (
+                    json!({"skipped": "declared engine fact — not runnable on this leg"}),
+                    "declared_engine_fact",
+                    json!(reason),
+                )
+            } else {
+                match cloudflare_observations.get(case.name) {
+                    Some(observed) => {
+                        let observed_view = normalize_storage_view(
+                            observed.get("outcome").unwrap_or(&Value::Null),
+                            observed.get("committed").unwrap_or(&Value::Null),
+                        );
+                        let reference_view =
+                            normalize_storage_view(&workerd_raw.outcome, &workerd_raw.committed);
+                        if observed_view == reference_view {
+                            cloudflare_convergent += 1;
+                            (observed_view, "convergent", Value::Null)
+                        } else {
+                            cloudflare_violations += 1;
+                            (
+                                json!({"observed": observed_view, "workerdV8": reference_view}),
+                                "contract_violation",
+                                json!(
+                                    "unclassified divergence vs the workerd leg — blocks the gate"
+                                ),
+                            )
+                        }
+                    }
+                    None => {
+                        cloudflare_violations += 1;
+                        (
+                            Value::Null,
+                            "contract_violation",
+                            json!("the Cloudflare-JS leg returned no observation for this case"),
+                        )
+                    }
+                }
+            };
         cases_report.push(json!({
             "name": case.name,
             "handler": case.handler,
@@ -513,6 +800,9 @@ fn main() {
             "notes": notes,
             "ibex": ibex_run,
             "workerdV8": workerd_run,
+            "cloudflareJsClass": cloudflare_class,
+            "cloudflareJsNotes": cloudflare_notes,
+            "cloudflareJs": cloudflare_run,
         }));
     }
 
@@ -525,10 +815,24 @@ fn main() {
         "wallClockTimeoutMs": snapback::workerd_exec::default_wall_clock_timeout_ms(),
         "hostCallTransport": "loopback-http-service-binding",
         "allowlist": "packages/snapback-harness/allowlist.json",
+        // The third leg (ENG-23605): same corpus, the deployed target's own
+        // invocation path and JS host-op table, diffed trace-free.
+        "cloudflareJsLeg": {
+            "harness": "miniflare (cloudflare/test/twin-engine.mjs)",
+            "hostOps": "cloudflare/src/host-ops.js",
+            "invocationPath": "gateway → coordinator → handler Worker → DO SQLite",
+            "diffDimensions": ["outcome", "committed"],
+            "referenceLeg": "workerdV8",
+        },
     });
     let manifest = CapabilityManifest::conformance_workerd_v8(runtime_facts);
 
-    let gate = if violations == 0 { "green" } else { "blocked" };
+    let total_violations = violations + cloudflare_violations;
+    let gate = if total_violations == 0 {
+        "green"
+    } else {
+        "blocked"
+    };
     let report = json!({
         "artifactKind": "conformanceTwinReport",
         "schemaVersion": "snapback.v0",
@@ -539,6 +843,11 @@ fn main() {
             "convergent": convergent,
             "declaredEngineFacts": declared,
             "contractViolations": violations,
+            "cloudflareJs": {
+                "convergent": cloudflare_convergent,
+                "declaredEngineFacts": cloudflare_declared,
+                "contractViolations": cloudflare_violations,
+            },
         },
         "capabilityManifest": serde_json::to_value(&manifest).expect("manifest serializes"),
         "cases": cases_report,
@@ -550,5 +859,5 @@ fn main() {
     } else {
         println!("{rendered}");
     }
-    std::process::exit(if violations == 0 { 0 } else { 1 });
+    std::process::exit(if total_violations == 0 { 0 } else { 1 });
 }

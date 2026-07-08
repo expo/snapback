@@ -13,7 +13,8 @@
     "verify": "scripts/verify-local-proof",
     "cf:accept": "node cloudflare/test/acceptance.mjs",
     "cf:measure": "node cloudflare/test/measure.mjs",
-    "cf:compat": "scripts/cf-check-compat"
+    "cf:compat": "scripts/cf-check-compat",
+    "cf:twin": "cargo run --bin snapback-conformance-twin -- --out cloudflare/generated/conformance-twin-report.json"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

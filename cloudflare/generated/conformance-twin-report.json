@@ -4,10 +4,15 @@
   "generatedBy": "snapback-conformance-twin",
   "gate": "green",
   "summary": {
-    "total": 21,
-    "convergent": 17,
+    "total": 24,
+    "convergent": 20,
     "declaredEngineFacts": 4,
-    "contractViolations": 0
+    "contractViolations": 0,
+    "cloudflareJs": {
+      "convergent": 23,
+      "declaredEngineFacts": 1,
+      "contractViolations": 0
+    }
   },
   "capabilityManifest": {
     "artifactKind": "capabilityManifest",
@@ -103,13 +108,23 @@
     "vmLifecycle": "fresh-process-per-invocation",
     "runtimeFacts": {
       "workerdVersion": "workerd 2026-07-07",
-      "workerdBinary": "/Users/ccheever/projects/snapback-llp-0040-0048/node_modules/.bin/workerd",
+      "workerdBinary": "/Users/ccheever/projects/snapback-eng-23605/node_modules/.bin/workerd",
       "compatibilityDate": "2026-07-01",
       "compatibilityFlags": [],
       "killDomain": "process-per-invocation",
       "wallClockTimeoutMs": 10000,
       "hostCallTransport": "loopback-http-service-binding",
-      "allowlist": "packages/snapback-harness/allowlist.json"
+      "allowlist": "packages/snapback-harness/allowlist.json",
+      "cloudflareJsLeg": {
+        "harness": "miniflare (cloudflare/test/twin-engine.mjs)",
+        "hostOps": "cloudflare/src/host-ops.js",
+        "invocationPath": "gateway → coordinator → handler Worker → DO SQLite",
+        "diffDimensions": [
+          "outcome",
+          "committed"
+        ],
+        "referenceLeg": "workerdV8"
+      }
     }
   },
   "cases": [
@@ -184,6 +199,33 @@
             "outcome": "$ID:0"
           }
         ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "alpha",
+              "rank": 1
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "id": "$ID:0"
+            }
+          }
+        },
         "committed": {
           "version": 1,
           "rows": [
@@ -295,6 +337,21 @@
           "version": 0,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
       }
     },
     {
@@ -373,6 +430,21 @@
             }
           }
         ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
         "committed": {
           "version": 0,
           "rows": []
@@ -518,6 +590,33 @@
             }
           }
         ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "ryw",
+              "rank": 1
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "visible": 1
+            }
+          }
+        },
         "committed": {
           "version": 1,
           "rows": [
@@ -681,6 +780,26 @@
           "version": 1,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 3,
+            "result": {
+              "existed": true,
+              "label": "patched",
+              "removed": true
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": []
+        }
       }
     },
     {
@@ -797,6 +916,34 @@
             }
           ]
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "now": "$MS",
+              "idLength": 36
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stamped-$ID:1",
+              "rank": 2
+            }
+          ]
+        }
       }
     },
     {
@@ -827,6 +974,21 @@
           }
         },
         "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
         "committed": {
           "version": 0,
           "rows": []
@@ -911,6 +1073,44 @@
           "version": 0,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "bytes": [
+                  104,
+                  195,
+                  169,
+                  108,
+                  108,
+                  111,
+                  32,
+                  226,
+                  156,
+                  147,
+                  32,
+                  240,
+                  157,
+                  146,
+                  174
+                ],
+                "roundTrip": "héllo ✓ 𝒮",
+                "encoded": "c25hcGJhY2s=",
+                "decoded": "snapback"
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
       }
     },
     {
@@ -939,6 +1139,18 @@
           "version": 0,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
       }
     },
     {
@@ -963,6 +1175,18 @@
           "code": "SNAPBACK_HANDLER_EXPORT_MISSING"
         },
         "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_EXPORT_MISSING"
+        },
         "committed": {
           "version": 0,
           "rows": []
@@ -1023,6 +1247,18 @@
           "version": 0,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_RESULT_INVALID"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
       }
     },
     {
@@ -1047,6 +1283,18 @@
           "code": "SNAPBACK_HANDLER_DID_NOT_SETTLE"
         },
         "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_DID_NOT_SETTLE"
+        },
         "committed": {
           "version": 0,
           "rows": []
@@ -1103,6 +1351,18 @@
             "outcome": "$ID:0"
           }
         ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
         "committed": {
           "version": 0,
           "rows": []
@@ -1185,6 +1445,18 @@
             "outcome": "$ID:1"
           }
         ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
         "committed": {
           "version": 0,
           "rows": []
@@ -1275,6 +1547,33 @@
             }
           ]
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "launched": true
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "detached-ok",
+              "rank": 7
+            }
+          ]
+        }
       }
     },
     {
@@ -1335,6 +1634,34 @@
           "version": 0,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "dataViewWindow": "cde",
+                "int8Window": "ef",
+                "truncated": "�",
+                "invalidByte": "�",
+                "badContinuation": "�A",
+                "bomStripped": "a",
+                "bomKept": true,
+                "encodeIntoFit": "3:4:104,195,169,33",
+                "encodeIntoTruncates": "1:1",
+                "fatalThrew": true
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
       }
     },
     {
@@ -1381,6 +1708,27 @@
           "version": 0,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "explicit": true,
+                "zeroArgReachable": false,
+                "callReachable": false
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
       }
     },
     {
@@ -1419,6 +1767,25 @@
           }
         },
         "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "order": "qm1,p1,qm2,p2,t1"
+              }
+            ]
+          }
+        },
         "committed": {
           "version": 0,
           "rows": []
@@ -1467,6 +1834,26 @@
           "version": 0,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false,
+                "how": "denied"
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
       }
     },
     {
@@ -1501,6 +1888,11 @@
           "version": 0,
           "rows": []
         }
+      },
+      "cloudflareJsClass": "declared_engine_fact",
+      "cloudflareJsNotes": "wall-clock kill on the Cloudflare target is the platform CPU limit, not a harness capability — in the in-process Miniflare harness a busy loop would hang the runner (the settlement deadline is a setTimeout and cannot preempt spinning JS), so this case is a declared engine fact on this leg (LLP 0047)",
+      "cloudflareJs": {
+        "skipped": "declared engine fact — not runnable on this leg"
       }
     },
     {
@@ -1542,6 +1934,743 @@
         "committed": {
           "version": 0,
           "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "patch-on-missing-row",
+      "handler": "patchMissing",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "changedCount": 0,
+            "result": {
+              "existed": false,
+              "seen": null,
+              "existedAfter": false
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "no-such-id",
+              "values": {
+                "label": "phantom"
+              }
+            },
+            "ok": true,
+            "outcome": false
+          },
+          {
+            "seq": 1,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "no-such-id"
+            },
+            "ok": true,
+            "outcome": null
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "no-such-id",
+              "values": {
+                "label": "phantom-2"
+              }
+            },
+            "ok": true,
+            "outcome": false
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "changedCount": 0,
+            "result": {
+              "existed": false,
+              "seen": null,
+              "existedAfter": false
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "no-such-id",
+              "values": {
+                "label": "phantom"
+              }
+            },
+            "ok": true,
+            "outcome": false
+          },
+          {
+            "seq": 1,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "no-such-id"
+            },
+            "ok": true,
+            "outcome": null
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "no-such-id",
+              "values": {
+                "label": "phantom-2"
+              }
+            },
+            "ok": true,
+            "outcome": false
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "changedCount": 0,
+            "result": {
+              "existed": false,
+              "seen": null,
+              "existedAfter": false
+            }
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "buffered-point-overlay-timestamps",
+      "handler": "insertThenGet",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 2,
+            "result": {
+              "seen": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 3
+              },
+              "patched": true,
+              "seenAfterPatch": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 4
+              }
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "fresh",
+                "rank": 3
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 3
+            }
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "rank": 4
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 3,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 2,
+            "result": {
+              "seen": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 3
+              },
+              "patched": true,
+              "seenAfterPatch": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 4
+              }
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "fresh",
+                "rank": 3
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 3
+            }
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "rank": 4
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 3,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 2,
+            "result": {
+              "seen": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 3
+              },
+              "patched": true,
+              "seenAfterPatch": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 4
+              }
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "buffered-patch-into-filter-set",
+      "handler": "patchIntoFilter",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 2,
+            "changedCount": 1,
+            "result": {
+              "before": 0,
+              "after": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 5
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": null,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": []
+            }
+          },
+          {
+            "seq": 1,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 0
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": null,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 1
+                }
+              ]
+            }
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "rank": 9
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 3,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 5
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": null,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        ],
+        "committed": {
+          "version": 2,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 2,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stored-full",
+              "rank": 9
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 2,
+            "changedCount": 1,
+            "result": {
+              "before": 0,
+              "after": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 5
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": null,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": []
+            }
+          },
+          {
+            "seq": 1,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 0
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": null,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 1
+                }
+              ]
+            }
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "rank": 9
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 3,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 5
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": null,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        ],
+        "committed": {
+          "version": 2,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 2,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stored-full",
+              "rank": 9
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 2,
+            "changedCount": 1,
+            "result": {
+              "before": 0,
+              "after": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        },
+        "committed": {
+          "version": 2,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 2,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stored-full",
+              "rank": 9
+            }
+          ]
         }
       }
     }

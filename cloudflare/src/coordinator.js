@@ -1083,6 +1083,22 @@ export class Coordinator {
 
   // --- handler invocation across the RPC seam ----------------------------
 
+  // The invocation settlement budget (ENG-23605): how long the handler
+  // server waits for the handler's completion envelope before reporting
+  // didNotSettle. Deployment-tunable via the SNAPBACK_SETTLEMENT_TIMEOUT_MS
+  // binding (the twin harness lowers it to keep the hangForever corpus case
+  // fast); the default mirrors the local twin's posture of always having a
+  // deadline rather than trusting handlers to settle. Actions legitimately
+  // park on external fetches, and their wall-clock authority is the
+  // executeAction watchdog (actionTimeoutMs) — the settlement deadline sits
+  // just above it so it only catches the never-settling shape, never
+  // slow-but-legal egress.
+  settlementTimeoutMs(mode) {
+    const configured = Number(this.env.SNAPBACK_SETTLEMENT_TIMEOUT_MS);
+    const base = Number.isFinite(configured) && configured > 0 ? configured : 10_000;
+    return mode === 'action' ? Math.max(base, this.actionTimeoutMs() + 1_000) : base;
+  }
+
   async invokeHandler(fnName, mode, args, options = {}) {
     const fn = this.functionByName(fnName);
     if (!fn) {
@@ -1139,6 +1155,14 @@ export class Coordinator {
           secretsJson,
           epoch,
           token,
+          // The handler server's settlement deadline (ENG-23605). Without
+          // it a never-settling handler parks this fetch forever AND wedges
+          // the handler isolate's invocation chain — every later invocation
+          // on that isolate queues behind the hang. The local twin has
+          // always passed one (src/workerd_exec.rs); this closes the same
+          // hole on the deployed path, and the twin corpus's hangForever
+          // case now converges to SNAPBACK_HANDLER_DID_NOT_SETTLE here.
+          settlementTimeoutMs: this.settlementTimeoutMs(mode),
           // The host-routing header entry.mjs echoes onto every host call so
           // the gateway routes it back to THIS coordinator object.
           hostHeaders: { 'x-snapback-do-id': this.ctx.id.toString() },

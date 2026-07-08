@@ -43,6 +43,13 @@ const APPS = {
     // not share the transactional handler Worker.
     actionHandlerWorker: 'snapback-all-aboard-action-handler',
   },
+  // The conformance-twin corpus as a Miniflare app (ENG-23605): executed by
+  // twin-engine.mjs under snapback-conformance-twin; never deployed.
+  twin: {
+    bundle: 'app/twin.app.js',
+    gatewayWorker: 'snapback-twin-proof',
+    handlerWorker: 'snapback-twin-handler',
+  },
 };
 
 async function bundle(entry, appBundle) {

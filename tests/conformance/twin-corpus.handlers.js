@@ -240,6 +240,36 @@ globalThis.__snapbackHandlers = {
     await adopted;
     return [{ order: order.join(',') }];
   },
+  async patchMissing(ctx) {
+    // ENG-23582 divergence 1: a patch on a row that does not exist must stay
+    // a miss — existed false, get null, a second patch still false — on
+    // every engine, and commit nothing.
+    var existed = await ctx.db.patch('items', 'no-such-id', { label: 'phantom' });
+    var seen = await ctx.db.get('items', 'no-such-id');
+    var existedAfter = await ctx.db.patch('items', 'no-such-id', { label: 'phantom-2' });
+    return { existed: existed, seen: seen, existedAfter: existedAfter };
+  },
+  async insertThenGet(ctx) {
+    // ENG-23582 divergence 3: the point overlay must stamp system fields on
+    // a buffered-insert readback and bump _updatedAt on a buffered patch, so
+    // db.get and db.query agree about timestamps mid-invocation.
+    var id = await ctx.db.insert('items', { label: 'fresh', rank: 3 });
+    var seen = await ctx.db.get('items', id);
+    var patched = await ctx.db.patch('items', id, { rank: 4 });
+    var seenAfterPatch = await ctx.db.get('items', id);
+    return { seen: seen, patched: patched, seenAfterPatch: seenAfterPatch };
+  },
+  async patchIntoFilter(ctx) {
+    // ENG-23582 divergence 2: a buffered patch that moves a STORED row into
+    // a filter set must surface the row's FULL stored columns (label), not a
+    // skeleton rebuilt from the patch values. Runs against a seeded row.
+    var before = await ctx.db.query('items').gte('rank', 5).collect();
+    var all = await ctx.db.query('items').gte('rank', 0).collect();
+    var id = all.length ? all[0]._id : 'missing-seed';
+    await ctx.db.patch('items', id, { rank: 9 });
+    var after = await ctx.db.query('items').gte('rank', 5).collect();
+    return { before: before.length, after: after };
+  },
   async dumpItems(ctx) {
     return await ctx.db.query('items').order('rank', 'asc').collect();
   }

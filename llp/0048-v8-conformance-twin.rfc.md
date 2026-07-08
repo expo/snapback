@@ -436,9 +436,32 @@ all are fixed and gated by the twin suites and the conformance corpus:
   configurable `fetch` and the wide compute surface stay reachable.
   `tests/egress_ambient_v0.rs` pins this in `cargo test`.
 
+## Third leg: the Cloudflare-JS host-op table (2026-07-08, ENG-23605)
+
+The deployed Cloudflare target's JS host-op table
+(`cloudflare/src/host-ops.js`) was a third op-table implementation outside
+this gate — parity held by review discipline plus point regression tests,
+which is how the ENG-23582 divergences drifted in silently. The twin runner
+now executes the same corpus on that leg too: one Miniflare process
+(`cloudflare/test/twin-engine.mjs`, app bundle `cloudflare/app/twin.app.js`)
+runs every participating case through the deployed invocation path —
+gateway → coordinator → handler Worker → DO SQLite — and the runner diffs
+normalized **outcomes and committed storage** against the workerd leg (same
+V8+strip engine class, so engine facts cancel and the diff isolates
+host-op/coordinator semantics). The leg exposes no host-call trace; that
+dimension stays Ibex↔workerd only. `busy-loop-wall-clock-kill` is the leg's
+one declared fact (the platform CPU limit cannot be expressed in-process in
+Miniflare). Three corpus cases pin the ENG-23582 divergence class directly
+(`patch-on-missing-row`, `buffered-point-overlay-timestamps`,
+`buffered-patch-into-filter-set`, the last via a seeded stored row), and the
+coordinator now passes a `settlementTimeoutMs` to the handler server —
+previously a never-settling handler wedged the isolate's invocation chain on
+the deployed path. `npm run cf:twin` regenerates the committed report.
+
 ## Status
 
 Draft (as-built sections landed 2026-07-07; review-hardening batch
-ENG-23574–ENG-23593 landed the same day). This RFC executes the DK-5
-re-decision (LLP 0009 §Decision DK-5); its conformance gate is green and the
-harness is the single-sourced artifact LLP 0040 deploys.
+ENG-23574–ENG-23593 landed the same day; the Cloudflare-JS third leg landed
+2026-07-08, ENG-23605). This RFC executes the DK-5 re-decision (LLP 0009
+§Decision DK-5); its conformance gate is green and the harness is the
+single-sourced artifact LLP 0040 deploys.
