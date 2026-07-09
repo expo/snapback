@@ -143,3 +143,23 @@ integration (server-authoritative mutations with optimistic UI), **not**
 local-first/Parity: there is no local handler replay. v0 runs declarative
 `HostPlan`s, not JavaScript `ctx.db` handlers (the Ibex host-call bridge is a
 capability gap). See `demo.snapback.json` `capabilityGaps` / `notClaiming`.
+
+## Native Rust tier (no JS)
+
+The same `todo.contract` runs on Exact's `contract-native` tier (exact
+LLP 0328/0329, ENG-23899): the Rust interpreter mounts the UI and a native
+data host executes this demo's generated `HostPlan` queries and
+`MutationPlan` mutations on an in-memory store seeded from `seed.json` —
+no JavaScript anywhere in the process. From an exact checkout with this
+repo as a sibling:
+
+```sh
+bun contract-native/scripts/generate-bundles.mjs --todo ../snapback
+ios/ContractNativeLab/build.sh
+./target/lab/ContractNativeLab target/contract-native/todo-v2.ir.json \
+  --data ../snapback/demos/todo-v2 --user user_ada
+```
+
+This is a local replica proving plan-execution parity (exact
+`contract-native/tests/todo_demo.rs` drives add/toggle/delete headlessly);
+live-server parity for native clients rides LLP 0051 Increments 5–6.
