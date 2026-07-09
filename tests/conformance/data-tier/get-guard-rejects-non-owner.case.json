@@ -1,0 +1,112 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "get-guard-rejects-non-owner",
+  "notes": "Same plan, wrong principal: the Guard fails with the typed code and nothing commits.",
+  "schema": {
+    "tables": [
+      {
+        "name": "todos",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "priority",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "completed",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "userId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "seed": {
+    "todos": [
+      {
+        "_id": "t1",
+        "title": "A",
+        "priority": "low",
+        "completed": false,
+        "userId": "owner"
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Get": {
+          "table": "todos",
+          "id": {
+            "Arg": "id"
+          },
+          "bind_as": "row",
+          "else_error": null
+        }
+      },
+      {
+        "Guard": {
+          "cond": {
+            "Binary": {
+              "op": "Eq",
+              "left": {
+                "Field": {
+                  "base": {
+                    "Binding": "row"
+                  },
+                  "key": "userId"
+                }
+              },
+              "right": "AuthUserId"
+            }
+          },
+          "else_error": "NOT_OWNER"
+        }
+      },
+      {
+        "Patch": {
+          "table": "todos",
+          "id": {
+            "Arg": "id"
+          },
+          "values": {
+            "completed": {
+              "Literal": true
+            }
+          }
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {
+    "id": "t1"
+  },
+  "authUserId": "intruder",
+  "expect": {
+    "error": {
+      "code": "NOT_OWNER"
+    },
+    "rows": {
+      "todos": [
+        {
+          "_id": "t1",
+          "completed": false
+        }
+      ]
+    }
+  }
+}

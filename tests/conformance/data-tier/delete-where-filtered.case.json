@@ -1,0 +1,95 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "delete-where-filtered",
+  "notes": "DeleteWhere with a non-empty filter deletes exactly the matching rows; filter semantics are the query/matcher semantics (one shared evaluator).",
+  "schema": {
+    "tables": [
+      {
+        "name": "todos",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "priority",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "completed",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "userId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "seed": {
+    "todos": [
+      {
+        "_id": "a",
+        "title": "A",
+        "priority": "low",
+        "completed": true,
+        "userId": "u1"
+      },
+      {
+        "_id": "b",
+        "title": "B",
+        "priority": "low",
+        "completed": false,
+        "userId": "u1"
+      },
+      {
+        "_id": "c",
+        "title": "C",
+        "priority": "low",
+        "completed": true,
+        "userId": "u1"
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "DeleteWhere": {
+          "table": "todos",
+          "filter": [
+            {
+              "field": "completed",
+              "op": "Eq",
+              "value": {
+                "Literal": true
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "result": 2,
+    "changedCount": 2,
+    "rows": {
+      "todos": [
+        {
+          "_id": "b",
+          "title": "B"
+        }
+      ]
+    }
+  }
+}

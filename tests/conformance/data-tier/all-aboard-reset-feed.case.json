@@ -1,0 +1,396 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "all-aboard-reset-feed",
+  "notes": "resetFeed authored entirely via the builder: six constant-driven Patch unrolls (a .map over PATTERN_IDS), DeleteWhere with the empty filter, constant Literal return.",
+  "schema": {
+    "tables": [
+      {
+        "name": "trainStatus",
+        "fields": [
+          {
+            "name": "delaySeconds",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "status",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "observedAt",
+            "field_type": "Integer",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "liveDepartures",
+        "fields": [
+          {
+            "name": "departureId",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "stationId",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "direction",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "predictedDepartureMs",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "delaySeconds",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "status",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "observedAt",
+            "field_type": "Integer",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "feedTicks",
+        "fields": [
+          {
+            "name": "delays",
+            "field_type": "Json",
+            "optional": true
+          },
+          {
+            "name": "note",
+            "field_type": "String",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "feedRefreshState",
+        "fields": [
+          {
+            "name": "fetchedAt",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "tickIndex",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "tickCount",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "lastSource",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastRunTrigger",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastError",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastUpstreamPollAt",
+            "field_type": "Integer",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "seed": {
+    "trainStatus": [
+      {
+        "_id": "sb-local",
+        "delaySeconds": 240,
+        "status": "delayed",
+        "observedAt": 1
+      },
+      {
+        "_id": "sb-limited",
+        "delaySeconds": 240,
+        "status": "delayed",
+        "observedAt": 1
+      },
+      {
+        "_id": "sb-bullet",
+        "delaySeconds": 240,
+        "status": "delayed",
+        "observedAt": 1
+      },
+      {
+        "_id": "nb-local",
+        "delaySeconds": 240,
+        "status": "delayed",
+        "observedAt": 1
+      },
+      {
+        "_id": "nb-limited",
+        "delaySeconds": 240,
+        "status": "delayed",
+        "observedAt": 1
+      },
+      {
+        "_id": "nb-bullet",
+        "delaySeconds": 240,
+        "status": "delayed",
+        "observedAt": 1
+      }
+    ],
+    "liveDepartures": [
+      {
+        "_id": "d1",
+        "departureId": "x",
+        "stationId": "s",
+        "direction": "north",
+        "predictedDepartureMs": 5,
+        "delaySeconds": 0,
+        "status": "on-time",
+        "observedAt": 1
+      }
+    ],
+    "feedRefreshState": [
+      {
+        "_id": "caltrain",
+        "tickIndex": 4,
+        "tickCount": 5,
+        "lastSource": "live"
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "sb-local"
+          },
+          "values": {
+            "delaySeconds": {
+              "Literal": 0
+            },
+            "status": {
+              "Literal": "on-time"
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "sb-limited"
+          },
+          "values": {
+            "delaySeconds": {
+              "Literal": 0
+            },
+            "status": {
+              "Literal": "on-time"
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "sb-bullet"
+          },
+          "values": {
+            "delaySeconds": {
+              "Literal": 0
+            },
+            "status": {
+              "Literal": "on-time"
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "nb-local"
+          },
+          "values": {
+            "delaySeconds": {
+              "Literal": 0
+            },
+            "status": {
+              "Literal": "on-time"
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "nb-limited"
+          },
+          "values": {
+            "delaySeconds": {
+              "Literal": 0
+            },
+            "status": {
+              "Literal": "on-time"
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "nb-bullet"
+          },
+          "values": {
+            "delaySeconds": {
+              "Literal": 0
+            },
+            "status": {
+              "Literal": "on-time"
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "DeleteWhere": {
+          "table": "liveDepartures",
+          "filter": []
+        }
+      },
+      {
+        "Patch": {
+          "table": "feedRefreshState",
+          "id": {
+            "Literal": "caltrain"
+          },
+          "values": {
+            "fetchedAt": "RuntimeNow",
+            "tickIndex": {
+              "Literal": 0
+            },
+            "lastSource": {
+              "Literal": "reset"
+            },
+            "lastRunTrigger": {
+              "Literal": "reset"
+            },
+            "lastError": {
+              "Literal": ""
+            },
+            "lastUpstreamPollAt": {
+              "Literal": 0
+            }
+          }
+        }
+      }
+    ],
+    "return_value": {
+      "Literal": {
+        "tickIndex": 0
+      }
+    }
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "result": {
+      "tickIndex": 0
+    },
+    "changedCount": 8,
+    "rows": {
+      "trainStatus": [
+        {
+          "_id": "sb-local",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "sb-limited",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "sb-bullet",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "nb-local",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "nb-limited",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "nb-bullet",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        }
+      ],
+      "liveDepartures": [],
+      "feedRefreshState": [
+        {
+          "_id": "caltrain",
+          "tickIndex": 0,
+          "lastSource": "reset",
+          "lastRunTrigger": "reset",
+          "lastError": "",
+          "lastUpstreamPollAt": 0,
+          "fetchedAt": "$ANY_NOW"
+        }
+      ]
+    }
+  }
+}

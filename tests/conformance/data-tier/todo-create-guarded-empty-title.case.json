@@ -1,0 +1,104 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "todo-create-guarded-empty-title",
+  "notes": "Guard failure is the author-supplied typed code; nothing commits.",
+  "schema": {
+    "tables": [
+      {
+        "name": "todos",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "priority",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "completed",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "userId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Guard": {
+          "cond": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Call": {
+                  "func": "trim",
+                  "args": [
+                    {
+                      "Arg": "title"
+                    }
+                  ]
+                }
+              },
+              "right": {
+                "Literal": ""
+              }
+            }
+          },
+          "else_error": "EMPTY_TITLE"
+        }
+      },
+      {
+        "Insert": {
+          "table": "todos",
+          "values": {
+            "title": {
+              "Call": {
+                "func": "trim",
+                "args": [
+                  {
+                    "Arg": "title"
+                  }
+                ]
+              }
+            },
+            "priority": {
+              "Literal": "normal"
+            },
+            "completed": {
+              "Literal": false
+            },
+            "userId": "AuthUserId"
+          },
+          "bind_id_as": "todoId"
+        }
+      }
+    ],
+    "return_value": {
+      "Binding": "todoId"
+    }
+  },
+  "args": {
+    "title": "   "
+  },
+  "authUserId": "user-1",
+  "expect": {
+    "error": {
+      "code": "EMPTY_TITLE"
+    },
+    "rows": {
+      "todos": []
+    }
+  }
+}

@@ -25,12 +25,12 @@ fn main() {
     let rendered = serde_json::to_string_pretty(&manifest).expect("manifest serializes");
 
     let arguments: Vec<String> = std::env::args().collect();
-    if let Some(index) = arguments.iter().position(|argument| argument == "--out") {
-        if let Some(path) = arguments.get(index + 1) {
-            std::fs::write(path, format!("{rendered}\n")).expect("manifest written");
-            println!("cloudflare capability manifest written to {path}");
-            return;
-        }
+    if let Some(index) = arguments.iter().position(|argument| argument == "--out")
+        && let Some(path) = arguments.get(index + 1)
+    {
+        std::fs::write(path, format!("{rendered}\n")).expect("manifest written");
+        println!("cloudflare capability manifest written to {path}");
+        return;
     }
     println!("{rendered}");
 }

@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-01 (LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-07-09 (LLP 0051 D2 / ENG-23893: the "`HostPlan` is an internal bridge" invariant is amended in place — the mutation IR returns to first-class as the data-tier's default for the common mutation, authored via the typed builder; raw plan objects remain non-authoring); previously 2026-07-01 (LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
 
 ## Summary
@@ -95,6 +95,18 @@ generated facts, and sleep-free test controls are product surfaces. New authorin
 ergonomics must preserve them.
 
 ### `HostPlan` is an internal bridge
+
+> **Amended 2026-07-09 (LLP 0051 D2, Increment 3 — ENG-23893):** partially
+> superseded. LLP 0051 re-litigated this demotion and returned `HostPlan`
+> mutations to **first-class visibility as the default tier for the common
+> mutation** — with the authoring problem this section reacted to fixed at
+> the front-end (the typed `define.mjs` builder, extended to the full v1
+> profile, is the first-class authoring surface), not by hiding the tier.
+> What this section got right stands: **raw plan objects** are still not an
+> application authoring model, and JS `ctx.db` handlers remain fully
+> supported for everything beyond the profile ("outgrew the IR" is a normal,
+> class-specific diagnostic). See LLP 0051 D2 for the extension and its
+> gates.
 
 `HostPlan` is useful for deterministic fixtures, bring-up, and maybe low-level
 tests. It must not be presented as the primary application authoring model after

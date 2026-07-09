@@ -8,6 +8,10 @@
 //! (LLP 0048 §Distribution posture): when workerd is absent every test here
 //! skips cleanly with the capability code on stdout.
 
+// SnapbackResult's large Err is a deliberate API-wide choice (see lib.rs);
+// integration-test crates need their own allow under clippy 1.94+.
+#![allow(clippy::result_large_err)]
+
 use serde_json::{Value, json};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{

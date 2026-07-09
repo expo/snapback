@@ -905,6 +905,9 @@ mod tests {
         check_smoke_report(&report)
     }
 
+    // The negated float comparisons inside `ensure!` are deliberate assertion
+    // spellings; newer clippy (1.94+) flags them via neg_cmp_op_on_partial_ord.
+    #[allow(clippy::neg_cmp_op_on_partial_ord)]
     fn check_smoke_report(report: &BenchReport) -> Result<(), String> {
         macro_rules! ensure {
             ($condition:expr, $($arg:tt)+) => {

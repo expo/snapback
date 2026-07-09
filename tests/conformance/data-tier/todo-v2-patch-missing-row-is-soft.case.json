@@ -1,0 +1,66 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "todo-v2-patch-missing-row-is-soft",
+  "notes": "The JS defensive-get idiom lowers to plain Patch: a missing row is a no-op with changed count 0 (src/storage.rs patch path), never an error.",
+  "schema": {
+    "tables": [
+      {
+        "name": "todos",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "priority",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "completed",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "userId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Patch": {
+          "table": "todos",
+          "id": {
+            "Arg": "id"
+          },
+          "values": {
+            "completed": {
+              "Literal": true
+            }
+          }
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {
+    "id": "missing"
+  },
+  "authUserId": "user-1",
+  "expect": {
+    "result": 0,
+    "changedCount": 0,
+    "rows": {
+      "todos": []
+    }
+  }
+}

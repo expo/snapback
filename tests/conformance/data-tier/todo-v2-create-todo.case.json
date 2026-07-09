@@ -1,0 +1,82 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "todo-v2-create-todo",
+  "notes": "Shipped todo-v2 createTodo plan (demos/todo-v2/snapback/functions.mjs): plain Insert + bound id return.",
+  "schema": {
+    "tables": [
+      {
+        "name": "todos",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "priority",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "completed",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "userId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Insert": {
+          "table": "todos",
+          "values": {
+            "title": {
+              "Arg": "title"
+            },
+            "priority": {
+              "Arg": "priority"
+            },
+            "completed": {
+              "Literal": false
+            },
+            "userId": "AuthUserId"
+          },
+          "bind_id_as": "todoId"
+        }
+      }
+    ],
+    "return_value": {
+      "Binding": "todoId"
+    }
+  },
+  "args": {
+    "title": "Buy milk",
+    "priority": "high"
+  },
+  "authUserId": "user-1",
+  "expect": {
+    "result": "$ANY_ID",
+    "changedCount": 1,
+    "rows": {
+      "todos": [
+        {
+          "title": "Buy milk",
+          "priority": "high",
+          "completed": false,
+          "userId": "user-1",
+          "_id": "$ANY_ID"
+        }
+      ]
+    }
+  }
+}

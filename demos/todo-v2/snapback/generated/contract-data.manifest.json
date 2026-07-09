@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:f32dd4591037f929",
+  "bundleHash": "sha256:1016145d809fedfa",
   "capabilities": {
     "branchableFixtures": false,
     "forceStates": true,
@@ -35,7 +35,7 @@
       ]
     }
   },
-  "inputsHash": "55e501a737186aa6e429044bd2317645720e97149ff32b469298bd89b3a7f5e8",
+  "inputsHash": "0768142a3d854a58f860fc159188ea6c9660c0b4e3756a8346055ca04892ff38",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {

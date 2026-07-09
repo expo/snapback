@@ -150,7 +150,22 @@ export function defineEphemeral(collections) {
 
 // ---------------------------------------------------------------------------
 // Value expressions (map onto the server's ValueExpr enum).
+//
+// The typed builder is the FIRST-CLASS authoring surface for the data-tier
+// IR (LLP 0051 D2): TS metaprogramming is load-bearing (constant-driven
+// unrolls are a `.map()` here), and the expression set below is the closed
+// v1 profile — no arrows, no closures, no free calls. Typings live in
+// define.d.ts beside this file.
+//
+// @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation —
+//   builder-first authoring; the Contract grammar is Exact LLP 0329's
+//   evidence-gated option.
 // ---------------------------------------------------------------------------
+
+function expectExpr(value, where) {
+  assert(value && value.__expr, `${where} expects a value expression`);
+  return value;
+}
 
 export const arg = (path) => ({ __expr: true, Arg: path });
 export const authUserId = () => ({ __expr: true, kind: 'AuthUserId' });
@@ -158,6 +173,83 @@ export const lit = (value) => ({ __expr: true, Literal: value });
 export const bindingRef = (name) => ({ __expr: true, Binding: name });
 export const runtimeId = () => ({ __expr: true, kind: 'RuntimeId' });
 export const runtimeNow = () => ({ __expr: true, kind: 'RuntimeNow' });
+
+/** The whole args object — the null-safe base for optional-arg access. */
+export const argsRoot = () => ({ __expr: true, kind: 'Args' });
+
+/** Null-propagating access by arbitrary string key (hyphenated keys are
+ * first-class): field(bindingRef('row'), 'delays', 'sb-local'). */
+export const field = (base, ...keys) => {
+  assert(keys.length > 0 && keys.every((k) => typeof k === 'string'), 'field() expects string keys');
+  let current = expectExpr(base, 'field()');
+  for (const key of keys) current = { __expr: true, Field: { base: current, key } };
+  return current;
+};
+
+/** Optional arg access: missing keys yield null (strict `arg()` fails). */
+export const argOpt = (path) => {
+  assert(typeof path === 'string' && path.length > 0, 'argOpt() expects a path');
+  return field(argsRoot(), ...path.split('.'));
+};
+
+const binary = (op) => (left, right) => ({
+  __expr: true,
+  Binary: { op, left: expectExpr(left, op), right: expectExpr(right, op) },
+});
+
+export const add = binary('Add');
+export const sub = binary('Sub');
+export const mul = binary('Mul');
+export const div = binary('Div');
+export const mod = binary('Mod');
+export const eqv = binary('Eq');
+export const ne = binary('Ne');
+export const lt = binary('Lt');
+export const lte = binary('Lte');
+export const gt = binary('Gt');
+export const gte = binary('Gte');
+export const and = binary('And');
+export const or = binary('Or');
+
+export const not = (expr) => ({ __expr: true, Unary: { op: 'Not', expr: expectExpr(expr, 'not()') } });
+export const neg = (expr) => ({ __expr: true, Unary: { op: 'Neg', expr: expectExpr(expr, 'neg()') } });
+
+/** Ternary: cond(test, whenTruthy, otherwise). */
+export const cond = (test, then, otherwise) => ({
+  __expr: true,
+  If: { cond: expectExpr(test, 'cond()'), then: expectExpr(then, 'cond()'), else: expectExpr(otherwise, 'cond()') },
+});
+
+/** String-template lowering: parts are expressions or plain strings. */
+export const concat = (...parts) => ({
+  __expr: true,
+  Concat: parts.map((part) => (typeof part === 'string' ? lit(part) : expectExpr(part, 'concat()'))),
+});
+
+/** The pinned v1 expression function library. JS mirror of the authority in
+ * `src/value_expr.rs` (`PINNED_FUNCTIONS`); the data-tier corpus pins the
+ * behavior of every entry, so drift between the two lists fails tests, not
+ * users. Growing it is a profile-version event. */
+export const PINNED_FUNCTIONS = Object.freeze([
+  'len', 'trim', 'lower', 'abs', 'min', 'max', 'round', 'floor', 'ceil', 'coalesce',
+]);
+
+/** Call into the pinned v1 function library; codegen fails closed on
+ * anything outside it. */
+export const call = (func, ...fnArgs) => {
+  assert(typeof func === 'string' && func.length > 0, 'call() expects a function name');
+  return { __expr: true, Call: { func, args: fnArgs.map((a) => expectExpr(a, `call(${func})`)) } };
+};
+
+export const coalesce = (...exprs) => call('coalesce', ...exprs);
+
+/** Closed record constructor — the computed-summary return shape. */
+export const record = (fields) => {
+  assert(fields && typeof fields === 'object' && !Array.isArray(fields), 'record() expects a fields object');
+  const out = {};
+  for (const [key, value] of Object.entries(fields)) out[key] = expectExpr(value, `record().${key}`);
+  return { __expr: true, Record: { fields: out } };
+};
 
 // ---------------------------------------------------------------------------
 // Query helpers
@@ -236,10 +328,50 @@ export const insert = (table, values, opts = {}) => ({
 export const patch = (table, id, values) => ({ Patch: { table, id, values } });
 export const del = (table, id) => ({ Delete: { table, id } });
 
+// The v1 extension steps (LLP 0051 D2): reads/guards plus the two closed
+// set-oriented forms. General iteration and data-dependent cross-step
+// control flow are permanently out of the profile — a mutation needing them
+// outgrew the IR and belongs on the JS/WASM tier (see defineJsMutation's
+// `outgrewIr` declaration).
+
+/** Point read captured into the read-set. Missing binds null (compose with
+ * coalesce) unless opts.elseError names a typed failure code. */
+export const get = (table, id, bindAs, opts = {}) => {
+  assert(typeof bindAs === 'string' && bindAs.length > 0, 'get() requires a bindAs name');
+  return { Get: { table, id: expectExpr(id, 'get()'), bind_as: bindAs, else_error: opts.elseError ?? null } };
+};
+
+/** Truthiness guard; failure is the author-supplied typed error code. */
+export const guard = (condExpr, elseError) => {
+  assert(typeof elseError === 'string' && elseError.length > 0, 'guard() requires an error code');
+  return { Guard: { cond: expectExpr(condExpr, 'guard()'), else_error: elseError } };
+};
+
+/** Bind a computed expression for later steps. */
+export const letBind = (bindAs, expr) => {
+  assert(typeof bindAs === 'string' && bindAs.length > 0, 'letBind() requires a name');
+  return { Let: { bind_as: bindAs, expr: expectExpr(expr, 'letBind()') } };
+};
+
+/** Set-oriented delete; empty (or omitted) filter clears the table. */
+export const deleteWhere = (table, filter = []) => {
+  assert(Array.isArray(filter), 'deleteWhere() filter must be an array');
+  return { DeleteWhere: { table, filter } };
+};
+
+/** One insert per element of an argument-supplied array — a bounded
+ * comprehension. Values are expressions over the itemAs binding. */
+export const insertEach = (table, source, itemAs, values) => {
+  assert(typeof itemAs === 'string' && itemAs.length > 0, 'insertEach() requires an itemAs name');
+  return { InsertEach: { table, source: expectExpr(source, 'insertEach()'), item_as: itemAs, values } };
+};
+
 export const returnBinding = (name) => ({ Binding: name });
 export const returnChangedCount = () => ({ kind: 'ChangedCount' });
 export const returnDocument = (table, id) => ({ Document: { table, id } });
 export const returnLiteral = (value) => ({ Literal: value });
+/** Expression-valued return — with record() this covers computed summaries. */
+export const returnExpr = (expr) => ({ Expr: expectExpr(expr, 'returnExpr()') });
 
 export function defineMutation(spec) {
   const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
@@ -252,14 +384,32 @@ export function defineMutation(spec) {
   };
 }
 
+/** The named out-of-profile classes (LLP 0051 D2): why a mutation is
+ * JS/WASM-tier rather than IR. Declaring one on defineJsMutation makes
+ * codegen emit the class-specific "outgrew the IR" info diagnostic into the
+ * generated manifest — the tier ladder stays explicit, never vibes. */
+export const OUTGREW_IR_CLASSES = Object.freeze({
+  'conditional-writes': 'data-dependent step skipping',
+  'filtered-read-guards': 'uniqueness/quota/membership guards over non-id keys',
+  'type-coercion': 'sanitizing untyped inputs with coercion the pinned library lacks',
+  'general-iteration': 'general iteration or data-dependent cross-step control flow',
+});
+
 export function defineJsMutation(spec) {
   assert(spec.source, 'defineJsMutation requires a handler source file');
   assert(spec.exportName, 'defineJsMutation requires exportName');
   assert(spec.writes && Array.isArray(spec.writes) && spec.writes.length > 0, 'defineJsMutation requires declared writes');
+  if (spec.outgrewIr !== undefined) {
+    assert(
+      typeof spec.outgrewIr === 'string' && OUTGREW_IR_CLASSES[spec.outgrewIr],
+      `defineJsMutation outgrewIr must be one of: ${Object.keys(OUTGREW_IR_CLASSES).join(', ')}`,
+    );
+  }
   return {
     [FN]: true,
     __kind: 'Mutation',
     args: spec.args ?? {},
+    ...(spec.outgrewIr !== undefined ? { outgrewIr: spec.outgrewIr } : {}),
     js: {
       source: spec.source,
       exportName: spec.exportName,

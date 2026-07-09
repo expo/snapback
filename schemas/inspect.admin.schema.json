@@ -219,6 +219,24 @@
       },
       "type": "object"
     },
+    "BinaryOp": {
+      "enum": [
+        "Add",
+        "Sub",
+        "Mul",
+        "Div",
+        "Mod",
+        "Eq",
+        "Ne",
+        "Lt",
+        "Lte",
+        "Gt",
+        "Gte",
+        "And",
+        "Or"
+      ],
+      "type": "string"
+    },
     "CapabilityManifest": {
       "properties": {
         "artifactKind": {
@@ -1681,6 +1699,7 @@
       "type": "object"
     },
     "MutationStep": {
+      "description": "The data-tier v1 mutation step set (LLP 0051 D2). Two families:\nunconditional writes (`Insert`/`Patch`/`Delete`, the original plan forms)\nand the v1 extension — reads and guards (`Get`/`Guard`/`Let`, evaluated\ninside the commit transaction with reads captured server-side) plus the\ntwo closed set-oriented forms (`DeleteWhere`/`InsertEach`). General\niteration, recursion, and data-dependent cross-step control flow stay out\nof the profile permanently.",
       "oneOf": [
         {
           "additionalProperties": false,
@@ -1767,6 +1786,155 @@
           },
           "required": [
             "Delete"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Point read by id, captured into the read-set. Missing is data, not\nfailure: with `else_error` unset the binding is null (composes with\n`coalesce` for the defaulting idiom); with `else_error` set the\nmutation fails with that typed code, mirroring `Guard`.",
+          "properties": {
+            "Get": {
+              "properties": {
+                "bind_as": {
+                  "type": "string"
+                },
+                "else_error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id",
+                "bind_as"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Get"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Truthiness check; failure is the author-supplied typed error code.",
+          "properties": {
+            "Guard": {
+              "properties": {
+                "cond": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "else_error": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cond",
+                "else_error"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Guard"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Bind a computed expression for later steps.",
+          "properties": {
+            "Let": {
+              "properties": {
+                "bind_as": {
+                  "type": "string"
+                },
+                "expr": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "bind_as",
+                "expr"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Let"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set-oriented delete over one table; the empty filter clears the table.\nNo more expressive than SQL `DELETE … WHERE`.",
+          "properties": {
+            "DeleteWhere": {
+              "properties": {
+                "filter": {
+                  "items": {
+                    "$ref": "#/$defs/FilterExpr"
+                  },
+                  "type": "array"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "filter"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "DeleteWhere"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "One insert per element of an argument-supplied array — a bounded\ncomprehension (fan-out capped by `MAX_INSERT_EACH_FANOUT`), not a\nloop construct. Each value is a `ValueExpr` over `item_as`.",
+          "properties": {
+            "InsertEach": {
+              "properties": {
+                "item_as": {
+                  "type": "string"
+                },
+                "source": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                },
+                "values": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "table",
+                "source",
+                "item_as",
+                "values"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "InsertEach"
           ],
           "type": "object"
         }
@@ -1941,6 +2109,19 @@
           },
           "required": [
             "Document"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Expression-valued return (with the `Record` constructor this covers\nthe computed summaries real feed mutations return — LLP 0051 D2).",
+          "properties": {
+            "Expr": {
+              "$ref": "#/$defs/ValueExpr"
+            }
+          },
+          "required": [
+            "Expr"
           ],
           "type": "object"
         }
@@ -2200,7 +2381,15 @@
       ],
       "type": "object"
     },
+    "UnaryOp": {
+      "enum": [
+        "Not",
+        "Neg"
+      ],
+      "type": "string"
+    },
     "ValueExpr": {
+      "description": "The data-tier v1 expression profile: a closed set — no arrows, no\nclosures, no free calls, no JS method binding — so every evaluator in\nevery language is finite work. Evaluation semantics live in one shared\nevaluator (`crate::value_expr`) and are pinned by the data-tier corpus.",
       "oneOf": [
         {
           "enum": [
@@ -2212,6 +2401,7 @@
         },
         {
           "additionalProperties": false,
+          "description": "Strict arg lookup by dotted path; a missing arg is a typed error.",
           "properties": {
             "Arg": {
               "type": "string"
@@ -2221,6 +2411,11 @@
             "Arg"
           ],
           "type": "object"
+        },
+        {
+          "const": "Args",
+          "description": "The whole args object — the null-safe base for optional-arg access\nvia `Field` (missing keys propagate null instead of failing).",
+          "type": "string"
         },
         {
           "additionalProperties": false,
@@ -2241,6 +2436,179 @@
           },
           "required": [
             "Literal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Null-propagating access by arbitrary string key (hyphenated JSON keys\nare first-class; settles the IR half of Exact LLP 0329 EQ8).",
+          "properties": {
+            "Field": {
+              "properties": {
+                "base": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "base",
+                "key"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binary": {
+              "properties": {
+                "left": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "op": {
+                  "$ref": "#/$defs/BinaryOp"
+                },
+                "right": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "op",
+                "left",
+                "right"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Binary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Unary": {
+              "properties": {
+                "expr": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "op": {
+                  "$ref": "#/$defs/UnaryOp"
+                }
+              },
+              "required": [
+                "op",
+                "expr"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Unary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "If": {
+              "properties": {
+                "cond": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "else": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "then": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "cond",
+                "then",
+                "else"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "If"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "String-template lowering: concatenation of stringified parts.",
+          "properties": {
+            "Concat": {
+              "items": {
+                "$ref": "#/$defs/ValueExpr"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "Concat"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Call into the pinned function library (`value_expr::PINNED_FUNCTIONS`);\nanything else fails closed with a typed rejection.",
+          "properties": {
+            "Call": {
+              "properties": {
+                "args": {
+                  "items": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "array"
+                },
+                "func": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "func",
+                "args"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Call"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Closed record constructor — the same shape as `Insert`'s values map,\nevaluated by the same machinery.",
+          "properties": {
+            "Record": {
+              "properties": {
+                "fields": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Record"
           ],
           "type": "object"
         }

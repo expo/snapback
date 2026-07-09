@@ -1,0 +1,79 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "let-binding-chain",
+  "notes": "Let bindings compose left to right and feed later steps.",
+  "schema": {
+    "tables": [
+      {
+        "name": "rows",
+        "fields": [
+          {
+            "name": "value",
+            "field_type": "Json",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 2
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "y",
+          "expr": {
+            "Binary": {
+              "op": "Mul",
+              "left": {
+                "Binding": "x"
+              },
+              "right": {
+                "Literal": 3
+              }
+            }
+          }
+        }
+      },
+      {
+        "Insert": {
+          "table": "rows",
+          "values": {
+            "value": {
+              "Binding": "y"
+            }
+          },
+          "bind_id_as": null
+        }
+      }
+    ],
+    "return_value": {
+      "Expr": {
+        "Binding": "y"
+      }
+    }
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "result": 6,
+    "changedCount": 1,
+    "rows": {
+      "rows": [
+        {
+          "value": 6
+        }
+      ]
+    }
+  }
+}

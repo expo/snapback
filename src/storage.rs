@@ -567,20 +567,26 @@ impl LocalDatabase {
         let next_version = current_version + 1;
         let tx = self.conn.transaction()?;
 
-        // @ref LLP 0032#phase-2--execution-semantics-honesty — E3 (Option A): the
-        // client-supplied read_set is the host-plan isolation mechanism *by
-        // design*, not a trust gap. A host-plan MutationPlan is an unconditional
-        // write sequence whose reads and writes run in this one transaction, so a
-        // server-captured read could never be stale relative to the commit —
-        // capturing reads here is a no-op for conflict detection. The deciding
-        // read happened on the client, so the client declares its baseline and the
-        // server enforces it atomically here. (Ibex handlers differ: they read →
-        // await → commit across an async window, so their reads are captured
-        // server-side and validated in `commit_buffered_writes`.)
+        // @ref LLP 0032#phase-2--execution-semantics-honesty — E3 (Option A),
+        // ratified-and-extended by LLP 0051 D2: the client-supplied read_set
+        // remains the isolation baseline for *plain* plans (their reads happened
+        // on the client, so the client declares the baseline and the server
+        // enforces it atomically here). Since `Get`/`Guard` landed, a plan is no
+        // longer necessarily an unconditional write sequence — plan `Get` reads
+        // execute inside this same transaction (they can never be stale relative
+        // to the commit, so they need no conflict validation) and are captured
+        // server-side into `read_dependencies` for receipts and derived
+        // overlays. (Ibex handlers still differ: they read → await → commit
+        // across an async window, so their reads are captured server-side and
+        // validated in `commit_buffered_writes`.)
         validate_read_set(&tx, &schema, &input.read_set)?;
+
+        // Fail closed on bounds/profile violations before any step executes.
+        crate::value_expr::validate_mutation_plan(plan)?;
 
         let mut bindings = BTreeMap::new();
         let mut changes = Vec::new();
+        let mut read_dependencies: Vec<CapturedReadDependency> = Vec::new();
 
         for step in &plan.steps {
             match step {
@@ -666,6 +672,196 @@ impl LocalDatabase {
                         });
                     }
                 }
+                // @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation —
+                // Get binds the row or null; missing is data, not failure. The
+                // read runs inside the commit transaction (never stale) and is
+                // captured server-side for receipts/overlays; a missing row is a
+                // MissingRow entry pinned to the table's change version, the
+                // per-row validation shape the buffered path already uses.
+                MutationStep::Get {
+                    table,
+                    id,
+                    bind_as,
+                    else_error,
+                } => {
+                    let table = schema_table(&schema, table)?;
+                    let id = expect_string(eval_expr(id, input, &bindings, now_ms)?, "get id")?;
+                    let document = get_document_from_tx(&tx, table, &id)?;
+                    let dependency = match &document {
+                        Some(_) => CapturedReadDependency {
+                            kind: CapturedReadKind::Row,
+                            table: Some(table.name.clone()),
+                            id: Some(id.clone()),
+                            version: get_row_version(&tx, table, &id)?,
+                            predicate: None,
+                            rows: Vec::new(),
+                            field: None,
+                            value: None,
+                            order: None,
+                            limit: None,
+                            result_count: None,
+                            boundary: None,
+                        },
+                        None => CapturedReadDependency {
+                            kind: CapturedReadKind::MissingRow,
+                            table: Some(table.name.clone()),
+                            id: Some(id.clone()),
+                            version: Some(table_change_version_from_tx(&tx, &table.name)?),
+                            predicate: None,
+                            rows: Vec::new(),
+                            field: None,
+                            value: None,
+                            order: None,
+                            limit: None,
+                            result_count: None,
+                            boundary: None,
+                        },
+                    };
+                    read_dependencies.push(dependency);
+                    match document {
+                        Some(row) => {
+                            bindings.insert(bind_as.clone(), row);
+                        }
+                        None => {
+                            if let Some(code) = else_error {
+                                return Err(SnapbackError::error(
+                                    code.clone(),
+                                    "handler",
+                                    format!("get on {} {id} found no row", table.name),
+                                )
+                                .with_details(json!({
+                                    "table": table.name,
+                                    "id": id,
+                                    "step": "Get",
+                                })));
+                            }
+                            bindings.insert(bind_as.clone(), Value::Null);
+                        }
+                    }
+                }
+                MutationStep::Guard { cond, else_error } => {
+                    let value = eval_expr(cond, input, &bindings, now_ms)?;
+                    if !crate::value_expr::truthy(&value) {
+                        return Err(SnapbackError::error(
+                            else_error.clone(),
+                            "handler",
+                            "mutation guard failed",
+                        )
+                        .with_details(json!({ "step": "Guard" })));
+                    }
+                }
+                MutationStep::Let { bind_as, expr } => {
+                    let value = eval_expr(expr, input, &bindings, now_ms)?;
+                    bindings.insert(bind_as.clone(), value);
+                }
+                MutationStep::DeleteWhere { table, filter } => {
+                    let table = schema_table(&schema, table)?;
+                    // Reuse the query WHERE builder so DeleteWhere filters share
+                    // matcher/SQL semantics with reads (empty filter = clear).
+                    let scan_plan = QueryPlan {
+                        table: table.name.clone(),
+                        filters: filter.clone(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    };
+                    let (sql, params) =
+                        build_query_sql(table, &scan_plan, input, &bindings, now_ms)?;
+                    let rows = {
+                        let mut statement = tx.prepare(&sql)?;
+                        let columns = statement
+                            .column_names()
+                            .into_iter()
+                            .map(ToOwned::to_owned)
+                            .collect::<Vec<_>>();
+                        let mut matched = statement.query(params_from_iter(params.iter()))?;
+                        let mut rows = Vec::new();
+                        while let Some(row) = matched.next()? {
+                            rows.push(row_to_document(row, table, &columns)?);
+                        }
+                        rows
+                    };
+                    // Row-granular deletes so live_delta membership maintenance
+                    // sees each removal, exactly as per-row Delete steps.
+                    for row in rows {
+                        let Some(id) = row.get("_id").and_then(Value::as_str).map(str::to_owned)
+                        else {
+                            continue;
+                        };
+                        if delete_document(&tx, table, &id)? {
+                            record_change(
+                                &tx,
+                                next_version,
+                                &table.name,
+                                &id,
+                                ChangeOp::Delete,
+                                None,
+                                now_ms,
+                            )?;
+                            changes.push(ChangedRow {
+                                table: table.name.clone(),
+                                id,
+                                op: ChangeOp::Delete,
+                                row: Some(row.clone()),
+                                changed_fields: Vec::new(),
+                            });
+                        }
+                    }
+                }
+                MutationStep::InsertEach {
+                    table,
+                    source,
+                    item_as,
+                    values,
+                } => {
+                    let table = schema_table(&schema, table)?;
+                    let source_value = eval_expr(source, input, &bindings, now_ms)?;
+                    let Value::Array(items) = source_value else {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_PLAN_SOURCE_INVALID",
+                            "runtime",
+                            "InsertEach source must evaluate to an array",
+                        )
+                        .with_details(json!({ "table": table.name })));
+                    };
+                    if items.len() > crate::value_expr::MAX_INSERT_EACH_FANOUT {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_PLAN_BOUNDS",
+                            "runtime",
+                            format!(
+                                "InsertEach fan-out {} exceeds the declared bound ({})",
+                                items.len(),
+                                crate::value_expr::MAX_INSERT_EACH_FANOUT
+                            ),
+                        ));
+                    }
+                    for item in items {
+                        // The item binding is scoped to this step's value maps.
+                        let mut item_bindings = bindings.clone();
+                        item_bindings.insert(item_as.clone(), item);
+                        let id = new_id();
+                        let row = eval_value_map(values, input, &item_bindings, now_ms)?;
+                        let changed_fields = changed_field_names(&row);
+                        let document =
+                            insert_document(&tx, table, &id, &row, next_version, now_ms)?;
+                        record_change(
+                            &tx,
+                            next_version,
+                            &table.name,
+                            &id,
+                            ChangeOp::Insert,
+                            Some(&document),
+                            now_ms,
+                        )?;
+                        changes.push(ChangedRow {
+                            table: table.name.clone(),
+                            id,
+                            op: ChangeOp::Insert,
+                            row: Some(document),
+                            changed_fields,
+                        });
+                    }
+                }
             }
         }
 
@@ -682,6 +878,7 @@ impl LocalDatabase {
                 get_document_from_tx(&tx, table, &id)?.unwrap_or(Value::Null)
             }
             Some(ReturnValue::ChangedCount) | None => json!(changes.len()),
+            Some(ReturnValue::Expr(expr)) => eval_expr(expr, input, &bindings, now_ms)?,
         };
 
         let version = if changes.is_empty() {
@@ -699,7 +896,7 @@ impl LocalDatabase {
             },
             write_dependencies: captured_writes_from_changes(&changes),
             changes,
-            read_dependencies: Vec::new(),
+            read_dependencies,
         })
     }
 
@@ -1849,51 +2046,23 @@ fn eval_value_map(
     Ok(output)
 }
 
+// One shared evaluator (crate::value_expr) serves mutation execution, the
+// live matcher, and filter→SQL compilation, so semantics cannot drift per
+// call site (LLP 0051 D2's analyzability invariant).
 fn eval_expr(
     expr: &ValueExpr,
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
 ) -> SnapbackResult<Value> {
-    match expr {
-        ValueExpr::Arg(path) => lookup_path(&input.args, path).cloned().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_ARG_MISSING",
-                "runtime",
-                format!("handler arg {path} was not provided"),
-            )
-        }),
-        ValueExpr::AuthUserId => input
-            .auth
-            .user_id
-            .clone()
-            .map(Value::String)
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_AUTH_USER_MISSING",
-                    "runtime",
-                    "handler requested auth.user_id but no user was supplied",
-                )
-            }),
-        ValueExpr::Binding(name) => bindings.get(name).cloned().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BINDING_MISSING",
-                "runtime",
-                format!("handler binding {name} was not available"),
-            )
-        }),
-        ValueExpr::Literal(value) => Ok(value.clone()),
-        ValueExpr::RuntimeId => Ok(Value::String(new_id())),
-        ValueExpr::RuntimeNow => Ok(json!(now_ms)),
-    }
-}
-
-fn lookup_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
-    let mut current = value;
-    for part in path.split('.') {
-        current = current.as_object()?.get(part)?;
-    }
-    Some(current)
+    let env = crate::value_expr::ExprEnv {
+        args: &input.args,
+        auth_user_id: input.auth.user_id.as_deref(),
+        bindings: Some(bindings),
+        now_ms: Some(now_ms),
+        runtime_id: Some(&new_id),
+    };
+    crate::value_expr::eval_value_expr(expr, &env).map_err(|error| error.into_snapback())
 }
 
 fn insert_document(

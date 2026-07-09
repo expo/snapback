@@ -847,7 +847,19 @@ disciplines.
    additive field; the ledger-length limit row; twin corpus cases
    proving Ibex/V8 ledger equivalence. Gives LLP 0043 M2 its captured
    environment as a defined channel.
-3. **IR v1 extension + promotion (D2, D5):** `ValueExpr` expression set
+3. **IR v1 extension + promotion (D2, D5)** — **SHIPPED 2026-07-09
+   (ENG-23893).** All three gates hold in-repo: (a) todo/todo-v2 CRUD
+   corpus cases execute on the host evaluator; (b) `resetFeed` and
+   `applyFeedTick` are builder-authored corpus cases
+   (`packages/snapback-codegen/data-tier-corpus.mjs`, regen-and-diff
+   gated) with the snapshot `DeleteWhere`/`InsertEach`/clamp cores as
+   fragments; (c) `applyLiveFeedSnapshot` carries the class-specific
+   `MUTATION_OUTGREW_IR: conditional writes` info diagnostic in its
+   generated manifest. One shared evaluator (`src/value_expr.rs`) serves
+   mutations, the live matcher, and filter→SQL; the corpus stages at
+   `tests/conformance/data-tier/` through the Rust runner
+   (`tests/data_tier_corpus_v0.rs`) pending the LLP 0010 format. Original
+   scope: `ValueExpr` expression set
    (including the record constructor), `Get`/`Guard`/`Let` steps with
    null-binding `Get`, `DeleteWhere`/`InsertEach`, expression-valued
    returns, matcher+SQL parity for newly analyzable filters, corpus

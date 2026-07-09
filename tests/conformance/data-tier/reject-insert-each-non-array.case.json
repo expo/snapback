@@ -1,0 +1,177 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "reject-insert-each-non-array",
+  "notes": "InsertEach over a non-array source is a typed rejection.",
+  "schema": {
+    "tables": [
+      {
+        "name": "trainStatus",
+        "fields": [
+          {
+            "name": "delaySeconds",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "status",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "observedAt",
+            "field_type": "Integer",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "liveDepartures",
+        "fields": [
+          {
+            "name": "departureId",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "stationId",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "direction",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "predictedDepartureMs",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "delaySeconds",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "status",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "observedAt",
+            "field_type": "Integer",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "feedTicks",
+        "fields": [
+          {
+            "name": "delays",
+            "field_type": "Json",
+            "optional": true
+          },
+          {
+            "name": "note",
+            "field_type": "String",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "feedRefreshState",
+        "fields": [
+          {
+            "name": "fetchedAt",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "tickIndex",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "tickCount",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "lastSource",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastRunTrigger",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastError",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastUpstreamPollAt",
+            "field_type": "Integer",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "InsertEach": {
+          "table": "liveDepartures",
+          "source": {
+            "Arg": "departures"
+          },
+          "item_as": "dep",
+          "values": {
+            "departureId": {
+              "Literal": "x"
+            },
+            "stationId": {
+              "Literal": "s"
+            },
+            "direction": {
+              "Literal": "north"
+            },
+            "predictedDepartureMs": {
+              "Literal": 1
+            },
+            "delaySeconds": {
+              "Literal": 0
+            },
+            "status": {
+              "Literal": "on-time"
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {
+    "departures": 5
+  },
+  "authUserId": null,
+  "expect": {
+    "error": {
+      "code": "SNAPBACK_PLAN_SOURCE_INVALID"
+    }
+  }
+}

@@ -1,0 +1,845 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "all-aboard-apply-feed-tick-first-run",
+  "notes": "Same builder plan against an empty feedRefreshState: the Get binds null, coalesce defaults reproduce the JS first-run path ((state && state.tickCount) || 1), and the trailing Patch on the missing state row is a soft no-op.",
+  "schema": {
+    "tables": [
+      {
+        "name": "trainStatus",
+        "fields": [
+          {
+            "name": "delaySeconds",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "status",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "observedAt",
+            "field_type": "Integer",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "liveDepartures",
+        "fields": [
+          {
+            "name": "departureId",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "stationId",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "direction",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "predictedDepartureMs",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "delaySeconds",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "status",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "observedAt",
+            "field_type": "Integer",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "feedTicks",
+        "fields": [
+          {
+            "name": "delays",
+            "field_type": "Json",
+            "optional": true
+          },
+          {
+            "name": "note",
+            "field_type": "String",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "feedRefreshState",
+        "fields": [
+          {
+            "name": "fetchedAt",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "tickIndex",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "tickCount",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "lastSource",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastRunTrigger",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastError",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastUpstreamPollAt",
+            "field_type": "Integer",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "seed": {
+    "trainStatus": [
+      {
+        "_id": "sb-local",
+        "delaySeconds": 0,
+        "status": "on-time",
+        "observedAt": 1
+      },
+      {
+        "_id": "sb-limited",
+        "delaySeconds": 0,
+        "status": "on-time",
+        "observedAt": 1
+      },
+      {
+        "_id": "sb-bullet",
+        "delaySeconds": 0,
+        "status": "on-time",
+        "observedAt": 1
+      },
+      {
+        "_id": "nb-local",
+        "delaySeconds": 0,
+        "status": "on-time",
+        "observedAt": 1
+      },
+      {
+        "_id": "nb-limited",
+        "delaySeconds": 0,
+        "status": "on-time",
+        "observedAt": 1
+      },
+      {
+        "_id": "nb-bullet",
+        "delaySeconds": 0,
+        "status": "on-time",
+        "observedAt": 1
+      }
+    ],
+    "feedTicks": [
+      {
+        "_id": "tick-0",
+        "delays": {
+          "sb-limited": 180
+        },
+        "note": "first"
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Get": {
+          "table": "feedRefreshState",
+          "id": {
+            "Literal": "caltrain"
+          },
+          "bind_as": "state",
+          "else_error": null
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "tickCount",
+          "expr": {
+            "Call": {
+              "func": "coalesce",
+              "args": [
+                {
+                  "Field": {
+                    "base": {
+                      "Binding": "state"
+                    },
+                    "key": "tickCount"
+                  }
+                },
+                {
+                  "Literal": 1
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "nextIndex",
+          "expr": {
+            "Binary": {
+              "op": "Mod",
+              "left": {
+                "Binary": {
+                  "op": "Add",
+                  "left": {
+                    "Call": {
+                      "func": "coalesce",
+                      "args": [
+                        {
+                          "Field": {
+                            "base": {
+                              "Binding": "state"
+                            },
+                            "key": "tickIndex"
+                          }
+                        },
+                        {
+                          "Literal": 0
+                        }
+                      ]
+                    }
+                  },
+                  "right": {
+                    "Literal": 1
+                  }
+                }
+              },
+              "right": {
+                "Call": {
+                  "func": "max",
+                  "args": [
+                    {
+                      "Literal": 1
+                    },
+                    {
+                      "Binding": "tickCount"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Get": {
+          "table": "feedTicks",
+          "id": {
+            "Concat": [
+              {
+                "Literal": "tick-"
+              },
+              {
+                "Binding": "nextIndex"
+              }
+            ]
+          },
+          "bind_as": "tick",
+          "else_error": null
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "delays",
+          "expr": {
+            "Call": {
+              "func": "coalesce",
+              "args": [
+                {
+                  "Field": {
+                    "base": {
+                      "Binding": "tick"
+                    },
+                    "key": "delays"
+                  }
+                },
+                {
+                  "Literal": {}
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "sb-local"
+          },
+          "values": {
+            "delaySeconds": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "delays"
+                      },
+                      "key": "sb-local"
+                    }
+                  },
+                  {
+                    "Literal": 0
+                  }
+                ]
+              }
+            },
+            "status": {
+              "If": {
+                "cond": {
+                  "Binary": {
+                    "op": "Gte",
+                    "left": {
+                      "Call": {
+                        "func": "coalesce",
+                        "args": [
+                          {
+                            "Field": {
+                              "base": {
+                                "Binding": "delays"
+                              },
+                              "key": "sb-local"
+                            }
+                          },
+                          {
+                            "Literal": 0
+                          }
+                        ]
+                      }
+                    },
+                    "right": {
+                      "Literal": 120
+                    }
+                  }
+                },
+                "then": {
+                  "Literal": "delayed"
+                },
+                "else": {
+                  "Literal": "on-time"
+                }
+              }
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "sb-limited"
+          },
+          "values": {
+            "delaySeconds": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "delays"
+                      },
+                      "key": "sb-limited"
+                    }
+                  },
+                  {
+                    "Literal": 0
+                  }
+                ]
+              }
+            },
+            "status": {
+              "If": {
+                "cond": {
+                  "Binary": {
+                    "op": "Gte",
+                    "left": {
+                      "Call": {
+                        "func": "coalesce",
+                        "args": [
+                          {
+                            "Field": {
+                              "base": {
+                                "Binding": "delays"
+                              },
+                              "key": "sb-limited"
+                            }
+                          },
+                          {
+                            "Literal": 0
+                          }
+                        ]
+                      }
+                    },
+                    "right": {
+                      "Literal": 120
+                    }
+                  }
+                },
+                "then": {
+                  "Literal": "delayed"
+                },
+                "else": {
+                  "Literal": "on-time"
+                }
+              }
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "sb-bullet"
+          },
+          "values": {
+            "delaySeconds": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "delays"
+                      },
+                      "key": "sb-bullet"
+                    }
+                  },
+                  {
+                    "Literal": 0
+                  }
+                ]
+              }
+            },
+            "status": {
+              "If": {
+                "cond": {
+                  "Binary": {
+                    "op": "Gte",
+                    "left": {
+                      "Call": {
+                        "func": "coalesce",
+                        "args": [
+                          {
+                            "Field": {
+                              "base": {
+                                "Binding": "delays"
+                              },
+                              "key": "sb-bullet"
+                            }
+                          },
+                          {
+                            "Literal": 0
+                          }
+                        ]
+                      }
+                    },
+                    "right": {
+                      "Literal": 120
+                    }
+                  }
+                },
+                "then": {
+                  "Literal": "delayed"
+                },
+                "else": {
+                  "Literal": "on-time"
+                }
+              }
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "nb-local"
+          },
+          "values": {
+            "delaySeconds": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "delays"
+                      },
+                      "key": "nb-local"
+                    }
+                  },
+                  {
+                    "Literal": 0
+                  }
+                ]
+              }
+            },
+            "status": {
+              "If": {
+                "cond": {
+                  "Binary": {
+                    "op": "Gte",
+                    "left": {
+                      "Call": {
+                        "func": "coalesce",
+                        "args": [
+                          {
+                            "Field": {
+                              "base": {
+                                "Binding": "delays"
+                              },
+                              "key": "nb-local"
+                            }
+                          },
+                          {
+                            "Literal": 0
+                          }
+                        ]
+                      }
+                    },
+                    "right": {
+                      "Literal": 120
+                    }
+                  }
+                },
+                "then": {
+                  "Literal": "delayed"
+                },
+                "else": {
+                  "Literal": "on-time"
+                }
+              }
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "nb-limited"
+          },
+          "values": {
+            "delaySeconds": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "delays"
+                      },
+                      "key": "nb-limited"
+                    }
+                  },
+                  {
+                    "Literal": 0
+                  }
+                ]
+              }
+            },
+            "status": {
+              "If": {
+                "cond": {
+                  "Binary": {
+                    "op": "Gte",
+                    "left": {
+                      "Call": {
+                        "func": "coalesce",
+                        "args": [
+                          {
+                            "Field": {
+                              "base": {
+                                "Binding": "delays"
+                              },
+                              "key": "nb-limited"
+                            }
+                          },
+                          {
+                            "Literal": 0
+                          }
+                        ]
+                      }
+                    },
+                    "right": {
+                      "Literal": 120
+                    }
+                  }
+                },
+                "then": {
+                  "Literal": "delayed"
+                },
+                "else": {
+                  "Literal": "on-time"
+                }
+              }
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "Patch": {
+          "table": "trainStatus",
+          "id": {
+            "Literal": "nb-bullet"
+          },
+          "values": {
+            "delaySeconds": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "delays"
+                      },
+                      "key": "nb-bullet"
+                    }
+                  },
+                  {
+                    "Literal": 0
+                  }
+                ]
+              }
+            },
+            "status": {
+              "If": {
+                "cond": {
+                  "Binary": {
+                    "op": "Gte",
+                    "left": {
+                      "Call": {
+                        "func": "coalesce",
+                        "args": [
+                          {
+                            "Field": {
+                              "base": {
+                                "Binding": "delays"
+                              },
+                              "key": "nb-bullet"
+                            }
+                          },
+                          {
+                            "Literal": 0
+                          }
+                        ]
+                      }
+                    },
+                    "right": {
+                      "Literal": 120
+                    }
+                  }
+                },
+                "then": {
+                  "Literal": "delayed"
+                },
+                "else": {
+                  "Literal": "on-time"
+                }
+              }
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      },
+      {
+        "DeleteWhere": {
+          "table": "liveDepartures",
+          "filter": []
+        }
+      },
+      {
+        "Patch": {
+          "table": "feedRefreshState",
+          "id": {
+            "Literal": "caltrain"
+          },
+          "values": {
+            "fetchedAt": "RuntimeNow",
+            "tickIndex": {
+              "Binding": "nextIndex"
+            },
+            "lastSource": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": "Args",
+                      "key": "source"
+                    }
+                  },
+                  {
+                    "Literal": "recorded"
+                  }
+                ]
+              }
+            },
+            "lastRunTrigger": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": "Args",
+                      "key": "trigger"
+                    }
+                  },
+                  {
+                    "Literal": "manual"
+                  }
+                ]
+              }
+            },
+            "lastError": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": "Args",
+                      "key": "lastError"
+                    }
+                  },
+                  {
+                    "Literal": ""
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ],
+    "return_value": {
+      "Expr": {
+        "Record": {
+          "fields": {
+            "tickIndex": {
+              "Binding": "nextIndex"
+            },
+            "note": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "tick"
+                      },
+                      "key": "note"
+                    }
+                  },
+                  {
+                    "Literal": ""
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "result": {
+      "tickIndex": 0,
+      "note": "first"
+    },
+    "changedCount": 6,
+    "rows": {
+      "trainStatus": [
+        {
+          "_id": "sb-local",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "sb-limited",
+          "delaySeconds": 180,
+          "status": "delayed",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "sb-bullet",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "nb-local",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "nb-limited",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "_id": "nb-bullet",
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        }
+      ],
+      "feedRefreshState": []
+    }
+  }
+}

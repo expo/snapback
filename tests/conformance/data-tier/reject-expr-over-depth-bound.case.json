@@ -1,0 +1,207 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "reject-expr-over-depth-bound",
+  "notes": "Expression depth over MAX_EXPR_DEPTH (32) is a bounds rejection.",
+  "schema": {
+    "tables": [
+      {
+        "name": "rows",
+        "fields": [
+          {
+            "name": "value",
+            "field_type": "Json",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [],
+    "return_value": {
+      "Expr": {
+        "Unary": {
+          "op": "Neg",
+          "expr": {
+            "Unary": {
+              "op": "Neg",
+              "expr": {
+                "Unary": {
+                  "op": "Neg",
+                  "expr": {
+                    "Unary": {
+                      "op": "Neg",
+                      "expr": {
+                        "Unary": {
+                          "op": "Neg",
+                          "expr": {
+                            "Unary": {
+                              "op": "Neg",
+                              "expr": {
+                                "Unary": {
+                                  "op": "Neg",
+                                  "expr": {
+                                    "Unary": {
+                                      "op": "Neg",
+                                      "expr": {
+                                        "Unary": {
+                                          "op": "Neg",
+                                          "expr": {
+                                            "Unary": {
+                                              "op": "Neg",
+                                              "expr": {
+                                                "Unary": {
+                                                  "op": "Neg",
+                                                  "expr": {
+                                                    "Unary": {
+                                                      "op": "Neg",
+                                                      "expr": {
+                                                        "Unary": {
+                                                          "op": "Neg",
+                                                          "expr": {
+                                                            "Unary": {
+                                                              "op": "Neg",
+                                                              "expr": {
+                                                                "Unary": {
+                                                                  "op": "Neg",
+                                                                  "expr": {
+                                                                    "Unary": {
+                                                                      "op": "Neg",
+                                                                      "expr": {
+                                                                        "Unary": {
+                                                                          "op": "Neg",
+                                                                          "expr": {
+                                                                            "Unary": {
+                                                                              "op": "Neg",
+                                                                              "expr": {
+                                                                                "Unary": {
+                                                                                  "op": "Neg",
+                                                                                  "expr": {
+                                                                                    "Unary": {
+                                                                                      "op": "Neg",
+                                                                                      "expr": {
+                                                                                        "Unary": {
+                                                                                          "op": "Neg",
+                                                                                          "expr": {
+                                                                                            "Unary": {
+                                                                                              "op": "Neg",
+                                                                                              "expr": {
+                                                                                                "Unary": {
+                                                                                                  "op": "Neg",
+                                                                                                  "expr": {
+                                                                                                    "Unary": {
+                                                                                                      "op": "Neg",
+                                                                                                      "expr": {
+                                                                                                        "Unary": {
+                                                                                                          "op": "Neg",
+                                                                                                          "expr": {
+                                                                                                            "Unary": {
+                                                                                                              "op": "Neg",
+                                                                                                              "expr": {
+                                                                                                                "Unary": {
+                                                                                                                  "op": "Neg",
+                                                                                                                  "expr": {
+                                                                                                                    "Unary": {
+                                                                                                                      "op": "Neg",
+                                                                                                                      "expr": {
+                                                                                                                        "Unary": {
+                                                                                                                          "op": "Neg",
+                                                                                                                          "expr": {
+                                                                                                                            "Unary": {
+                                                                                                                              "op": "Neg",
+                                                                                                                              "expr": {
+                                                                                                                                "Unary": {
+                                                                                                                                  "op": "Neg",
+                                                                                                                                  "expr": {
+                                                                                                                                    "Unary": {
+                                                                                                                                      "op": "Neg",
+                                                                                                                                      "expr": {
+                                                                                                                                        "Unary": {
+                                                                                                                                          "op": "Neg",
+                                                                                                                                          "expr": {
+                                                                                                                                            "Unary": {
+                                                                                                                                              "op": "Neg",
+                                                                                                                                              "expr": {
+                                                                                                                                                "Literal": 1
+                                                                                                                                              }
+                                                                                                                                            }
+                                                                                                                                          }
+                                                                                                                                        }
+                                                                                                                                      }
+                                                                                                                                    }
+                                                                                                                                  }
+                                                                                                                                }
+                                                                                                                              }
+                                                                                                                            }
+                                                                                                                          }
+                                                                                                                        }
+                                                                                                                      }
+                                                                                                                    }
+                                                                                                                  }
+                                                                                                                }
+                                                                                                              }
+                                                                                                            }
+                                                                                                          }
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              }
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "error": {
+      "code": "SNAPBACK_PLAN_BOUNDS"
+    }
+  }
+}

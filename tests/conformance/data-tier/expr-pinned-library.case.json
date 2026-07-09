@@ -1,0 +1,199 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "expr-pinned-library",
+  "notes": "Every pinned library function; round is JS Math.round (half-up toward +Infinity), len is UTF-16 code units, null propagates through the numeric/string functions.",
+  "schema": {
+    "tables": [
+      {
+        "name": "rows",
+        "fields": [
+          {
+            "name": "value",
+            "field_type": "Json",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [],
+    "return_value": {
+      "Expr": {
+        "Record": {
+          "fields": {
+            "len": {
+              "Call": {
+                "func": "len",
+                "args": [
+                  {
+                    "Literal": "héllo"
+                  }
+                ]
+              }
+            },
+            "lenArr": {
+              "Call": {
+                "func": "len",
+                "args": [
+                  {
+                    "Literal": [
+                      1,
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            },
+            "trim": {
+              "Call": {
+                "func": "trim",
+                "args": [
+                  {
+                    "Literal": "  x  "
+                  }
+                ]
+              }
+            },
+            "lower": {
+              "Call": {
+                "func": "lower",
+                "args": [
+                  {
+                    "Literal": "MiXeD"
+                  }
+                ]
+              }
+            },
+            "abs": {
+              "Call": {
+                "func": "abs",
+                "args": [
+                  {
+                    "Literal": -4
+                  }
+                ]
+              }
+            },
+            "roundHalf": {
+              "Call": {
+                "func": "round",
+                "args": [
+                  {
+                    "Literal": 0.5
+                  }
+                ]
+              }
+            },
+            "roundNegHalf": {
+              "Call": {
+                "func": "round",
+                "args": [
+                  {
+                    "Literal": -0.5
+                  }
+                ]
+              }
+            },
+            "floor": {
+              "Call": {
+                "func": "floor",
+                "args": [
+                  {
+                    "Literal": 1.9
+                  }
+                ]
+              }
+            },
+            "ceil": {
+              "Call": {
+                "func": "ceil",
+                "args": [
+                  {
+                    "Literal": 1.1
+                  }
+                ]
+              }
+            },
+            "clamp": {
+              "Call": {
+                "func": "max",
+                "args": [
+                  {
+                    "Literal": -300
+                  },
+                  {
+                    "Call": {
+                      "func": "min",
+                      "args": [
+                        {
+                          "Literal": 3600
+                        },
+                        {
+                          "Call": {
+                            "func": "round",
+                            "args": [
+                              {
+                                "Literal": 3999.6
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "nullProp": {
+              "Call": {
+                "func": "round",
+                "args": [
+                  {
+                    "Literal": null
+                  }
+                ]
+              }
+            },
+            "minNull": {
+              "Call": {
+                "func": "min",
+                "args": [
+                  {
+                    "Literal": 1
+                  },
+                  {
+                    "Literal": null
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "result": {
+      "len": 5,
+      "lenArr": 3,
+      "trim": "x",
+      "lower": "mixed",
+      "abs": 4,
+      "roundHalf": 1,
+      "roundNegHalf": 0,
+      "floor": 1,
+      "ceil": 2,
+      "clamp": 3600,
+      "nullProp": null,
+      "minNull": null
+    },
+    "changedCount": 0
+  }
+}

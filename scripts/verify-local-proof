@@ -73,6 +73,9 @@ run node demos/_kit/tests/live-delta-e2e.mjs
 run node packages/snapback-contract/index.test.mjs
 run node packages/snapback-contract/build-preset.test.mjs
 run node packages/snapback-codegen/identifier-validation.test.mjs
+# LLP 0051 D5: the data-tier corpus is builder-authored and regen-and-diff
+# gated; the Rust runner executes the committed cases inside `cargo test`.
+run node packages/snapback-codegen/data-tier-corpus.test.mjs
 
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then

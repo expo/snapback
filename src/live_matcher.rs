@@ -425,13 +425,21 @@ pub(crate) fn compare_sort_keys(plan: &QueryPlan, left: &Value, right: &Value) -
     Some(Ordering::Equal)
 }
 
+// Delegates to the shared profile evaluator (LLP 0051 D2's analyzability
+// invariant: matcher and SQL evaluate filter values through one code path).
+// The environment deliberately has no bindings, clock, or id source —
+// expressions needing them (and any evaluation failure) are unanalyzable
+// here, and the affected query falls back to `live_replace`, the honest
+// default.
 fn eval_match_expr(expr: &ValueExpr, input: &HandlerInput) -> Option<Value> {
-    match expr {
-        ValueExpr::Arg(path) => lookup_path(&input.args, path).cloned(),
-        ValueExpr::AuthUserId => input.auth.user_id.clone().map(Value::String),
-        ValueExpr::Literal(value) => Some(value.clone()),
-        ValueExpr::Binding(_) | ValueExpr::RuntimeId | ValueExpr::RuntimeNow => None,
-    }
+    let env = crate::value_expr::ExprEnv {
+        args: &input.args,
+        auth_user_id: input.auth.user_id.as_deref(),
+        bindings: None,
+        now_ms: None,
+        runtime_id: None,
+    };
+    crate::value_expr::eval_value_expr(expr, &env).ok()
 }
 
 fn values_equal(actual: &Value, expected: &Value) -> bool {
@@ -457,14 +465,6 @@ fn json_value_cmp(left: &Value, right: &Value) -> Option<Ordering> {
 
 fn system_field_changes_on_update(field: &str) -> bool {
     matches!(field, "_updatedAt" | "_version")
-}
-
-fn lookup_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
-    let mut current = value;
-    for segment in path.split('.') {
-        current = current.as_object()?.get(segment)?;
-    }
-    Some(current)
 }
 
 fn json_number_cmp(left: &serde_json::Number, right: &serde_json::Number) -> Option<Ordering> {
@@ -960,6 +960,64 @@ mod delta_tests {
                 &json!({ "userId": "ada" })
             ),
             Some(false)
+        );
+    }
+
+    /// v1 profile expressions in filter values evaluate through the shared
+    /// evaluator, so pure forms (arithmetic, calls into the pinned library,
+    /// null-propagating Field access) are newly analyzable for delta
+    /// maintenance, while binding/clock/id-dependent forms stay unanalyzable
+    /// (None -> live_replace, the honest default). LLP 0051 D2's
+    /// analyzability invariant: matcher and SQL share one evaluation.
+    #[test]
+    fn extended_pure_filter_values_are_analyzable_and_match_sql_semantics() {
+        let clamped = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "rank".to_owned(),
+                op: FilterOp::Lte,
+                value: ValueExpr::Call {
+                    func: "min".to_owned(),
+                    args: vec![
+                        ValueExpr::Literal(json!(10)),
+                        ValueExpr::Binary {
+                            op: crate::manifest::BinaryOp::Add,
+                            left: Box::new(ValueExpr::Arg("base".to_owned())),
+                            right: Box::new(ValueExpr::Literal(json!(2))),
+                        },
+                    ],
+                },
+            }],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        // min(10, 3 + 2) = 5
+        let args = input(json!({ "base": 3 }));
+        assert_eq!(
+            row_matches_query_filters(&clamped, &args, &json!({ "rank": 5 })),
+            Some(true)
+        );
+        assert_eq!(
+            row_matches_query_filters(&clamped, &args, &json!({ "rank": 6 })),
+            Some(false)
+        );
+
+        let binding_dependent = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "rank".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Binding("bound".to_owned()),
+            }],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        assert_eq!(
+            row_matches_query_filters(&binding_dependent, &args, &json!({ "rank": 5 })),
+            None,
+            "binding-dependent filters stay unanalyzable"
         );
     }
 

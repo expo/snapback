@@ -1,0 +1,318 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "all-aboard-live-snapshot-fragments",
+  "notes": "The applyLiveFeedSnapshot cores the IR does own: DeleteWhere clear + InsertEach bounded comprehension + the round/min/max clamp idiom. The full mutation is the conditional-writes negative exemplar and stays JS-tier.",
+  "schema": {
+    "tables": [
+      {
+        "name": "trainStatus",
+        "fields": [
+          {
+            "name": "delaySeconds",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "status",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "observedAt",
+            "field_type": "Integer",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "liveDepartures",
+        "fields": [
+          {
+            "name": "departureId",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "stationId",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "direction",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "predictedDepartureMs",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "delaySeconds",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "status",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "observedAt",
+            "field_type": "Integer",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "feedTicks",
+        "fields": [
+          {
+            "name": "delays",
+            "field_type": "Json",
+            "optional": true
+          },
+          {
+            "name": "note",
+            "field_type": "String",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      },
+      {
+        "name": "feedRefreshState",
+        "fields": [
+          {
+            "name": "fetchedAt",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "tickIndex",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "tickCount",
+            "field_type": "Integer",
+            "optional": true
+          },
+          {
+            "name": "lastSource",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastRunTrigger",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastError",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "lastUpstreamPollAt",
+            "field_type": "Integer",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "seed": {
+    "liveDepartures": [
+      {
+        "_id": "stale",
+        "departureId": "old",
+        "stationId": "s",
+        "direction": "south",
+        "predictedDepartureMs": 1,
+        "delaySeconds": 0,
+        "status": "on-time",
+        "observedAt": 1
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "DeleteWhere": {
+          "table": "liveDepartures",
+          "filter": []
+        }
+      },
+      {
+        "InsertEach": {
+          "table": "liveDepartures",
+          "source": {
+            "Arg": "departures"
+          },
+          "item_as": "dep",
+          "values": {
+            "departureId": {
+              "Field": {
+                "base": {
+                  "Binding": "dep"
+                },
+                "key": "departureId"
+              }
+            },
+            "stationId": {
+              "Field": {
+                "base": {
+                  "Binding": "dep"
+                },
+                "key": "stationId"
+              }
+            },
+            "direction": {
+              "Field": {
+                "base": {
+                  "Binding": "dep"
+                },
+                "key": "direction"
+              }
+            },
+            "predictedDepartureMs": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "dep"
+                      },
+                      "key": "predictedDepartureMs"
+                    }
+                  },
+                  "RuntimeNow"
+                ]
+              }
+            },
+            "delaySeconds": {
+              "Call": {
+                "func": "max",
+                "args": [
+                  {
+                    "Literal": -300
+                  },
+                  {
+                    "Call": {
+                      "func": "min",
+                      "args": [
+                        {
+                          "Literal": 3600
+                        },
+                        {
+                          "Call": {
+                            "func": "round",
+                            "args": [
+                              {
+                                "Call": {
+                                  "func": "coalesce",
+                                  "args": [
+                                    {
+                                      "Field": {
+                                        "base": {
+                                          "Binding": "dep"
+                                        },
+                                        "key": "delaySeconds"
+                                      }
+                                    },
+                                    {
+                                      "Literal": 0
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "status": {
+              "Call": {
+                "func": "coalesce",
+                "args": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Binding": "dep"
+                      },
+                      "key": "status"
+                    }
+                  },
+                  {
+                    "Literal": "on-time"
+                  }
+                ]
+              }
+            },
+            "observedAt": "RuntimeNow"
+          }
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {
+    "departures": [
+      {
+        "departureId": "a",
+        "stationId": "sf",
+        "direction": "north",
+        "predictedDepartureMs": 100,
+        "delaySeconds": 3999.6,
+        "status": "delayed"
+      },
+      {
+        "departureId": "b",
+        "stationId": "sj",
+        "direction": "south",
+        "predictedDepartureMs": 200
+      }
+    ]
+  },
+  "authUserId": null,
+  "expect": {
+    "result": 3,
+    "changedCount": 3,
+    "rows": {
+      "liveDepartures": [
+        {
+          "departureId": "a",
+          "stationId": "sf",
+          "direction": "north",
+          "predictedDepartureMs": 100,
+          "delaySeconds": 3600,
+          "status": "delayed",
+          "observedAt": "$ANY_NOW"
+        },
+        {
+          "departureId": "b",
+          "stationId": "sj",
+          "direction": "south",
+          "predictedDepartureMs": 200,
+          "delaySeconds": 0,
+          "status": "on-time",
+          "observedAt": "$ANY_NOW"
+        }
+      ]
+    }
+  }
+}

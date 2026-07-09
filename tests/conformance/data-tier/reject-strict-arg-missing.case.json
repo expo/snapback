@@ -1,0 +1,37 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "reject-strict-arg-missing",
+  "notes": "Strict Arg lookup fails typed on a missing arg; argOpt (Field over Args) is the defaulting spelling.",
+  "schema": {
+    "tables": [
+      {
+        "name": "rows",
+        "fields": [
+          {
+            "name": "value",
+            "field_type": "Json",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [],
+    "return_value": {
+      "Expr": {
+        "Arg": "nope"
+      }
+    }
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "error": {
+      "code": "SNAPBACK_ARG_MISSING"
+    }
+  }
+}

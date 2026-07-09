@@ -1,0 +1,72 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "todo-v2-delete-todo",
+  "notes": "Shipped todo-v2 deleteTodo: Delete by arg id.",
+  "schema": {
+    "tables": [
+      {
+        "name": "todos",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "priority",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "completed",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "userId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "seed": {
+    "todos": [
+      {
+        "_id": "t1",
+        "title": "A",
+        "priority": "low",
+        "completed": false,
+        "userId": "user-1"
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Delete": {
+          "table": "todos",
+          "id": {
+            "Arg": "id"
+          }
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {
+    "id": "t1"
+  },
+  "authUserId": "user-1",
+  "expect": {
+    "result": 1,
+    "changedCount": 1,
+    "rows": {
+      "todos": []
+    }
+  }
+}

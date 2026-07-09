@@ -3888,6 +3888,9 @@ fn eval_action_args(
     Ok(output)
 }
 
+// Delegates to the shared profile evaluator; only the intrinsic sources
+// differ here (cron actions stamp `RuntimeNow` from the run's due time and
+// draw ids from the store's generator).
 fn eval_action_expr(
     expr: &ValueExpr,
     input: &HandlerInput,
@@ -3895,45 +3898,15 @@ fn eval_action_expr(
     metadata: &CronRunMetadata,
     snapback: &LocalSnapback,
 ) -> SnapbackResult<Value> {
-    match expr {
-        ValueExpr::Arg(path) => lookup_path(&input.args, path).cloned().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_ARG_MISSING",
-                "runtime",
-                format!("handler arg {path} was not provided"),
-            )
-        }),
-        ValueExpr::AuthUserId => input
-            .auth
-            .user_id
-            .clone()
-            .map(Value::String)
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_AUTH_USER_MISSING",
-                    "runtime",
-                    "handler requested auth.user_id but no user was supplied",
-                )
-            }),
-        ValueExpr::Binding(name) => bindings.get(name).cloned().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BINDING_MISSING",
-                "runtime",
-                format!("action binding {name} was not available"),
-            )
-        }),
-        ValueExpr::Literal(value) => Ok(value.clone()),
-        ValueExpr::RuntimeId => Ok(Value::String(snapback.db.generate_id())),
-        ValueExpr::RuntimeNow => Ok(json!(metadata.due_at_ms)),
-    }
-}
-
-fn lookup_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
-    let mut current = value;
-    for segment in path.split('.') {
-        current = current.as_object()?.get(segment)?;
-    }
-    Some(current)
+    let generate_id = || snapback.db.generate_id();
+    let env = crate::value_expr::ExprEnv {
+        args: &input.args,
+        auth_user_id: input.auth.user_id.as_deref(),
+        bindings: Some(bindings),
+        now_ms: Some(metadata.due_at_ms),
+        runtime_id: Some(&generate_id),
+    };
+    crate::value_expr::eval_value_expr(expr, &env).map_err(|error| error.into_snapback())
 }
 
 fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
@@ -3946,13 +3919,20 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
             let mut writes = BTreeSet::new();
             for step in &plan.steps {
                 match step {
-                    MutationStep::Insert { table, .. } => {
+                    MutationStep::Insert { table, .. }
+                    | MutationStep::InsertEach { table, .. } => {
                         writes.insert(table.clone());
                     }
-                    MutationStep::Patch { table, .. } | MutationStep::Delete { table, .. } => {
+                    MutationStep::Patch { table, .. }
+                    | MutationStep::Delete { table, .. }
+                    | MutationStep::DeleteWhere { table, .. } => {
                         reads.insert(table.clone());
                         writes.insert(table.clone());
                     }
+                    MutationStep::Get { table, .. } => {
+                        reads.insert(table.clone());
+                    }
+                    MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
                 }
             }
             (reads.into_iter().collect(), writes.into_iter().collect())

@@ -18,7 +18,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, renameSync, realpathSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isConfigDef, isCronDef, isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
+import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, isConfigDef, isCronDef, isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
 import {
   generatedByHeader,
   jsonLiteral,
@@ -250,6 +250,9 @@ function validateArtifactAgainstSchema(schemaFile, instance, expected) {
 
 export async function generate(backendDir) {
   const diagnostics = [];
+  // Non-blocking info diagnostics carried into the generated function
+  // manifest (today: the MUTATION_OUTGREW_IR tier-ladder declarations).
+  const infoDiagnostics = [];
   const err = (code, subsystem, message, extra = {}) =>
     diagnostics.push({ code, severity: 'error', subsystem, message, ...extra });
 
@@ -385,6 +388,9 @@ export async function generate(backendDir) {
     }
     const argNames = new Set(Object.keys(def.args));
 
+    // Recursive fail-closed validation of the closed v1 expression profile
+    // (LLP 0051 D2): undeclared args, non-expressions, and functions outside
+    // the pinned library are authoring errors, never silent passthrough.
     const checkExpr = (expr, where) => {
       if (!expr || !expr.__expr) {
         err('FUNCTION_INVALID_EXPR', 'function', `${name}: ${where} is not a value expression`, { function: name });
@@ -393,6 +399,32 @@ export async function generate(backendDir) {
       if ('Arg' in expr && !argNames.has(expr.Arg)) {
         err('FUNCTION_UNKNOWN_ARG', 'function', `${name}: ${where} references undeclared arg "${expr.Arg}"`, { function: name });
       }
+      if ('Field' in expr) {
+        // argOpt() lowers to Field over the Args root; check declared args at
+        // the first hop so optional-arg typos still fail closed.
+        if (expr.Field.base?.kind === 'Args' && !argNames.has(expr.Field.key)) {
+          err('FUNCTION_UNKNOWN_ARG', 'function', `${name}: ${where} references undeclared arg "${expr.Field.key}"`, { function: name });
+        }
+        checkExpr(expr.Field.base, where);
+      }
+      if ('Binary' in expr) {
+        checkExpr(expr.Binary.left, where);
+        checkExpr(expr.Binary.right, where);
+      }
+      if ('Unary' in expr) checkExpr(expr.Unary.expr, where);
+      if ('If' in expr) {
+        checkExpr(expr.If.cond, where);
+        checkExpr(expr.If.then, where);
+        checkExpr(expr.If.else, where);
+      }
+      if ('Concat' in expr) for (const part of expr.Concat) checkExpr(part, where);
+      if ('Call' in expr) {
+        if (!PINNED_FUNCTIONS.includes(expr.Call.func)) {
+          err('MUTATION_UNSUPPORTED_FUNCTION', 'function', `${name}: ${where} calls ${expr.Call.func}, which is not in the pinned v1 library`, { function: name, calledFunction: expr.Call.func });
+        }
+        for (const argExpr of expr.Call.args) checkExpr(argExpr, where);
+      }
+      if ('Record' in expr) for (const fieldExpr of Object.values(expr.Record.fields)) checkExpr(fieldExpr, where);
     };
 
     if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.js) {
@@ -477,6 +509,21 @@ export async function generate(backendDir) {
         declaredWrites: writes,
         syncabilityClass: 'mutation',
       });
+      // The class-specific "outgrew the IR" diagnostic (LLP 0051 D2 /
+      // Increment 3 gate c): a JS-tier mutation that declares WHY it is out
+      // of the IR profile gets that reason recorded in the generated
+      // manifest as a normal info diagnostic pointing at the JS/WASM path —
+      // the tier ladder stays explicit, and profile-creep pressure has a
+      // named class to argue against instead of vibes.
+      if (def.outgrewIr) {
+        infoDiagnostics.push({
+          code: 'MUTATION_OUTGREW_IR',
+          severity: 'info',
+          subsystem: 'function',
+          message: `${name} outgrew the IR: ${def.outgrewIr.replaceAll('-', ' ')} — ${OUTGREW_IR_CLASSES[def.outgrewIr]}; stays on the JS/WASM tier (LLP 0051 D2)`,
+          details: { function: name, class: def.outgrewIr },
+        });
+      }
       contractMutations[name] = {
         name,
         args: argDescriptors(def.args),
@@ -488,39 +535,69 @@ export async function generate(backendDir) {
       };
     } else if (def.__kind === 'Mutation') {
       const writes = new Set();
+      const checkValuesMap = (t, values, where) => {
+        for (const [field, expr] of Object.entries(values)) {
+          if (!fieldNames(t).has(field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: ${where} sets unknown field ${t}.${field}`, { function: name, table: t, field });
+          checkExpr(expr, `${where} ${field}`);
+        }
+      };
+      const checkRequiredFields = (t, values, where) => {
+        for (const f of tables[t].fields) {
+          if (!f.optional && !(f.name in values)) {
+            err('FUNCTION_MISSING_REQUIRED_FIELD', 'function', `${name}: ${where} into ${t} omits required field ${f.name}`, { function: name, table: t, field: f.name });
+          }
+        }
+      };
       for (const step of def.plan.steps) {
         const kind = Object.keys(step)[0];
         const body = step[kind];
+        // Guard/Let carry no table; every other step names one.
         const t = body.table;
-        writes.add(t);
-        if (!tables[t]) {
+        if (t !== undefined && !tables[t]) {
           err('QUERY_UNKNOWN_TABLE', 'function', `${name}: ${kind} on unknown table ${t}`, { function: name, table: t });
           continue;
         }
         if (kind === 'Insert') {
-          for (const [field, expr] of Object.entries(body.values)) {
-            if (!fieldNames(t).has(field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: insert sets unknown field ${t}.${field}`, { function: name, table: t, field });
-            checkExpr(expr, `insert ${field}`);
-          }
-          for (const f of tables[t].fields) {
-            if (!f.optional && !(f.name in body.values)) {
-              err('FUNCTION_MISSING_REQUIRED_FIELD', 'function', `${name}: insert into ${t} omits required field ${f.name}`, { function: name, table: t, field: f.name });
-            }
-          }
+          writes.add(t);
+          checkValuesMap(t, body.values, 'insert');
+          checkRequiredFields(t, body.values, 'insert');
         } else if (kind === 'Patch') {
+          writes.add(t);
           checkExpr(body.id, 'patch id');
-          for (const [field, expr] of Object.entries(body.values)) {
-            if (!fieldNames(t).has(field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: patch sets unknown field ${t}.${field}`, { function: name, table: t, field });
-            checkExpr(expr, `patch ${field}`);
-          }
+          checkValuesMap(t, body.values, 'patch');
         } else if (kind === 'Delete') {
+          writes.add(t);
           checkExpr(body.id, 'delete id');
+        } else if (kind === 'Get') {
+          checkExpr(body.id, 'get id');
+        } else if (kind === 'Guard') {
+          checkExpr(body.cond, 'guard condition');
+        } else if (kind === 'Let') {
+          checkExpr(body.expr, 'let expression');
+        } else if (kind === 'DeleteWhere') {
+          writes.add(t);
+          for (const filter of body.filter) {
+            if (!fieldNames(t).has(filter.field) && !filter.field.startsWith('_')) {
+              err('QUERY_UNKNOWN_FIELD', 'function', `${name}: deleteWhere filters unknown field ${t}.${filter.field}`, { function: name, table: t, field: filter.field });
+            }
+            checkExpr(filter.value, `deleteWhere ${filter.field}`);
+          }
+        } else if (kind === 'InsertEach') {
+          writes.add(t);
+          checkExpr(body.source, 'insertEach source');
+          checkValuesMap(t, body.values, 'insertEach');
+          checkRequiredFields(t, body.values, 'insertEach');
+        } else {
+          err('MUTATION_UNSUPPORTED_STEP', 'function', `${name}: unsupported mutation step ${kind}`, { function: name, step: kind });
         }
+      }
+      if (def.plan.return_value && 'Expr' in def.plan.return_value) {
+        checkExpr(def.plan.return_value.Expr, 'return expression');
       }
       functions.push({
         name,
         kind: 'Mutation',
-        runtime: { HostPlan: { Mutation: serializeMutationPlan(def.plan) } },
+        runtime: { HostPlan: { Mutation: serializeMutationPlan(def.plan, name, err) } },
         declaredReads: mutationReadTables(def.plan),
         declaredWrites: [...writes],
         syncabilityClass: 'mutation',
@@ -646,7 +723,7 @@ export async function generate(backendDir) {
     bundleHash,
     inputsHash,
     generatedAt,
-    unsupportedDependencyDiagnostics: [],
+    unsupportedDependencyDiagnostics: infoDiagnostics,
     functions: decorateFunctions(appId, functions),
     cronJobs,
     config: configEntries,
@@ -988,13 +1065,35 @@ function serializeAccessPolicy(policy) {
 
 // --- serialization helpers ---------------------------------------------------
 
-function serializeExpr(expr) {
+export function serializeExpr(expr) {
   if (expr.kind === 'AuthUserId') return 'AuthUserId';
   if (expr.kind === 'RuntimeId') return 'RuntimeId';
   if (expr.kind === 'RuntimeNow') return 'RuntimeNow';
+  if (expr.kind === 'Args') return 'Args';
   if ('Arg' in expr) return { Arg: expr.Arg };
   if ('Literal' in expr) return { Literal: expr.Literal };
   if ('Binding' in expr) return { Binding: expr.Binding };
+  if ('Field' in expr) {
+    return { Field: { base: serializeExpr(expr.Field.base), key: expr.Field.key } };
+  }
+  if ('Binary' in expr) {
+    return { Binary: { op: expr.Binary.op, left: serializeExpr(expr.Binary.left), right: serializeExpr(expr.Binary.right) } };
+  }
+  if ('Unary' in expr) {
+    return { Unary: { op: expr.Unary.op, expr: serializeExpr(expr.Unary.expr) } };
+  }
+  if ('If' in expr) {
+    return { If: { cond: serializeExpr(expr.If.cond), then: serializeExpr(expr.If.then), else: serializeExpr(expr.If.else) } };
+  }
+  if ('Concat' in expr) return { Concat: expr.Concat.map(serializeExpr) };
+  if ('Call' in expr) {
+    return { Call: { func: expr.Call.func, args: expr.Call.args.map(serializeExpr) } };
+  }
+  if ('Record' in expr) {
+    const fields = dict();
+    for (const [key, fieldExpr] of Object.entries(expr.Record.fields)) fields[key] = serializeExpr(fieldExpr);
+    return { Record: { fields } };
+  }
   throw new Error(`unserializable expr ${JSON.stringify(expr)}`);
 }
 
@@ -1008,7 +1107,47 @@ function serializeQueryPlan(plan) {
   };
 }
 
-function serializeMutationPlan(plan) {
+// Declared plan bounds — the JS mirror of `src/value_expr.rs` (the corpus
+// pins both sides). Authoring over bounds fails closed here, before the
+// server would reject the same plan at execution (LLP 0051 D2).
+const MAX_PLAN_STEPS = 64;
+const MAX_EXPR_DEPTH = 32;
+const MAX_PLAN_SERIALIZED_BYTES = 65_536;
+
+function exprDepth(expr) {
+  if (typeof expr === 'string') return 1;
+  if ('Field' in expr) return 1 + exprDepth(expr.Field.base);
+  if ('Binary' in expr) return 1 + Math.max(exprDepth(expr.Binary.left), exprDepth(expr.Binary.right));
+  if ('Unary' in expr) return 1 + exprDepth(expr.Unary.expr);
+  if ('If' in expr) return 1 + Math.max(exprDepth(expr.If.cond), exprDepth(expr.If.then), exprDepth(expr.If.else));
+  if ('Concat' in expr) return 1 + Math.max(0, ...expr.Concat.map(exprDepth));
+  if ('Call' in expr) return 1 + Math.max(0, ...expr.Call.args.map(exprDepth));
+  if ('Record' in expr) return 1 + Math.max(0, ...Object.values(expr.Record.fields).map(exprDepth));
+  return 1;
+}
+
+function planExprs(serialized) {
+  const exprs = [];
+  for (const step of serialized.steps) {
+    const kind = Object.keys(step)[0];
+    const body = step[kind];
+    if (kind === 'Insert' || kind === 'InsertEach') exprs.push(...Object.values(body.values));
+    if (kind === 'InsertEach') exprs.push(body.source);
+    if (kind === 'Patch') exprs.push(body.id, ...Object.values(body.values));
+    if (kind === 'Delete' || kind === 'Get') exprs.push(body.id);
+    if (kind === 'Guard') exprs.push(body.cond);
+    if (kind === 'Let') exprs.push(body.expr);
+    if (kind === 'DeleteWhere') exprs.push(...body.filter.map((f) => f.value));
+  }
+  const rv = serialized.return_value;
+  if (rv && typeof rv === 'object') {
+    if ('Document' in rv) exprs.push(rv.Document.id);
+    if ('Expr' in rv) exprs.push(rv.Expr);
+  }
+  return exprs;
+}
+
+export function serializeMutationPlan(plan, functionName, err) {
   const steps = plan.steps.map((step) => {
     const kind = Object.keys(step)[0];
     const body = step[kind];
@@ -1022,6 +1161,23 @@ function serializeMutationPlan(plan) {
       for (const [k, e] of Object.entries(body.values)) values[k] = serializeExpr(e);
       return { Patch: { table: body.table, id: serializeExpr(body.id), values } };
     }
+    if (kind === 'Get') {
+      return { Get: { table: body.table, id: serializeExpr(body.id), bind_as: body.bind_as, else_error: body.else_error } };
+    }
+    if (kind === 'Guard') {
+      return { Guard: { cond: serializeExpr(body.cond), else_error: body.else_error } };
+    }
+    if (kind === 'Let') {
+      return { Let: { bind_as: body.bind_as, expr: serializeExpr(body.expr) } };
+    }
+    if (kind === 'DeleteWhere') {
+      return { DeleteWhere: { table: body.table, filter: body.filter.map((f) => ({ field: f.field, op: f.op, value: serializeExpr(f.value) })) } };
+    }
+    if (kind === 'InsertEach') {
+      const values = dict();
+      for (const [k, e] of Object.entries(body.values)) values[k] = serializeExpr(e);
+      return { InsertEach: { table: body.table, source: serializeExpr(body.source), item_as: body.item_as, values } };
+    }
     return { Delete: { table: body.table, id: serializeExpr(body.id) } };
   });
   let return_value = null;
@@ -1031,8 +1187,25 @@ function serializeMutationPlan(plan) {
     else if ('Binding' in rv) return_value = { Binding: rv.Binding };
     else if ('Literal' in rv) return_value = { Literal: rv.Literal };
     else if ('Document' in rv) return_value = { Document: { table: rv.Document.table, id: serializeExpr(rv.Document.id) } };
+    else if ('Expr' in rv) return_value = { Expr: serializeExpr(rv.Expr) };
   }
-  return { steps, return_value };
+  const serialized = { steps, return_value };
+  if (functionName && err) {
+    if (steps.length > MAX_PLAN_STEPS) {
+      err('MUTATION_PLAN_BOUNDS', 'function', `${functionName}: plan has ${steps.length} steps; the declared bound is ${MAX_PLAN_STEPS}`, { function: functionName });
+    }
+    const bytes = JSON.stringify(serialized).length;
+    if (bytes > MAX_PLAN_SERIALIZED_BYTES) {
+      err('MUTATION_PLAN_BOUNDS', 'function', `${functionName}: plan serializes to ${bytes} bytes; the declared bound is ${MAX_PLAN_SERIALIZED_BYTES}`, { function: functionName });
+    }
+    for (const expr of planExprs(serialized)) {
+      if (exprDepth(expr) > MAX_EXPR_DEPTH) {
+        err('MUTATION_PLAN_BOUNDS', 'function', `${functionName}: expression depth exceeds the declared bound (${MAX_EXPR_DEPTH})`, { function: functionName });
+        break;
+      }
+    }
+  }
+  return serialized;
 }
 
 function serializeActionPlan(plan, functionName, err) {
@@ -1249,7 +1422,9 @@ function mutationReadTables(plan) {
   for (const step of plan.steps) {
     const kind = Object.keys(step)[0];
     const body = step[kind];
-    if (kind === 'Patch' || kind === 'Delete') reads.add(body.table);
+    if (kind === 'Patch' || kind === 'Delete' || kind === 'Get' || kind === 'DeleteWhere') {
+      reads.add(body.table);
+    }
   }
   return [...reads];
 }

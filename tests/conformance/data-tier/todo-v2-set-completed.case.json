@@ -1,0 +1,84 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "todo-v2-set-completed",
+  "notes": "Shipped todo-v2 setCompleted: Patch by arg id, ChangedCount return.",
+  "schema": {
+    "tables": [
+      {
+        "name": "todos",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "priority",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "completed",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "userId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "seed": {
+    "todos": [
+      {
+        "_id": "t1",
+        "title": "A",
+        "priority": "low",
+        "completed": false,
+        "userId": "user-1"
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Patch": {
+          "table": "todos",
+          "id": {
+            "Arg": "id"
+          },
+          "values": {
+            "completed": {
+              "Arg": "completed"
+            }
+          }
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {
+    "id": "t1",
+    "completed": true
+  },
+  "authUserId": "user-1",
+  "expect": {
+    "result": 1,
+    "changedCount": 1,
+    "rows": {
+      "todos": [
+        {
+          "_id": "t1",
+          "completed": true,
+          "title": "A"
+        }
+      ]
+    }
+  }
+}

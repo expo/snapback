@@ -1,0 +1,303 @@
+//! Executes the data-tier conformance corpus against the host IR evaluator.
+//!
+//! The committed JSON cases under `tests/conformance/data-tier/` are the
+//! executable definition of the v1 mutation-IR profile (LLP 0051 D2/D5):
+//! authored via the typed builder (see
+//! `packages/snapback-codegen/data-tier-corpus.mjs`, regen-and-diff gated by
+//! `data-tier-corpus.test.mjs`), executed here by the Rust host, and consumed
+//! by reference from Exact CI (LLP 0329 E-A) and the future native-tier data
+//! evaluator (E-C). Cases are data — plans plus rows — never code, so every
+//! implementation in every language can run them; the corpus, not this
+//! runner, is the definition of correct.
+//!
+//! `$ANY_NOW` / `$ANY_ID` placeholders stand in for ledger-driven exactness
+//! until the ctx-answer ledger (Increment 2) makes outputs exact.
+//!
+//! @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract
+
+use serde::Deserialize;
+use serde_json::{Map, Value};
+use snapback::manifest::{
+    AuthInput, HandlerInput, MutationPlan, SchemaManifest, SeedData, TableManifest,
+};
+use snapback::storage::LocalDatabase;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+#[derive(Deserialize)]
+struct CorpusCase {
+    corpus: String,
+    #[serde(rename = "corpusVersion")]
+    corpus_version: u32,
+    name: String,
+    #[serde(default)]
+    #[allow(dead_code)]
+    notes: Option<String>,
+    schema: CaseSchema,
+    #[serde(default)]
+    seed: BTreeMap<String, Vec<Map<String, Value>>>,
+    plan: MutationPlan,
+    #[serde(default)]
+    args: Value,
+    #[serde(default, rename = "authUserId")]
+    auth_user_id: Option<String>,
+    expect: CaseExpect,
+}
+
+#[derive(Deserialize)]
+struct CaseSchema {
+    tables: Vec<TableManifest>,
+}
+
+#[derive(Deserialize)]
+struct CaseExpect {
+    #[serde(default)]
+    result: Option<Value>,
+    #[serde(default, rename = "changedCount")]
+    changed_count: Option<usize>,
+    #[serde(default)]
+    rows: Option<BTreeMap<String, Vec<Map<String, Value>>>>,
+    #[serde(default)]
+    error: Option<CaseError>,
+}
+
+#[derive(Deserialize)]
+struct CaseError {
+    code: String,
+}
+
+fn corpus_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("conformance")
+        .join("data-tier")
+}
+
+/// Placeholder-aware structural match: objects subset-match (every expected
+/// key must match; extra actual keys — system fields — are fine), arrays are
+/// exact-length elementwise, scalars compare by value.
+fn value_matches(expected: &Value, actual: &Value) -> bool {
+    match expected {
+        Value::String(s) if s == "$ANY_NOW" => actual.as_f64().is_some_and(|n| n > 0.0),
+        Value::String(s) if s == "$ANY_ID" => actual.as_str().is_some_and(|s| !s.is_empty()),
+        Value::Object(fields) => {
+            let Some(actual_fields) = actual.as_object() else {
+                return false;
+            };
+            fields.iter().all(|(key, value)| {
+                value_matches(value, actual_fields.get(key).unwrap_or(&Value::Null))
+            })
+        }
+        Value::Array(items) => {
+            let Some(actual_items) = actual.as_array() else {
+                return false;
+            };
+            items.len() == actual_items.len()
+                && items
+                    .iter()
+                    .zip(actual_items)
+                    .all(|(expected, actual)| value_matches(expected, actual))
+        }
+        _ => expected == actual,
+    }
+}
+
+fn assert_rows_match(case: &str, table: &str, expected: &[Map<String, Value>], actual: &[Value]) {
+    assert_eq!(
+        actual.len(),
+        expected.len(),
+        "{case}: table {table} has {} rows, expected {} — actual: {actual:?}",
+        actual.len(),
+        expected.len()
+    );
+    let mut unmatched: Vec<&Value> = actual.iter().collect();
+    for expected_row in expected {
+        let expected_value = Value::Object(expected_row.clone());
+        let position = unmatched
+            .iter()
+            .position(|actual_row| value_matches(&expected_value, actual_row));
+        match position {
+            Some(index) => {
+                unmatched.remove(index);
+            }
+            None => panic!(
+                "{case}: table {table} has no row matching {expected_value} — remaining: {unmatched:?}"
+            ),
+        }
+    }
+}
+
+fn scan_all_rows(db: &LocalDatabase, table: &str) -> Vec<Value> {
+    use snapback::manifest::QueryPlan;
+    let plan = QueryPlan {
+        table: table.to_owned(),
+        filters: Vec::new(),
+        order: Vec::new(),
+        limit: None,
+        indexed_by: None,
+    };
+    db.query(&plan, &HandlerInput::default())
+        .expect("table scan")
+        .rows
+}
+
+#[test]
+fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
+    let dir = corpus_dir();
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .unwrap_or_else(|error| panic!("corpus dir {} missing: {error}", dir.display()))
+        .map(|entry| entry.expect("dir entry").path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.ends_with(".case.json"))
+        })
+        .collect();
+    paths.sort();
+    assert!(
+        !paths.is_empty(),
+        "no corpus cases found under {}",
+        dir.display()
+    );
+
+    for path in paths {
+        let raw = std::fs::read_to_string(&path).expect("read case");
+        let case: CorpusCase = serde_json::from_str(&raw)
+            .unwrap_or_else(|error| panic!("{}: case does not parse: {error}", path.display()));
+        assert_eq!(case.corpus, "snapback-data-tier", "{}", case.name);
+        assert_eq!(case.corpus_version, 1, "{}", case.name);
+
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(SchemaManifest {
+            schema_hash: Some(format!("data-tier-corpus-{}", case.name)),
+            tables: case.schema.tables.clone(),
+            ..SchemaManifest::default()
+        })
+        .expect("apply schema");
+        if !case.seed.is_empty() {
+            db.seed(SeedData {
+                tables: case.seed.clone(),
+            })
+            .expect("seed");
+        }
+
+        let input = HandlerInput {
+            args: case.args.clone(),
+            auth: AuthInput {
+                principal: None,
+                session_id: None,
+                user_id: case.auth_user_id.clone(),
+            },
+            read_set: Vec::new(),
+            correlation: None,
+        };
+
+        let outcome = db.execute_mutation(&case.plan, &input);
+
+        match (&case.expect.error, outcome) {
+            (Some(expected_error), Err(actual)) => {
+                assert_eq!(
+                    actual.diagnostic.code, expected_error.code,
+                    "{}: error code mismatch ({})",
+                    case.name, actual.diagnostic.message
+                );
+            }
+            (Some(expected_error), Ok(commit)) => panic!(
+                "{}: expected error {} but the mutation committed: {:?}",
+                case.name, expected_error.code, commit.output
+            ),
+            (None, Err(error)) => panic!(
+                "{}: unexpected failure {} — {}",
+                case.name, error.diagnostic.code, error.diagnostic.message
+            ),
+            (None, Ok(commit)) => {
+                if let Some(expected_count) = case.expect.changed_count {
+                    assert_eq!(
+                        commit.output.changed_count, expected_count,
+                        "{}: changed count",
+                        case.name
+                    );
+                }
+                if let Some(expected_result) = &case.expect.result {
+                    assert!(
+                        value_matches(expected_result, &commit.output.result),
+                        "{}: result mismatch — expected {expected_result}, got {}",
+                        case.name,
+                        commit.output.result
+                    );
+                }
+            }
+        }
+
+        if let Some(expected_tables) = &case.expect.rows {
+            for (table, expected_rows) in expected_tables {
+                let actual = scan_all_rows(&db, table);
+                assert_rows_match(&case.name, table, expected_rows, &actual);
+            }
+        }
+    }
+}
+
+/// Read capture (LLP 0051 D2): plan `Get` reads land in `read_dependencies`
+/// as Row/MissingRow entries — the receipt/overlay channel derived overlays
+/// (0051 Increment 5 / Exact E-B) will consume. Asserted here rather than in
+/// corpus JSON because the corpus deliberately describes only wire-visible
+/// outcomes today.
+#[test]
+fn get_reads_are_captured_server_side() {
+    use snapback::manifest::{MutationStep, ValueExpr};
+    use snapback::storage::CapturedReadKind;
+
+    let mut db = LocalDatabase::memory().expect("memory database");
+    db.apply_schema(SchemaManifest {
+        schema_hash: Some("read-capture".to_owned()),
+        tables: vec![serde_json::from_value::<TableManifest>(serde_json::json!({
+            "name": "rows",
+            "fields": [{ "name": "value", "field_type": "Json", "optional": true }],
+            "indexes": [],
+            "syncable": false
+        }))
+        .expect("table manifest")],
+        ..SchemaManifest::default()
+    })
+    .expect("apply schema");
+
+    let mut seed_row = Map::new();
+    seed_row.insert("_id".to_owned(), Value::String("present".to_owned()));
+    seed_row.insert("value".to_owned(), serde_json::json!(1));
+    db.seed(SeedData {
+        tables: BTreeMap::from([("rows".to_owned(), vec![seed_row])]),
+    })
+    .expect("seed");
+
+    let plan = MutationPlan {
+        steps: vec![
+            MutationStep::Get {
+                table: "rows".to_owned(),
+                id: ValueExpr::Literal(Value::String("present".to_owned())),
+                bind_as: "hit".to_owned(),
+                else_error: None,
+            },
+            MutationStep::Get {
+                table: "rows".to_owned(),
+                id: ValueExpr::Literal(Value::String("absent".to_owned())),
+                bind_as: "miss".to_owned(),
+                else_error: None,
+            },
+        ],
+        return_value: None,
+    };
+    let commit = db
+        .execute_mutation(&plan, &HandlerInput::default())
+        .expect("mutation commits");
+
+    assert_eq!(commit.read_dependencies.len(), 2);
+    assert_eq!(commit.read_dependencies[0].kind, CapturedReadKind::Row);
+    assert_eq!(commit.read_dependencies[0].id.as_deref(), Some("present"));
+    assert!(commit.read_dependencies[0].version.is_some());
+    assert_eq!(
+        commit.read_dependencies[1].kind,
+        CapturedReadKind::MissingRow
+    );
+    assert_eq!(commit.read_dependencies[1].id.as_deref(), Some("absent"));
+}

@@ -20,6 +20,10 @@
 //! 2 workerd or the Miniflare leg's node toolchain unavailable (capability
 //! fact — the twin is a dev/CI tool).
 
+// SnapbackResult's large Err is a deliberate API-wide choice (see lib.rs);
+// bin crates need their own allow under clippy 1.94+.
+#![allow(clippy::result_large_err)]
+
 use std::collections::HashMap;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};

@@ -778,6 +778,15 @@ pub struct MutationPlan {
     pub return_value: Option<ReturnValue>,
 }
 
+/// The data-tier v1 mutation step set (LLP 0051 D2). Two families:
+/// unconditional writes (`Insert`/`Patch`/`Delete`, the original plan forms)
+/// and the v1 extension — reads and guards (`Get`/`Guard`/`Let`, evaluated
+/// inside the commit transaction with reads captured server-side) plus the
+/// two closed set-oriented forms (`DeleteWhere`/`InsertEach`). General
+/// iteration, recursion, and data-dependent cross-step control flow stay out
+/// of the profile permanently.
+// @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation —
+//   the v1 step set. (Plain comment: doc text flows into generated schemas.)
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum MutationStep {
     Insert {
@@ -794,6 +803,32 @@ pub enum MutationStep {
         table: String,
         id: ValueExpr,
     },
+    /// Point read by id, captured into the read-set. Missing is data, not
+    /// failure: with `else_error` unset the binding is null (composes with
+    /// `coalesce` for the defaulting idiom); with `else_error` set the
+    /// mutation fails with that typed code, mirroring `Guard`.
+    Get {
+        table: String,
+        id: ValueExpr,
+        bind_as: String,
+        else_error: Option<String>,
+    },
+    /// Truthiness check; failure is the author-supplied typed error code.
+    Guard { cond: ValueExpr, else_error: String },
+    /// Bind a computed expression for later steps.
+    Let { bind_as: String, expr: ValueExpr },
+    /// Set-oriented delete over one table; the empty filter clears the table.
+    /// No more expressive than SQL `DELETE … WHERE`.
+    DeleteWhere { table: String, filter: Vec<FilterExpr> },
+    /// One insert per element of an argument-supplied array — a bounded
+    /// comprehension (fan-out capped by `MAX_INSERT_EACH_FANOUT`), not a
+    /// loop construct. Each value is a `ValueExpr` over `item_as`.
+    InsertEach {
+        table: String,
+        source: ValueExpr,
+        item_as: String,
+        values: BTreeMap<String, ValueExpr>,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -802,16 +837,76 @@ pub enum ReturnValue {
     Binding(String),
     Document { table: String, id: ValueExpr },
     ChangedCount,
+    /// Expression-valued return (with the `Record` constructor this covers
+    /// the computed summaries real feed mutations return — LLP 0051 D2).
+    Expr(ValueExpr),
 }
 
+/// The data-tier v1 expression profile: a closed set — no arrows, no
+/// closures, no free calls, no JS method binding — so every evaluator in
+/// every language is finite work. Evaluation semantics live in one shared
+/// evaluator (`crate::value_expr`) and are pinned by the data-tier corpus.
+// @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation —
+//   the closed v1 expression profile. (Plain comment: doc text flows into
+//   generated schemas.)
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ValueExpr {
+    /// Strict arg lookup by dotted path; a missing arg is a typed error.
     Arg(String),
+    /// The whole args object — the null-safe base for optional-arg access
+    /// via `Field` (missing keys propagate null instead of failing).
+    Args,
     AuthUserId,
     Binding(String),
     Literal(Value),
     RuntimeId,
     RuntimeNow,
+    /// Null-propagating access by arbitrary string key (hyphenated JSON keys
+    /// are first-class; settles the IR half of Exact LLP 0329 EQ8).
+    Field { base: Box<ValueExpr>, key: String },
+    Binary {
+        op: BinaryOp,
+        left: Box<ValueExpr>,
+        right: Box<ValueExpr>,
+    },
+    Unary { op: UnaryOp, expr: Box<ValueExpr> },
+    If {
+        cond: Box<ValueExpr>,
+        then: Box<ValueExpr>,
+        #[serde(rename = "else")]
+        r#else: Box<ValueExpr>,
+    },
+    /// String-template lowering: concatenation of stringified parts.
+    Concat(Vec<ValueExpr>),
+    /// Call into the pinned function library (`value_expr::PINNED_FUNCTIONS`);
+    /// anything else fails closed with a typed rejection.
+    Call { func: String, args: Vec<ValueExpr> },
+    /// Closed record constructor — the same shape as `Insert`'s values map,
+    /// evaluated by the same machinery.
+    Record { fields: BTreeMap<String, ValueExpr> },
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Eq,
+    Ne,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    And,
+    Or,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum UnaryOp {
+    Not,
+    Neg,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

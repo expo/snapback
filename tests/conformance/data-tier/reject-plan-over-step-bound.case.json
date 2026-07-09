@@ -1,0 +1,554 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "reject-plan-over-step-bound",
+  "notes": "Declared bounds are enforced, not assumed: 65 steps exceeds MAX_PLAN_STEPS (64).",
+  "schema": {
+    "tables": [
+      {
+        "name": "rows",
+        "fields": [
+          {
+            "name": "value",
+            "field_type": "Json",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      },
+      {
+        "Let": {
+          "bind_as": "x",
+          "expr": {
+            "Literal": 1
+          }
+        }
+      }
+    ],
+    "return_value": null
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "error": {
+      "code": "SNAPBACK_PLAN_BOUNDS"
+    }
+  }
+}

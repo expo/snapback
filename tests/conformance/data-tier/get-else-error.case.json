@@ -1,0 +1,74 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "get-else-error",
+  "notes": "Get with else_error set fails with that typed code on a missing row (mirrors Guard).",
+  "schema": {
+    "tables": [
+      {
+        "name": "todos",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "priority",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "completed",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "userId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Get": {
+          "table": "todos",
+          "id": {
+            "Arg": "id"
+          },
+          "bind_as": "row",
+          "else_error": "TODO_NOT_FOUND"
+        }
+      },
+      {
+        "Patch": {
+          "table": "todos",
+          "id": {
+            "Arg": "id"
+          },
+          "values": {
+            "completed": {
+              "Literal": true
+            }
+          }
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {
+    "id": "missing"
+  },
+  "authUserId": null,
+  "expect": {
+    "error": {
+      "code": "TODO_NOT_FOUND"
+    }
+  }
+}

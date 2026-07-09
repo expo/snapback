@@ -129,6 +129,12 @@ export const applyFeedTick = defineJsMutation({
 // Applies a real feed snapshot already fetched by the action. The handler maps
 // external predictions onto the six committed service-pattern ids, then this
 // mutation is the durable write that fans out over liveQuery.
+//
+// Data-tier profile's honest negative exemplar (LLP 0051 D2, Increment 3
+// gate c): it patches only the patterns present in the args object and
+// accumulates a data-dependent result — conditional writes, permanently
+// JS-tier. Its DeleteWhere/InsertEach/clamp cores live on as corpus
+// fragments; the mutation itself stays here.
 export const applyLiveFeedSnapshot = defineJsMutation({
   args: {
     trigger: v.optional(v.string()),
@@ -142,6 +148,7 @@ export const applyLiveFeedSnapshot = defineJsMutation({
   exportName: 'applyLiveFeedSnapshot',
   reads: ['feedRefreshState', 'trainStatus', 'liveDepartures'],
   writes: ['trainStatus', 'liveDepartures', 'feedRefreshState'],
+  outgrewIr: 'conditional-writes',
 });
 
 // Transactional upstream-poll budget claim (ENG-23642). refreshFeed calls this
