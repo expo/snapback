@@ -188,8 +188,7 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
                 session_id: None,
                 user_id: case.auth_user_id.clone(),
             },
-            read_set: Vec::new(),
-            correlation: None,
+            ..HandlerInput::default()
         };
 
         let outcome = db.execute_mutation(&case.plan, &input);
