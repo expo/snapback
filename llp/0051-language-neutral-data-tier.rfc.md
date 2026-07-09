@@ -831,6 +831,17 @@ disciplines.
    inventory (grants, receipts, HTTP envelopes, ephemeral frames)
    completes under the same mechanism before the non-JS-client claim
    is made.
+   *Status (2026-07-09, ENG-23891): landed.* `src/live_wire.rs` defines
+   the durable fan-out envelopes, both socket frame families, receipts,
+   the polling wrapper, the connection grant, the error envelope, and
+   the live HTTP outputs; ten generated schemas joined `schemas/` under
+   the existing drift gate, and `demos/_kit/tests/live-wire-schema.mjs`
+   pins the kit's dispatch kinds to them. The handler completion
+   envelope was already conformance-locked (ENG-23586/ENG-23603 —
+   `envelope.mjs` vs `parse_handler_output`). Remaining D4 inventory
+   before the non-JS-client claim: the HTTP *request* bodies
+   (subscribe/resume/unsubscribe inputs, mutation/query inputs) are
+   typed serde but not yet schema-exported.
 2. **The ctx-answer ledger (D1):** first, close the Ibex
    deterministic-member gap for queries/mutations — two mechanisms, as
    on V8: member deny-stubs single-sourced from the allowlist

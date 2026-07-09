@@ -65,6 +65,28 @@ const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
 // Kit receipt ring bound — mirrors the server-side retention cap (LLP 0034 §3).
 const RECEIPT_RING_CAP = 256;
 
+// The live wire kinds this kit dispatches on, pinned to the committed
+// Rust-generated schemas (LLP 0051 D4 / ENG-23891):
+// demos/_kit/tests/live-wire-schema.mjs asserts these sets exactly match
+// schemas/live.envelope.schema.json and
+// schemas/live.socket-server.schema.json, so a server-side kind change is a
+// failing gate instead of a frame that silently never matches here.
+export const LIVE_DURABLE_KINDS = Object.freeze({
+  LIVE_REPLACE: 'live_replace',
+  LIVE_DELTA: 'live_delta',
+  RESYNC_REQUIRED: 'resync_required',
+});
+export const LIVE_SOCKET_KINDS = Object.freeze({
+  PONG: 'pong',
+  EPHEMERAL_ACK: 'ephemeral_ack',
+  EPHEMERAL_ERROR: 'ephemeral_error',
+  EPHEMERAL: 'ephemeral',
+  // Server-side fallback for a non-UTF-8 durable payload; the kit has no
+  // recovery beyond the resync the next drain forces, so it is knowingly
+  // ignored (the schema gate lists it as acknowledged-unhandled).
+  DURABLE_BYTES: 'durable_bytes',
+});
+
 export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
@@ -447,7 +469,7 @@ export class SnapbackClient {
         auth: SnapbackClient.auth(userId, { permissions }),
       },
     });
-    if (ack?.kind === 'ephemeral_error') {
+    if (ack?.kind === LIVE_SOCKET_KINDS.EPHEMERAL_ERROR) {
       const diag = ack.diagnostic ?? { code: 'SNAPBACK_EPHEMERAL_UNSUBSCRIBE_FAILED', message: '' };
       const error = new Error(`${diag.code}: ${diag.message ?? ''}`);
       error.diagnostic = diag;
@@ -737,7 +759,7 @@ export class SnapbackClient {
 
     const applyDurable = (update) => {
       if (disposed || paused || !update || typeof update !== 'object') return;
-      if (update.kind === 'live_replace') {
+      if (update.kind === LIVE_DURABLE_KINDS.LIVE_REPLACE) {
         // Updates for a superseded (pre-resubscribe) subscription id are
         // ignored; versions are non-decreasing per subscription (the global
         // durable commit version assigned at fan-out).
@@ -745,10 +767,10 @@ export class SnapbackClient {
         if (typeof update.version === 'number' && update.version < handle.version) return;
         handle.rows = update.rows;
         handle.version = update.version;
-        onUpdate?.(handle.rows, { version: handle.version, kind: 'live_replace' });
+        onUpdate?.(handle.rows, { version: handle.version, kind: LIVE_DURABLE_KINDS.LIVE_REPLACE });
         return;
       }
-      if (update.kind === 'live_delta') {
+      if (update.kind === LIVE_DURABLE_KINDS.LIVE_DELTA) {
         // DK-3 op-log delta (LLP 0008 §Decision DK-3): the server sends only
         // the rows that entered/left/changed this subscription's result, for
         // the analyzable unordered subset. Apply by _id: add/update upsert,
@@ -767,10 +789,10 @@ export class SnapbackClient {
         }
         handle.rows = [...byId.values()];
         handle.version = update.version;
-        onUpdate?.(handle.rows, { version: handle.version, kind: 'live_delta' });
+        onUpdate?.(handle.rows, { version: handle.version, kind: LIVE_DURABLE_KINDS.LIVE_DELTA });
         return;
       }
-      if (update.kind === 'resync_required') {
+      if (update.kind === LIVE_DURABLE_KINDS.RESYNC_REQUIRED) {
         // Connection-wide outbox overflow carries no subscription_id
         // (src/ephemeral.rs OutboundQueue::overflow); subscription-scoped
         // resyncs (permission epoch changes, fan-out failures) do. Either
@@ -1418,14 +1440,18 @@ class LiveStreamManager {
       pending.resolve(frame);
       return;
     }
-    if (frame.kind === 'pong' || frame.kind === 'ephemeral_ack' || frame.kind === 'ephemeral_error') {
+    if (
+      frame.kind === LIVE_SOCKET_KINDS.PONG ||
+      frame.kind === LIVE_SOCKET_KINDS.EPHEMERAL_ACK ||
+      frame.kind === LIVE_SOCKET_KINDS.EPHEMERAL_ERROR
+    ) {
       return; // uncorrelated control frames only refresh lastActivityMs
     }
     // Every fan-out below is isolated per consumer (ENG-23391): #dispatch
     // runs inside an async 'message' listener, so an uncaught consumer throw
     // would both starve the remaining consumers of this frame and escape as
     // an unhandled rejection (fatal to a headless Node process by default).
-    if (frame.kind === 'ephemeral') {
+    if (frame.kind === LIVE_SOCKET_KINDS.EPHEMERAL) {
       for (const listener of [...this.ephemeralListeners]) deliverIsolated(listener, frame);
       // The lane registry is transport-agnostic (LLP 0034 §10.1 / ENG-22478):
       // when the socket owns the connection's outbox, registered ephemeral
@@ -1784,7 +1810,7 @@ function decodeDurablePayload(payload) {
 function unwrapEphemeralMessage(input) {
   if (!input) return null;
   if (input.Ephemeral) return input.Ephemeral;
-  if (input.kind === 'ephemeral') return input.message;
+  if (input.kind === LIVE_SOCKET_KINDS.EPHEMERAL) return input.message;
   if (input.message) return input.message;
   if (input.Snapshot || input.Upsert || input.Remove || input.ResyncRequired || input.Error) return input;
   return null;

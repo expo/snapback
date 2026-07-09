@@ -1,6 +1,9 @@
 use crate::admin::{AppState, ServerContext};
 use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+use crate::live_wire::{
+    LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
+};
 use crate::ephemeral::{
     DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
 };
@@ -313,7 +316,7 @@ pub struct ConnectionRegistry {
 
 /// The `POST /connection/open` response: the (possibly adopted) connection id
 /// and the bearer the caller must present on every connection-scoped call.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct ConnectionGrant {
     #[serde(rename = "connectionId")]
     pub connection_id: String,
@@ -498,7 +501,7 @@ pub struct DiagnosticsResponse {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ErrorResponse {
     pub diagnostic: Diagnostic,
 }
@@ -2249,46 +2252,10 @@ async fn drain_and_send(
     std::ops::ControlFlow::Continue(())
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum LiveSocketClientMessage {
-    EphemeralSubscribe {
-        #[serde(default, rename = "requestId", alias = "request_id")]
-        request_id: Option<String>,
-        request: SubscribeRequest,
-    },
-    EphemeralPublish {
-        #[serde(default, rename = "requestId", alias = "request_id")]
-        request_id: Option<String>,
-        request: PublishRequest,
-    },
-    EphemeralDelete {
-        #[serde(default, rename = "requestId", alias = "request_id")]
-        request_id: Option<String>,
-        request: DeleteRequest,
-    },
-    /// Stop observing a room (ENG-22527 item 3 / SECURITY). Carried over the
-    /// shared live socket rather than a public HTTP route so the socket's
-    /// connection identity (checked by the `frame_connection != connection_id`
-    /// gate below) binds the requester: a participant cannot evict another
-    /// connection's subscription by asserting its id. Published entries are
-    /// untouched; the disposal is acked with a receipt.
-    EphemeralUnsubscribe {
-        #[serde(default, rename = "requestId", alias = "request_id")]
-        request_id: Option<String>,
-        request: SubscribeRequest,
-    },
-    /// Application-level liveness probe (LLP 0034 D1, Exact LLP 0284 §2.2).
-    /// An idle-healthy socket otherwise sends nothing (the 25ms tick writes
-    /// only when the outbox has messages) and browser/Node `WebSocket` clients
-    /// cannot send protocol-level Ping frames, so without this a client cannot
-    /// distinguish `live` from a dead socket until TCP timeout. Stateless: no
-    /// connection state is read or touched.
-    Ping {
-        #[serde(default, rename = "requestId", alias = "request_id")]
-        request_id: Option<String>,
-    },
-}
+// `LiveSocketClientMessage` moved to `crate::live_wire` (LLP 0051 D4 /
+// ENG-23891): the client→server socket family is schema-governed now,
+// generated into `schemas/live.socket-client.schema.json` and drift-gated.
+// The `frame_connection != connection_id` sender gate below is unchanged.
 
 /// The serde tag each live-socket message is classified under. This exhaustive
 /// match is the forcing function for LLP 0031's WebSocket rule: a new
@@ -2436,59 +2403,54 @@ fn ephemeral_unsubscribe_receipt(
     removed: bool,
     now_ms: u64,
 ) -> Value {
-    json!({
-        "kind": "subscription",
-        "lane": "ephemeral",
-        "bindingId": collection,
-        "collection": collection,
-        "event": "disposed",
-        "reason": "unsubscribed",
-        "removed": removed,
-        "scope": scope,
-        "receivedAtMs": now_ms,
-    })
+    Receipt::Subscription {
+        event: SubscriptionReceiptEvent::Disposed,
+        reason: Some("unsubscribed".to_owned()),
+        subscription_id: None,
+        superseded_by: None,
+        lane: Some("ephemeral".to_owned()),
+        binding_id: Some(collection.to_owned()),
+        collection: Some(collection.to_owned()),
+        removed: Some(removed),
+        scope: serde_json::to_value(scope).unwrap_or(Value::Null),
+        snapshot_version: None,
+        correlation: None,
+        received_at_ms: now_ms,
+    }
+    .into_value()
 }
 
 /// The `live_ping` response envelope. `serverTimeMs` lets a client measure
 /// round-trip freshness against its heartbeat budget (LLP 0034 §2.2: `live` =
 /// heartbeat within budget; `stale` = budget missed while retrying).
 fn socket_pong(request_id: Option<String>) -> String {
-    serde_json::to_string(&json!({
-        "kind": "pong",
-        "requestId": request_id,
-        "serverTimeMs": now_millis(),
-    }))
+    serde_json::to_string(&LiveSocketServerFrame::Pong {
+        request_id,
+        server_time_ms: now_millis(),
+    })
     .unwrap_or_else(|_| "{\"kind\":\"pong\"}".to_owned())
 }
 
-fn socket_ack(request_id: Option<String>, operation: &str, mut body: Value) -> String {
-    let mut envelope = json!({
-        "kind": "ephemeral_ack",
-        "requestId": request_id,
-        "operation": operation,
-    });
-    merge_json_object(&mut envelope, body.take());
-    serde_json::to_string(&envelope)
-        .unwrap_or_else(|_| "{\"kind\":\"ephemeral_error\",\"operation\":\"serialize\"}".to_owned())
-}
-
-fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnostic) -> String {
-    serde_json::to_string(&json!({
-        "kind": "ephemeral_error",
-        "requestId": request_id,
-        "operation": operation,
-        "diagnostic": diagnostic,
-    }))
+fn socket_ack(request_id: Option<String>, operation: &str, body: Value) -> String {
+    let body = match body {
+        Value::Object(map) => map,
+        _ => serde_json::Map::new(),
+    };
+    serde_json::to_string(&LiveSocketServerFrame::EphemeralAck {
+        request_id,
+        operation: operation.to_owned(),
+        body,
+    })
     .unwrap_or_else(|_| "{\"kind\":\"ephemeral_error\",\"operation\":\"serialize\"}".to_owned())
 }
 
-fn merge_json_object(target: &mut Value, source: Value) {
-    let (Some(target), Some(source)) = (target.as_object_mut(), source.as_object()) else {
-        return;
-    };
-    for (key, value) in source {
-        target.insert(key.clone(), value.clone());
-    }
+fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnostic) -> String {
+    serde_json::to_string(&LiveSocketServerFrame::EphemeralError {
+        request_id,
+        operation: operation.to_owned(),
+        diagnostic,
+    })
+    .unwrap_or_else(|_| "{\"kind\":\"ephemeral_error\",\"operation\":\"serialize\"}".to_owned())
 }
 
 /// Outbox drain reaches the room authority directly — no global mutex (L9).

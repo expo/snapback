@@ -77,6 +77,7 @@ bun demos/todo-v2/tests/acceptance/adapter-semantics.mjs
 bun demos/todo-v2/tests/acceptance/provider-conformance.mjs
 
 # 8. Browser-hosted Contract surface (starts Vite; needs a running Snapback API).
+bun install --cwd demos/todo-v2/surfaces/contract   # once; registry packages
 cargo run -- --port 4421 --memory
 SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 \
   bun run --cwd demos/todo-v2/surfaces/contract dev
@@ -86,16 +87,22 @@ SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 \
 bun run --cwd demos/todo-v2/surfaces/contract build
 ```
 
-The surface uses the `exactContractWeb` paved-road preset: the Exact checkout
-is `SNAPBACK_EXACT_ROOT` (default: sibling `../exact`), and the revision the
-surface was last verified against is pinned in
-`surfaces/contract/exact.pin.json` — drift warns on dev/build; re-pin
-deliberately with `EXACT_WRITE_PIN=1` after verifying on a new revision.
+The surface uses the `exactContractWeb` paved-road preset consumed from the
+npm registry (ENG-22480 model, matching all-aboard; migrated by ENG-23899):
+`@exact/*` imports resolve through npm alias dependencies to the published
+`@ccheever/exact-*` packages (see `surfaces/contract/package.json`), and the
+surface's committed `bun.lock` pins the exact bits — it replaced
+`exact.pin.json`. No sibling checkout and no `SNAPBACK_EXACT_ROOT` are needed
+for the browser surface; the acceptance runners still resolve an Exact
+checkout via `demos/_kit/exact-resolver.mjs`.
 
 The acceptance runners start an in-memory Snapback server on a dedicated port
 (reusing one if already healthy) and tear it down on exit.
-The browser surface proxies `/snapback` through Vite to the Snapback API and
-loads/resets/seeds the demo backend on page boot.
+The browser surface talks to the Snapback API directly at
+`SNAPBACK_TODO_V2_API` (build-time `define`; the bun-vite `/snapback` proxy
+kept in vite.config.ts is a non-bun fallback — under `bun --bun` a hung
+WebSocket upgrade wedges proxied HTTP) and provisions/seeds the demo backend
+idempotently on page boot.
 
 On macOS, run `scripts/bootstrap-ibex-runtime` from the repo root first, or set
 `HERMES_INCLUDE_DIR`, `HERMES_LIB_DIR`, and `HERMESC` to a prepared Ibex

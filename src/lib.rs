@@ -18,6 +18,7 @@ pub mod host_ops;
 pub mod identity;
 pub mod instance_lock;
 pub(crate) mod live_matcher;
+pub mod live_wire;
 pub mod local;
 pub mod manifest;
 pub mod runtime;

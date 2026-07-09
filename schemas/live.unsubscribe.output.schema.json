@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.unsubscribe.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "disposed": {
+      "type": "boolean"
+    },
+    "receipt": true,
+    "subscription_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subscription_id",
+    "disposed"
+  ],
+  "title": "LiveUnsubscribeOutput",
+  "type": "object"
+}
