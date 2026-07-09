@@ -8,6 +8,16 @@ native macOS/iOS-ready from the same `app.contract`.
 See [LLP 0027](../../llp/0027-all-aboard-caltrain-demo.plan.md) for the design and
 [Diary 0008](../../diaries/0008-all-aboard.diary.md) for the build experience.
 
+Design (ENG-23719): a white board under a Caltrain-red sticky header. The
+header shows the station name beside the day's hand-drawn scene (three
+original scenes per station — ENG-23684 — rotating by epoch day) and is the
+station-swipe surface; the board below scrolls vertically and swipes
+horizontally between trains, with the next train in the active direction as a
+highlighted card (countdown, service class, train number, delay, stops). A
+direction row names northbound/southbound with a flip pill, and a floating red
+button opens Settings — no bottom tabs. Regenerate the inlined art with
+`node demos/all-aboard/scripts/gen-station-art.mjs` after changing the SVGs.
+
 ## Layout
 
 - `snapback/` — schema, functions, JS handlers, the shared transit model

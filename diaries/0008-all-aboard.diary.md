@@ -1047,3 +1047,58 @@ data-shaped. The subtle part was restraint: the honest fix is a join plus
 clearly-labeled interpolation, not a fully synthetic schedule dressed up as
 live — the same overclaim the previous diary entry warned about, one screen
 deeper.
+
+## 2026-07-08 (third pass) — ENG-23719: white board, red header, day-rotating hand-drawn art
+
+Redesigned the station screen away from the full-bleed poster: white
+background, a Caltrain-red sticky header carrying the station name and the
+day's hand-drawn scene (ENG-23684 art, epoch-day mod 3 so the scene changes
+each midnight), a vertically scrolling train-first departures board under it,
+a direction row with a flip pill, and a floating settings button instead of
+bottom tabs. Gestures became region-scoped: the header swipes between
+stations, the board swipes between trains (later trains to the right),
+vertical is native scrolling, and the old bare-tap direction flip is gone.
+
+### What felt good
+
+- The `.contract` rewrite was almost entirely declarative churn. The whole
+  visual redesign — poster to white-board — never touched state, queries,
+  actions, or the live bindings; `heroOffset`, `boardTrains`, and the async
+  stale/ready arms all survived intact under completely different pixels.
+  In a React+Convex app this would have been a similar-sized JSX rewrite, so
+  no friction win there, but the state/view separation Contract enforces made
+  it mechanical to confirm nothing behavioral moved.
+- The glue/testId discipline (every gesture clicks a visible press affordance)
+  paid for itself again: the acceptance suite needed only three targeted
+  updates (swipe start points now that region decides meaning, settings sheet
+  instead of bare-tap flip, ETA toggle behind settings), and stayed at 17/17.
+- Inlining 63 SVG scenes via a tiny gen script (`gen-station-art.mjs` →
+  `station-art.gen.mjs`, JSON.stringify per scene) was a five-minute job and
+  works identically under Vite, node acceptance, and the native bundle path.
+
+### What felt bad or surprising
+
+- Contract still has no scroll-aware gesture primitives, so the redesign
+  moved complexity INTO the web glue: the board must yield vertical to native
+  scrolling (`touch-action: pan-y`) while claiming horizontal, and the header
+  claims everything. Getting the region logic right also broke the synthetic
+  test swipes silently — events dispatched on `#exact-root` no longer mean
+  anything when the pointerdown target's region decides the gesture, so the
+  harness now dispatches from `elementFromPoint`. A real `swipe=` primitive
+  (LLP 0029 G1) would have deleted all of this.
+- The sticky-header layout needed absolute-positioned bands (header top=0
+  height=106, scroll top=106 bottom=0) rather than flex, because a `scroll`
+  child's height inside a plain flex column isn't a proven pattern in this
+  renderer. Absolute bands work, but the layout reads more like CSS-in-1998
+  than the rest of the file.
+- The rolldown build prints three `IMPORT_IS_UNDEFINED` warnings against
+  `data.ts` at unhelpfully post-transform offsets. Runtime is fine (17/17,
+  every helper exercised), so they look pre-existing/benign, but opaque
+  offsets into a compiled `.contract` make warnings like this hard to chase.
+
+### Verification
+
+Browser Contract suite 17/17 against a fresh worktree bootstrap (station
+header swipe, board train swipe, settings sheet, ETA-in-settings, service
+filters, live push, D4 double-boot all green). Screenshot pass over
+home/trip/settings/stations on a 390×844 viewport to eyeball the design.

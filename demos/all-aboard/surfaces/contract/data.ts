@@ -37,6 +37,7 @@ import {
   stationPhoto as modelStationPhoto,
   stationPhotoCredit as modelStationPhotoCredit,
 } from '../../snapback/shared/model.mjs';
+import { STATION_ART_SCENES } from '../../snapback/shared/station-art.gen.mjs';
 const DEFAULT_LOCATION = { lat: 37.3894, lng: -122.0819 }; // Mountain View fallback
 
 // --- Device location (device-capability glue, set by main.ts) -----------------
@@ -125,6 +126,19 @@ export function stationPhoto(stationId: string): string {
 
 export function stationPhotoCredit(stationId: string): string {
   return modelStationPhotoCredit(stationId) ?? '';
+}
+
+// The hand-drawn header scene (ENG-23719). Each station has three original
+// scenes (ENG-23684); the pick rotates by epoch day — day-of-epoch mod the
+// scene count — so the whole app flips to the next scene at midnight UTC and
+// the choice stays deterministic (no per-render randomness to break tests).
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function stationArt(stationId: string, nowMs: number): string {
+  const scenes = (STATION_ART_SCENES as Record<string, string[]>)[stationId] ?? [];
+  if (scenes.length === 0) return '';
+  const day = Math.max(0, Math.floor(nowMs / DAY_MS));
+  return scenes[day % scenes.length] ?? '';
 }
 
 // --- Direction ----------------------------------------------------------------
@@ -299,8 +313,10 @@ export function delayLabel(dep: { delaySeconds?: number } | null): string {
   return s >= 45 ? `${Math.max(1, Math.round(s / 60))} min late` : 'on time';
 }
 
+// Darker on-time/late hues than the old dark-board palette: these sit on the
+// white board now (ENG-23719) and the light tints failed contrast there.
 export function delayColor(dep: { delaySeconds?: number } | null): string {
-  return (dep?.delaySeconds ?? 0) >= 45 ? '#fbbf24' : '#34d399';
+  return (dep?.delaySeconds ?? 0) >= 45 ? '#B45309' : '#047857';
 }
 
 // Compact destination for the departure rows ("Diridon", not "San Jose
@@ -617,15 +633,16 @@ export function feedSourceBadge(
 } {
   const feed = feedRows?.[0] ?? null;
   const liveSource = (feed?.lastSource ?? '') === LIVE_FEED_SOURCE;
+  // Light-theme badge colors (ENG-23719): the badge sits on the white board.
   if (!liveSource) {
-    return { live: false, label: 'DEMO DATA', color: '#fbbf24', tint: '#fbbf241f', border: '#fbbf2447' };
+    return { live: false, label: 'DEMO DATA', color: '#92400E', tint: '#B4530914', border: '#B4530936' };
   }
   const fetchedAt = Number(feed?.fetchedAt) || 0;
   const staleAfterMs = Number(feed?.staleAfterMs) > 0 ? Number(feed?.staleAfterMs) : DEFAULT_STALE_AFTER_MS;
   const fresh = typeof nowMs !== 'number' || fetchedAt <= 0 || nowMs - fetchedAt <= staleAfterMs;
   return fresh
-    ? { live: true, label: 'LIVE', color: '#34d399', tint: '#34d3991f', border: '#34d39947' }
-    : { live: false, label: 'STALE', color: '#f87171', tint: '#f871711f', border: '#f8717147' };
+    ? { live: true, label: 'LIVE', color: '#047857', tint: '#04785712', border: '#04785736' }
+    : { live: false, label: 'STALE', color: '#B91C1C', tint: '#B91C1C12', border: '#B91C1C36' };
 }
 
 // --- Position indicator (for the train detail continuum) ----------------------

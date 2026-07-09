@@ -70,12 +70,16 @@ function installWebChrome(): void {
   style.id = 'all-aboard-web-css';
   style.textContent = `
     html, body, #exact-root { height: 100%; margin: 0; }
-    body { background: #05070f; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; }
+    body { background: #ffffff; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; }
     #exact-root { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
     #exact-root input, #exact-root textarea { -webkit-user-select: text; user-select: text; }
-    [data-testid="board-content"] { touch-action: none; }
-    [data-testid="location-hint"] { cursor: pointer; }
-    input::placeholder { color: rgba(255, 255, 255, 0.4); }
+    /* Gesture zones (ENG-23719): the header owns its pointer entirely (station
+       swipes); the board keeps native vertical scrolling and yields only the
+       horizontal axis to the train-walk gesture (gestures.ts). */
+    [data-testid="station-header"] { touch-action: none; }
+    [data-testid="board-content"] { touch-action: pan-y; }
+    [data-testid="location-hint"], [data-testid="settings-location"] { cursor: pointer; }
+    input::placeholder { color: rgba(26, 31, 39, 0.4); }
     #boot-status { position: fixed; left: 16px; bottom: 16px; z-index: 99; max-width: min(520px, calc(100vw - 32px));
       padding: 10px 12px; border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; background: #0d1322;
       color: #dbe3f4; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
@@ -151,7 +155,7 @@ function installLocationRequest(rootEl: HTMLElement): () => void {
   const listener = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    if (!target.closest('[data-testid="location-hint"]')) return;
+    if (!target.closest('[data-testid="location-hint"], [data-testid="settings-location"]')) return;
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();

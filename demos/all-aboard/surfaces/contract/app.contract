@@ -1,38 +1,46 @@
-// All Aboard — the Caltrain next-train Contract surface (LLP 0027).
+// All Aboard — the Caltrain next-train Contract surface (LLP 0027; redesigned
+// under ENG-23719).
 //
-// One .contract, rendered on web (DOM mirror) and native macOS/iOS (Rust kernel).
-// Live Snapback data arrives through `query` bindings over the generated
-// liveTrainStatus/feedState descriptors — server push over the shared live
-// socket (LLP 0034 D1; Exact LLP 0284 §5.3), no hand-written pump, no store.
-// The view derives from pure helpers in ./data.ts, passing the bound rows as
-// arguments. A 1s `every` ticker advances nowMs so countdowns tick (UI clock,
-// not transport). The delays region carries a `stale rows` arm (Exact LLP 0284
-// §2.2 connection sugar): on a missed freshness budget the board keeps
-// rendering last-known delays under a visible reconnecting note.
+// One .contract, rendered on web (DOM mirror) and native macOS/iOS (Rust
+// kernel). Live Snapback data arrives through `query` bindings over the
+// generated liveTrainStatus/liveDepartures/feedState descriptors — server push
+// over the shared live socket (LLP 0034 D1; Exact LLP 0284 §5.3), no
+// hand-written pump, no store. The view derives from pure helpers in ./data.ts,
+// passing the bound rows as arguments. A 1s `every` ticker advances nowMs so
+// countdowns tick (UI clock, not transport). The delays region carries a
+// `stale rows` arm (Exact LLP 0284 §2.2 connection sugar): on a missed
+// freshness budget the board keeps rendering last-known delays under a visible
+// reconnecting note.
 //
-// Design: full-bleed poster-stylized station artwork (model.mjs stationPhoto —
-// legibility scrims are baked into its SVG wrapper) with the departure board
-// typeset directly on it: station identity at the top, the answer — a giant
-// countdown — at the bottom where thumbs live. `heroOffset` walks the upcoming
-// trains in the active direction.
+// Design (ENG-23719): a white board under a Caltrain-red sticky header. The
+// header carries the station identity — the day's hand-drawn scene (ENG-23684,
+// rotating by epoch day) beside the station name in white — and is the
+// station-navigation surface: swipe it left/right (web glue) or press the edge
+// chevrons to walk the corridor. Below it, a vertically scrolling departures
+// board: the selected train as a highlighted card (countdown, service class,
+// train number, delay, upcoming stops), the next few trains after it, the
+// opposite-direction teaser, and the data-source footer. Horizontal swipes on
+// the board walk the selected train (`heroOffset`); the direction row names
+// northbound/southbound and flips it. A floating red button opens Settings.
+// No bottom tabs.
 //
 // Interaction is gesture-first ON WEB via surface glue (gestures.ts): swipe
-// left/right = adjacent station, swipe up/down = later/earlier train, bare tap
-// = flip direction. Contract still has no swipe primitive (LLP 0027 gesture
-// gap; LLP 0029 G1), so the glue drives the same press affordances declared
-// here — edge chevrons, the ▲▼ train arrows, the flip pill — which stay
-// visible, agent-checkable by testId, and identical on web and native.
+// the header = adjacent station, swipe the board horizontally = earlier/later
+// train, swipe right on a sheet = back. Contract still has no swipe primitive
+// (LLP 0027 gesture gap; LLP 0029 G1), so the glue drives the same press
+// affordances declared here — header edge chevrons, the ‹ › train arrows, the
+// flip pill, Back — which stay visible, agent-checkable by testId, and
+// identical on web and native.
 //
 // Composition: the root AllAboard component owns all state, derives, actions,
 // and the contract block; the screen components below are presentational and
 // take data plus root actions as ordinary callback props (`goToStation: (id)
 // => void`, bound bare or curried at the use site as press=goToStation(s.id)).
-// Threading actions through props is the existing mechanism the earlier
-// one-component workaround missed; this split is the phase-1 evidence for the
-// Exact repo's LLP 0280 action-threading proof (ENG-22417).
 //
 // Palette literals are inlined (as in demos/todo-v2) so the file compiles
 // identically under the acceptance compiler and the browser Vite host.
+// Board palette: Caltrain red #C8102E on white; ink #1A1F27; secondary
+// #57606C; warm hairline #E7E2DB.
 
 use applyFeedTick from "../../snapback/generated/contract/applyFeedTick.mutation.ts"
 use liveTrainStatus from "../../snapback/generated/contract/liveTrainStatus.query.ts"
@@ -42,8 +50,7 @@ use feedState from "../../snapback/generated/contract/feedState.query.ts"
 use getSelectedStation from "./data.ts"
 use searchStations from "./data.ts"
 use adjacentStationId from "./data.ts"
-use stationPhoto from "./data.ts"
-use stationPhotoCredit from "./data.ts"
+use stationArt from "./data.ts"
 use locationHint from "./data.ts"
 use activeDirection from "./data.ts"
 use oppositeDirection from "./data.ts"
@@ -87,8 +94,7 @@ component AllAboard
   query feedRows = feedState({})
 
   derive station = getSelectedStation(stationId, nowMs)
-  derive art = stationPhoto(station.id)
-  derive photoCredit = stationPhotoCredit(station.id)
+  derive art = stationArt(station.id, nowMs)
   derive locHint = locationHint(nowMs)
   derive activeDir = activeDirection(directionOverride, station)
   derive oppositeDir = oppositeDirection(activeDir)
@@ -119,6 +125,8 @@ component AllAboard
     heroOffset = heroOffset > 0 ? heroOffset - 1 : 0
   action trainNext writes heroOffset
     heroOffset = heroOffset < 8 ? heroOffset + 1 : heroOffset
+  action trainFirst writes heroOffset
+    heroOffset = 0
   action setServiceFilter(value) writes serviceFilter, heroOffset
     serviceFilter = value
     heroOffset = 0
@@ -132,6 +140,8 @@ component AllAboard
   action openStations writes screen, query
     screen = "stations"
     query = ""
+  action openSettings writes screen
+    screen = "settings"
   action setQuery(value) writes query
     query = value
   action openTrip(id) writes tripId, screen
@@ -149,85 +159,91 @@ component AllAboard
   contract
     has button "Change station"
     when screen == "home" then has button "Flip direction"
+    when screen == "home" then has button "Settings"
     when screen == "home" then has node testId="service-filter"
     when screen == "home" then has node testId="data-source"
     when screen == "stations" then has input label="Search stations"
 
   view
-    main background="#05070f" flex=1 width="100%" minHeight="100%" testId="all-aboard-main"
-      stack flex=1 width="100%" minHeight="100%" overflow="hidden"
-
-        // Full-bleed station artwork behind everything.
-        when art == ""
-          column position="absolute" top=0 left=0 right=0 bottom=0 background="#0b0e1a"
-        else
-          image svgSource=art alt=`${station.name} station artwork` position="absolute" top=0 left=0 right=0 bottom=0 width="100%" height="100%" objectFit="cover" testId="station-art"
+    main background="#ffffff" flex=1 width="100%" minHeight="100%" testId="all-aboard-main"
+      stack flex=1 width="100%" minHeight="100%" overflow="hidden" background="#ffffff"
 
         when screen == "home"
-          column position="absolute" top=0 left=0 right=0 bottom=0 justify="space-between" testId="board-content"
-            StationCard(station=station, walkBike=walkBike, locHint=locHint, etaMode=etaMode, openStations=openStations, toggleEtaMode=toggleEtaMode, requestLocation=requestLocation)
-            // The delays region dispatches on the live binding: `stale` (Exact
-            // LLP 0284 §2.2 sugar) wins over `ready` while the connection is
-            // degraded — same board, last-known delays, a visible note.
-            async delayRows
-              loading
-                column paddingLeft=20 paddingRight=20 paddingBottom=16 width="100%" maxWidth=620 alignSelf="center"
-                  text "Connecting to live delays…" size=12 color="#ffffff73" testId="delays-loading"
-              stale rows
-                column gap=8 width="100%"
-                  row justify="center" width="100%"
-                    row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background="#fbbf2422" borderWidth=1 borderColor="#fbbf2447"
-                      text "Reconnecting — showing last-known delays" size=11 weight=700 color="#fbbf24" testId="delays-stale"
-                  DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, photoCredit=photoCredit, delayRows=rows, departureRows=departureRows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
-              ready rows
-                DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, photoCredit=photoCredit, delayRows=rows, departureRows=departureRows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+          column position="absolute" top=0 left=0 right=0 bottom=0 background="#ffffff" testId="station-screen"
+            StationHeader(station=station, art=art, walkBike=walkBike, prevStationId=prevStationId, nextStationId=nextStationId, goToStation=goToStation, openStations=openStations)
+
+            scroll position="absolute" top=106 left=0 right=0 bottom=0 background="#ffffff" testId="board-content"
+              column gap=10 padding=18 paddingTop=14 paddingBottom=110 maxWidth=620 alignSelf="center" width="100%"
+                // The delays region dispatches on the live binding: `stale`
+                // (Exact LLP 0284 §2.2 sugar) wins over `ready` while the
+                // connection is degraded — same board, last-known delays, a
+                // visible note.
+                async delayRows
+                  loading
+                    text "Connecting to live delays…" size=12 color="#8A93A0" testId="delays-loading"
+                  stale rows
+                    column gap=8 width="100%"
+                      row justify="center" width="100%"
+                        row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background="#B4530914" borderWidth=1 borderColor="#B4530936"
+                          text "Reconnecting — showing last-known delays" size=11 weight=700 color="#92400E" testId="delays-stale"
+                      DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, delayRows=rows, departureRows=departureRows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, trainFirst=trainFirst, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+                  ready rows
+                    DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, delayRows=rows, departureRows=departureRows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, trainFirst=trainFirst, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
+
+                // A button, not bare text: pressing re-requests the
+                // geolocation prompt from a user gesture (ENG-22795).
+                button press=requestLocation label="Use my location" testId="location-hint" background="transparent" borderWidth=0 paddingTop=2 paddingBottom=0 paddingLeft=0 paddingRight=0 alignSelf="center"
+                  text locHint size=12 color="#8A93A0"
+
+            // Floating settings entry — bottom right, over the scroll; no
+            // bottom tabs in this app (ENG-23719).
+            button press=openSettings label="Settings" testId="open-settings" position="absolute" right=16 bottom=18 width=52 height=52 radius=26 background="#C8102E" borderWidth=1 borderColor="#A50D26" justify="center" align="center"
+              text "⚙" size=22 color="#ffffff"
         else
           when screen == "stations"
             StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, etaMode=etaMode, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
           else
-            TripDetail(trip=trip, stationId=station.id, goHome=goHome)
+            when screen == "settings"
+              SettingsScreen(etaMode=etaMode, locHint=locHint, feedSource=feedSource, freshness=freshness, toggleEtaMode=toggleEtaMode, requestLocation=requestLocation, goHome=goHome)
+            else
+              TripDetail(trip=trip, stationId=station.id, goHome=goHome)
 
-        // Edge chevrons: the visible, pressable stand-in for the swipe.
-        when screen == "home"
-          button press=goToStation(prevStationId) label="Previous station" testId="prev-station" position="absolute" left=0 top="17%" bottom="58%" width=42 background="transparent" borderWidth=0 justify="center" align="center"
-            text "‹" size=34 weight=700 color=prevStationId == station.id ? "#ffffff1f" : "#ffffff66"
-          button press=goToStation(nextStationId) label="Next station" testId="next-station" position="absolute" right=0 top="17%" bottom="58%" width=42 background="transparent" borderWidth=0 justify="center" align="center"
-            text "›" size=34 weight=700 color=nextStationId == station.id ? "#ffffff1f" : "#ffffff66"
-
-// The station identity block, typeset on the artwork: wordmark + change-station
-// pill, the station name, and the zone / walk / bike / location lines.
-component StationCard
+// The sticky station header (ENG-23719): Caltrain red, a little taller than a
+// plain title bar because it is the station-navigation surface — swipe it
+// left/right (web glue) or press the edge chevrons for the adjacent station.
+// The day's hand-drawn scene sits beside the station name in white; pressing
+// the identity block opens the stations sheet.
+component StationHeader
   props
     station: object
+    art: string
     walkBike: string
-    locHint: string
-    etaMode: string
+    prevStationId: string
+    nextStationId: string
+    goToStation: (id) => void
     openStations: () => void
-    toggleEtaMode: () => void
-    requestLocation: () => void
 
   view
-    column gap=4 paddingTop=20 paddingLeft=22 paddingRight=22 width="100%" maxWidth=620 alignSelf="center" testId="station-card"
-      row justify="space-between" align="center" width="100%"
-        text "CALTRAIN" size=12 weight=800 letterSpacing=2.6 color="#ffffffc9"
-        button press=openStations label="Change station" testId="change-station" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
-          text "Change station" size=12 weight=600 color="#ffffffe6"
-      text station.name size=38 weight=800 lineHeight=42 color="#ffffff" testId="station-name" headingLevel=1
-      // E4: the ETA mode control — the summary (and the stations-list rows)
-      // follow the selected mode app-wide.
-      row justify="space-between" align="center" width="100%"
-        text `Zone ${station.zone} · ${walkBike}` size=13 color="#ffffffb8" testId="walk-bike"
-        button press=toggleEtaMode label="Toggle ETA mode" testId="eta-mode" paddingTop=4 paddingBottom=4 paddingLeft=10 paddingRight=10 radius=999 background="#ffffff12" borderWidth=1 borderColor="#ffffff1a"
-          text etaModeLabel(etaMode) size=11 weight=700 color="#ffffffe6"
-      // A button, not bare text: pressing re-requests the geolocation prompt
-      // from a user gesture (ENG-22795), and button-ness keeps the bare-tap
-      // direction-flip gesture from also firing on this line (gestures.ts).
-      button press=requestLocation label="Use my location" testId="location-hint" background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0
-        text locHint size=12 color="#ffffff73"
+    column position="absolute" top=0 left=0 right=0 height=106 background="#C8102E" justify="center" testId="station-header"
+      row align="center" width="100%" height="100%" maxWidth=620 alignSelf="center"
+        button press=goToStation(prevStationId) label="Previous station" testId="prev-station" width=40 height="100%" background="transparent" borderWidth=0 justify="center" align="center" opacity=prevStationId == station.id ? 0.25 : 1
+          text "‹" size=30 weight=700 color="#ffffff"
+        button press=openStations label="Change station" testId="change-station" flex=1 background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0
+          row gap=12 align="center" width="100%"
+            when art != ""
+              column width=54 height=74 radius=10 overflow="hidden" borderWidth=2 borderColor="#ffffff59" background="#ffffff22"
+                image svgSource=art alt=`${station.name} station scene` width="100%" height="100%" objectFit="cover" testId="station-art"
+            column gap=2 align="flex-start" flex=1
+              text "CALTRAIN" size=10 weight=800 letterSpacing=2.4 color="#ffffffa6"
+              text station.name size=23 weight=800 lineHeight=26 color="#ffffff" testId="station-name" headingLevel=1
+              text `Zone ${station.zone} · ${walkBike}` size=12 color="#ffffffcc" testId="walk-bike"
+        button press=goToStation(nextStationId) label="Next station" testId="next-station" width=40 height="100%" background="transparent" borderWidth=0 justify="center" align="center" opacity=nextStationId == station.id ? 0.25 : 1
+          text "›" size=30 weight=700 color="#ffffff"
 
-// The board: direction row, the giant hero countdown expanded with its stops,
-// the ▲▼ train-selection arrows, the three departures after it, the opposite
-// direction line, and the freshness / refresh / credit footer.
+// The board: direction row, service-filter chips, the selected train as a
+// highlighted card with its upcoming stops, the trains after it, the opposite
+// direction teaser, and the freshness / refresh footer. The #1 job of this
+// screen: when is the next train, and the couple after that (ENG-23719).
 component DirectionBoard
   props
     stationId: string
@@ -240,82 +256,91 @@ component DirectionBoard
     freshness: string
     feedIssue: string
     feedSource: object
-    photoCredit: string
     delayRows: object[]
     departureRows: object[]
     toggleDirection: (next) => void
     openTrip: (id) => void
     trainPrev: () => void
     trainNext: () => void
+    trainFirst: () => void
     setServiceFilter: (value) => void
     doRefresh: () => void
 
   view
-    column gap=9 paddingLeft=20 paddingRight=20 paddingBottom=10 width="100%" maxWidth=620 alignSelf="center" testId="home-screen"
+    column gap=10 width="100%" testId="home-screen"
       row justify="space-between" align="center" width="100%" testId="direction-toggle"
-        text directionTitle(activeDir) size=16 weight=800 letterSpacing=0.4 color="#ffffff" testId="active-direction"
-        button press=toggleDirection(oppositeDir) label="Flip direction" testId="flip-direction" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
-          text `⇄ ${directionTitle(oppositeDir)}` size=12 weight=700 color="#ffffffe6"
+        text directionTitle(activeDir) size=20 weight=800 letterSpacing=0.2 color="#1A1F27" testId="active-direction"
+        button press=toggleDirection(oppositeDir) label="Flip direction" testId="flip-direction" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#C8102E0D" borderWidth=1 borderColor="#C8102E4D"
+          text `⇄ ${directionTitle(oppositeDir)}` size=12 weight=700 color="#C8102E"
 
-      // Service-filter chips (E3): the whole board — hero included — shows
-      // only the selected service class; 'All' restores everything.
+      // Service-filter chips (E3): the whole board — selected train included —
+      // shows only the selected service class; 'All' restores everything.
       row gap=6 width="100%" testId="service-filter"
         each f in serviceFilterOptions() key=f.id
-          button press=setServiceFilter(f.id) label=`Show ${f.label} trains` testId=`service-filter-${f.label}` paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background=serviceFilter == f.id ? "#ffffff2b" : "#ffffff12" borderWidth=1 borderColor=serviceFilter == f.id ? "#ffffff42" : "#ffffff1a"
-            text f.label size=12 weight=serviceFilter == f.id ? 700 : 500 color=serviceFilter == f.id ? "#ffffff" : "#ffffffb8"
+          button press=setServiceFilter(f.id) label=`Show ${f.label} trains` testId=`service-filter-${f.label}` paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background=serviceFilter == f.id ? "#C8102E" : "#F2EFEA" borderWidth=1 borderColor=serviceFilter == f.id ? "#A50D26" : "#E7E2DB"
+            text f.label size=12 weight=serviceFilter == f.id ? 700 : 500 color=serviceFilter == f.id ? "#ffffff" : "#57606C"
 
       when board.hero
-        column gap=9 width="100%"
-          row gap=12 align="center" width="100%"
-            // Hero: the next train, expanded — tap opens its detail.
-            button press=openTrip(board.hero.id) label="Open next train" testId="hero-departure" background="transparent" borderWidth=0 padding=0 flex=1
-              column gap=7 width="100%" align="flex-start"
-                row align="flex-end" gap=9 width="100%"
-                  text `${formatCountdownMinutes(board.hero.predictedDepartureMs, nowMs)}` size=98 weight=800 lineHeight=92 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color="#ffffff" testId="hero-minutes"
-                  text "min" size=17 weight=600 color="#ffffffa6" paddingBottom=12
-                  spacer
-                  column gap=6 align="flex-end" paddingBottom=10
-                    row radius=999 paddingLeft=11 paddingRight=11 paddingTop=4 paddingBottom=4 background=serviceTint(board.hero.service)
-                      text board.hero.service size=12 weight=700 color=serviceColor(board.hero.service) testId="hero-service"
-                    text `${formatClockTime(board.hero.predictedDepartureMs)} · #${board.hero.trainNumber}` size=12 family="ui-monospace, Menlo, monospace" color="#ffffff96" testId="hero-meta"
-                    text delayLabel(board.hero) size=12 weight=700 color=delayColor(board.hero)
-                text `to ${board.hero.headsign}` size=15 weight=600 color="#ffffffd9"
-                row gap=6 wrap="wrap" width="100%"
-                  each stop in upcomingStops(board.hero.id, stationId, nowMs, 4, delayRows, departureRows) key=stop.id
-                    row radius=999 paddingLeft=10 paddingRight=10 paddingTop=4 paddingBottom=4 background=stop.isBoarding ? "#ffffff2b" : "#ffffff14"
-                      text `${stop.time} ${stop.name}` size=11 weight=stop.isBoarding ? 700 : 500 family="ui-monospace, Menlo, monospace" color=stop.isBoarding ? "#ffffff" : "#ffffffb8"
-            // Walk the upcoming trains (swipe up/down drives these same arrows).
-            column gap=8
-              button press=trainPrev label="Earlier train" testId="train-prev" disabled=!board.hasPrev width=38 height=38 radius=19 background="#ffffff17" borderWidth=1 borderColor="#ffffff21" justify="center" align="center" opacity=board.hasPrev ? 1 : 0.35
-                text "▲" size=12 weight=800 color="#ffffffd9"
-              button press=trainNext label="Later train" testId="train-next" disabled=!board.hasNext width=38 height=38 radius=19 background="#ffffff17" borderWidth=1 borderColor="#ffffff21" justify="center" align="center" opacity=board.hasNext ? 1 : 0.35
-                text "▼" size=12 weight=800 color="#ffffffd9"
+        column gap=8 width="100%"
+          row justify="space-between" align="center" width="100%"
+            row gap=7 align="center"
+              when board.offset == 0
+                row radius=999 paddingLeft=9 paddingRight=9 paddingTop=3 paddingBottom=3 background="#C8102E"
+                  text "NEXT TRAIN" size=10 weight=800 letterSpacing=1 color="#ffffff" testId="next-tag"
+              else
+                button press=trainFirst label="Back to next train" testId="train-first" paddingTop=3 paddingBottom=3 paddingLeft=9 paddingRight=9 radius=999 background="#F2EFEA" borderWidth=1 borderColor="#E7E2DB"
+                  text `‹ next train (+${board.offset})` size=10 weight=700 color="#57606C"
+            // Walk the upcoming trains (horizontal swipes on the board drive
+            // these same arrows: ‹ earlier, › later).
+            row gap=6 align="center"
+              button press=trainPrev label="Earlier train" testId="train-prev" disabled=!board.hasPrev width=34 height=34 radius=17 background="#F2EFEA" borderWidth=1 borderColor="#E7E2DB" justify="center" align="center" opacity=board.hasPrev ? 1 : 0.35
+                text "‹" size=16 weight=800 color="#57606C"
+              button press=trainNext label="Later train" testId="train-next" disabled=!board.hasNext width=34 height=34 radius=17 background="#F2EFEA" borderWidth=1 borderColor="#E7E2DB" justify="center" align="center" opacity=board.hasNext ? 1 : 0.35
+                text "›" size=16 weight=800 color="#57606C"
 
-          // The three departures after the hero.
+          // The selected train, expanded — tap opens its detail.
+          button press=openTrip(board.hero.id) label="Open next train" testId="hero-departure" background="transparent" borderWidth=0 padding=0 width="100%"
+            column gap=8 radius=20 padding=16 background="#FDF7F5" borderWidth=1.5 borderColor="#C8102E3D" width="100%" align="flex-start"
+              row align="flex-end" gap=8 width="100%"
+                text `${formatCountdownMinutes(board.hero.predictedDepartureMs, nowMs)}` size=72 weight=800 lineHeight=68 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color="#1A1F27" testId="hero-minutes"
+                text "min" size=16 weight=600 color="#57606C" paddingBottom=8
+                spacer
+                column gap=5 align="flex-end" paddingBottom=4
+                  row radius=999 paddingLeft=11 paddingRight=11 paddingTop=4 paddingBottom=4 background=serviceTint(board.hero.service)
+                    text board.hero.service size=12 weight=700 color=serviceColor(board.hero.service) testId="hero-service"
+                  text `${formatClockTime(board.hero.predictedDepartureMs)} · #${board.hero.trainNumber}` size=12 family="ui-monospace, Menlo, monospace" color="#57606C" testId="hero-meta"
+                  text delayLabel(board.hero) size=12 weight=700 color=delayColor(board.hero)
+              text `to ${board.hero.headsign}` size=15 weight=600 color="#2A313B"
+              row gap=6 wrap="wrap" width="100%"
+                each stop in upcomingStops(board.hero.id, stationId, nowMs, 4, delayRows, departureRows) key=stop.id
+                  row radius=999 paddingLeft=10 paddingRight=10 paddingTop=4 paddingBottom=4 background=stop.isBoarding ? "#C8102E14" : "#F2EFEA" borderWidth=1 borderColor=stop.isBoarding ? "#C8102E3D" : "#E7E2DB"
+                    text `${stop.time} ${stop.name}` size=11 weight=stop.isBoarding ? 700 : 500 family="ui-monospace, Menlo, monospace" color=stop.isBoarding ? "#C8102E" : "#57606C"
+
+          // The trains after the selected one.
           column gap=7 width="100%"
             each d in board.rest key=d.id
               button press=openTrip(d.id) label="Open train" testId=`departure-${d.id}` background="transparent" borderWidth=0 padding=0 width="100%"
-                row justify="space-between" align="center" radius=14 paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 background="#0d1322a8" borderWidth=1 borderColor="#ffffff12" width="100%"
+                row justify="space-between" align="center" radius=14 paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 background="#ffffff" borderWidth=1 borderColor="#E7E2DB" width="100%"
                   row gap=8 align="center"
-                    text `${formatCountdownMinutes(d.predictedDepartureMs, nowMs)}` size=17 weight=800 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color="#ffffff" width=36 textAlign="right"
-                    text "min" size=11 color="#ffffff73"
+                    text `${formatCountdownMinutes(d.predictedDepartureMs, nowMs)}` size=17 weight=800 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color="#1A1F27" width=36 textAlign="right"
+                    text "min" size=11 color="#8A93A0"
                     row radius=999 paddingLeft=8 paddingRight=8 paddingTop=2 paddingBottom=2 background=serviceTint(d.service)
                       text d.service size=10 weight=700 color=serviceColor(d.service)
-                  text `${formatClockTime(d.predictedDepartureMs)} · ${shortHeadsign(d)}` size=12 family="ui-monospace, Menlo, monospace" color="#ffffff8a"
+                  text `${formatClockTime(d.predictedDepartureMs)} · #${d.trainNumber} · ${shortHeadsign(d)}` size=12 family="ui-monospace, Menlo, monospace" color="#57606C"
       else
-        column radius=16 padding=18 background="#0d1322b8" borderWidth=1 borderColor="#ffffff14"
-          text "No more trains today in this direction." size=14 color="#ffffffb8" testId="no-trains"
+        column radius=16 padding=18 background="#F7F5F2" borderWidth=1 borderColor="#E7E2DB"
+          text "No more trains today in this direction." size=14 color="#57606C" testId="no-trains"
 
       // Opposite direction, minimal — and itself a flip affordance.
       when oppositeBoard.primary
         button press=toggleDirection(oppositeDir) label=`Show ${directionTitle(oppositeDir)}` testId="opposite-line" background="transparent" borderWidth=0 padding=0 width="100%"
-          row justify="space-between" align="center" radius=14 paddingTop=9 paddingBottom=9 paddingLeft=14 paddingRight=14 background="#0d13227d" borderWidth=1 borderColor="#ffffff0f" width="100%"
+          row justify="space-between" align="center" radius=14 paddingTop=9 paddingBottom=9 paddingLeft=14 paddingRight=14 background="#F7F5F2" borderWidth=1 borderColor="#E7E2DB" width="100%"
             row gap=8 align="center"
-              text "⇅" size=13 color="#ffffff8a"
-              text directionTitle(oppositeDir) size=13 weight=700 color="#ffffffb8"
+              text "⇅" size=13 color="#8A93A0"
+              text directionTitle(oppositeDir) size=13 weight=700 color="#57606C"
             row gap=5 align="center"
-              text `${formatCountdownMinutes(oppositeBoard.primary.predictedDepartureMs, nowMs)}` size=15 weight=800 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color="#ffffff"
-              text "min" size=11 color="#ffffff73"
+              text `${formatCountdownMinutes(oppositeBoard.primary.predictedDepartureMs, nowMs)}` size=15 weight=800 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color="#1A1F27"
+              text "min" size=11 color="#8A93A0"
 
       row justify="space-between" align="center" width="100%" paddingTop=2
         // The data-source badge: amber "DEMO DATA" on the recorded/seed feed,
@@ -323,18 +348,16 @@ component DirectionBoard
         row gap=7 align="center"
           row radius=999 paddingLeft=8 paddingRight=8 paddingTop=3 paddingBottom=3 background=feedSource.tint borderWidth=1 borderColor=feedSource.border
             text feedSource.label size=10 weight=800 letterSpacing=1 color=feedSource.color testId="data-source"
-          text freshness size=12 color="#ffffff73" testId="freshness"
-        button press=doRefresh label="Refresh" testId="refresh" paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
-          text "Refresh" size=12 weight=700 color="#ffffffe6"
+          text freshness size=12 color="#8A93A0" testId="freshness"
+        button press=doRefresh label="Refresh" testId="refresh" paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background="#C8102E0D" borderWidth=1 borderColor="#C8102E4D"
+          text "Refresh" size=12 weight=700 color="#C8102E"
       // Why the board is on the recorded feed instead of live 511 — the
       // actionable lastError refreshFeed commits on fallback (ENG-22751).
       when feedIssue != ""
-        text feedIssue size=11 color="#fbbf24" width="100%" testId="feed-problem"
-      when photoCredit != ""
-        text photoCredit size=10 color="#ffffff4d" textAlign="center" width="100%" testId="photo-credit"
+        text feedIssue size=11 color="#92400E" width="100%" testId="feed-problem"
 
-// The stations screen: a dark sheet over the artwork — search, match rows
-// (current station highlighted), Done.
+// The stations sheet: red header (Done), search, match rows with the current
+// station highlighted.
 component StationsPicker
   props
     query: string
@@ -347,25 +370,70 @@ component StationsPicker
     goHome: () => void
 
   view
-    scroll position="absolute" top=0 left=0 right=0 bottom=0 background="#05070fe6" testId="stations-screen"
-      column gap=10 padding=20 paddingTop=22 maxWidth=620 alignSelf="center" width="100%"
-        row justify="space-between" align="center" width="100%"
-          text "Stations" size=24 weight=800 color="#ffffff" headingLevel=1
-          button press=goHome label="Back" testId="stations-back" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
-            text "Done" size=12 weight=700 color="#ffffffe6"
-        input value=query change=setQuery placeholder="Search stations" label="Search stations" testId="station-search" padding=12 radius=12 background="#ffffff14" borderColor="#ffffff26" borderWidth=1 color="#ffffff" size=14
-        column gap=2
-          each s in matches key=s.id
-            button press=goToStation(s.id) label=s.name testId=`station-${s.id}` background="transparent" borderWidth=0 padding=0 width="100%"
-              row justify="space-between" align="center" gap=12 paddingTop=11 paddingBottom=11 paddingLeft=12 paddingRight=12 radius=12 background=s.id == currentStationId ? "#ffffff17" : "transparent" width="100%"
-                column gap=2 align="flex-start"
-                  text s.name size=15 weight=s.id == currentStationId ? 700 : 600 color="#ffffff"
-                  text `Zone ${s.zone}` size=11.5 color="#ffffff73"
-                text distanceLabel(s, etaMode, nowMs) size=12 family="ui-monospace, Menlo, monospace" color="#ffffff8a"
+    column position="absolute" top=0 left=0 right=0 bottom=0 background="#ffffff" testId="stations-screen"
+      column position="absolute" top=0 left=0 right=0 height=64 background="#C8102E" justify="center"
+        row justify="space-between" align="center" width="100%" maxWidth=620 alignSelf="center" paddingLeft=18 paddingRight=18
+          text "Stations" size=20 weight=800 color="#ffffff" headingLevel=1
+          button press=goHome label="Back" testId="stations-back" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff26" borderWidth=1 borderColor="#ffffff40"
+            text "Done" size=12 weight=700 color="#ffffff"
+      scroll position="absolute" top=64 left=0 right=0 bottom=0 background="#ffffff"
+        column gap=10 padding=18 maxWidth=620 alignSelf="center" width="100%"
+          input value=query change=setQuery placeholder="Search stations" label="Search stations" testId="station-search" padding=12 radius=12 background="#F7F5F2" borderColor="#E7E2DB" borderWidth=1 color="#1A1F27" size=14
+          column gap=2
+            each s in matches key=s.id
+              button press=goToStation(s.id) label=s.name testId=`station-${s.id}` background="transparent" borderWidth=0 padding=0 width="100%"
+                row justify="space-between" align="center" gap=12 paddingTop=11 paddingBottom=11 paddingLeft=12 paddingRight=12 radius=12 background=s.id == currentStationId ? "#C8102E0D" : "transparent" borderWidth=1 borderColor=s.id == currentStationId ? "#C8102E3D" : "transparent" width="100%"
+                  column gap=2 align="flex-start"
+                    text s.name size=15 weight=s.id == currentStationId ? 700 : 600 color="#1A1F27"
+                    text `Zone ${s.zone}` size=11.5 color="#8A93A0"
+                  text distanceLabel(s, etaMode, nowMs) size=12 family="ui-monospace, Menlo, monospace" color="#57606C"
 
-// The trip screen: a dark sheet over the artwork — service + train header,
-// live position bar (service-colored), the ordered stop list with the boarding
-// station highlighted, and Back.
+// The settings sheet (ENG-23719): travel-time mode, location, and what the
+// app is showing — reachable from the floating button, no bottom tabs.
+component SettingsScreen
+  props
+    etaMode: string
+    locHint: string
+    feedSource: object
+    freshness: string
+    toggleEtaMode: () => void
+    requestLocation: () => void
+    goHome: () => void
+
+  view
+    column position="absolute" top=0 left=0 right=0 bottom=0 background="#ffffff" testId="settings-screen"
+      column position="absolute" top=0 left=0 right=0 height=64 background="#C8102E" justify="center"
+        row justify="space-between" align="center" width="100%" maxWidth=620 alignSelf="center" paddingLeft=18 paddingRight=18
+          text "Settings" size=20 weight=800 color="#ffffff" headingLevel=1
+          button press=goHome label="Back" testId="settings-back" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff26" borderWidth=1 borderColor="#ffffff40"
+            text "Done" size=12 weight=700 color="#ffffff"
+      scroll position="absolute" top=64 left=0 right=0 bottom=0 background="#ffffff"
+        column gap=12 padding=18 maxWidth=620 alignSelf="center" width="100%"
+          column gap=8 radius=16 padding=14 background="#F7F5F2" borderWidth=1 borderColor="#E7E2DB" width="100%"
+            row justify="space-between" align="center" width="100%"
+              column gap=2 align="flex-start"
+                text "Travel time to stations" size=14 weight=700 color="#1A1F27"
+                text "Shown in the header and the stations list" size=11.5 color="#8A93A0"
+              button press=toggleEtaMode label="Toggle ETA mode" testId="eta-mode" paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background="#C8102E0D" borderWidth=1 borderColor="#C8102E4D"
+                text etaModeLabel(etaMode) size=12 weight=700 color="#C8102E"
+          column gap=8 radius=16 padding=14 background="#F7F5F2" borderWidth=1 borderColor="#E7E2DB" width="100%"
+            text "Location" size=14 weight=700 color="#1A1F27"
+            button press=requestLocation label="Use my location" testId="settings-location" background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
+              text locHint size=12 color="#57606C"
+          column gap=8 radius=16 padding=14 background="#F7F5F2" borderWidth=1 borderColor="#E7E2DB" width="100%"
+            text "Data" size=14 weight=700 color="#1A1F27"
+            row gap=7 align="center"
+              row radius=999 paddingLeft=8 paddingRight=8 paddingTop=3 paddingBottom=3 background=feedSource.tint borderWidth=1 borderColor=feedSource.border
+                text feedSource.label size=10 weight=800 letterSpacing=1 color=feedSource.color
+              text freshness size=12 color="#8A93A0"
+            text "Live departures come from the 511.org SIRI StopMonitoring feed; when the live feed is unavailable the board falls back to a recorded demo schedule and says so." size=11.5 color="#57606C" lineHeight=16
+          column gap=4 radius=16 padding=14 background="#F7F5F2" borderWidth=1 borderColor="#E7E2DB" width="100%"
+            text "About" size=14 weight=700 color="#1A1F27"
+            text "All Aboard is a Snapback + Exact Contract demo. Station scenes are original hand-drawn artwork by Claude (Fable 5) — a different scene every day." size=11.5 color="#57606C" lineHeight=16
+
+// The trip sheet: red header with Back and the service class, then the train
+// header, live position bar (service-colored), and the ordered stop list with
+// the boarding station highlighted.
 component TripDetail
   props
     trip: object
@@ -373,29 +441,31 @@ component TripDetail
     goHome: () => void
 
   view
-    scroll position="absolute" top=0 left=0 right=0 bottom=0 background="#05070fe6" testId="trip-screen"
-      column gap=12 padding=20 paddingTop=22 maxWidth=620 alignSelf="center" width="100%"
-        row justify="space-between" align="center" width="100%"
-          button press=goHome label="Back" testId="trip-back" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff1c" borderWidth=1 borderColor="#ffffff24"
-            text "‹ Board" size=12 weight=700 color="#ffffffe6"
+    column position="absolute" top=0 left=0 right=0 bottom=0 background="#ffffff" testId="trip-screen"
+      column position="absolute" top=0 left=0 right=0 height=64 background="#C8102E" justify="center"
+        row justify="space-between" align="center" width="100%" maxWidth=620 alignSelf="center" paddingLeft=18 paddingRight=18
+          button press=goHome label="Back" testId="trip-back" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff26" borderWidth=1 borderColor="#ffffff40"
+            text "‹ Board" size=12 weight=700 color="#ffffff"
           when trip
-            row radius=999 paddingLeft=11 paddingRight=11 paddingTop=4 paddingBottom=4 background=serviceTint(trip.service)
+            row radius=999 paddingLeft=11 paddingRight=11 paddingTop=4 paddingBottom=4 background="#ffffff"
               text trip.service size=12 weight=700 color=serviceColor(trip.service)
-        when trip
-          column gap=12 width="100%"
-            column gap=3
-              text `Train ${trip.trainNumber}` size=28 weight=800 color="#ffffff" headingLevel=1
-              text `${trip.origin.name} → ${trip.destination.name}` size=14 color="#ffffffb8"
-              text `${trip.durationMinutes} min · ${trip.stopCount} stops · ${delayLabel(trip)}` size=12 color="#ffffff8a"
-            column gap=8 radius=16 padding=14 background="#0d1322b8" borderWidth=1 borderColor="#ffffff14"
-              text positionLabel(trip) size=13 weight=600 color="#ffffffd9" testId="position-label"
-              column height=6 radius=3 background="#ffffff1f" width="100%"
-                column height=6 radius=3 background=serviceColor(trip.service) width=fractionPercent(positionFraction(trip)) testId="position-bar"
-            column gap=0 radius=16 padding=8 background="#0d1322b8" borderWidth=1 borderColor="#ffffff14"
-              each stop in trip.stops key=stop.station.id
-                row gap=12 align="center" paddingTop=7 paddingBottom=7 paddingLeft=10 paddingRight=10 radius=10 background=stop.station.id == stationId ? "#ffffff14" : "transparent"
-                  text stopClockLabel(stop) size=13 family="ui-monospace, Menlo, monospace" color="#ffffff8a" width=56
-                  column width=8 height=8 radius=4 background=stop.station.id == stationId ? "#ffffff" : "#ffffff42"
-                  text stop.station.name size=14 weight=stop.station.id == stationId ? 700 : 400 color=stop.station.id == stationId ? "#ffffff" : "#ffffffd9"
-        else
-          text "Train not found" size=14 color="#ffffffb8"
+      scroll position="absolute" top=64 left=0 right=0 bottom=0 background="#ffffff"
+        column gap=12 padding=18 maxWidth=620 alignSelf="center" width="100%"
+          when trip
+            column gap=12 width="100%"
+              column gap=3
+                text `Train ${trip.trainNumber}` size=28 weight=800 color="#1A1F27" headingLevel=1
+                text `${trip.origin.name} → ${trip.destination.name}` size=14 color="#57606C"
+                text `${trip.durationMinutes} min · ${trip.stopCount} stops · ${delayLabel(trip)}` size=12 color="#8A93A0"
+              column gap=8 radius=16 padding=14 background="#F7F5F2" borderWidth=1 borderColor="#E7E2DB"
+                text positionLabel(trip) size=13 weight=600 color="#2A313B" testId="position-label"
+                column height=6 radius=3 background="#E7E2DB" width="100%"
+                  column height=6 radius=3 background=serviceColor(trip.service) width=fractionPercent(positionFraction(trip)) testId="position-bar"
+              column gap=0 radius=16 padding=8 background="#ffffff" borderWidth=1 borderColor="#E7E2DB"
+                each stop in trip.stops key=stop.station.id
+                  row gap=12 align="center" paddingTop=7 paddingBottom=7 paddingLeft=10 paddingRight=10 radius=10 background=stop.station.id == stationId ? "#C8102E0D" : "transparent"
+                    text stopClockLabel(stop) size=13 family="ui-monospace, Menlo, monospace" color="#57606C" width=56
+                    column width=8 height=8 radius=4 background=stop.station.id == stationId ? "#C8102E" : "#D8D2C9"
+                    text stop.station.name size=14 weight=stop.station.id == stationId ? 700 : 400 color=stop.station.id == stationId ? "#C8102E" : "#2A313B"
+          else
+            text "Train not found" size=14 color="#57606C"

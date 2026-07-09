@@ -26,7 +26,7 @@ function createApp<T extends Record<string, unknown>>(config: T): T {
 
 createApp({
   title: 'All Aboard',
-  themeColor: '#05070f',
+  themeColor: '#C8102E',
   viewport: {
     initialScale: 1,
     width: 'device-width',
@@ -57,7 +57,7 @@ async function boot(): Promise<void> {
     artifactIndex,
     schemaManifest,
     functionManifest: functionsManifest,
-    liveQueries: ['liveTrainStatus', 'feedState'],
+    liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
   });
   activeSurface = surface;
   configureSnapbackContractLinks(surface.links as never);

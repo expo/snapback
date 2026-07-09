@@ -357,28 +357,36 @@ async function main() {
     // Gesture layer (LLP 0027 interaction model via web surface glue; LLP 0029
     // G1 remains open — these drive the same press affordances by pointer).
 
-    await suite.check('gesture: swipe left moves to the adjacent station', async () => {
+    await suite.check('gesture: swipe left on the header moves to the adjacent station', async () => {
+      // ENG-23719 gesture zones: station navigation lives on the red header
+      // (y within the 106px sticky band), not the scrolling board below it.
       const before = await page.text('station-name');
-      await page.swipe('h', -170);
+      await page.swipe('h', -170, { cy: 53 });
       const after = await page.text('station-name');
       if (!before || before === after) throw new Error(`station did not change (${before} -> ${after})`);
       return { before, after };
     });
 
-    await suite.check('gesture: swipe up selects the next upcoming train', async () => {
+    await suite.check('gesture: swipe left on the board selects the next (later) train', async () => {
+      // Later trains sit to the right (ENG-23719): swiping left pulls the
+      // next one into the highlighted card.
       const before = await page.text('hero-meta');
-      await page.swipe('v', -90);
+      await page.swipe('h', -170, { cy: 480 });
       const after = await page.text('hero-meta');
       if (!before || before === after) throw new Error(`hero train did not change (${before} -> ${after})`);
       return { before, after };
     });
 
-    await suite.check('gesture: bare tap on neutral ground flips the direction', async () => {
-      const before = await page.text('active-direction');
-      await page.tapNeutral();
-      const after = await page.text('active-direction');
-      if (before === after) throw new Error(`direction did not flip (${before})`);
-      return { before, after };
+    await suite.check('floating settings button opens the settings sheet', async () => {
+      await page.click('open-settings');
+      const onSettings = await page.exists('settings-screen');
+      if (!onSettings) throw new Error('settings screen did not open');
+      const hasEta = await page.exists('eta-mode');
+      if (!hasEta) throw new Error('settings screen missing the ETA mode control');
+      await page.click('settings-back');
+      const home = await page.exists('station-header');
+      if (!home) throw new Error('Done did not return to the board');
+      return { onSettings, hasEta };
     });
 
     // E3 (ENG-22450): service-filter chips on the home board.
@@ -404,12 +412,15 @@ async function main() {
       return { limited, bullet, allHero: all.hero };
     });
 
-    // E4 (ENG-22450): the app-wide ETA mode toggle on the station card.
+    // E4 (ENG-22450): the app-wide ETA mode toggle — in Settings since the
+    // ENG-23719 redesign; the header summary and the stations sheet follow it.
 
-    await suite.check('ETA mode toggles walk/bike estimates app-wide', async () => {
+    await suite.check('ETA mode (in Settings) toggles walk/bike estimates app-wide', async () => {
       const walk = await page.text('walk-bike');
       if (!/min walk/.test(walk ?? '')) throw new Error(`expected walk mode summary: ${walk}`);
+      await page.click('open-settings');
       await page.click('eta-mode');
+      await page.click('settings-back');
       const bike = await page.text('walk-bike');
       if (!/min bike/.test(bike ?? '') || /walk/.test(bike ?? '')) throw new Error(`expected bike mode summary: ${bike}`);
       // App-wide: the stations sheet rows carry the mode's minutes.
@@ -417,7 +428,9 @@ async function main() {
       const pickerRow = await page.eval(`document.querySelector('[data-testid="stations-screen"] button[data-testid^="station-"]')?.textContent.trim() ?? null`);
       if (!/min ·/.test(pickerRow ?? '')) throw new Error(`picker rows missing mode ETA: ${pickerRow}`);
       await page.click('stations-back');
+      await page.click('open-settings');
       await page.click('eta-mode');
+      await page.click('settings-back');
       const back = await page.text('walk-bike');
       if (!/min walk/.test(back ?? '')) throw new Error(`walk mode did not restore: ${back}`);
       return { walk, bike, pickerRow };
@@ -503,30 +516,22 @@ async function connectCdp(url) {
         exists: (id) => evalRaw(`!!document.querySelector('${sel(id)}')`),
         click: (id) => evalRaw(`(async () => { const el = document.querySelector('${sel(id)}'); if (!el) throw new Error('no ${id}'); el.click(); await new Promise(r=>setTimeout(r,350)); })()`),
         // Synthetic pointer gestures against the glue layer (gestures.ts).
-        swipe: (axis, delta) => evalRaw(`(async () => {
+        // Gesture meaning is region-scoped (ENG-23719), so callers pass the
+        // start point: cy≈53 hits the sticky header, cy≈480 the board.
+        swipe: (axis, delta, at = {}) => evalRaw(`(async () => {
           const root = document.getElementById('exact-root');
-          const cx = 195, cy = 480, steps = 8;
+          const cx = ${at.cx ?? 195}, cy = ${at.cy ?? 480}, steps = 8;
+          // Dispatch from the element under the start point (bubbles to the
+          // root listener): the glue scopes gesture meaning by the pointerdown
+          // target's region (header vs board), so target=root would misfile it.
+          const origin = document.elementFromPoint(cx, cy) ?? root;
           const opts = (x, y, extra) => ({ bubbles: true, cancelable: true, pointerId: 7, isPrimary: true, button: 0, buttons: 1, clientX: x, clientY: y, pointerType: 'touch', ...extra });
-          const at = (i) => { const d = ${delta} * (i / steps); return '${axis}' === 'h' ? [cx + d, cy] : [cx, cy + d]; };
-          root.dispatchEvent(new PointerEvent('pointerdown', opts(cx, cy)));
-          for (let i = 1; i <= steps; i++) { const [x, y] = at(i); root.dispatchEvent(new PointerEvent('pointermove', opts(x, y))); await new Promise(r => setTimeout(r, 16)); }
-          const [x, y] = at(steps);
-          root.dispatchEvent(new PointerEvent('pointerup', opts(x, y, { buttons: 0 })));
+          const pointAt = (i) => { const d = ${delta} * (i / steps); return '${axis}' === 'h' ? [cx + d, cy] : [cx, cy + d]; };
+          origin.dispatchEvent(new PointerEvent('pointerdown', opts(cx, cy)));
+          for (let i = 1; i <= steps; i++) { const [x, y] = pointAt(i); origin.dispatchEvent(new PointerEvent('pointermove', opts(x, y))); await new Promise(r => setTimeout(r, 16)); }
+          const [x, y] = pointAt(steps);
+          origin.dispatchEvent(new PointerEvent('pointerup', opts(x, y, { buttons: 0 })));
           await new Promise(r => setTimeout(r, 650));
-        })()`),
-        tapNeutral: () => evalRaw(`(async () => {
-          const w = window.innerWidth, h = window.innerHeight;
-          const candidates = [[w / 2, h * 0.38], [w / 2, h * 0.32], [w / 2, h * 0.45], [w * 0.3, h * 0.38]];
-          let x = w / 2, y = h * 0.38, el = null;
-          for (const [cx, cy] of candidates) {
-            const probe = document.elementFromPoint(cx, cy);
-            if (probe && !probe.closest('button, a, input, textarea, select')) { x = cx; y = cy; el = probe; break; }
-          }
-          el = el ?? document.getElementById('exact-root');
-          const opts = { bubbles: true, cancelable: true, pointerId: 9, isPrimary: true, button: 0, clientX: x, clientY: y, pointerType: 'touch' };
-          el.dispatchEvent(new PointerEvent('pointerdown', opts));
-          el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0 }));
-          await new Promise(r => setTimeout(r, 400));
         })()`),
         waitForTestId: (id) => evalRaw(`(async () => { const d = Date.now()+8000; while (Date.now()<d) { if (document.querySelector('${sel(id)}')) return true; await new Promise(r=>setTimeout(r,80)); } throw new Error('timeout waiting for ${id}'); })()`),
         evalPoll: (expr, _pred, ms) => evalRaw(`(async () => { const d = Date.now()+${ms}; let v; while (Date.now()<d) { v = ${expr}; if (/Updated/.test(v)) return v; await new Promise(r=>setTimeout(r,150)); } return v; })()`),

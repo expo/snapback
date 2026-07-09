@@ -223,26 +223,30 @@ zero-chrome:
 
 | Gesture | Effect |
 |---|---|
-| Swipe **left / right** | Move to the adjacent station (along the north–south line) |
-| Swipe **up / down** | Select the previous / next upcoming train in the current direction |
-| **Tap** (no other tap target) | Toggle north ⇄ south |
+| Swipe **left / right on the red header** | Move to the adjacent station (along the north–south line); the header edge chevrons are the tap equivalent |
+| Swipe **left / right on the departures board** | Select the later / earlier upcoming train (earlier trains sit to the left, later to the right) |
+| Scroll **up / down on the board** | Native vertical scrolling through the departures content |
+| Tap the **direction row's flip pill** | Toggle north ⇄ south |
 | Tap a **train** | Open that train's detail: ordered stops + times, and its position along the line |
 
-Swiping is the spatial mental model: left/right walks the line of stations;
-up/down walks the list of trains at the current station. Tap is the cheap toggle
-for direction.
+Gestures are region-scoped since the ENG-23719 redesign (2026-07-08): the
+sticky header is the station-navigation surface, the scrolling board walks the
+trains horizontally while scrolling natively on the vertical axis, and the old
+bare-tap direction flip is gone (a bare tap in a scroll view is too ambiguous);
+the direction row names the active direction and carries the flip pill instead.
 
-*As implemented (2026-07-01 redesign):* Contract still has no swipe primitive
-(LLP 0029 G1), so this model ships on web as **surface glue** —
-`surfaces/contract/gestures.ts` recognizes the swipes (with finger-follow drag
-and a page-turn settle for stations), the bare-tap direction flip, a
-swipe-right-to-go-back on the sheet screens, and arrow-key equivalents, and
-dispatches every recognized gesture by clicking the same visible press
-affordances the `.contract` declares (edge chevrons, ▲▼ train arrows, the flip
-pill). One action path serves gestures, taps, keyboard, tests, and the native
-host; when the Exact motion primitives land, the glue file is deleted and
-`swipe=` attributes replace it. Acceptance drives the affordances by testId and
-the gestures by synthetic pointer sequences
+*As implemented:* Contract still has no swipe primitive (LLP 0029 G1), so this
+model ships on web as **surface glue** — `surfaces/contract/gestures.ts`
+recognizes the region-scoped swipes (with finger-follow drag, a page-turn
+settle for stations, and a nudge settle for trains), a swipe-right-to-go-back
+on the sheet screens, and arrow-key equivalents (←/→ earlier/later train, ↑/↓
+adjacent station), and dispatches every recognized gesture by clicking the same
+visible press affordances the `.contract` declares (header edge chevrons, the
+‹ › train arrows, the flip pill). One action path serves gestures, taps,
+keyboard, tests, and the native host; when the Exact motion primitives land,
+the glue file is deleted and `swipe=` attributes replace it. Acceptance drives
+the affordances by testId and the gestures by synthetic pointer sequences
+dispatched from the element under the start point, since region decides meaning
 ([LLP 0015](./0015-demo-application-suite.plan.md#contractexact)).
 
 ### Train detail
@@ -260,28 +264,33 @@ view is one tap deep, not the landing surface.
 
 ### Station identity
 
-Each station is a **full-screen poster**: the whole home screen is the station's
-artwork, with the departure board typeset directly on it — identity (wordmark,
-station name, zone/walk/bike) at the top, the answer (the giant countdown, its
-stops, the next three trains, the opposite direction) at the bottom where thumbs
-live. The artwork is derived from the real station photos on the Wikipedia
-[List of Caltrain stations](https://en.wikipedia.org/wiki/List_of_Caltrain_stations)
-(Wikimedia Commons), run through a deterministic **travel-poster stylization**
-at build time (`snapback/shared/station-photos.gen.py`: median-smooth, saturate,
-18-color median-cut quantize, soft ink-edge overlay — algorithmic Pillow, not an
-image-generation model) and base64-inlined as 640×1136 JPEG in
-`station-photos.gen.mjs`. The flattening is what lets white board type sit
-legibly on any station's art; the top/bottom **legibility scrims are baked into
-the SVG wrapper** built by `model.mjs stationPhoto()` (the DOM mirror blocks
-`data:` URIs on `src=`, so the art rides the Contract `image svgSource=` path),
-keeping them tunable in code without refetching. Zero runtime egress, full
-determinism, and each screen shows the required CC BY/CC-BY-SA/CC0 credit as
-"art after a photo by …" (a derivative work keeps its source license). Flowing
-the assets through the
-[asset-storage subsystem](./0000-snapback.explainer.md#asset-storage) instead of
-inlining (~1.5 MB of base64 source) remains the follow-up
-([Open questions](#open-questions)); the shortcut is recorded in the manifest
-`temporaryPolicy`.
+Since the ENG-23719 redesign (2026-07-08), the station screen is a **white
+board under a Caltrain-red sticky header** rather than a full-screen poster.
+The header (a little taller than a plain title bar, because it is also the
+station-swipe surface) carries the station identity: the day's **hand-drawn
+scene** as a bordered portrait chip beside the station name in white, with the
+zone / walk-bike line under it. The scenes are the ENG-23684 original artwork —
+three per station, 640×1136 SVGs drawn from one shared ink-and-wash style guide
+— inlined by `demos/all-aboard/scripts/gen-station-art.mjs` into
+`snapback/shared/station-art.gen.mjs` and picked per epoch day
+(`data.ts stationArt()`: day-of-epoch mod scene count, so every station flips
+to its next scene at midnight UTC and the pick stays deterministic for tests).
+The art rides the Contract `image svgSource=` path (the DOM mirror blocks
+`data:` URIs on `src=`); being original work it needs no attribution line. Zero
+runtime egress, full determinism.
+
+Below the header, the board answers the question in ink on white: the selected
+train as a highlighted card (giant countdown, service class, train number,
+delay, its upcoming stops), the next few trains, the opposite-direction teaser,
+and the data-source footer; a floating red button opens Settings (no bottom
+tabs). The previous full-bleed treatment — poster-stylized Wikimedia photos
+with baked legibility scrims (`station-photos.gen.py` / `model.mjs
+stationPhoto()`, credit line required) — is retired from this screen but the
+generated module and wrapper remain for the React control arm. Flowing the
+inlined assets (~1.5 MB photos + ~0.9 MB scenes) through the
+[asset-storage subsystem](./0000-snapback.explainer.md#asset-storage) remains
+the follow-up ([Open questions](#open-questions)); the shortcut is recorded in
+the manifest `temporaryPolicy`.
 
 ## Backend Design
 
