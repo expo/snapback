@@ -10,15 +10,26 @@
 //
 // It reuses the same assertions as the Miniflare suite for the behavioral
 // checklist, then adds the deploy-only measurements. Billing counters are read
-// from the Cloudflare GraphQL analytics API when CLOUDFLARE_API_TOKEN and
-// CLOUDFLARE_ACCOUNT_ID are set; otherwise it records the raw idle-window
-// timing and flags the billing read as skipped so the report never implies
-// billing evidence it does not have.
+// from the Cloudflare GraphQL analytics API (billing-windows.mjs) when
+// CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are set; otherwise it records
+// the raw idle-window timing and flags the billing read as skipped so the
+// report never implies billing evidence it does not have. Analytics
+// attribution lags ingestion by minutes, so the in-run counters may read low —
+// re-run billing-windows.mjs over the reported idle window afterwards for the
+// settled numbers.
 //
-// NOTE (2026-07-07): not yet executed against real Cloudflare — the repo
-// owner's API token is expired. The behavioral assertions are proven under
-// Miniflare (cloudflare/test/acceptance.mjs); this runner is staged for the
-// first real run.
+// Eviction legs: POST /evict forces an in-place discard of coordinator
+// in-memory state (the guaranteed leg), and the runner also compares the
+// /health objectBoot marker across the idle window — when Cloudflare
+// genuinely evicted the hibernating object the marker changes and the run
+// records a REAL platform eviction + rehydration in
+// `platformEvictionObserved` (a report field, not a pass/fail check: platform
+// eviction timing is not deterministic inside a bounded window).
+//
+// First real-Cloudflare run: 2026-07-08 (ENG-23640) — the expired-token era
+// ended with ENG-23632; results live in LLP 0040 §As-built and diary 0012.
+
+import { readBillingWindow, summarizeBillingWindow } from './billing-windows.mjs';
 
 const base = process.env.SNAPBACK_PROOF_URL;
 if (!base) {
@@ -27,7 +38,7 @@ if (!base) {
 }
 
 const results = [];
-const EXPECTED_CHECKS = 10;
+const EXPECTED_CHECKS = 11;
 function check(name, condition, detail) {
   results.push({ name, ok: !!condition, detail: condition ? undefined : detail });
   console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${name}${condition ? '' : ` — ${detail ?? ''}`}`);
@@ -116,8 +127,10 @@ async function main() {
   // Cold start: first request after a quiet window (best-effort — a truly cold
   // object requires the idle window below to have elapsed first).
   const coldStart = performance.now();
-  await get('/health');
-  check('cold-start first request returns', true, `${Math.round(performance.now() - coldStart)}ms`);
+  const health = await get('/health');
+  const coldStartMs = Math.round(performance.now() - coldStart);
+  check('cold-start first request returns', true, `${coldStartMs}ms`);
+  const bootBeforeIdle = health.objectBoot ?? null;
 
   const mutation = await post('/mutation', { name: 'addNote', args: { boardId: 'b1', text: 'real deploy' } });
   check('V8 mutation commits on real Cloudflare', mutation.ok && mutation.version >= 1, JSON.stringify(mutation));
@@ -134,22 +147,63 @@ async function main() {
   const reachable = denial.ok ? denial.rows.filter((r) => r.reachable).map((r) => r.name) : ['<failed>'];
   check('deployed handler denies ambient + host reach-through', reachable.length === 0, JSON.stringify(reachable));
 
+  // Eviction leg (LLP 0040 §Acceptance): discard the coordinator's in-memory
+  // state on the real deployment while the subscriber stays connected, then
+  // prove a committed mutation still reaches it — subscription rehydration
+  // from persisted rows, tested rather than assumed.
+  await post('/evict');
+  await post('/mutation', { name: 'addNote', args: { boardId: 'b1', text: 'after evict' } });
+  const afterEvict = await socket.waitFor('live_replace');
+  check('post-eviction commit reaches the still-connected subscriber',
+    afterEvict.rows.some((r) => r.text === 'after evict'), JSON.stringify(afterEvict));
+
   // Idle window with a connected hibernating subscriber: hold the socket open
   // and quiet for the window, then confirm a commit still wakes it. Billing
   // counters over this window are the decisive scale-to-zero evidence and must
   // be read from the analytics API (below) to count.
   const idleMs = Number(process.env.SNAPBACK_IDLE_WINDOW_MS || 60000);
   console.log(`  … holding a connected-idle window for ${idleMs}ms (hibernation)`);
+  const idleStartISO = new Date().toISOString();
   await new Promise((r) => setTimeout(r, idleMs));
+  const idleEndISO = new Date().toISOString();
+  // /health first: it records whether the platform genuinely evicted the
+  // hibernating object during the window (objectBoot changed) BEFORE the wake
+  // mutation re-instantiates anything.
+  const healthAfterIdle = await get('/health');
+  const bootAfterIdle = healthAfterIdle.objectBoot ?? null;
+  const platformEvictionObserved =
+    bootBeforeIdle != null && bootAfterIdle != null && bootBeforeIdle !== bootAfterIdle;
+  console.log(`  … objectBoot ${bootBeforeIdle} -> ${bootAfterIdle} (${platformEvictionObserved ? 'REAL platform eviction during the idle window' : 'no platform eviction within this window'})`);
   await post('/mutation', { name: 'addNote', args: { boardId: 'b1', text: 'after idle' } });
   const afterIdle = await socket.waitFor('live_replace');
   check('a commit wakes the hibernated subscriber after the idle window',
     afterIdle.rows.some((r) => r.text === 'after idle'), JSON.stringify(afterIdle));
   socket.close();
 
-  const billingRead = !!(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID);
-  check('billing/usage counters read for the idle windows (analytics API)', billingRead,
-    'SKIPPED: set CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID to read GB-s/requests over the idle windows');
+  // Billing counters over the connected-idle window, read from the analytics
+  // API. Attribution can lag a few minutes behind the window itself, so the
+  // report carries the window bounds for a settled re-read via
+  // billing-windows.mjs.
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const gatewayScript = new URL(base).hostname.split('.')[0];
+  const scripts = [gatewayScript, gatewayScript.replace(/-proof$/, '-handler')];
+  let idleBilling = null;
+  if (accountId && apiToken) {
+    const read = await readBillingWindow({
+      accountId,
+      apiToken,
+      scripts,
+      startISO: idleStartISO,
+      endISO: idleEndISO,
+    });
+    idleBilling = { window: read.window, summary: summarizeBillingWindow(read) };
+    check('billing/usage counters read for the idle windows (analytics API)',
+      read.errors.length === 0, JSON.stringify(read.errors));
+  } else {
+    check('billing/usage counters read for the idle windows (analytics API)', false,
+      'SKIPPED: set CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID to read GB-s/requests over the idle windows');
+  }
 
   const passed = results.filter((r) => r.ok).length;
   const shortfall = results.length === 0
@@ -165,7 +219,12 @@ async function main() {
     total: results.length,
     expectedChecks: EXPECTED_CHECKS,
     ok: passed === results.length && shortfall === null,
-    billingCountersRead: billingRead,
+    coldStartMs,
+    connectedIdleWindow: { start: idleStartISO, end: idleEndISO, idleMs },
+    objectBoot: { beforeIdle: bootBeforeIdle, afterIdle: bootAfterIdle },
+    platformEvictionObserved,
+    billingCountersRead: !!idleBilling,
+    idleBilling,
     results,
   };
   if (shortfall) report.shortfall = shortfall;

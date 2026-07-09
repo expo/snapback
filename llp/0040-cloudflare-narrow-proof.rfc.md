@@ -5,7 +5,15 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (seventh revision same day, ENG-23628 / LLP 0049
+**Revised:** 2026-07-08 (ENG-23640: the decisive real-Cloudflare evidence is
+recorded — first real deploy + run of the notes pair, 11/11; a genuine
+platform eviction observed via the new `/health` `objectBoot` marker and
+survived by the still-connected hibernating subscriber; per-script billing
+zeros over both idle windows; §As-built gains §Real-Cloudflare evidence, the
+remote runner gains the `/evict` + platform-eviction legs and a real
+analytics billing read via the new `billing-windows.mjs`; §Status narrows the
+accepted-proof gap to the percentile benchmark report, max-subscribers, and
+contention measurements); 2026-07-07 (seventh revision same day, ENG-23628 / LLP 0049
 Phase 0: the proof gains the deploy-time app selector — the app bundle is no
 longer hardcoded; the `snapback-app` module alias (wrangler `alias` in each
 deploy config, esbuild alias in the Miniflare harness) resolves to exactly
@@ -366,13 +374,13 @@ accepted LLP 0040 cannot be produced by the non-hibernating branch.
   additional failure modes deserve stable `SNAPBACK_*` codes before the proof
   counts as useful evidence?
 
-## As-built (2026-07-07)
+## As-built (2026-07-07; real-Cloudflare evidence run 2026-07-08)
 
-The proof is built and passes its full behavioral checklist under the local
-Miniflare surrogate; the decisive real-Cloudflare evidence is staged but
-**not yet run — the repo owner's Cloudflare API token is expired**, so idle
-economics, real eviction, cold start, placement, and billing counters remain
-pending a fresh token. What landed in `cloudflare/`:
+The proof is built, passes its full behavioral checklist under the local
+Miniflare surrogate, and — as of 2026-07-08 (ENG-23640) — has produced the
+decisive real-Cloudflare evidence: a genuine platform eviction observed and
+survived mid-subscription, and billing-surface zeros over both idle windows
+(see §Real-Cloudflare evidence below). What landed in `cloudflare/`:
 
 - **Worker + Durable Object target.** A gateway Worker (`src/gateway.js`)
   routes HTTP/WebSocket to one app coordinator Durable Object
@@ -401,24 +409,68 @@ pending a fresh token. What landed in `cloudflare/`:
   notifications, offline replay, retained-version resume, multi-app, and
   hosted marketplace.
 - **Acceptance + measurements.** `cloudflare/test/acceptance.mjs` (Miniflare)
-  passes **16/16**: query, mutate, subscribe, disconnect, resubscribe;
-  snapshot-before-delta ordering; gap-free versions; the on-target ambient
-  denial; push-from-commit live delivery; and the eviction-surrogate
-  rehydration path. `cloudflare/test/measure.mjs` records mutation, snapshot,
+  passes its full checklist — **41/41 as of 2026-07-08**, grown from the
+  original 16 by the review-hardening batch and the ENG-23606 null-semantics
+  parity checks (the suite prints its own count):
+  query, mutate, subscribe, disconnect, resubscribe; snapshot-before-delta
+  ordering; gap-free versions; the on-target ambient denial;
+  push-from-commit live delivery; and the eviction-surrogate rehydration
+  path. `cloudflare/test/measure.mjs` records mutation, snapshot,
   live-update, and fan-out latency next to each benchmark fixture (all
   Miniflare-local, explicitly non-comparable to LLP 0035 and to real
   Cloudflare). A checked-in `deploy.sh` deploys both Workers with one command,
-  `scripts/cf-check-compat` guards the single-sourced compat pins, and
-  `cloudflare/test/acceptance.remote.mjs` is the staged real-Cloudflare runner
-  that produces the deploy-only evidence (idle-window billing, real eviction)
-  once a token is available.
+  `scripts/cf-check-compat` guards the single-sourced compat pins,
+  `cloudflare/test/acceptance.remote.mjs` is the real-Cloudflare runner
+  (eviction legs, idle windows, in-run billing read), and
+  `cloudflare/test/billing-windows.mjs` reads the GraphQL analytics billing
+  counters for any window/script set (also standalone, with hourly
+  bucketing).
 
-**Open against the accepted-proof checklist:** the accepted proof requires at
-least one real-Cloudflare eviction run and the two idle-window billing
-counters, measured with the Hibernation API in use. Those are the items the
-Miniflare surrogate structurally cannot produce (§Measurements evidence
-split); they gate on a valid API token, not on further build work. Everything
-else on the checklist is demonstrated locally.
+### Real-Cloudflare evidence (2026-07-08, ENG-23640)
+
+First real deploy + run of the notes pair, against
+`https://snapback-notes-proof.ccheever-0f6.workers.dev` (the expired-token
+blocker ended with ENG-23632's refreshed token). Runner:
+`acceptance.remote.mjs`, `SNAPBACK_IDLE_WINDOW_MS=600000`. Result: **11/11**,
+`platformEvictionObserved: true`.
+
+- **Real platform eviction, observed and survived.** `/health` exposes an
+  `objectBoot` marker that is fresh per in-memory coordinator instance.
+  Across the 10-minute connected-hibernating idle window the marker changed
+  (`109544c2…` → `5c7f074c…`): Cloudflare genuinely evicted the hibernating
+  object while the subscriber's socket stayed open. The next committed
+  mutation reached that still-connected subscriber — subscription
+  rehydration from persisted rows on a *real* eviction, not the surrogate.
+  The forced `/evict` leg also passed on the same deployment
+  (`post-eviction commit reaches the still-connected subscriber`).
+- **Connected-hibernating idle bills zero.** Settled per-script analytics
+  over the pure interior of the idle window (22:47:30–22:55:30Z):
+  `snapback-notes-proof` + `snapback-notes-handler` show **0 Worker
+  requests, 0 GB-s duration, 0 Durable Object requests**. (The adjacent
+  window correctly shows the run's own setup/wake traffic — 8 requests,
+  3.82 GB-s — so the zeros are settled data, not attribution lag.)
+- **No-connection idle bills zero.** After the run closed its socket the
+  deployment sat untouched; settled per-script analytics over
+  22:57:00–23:55:00Z (58 min) show **0 requests, 0 GB-s, 0 DO requests**
+  on both scripts.
+- **Cold start / first request: 53 ms** (client-measured `GET /health`,
+  us-west client, first request of the run against a freshly deployed
+  gateway; single sample, method per §Measurements).
+- **Method caveat:** `durableObjectsPeriodicGroups` (activeTime, WebSocket
+  message counts) carries no script identity on the GraphQL surface, so its
+  rows are account-wide; during these windows the account's concurrently
+  deployed All Aboard demo (LLP 0049) dominates that dataset. The
+  per-script Workers/DO-invocation datasets above are the notes-proof
+  evidence; the account-wide activeTime is reported in the diary for
+  completeness, not attributed to the notes deployment.
+
+**Remaining against the accepted-proof checklist:** the full percentile
+benchmark report as a Research LLP (remote mutation/snapshot/live/reconnect
+latency distributions — the remote runner asserts behavior and records
+single-shot timings, and `measure.mjs` percentiles remain Miniflare-local),
+plus the maximum-practical-subscribers and DO contention/overload
+measurements. The decisive items — real eviction with the Hibernation API in
+use and both idle-window billing counters — are now recorded above.
 
 ## Review hardening (2026-07-07, ENG-23574–ENG-23593)
 
@@ -462,7 +514,11 @@ gaps; all are fixed and regression-pinned by the Miniflare acceptance suite:
 ## Status
 
 Draft (as-built sections landed 2026-07-07; review-hardening batch
-ENG-23574–ENG-23593 landed the same day). The behavioral proof is complete
-under the Miniflare regression surface and deploy-ready; acceptance as a
-*proof* awaits the real-Cloudflare eviction and idle-billing runs, which are
-blocked only on a valid Cloudflare API token.
+ENG-23574–ENG-23593 the same day; real-Cloudflare evidence run 2026-07-08,
+ENG-23640). The behavioral proof is complete under the Miniflare regression
+surface, and the decisive real-Cloudflare evidence is recorded in
+§Real-Cloudflare evidence: a genuine platform eviction observed and survived
+with the Hibernation API in use, and per-script billing zeros over both idle
+windows. What still separates this from a fully *accepted* proof is the
+percentile benchmark report (Research LLP) plus the max-subscribers and
+contention/overload measurements.

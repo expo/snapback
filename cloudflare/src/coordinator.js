@@ -67,6 +67,10 @@ export class Coordinator {
     // request so handler execution + commit + fan-out (and subscription
     // snapshot + registration) are one critical section each.
     this.invocationChain = Promise.resolve();
+    // Fresh per in-memory instance, never persisted: lets a remote client
+    // observe a real platform eviction (the marker changes across a quiet
+    // window) — the LLP 0040 decisive-evidence run reads it off /health.
+    this.bootMarker = crypto.randomUUID();
     this.startupError = null;
     this.ensureSchema();
   }
@@ -335,6 +339,7 @@ export class Coordinator {
         version: this.currentVersion(),
         schemaHash: APP_SCHEMA_HASH,
         bundleHash: APP_BUNDLE_HASH,
+        objectBoot: this.bootMarker,
       });
     }
     if (path === '/reset') {

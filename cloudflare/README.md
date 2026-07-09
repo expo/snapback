@@ -20,7 +20,7 @@ WebSocket Hibernation. This is a **proof, not a product** — see
 ## Run the local acceptance suite (no Cloudflare account)
 
 ```
-node cloudflare/test/acceptance.mjs     # 16/16 behavioral checks under Miniflare
+node cloudflare/test/acceptance.mjs     # full behavioral checklist under Miniflare (41 checks as of 2026-07-08; the report prints its own count)
 node cloudflare/test/measure.mjs        # latency measurements with fixtures
 ```
 
@@ -36,11 +36,22 @@ Workers + Durable Objects-scoped API token:
 ```
 export CLOUDFLARE_API_TOKEN=...        # do NOT commit this
 export CLOUDFLARE_ACCOUNT_ID=...
+export SNAPBACK_ADMIN_TOKEN=...        # gates /reset + /evict on the deploy
 ./cloudflare/deploy.sh
 SNAPBACK_PROOF_URL=https://snapback-notes-proof.<subdomain>.workers.dev \
   node cloudflare/test/acceptance.remote.mjs
 ```
 
-> As of 2026-07-07 the repo owner's token is expired, so this leg has not yet
-> run. Everything behavioral is proven under Miniflare; the real-Cloudflare
-> runner is staged.
+The remote runner holds a connected-hibernating idle window
+(`SNAPBACK_IDLE_WINDOW_MS`, default 60s), drives the `/evict` rehydration leg,
+watches `/health`'s `objectBoot` marker for a genuine platform eviction, and
+reads the billing counters for the window through
+`cloudflare/test/billing-windows.mjs` (which also works standalone for any
+window — see its header). Analytics attribution lags by minutes; re-read the
+reported window afterwards for settled numbers.
+
+> First real run: 2026-07-08 (ENG-23640), against
+> `https://snapback-notes-proof.ccheever-0f6.workers.dev` — results in
+> LLP 0040 §As-built and diary 0012. (The 2026-07-07 expired-token blocker is
+> gone; the refreshed token lives in the repo owner's key store, see
+> `.agent-local-secrets.md`.)

@@ -5,7 +5,14 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-07 (ENG-23627 / LLP 0049 ratification: §Scale-to-zero
+**Revised:** 2026-07-08 (ENG-23640: §Scale-to-zero tension — the dynamic-alarm
+row gains its first measured real-Cloudflare evidence: per-script analytics
+over the deployed All Aboard separate the demand-armed warm-poll hours from
+the quiet hours on the billing surface, and the overnight window is shown to
+be a *connected* window — demand-gating held the alarm up because a
+subscriber existed — so the no-connection idle→zero evidence lands on the
+alarm-free notes deployment in LLP 0040 §As-built instead); 2026-07-07
+(ENG-23627 / LLP 0049 ratification: §Scale-to-zero
 tension — the demand-armed DO alarm is now All Aboard's accepted Cloudflare
 warm-poll shape, superseding the minute-static-wakeup default this document
 previously carried; LLP 0040's idle-economics measurement makes zero idle
@@ -610,6 +617,23 @@ are two Cloudflare-compatible versions:
   (ratified 2026-07-07, ENG-23627): LLP 0040's idle-economics measurement makes
   zero idle wakeups a requirement for that deployment, superseding the
   minute-static-wakeup default this document previously carried.
+
+  *Measured on the deployed All Aboard (2026-07-08, ENG-23640, per-script
+  GraphQL analytics over 2026-07-07T20:00Z–2026-07-08T22:00Z):* the two states
+  are visibly different on the billing surface. Demand-armed hours (live
+  subscribers held the 60s DO-alarm warm poll armed — `/cron/status` showed
+  `state: "armed", demand: 3`, `wakeup: "durable-object-alarm"`) ran
+  ~200–800 gateway-Worker requests/hour at ~215–420 GB-s duration/hour, with
+  ~360–900 outbound WebSocket pushes/hour. The quietest observed stretch
+  (12:00–16:00 UTC) dropped to ~18–32 Worker ingress requests/hour at
+  ~1.4–13 GB-s/hour. The overnight window never reached the no-connection
+  shape — 6k+ outbound WebSocket messages overnight show at least one
+  subscriber stayed connected the whole time, so the alarm stayed armed *by
+  design* (demand-gating held the poll up because demand existed). The
+  no-connection idle→zero evidence therefore comes from the alarm-free notes
+  deployment (LLP 0040 §As-built); a controlled no-subscriber window on All
+  Aboard itself remains to be scheduled deliberately, since the deployed demo
+  has had continuous watchers/agents since launch.
 
 So "it never idles" holds only for an un-gated frequent poll. Cadence is a product
 decision with a cost consequence, and demand-gating plus read-through catch-up is

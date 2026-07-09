@@ -3,7 +3,7 @@
 **Demo:** Notes-on-Cloudflare narrow proof (`cloudflare/`) — one syncable
 table, one V8 mutation, one live subscription on a Worker + Durable Object
 **Surfaces:** Miniflare acceptance (required, passing); real-Cloudflare
-runner (staged, blocked on a valid API token)
+runner (first real run 2026-07-08, 11/11 — see the ENG-23640 entry)
 **Author:** Claude
 **Date:** 2026-07-07
 **Related:** LLP 0009, LLP 0014, LLP 0040, LLP 0047, LLP 0048, Diary 0006
@@ -137,3 +137,49 @@ counters for the three idle shapes (no-connection, connected-hibernating,
 scheduled-wakeup). Those need hours of controlled idle time; the structural
 facts stand in honestly — zero armed alarms and an empty ledger while idle —
 and the counters remain the open LLP 0040 §Measurements item.
+
+## 2026-07-08 — The decisive evidence lands: real eviction, billing zeros (ENG-23640)
+
+The one command that was blocked is blocked no more. Deployed the notes pair
+for real (`SNAPBACK_CF_APP=notes deploy.sh`, bootstrap pass and all, admin
+token secret set from the environment) and ran the remote acceptance with a
+10-minute connected-hibernating idle window: **11/11**, including two legs
+the runner didn't have yesterday.
+
+The story of the run:
+
+- **Cloudflare actually evicted us, and nobody noticed — which is the whole
+  point.** I gave `/health` an `objectBoot` marker (fresh UUID per in-memory
+  coordinator instance, never persisted). Across the quiet 10-minute window
+  the marker changed: the platform genuinely discarded the hibernating
+  object while the subscriber's WebSocket stayed open. The next committed
+  mutation reached that same socket. Subscription rehydration from persisted
+  rows, proven against a *real* eviction — the thing Miniflare structurally
+  cannot do. The forced `/evict` leg passed too, minutes earlier, on the
+  same deployment.
+- **The billing surface agrees with the hibernation story.** Settled
+  per-script GraphQL analytics (new `billing-windows.mjs`; the datasets each
+  have their own filter quirks, documented in the file): the pure interior
+  of the connected-idle window reads **0 Worker requests / 0 GB-s / 0 DO
+  requests** for both notes scripts, and a 58-minute no-connection window
+  after the run reads the same zeros. The adjacent setup/wake window shows
+  the run's own traffic (8 requests, 3.8 GB-s), which is what makes the
+  zeros credible as data rather than lag. Cold start of the run: 53 ms to
+  first `/health`.
+- **All Aboard taught the opposite lesson, honestly.** Its overnight
+  "idle" was never idle: 6k+ outbound WebSocket pushes overnight means a
+  subscriber (someone's tab, some agent) stayed connected the whole time,
+  so the demand-armed warm poll correctly stayed armed — ~200–800 gateway
+  requests/hour at ~215–420 GB-s/hour while armed, versus ~18–32
+  requests/hour in the quietest stretch. Demand-gating did its job; what it
+  cannot do is make a *watched* app idle. The no-connection→zero claim for
+  All Aboard needs a deliberately scheduled no-subscriber window; the notes
+  deployment carries that leg of LLP 0040 for now. Attribution has caught
+  up, too — `scriptName: "__unknown__"` is gone from the per-script
+  datasets.
+
+What this closes: the LLP 0040 accepted-proof items Miniflare could not
+produce (real eviction with the Hibernation API in use; both idle-window
+billing counters). What stays open, stated in §Status: the percentile
+benchmark report as a Research LLP, max practical subscribers, and the
+contention/overload measurements.
