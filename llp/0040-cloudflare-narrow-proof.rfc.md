@@ -464,13 +464,19 @@ blocker ended with ENG-23632's refreshed token). Runner:
   evidence; the account-wide activeTime is reported in the diary for
   completeness, not attributed to the notes deployment.
 
-**Remaining against the accepted-proof checklist:** the full percentile
-benchmark report as a Research LLP (remote mutation/snapshot/live/reconnect
-latency distributions — the remote runner asserts behavior and records
-single-shot timings, and `measure.mjs` percentiles remain Miniflare-local),
-plus the maximum-practical-subscribers and DO contention/overload
-measurements. The decisive items — real eviction with the Hibernation API in
-use and both idle-window billing counters — are now recorded above.
+**Remaining against the accepted-proof checklist:** none measured — the
+percentile benchmark report, maximum-practical-subscribers, and DO
+contention/overload measurements landed 2026-07-09 (ENG-23713) as
+[LLP 0050](./0050-cloudflare-proof-remote-benchmarks.research.md), from the
+new real-deployment runner `cloudflare/test/measure.remote.mjs`
+(machine-readable artifact in `cloudflare/generated/`). The decisive items —
+real eviction with the Hibernation API in use and both idle-window billing
+counters — were recorded 2026-07-08 above. Two diagnostics gaps the
+measurements exposed (oversized writes surface a raw platform HTML 500
+instead of a `SNAPBACK_*` envelope; burst-shed `SNAPBACK_HANDLER_FAILED` —
+the platform's subrequest-depth limit — carries no overload/retryable
+discrimination) are filed as ENG-23849 and do not block the measurement
+checklist.
 
 ## Review hardening (2026-07-07, ENG-23574–ENG-23593)
 
@@ -515,10 +521,16 @@ gaps; all are fixed and regression-pinned by the Miniflare acceptance suite:
 
 Draft (as-built sections landed 2026-07-07; review-hardening batch
 ENG-23574–ENG-23593 the same day; real-Cloudflare evidence run 2026-07-08,
-ENG-23640). The behavioral proof is complete under the Miniflare regression
-surface, and the decisive real-Cloudflare evidence is recorded in
-§Real-Cloudflare evidence: a genuine platform eviction observed and survived
-with the Hibernation API in use, and per-script billing zeros over both idle
-windows. What still separates this from a fully *accepted* proof is the
-percentile benchmark report (Research LLP) plus the max-subscribers and
-contention/overload measurements.
+ENG-23640; percentile/max-subscribers/contention report landed 2026-07-09,
+ENG-23713 → [LLP 0050](./0050-cloudflare-proof-remote-benchmarks.research.md)).
+The behavioral proof is complete under the Miniflare regression surface, the
+decisive real-Cloudflare evidence is recorded in §Real-Cloudflare evidence
+(genuine platform eviction observed and survived with the Hibernation API in
+use; per-script billing zeros over both idle windows), and the measurement
+checklist is now fully populated. **Every §Acceptance bullet has recorded
+evidence; moving this document to Accepted is the author's ratification
+call.** Known residue tracked outside the checklist: ENG-23840 (dead
+credential path blocks any future admin-gated or analytics-bearing rerun),
+ENG-23841 (deliberate All Aboard no-subscriber window — an LLP 0028/0049
+claim, not part of this proof's acceptance), and ENG-23849 (the two
+diagnostics gaps noted in §As-built).

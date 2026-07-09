@@ -183,3 +183,42 @@ produce (real eviction with the Hibernation API in use; both idle-window
 billing counters). What stays open, stated in §Status: the percentile
 benchmark report as a Research LLP, max practical subscribers, and the
 contention/overload measurements.
+
+## 2026-07-09 — The percentile report closes the checklist (ENG-23713, LLP 0050)
+
+The proof's last measured gaps — percentile distributions, max practical
+subscribers, contention/overload — are now numbers in
+[LLP 0050](../llp/0050-cloudflare-proof-remote-benchmarks.research.md), from
+a new public-surface runner (`cloudflare/test/measure.remote.mjs`). What the
+run felt like:
+
+- **The numbers are boring in the best way.** Mutation p50 93 ms against a
+  56 ms network floor — the whole V8-handler-RPC-commit sandwich costs
+  ~37 ms over transport. Reconnect is dominated by WebSocket establishment,
+  not the resnapshot. Payload growth on `live_replace` is visible but tiny
+  at these sizes. Nothing here argues with the design.
+- **I almost published a wrong bottleneck.** Run 1 said fan-out fell off a
+  cliff at 50 subscribers (665 ms per socket, 5 failed connects) and I had
+  the "single-authority coordinator becomes visible" narrative half-written.
+  A rerun with connect concurrency 8 instead of 25 deleted the entire
+  effect: 50, 100, 200, and **400** subscribers all deliver flat
+  (p95 150→191 ms, zero losses). The cliff was my own connect storm. The
+  measured truth is the opposite of the easy story — the coordinator's
+  subscriber ceiling is somewhere **above** 400, unfound by a single-client
+  rig. Lesson for the next benchmark author: vary the client's own
+  concurrency before believing any knee.
+- **Failure shapes are honest except at the platform edges.** Mutation
+  bursts keep versions unique and gap-free while shedding load with the
+  stable `SNAPBACK_HANDLER_FAILED` — but the inner message is *"Subrequest
+  depth limit exceeded"* (42/64 shed at 64-way; parallel requests somehow
+  deepening a Workers chain — worth its own investigation), and a >2 MB
+  value write comes back as a raw Cloudflare HTML 500, not a `SNAPBACK_*`
+  envelope (coordinator survives; objectBoot unchanged). ENG-23849 owns
+  both; the envelope taxonomy should own the platform caps too.
+- **Credentials were the real friction.** The API token in the key stash
+  was revoked since yesterday's runs and the last `SNAPBACK_ADMIN_TOKEN`
+  rotation was never persisted (two sessions in a row rotated it
+  write-only). Everything above ran on the public surface with fresh per-run
+  boards instead of `/reset`; the deliberate All Aboard no-subscriber window
+  stayed blocked twice over (ENG-23840 credentials, ENG-23841 the window
+  itself — demand read 4 all session; the app was watched the entire time).

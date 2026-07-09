@@ -1,0 +1,186 @@
+# LLP 0050: Cloudflare proof remote benchmarks
+
+**Type:** Research
+**Status:** Draft
+**Systems:** Deployment, Runtime, Storage, Realtime, Performance, Testing
+**Author:** Charlie Cheever / Claude (Fable 5)
+**Date:** 2026-07-09
+**Revised:** 2026-07-09 (initial)
+**Related:** LLP 0014, LLP 0028, LLP 0035, LLP 0040, LLP 0048, LLP 0049
+
+## Summary
+
+This is the percentile benchmark report [LLP 0040](./0040-cloudflare-narrow-proof.rfc.md)
+§Measurements requires for the accepted proof: client-timed latency
+distributions for mutation, initial snapshot, live update, and
+reconnect/resubscribe against the **real** deployed notes proof
+(`snapback-notes-proof`), plus the maximum-practical-subscribers ladder and
+the storage/overload contention probes. The runner is
+`cloudflare/test/measure.remote.mjs`; the fixture-bearing artifacts are
+`cloudflare/generated/measurements.remote.2026-07-09.json` (run 1) and
+`…/measurements.remote.followups.2026-07-09.jsonl` (the gentle-pacing
+ladder, the 64-way burst, and the oversized-value failure shape).
+
+**Headlines.** Against a p50 network floor of ~56 ms (client SF Bay Area →
+SJC colo): a V8 mutation commits in **p50 93 ms / p95 103 ms** (~37 ms over
+the floor), a 100-row authoritative snapshot arrives **p50 90 ms** after
+subscribe on an open socket, a committed mutation reaches a live subscriber
+in **p50 103 ms** end to end, and a full client reconnect (new WebSocket +
+subscribe + resnapshot) costs **p50 219 ms**. Fan-out is effectively flat
+through **400 concurrent hibernating subscribers** — per-socket delivery
+p95 154 ms at 25, 155 ms at 100, **191 ms at 400**, zero losses — so the
+single client, not the coordinator, is where this measurement stopped; the
+single-authority bottleneck LLP 0040 §Target shape reserved judgment for
+did not appear at this scale. The failure modes live elsewhere: under
+concurrent mutation *bursts* the coordinator stays correct (unique,
+gap-free versions) but sheds load hard — 3/32 at 32-way, **42/64 at
+64-way** — with `SNAPBACK_HANDLER_FAILED: "Subrequest depth limit
+exceeded"` (a Workers platform limit surfacing through the
+gateway→coordinator→handler chain), and oversized-value writes above the
+platform's 2 MB cap fail as an **unstructured Cloudflare HTML 500**, not a
+`SNAPBACK_*` envelope (the coordinator survives; objectBoot unchanged).
+Both filed as ENG-23849.
+
+## Method
+
+Per LLP 0040 §Measurements: all timing is client-side `performance.now()`
+around real network calls (same-turn synchronous deltas inside the object
+are not valid measurements on Workers); percentiles over stated-n samples;
+every number sits next to its benchmark fixture; numbers are
+network-inclusive and region-dependent, **not comparable** to
+[LLP 0035](./0035-local-target-benchmarks.research.md) (in-process) nor to
+`measure.mjs` (Miniflare-local, no placement/cold-start signal).
+
+- **Deployment:** `https://snapback-notes-proof.ccheever-0f6.workers.dev`,
+  the LLP 0040 pinned regression fixture (notes app, V8 handler isolate,
+  hibernating WebSockets, coordinator-serialized invocations), deployed rev
+  of 2026-07-09 01:30Z.
+- **Client:** single Node v25 process, San Francisco Bay Area
+  residential/dev network, macOS arm64; edge colo observed via `cf-ray`:
+  **SJC**. Run window 2026-07-09 07:21–07:22Z, warm deployment (no
+  cold-start claim in this report; LLP 0040 §Real-Cloudflare evidence
+  carries the 53 ms cold-start sample).
+- **Fixture posture:** fresh per-run boards (`bench-<runId>` …) — no
+  `/reset` (the admin token was unavailable, see §Credential caveat), so the
+  run accretes rows on the fixture deployment and states each metric's row
+  counts explicitly. Sample sizes: mutation n=100, snapshot n=50, live n=50,
+  reconnect n=30, health floor n=30.
+
+## Latency distributions (2026-07-09, run `ilqlnx`)
+
+| metric | fixture | p50 | p90 | p95 | p99 | max | n |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| HTTP round-trip floor | `GET /health`, no storage touch | 55.9 | 66.4 | 168.8 | 249.3 | 250.6 | 30 |
+| Mutation | `addNote` (V8, 1 insert, sequential) | 93.3 | 100.3 | 102.8 | 170.2 | 224.9 | 100 |
+| Initial snapshot | `listNotes eq boardId`, 100 rows, subscribe on open socket | 89.8 | 174.7 | 213.9 | 238.7 | 242.2 | 50 |
+| Live update | commit → `live_replace`, 1 subscriber, 20→70 rows | 102.6 | 114.8 | 136.3 | 161.9 | 173.9 | 50 |
+| Reconnect (total) | new WS + subscribe + resnapshot, 100 rows | 218.9 | 324.6 | 464.0 | 661.0 | 720.3 | 30 |
+| … ws connect leg | | 129.6 | 143.8 | 289.5 | 570.2 | 636.5 | 30 |
+| … subscribe→snapshot leg | | 91.5 | 114.4 | 172.5 | 231.7 | 255.7 | 30 |
+
+All values ms. Notes:
+
+- The mutation path costs ~37 ms over the network floor at p50 — gateway →
+  coordinator DO → handler isolate RPC → one-transaction commit → response.
+- `live_replace` re-sends the full supported subset; growing the board
+  20→70 rows across the run moved the metric's halves by ~2 ms (first-half
+  p50 101.1, second-half 105.5), i.e. payload growth is visible but minor at
+  this snapshot size.
+- Reconnect is dominated by WebSocket establishment (p50 ~130 ms), not the
+  resnapshot (p50 ~91 ms — indistinguishable from a fresh subscribe). This
+  is the structured-resnapshot path the acceptance suite pins; retained-version
+  resume stays a declared capability gap (LLP 0040 §Acceptance).
+
+## Maximum practical subscribers (supported query shape)
+
+Criterion, stated up front: the largest ladder rung with **zero**
+connect/subscribe/delivery failures and per-socket delivery p95 ≤ 2000 ms;
+single client process, connect concurrency 25, delivery timeout 30 s.
+Fixture: `listNotes` on a 1-row board; one broadcast mutation per rung.
+
+| subscribers | connected | connect failures | delivery p50 | delivery p95 | all delivered |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 1 | 0 | 152.6 | 152.6 | 152.6 |
+| 10 | 10 | 0 | 145.1 | 146.6 | 147.7 |
+| 25 | 25 | 0 | 152.0 | 153.7 | 162.7 |
+| 50 | 45 | 5 | 664.4 | 666.3 | 671.0 |
+
+On this first pass only the 25-rung passed the stated criterion — but the
+50-rung's failures were a **client artifact**, proven by a rerun with
+connect concurrency 8 instead of 25 (fresh board, same deployment, same
+one-mutation-per-rung fixture):
+
+| subscribers (gentle pacing) | connected | connect errors | delivery p50 | delivery p95 | delivery max | lost |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 50 | 50 | 0 | 150 | 150 | 152 | 0 |
+| 100 | 100 | 0 | 153 | 155 | 155 | 0 |
+| 200 | 200 | 0 | 177 | 179 | 204 | 0 |
+| 400 | 400 | 0 | 188 | 191 | 196 | 0 |
+
+**Result: ≥ 400 subscribers** meet the criterion once the client connects at
+a civilized pace; per-socket delivery grows only ~40 ms from 50→400
+(≈0.1 ms/socket of visible per-send cost), and the run-1 "4.4× step at 50"
+disappears entirely — it was contention with the client's own in-flight
+connect storm, not server fan-out cost. The coordinator's practical
+subscriber ceiling for this query shape was **not reached** by a single
+client process at 400 sockets; pushing further needs a multi-client rig
+(noted as an open extension, not a gap in this report's claim). Labeled per
+LLP 0040 §Measurements: evidence for the supported single-table query
+subset only, never a general Cloudflare fan-out claim.
+
+## Contention and overload probes
+
+- **Concurrent mutation burst (`addNote`):** at 32-way, wall clock 1155 ms;
+  per-mutation p50 629 ms / p95 1133 ms (queueing behind
+  `coordinator-serialized-invocations`); committed versions stayed **unique
+  and gap-free** (span 614→642) and 3/32 invocations failed. A 64-way
+  follow-up shed **42/64**, every failure the stable outer code
+  `SNAPBACK_HANDLER_FAILED` with the platform message *"Subrequest depth
+  limit exceeded. This request recursed through Workers too many times"* —
+  the gateway→coordinator→handler chain hits a Workers platform limit under
+  parallel load (mechanism worth investigating: parallel, not recursive,
+  requests should not deepen a chain). Correctness held again (span
+  662→683, gap-free for the 22 commits). The code carries no
+  overload/retryable discrimination — ENG-23849.
+- **Oversized value (platform 2 MB per-value cap):** a **1 MB** string field
+  commits fine (558 ms, version advanced). A **2.5 MB** value fails as
+  **HTTP 500 `text/html`** — the raw Cloudflare error page, a JSON parse
+  failure at the client, not a structured `SNAPBACK_*` envelope. The
+  coordinator does **not** restart (`/health` objectBoot identical before
+  and after), so this is an unhandled error path, not a crash — ENG-23849.
+- The app subset has no multi-row mutation handler, so statement-cap /
+  row-scan contention beyond the above is not exercisable against the pinned
+  fixture without a redeploy; noted as a declared fixture limit rather than
+  measured silence.
+
+## Diagnostics gaps filed
+
+Both in **ENG-23849**:
+
+1. Oversized writes should fail closed with a stable `SNAPBACK_*` code (the
+   gateway/coordinator should map the platform limit to the envelope
+   taxonomy of LLP 0040 §Review hardening) instead of the raw HTML 500.
+2. Burst-shed `SNAPBACK_HANDLER_FAILED` responses carry no
+   retryable/overload discrimination — a caller cannot tell "back off and
+   retry" from "your handler is broken" — and the subrequest-depth
+   mechanism under parallel load deserves an investigation of its own.
+
+## Credential caveat (2026-07-09)
+
+This run used only the public surface: the Cloudflare API token on this
+machine was revoked/expired and the last `SNAPBACK_ADMIN_TOKEN` rotation was
+not persisted (ENG-23840), so `/reset` (fixture cleanup), forced `/evict`
+legs, and **all analytics/billing reads** were unavailable. The idle-window
+billing evidence recorded in LLP 0040 §Real-Cloudflare evidence (2026-07-08)
+is unaffected; the deliberate All Aboard no-subscriber window remains open
+as ENG-23841 (this session observed `demand: 4` — the deployment was watched
+throughout, the same "watched app is never idle" condition diary 0012
+recorded).
+
+## Status
+
+Draft (initial numbers 2026-07-09). This report closes the percentile
+benchmark, max-practical-subscribers, and contention/overload items that
+LLP 0040 §Status listed as separating the proof from acceptance; whether the
+proof is now **Accepted** is the author's ratification call on LLP 0040
+itself.
