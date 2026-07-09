@@ -977,3 +977,43 @@ browser Contract 17/17. The deployed Cloudflare acceptance now reaches 21/21,
 including macOS/iOS native static discovery and a direct assertion that live
 511 refresh writes future `liveDepartures` rows. The deployed URL remains
 `https://snapback-all-aboard-proof.ccheever-0f6.workers.dev`.
+
+## 2026-07-08 (second pass) — the 180s budget and an honest STALE badge
+
+The morning's work made the rows real; the ENG-23642 close-out made the
+*cadence and freshness story* real. Three things landed on top:
+
+- **Cadence 60s → 180s.** `warmPoll` now fires every three minutes. The
+  coordinator was already manifest-driven, so this was a one-line schedule
+  change plus every place the old minute cadence had leaked into comments,
+  docs, and the remote suite's armed-alarm assertion.
+- **A transactional upstream budget.** The new `claimFeedPoll` mutation stamps
+  `feedRefreshState.lastUpstreamPollAt` *before* `refreshFeed` may touch 511,
+  so cron and manual Refresh serialize on the DO write path and share one
+  poll per 180s window (175s guard, 5s alarm-skew tolerance). Denied claims
+  answer `updated-recently` with a `retryInMs` and write nothing. Testing
+  rigs with short synthetic cadences pass a clamped `pollBudgetMs` (the
+  coordinator sends it only under `SNAPBACK_TESTING`, next to the existing
+  mock-feed-URL knob) — it can lower the window, never raise it.
+- **LIVE is now freshness-gated.** `feedSourceBadge` takes the clock: a live
+  source whose snapshot is older than `staleAfterMs` (390s = two cycles +
+  grace, seeded) renders a red STALE badge and reports non-live. The real
+  rows stay on screen — they are observed departures that self-expire per
+  departure — but the board stops claiming they are live. Both surfaces, plus
+  a small pure-helper suite (`badge-freshness.mjs`, 6 checks) over the matrix.
+
+The budget rippled through every suite that hammered `refreshFeed`
+back-to-back: real-data, Cloudflare egress, the browser cron-delta check, and
+the remote suite all now clear the budget (`resetFeed` zeroes it) where they
+mean to exercise the fetch path, and real-data + the remote suite assert the
+denial path explicitly. One genuinely interesting race fell out on the real
+deployment: the suite's own live subscription arms the alarm, whose
+immediately-due poll claims the budget before its 511 fetch commits — a
+manual refresh denied in that window sees `lastSource` still `seed`. The
+remote suite now waits for the in-flight holder to commit before judging.
+
+Two pre-existing reds surfaced and got filed rather than fixed here:
+ENG-23706 (the local in-process cron acceptance never claims its forced-tick
+run, red on pristine main) and ENG-23707 (browser-react control arm 0/17 —
+unguarded `process` on main; after this branch's client guard, the React
+surface's admin-write boot).

@@ -23,7 +23,7 @@ if (!BASE || !ADMIN_TOKEN) {
 }
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 
-const EXPECTED_CHECKS = 21;
+const EXPECTED_CHECKS = 22;
 let checks = 0;
 const evidence = [];
 function check(label, condition, detail) {
@@ -157,20 +157,81 @@ async function main() {
   while (live.version <= beforeMutation && Date.now() < mutationPush) await sleep(100);
   check('a mutation pushes a live update over the real socket', live.version > beforeMutation);
 
+  // --- warm polling: armed by demand, one real scheduled cycle -------------
+  // This section runs EARLY, while the suite's socket is young: at the 180s
+  // cadence (ENG-23642) the committing scheduled run can be a full cycle
+  // away, and a socket that has sat quiet for many minutes can go stale and
+  // starve the push assertion (observed in the first Phase 4+budget runs).
+  // resetFeed clears the upstream-poll budget so the NEXT alarm fire commits
+  // instead of honestly skipping updated-recently; real 511 delays are often
+  // unchanged between refreshes, so the guaranteed push is the
+  // feedRefreshState freshness marker on the feedState subscription.
+  await client.mutate('resetFeed', {});
+  const feedBeforePoll = feedLive.version;
+  const armed = await cronStatus();
+  check(
+    'an active live subscription arms the durable alarm (180s cadence, ENG-23642)',
+    armed.activation.state === 'armed' && armed.everyMs === 180000 && armed.nextRun !== null
+  );
+  // The ledger's lastRun persists across suite runs (the eviction check below
+  // depends on exactly that), so "a scheduled run exists" is not evidence —
+  // require a run the baseline had not seen (ENG-23643). One cadence cycle
+  // plus slack: the budget was just cleared, so the next fire commits.
+  const baselineRunId = armed.lastRun?.runId ?? null;
+  const pollDeadline = Date.now() + 240_000;
+  let scheduledRun = null;
+  for (;;) {
+    const status = await cronStatus();
+    if (status.lastRun && status.lastRun.trigger === 'scheduled' && status.lastRun.runId !== baselineRunId) {
+      scheduledRun = status.lastRun;
+    }
+    if (scheduledRun !== null && feedLive.version > feedBeforePoll) break;
+    if (Date.now() > pollDeadline) break;
+    await sleep(2000);
+  }
+  check(
+    'the scheduled warm poll ran through the hardened runner and recorded the ledger',
+    scheduledRun !== null && scheduledRun.outcome === 'ok' && scheduledRun.durationMs > 0,
+    scheduledRun ? `run ${scheduledRun.runId.slice(0, 8)}, ${scheduledRun.durationMs}ms` : 'no scheduled run within 240s'
+  );
+  check(
+    'the warm poll pushed a live update to the subscriber',
+    feedLive.version > feedBeforePoll && feedLive.rows[0].lastRunTrigger === 'cron'
+  );
+
   // --- live 511 refresh through the secret path ---------------------------
   // ENG-23642: manual refresh rides the same 180s upstream-poll budget as the
   // warm poll. Against a lived-in deployment whose alarm polled recently, the
   // honest outcome is a denied claim ("updated recently") on top of a fresh
   // live snapshot — accept either a fresh commit or a budget-guarded reuse of
   // one, never a fallback.
+  // This section is the decisive evidence that the real key + real 511 fetch
+  // work, so clear the ENG-23642 upstream-poll budget first (a previous suite
+  // run or the just-armed alarm may hold it — resetFeed zeroes
+  // lastUpstreamPollAt without touching the seeded corridor). The budget
+  // itself gets its own explicit check right after the committed refresh.
+  await client.mutate('resetFeed', {});
   const refresh = await client.action('refreshFeed', { args: { trigger: 'manual' } });
-  const feedState = await client.query('feedState', {});
-  const feedRow = feedState.rows[0];
+  let feedState = await client.query('feedState', {});
+  let feedRow = feedState.rows[0];
   const refreshCommitted = refresh.ok === true && refresh.result && refresh.result.source === '511-siri-stop-monitoring';
+  const refreshDenied = refresh.ok === true && refresh.result && refresh.result.skipped === 'updated-recently';
+  if (!refreshCommitted && refreshDenied && (feedRow.lastSource ?? '') !== '511-siri-stop-monitoring') {
+    // The budget holder may be the alarm poll that armed seconds ago (the
+    // suite's own live subscription arms it): the claim stamps
+    // lastUpstreamPollAt transactionally BEFORE its 511 fetch commits, so a
+    // denied manual refresh can land in that in-flight window. Give the
+    // holder a moment to commit before judging.
+    const commitDeadline = Date.now() + 20_000;
+    while ((feedRow?.lastSource ?? '') !== '511-siri-stop-monitoring' && Date.now() < commitDeadline) {
+      await sleep(1000);
+      feedState = await client.query('feedState', {});
+      feedRow = feedState.rows[0];
+    }
+  }
   const refreshBudgeted =
-    refresh.ok === true &&
-    refresh.result &&
-    refresh.result.skipped === 'updated-recently' &&
+    refreshDenied &&
+    feedRow.lastSource === '511-siri-stop-monitoring' &&
     Date.now() - feedRow.fetchedAt <= Number(feedRow.staleAfterMs || 390_000);
   const liveWorked = (refreshCommitted || refreshBudgeted) && feedRow.lastSource === '511-siri-stop-monitoring';
   check(
@@ -194,6 +255,21 @@ async function main() {
     'surfaced diagnostics stay key-redacted',
     !leaksKey(JSON.stringify([refresh, feedState.rows[0], liveDepartures.rows, config]))
   );
+  // ENG-23642: a second refresh straight after the committed one must be
+  // answered from the committed snapshot ("updated recently"), not another
+  // upstream 511 poll — the transactional budget covers manual Refresh too.
+  const secondRefresh = await client.action('refreshFeed', { args: { trigger: 'manual' } });
+  const feedAfterSecond = await client.query('feedState', {});
+  check(
+    'a second refresh inside the 180s budget answers updated-recently without touching upstream',
+    secondRefresh.ok === true &&
+      secondRefresh.result &&
+      secondRefresh.result.skipped === 'updated-recently' &&
+      Number(secondRefresh.result.retryInMs) > 0 &&
+      feedAfterSecond.rows[0].lastSource === '511-siri-stop-monitoring' &&
+      feedAfterSecond.rows[0].fetchedAt === feedRow.fetchedAt,
+    secondRefresh.result && secondRefresh.result.retryInMs ? `retry in ${secondRefresh.result.retryInMs}ms` : JSON.stringify(secondRefresh.result)
+  );
 
   // --- directions key usage ------------------------------------------------
   // OpenRouteService's first request from a fresh Cloudflare colo can exceed
@@ -211,50 +287,6 @@ async function main() {
     'directions key usage returns a live route estimate',
     route.ok === true && route.result.source === 'openrouteservice' && route.result.minutes > 0,
     `${route.result.source}, ${route.result.minutes}min`
-  );
-
-  // --- warm polling: armed by demand, one real scheduled cycle -------------
-  // Real 511 delays are often unchanged between refreshes, making the
-  // trainStatus patches commit no-ops — the always-changing row is the
-  // feedRefreshState freshness marker (fetchedAt), so the guaranteed push
-  // arrives on the feedState subscription. Capture the version baseline
-  // BEFORE the ledger baseline: a run committing between the two then
-  // advances the version we compare against, instead of slipping under it.
-  const feedBeforePoll = feedLive.version;
-  const armed = await cronStatus();
-  check(
-    'an active live subscription arms the durable alarm (180s cadence, ENG-23642)',
-    armed.activation.state === 'armed' && armed.everyMs === 180000 && armed.nextRun !== null
-  );
-  // The ledger's lastRun persists across suite runs (the eviction check below
-  // depends on exactly that), so "a scheduled run exists" is not evidence —
-  // require a run the baseline had not seen. Without this, every re-run
-  // against a lived-in deployment broke instantly on the previous run's
-  // ledger entry (ENG-23643). The deadline spans two 180s cadence cycles:
-  // the suite's own manual refresh above may have consumed the upstream-poll
-  // budget, making the FIRST scheduled run an honest updated-recently skip
-  // (no commit, no push) — the committing run is then the second cycle
-  // (ENG-23642).
-  const baselineRunId = armed.lastRun?.runId ?? null;
-  const pollDeadline = Date.now() + 400_000;
-  let scheduledRun = null;
-  for (;;) {
-    const status = await cronStatus();
-    if (status.lastRun && status.lastRun.trigger === 'scheduled' && status.lastRun.runId !== baselineRunId) {
-      scheduledRun = status.lastRun;
-    }
-    if (scheduledRun !== null && feedLive.version > feedBeforePoll) break;
-    if (Date.now() > pollDeadline) break;
-    await sleep(2000);
-  }
-  check(
-    'the scheduled warm poll ran through the hardened runner and recorded the ledger',
-    scheduledRun !== null && scheduledRun.outcome === 'ok' && scheduledRun.durationMs > 0,
-    scheduledRun ? `run ${scheduledRun.runId.slice(0, 8)}, ${scheduledRun.durationMs}ms` : 'no scheduled run within 400s'
-  );
-  check(
-    'the warm poll pushed a live update to the subscriber',
-    feedLive.version > feedBeforePoll && feedLive.rows[0].lastRunTrigger === 'cron'
   );
 
   // --- eviction surrogate + rehydration ------------------------------------
