@@ -47,6 +47,21 @@ component TodoApp
   action deleteItem(id) mutates removeTodo
     removeTodo({ id: id })
 
+  // ENG-23899 Stage 1: the contract block claims the core todo behaviors so
+  // the surface is agent-verifiable (Acto contract witness / Phase A verifier)
+  // and carries the static claims the compiler enforces (writes lists,
+  // derive dependencies).
+  contract
+    has input testId="todo-input"
+    has node testId="todo-add"
+    press button "Add" -> submit
+    change input testId="todo-input" -> setDraft
+    count item testId="^todo-row-" = todos.length
+    when canSubmit then state node testId="todo-add" is enabled
+    when !canSubmit then state node testId="todo-add" is disabled
+    action submit writes draft
+    derive canSubmit depends only on draft
+
   view
     column align="center" padding=28 background="#fbfbfc" width="100%" minHeight="100vh"
       column gap=20 padding=24 radius=14 background="#ffffff" borderWidth=1 borderColor="#e4e4e9" width="100%" maxWidth=520
