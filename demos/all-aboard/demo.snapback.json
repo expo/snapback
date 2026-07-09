@@ -84,7 +84,7 @@
       "devServer": "bun run --cwd demos/all-aboard/surfaces/react dev (stock React 19 + Vite from the surface's own node_modules)",
       "build": "bun run --cwd demos/all-aboard/surfaces/react build -> surfaces/react/dist/",
       "url": "http://127.0.0.1:5179",
-      "note": "Red-team control arm (ENG-22435; re-baselined to the redesigned poster-board product by ENG-22450): the same product, testIds, D4 boot, and stream-transport live push over the shared kit client, web-only. Its suite mirrors the contract browser list check-for-check (15/15)."
+      "note": "Red-team control arm (ENG-22435; re-baselined by ENG-22450), formally FROZEN at its ENG-22450 baseline — the pre-ENG-23719 poster-board design — by decision (ENG-23821; see the notes in this demo's README, App.tsx, and Diary 0008): it does not track product redesigns, divergence from the Contract surface is intentional, and a future comparison gate files a fresh re-baseline issue. Its suite (browser-react.mjs) still must pass: same shared kit client, D4 boot, stream-transport live push, cron delta, mutation + freshness, web-only."
     }
   },
   "acceptanceChecks": {

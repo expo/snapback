@@ -1,7 +1,13 @@
 // All Aboard — React control-arm browser acceptance (ENG-22435 red-team;
 // re-baselined to the redesigned product by ENG-22450).
 //
-// Mirrors browser.mjs (the Contract/Exact Phase 1 suite) check-for-check against
+// FROZEN at the ENG-22450 baseline (ENG-23821): this arm renders the
+// pre-ENG-23719 poster-board design and does NOT track later Contract-surface
+// redesigns; divergence from browser.mjs's current check list is intentional.
+// The backend-facing claims here (boot, live push, cron delta, mutation +
+// freshness over the shared kit client) still must pass.
+//
+// Mirrors browser.mjs *as of that baseline* check-for-check against
 // the React surface in demos/all-aboard/surfaces/react: same twelve assertions,
 // same testId handles, same backend lifecycle — boot, board, presses, trip
 // detail, mutation + freshness, live push, cron delta with no pump, second
