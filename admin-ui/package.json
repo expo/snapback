@@ -5,6 +5,6 @@
   "scripts": {
     "build": "./build.sh",
     "dev": "./dev.sh",
-    "test": "node tests/contract-bindings.mjs && node tests/static-metadata.mjs && node tests/dev-serve-react-esm.mjs"
+    "test": "node tests/contract-bindings.mjs && node tests/static-metadata.mjs && node tests/kv-layout.mjs && node tests/dev-serve-react-esm.mjs"
   }
 }
