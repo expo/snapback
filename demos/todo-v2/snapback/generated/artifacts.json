@@ -29,7 +29,7 @@
     "contract/setPriority.mutation.ts",
     "contract/setPriority.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:f32dd4591037f929",
+  "bundleHash": "sha256:1016145d809fedfa",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [
@@ -73,7 +73,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "c4658078c60339780fd400e57a74adae1224cdc067c9d241cb0d11c371c092f8",
+  "inputsHash": "d4caff165d7aaba29ca44f3cb921616a08a0de7dffcc139ac2e8989987261067",
   "schemaHash": "sha256:933c5591717c22bc",
   "schemaVersion": "snapback.v0",
   "tables": [
