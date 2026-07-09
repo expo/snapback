@@ -298,18 +298,25 @@ async function main() {
   );
 
   // --- last-unsubscribe: the suite's demand is released ---------------------
-  // With no external subscribers this proves the idle deployment arms zero
-  // warm-poll wakeups; with a real surface attached (baselineDemand > 0) it
-  // proves the suite's own demand drains back to the baseline — the alarm
-  // then legitimately stays armed for the surviving subscriber.
+  // The deployment is shared, and real surfaces (a browser tab, a native
+  // host) can attach at ANY point during this multi-minute run — the pre-run
+  // baseline alone cannot distinguish "the suite leaked demand" from "a
+  // visitor arrived mid-run" (ENG-23740). So assert only what the suite
+  // controls: read demand immediately before dispose and require it to
+  // DROP once the suite's connection closes. Only when demand actually
+  // drains to zero do we additionally require the idle deployment to arm
+  // zero warm-poll wakeups (inactive + no scheduled run); demand that
+  // survives belongs to a live external subscriber and legitimately keeps
+  // the alarm armed.
+  const preDisposeDemand = (await cronStatus()).activation.demand;
   live.dispose();
   feedLive.dispose();
   client.liveStreamManager(connectionId).close();
   const disarmDeadline = Date.now() + 15_000;
   const suiteDemandReleased = (status) =>
-    baselineDemand > 0
-      ? status.activation.demand <= baselineDemand
-      : status.activation.state === 'inactive:no-demand' && status.nextRun === null;
+    status.activation.demand === 0
+      ? status.activation.state === 'inactive:no-demand' && status.nextRun === null
+      : status.activation.demand < preDisposeDemand;
   let disarmed = null;
   for (;;) {
     disarmed = await cronStatus();
@@ -320,9 +327,10 @@ async function main() {
   check(
     'losing the suite subscriber releases its warm-poll demand (zero armed wakeups once idle)',
     suiteDemandReleased(disarmed),
-    baselineDemand > 0
-      ? `external demand ${disarmed.activation.demand} (pre-suite ${baselineDemand}) keeps the alarm armed`
-      : 'disarmed'
+    disarmed.activation.demand > 0
+      ? `demand drained ${preDisposeDemand} -> ${disarmed.activation.demand} ` +
+        `(pre-suite baseline ${baselineDemand}); surviving external demand keeps the alarm armed`
+      : 'disarmed (zero demand, no scheduled wakeup)'
   );
 
   if (checks !== EXPECTED_CHECKS) {
