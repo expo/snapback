@@ -56,6 +56,7 @@ use delayColor from "./data.ts"
 use shortHeadsign from "./data.ts"
 use getTrainRun from "./data.ts"
 use upcomingStops from "./data.ts"
+use stopClockLabel from "./data.ts"
 use formatClockTime from "./data.ts"
 use formatCountdownMinutes from "./data.ts"
 use serviceColor from "./data.ts"
@@ -393,7 +394,7 @@ component TripDetail
             column gap=0 radius=16 padding=8 background="#0d1322b8" borderWidth=1 borderColor="#ffffff14"
               each stop in trip.stops key=stop.station.id
                 row gap=12 align="center" paddingTop=7 paddingBottom=7 paddingLeft=10 paddingRight=10 radius=10 background=stop.station.id == stationId ? "#ffffff14" : "transparent"
-                  text formatClockTime(stop.predictedTimeMs) size=13 family="ui-monospace, Menlo, monospace" color="#ffffff8a" width=56
+                  text stopClockLabel(stop) size=13 family="ui-monospace, Menlo, monospace" color="#ffffff8a" width=56
                   column width=8 height=8 radius=4 background=stop.station.id == stationId ? "#ffffff" : "#ffffff42"
                   text stop.station.name size=14 weight=stop.station.id == stationId ? 700 : 400 color=stop.station.id == stationId ? "#ffffff" : "#ffffffd9"
         else

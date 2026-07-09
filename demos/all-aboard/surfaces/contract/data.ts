@@ -15,6 +15,7 @@
 // clock is UI — countdowns tick — not transport).
 
 import {
+  PATTERNS,
   computePosition,
   getAdjacentStation as modelAdjacent,
   assumedDirection as modelAssumedDirection,
@@ -327,41 +328,125 @@ function stationByName(name: string | null | undefined) {
   ) ?? null;
 }
 
+function realTrainNumber(row: LiveDepartureRow): string | null {
+  const value = String(row.trainNumber ?? '');
+  return /^\d+$/.test(value) ? value : null;
+}
+
+// All liveDepartures rows that belong to the same physical journey as `live`.
+// 511 StopMonitoring is stop-centric: one journey surfaces as one row per
+// monitored station, joined by DatedVehicleJourneyRef (departureId), with the
+// real train number as the fallback join key when the ref is absent.
+function liveJourneyRows(live: LiveDepartureRow, departureRows: readonly LiveDepartureRow[] | null | undefined): LiveDepartureRow[] {
+  const trainNumber = realTrainNumber(live);
+  return (departureRows ?? []).filter((row) => {
+    if (row.direction !== live.direction) return false;
+    if (live.departureId && row.departureId === live.departureId) return true;
+    return trainNumber !== null && realTrainNumber(row) === trainNumber;
+  });
+}
+
+function liveSpeedFactor(patternId: string, service: string): number {
+  const pattern = PATTERNS.find((p: { id: string }) => p.id === patternId);
+  if (pattern) return pattern.speedFactor;
+  if (service === 'Baby Bullet') return 0.66;
+  if (service === 'Limited') return 0.82;
+  return 1.0;
+}
+
+// Rebuild the full trip for a live 511 run (ENG-23729). The stop sequence comes
+// from the service pattern (from the boarding station to the destination); each
+// stop's time is the journey's own StopMonitoring row where the feed has one,
+// and otherwise the pattern's corridor travel time anchored at the boarding
+// stop's live times, marked `estimated`. This is what keeps a multi-station run
+// from ever rendering as "0 min · 2 stops" with duplicated endpoint timestamps
+// unless the feed itself says exactly that.
+function buildLiveTrainRun(runId: string, live: LiveDepartureRow, departureRows: readonly LiveDepartureRow[] | null | undefined, nowMs: number) {
+  const boarding = getStationById(live.stationId);
+  if (!boarding) return null;
+  const towardSouth = live.direction !== 'north';
+  const destination = stationByName(live.headsign) ?? getStationById(towardSouth ? 'san-jose' : 'san-francisco');
+
+  // The freshest live row per station for this journey (the feed can carry
+  // more than one visit per stop; keep the earliest upcoming one).
+  const rowsByStation = new Map<string, LiveDepartureRow>();
+  for (const row of liveJourneyRows(live, departureRows)) {
+    const existing = rowsByStation.get(row.stationId);
+    if (!existing || Number(row.predictedDepartureMs) < Number(existing.predictedDepartureMs)) {
+      rowsByStation.set(row.stationId, row);
+    }
+  }
+
+  // Stop sequence: the service pattern's stop list from the boarding station to
+  // the destination when the pattern serves the boarding stop; otherwise just
+  // the journey's own observed stations, corridor-ordered.
+  const pattern = PATTERNS.find((p: { id: string; stopIds: string[] }) => p.id === (live.patternId ?? ''));
+  let stationIds: string[];
+  if (pattern && pattern.stopIds.includes(boarding.id)) {
+    const from = pattern.stopIds.indexOf(boarding.id);
+    const destIndex = destination ? pattern.stopIds.indexOf(destination.id) : -1;
+    stationIds = pattern.stopIds.slice(from, (destIndex > from ? destIndex : pattern.stopIds.length - 1) + 1);
+  } else {
+    const bounds = destination ?? boarding;
+    stationIds = [...rowsByStation.keys(), boarding.id, ...(destination ? [destination.id] : [])]
+      .map((id) => getStationById(id))
+      .filter((station) => station !== null)
+      .filter((station) => towardSouth
+        ? station.orderIndex >= boarding.orderIndex && station.orderIndex <= Math.max(bounds.orderIndex, boarding.orderIndex)
+        : station.orderIndex <= boarding.orderIndex && station.orderIndex >= Math.min(bounds.orderIndex, boarding.orderIndex))
+      .sort((a, b) => (towardSouth ? a.orderIndex - b.orderIndex : b.orderIndex - a.orderIndex))
+      .map((station) => station.id)
+      .filter((id, index, ids) => ids.indexOf(id) === index);
+  }
+  if (stationIds.length === 0) stationIds = [boarding.id];
+
+  const speedFactor = liveSpeedFactor(live.patternId ?? '', live.service || 'Local');
+  const stops = stationIds.map((stationId, sequence) => {
+    const station = getStationById(stationId);
+    const row = rowsByStation.get(stationId);
+    if (row) {
+      return {
+        station,
+        sequence,
+        scheduledTimeMs: Number(row.scheduledDepartureMs),
+        predictedTimeMs: Number(row.predictedDepartureMs),
+        estimated: false,
+      };
+    }
+    const offsetMs = Math.round(Math.abs(station.minutesFromSf - boarding.minutesFromSf) * speedFactor) * 60_000;
+    return {
+      station,
+      sequence,
+      scheduledTimeMs: Number(live.scheduledDepartureMs) + offsetMs,
+      predictedTimeMs: Number(live.predictedDepartureMs) + offsetMs,
+      estimated: true,
+    };
+  });
+
+  const durationMinutes = stops.length > 1
+    ? Math.round((stops[stops.length - 1].scheduledTimeMs - stops[0].scheduledTimeMs) / 60_000)
+    : 0;
+
+  return {
+    id: runId,
+    patternId: live.patternId ?? '',
+    direction: live.direction,
+    service: live.service || 'Local',
+    trainNumber: live.trainNumber || '',
+    delaySeconds: live.delaySeconds ?? 0,
+    origin: boarding,
+    destination,
+    headsign: live.headsign || destination?.name || '',
+    stopCount: stops.length,
+    durationMinutes,
+    stops,
+    position: computePosition(stops, nowMs),
+  };
+}
+
 export function getTrainRun(runId: string, nowMs: number, delayRows: DelayRow[], departureRows: LiveDepartureRow[]) {
   const live = liveRowByRunId(runId, departureRows);
-  if (live) {
-    const origin = getStationById(live.stationId);
-    const destination = stationByName(live.headsign) ?? getStationById(live.direction === 'north' ? 'san-francisco' : 'san-jose');
-    const stops = origin ? [{
-      station: origin,
-      sequence: 0,
-      scheduledTimeMs: live.scheduledDepartureMs,
-      predictedTimeMs: live.predictedDepartureMs,
-    }] : [];
-    if (destination && destination.id !== origin?.id) {
-      stops.push({
-        station: destination,
-        sequence: 1,
-        scheduledTimeMs: live.scheduledDepartureMs,
-        predictedTimeMs: live.predictedDepartureMs,
-      });
-    }
-    return {
-      id: runId,
-      patternId: live.patternId ?? '',
-      direction: live.direction,
-      service: live.service || 'Local',
-      trainNumber: live.trainNumber || '',
-      delaySeconds: live.delaySeconds ?? 0,
-      origin,
-      destination,
-      headsign: live.headsign || destination?.name || '',
-      stopCount: stops.length,
-      durationMinutes: 0,
-      stops,
-      position: computePosition(stops, nowMs),
-    };
-  }
+  if (live) return buildLiveTrainRun(runId, live, departureRows, nowMs);
   return modelTrainRun(runId, nowMs, delaysFrom(delayRows));
 }
 
@@ -371,12 +456,19 @@ export function upcomingStops(runId: string, stationId: string, nowMs: number, l
   if (!trip) return [];
   const boardingIndex = trip.stops.findIndex((stop: { station: { id: string } }) => stop.station.id === stationId);
   const from = boardingIndex >= 0 ? boardingIndex : 0;
-  return trip.stops.slice(from, from + (limit || 6)).map((stop: { station: { id: string; shortName: string }; predictedTimeMs: number }) => ({
+  return trip.stops.slice(from, from + (limit || 6)).map((stop: { station: { id: string; shortName: string }; predictedTimeMs: number; estimated?: boolean }) => ({
     id: stop.station.id,
     name: stop.station.shortName,
-    time: modelFormatClockTime(stop.predictedTimeMs),
+    time: stopClockLabel(stop),
     isBoarding: stop.station.id === stationId,
   }));
+}
+
+// Clock label for a stop row: real times (model schedule or live 511 rows)
+// render plain; times interpolated from the pattern for stations the live feed
+// did not cover are marked approximate.
+export function stopClockLabel(stop: { predictedTimeMs: number; estimated?: boolean }): string {
+  return `${stop.estimated ? '~' : ''}${modelFormatClockTime(stop.predictedTimeMs)}`;
 }
 
 // --- Formatting ---------------------------------------------------------------

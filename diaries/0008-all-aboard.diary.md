@@ -1017,3 +1017,33 @@ ENG-23706 (the local in-process cron acceptance never claims its forced-tick
 run, red on pristine main) and ENG-23707 (browser-react control arm 0/17 —
 unguarded `process` on main; after this branch's client guard, the React
 surface's admin-write boot).
+
+## 2026-07-08 — the live train detail must join the journey, not invent it (ENG-23729)
+
+A rider screenshot showed Train 154's detail as `San Carlos -> San Jose
+Diridon · 0 min · 2 stops` with both stops stamped `7:03p`. The live-departures
+work had made the *board* honest, but the *detail* path fabricated the trip: it
+rendered exactly two stops — the boarding station and the headsign destination —
+and gave both the boarding stop's timestamps, with `durationMinutes` hardcoded
+to 0.
+
+The fix leaned on a fact the ingest already preserved: 511 StopMonitoring is
+stop-centric, so one physical journey arrives as one `liveDepartures` row per
+monitored station, joined by `DatedVehicleJourneyRef` (`departureId`), each with
+that station's own predicted time. `getTrainRun` now joins those rows back into
+a trip, walks the service pattern for the stop sequence from the boarding
+station to the destination, and fills only feed-uncovered stations from the
+pattern's corridor travel times anchored at the boarding stop — marked
+`estimated` and rendered with a `~` so interpolated minutes never pose as
+observed ones. Duration and stop count are derived from the actual stop list.
+
+Observations: having the whole reconstruction live in one pure helper
+(`data.ts`) made the regression suite trivial — `trip-detail-live.mjs` feeds
+synthetic `liveDepartures` rows straight into `getTrainRun` with no server, no
+browser, and pins the exact failure ("distinct endpoints can never render as a
+0-minute duplicated-timestamp pair unless the feed says so"). The Contract
+change was two lines (`use` + one `text` call) because the view was already
+data-shaped. The subtle part was restraint: the honest fix is a join plus
+clearly-labeled interpolation, not a fully synthetic schedule dressed up as
+live — the same overclaim the previous diary entry warned about, one screen
+deeper.
