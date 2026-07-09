@@ -13,8 +13,8 @@
 use crate::diagnostic::Diagnostic;
 use crate::local::LocalSnapback;
 use crate::manifest::{
-    FunctionKind, FunctionManifest, HandlerInput, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
-    SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    CtxAnswerLedger, FunctionKind, FunctionManifest, HandlerInput, SNAPBACK_SCHEMA_VERSION,
+    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -24,12 +24,13 @@ pub const HOST_OPS_RESULT_KIND: &str = "hostOpsResult";
 pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
 
 /// Operations this endpoint serves in the first slice.
-pub const SERVED_HOST_OPS: [&str; 5] = [
+pub const SERVED_HOST_OPS: [&str; 6] = [
     "app.inspect",
     "app.reset",
     "schema.load",
     "functions.load",
     "function.run",
+    "function.explain",
 ];
 
 /// Pinned by LLP 0024 but process-lifecycle verbs: the CLI owns them (a
@@ -39,11 +40,18 @@ pub const CLI_ONLY_HOST_OPS: [&str; 3] = ["host.start", "host.stop", "host.resta
 /// Pinned by LLP 0024, not yet built anywhere. Requests return a structured
 /// `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope so aspiration cannot be mistaken
 /// for API (the LLP 0032 R4 banner rule, enforced at runtime).
-pub const PINNED_UNBUILT_HOST_OPS: [&str; 4] = [
-    "schema.reload",
-    "functions.reload",
-    "function.explain",
-    "acceptance.run",
+pub const PINNED_UNBUILT_HOST_OPS: [&str; 3] =
+    ["schema.reload", "functions.reload", "acceptance.run"];
+
+/// The `function.explain` kinds LLP 0024 pins. `mutationDryRun` is served
+/// (LLP 0051 D8 / Increment 4); the rest return a structured
+/// `SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED` envelope until built.
+pub const EXPLAIN_KINDS: [&str; 5] = [
+    "queryPlan",
+    "permissionAllow",
+    "permissionDeny",
+    "capabilityGap",
+    "mutationDryRun",
 ];
 
 #[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
@@ -209,6 +217,10 @@ pub struct HostOpsRequest {
     pub args: Option<Value>,
     #[serde(default, rename = "userId")]
     pub user_id: Option<String>,
+    /// `function.explain` only: the explanation kind (LLP 0024 v0 kinds;
+    /// `mutationDryRun` is the served one).
+    #[serde(default)]
+    pub kind: Option<String>,
 }
 
 pub fn new_request_id() -> String {
@@ -419,6 +431,7 @@ pub fn execute_host_op(
             )
         }
         "function.run" => run_function(snapback, &request, envelope),
+        "function.explain" => explain_function(snapback, &request, envelope),
         cli_only if CLI_ONLY_HOST_OPS.contains(&cli_only) => envelope(
             snapback,
             false,
@@ -438,7 +451,7 @@ pub fn execute_host_op(
             vec![host_op_diagnostic(
                 "SNAPBACK_HOST_OP_UNIMPLEMENTED",
                 &operation,
-                "this operation is pinned by LLP 0024 but not built yet (LLP 0032 P6 first slice serves app.inspect, app.reset, schema.load, functions.load, function.run)",
+                "this operation is pinned by LLP 0024 but not built yet (LLP 0032 P6 first slice serves app.inspect, app.reset, schema.load, functions.load, function.run, function.explain)",
             )],
         ),
         _ => envelope(
@@ -560,6 +573,312 @@ fn run_function(
                 "function.run",
                 "function.run accepts queries and mutations, never actions (LLP 0024)",
             )],
+        ),
+    }
+}
+
+/// The `function.explain` / `mutationDryRun` wire report (LLP 0024 §Dry-Run,
+/// LLP 0051 D8 / Increment 4). Rides `HostOpsResult.data.dryRun`; the
+/// committed schema is `schemas/dry-run.report.schema.json` (DK-7). This is
+/// the shape the Exact-side Acto dry-run operation (LLP 0329 E-D) consumes.
+///
+/// Mutations cannot touch secrets by construction (secret access is
+/// action-only), so the report is presentable to agents without a redaction
+/// pass. `ok: true` on the envelope means the dry-run RAN and this report is
+/// authoritative evidence — a `wouldCommit: false` report is still a
+/// successful explanation.
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct DryRunReport {
+    /// The explanation kind — always `mutationDryRun` here.
+    pub kind: String,
+    /// The function the dry-run executed.
+    pub function: String,
+    /// Which execution tier answered: `hostPlan` (IR) or `ibexModule`.
+    pub tier: String,
+    /// Whether the identical commit path would have committed.
+    #[serde(rename = "wouldCommit")]
+    pub would_commit: bool,
+    /// True when a permission-class pre-execution gate rejected the mutation.
+    pub denied: bool,
+    /// Structured reason when `denied`.
+    #[serde(rename = "denialReason", skip_serializing_if = "Option::is_none")]
+    pub denial_reason: Option<Diagnostic>,
+    /// Table/id/op/field summaries of the discarded writes — safe to expose.
+    #[serde(rename = "predictedWrites")]
+    pub predicted_writes: Vec<DryRunWriteSummary>,
+    /// Read dependencies captured during execution.
+    #[serde(rename = "readSet")]
+    pub read_set: Vec<DryRunRead>,
+    /// The discarded writes, row-granular with resulting values.
+    #[serde(rename = "writeSet")]
+    pub write_set: Vec<DryRunWrite>,
+    /// `valid` | `stale` | `notChecked` | `unsupported` (LLP 0024 §Dry-Run).
+    #[serde(rename = "readSetValidation")]
+    pub read_set_validation: String,
+    /// The recorded ctx-answer ledger (LLP 0051 D1) — literally the
+    /// deterministic answers this execution consumed.
+    #[serde(
+        rename = "deterministicInputs",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub deterministic_inputs: Option<CtxAnswerLedger>,
+    /// Always empty for queries/mutations (LLP 0024); future actions need a
+    /// separate contract.
+    #[serde(rename = "sideEffects")]
+    pub side_effects: Vec<Value>,
+    /// The handler's return value.
+    pub result: Value,
+    /// The database version the dry-run evaluated against.
+    #[serde(rename = "snapshotVersion")]
+    pub snapshot_version: u64,
+    /// Report-scoped diagnostics: the would-be commit failure when
+    /// `wouldCommit` is false, plus advisory notes.
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// One predicted write, summarized (no row values).
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct DryRunWriteSummary {
+    pub table: String,
+    pub id: String,
+    /// `insert` | `update` | `delete`.
+    pub op: String,
+    #[serde(
+        rename = "changedFields",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub changed_fields: Vec<String>,
+}
+
+/// One discarded write with the row value it would have produced.
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct DryRunWrite {
+    pub table: String,
+    pub id: String,
+    /// `insert` | `update` | `delete`.
+    pub op: String,
+    /// The row after the write (absent for deletes).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub row: Option<Value>,
+}
+
+/// One captured read dependency, projected to the camelCase wire (LLP 0032
+/// P8 casing rule).
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct DryRunRead {
+    /// `row` | `missingRow` | `query` | `auth` | `permission`.
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub table: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub predicate: Option<Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rows: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+    #[serde(rename = "resultCount", skip_serializing_if = "Option::is_none")]
+    pub result_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub boundary: Option<Value>,
+}
+
+fn change_op_wire(op: &crate::storage::ChangeOp) -> String {
+    match op {
+        crate::storage::ChangeOp::Insert => "insert".to_owned(),
+        crate::storage::ChangeOp::Update => "update".to_owned(),
+        crate::storage::ChangeOp::Delete => "delete".to_owned(),
+    }
+}
+
+fn read_kind_wire(kind: &crate::storage::CapturedReadKind) -> String {
+    // Matches CapturedReadKind's own camelCase serde spelling.
+    serde_json::to_value(kind)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_else(|| "unknown".to_owned())
+}
+
+fn dry_run_read_wire(dependency: &crate::storage::CapturedReadDependency) -> DryRunRead {
+    DryRunRead {
+        kind: read_kind_wire(&dependency.kind),
+        table: dependency.table.clone(),
+        id: dependency.id.clone(),
+        version: dependency.version,
+        predicate: dependency.predicate.clone(),
+        rows: dependency.rows.clone(),
+        field: dependency.field.clone(),
+        value: dependency.value.clone(),
+        order: dependency.order.clone(),
+        limit: dependency.limit,
+        result_count: dependency.result_count,
+        boundary: dependency.boundary.clone(),
+    }
+}
+
+/// Serve `function.explain` (LLP 0024). The served kind is `mutationDryRun`
+/// (LLP 0051 D8 / Increment 4); the other pinned kinds fail closed with a
+/// structured envelope, exactly like pinned-unbuilt operations.
+fn explain_function(
+    snapback: &mut LocalSnapback,
+    request: &HostOpsRequest,
+    envelope: impl Fn(
+        &LocalSnapback,
+        bool,
+        Option<HostOpsAuthority>,
+        Value,
+        Vec<Diagnostic>,
+    ) -> HostOpsResult,
+) -> HostOpsResult {
+    let authority = authority_dev_user(request.user_id.as_deref());
+    let Some(kind) = request.kind.clone() else {
+        return envelope(
+            snapback,
+            false,
+            authority,
+            Value::Object(Default::default()),
+            vec![host_op_diagnostic(
+                "SNAPBACK_HOST_OP_INPUT_MISSING",
+                "function.explain",
+                "function.explain requires a `kind` (LLP 0024 v0 kinds: queryPlan, permissionAllow, permissionDeny, capabilityGap, mutationDryRun)",
+            )],
+        );
+    };
+    if kind != "mutationDryRun" {
+        let (code, message) = if EXPLAIN_KINDS.contains(&kind.as_str()) {
+            (
+                "SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED",
+                format!(
+                    "explain kind {kind} is pinned by LLP 0024 but not built yet (mutationDryRun is served)"
+                ),
+            )
+        } else {
+            (
+                "SNAPBACK_EXPLAIN_KIND_UNKNOWN",
+                format!("unknown explain kind {kind}"),
+            )
+        };
+        return envelope(
+            snapback,
+            false,
+            authority,
+            Value::Object(Default::default()),
+            vec![
+                Diagnostic::error(code, "host-ops", &message)
+                    .with_details(json!({ "operation": "function.explain", "kind": kind })),
+            ],
+        );
+    }
+    let Some(function) = request.function.clone() else {
+        return envelope(
+            snapback,
+            false,
+            authority,
+            Value::Object(Default::default()),
+            vec![host_op_diagnostic(
+                "SNAPBACK_HOST_OP_INPUT_MISSING",
+                "function.explain",
+                "function.explain requires a `function` id or name",
+            )],
+        );
+    };
+    let input = HandlerInput {
+        args: request
+            .args
+            .clone()
+            .unwrap_or_else(|| Value::Object(Default::default())),
+        auth: crate::manifest::AuthInput {
+            principal: None,
+            session_id: None,
+            user_id: request.user_id.clone(),
+        },
+        read_set: Vec::new(),
+        correlation: None,
+        ctx_ledger: None,
+    };
+    match snapback.dry_run_mutation(&function, input) {
+        Ok(outcome) => {
+            let mut diagnostics = outcome.diagnostics;
+            let denial_reason = if outcome.denied {
+                outcome.failure.clone()
+            } else {
+                None
+            };
+            if let Some(failure) = outcome.failure
+                && !outcome.denied
+            {
+                diagnostics.push(failure);
+            }
+            let report = DryRunReport {
+                kind: "mutationDryRun".to_owned(),
+                function: function.clone(),
+                tier: outcome.tier.to_owned(),
+                would_commit: outcome.would_commit,
+                denied: outcome.denied,
+                denial_reason,
+                predicted_writes: outcome
+                    .changes
+                    .iter()
+                    .map(|change| DryRunWriteSummary {
+                        table: change.table.clone(),
+                        id: change.id.clone(),
+                        op: change_op_wire(&change.op),
+                        changed_fields: change.changed_fields.clone(),
+                    })
+                    .collect(),
+                write_set: outcome
+                    .changes
+                    .iter()
+                    .map(|change| DryRunWrite {
+                        table: change.table.clone(),
+                        id: change.id.clone(),
+                        op: change_op_wire(&change.op),
+                        row: change.row.clone(),
+                    })
+                    .collect(),
+                read_set: outcome
+                    .read_dependencies
+                    .iter()
+                    .map(dry_run_read_wire)
+                    .collect(),
+                read_set_validation: outcome.read_set_validation.to_owned(),
+                deterministic_inputs: outcome.ledger,
+                side_effects: Vec::new(),
+                result: outcome.result,
+                snapshot_version: outcome.snapshot_version,
+                diagnostics,
+            };
+            let data = json!({
+                "dryRun": serde_json::to_value(&report)
+                    .unwrap_or_else(|_| Value::Object(Default::default())),
+            });
+            let mut result = envelope(snapback, true, authority, data, Vec::new());
+            if report.would_commit {
+                // propose → simulate → inspect writes → commit (LLP 0051 D8).
+                result.next.push(json!({
+                    "operation": "function.run",
+                    "function": function,
+                    "reason": "dry-run predicts this mutation would commit",
+                }));
+            }
+            result
+        }
+        Err(error) => envelope(
+            snapback,
+            false,
+            authority,
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
         ),
     }
 }

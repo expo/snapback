@@ -18,11 +18,11 @@ use crate::live_wire::{
     Receipt, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
-    ActionPlan, ActionReturnValue, ActionStep, AuthInput, CapabilityManifest, FunctionDefinition,
-    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
-    MutationStep, PermissionScopeExpr, PublicFunctionManifest, QueryOutput, QueryPlan,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
-    ValueExpr,
+    ActionPlan, ActionReturnValue, ActionStep, AuthInput, CTX_ANSWER_LEDGER_MAX_IDS,
+    CapabilityManifest, CtxAnswerLedger, FunctionDefinition, FunctionKind, FunctionManifest,
+    FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr,
+    PublicFunctionManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, ctx_ledger_version,
 };
 use crate::runtime::{IbexActionHost, RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
@@ -104,6 +104,39 @@ fn push_capped(ring: &mut VecDeque<Value>, receipt: Value) {
     while ring.len() > RECEIPT_RING_CAP {
         ring.pop_front();
     }
+}
+
+/// The answer one `mutationDryRun` execution produced (LLP 0051 D8 /
+/// Increment 4). The host-ops layer projects this into the wire
+/// `DryRunReport`; this type is the execution-side truth.
+#[derive(Debug)]
+pub struct MutationDryRunOutcome {
+    /// Which execution tier answered: `hostPlan` (IR) or `ibexModule`.
+    pub tier: &'static str,
+    /// Whether the identical commit path would have committed.
+    pub would_commit: bool,
+    /// True when the failure was a permission-class pre-execution gate,
+    /// distinct from an app-level handler outcome.
+    pub denied: bool,
+    /// The failure diagnostic when `would_commit` is false — the same
+    /// diagnostic a real commit would have raised.
+    pub failure: Option<Diagnostic>,
+    /// `valid` | `stale` | `notChecked` (LLP 0024 §Dry-Run values;
+    /// `unsupported` is never produced by a served tier).
+    pub read_set_validation: &'static str,
+    /// The database version the dry-run evaluated against.
+    pub snapshot_version: u64,
+    /// The handler's return value.
+    pub result: Value,
+    /// The discarded writes, row-granular.
+    pub changes: Vec<ChangedRow>,
+    /// Read dependencies captured during execution.
+    pub read_dependencies: Vec<CapturedReadDependency>,
+    /// The recorded ctx-answer ledger — `deterministicInputs` literally
+    /// (LLP 0051 D8).
+    pub ledger: Option<CtxAnswerLedger>,
+    /// Advisory diagnostics that do not affect `would_commit`.
+    pub diagnostics: Vec<Diagnostic>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1348,6 +1381,148 @@ impl LocalSnapback {
             }
         }
         Ok(commit)
+    }
+
+    /// `mutationDryRun` (LLP 0051 D8 / Increment 4): execute the mutation
+    /// through the SAME tier path as a commit — the IR step loop or the real
+    /// Ibex handler over the buffered ctx — and discard the writes. No epoch
+    /// advance, no live fan-out, no receipt: nothing observed a change.
+    ///
+    /// Execution-level failures fold into the outcome (`wouldCommit: false`
+    /// plus the same diagnostic a real commit would raise); `Err` here means
+    /// the dry-run could not even be attempted (unknown function, wrong
+    /// kind).
+    ///
+    /// @ref LLP 0051#d8-the-agent-surface-dry-run-becomes-cheap-and-trustworthy —
+    ///   execute-and-discard on the buffered substrate with ledgers.
+    pub fn dry_run_mutation(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+    ) -> SnapbackResult<MutationDryRunOutcome> {
+        let function = self.function(name)?.clone();
+        if function.kind != FunctionKind::Mutation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not a mutation"),
+            ));
+        }
+        let snapshot_version = self.db.current_version().unwrap_or(0);
+        let read_set_checked = !input.read_set.is_empty();
+        let tier = match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => "hostPlan",
+            FunctionRuntime::IbexModule(_) => "ibexModule",
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                    "runtime",
+                    format!("{name} is not a mutation"),
+                ));
+            }
+        };
+        // The same pre-execution gate as a real commit (ENG-23329): a
+        // mutation whose declared epoch bumps cannot be resolved is denied
+        // before any step executes.
+        if let Err(error) = evaluate_permission_epoch_scopes(&function, &input) {
+            return Ok(MutationDryRunOutcome {
+                tier,
+                would_commit: false,
+                denied: true,
+                failure: Some(error.diagnostic),
+                read_set_validation: "notChecked",
+                snapshot_version,
+                result: Value::Null,
+                changes: Vec::new(),
+                read_dependencies: Vec::new(),
+                ledger: None,
+                diagnostics: Vec::new(),
+            });
+        }
+        let execution = match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+                self.db.dry_run_mutation(plan, &input).map(|execution| {
+                    let mut diagnostics = Vec::new();
+                    // The IR ledger honors D1's declared id bound: past it the
+                    // ledger is elided (with a diagnostic), never truncated —
+                    // a partial `deterministicInputs` would read as complete.
+                    let ledger = if execution.generated_ids.len() > CTX_ANSWER_LEDGER_MAX_IDS {
+                        diagnostics.push(
+                            Diagnostic::warning(
+                                "SNAPBACK_DRY_RUN_LEDGER_ELIDED",
+                                "runtime",
+                                format!(
+                                    "dry-run generated {} ids, past the declared ledger bound ({}); deterministicInputs elided",
+                                    execution.generated_ids.len(),
+                                    CTX_ANSWER_LEDGER_MAX_IDS
+                                ),
+                            ),
+                        );
+                        None
+                    } else {
+                        Some(CtxAnswerLedger {
+                            version: ctx_ledger_version(),
+                            ids: execution.generated_ids,
+                            now: execution.now_ms,
+                            auth_fingerprint: None,
+                        })
+                    };
+                    (execution.commit, ledger, diagnostics)
+                })
+            }
+            FunctionRuntime::IbexModule(module) => self
+                .runtime
+                .dry_run_ibex_mutation(module, input.clone(), &mut self.db, Some(&self.warm_vms))
+                .map(|mut commit| {
+                    let ledger = commit.output.ctx_ledger.take();
+                    (commit, ledger, Vec::new())
+                }),
+            _ => unreachable!("tier matched above"),
+        };
+        match execution {
+            Ok((commit, ledger, diagnostics)) => Ok(MutationDryRunOutcome {
+                tier,
+                would_commit: true,
+                denied: false,
+                failure: None,
+                read_set_validation: if read_set_checked || !commit.read_dependencies.is_empty() {
+                    "valid"
+                } else {
+                    "notChecked"
+                },
+                snapshot_version,
+                result: commit.output.result.clone(),
+                changes: commit.changes,
+                read_dependencies: commit.read_dependencies,
+                ledger,
+                diagnostics,
+            }),
+            Err(error) => {
+                // Read-set validation runs first inside the transaction, so a
+                // conflict code means "stale baseline"; any later failure
+                // implies the checked baseline (if any) validated.
+                let stale = error.diagnostic.code == "SNAPBACK_MUTATION_CONFLICT";
+                Ok(MutationDryRunOutcome {
+                    tier,
+                    would_commit: false,
+                    denied: false,
+                    failure: Some(error.diagnostic),
+                    read_set_validation: if stale {
+                        "stale"
+                    } else if read_set_checked {
+                        "valid"
+                    } else {
+                        "notChecked"
+                    },
+                    snapshot_version,
+                    result: Value::Null,
+                    changes: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    ledger: None,
+                    diagnostics: Vec::new(),
+                })
+            }
+        }
     }
 
     pub fn subscribe_live(

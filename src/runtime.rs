@@ -33,6 +33,12 @@ pub struct RuntimeCapabilities {
     pub ibex_ctx_db_host_bridge: CapabilityState,
     pub async_handler_completion: CapabilityState,
     pub sqlite_lock_held_across_async: CapabilityState,
+    /// `function.explain` kind `mutationDryRun` is served for queries'
+    /// sibling tier pair — HostPlan (IR) and IbexModule mutations
+    /// (LLP 0051 D8 / Increment 4). The per-function `dryRunSupported`
+    /// catalog bit (LLP 0024 §Catalog) rides LLP 0042's generated catalog;
+    /// until that lands this capability is the honest wire marker.
+    pub mutation_dry_run: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -93,6 +99,7 @@ impl RuntimeManager {
                 ibex_ctx_db_host_bridge: CapabilityState::Available,
                 async_handler_completion: CapabilityState::Available,
                 sqlite_lock_held_across_async: CapabilityState::Unavailable,
+                mutation_dry_run: true,
             },
         }
     }
@@ -110,9 +117,9 @@ impl RuntimeManager {
                     "runtime",
                     "ibex binary was not found; embedded Ibex handlers still run through the vendored runtime",
                 )
-                // camelCase detail keys (P8, tests/inspect_casing_v0.rs) —
-                // this diagnostic only fires when the ibex binary is absent,
-                // so the violation hid from environments that have it.
+                // Detail keys are payload keys — camelCase per the LLP 0032
+                // P8 casing rule (tests/inspect_casing_v0.rs walks these when
+                // the diagnostic lands in recentDiagnostics).
                 .with_details(json!({
                     "canonicalEngine": self.capabilities.canonical_engine,
                     "ibexSubmodule": self.capabilities.ibex_submodule,
@@ -159,6 +166,26 @@ impl RuntimeManager {
         let ctx_ledger = invocation.take_ctx_ledger();
         let IbexHostContext { writes, reads, .. } = invocation;
         let mut commit = db.commit_buffered_writes(&input, writes, reads, result)?;
+        commit.output.ctx_ledger = Some(ctx_ledger);
+        Ok(commit)
+    }
+
+    /// Dry-run an Ibex-module mutation (LLP 0051 D8): the handler runs for
+    /// real against the buffered ctx — recording its ctx-answer ledger —
+    /// and the buffered writes are validated and applied through the same
+    /// path as a commit, then rolled back. Same fidelity, no durable effect.
+    pub(crate) fn dry_run_ibex_mutation(
+        &self,
+        module: &IbexModule,
+        input: HandlerInput,
+        db: &mut LocalDatabase,
+        pool: Option<&WarmVmPool>,
+    ) -> SnapbackResult<MutationCommit> {
+        let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true)?;
+        let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
+        let ctx_ledger = invocation.take_ctx_ledger();
+        let IbexHostContext { writes, reads, .. } = invocation;
+        let mut commit = db.dry_run_buffered_writes(&input, writes, reads, result)?;
         commit.output.ctx_ledger = Some(ctx_ledger);
         Ok(commit)
     }

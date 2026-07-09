@@ -1,8 +1,10 @@
 //! LLP 0032 P6: the host-ops first slice. One operation endpoint
 //! (`POST /_snapback/api/host-ops`), one `hostOpsResult` envelope per call,
 //! served ops app.inspect / app.reset / schema.load / functions.load /
-//! function.run; pinned-not-built ops fail closed with a structured
-//! diagnostic; the readiness descriptor validates for LLP 0030 attach.
+//! function.run / function.explain; pinned-not-built ops fail closed with a
+//! structured diagnostic; the readiness descriptor validates for LLP 0030
+//! attach. The mutationDryRun explain kind has its own suite in
+//! `tests/dry_run_v0.rs`.
 
 use serde_json::{Value, json};
 use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
@@ -133,11 +135,40 @@ fn p6_unserved_ops_fail_closed_with_structured_envelopes() {
         json!("SNAPBACK_HOST_OP_UNKNOWN")
     );
 
-    let pinned = envelope(&mut snapback, json!({ "operation": "function.explain" }));
+    let pinned = envelope(&mut snapback, json!({ "operation": "schema.reload" }));
     assert_eq!(pinned["ok"], json!(false));
     assert_eq!(
         pinned["diagnostics"][0]["code"],
         json!("SNAPBACK_HOST_OP_UNIMPLEMENTED")
+    );
+
+    // function.explain is served since ENG-23896, but only for the
+    // mutationDryRun kind: a missing kind and the unbuilt kinds fail closed.
+    let no_kind = envelope(&mut snapback, json!({ "operation": "function.explain" }));
+    assert_eq!(no_kind["ok"], json!(false));
+    assert_eq!(
+        no_kind["diagnostics"][0]["code"],
+        json!("SNAPBACK_HOST_OP_INPUT_MISSING")
+    );
+
+    let unbuilt_kind = envelope(
+        &mut snapback,
+        json!({ "operation": "function.explain", "kind": "queryPlan" }),
+    );
+    assert_eq!(unbuilt_kind["ok"], json!(false));
+    assert_eq!(
+        unbuilt_kind["diagnostics"][0]["code"],
+        json!("SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED")
+    );
+
+    let unknown_kind = envelope(
+        &mut snapback,
+        json!({ "operation": "function.explain", "kind": "vibeCheck" }),
+    );
+    assert_eq!(unknown_kind["ok"], json!(false));
+    assert_eq!(
+        unknown_kind["diagnostics"][0]["code"],
+        json!("SNAPBACK_EXPLAIN_KIND_UNKNOWN")
     );
 
     let cli_only = envelope(&mut snapback, json!({ "operation": "host.start" }));
