@@ -1332,3 +1332,16 @@ sheet, stations hints, and the labeled trip progress bar were captured via
 CDP during the build. The React arm (`browser-react.mjs`) is intentionally
 untouched (ENG-23821). The deployed Cloudflare bundle picks the redesign up
 on its next deploy (not redeployed here).
+
+## 2026-07-09 (second entry) — the control arm is a snapshot, not a sibling (ENG-23821)
+
+Decision, not code: the React control arm is now **formally frozen** at its
+ENG-22450 baseline (notes in the demo README, the surface's `App.tsx` header,
+and `demo.snapback.json`'s react-control expectation). It had silently missed
+two redesigns (ENG-23719, ENG-23795), and the honest framing is that the
+red-team comparison was a point-in-time gate whose verdicts are recorded here
+and in the gate issues — not a commitment to build every UI twice forever.
+Re-porting each redesign would roughly double the demo's UI work for no new
+comparison signal. If a future gate wants a fresh apples-to-apples run, that
+is a new re-baseline issue (the freeze note says exactly that), and the
+re-baseline cost is itself a data point the diary should then record.

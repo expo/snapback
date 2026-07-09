@@ -35,9 +35,13 @@ changing the SVGs.
   (`shared/model.mjs`), and the deterministic seed generator.
 - `surfaces/contract/` — the one multi-surface `app.contract` plus its web host
   wiring (`main.ts`, `vite.config.ts`).
-- `surfaces/react/` — the red-team control arm (stock React 19 + Vite, web-only,
-  same product/testIds/backend; ENG-22435, re-baselined by ENG-22450); its
-  suite is `tests/acceptance/browser-react.mjs`.
+- `surfaces/react/` — the red-team control arm (stock React 19 + Vite,
+  web-only, same backend; ENG-22435, re-baselined by ENG-22450). **Frozen at
+  its ENG-22450 baseline by decision (ENG-23821):** it was a point-in-time
+  paved-road comparison gate, so it deliberately does not track product
+  redesigns (it predates ENG-23719's red-header board and ENG-23795's paging
+  redesign). Its suite is `tests/acceptance/browser-react.mjs`; a future gate
+  that wants a fresh comparison should file a new re-baseline issue.
 - `tests/acceptance/` — `headless.mjs`, `cron.mjs`, `egress.mjs`, `browser.mjs`,
   `real-data.mjs`, `browser-react.mjs`.
 - `tests/egress-probe/` — a fixture backend for the Phase 3 egress test only.

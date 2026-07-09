@@ -1,5 +1,15 @@
 // All Aboard — React root component (redesign re-baseline, ENG-22450).
 //
+// FROZEN BASELINE (ENG-23821): this surface is the red-team control arm — a
+// point-in-time paved-road comparison against the Contract surface (ENG-22435;
+// re-baselined once under ENG-22450 for the LLP 0286 re-run). By decision it
+// does NOT track product redesigns: the Contract surface has since shipped
+// ENG-23719 (white board, red sticky header, hand-drawn art) and ENG-23795
+// (contiguous paging strips, sticky footer, directions/maps), and this arm
+// intentionally still renders the ENG-22450 design. Its comparison verdicts
+// live in Diary 0008 and the gate issues. Do not port redesigns here
+// piecemeal; a future comparison gate should file a fresh re-baseline issue.
+//
 // Owns the same state the Contract root owns (station, direction override,
 // screen, trip, query, heroOffset) as useState hooks; the live Snapback data
 // arrives via useLiveState() (server push into the store) and the 1s useNow()

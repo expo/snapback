@@ -136,7 +136,7 @@
       "the Settings ETA mode toggles walk/bike estimates app-wide (E4, ENG-22450; auto default resolves to bike beyond an 18-minute walk, ENG-23795)"
     ],
     "react-control": [
-      "the React arm is a paved-road control at its ENG-22450 baseline (pre-ENG-23719 design) with its own suite (browser-react.mjs); it does not track product redesigns check-for-check"
+      "the React arm is a paved-road control FROZEN at its ENG-22450 baseline by decision (ENG-23821), with its own suite (browser-react.mjs); it deliberately does not track product redesigns — a future comparison gate files a fresh re-baseline issue"
     ]
   },
   "capabilityGaps": [
