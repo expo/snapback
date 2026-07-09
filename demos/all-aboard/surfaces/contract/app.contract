@@ -74,6 +74,8 @@ use distanceLabel from "./data.ts"
 use feedFreshness from "./data.ts"
 use feedProblem from "./data.ts"
 use feedSourceBadge from "./data.ts"
+use backendStatusNote from "./data.ts"
+use emptyDelayRows from "./data.ts"
 use positionFraction from "./data.ts"
 use positionLabel from "./data.ts"
 use fractionPercent from "./data.ts"
@@ -106,6 +108,7 @@ component AllAboard
   derive freshness = feedFreshness(nowMs, feedRows)
   derive feedIssue = feedProblem(feedRows)
   derive feedSource = feedSourceBadge(feedRows, nowMs)
+  derive bootNote = backendStatusNote(nowMs)
   derive matches = searchStations(query, nowMs)
   derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows, departureRows) : null
 
@@ -177,10 +180,19 @@ component AllAboard
                 // The delays region dispatches on the live binding: `stale`
                 // (Exact LLP 0284 §2.2 sugar) wins over `ready` while the
                 // connection is degraded — same board, last-known delays, a
-                // visible note.
+                // visible note. The `loading` arm is the board too
+                // (ENG-23727): first paint renders scheduled departures under
+                // an honest status note — never a blocking "connecting"
+                // placeholder — and the live arms replace it in place (same
+                // DirectionBoard shape, no layout churn).
                 async delayRows
                   loading
-                    text "Connecting to live delays…" size=12 color="#8A93A0" testId="delays-loading"
+                    column gap=8 width="100%"
+                      when bootNote != ""
+                        row justify="center" width="100%"
+                          row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background="#8A93A014" borderWidth=1 borderColor="#8A93A036"
+                            text bootNote size=11 weight=700 color="#5B6470" testId="delays-loading"
+                      DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, oppositeDir=oppositeDir, board=board, oppositeBoard=oppositeBoard, serviceFilter=serviceFilter, freshness=freshness, feedIssue=feedIssue, feedSource=feedSource, delayRows=emptyDelayRows(), departureRows=departureRows, toggleDirection=toggleDirection, openTrip=openTrip, trainPrev=trainPrev, trainNext=trainNext, trainFirst=trainFirst, setServiceFilter=setServiceFilter, doRefresh=doRefresh)
                   stale rows
                     column gap=8 width="100%"
                       row justify="center" width="100%"

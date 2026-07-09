@@ -6,12 +6,21 @@
 // the shared stream by createSnapbackContractSurface — server push, no
 // hand-written liveQuery + poll pump, no store.mjs container (both deleted).
 //
-// Boot is D4-shaped (LLP 0034 §5): connect + health + inspect-first
-// provisioning — schema/functions load ONLY when inspection says the backend
-// is not provisioned for this manifest, seed ONLY when the schedule tables are
-// empty, and the mount path never calls the destructive reset. A second
-// window's boot therefore cannot clobber the first window's live session (the
-// LLP 0275 C4 footgun).
+// Startup is board-first (ENG-23727): the departure board mounts immediately
+// from the deterministic schedule shipped in the bundle — first paint is
+// already a useful train board, never a boot/provision/connect sequence.
+// Backend work (health, ensure, live-subscribe) runs BEHIND the board through
+// deferred links (./deferred-links.ts): the query bindings hold 'pending'
+// (the .contract's `loading` arm renders the schedule board with an honest
+// status note) until the real surface attaches and live rows stream in.
+//
+// The backend phase is still D4-shaped (LLP 0034 §5): connect + health +
+// inspect-first provisioning — schema/functions load ONLY when inspection
+// says the backend is not provisioned for this manifest, seed ONLY when the
+// schedule tables are empty, and the mount path never calls the destructive
+// reset. A second window's boot therefore cannot clobber the first window's
+// live session (the LLP 0275 C4 footgun). Deferring it changes when it runs,
+// not what it does.
 
 import { mount, reset } from '@exact/contract/runtime';
 
@@ -26,14 +35,45 @@ import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
+import { createDeferredContractLinks } from './deferred-links';
 import { installGestures } from './gestures';
-import { setDeviceLocation, setRouteEstimateInvoker } from './data';
+import { setBackendState, setDeviceLocation, setRouteEstimateInvoker } from './data';
 import app from './app.contract';
 
 let activeSurface: { dispose?: () => void } | null = null;
 let disposeGestures: (() => void) | null = null;
 let disposeRefreshAction: (() => void) | null = null;
 let disposeLocationRequest: (() => void) | null = null;
+
+// Startup timing (ENG-23727 acceptance): all values are ms since timeOrigin
+// (performance.now() epoch) so the acceptance suite can compare them. The
+// board paint must never wait on the backend milestones.
+const timing: {
+  htmlReceivedMs: number | null;
+  scriptStartMs: number;
+  firstBoardPaintMs: number | null;
+  backendConnectedMs: number | null;
+  liveDataAppliedMs: number | null;
+} = {
+  htmlReceivedMs: (() => {
+    const nav = typeof performance !== 'undefined'
+      ? (performance.getEntriesByType?.('navigation')?.[0] as PerformanceNavigationTiming | undefined)
+      : undefined;
+    return nav ? nav.responseEnd : null;
+  })(),
+  scriptStartMs: typeof performance !== 'undefined' ? performance.now() : 0,
+  firstBoardPaintMs: null,
+  backendConnectedMs: null,
+  liveDataAppliedMs: null,
+};
+
+const logTiming = (label: string, at: number | null) => {
+  console.log(`[all-aboard] ${label} at ${at === null ? '?' : Math.round(at)}ms`);
+};
+
+// Kick off the web-host module fetch at module evaluation so awaiting it in
+// mountBoard overlaps with everything else instead of serializing.
+const webHostReady = typeof document !== 'undefined' ? import('@exact/renderer/web-host') : null;
 
 // Build-time API origin injected by vite.config.ts `define`.
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
@@ -80,20 +120,20 @@ function installWebChrome(): void {
     [data-testid="board-content"] { touch-action: pan-y; }
     [data-testid="location-hint"], [data-testid="settings-location"] { cursor: pointer; }
     input::placeholder { color: rgba(26, 31, 39, 0.4); }
-    #boot-status { position: fixed; left: 16px; bottom: 16px; z-index: 99; max-width: min(520px, calc(100vw - 32px));
-      padding: 10px 12px; border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; background: #0d1322;
-      color: #dbe3f4; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
-    #boot-status[data-state="ready"] { display: none; }
-    #boot-status[data-state="error"] { border-color: #b4525f; color: #ffb3bd; }
+    #boot-status { display: none; position: fixed; left: 16px; bottom: 16px; z-index: 99; max-width: min(520px, calc(100vw - 32px));
+      padding: 10px 12px; border: 1px solid #b4525f; border-radius: 10px; background: #0d1322;
+      color: #ffb3bd; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+    #boot-status[data-state="error"] { display: block; }
   `;
   document.head.appendChild(style);
 }
 
-function status(message: string, state: 'booting' | 'ready' | 'error' = 'booting'): void {
-  if (typeof document === 'undefined') {
-    console.log(`[all-aboard] ${message}`);
-    return;
-  }
+// The only visible startup chrome is a hard-failure notice (ENG-23727):
+// progress never blocks the board, so there is nothing to show on the happy
+// path — degraded backends surface through the board's own status note.
+function showBootError(message: string): void {
+  console.error(`[all-aboard] ${message}`);
+  if (typeof document === 'undefined') return;
   let el = document.getElementById('boot-status');
   if (!el) {
     el = document.createElement('div');
@@ -101,8 +141,7 @@ function status(message: string, state: 'booting' | 'ready' | 'error' = 'booting
     document.body.appendChild(el);
   }
   el.textContent = message;
-  el.dataset.state = state;
-  console.log(`[all-aboard] ${message}`);
+  el.dataset.state = 'error';
 }
 
 // A press-driven retry asks for a fresh fix (maximumAge 0): the user is
@@ -181,55 +220,24 @@ function installRefreshAction(rootEl: HTMLElement, client: SnapbackClient): () =
   return () => rootEl.removeEventListener('click', listener, true);
 }
 
-async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnType<typeof createSnapbackContractSurface>> }> {
+// First useful paint: web chrome + web host + mount, nothing else. Every
+// query binding is pending (deferred links), so the .contract's loading arm
+// already typesets the schedule-data board on this frame.
+async function mountBoard(client: SnapbackClient): Promise<void> {
   installWebChrome();
-  status('Connecting to Snapback…');
-  const client = new SnapbackClient(snapbackBaseUrl());
-  await client.health();
-  setRouteEstimateInvoker(async (args) => {
-    const run = await client.action('routeEstimate', { args });
-    if (!run?.ok) {
-      const message = run?.diagnostic?.message ?? 'routeEstimate action failed';
-      throw new Error(message);
-    }
-    return run.result ?? {};
-  });
-
-  // The single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
-  // the server inspects, provisions only what is missing, and seeds only
-  // when the schedule tables are empty — one call, D4 semantics server-side.
-  status('Ensuring backend provisioning…');
-  const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
-  const provisioned = [
-    ensured.schema === 'provisioned' ? 'schema' : null,
-    ensured.functions === 'provisioned' ? 'functions' : null,
-    ensured.seed === 'seeded' ? 'seed' : null,
-  ].filter((action): action is string => action !== null);
-
-  status('Subscribing to live train status…');
-  // The generated Contract adapter with live push (LLP 0034 D1): both live
-  // descriptors bind over one shared socket; snapshots arrive with the
-  // subscriptions (never a prime race); server-authored deltas (cron ticks,
-  // other clients' refreshes) stream into the query bindings with no pump.
-  const surface = await createSnapbackContractSurface({
-    runtime: await import('@exact/contract/runtime'),
-    client,
-    manifest: contractDataManifest,
-    artifactIndex,
-    schemaManifest,
-    functionManifest: functionsManifest,
-    liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
-  });
-  activeSurface = surface;
-  configureSnapbackContractLinks(surface.links as never);
-  void watchLocation();
-
-  status('Mounting…');
-  if (typeof document !== 'undefined') {
-    const { installContractWebHost } = await import('@exact/renderer/web-host');
+  if (webHostReady) {
+    const { installContractWebHost } = await webHostReady;
     installContractWebHost();
   }
   mount(app);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame((frameMs) => {
+      timing.firstBoardPaintMs = frameMs;
+      logTiming('first board paint', frameMs);
+    });
+  } else {
+    timing.firstBoardPaintMs = typeof performance !== 'undefined' ? performance.now() : 0;
+  }
 
   // Gesture-first interaction as web surface glue (LLP 0029 G1): swipes and
   // arrow keys drive the same press affordances the .contract declares.
@@ -239,21 +247,97 @@ async function boot(): Promise<{ provisioned: string[]; surface: Awaited<ReturnT
     disposeRefreshAction = installRefreshAction(rootEl, client);
     disposeLocationRequest = installLocationRequest(rootEl);
   }
-  status('Ready', 'ready');
-  return { provisioned, surface };
+  void watchLocation();
 }
 
-const ready = boot().catch((error) => {
+// Backend attach, behind the board: health + the single idempotent
+// mount-lifecycle ensure (LLP 0034 §5 / ENG-22527 — the server inspects,
+// provisions only what is missing, seeds only when the schedule tables are
+// empty) + the generated Contract adapter with live push (LLP 0034 D1).
+// Transient failures (server down, network) retry on capped backoff while the
+// board keeps showing scheduled departures under an honest note; a structured
+// contract diagnostic (stale generated artifacts) is a build defect, not an
+// outage, and fails loudly instead of retrying forever.
+async function connectBackend(client: SnapbackClient): Promise<{
+  provisioned: string[];
+  surface: Awaited<ReturnType<typeof createSnapbackContractSurface>>;
+}> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await client.health();
+      const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+      const provisioned = [
+        ensured.schema === 'provisioned' ? 'schema' : null,
+        ensured.functions === 'provisioned' ? 'functions' : null,
+        ensured.seed === 'seeded' ? 'seed' : null,
+      ].filter((action): action is string => action !== null);
+
+      const surface = await createSnapbackContractSurface({
+        runtime: await import('@exact/contract/runtime'),
+        client,
+        manifest: contractDataManifest,
+        artifactIndex,
+        schemaManifest,
+        functionManifest: functionsManifest,
+        liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
+      });
+      return { provisioned, surface };
+    } catch (error) {
+      if ((error as { diagnostic?: unknown }).diagnostic) throw error;
+      setBackendState('offline');
+      const delayMs = Math.min(15_000, 1_000 * 2 ** Math.min(attempt, 4));
+      console.warn(`[all-aboard] backend connect failed (attempt ${attempt + 1}); retrying in ${delayMs}ms`, error);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+const client = new SnapbackClient(snapbackBaseUrl());
+setRouteEstimateInvoker(async (args) => {
+  const run = await client.action('routeEstimate', { args });
+  if (!run?.ok) {
+    const message = run?.diagnostic?.message ?? 'routeEstimate action failed';
+    throw new Error(message);
+  }
+  return run.result ?? {};
+});
+
+// Deferred links stand in for the adapter until the backend attaches: the
+// generated bindings resolve immediately, queries hold 'pending', mutations
+// queue. The one links configuration survives for the app's lifetime — the
+// shim forwards to the real surface after attach.
+const deferredLinks = createDeferredContractLinks({
+  queries: Object.entries((contractDataManifest as { queries?: Record<string, { ephemeral?: boolean }> }).queries ?? {})
+    .filter(([, descriptor]) => descriptor?.ephemeral !== true)
+    .map(([name]) => name),
+  mutations: Object.keys((contractDataManifest as { mutations?: Record<string, unknown> }).mutations ?? {}),
+});
+configureSnapbackContractLinks(deferredLinks.links as never);
+deferredLinks.onFirstDelivery(() => {
+  timing.liveDataAppliedMs = performance.now();
+  logTiming('live data applied', timing.liveDataAppliedMs);
+});
+
+const ready = (async () => {
+  await mountBoard(client);
+  const { provisioned, surface } = await connectBackend(client);
+  activeSurface = surface;
+  deferredLinks.attach(surface.links as never);
+  setBackendState('connected');
+  timing.backendConnectedMs = performance.now();
+  logTiming('backend connected', timing.backendConnectedMs);
+  return { provisioned, surface };
+})().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
-  status(`Boot failed: ${message}`, 'error');
+  showBootError(`Boot failed: ${message}`);
   console.error(error);
   throw error;
 });
 
 // Test/debug facts: the browser acceptance suite asserts the paved path
 // through these (livePush, per-query connection values, the provisioning
-// actions this window actually performed).
-(globalThis as { allAboard?: unknown }).allAboard = { ready };
+// actions this window actually performed) plus the ENG-23727 startup timing.
+(globalThis as { allAboard?: unknown }).allAboard = { ready, startupTiming: timing };
 void ready.then(({ surface, provisioned }) => {
   (globalThis as { allAboard?: unknown }).allAboard = {
     ready,
@@ -261,8 +345,9 @@ void ready.then(({ surface, provisioned }) => {
     livePush: surface.livePush,
     connections: () => surface.connections(),
     provisioned,
+    startupTiming: timing,
   };
-}).catch(() => { /* boot failure already surfaced via status */ });
+}).catch(() => { /* boot failure already surfaced via showBootError */ });
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
@@ -273,6 +358,7 @@ if (import.meta.hot) {
     disposeGestures = null;
     disposeLocationRequest = null;
     setRouteEstimateInvoker(null);
+    deferredLinks.dispose();
     activeSurface?.dispose?.();
     activeSurface = null;
     resetSnapbackContractLinks();

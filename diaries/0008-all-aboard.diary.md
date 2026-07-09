@@ -1133,3 +1133,88 @@ gate — it was noticing, mid-verification, that `origin/main` had moved five
 commits and now contained a sibling implementation, then having the
 discipline to diff intent against the landed design instead of pushing a
 duplicate. Fetch before you rebase, and read what arrived.
+
+## 2026-07-08 — board-first startup: paint the trains, then connect (ENG-23727)
+
+Opening All Aboard used to read like an ops console: `Booting All Aboard…`,
+`Ensuring backend provisioning…`, `Connecting to live delays…`, then finally a
+departure board. For an app whose whole answer is "when is the next train," a
+plain webpage would have had the answer on screen in milliseconds. This entry
+reworks startup so the first paint IS the board — deterministic schedule data
+from the bundle — with health/ensure/live-subscribe running behind it.
+
+### What I changed
+
+- `main.ts` mounts the .contract immediately behind new deferred links
+  (`deferred-links.ts`): each generated query link hands the runtime a
+  forwarding handle that stays silent, so every binding holds `pending` and
+  the `loading` arm renders. When `createSnapbackContractSurface` finishes in
+  the background, the handles subscribe through and live rows replace the
+  schedule in place. Mutations queue behind the attach.
+- The `.contract`'s `loading` arm now renders the same `DirectionBoard` as the
+  live arms (schedule rows, no delays) under a small honest pill —
+  "Connecting for live updates…", flipping to "Offline — showing scheduled
+  departures" when the connect attempt fails (capped-backoff retries behind
+  it). Freshness reads "Scheduled times" and the data-source badge reads
+  `SCHEDULE` until a real feed row exists, so nothing poses as live.
+- Startup timing instrumentation (`allAboard.startupTiming`): html received,
+  script start, first board paint, backend connected, live data applied. Two
+  new browser acceptance checks pin the property: paint must precede backend
+  attach (and land within 100 ms of script start), and an open with the API
+  origin force-refused (CDP Fetch interception) must still render a station,
+  a numeric countdown, and the honest labels — never a blocking loader.
+- React arm mirrored: render `<App/>` first, attach behind, same timing facts.
+
+### What felt good
+
+- Contract's async-region semantics carried the whole product change: a query
+  binding is `pending` until its first delivery, so "board first, live later"
+  fell out of a links shim plus a better `loading` arm. The live arms replace
+  the loading arm with the identical DirectionBoard shape — no layout churn,
+  and the swap is declarative rather than imperative DOM patching.
+- Measured on localhost dev: html received ~5 ms, board paint 23–29 ms after
+  the surface script starts executing, backend attach ~70 ms later, live rows
+  right behind it. The ceremony is simply gone; on a warm backend the SCHEDULE
+  badge is visible for about one frame before LIVE data lands.
+- The D4 inspect-first property needed zero rework: the same idempotent
+  `ensureApp` runs, just after first paint instead of before it, and the
+  second-window acceptance check stayed green untouched.
+
+### What felt bad or surprising
+
+- `createSnapbackContractSurface` refuses to exist until every live
+  subscription lands, and the generated bindings throw if links are read
+  before configuration — so "mount before connect" required ~100 lines of
+  hand-rolled deferred-links glue that every offline-tolerant Snapback app
+  would need verbatim. This belongs in the adapter as a first-class mode
+  (surface handle returned synchronously, bindings pending until attach);
+  filed as ENG-23736. ENG-23390's serialized-subscribe cost is the
+  same underlying posture: the adapter treats the connection as a
+  precondition, not a background acquisition.
+- The React control arm's hand-rolled inspect-first provisioning
+  (`inspect` + `loadSchema`/`loadFunctions`/`seed`) has been silently broken
+  for browsers on fresh backends since the minted-admin-token hardening
+  (ENG-23443): those are admin-gated writes and the page has no token. The
+  contract arm's `ensureApp` is app-auth and worked all along; the React arm
+  now uses it too. Comparison note: this is exactly the kind of seam a
+  Convex/Supabase app never sees because provisioning isn't a client concern
+  at all there — Snapback's ensure-on-mount is fine, but only the paved call
+  is safe; the do-it-yourself variant rotted.
+- Two origin/main breakages surfaced during verification: the kit client's
+  unguarded `process.env` white-screened every browser open, and the suites'
+  cron manual-run POSTs needed the minted admin token. Both fixes were also
+  in the then-uncommitted live-departures work, which landed (ENG-23642,
+  ENG-23719, ENG-23729, ENG-23732) while this change was in flight — this
+  branch carried the identical fixes and rebased onto them cleanly.
+- The Cloudflare local recorded-path suite failed its final check
+  ("post-reset feed state returns to the seed label") on the origin/main this
+  work started from — pre-existing and unrelated (filed as ENG-23737); the
+  ENG-23642 landing carried the fix, so it resolved mid-flight.
+
+### Verification
+
+browser 19/19 (two new startup checks included), browser-react 18/18,
+contract-live 2/2, headless 12/12, `ref-check` clean. The blocked-API check
+doubles as the offline story: station, countdown, `SCHEDULE` badge, honest
+note, retries ticking in the console. The deployed Cloudflare bundle picks up
+the board-first shell on its next deploy (not redeployed here).

@@ -79,6 +79,37 @@ export function setRouteEstimateInvoker(invoker: ((args: RouteEstimateArgs) => P
   routeInFlight.clear();
 }
 
+// --- Backend attach state (board-first startup, ENG-23727) --------------------
+//
+// The board mounts before the backend attaches, so the surface needs an
+// honest, non-blocking answer to "is this live yet?". main.ts writes the
+// phase here (transport glue, like device location); the ticking nowMs clock
+// re-derives the note, so the board reflects a phase change within a second.
+
+type BackendState = 'connecting' | 'connected' | 'offline';
+let backendState: BackendState = 'connecting';
+
+export function setBackendState(next: BackendState): void {
+  backendState = next;
+}
+
+// The small status affordance shown with the schedule board while the live
+// bindings are still pending; empty once the backend is attached (the live
+// arms own freshness from then on).
+export function backendStatusNote(_tick?: number): string {
+  switch (backendState) {
+    case 'connected': return '';
+    case 'offline': return 'Offline — showing scheduled departures';
+    default: return 'Connecting for live updates…';
+  }
+}
+
+// The `loading` arm renders the same DirectionBoard as the live arms; this is
+// its stand-in for the not-yet-delivered liveTrainStatus rows.
+export function emptyDelayRows(): DelayRow[] {
+  return [];
+}
+
 // --- Location + station selection --------------------------------------------
 
 export function getUserLocation(_tick?: number) {
@@ -586,7 +617,10 @@ export function distanceLabel(station: RouteStation, mode: string, _tick?: numbe
 
 export function feedFreshness(nowMs: number, feedRows: Array<{ fetchedAt?: number }>): string {
   const feed = feedRows?.[0] ?? null;
-  if (!feed || !feed.fetchedAt) return 'Waiting for feed…';
+  // Board-first startup (ENG-23727): before the backend has attached, the
+  // board shows deterministic schedule times — say so, instead of implying a
+  // feed is on its way that may never arrive.
+  if (!feed || !feed.fetchedAt) return backendState === 'connected' ? 'Waiting for feed…' : 'Scheduled times';
   const ageSeconds = Math.max(0, Math.floor((nowMs - feed.fetchedAt) / 1000));
   if (ageSeconds < 60) return 'Updated a few seconds ago';
   return `Updated ${Math.max(1, Math.floor(ageSeconds / 60))}m ago`;
@@ -632,6 +666,12 @@ export function feedSourceBadge(
   border: string;
 } {
   const feed = feedRows?.[0] ?? null;
+  // No feed row yet (board-first startup, before the live bindings deliver):
+  // the board is on the deterministic schedule — its own honest category,
+  // neither a committed demo feed nor live 511 (ENG-23727).
+  if (!feed) {
+    return { live: false, label: 'SCHEDULE', color: '#1D4ED8', tint: '#1D4ED812', border: '#1D4ED836' };
+  }
   const liveSource = (feed?.lastSource ?? '') === LIVE_FEED_SOURCE;
   // Light-theme badge colors (ENG-23719): the badge sits on the white board.
   if (!liveSource) {

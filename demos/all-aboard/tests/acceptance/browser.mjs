@@ -70,7 +70,13 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 17;
+const EXPECTED_CHECKS = 19;
+
+// ENG-23727 warm-start bar: first useful board paint within this budget of
+// the surface script starting to execute (module fetch latency is Vite's,
+// not the app's; the property under test is that paint never waits on the
+// backend). Overridable for slow CI hosts.
+const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 100);
 
 const suite = createSuite('all-aboard browser (Phase 1)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];
@@ -166,6 +172,32 @@ async function main() {
         return { ok: true };
       })()`);
       return boot;
+    });
+
+    await suite.check('startup: board paints before the backend attaches; no boot ceremony (ENG-23727)', async () => {
+      const timing = await page.eval(`(async () => {
+        const d = Date.now() + 5000;
+        for (;;) {
+          const t = window.allAboard?.startupTiming;
+          if (t && t.firstBoardPaintMs !== null && t.backendConnectedMs !== null) return t;
+          if (Date.now() > d) return t ?? null;
+          await new Promise(r => setTimeout(r, 50));
+        }
+      })()`);
+      if (typeof timing?.firstBoardPaintMs !== 'number') throw new Error(`firstBoardPaintMs not recorded: ${JSON.stringify(timing)}`);
+      if (typeof timing?.backendConnectedMs !== 'number') throw new Error(`backendConnectedMs not recorded: ${JSON.stringify(timing)}`);
+      if (timing.firstBoardPaintMs > timing.backendConnectedMs) {
+        throw new Error(`board paint waited for the backend: ${JSON.stringify(timing)}`);
+      }
+      const codeToBoardMs = timing.firstBoardPaintMs - timing.scriptStartMs;
+      if (!(codeToBoardMs < PAINT_BUDGET_MS)) {
+        throw new Error(`first useful paint ${Math.round(codeToBoardMs)}ms after script start (budget ${PAINT_BUDGET_MS}ms): ${JSON.stringify(timing)}`);
+      }
+      const bootChromeVisible = await page.eval(
+        `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
+      );
+      if (bootChromeVisible) throw new Error('boot-status chrome is visible on the happy path');
+      return { ...timing, codeToBoardMs: Math.round(codeToBoardMs) };
     });
 
     await suite.check('renders the board; geolocation fallback selects the nearest station', async () => {
@@ -435,6 +467,38 @@ async function main() {
       if (!/min walk/.test(back ?? '')) throw new Error(`walk mode did not restore: ${back}`);
       return { walk, bike, pickerRow };
     });
+
+    // ENG-23727: with the API origin unreachable, the open must still show
+    // the best available board (deterministic schedule) under an honest
+    // status note — never a blocking startup screen. This is the structural
+    // guard against the boot-ceremony regression: if paint gated on
+    // health/ensure/subscribe again, this page would render nothing but
+    // loading chrome.
+    await suite.check('backend unreachable: the open still shows a schedule board, honestly labeled', async () => {
+      const page3 = await cdp.newPage();
+      try {
+        await page3.blockUrls(`${apiUrl}/*`);
+        await page3.navigate(`${viteUrl}/`);
+        await page3.waitForTestId('station-name');
+        const stationName = await page3.text('station-name');
+        const heroMinutes = await page3.text('hero-minutes');
+        const badge = await page3.text('data-source');
+        const note = await page3.pollText('delays-loading', 'Connecting for live updates|Offline — showing scheduled departures', 8000);
+        if (!stationName) throw new Error('no station rendered with the backend unreachable');
+        if (!/^\d+$/.test(heroMinutes ?? '')) throw new Error(`no schedule departure rendered: ${heroMinutes}`);
+        if (!/SCHEDULE/.test(badge ?? '')) throw new Error(`schedule data not honestly labeled: ${badge}`);
+        if (!/Connecting for live updates|Offline/.test(note ?? '')) throw new Error(`honest status note missing: ${note}`);
+        const timing = await page3.eval('window.allAboard?.startupTiming ?? null');
+        if (timing?.backendConnectedMs !== null) throw new Error(`backend unexpectedly attached: ${JSON.stringify(timing)}`);
+        const bootChromeVisible = await page3.eval(
+          `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
+        );
+        if (bootChromeVisible) throw new Error('blocking boot chrome shown instead of the board');
+        return { stationName, heroMinutes, badge, note };
+      } finally {
+        await page3.close().catch(() => {});
+      }
+    });
   }, { cleanups });
 }
 
@@ -477,6 +541,13 @@ async function connectCdp(url) {
     const text = typeof e.data === 'string' ? e.data : await e.data.text();
     const msg = JSON.parse(text);
     if (msg.id && pending.has(msg.id)) { const p = settle(msg.id); msg.error ? p.reject(new Error(msg.error.message)) : p.resolve(msg.result || {}); }
+    // Fetch interception (ENG-23727 backend-unreachable check): a session that
+    // enabled Fetch with a URL pattern gets every matching request refused —
+    // the paused event only arrives for sessions that opted in.
+    if (msg.method === 'Fetch.requestPaused' && msg.sessionId) {
+      void send('Fetch.failRequest', { requestId: msg.params.requestId, errorReason: 'ConnectionRefused' }, msg.sessionId)
+        .catch(() => { /* the target may already be gone */ });
+    }
   });
   socket.addEventListener('close', () => rejectAll('CDP DevTools WebSocket closed while commands were in flight (socket dropped mid-run)'));
   socket.addEventListener('error', () => rejectAll('CDP DevTools WebSocket errored while commands were in flight (socket dropped mid-run)'));
@@ -504,6 +575,11 @@ async function connectCdp(url) {
       const sel = (id) => `[data-testid="${id}"]`;
       return {
         navigate: (url) => send('Page.navigate', { url }, sessionId),
+        close: () => send('Target.closeTarget', { targetId }),
+        // Refuse every request matching the pattern (ENG-23727): navigation
+        // and module loads on other origins proceed normally, so the surface
+        // loads while its API origin is unreachable.
+        blockUrls: (urlPattern) => send('Fetch.enable', { patterns: [{ urlPattern }] }, sessionId),
         // ENG-22795: pin the emulated position BEFORE granting, so the
         // surface's permission-change listener never reads the host's real
         // location in the gap between the two calls.

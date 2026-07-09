@@ -27,6 +27,7 @@ import {
 import {
   DEFAULT_LOCATION,
   activeDirection,
+  backendStatusNote,
   boardTrains,
   delaysFrom,
   feedFreshness,
@@ -73,15 +74,17 @@ export function App(props: { onRefresh: () => void; onRequestLocation: () => voi
   const prevStationId = getAdjacentStation(station.id, -1)?.id ?? station.id;
   const nextStationId = getAdjacentStation(station.id, 1)?.id ?? station.id;
   const trip = tripId ? (getTrainRun(tripId, nowMs, delaysFrom(live.delayRows)) as Trip | null) : null;
-  const freshness = feedFreshness(nowMs, live.feedRows);
+  const freshness = feedFreshness(nowMs, live.feedRows, live.backendState);
   const feedIssue = feedProblem(live.feedRows);
   const feedSource = feedSourceBadge(live.feedRows, nowMs);
+  const bootNote = backendStatusNote(live.backendState);
 
   // The delays region dispatches on the live subscription the way the
   // Contract `async delayRows` block does: `stale` wins over `ready` while
   // the connection is degraded (kit values 'stale' | 'disconnected' — the
-  // same mapping the Contract runtime's stale arm uses); `loading` shows
-  // until the first snapshot lands.
+  // same mapping the Contract runtime's stale arm uses). The loading state
+  // is the board too (ENG-23727): first paint renders scheduled departures
+  // under an honest status note, never a blocking "connecting" placeholder.
   const delaysLoading = !live.delaysReady;
   const delaysStale =
     live.connections.liveTrainStatus === 'stale' || live.connections.liveTrainStatus === 'disconnected';
@@ -178,18 +181,43 @@ export function App(props: { onRefresh: () => void; onRequestLocation: () => voi
               onRequestLocation={props.onRequestLocation}
             />
             {delaysLoading ? (
-              <div
-                style={{
-                  ...column,
-                  padding: '0 20px 16px',
-                  width: '100%',
-                  maxWidth: 620,
-                  alignSelf: 'center',
-                }}
-              >
-                <div data-testid="delays-loading" style={{ fontSize: 12, color: palette.inkFaint }}>
-                  Connecting to live delays…
-                </div>
+              <div style={{ ...column, gap: 8, width: '100%' }}>
+                {bootNote !== '' && (
+                  <div style={{ ...column, alignItems: 'center', width: '100%' }}>
+                    <div
+                      style={{
+                        borderRadius: 999,
+                        padding: '5px 12px',
+                        background: '#ffffff12',
+                        border: '1px solid #ffffff1f',
+                      }}
+                    >
+                      <div data-testid="delays-loading" style={{ fontSize: 11, fontWeight: 700, color: '#ffffff9e' }}>
+                        {bootNote}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <DirectionBoard
+                  stationId={station.id}
+                  nowMs={nowMs}
+                  activeDir={activeDir}
+                  oppositeDir={oppositeDir}
+                  board={board}
+                  oppositeBoard={oppositeBoard}
+                  serviceFilter={serviceFilter}
+                  freshness={freshness}
+                  feedIssue={feedIssue}
+                  feedSource={feedSource}
+                  photoCredit={photoCredit}
+                  delayRows={live.delayRows}
+                  onToggleDirection={toggleDirection}
+                  onOpenTrip={openTrip}
+                  onTrainPrev={trainPrev}
+                  onTrainNext={trainNext}
+                  onSetServiceFilter={setServiceFilter}
+                  onRefresh={props.onRefresh}
+                />
               </div>
             ) : (
               <div style={{ ...column, gap: 8, width: '100%' }}>

@@ -62,7 +62,12 @@ let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 // failure, not a pass — a pre-check throw must never exit "PASS — 0/0". The
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486).
-const EXPECTED_CHECKS = 17;
+const EXPECTED_CHECKS = 18;
+
+// ENG-23727 warm-start bar, mirrored from the Contract arm's suite: first
+// useful board paint within this budget of the surface script starting to
+// execute, and never gated on the backend. Overridable for slow CI hosts.
+const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 100);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
@@ -152,6 +157,32 @@ async function main() {
         return { ok: true };
       })()`);
       return boot;
+    });
+
+    await suite.check('startup: board paints before the backend attaches; no boot ceremony (ENG-23727)', async () => {
+      const timing = await page.eval(`(async () => {
+        const d = Date.now() + 5000;
+        for (;;) {
+          const t = window.allAboard?.startupTiming;
+          if (t && t.firstBoardPaintMs !== null && t.backendConnectedMs !== null) return t;
+          if (Date.now() > d) return t ?? null;
+          await new Promise(r => setTimeout(r, 50));
+        }
+      })()`);
+      if (typeof timing?.firstBoardPaintMs !== 'number') throw new Error(`firstBoardPaintMs not recorded: ${JSON.stringify(timing)}`);
+      if (typeof timing?.backendConnectedMs !== 'number') throw new Error(`backendConnectedMs not recorded: ${JSON.stringify(timing)}`);
+      if (timing.firstBoardPaintMs > timing.backendConnectedMs) {
+        throw new Error(`board paint waited for the backend: ${JSON.stringify(timing)}`);
+      }
+      const codeToBoardMs = timing.firstBoardPaintMs - timing.scriptStartMs;
+      if (!(codeToBoardMs < PAINT_BUDGET_MS)) {
+        throw new Error(`first useful paint ${Math.round(codeToBoardMs)}ms after script start (budget ${PAINT_BUDGET_MS}ms): ${JSON.stringify(timing)}`);
+      }
+      const bootChromeVisible = await page.eval(
+        `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
+      );
+      if (bootChromeVisible) throw new Error('boot-status chrome is visible on the happy path');
+      return { ...timing, codeToBoardMs: Math.round(codeToBoardMs) };
     });
 
     await suite.check('renders the board; geolocation fallback selects the nearest station', async () => {

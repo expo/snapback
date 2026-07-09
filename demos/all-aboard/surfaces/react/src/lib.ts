@@ -19,7 +19,7 @@ import {
   serviceColor,
 } from '../../../snapback/shared/model.mjs';
 import { cachedRouteEstimate, requestRouteEstimate } from './store.ts';
-import type { DelayRow, FeedRow, LatLng, LocationSource } from './store.ts';
+import type { BackendState, DelayRow, FeedRow, LatLng, LocationSource } from './store.ts';
 
 export const DEFAULT_LOCATION: LatLng = { lat: 37.3894, lng: -122.0819 }; // Mountain View fallback
 
@@ -238,9 +238,12 @@ export function distanceLabel(station: { lat: number; lng: number }, mode: EtaMo
 
 // --- Freshness marker (feedState rows from the live subscription) ----------------
 
-export function feedFreshness(nowMs: number, feedRows: readonly FeedRow[]): string {
+export function feedFreshness(nowMs: number, feedRows: readonly FeedRow[], backendState: BackendState = 'connected'): string {
   const feed = feedRows?.[0] ?? null;
-  if (!feed || !feed.fetchedAt) return 'Waiting for feed…';
+  // Board-first startup (ENG-23727): before the backend has attached, the
+  // board shows deterministic schedule times — say so, instead of implying a
+  // feed is on its way that may never arrive.
+  if (!feed || !feed.fetchedAt) return backendState === 'connected' ? 'Waiting for feed…' : 'Scheduled times';
   const ageSeconds = Math.max(0, Math.floor((nowMs - feed.fetchedAt) / 1000));
   if (ageSeconds < 60) return 'Updated a few seconds ago';
   return `Updated ${Math.max(1, Math.floor(ageSeconds / 60))}m ago`;
@@ -285,6 +288,12 @@ const DEFAULT_STALE_AFTER_MS = 390_000;
 // live data (ENG-23642).
 export function feedSourceBadge(feedRows: readonly FeedRow[], nowMs?: number): FeedSourceBadge {
   const feed = feedRows?.[0] ?? null;
+  // No feed row yet (board-first startup, before the live subscription
+  // delivers): the board is on the deterministic schedule — its own honest
+  // category, neither a committed demo feed nor live 511 (ENG-23727).
+  if (!feed) {
+    return { live: false, label: 'SCHEDULE', color: '#93c5fd', tint: '#93c5fd1f', border: '#93c5fd47' };
+  }
   const liveSource = (feed?.lastSource ?? '') === LIVE_FEED_SOURCE;
   if (!liveSource) {
     return { live: false, label: 'DEMO DATA', color: '#fbbf24', tint: '#fbbf241f', border: '#fbbf2447' };
@@ -295,6 +304,17 @@ export function feedSourceBadge(feedRows: readonly FeedRow[], nowMs?: number): F
   return fresh
     ? { live: true, label: 'LIVE', color: '#34d399', tint: '#34d3991f', border: '#34d39947' }
     : { live: false, label: 'STALE', color: '#f87171', tint: '#f871711f', border: '#f8717147' };
+}
+
+
+// The small status affordance shown with the schedule board while the live
+// subscription is still pending; empty once the backend is attached.
+export function backendStatusNote(state: BackendState): string {
+  switch (state) {
+    case 'connected': return '';
+    case 'offline': return 'Offline — showing scheduled departures';
+    default: return 'Connecting for live updates…';
+  }
 }
 
 // --- Position indicator (for the train detail continuum) -------------------------

@@ -34,6 +34,11 @@ export interface FeedRow {
 export type ConnectionValue = 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected' | null;
 export type EtaMode = 'walk' | 'bike';
 
+// Board-first startup (ENG-23727): the board renders before the backend
+// attaches, so the store carries the attach phase — the board's status note
+// and freshness line derive their honesty from it.
+export type BackendState = 'connecting' | 'connected' | 'offline';
+
 export interface RouteStation {
   id?: string;
   lat: number;
@@ -61,6 +66,7 @@ export interface LiveState {
   delayRows: DelayRow[]; // liveTrainStatus rows (live-pushed)
   feedRows: FeedRow[]; // feedRefreshState rows (live-pushed)
   delaysReady: boolean; // first liveTrainStatus snapshot has landed
+  backendState: BackendState; // attach phase (ENG-23727 board-first startup)
   connections: { liveTrainStatus: ConnectionValue; feedState: ConnectionValue };
   location: LatLng | null; // device location, or null => default
   locationSource: LocationSource;
@@ -71,6 +77,7 @@ let state: LiveState = {
   delayRows: [],
   feedRows: [],
   delaysReady: false,
+  backendState: 'connecting',
   connections: { liveTrainStatus: null, feedState: null },
   location: null,
   locationSource: 'default',
@@ -96,6 +103,10 @@ export function setFeedRows(rows: FeedRow[] | null | undefined): void {
 
 export function setConnection(name: 'liveTrainStatus' | 'feedState', value: ConnectionValue): void {
   emit({ ...state, connections: { ...state.connections, [name]: value } });
+}
+
+export function setBackendState(value: BackendState): void {
+  emit({ ...state, backendState: value });
 }
 
 export function setLocation(location: LatLng | null, source?: LocationSource): void {

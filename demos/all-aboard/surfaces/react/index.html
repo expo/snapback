@@ -20,27 +20,30 @@
       #root input, #root textarea { -webkit-user-select: text; user-select: text; }
       [data-testid="board-content"] { touch-action: none; }
       input::placeholder { color: rgba(255, 255, 255, 0.4); }
+      /* Hard-failure notice only (ENG-23727): startup never shows progress
+         chrome — the board itself is the first paint, and degraded backends
+         surface through the board's own status note. */
       #boot-status {
+        display: none;
         position: fixed;
         left: 16px;
         bottom: 16px;
         z-index: 99;
         max-width: min(520px, calc(100vw - 32px));
         padding: 10px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.18);
+        border: 1px solid #b4525f;
         border-radius: 10px;
         background: #0d1322;
-        color: #dbe3f4;
+        color: #ffb3bd;
         font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
       }
-      #boot-status[data-state="ready"] { display: none; }
-      #boot-status[data-state="error"] { border-color: #b4525f; color: #ffb3bd; }
+      #boot-status[data-state="error"] { display: block; }
     </style>
   </head>
   <body>
     <div id="root"></div>
-    <div id="boot-status">Booting All Aboard…</div>
+    <div id="boot-status"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
