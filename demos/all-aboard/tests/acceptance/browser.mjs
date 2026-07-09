@@ -591,7 +591,14 @@ async function main() {
       await page.click('settings-back');
       const back = await page.text('walk-bike');
       if (!/min walk/.test(back ?? '')) throw new Error(`walk mode did not restore: ${back}`);
-      return { walk, bike, pickerRow };
+      await page.click('open-settings');
+      await page.click('eta-mode');
+      const autoLabel = await page.text('eta-mode');
+      if (autoLabel !== 'Auto') throw new Error(`eta mode did not cycle back to Auto: ${autoLabel}`);
+      await page.click('settings-back');
+      const auto = await page.text('walk-bike');
+      if (!/min walk/.test(auto ?? '')) throw new Error(`auto mode summary did not resolve to walk: ${auto}`);
+      return { walk, bike, back, auto, autoLabel, pickerRow };
     });
 
     // ENG-23727: with the API origin unreachable, the open must still show
