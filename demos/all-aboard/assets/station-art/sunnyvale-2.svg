@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+<defs>
+<path id="a" d="M-42 8c-8-12 0-27 14-30 1-12 14-20 26-16 5-9 17-12 26-6 11-3 21 5 22 15 8 3 11 13 6 20-9 11-25 13-39 14-20 2-42 3-55 3z"/>
+<path id="b" d="M-36 6c-7-10-1-23 11-26 2-11 13-17 23-14 5-7 15-9 22-4 9-2 17 4 18 13 6 3 8 11 4 17-8 9-21 11-33 12-17 1-35 2-45 2z"/>
+</defs>
+<rect width="640" height="1136" fill="#f5efe1"/>
+<!-- sky washes -->
+<path d="M0 0h640v452c-84 12-166-12-250-4-84 8-168-10-252-2-48 5-92-2-138 8z" fill="#bccfd6" opacity="0.5"/>
+<path d="M0 0h640v180c-116 14-230-14-346-4-98 8-196-8-294 4z" fill="#cbd8dd" opacity="0.45"/>
+<circle cx="510" cy="164" r="42" fill="#e9d9a6" opacity="0.55"/>
+<path d="M120 214c22-16 56-18 78-6 18-14 50-12 64 2 21-3 39 6 41 18-62 7-132 7-193 2 1-7 4-12 10-16z" fill="#f5efe1" opacity="0.9"/>
+<!-- hills -->
+<path d="M0 470c70-22 150-30 230-24 90 7 170 26 250 22 60-3 108-16 160-20v92H0z" fill="#b9c4a8" opacity="0.8"/>
+<path d="M0 508c90-16 180-8 268 0 88 8 180 4 262-6 40-5 74-4 110-2v78H0z" fill="#9db08a" opacity="0.85"/>
+<!-- orchard floor -->
+<rect x="0" y="558" width="640" height="578" fill="#a9b78e"/>
+<path d="M0 916c110-14 218 10 326 2 108-8 210 12 314-6v224H0z" fill="#8ba076"/>
+<!-- far tree row -->
+<use href="#a" transform="translate(64 566) scale(.5)" fill="#ecd3c8"/>
+<use href="#b" transform="translate(168 562) scale(.55)" fill="#e6c8ba"/>
+<use href="#a" transform="translate(272 566) scale(.5)" fill="#ecd3c8"/>
+<use href="#b" transform="translate(376 562) scale(.52)" fill="#e6c8ba"/>
+<use href="#a" transform="translate(480 566) scale(.5)" fill="#ecd3c8"/>
+<use href="#b" transform="translate(584 562) scale(.55)" fill="#ecd3c8"/>
+<!-- mid tree row -->
+<use href="#b" transform="translate(120 640) scale(.7)" fill="#ecd3c8"/>
+<use href="#a" transform="translate(250 636) scale(.75)" fill="#e6c8ba"/>
+<use href="#b" transform="translate(385 640) scale(.7)" fill="#ecd3c8"/>
+<use href="#a" transform="translate(520 636) scale(.75)" fill="#e6c8ba"/>
+<!-- near row (right of hero tree) -->
+<use href="#a" transform="translate(300 724) scale(.9)" fill="#ecd3c8"/>
+<use href="#b" transform="translate(420 720) scale(.95)" fill="#e6c8ba"/>
+<use href="#a" transform="translate(586 714) scale(.9)" fill="#ecd3c8"/>
+<!-- ink: row trunks and mow lines -->
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path stroke-width="2" opacity="0.25" d="M0 636c108-5 216-2 324-5 104-3 210 1 316-3M0 702c110-6 220-3 330-6 104-3 206 2 310-4M0 788c112-8 224-4 336-8 102-4 204 2 304-6"/>
+<path stroke-width="2.8" d="M64 596c-1-9 1-18 0-27M168 594c-1-9 0-18 0-26M272 596c-1-9 1-18 0-27M376 594c-1-9 0-18 0-26M480 596c-1-9 1-18 0-27M584 594c-1-9 0-18 0-26"/>
+<path stroke-width="3.5" d="M120 674c-2-11 1-22 0-33M250 672c-2-11 0-22 0-33M385 674c-2-11 1-22 0-33M520 672c-2-11 0-22 0-33"/>
+<path stroke-width="4" d="M300 762c-2-14 1-27 0-40M420 760c-2-14 0-27 0-40M586 754c-2-13 1-26 0-38"/>
+<path stroke-width="2.2" opacity="0.3" d="M108 678l26-2M238 676l26-2M288 766l28-2M408 764l28-2"/>
+</g>
+<!-- water tower -->
+<path d="M428 358c22-26 54-48 80-54 26 6 58 28 84 52z" fill="#b3593c"/>
+<path d="M432 360l152-4 5 118-158 4z" fill="#d9a94e"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path stroke-width="4" d="M428 358c22-26 52-48 80-54"/>
+<path stroke-width="4" d="M510 304c26 6 56 28 82 52"/>
+<path stroke-width="3" d="M508 300c0-6 1-12 1-18"/>
+<circle cx="509" cy="278" r="3.5" stroke-width="2.5"/>
+<path stroke-width="4" d="M436 358c25-2 50 1 76 0 26-1 51 1 76-1"/>
+<path stroke-width="4" d="M588 358l4 116"/>
+<path stroke-width="4" d="M592 474c-26 2-52-1-78 0-26 1-52-1-78 1"/>
+<path stroke-width="4" d="M436 360l0 114"/>
+<path stroke-width="2" opacity="0.45" d="M456 362l1 110M476 361l1 111M496 362l1 110M516 361l1 111M536 362l1 110M556 361l1 111M576 362l0 110"/>
+<path stroke-width="3" d="M434 398c26 3 52 4 78 4 26 0 52-1 78-4M434 442c26 3 52 4 78 4 26 0 52-1 78-4"/>
+<path stroke-width="3.5" d="M430 480c28-2 56 1 84 0 28-1 56 1 82-1"/>
+<path stroke-width="4.5" d="M446 484c-4 46-10 92-16 138-4 30-8 60-14 88-3 18-5 34-6 50"/>
+<path stroke-width="4.5" d="M578 484c4 46 10 92 16 138 4 30 8 60 12 88 3 18 5 34 6 50"/>
+<path stroke-width="3.5" d="M490 484c-2 44-4 90-6 134-2 46-2 92-2 138"/>
+<path stroke-width="3.5" d="M534 484c2 44 4 90 6 134 2 46 2 92 4 138"/>
+<path stroke-width="2.8" opacity="0.8" d="M436 560c44 24 92 44 140 62M584 556c-46 24-94 44-142 64"/>
+<path stroke-width="2.8" opacity="0.8" d="M424 650c48 26 100 48 152 66M596 646c-50 26-102 48-156 68"/>
+<path stroke-width="2.2" opacity="0.3" d="M398 762l32-3M566 760l38-3M472 758l28-2"/>
+</g>
+<!-- hero blossom tree -->
+<path d="M30 762c-16-24-6-56 18-66-4-28 16-52 44-54 6-24 30-40 54-34 12-22 40-32 62-20 24-12 52-2 60 22 22 2 38 20 36 42 18 10 24 34 12 50 14 18 8 44-12 54-30 16-66 18-98 20-58 4-122 6-176-14z" fill="#ecd3c8"/>
+<path d="M90 680c-8-16 4-32 20-34 6-14 24-20 38-12 14-6 28 2 30 16 4 12-4 24-16 26-24 4-50 6-72 4z" fill="#f5efe1" opacity="0.8"/>
+<path d="M196 636c-6-12 2-24 14-26 5-10 18-14 28-8 10-4 20 2 22 12 3 9-3 18-12 20-18 3-36 4-52 2z" fill="#f5efe1" opacity="0.75"/>
+<path d="M120 748c20 8 44 10 68 8 26-2 52-6 72-14 6 12-2 26-16 30-30 10-64 10-94 4-14-3-26-14-30-28z" fill="#d8ac98" opacity="0.8"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path stroke-width="3.2" d="M44 736c-10-14-8-32 2-42M66 668c-2-18 10-32 26-34M118 616c6-14 22-22 36-18M196 596c14-8 32-4 40 8M282 636c12 8 18 24 12 38M300 716c4 16-2 32-16 40M244 768c-14 6-30 8-46 8"/>
+<path stroke-width="5" d="M146 1078c0-38 2-76 6-114 3-28 9-56 16-84"/>
+<path stroke-width="4.6" d="M170 1078c0-36 0-72 3-108 2-26 6-52 12-78"/>
+<path stroke-width="2.4" opacity="0.6" d="M152 1000l10-3M150 950l11-3M156 1044l10-3M162 908l9-3"/>
+<path stroke-width="4" d="M158 872c-16-14-34-26-50-44M172 866c12-20 30-36 46-56M176 902c-6-12-14-20-24-26"/>
+</g>
+<!-- blossoms on hero canopy -->
+<g fill="#f5efe1">
+<circle cx="100" cy="700" r="4"/><circle cx="140" cy="660" r="4"/><circle cx="180" cy="640" r="4"/><circle cx="222" cy="652" r="4"/><circle cx="252" cy="690" r="4"/><circle cx="190" cy="720" r="4"/><circle cx="122" cy="730" r="4"/><circle cx="258" cy="732" r="4"/><circle cx="88" cy="662" r="4"/><circle cx="160" cy="690" r="4"/>
+</g>
+<g fill="#2f2a24" opacity="0.6">
+<circle cx="100" cy="700" r="1.2"/><circle cx="140" cy="660" r="1.2"/><circle cx="180" cy="640" r="1.2"/><circle cx="222" cy="652" r="1.2"/><circle cx="252" cy="690" r="1.2"/><circle cx="190" cy="720" r="1.2"/><circle cx="122" cy="730" r="1.2"/><circle cx="258" cy="732" r="1.2"/><circle cx="88" cy="662" r="1.2"/><circle cx="160" cy="690" r="1.2"/>
+</g>
+<!-- ladder -->
+<path d="M236 1102l-42-246 34-6 42 246z" fill="#d9a94e" opacity="0.9"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path stroke-width="3.5" d="M244 1102c-8-44-16-88-23-132-6-38-13-76-21-114"/>
+<path stroke-width="3.5" d="M276 1096c-8-44-16-86-23-130-6-36-12-72-20-110"/>
+<path stroke-width="3" d="M228 1058c10-2 20-2 31-3M221 1016c10-2 20-2 30-3M214 974c10-2 19-2 29-3M207 932c10-2 19-2 29-3M200 890c9-2 18-2 28-3"/>
+<!-- grass scribbles -->
+<path stroke-width="2.4" opacity="0.6" d="M64 986c3-9 4-14 3-20M76 988c2-8 2-14 0-20M88 986c3-8 5-13 5-19M330 1002c3-9 4-14 3-20M342 1004c2-8 2-14 0-20M424 1062c3-9 4-14 3-20M436 1064c2-8 2-14 0-20M448 1062c3-8 5-13 5-19M562 982c3-9 4-14 3-20M574 984c2-8 2-14 0-20M120 1092c3-9 4-14 3-20M132 1094c2-8 2-14 0-20M254 1122c3-9 4-14 3-20M266 1124c2-8 2-14 0-20M500 1116c3-9 4-14 3-20M512 1118c2-8 2-14 0-20"/>
+</g>
+<!-- fallen and drifting petals -->
+<g fill="#ecd3c8">
+<circle cx="110" cy="1010" r="2.4"/><circle cx="150" cy="1050" r="2.4"/><circle cx="200" cy="1090" r="2.4"/><circle cx="90" cy="1080" r="2.4"/><circle cx="262" cy="1042" r="2.4"/><circle cx="182" cy="972" r="2.4"/><circle cx="302" cy="1082" r="2.4"/><circle cx="342" cy="1112" r="2.4"/>
+<circle cx="352" cy="520" r="2.2"/><circle cx="322" cy="600" r="2.2"/><circle cx="382" cy="662" r="2.2"/><circle cx="302" cy="422" r="2.2"/><circle cx="362" cy="382" r="2.2"/><circle cx="270" cy="480" r="2.2"/>
+</g>
+<!-- speckles -->
+<g fill="#2f2a24" opacity="0.5">
+<circle cx="420" cy="540" r="1.4"/><circle cx="80" cy="620" r="1.3"/><circle cx="540" cy="880" r="1.5"/><circle cx="360" cy="940" r="1.3"/><circle cx="600" cy="1060" r="1.4"/><circle cx="40" cy="900" r="1.3"/><circle cx="220" cy="580" r="1.2"/>
+</g>
+</svg>

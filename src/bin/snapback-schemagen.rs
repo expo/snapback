@@ -47,7 +47,12 @@ fn write_schema_artifacts(schemas_dir: &Path, artifacts: &[SchemaArtifact]) -> s
         }
         let file_name = entry.file_name();
         let file_name = file_name.to_string_lossy();
-        if file_name.ends_with(".json") && !expected.contains(file_name.as_ref()) {
+        // Only generated `*.schema.json` files are ours to reap: `schemas/`
+        // also holds committed artifact INSTANCES (e.g. the LLP 0026
+        // capability manifest `capability.manifest.local-dev-sqlite-ibex.json`)
+        // that other generators own (ENG-23891 fix — the broader `.json`
+        // match deleted one).
+        if file_name.ends_with(".schema.json") && !expected.contains(file_name.as_ref()) {
             std::fs::remove_file(entry.path())?;
             println!("removed stale {}", entry.path().display());
         }
@@ -66,6 +71,9 @@ mod tests {
         std::fs::write(dir.path().join("keep.schema.json"), "{}\n").expect("write keep");
         std::fs::write(dir.path().join("stale.schema.json"), "{}\n").expect("write stale");
         std::fs::write(dir.path().join("README.md"), "notes\n").expect("write notes");
+        // An artifact INSTANCE another generator owns — never reaped here.
+        std::fs::write(dir.path().join("capability.manifest.local.json"), "{}\n")
+            .expect("write instance");
         let artifacts = [SchemaArtifact {
             file: "keep.schema.json",
             schema: json!({ "title": "Keep" }),
@@ -76,5 +84,6 @@ mod tests {
         assert!(dir.path().join("keep.schema.json").is_file());
         assert!(!dir.path().join("stale.schema.json").exists());
         assert!(dir.path().join("README.md").is_file());
+        assert!(dir.path().join("capability.manifest.local.json").is_file());
     }
 }

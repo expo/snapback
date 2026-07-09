@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "QueryOutput": {
+      "properties": {
+        "rows": {
+          "items": true,
+          "type": "array"
+        },
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "rows"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.resume.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "mode": {
+      "type": "string"
+    },
+    "permission_epochs": {
+      "additionalProperties": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QueryOutput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "subscription_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subscription_id",
+    "mode"
+  ],
+  "title": "LiveResumeOutput",
+  "type": "object"
+}

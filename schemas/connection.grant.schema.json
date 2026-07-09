@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/connection.grant.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The `POST /connection/open` response: the (possibly adopted) connection id\nand the bearer the caller must present on every connection-scoped call.",
+  "properties": {
+    "connectionId": {
+      "type": "string"
+    },
+    "connectionToken": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "connectionId",
+    "connectionToken"
+  ],
+  "title": "ConnectionGrant",
+  "type": "object"
+}

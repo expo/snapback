@@ -470,7 +470,9 @@ component Card
     title: string
   derive f = fonts()
   view
-    column gap=0 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border flex=1 minWidth=260 boxShadow=c.shadowCard
+    // overflow=hidden keeps any long mono value from painting past the card
+    // edge into a neighboring card (ENG-23838; complements Kv truncation).
+    column gap=0 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border flex=1 minWidth=260 overflow="hidden" boxShadow=c.shadowCard
       text title size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans
       column gap=0 paddingTop=6 width="100%"
         children
@@ -487,9 +489,12 @@ component Kv
   view
     row gap=12 align="center" paddingTop=7 paddingBottom=7 width="100%"
       text k size=13 color=c.textMuted family=f.sans flex=1 minWidth=0
-      // value shares the row (flex=1 minWidth=0) so a long SQLite path wraps inside
-      // the card instead of overflowing over the label and past the edge (ENG-22831)
-      text v size=13 weight=500 color=vColor family=mono ? f.mono : f.sans textAlign="right" flex=1 minWidth=0
+      // Long unbroken values (SQLite path, schema hash) must shrink and ellipsize
+      // inside the card — flex alone does not wrap path strings (ENG-22831 left
+      // overflow for no-space paths; ENG-23838 truncates). The full string stays
+      // in the text content and accessibilityLabel for inspect/screen readers
+      // (Contract has no first-class host title/tooltip attr on text).
+      text v size=13 weight=500 color=vColor family=mono ? f.mono : f.sans textAlign="right" flex=1 minWidth=0 numberOfLines=1 ellipsizeMode="tail" accessibilityLabel=v
 
 component StatTile
   props

@@ -1,0 +1,206 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a9c0cc"/>
+      <stop offset="0.45" stop-color="#c3d1d4"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+    <linearGradient id="plaza" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e3d6bd"/>
+      <stop offset="1" stop-color="#cdbc9e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper base -->
+  <rect x="0" y="0" width="640" height="1136" fill="#f5efe1"/>
+  <!-- sky wash -->
+  <rect x="0" y="0" width="640" height="620" fill="url(#sky)"/>
+  <!-- soft high clouds, calm -->
+  <path d="M60 128 C110 116 190 112 240 122 C300 130 340 128 372 120 C400 114 430 118 440 128 C420 142 350 148 290 144 C210 140 120 146 76 140 C58 138 52 132 60 128 Z" fill="#f5efe1" opacity="0.55"/>
+  <path d="M380 210 C430 200 510 198 560 208 C590 214 606 220 596 228 C560 238 480 238 430 232 C396 228 366 218 380 210 Z" fill="#f5efe1" opacity="0.45"/>
+  <path d="M40 250 C90 242 160 240 210 248 C240 252 250 258 236 264 C190 272 110 270 66 264 C40 260 28 254 40 250 Z" fill="#f5efe1" opacity="0.35"/>
+  <!-- pale sun -->
+  <circle cx="516" cy="150" r="42" fill="#e9d9a8" opacity="0.5"/>
+  <circle cx="512" cy="147" r="34" fill="#eede9f" opacity="0.45"/>
+
+  <!-- distant tree line behind courthouse -->
+  <path d="M0 610 C40 588 90 580 130 592 C160 574 210 570 240 586 C260 578 285 578 300 588 L300 640 L0 640 Z" fill="#9aa88a" opacity="0.75"/>
+  <path d="M360 592 C395 576 445 572 480 586 C505 572 560 570 596 584 C616 578 634 582 640 590 L640 644 L360 644 Z" fill="#8d9c7d" opacity="0.75"/>
+  <path d="M6 612 C42 594 88 588 126 596 M150 588 C186 576 220 578 244 590 M368 594 C400 582 440 580 472 590 M498 584 C540 572 580 574 612 588" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- plaza ground -->
+  <rect x="0" y="742" width="640" height="394" fill="url(#plaza)"/>
+  <!-- paving joints, wobbly, converging -->
+  <path d="M8 812 C120 806 300 802 470 806 C540 808 600 810 634 812" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.28"/>
+  <path d="M4 892 C140 884 340 880 520 886 C570 888 612 890 636 892" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.26"/>
+  <path d="M2 990 C160 978 360 974 540 982 C580 984 616 986 638 988" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.24"/>
+  <path d="M0 1088 C180 1074 400 1070 560 1080 C600 1082 626 1084 640 1086" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.22"/>
+  <path d="M210 748 C196 830 178 940 156 1060 M320 748 C320 840 320 960 322 1090 M430 748 C446 838 464 950 486 1066" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.2"/>
+
+  <!-- ===================== COURTHOUSE ===================== -->
+  <!-- fills first, off-register 4-5px -->
+  <!-- main block wash -->
+  <path d="M136 566 L506 562 L508 792 L138 796 Z" fill="#e8dcc0"/>
+  <!-- side wings shadow wash -->
+  <path d="M136 566 L212 564 L214 794 L138 796 Z" fill="#c9b995" opacity="0.7"/>
+  <path d="M436 563 L506 562 L508 792 L438 792 Z" fill="#c9b995" opacity="0.7"/>
+  <!-- pediment wash -->
+  <path d="M216 588 L322 512 L428 586 Z" fill="#e2d3b2"/>
+  <!-- portico column band wash -->
+  <path d="M222 590 L424 588 L426 758 L224 760 Z" fill="#efe4c8"/>
+  <!-- drum wash -->
+  <path d="M254 478 L392 474 L394 556 L256 560 Z" fill="#e6d8ba"/>
+  <!-- dome wash, dusty blue-green copper -->
+  <path d="M226 480 C224 434 242 392 268 366 C292 342 306 334 324 332 C342 334 362 346 384 368 C408 392 424 434 422 478 Z" fill="#8fa8b8"/>
+  <path d="M240 474 C242 438 256 402 278 380 C262 410 254 442 254 474 Z" fill="#f5efe1" opacity="0.4"/>
+  <!-- lantern wash -->
+  <path d="M306 336 L342 334 L344 302 L308 304 Z" fill="#e8dcc0"/>
+  <path d="M312 300 C318 288 330 288 336 298 Z" fill="#8fa8b8"/>
+  <!-- steps wash -->
+  <path d="M196 762 L450 758 L468 806 L180 810 Z" fill="#d8c9a6"/>
+
+  <!-- ink outlines -->
+  <!-- dome -->
+  <path d="M222 476 C221 448 228 420 241 398 C252 378 266 360 282 349 C296 339 310 333 320 332" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M326 332 C340 334 356 343 371 357 C387 372 401 393 409 416 C415 434 419 456 418 474" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <!-- dome ribs -->
+  <path d="M320 336 C319 372 318 420 318 470 M280 352 C270 388 263 428 261 470 M362 354 C372 390 379 430 381 470" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <!-- lantern + finial -->
+  <path d="M304 332 L304 302 M340 330 L340 300 M300 302 C314 298 330 298 344 300" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M308 298 C312 288 318 283 322 282 C327 283 333 289 336 297" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M322 280 C322 272 321 266 322 260 M316 264 C320 262 326 262 329 264" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- lantern columns -->
+  <path d="M312 304 L312 328 M322 303 L322 328 M332 302 L332 327" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>
+  <!-- dome base cornice -->
+  <path d="M214 478 C250 472 300 470 348 471 C378 471 408 473 428 476" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- drum with little columns -->
+  <path d="M252 480 L252 556 M390 478 L392 554" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M272 482 L272 552 M292 481 L293 551 M312 480 L312 552 M332 480 L332 550 M352 481 L353 551 M372 480 L372 552" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M246 556 C282 551 340 549 396 553" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <!-- main block -->
+  <path d="M138 566 C240 561 380 559 502 563" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M136 568 C137 630 137 700 138 790" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M504 566 C505 628 505 706 504 788" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M140 790 C230 786 340 784 440 786 M452 786 C472 786 490 787 502 788" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- cornice line -->
+  <path d="M142 600 C200 596 280 594 320 595 M424 595 C452 595 480 597 500 599" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <!-- pediment -->
+  <path d="M214 590 C248 564 286 537 320 513 M326 514 C360 538 396 562 430 588" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M218 592 C280 588 360 586 426 590" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <!-- pediment oculus -->
+  <circle cx="322" cy="560" r="14" fill="#8fa8b8"/>
+  <path d="M310 562 C310 552 316 546 324 546 C332 547 336 554 335 562 C334 570 327 575 320 574 C313 573 309 568 310 562 Z" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- portico columns -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M236 596 C236 646 236 700 237 756" stroke-width="4"/>
+    <path d="M247 596 C248 648 248 702 248 755" stroke-width="2.5" opacity="0.6"/>
+    <path d="M282 594 C282 646 283 700 283 754" stroke-width="4"/>
+    <path d="M293 595 C293 648 294 704 294 754" stroke-width="2.5" opacity="0.6"/>
+    <path d="M352 594 C353 644 353 700 353 753" stroke-width="4"/>
+    <path d="M363 594 C363 646 364 702 364 753" stroke-width="2.5" opacity="0.6"/>
+    <path d="M398 594 C399 646 399 700 400 754" stroke-width="4"/>
+    <path d="M409 595 C409 648 410 702 410 754" stroke-width="2.5" opacity="0.6"/>
+    <path d="M230 598 C238 594 248 594 254 597 M276 596 C284 592 294 592 300 595 M346 596 C354 592 364 592 370 595 M392 596 C400 592 410 592 416 596" stroke-width="3"/>
+    <path d="M230 758 C238 754 248 754 256 757 M276 756 C284 752 294 752 302 755 M346 756 C354 752 364 752 371 755 M392 756 C400 752 410 752 417 756" stroke-width="3"/>
+  </g>
+  <!-- entrance door between columns -->
+  <path d="M304 758 L304 682 C304 668 314 660 322 660 C330 660 340 668 340 682 L341 757" fill="#7d94a4" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M322 662 L322 754" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <!-- wing windows -->
+  <g fill="#8fa8b8" stroke="#2f2a24" stroke-width="3" stroke-linecap="round">
+    <path d="M158 620 L188 618 L189 668 L159 670 Z"/>
+    <path d="M158 700 L188 698 L189 748 L159 750 Z"/>
+    <path d="M452 618 L482 616 L483 666 L453 668 Z"/>
+    <path d="M452 698 L482 696 L483 746 L453 748 Z"/>
+  </g>
+  <path d="M173 620 L173 668 M467 618 L467 666 M173 700 L173 748 M467 698 L467 746" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <!-- steps -->
+  <path d="M198 764 C280 760 380 758 448 760 M188 782 C280 777 390 775 458 778 M178 802 C280 796 400 794 468 798" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- building shadow hatching -->
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.32" fill="none">
+    <path d="M146 610 L162 606 M148 636 L166 632 M147 662 L164 658 M148 690 L165 686 M147 716 L164 712 M148 744 L166 740 M147 770 L163 766"/>
+    <path d="M444 606 L462 610 M444 632 L463 636 M444 660 L462 664 M445 688 L463 692 M444 714 L462 718 M445 742 L463 746"/>
+    <path d="M258 606 L272 600 M260 630 L275 624 M259 656 L274 650 M306 604 L320 598 M308 630 L323 624 M375 604 L389 598 M376 630 L391 624"/>
+  </g>
+  <!-- flanking trees by courthouse -->
+  <path d="M74 640 C60 606 78 578 104 578 C132 576 148 604 136 638 C128 660 116 668 104 668 C92 668 82 660 74 640 Z" fill="#9aa88a"/>
+  <path d="M70 636 C60 608 72 584 96 580 M112 580 C136 584 146 608 138 634 C132 654 120 666 106 666" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M104 668 C104 700 103 730 104 760" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M552 636 C540 604 556 576 582 576 C608 576 624 602 614 634 C606 658 594 666 582 666 C570 666 560 658 552 636 Z" fill="#8d9c7d"/>
+  <path d="M548 632 C540 606 550 584 572 578 M592 578 C614 584 622 606 616 630 C610 652 598 664 584 664" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M582 666 C582 698 581 728 582 758" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <g stroke="#2f2a24" stroke-width="1.8" opacity="0.35" fill="none" stroke-linecap="round">
+    <path d="M84 620 L98 612 M88 640 L104 632 M560 618 L574 610 M564 640 L580 632"/>
+  </g>
+
+  <!-- ===================== PLAZA: CAFE UMBRELLAS ===================== -->
+  <!-- left umbrella, terracotta -->
+  <path d="M32 872 C60 826 130 806 194 824 C232 836 252 856 254 874 C176 862 96 864 32 872 Z" fill="#c26d4f"/>
+  <path d="M28 868 C44 842 74 822 112 816 M126 814 C168 812 210 826 236 850 C246 860 251 868 252 872" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M26 872 C56 864 100 860 142 860 M156 860 C190 861 224 865 250 871" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M140 818 C140 832 140 848 140 860 M76 826 C82 838 88 850 92 862 M204 828 C198 840 192 852 188 862" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M139 862 C139 902 139 940 140 976" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <!-- left table + chairs -->
+  <path d="M92 972 C124 968 160 967 190 970 L188 982 C158 979 122 980 94 984 Z" fill="#d9a94e"/>
+  <path d="M90 972 C126 967 158 966 192 970 M100 982 C102 1006 103 1028 104 1050 M180 980 C182 1004 183 1026 184 1048" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M52 992 C64 990 74 991 80 994 L78 1046 M56 994 L56 1044 M44 1014 C56 1010 72 1010 82 1012" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M206 990 C218 988 228 989 234 992 L236 1044 M228 992 L230 1042 M200 1012 C214 1008 230 1008 240 1010" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- right umbrella, ochre -->
+  <path d="M400 918 C428 874 496 856 556 872 C596 884 616 904 618 922 C544 910 466 910 400 918 Z" fill="#d9a94e"/>
+  <path d="M396 914 C412 890 440 870 476 864 M492 862 C532 862 572 876 598 898 C610 908 615 916 616 920" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M394 918 C426 910 468 906 508 906 M522 906 C556 907 590 912 616 918" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M506 864 C506 880 506 894 506 906 M442 872 C448 884 454 896 458 908 M568 874 C562 886 556 898 552 908" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M505 908 C505 946 505 986 506 1022" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <!-- right table -->
+  <path d="M458 1018 C490 1014 526 1013 556 1016 L554 1028 C524 1025 488 1026 460 1030 Z" fill="#c26d4f"/>
+  <path d="M456 1018 C492 1013 524 1012 558 1016 M466 1028 C468 1054 469 1078 470 1100 M546 1026 C548 1052 549 1076 550 1098" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M418 1040 C430 1038 440 1039 446 1042 L444 1096 M424 1042 L424 1092 M410 1062 C422 1058 438 1058 448 1060" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- people on plaza -->
+  <g stroke="#2f2a24" stroke-linecap="round" fill="none">
+    <!-- couple walking center -->
+    <circle cx="312" cy="856" r="9" fill="#2f2a24" stroke="none"/>
+    <path d="M312 866 C311 884 311 900 310 914 M310 914 L302 944 M311 914 L320 942 M305 878 L296 896 M318 878 L326 894" stroke-width="4"/>
+    <circle cx="344" cy="860" r="8" fill="#2f2a24" stroke="none"/>
+    <path d="M344 869 C344 886 344 900 344 912 M344 912 L338 940 M345 912 L352 940 M339 880 L332 896 M349 880 L356 894" stroke-width="3.5"/>
+    <!-- seated figure left table -->
+    <circle cx="70" cy="962" r="8" fill="#2f2a24" stroke="none"/>
+    <path d="M70 971 C69 984 68 994 68 1002 M68 1002 L80 1004 M70 982 L84 988" stroke-width="3.5"/>
+    <!-- seated figure right table -->
+    <circle cx="586" cy="1008" r="8" fill="#2f2a24" stroke="none"/>
+    <path d="M586 1017 C585 1030 584 1040 584 1048 M584 1048 L572 1050 M585 1028 L570 1034" stroke-width="3.5"/>
+    <!-- small figure near steps -->
+    <circle cx="424" cy="812" r="6" fill="#2f2a24" stroke="none"/>
+    <path d="M424 819 C424 832 424 842 424 850 M424 850 L419 868 M424 850 L430 868 M420 827 L414 838 M428 827 L434 837" stroke-width="3"/>
+    <circle cx="222" cy="816" r="6" fill="#2f2a24" stroke="none"/>
+    <path d="M222 823 C222 836 222 846 222 854 M222 854 L217 872 M222 854 L228 872 M218 831 L212 842 M226 831 L232 841" stroke-width="3"/>
+  </g>
+  <!-- planter foreground -->
+  <path d="M8 1046 C36 1040 72 1040 96 1046 L92 1096 C64 1100 36 1100 12 1096 Z" fill="#b8afa0"/>
+  <path d="M6 1046 C38 1039 70 1039 98 1045 M12 1094 C40 1099 66 1099 92 1094 M10 1048 L14 1094 M94 1046 L90 1092" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M22 1044 C18 1028 26 1014 40 1010 M46 1006 C58 998 74 1000 82 1010 C90 1018 90 1034 82 1044" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M24 1042 C20 1024 32 1008 52 1004 C72 1000 86 1012 86 1030 C86 1038 84 1042 82 1044 Z" fill="#9aa88a" opacity="0.85"/>
+  <!-- planter right foreground -->
+  <path d="M586 1076 C608 1072 630 1072 640 1076 L640 1128 C620 1132 600 1132 590 1128 Z" fill="#b8afa0"/>
+  <path d="M584 1076 C610 1070 632 1070 640 1074 M588 1078 L592 1126" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M596 1072 C592 1054 604 1040 622 1038 C634 1037 640 1042 640 1050 L640 1072 Z" fill="#8d9c7d"/>
+  <path d="M598 1070 C594 1054 606 1042 622 1040" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- shadow hatching on plaza -->
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.28" fill="none">
+    <path d="M60 890 L96 884 M70 902 L108 896 M84 914 L120 908 M96 926 L130 920"/>
+    <path d="M428 936 L466 930 M440 948 L480 942 M452 960 L492 954 M466 972 L504 966"/>
+    <path d="M240 800 L400 794 M250 812 L410 806 M262 824 L396 818"/>
+    <path d="M148 986 L190 1002 M152 1000 L192 1016 M158 1014 L196 1030"/>
+    <path d="M514 1032 L556 1048 M518 1046 L558 1062 M524 1060 L562 1074"/>
+  </g>
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="88" cy="778" r="1.6" opacity="0.5"/>
+    <circle cx="470" cy="840" r="1.4" opacity="0.5"/>
+    <circle cx="260" cy="1058" r="1.8" opacity="0.45"/>
+    <circle cx="372" cy="972" r="1.4" opacity="0.5"/>
+    <circle cx="546" cy="770" r="1.5" opacity="0.45"/>
+    <circle cx="182" cy="1096" r="1.7" opacity="0.4"/>
+    <circle cx="330" cy="1108" r="1.4" opacity="0.45"/>
+    <circle cx="600" cy="948" r="1.3" opacity="0.5"/>
+  </g>
+</svg>

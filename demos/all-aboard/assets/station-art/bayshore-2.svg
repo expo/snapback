@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c8d6dd"/>
+      <stop offset="0.5" stop-color="#e4e2d2"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper + calm sky -->
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect width="640" height="640" fill="url(#sky2)"/>
+  <circle cx="486" cy="164" r="44" fill="#e9d8ac" opacity="0.55"/>
+  <circle cx="486" cy="164" r="30" fill="#efe2bd" opacity="0.5"/>
+  <path d="M60 210 c30 -9 68 -10 98 -3 c22 5 32 12 24 18 c-12 9 -46 9 -76 5 c-28 -4 -54 -9 -56 -13 c-1 -3 3 -5 10 -7 z" fill="#f2ebda" opacity="0.85"/>
+
+  <!-- high fog bank sitting above the crest, calm -->
+  <path d="M-10 396 c50 -26 110 -38 168 -34 c54 4 100 20 152 22 c56 2 110 -14 166 -12 c58 2 116 16 168 34 l0 130 c-110 -8 -220 -4 -330 -8 c-108 -4 -216 -6 -324 -2 z" fill="#f0ead9" opacity="0.92"/>
+  <path d="M-10 452 c60 -18 126 -24 188 -18 c58 6 112 18 170 18 c60 0 120 -12 180 -10 c40 1 78 7 112 16 l0 96 l-650 4 z" fill="#ede6d3" opacity="0.85"/>
+
+  <!-- ===== the mountain: long grassy ridge, off-register wash ===== -->
+  <path d="M-8 530 c56 -16 110 -30 168 -40 c60 -10 118 -16 178 -18 c62 -2 122 6 180 18 c42 9 82 20 118 34 l4 632 l-648 4 z" fill="#9fae87"/>
+  <!-- ochre grass patches -->
+  <g fill="#c9a860" opacity="0.6">
+    <path d="M118 600 c26 -12 58 -14 82 -4 c18 8 22 20 10 30 c-16 12 -48 14 -72 6 c-22 -8 -32 -20 -20 -32 z"/>
+    <path d="M330 640 c30 -10 66 -10 90 2 c16 8 18 20 4 28 c-20 12 -54 12 -78 2 c-20 -8 -28 -22 -16 -32 z"/>
+    <path d="M480 580 c22 -10 50 -10 68 0 c12 7 12 17 0 24 c-16 10 -42 10 -58 2 c-14 -8 -18 -18 -10 -26 z"/>
+    <path d="M60 700 c24 -10 54 -10 74 0 c14 7 14 18 0 25 c-18 10 -46 10 -62 1 c-14 -8 -18 -18 -12 -26 z"/>
+  </g>
+  <!-- crest ink line, broken -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 524 c40 -12 80 -22 122 -30 c30 -6 62 -11 92 -15" stroke-width="4.5"/>
+    <path d="M238 474 c40 -5 82 -7 122 -5 c34 2 68 6 100 12" stroke-width="4"/>
+    <path d="M482 486 c38 8 76 18 112 30 c16 5 32 11 46 17" stroke-width="4.5"/>
+  </g>
+  <!-- slope contour scribbles -->
+  <g fill="none" stroke="#6f7f5e" stroke-width="2.5" stroke-linecap="round" opacity="0.65">
+    <path d="M96 566 c22 -6 46 -10 68 -12"/>
+    <path d="M260 560 c26 0 52 2 78 6"/>
+    <path d="M430 596 c22 6 44 12 66 20"/>
+    <path d="M150 650 c26 -4 52 -6 78 -6"/>
+    <path d="M356 690 c24 4 48 8 72 14"/>
+    <path d="M70 748 c24 -6 48 -8 72 -8"/>
+    <path d="M470 720 c20 8 40 14 60 22"/>
+  </g>
+
+  <!-- ===== radio towers on the crest ===== -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <!-- tower 1 -->
+    <path d="M247 486 c2 -32 3 -66 5 -98 c1 -18 2 -38 3 -56" stroke-width="3"/>
+    <path d="M269 486 c-1 -32 -3 -66 -4 -98 c-1 -18 -2 -38 -2 -56" stroke-width="3"/>
+    <path d="M250 452 c6 -4 12 -3 17 1"/><path d="M250 452 c6 5 11 6 17 1" stroke-width="2.5"/>
+    <path d="M252 416 c5 -4 10 -3 14 1" stroke-width="2.5"/><path d="M252 416 c5 4 9 5 14 1" stroke-width="2.5"/>
+    <path d="M253 380 c4 -3 8 -3 12 0" stroke-width="2.5"/><path d="M253 380 c4 4 8 4 12 1" stroke-width="2.5"/>
+    <path d="M255 344 c3 -3 7 -2 10 0" stroke-width="2.5"/>
+    <path d="M256 330 c-1 -10 0 -20 0 -30" stroke-width="2.5"/>
+    <!-- tower 2, tallest -->
+    <path d="M336 470 c2 -38 4 -76 6 -114 c1 -22 3 -46 4 -68" stroke-width="3"/>
+    <path d="M362 470 c-2 -38 -3 -76 -5 -114 c-1 -22 -2 -46 -3 -68" stroke-width="3"/>
+    <path d="M340 432 c7 -5 14 -4 19 1" stroke-width="2.5"/><path d="M340 432 c6 6 13 7 19 1" stroke-width="2.5"/>
+    <path d="M342 392 c6 -4 12 -4 17 0" stroke-width="2.5"/><path d="M342 392 c5 5 11 6 17 1" stroke-width="2.5"/>
+    <path d="M344 352 c5 -4 10 -3 14 0" stroke-width="2.5"/><path d="M344 352 c5 4 9 5 14 1" stroke-width="2.5"/>
+    <path d="M345 312 c4 -3 8 -3 12 0" stroke-width="2.5"/>
+    <path d="M347 296 c0 -12 -1 -24 0 -36" stroke-width="2.5"/>
+    <!-- tower 3 -->
+    <path d="M451 498 c2 -28 3 -58 5 -86 c0 -16 1 -32 2 -48" stroke-width="3"/>
+    <path d="M471 498 c-1 -28 -2 -58 -3 -86 c-1 -16 -1 -32 -2 -48" stroke-width="3"/>
+    <path d="M454 466 c5 -4 10 -3 14 1" stroke-width="2.5"/><path d="M454 466 c5 5 9 6 14 1" stroke-width="2.5"/>
+    <path d="M455 432 c4 -3 9 -3 13 0" stroke-width="2.5"/><path d="M455 432 c4 4 8 5 13 1" stroke-width="2.5"/>
+    <path d="M457 398 c3 -3 7 -2 10 0" stroke-width="2.5"/>
+    <path d="M459 386 c0 -9 -1 -18 0 -26" stroke-width="2.5"/>
+    <!-- guy wires -->
+    <path d="M258 316 c-24 52 -46 106 -66 160" stroke-width="2.5" opacity="0.45"/>
+    <path d="M349 278 c26 60 50 120 72 182" stroke-width="2.5" opacity="0.45"/>
+  </g>
+  <circle cx="256" cy="298" r="3.5" fill="#c26d4f"/>
+  <circle cx="347" cy="258" r="4" fill="#c26d4f"/>
+  <circle cx="459" cy="358" r="3" fill="#c26d4f"/>
+
+  <!-- ===== fog spilling over the crest ===== -->
+  <path d="M60 508 c30 -20 70 -28 106 -22 c30 6 50 20 52 38 c2 20 -14 36 -14 56 c0 16 10 30 6 46 c-4 18 -24 26 -46 24 c-26 -2 -46 -18 -50 -38 c-3 -16 6 -30 2 -46 c-4 -18 -24 -26 -46 -24 c-8 0 -14 -14 -10 -34 z" fill="#f2ecdb" opacity="0.93"/>
+  <path d="M126 486 c36 -18 82 -22 118 -10 c26 9 40 24 38 40 c-2 18 -20 30 -22 48 c-2 14 8 28 2 42 c-6 16 -26 22 -46 18 c-22 -4 -36 -18 -36 -34 c0 -14 10 -26 6 -40 c-4 -16 -22 -24 -42 -24 c-14 0 -22 -22 -18 -40 z" fill="#f5efe1" opacity="0.9"/>
+  <path d="M392 478 c30 -14 68 -16 96 -4 c20 9 30 23 26 37 c-4 15 -20 24 -22 39 c-2 13 8 25 2 38 c-6 13 -24 18 -40 14 c-18 -4 -28 -16 -28 -30 c0 -12 8 -22 4 -34 c-4 -13 -18 -20 -34 -20 c-10 0 -12 -26 -4 -40 z" fill="#f2ecdb" opacity="0.9"/>
+  <path d="M480 500 c26 -12 58 -12 80 0 c14 8 20 20 14 31 c-6 11 -20 16 -24 27 c-3 10 4 21 -2 30 c-7 11 -22 13 -35 9 c-14 -5 -21 -15 -19 -26 c2 -9 9 -17 7 -27 c-3 -11 -14 -17 -26 -18 c-8 -1 -6 -18 5 -26 z" fill="#f5efe1" opacity="0.85"/>
+  <!-- fog edge ink hints -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4">
+    <path d="M92 520 c20 -12 44 -18 68 -17"/>
+    <path d="M182 606 c-6 14 -2 30 4 42"/>
+    <path d="M420 490 c18 -8 40 -10 58 -5"/>
+    <path d="M496 588 c-4 10 -1 21 4 30"/>
+  </g>
+
+  <!-- ===== hillside houses at the foot ===== -->
+  <!-- back row fills (off-register) -->
+  <g>
+    <path d="M56 806 l64 -3 l2 48 l-65 3 z" fill="#f0e6cf"/>
+    <path d="M150 800 l60 -2 l3 52 l-62 2 z" fill="#9db1bd"/>
+    <path d="M244 804 l62 -3 l2 50 l-63 2 z" fill="#c17a5e"/>
+    <path d="M340 798 l60 -2 l3 54 l-62 2 z" fill="#f0e6cf"/>
+    <path d="M434 804 l62 -3 l2 50 l-63 3 z" fill="#9db1bd"/>
+    <path d="M528 800 l58 -2 l3 52 l-60 2 z" fill="#c9a860"/>
+    <!-- roofs -->
+    <path d="M50 806 l36 -20 l38 18 z" fill="#a5573d"/>
+    <path d="M144 800 l34 -18 l34 17 z" fill="#8a4a34"/>
+    <path d="M238 804 l35 -19 l35 18 z" fill="#a5573d"/>
+    <path d="M334 798 l34 -18 l34 17 z" fill="#8a4a34"/>
+    <path d="M428 804 l35 -19 l35 18 z" fill="#a5573d"/>
+    <path d="M522 800 l33 -17 l33 16 z" fill="#8a4a34"/>
+  </g>
+  <!-- front row fills -->
+  <g>
+    <path d="M20 890 l72 -3 l3 58 l-74 3 z" fill="#c17a5e"/>
+    <path d="M128 884 l70 -2 l3 62 l-72 2 z" fill="#f0e6cf"/>
+    <path d="M234 888 l72 -3 l2 60 l-73 3 z" fill="#9db1bd"/>
+    <path d="M342 882 l70 -2 l3 64 l-72 2 z" fill="#f0e6cf"/>
+    <path d="M448 888 l72 -3 l2 60 l-73 3 z" fill="#c9a860"/>
+    <path d="M554 884 l70 -2 l3 62 l-72 2 z" fill="#9db1bd"/>
+    <path d="M14 890 l40 -24 l44 22 z" fill="#8a4a34"/>
+    <path d="M122 884 l39 -23 l43 21 z" fill="#a5573d"/>
+    <path d="M228 888 l40 -24 l44 22 z" fill="#8a4a34"/>
+    <path d="M336 882 l39 -23 l43 21 z" fill="#a5573d"/>
+    <path d="M442 888 l40 -24 l44 22 z" fill="#8a4a34"/>
+    <path d="M548 884 l39 -23 l43 21 z" fill="#a5573d"/>
+  </g>
+  <!-- house ink -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
+    <path d="M52 808 l36 -21 l38 19 c1 15 0 31 1 46 l-72 3 c0 -16 -2 -31 -3 -47"/>
+    <path d="M146 802 l34 -19 l35 18 l2 49 l-68 2 c-1 -17 -2 -33 -3 -50"/>
+    <path d="M240 806 l35 -20 l36 19 c0 16 1 31 1 47 l-69 2 c-1 -16 -2 -32 -3 -48"/>
+    <path d="M336 800 l34 -19 l35 18 l2 51 l-68 2 c-1 -17 -2 -35 -3 -52"/>
+    <path d="M430 806 l35 -20 l36 19 c1 15 0 31 1 47 l-69 3 c-1 -17 -2 -33 -3 -49"/>
+    <path d="M524 802 l33 -18 l34 17 l2 49 l-66 2 c-1 -16 -2 -33 -3 -50"/>
+    <path d="M16 892 l41 -25 l45 23 c1 18 1 37 2 55 l-84 3 c-1 -19 -3 -37 -4 -56" stroke-width="3.5"/>
+    <path d="M124 886 l40 -24 l44 22 l3 59 l-82 3 c-2 -20 -3 -40 -5 -60" stroke-width="3.5"/>
+    <path d="M230 890 l41 -25 l45 23 c0 19 1 38 2 57 l-84 3 c-1 -19 -3 -39 -4 -58" stroke-width="3.5"/>
+    <path d="M338 884 l40 -24 l44 22 l3 61 l-82 3 c-2 -21 -3 -41 -5 -62" stroke-width="3.5"/>
+    <path d="M444 890 l41 -25 l45 23 c1 19 1 38 2 57 l-84 3 c-1 -19 -3 -39 -4 -58" stroke-width="3.5"/>
+    <path d="M550 886 l40 -24 l44 22 l3 59 l-82 3 c-2 -20 -3 -40 -5 -60" stroke-width="3.5"/>
+  </g>
+  <!-- windows and doors -->
+  <g fill="#3a332b" opacity="0.85">
+    <rect x="72" y="818" width="12" height="14" rx="2"/><rect x="166" y="812" width="12" height="14" rx="2"/>
+    <rect x="262" y="816" width="12" height="14" rx="2"/><rect x="356" y="810" width="12" height="14" rx="2"/>
+    <rect x="452" y="816" width="12" height="14" rx="2"/><rect x="544" y="812" width="12" height="14" rx="2"/>
+    <rect x="38" y="904" width="14" height="17" rx="2"/><rect x="66" y="906" width="12" height="30" rx="2"/>
+    <rect x="146" y="898" width="14" height="17" rx="2"/><rect x="176" y="900" width="12" height="30" rx="2"/>
+    <rect x="252" y="902" width="14" height="17" rx="2"/><rect x="282" y="904" width="12" height="30" rx="2"/>
+    <rect x="360" y="896" width="14" height="17" rx="2"/><rect x="390" y="898" width="12" height="30" rx="2"/>
+    <rect x="466" y="902" width="14" height="17" rx="2"/><rect x="496" y="904" width="12" height="30" rx="2"/>
+    <rect x="572" y="898" width="14" height="17" rx="2"/><rect x="602" y="900" width="12" height="30" rx="2"/>
+  </g>
+
+  <!-- ===== foreground grass slope ===== -->
+  <path d="M-6 972 c70 -14 140 -20 212 -18 c74 2 146 10 218 12 c74 2 148 -4 216 -10 l4 184 l-650 2 z" fill="#86987a"/>
+  <path d="M0 976 c56 -10 114 -16 172 -16" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M232 958 c70 3 140 10 210 11 c66 1 132 -4 196 -9" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- fence -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M46 1002 c1 15 3 30 4 45" stroke-width="4"/>
+    <path d="M178 996 c2 16 3 31 5 47" stroke-width="4"/>
+    <path d="M312 1000 c1 15 3 31 4 46" stroke-width="4"/>
+    <path d="M446 996 c2 15 3 31 5 46" stroke-width="4"/>
+    <path d="M578 1002 c1 15 3 30 4 45" stroke-width="4"/>
+    <path d="M20 1014 c56 -6 112 -10 168 -12 c56 -2 112 0 168 2 c54 2 110 4 162 8 c34 2 68 5 100 8" stroke-width="2.5" opacity="0.8"/>
+    <path d="M22 1034 c58 -4 116 -6 174 -6 c56 0 112 2 168 5 c52 3 106 6 158 10 c32 2 64 5 96 8" stroke-width="2.5" opacity="0.8"/>
+  </g>
+  <!-- grass tufts + scribble texture -->
+  <g fill="none" stroke="#5d6d4d" stroke-width="3" stroke-linecap="round">
+    <path d="M64 1096 c2 -14 1 -28 -3 -40"/><path d="M74 1098 c4 -14 8 -26 16 -37"/>
+    <path d="M84 1100 c-1 -12 -4 -24 -10 -34"/>
+    <path d="M226 1074 c2 -13 1 -26 -3 -38"/><path d="M236 1076 c4 -13 9 -24 17 -34"/>
+    <path d="M388 1092 c2 -14 0 -28 -4 -41"/><path d="M398 1094 c5 -13 10 -25 18 -35"/>
+    <path d="M408 1096 c-1 -12 -4 -23 -9 -33"/>
+    <path d="M544 1070 c2 -12 1 -25 -3 -36"/><path d="M554 1072 c4 -12 9 -23 16 -32"/>
+    <path d="M148 1122 c3 -16 1 -32 -4 -46"/><path d="M160 1124 c5 -15 11 -29 20 -41"/>
+    <path d="M488 1120 c3 -15 1 -30 -4 -44"/><path d="M500 1122 c5 -14 11 -27 19 -38"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4">
+    <path d="M110 1060 c10 -3 21 -4 31 -3"/><path d="M290 1052 c11 -2 22 -2 33 0"/>
+    <path d="M450 1064 c10 -2 21 -2 31 0"/><path d="M580 1084 c9 -2 19 -2 28 -1"/>
+    <path d="M40 1120 c11 -3 23 -4 34 -3"/><path d="M330 1118 c12 -2 24 -2 36 0"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24" opacity="0.45">
+    <circle cx="98" cy="672" r="1.5"/><circle cx="556" cy="640" r="1.4"/><circle cx="300" cy="742" r="1.3"/>
+    <circle cx="606" cy="966" r="1.5"/><circle cx="204" cy="1046" r="1.4"/><circle cx="418" cy="1004" r="1.3"/>
+    <circle cx="72" cy="944" r="1.4"/>
+  </g>
+</svg>

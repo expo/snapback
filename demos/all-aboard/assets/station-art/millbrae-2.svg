@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+<defs>
+<radialGradient id="g2"><stop offset="0" stop-color="#ecc96e" stop-opacity=".9"/><stop offset=".55" stop-color="#ecc96e" stop-opacity=".32"/><stop offset="1" stop-color="#ecc96e" stop-opacity="0"/></radialGradient>
+<linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9db4c4"/><stop offset=".75" stop-color="#d8d6c4"/><stop offset="1" stop-color="#ecdfc2"/></linearGradient>
+<linearGradient id="wat2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fa7b8"/><stop offset="1" stop-color="#7d97ab"/></linearGradient>
+</defs>
+<rect width="640" height="1136" fill="#f5efe1"/>
+<!-- sky wash -->
+<path d="M0 0 H640 V648 C588 654 534 644 480 650 C424 656 372 645 318 650 C262 656 208 646 154 651 C104 656 52 647 0 651 Z" fill="url(#sky2)" opacity=".95"/>
+<circle cx="140" cy="178" r="38" fill="#d9b45f" opacity=".28"/>
+<circle cx="140" cy="178" r="26" fill="#e8cd82" opacity=".3"/>
+<path d="M60 250 C76 234 116 228 144 236 C166 222 206 222 226 236 C250 230 270 242 268 258 C264 272 240 279 214 275 C192 285 156 285 134 276 C104 283 70 275 60 262 Z" fill="#f5efe1" opacity=".7"/>
+<path d="M420 130 C434 118 466 114 488 121 C506 111 534 113 546 124 C562 121 574 130 572 141 C568 152 548 156 528 153 C510 160 482 160 466 153 C444 158 422 151 420 140 Z" fill="#f5efe1" opacity=".6"/>
+<!-- hills across the bay -->
+<path d="M0 585 C58 570 118 578 170 566 C228 552 298 568 358 558 C428 548 498 566 558 556 C598 550 622 558 640 554 V648 H0 Z" fill="#8fa7b8" opacity=".7"/>
+<path d="M0 614 C76 598 148 608 226 594 C296 582 366 598 436 588 C504 578 572 594 640 586 V664 H0 Z" fill="#8a9b7a"/>
+<!-- bay water -->
+<path d="M0 650 C106 645 212 652 318 648 C424 644 530 651 640 647 V916 C534 921 428 914 322 918 C216 922 110 915 0 919 Z" fill="url(#wat2)" opacity=".9"/>
+<!-- grass aprons beside runway -->
+<path d="M-4 914 L236 917 L-4 1140 Z" fill="#8a9b7a"/>
+<path d="M644 912 L406 917 L644 1140 Z" fill="#8a9b7a"/>
+<!-- runway fill, off-register -->
+<path d="M234 914 C294 911 352 913 414 912 L664 1140 L-28 1140 Z" fill="#9a958a"/>
+<!-- centerline dashes -->
+<path d="M316 928 L324 928 L323 942 L315 942 Z M312 958 L323 957 L322 977 L310 977 Z M306 1006 L320 1005 L318 1033 L303 1033 Z M296 1064 L314 1063 L311 1102 L292 1103 Z" fill="#f5efe1" opacity=".85"/>
+<!-- threshold bars -->
+<path d="M252 922 L260 921 L261 940 L253 941 Z M276 921 L284 920 L285 939 L277 940 Z M300 920 L308 920 L308 938 L300 939 Z M336 920 L344 920 L344 938 L336 938 Z M360 920 L368 921 L367 939 L359 939 Z M384 921 L392 922 L391 940 L383 940 Z" fill="#f5efe1" opacity=".85"/>
+<!-- jet fills, off-register (drawn level, rotated to a gentle climb) -->
+<g transform="translate(404 458) rotate(-16)">
+<path d="M-118 -13 C-72 -16 -14 -17.5 38 -17 C74 -16.5 100 -12 114 -5 C120 -2 120 4 113 7 C96 12 68 14.5 34 15 C-18 16 -76 15 -114 10 C-123 7 -124 -8 -118 -13 Z" fill="#efe7d2"/>
+<path d="M-110 9 C-56 13.5 24 14.5 88 10 C60 15 -8 17 -78 14.5 C-92 14 -104 12 -110 9 Z" fill="#b8b2a4" opacity=".7"/>
+<path d="M-90 -12 C-96 -28 -103 -47 -108 -60 C-114 -64 -124 -63 -127 -58 C-124 -42 -119 -25 -113 -11 Z" fill="#7d97ab"/>
+<path d="M-98 0 L-134 20 L-142 26 L-112 5 Z" fill="#b8b2a4"/>
+<path d="M-13 45 L-15 32 L-20 33 L-21 45 Z" fill="#b8b2a4"/>
+<path d="M-3 46 C2 48 2 62 -4 64 C-13 67 -25 67 -31 63 C-35 59 -34 50 -29 47 C-21 44 -11 44 -3 46 Z" fill="#efe7d2"/>
+<path d="M-2 46.5 C3 48.5 3 61.5 -3 63.5 C-8.5 61.5 -8.5 48.5 -2 46.5 Z" fill="#2f2a24" opacity=".85"/>
+<path d="M35 5 C3 23 -30 43 -59 59 C-67 63 -77 66 -76 61 C-62 44 -48 26 -35 11 C-12 8 12 7 35 5 Z" fill="#b8b2a4"/>
+</g>
+<!-- ink work -->
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<!-- hill contours -->
+<path d="M0 582 C56 568 114 576 168 564 C204 557 244 560 280 560" stroke-width="2.8" opacity=".55"/>
+<path d="M330 558 C392 550 452 562 512 555 C556 550 600 555 638 552" stroke-width="2.6" opacity=".5"/>
+<path d="M0 610 C74 595 146 605 222 592 C262 585 304 590 344 590" stroke-width="3.2" opacity=".75"/>
+<path d="M388 588 C452 580 514 592 576 585 C598 582 620 584 638 583" stroke-width="3" opacity=".7"/>
+<path d="M96 616 C100 610 108 610 112 616 M150 610 C154 604 162 604 166 610 M474 606 C478 600 486 600 490 606 M540 610 C544 604 552 604 556 610" stroke-width="2.5" opacity=".5"/>
+<!-- water line and ripples -->
+<path d="M0 652 C88 648 176 653 264 650 M300 649 C412 645 524 650 640 647" stroke-width="3.2" opacity=".7"/>
+<path d="M60 700 C92 696 124 700 156 698 M210 726 C246 722 282 726 318 724 M420 706 C452 702 484 706 516 704 M540 748 C568 745 596 748 622 746 M90 786 C126 782 162 786 198 784 M330 800 C370 796 410 800 450 798 M480 838 C516 834 552 838 588 836 M140 862 C180 858 220 862 260 860" stroke-width="2.6" opacity=".55"/>
+<path d="M360 736 C388 733 416 736 444 734 M40 826 C68 823 96 826 124 824" stroke-width="2.5" opacity=".4"/>
+<!-- light reflections drawn as ink-free; see below -->
+<!-- jet ink (level geometry rotated to a gentle climb) -->
+<g transform="translate(400 455) rotate(-16)">
+<path d="M-116 -12 C-92 -14.5 -62 -15.8 -30 -16.6 C4 -17.4 40 -17 66 -15 C88 -13.4 104 -9.5 112 -4" stroke-width="4.2"/>
+<path d="M112 -4 C118 -1 118 3 112 6" stroke-width="3.8"/>
+<path d="M112 6 C94 11.5 64 14 30 15 C-8 15.8 -50 15.6 -84 13 C-96 12 -108 10.5 -114 9" stroke-width="4.2"/>
+<path d="M-114 9 C-122 6 -123 -6 -116 -12" stroke-width="3.6"/>
+<!-- tail fin -->
+<path d="M-90 -13 C-95 -27 -101 -44 -106 -57 M-108 -61 C-111 -64 -117 -65 -122 -63 M-125 -60 C-123 -45 -119 -27 -113 -11" stroke-width="3.8"/>
+<path d="M-99 -25 C-102 -35 -105 -45 -108 -53" stroke-width="2.5" opacity=".6"/>
+<!-- stabilizer -->
+<path d="M-98 0 C-110 7 -122 14 -131 19 M-136 22 C-140 25 -140 28 -136 27 M-133 25 C-125 18 -115 10 -107 4" stroke-width="3.2"/>
+<!-- wing -->
+<path d="M35 5 C12 18 -18 36 -48 54 M-53 57 C-61 62 -72 66 -75 62 M-74 60 C-60 43 -47 27 -36 13" stroke-width="3.6"/>
+<path d="M-36 13 C-12 10 12 7 35 5" stroke-width="3" opacity=".85"/>
+<!-- engine pod slung under the wing on a pylon -->
+<path d="M-13 45 C-13.5 41 -14.5 37 -15 33 M-20 45 C-20.5 42 -21 39 -21.5 36" stroke-width="3"/>
+<path d="M-3 46 C1 48 1 62 -4 64 M-4 64 C-13 67 -25 67 -31 63 M-31 63 C-35 59 -34 50 -29 47 C-21 44 -11 44 -3 46" stroke-width="3.2"/>
+<!-- windscreen and windows -->
+<path d="M92 -10 C98 -9 105 -7 109 -4" stroke-width="2.8"/>
+<path d="M-80 -4 L-73 -4.3 M-60 -5 L-53 -5.2 M-40 -5.8 L-33 -6 M-20 -6.4 L-13 -6.5 M0 -6.8 L7 -6.9 M14 -7 L21 -7" stroke-width="2.6" opacity=".8"/>
+<!-- exhaust motion strokes, trailing the flight path -->
+<path d="M-136 2 C-158 3.5 -180 5 -202 7 M-140 10 C-160 11.5 -180 13 -198 15 M-170 -4 C-186 -3 -202 -2 -216 -1" stroke-width="2.6" opacity=".45"/>
+</g>
+<!-- birds -->
+<path d="M96 336 C102 330 108 330 112 335 C116 330 122 330 128 335 M170 362 C175 357 180 357 184 361 C188 357 193 357 197 361" stroke-width="2.5" opacity=".6"/>
+<!-- shoreline riprap -->
+<path d="M0 916 C34 912 70 916 104 913 C148 910 190 915 232 912" stroke-width="3.6"/>
+<path d="M406 914 C466 910 526 915 584 911 C602 910 622 912 640 910" stroke-width="3.6"/>
+<path d="M28 924 C34 918 42 920 44 926 M68 922 C74 916 82 918 84 924 M128 920 C134 914 142 916 144 922 M184 920 C190 914 198 916 200 922 M440 918 C446 912 454 914 456 920 M500 916 C506 910 514 912 516 918 M566 916 C572 910 580 912 582 918" stroke-width="2.5" opacity=".6"/>
+<!-- runway edges -->
+<path d="M240 920 C196 962 150 1006 104 1050 C68 1084 32 1116 -6 1140" stroke-width="4"/>
+<path d="M402 920 C446 962 492 1006 538 1050 C574 1084 610 1116 646 1140" stroke-width="4"/>
+<path d="M244 918 C296 915 348 917 400 916" stroke-width="3.4"/>
+<!-- grass scribbles -->
+<path d="M60 980 C66 970 74 970 78 978 M110 1010 C116 1000 124 1000 128 1008 M50 1070 C56 1060 64 1060 68 1068 M560 990 C566 980 574 980 578 988 M600 1050 C606 1040 614 1040 618 1048 M520 1080 C526 1070 534 1070 538 1078" stroke-width="2.5" opacity=".55"/>
+<!-- runway texture -->
+<path d="M240 1010 C280 1006 320 1008 360 1006 M200 1080 C260 1076 320 1078 380 1076" stroke-width="2.5" opacity=".3"/>
+</g>
+<!-- runway light reflections in the water -->
+<g stroke="#d9b45f" fill="none" stroke-linecap="round" opacity=".65">
+<path d="M252 892 C249 874 254 858 250 840 C247 824 251 808 248 792" stroke-width="4.5"/>
+<path d="M251 776 C249 762 252 748 250 736" stroke-width="3.5"/>
+<path d="M320 894 C317 872 322 852 318 830 C315 810 319 790 316 770 C314 754 317 738 315 724" stroke-width="5"/>
+<path d="M314 708 C312 694 315 682 313 670" stroke-width="3"/>
+<path d="M390 892 C393 874 388 858 392 840 C395 822 391 806 394 790" stroke-width="4.5"/>
+<path d="M395 774 C397 760 394 748 396 734" stroke-width="3.5"/>
+<path d="M180 890 C178 876 181 862 179 848" stroke-width="3.5"/>
+<path d="M462 890 C464 876 461 862 463 848" stroke-width="3.5"/>
+</g>
+<g stroke="#f5efe1" fill="none" stroke-linecap="round" opacity=".5">
+<path d="M120 754 C150 751 180 754 210 752 M430 776 C462 773 494 776 526 774 M240 820 C272 817 304 820 336 818" stroke-width="2.6"/>
+</g>
+<!-- runway edge lights with glow -->
+<circle cx="216" cy="928" r="16" fill="url(#g2)"/><circle cx="216" cy="928" r="4.5" fill="#e8c86a"/>
+<circle cx="188" cy="958" r="17" fill="url(#g2)"/><circle cx="188" cy="958" r="5" fill="#e8c86a"/>
+<circle cx="156" cy="996" r="18" fill="url(#g2)"/><circle cx="156" cy="996" r="5.5" fill="#e8c86a"/>
+<circle cx="116" cy="1042" r="20" fill="url(#g2)"/><circle cx="116" cy="1042" r="6" fill="#e8c86a"/>
+<circle cx="66" cy="1098" r="22" fill="url(#g2)"/><circle cx="66" cy="1098" r="7" fill="#e8c86a"/>
+<circle cx="426" cy="928" r="16" fill="url(#g2)"/><circle cx="426" cy="928" r="4.5" fill="#e8c86a"/>
+<circle cx="456" cy="958" r="17" fill="url(#g2)"/><circle cx="456" cy="958" r="5" fill="#e8c86a"/>
+<circle cx="488" cy="996" r="18" fill="url(#g2)"/><circle cx="488" cy="996" r="5.5" fill="#e8c86a"/>
+<circle cx="528" cy="1042" r="20" fill="url(#g2)"/><circle cx="528" cy="1042" r="6" fill="#e8c86a"/>
+<circle cx="578" cy="1098" r="22" fill="url(#g2)"/><circle cx="578" cy="1098" r="7" fill="#e8c86a"/>
+<!-- threshold lights at the water's edge -->
+<circle cx="252" cy="912" r="12" fill="url(#g2)"/><circle cx="252" cy="912" r="4" fill="#e8c86a"/>
+<circle cx="320" cy="910" r="12" fill="url(#g2)"/><circle cx="320" cy="910" r="4" fill="#e8c86a"/>
+<circle cx="390" cy="912" r="12" fill="url(#g2)"/><circle cx="390" cy="912" r="4" fill="#e8c86a"/>
+<!-- ink speckles -->
+<g fill="#2f2a24" opacity=".5">
+<circle cx="80" cy="620" r="1.4"/><circle cx="590" cy="668" r="1.6"/><circle cx="210" cy="760" r="1.2"/><circle cx="500" cy="864" r="1.5"/><circle cx="330" cy="1062" r="1.7"/><circle cx="160" cy="1116" r="1.4"/><circle cx="600" cy="1000" r="1.3"/><circle cx="60" cy="700" r="1.3"/><circle cx="420" cy="600" r="1.2"/><circle cx="280" cy="960" r="1.4"/>
+</g>
+</svg>

@@ -1,0 +1,197 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a7bfcb"/>
+      <stop offset="0.55" stop-color="#c9d4cd"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper + sky wash -->
+  <rect x="0" y="0" width="640" height="1136" fill="#f5efe1"/>
+  <rect x="0" y="0" width="640" height="588" fill="url(#sky1)"/>
+  <path fill="#efe7d3" opacity="0.55" d="M468,124 c42,-15 94,-11 122,3 c17,10 7,23 -25,27 c-41,6 -94,2 -110,-10 c-8,-10 0,-16 13,-20z"/>
+  <path fill="#ece3cd" opacity="0.5" d="M54,198 c35,-17 88,-17 118,-3 c21,8 13,21 -14,25 c-39,8 -96,4 -114,-8 c-6,-8 0,-12 10,-14z"/>
+  <path fill="#f2ebd8" opacity="0.5" d="M250,86 c30,-11 72,-9 94,2 c13,8 4,17 -20,20 c-32,5 -72,1 -84,-8 c-5,-7 1,-11 10,-14z"/>
+
+  <!-- distant hills -->
+  <path fill="#b6bf9d" d="M-10,528 C70,492 150,478 235,492 C315,476 400,462 480,482 C545,468 605,476 650,494 L650,700 L-10,700 Z"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="2.6" d="M-6,524 c26,-11 53,-19 81,-24 c27,-6 54,-8 81,-6"/>
+    <path stroke-width="2.5" d="M188,492 c23,-4 45,-2 67,2"/>
+    <path stroke-width="2.7" d="M300,478 c28,-9 57,-13 87,-11 c28,1 55,7 81,13"/>
+    <path stroke-width="2.4" d="M502,472 c24,-5 47,-4 69,1 c22,4 43,11 61,18"/>
+  </g>
+  <path stroke="#8a9573" stroke-width="1.8" opacity="0.7" fill="none" stroke-linecap="round" d="M62,540 l30,-8 M102,552 l31,-8 M150,536 l26,-7 M398,520 l30,-8 M448,536 l30,-7 M540,520 l26,-6 M258,516 l28,-6"/>
+
+  <!-- ground plaza washes -->
+  <path fill="#e8ddc1" d="M-10,876 L650,866 L650,1136 L-10,1136 Z"/>
+  <path fill="#d3cab6" d="M-10,898 C150,892 420,886 650,884 L650,980 C420,986 150,990 -10,994 Z"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round">
+    <path stroke-width="2.8" d="M-8,874 c44,-2 88,-1 132,-2 c43,-1 87,-2 130,-2"/>
+    <path stroke-width="2.6" d="M330,868 c52,-1 104,-2 156,-2 c50,0 100,0 148,-1"/>
+  </g>
+
+  <!-- columns -->
+  <rect x="136" y="648" width="30" height="238" fill="#a9a294"/>
+  <rect x="310" y="648" width="30" height="234" fill="#a9a294"/>
+  <rect x="482" y="646" width="30" height="234" fill="#a9a294"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round">
+    <path stroke-width="3.1" d="M133,646 c2,40 -2,80 0,120 c2,40 -1,79 1,117"/>
+    <path stroke-width="2.9" d="M162,646 c-2,40 2,79 0,117 c-1,39 2,77 0,115"/>
+    <path stroke-width="3.2" d="M307,646 c2,38 -1,77 1,115 c1,38 -1,76 0,113"/>
+    <path stroke-width="2.8" d="M336,646 c-1,39 1,78 0,116 c-1,37 1,74 0,111"/>
+    <path stroke-width="3" d="M479,644 c1,39 -2,78 0,116 c1,38 -1,75 1,112"/>
+    <path stroke-width="2.9" d="M508,644 c-2,38 2,76 1,114 c-1,37 1,73 0,110"/>
+    <path stroke-width="2.5" d="M126,880 c17,-2 34,1 48,0"/>
+    <path stroke-width="2.5" d="M300,876 c17,-1 33,1 50,0"/>
+    <path stroke-width="2.5" d="M472,874 c17,-2 34,1 50,-1"/>
+  </g>
+  <path stroke="#7d7668" stroke-width="1.7" opacity="0.6" fill="none" stroke-linecap="round" d="M140,690 l0,150 M316,696 l0,140 M488,692 l0,140"/>
+
+  <!-- support struts up to canopy (behind train) -->
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round">
+    <path stroke-width="3" d="M152,596 c-1,-28 1,-56 0,-84 c0,-22 -1,-44 0,-66"/>
+    <path stroke-width="3" d="M300,596 c1,-34 -1,-68 0,-102 c0,-28 -1,-56 0,-86"/>
+    <path stroke-width="3" d="M455,594 c-1,-34 1,-66 0,-98 c-1,-30 1,-60 0,-88"/>
+    <path stroke-width="3" d="M575,592 c1,-28 -1,-56 0,-84 c0,-24 -1,-50 0,-74"/>
+  </g>
+
+  <!-- train arriving -->
+  <path fill="#ece2c5" d="M-10,490 L296,488 C332,490 352,512 357,542 C360,568 348,590 318,594 L-10,596 Z"/>
+  <path fill="#b9b3a6" d="M-10,490 L298,488 C316,489 330,496 338,506 L-10,508 Z"/>
+  <path fill="#c4703f" d="M-10,560 L342,556 C346,564 346,572 342,578 L-10,580 Z"/>
+  <path fill="#55666f" d="M310,500 C328,505 342,519 347,535 L321,540 C316,524 313,511 310,500 Z"/>
+  <rect x="18" y="514" width="34" height="26" rx="7" fill="#55666f"/>
+  <rect x="72" y="513" width="34" height="26" rx="7" fill="#55666f"/>
+  <rect x="126" y="514" width="34" height="26" rx="7" fill="#55666f"/>
+  <rect x="180" y="513" width="34" height="26" rx="7" fill="#55666f"/>
+  <rect x="234" y="514" width="34" height="26" rx="7" fill="#55666f"/>
+  <circle cx="344" cy="567" r="6" fill="#f5efe1"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="3.4" d="M-8,486 c40,-2 80,1 120,0 c40,-1 80,1 118,1 c22,1 42,2 62,4"/>
+    <path stroke-width="3.6" d="M296,492 c26,4 44,18 51,38 c6,23 -4,46 -32,53"/>
+    <path stroke-width="3.2" d="M312,586 c-58,4 -116,3 -174,4"/>
+    <path stroke-width="3.2" d="M118,592 c-44,1 -86,1 -126,2"/>
+    <path stroke-width="2.6" d="M-6,505 c56,-1 112,1 168,0 c54,-1 108,0 160,1"/>
+    <path stroke-width="2.5" d="M-4,556 c58,-2 116,0 174,-1 c54,-1 110,0 162,-1"/>
+    <path stroke-width="2.5" d="M60,580 c62,-1 124,-1 186,-1"/>
+    <path stroke-width="2.6" d="M15,512 c11,-2 24,-1 35,1 c3,8 3,17 0,25 c-12,2 -24,2 -35,0 c-2,-9 -2,-18 0,-26"/>
+    <path stroke-width="2.6" d="M69,511 c12,-1 24,-1 36,1 c2,9 2,17 -1,25 c-11,2 -23,2 -34,0 c-3,-8 -3,-17 -1,-26"/>
+    <path stroke-width="2.6" d="M123,512 c12,-2 24,-1 36,1 c2,8 3,17 0,25 c-12,2 -24,2 -36,0 c-2,-9 -2,-17 0,-26"/>
+    <path stroke-width="2.6" d="M177,511 c12,-1 24,-1 36,1 c3,9 2,17 0,25 c-12,2 -24,2 -36,0 c-2,-8 -3,-17 0,-26"/>
+    <path stroke-width="2.6" d="M231,512 c12,-2 24,-1 36,1 c2,8 2,17 0,25 c-12,2 -24,2 -36,0 c-3,-9 -2,-17 0,-26"/>
+    <path stroke-width="2.5" d="M307,498 c15,4 29,16 36,31 c2,4 3,8 4,12"/>
+    <path stroke-width="2.4" d="M344,560 c4,2 6,5 6,8 c-1,4 -4,6 -8,6 c-4,-1 -6,-4 -6,-8 c1,-3 4,-6 8,-6"/>
+    <path stroke-width="2.5" d="M282,514 c1,20 -1,40 0,60"/>
+    <path stroke-width="2.4" d="M118,486 l16,-13 l17,12"/>
+    <path stroke-width="2.6" d="M104,472 c22,-1 43,0 64,0"/>
+  </g>
+
+  <!-- elevated deck -->
+  <path fill="#b8b1a3" d="M-10,604 L650,600 L650,650 L-10,654 Z"/>
+  <path fill="#cfc7b6" d="M-10,604 L650,600 L650,618 L-10,622 Z"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round">
+    <path stroke-width="3.6" d="M-8,598 c22,-3 44,2 66,0 c21,-2 45,3 66,1 c22,2 44,-3 66,-1 c22,2 44,2 66,0 c21,-3 43,1 63,1"/>
+    <path stroke-width="3.4" d="M348,596 c22,0 44,-2 66,0 c22,2 44,-1 66,-1 c22,0 44,2 66,1 c21,-1 42,0 62,0"/>
+    <path stroke-width="3.3" d="M-8,646 c30,-2 60,1 90,0 c30,-1 60,1 90,0 c30,-1 60,0 90,0 c29,0 59,-1 88,0"/>
+    <path stroke-width="3.2" d="M382,644 c30,-1 60,1 90,0 c30,-1 59,0 88,0 c27,0 54,-1 80,-1"/>
+    <path stroke-width="2.5" d="M-6,620 c56,-2 112,0 168,-1 c55,-1 111,0 166,-1"/>
+    <path stroke-width="2.4" d="M368,616 c46,-1 92,-1 138,-1 c44,0 88,-1 130,-1"/>
+  </g>
+
+  <!-- sweeping canopy -->
+  <path fill="#8fa8b8" d="M35,478 C132,442 234,406 345,400 C455,396 556,420 629,446 L629,420 C556,392 455,370 345,374 C234,380 130,424 37,452 Z"/>
+  <path fill="#c3d3da" d="M35,478 C132,442 234,406 345,400 C455,396 556,420 629,446 L629,436 C556,410 455,388 345,392 C234,398 130,438 36,468 Z"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="4.2" d="M30,474 c32,-13 65,-25 99,-36 c33,-11 68,-21 103,-28"/>
+    <path stroke-width="4" d="M240,408 c34,-7 69,-11 104,-12 c34,-1 69,2 103,8"/>
+    <path stroke-width="4.1" d="M460,406 c28,5 56,12 83,21 c27,8 54,18 79,29"/>
+    <path stroke-width="3.4" d="M32,448 c31,-12 63,-24 96,-34 c33,-11 67,-20 101,-27"/>
+    <path stroke-width="3.3" d="M246,384 c33,-6 66,-9 99,-9 c34,0 68,3 101,9"/>
+    <path stroke-width="3.2" d="M464,386 c28,6 55,13 82,22 c26,9 52,19 77,30"/>
+    <path stroke-width="3.4" d="M30,474 c0,-9 1,-18 2,-26"/>
+    <path stroke-width="3.4" d="M622,456 c2,-9 3,-19 3,-28"/>
+    <path stroke-width="2.5" d="M110,446 l1,-24 M190,420 l1,-23 M270,402 l1,-22 M350,394 l0,-21 M430,398 l1,-21 M510,414 l1,-22 M586,432 l2,-22"/>
+  </g>
+  <path stroke="#a08046" stroke-width="1.8" opacity="0.65" fill="none" stroke-linecap="round" d="M120,452 l26,-9 M170,438 l26,-9 M250,416 l27,-6 M330,406 l27,-3 M410,406 l27,3 M490,418 l26,6 M556,432 l25,8"/>
+
+  <!-- glass elevator tower -->
+  <rect x="90" y="456" width="78" height="428" fill="#c9d8de"/>
+  <rect x="94" y="642" width="66" height="88" fill="#a3b9c2"/>
+  <rect x="84" y="452" width="11" height="434" fill="#b9b3a6"/>
+  <rect x="163" y="450" width="11" height="434" fill="#b9b3a6"/>
+  <path fill="#8fa8b8" d="M77,444 L181,439 L183,462 L79,467 Z"/>
+  <rect x="106" y="800" width="46" height="80" fill="#55666f"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="3.6" d="M87,458 c2,54 -2,108 0,162 c2,54 -1,107 1,159 c1,34 -1,68 0,101"/>
+    <path stroke-width="3.6" d="M170,456 c-2,54 2,107 1,160 c-1,53 1,105 0,157 c-1,34 1,68 0,102"/>
+    <path stroke-width="3.4" d="M74,442 c35,-2 70,-3 105,-4 c2,7 3,15 3,22 c-36,2 -72,3 -107,5 c-2,-8 -2,-16 -1,-23"/>
+    <path stroke-width="2.5" d="M116,462 c1,52 -1,104 0,156 c1,50 -1,100 0,150 c0,36 -1,72 0,107"/>
+    <path stroke-width="2.5" d="M142,461 c-1,53 1,105 0,157 c-1,50 1,99 0,148 c0,36 1,71 0,106"/>
+    <path stroke-width="2.4" d="M90,518 c26,-1 52,-2 77,-3"/>
+    <path stroke-width="2.4" d="M91,578 c25,-2 51,-2 76,-3"/>
+    <path stroke-width="2.4" d="M90,638 c26,-1 52,-2 78,-2"/>
+    <path stroke-width="2.4" d="M91,698 c25,-1 51,-2 76,-2"/>
+    <path stroke-width="2.4" d="M90,758 c26,-2 52,-2 77,-3"/>
+    <path stroke-width="2.4" d="M91,818 c25,-1 51,-1 76,-2"/>
+    <path stroke-width="2.7" d="M103,798 c17,-1 33,-1 50,-1 c2,27 2,54 1,81 c-17,1 -34,1 -51,1 c-1,-27 -1,-54 0,-81"/>
+    <path stroke-width="2.3" d="M129,806 c0,22 1,44 0,66"/>
+  </g>
+  <path stroke="#f5efe1" stroke-width="2.2" opacity="0.7" fill="none" stroke-linecap="round" d="M100,478 l0,120 M108,484 l0,96"/>
+
+  <!-- staircase -->
+  <path fill="#cfc6b2" d="M474,648 L520,648 L646,890 L602,900 Z"/>
+  <path fill="#b9b3a6" d="M520,648 L646,890 L646,946 L566,936 Z"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="3.2" d="M480,650 l15,2 l6,21 l15,2 l7,21 l15,3 l6,21 l15,2 l7,21 l15,3 l6,20 l15,3 l7,20 l14,3 l7,20"/>
+    <path stroke-width="3" d="M470,646 c15,-1 31,0 46,1"/>
+    <path stroke-width="3" d="M604,896 c-42,-80 -84,-162 -126,-243"/>
+    <path stroke-width="2.7" d="M602,898 c14,-4 29,-7 43,-9"/>
+    <path stroke-width="2.9" d="M486,608 c24,40 47,80 70,121 c23,40 45,80 67,120"/>
+    <path stroke-width="2.4" d="M486,610 l4,38 M521,672 l4,36 M556,734 l4,36 M590,796 l5,36"/>
+  </g>
+
+  <!-- ground shadow hatching under deck -->
+  <path stroke="#7d7668" stroke-width="1.8" opacity="0.5" fill="none" stroke-linecap="round" d="M70,906 l24,14 M108,902 l24,15 M146,906 l24,14 M190,900 l24,15 M232,906 l23,14 M274,902 l24,14 M318,906 l24,14 M360,902 l24,14 M404,906 l23,14 M446,902 l24,14 M490,908 l23,13 M530,904 l24,14 M84,932 l22,13 M170,930 l22,13 M258,932 l22,13 M344,930 l22,13 M430,932 l22,13"/>
+
+  <!-- paving joints -->
+  <g stroke="#b7ac93" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M46,1002 c-10,34 -22,67 -34,100 c-4,11 -8,23 -12,34"/>
+    <path d="M242,1006 c-7,33 -15,66 -22,99 c-2,10 -5,21 -7,31"/>
+    <path d="M428,1004 c9,33 19,66 29,99 c3,11 7,22 10,33"/>
+    <path d="M596,1000 c14,34 29,68 44,102"/>
+    <path d="M-8,1054 c58,-3 116,-4 174,-5 c57,-1 114,-2 170,-2 c56,0 112,1 166,2 c46,1 92,2 136,4"/>
+  </g>
+
+  <!-- planter + shrubs left -->
+  <path fill="#c4703f" d="M22,1010 L172,1004 L176,1062 L26,1068 Z"/>
+  <path fill="#96a478" d="M28,968 c8,-22 34,-32 54,-24 c8,-24 42,-30 58,-14 c20,-8 42,4 44,24 c14,8 14,28 2,36 c-30,10 -70,12 -104,6 c-26,-2 -54,-10 -54,-28z"/>
+  <path fill="#7c8a5e" d="M96,952 c14,-16 42,-16 54,-2 c16,-2 30,10 28,24 c-6,14 -28,18 -46,16 c-18,2 -38,-6 -40,-20 c0,-8 2,-14 4,-18z"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="3" d="M18,1008 c26,-2 52,-3 78,-4 c25,-1 50,-2 74,-2 c2,19 3,38 3,57 c-26,1 -52,2 -78,3 c-25,1 -50,2 -74,3 c-2,-19 -2,-38 -3,-57"/>
+    <path stroke-width="2.8" d="M26,964 c6,-18 28,-28 46,-22 c6,-20 36,-27 52,-14"/>
+    <path stroke-width="2.8" d="M130,930 c18,-6 38,4 41,22 c13,8 14,26 3,34"/>
+    <path stroke-width="2.6" d="M168,988 c-26,9 -62,11 -94,7 c-16,-1 -33,-4 -46,-11"/>
+    <path stroke-width="1.9" d="M58,964 c8,-6 18,-8 27,-6 M92,948 c9,-5 19,-5 28,-1 M120,976 c10,-4 21,-4 31,-1 M52,988 c9,3 19,4 28,3"/>
+  </g>
+
+  <!-- bollards + hedge right -->
+  <path fill="#b9b3a6" d="M556,946 c9,-2 17,-2 26,0 l3,44 c-10,2 -21,2 -31,0 z"/>
+  <path fill="#b9b3a6" d="M612,942 c9,-2 17,-2 26,0 l3,44 c-10,2 -21,2 -31,0 z"/>
+  <path fill="#7c8a5e" d="M480,1078 c22,-24 62,-30 88,-16 c24,-16 62,-10 74,10 c8,4 12,10 12,16 l0,58 -180,0 c-4,-24 -2,-48 6,-68z"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="2.7" d="M552,946 c9,-4 20,-4 29,-1 l4,42 c-11,3 -23,3 -34,1 z"/>
+    <path stroke-width="2.7" d="M608,942 c10,-4 20,-4 30,-1 l3,42 c-11,3 -23,3 -34,1 z"/>
+    <path stroke-width="3" d="M478,1076 c22,-22 58,-28 84,-16 c22,-14 56,-10 70,8"/>
+    <path stroke-width="1.9" d="M510,1090 c10,-6 22,-8 33,-6 M560,1082 c11,-5 23,-5 34,-2 M604,1096 c9,-3 19,-3 28,-1 M530,1112 c12,-4 24,-5 36,-3"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24" opacity="0.5">
+    <circle cx="86" cy="620" r="1.4"/><circle cx="418" cy="662" r="1.6"/><circle cx="212" cy="918" r="1.5"/>
+    <circle cx="352" cy="1044" r="1.7"/><circle cx="590" cy="700" r="1.3"/><circle cx="60" cy="1108" r="1.6"/>
+    <circle cx="470" cy="990" r="1.3"/><circle cx="280" cy="1096" r="1.5"/><circle cx="620" cy="1060" r="1.4"/>
+    <circle cx="38" cy="700" r="1.3"/>
+  </g>
+</svg>

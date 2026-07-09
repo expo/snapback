@@ -1,0 +1,298 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="dusk3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#77899c"/>
+      <stop offset="0.35" stop-color="#a49d9a"/>
+      <stop offset="0.6" stop-color="#d9b78f"/>
+      <stop offset="1" stop-color="#ecd0a0"/>
+    </linearGradient>
+    <radialGradient id="glow3" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f2d49a" stop-opacity="0.95"/>
+      <stop offset="0.6" stop-color="#eec98e" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#eec98e" stop-opacity="0"/>
+    </radialGradient>
+    <g id="pa">
+      <circle cx="0" cy="-34" r="5" fill="#2f2a24"/>
+      <path d="M0,-29 C-1,-21 1,-13 0,-6 M0,-6 C-4,3 -7,9 -9,15 M0,-6 C3,3 6,9 8,15 M-1,-24 C-6,-19 -9,-14 -11,-9 M1,-24 C6,-20 9,-16 10,-11" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </g>
+    <g id="pb">
+      <circle cx="0" cy="-34" r="5" fill="#2f2a24"/>
+      <path d="M0,-29 C1,-21 -1,-13 0,-6 M0,-6 C-2,3 -3,10 -4,16 M0,-6 C4,2 5,9 6,15 M-1,-24 C-5,-18 -7,-13 -8,-8 M1,-24 C7,-21 10,-18 12,-14" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </g>
+    <g id="pc">
+      <circle cx="0" cy="-33" r="5" fill="#2f2a24"/>
+      <path d="M0,-28 C-2,-20 0,-12 -1,-5 M-1,-5 C-5,3 -8,8 -10,14 M-1,-5 C2,3 3,9 4,16 M-1,-23 C-6,-20 -10,-16 -12,-12 M1,-23 C5,-18 7,-13 8,-9" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </g>
+    <g id="pd">
+      <circle cx="0" cy="-34" r="5" fill="#2f2a24"/>
+      <path d="M0,-28 C-1,-21 1,-14 0,-8" stroke="#c96f4a" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path d="M0,-8 C-4,1 -7,8 -9,14 M0,-8 C3,1 6,8 8,14 M-1,-24 C-6,-19 -9,-14 -10,-10 M1,-24 C6,-20 9,-16 10,-12" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </g>
+    <g id="pe">
+      <circle cx="0" cy="-34" r="5" fill="#2f2a24"/>
+      <path d="M0,-28 C1,-21 -1,-14 0,-8" stroke="#8fa8b8" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path d="M0,-8 C-3,1 -4,9 -5,15 M0,-8 C4,1 5,8 7,14 M-1,-24 C-5,-18 -8,-14 -9,-9 M1,-24 C6,-21 9,-17 11,-13" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </g>
+  </defs>
+
+  <!-- sky -->
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect width="640" height="560" fill="url(#dusk3)"/>
+  <!-- faint cloud streaks -->
+  <path d="M80,170 C150,160 260,162 330,170 C270,180 140,182 80,176 Z" fill="#67788b" opacity="0.28"/>
+  <path d="M340,236 C400,228 490,230 550,238 C496,246 388,248 340,242 Z" fill="#67788b" opacity="0.22"/>
+  <path d="M180,300 C240,292 330,294 390,302 C336,310 228,312 180,306 Z" fill="#8a7f78" opacity="0.22"/>
+  <!-- early stars -->
+  <g fill="#f5efe1" opacity="0.75">
+    <circle cx="90" cy="80" r="1.6"/><circle cx="230" cy="60" r="1.3"/><circle cx="420" cy="96" r="1.6"/><circle cx="560" cy="70" r="1.3"/><circle cx="320" cy="140" r="1.2"/><circle cx="510" cy="180" r="1.4"/><circle cx="150" cy="210" r="1.2"/><circle cx="610" cy="150" r="1.2"/>
+  </g>
+  <!-- birds -->
+  <g stroke="#2f2a24" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.55">
+    <path d="M120,352 c6,-6 12,-6 16,-1 c4,-5 10,-6 15,-2"/>
+    <path d="M172,372 c5,-5 10,-5 13,-1 c3,-4 8,-5 12,-1"/>
+  </g>
+
+  <!-- foothills -->
+  <path d="M0,506 C50,486 110,476 170,486 C230,494 290,482 350,490 C420,498 480,484 540,492 C580,497 616,492 640,496 L640,560 L0,560 Z" fill="#8fa8b8" opacity="0.85"/>
+  <path d="M0,530 C60,514 130,508 200,516 C270,524 350,512 420,520 C490,528 570,518 640,524 L640,580 L0,580 Z" fill="#7d9070" opacity="0.9"/>
+  <path d="M30,522 C80,512 130,508 180,512 M320,516 C380,510 440,512 500,514" stroke="#2f2a24" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- stadium glow -->
+  <ellipse cx="320" cy="560" rx="340" ry="190" fill="url(#glow3)"/>
+  <!-- light spill rays -->
+  <g fill="#f2d49a" opacity="0.22">
+    <path d="M150,540 L110,380 L190,380 Z"/>
+    <path d="M320,532 L286,368 L354,368 Z"/>
+    <path d="M490,536 L452,376 L530,376 Z"/>
+  </g>
+
+  <!-- ===== stadium off-register fills ===== -->
+  <g transform="translate(5,-4)">
+    <!-- suite tower (west side) -->
+    <rect x="62" y="470" width="126" height="230" fill="#9aa5ab"/>
+    <rect x="70" y="486" width="110" height="10" fill="#e9b95f"/>
+    <rect x="70" y="516" width="110" height="10" fill="#e9b95f"/>
+    <rect x="70" y="546" width="110" height="10" fill="#e9b95f"/>
+    <!-- main bowl facade -->
+    <path d="M188,548 L600,520 L600,700 L188,700 Z" fill="#b8b0a1"/>
+    <!-- interior glow band above rim -->
+    <path d="M188,548 C260,538 330,540 400,532 C470,526 540,526 600,520 L600,584 L188,600 Z" fill="#e9b95f"/>
+    <!-- end screen slab -->
+    <rect x="574" y="474" width="34" height="80" fill="#6b6558"/>
+  </g>
+
+  <!-- ===== stadium ink ===== -->
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round">
+    <!-- suite tower -->
+    <path d="M62,472 C61,530 63,588 62,644 C61,672 63,688 62,700 M188,472 C189,528 187,586 188,644 M58,471 C100,469 144,470 190,468 M56,462 C102,460 148,461 194,459" stroke-width="4"/>
+    <path d="M68,498 l112,-3 M68,528 l112,-3 M68,558 l112,-3 M68,588 l112,-3 M68,618 l112,-3 M68,648 l112,-3" stroke-width="2.5"/>
+    <path d="M92,472 C91,530 93,590 92,648 M126,471 C127,529 125,589 126,647 M160,470 C159,528 161,588 160,646" stroke-width="2" opacity="0.5"/>
+    <!-- bowl rim -->
+    <path d="M188,550 C240,543 292,545 344,539 C396,533 448,534 500,528 C534,525 568,524 602,521" stroke-width="4.5"/>
+    <path d="M188,600 C250,594 314,596 376,589 M398,587 C466,582 534,580 602,574" stroke-width="3"/>
+    <!-- base -->
+    <path d="M186,702 C250,700 316,702 382,699 C454,696 528,696 602,692" stroke-width="4"/>
+    <!-- lattice diagonals -->
+    <path d="M196,600 C216,632 236,666 256,698 M256,596 C276,628 296,662 316,696 M316,592 C336,624 356,658 376,694 M376,589 C396,621 416,655 436,691 M436,585 C456,617 476,651 496,688 M496,581 C516,613 536,647 556,686 M556,577 C576,609 592,641 602,662" stroke-width="3"/>
+    <path d="M256,698 C276,664 296,630 316,598 M316,696 C336,662 356,628 376,594 M376,694 C396,660 416,626 436,590 M436,691 C456,657 476,623 496,586 M496,688 C516,654 536,620 556,582 M556,686 C576,652 592,618 602,596 M196,600 C202,590 208,580 214,570" stroke-width="3"/>
+    <!-- horizontal chords -->
+    <path d="M190,648 C258,643 328,644 398,638 C466,633 534,632 602,626" stroke-width="2.5" opacity="0.7"/>
+    <!-- rim glow band edge -->
+    <path d="M192,552 C246,545 300,547 354,541 M380,538 C452,532 526,530 598,524" stroke-width="2.5" opacity="0.6"/>
+    <!-- end screen -->
+    <path d="M578,472 C577,498 579,526 578,552 M612,470 C613,496 611,524 612,550 M576,471 l38,-1 M576,552 l38,-2" stroke-width="3.5"/>
+    <path d="M582,486 l26,-1 M582,502 l26,-1 M582,518 l26,-1 M582,534 l26,-1" stroke-width="2" opacity="0.5"/>
+  </g>
+
+  <!-- interior glow dabs through lattice -->
+  <g fill="#e9b95f" opacity="0.8">
+    <path d="M212,616 l26,-2 l4,22 l-26,2 Z"/>
+    <path d="M292,610 l26,-2 l4,22 l-26,2 Z"/>
+    <path d="M372,604 l26,-2 l4,22 l-26,2 Z"/>
+    <path d="M452,598 l26,-2 l4,22 l-26,2 Z"/>
+    <path d="M532,592 l26,-2 l4,22 l-26,2 Z"/>
+  </g>
+
+  <!-- light masts -->
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="3.5">
+    <path d="M236,546 C235,522 237,498 236,476 M216,478 l40,-2 M312,540 C311,516 313,492 312,470 M292,472 l40,-2 M420,532 C419,508 421,484 420,462 M400,464 l40,-2 M528,524 C527,500 529,476 528,454 M508,456 l40,-2"/>
+  </g>
+  <g fill="#f2d49a" opacity="0.4">
+    <circle cx="236" cy="474" r="14"/><circle cx="312" cy="468" r="14"/><circle cx="420" cy="460" r="14"/><circle cx="528" cy="452" r="14"/>
+  </g>
+  <g fill="#e9b95f">
+    <circle cx="224" cy="476" r="4"/><circle cx="236" cy="475" r="4"/><circle cx="248" cy="474" r="4"/>
+    <circle cx="300" cy="470" r="4"/><circle cx="312" cy="469" r="4"/><circle cx="324" cy="468" r="4"/>
+    <circle cx="408" cy="462" r="4"/><circle cx="420" cy="461" r="4"/><circle cx="432" cy="460" r="4"/>
+    <circle cx="516" cy="454" r="4"/><circle cx="528" cy="453" r="4"/><circle cx="540" cy="452" r="4"/>
+  </g>
+  <!-- rim pennants -->
+  <g fill="#c96f4a">
+    <path d="M266,536 l0,-14 l12,5 Z"/>
+    <path d="M366,528 l0,-14 l12,5 Z"/>
+    <path d="M466,520 l0,-14 l12,5 Z"/>
+  </g>
+  <g stroke="#2f2a24" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M266,548 C265,538 267,528 266,519 M366,540 C365,530 367,520 366,511 M466,532 C465,522 467,512 466,503"/>
+  </g>
+
+  <!-- plaza ground -->
+  <rect x="0" y="698" width="640" height="438" fill="#cbbfa4"/>
+  <path d="M0,702 C80,696 170,702 260,697 C350,692 450,697 540,692 C576,690 610,691 640,688" stroke="#2f2a24" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.3"/>
+  <!-- warm light pool down the walkway -->
+  <path d="M244,700 L396,698 C440,830 500,990 566,1136 L86,1136 C142,990 200,832 244,700 Z" fill="#ecd9ac"/>
+  <path d="M244,702 C210,800 172,908 130,1020 C116,1058 102,1096 90,1132 M396,700 C430,798 468,906 510,1018 C524,1056 538,1094 550,1130" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.45"/>
+  <!-- pavement joints -->
+  <g stroke="#2f2a24" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.3">
+    <path d="M222,760 C280,756 340,758 400,754 L420,753 M196,830 C270,825 350,828 424,822 L452,820 M164,916 C254,910 350,914 440,906 L486,903 M128,1010 C234,1003 350,1008 456,999 L524,995 M92,1104 C216,1096 350,1102 474,1092 L562,1087"/>
+  </g>
+  <!-- side ground hatch -->
+  <g stroke="#a89a7e" stroke-width="2.5" fill="none" stroke-linecap="round">
+    <path d="M30,760 l22,-6 M90,780 l22,-6 M40,840 l24,-7 M110,880 l24,-7 M30,940 l26,-8 M100,990 l26,-8 M40,1060 l28,-8 M20,880 l20,-6 M70,1110 l28,-8 M580,760 l22,-6 M540,800 l22,-6 M600,860 l24,-7 M556,920 l24,-7 M608,990 l26,-8 M566,1050 l26,-8 M600,1110 l28,-8"/>
+  </g>
+
+  <!-- bollard path lights -->
+  <g stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round">
+    <path d="M226,742 l-1,22 M252,742 l1,22 M198,818 l-2,26 M440,814 l2,26 M162,912 l-2,30 M478,908 l2,30 M118,1024 l-3,36 M524,1020 l3,36"/>
+  </g>
+  <g fill="#f2d49a" opacity="0.45">
+    <circle cx="226" cy="736" r="9"/><circle cx="252" cy="736" r="9"/><circle cx="197" cy="812" r="11"/><circle cx="441" cy="808" r="11"/><circle cx="161" cy="905" r="13"/><circle cx="479" cy="901" r="13"/><circle cx="116" cy="1016" r="15"/><circle cx="526" cy="1012" r="15"/>
+  </g>
+  <g fill="#e9b95f">
+    <circle cx="226" cy="736" r="4"/><circle cx="252" cy="736" r="4"/><circle cx="197" cy="812" r="5"/><circle cx="441" cy="808" r="5"/><circle cx="161" cy="905" r="6"/><circle cx="479" cy="901" r="6"/><circle cx="116" cy="1016" r="7"/><circle cx="526" cy="1012" r="7"/>
+  </g>
+
+  <!-- ===== crowds streaming ===== -->
+  <!-- far row, tiny -->
+  <g>
+    <use href="#pa" transform="translate(250,738) scale(0.32)"/>
+    <use href="#pb" transform="translate(268,740) scale(0.3)"/>
+    <use href="#pd" transform="translate(288,737) scale(0.32)"/>
+    <use href="#pc" transform="translate(310,741) scale(0.3)"/>
+    <use href="#pe" transform="translate(330,738) scale(0.33)"/>
+    <use href="#pa" transform="translate(352,740) scale(0.3)"/>
+    <use href="#pb" transform="translate(372,736) scale(0.32)"/>
+    <use href="#pd" transform="translate(392,739) scale(0.3)"/>
+    <use href="#pc" transform="translate(232,742) scale(0.3)"/>
+    <use href="#pe" transform="translate(410,742) scale(0.31)"/>
+  </g>
+  <!-- mid-far row -->
+  <g>
+    <use href="#pd" transform="translate(240,790) scale(0.48)"/>
+    <use href="#pa" transform="translate(272,796) scale(0.45)"/>
+    <use href="#pe" transform="translate(300,788) scale(0.5)"/>
+    <use href="#pb" transform="translate(332,794) scale(0.46)"/>
+    <use href="#pc" transform="translate(362,790) scale(0.5)"/>
+    <use href="#pa" transform="translate(396,796) scale(0.47)"/>
+    <use href="#pd" transform="translate(422,788) scale(0.45)"/>
+    <use href="#pe" transform="translate(212,794) scale(0.44)"/>
+  </g>
+  <!-- middle rows -->
+  <g>
+    <use href="#pe" transform="translate(222,872) scale(0.72)"/>
+    <use href="#pa" transform="translate(262,882) scale(0.68)"/>
+    <use href="#pd" transform="translate(306,870) scale(0.74)"/>
+    <use href="#pb" transform="translate(348,880) scale(0.7)"/>
+    <use href="#pc" transform="translate(392,872) scale(0.73)"/>
+    <use href="#pe" transform="translate(432,882) scale(0.68)"/>
+    <use href="#pd" transform="translate(186,884) scale(0.66) rotate(-3)"/>
+  </g>
+  <g>
+    <use href="#pa" transform="translate(196,972) scale(1.02)"/>
+    <use href="#pd" transform="translate(252,984) scale(0.96)"/>
+    <use href="#pb" transform="translate(310,970) scale(1.05)"/>
+    <use href="#pe" transform="translate(368,982) scale(0.98)"/>
+    <use href="#pc" transform="translate(428,972) scale(1.04)"/>
+    <use href="#pa" transform="translate(480,986) scale(0.95) rotate(2)"/>
+  </g>
+  <!-- near rows -->
+  <g>
+    <use href="#pd" transform="translate(170,1090) scale(1.5)"/>
+    <use href="#pb" transform="translate(258,1102) scale(1.42)"/>
+    <use href="#pe" transform="translate(340,1088) scale(1.55)"/>
+    <use href="#pa" transform="translate(420,1100) scale(1.45)"/>
+    <use href="#pc" transform="translate(496,1092) scale(1.5) rotate(-2)"/>
+  </g>
+  <!-- foreground large figures, cropped -->
+  <g>
+    <use href="#pd" transform="translate(80,1180) scale(2.4)"/>
+    <use href="#pe" transform="translate(560,1186) scale(2.5) rotate(2)"/>
+    <use href="#pb" transform="translate(310,1200) scale(2.3)"/>
+  </g>
+
+  <!-- mid palms along approach -->
+  <g stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round">
+    <path d="M148,850 C150,812 152,776 156,742 C157,730 158,722 159,714"/>
+    <path d="M492,846 C490,808 488,772 484,738 C483,726 482,718 481,710"/>
+  </g>
+  <g fill="#6b7a5c">
+    <path d="M159,714 C140,702 120,698 104,702 C122,710 140,714 159,718 Z"/>
+    <path d="M159,714 C178,702 198,698 214,702 C196,710 178,714 159,718 Z"/>
+    <path d="M159,714 C148,698 136,688 122,682 C134,696 146,706 159,718 Z"/>
+    <path d="M159,714 C170,698 182,688 196,682 C184,696 172,706 159,718 Z"/>
+    <path d="M159,714 C157,696 158,680 162,668 C164,684 162,700 162,716 Z"/>
+    <path d="M481,710 C462,698 442,694 426,698 C444,706 462,710 481,714 Z"/>
+    <path d="M481,710 C500,698 520,694 536,698 C518,706 500,710 481,714 Z"/>
+    <path d="M481,710 C470,694 458,684 444,678 C456,692 468,702 481,714 Z"/>
+    <path d="M481,710 C492,694 504,684 518,678 C506,692 494,702 481,714 Z"/>
+    <path d="M481,710 C479,692 480,676 484,664 C486,680 484,696 484,712 Z"/>
+  </g>
+  <g stroke="#2f2a24" stroke-width="2.5" fill="none" stroke-linecap="round">
+    <path d="M159,715 C142,706 124,702 108,704 M159,715 C176,706 194,702 210,704 M159,715 C148,702 138,692 126,684 M159,715 C170,702 180,692 192,684 M159,715 C158,700 159,684 162,672"/>
+    <path d="M481,711 C464,702 446,698 430,700 M481,711 C498,702 516,698 532,700 M481,711 C470,698 460,688 448,680 M481,711 C492,698 502,688 514,680 M481,711 C480,696 481,680 484,668"/>
+    <path d="M152,780 l8,-2 M150,816 l8,-2 M486,776 l-8,-2 M488,812 l-8,-2" stroke-width="2"/>
+  </g>
+
+  <!-- foreground palms, bottom corners -->
+  <path d="M28,1136 C40,1032 56,928 76,830 C82,800 88,772 94,748 L122,754 C114,782 108,810 102,842 C86,932 72,1032 62,1136 Z" fill="#8a9070"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round">
+    <path d="M30,1136 C42,1034 58,930 78,832 C84,802 90,774 97,750" stroke-width="4.5"/>
+    <path d="M64,1136 C74,1034 88,934 104,844 C110,812 116,784 124,756" stroke-width="4.5"/>
+    <path d="M84,832 c12,5 24,5 34,0 M90,792 c11,5 22,5 31,0 M76,882 c13,5 26,5 36,0 M68,940 c14,5 28,5 38,0 M58,1010 c15,5 30,5 42,0 M48,1080 c16,5 32,5 44,0" stroke-width="2.5" opacity="0.6"/>
+  </g>
+  <g fill="#6b7a5c" transform="translate(4,-4)">
+    <path d="M110,748 C78,730 46,724 18,732 C50,742 80,748 110,756 Z"/>
+    <path d="M110,748 C142,726 176,720 206,728 C174,742 142,748 110,756 Z"/>
+    <path d="M110,748 C92,720 70,702 42,694 C66,716 88,734 110,756 Z"/>
+    <path d="M110,748 C128,720 150,702 178,694 C154,716 132,734 110,756 Z"/>
+    <path d="M110,748 C104,716 104,688 112,664 C118,692 114,722 114,752 Z"/>
+    <path d="M110,748 C84,748 60,758 42,774 C68,768 90,758 112,756 Z"/>
+    <path d="M110,748 C136,748 160,758 178,774 C152,768 130,758 108,756 Z"/>
+  </g>
+  <g stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round">
+    <path d="M112,750 C84,734 54,726 26,732 M112,750 C140,730 172,722 202,728 M112,750 C96,724 76,706 50,696 M112,750 C128,724 148,706 174,696 M112,750 C106,720 106,692 114,668 M112,750 C88,750 64,760 46,774 M112,750 C136,750 160,760 178,774"/>
+  </g>
+
+  <path d="M612,1136 C602,1044 590,952 576,866 C570,832 564,802 558,776 L530,782 C538,810 544,840 550,874 C562,962 572,1050 578,1136 Z" fill="#8a9070"/>
+  <g stroke="#2f2a24" fill="none" stroke-linecap="round">
+    <path d="M610,1136 C600,1046 588,954 574,868 C568,834 562,804 555,778" stroke-width="4.5"/>
+    <path d="M580,1136 C574,1052 564,964 552,876 C546,842 540,812 532,784" stroke-width="4.5"/>
+    <path d="M556,860 c-12,5 -24,5 -34,0 M550,820 c-11,5 -22,5 -31,0 M564,910 c-13,5 -26,5 -36,0 M572,968 c-14,5 -28,5 -38,0 M582,1038 c-15,5 -30,5 -42,0" stroke-width="2.5" opacity="0.6"/>
+  </g>
+  <g fill="#6b7a5c" transform="translate(-4,-4)">
+    <path d="M544,776 C512,758 480,752 452,760 C484,770 514,776 544,784 Z"/>
+    <path d="M544,776 C576,754 610,748 640,756 C608,770 576,776 544,784 Z"/>
+    <path d="M544,776 C526,748 504,730 476,722 C500,744 522,762 544,784 Z"/>
+    <path d="M544,776 C562,748 584,730 612,722 C588,744 566,762 544,784 Z"/>
+    <path d="M544,776 C538,744 538,716 546,692 C552,720 548,750 548,780 Z"/>
+    <path d="M544,776 C518,776 494,786 476,802 C502,796 524,786 546,784 Z"/>
+    <path d="M544,776 C570,776 594,786 612,802 C586,796 564,786 542,784 Z"/>
+  </g>
+  <g stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round">
+    <path d="M542,778 C514,762 484,754 456,760 M542,778 C570,758 602,750 632,756 M542,778 C526,752 506,734 480,724 M542,778 C558,752 578,734 604,724 M542,778 C536,748 536,720 544,696 M542,778 C518,778 494,788 476,802 M542,778 C566,778 590,788 608,802"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24" opacity="0.5">
+    <circle cx="140" cy="770" r="1.5"/>
+    <circle cx="500" cy="760" r="1.4"/>
+    <circle cx="80" cy="900" r="1.6"/>
+    <circle cx="560" cy="940" r="1.5"/>
+    <circle cx="300" cy="1050" r="1.4"/>
+    <circle cx="200" cy="1120" r="1.6"/>
+    <circle cx="460" cy="1110" r="1.5"/>
+    <circle cx="360" cy="920" r="1.3"/>
+    <circle cx="240" cy="840" r="1.3"/>
+    <circle cx="600" cy="1080" r="1.6"/>
+  </g>
+</svg>

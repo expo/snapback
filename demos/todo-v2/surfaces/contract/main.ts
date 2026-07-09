@@ -18,7 +18,20 @@ import { todoOptimisticReducers } from './optimistic.mjs';
 const ADA = 'user_ada';
 let activeSurface: { dispose?: () => void } | null = null;
 
+// Build-time API origin injected by vite.config.ts `define`.
+declare const __SNAPBACK_API_ORIGIN__: string | undefined;
+
 function snapbackBaseUrl(): string {
+  // Prefer the direct API origin (live WebSocket + HTTP under loopback CORS;
+  // the bun-vite proxy cannot complete WebSocket upgrades, and a hung upgrade
+  // wedges subsequent proxied HTTP too — see vite.config.ts and the
+  // all-aboard surface this mirrors).
+  if (__SNAPBACK_API_ORIGIN__ === 'same-origin') {
+    return '';
+  }
+  if (typeof __SNAPBACK_API_ORIGIN__ === 'string' && __SNAPBACK_API_ORIGIN__.length > 0) {
+    return __SNAPBACK_API_ORIGIN__;
+  }
   const serverOrigin = (globalThis as { __exactServerOrigin?: string }).__exactServerOrigin;
   return typeof serverOrigin === 'string' && serverOrigin.length > 0
     ? `${serverOrigin}/snapback`

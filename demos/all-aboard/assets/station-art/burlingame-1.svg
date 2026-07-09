@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bcd0da"/>
+      <stop offset="0.62" stop-color="#e6e0cb"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper -->
+  <rect width="640" height="1136" fill="#f5efe1"/>
+
+  <!-- sky wash, calm for UI overlay -->
+  <path d="M0,0 H640 V518 C556,530 468,516 376,526 C288,536 186,522 96,530 C58,534 22,528 0,532 Z" fill="url(#sky1)"/>
+  <path d="M92,152 C128,138 202,136 238,148 C272,142 322,146 334,158 C300,170 220,172 168,166 C134,170 102,164 92,152 Z" fill="#f5efe1" opacity="0.75"/>
+  <path d="M392,214 C420,204 470,204 496,212 C516,210 542,214 548,222 C520,232 458,234 424,228 C406,230 396,222 392,214 Z" fill="#f5efe1" opacity="0.6"/>
+
+  <!-- distant hill wash -->
+  <path d="M0,542 C82,514 172,522 262,508 C352,494 470,512 560,500 C592,496 620,502 640,496 V572 H0 Z" fill="#b9c2ae" opacity="0.5"/>
+
+  <!-- eucalyptus canopies: off-register gouache -->
+  <g transform="translate(6,4)">
+    <path d="M56,468 C36,418 64,356 118,338 C146,298 222,296 252,342 C302,352 308,418 272,454 C238,492 118,500 56,468 Z" fill="#8a9a7b"/>
+    <path d="M398,452 C378,398 398,328 458,312 C498,276 570,292 596,338 C636,358 630,428 590,458 C540,494 438,488 398,452 Z" fill="#8a9a7b"/>
+    <path d="M258,432 C248,394 266,352 308,344 C346,336 386,356 392,394 C398,428 366,454 328,454 C300,454 268,450 258,432 Z" fill="#75886a"/>
+  </g>
+
+  <!-- canopy ink, with pen lifts -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M58,470 C40,432 50,392 66,364 C76,344 96,330 118,338" stroke-width="3.5"/>
+    <path d="M128,330 C144,300 212,298 246,340" stroke-width="3"/>
+    <path d="M256,346 C298,356 306,414 270,452 C242,486 132,498 64,474" stroke-width="3.5"/>
+    <path d="M400,454 C382,402 400,332 458,314" stroke-width="3.5"/>
+    <path d="M470,308 C504,282 566,296 592,340" stroke-width="3"/>
+    <path d="M600,348 C632,368 626,428 588,458 C542,492 442,486 404,456" stroke-width="3.5"/>
+    <path d="M262,430 C252,392 270,354 310,346" stroke-width="2.5"/>
+    <path d="M348,342 C378,348 392,370 390,396" stroke-width="2.5"/>
+  </g>
+  <!-- leaf scribbles -->
+  <g fill="none" stroke="#5f7355" stroke-width="2.5" stroke-linecap="round" opacity="0.85">
+    <path d="M108,420 C118,408 114,428 128,416 C138,406 134,428 150,418"/>
+    <path d="M160,372 C170,360 166,380 180,368 C190,358 186,380 202,370"/>
+    <path d="M446,398 C456,386 452,406 466,394 C476,384 472,406 488,396"/>
+    <path d="M520,354 C530,342 526,362 540,350 C550,340 546,362 562,352"/>
+    <path d="M300,400 C310,388 306,408 320,396 C330,386 326,408 342,398"/>
+  </g>
+
+  <!-- trunks -->
+  <g fill="none" stroke="#7a6a55" stroke-linecap="round">
+    <path d="M130,478 C134,520 126,572 134,642" stroke-width="6"/>
+    <path d="M196,486 C190,530 198,590 192,650" stroke-width="5"/>
+    <path d="M470,470 C474,522 464,586 472,650" stroke-width="6"/>
+    <path d="M552,466 C548,522 556,590 550,648" stroke-width="5"/>
+    <path d="M134,540 C150,528 164,522 176,520" stroke-width="3.5"/>
+    <path d="M470,552 C486,540 500,534 512,532" stroke-width="3.5"/>
+  </g>
+
+  <!-- deep tile roof: wash off-register -->
+  <g transform="translate(5,3)">
+    <path d="M142,556 H498 L604,662 H36 Z" fill="#c0714f"/>
+    <path d="M44,662 H598 L584,644 C470,636 176,636 58,644 Z" fill="#a55f42" opacity="0.85"/>
+  </g>
+  <!-- roof ink -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M142,558 C230,554 320,560 410,555 C440,558 472,554 498,557" stroke-width="4"/>
+    <path d="M498,557 C526,588 556,622 602,664" stroke-width="4"/>
+    <path d="M142,557 C116,590 84,624 38,664" stroke-width="4"/>
+    <path d="M38,666 C130,660 240,669 350,663 C440,668 530,661 602,666" stroke-width="4.5"/>
+    <path d="M102,592 C210,586 340,594 470,588 C496,590 522,587 544,590" stroke-width="2.5" opacity="0.65"/>
+    <path d="M76,620 C190,614 330,622 460,616 C500,619 540,615 572,618" stroke-width="2.5" opacity="0.6"/>
+    <path d="M54,646 C180,640 330,648 470,642 C512,645 556,641 590,644" stroke-width="2.5" opacity="0.6"/>
+  </g>
+  <!-- tile ticks -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.55">
+    <path d="M170,572 C171,578 170,584 171,588"/>
+    <path d="M236,574 C237,580 236,586 237,590"/>
+    <path d="M310,571 C311,577 310,583 311,588"/>
+    <path d="M388,573 C389,579 388,585 389,589"/>
+    <path d="M452,571 C453,577 452,583 453,588"/>
+    <path d="M140,602 C141,608 140,614 141,618"/>
+    <path d="M260,604 C261,610 260,616 261,620"/>
+    <path d="M380,601 C381,607 380,613 381,618"/>
+    <path d="M496,603 C497,609 496,615 497,619"/>
+    <path d="M110,630 C111,636 110,642 111,646"/>
+    <path d="M330,628 C331,634 330,640 331,645"/>
+    <path d="M540,630 C541,636 540,642 541,646"/>
+  </g>
+
+  <!-- shingle gable -->
+  <path transform="translate(4,3)" d="M320,458 L236,588 H404 Z" fill="#e3cf9f"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M320,456 C296,490 270,528 248,560 C242,570 236,580 230,590" stroke-width="4"/>
+    <path d="M320,456 C342,488 366,524 388,556 C396,568 404,580 410,590" stroke-width="4"/>
+    <path d="M300,492 C312,490 328,493 342,491" stroke-width="2.5" opacity="0.7"/>
+    <path d="M284,514 C306,512 334,516 358,513" stroke-width="2.5" opacity="0.7"/>
+    <path d="M268,536 C298,534 340,538 374,535" stroke-width="2.5" opacity="0.7"/>
+    <path d="M254,558 C292,556 344,560 388,557" stroke-width="2.5" opacity="0.7"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.5">
+    <path d="M312,498 V510"/><path d="M330,499 V511"/>
+    <path d="M298,520 V532"/><path d="M320,521 V533"/><path d="M344,520 V532"/>
+    <path d="M284,542 V554"/><path d="M312,543 V555"/><path d="M340,542 V554"/><path d="M362,543 V555"/>
+  </g>
+  <!-- gable vent -->
+  <path transform="translate(3,2)" d="M304,560 V538 Q320,518 336,538 V560 Z" fill="#4a4036"/>
+  <path d="M304,562 C304,554 303,546 305,539 Q320,520 335,539 C337,546 336,554 336,562" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- station wall -->
+  <path transform="translate(4,4)" d="M70,662 H570 V850 H70 Z" fill="#ece0c0"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M71,668 C70,714 72,762 70,808 C71,822 70,838 71,850" stroke-width="4"/>
+    <path d="M569,668 C570,712 568,760 570,806 C569,822 570,838 569,850" stroke-width="4"/>
+    <path d="M68,852 C160,848 260,855 360,850 C440,854 520,848 574,852" stroke-width="4.5"/>
+  </g>
+  <!-- eave shadow hatch on wall -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4">
+    <path d="M92,672 L82,694"/><path d="M130,673 L120,695"/><path d="M168,671 L158,693"/>
+    <path d="M206,673 L196,695"/><path d="M244,671 L234,693"/><path d="M296,672 L286,694"/>
+    <path d="M348,671 L338,693"/><path d="M400,673 L390,695"/><path d="M452,671 L442,693"/>
+    <path d="M504,672 L494,694"/><path d="M548,671 L538,693"/>
+  </g>
+
+  <!-- arcade: four arches -->
+  <g transform="translate(4,3)" fill="#4a4036">
+    <path d="M100,850 V766 Q140,704 180,766 V850 Z"/>
+    <path d="M220,850 V766 Q260,708 300,766 V850 Z"/>
+    <path d="M340,850 V766 Q380,702 420,766 V850 Z"/>
+    <path d="M460,850 V766 Q500,706 540,766 V850 Z"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M100,852 C99,824 101,796 100,768 Q140,706 180,768 C179,796 181,824 180,852" stroke-width="3.5"/>
+    <path d="M220,852 C219,824 221,794 220,768 Q260,710 300,768 C299,796 301,826 300,852" stroke-width="3.5"/>
+    <path d="M340,852 C339,822 341,796 340,768 Q380,704 420,768 C419,794 421,824 420,852" stroke-width="3.5"/>
+    <path d="M460,852 C459,824 461,794 460,768 Q500,708 540,768 C539,798 541,826 540,852" stroke-width="3.5"/>
+  </g>
+  <!-- column shading -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.35">
+    <path d="M196,790 L188,812"/><path d="M198,820 L190,842"/>
+    <path d="M316,792 L308,814"/><path d="M318,822 L310,844"/>
+    <path d="M436,790 L428,812"/><path d="M438,820 L430,842"/>
+  </g>
+
+  <!-- platform -->
+  <path transform="translate(3,4)" d="M0,850 H640 V1040 H0 Z" fill="#d8cfba"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M0,1038 C100,1034 210,1041 320,1036 C430,1041 540,1034 640,1039" stroke-width="4.5"/>
+    <path d="M0,1054 C120,1050 260,1056 400,1051 C490,1055 570,1050 640,1054" stroke-width="2.5" opacity="0.6"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.35">
+    <path d="M152,862 C151,912 153,966 152,1028"/>
+    <path d="M304,860 C305,914 303,968 304,1030"/>
+    <path d="M456,862 C455,912 457,966 456,1028"/>
+    <path d="M584,860 C585,916 583,972 584,1030"/>
+  </g>
+  <!-- shadow cast by building onto platform -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4">
+    <path d="M96,858 L84,882"/><path d="M144,860 L132,884"/><path d="M192,858 L180,882"/>
+    <path d="M240,860 L228,884"/><path d="M288,858 L276,882"/><path d="M336,860 L324,884"/>
+    <path d="M384,858 L372,882"/><path d="M432,860 L420,884"/><path d="M480,858 L468,882"/>
+    <path d="M528,860 L516,884"/>
+  </g>
+
+  <!-- lamp post -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M86,1002 C88,932 84,852 87,782 C86,756 88,732 86,714" stroke-width="5"/>
+    <path d="M86,716 C100,711 118,713 132,718" stroke-width="4"/>
+    <path d="M130,720 C131,728 130,734 131,740" stroke-width="3"/>
+    <path d="M72,1004 C82,998 94,998 104,1004" stroke-width="4"/>
+  </g>
+  <circle cx="134" cy="754" r="14" fill="#f0e6c8"/>
+  <circle cx="131" cy="753" r="13" fill="none" stroke="#2f2a24" stroke-width="3"/>
+  <path d="M124,742 C128,738 134,738 138,742" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- bench -->
+  <path transform="translate(3,3)" d="M398,946 H520 V962 H398 Z" fill="#d9b26a"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M396,948 C426,946 468,949 500,947 C508,948 516,947 522,948" stroke-width="4"/>
+    <path d="M398,962 C436,960 480,963 520,961" stroke-width="3"/>
+    <path d="M402,910 C438,908 480,911 516,909" stroke-width="3.5"/>
+    <path d="M404,924 C440,922 480,925 514,923" stroke-width="2.5" opacity="0.7"/>
+    <path d="M406,910 C405,922 407,936 406,948" stroke-width="3"/>
+    <path d="M512,910 C513,922 511,936 512,948" stroke-width="3"/>
+    <path d="M406,962 C405,974 407,986 406,996" stroke-width="3.5"/>
+    <path d="M512,962 C513,974 511,986 512,996" stroke-width="3.5"/>
+  </g>
+
+  <!-- baggage cart -->
+  <path transform="translate(3,2)" d="M534,952 H618 V964 H534 Z" fill="#c0714f" opacity="0.85"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M530,966 C556,963 590,967 624,964" stroke-width="4"/>
+    <path d="M534,952 C560,950 588,953 616,951" stroke-width="3"/>
+    <path d="M536,964 C522,942 514,922 510,904" stroke-width="3.5"/>
+    <circle cx="552" cy="988" r="16" stroke-width="3.5"/>
+    <circle cx="604" cy="988" r="16" stroke-width="3.5"/>
+  </g>
+  <circle cx="552" cy="988" r="3" fill="#2f2a24"/>
+  <circle cx="604" cy="988" r="3" fill="#2f2a24"/>
+
+  <!-- track bed -->
+  <path transform="translate(0,3)" d="M0,1040 H640 V1136 H0 Z" fill="#b7ad9c"/>
+  <g stroke="#6d5f4c" stroke-width="10" stroke-linecap="round" opacity="0.8" fill="none">
+    <path d="M42,1064 L38,1122"/>
+    <path d="M142,1062 L138,1120"/>
+    <path d="M246,1064 L242,1122"/>
+    <path d="M350,1062 L346,1120"/>
+    <path d="M454,1064 L450,1122"/>
+    <path d="M558,1062 L554,1120"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M0,1076 C110,1072 220,1078 330,1073 C440,1078 550,1072 640,1076" stroke-width="4.5"/>
+    <path d="M0,1110 C110,1106 220,1112 330,1107 C440,1112 550,1106 640,1110" stroke-width="4.5"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24" opacity="0.8">
+    <circle cx="58" cy="920" r="1.8"/>
+    <circle cx="238" cy="988" r="1.5"/>
+    <circle cx="352" cy="912" r="2"/>
+    <circle cx="608" cy="870" r="1.6"/>
+    <circle cx="120" cy="1062" r="1.5"/>
+    <circle cx="470" cy="1006" r="1.8"/>
+    <circle cx="286" cy="640" r="1.4"/>
+    <circle cx="540" cy="628" r="1.5"/>
+  </g>
+</svg>

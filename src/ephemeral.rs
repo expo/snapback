@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, MutexGuard, PoisonError, RwLock};
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use tokio::sync::Notify;
 
 /// Recover from lock poisoning the way the rest of the codebase does: room and
@@ -184,14 +183,14 @@ fn encode_component(value: &str) -> String {
     format!("{}:{value}", value.len())
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, schemars::JsonSchema)]
 pub struct RoomId {
     pub collection: String,
     pub scope: Scope,
     pub routing_key: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, schemars::JsonSchema)]
 #[serde(transparent)]
 pub struct EntryKey(pub String);
 
@@ -211,7 +210,7 @@ pub enum EntryOwner {
     Custom(String),
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct AuthContext {
     pub principal: Option<String>,
     pub session_id: Option<String>,
@@ -319,7 +318,7 @@ fn default_max_pending_ephemeral_keys() -> usize {
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
 const MAX_OUTBOX_BACKLOG: usize = 1_024;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct PublishRequest {
     pub collection: String,
     pub scope: Scope,
@@ -332,7 +331,7 @@ pub struct PublishRequest {
     pub auth: AuthContext,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct DeleteRequest {
     pub collection: String,
     pub scope: Scope,
@@ -343,7 +342,7 @@ pub struct DeleteRequest {
     pub auth: AuthContext,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SubscribeRequest {
     pub collection: String,
     pub scope: Scope,
@@ -360,7 +359,7 @@ pub struct PublishOutcome {
     pub expires_at_ms: Millis,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum EphemeralErrorCode {
     UnknownCollection,
     Unauthorized,
@@ -399,7 +398,7 @@ impl EphemeralErrorCode {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct EphemeralError {
     pub code: EphemeralErrorCode,
     pub message: String,
@@ -414,7 +413,7 @@ impl EphemeralError {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct EphemeralEntry {
     pub key: EntryKey,
     pub value: Vec<u8>,
@@ -430,7 +429,7 @@ pub struct EphemeralEntry {
 /// the event that owns it.
 ///
 /// @ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — live-or-removed resolution.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum RemoveReason {
     Deleted,
     Disconnected,
@@ -448,7 +447,7 @@ pub enum RemoveReason {
 /// unreachable vocabulary.
 ///
 /// @ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — live-or-removed resolution.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ResyncReason {
     QueueOverflow,
     EpochChanged,
@@ -456,7 +455,7 @@ pub enum ResyncReason {
     Disconnected,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum EphemeralMessage {
     Snapshot {
         room: RoomId,
@@ -521,7 +520,7 @@ impl EphemeralMessage {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct DurableMessage {
     pub payload: Vec<u8>,
 }
@@ -539,7 +538,7 @@ pub enum RealtimeLane {
     EphemeralLatest,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum RealtimeEnvelope {
     Durable(DurableMessage),
     Ephemeral(EphemeralMessage),
@@ -771,12 +770,17 @@ impl OutboundQueue {
         self.durable.clear();
         self.resync.clear();
         self.ephemeral.clear();
+        // Typed since ENG-23891 (LLP 0051 D4). Wire note: the pre-typed frame
+        // spelled this field `clearRetained`; the typed envelope unified it to
+        // the durable lane's `clear_retained` (no shipped client read it).
         self.durable.push_back(DurableMessage {
-            payload: serde_json::to_vec(&json!({
-                "kind": "resync_required",
-                "reason": "outbox_overflow",
-                "clearRetained": true,
-            }))
+            payload: serde_json::to_vec(&crate::live_wire::LiveEnvelope::ResyncRequired {
+                reason: "outbox_overflow".to_owned(),
+                subscription_id: None,
+                scope: None,
+                epoch: None,
+                clear_retained: true,
+            })
             .unwrap_or_default(),
         });
         self.overflowed = true;
