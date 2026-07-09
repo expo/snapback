@@ -3,10 +3,12 @@
   "bundleHash": "sha256:09eb9945e21c317b",
   "capabilities": {
     "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
     "forceStates": true,
     "headlessBoot": true,
     "initialSnapshot": true,
     "localReplica": false,
+    "offlineReplay": false,
     "optimisticMutations": false,
     "rowSyncState": true,
     "serverRunnableQueries": true,

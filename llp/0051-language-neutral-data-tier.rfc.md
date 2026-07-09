@@ -911,6 +911,19 @@ disciplines.
    reducer regression suite (duplicate-reapply, reconcile-failure) for
    every mutation they cover, with receipts identifying the overlay
    class per mutation (0329 E-B is the Exact-side half of this gate).
+   *Status (2026-07-09, ENG-23898): the Exact-side half (0329 E-B) is
+   landed.* `packages/snapback-contract/derived-overlay.mjs` derives
+   reducers from manifest-embedded plans (codegen embeds `plan` per IR
+   mutation and claims `optimisticMutations` /
+   `derivedOptimisticOverlays` honestly; `offlineReplay` stays false);
+   the derived path passes the mirrored duplicate-reapply /
+   reconcile-failure suites and replays 24/29 corpus cases
+   (multi-table cases are out of single-boundary overlay scope);
+   mutation receipts carry `overlayClass` per mutation; todo-v2 rides
+   derived overlays with its hand reducers deleted (demos/todo keeps
+   reducers — the override path stays first-class). The Parity CLAIM
+   itself still waits on the replay corpus + the D1-ledgered offline
+   queue (this increment's remaining half).
 6. **WASM runtime (D3):** `WasmModule` variant + content-addressed
    artifact storage + wasmtime executor locally (with the density/fuel
    measurement gate); CF deploy-time binding proof after; TS toolchain

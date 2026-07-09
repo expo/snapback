@@ -594,10 +594,11 @@ export async function generate(backendDir) {
       if (def.plan.return_value && 'Expr' in def.plan.return_value) {
         checkExpr(def.plan.return_value.Expr, 'return expression');
       }
+      const serializedPlan = serializeMutationPlan(def.plan, name, err);
       functions.push({
         name,
         kind: 'Mutation',
-        runtime: { HostPlan: { Mutation: serializeMutationPlan(def.plan, name, err) } },
+        runtime: { HostPlan: { Mutation: serializedPlan } },
         declaredReads: mutationReadTables(def.plan),
         declaredWrites: [...writes],
         syncabilityClass: 'mutation',
@@ -608,7 +609,14 @@ export async function generate(backendDir) {
         argOrder: Object.keys(def.args),
         writes: [...writes],
         invalidates: [...writes],
-        optimistic: false,
+        // IR-tier mutations embed their plan (Exact LLP 0329 E-B): the
+        // adapter derives the default optimistic overlay from it, so the
+        // descriptor honestly claims `optimistic` (additive manifest v2
+        // extension per Exact LLP 0284 §2.4). JS-tier mutations keep
+        // `optimistic: false` — their overlays are app reducers the
+        // manifest cannot see.
+        optimistic: true,
+        plan: serializedPlan,
         serverRunnable: true,
       };
     } else if (def.__kind === 'Action' && def.js) {
@@ -733,6 +741,12 @@ export async function generate(backendDir) {
   // (`CapabilityManifest::local_v0_declared`, drift-gated by
   // tests/capability_v0.rs) and embedded verbatim.
   const capabilityManifest = canonicalCapability.manifest;
+  // Exact LLP 0329 E-B: IR-tier mutations embed their plan, so the adapter
+  // can derive default optimistic overlays from the generated artifact alone
+  // — the flags below claim exactly that and nothing more.
+  const hasDerivedOverlayMutations = Object.values(contractMutations).some(
+    (descriptor) => descriptor.plan !== undefined,
+  );
   const contractManifest = {
     artifactKind: 'contractDataManifest',
     schemaVersion: SCHEMA_VERSION,
@@ -748,7 +762,16 @@ export async function generate(backendDir) {
       localReplica: false,
       subscriptions: true,
       initialSnapshot: true,
-      optimisticMutations: false,
+      // True exactly when some mutation carries a derivable IR plan: the
+      // adapter's generated default overlay backs the claim (LLP 0329 §E5).
+      optimisticMutations: hasDerivedOverlayMutations,
+      // The two E-B flags (Exact LLP 0329 §E5). `offlineReplay` stays false
+      // until the LLP 0051 D1-ledgered client queue exists; `Parity`
+      // (snapback LLP 0012) is claimable only when BOTH are true and the
+      // provider passes the replay corpus — flags are the mechanism, the
+      // class is the claim.
+      derivedOptimisticOverlays: hasDerivedOverlayMutations,
+      offlineReplay: false,
       rowSyncState: true,
       serverRunnableQueries: true,
       forceStates: true,

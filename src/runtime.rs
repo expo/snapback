@@ -110,11 +110,14 @@ impl RuntimeManager {
                     "runtime",
                     "ibex binary was not found; embedded Ibex handlers still run through the vendored runtime",
                 )
+                // camelCase detail keys (P8, tests/inspect_casing_v0.rs) —
+                // this diagnostic only fires when the ibex binary is absent,
+                // so the violation hid from environments that have it.
                 .with_details(json!({
-                    "canonical_engine": self.capabilities.canonical_engine,
-                    "ibex_submodule": self.capabilities.ibex_submodule,
-                    "host_plan_runtime": self.capabilities.host_plan_runtime,
-                    "ibex_ctx_db_host_bridge": self.capabilities.ibex_ctx_db_host_bridge
+                    "canonicalEngine": self.capabilities.canonical_engine,
+                    "ibexSubmodule": self.capabilities.ibex_submodule,
+                    "hostPlanRuntime": self.capabilities.host_plan_runtime,
+                    "ibexCtxDbHostBridge": self.capabilities.ibex_ctx_db_host_bridge
                 })),
             );
         }

@@ -3,11 +3,13 @@
   "bundleHash": "sha256:cd588c9a95285f4f",
   "capabilities": {
     "branchableFixtures": false,
+    "derivedOptimisticOverlays": true,
     "forceStates": true,
     "headlessBoot": true,
     "initialSnapshot": true,
     "localReplica": false,
-    "optimisticMutations": false,
+    "offlineReplay": false,
+    "optimisticMutations": true,
     "rowSyncState": true,
     "serverRunnableQueries": true,
     "subscriptions": true
@@ -67,7 +69,35 @@
         "cells"
       ],
       "name": "paintCell",
-      "optimistic": false,
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "cellId"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "cellId",
+              "table": "cells",
+              "values": {
+                "authorId": "AuthUserId",
+                "boardId": {
+                  "Arg": "boardId"
+                },
+                "color": {
+                  "Arg": "color"
+                },
+                "x": {
+                  "Arg": "x"
+                },
+                "y": {
+                  "Arg": "y"
+                }
+              }
+            }
+          }
+        ]
+      },
       "serverRunnable": true,
       "writes": [
         "cells"

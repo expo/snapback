@@ -15,6 +15,19 @@ export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 // root stays the single import site.
 export { createDeferredContractLinks, createRenderFirstSnapbackContractSurface } from './render-first.mjs';
 
+// Derived optimistic overlays (Exact LLP 0329 E-B): generated default
+// reducers for IR-tier mutations whose manifest embeds the plan. Lives in
+// ./derived-overlay.mjs; re-exported so the package root stays the single
+// import site.
+export {
+  deriveOptimisticReducer,
+  deriveOptimisticReducers,
+  planDerivableForTable,
+  OVERLAY_CLASSES,
+} from './derived-overlay.mjs';
+
+import { deriveOptimisticReducers } from './derived-overlay.mjs';
+
 // Contract data manifest versions this adapter accepts. v2 (LLP 0034 D3) is an
 // additive extension of v1 per Exact LLP 0284 §2.4: old fields remain valid
 // inputs, so v1 manifests keep working unmodified.
@@ -182,8 +195,25 @@ export async function createSnapbackContractSurface({
     throw error;
   }
   const surfaceRootId = rootId ?? defaultContractRootId();
+  // Per-mutation overlay class (Exact LLP 0329 §E5 / EQ5): 'reducer'
+  // (app-supplied), 'derived' (generated from the manifest-embedded IR plan),
+  // or 'none' (pending-without-overlay). Populated when the surface builds
+  // its mutation links; mutation receipts matching this surface's correlation
+  // echo it so apps and LLP 0278 clauses can assert tier-appropriately.
+  const mutationOverlayClass = Object.create(null);
+  const enrichReceipt = (receipt) => {
+    if (
+      receipt?.kind === 'mutation'
+      && typeof receipt.mutation === 'string'
+      && receipt?.correlation?.rootId === surfaceRootId
+      && mutationOverlayClass[receipt.mutation]
+    ) {
+      return { ...receipt, overlayClass: mutationOverlayClass[receipt.mutation] };
+    }
+    return receipt;
+  };
   const detachReceiptListener = onReceipt && typeof client.onReceipt === 'function'
-    ? client.onReceipt(onReceipt)
+    ? client.onReceipt((receipt) => onReceipt(enrichReceipt(receipt)))
     : null;
   let liveHandle = null;
   let ephemeralWiring = null;
@@ -430,10 +460,28 @@ export async function createSnapbackContractSurface({
         return boundary.query(boundaryKey, (rows) => rows, { key: boundaryKey });
       };
     }
+    // Derived optimistic overlays (Exact LLP 0329 §E5): IR-tier mutations
+    // whose manifest embeds a plan derivable for this boundary's table get a
+    // generated default reducer. App reducers stay first-class and override
+    // per name; mutations touching tables this boundary cannot see stay
+    // pending-without-overlay (no overlay beats a wrong prediction).
+    const boundTable = boundDescriptor?.reads?.[0] ?? null;
+    const derivedReducers = deriveOptimisticReducers({
+      manifest,
+      table: boundTable,
+      onError: publishDiagnostic,
+    });
     for (const name of mutationNames) {
+      const appReducer = optimisticReducers[name];
+      const activeReducer = typeof appReducer === 'function' ? appReducer : derivedReducers[name] ?? null;
+      mutationOverlayClass[name] = typeof appReducer === 'function'
+        ? 'reducer'
+        : activeReducer
+          ? 'derived'
+          : 'none';
       links[name] = (args) => {
         assertActive();
-        const reducer = optimisticReducers[name];
+        const reducer = activeReducer;
         let optimisticOp = null;
         if (typeof reducer === 'function') {
           optimisticOp = {
@@ -540,8 +588,10 @@ export async function createSnapbackContractSurface({
       livePush: wantLivePush,
       connection: surfaceConnection,
       // Receipt surface (LLP 0034 §3 / ENG-22478): the kit ring, adapter-facing.
+      // Mutation receipts this surface produced are enriched with their
+      // overlay class (LLP 0329 §E5).
       rootId: surfaceRootId,
-      receipts: () => (typeof client.receipts === 'function' ? client.receipts() : []),
+      receipts: () => (typeof client.receipts === 'function' ? client.receipts().map(enrichReceipt) : []),
       // Ephemeral facts (ENG-22479): the conformance gate's LOCAL-ONLY probe
       // reads source starts; prewarmScope subscribes a scoped room up front.
       ephemeralSourceStarts: ephemeralWiring.sourceStarts,

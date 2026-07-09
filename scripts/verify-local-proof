@@ -73,6 +73,17 @@ run node demos/_kit/tests/regression-midflight-resync.mjs
 run node demos/_kit/tests/live-delta-e2e.mjs
 run node packages/snapback-contract/index.test.mjs
 run node packages/snapback-contract/build-preset.test.mjs
+# The adapter's optimistic-overlay regression suite plus the derived-overlay
+# mirror (Exact LLP 0329 E-B gate): derived overlays must pass the same
+# duplicate-reapply / reconcile-failure scenarios as hand reducers, and the
+# JS overlay evaluator replays the data-tier corpus so it cannot drift from
+# the Rust evaluator.
+run node packages/snapback-contract/optimistic-duplicate-reapply.test.mjs
+run node packages/snapback-contract/mutation-reconcile-failure.test.mjs
+run node packages/snapback-contract/multi-live-poll-reconcile.test.mjs
+run node packages/snapback-contract/derived-overlay.test.mjs
+run node packages/snapback-contract/derived-overlay-duplicate-reapply.test.mjs
+run node packages/snapback-contract/derived-overlay-reconcile-failure.test.mjs
 run node packages/snapback-codegen/identifier-validation.test.mjs
 # LLP 0051 D5: the data-tier corpus is builder-authored and regen-and-diff
 # gated; the Rust runner executes the committed cases inside `cargo test`.

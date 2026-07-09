@@ -16,7 +16,6 @@ import {
 import {
   importExactContractRuntime,
 } from '../../../../packages/snapback-contract/exact-package.mjs';
-import { todoOptimisticReducers } from '../../surfaces/contract/optimistic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -66,7 +65,7 @@ const settle = async () => {
 };
 
 try {
-  await suite.check('rejected runtime-link mutation rolls back optimistic rows', async () => {
+  await suite.check('rejected runtime-link mutation never strands rows (derived overlay predicts the rejection)', async () => {
     const client = createMemoryClient(seedRows, { holdMutations: true });
     const surface = await createSurface(client);
     const cells = [];
@@ -76,7 +75,16 @@ try {
     try {
       const task = surface.links.createTodo({ title });
       await settle();
-      assert(cells.at(-1).value.some((row) => row.title === title), 'optimistic row was not published');
+      // Derived overlays (Exact LLP 0329 E-B): the plan's strict `priority`
+      // arg fails to evaluate locally, so the overlay honestly predicts the
+      // server rejection and publishes NO optimistic row — where the old
+      // hand reducer showed a phantom row and relied on rollback. Rollback
+      // of a published overlay on a server-only failure is covered by
+      // packages/snapback-contract/derived-overlay-reconcile-failure.test.mjs.
+      assert(
+        !cells.at(-1).value.some((row) => row.title === title),
+        'a locally-predictable rejection must not publish an optimistic row',
+      );
 
     let rejected = null;
     try {
@@ -138,7 +146,7 @@ async function createSurface(client) {
   return createSnapbackContractSurface({
     queryName: 'listTodos',
     boundaryKey: 'todos',
-    optimisticReducers: todoOptimisticReducers,
+    // Derived overlays (Exact LLP 0329 E-B): plan-derived defaults.
     runtime: runtimeMod,
     client,
     userId: ADA,

@@ -24,7 +24,6 @@ import {
   checkSnapbackContractDescriptors,
 } from '../../../../packages/snapback-contract/exact-project-check.mjs';
 import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
-import { todoOptimisticReducers } from '../../surfaces/contract/optimistic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -179,7 +178,8 @@ try {
     surface = await createSnapbackContractSurface({
       queryName: 'listTodos',
       boundaryKey: 'todos',
-      optimisticReducers: todoOptimisticReducers,
+      // Derived overlays (Exact LLP 0329 E-B): no hand reducers — the
+      // optimistic assertions below ride the plan-derived defaults.
       runtime: runtimeMod,
       client: db,
       userId: ADA,
@@ -370,7 +370,8 @@ try {
     const pendingSurface = await createSnapbackContractSurface({
       queryName: 'listTodos',
       boundaryKey: 'todos',
-      optimisticReducers: todoOptimisticReducers,
+      // Derived overlays (Exact LLP 0329 E-B): no hand reducers — the
+      // optimistic assertions below ride the plan-derived defaults.
       runtime: runtimeMod,
       client: gate.client,
       userId: ADA,

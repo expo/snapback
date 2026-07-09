@@ -13,7 +13,6 @@ import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
-import { todoOptimisticReducers } from './optimistic.mjs';
 
 const ADA = 'user_ada';
 let activeSurface: { dispose?: () => void } | null = null;
@@ -100,7 +99,10 @@ async function boot(): Promise<void> {
   const surface = await createSnapbackContractSurface({
     queryName: 'listTodos',
     boundaryKey: 'todos',
-    optimisticReducers: todoOptimisticReducers,
+    // No hand-written reducers: todo-v2's mutations are IR-tier, so the
+    // adapter derives their optimistic overlays from the manifest-embedded
+    // plans (Exact LLP 0329 E-B). Apps may still pass optimisticReducers to
+    // override per mutation.
     runtime: await import('@exact/contract/runtime'),
     client,
     userId: ADA,

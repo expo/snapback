@@ -21,7 +21,6 @@ import {
   importExactContractConformance,
   importExactContractRuntime,
 } from '../../../../packages/snapback-contract/exact-package.mjs';
-import { todoOptimisticReducers } from '../../surfaces/contract/optimistic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -167,7 +166,7 @@ function createTodoV2ProviderFixture({ runtime, client }) {
       surface = await createSnapbackContractSurface({
         queryName: 'listTodos',
         boundaryKey: 'todos',
-        optimisticReducers: todoOptimisticReducers,
+        // Derived overlays (Exact LLP 0329 E-B): plan-derived defaults.
         runtime,
         client,
         userId: ADA,
