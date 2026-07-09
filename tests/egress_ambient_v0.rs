@@ -113,7 +113,7 @@ fn input() -> HandlerInput {
         auth: Default::default(),
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 fn run_action(snapback: &mut LocalSnapback, name: &str) -> Value {

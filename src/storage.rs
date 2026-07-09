@@ -477,6 +477,7 @@ impl LocalDatabase {
             },
             changed_count,
             result: Value::Null,
+            ctx_ledger: None,
         })
     }
 
@@ -893,6 +894,7 @@ impl LocalDatabase {
                 version,
                 changed_count: changes.len(),
                 result,
+                ctx_ledger: None,
             },
             write_dependencies: captured_writes_from_changes(&changes),
             changes,
@@ -1010,6 +1012,7 @@ impl LocalDatabase {
                 version,
                 changed_count: changes.len(),
                 result,
+                ctx_ledger: None,
             },
             write_dependencies: captured_writes_from_changes(&changes),
             changes,

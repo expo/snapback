@@ -527,7 +527,7 @@ pub(crate) fn cron_claim_input(claim: &CronRunClaim) -> HandlerInput {
         auth: Default::default(),
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 /// Shared per-connection last-seen map for the L2 reaper. Ephemeral
@@ -2287,7 +2287,7 @@ impl LocalSnapback {
             auth: Default::default(),
             read_set: Vec::new(),
             correlation: None,
-        };
+            ctx_ledger: None,        };
         let mode = match self.stage_action_invocation(&probe) {
             Ok(mode) => mode,
             // A probe that cannot stage (unknown function, non-action) is a
@@ -2966,7 +2966,7 @@ impl LocalSnapback {
                             auth: input.auth.clone(),
                             read_set: Vec::new(),
                             correlation: None,
-                        },
+                            ctx_ledger: None,                        },
                     )?;
                     changed_count += output.changed_count;
                     last_result = output.result;

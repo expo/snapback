@@ -42,6 +42,7 @@ fn l6_concurrent_reads_proceed_during_a_long_write() {
         "file-backed instance must have a read lane"
     );
 
+    let busy_iters = busy_iters_for(&snapback, 900);
     let shared = Arc::new(Mutex::new(snapback));
     let writer = {
         let shared = shared.clone();
@@ -49,7 +50,7 @@ fn l6_concurrent_reads_proceed_during_a_long_write() {
             let started = Instant::now();
             let mut snapback = shared.lock().expect("writer lock");
             snapback
-                .invoke_mutation("busyCreate", input(json!({ "busyMs": 900 }), "user_1"))
+                .invoke_mutation("busyCreate", input(json!({ "iters": busy_iters }), "user_1"))
                 .expect("busy mutation");
             (started, Instant::now())
         })
@@ -198,12 +199,13 @@ async fn l7_busy_mutation_does_not_stall_other_endpoints() {
     // Setup runs blocking work (schema apply, a seed mutation), so on this
     // multi-thread runtime it must live on a blocking thread — the exec guard
     // enforces that for the test itself, not just the server.
-    let snapback = tokio::task::spawn_blocking(move || {
+    let (snapback, busy_iters) = tokio::task::spawn_blocking(move || {
         let _sanction = snapback::exec_guard::BlockingSanction::acquire();
         let mut snapback = LocalSnapback::open(db_path).expect("open");
         configure(&mut snapback);
         seed_todo(&mut snapback, "steady state");
-        snapback
+        let busy_iters = busy_iters_for(&snapback, 900);
+        (snapback, busy_iters)
     })
     .await
     .expect("setup");
@@ -216,7 +218,7 @@ async fn l7_busy_mutation_does_not_stall_other_endpoints() {
             let response = app
                 .oneshot(post_json(
                     "/mutation/busyCreate",
-                    json!({ "args": { "busyMs": 900 }, "auth": { "user_id": "user_1" } }),
+                    json!({ "args": { "iters": busy_iters }, "auth": { "user_id": "user_1" } }),
                 ))
                 .await
                 .expect("busy mutation response");
@@ -472,12 +474,13 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
 
     let dir = tempfile::tempdir().expect("tempdir");
     let db_path = dir.path().join("l9-busy.sqlite3");
-    let snapback = tokio::task::spawn_blocking(move || {
+    let (snapback, busy_iters) = tokio::task::spawn_blocking(move || {
         let _sanction = snapback::exec_guard::BlockingSanction::acquire();
         let mut snapback = LocalSnapback::open(db_path).expect("open");
         configure(&mut snapback);
         seed_todo(&mut snapback, "steady state");
-        snapback
+        let busy_iters = busy_iters_for(&snapback, 900);
+        (snapback, busy_iters)
     })
     .await
     .expect("setup");
@@ -513,7 +516,7 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
             let response = app
                 .oneshot(post_json(
                     "/mutation/busyCreate",
-                    json!({ "args": { "busyMs": 900 }, "auth": { "user_id": "user_1" } }),
+                    json!({ "args": { "iters": busy_iters }, "auth": { "user_id": "user_1" } }),
                 ))
                 .await
                 .expect("busy mutation response");
@@ -812,9 +815,20 @@ globalThis.__snapbackHandlers = {
       .collect();
   },
 
+  async busySpin(ctx, args) {
+    // Calibration probe for busyCreate: burn args.iters and return.
+    var sink = 0;
+    for (var i = 0; i < args.iters; i++) { sink += (i * 31) % 97; }
+    return [{ sink: sink % 1000 }];
+  },
+
   async busyCreate(ctx, args) {
-    const start = Date.now();
-    while (Date.now() - start < args.busyMs) {}
+    // Clock-free busy spin: the deterministic tier denies Date.now at
+    // runtime (LLP 0051 Increment 2). The iteration count is calibrated
+    // host-side by busy_iters_for(); floor rounding only lengthens the
+    // window, which is the safe direction for every bound below.
+    var sink = 0;
+    for (var i = 0; i < args.iters; i++) { sink += (i * 31) % 97; }
     return await ctx.db.insert('todos', {
       title: 'busy insert',
       completed: false,
@@ -948,10 +962,28 @@ fn concurrency_functions() -> FunctionManifest {
             ),
             ibex("listTodosIbex", FunctionKind::LiveQuery),
             ibex("busyCreate", FunctionKind::Mutation),
+            ibex("busySpin", FunctionKind::Query),
             ibex("pairSet", FunctionKind::Mutation),
         ],
         ..FunctionManifest::default()
     }
+}
+
+/// Calibrate the clock-free busy spin (LLP 0051 Increment 2 denies Date.now
+/// inside query/mutation handlers): time a fixed iteration count, best of
+/// two runs, and scale to the requested window. Floor rounding inflates the
+/// window, which only strengthens the "writer held the lane" bounds.
+fn busy_iters_for(snapback: &LocalSnapback, busy_ms: u64) -> u64 {
+    let probe_iters: u64 = 200_000;
+    let mut best_us = u64::MAX;
+    for _ in 0..2 {
+        let started = Instant::now();
+        snapback
+            .invoke_query("busySpin", input(json!({ "iters": probe_iters }), "user_1"))
+            .expect("busy calibration probe");
+        best_us = best_us.min(started.elapsed().as_micros().max(1) as u64);
+    }
+    busy_ms * ((probe_iters * 1_000) / best_us).max(100)
 }
 
 fn input(args: Value, user_id: &str) -> HandlerInput {
@@ -963,7 +995,7 @@ fn input(args: Value, user_id: &str) -> HandlerInput {
         },
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 fn post_json(uri: &str, body: Value) -> Request<Body> {

@@ -858,6 +858,19 @@ disciplines.
    additive field; the ledger-length limit row; twin corpus cases
    proving Ibex/V8 ledger equivalence. Gives LLP 0043 M2 its captured
    environment as a defined channel.
+   *Landed 2026-07-09 (ENG-23892):* convergent member denial + Date
+   wrapper in `ambient_restriction_source`; `CtxAnswerLedger` on
+   `HandlerInput` (replay) and `MutationOutput` (record; fingerprint
+   channel stays server-side); `db.insert` row ids share the
+   `generatedIds` sequence with `runtime.id`, per LLP 0008's wire pin;
+   cap `CTX_ANSWER_LEDGER_MAX_IDS = 1024`; divergence =
+   `SNAPBACK_CTX_LEDGER_EXHAUSTED`, stale authority =
+   `SNAPBACK_AUTH_STALE_RESULT`. Tests: `tests/ctx_ledger_v0.rs`, twin
+   cases in `tests/workerd_twin_v0.rs`. One engine-side fix rode along:
+   the ibex `Event` constructor's `timeStamp` read now tolerates denied
+   ambient clocks (ibex 0f2c865) — the `rejectionhandled` dispatch path
+   threw through the new denial. In-repo busy-wait mutations (bench,
+   concurrency/local tests) moved to host-calibrated clock-free spins.
 3. **IR v1 extension + promotion (D2, D5)** — **SHIPPED 2026-07-09
    (ENG-23893).** All three gates hold in-repo: (a) todo/todo-v2 CRUD
    corpus cases execute on the host evaluator; (b) `resetFeed` and

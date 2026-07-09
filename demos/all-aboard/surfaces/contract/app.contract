@@ -142,10 +142,10 @@ component AllAboard
     heroOffset = offset < 0 ? 0 : offset
   action trainFirst writes heroOffset
     heroOffset = 0
-  // Auto is the initial default only (>18-min walk resolves to bike per
-  // station); the Settings toggle pins an explicit mode from then on.
+  // Auto resolves per station (>18-min walk resolves to bike) and remains
+  // reachable from the explicit Settings modes.
   action toggleEtaMode writes etaMode
-    etaMode = etaMode == "bike" ? "walk" : "bike"
+    etaMode = etaMode == "auto" ? "bike" : etaMode == "bike" ? "walk" : "auto"
   // The real geolocation re-request is web-surface glue (main.ts intercepts
   // the location presses, ENG-22795); the action re-stamps the clock so the
   // hint re-derives immediately once the glue updates the device location.

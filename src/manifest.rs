@@ -930,6 +930,85 @@ pub struct HandlerInput {
     /// on receipts and never interprets it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub correlation: Option<Value>,
+    /// Replay ledger (LLP 0051 D1): when present, the invocation runs in
+    /// REPLAY mode — `ctx.runtime.now()` answers `ledger.now` and every
+    /// host-generated id (`ctx.runtime.id()` and `ctx.db.insert` row ids)
+    /// consumes `ledger.ids` in order. Consuming past the end is a typed
+    /// divergence error. Additive: absent means record mode, today's
+    /// behavior. Queries and mutations only; actions never carry one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ctx_ledger: Option<CtxAnswerLedger>,
+}
+
+/// The ctx-answer ledger (LLP 0051 D1): the ordered answers the deterministic
+/// ctx surface gave during one invocation. Record mode produces it; replay
+/// mode consumes it. Reads are never ledgered — `ctx.db` reads always
+/// re-evaluate against the executing tier's current view; the ledger pins
+/// *answers* only. This is LLP 0043 M2's captured replay environment as a
+/// defined channel: LLP 0008 pins the client wire to exactly
+/// `{generatedIds, now}`; the auth fingerprint is server-retained and never
+/// crosses the client wire.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct CtxAnswerLedger {
+    /// Ledger format version, versioned alongside the shared data-tier
+    /// profile (LLP 0051 D5) so pre-extension ledgers stay replayable.
+    #[serde(default = "ctx_ledger_version")]
+    pub version: u32,
+    /// Every host-generated id, in answer order (LLP 0008's `generatedIds`):
+    /// `ctx.runtime.id()` answers and `ctx.db.insert` row-id generation share
+    /// one ordered sequence.
+    #[serde(default)]
+    pub ids: Vec<String>,
+    /// The frozen invocation clock every `ctx.runtime.now()` answered with.
+    #[serde(default)]
+    pub now: u64,
+    /// Fingerprint of the resolved auth context the handler observed
+    /// (LLP 0043 §Auth posture). Checked at replay when present: a mismatch
+    /// surfaces `SNAPBACK_AUTH_STALE_RESULT` rather than replaying under new
+    /// authority. Server-retained (D1 wire split) — record-mode outputs leave
+    /// it unset on client-bound surfaces.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth_fingerprint: Option<String>,
+}
+
+pub(crate) fn ctx_ledger_version() -> u32 {
+    CTX_ANSWER_LEDGER_VERSION
+}
+
+/// The current ctx-answer ledger format version (LLP 0051 D1/D5).
+pub const CTX_ANSWER_LEDGER_VERSION: u32 = 1;
+
+/// Declared invocation-scoped limit row (LLP 0047 §Limits / LLP 0051 D1
+/// ledger mechanics): the maximum number of host-generated ids one
+/// invocation may record. A handler that calls `ctx.runtime.id()` in a loop
+/// gets a typed error (`SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED`), not an
+/// unbounded artifact.
+pub const CTX_ANSWER_LEDGER_MAX_IDS: usize = 1024;
+
+/// Stable fingerprint of the resolved auth context (LLP 0043 §Auth posture):
+/// FNV-1a over the canonical field tuple. A staleness guard, not a
+/// cryptographic commitment — it prevents silent replay under changed
+/// authority, and the server re-evaluates authorization at commit regardless
+/// (LLP 0051 D1).
+pub fn auth_fingerprint(auth: &AuthInput) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut eat = |bytes: &[u8]| {
+        for byte in bytes {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    };
+    for field in [&auth.principal, &auth.session_id, &auth.user_id] {
+        match field {
+            Some(value) => {
+                eat(&[1]);
+                eat(value.as_bytes());
+            }
+            None => eat(&[0]),
+        }
+        eat(&[0xff]);
+    }
+    format!("fnv1a:{hash:016x}")
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -950,6 +1029,14 @@ pub struct MutationOutput {
     pub version: u64,
     pub changed_count: usize,
     pub result: Value,
+    /// The recorded ctx-answer ledger for this invocation (LLP 0051 D1).
+    /// Present for Ibex-module mutations (record mode records; replay mode
+    /// echoes the consumed ledger); absent on HostPlan mutations, whose
+    /// id/clock determinism is the IR evaluator's own (D2). The
+    /// `auth_fingerprint` member stays unset here — that channel is
+    /// server-retained (D1 wire split).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ctx_ledger: Option<CtxAnswerLedger>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

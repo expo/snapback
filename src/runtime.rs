@@ -148,10 +148,16 @@ impl RuntimeManager {
         db: &mut LocalDatabase,
         pool: Option<&WarmVmPool>,
     ) -> SnapbackResult<MutationCommit> {
-        let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true);
+        let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true)?;
         let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
+        // The recorded (or replayed) ctx-answer ledger rides the output
+        // (LLP 0051 D1) so LLP 0043 M2 producers and dry-run consumers have
+        // the captured environment as a defined channel.
+        let ctx_ledger = invocation.take_ctx_ledger();
         let IbexHostContext { writes, reads, .. } = invocation;
-        db.commit_buffered_writes(&input, writes, reads, result)
+        let mut commit = db.commit_buffered_writes(&input, writes, reads, result)?;
+        commit.output.ctx_ledger = Some(ctx_ledger);
+        Ok(commit)
     }
 
     pub fn invoke_ibex_action(
@@ -182,7 +188,7 @@ pub(crate) fn run_ibex_query_with_reads(
     db: DbRead<'_>,
     pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<IbexQueryRun> {
-    let mut invocation = IbexHostContext::new(db, input, false);
+    let mut invocation = IbexHostContext::new(db, input, false)?;
     let value = run_ibex_handler_with_context(module, &mut invocation, pool)?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array is a fail-closed error, not a
@@ -319,6 +325,43 @@ fn action_host_missing() -> SnapbackError {
     )
 }
 
+/// Validate a supplied replay ledger before the invocation runs (LLP 0051
+/// D1): the format version must be known, and when the ledger carries an auth
+/// fingerprint it must match the invocation's resolved auth context — a
+/// mismatch surfaces `SNAPBACK_AUTH_STALE_RESULT` (LLP 0043 §Auth posture)
+/// rather than replaying under new authority.
+fn validate_replay_ledger(input: &HandlerInput) -> SnapbackResult<Option<ReplayLedger>> {
+    let Some(ledger) = &input.ctx_ledger else {
+        return Ok(None);
+    };
+    if ledger.version != crate::manifest::CTX_ANSWER_LEDGER_VERSION {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED",
+            "runtime",
+            format!(
+                "ctx-answer ledger version {} is not supported (current: {})",
+                ledger.version,
+                crate::manifest::CTX_ANSWER_LEDGER_VERSION
+            ),
+        ));
+    }
+    if let Some(fingerprint) = &ledger.auth_fingerprint {
+        let current = crate::manifest::auth_fingerprint(&input.auth);
+        if *fingerprint != current {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_STALE_RESULT",
+                "runtime",
+                "ctx-answer ledger was recorded under a different auth context; \
+                 refusing to replay under new authority (LLP 0043 §Auth posture)",
+            ));
+        }
+    }
+    Ok(Some(ReplayLedger {
+        ids: ledger.ids.clone(),
+        cursor: 0,
+    }))
+}
+
 pub(crate) struct IbexHostContext<'a> {
     /// The storage view for query/mutation invocations. Actions carry `None`:
     /// their `ctx.db` reads route through the action host, whose
@@ -341,13 +384,35 @@ pub(crate) struct IbexHostContext<'a> {
     /// @ref LLP 0036#runtime-exposure-d5-d8 — per-invocation grants replace
     /// the deprecated `SNAPBACK_ACTION_SECRETS` env seam (LLP 0029 G4).
     grants: Value,
+    /// Record-mode ctx-answer ledger (LLP 0051 D1): every host-generated id
+    /// this invocation answered, in order. Queries/mutations only; actions
+    /// never record — they are outside the deterministic tier.
+    recorded_ids: Vec<String>,
+    /// Replay-mode state; `Some` iff the input carried a `ctx_ledger`.
+    replay: Option<ReplayLedger>,
+}
+
+/// Replay-mode cursor over a supplied ctx-answer ledger (LLP 0051 D1).
+struct ReplayLedger {
+    ids: Vec<String>,
+    cursor: usize,
 }
 
 impl<'a> IbexHostContext<'a> {
-    pub(crate) fn new(db: DbRead<'a>, input: HandlerInput, writable: bool) -> Self {
+    pub(crate) fn new(
+        db: DbRead<'a>,
+        input: HandlerInput,
+        writable: bool,
+    ) -> SnapbackResult<Self> {
+        let replay = validate_replay_ledger(&input)?;
+        let now_ms = input
+            .ctx_ledger
+            .as_ref()
+            .map(|ledger| ledger.now)
+            .unwrap_or_else(now_millis);
         let reads = auth_dependencies(&input);
         let read_keys = read_dependency_keys(&reads);
-        Self {
+        Ok(Self {
             db: Some(db),
             input,
             mode: if writable {
@@ -358,12 +423,14 @@ impl<'a> IbexHostContext<'a> {
             writes: Vec::new(),
             reads,
             read_keys,
-            now_ms: now_millis(),
+            now_ms,
             action_run: None,
             action_host: None,
             epoch: next_invocation_epoch(),
             grants: Value::Null,
-        }
+            recorded_ids: Vec::new(),
+            replay,
+        })
     }
 
     fn new_action(
@@ -386,7 +453,69 @@ impl<'a> IbexHostContext<'a> {
             action_host: Some(host),
             epoch: next_invocation_epoch(),
             grants,
+            recorded_ids: Vec::new(),
+            replay: None,
         }
+    }
+
+    /// Take the recorded ctx-answer ledger (LLP 0051 D1) after the handler
+    /// settles. Replay mode echoes the consumed ledger (minus the
+    /// server-retained fingerprint); record mode packages what was answered.
+    /// The `auth_fingerprint` is deliberately left unset — that channel is
+    /// server-retained per the D1 wire split; producers that retain it attach
+    /// it themselves.
+    pub(crate) fn take_ctx_ledger(&mut self) -> crate::manifest::CtxAnswerLedger {
+        crate::manifest::CtxAnswerLedger {
+            version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
+            ids: match &self.replay {
+                Some(replay) => replay.ids.clone(),
+                None => std::mem::take(&mut self.recorded_ids),
+            },
+            now: self.now_ms,
+            auth_fingerprint: None,
+        }
+    }
+
+    /// The single host id source for the deterministic tier (LLP 0051 D1):
+    /// `ctx.runtime.id()` and `ctx.db.insert` row-id generation both answer
+    /// through here, so record and replay cover every host-generated id in
+    /// one ordered `generatedIds` sequence (LLP 0008's wire pin). Actions
+    /// bypass the ledger — they are outside the deterministic tier.
+    fn next_host_id(&mut self) -> SnapbackResult<String> {
+        if self.mode == IbexInvocationMode::Action {
+            return Ok(crate::storage::new_id());
+        }
+        if let Some(replay) = self.replay.as_mut() {
+            let id = replay.ids.get(replay.cursor).cloned().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_CTX_LEDGER_EXHAUSTED",
+                    "runtime",
+                    format!(
+                        "replay consumed all {} ledgered ids and the handler asked for another — \
+                         the handler diverged from its recording (LLP 0051 D1; dropped and marked \
+                         failed, mirroring LLP 0043)",
+                        replay.ids.len()
+                    ),
+                )
+            })?;
+            replay.cursor += 1;
+            return Ok(id);
+        }
+        if self.recorded_ids.len() >= crate::manifest::CTX_ANSWER_LEDGER_MAX_IDS {
+            // Declared LLP 0047-style limit row: the cap turns an
+            // id-generation loop into a typed error, not an unbounded artifact.
+            return Err(SnapbackError::error(
+                "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
+                "runtime",
+                format!(
+                    "invocation generated more than {} host ids (LLP 0051 D1 ledger cap)",
+                    crate::manifest::CTX_ANSWER_LEDGER_MAX_IDS
+                ),
+            ));
+        }
+        let id = crate::storage::new_id();
+        self.recorded_ids.push(id.clone());
+        Ok(id)
     }
 
     fn db(&self) -> &DbRead<'a> {
@@ -503,7 +632,9 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_writable("insert")?;
                 let table = required_string(&args, "table")?;
                 let values = required_object(&args, "values")?;
-                let id = self.db().generate_id();
+                // Row ids are host-generated entropy: they answer through the
+                // ctx-answer ledger like `runtime.id` (LLP 0051 D1).
+                let id = self.next_host_id()?;
                 self.writes.push(BufferedWrite::Insert {
                     table,
                     id: id.clone(),
@@ -552,8 +683,11 @@ impl<'a> IbexHostContext<'a> {
                 Ok(Value::Null)
             }
             // Id generation is storage-independent, so it stays available to
-            // actions, whose context carries no db view (ENG-23324).
-            "runtime.id" => Ok(Value::String(crate::storage::new_id())),
+            // actions, whose context carries no db view (ENG-23324). For
+            // queries/mutations the answer routes through the ctx-answer
+            // ledger (LLP 0051 D1): recorded in record mode, consumed in
+            // order in replay mode.
+            "runtime.id" => Ok(Value::String(self.next_host_id()?)),
             "action.metadata" => serde_json::to_value(self.action_run.as_ref()).map_err(|error| {
                 SnapbackError::error(
                     "SNAPBACK_ACTION_METADATA_SERIALIZE_FAILED",
@@ -574,7 +708,7 @@ impl<'a> IbexHostContext<'a> {
                     auth: self.input.auth.clone(),
                     read_set: Vec::new(),
                     correlation: None,
-                };
+                    ctx_ledger: None,                };
                 let host = self
                     .action_host
                     .as_deref_mut()
@@ -1440,6 +1574,57 @@ fn banned_ambient_globals() -> &'static Vec<String> {
     })
 }
 
+/// The deterministic-member denial list, single-sourced from the same
+/// allowlist `members` list the V8 strip consumes (LLP 0051 D1 / Increment 2:
+/// the Ibex deterministic-member gap is closed at runtime for the
+/// deterministic tier, not just by the LLP 0009 codegen ban).
+fn banned_ambient_members() -> &'static Vec<String> {
+    static BANNED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    BANNED.get_or_init(|| {
+        let allowlist: Value =
+            serde_json::from_str(include_str!("../packages/snapback-harness/allowlist.json"))
+                .expect("packages/snapback-harness/allowlist.json parses");
+        allowlist
+            .get("bannedEverywhere")
+            .and_then(|banned| banned.get("members"))
+            .and_then(Value::as_array)
+            .map(|names| {
+                names
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect()
+            })
+            .expect("allowlist bannedEverywhere.members is a string array")
+    })
+}
+
+/// The zero-arg `Date`-constructor denial (ENG-23588), `workerd/strip.mjs`'s
+/// shape ported to the Ibex leg: zero-arg `new Date()` and `Date()` as a
+/// function read the ambient wall clock and are denied; explicit-timestamp
+/// construction and the static parsers are pure functions of their arguments
+/// and stay. This is a constructor wrapper, not a `members` entry — a
+/// members-only port would silently miss it.
+const DATE_CONSTRUCTOR_DENY_SOURCE: &str = r#"  var NativeDate = g.Date;
+  try {
+    var WrappedDate = function Date() {
+      if (!new.target) {
+        throw snapbackError("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED", "Date()");
+      }
+      if (arguments.length === 0) {
+        throw snapbackError("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED", "new Date()");
+      }
+      return Reflect.construct(NativeDate, arguments, new.target);
+    };
+    WrappedDate.prototype = NativeDate.prototype;
+    WrappedDate.parse = NativeDate.parse;
+    WrappedDate.UTC = NativeDate.UTC;
+    WrappedDate.now = deny("Date.now");
+    Object.defineProperty(NativeDate.prototype, "constructor", { value: WrappedDate });
+    Object.defineProperty(g, "Date", { value: WrappedDate, configurable: false, writable: false });
+  } catch (_) {}
+"#;
+
 fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) -> String {
     let egress = outbound_enabled && matches!(mode, IbexInvocationMode::Action);
     let mut denials = String::new();
@@ -1478,6 +1663,35 @@ fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) 
             probed.push(name);
         }
     }
+    // The deterministic tier (queries/mutations) additionally denies the
+    // allowlist's `members` list at runtime — the same list the V8 strip
+    // consumes — plus the zero-arg `Date`-constructor rule, which is a
+    // constructor wrapper, not a `members` entry (LLP 0051 D1 / Increment 2,
+    // ENG-23588). Actions keep today's surface: they are the
+    // ambient-powered, non-deterministic class, and the wall-clock watchdog
+    // busy-waits are action behavior by design.
+    let deterministic_tier = !matches!(mode, IbexInvocationMode::Action);
+    let mut member_denials = String::new();
+    let mut member_probe = String::new();
+    if deterministic_tier {
+        for member in banned_ambient_members() {
+            let Some((holder, prop)) = member.split_once('.') else {
+                continue;
+            };
+            member_denials.push_str(&format!(
+                "  try {{ Object.defineProperty(g[\"{holder}\"], \"{prop}\", {{ value: deny(\"{member}\"), configurable: false, writable: false }}); }} catch (_) {{}}\n"
+            ));
+        }
+        member_denials.push_str(DATE_CONSTRUCTOR_DENY_SOURCE);
+        let member_list = banned_ambient_members()
+            .iter()
+            .map(|member| format!("\"{member}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        member_probe = format!(
+            "  [{member_list}].forEach(function(member) {{\n    var parts = member.split(\".\");\n    var target = g[parts[0]];\n    var value = target ? target[parts[1]] : undefined;\n    if (typeof value !== \"function\") {{ __snapbackDenySurvivors.push(member); return; }}\n    try {{ value.call(target); __snapbackDenySurvivors.push(member); }} catch (error) {{\n      if (String((error && error.message) || \"\").indexOf(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\") !== 0) {{ __snapbackDenySurvivors.push(member); }}\n    }}\n  }});\n  try {{ new g.Date(); __snapbackDenySurvivors.push(\"new Date()\"); }} catch (error) {{\n    if (String((error && error.message) || \"\").indexOf(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\") !== 0) {{ __snapbackDenySurvivors.push(\"new Date()\"); }}\n  }}\n  try {{ if (new g.Date(0).getTime() !== 0) {{ __snapbackDenySurvivors.push(\"new Date(ms) broke\"); }} }} catch (_) {{ __snapbackDenySurvivors.push(\"new Date(ms) broke\"); }}\n"
+        );
+    }
     // Symmetric to the V8 strip's init self-check (ENG-23590): the denial
     // loop above swallows defineProperty failures, so verify every denied
     // name actually became unreachable and fail the eval — and with it the
@@ -1488,10 +1702,10 @@ fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) 
         .collect::<Vec<_>>()
         .join(", ");
     let probe = format!(
-        "  var __snapbackDenySurvivors = [];\n  [{probe_list}].forEach(function(name) {{\n    var value;\n    try {{ value = g[name]; }} catch (_) {{ return; }}\n    if (value === undefined || value === null) {{ return; }}\n    if (typeof value === \"function\") {{\n      try {{ value(); }} catch (error) {{\n        if (String((error && error.message) || \"\").indexOf(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\") === 0) {{ return; }}\n      }}\n    }}\n    __snapbackDenySurvivors.push(name);\n  }});\n  if (__snapbackDenySurvivors.length > 0) {{\n    throw snapbackError(\"SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE\", \"banned globals survived the ambient denial: \" + __snapbackDenySurvivors.join(\", \"));\n  }}\n"
+        "  var __snapbackDenySurvivors = [];\n  [{probe_list}].forEach(function(name) {{\n    var value;\n    try {{ value = g[name]; }} catch (_) {{ return; }}\n    if (value === undefined || value === null) {{ return; }}\n    if (typeof value === \"function\") {{\n      try {{ value(); }} catch (error) {{\n        if (String((error && error.message) || \"\").indexOf(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\") === 0) {{ return; }}\n      }}\n    }}\n    __snapbackDenySurvivors.push(name);\n  }});\n{member_probe}  if (__snapbackDenySurvivors.length > 0) {{\n    throw snapbackError(\"SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE\", \"banned globals survived the ambient denial: \" + __snapbackDenySurvivors.join(\", \"));\n  }}\n"
     );
     format!(
-        "(function(g) {{\n  function snapbackError(code, message) {{\n    var error = new Error(code + \": \" + message);\n    try {{ Object.defineProperty(error, \"__snapbackCode\", {{ value: code }}); }} catch (_) {{ error.__snapbackCode = code; }}\n    return error;\n  }}\n  function deny(name) {{\n    return function() {{ throw snapbackError(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\", name); }};\n  }}\n{denials}{probe}}})(globalThis);\n"
+        "(function(g) {{\n  function snapbackError(code, message) {{\n    var error = new Error(code + \": \" + message);\n    try {{ Object.defineProperty(error, \"__snapbackCode\", {{ value: code }}); }} catch (_) {{ error.__snapbackCode = code; }}\n    return error;\n  }}\n  function deny(name) {{\n    return function() {{ throw snapbackError(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\", name); }};\n  }}\n{denials}{member_denials}{probe}}})(globalThis);\n"
     )
 }
 
@@ -1580,7 +1794,11 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_HANDLER_STALE_CONTINUATION"
         | "SNAPBACK_CONFIG_UNDECLARED"
         | "SNAPBACK_CONFIG_MISSING"
-        | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE" => code,
+        | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
+        // LLP 0051 D1: ledger divergence and the ledger-length limit are
+        // typed results, not generic handler failures.
+        | "SNAPBACK_CTX_LEDGER_EXHAUSTED"
+        | "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED" => code,
         code if code.starts_with("SNAPBACK_HANDLER_HOST_CALL_") => code,
         _ => "SNAPBACK_HANDLER_FAILED",
     }

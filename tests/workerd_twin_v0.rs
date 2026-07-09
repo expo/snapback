@@ -78,6 +78,7 @@ fn functions() -> FunctionManifest {
             define("detachedHostCallSuccess", FunctionKind::Mutation),
             define("probeDateConstructor", FunctionKind::Query),
             define("decoderFidelity", FunctionKind::Query),
+            define("ledgeredIds", FunctionKind::Mutation),
         ],
         ..FunctionManifest::default()
     }
@@ -96,6 +97,7 @@ fn input(args: Value) -> HandlerInput {
         auth: AuthInput::default(),
         read_set: Vec::new(),
         correlation: None,
+        ctx_ledger: None,
     }
 }
 
@@ -272,61 +274,48 @@ fn ambient_powers_are_unreachable_on_both_engines() {
     }
 }
 
-/// Deterministic-member denial is a *declared engine fact*, asymmetric by
-/// design in v1: the V8 strip denies `Date.now`/`Math.random` at runtime,
-/// while the Ibex leg still exposes them and relies on the LLP 0009 codegen
-/// ban (existing watchdog tests depend on handler-visible `Date.now`). The
-/// capability manifests state this; this test pins the asymmetry so a change
-/// on either side is a deliberate decision, not drift.
+/// Deterministic-member denial is CONVERGENT for the deterministic tier
+/// (LLP 0051 Increment 2, ENG-23892): queries and mutations get runtime
+/// member denial on BOTH engines — the Ibex leg single-sources its deny
+/// stubs from the same allowlist `members` list the V8 strip consumes, plus
+/// the zero-arg `Date`-constructor rule (ENG-23588). The previous version of
+/// this test pinned the v1 asymmetry as a declared engine fact; the flip is
+/// deliberate — the pin existed precisely so this would be a decision, not
+/// drift. Actions keep the ambient members (the busy-wait watchdog tests are
+/// action tests and stay untouched).
 #[test]
-fn deterministic_member_denial_is_a_declared_engine_fact() {
+fn deterministic_member_denial_is_convergent_for_the_deterministic_tier() {
     require_workerd!();
     let snapback = configured();
-    for member in ["Date.now", "Math.random"] {
-        let on_workerd = probe(&snapback, HandlerBackend::WorkerdV8, "probeMember", member);
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        for member in ["Date.now", "Math.random"] {
+            let result = probe(&snapback, backend, "probeMember", member);
+            assert_eq!(
+                result.get("reachable"),
+                Some(&json!(false)),
+                "{backend:?}: {member} must be denied in the deterministic tier, got {result}"
+            );
+        }
+        // The Date CONSTRUCTOR's ambient clock read is denied the same way on
+        // both engines (ENG-23588): zero-arg construction and Date() as a
+        // function; explicit-timestamp construction stays usable.
+        let ctor = probe(&snapback, backend, "probeDateConstructor", "");
         assert_eq!(
-            on_workerd.get("reachable"),
-            Some(&json!(false)),
-            "workerd-v8: {member} must be denied, got {on_workerd}"
-        );
-        let on_ibex = probe(&snapback, HandlerBackend::Ibex, "probeMember", member);
-        assert_eq!(
-            on_ibex.get("reachable"),
+            ctor.get("explicit"),
             Some(&json!(true)),
-            "ibex: {member} is expected reachable in v1 (codegen-banned, declared fact); got {on_ibex}"
+            "{backend:?}: new Date(ms) must stay usable; got {ctor}"
+        );
+        assert_eq!(
+            ctor.get("zeroArgReachable"),
+            Some(&json!(false)),
+            "{backend:?}: new Date() must be denied; got {ctor}"
+        );
+        assert_eq!(
+            ctor.get("callReachable"),
+            Some(&json!(false)),
+            "{backend:?}: Date() as a function must be denied; got {ctor}"
         );
     }
-    // The Date CONSTRUCTOR's ambient clock read is part of the same declared
-    // asymmetry (ENG-23588): denied by the V8 strip (zero-arg construction
-    // and Date() as a function), still reachable on Ibex in v1 like Date.now.
-    // Explicit-timestamp construction stays usable on both engines.
-    let ctor_workerd = probe(
-        &snapback,
-        HandlerBackend::WorkerdV8,
-        "probeDateConstructor",
-        "",
-    );
-    assert_eq!(
-        ctor_workerd.get("explicit"),
-        Some(&json!(true)),
-        "workerd-v8: new Date(ms) must stay usable; got {ctor_workerd}"
-    );
-    assert_eq!(
-        ctor_workerd.get("zeroArgReachable"),
-        Some(&json!(false)),
-        "workerd-v8: new Date() must be denied; got {ctor_workerd}"
-    );
-    assert_eq!(
-        ctor_workerd.get("callReachable"),
-        Some(&json!(false)),
-        "workerd-v8: Date() as a function must be denied; got {ctor_workerd}"
-    );
-    let ctor_ibex = probe(&snapback, HandlerBackend::Ibex, "probeDateConstructor", "");
-    assert_eq!(
-        ctor_ibex.get("zeroArgReachable"),
-        Some(&json!(true)),
-        "ibex: new Date() is expected reachable in v1 (declared fact); got {ctor_ibex}"
-    );
 
     // HermesInternal is non-configurable AND non-writable on the vendored
     // engine, so it cannot be shadowed at the JS layer; it carries engine
@@ -506,6 +495,79 @@ fn decoder_fidelity_agrees_on_both_engines_and_with_the_spec() {
         assert_eq!(
             output.rows[0], expected,
             "{backend:?}: TextDecoder fidelity diverged from the WHATWG-expected values"
+        );
+    }
+}
+
+/// LLP 0051 D1 (Increment 2): the ctx-answer ledger is engine-equivalent.
+/// A ledger recorded on either leg replays on the other to a byte-identical
+/// result — the record/replay channel lives on the shared host-call seam, so
+/// only the executor differs. Divergence (consuming past the ledger end) is
+/// the same typed error on both engines.
+#[test]
+fn ctx_answer_ledger_is_equivalent_across_engines() {
+    require_workerd!();
+    // Record on the Ibex leg.
+    let mut recorder = configured();
+    let recorded = recorder
+        .invoke_mutation("ledgeredIds", input(json!({ "tag": "twin" })))
+        .expect("record-mode mutation on ibex");
+    let ledger = recorded
+        .ctx_ledger
+        .clone()
+        .expect("ibex mutation carries a ledger");
+    assert_eq!(ledger.ids.len(), 3, "two runtime.id answers + one insert id");
+
+    // Replay the SAME ledger on both legs (fresh instances): identical
+    // results, identical echoed ledgers.
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let mut replayer = configured();
+        let mut replay_input = input(json!({ "tag": "twin" }));
+        replay_input.ctx_ledger = Some(ledger.clone());
+        let replayed = with_forced_backend(backend, || {
+            replayer.invoke_mutation("ledgeredIds", replay_input)
+        })
+        .unwrap_or_else(|error| panic!("{backend:?} replay failed: {error}"));
+        assert_eq!(
+            replayed.result, recorded.result,
+            "{backend:?}: replay must reproduce the recorded result exactly"
+        );
+        assert_eq!(
+            replayed.ctx_ledger.as_ref().map(|l| &l.ids),
+            Some(&ledger.ids),
+            "{backend:?}: replay echoes the consumed ledger"
+        );
+    }
+
+    // Record on the V8 leg too — the ledger channel is not Ibex-shaped.
+    let mut v8_recorder = configured();
+    let v8_recorded = on_v8(|| {
+        v8_recorder.invoke_mutation("ledgeredIds", input(json!({ "tag": "twin-v8" })))
+    })
+    .expect("record-mode mutation on workerd-v8");
+    let v8_ledger = v8_recorded
+        .ctx_ledger
+        .expect("v8 mutation carries a ledger");
+    assert_eq!(v8_ledger.ids.len(), 3);
+    assert_eq!(
+        v8_recorded.result.get("rowId"),
+        Some(&json!(v8_ledger.ids[2]))
+    );
+
+    // Divergence is the same typed error on both legs.
+    let mut short = ledger.clone();
+    short.ids.truncate(1);
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let mut replayer = configured();
+        let mut replay_input = input(json!({ "tag": "twin" }));
+        replay_input.ctx_ledger = Some(short.clone());
+        let error = with_forced_backend(backend, || {
+            replayer.invoke_mutation("ledgeredIds", replay_input)
+        })
+        .expect_err("consuming past the ledger end must fail");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_CTX_LEDGER_EXHAUSTED",
+            "{backend:?}: unexpected diagnostic: {error}"
         );
     }
 }
