@@ -2037,10 +2037,12 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
         functions.bundle_hash.as_deref(),
         // Path-independent since the LLP 0034 review fix 4 (handler sources
         // hash by manifest-relative path): reproducible from any checkout.
-        // Re-pinned when the todo demo handler rejected empty titles;
-        // previously for the LLP 0032 P3 declared listTodos result validator,
-        // the P1 define.mjs move, and the LLP 0036 `uses`/`config` additions.
-        Some("sha256:ebbf32fb96fa8ebc")
+        // Re-pinned for the LLP 0051 D2 mutation-IR v1 codegen extension
+        // (ENG-23893; the hash covers codegen inputs); previously when the
+        // todo demo handler rejected empty titles, for the LLP 0032 P3
+        // declared listTodos result validator, the P1 define.mjs move, and
+        // the LLP 0036 `uses`/`config` additions.
+        Some("sha256:70442d7f791c623a")
     );
 
     let list = functions
