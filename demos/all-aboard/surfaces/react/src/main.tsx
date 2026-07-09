@@ -120,38 +120,26 @@ async function watchLocation(): Promise<void> {
   requestDeviceLocation();
 }
 
-// D4 edits 1-3 (LLP 0034 §5): mount lifecycle = connect + health +
-// inspect-only provisioning check; provision and seed run ONLY when inspection
-// says they are needed (schema/bundle hash mismatch; empty schedule tables);
-// seed-if-empty, never reset-then-seed; the destructive reset is not reachable
-// from this path.
+// D4 edits 1-3 (LLP 0034 §5): mount lifecycle = connect + health + the single
+// idempotent /app/ensure — the server inspects schemaHash/bundleHash/seed
+// state and provisions only what is missing, seed-if-empty, never
+// reset-then-seed. This is the same boot the Contract surface uses: /app/ensure
+// is profile-gated server-side rather than admin-token-gated, so a browser
+// page never performs a raw admin write. The previous hand-rolled
+// inspect+loadSchema/loadFunctions/seed sequence was admin-token-gated and
+// died with SNAPBACK_ADMIN_TOKEN_REQUIRED on any unprovisioned backend
+// (ENG-23707).
 async function ensureProvisioned(client: SnapbackClient): Promise<string[]> {
-  const actions: string[] = [];
-  const inspect = (await client.inspect()) as {
-    schema?: { schemaHash?: string | null };
-    functions?: { bundleHash?: string | null };
-  };
-
-  if (inspect.schema?.schemaHash !== (schemaManifest as { schemaHash: string }).schemaHash) {
-    status('Provisioning schema (backend not provisioned for this manifest)…');
-    await client.loadSchema(schemaManifest);
-    actions.push('schema');
-  }
-  if (inspect.functions?.bundleHash !== (functionsManifest as { bundleHash: string }).bundleHash) {
-    status('Provisioning functions…');
-    await client.loadFunctions(functionsManifest);
-    actions.push('functions');
-  }
-
-  // Seed-if-empty: the static schedule is the seeded-state marker. On an
-  // already-provisioned backend with data this is a read, never a write.
-  const stations = await client.query('stationsQuery', {});
-  if ((stations.rows?.length ?? 0) === 0) {
-    status('Seeding the schedule (empty backend)…');
-    await client.seed(seed);
-    actions.push('seed');
-  }
-  return actions;
+  const ensured = await client.ensureApp({
+    schema: schemaManifest,
+    functions: functionsManifest,
+    seed,
+  });
+  return [
+    ensured.schema === 'provisioned' ? 'schema' : null,
+    ensured.functions === 'provisioned' ? 'functions' : null,
+    ensured.seed === 'seeded' ? 'seed' : null,
+  ].filter((action): action is string => action !== null);
 }
 
 async function boot(): Promise<{ provisioned: string[]; connections: () => Record<string, string | null> }> {

@@ -49,6 +49,12 @@ const artifactsJsonPath = join(repoRoot, 'demos', 'all-aboard', 'snapback', 'gen
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const API_PORT = Number(process.env.ALL_ABOARD_API_PORT ?? 4420);
 const VITE_PORT = Number(process.env.ALL_ABOARD_REACT_VITE_PORT ?? 5179);
+// Mirror browser.mjs: mint an admin token before the API server spawns (it
+// inherits process.env) so harness-side AdminWrites — the manual cron run —
+// can authenticate. The PAGE never sees or needs this token; its boot goes
+// through the profile-gated /app/ensure (ENG-23707).
+const API_ADMIN_TOKEN = process.env.SNAPBACK_ADMIN_TOKEN || `sbat_browser_react_${Date.now().toString(36)}`;
+process.env.SNAPBACK_ADMIN_TOKEN = API_ADMIN_TOKEN;
 let apiUrl = `http://127.0.0.1:${API_PORT}`;
 let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
@@ -274,10 +280,18 @@ async function main() {
       // performs no interaction and owns no poll timer for these queries —
       // the freshness marker must show the stable sub-minute copy purely from the push.
       const client = new SnapbackClient(apiUrl);
+      // The Refresh press a few checks back consumed the ENG-23642 one-poll-
+      // per-180s upstream budget; a budget-denied cron run would honestly skip
+      // (no commit, no delta). Clear it so this check exercises the push lane
+      // — same treatment as the Contract arm (browser.mjs).
+      await client.mutate('resetFeed', {});
       const feedBefore = (await client.query('feedState', {})).rows[0] ?? {};
       const tickBefore = feedBefore.tickIndex ?? -1;
       const tickCount = feedBefore.tickCount ?? 0;
-      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
+      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
+        method: 'POST',
+        headers: { 'x-snapback-admin-token': API_ADMIN_TOKEN },
+      });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
       const record = await run.json();
       const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
@@ -315,7 +329,10 @@ async function main() {
       // still receiving server-authored deltas after the second boot.
       const stationName = await page.text('station-name');
       if (!stationName) throw new Error('first window lost its board after the second boot');
-      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, { method: 'POST' });
+      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
+        method: 'POST',
+        headers: { 'x-snapback-admin-token': API_ADMIN_TOKEN },
+      });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
       const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
       if (fresh !== 'Updated a few seconds ago') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
