@@ -64,6 +64,86 @@ type RouteEstimateResult = {
 const ROUTE_CACHE_TTL_MS = 5 * 60 * 1000;
 let deviceLocation: LatLng | null = null;
 let deviceLocationSource = 'default'; // 'device' | 'default' | 'denied' | 'unavailable'
+
+// --- Maps-app preference (device-capability glue, like location) ---------------
+//
+// ENG-23795: which maps app the directions affordances open. The value lives
+// here (not contract state) because the web glue both writes it (the Settings
+// press cycles it, persisted to localStorage) and reads it (to build the URL a
+// tap opens); the .contract renders it through `mapsAppLabel(nowMs)` so the 1s
+// clock re-derives the label after a cycle. On native hosts without the glue
+// the label stays on the platform default — a declared gap, not a fake toggle.
+
+export type MapsApp = 'default' | 'apple' | 'google';
+const MAPS_APPS: MapsApp[] = ['default', 'apple', 'google'];
+let mapsApp: MapsApp = 'default';
+
+export function getMapsApp(): MapsApp {
+  return mapsApp;
+}
+
+export function setMapsApp(next: string | null): void {
+  mapsApp = MAPS_APPS.includes(next as MapsApp) ? (next as MapsApp) : 'default';
+}
+
+export function cycleMapsApp(): MapsApp {
+  mapsApp = MAPS_APPS[(MAPS_APPS.indexOf(mapsApp) + 1) % MAPS_APPS.length];
+  return mapsApp;
+}
+
+export function mapsAppLabel(_tick?: number): string {
+  if (mapsApp === 'apple') return 'Apple Maps';
+  if (mapsApp === 'google') return 'Google Maps';
+  return 'Platform default';
+}
+
+// City-level postal addresses for the copy-address action. The model has no
+// street addresses; a "<name> Caltrain Station, <city>, CA" string is
+// unambiguous for every maps app without inventing house numbers.
+const STATION_CITIES: Record<string, string> = {
+  'san-francisco': 'San Francisco',
+  'twenty-second-st': 'San Francisco',
+  'bayshore': 'San Francisco',
+  'south-sf': 'South San Francisco',
+  'san-bruno': 'San Bruno',
+  'millbrae': 'Millbrae',
+  'burlingame': 'Burlingame',
+  'san-mateo': 'San Mateo',
+  'hayward-park': 'San Mateo',
+  'hillsdale': 'San Mateo',
+  'belmont': 'Belmont',
+  'san-carlos': 'San Carlos',
+  'redwood-city': 'Redwood City',
+  'menlo-park': 'Menlo Park',
+  'palo-alto': 'Palo Alto',
+  'california-ave': 'Palo Alto',
+  'mountain-view': 'Mountain View',
+  'sunnyvale': 'Sunnyvale',
+  'lawrence': 'Sunnyvale',
+  'santa-clara': 'Santa Clara',
+  'san-jose': 'San Jose',
+};
+
+export function stationAddress(stationId: string): string {
+  const station = getStationById(stationId);
+  if (!station) return '';
+  const city = STATION_CITIES[stationId] ?? '';
+  return city ? `${station.name} Caltrain Station, ${city}, CA` : `${station.name} Caltrain Station, CA`;
+}
+
+// The URL a directions affordance opens, per resolved app. Apple's dirflg
+// cycling flag degrades to a plain destination view on clients that predate
+// it; Google's travelmode is first-class.
+export function directionsUrl(stationId: string, app: 'apple' | 'google', mode: RouteMode): string {
+  const station = getStationById(stationId);
+  if (!station) return '';
+  const dest = `${station.lat},${station.lng}`;
+  if (app === 'google') {
+    const travelmode = mode === 'bike' ? 'bicycling' : 'walking';
+    return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=${travelmode}`;
+  }
+  return `https://maps.apple.com/?daddr=${dest}&dirflg=${mode === 'bike' ? 'c' : 'w'}`;
+}
 let routeEstimateInvoker: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null = null;
 const routeCache = new Map<string, { estimate: RouteEstimateResult; storedAt: number }>();
 const routeInFlight = new Set<string>();
@@ -132,6 +212,13 @@ export function locationHint(_tick?: number): string {
     case 'unavailable': return 'Location unavailable — showing a default stop';
     default: return 'Allow location for your nearest stop';
   }
+}
+
+// The sticky-footer location indicator (ENG-23795): the usual up-left
+// navigation glyph, blue while the board is on the real device location and
+// gray on any fallback.
+export function locationIndicatorColor(_tick?: number): string {
+  return deviceLocationSource === 'device' ? '#0A84FF' : '#9CA3AF';
 }
 
 export function getSelectedStation(stationId: string | null, _tick?: number) {
@@ -273,35 +360,19 @@ export function getDirectionBoard(
   return modelDirectionBoard(stationId, direction, nowMs, delaysFrom(delayRows), limit);
 }
 
-// The service-filter chips on the home board (E3): 'All' passes everything;
-// 'Bullet' is the compact chip label for the 'Baby Bullet' service class.
-export function serviceFilterOptions() {
-  return [
-    { id: 'All', label: 'All' },
-    { id: 'Local', label: 'Local' },
-    { id: 'Limited', label: 'Limited' },
-    { id: 'Baby Bullet', label: 'Bullet' },
-  ];
-}
-
-function normalizeServiceFilter(serviceFilter: string | null | undefined): string {
-  return typeof serviceFilter === 'string' && serviceFilterOptions().some((option) => option.id === serviceFilter)
-    ? serviceFilter
-    : 'All';
-}
-
-function filterByService<T extends { service?: string }>(rows: T[], serviceFilter: string | null | undefined): T[] {
-  const normalized = normalizeServiceFilter(serviceFilter);
-  if (normalized === 'All') return rows;
-  return rows.filter((row) => row.service === normalized);
-}
-
-// The hero-selection board: `heroOffset` walks the upcoming trains (swipe
-// up/down or the ▲▼ arrows), the three after it stay listed. The offset is
-// clamped to the rows that exist, so an offset stranded by time passing (the
-// selected train departs) degrades to the last remaining train. The service
-// filter (E3) applies to the whole board — hero included — so it fetches a
-// wide window before filtering rather than filtering a pre-limited slice.
+// The hero-selection board (ENG-23795 paging model): `heroOffset` walks the
+// upcoming trains. The offset is clamped to the rows that exist, so an offset
+// stranded by time passing (the selected train departs) degrades to the last
+// remaining train. Alongside the hero the board carries:
+//   - heroPrev/heroNext: the physically adjacent cards for the paging strip
+//     (visible mid-gesture, exactly the native contiguous-page model);
+//   - before: the sooner trains already paged past, in compact rows above the
+//     hero, so paging to a later train never makes earlier trains vanish;
+//   - rest: the trains after the hero.
+// Every before/rest row carries its absolute offset (press = select that
+// train) and a precomputed testId: the rows adjacent to the hero are
+// 'train-prev'/'train-next', so the keyboard/gesture/native press paths keep
+// one stable handle for "walk one train" now that the arrow buttons are gone.
 export function boardTrains(
   stationId: string,
   direction: string,
@@ -310,31 +381,50 @@ export function boardTrains(
   delayRows: DelayRow[],
   departureRows: LiveDepartureRow[],
   feedRows: FeedRow[],
-  serviceFilter: string,
 ) {
   const wanted = Math.max(0, heroOffset ?? 0);
-  const normalizedFilter = normalizeServiceFilter(serviceFilter);
   const rows = isLiveFeed(feedRows)
-    ? filterByService(
-        liveDeparturesFor(stationId, direction, nowMs, departureRows, 80),
-        normalizedFilter,
-      ).slice(0, wanted + 5)
-    : (() => {
-        const unfiltered = normalizedFilter !== 'All';
-        const fetchLimit = unfiltered ? 40 : wanted + 5;
-        return filterByService(
-          modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), fetchLimit),
-          normalizedFilter,
-        ).slice(0, wanted + 5);
-      })();
+    ? liveDeparturesFor(stationId, direction, nowMs, departureRows, wanted + 5)
+    : modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), wanted + 5);
   const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
+  const withMeta = (row: (typeof rows)[number], absolute: number) => ({
+    ...row,
+    offset: absolute,
+    testId:
+      absolute === offset - 1 ? 'train-prev' : absolute === offset + 1 ? 'train-next' : `train-at-${absolute}`,
+  });
+  const beforeStart = Math.max(0, offset - 2);
   return {
     hero: rows[offset] ?? null,
-    rest: rows.slice(offset + 1, offset + 4),
+    heroPrev: offset > 0 ? rows[offset - 1] : null,
+    heroNext: rows[offset + 1] ?? null,
+    before: rows.slice(beforeStart, offset).map((row, i) => withMeta(row, beforeStart + i)),
+    rest: rows.slice(offset + 1, offset + 4).map((row, i) => withMeta(row, offset + 1 + i)),
     hasPrev: offset > 0,
     hasNext: rows.length > offset + 1,
     offset,
   };
+}
+
+// The end-of-line hint for a stations-list row (ENG-23795): the next train in
+// the active direction from that station, projected to its own final stop —
+// "… San Francisco 8:42" — so "does this get me to SF, and when?" is
+// answerable from the list without opening every stop.
+export function terminalHint(
+  stationId: string,
+  direction: string,
+  nowMs: number,
+  delayRows: DelayRow[],
+  departureRows: LiveDepartureRow[],
+  feedRows: FeedRow[],
+): string {
+  const board = getDirectionBoard(stationId, direction, nowMs, 1, delayRows, departureRows, feedRows);
+  const primary = board?.primary;
+  if (!primary) return '';
+  const run = getTrainRun(primary.id, nowMs, delayRows, departureRows);
+  const last = run?.stops?.[run.stops.length - 1];
+  if (!last) return '';
+  return `… ${last.station.name} ${modelFormatClockTime(last.predictedTimeMs)}`;
 }
 
 // On-time / late marker for a departure (or a trip; both carry delaySeconds).
@@ -538,11 +628,29 @@ export function serviceTint(service: string): string {
 
 // --- Walk / bike (haversine over the seed coordinates) ------------------------
 //
-// E4: the app-wide ETA mode ('walk' | 'bike', toggled from the station card)
-// selects which estimate the summary and the stations-list rows show.
+// E4 / ENG-23795: the app-wide ETA mode is 'auto' | 'walk' | 'bike'. 'auto'
+// (the default) resolves per station: beyond an 18-minute walk the app
+// defaults to biking directions; an explicit toggle in Settings pins the mode.
+
+const AUTO_BIKE_OVER_WALK_MINUTES = 18;
+
+export function effectiveEtaMode(station: RouteStation, mode: string, _tick?: number): RouteMode {
+  if (mode === 'walk' || mode === 'bike') return mode;
+  const walkMinutes = estimateWalkMinutes(getUserLocation(), station);
+  return walkMinutes > AUTO_BIKE_OVER_WALK_MINUTES ? 'bike' : 'walk';
+}
 
 export function etaModeLabel(mode: string): string {
-  return mode === 'bike' ? '🚴 Bike' : '🚶 Walk';
+  if (mode === 'bike') return '🚴 Bike';
+  if (mode === 'walk') return '🚶 Walk';
+  return 'Auto';
+}
+
+// The accessible label on the header directions affordance. It doubles as the
+// web glue's channel for the resolved travel mode (the glue builds the maps
+// URL from it), so the wording must keep the literal words walking/biking.
+export function directionsLabel(station: RouteStation, mode: string, _tick?: number): string {
+  return effectiveEtaMode(station, mode) === 'bike' ? 'Get biking directions' : 'Get walking directions';
 }
 
 function normalizedRouteMode(mode: string): RouteMode {
@@ -593,21 +701,29 @@ function cachedRouteEstimate(station: RouteStation, modeInput: string, location:
 
 export function walkBikeSummary(station: RouteStation, mode: string, _tick?: number): string {
   const location = getUserLocation();
-  const estimate = cachedRouteEstimate(station, mode, location);
+  const effective = effectiveEtaMode(station, mode);
+  const estimate = cachedRouteEstimate(station, effective, location);
   const minutes = Math.max(1, Math.round(Number(estimate.minutes) || 1));
   const miles = Number(estimate.distanceMiles) || 0;
-  const label = normalizedRouteMode(mode) === 'bike' ? 'bike' : 'walk';
+  const label = effective === 'bike' ? 'bike' : 'walk';
   // A routed ETA (openrouteservice) shows plain; the straight-line haversine
   // fallback is marked approximate so estimated numbers never pose as routed.
   const approx = estimate.source === 'openrouteservice' ? '' : '~';
   return `${approx}${minutes} min ${label} · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 
+// The header directions line: mode glyph + summary + an explicit directions
+// symbol, one tap/press affordance (ENG-23795).
+export function walkBikeLine(station: RouteStation, mode: string, _tick?: number): string {
+  const glyph = effectiveEtaMode(station, mode) === 'bike' ? '🚴' : '🚶';
+  return `${glyph} ${walkBikeSummary(station, mode)} ⬈`;
+}
+
 // Compact ETA for the stations-list rows: the mode's minutes plus distance
 // (the full summary is too wide there).
 export function distanceLabel(station: RouteStation, mode: string, _tick?: number): string {
   const location = getUserLocation();
-  const estimate = fallbackRouteEstimate(station, normalizedRouteMode(mode), location);
+  const estimate = fallbackRouteEstimate(station, effectiveEtaMode(station, mode), location);
   const minutes = Math.max(1, Math.round(Number(estimate.minutes) || 1));
   const miles = Number(estimate.distanceMiles) || 0;
   return `${minutes} min · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
@@ -655,6 +771,10 @@ const DEFAULT_STALE_AFTER_MS = 390_000;
 // dress old rows up as live data (ENG-23642). The rows themselves stay on
 // screen (they are real observed departures, self-expiring per departure via
 // DEPARTED_GRACE_MS) rather than being swapped for synthetic demo trains.
+// `dot` is the sticky-footer status dot (ENG-23795): green only when live,
+// gray otherwise — the LIVE text is gone, but the non-live labels stay
+// rendered next to the dot so demo/schedule data never poses as live
+// (the ENG-23642 honesty requirement).
 export function feedSourceBadge(
   feedRows: Array<{ lastSource?: string; fetchedAt?: number; staleAfterMs?: number }>,
   nowMs?: number,
@@ -664,25 +784,26 @@ export function feedSourceBadge(
   color: string;
   tint: string;
   border: string;
+  dot: string;
 } {
   const feed = feedRows?.[0] ?? null;
   // No feed row yet (board-first startup, before the live bindings deliver):
   // the board is on the deterministic schedule — its own honest category,
   // neither a committed demo feed nor live 511 (ENG-23727).
   if (!feed) {
-    return { live: false, label: 'SCHEDULE', color: '#1D4ED8', tint: '#1D4ED812', border: '#1D4ED836' };
+    return { live: false, label: 'SCHEDULE', color: '#1D4ED8', tint: '#1D4ED812', border: '#1D4ED836', dot: '#9CA3AF' };
   }
   const liveSource = (feed?.lastSource ?? '') === LIVE_FEED_SOURCE;
   // Light-theme badge colors (ENG-23719): the badge sits on the white board.
   if (!liveSource) {
-    return { live: false, label: 'DEMO DATA', color: '#92400E', tint: '#B4530914', border: '#B4530936' };
+    return { live: false, label: 'DEMO DATA', color: '#92400E', tint: '#B4530914', border: '#B4530936', dot: '#9CA3AF' };
   }
   const fetchedAt = Number(feed?.fetchedAt) || 0;
   const staleAfterMs = Number(feed?.staleAfterMs) > 0 ? Number(feed?.staleAfterMs) : DEFAULT_STALE_AFTER_MS;
   const fresh = typeof nowMs !== 'number' || fetchedAt <= 0 || nowMs - fetchedAt <= staleAfterMs;
   return fresh
-    ? { live: true, label: 'LIVE', color: '#047857', tint: '#04785712', border: '#04785736' }
-    : { live: false, label: 'STALE', color: '#B91C1C', tint: '#B91C1C12', border: '#B91C1C36' };
+    ? { live: true, label: 'LIVE', color: '#047857', tint: '#04785712', border: '#04785736', dot: '#059669' }
+    : { live: false, label: 'STALE', color: '#B91C1C', tint: '#B91C1C12', border: '#B91C1C36', dot: '#9CA3AF' };
 }
 
 // --- Position indicator (for the train detail continuum) ----------------------

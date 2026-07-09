@@ -70,7 +70,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 19;
+const EXPECTED_CHECKS = 24;
 
 // ENG-23727 warm-start bar: first useful board paint within this budget of
 // the surface script starting to execute (module fetch latency is Vite's,
@@ -242,23 +242,45 @@ async function main() {
       return { before, after };
     });
 
-    await suite.check('press affordance: flip toggles the active direction', async () => {
+    await suite.check('direction switch lives in the sticky footer, with Switch-to copy', async () => {
+      // ENG-23795: the direction pill is gone; the switch is the footer's
+      // center control, "Switch to" de-emphasized over the destination.
+      const inFooter = await page.eval(
+        `!!document.querySelector('[data-testid="sticky-footer"] [data-testid="flip-direction"]')`,
+      );
+      if (!inFooter) throw new Error('flip-direction is not inside the sticky footer');
+      const copy = await page.eval(`document.querySelector('[data-testid="flip-direction"]').textContent`);
+      if (!/Switch to/.test(copy ?? '')) throw new Error(`Switch-to copy missing: ${copy}`);
+      const footer = await page.eval(`(() => {
+        const r = document.querySelector('[data-testid="sticky-footer"]').getBoundingClientRect();
+        return { bottomGap: Math.abs(window.innerHeight - r.bottom), hasDot: !!document.querySelector('[data-testid="data-source-dot"]') };
+      })()`);
+      if (footer.bottomGap > 4) throw new Error(`footer is not pinned to the bottom: ${JSON.stringify(footer)}`);
+      if (!footer.hasDot) throw new Error('status dot missing from the footer');
       const before = await page.text('active-direction');
       await page.click('flip-direction');
       const after = await page.text('active-direction');
       if (before === after) throw new Error(`direction did not flip (${before})`);
-      return { before, after };
+      return { before, after, copy };
     });
 
-    await suite.check('tap a train opens its detail: ordered stops + position indicator', async () => {
+    await suite.check('tap the selected train opens its detail: back chevron, inline service badge, labeled progress', async () => {
       await page.click('hero-departure');
       const onTrip = await page.exists('trip-screen');
       const position = await page.text('position-label');
       const hasBar = await page.exists('position-bar');
       if (!onTrip) throw new Error('trip screen did not open');
       if (!hasBar) throw new Error('position indicator missing');
+      // ENG-23795: plain ‹ back (no "Board"), the service badge beside the
+      // train name (not the header corner), the progress bar labeled.
+      const back = await page.text('trip-back');
+      if (back !== '‹') throw new Error(`trip back is not a plain chevron: ${back}`);
+      const service = await page.text('trip-service');
+      if (!service) throw new Error('service badge missing beside the train name');
+      const caption = await page.text('position-caption');
+      if (caption !== 'TRIP PROGRESS') throw new Error(`progress bar not labeled: ${caption}`);
       await page.click('trip-back');
-      return { position };
+      return { position, back, service, caption };
     });
 
     await suite.check('Refresh press drives refreshFeed action; freshness goes live', async () => {
@@ -288,14 +310,20 @@ async function main() {
       return { problem, lastSource: feed.lastSource };
     });
 
-    await suite.check('data-source badge says DEMO DATA while the feed is recorded, not live 511', async () => {
+    await suite.check('status dot is gray + DEMO DATA label while the feed is recorded, not live 511', async () => {
       // No 511 key in this suite, so the refresh commits recorded-fallback;
-      // the badge must say demo data instead of posing as live data.
+      // the LIVE text is a status dot now (ENG-23795) — green only when live
+      // — and the non-live label stays beside it so demo data never poses as
+      // live data (ENG-23642).
       const badge = await page.text('data-source');
-      if (!/DEMO DATA/.test(badge ?? '')) throw new Error(`expected the demo-data badge: ${badge}`);
+      if (!/DEMO DATA/.test(badge ?? '')) throw new Error(`expected the demo-data label: ${badge}`);
+      const dot = await page.eval(
+        `getComputedStyle(document.querySelector('[data-testid="data-source-dot"]')).backgroundColor`,
+      );
+      if (!/156, 163, 175/.test(dot ?? '')) throw new Error(`expected the gray non-live dot: ${dot}`);
       const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
       if (feed.lastSource === '511-siri-stop-monitoring') throw new Error('recorded suite unexpectedly marked live');
-      return { badge, lastSource: feed.lastSource };
+      return { badge, dot, lastSource: feed.lastSource };
     });
 
     // --- The paved path (LLP 0034 §6 ownership row 3; Exact 0284 §5.3 item 3):
@@ -388,8 +416,29 @@ async function main() {
 
     // Gesture layer (LLP 0027 interaction model via web surface glue; LLP 0029
     // G1 remains open — these drive the same press affordances by pointer).
+    // ENG-23795: paging is contiguous — both surfaces declare 3-cell strips
+    // whose neighbor cards are physically adjacent during the gesture.
 
-    await suite.check('gesture: swipe left on the header moves to the adjacent station', async () => {
+    await suite.check('paging strips declare physically adjacent cards at ±100% (no blank neighbors)', async () => {
+      const rects = await page.eval(`(() => {
+        const r = (id) => { const el = document.querySelector('[data-testid="' + id + '"]'); return el ? el.getBoundingClientRect() : null; };
+        const header = r('station-header'), headerNext = r('header-cell-next');
+        const hero = r('hero-pager'), heroNext = r('hero-cell-next');
+        return {
+          headerNextGap: header && headerNext ? Math.abs(headerNext.x - (header.x + header.width)) : null,
+          heroNextGap: hero && heroNext ? Math.abs(heroNext.x - (hero.x + hero.width)) : null,
+        };
+      })()`);
+      if (rects.headerNextGap === null || rects.headerNextGap > 4) {
+        throw new Error(`adjacent station card not at +100%: ${JSON.stringify(rects)}`);
+      }
+      if (rects.heroNextGap === null || rects.heroNextGap > 4) {
+        throw new Error(`adjacent train card not at +100%: ${JSON.stringify(rects)}`);
+      }
+      return rects;
+    });
+
+    await suite.check('gesture: swipe left on the header pages to the adjacent station', async () => {
       // ENG-23719 gesture zones: station navigation lives on the red header
       // (y within the 106px sticky band), not the scrolling board below it.
       const before = await page.text('station-name');
@@ -399,17 +448,43 @@ async function main() {
       return { before, after };
     });
 
-    await suite.check('gesture: swipe left on the board selects the next (later) train', async () => {
+    await suite.check('gesture: swipe left on the board pages to the next (later) train', async () => {
       // Later trains sit to the right (ENG-23719): swiping left pulls the
-      // next one into the highlighted card.
-      const before = await page.text('hero-meta');
+      // physically adjacent card in. Compare train numbers, not the whole
+      // meta line — a live delay delta can move the predicted time mid-check.
+      const num = (s) => (s ?? '').match(/#\d+/)?.[0] ?? null;
+      const before = num(await page.text('hero-meta'));
       await page.swipe('h', -170, { cy: 480 });
-      const after = await page.text('hero-meta');
+      const after = num(await page.text('hero-meta'));
       if (!before || before === after) throw new Error(`hero train did not change (${before} -> ${after})`);
       return { before, after };
     });
 
-    await suite.check('floating settings button opens the settings sheet', async () => {
+    await suite.check('train selection: rows select on tap; sooner trains stay visible in compact form', async () => {
+      // ENG-23795: the circular arrows are gone. The row after the hero
+      // carries train-next, the compact row before it train-prev; pressing a
+      // row pages the strip to that train, and paged-past trains remain as
+      // compact rows instead of disappearing.
+      const num = (s) => (s ?? '').match(/#\d+/)?.[0] ?? null;
+      // Reset to the next train if an earlier check left the board paged.
+      await page.eval(`(async () => { document.querySelector('[data-testid="train-first"]')?.click(); await new Promise(r=>setTimeout(r,350)); })()`);
+      const first = num(await page.text('hero-meta'));
+      await page.click('train-next');
+      const paged = num(await page.text('hero-meta'));
+      if (!paged || paged === first) throw new Error(`train-next row did not page (${first} -> ${paged})`);
+      const compact = await page.exists('earlier-trains');
+      if (!compact) throw new Error('sooner trains vanished after paging forward');
+      const compactNum = num(await page.eval(`document.querySelector('[data-testid="train-prev"]')?.textContent ?? ''`));
+      if (compactNum !== first) throw new Error(`compact earlier row is not the paged-past train: ${compactNum} != ${first}`);
+      await page.click('train-prev');
+      const back = num(await page.text('hero-meta'));
+      if (back !== first) throw new Error(`train-prev row did not page back (${back} != ${first})`);
+      const arrows = await page.eval(`!!document.querySelector('[data-testid="service-filter"]')`);
+      if (arrows) throw new Error('service filter chips unexpectedly present');
+      return { first, paged, back };
+    });
+
+    await suite.check('footer gear opens the settings sheet', async () => {
       await page.click('open-settings');
       const onSettings = await page.exists('settings-screen');
       if (!onSettings) throw new Error('settings screen did not open');
@@ -421,27 +496,78 @@ async function main() {
       return { onSettings, hasEta };
     });
 
-    // E3 (ENG-22450): service-filter chips on the home board.
+    // Directions and station access (ENG-23795). Opening a maps app is web
+    // glue over the declared affordances (directions.ts) — window.open is
+    // stubbed so the URL is observable instead of spawning tabs.
 
-    await suite.check('service filter chips filter the board, hero included; All restores', async () => {
-      const services = () => page.eval(`(() => {
-        const rest = [...document.querySelectorAll('[data-testid^="departure-"]')].map((el) => {
-          const t = el.textContent;
-          return t.includes('Baby Bullet') ? 'Baby Bullet' : t.includes('Limited') ? 'Limited' : t.includes('Local') ? 'Local' : '?';
-        });
-        return { hero: document.querySelector('[data-testid="hero-service"]')?.textContent.trim() ?? null, rest };
+    await suite.check('directions: tap on the distance line opens the preferred maps app', async () => {
+      await page.eval(`window.__aaOpened = []; window.open = (u) => { window.__aaOpened.push(u); return null; };`);
+      const opened = await page.eval(`(async () => {
+        const el = document.querySelector('[data-testid^="station-directions-"]');
+        if (!el) throw new Error('no directions affordance');
+        el.click();
+        await new Promise((r) => setTimeout(r, 300));
+        return window.__aaOpened;
       })()`);
-      await page.click('service-filter-Limited');
-      const limited = await services();
-      if (limited.hero !== 'Limited') throw new Error(`hero not filtered to Limited: ${limited.hero}`);
-      if (!limited.rest.every((s) => s === 'Limited')) throw new Error(`rest rows not all Limited: ${limited.rest}`);
-      await page.click('service-filter-Bullet');
-      const bullet = await services();
-      if (bullet.hero !== 'Baby Bullet') throw new Error(`hero not filtered to Baby Bullet: ${bullet.hero}`);
-      await page.click('service-filter-All');
-      const all = await services();
-      if (!all.hero) throw new Error('board empty after All');
-      return { limited, bullet, allHero: all.hero };
+      if (!Array.isArray(opened) || opened.length !== 1) throw new Error(`expected one maps open: ${JSON.stringify(opened)}`);
+      if (!/maps\.apple\.com|google\.com\/maps/.test(opened[0])) throw new Error(`not a maps URL: ${opened[0]}`);
+      if (!/dirflg=|travelmode=/.test(opened[0])) throw new Error(`not a directions URL: ${opened[0]}`);
+      const sheetOpen = await page.exists('directions-sheet');
+      if (sheetOpen) throw new Error('tap must open maps directly, not the sheet');
+      return { opened };
+    });
+
+    await suite.check('directions: long-press opens the bottom sheet (maps apps + copy address)', async () => {
+      await page.eval(`(async () => {
+        const el = document.querySelector('[data-testid^="station-directions-"]');
+        const r = el.getBoundingClientRect();
+        const opts = { bubbles: true, cancelable: true, pointerId: 9, isPrimary: true, button: 0, buttons: 1, clientX: r.x + 5, clientY: r.y + 5, pointerType: 'touch' };
+        el.dispatchEvent(new PointerEvent('pointerdown', opts));
+        await new Promise((r2) => setTimeout(r2, 650));
+        el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0 }));
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        await new Promise((r2) => setTimeout(r2, 350));
+      })()`);
+      const sheet = await page.exists('directions-sheet');
+      if (!sheet) throw new Error('long-press did not open the directions sheet');
+      const address = await page.text('station-address');
+      if (!/Caltrain Station, .*CA/.test(address ?? '')) throw new Error(`address missing: ${address}`);
+      const hasCopy = await page.exists('directions-copy');
+      if (!hasCopy) throw new Error('copy-address action missing');
+      await page.eval(`window.__aaOpened = [];`);
+      await page.click('directions-google');
+      const opened = await page.eval('window.__aaOpened');
+      if (!Array.isArray(opened) || !/google\.com\/maps/.test(opened[0] ?? '')) {
+        throw new Error(`google row did not open google maps: ${JSON.stringify(opened)}`);
+      }
+      const closed = !(await page.exists('directions-sheet'));
+      if (!closed) throw new Error('sheet did not close after the action');
+      return { address, opened };
+    });
+
+    await suite.check('stations list carries the end-of-line hint ("… <terminal> <time>")', async () => {
+      await page.click('change-station');
+      const hint = await page.eval(`document.querySelector('[data-testid^="terminal-hint-"]')?.textContent.trim() ?? null`);
+      if (!hint || !/… .+ \d{1,2}:\d\d[ap]/.test(hint)) throw new Error(`terminal hint missing or malformed: ${hint}`);
+      await page.click('stations-back');
+      return { hint };
+    });
+
+    await suite.check('settings: default maps app cycles and persists', async () => {
+      await page.click('open-settings');
+      const first = await page.text('maps-app');
+      await page.click('maps-app');
+      const second = await page.text('maps-app');
+      if (first === second) throw new Error(`maps app did not cycle: ${first}`);
+      const stored = await page.eval(`window.localStorage.getItem('all-aboard.mapsApp')`);
+      if (!stored) throw new Error('maps-app preference not persisted');
+      // Cycle back to the platform default so later checks see the default.
+      await page.click('maps-app');
+      await page.click('maps-app');
+      const restored = await page.text('maps-app');
+      if (restored !== first) throw new Error(`maps app did not cycle back: ${restored}`);
+      await page.click('settings-back');
+      return { first, second, stored };
     });
 
     // E4 (ENG-22450): the app-wide ETA mode toggle — in Settings since the

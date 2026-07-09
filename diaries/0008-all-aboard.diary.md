@@ -1218,3 +1218,117 @@ contract-live 2/2, headless 12/12, `ref-check` clean. The blocked-API check
 doubles as the offline story: station, countdown, `SCHEDULE` badge, honest
 note, retries ticking in the console. The deployed Cloudflare bundle picks up
 the board-first shell on its next deploy (not redeployed here).
+
+## 2026-07-09 — native-feeling paging, sticky footer, directions (ENG-23795)
+
+The ask: make station/train paging feel like real iOS paging (adjacent cards
+physically present, no fade replacement), move direction switching into a
+sticky footer with live/location status dots, replace the `‹ Board` pill and
+corner badge with native-feeling equivalents, drop the train arrows and
+service filters, and add a real directions story (tap → maps app, long-press
+→ actions sheet, maps-app preference, 18-minute auto-bike rule) plus an
+end-of-line hint in the stations list.
+
+### What I changed
+
+- Both paging surfaces are now *declared* 3-cell strips in the `.contract`:
+  the header clips prev/current/next station identity cards at `left`
+  ±100%, and the selected-train card does the same with its neighbor trains.
+  `gestures.ts` stopped fading and nudging: it drags the strip 1:1, settles
+  onto the neighbor, and only then dispatches the same press affordance a
+  tap would use. The commit press re-renders centered, so clearing the
+  transform two frames later is invisible.
+- Train selection model: the ‹ › arrow buttons are gone. Every board row
+  selects its train on press; the rows physically adjacent to the hero carry
+  the `train-prev`/`train-next` testIds so keyboard/gesture/test dispatch
+  kept one stable handle. Paged-past trains render as compact rows above the
+  hero (the issue's "sooner trains still appear in small form").
+- Sticky footer: status dot (green live / gray not — the DEMO DATA /
+  SCHEDULE / STALE label stays beside it when not live, because ENG-23642's
+  honesty bar outranks minimalism), ⬉ location indicator (blue on a device
+  fix), center `Switch to / Southbound` control (same `flip-direction`
+  testId), and ↻ / ⚙ system-style icon circles. Direction pill, floating red
+  settings button, and E3 service-filter chips deleted.
+- Directions: the header distance line is an affordance
+  (`station-directions-<id>`, mode in the aria-label). Tap opens the
+  preferred maps app (new `directions.ts` glue; Apple/Google URL builders in
+  `data.ts`), long-press opens a declared bottom sheet (Apple Maps / Google
+  Maps / copy station address / cancel), Settings gained a persisted
+  maps-app cycle, and `etaMode` gained an `auto` default that resolves to
+  bike beyond an 18-minute walk — per station, which fell out of making the
+  resolver take the station as an argument.
+- Stations list rows carry `… <terminal> <time>` from the next departure's
+  own final stop; trip screen got a plain `‹` back, the service badge beside
+  "Train 191", and a TRIP PROGRESS caption on the position bar (it was the
+  unlabeled "green line" the issue called confusing — it's the live corridor
+  position, so it got a label, not deleted).
+
+### What felt good
+
+- The paging strip was expressible entirely in the Contract layout language:
+  `left="-100%"`/`width="100%"` absolute cells inside a clipped container
+  rendered exactly right on the first try (the DOM mirror passes percentage
+  offsets through cleanly). The glue then only owns *transform during
+  gesture* — adjacency is declared structure the native host gets for free.
+  This is the best split of "what's product" vs "what's web glue" this demo
+  has hit; the mid-gesture neighbor card is real content, not a screenshot
+  trick.
+- Removing the arrows without orphaning the gesture/keyboard dispatch was a
+  data-shape fix, not a glue fix: `boardTrains` precomputes each row's
+  absolute offset and testId (`train-prev`/`train-next` land on the rows
+  adjacent to the hero). The press-affordance philosophy survived a UI that
+  no longer has dedicated navigation buttons.
+- The 24-check browser suite adapted with surprisingly little violence —
+  `flip-direction`, `refresh`, `open-settings` kept their testIds through a
+  full footer relocation, which is the testId-not-DOM-shape bet paying off.
+
+### What felt bad or surprising
+
+- `longpress` is *in the Contract event vocabulary* and the native host-ops
+  table delivers `EventType.LongPress`, but the web DOM mirror never wires
+  `onLongPress` — the declared event compiles and silently does nothing on
+  the primary web host. The affordance declares `press=` + `longpress=`
+  anyway (correct for native, honest degradation to sheet-on-tap), and
+  `directions.ts` supplies the 500ms timer on web. Filed ENG-23820; when the
+  mirror delivers it, the glue timer deletes.
+- A component `view` must have exactly one root — my first directions sheet
+  (scrim + card as siblings) failed with a clear enough compiler error, but
+  I only hit it in the Vite overlay at runtime-compile time; a lint-time
+  check would have caught it earlier.
+- Nesting the directions button inside the change-station button was my one
+  real bug: both presses fired (the synthetic long-press click opened the
+  *stations* sheet). Contract happily compiles nested pressables; the DOM
+  mirror bubbles clicks into both. Un-nesting was easy but nothing warned.
+- Time-sensitive assertions bit once more: comparing the full `hero-meta`
+  line across a page-and-back flickers when a live delay delta lands
+  mid-check and moves the predicted time by a minute. Train-number
+  comparison is the stable key. (Same lesson as the ENG-23727 pass, new
+  disguise.)
+- The React control arm is now two redesigns behind the product surface;
+  mirroring this pass would have roughly doubled the change. Filed ENG-23821
+  to decide freeze-vs-rebaseline instead of silently diverging further.
+
+### Compared to React/Convex-style stacks
+
+The paging strip + glue split is where Contract earned its keep this pass:
+in the React arm this would be a scroll-snap carousel with imperative
+scrollTo — easy on web, nothing reusable for native. Here the adjacency is
+declarative layout any host renders, and the web-only part is one transform.
+The directions/maps work cut the other way: preference storage, platform
+detection, URL building, and clipboard are all "just JavaScript" in React,
+but needed a deliberate module-state seam (`data.ts` + glue interception)
+because contract state is invisible to the glue and device capabilities are
+invisible to the contract. The seam pattern (deviceLocation, backendState,
+now mapsApp) is settling into a convention, but it's three copies of a shape
+Exact should eventually own.
+
+### Verification
+
+browser 24/24 (paging strips at ±100%, row-selection model, footer controls,
+directions tap/long-press/copy rows, terminal hints, maps-app persistence,
+auto-ETA), headless 12/12, cron 7/7, badge-freshness 6/6, `ref-check` clean.
+Screenshots of the paged board (compact earlier row + strip), directions
+sheet, stations hints, and the labeled trip progress bar were captured via
+CDP during the build. The React arm (`browser-react.mjs`) is intentionally
+untouched (ENG-23821). The deployed Cloudflare bundle picks the redesign up
+on its next deploy (not redeployed here).

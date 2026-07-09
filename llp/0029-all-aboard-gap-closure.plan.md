@@ -82,14 +82,24 @@ over the host-ops protocol, a Contract event attribute (`swipe=` / `onSwipeLeft=
 `swipe=` handlers that call the same actions. Gate acceptance through Exact's
 structured tree, not synthetic DOM events.
 
-**Interim (2026-07-01).** The redesign pass shipped the swipe UX on web as
-demo-local surface glue: `surfaces/contract/gestures.ts` recognizes the
-LLP 0027 gestures (station swipe with finger-follow drag, train swipe, bare-tap
-flip, sheet swipe-back, arrow keys) and dispatches by clicking the declared
-press affordances, so one action path serves gestures/taps/keyboard/tests. The
-product vision is now demonstrable, but this is glue of exactly the kind
-LLP 0016 wants retired — the Contract primitive above remains the closure and
-deletes the file. Native still has press affordances only.
+**Interim (2026-07-01; contiguous paging 2026-07-09, ENG-23795).** The
+redesign pass shipped the swipe UX on web as demo-local surface glue:
+`surfaces/contract/gestures.ts` recognizes the LLP 0027 gestures and
+dispatches by clicking the declared press affordances, so one action path
+serves gestures/taps/keyboard/tests. ENG-23795 upgraded the model to native
+contiguous paging without touching the gap: the `.contract` now declares
+3-cell pager strips (adjacent station/train cards physically at ±100% in a
+clipped container) and the glue drags the strip 1:1 and settles it onto the
+neighbor before dispatching the press — so mid-gesture adjacency is DECLARED
+layout, and only the drag itself remains web glue. Two adjacent findings:
+`longpress` is already a declared Contract event and the native host-ops
+table carries `EventType.LongPress`, but the web DOM mirror never delivers
+`onLongPress` (the All Aboard directions affordance declares
+`longpress=` for native and needs a glue timer on web — a smaller sibling of
+this gap, filed separately); and the product vision is now demonstrable
+end-to-end, but this is still glue of exactly the kind LLP 0016 wants
+retired — the Contract primitive above remains the closure and deletes the
+file. Native still has press affordances only.
 
 **Effort.** L (a real Exact feature, multiple layers). **Owner.** Exact motion
 RFCs; All Aboard is the first consumer.

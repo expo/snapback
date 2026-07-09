@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Cron, Realtime, Data gateway, Contract/Exact, Notifications, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-08 (LLP 0049 correction: live 511 success now writes `liveDepartures` rows with real StopMonitoring predicted departure times and the Contract board prefers them whenever `feedRefreshState.lastSource` is `511-siri-stop-monitoring`; a live snapshot with zero station-mappable visits shows no trains instead of clock-face demo trains); 2026-07-04 (ENG-22751 real-data path made debuggable: every failed live refresh now commits an actionable, key-redacted `lastError` and both surfaces render it as a `feed-problem` line; data honesty: surfaces also render a `data-source` badge — amber DEMO DATA for the seeded/recorded/fallback feed, green LIVE only after a real 511 snapshot commits per `feedRefreshState.lastSource` — and haversine walk/bike ETAs are `~`-prefixed, see [Deterministic data](#deterministic-data); second pass same day: the whole path was re-walked against the **real** `api.511.org` (setup-page key → live fetch → redacted 401 on the board), and the two likely 511 responses now carry instructions too — HTTP 401 → update the key at setup, HTTP 429 → add a pooled key — with the instruction placed ahead of the diagnostic so the surface's 180-char truncation can't eat it; README real-data flow corrected (persistent `--db` so setup keys survive restarts; app-first boot order); real-data suite now serves the 511 mock as the real API responds (BOM + gzip + plain-text 401) and exercises the `/_snapback/api/config/set` setup path; 2026-07-01 redesign pass: full-bleed poster-stylized station art with the board typeset on it, hero-selection state, and the LLP interaction model implemented for real on web via gesture surface glue — see [Station identity](#station-identity), [Interaction model](#interaction-model), [Implementation](#implementation), Diary 0008; earlier same day — LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
+**Revised:** 2026-07-09 (ENG-23795 native-feeling paging pass: the station header and the selected-train card are declared 3-cell paging strips — adjacent cards physically at ±100%, dragged 1:1 by the web glue, no fade replacement; train rows select on tap and paged-past trains stay visible in compact rows; direction switching, the live-status dot, the location indicator, and system-style ↻/⚙ controls moved into a sticky footer (direction pill, circular train arrows, and E3 service-filter chips removed); the header distance line is a directions affordance — tap opens the preferred maps app, long-press (or plain press on native) opens the Apple/Google/copy-address sheet, with the maps-app preference in Settings; ETA mode gained an `auto` default that resolves to bike beyond an 18-minute walk; the stations list carries an end-of-line hint (`… San Jose Diridon 9:16`); the trip sheet got a plain ‹ back, the service badge beside the train name, and a labeled TRIP PROGRESS bar — see [Interaction model](#interaction-model), Diary 0008); 2026-07-08 (LLP 0049 correction: live 511 success now writes `liveDepartures` rows with real StopMonitoring predicted departure times and the Contract board prefers them whenever `feedRefreshState.lastSource` is `511-siri-stop-monitoring`; a live snapshot with zero station-mappable visits shows no trains instead of clock-face demo trains); 2026-07-04 (ENG-22751 real-data path made debuggable: every failed live refresh now commits an actionable, key-redacted `lastError` and both surfaces render it as a `feed-problem` line; data honesty: surfaces also render a `data-source` badge — amber DEMO DATA for the seeded/recorded/fallback feed, green LIVE only after a real 511 snapshot commits per `feedRefreshState.lastSource` — and haversine walk/bike ETAs are `~`-prefixed, see [Deterministic data](#deterministic-data); second pass same day: the whole path was re-walked against the **real** `api.511.org` (setup-page key → live fetch → redacted 401 on the board), and the two likely 511 responses now carry instructions too — HTTP 401 → update the key at setup, HTTP 429 → add a pooled key — with the instruction placed ahead of the diagnostic so the surface's 180-char truncation can't eat it; README real-data flow corrected (persistent `--db` so setup keys survive restarts; app-first boot order); real-data suite now serves the 511 mock as the real API responds (BOM + gzip + plain-text 401) and exercises the `/_snapback/api/config/set` setup path; 2026-07-01 redesign pass: full-bleed poster-stylized station art with the board typeset on it, hero-selection state, and the LLP interaction model implemented for real on web via gesture surface glue — see [Station identity](#station-identity), [Interaction model](#interaction-model), [Implementation](#implementation), Diary 0008; earlier same day — LLP 0032 R3: manifest sketch aligned with the implemented `exact.gestures: false` gap; replaced the placeholder per-station SVG drawing with real Wikimedia Commons photos from the Wikipedia List of Caltrain stations, base64-inlined inside the card SVG at build time — zero runtime egress, with visible CC BY/CC-BY-SA/CC0 photo credits; shifted live feed plan to hybrid read-through refresh plus minute-compatible polling for Cloudflare-friendly operation; 2026-06-30 corrected egress: Ibex ships fetch/http behind a coarse strict-mode `network:fetch` capability — per-host allowlist not actually enforced; work is action-scoped enablement, not a new HTTP stack; 2026-06-30 implemented Phases 0–3 as `demos/all-aboard/` — see [Implementation](#implementation) and Diary 0008)
 **Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0009, LLP 0013, LLP 0015, LLP 0016, LLP 0020, LLP 0024, LLP 0028, LLP 0029, Diary 0008, https://github.com/ccheever/ibex, https://openrouteservice.org, https://en.wikipedia.org/wiki/List_of_Caltrain_stations, https://511.org/open-data/transit
 
 ## Summary
@@ -223,30 +223,55 @@ zero-chrome:
 
 | Gesture | Effect |
 |---|---|
-| Swipe **left / right on the red header** | Move to the adjacent station (along the north–south line); the header edge chevrons are the tap equivalent |
-| Swipe **left / right on the departures board** | Select the later / earlier upcoming train (earlier trains sit to the left, later to the right) |
+| Swipe **left / right on the red header** | Page to the adjacent station (along the north–south line) — the neighbor's card is physically adjacent and follows the finger; the header edge chevrons are the tap equivalent |
+| Swipe **left / right on the departures board** | Page to the later / earlier upcoming train (earlier trains sit to the left, later to the right) — the adjacent train card follows the finger |
 | Scroll **up / down on the board** | Native vertical scrolling through the departures content |
-| Tap the **direction row's flip pill** | Toggle north ⇄ south |
-| Tap a **train** | Open that train's detail: ordered stops + times, and its position along the line |
+| Tap the **footer direction switch** ("Switch to Southbound/Northbound") | Toggle north ⇄ south |
+| Tap a **train row** | Select (page to) that train; sooner trains stay visible in compact rows above the selected card |
+| Tap the **selected train's card** | Open that train's detail: ordered stops + times, and its position along the line |
+| **Long-press the header distance line** (tap = open maps) | Open the directions sheet: Apple Maps / Google Maps / copy the station address |
 
 Gestures are region-scoped since the ENG-23719 redesign (2026-07-08): the
-sticky header is the station-navigation surface, the scrolling board walks the
-trains horizontally while scrolling natively on the vertical axis, and the old
-bare-tap direction flip is gone (a bare tap in a scroll view is too ambiguous);
-the direction row names the active direction and carries the flip pill instead.
+sticky header is the station-navigation surface and the scrolling board walks
+the trains horizontally while scrolling natively on the vertical axis. Since
+ENG-23795 (2026-07-09) both surfaces page **contiguously**, the native
+iOS-paging model: each is a declared 3-cell strip whose prev/next cards sit
+physically at ±100% inside a clipped container, so mid-gesture the neighbor
+is already there — no blank space, and no fade-out/fade-in replacement on
+commit. The same change moved direction switching into a sticky footer
+("Switch to" de-emphasized over the destination) alongside the live-status
+dot (green live / gray not, with the honest DEMO DATA / SCHEDULE / STALE
+label kept beside it when not live — the ENG-23642 requirement), the
+location indicator (blue on a real device fix), and system-style ↻ / ⚙ icon
+buttons; the separate direction pill, the circular ‹ › train arrows, and the
+E3 service-filter chips are gone (paging + tap-to-select made them
+redundant; filters had no strong use case on a board whose job is "next
+train").
 
 *As implemented:* Contract still has no swipe primitive (LLP 0029 G1), so this
 model ships on web as **surface glue** — `surfaces/contract/gestures.ts`
-recognizes the region-scoped swipes (with finger-follow drag, a page-turn
-settle for stations, and a nudge settle for trains), a swipe-right-to-go-back
-on the sheet screens, and arrow-key equivalents (←/→ earlier/later train, ↑/↓
-adjacent station), and dispatches every recognized gesture by clicking the same
-visible press affordances the `.contract` declares (header edge chevrons, the
-‹ › train arrows, the flip pill). One action path serves gestures, taps,
+recognizes the region-scoped swipes, drags the declared pager strips 1:1 with
+the finger (rubber-banding at corridor/list edges where no neighbor cell is
+declared), settles the strip onto the adjacent card, and only then dispatches
+the same press affordance a tap would use: the header edge chevrons for
+stations, the compact train rows adjacent to the selected card (testIds
+`train-prev` / `train-next`) for trains. Swipe-right-to-go-back on the sheet
+screens and arrow-key equivalents (←/→ earlier/later train, ↑/↓ adjacent
+station) ride the same dispatch. One action path serves gestures, taps,
 keyboard, tests, and the native host; when the Exact motion primitives land,
-the glue file is deleted and `swipe=` attributes replace it. Acceptance drives
-the affordances by testId and the gestures by synthetic pointer sequences
-dispatched from the element under the start point, since region decides meaning
+the glue file is deleted and `swipe=` attributes replace it. The directions
+affordance is the same seam (`surfaces/contract/directions.ts`): it declares
+both `press=` and `longpress=` opening the actions sheet — `longpress` is a
+real Contract event and the native host-ops table delivers
+`EventType.LongPress` — while on web the glue intercepts the tap to open the
+preferred maps app (Settings-cycled, localStorage-persisted) and supplies
+the long-press timer the DOM mirror does not deliver yet (filed as its own
+gap). The open-in-maps and copy-address side effects are web glue; hosts
+without it get a sheet that dismisses honestly — visible, never
+half-working.
+Acceptance drives the affordances by testId and the gestures by synthetic
+pointer sequences dispatched from the element under the start point, since
+region decides meaning
 ([LLP 0015](./0015-demo-application-suite.plan.md#contractexact)).
 
 ### Train detail

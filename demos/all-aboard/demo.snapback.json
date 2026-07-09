@@ -126,17 +126,22 @@
       "paved path: liveTrainStatus + liveDepartures + feedState bind with server push over the shared stream; connections report live (LLP 0034 D1)",
       "cron-authored delta reaches the browser through generated bindings with no poll pump (Exact LLP 0284 §5.3 item 3)",
       "second window boot is inspect-first and does not clear the first window (LLP 0034 D4 / LLP 0275 C4)",
-      "gesture glue: header swipes change station, board swipes select the later/earlier train, sheets go back on swipe right (region-scoped synthetic pointers, ENG-23719)",
-      "the floating settings button opens the settings sheet (no bottom tabs, ENG-23719)",
-      "service-filter chips filter the board hero-included and All restores (E3, ENG-22450)",
-      "the Settings ETA mode toggles walk/bike estimates app-wide (E4, ENG-22450; moved into Settings by ENG-23719)"
+      "paging strips declare physically adjacent cards at ±100% — no blank neighbors mid-gesture (ENG-23795)",
+      "gesture glue: header swipes page to the adjacent station, board swipes page the selected train, sheets go back on swipe right (region-scoped synthetic pointers, ENG-23719/ENG-23795)",
+      "train rows select on tap and sooner trains stay visible in compact form when a later train is selected (ENG-23795)",
+      "the sticky footer carries the status dot (green live / gray not, honest non-live label), the location indicator, the Switch-to direction control, and system-style refresh/settings icons (ENG-23795)",
+      "the footer gear opens the settings sheet (no bottom tabs, ENG-23719)",
+      "directions: tap on the distance line opens the preferred maps app; long-press opens the bottom sheet with Apple/Google/copy-address actions; the maps-app preference cycles in Settings and persists (ENG-23795)",
+      "the stations list carries the end-of-line hint — ellipsis + terminal stop + arrival time (ENG-23795)",
+      "the Settings ETA mode toggles walk/bike estimates app-wide (E4, ENG-22450; auto default resolves to bike beyond an 18-minute walk, ENG-23795)"
     ],
     "react-control": [
-      "mirrors the contract browser list check-for-check against the React surface (same thirteen product checks plus the E3/E4 checks; gestures dispatch against #root)"
+      "the React arm is a paved-road control at its ENG-22450 baseline (pre-ENG-23719 design) with its own suite (browser-react.mjs); it does not track product redesigns check-for-check"
     ]
   },
   "capabilityGaps": [
     "swipe_gestures_not_in_contract",
+    "maps_open_and_longpress_web_glue",
     "action_egress_per_host_allowlist",
     "exact_gtfs_trip_matching",
     "notifications",
@@ -151,12 +156,14 @@
     "walkBike": "selected-station card uses routeEstimate through a server-side OpenRouteService/HeiGIT action when directions config is present; haversine remains the deterministic fallback and station-list estimate",
     "stationArt": "header scenes are the ENG-23684 hand-drawn originals (3 per station, 640x1136 SVG), inlined by scripts/gen-station-art.mjs into station-art.gen.mjs (~0.9MB source) and rotated by epoch day (ENG-23719) — zero runtime egress, deterministic, no attribution needed; the older poster-stylized Wikimedia photo module (station-photos.gen.mjs, ~1.5MB, credit line required) remains for the React control arm; flowing assets through the asset-storage subsystem instead of inlining is the follow-up",
     "egress": "opt-in via SNAPBACK_OUTBOUND_ACTIONS; product fetches are action-scoped and secret-backed, but the runtime grant is still coarse network:fetch rather than per-host allowlisted",
-    "gestures": "gesture-first interaction ships as web surface glue (gestures.ts) driving the declared press affordances; the Contract swipe primitive (LLP 0029 G1) remains the real fix and would delete the glue",
+    "gestures": "gesture-first interaction ships as web surface glue (gestures.ts) dragging the declared 3-cell paging strips 1:1 and dispatching the declared press affordances (ENG-23795); the Contract swipe primitive (LLP 0029 G1) remains the real fix and would delete the glue",
+    "mapsApps": "the directions affordance declares press= and longpress= (longpress is a real Contract event; native host-ops deliver EventType.LongPress) opening the actions sheet; on web, tap-to-open-maps, the long-press timer (the DOM mirror does not deliver onLongPress yet — filed separately), copy-address, and the persisted maps-app preference are glue (directions.ts); hosts without the glue open the sheet on press and its actions only dismiss — native URL-opening/clipboard host capabilities are the real fix (ENG-23795)",
     "webChrome": "the Exact plugin's shell 'auto' mode preserves the surface's own index.html (ENG-22445), which carries the page chrome; main.ts installWebChrome keeps an idempotent copy of the same rules so the surface also survives generated-shell hosts (height chain, dark backdrop, touch-action rules)"
   },
   "notClaiming": [
     "exact static GTFS schedule parity or GTFS-RT trip-to-schedule identity matching",
-    "swipe/pan gestures as a Contract primitive (web glue + press affordances stand in)",
+    "swipe/pan gestures as a Contract primitive (web glue drags the declared paging strips; press affordances stand in)",
+    "native maps-app deep-linking or clipboard (web glue opens URLs and copies; native hosts get the sheet without those side effects)",
     "notifications / leave-now",
     "offline/local-first live positions",
     "a running native macOS/iOS shell in this repo",

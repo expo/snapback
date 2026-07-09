@@ -8,15 +8,26 @@ native macOS/iOS-ready from the same `app.contract`.
 See [LLP 0027](../../llp/0027-all-aboard-caltrain-demo.plan.md) for the design and
 [Diary 0008](../../diaries/0008-all-aboard.diary.md) for the build experience.
 
-Design (ENG-23719): a white board under a Caltrain-red sticky header. The
-header shows the station name beside the day's hand-drawn scene (three
-original scenes per station — ENG-23684 — rotating by epoch day) and is the
-station-swipe surface; the board below scrolls vertically and swipes
-horizontally between trains, with the next train in the active direction as a
-highlighted card (countdown, service class, train number, delay, stops). A
-direction row names northbound/southbound with a flip pill, and a floating red
-button opens Settings — no bottom tabs. Regenerate the inlined art with
-`node demos/all-aboard/scripts/gen-station-art.mjs` after changing the SVGs.
+Design (ENG-23719, paging + footer reworked under ENG-23795): a white board
+under a Caltrain-red sticky header, over a sticky white footer. The header
+shows the station name beside the day's hand-drawn scene (three original
+scenes per station — ENG-23684 — rotating by epoch day) and is the
+station-paging surface: it clips a 3-cell strip whose adjacent stations'
+cards physically sit at ±100%, so a swipe drags real neighboring content
+(native contiguous paging, no fade). The board below scrolls vertically and
+pages horizontally between trains the same way; sooner trains stay visible
+as compact rows once paged past, every row selects its train on tap, and
+tapping the selected card opens the trip detail. The header distance line is
+a directions affordance (tap = preferred maps app, long-press = Apple
+Maps / Google Maps / copy-address sheet; ETA mode auto-picks biking beyond
+an 18-minute walk). The sticky footer carries the live-status dot (green
+live / gray not, with the honest DEMO DATA / SCHEDULE / STALE label when not
+live), the location indicator, the "Switch to Southbound/Northbound"
+direction control, and system-style ↻ / ⚙ icon buttons — no bottom tabs, no
+direction pill, no train arrows, no service-filter chips. The stations sheet
+adds an end-of-line hint per row (`… San Jose Diridon 9:16`). Regenerate the
+inlined art with `node demos/all-aboard/scripts/gen-station-art.mjs` after
+changing the SVGs.
 
 ## Layout
 

@@ -37,11 +37,13 @@ import {
 } from '../../snapback/generated/contract/runtime-links';
 import { createDeferredContractLinks } from './deferred-links';
 import { installGestures } from './gestures';
+import { installDirections } from './directions';
 import { setBackendState, setDeviceLocation, setRouteEstimateInvoker } from './data';
 import app from './app.contract';
 
 let activeSurface: { dispose?: () => void } | null = null;
 let disposeGestures: (() => void) | null = null;
+let disposeDirections: (() => void) | null = null;
 let disposeRefreshAction: (() => void) | null = null;
 let disposeLocationRequest: (() => void) | null = null;
 
@@ -119,6 +121,9 @@ function installWebChrome(): void {
     [data-testid="station-header"] { touch-action: none; }
     [data-testid="board-content"] { touch-action: pan-y; }
     [data-testid="location-hint"], [data-testid="settings-location"] { cursor: pointer; }
+    /* The directions affordance long-presses into the sheet (ENG-23795):
+       keep the browser's own touch callout/selection off it. */
+    [data-testid^="station-directions-"] { cursor: pointer; -webkit-touch-callout: none; }
     input::placeholder { color: rgba(26, 31, 39, 0.4); }
     #boot-status { display: none; position: fixed; left: 16px; bottom: 16px; z-index: 99; max-width: min(520px, calc(100vw - 32px));
       padding: 10px 12px; border: 1px solid #b4525f; border-radius: 10px; background: #0d1322;
@@ -194,7 +199,7 @@ function installLocationRequest(rootEl: HTMLElement): () => void {
   const listener = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    if (!target.closest('[data-testid="location-hint"], [data-testid="settings-location"]')) return;
+    if (!target.closest('[data-testid="location-hint"], [data-testid="settings-location"], [data-testid="location-indicator"]')) return;
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
@@ -244,6 +249,7 @@ async function mountBoard(client: SnapbackClient): Promise<void> {
   const rootEl = typeof document !== 'undefined' ? document.getElementById('exact-root') : null;
   if (rootEl) {
     disposeGestures = installGestures(rootEl);
+    disposeDirections = installDirections(rootEl);
     disposeRefreshAction = installRefreshAction(rootEl, client);
     disposeLocationRequest = installLocationRequest(rootEl);
   }
@@ -353,9 +359,11 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     if (disposeRefreshAction) disposeRefreshAction();
     if (disposeGestures) disposeGestures();
+    if (disposeDirections) disposeDirections();
     if (disposeLocationRequest) disposeLocationRequest();
     disposeRefreshAction = null;
     disposeGestures = null;
+    disposeDirections = null;
     disposeLocationRequest = null;
     setRouteEstimateInvoker(null);
     deferredLinks.dispose();
