@@ -340,6 +340,13 @@ export class Coordinator {
         schemaHash: APP_SCHEMA_HASH,
         bundleHash: APP_BUNDLE_HASH,
         objectBoot: this.bootMarker,
+        // Deploy-probe surface (ENG-23732): a live gateway serving the
+        // bootstrap pass (services stripped) reports handler:false here, so
+        // deploy.sh can detect it instead of every query 500ing later.
+        bindings: {
+          handler: Boolean(this.env.HANDLER),
+          actionHandler: Boolean(this.env.ACTION_HANDLER),
+        },
       });
     }
     if (path === '/reset') {

@@ -26,7 +26,7 @@ import { startProof } from './harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-const EXPECTED_CHECKS = 41;
+const EXPECTED_CHECKS = 42;
 
 const results = [];
 function check(name, condition, detail) {
@@ -112,6 +112,12 @@ async function main() {
     const survived = await client.query('listNotes', { boardId: 'b1' });
     check('data survives the refused admin calls', survived.ok && survived.rows.length === 2,
       JSON.stringify({ count: survived.rows?.length }));
+
+    // -- health reports service bindings for the deploy probe (ENG-23732) ----
+    const bindingHealth = await client.health();
+    check('health reports the HANDLER binding for the deploy probe',
+      bindingHealth.bindings?.handler === true,
+      JSON.stringify(bindingHealth.bindings));
 
     // -- no-op commits keep the version (ENG-23583) --------------------------
     const versionBefore = (await client.health()).version;
