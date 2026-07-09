@@ -6,9 +6,10 @@
 // @ref LLP 0021#phase-3-package-the-build-and-launch-recipe - prefer installed
 //   packages and explicit package-export probes over absolute source aliases.
 
-import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import * as nodeModule from 'node:module';
+import { basename, dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const EXACT_CONTRACT_PACKAGE = '@exact/contract';
 
@@ -33,8 +34,106 @@ export async function importExactContractExport(subpath, { exactRoot = null } = 
     if (!resolved) {
       throw packageResolutionError(specifier, exactRoot, error);
     }
+    ensureSourceCheckoutSpecifierHook(resolved);
     return import(pathToFileURL(resolved.path).href);
   }
+}
+
+// Exact source checkouts ship TS-ESM sources whose relative specifiers use the
+// `./signals.js` convention; Node's type stripping loads `.ts` files but does
+// not remap `.js` specifiers back to them (ENG-23741). When the fallback
+// resolves a `.ts`/`.tsx` entry (a source tree — registry dists ship `.js`,
+// and a checkout's node_modules/@exact/* is a workspace symlink back into
+// source), register a resolve hook scoped to that checkout which rewrites a
+// relative `.js` specifier to its `.ts`/`.tsx` sibling — only when the `.js`
+// file does not actually exist. Runtimes that already remap (bun) or predate
+// registerHooks skip this.
+const sourceCheckoutRootUrls = new Set();
+let specifierHookRegistered = false;
+
+function ensureSourceCheckoutSpecifierHook(resolved) {
+  if (!/\.tsx?$/.test(resolved.path)) return;
+  if (typeof nodeModule.registerHooks !== 'function') return;
+  if (typeof Bun !== 'undefined') return;
+
+  // Node loads modules at their realpath, so scope by the symlink-resolved
+  // location. Workspace layout is <checkoutRoot>/packages/exact-contract;
+  // scope the hook to the checkout root so sibling workspace deps
+  // (@exact/core, facet-core, renderer, ...) resolved through the same source
+  // tree are covered too. Fall back to the package root itself when the
+  // layout is unfamiliar.
+  let realPackageRoot;
+  try {
+    realPackageRoot = realpathSync(resolved.packageRoot);
+  } catch {
+    return;
+  }
+  const checkoutRoot = basename(dirname(realPackageRoot)) === 'packages'
+    ? dirname(dirname(realPackageRoot))
+    : realPackageRoot;
+  const rootUrl = pathToFileURL(checkoutRoot).href.replace(/\/?$/, '/');
+  if (sourceCheckoutRootUrls.has(rootUrl)) return;
+  sourceCheckoutRootUrls.add(rootUrl);
+
+  if (specifierHookRegistered) return;
+  specifierHookRegistered = true;
+  nodeModule.registerHooks({
+    resolve(specifier, context, nextResolve) {
+      const parentURL = context?.parentURL;
+      if (
+        parentURL &&
+        (specifier.startsWith('./') || specifier.startsWith('../')) &&
+        specifier.endsWith('.js') &&
+        isWithinSourceCheckout(parentURL)
+      ) {
+        const jsPath = fileURLToPath(new URL(specifier, parentURL));
+        if (!existsSync(jsPath)) {
+          const stem = specifier.slice(0, -'.js'.length);
+          for (const extension of ['.ts', '.tsx']) {
+            if (existsSync(`${jsPath.slice(0, -'.js'.length)}${extension}`)) {
+              return nextResolve(`${stem}${extension}`, context);
+            }
+          }
+        }
+      }
+      return nextResolve(specifier, context);
+    },
+    // Type stripping alone rejects non-erasable syntax (parameter properties,
+    // enums) that the Exact source tree legally uses; full transform mode
+    // handles it. Scoped to the registered checkout roots.
+    load(url, context, nextLoad) {
+      // Exact sources import .json without `with { type: 'json' }` (bundler
+      // semantics); surface those as synthetic modules with a default export.
+      if (/\.json$/.test(url) && isWithinSourceCheckout(url) && context?.importAttributes?.type !== 'json') {
+        const parsed = JSON.parse(readFileSync(fileURLToPath(url), 'utf8'));
+        return {
+          format: 'module',
+          shortCircuit: true,
+          source: `export default ${JSON.stringify(parsed)};`,
+        };
+      }
+      if (/\.ts$/.test(url) && isWithinSourceCheckout(url) && typeof nodeModule.stripTypeScriptTypes === 'function') {
+        const source = readFileSync(fileURLToPath(url), 'utf8');
+        return {
+          format: 'module',
+          shortCircuit: true,
+          source: nodeModule.stripTypeScriptTypes(source, {
+            mode: 'transform',
+            sourceUrl: url,
+            sourceMap: true,
+          }),
+        };
+      }
+      return nextLoad(url, context);
+    },
+  });
+}
+
+function isWithinSourceCheckout(parentURL) {
+  for (const rootUrl of sourceCheckoutRootUrls) {
+    if (parentURL.startsWith(rootUrl)) return true;
+  }
+  return false;
 }
 
 export function resolveExactContractExport(subpath, { exactRoot = null } = {}) {
