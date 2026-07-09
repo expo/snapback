@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5efe1"/>
+      <stop offset="0.5" stop-color="#eee5cf"/>
+      <stop offset="1" stop-color="#c9d4d6"/>
+    </linearGradient>
+    <linearGradient id="sea1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8aa3b5"/>
+      <stop offset="0.35" stop-color="#6d89a0"/>
+      <stop offset="1" stop-color="#4a6478"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect width="640" height="720" fill="url(#sky1)"/>
+
+  <!-- soft sun, calm upper zone -->
+  <circle cx="122" cy="178" r="46" fill="#e3c47f" opacity="0.45"/>
+  <path d="M83,197 C79,179 85,159 99,145 C111,133 129,127 146,131" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- distant left headland -->
+  <path d="M-8,714 C28,670 68,642 110,626 C132,618 152,617 174,625 L174,780 L-8,780 Z" fill="#a9bcc4" opacity="0.9"/>
+  <path d="M-6,709 C26,669 62,643 103,628 C126,620 148,618 168,625" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Marin headlands, right (fill off-register) -->
+  <path d="M410,722 C438,666 458,626 484,596 C510,566 538,538 566,520 C592,503 616,492 646,486 L646,810 L410,810 Z" fill="#8fa68a"/>
+  <path d="M519,562 C539,546 561,533 583,527 C596,543 592,561 578,573 C558,587 533,585 521,575 Z" fill="#d9a441" opacity="0.7"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M406,726 C427,686 445,650 467,618 C481,596 497,576 513,558" stroke-width="3.5"/>
+    <path d="M527,544 C545,528 565,514 587,504 C605,496 623,491 644,488" stroke-width="3.5"/>
+    <path d="M470,702 l25,-19 M492,714 l27,-21 M517,724 l25,-19 M545,732 l23,-17 M573,739 l23,-15 M601,744 l21,-13" stroke-width="2.5" opacity="0.4"/>
+  </g>
+
+  <!-- roadway deck -->
+  <rect x="-6" y="661" width="652" height="12" fill="#c96f4a"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M-8,656 C100,653 210,658 320,655 C430,652 540,657 648,654" stroke-width="3.5"/>
+    <path d="M-8,677 C110,673.5 220,678 330,675 C440,672 550,677.5 648,674" stroke-width="3.5"/>
+    <path d="M22,646 l0,9 M54,645 l1,9 M86,646 l0,9 M118,645 l0.6,9 M300,645 l0,9 M330,646 l0.5,9 M522,646 l0,9 M556,645 l0.6,9 M594,646 l0,9" stroke-width="2.5" opacity="0.75"/>
+  </g>
+
+  <!-- far tower (fills off-register, then wobbly ink) -->
+  <rect x="452" y="386" width="13" height="298" fill="#c96f4a"/>
+  <rect x="484" y="386" width="13" height="298" fill="#c96f4a"/>
+  <rect x="446" y="380" width="58" height="15" fill="#c96f4a"/>
+  <rect x="466" y="446" width="18" height="9" fill="#c96f4a"/>
+  <rect x="466" y="516" width="18" height="9" fill="#c96f4a"/>
+  <rect x="466" y="586" width="18" height="9" fill="#c96f4a"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
+    <path d="M448,394 C447.2,452 449,512 448.2,570 C447.6,608 448.6,646 448,682"/>
+    <path d="M461,394 C461.8,454 460.2,514 461.4,574 C462,610 461,648 461.6,682"/>
+    <path d="M481,394 C480.2,454 482,514 481.2,574 C480.6,610 481.6,648 481,682"/>
+    <path d="M494,394 C494.8,452 493.2,512 494.4,572 C495,608 494,646 494.6,682"/>
+    <path d="M443,395 C442,389 443.6,382 449,379 C466,377 485,377 500,380 C505,384 506.4,390 505.4,396 M444,396 C464,394 484,395.2 504,394.6"/>
+    <path d="M464,448 C471,447.2 478,448.2 486,447.4 M464,457 C471.6,456.2 479,457.2 486,456.4"/>
+    <path d="M464,518 C471,517.2 478,518.2 486,517.4 M464,527 C471.6,526.2 479,527.2 486,526.4"/>
+    <path d="M464,588 C471,587.2 478,588.2 486,587.4 M464,597 C471.6,596.2 479,597.2 486,596.4"/>
+  </g>
+
+  <!-- near tower -->
+  <rect x="178" y="300" width="21" height="462" fill="#c96f4a"/>
+  <rect x="240" y="300" width="21" height="462" fill="#c96f4a"/>
+  <rect x="170" y="294" width="98" height="23" fill="#c96f4a"/>
+  <rect x="199" y="390" width="42" height="15" fill="#c96f4a"/>
+  <rect x="199" y="482" width="42" height="15" fill="#c96f4a"/>
+  <rect x="199" y="574" width="42" height="15" fill="#c96f4a"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M174,306 C172.8,352 175.6,398 174.2,444 C173,490 175.8,536 174.4,582 C173.4,624 175.2,668 174.4,710 C174,730 174.8,750 174.2,766" stroke-width="4"/>
+    <path d="M195,306 C196.2,354 193.8,400 195.4,448 C196.6,494 194,540 195.6,586 C196.4,628 194.6,670 195.4,712 C195.8,732 195,752 195.6,766" stroke-width="4"/>
+    <path d="M236,306 C234.8,354 237.4,402 236,450 C235,496 237.6,542 236.2,588 C235.4,630 237,672 236.2,714 C235.8,732 236.6,750 236,766" stroke-width="4"/>
+    <path d="M257,306 C258.2,352 255.8,398 257.4,444 C258.4,492 256,538 257.6,584 C258.4,628 256.6,670 257.4,712 C257.8,732 257,750 257.6,766" stroke-width="4"/>
+    <path d="M168,321 C166.4,311 168.2,302 174,297 C204,293.6 236,294.6 262,296.6 C267.4,301 269,310 268,319 M170,321 C202,318 234,319.6 267,318.6" stroke-width="4"/>
+    <path d="M197,392 C211,390.4 226,392 243,390.6 M197,405 C212,403.6 227,405 243,403.6" stroke-width="3"/>
+    <path d="M197,484 C212,482.4 227,484.2 243,482.6 M197,497 C211,495.6 226,497 243,495.6" stroke-width="3"/>
+    <path d="M197,576 C211,574.4 227,576.2 243,574.6 M197,589 C212,587.6 226,589 243,587.6" stroke-width="3"/>
+    <path d="M186,332 l6,-6 M186,348 l6,-6 M186,364 l6,-6 M186,428 l6,-6 M248,338 l6,-6 M248,354 l6,-6 M248,516 l6,-6 M248,532 l6,-6" stroke-width="2.5" opacity="0.45"/>
+  </g>
+
+  <!-- suspender ropes -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.5" opacity="0.9">
+    <path d="M30,458 C29.4,524 30.6,592 30,652"/>
+    <path d="M70,435 C70.8,508 69.4,580 70,652"/>
+    <path d="M110,401 C109.2,486 110.8,570 110,653"/>
+    <path d="M150,363 C150.7,460 149.4,558 150,654"/>
+    <path d="M262,371 C261.2,466 262.8,562 262,654"/>
+    <path d="M290,434 C290.8,508 289.4,582 290,654"/>
+    <path d="M316,468 C315.4,530 316.6,592 316,654"/>
+    <path d="M342,483 C342.7,540 341.4,598 342,654"/>
+    <path d="M370,476 C369.3,536 370.7,596 370,654"/>
+    <path d="M398,457 C398.7,522 397.4,588 398,654"/>
+    <path d="M426,430 C425.3,504 426.7,580 426,654"/>
+    <path d="M452,404 C452.8,488 451.4,572 452,654"/>
+    <path d="M510,411 C509.3,492 510.7,572 510,652"/>
+    <path d="M550,437 C550.8,508 549.4,580 550,652"/>
+    <path d="M590,459 C589.3,524 590.7,588 590,652"/>
+    <path d="M628,477 C628.7,536 627.4,596 628,652"/>
+  </g>
+
+  <!-- main cables -->
+  <path d="M-10,470 C54,449 124,384 192,313 C204,302 224,301 236,313 C284,428 305,474 342,480 C381,474 427,427 463,391 C469,385 476,385 482,391 C523,420 576,452 648,487" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M-10,481 C54,460 118,398 178,332 M212,314 C220,311 230,312 238,321 C285,435 306,482 342,489 M356,487 C392,479 430,436 462,401 M486,401 C526,430 578,461 648,497" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- fog bank -->
+  <path d="M-10,706 C60,682 130,696 200,682 C270,668 340,688 410,674 C480,662 550,680 650,670 L650,818 L-10,818 Z" fill="#f3edde" opacity="0.97"/>
+  <ellipse cx="120" cy="708" rx="122" ry="34" fill="#f3edde" opacity="0.9"/>
+  <ellipse cx="332" cy="696" rx="132" ry="30" fill="#f3edde" opacity="0.9"/>
+  <ellipse cx="540" cy="702" rx="120" ry="32" fill="#f3edde" opacity="0.9"/>
+  <ellipse cx="232" cy="664" rx="92" ry="18" fill="#efe7d4" opacity="0.8"/>
+  <ellipse cx="472" cy="658" rx="80" ry="16" fill="#efe7d4" opacity="0.75"/>
+  <ellipse cx="180" cy="786" rx="140" ry="22" fill="#cfcaba" opacity="0.5"/>
+  <ellipse cx="480" cy="794" rx="130" ry="20" fill="#cfcaba" opacity="0.45"/>
+  <path d="M58,648 C108,642 158,650 210,644 M300,638 C350,632 400,640 452,635" fill="none" stroke="#e6ddc6" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- the bay -->
+  <path d="M-10,786 C80,778 170,792 260,784 C350,776 440,790 530,782 C570,779 610,784 650,780 L650,1140 L-10,1140 Z" fill="url(#sea1)"/>
+  <g fill="none" stroke="#9db4c4" stroke-linecap="round" stroke-width="3.5">
+    <path d="M58,842 C90,838 122,843 154,839"/>
+    <path d="M210,824 C238,820.6 266,825 296,821"/>
+    <path d="M380,850 C412,846 446,851 480,847"/>
+    <path d="M540,830 C566,826.6 592,830.6 618,827"/>
+    <path d="M96,908 C132,903.6 170,909 208,905"/>
+    <path d="M300,930 C332,926 364,931 398,927"/>
+    <path d="M500,908 C534,904 568,909 604,905"/>
+    <path d="M60,1000 C100,995 142,1001 184,996"/>
+    <path d="M260,1032 C296,1027.6 334,1033 372,1028"/>
+    <path d="M470,1006 C508,1001 548,1007 588,1002"/>
+    <path d="M210,1094 C250,1089 292,1095 336,1090"/>
+    <path d="M420,1090 C456,1085.6 494,1091 532,1086"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.5" opacity="0.55">
+    <path d="M150,872 C176,868.6 202,872.6 228,869"/>
+    <path d="M420,884 C448,880.6 476,885 504,881"/>
+    <path d="M180,964 C210,960 240,965 272,961"/>
+    <path d="M520,962 C548,958.6 576,963 604,959"/>
+    <path d="M120,1056 C152,1052 184,1057 218,1053"/>
+    <path d="M400,1122 C434,1118 468,1123 504,1119"/>
+  </g>
+
+  <!-- sailboat -->
+  <path d="M450,862 L450,940 L497,937 Z" fill="#f0e8d2"/>
+  <path d="M438,872 L438,938 L406,936 Z" fill="#e8dcc0"/>
+  <path d="M408,950 C424,959 460,959 478,948 L470,964 C452,971 428,970 414,961 Z" fill="#c96f4a"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M444,948 C444.8,918 443.6,888 444.4,856" stroke-width="3"/>
+    <path d="M447,860 C447.4,888 446.6,914 447.2,941 C463,940.4 479,941.6 493,939.6 C479,915 462,888 448.4,861" stroke-width="2.5"/>
+    <path d="M441,874 C441.5,896 440.6,918 441.2,938 C430,937.2 419,937.8 409,936.6 C420,916 431,895 440.6,875" stroke-width="2.5"/>
+    <path d="M405,948 C426,958.6 456,959.6 481,947 M412,960 C430,969 452,970 469,963" stroke-width="3"/>
+  </g>
+  <path d="M378,982 C398,978 418,983 440,979 M460,986 C480,982 500,987 520,983" fill="none" stroke="#e8dcc0" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- foreground rocks -->
+  <path d="M-8,1030 C30,1012 70,1020 100,1042 C130,1064 150,1096 158,1140 L-8,1140 Z" fill="#3f5468"/>
+  <path d="M18,1092 C42,1080 70,1086 88,1104 C100,1116 106,1128 108,1140 L20,1140 Z" fill="#4a6478"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M-6,1026 C24,1010 58,1014 88,1034 C118,1054 142,1088 152,1136" stroke-width="4"/>
+    <path d="M30,1066 l16,-12 M52,1082 l16,-12 M76,1102 l14,-12 M98,1124 l14,-10" stroke-width="2.5" opacity="0.5"/>
+  </g>
+  <path d="M150,1078 C170,1072 190,1078 210,1073 M168,1108 C188,1102 208,1108 228,1103" fill="none" stroke="#f0e8d2" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- gulls -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.5">
+    <path d="M176,560 C184,552 192,552 198,558 C204,552 212,552 220,558"/>
+    <path d="M252,538 C258,532 264,532 269,536 C274,532 280,532 285,537"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24" opacity="0.5">
+    <circle cx="92" cy="524" r="1.4"/>
+    <circle cx="320" cy="252" r="1.1"/>
+    <circle cx="560" cy="620" r="1.5"/>
+    <circle cx="360" cy="560" r="1.2"/>
+    <circle cx="200" cy="860" r="1.6"/>
+    <circle cx="480" cy="1060" r="1.4"/>
+    <circle cx="80" cy="960" r="1.3"/>
+    <circle cx="600" cy="900" r="1.2"/>
+    <circle cx="290" cy="1110" r="1.5"/>
+  </g>
+</svg>

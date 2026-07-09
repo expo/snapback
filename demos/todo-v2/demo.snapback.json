@@ -49,7 +49,7 @@
       "descriptorRunner": "bun demos/todo-v2/tests/acceptance/contract-descriptors.mjs",
       "adapterSemanticsRunner": "bun demos/todo-v2/tests/acceptance/adapter-semantics.mjs",
       "providerConformanceRunner": "bun demos/todo-v2/tests/acceptance/provider-conformance.mjs",
-      "browserRunner": "SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 bun run --cwd demos/todo-v2/surfaces/contract dev (Exact checkout = SNAPBACK_EXACT_ROOT or sibling ../exact; verified revision pinned in surfaces/contract/exact.pin.json)",
+      "browserRunner": "bun install --cwd demos/todo-v2/surfaces/contract (once), then SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 bun run --cwd demos/todo-v2/surfaces/contract dev (Exact consumed from the npm registry; the surface bun.lock is the pin - ENG-22480 model, migrated by ENG-23899)",
       "build": "bun run --cwd demos/todo-v2/surfaces/contract build (vite build via the exactContractWeb preset -> surfaces/contract/dist/web/)",
       "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "exact": {

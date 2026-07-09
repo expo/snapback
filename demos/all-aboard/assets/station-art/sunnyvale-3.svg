@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+<rect width="640" height="1136" fill="#f5efe1"/>
+<!-- sky washes -->
+<path d="M0 0h640v240c-112 12-224-14-336-4-104 9-208-9-304 4z" fill="#b7c9d2" opacity="0.5"/>
+<path d="M0 300c120-10 240 8 360 2 96-5 190 3 280-4v210c-106 10-212-8-318-2-108 6-216-6-322 4z" fill="#e9d9a6" opacity="0.35"/>
+<path d="M60 236c60-8 124-6 186-8" fill="none" stroke="#f5efe1" stroke-width="9" stroke-linecap="round" opacity="0.7"/>
+<path d="M380 210c52-6 108-5 160-7" fill="none" stroke="#f5efe1" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+<!-- distant ridge and horizon sheen -->
+<path d="M0 522c76-12 158-18 244-15 96 3 192 12 274 11 44-1 82-4 122-7v54H0z" fill="#a9b3a0" opacity="0.7"/>
+<path d="M0 560c110-4 218 4 326 1 106-3 212 3 314-1v44c-108 6-214-4-322 0-106 4-212-4-318 2z" fill="#cdd8da" opacity="0.6"/>
+<!-- marsh base -->
+<rect x="0" y="598" width="640" height="538" fill="#adb890"/>
+<!-- hangar one -->
+<path d="M216 602c5-58 28-106 64-132 27-19 63-28 96-23 70 9 122 74 140 155z" fill="#a9a294"/>
+<path d="M300 480c22-16 50-22 76-18 16 2 30 9 42 20-38-8-80-8-118-2z" fill="#efe4c8" opacity="0.5"/>
+<path d="M214 588l304-3 2 16-306 3z" fill="#857f72" opacity="0.6"/>
+<path d="M84 602c2-18 12-32 28-32 16 0 26 14 28 32z" fill="#b7b1a3"/>
+<path d="M146 602c2-16 11-28 25-28 14 0 23 12 25 28z" fill="#b7b1a3"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path stroke-width="3" d="M250 600c3-40 16-76 38-100M290 600c2-48 12-92 30-122M336 600c1-52 6-100 16-136M382 600c0-54-2-104-8-140M428 600c-1-50-8-96-22-128M470 600c-3-44-13-84-30-110"/>
+<path stroke-width="4.5" d="M216 600c4-46 18-88 42-116"/>
+<path stroke-width="4.5" d="M270 474c22-20 50-30 78-28"/>
+<path stroke-width="4.5" d="M362 448c56 8 104 60 118 128"/>
+<path stroke-width="4.5" d="M484 584c2 6 3 12 4 18"/>
+<path stroke-width="2.4" opacity="0.5" d="M262 556c58-10 120-12 178-4M246 584c76-8 156-9 232-2"/>
+<path stroke-width="3" d="M86 600c3-16 13-28 26-28 13 0 23 12 26 28"/>
+<path stroke-width="3" d="M148 600c3-14 11-24 23-24 12 0 21 10 23 24"/>
+<path stroke-width="2.6" d="M566 600c0-34 1-68 1-102"/>
+<path stroke-width="2.2" d="M560 528l13-1M562 556l11-1"/>
+<circle cx="567" cy="496" r="2.5" stroke-width="2.2"/>
+<path stroke-width="2.2" opacity="0.4" d="M567 500l-26 98M567 500l24 100"/>
+<path stroke-width="4" d="M0 600c86-3 170 3 256 1 86-2 172 2 256-1 44-1 86 1 128 0"/>
+<!-- flying birds -->
+<path stroke-width="2.6" d="M296 334c7-6 13-6 19 0M315 334c6-6 12-6 17 0M352 356c6-5 11-5 16 0M368 356c5-5 10-5 15 0M404 320c6-5 11-5 16 0M420 320c5-5 10-5 15 0"/>
+</g>
+<!-- mud band and near channel -->
+<path d="M0 640c108-8 214 6 320 2 106-4 214 6 320-2v34c-108 8-212-6-318-2-108 4-214-6-322 2z" fill="#c9ae7f" opacity="0.8"/>
+<path d="M24 648c96-5 194-2 290-3 96-1 192 2 286-1 3 8 4 16 2 24-96 5-192 2-288 3-96 1-192-2-288 1-3-8-3-16-2-24z" fill="#8fa8b8" opacity="0.85"/>
+<!-- pickleweed patches -->
+<path d="M80 700c14-8 34-8 46 0 8 6 6 14-4 18-16 6-36 4-46-4-6-6-4-11 4-14z" fill="#c26b4a" opacity="0.7"/>
+<path d="M420 692c12-7 30-7 41 0 7 5 5 12-4 16-14 5-32 3-41-4-5-5-3-9 4-12z" fill="#c26b4a" opacity="0.7"/>
+<path d="M540 708c11-6 27-6 37 0 6 5 4 11-4 14-13 5-29 3-37-3-5-5-3-8 4-11z" fill="#c26b4a" opacity="0.65"/>
+<path d="M200 712c12-7 28-7 39 0 7 5 5 12-4 15-13 5-30 3-39-3-5-5-3-9 4-12z" fill="#c9a15c" opacity="0.8"/>
+<path d="M320 706c10-6 24-6 33 0 6 4 4 10-3 13-11 4-25 3-33-3-4-4-3-8 3-10z" fill="#c9a15c" opacity="0.8"/>
+<!-- wide slough -->
+<path d="M0 730c112-9 218 7 328 2 110-5 216 9 312-3v62c-110 9-216-7-326-2-110 5-216-9-314 3z" fill="#8fa8b8"/>
+<path d="M120 758c22-6 46-6 66 0 10 3 10 9-2 12-22 5-46 5-64-1-8-3-8-8 0-11z" fill="#9aa88a"/>
+<path d="M360 770c20-5 42-5 60 0 9 3 9 8-2 11-20 4-42 4-58-1-7-3-7-7 0-10z" fill="#9aa88a"/>
+<path d="M520 748c18-5 38-5 54 0 8 3 8 7-2 10-18 4-38 4-52-1-6-3-6-6 0-9z" fill="#9aa88a"/>
+<!-- hangar reflection -->
+<g stroke="#857f72" fill="none" stroke-linecap="round" stroke-width="3" opacity="0.3">
+<path d="M300 730c-2 14 2 28 0 42M340 732c-2 14 2 26 0 40M380 730c-2 14 2 28 0 42M420 732c-1 12 1 24 0 38"/>
+</g>
+<!-- foreground water -->
+<path d="M0 906c114-10 220 8 330 3 110-5 214 9 310-5v232H0z" fill="#7f9cae"/>
+<g stroke="#efe4c8" fill="none" stroke-linecap="round" stroke-width="4" opacity="0.5">
+<path d="M120 980c40-3 80-2 120-3M300 1030c44-3 90-2 134-3M80 1070c36-2 72-2 108-3M420 1110c36-2 74-2 110-3"/>
+</g>
+<!-- grass points over water -->
+<path d="M0 1136v-224c30 8 52 36 60 74 10 44 0 100 14 150z" fill="#7d8f74"/>
+<path d="M640 1136v-198c-28 6-48 30-56 64-10 42 2 92-14 134z" fill="#7d8f74"/>
+<!-- birds -->
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<!-- avocets on the mud -->
+<path stroke-width="2.4" d="M262 662c4-4 6-9 11-10M273 652c5-1 9-3 13-6"/>
+<path stroke-width="2.2" d="M252 676l-2 12M258 677l0 12"/>
+<path stroke-width="2.4" d="M306 668c4-4 6-9 11-10M317 658c5-1 9-3 13-6"/>
+<path stroke-width="2.2" d="M296 682l-2 12M302 683l0 12"/>
+<path stroke-width="2.4" d="M352 660c4-4 6-9 11-10M363 650c5-1 9-3 13-6"/>
+<path stroke-width="2.2" d="M342 674l-2 12M348 675l0 12"/>
+</g>
+<path d="M246 666c1-6 8-9 14-7 6 2 8 7 6 12-2 5-9 7-14 5-5-2-7-6-6-10z" fill="#efe4c8" stroke="#2f2a24" stroke-width="2.4"/>
+<path d="M290 672c1-6 8-9 14-7 6 2 8 7 6 12-2 5-9 7-14 5-5-2-7-6-6-10z" fill="#efe4c8" stroke="#2f2a24" stroke-width="2.4"/>
+<path d="M336 664c1-6 8-9 14-7 6 2 8 7 6 12-2 5-9 7-14 5-5-2-7-6-6-10z" fill="#efe4c8" stroke="#2f2a24" stroke-width="2.4"/>
+<!-- ducks on the slough -->
+<path d="M150 756c3-6 10-9 17-6 3-4 8-5 11-2 3 3 2 7-2 8 1 4-3 8-9 8-8 1-15-2-17-8z" fill="#2f2a24" opacity="0.85"/>
+<path d="M198 766c3-5 9-8 15-5 3-3 7-4 10-1 2 3 1 6-2 7 1 4-3 7-8 7-7 1-13-2-15-8z" fill="#2f2a24" opacity="0.85"/>
+<!-- egret -->
+<path d="M400 934c-2-14 8-26 24-28 14-2 26 6 28 18 2 12-8 22-22 24-16 2-28-4-30-14z" fill="#f5efe1" stroke="#2f2a24" stroke-width="3"/>
+<path d="M468 860c6-2 12 0 14 6 2 6-2 12-8 13-6 1-12-3-13-9 0-5 3-9 7-10z" fill="#f5efe1" stroke="#2f2a24" stroke-width="2.6"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path stroke-width="3.2" d="M446 912c10-6 6-20 10-32 2-6 6-11 11-14"/>
+<path stroke-width="2.8" d="M482 868c8 1 15 3 22 5"/>
+<circle cx="472" cy="868" r="1.6" fill="#2f2a24" stroke="none"/>
+<path stroke-width="2.6" d="M410 924c10-4 22-4 32 0"/>
+<path stroke-width="2.6" d="M416 948l-3 36M430 950l-1 38"/>
+<path stroke-width="2.2" opacity="0.35" d="M404 996c14-2 30-2 44-1"/>
+<!-- ripples -->
+<path stroke-width="2.4" opacity="0.4" d="M150 950c24-3 48-2 72-3M360 990c22-2 44-2 66-2M200 1100c26-2 52-2 78-2M480 1060c20-2 40-2 60-2M60 940c18-2 36-2 54-2"/>
+<!-- tules and cattails -->
+<path stroke-width="3" d="M40 1136c4-84 0-170 10-254M64 1136c2-76 6-152 4-228M90 1136c6-70 4-140 10-210"/>
+<path stroke-width="3" d="M600 1136c-2-64-6-128-4-192M576 1136c0-56-4-112-2-168"/>
+<path stroke-width="2.4" opacity="0.6" d="M110 1060c6-14 8-26 6-40M120 1072c5-12 6-22 5-34M556 1040c-5-12-6-24-5-36M566 1052c-4-10-5-20-4-30"/>
+<!-- grass flicks on marsh -->
+<path stroke-width="2.4" opacity="0.5" d="M200 834c3-8 4-13 3-18M210 836c2-7 2-12 1-17M480 852c3-8 4-13 3-18M490 854c2-7 2-12 1-17M92 872c3-8 4-13 3-18M102 874c2-7 2-12 1-17M556 822c3-8 4-13 3-18M300 882c3-8 4-13 3-18M310 884c2-7 2-12 1-17"/>
+<!-- mud stipple -->
+</g>
+<path d="M46 866c-1-13 2-20 6-20s7 7 6 20c-1 7-11 7-12 0z" fill="#b3593c" stroke="#2f2a24" stroke-width="2.2"/>
+<path d="M64 892c-1-12 2-18 5-18s6 6 5 18c-1 6-9 6-10 0z" fill="#b3593c" stroke="#2f2a24" stroke-width="2.2"/>
+<path d="M96 910c-1-12 2-18 5-18s6 6 5 18c-1 6-9 6-10 0z" fill="#b3593c" stroke="#2f2a24" stroke-width="2.2"/>
+<path d="M592 928c-1-12 2-18 5-18s6 6 5 18c-1 6-9 6-10 0z" fill="#b3593c" stroke="#2f2a24" stroke-width="2.2"/>
+<path d="M570 952c-1-11 2-17 5-17s6 6 5 17c-1 6-9 6-10 0z" fill="#b3593c" stroke="#2f2a24" stroke-width="2.2"/>
+<g fill="#2f2a24" opacity="0.4">
+<circle cx="100" cy="654" r="1.3"/><circle cx="150" cy="660" r="1.3"/><circle cx="210" cy="652" r="1.3"/><circle cx="380" cy="658" r="1.3"/><circle cx="440" cy="650" r="1.3"/><circle cx="500" cy="660" r="1.3"/><circle cx="560" cy="654" r="1.3"/><circle cx="60" cy="662" r="1.3"/>
+</g>
+<g fill="#2f2a24" opacity="0.5">
+<circle cx="180" cy="800" r="1.4"/><circle cx="520" cy="790" r="1.3"/><circle cx="340" cy="1090" r="1.5"/><circle cx="140" cy="1010" r="1.3"/><circle cx="600" cy="1100" r="1.4"/><circle cx="260" cy="960" r="1.3"/>
+</g>
+</svg>

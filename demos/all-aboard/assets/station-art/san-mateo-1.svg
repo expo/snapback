@@ -1,0 +1,194 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5efe1"/>
+      <stop offset="0.5" stop-color="#f2e0c3"/>
+      <stop offset="1" stop-color="#eac9a3"/>
+    </linearGradient>
+    <linearGradient id="sea1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c6d3d8"/>
+      <stop offset="0.3" stop-color="#a7bdc7"/>
+      <stop offset="1" stop-color="#8aa4b5"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect x="0" y="0" width="640" height="576" fill="url(#sky1)"/>
+  <rect x="0" y="556" width="640" height="480" fill="url(#sea1)"/>
+
+  <!-- calm high sky washes -->
+  <path d="M -20 128 c 90 -14 200 -10 300 -4 c 110 7 240 4 380 -8 l 0 66 c -140 10 -260 16 -370 10 c -105 -6 -215 -2 -312 8 z" fill="#faf4e6" opacity="0.55"/>
+  <path d="M -20 236 c 120 -10 250 -4 360 4 c 100 7 200 5 320 -4 l 0 40 c -130 12 -240 12 -340 6 c -110 -7 -230 -4 -342 4 z" fill="#f3e4c8" opacity="0.45"/>
+
+  <!-- sun: flat gouache disc, off-register ink ring -->
+  <circle cx="441" cy="464" r="55" fill="#e0ad55"/>
+  <circle cx="452" cy="452" r="26" fill="#ecc276" opacity="0.85"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M 447 406 c 18 1 34 10 44 24 c 10 13 14 30 10 46 c -4 15 -15 28 -30 34" stroke-width="3.4"/>
+    <path d="M 452 522 c -17 4 -35 0 -48 -11 c -14 -12 -21 -30 -18 -47 c 2 -14 9 -27 20 -36" stroke-width="2.8"/>
+  </g>
+
+  <!-- far east-bay hills -->
+  <path d="M 336 560 c 40 -16 86 -24 134 -22 c 52 3 106 10 152 16 c 8 1 15 2 22 3 l 0 10 l -308 0 z" fill="#b9b2a2" opacity="0.75"/>
+  <path d="M 348 552 c 36 -13 80 -20 122 -19 c 46 2 96 8 140 14" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- fog band at horizon -->
+  <path d="M -10 540 c 110 -6 220 2 330 4 c 110 3 220 -2 330 -8 l 0 38 c -110 8 -220 10 -330 6 c -110 -3 -220 -1 -330 4 z" fill="#f5efe1" opacity="0.6"/>
+
+  <!-- ==================== BRIDGE : gouache washes (off-register) ==================== -->
+  <g transform="translate(5,4)" fill="none" stroke-linecap="round">
+    <!-- causeway deck wash -->
+    <path d="M -12 614 L 148 612" stroke="#b3aca0" stroke-width="10"/>
+    <path d="M 330 610 L 652 609" stroke="#b3aca0" stroke-width="9"/>
+    <!-- high-rise span wash -->
+    <path d="M 143 613 c 30 -6 55 -28 72 -50 c 8 -10 17 -17 25 -17 c 8 0 17 7 25 17 c 17 22 42 44 72 47" stroke="#9fb0ba" stroke-width="12"/>
+    <!-- pier washes -->
+    <path d="M 205 587 l 0 62 M 240 568 l 0 84 M 275 586 l 0 62" stroke="#b3aca0" stroke-width="7"/>
+  </g>
+
+  <!-- ==================== BRIDGE : ink ==================== -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <!-- left approach deck -->
+    <path d="M -12 617 c 17 -3 34 1 51 0 c 17 -1 34 2 51 1 c 15 -1 31 1 46 -2" stroke-width="3.6"/>
+    <!-- rise to the high span -->
+    <path d="M 143 615 c 30 -6 54 -27 71 -49 c 8 -10 18 -18 26 -18 c 8 0 18 8 26 18 c 17 22 41 43 71 46" stroke-width="4.6"/>
+    <!-- girder / haunch under the span -->
+    <path d="M 158 626 c 26 -6 47 -25 62 -44 c 7 -9 14 -15 20 -15 c 6 0 13 6 20 15 c 15 19 36 37 62 42" stroke-width="3"/>
+    <!-- span piers -->
+    <path d="M 204 588 c 0 20 -1 41 0 61" stroke-width="3.2"/>
+    <path d="M 239 570 c 1 28 1 56 1 84" stroke-width="3.6"/>
+    <path d="M 275 588 c 0 20 1 40 0 60" stroke-width="3.2"/>
+    <!-- east causeway with a pen-lift gap -->
+    <path d="M 330 611 c 17 -2 34 2 51 1 c 17 -1 34 1 51 0 c 15 -1 31 2 46 1" stroke-width="3.8"/>
+    <path d="M 494 612 c 17 -2 34 1 51 0 c 17 -1 34 2 51 1 c 16 -1 33 0 49 -1" stroke-width="3.4"/>
+    <!-- trestle piles -->
+    <g stroke-width="2.6">
+      <path d="M 22 621 l 0 15 M 31 621 l 1 13"/>
+      <path d="M 78 620 l -1 16 M 87 620 l 0 14"/>
+      <path d="M 356 615 l 0 17 M 365 615 l 1 15"/>
+      <path d="M 410 616 l -1 16 M 419 616 l 0 14"/>
+      <path d="M 464 616 l 0 15 M 473 617 l 1 14"/>
+      <path d="M 520 616 l 0 16 M 529 616 l -1 14"/>
+      <path d="M 574 617 l 0 15 M 583 617 l 1 13"/>
+      <path d="M 624 617 l 0 14 M 633 617 l 0 13"/>
+    </g>
+    <!-- span railing ticks -->
+    <path d="M 172 606 l 1 -7 M 194 588 l 1 -7 M 216 562 l 1 -7 M 240 552 l 0 -7 M 264 562 l -1 -7 M 286 588 l -1 -7 M 308 606 l -1 -7" stroke-width="2.5" opacity="0.8"/>
+  </g>
+
+  <!-- bridge reflection: broken vertical shimmers under the piers -->
+  <g fill="none" stroke-linecap="round" opacity="0.5">
+    <path d="M 206 660 c -2 8 0 16 -1 24 M 204 694 c -1 7 0 14 -1 21" stroke="#6f8a9c" stroke-width="4"/>
+    <path d="M 241 662 c 2 10 0 20 1 30 M 243 704 c 1 8 0 16 1 24" stroke="#6f8a9c" stroke-width="4.4"/>
+    <path d="M 277 658 c -1 8 1 16 0 24 M 278 692 c 0 7 1 14 1 21" stroke="#6f8a9c" stroke-width="3.6"/>
+    <path d="M 224 668 c -1 10 0 20 -1 30 M 260 672 c 1 9 0 18 1 27" stroke="#2f2a24" stroke-width="2.5" opacity="0.5"/>
+  </g>
+
+  <!-- sun glitter path on water -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M 408 566 c 14 -2 28 2 42 0 M 466 568 c 10 0 20 1 30 0" stroke="#e0ad55" stroke-width="4.4"/>
+    <path d="M 420 588 c 12 -2 24 1 36 0 M 470 590 c 8 0 16 1 24 0" stroke="#e0ad55" stroke-width="3.6"/>
+    <path d="M 430 612 c 10 -1 20 1 30 0 M 404 634 c 8 0 16 1 24 0 M 452 636 c 10 -1 20 1 30 0" stroke="#ecc276" stroke-width="3.2"/>
+    <path d="M 438 664 c 10 -1 20 1 30 0 M 418 692 c 8 -1 16 1 24 0" stroke="#ecc276" stroke-width="2.8" opacity="0.8"/>
+  </g>
+
+  <!-- water ripple strokes -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M 40 690 c 24 -4 48 3 72 1 c 20 -2 40 2 60 1" stroke="#c6d4da" stroke-width="4.4"/>
+    <path d="M 340 726 c 26 -3 52 2 78 1 c 22 -1 44 3 66 1" stroke="#c6d4da" stroke-width="4"/>
+    <path d="M 70 760 c 28 -4 56 2 84 1 M 210 764 c 20 -2 40 2 60 1" stroke="#c6d4da" stroke-width="4"/>
+    <path d="M 420 800 c 24 -3 48 2 72 1 M 60 820 c 26 -3 52 3 78 1" stroke="#c6d4da" stroke-width="4.6"/>
+    <path d="M 26 668 c 22 -3 44 2 66 1" stroke="#2f2a24" stroke-width="2.5" opacity="0.35"/>
+    <path d="M 330 686 c 24 -3 48 2 72 1 c 18 -1 36 2 54 1" stroke="#2f2a24" stroke-width="2.6" opacity="0.3"/>
+    <path d="M 130 742 c 24 -3 48 3 72 1" stroke="#2f2a24" stroke-width="2.5" opacity="0.32"/>
+    <path d="M 470 758 c 22 -3 44 2 66 1" stroke="#2f2a24" stroke-width="2.5" opacity="0.3"/>
+    <path d="M 90 848 c 28 -4 56 2 84 1 c 24 -1 48 3 72 1" stroke="#2f2a24" stroke-width="2.8" opacity="0.3"/>
+    <path d="M 380 862 c 26 -3 52 3 78 1" stroke="#2f2a24" stroke-width="2.6" opacity="0.3"/>
+    <path d="M 200 896 c 30 -4 60 2 90 1" stroke="#c6d4da" stroke-width="5" opacity="0.9"/>
+  </g>
+
+  <!-- flying shorebirds -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.6">
+    <path d="M 386 334 c 6 -6 12 -7 17 -2 M 405 332 c 5 -5 11 -5 15 1"/>
+    <path d="M 448 360 c 5 -5 11 -6 15 -2 M 465 359 c 5 -4 10 -4 13 1"/>
+    <path d="M 342 382 c 5 -5 10 -6 14 -2 M 358 381 c 4 -4 9 -4 12 1"/>
+    <path d="M 486 402 c 4 -4 9 -5 12 -1 M 500 401 c 4 -3 8 -3 11 1"/>
+    <path d="M 300 430 c 4 -4 8 -4 11 -1 M 313 429 c 3 -3 7 -3 10 1" opacity="0.8"/>
+  </g>
+
+  <!-- ==================== FOREGROUND MARSH ==================== -->
+  <!-- mud strip at waterline (wash) -->
+  <path d="M -8 960 c 70 -14 140 -8 210 -14 c 80 -7 160 -2 240 -8 c 70 -5 140 -4 204 -8 l 0 60 l -654 6 z" fill="#c8b78c" opacity="0.9"/>
+  <!-- bank wash, offset from ink contour -->
+  <path d="M -8 986 c 66 -16 132 -8 198 -16 c 76 -9 152 -3 228 -10 c 78 -7 156 -5 222 -10 l 0 190 l -648 0 z" fill="#93a687"/>
+  <path d="M -8 1052 c 90 -12 180 -4 270 -10 c 100 -7 200 -2 300 -8 c 26 -2 52 -3 78 -5 l 0 110 l -648 0 z" fill="#7f9070" opacity="0.85"/>
+  <!-- ink contour of the bank, with pen lifts -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M -10 978 c 44 -10 88 -6 132 -10 c 40 -4 80 -3 120 -7" stroke-width="4.2"/>
+    <path d="M 268 958 c 52 -5 104 -2 156 -6 c 40 -3 80 -3 120 -6" stroke-width="3.8"/>
+    <path d="M 560 944 c 30 -2 60 -4 90 -6" stroke-width="3.4"/>
+    <path d="M -6 1046 c 60 -8 120 -3 180 -8 M 220 1034 c 50 -5 100 -2 150 -6" stroke-width="3" opacity="0.7"/>
+  </g>
+
+  <!-- rocks -->
+  <path d="M 402 976 c 4 -14 20 -22 36 -20 c 15 2 26 12 25 24 c -1 11 -13 19 -30 19 c -17 0 -33 -10 -31 -23 z" fill="#b3aca0"/>
+  <path d="M 396 972 c 5 -12 19 -20 34 -19 c 14 1 25 10 25 21 c 0 11 -12 19 -28 19 c -16 1 -33 -8 -31 -21" fill="none" stroke="#2f2a24" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M 470 992 c 3 -9 13 -14 23 -13 c 10 1 17 8 16 16 c -1 8 -9 13 -20 13 c -11 0 -21 -8 -19 -16 z" fill="#c2bcae"/>
+  <path d="M 466 988 c 4 -8 12 -13 21 -12 c 9 1 16 7 15 14 c -1 7 -9 12 -18 12" fill="none" stroke="#2f2a24" stroke-width="2.7" stroke-linecap="round"/>
+
+  <!-- marsh grasses -->
+  <g fill="none" stroke-linecap="round">
+    <g stroke="#5f7355" stroke-width="2.8">
+      <path d="M 74 1032 c 2 -20 -3 -38 -10 -54 M 84 1034 c 3 -22 1 -44 -3 -64 M 94 1032 c 4 -18 10 -36 18 -50"/>
+      <path d="M 320 1006 c 2 -18 -2 -36 -8 -50 M 330 1008 c 3 -20 2 -40 -1 -58 M 340 1006 c 4 -16 10 -32 17 -45"/>
+      <path d="M 560 986 c 2 -16 -2 -32 -7 -46 M 570 988 c 3 -18 2 -36 0 -52 M 580 986 c 4 -15 9 -30 16 -42"/>
+    </g>
+    <g stroke="#2f2a24" stroke-width="2.5" opacity="0.75">
+      <path d="M 66 1030 c 1 -16 -3 -32 -8 -46 M 102 1030 c 5 -14 12 -28 21 -39"/>
+      <path d="M 312 1004 c 1 -14 -2 -28 -6 -40 M 348 1004 c 5 -12 11 -24 19 -34"/>
+      <path d="M 552 984 c 1 -13 -2 -26 -6 -37 M 588 984 c 4 -11 10 -22 17 -31"/>
+      <path d="M 470 1052 c 2 -16 -1 -32 -5 -46 M 480 1054 c 3 -18 3 -36 1 -52 M 490 1052 c 4 -14 9 -28 16 -39"/>
+      <path d="M 150 1090 c 2 -18 -2 -36 -7 -52 M 160 1092 c 3 -20 3 -40 1 -58 M 170 1090 c 5 -16 11 -32 19 -44"/>
+    </g>
+  </g>
+
+  <!-- standing curlew -->
+  <g>
+    <path d="M 192 1008 c 0 -13 9 -25 22 -29 c 13 -4 28 1 33 12 c 5 10 1 23 -10 29 c -12 7 -29 5 -38 -3 c -4 -4 -7 -6 -7 -9 z" fill="#e9ddc2"/>
+    <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+      <path d="M 198 1002 c 1 -12 10 -22 22 -25 c 12 -3 25 1 30 11 c 5 9 1 21 -9 27 c -10 6 -25 5 -34 -2" stroke-width="3.4"/>
+      <path d="M 246 990 c 5 -9 12 -14 19 -13 c 6 1 9 6 8 11 c -1 5 -6 8 -11 8" stroke-width="3"/>
+      <path d="M 272 992 c 10 3 19 11 24 21 c 3 6 3 11 1 14" stroke-width="2.8"/>
+      <path d="M 216 1018 c 1 9 2 18 2 27 M 220 1045 l 8 3" stroke-width="2.6"/>
+      <path d="M 232 1016 c 2 10 3 20 5 30 M 239 1046 l 8 2" stroke-width="2.6"/>
+      <path d="M 208 998 c 8 -3 16 -3 24 -1 M 210 1006 c 7 -2 15 -2 22 0" stroke-width="2.5" opacity="0.6"/>
+    </g>
+  </g>
+
+  <!-- small distant wader in the shallows -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.5">
+    <path d="M 520 924 c 2 -7 8 -12 15 -12 c 7 0 12 5 12 11 c 0 6 -6 10 -13 10 c -7 0 -13 -4 -14 -9"/>
+    <path d="M 546 916 c 3 -4 7 -6 11 -5 M 557 912 c 5 2 9 6 11 10"/>
+    <path d="M 530 933 l 1 12 M 538 933 l 2 12"/>
+  </g>
+
+  <!-- shadow hatching -->
+  <g stroke="#2f2a24" stroke-linecap="round" stroke-width="1.8" opacity="0.28" fill="none">
+    <path d="M 40 1000 l 16 -8 M 60 1004 l 16 -8 M 80 1008 l 16 -8 M 100 1010 l 16 -8"/>
+    <path d="M 240 1052 l 18 -8 M 264 1056 l 18 -8 M 288 1060 l 18 -8"/>
+    <path d="M 420 1000 l 14 -7 M 440 1004 l 14 -7 M 460 1006 l 14 -7"/>
+    <path d="M 520 1080 l 18 -8 M 544 1084 l 18 -8 M 568 1086 l 18 -8 M 592 1090 l 18 -8"/>
+    <path d="M 180 640 l 12 -6 M 198 646 l 12 -6 M 216 650 l 12 -6 M 234 652 l 12 -6"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24" opacity="0.5">
+    <circle cx="120" cy="912" r="1.6"/>
+    <circle cx="480" cy="720" r="1.3"/>
+    <circle cx="560" cy="1044" r="1.8"/>
+    <circle cx="70" cy="700" r="1.2"/>
+    <circle cx="350" cy="1080" r="1.7"/>
+    <circle cx="610" cy="640" r="1.2"/>
+    <circle cx="260" cy="920" r="1.4"/>
+  </g>
+</svg>

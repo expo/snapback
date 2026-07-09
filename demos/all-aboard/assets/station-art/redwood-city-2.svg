@@ -1,0 +1,192 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b5c8d2"/>
+      <stop offset="0.6" stop-color="#d5dcd6"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+    <linearGradient id="water2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fa8b8"/>
+      <stop offset="1" stop-color="#7d99ac"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper base -->
+  <rect x="0" y="0" width="640" height="1136" fill="#f5efe1"/>
+  <!-- sky -->
+  <rect x="0" y="0" width="640" height="560" fill="url(#sky2)"/>
+  <!-- calm cloud washes up top -->
+  <path d="M70 120 C130 108 220 106 280 116 C330 124 366 122 400 114 C430 108 456 112 464 122 C436 136 360 142 296 138 C220 134 130 140 84 132 C66 130 60 124 70 120 Z" fill="#f5efe1" opacity="0.5"/>
+  <path d="M340 216 C396 206 470 204 520 214 C552 220 566 226 554 234 C516 244 440 244 392 238 C358 234 328 224 340 216 Z" fill="#f5efe1" opacity="0.4"/>
+  <path d="M60 252 C110 244 176 242 222 250 C250 254 260 260 246 266 C204 274 128 272 88 266 C62 262 50 256 60 252 Z" fill="#f5efe1" opacity="0.35"/>
+  <!-- pale sun -->
+  <circle cx="128" cy="160" r="38" fill="#e9d9a8" opacity="0.45"/>
+
+  <!-- kiteboarding kites, small crescents -->
+  <path d="M420 372 C440 352 476 346 500 360 C486 372 452 380 428 378 C420 377 416 375 420 372 Z" fill="#c26d4f"/>
+  <path d="M416 372 C432 354 462 346 486 352 M494 356 C500 358 502 362 498 364 C480 374 448 380 428 378" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M436 376 C440 384 442 392 444 400 M472 372 C470 382 468 390 466 398" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <path d="M540 430 C556 414 584 408 604 420 C592 430 566 438 546 436 C538 435 536 433 540 430 Z" fill="#d9a94e"/>
+  <path d="M536 430 C550 415 574 408 594 413 M602 416 C608 419 608 422 604 424 C588 434 562 439 546 437" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- far shore, low sage strip -->
+  <path d="M0 520 C80 512 180 510 280 514 C400 518 520 514 640 508 L640 560 L0 560 Z" fill="#9aa88a" opacity="0.7"/>
+  <path d="M4 520 C90 512 200 510 300 514 M320 514 C430 518 540 512 636 508" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- ===================== SILOS (right, at water's edge) ===================== -->
+  <!-- fills off-register -->
+  <path d="M418 388 L472 384 L476 560 L422 564 Z" fill="#ddd2ba"/>
+  <path d="M478 372 L536 368 L540 560 L482 564 Z" fill="#cfc4a9"/>
+  <path d="M542 396 L594 392 L598 558 L546 562 Z" fill="#ddd2ba"/>
+  <path d="M598 412 L640 410 L640 556 L602 560 Z" fill="#c9bda0"/>
+  <!-- silo domed caps -->
+  <path d="M418 390 C422 372 466 370 472 386 Z" fill="#b8afa0"/>
+  <path d="M478 374 C484 354 530 352 536 370 Z" fill="#b8afa0"/>
+  <path d="M542 398 C546 380 590 378 594 394 Z" fill="#b8afa0"/>
+  <!-- conveyor gantry to water -->
+  <path d="M424 428 L346 560 L356 566 L432 436 Z" fill="#b8afa0"/>
+  <path d="M422 430 C398 470 372 514 348 556 M434 436 C410 476 384 520 360 562 M348 560 L360 562" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M408 456 L422 464 M392 484 L406 492 M376 512 L390 520 M362 538 L374 546" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <!-- silo outlines -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M416 390 C416 444 417 500 418 560" stroke-width="4"/>
+    <path d="M470 386 C471 442 472 500 472 558" stroke-width="4"/>
+    <path d="M416 390 C420 376 434 370 446 370 C458 370 468 376 470 386" stroke-width="3.5"/>
+    <path d="M476 372 C477 432 478 496 478 560" stroke-width="4"/>
+    <path d="M534 368 C535 428 536 494 536 558" stroke-width="4"/>
+    <path d="M476 372 C481 356 496 350 508 350 C520 350 531 357 534 368" stroke-width="3.5"/>
+    <path d="M540 396 C540 448 541 502 542 558" stroke-width="4"/>
+    <path d="M592 392 C593 446 594 500 594 556" stroke-width="4"/>
+    <path d="M540 396 C544 382 556 376 566 376 C578 376 590 382 592 392" stroke-width="3.5"/>
+    <path d="M600 412 C600 458 601 506 602 554 M638 410 C639 456 639 504 639 552" stroke-width="3.5"/>
+    <path d="M600 412 C606 402 618 398 626 398 C632 398 637 402 638 410" stroke-width="3"/>
+    <!-- horizontal seams -->
+    <path d="M420 440 C436 437 456 437 468 439 M420 494 C436 491 456 491 469 493 M480 428 C498 425 520 425 533 427 M480 486 C498 483 520 483 534 485 M544 444 C558 441 578 441 591 443 M544 500 C558 497 578 497 592 499" stroke-width="2" opacity="0.55"/>
+  </g>
+  <!-- silo shading hatch -->
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.3" fill="none">
+    <path d="M456 400 L468 396 M457 424 L469 420 M457 450 L470 446 M458 476 L470 472 M458 504 L470 500 M459 530 L471 526"/>
+    <path d="M520 384 L533 380 M521 410 L534 406 M521 438 L534 434 M522 466 L534 462 M522 494 L535 490 M523 522 L535 518"/>
+    <path d="M580 404 L592 400 M580 430 L592 426 M581 458 L593 454 M581 486 L593 482 M582 514 L594 510"/>
+  </g>
+
+  <!-- ===================== SALT MOUNDS (left) ===================== -->
+  <path d="M-6 566 C22 484 88 452 152 470 C204 486 236 528 240 566 Z" fill="#f7f3e8"/>
+  <path d="M148 566 C170 512 218 490 262 502 C298 512 320 542 324 566 Z" fill="#efe9d8"/>
+  <path d="M0 562 C20 500 62 464 112 462 M128 464 C176 472 218 510 234 560" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M152 562 C168 522 202 498 240 498 M254 500 C288 508 312 534 322 562" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- mound shading -->
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.25" fill="none">
+    <path d="M28 540 L44 518 M44 548 L62 524 M62 552 L80 528 M80 556 L98 532"/>
+    <path d="M180 548 L194 528 M198 552 L212 532 M216 556 L230 536"/>
+  </g>
+  <path d="M40 520 C60 502 90 492 118 494 M188 528 C204 514 226 508 246 510" fill="none" stroke="#b8afa0" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- ===================== WATER ===================== -->
+  <rect x="0" y="562" width="640" height="322" fill="url(#water2)"/>
+  <!-- shoreline edge -->
+  <path d="M0 564 C110 558 260 556 400 560 M416 560 C494 562 570 562 640 558" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+  <!-- wave strokes -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" opacity="0.4">
+    <path d="M40 606 C70 601 104 601 130 605 M210 616 C244 611 282 611 310 615 M420 604 C452 599 488 599 514 603" stroke-width="2.5"/>
+    <path d="M90 654 C126 648 168 648 198 653 M330 662 C366 656 406 656 436 661 M520 648 C550 643 584 643 610 647" stroke-width="2.5"/>
+    <path d="M30 712 C70 705 118 705 152 711 M260 724 C300 717 348 717 382 723 M470 706 C510 700 556 700 590 706" stroke-width="3"/>
+    <path d="M120 782 C164 774 216 774 254 781 M370 792 C414 784 466 784 504 791 M20 800 C52 794 88 794 114 799" stroke-width="3"/>
+    <path d="M220 850 C270 842 330 842 372 850 M460 856 C504 849 554 849 590 856 M40 862 C80 855 126 855 160 862" stroke-width="3.5"/>
+  </g>
+  <!-- light glints -->
+  <g fill="none" stroke="#f5efe1" stroke-linecap="round" opacity="0.55">
+    <path d="M160 630 C190 626 224 626 248 630 M350 686 C382 681 418 681 444 685 M80 748 C112 743 148 743 174 747 M420 760 C456 755 496 755 524 759" stroke-width="2.5"/>
+  </g>
+
+  <!-- ===================== FREIGHTER ===================== -->
+  <!-- hull fill off-register -->
+  <path d="M96 664 L344 658 L328 706 L116 710 Z" fill="#c26d4f"/>
+  <path d="M120 636 L200 632 L201 662 L121 666 Z" fill="#e8dcc0"/>
+  <path d="M128 596 L164 594 L165 636 L129 638 Z" fill="#e8dcc0"/>
+  <!-- hull outline -->
+  <path d="M92 662 C160 657 250 654 340 656 M340 656 C336 672 331 688 326 702 M326 702 C260 706 180 708 122 706 M122 706 C111 692 100 676 92 662" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M100 680 C170 676 260 674 320 675" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <!-- superstructure -->
+  <path d="M118 634 C144 631 174 630 198 631 M198 631 L199 660 M119 634 L120 660" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M126 594 C138 592 152 592 162 593 M162 593 L163 632 M127 594 L128 632" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M134 604 L156 602 M134 616 L156 614 M130 644 L188 641" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+  <!-- funnel + mast -->
+  <path d="M172 610 L172 632 M184 609 L184 631 M170 610 C174 606 182 606 186 609" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M176 608 L182 608 L183 630 L177 630 Z" fill="#d9a94e"/>
+  <path d="M290 618 L290 656 M278 630 L302 628" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- deck cargo -->
+  <path d="M214 642 L252 640 L253 660 L215 662 Z" fill="#9aa88a"/>
+  <path d="M256 640 L296 638 L297 658 L257 660 Z" fill="#8fa8b8"/>
+  <path d="M212 642 C226 640 244 640 254 641 M254 641 L296 638 M298 638 L299 658 M213 643 L214 661" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- bow wake -->
+  <path d="M78 700 C60 704 44 704 32 700 M348 692 C366 696 384 696 398 692" fill="none" stroke="#f5efe1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- ===================== KITEBOARDERS ===================== -->
+  <!-- lines to kites -->
+  <path d="M448 402 C452 480 458 600 462 742 M496 362 C488 480 474 620 464 742" fill="none" stroke="#2f2a24" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+  <path d="M560 438 C562 520 564 640 566 800 M600 424 C592 540 578 680 568 800" fill="none" stroke="#2f2a24" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <!-- rider 1 -->
+  <circle cx="462" cy="722" r="7" fill="#2f2a24"/>
+  <path d="M462 730 C460 742 458 752 456 760 M456 760 L446 774 M456 760 L466 772 M460 738 C468 734 476 730 482 726" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M436 778 C450 774 466 773 478 776" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M424 786 C440 792 462 794 480 788 M486 784 C494 780 498 778 500 776" fill="none" stroke="#f5efe1" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <!-- rider 2 -->
+  <circle cx="566" cy="782" r="6" fill="#2f2a24"/>
+  <path d="M566 789 C564 800 562 808 560 815 M560 815 L552 828 M560 815 L570 826 M564 796 C572 792 578 789 584 786" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M544 832 C556 828 570 827 582 830" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M532 840 C548 846 568 848 586 842" fill="none" stroke="#f5efe1" stroke-width="3" stroke-linecap="round" opacity="0.75"/>
+
+  <!-- ===================== FOREGROUND DOCK ===================== -->
+  <path d="M0 884 C120 876 300 872 470 876 C540 878 600 880 640 882 L640 1136 L0 1136 Z" fill="#c9a86a"/>
+  <path d="M0 884 C140 875 320 871 500 876 C552 878 604 880 640 882" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- plank lines -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" opacity="0.45">
+    <path d="M4 934 C150 926 340 922 520 927 M534 928 C570 929 610 931 636 932" stroke-width="3"/>
+    <path d="M0 992 C160 982 360 978 540 984 M556 984 C588 986 618 988 640 989" stroke-width="3"/>
+    <path d="M6 1056 C170 1046 380 1042 556 1048 M570 1049 C596 1050 622 1052 638 1053" stroke-width="3.5"/>
+    <path d="M0 1114 C180 1104 400 1100 640 1108" stroke-width="3.5"/>
+    <path d="M150 886 L146 1130 M330 882 L332 1132 M500 880 L508 1130" stroke-width="2.5"/>
+  </g>
+  <!-- plank grain scribbles -->
+  <g fill="none" stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.3">
+    <path d="M40 952 C70 949 100 949 124 951 M200 1010 C236 1006 274 1006 302 1009 M380 950 C416 946 452 946 480 949 M60 1078 C96 1074 134 1074 162 1077 M400 1082 C440 1078 484 1078 516 1081"/>
+  </g>
+  <!-- bollard with rope -->
+  <path d="M84 950 C82 986 82 1020 84 1050 M148 948 C150 984 150 1018 148 1048 M80 950 C98 942 132 942 152 950 M78 1050 C100 1058 134 1058 154 1050" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M86 950 C104 944 130 944 146 950 L146 1048 C128 1054 104 1054 86 1048 Z" fill="#b8afa0"/>
+  <path d="M84 948 C102 941 132 941 150 948 C152 942 148 934 140 930 C126 924 106 924 94 930 C86 934 82 942 84 948 Z" fill="#8fa8b8" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M88 976 C108 970 128 970 146 976 M88 998 C108 992 128 992 146 998" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <!-- rope curling off bollard to edge -->
+  <path d="M148 970 C190 962 224 942 244 912 C254 898 258 890 260 884" fill="none" stroke="#d9a94e" stroke-width="6" stroke-linecap="round"/>
+  <path d="M150 968 C192 960 226 940 246 910 M252 900 C256 894 259 888 261 884" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M168 966 L172 976 M192 956 L198 964 M214 940 L222 947 M232 920 L240 926" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+  <!-- dock grasses right -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M574 1010 C572 976 570 946 574 916 M590 1012 C592 978 596 950 606 924 M560 1012 C554 984 550 958 552 934 M604 1014 C610 986 620 962 634 944" stroke-width="3"/>
+    <path d="M578 1008 C576 980 576 956 580 934 M596 1010 C600 984 606 962 616 942" stroke-width="2.5" stroke="#9aa88a"/>
+  </g>
+  <path d="M548 1014 C578 1008 610 1008 636 1013" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+  <!-- grasses small left edge -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-width="2.5">
+    <path d="M20 940 C18 916 16 896 20 878 M34 942 C36 918 40 898 48 882 M8 942 C4 922 2 904 4 888"/>
+  </g>
+  <!-- shadow hatching on dock -->
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.3" fill="none">
+    <path d="M88 1058 L160 1066 M92 1072 L164 1080 M98 1086 L168 1094"/>
+    <path d="M556 1020 L636 1030 M560 1034 L638 1044"/>
+  </g>
+  <!-- gulls -->
+  <path d="M228 318 C236 310 244 310 250 316 C256 310 264 310 272 316 M330 288 C337 281 344 281 349 286 C354 281 361 281 368 287" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="70" cy="612" r="1.5" opacity="0.5"/>
+    <circle cx="380" cy="740" r="1.4" opacity="0.5"/>
+    <circle cx="240" cy="968" r="1.7" opacity="0.45"/>
+    <circle cx="440" cy="1044" r="1.5" opacity="0.45"/>
+    <circle cx="308" cy="536" r="1.3" opacity="0.5"/>
+    <circle cx="614" cy="700" r="1.4" opacity="0.5"/>
+    <circle cx="120" cy="1108" r="1.6" opacity="0.4"/>
+    <circle cx="512" cy="920" r="1.3" opacity="0.45"/>
+  </g>
+</svg>

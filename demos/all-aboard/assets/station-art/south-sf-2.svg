@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a9c1cd"/>
+      <stop offset="0.6" stop-color="#cdd6d0"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+    <linearGradient id="water2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9db4c0"/>
+      <stop offset="0.5" stop-color="#84a0af"/>
+      <stop offset="1" stop-color="#6f8896"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect width="640" height="700" fill="url(#sky2)"/>
+
+  <!-- calm high clouds -->
+  <path d="M90,130 C124,118 184,116 226,124 C258,130 282,142 264,153 C232,164 154,166 114,158 C86,152 70,140 90,130 Z" fill="#f5efe1" opacity="0.6"/>
+  <path d="M420,190 C446,180 500,178 536,186 C562,192 580,203 564,212 C536,222 474,222 442,214 C420,209 406,199 420,190 Z" fill="#f5efe1" opacity="0.5"/>
+
+  <!-- gulls, sparse -->
+  <path d="M188,306 c8,-7 16,-7 22,-1 c6,-6 14,-7 22,-2 M452,332 c7,-6 14,-6 19,-1 c5,-5 12,-6 19,-2" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- faint hill behind campus -->
+  <path transform="translate(4,3)" d="M-10,452 C80,428 190,418 300,428 C400,436 500,424 580,418 C610,416 640,420 650,424 L650,560 L-10,560 Z" fill="#adb5a0" opacity="0.7"/>
+  <path d="M-8,452 C60,438 140,428 220,428 M240,428 C330,430 420,424 500,420 C550,417 606,420 648,426" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- biotech campus: glassy blocks, off-register washes -->
+  <g transform="translate(4,3)">
+    <path d="M40,432 L150,432 L150,662 L40,662 Z" fill="#8fa6b4"/>
+    <path d="M160,474 L240,474 L240,662 L160,662 Z" fill="#b9b3a4"/>
+    <path d="M250,398 L370,398 L370,662 L250,662 Z" fill="#a9bfc9"/>
+    <path d="M380,458 L468,458 L468,662 L380,662 Z" fill="#9aa98c"/>
+    <path d="M480,436 L600,436 L600,662 L480,662 Z" fill="#8fa6b4"/>
+  </g>
+  <!-- glassy diagonal light streaks -->
+  <path d="M262,662 L318,398 L346,398 L290,662 Z" fill="#f5efe1" opacity="0.35"/>
+  <path d="M496,662 L540,436 L560,436 L516,662 Z" fill="#f5efe1" opacity="0.3"/>
+  <path d="M56,662 L92,432 L108,432 L72,662 Z" fill="#f5efe1" opacity="0.25"/>
+  <!-- building ink with pen lifts -->
+  <g fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round">
+    <path d="M41,434 C40,494 42,556 41,614 M41,630 L41,661 M42,432 C70,430 110,434 149,432 M150,434 C149,496 151,560 150,660"/>
+    <path d="M161,476 C160,530 162,590 161,660 M162,474 C186,472 212,476 239,474 M240,476 C239,536 241,600 240,660"/>
+    <path d="M251,400 C250,470 252,544 251,610 M251,626 C251,638 250,650 251,660 M252,398 C288,396 330,400 369,398 M370,400 C369,480 371,565 370,660"/>
+    <path d="M381,460 C380,520 382,586 381,660 M382,458 C410,456 438,460 467,458 M468,460 C467,522 469,590 468,660"/>
+    <path d="M481,438 C480,504 482,574 481,640 M481,652 L481,661 M482,436 C520,434 560,438 599,436 M600,438 C599,506 601,578 600,660"/>
+  </g>
+  <!-- window bands -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.45">
+    <path d="M46,456 l98,-2 M46,480 l98,-2 M46,504 l98,-2 M46,528 l98,-2 M46,552 l98,-2 M46,576 l98,-2 M46,600 l98,-2 M46,624 l98,-2"/>
+    <path d="M166,498 l68,-2 M166,522 l68,-2 M166,546 l68,-2 M166,570 l68,-2 M166,594 l68,-2 M166,618 l68,-2 M166,640 l68,-2"/>
+    <path d="M256,422 l108,-2 M256,448 l108,-2 M256,474 l108,-2 M256,500 l108,-2 M256,526 l108,-2 M256,552 l108,-2 M256,578 l108,-2 M256,604 l108,-2 M256,630 l108,-2"/>
+    <path d="M386,482 l76,-2 M386,506 l76,-2 M386,530 l76,-2 M386,554 l76,-2 M386,578 l76,-2 M386,602 l76,-2 M386,626 l76,-2"/>
+    <path d="M486,460 l108,-2 M486,486 l108,-2 M486,512 l108,-2 M486,538 l108,-2 M486,564 l108,-2 M486,590 l108,-2 M486,616 l108,-2 M486,640 l108,-2"/>
+    <path d="M96,436 l0,224 M310,400 l-2,258 M540,438 l-1,220 M200,476 l-1,182 M424,460 l-1,198"/>
+  </g>
+  <!-- rooftop mechanicals -->
+  <path d="M70,432 l0,-14 l24,-1 l1,14 M292,398 l1,-16 l30,-1 l0,16 M520,436 l0,-13 l26,-1 l1,13" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- quay -->
+  <path transform="translate(3,3)" d="M-10,660 L650,660 L650,690 L-10,690 Z" fill="#cfa860"/>
+  <path d="M-8,660 C90,657 200,662 310,659 C420,656 530,661 648,658 M-8,688 C110,685 240,690 370,687 C480,684 570,689 648,686" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M60,690 l1,26 M180,690 l1,24 M320,690 l1,26 M460,690 l1,24 M590,690 l1,26" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- bay water -->
+  <rect y="690" width="640" height="446" fill="url(#water2)"/>
+
+  <!-- masts behind (drawn before hulls) -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M110,704 C112,640 108,560 111,472" stroke-width="3.5"/>
+    <path d="M211,692 C212,636 209,568 211,504" stroke-width="3"/>
+    <path d="M301,710 C303,636 299,540 302,442" stroke-width="4"/>
+    <path d="M401,696 C402,634 399,560 401,488" stroke-width="3"/>
+    <path d="M506,706 C508,632 504,540 507,458" stroke-width="3.5"/>
+    <path d="M111,478 C132,548 148,630 152,700 M111,478 C94,548 80,630 76,700" stroke-width="2" opacity="0.6"/>
+    <path d="M302,448 C328,528 348,628 354,704 M302,448 C278,528 258,628 252,706" stroke-width="2" opacity="0.6"/>
+    <path d="M507,464 C528,540 544,626 548,702 M507,464 C488,540 472,626 468,702" stroke-width="2" opacity="0.6"/>
+    <path d="M211,510 C226,570 238,636 240,688 M401,494 C414,556 424,624 426,692" stroke-width="2" opacity="0.5"/>
+  </g>
+  <!-- furled sails -->
+  <path transform="translate(3,2)" d="M304,458 C310,530 315,606 317,676 L305,678 Z" fill="#efe6cf"/>
+  <path transform="translate(-3,2)" d="M108,488 C104,544 100,612 98,668 L109,670 Z" fill="#efe6cf"/>
+  <path transform="translate(3,2)" d="M509,474 C514,538 519,608 521,668 L510,670 Z" fill="#efe6cf"/>
+  <path d="M304,460 C310,532 315,604 317,672 M108,490 C104,548 100,614 99,666 M509,476 C514,540 519,606 521,664" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- hulls: off-register washes then ink -->
+  <g transform="translate(4,3)">
+    <path d="M66,702 C94,710 132,710 152,700 L142,726 C118,734 88,732 74,724 Z" fill="#c1694b"/>
+    <path d="M176,690 C200,698 230,698 246,690 L238,712 C218,719 194,718 182,710 Z" fill="#efe6cf"/>
+    <path d="M252,708 C284,717 336,717 356,706 L344,734 C316,742 280,740 262,732 Z" fill="#8fa6b4"/>
+    <path d="M366,694 C388,702 420,702 436,694 L428,716 C408,723 384,722 372,714 Z" fill="#efe6cf"/>
+    <path d="M462,704 C492,713 540,713 558,702 L546,730 C520,738 486,736 470,728 Z" fill="#c1694b"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round">
+    <path d="M66,702 C94,710 132,710 152,700 M150,702 L141,726 M141,726 C118,734 88,732 75,724 M74,722 L67,704"/>
+    <path d="M176,690 C200,698 230,698 246,690 L238,712 C218,719 194,718 183,710 Z"/>
+    <path d="M252,708 C284,717 336,717 356,706 M354,708 L344,734 M344,734 C316,742 280,740 263,732 M262,730 L253,710"/>
+    <path d="M366,694 C388,702 420,702 436,694 L428,716 C408,723 384,722 373,714 Z"/>
+    <path d="M462,704 C492,713 540,713 558,702 M556,704 L546,730 M546,730 C520,738 486,736 471,728 M470,726 L463,706"/>
+  </g>
+  <!-- booms -->
+  <path d="M88,696 l46,-3 M282,702 l44,-4 M486,698 l44,-3" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- near boat, lower right -->
+  <path d="M392,838 C394,776 390,700 393,586" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M393,592 C424,676 448,768 454,836 M393,592 C364,676 342,768 336,838" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <path transform="translate(-4,3)" d="M396,600 C404,684 410,768 412,830 L397,832 Z" fill="#efe6cf"/>
+  <path d="M396,602 C404,686 410,766 412,826" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <path transform="translate(5,3)" d="M312,834 C352,846 428,846 462,832 L446,872 C408,884 356,882 328,870 Z" fill="#cfa860"/>
+  <path d="M312,834 C352,846 428,846 462,832 M460,834 L446,872 M446,872 C408,884 356,882 330,870 M328,868 L314,838" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M330,846 l112,-4" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- mast reflections -->
+  <g fill="none" stroke="#3f5560" stroke-width="3" stroke-linecap="round" opacity="0.45">
+    <path d="M111,738 c2,10 -2,18 1,28 m-1,14 c2,10 -1,18 1,26"/>
+    <path d="M302,748 c2,12 -2,20 1,30 m-1,14 c2,10 -1,20 1,30 m-1,14 c2,10 -2,18 1,26"/>
+    <path d="M507,742 c2,10 -2,18 1,28 m-1,14 c2,10 -1,18 1,26"/>
+    <path d="M211,724 c2,8 -2,16 1,24 m-1,12 c2,8 -1,14 1,22 M401,728 c2,8 -2,16 1,24 m-1,12 c2,8 -1,14 1,22"/>
+    <path d="M393,886 c2,12 -2,22 1,34 m-1,16 c2,12 -1,22 1,34"/>
+  </g>
+
+  <!-- wave strokes -->
+  <g fill="none" stroke="#5d7683" stroke-linecap="round">
+    <path d="M40,716 c14,-3 28,3 42,0 M150,724 c12,-3 26,3 38,0 M420,720 c14,-3 28,3 42,0 M560,716 c12,-3 24,3 36,0" stroke-width="2.5"/>
+    <path d="M80,762 c16,-4 32,4 48,0 M250,772 c16,-4 34,4 50,0 M470,766 c18,-4 36,4 54,0 M600,780 c12,-3 24,3 36,0" stroke-width="3"/>
+    <path d="M30,824 c18,-4 38,4 58,0 M180,842 c18,-4 38,4 58,0 M500,830 c20,-5 40,5 60,0" stroke-width="3"/>
+    <path d="M60,908 c22,-5 44,5 66,0 M240,928 c22,-5 46,5 70,0 M440,912 c24,-5 48,5 72,0 M560,946 c20,-4 40,4 60,0" stroke-width="3.5"/>
+    <path d="M30,1000 c26,-6 52,6 78,0 M200,1024 c26,-6 54,6 82,0 M420,1004 c28,-6 56,6 84,0" stroke-width="4"/>
+    <path d="M90,1076 c30,-7 60,7 90,0 M300,1096 c30,-7 62,7 94,0 M500,1072 c28,-6 56,6 84,0 M40,1118 c26,-6 52,6 78,0" stroke-width="4.5"/>
+  </g>
+  <g fill="none" stroke="#f5efe1" stroke-linecap="round" opacity="0.7">
+    <path d="M110,786 c14,-3 28,3 42,0 M340,800 c14,-3 30,3 46,0 M540,864 c16,-4 32,4 48,0" stroke-width="2.5"/>
+    <path d="M140,962 c20,-5 40,5 60,0 M480,976 c22,-5 44,5 66,0 M240,1060 c24,-6 48,6 72,0" stroke-width="3"/>
+  </g>
+
+  <!-- buoys -->
+  <path transform="translate(3,2)" d="M566,904 c-2,-12 8,-20 18,-16 c10,3 12,17 4,24 c-8,7 -20,2 -22,-8 z" fill="#c1694b"/>
+  <path d="M568,904 c-2,-10 7,-18 16,-15 c9,3 11,15 4,21 c-8,6 -18,2 -20,-6 M576,890 l1,-10" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round"/>
+  <path transform="translate(-3,2)" d="M92,868 c-2,-10 7,-17 15,-14 c9,3 10,15 3,21 c-7,6 -16,1 -18,-7 z" fill="#c1694b"/>
+  <path d="M94,868 c-2,-9 6,-15 13,-12 c8,3 9,13 3,18 c-7,5 -14,1 -16,-6 M100,856 l1,-9" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- foreground pier corner -->
+  <path transform="translate(4,4)" d="M356,1136 L650,976 L650,1136 Z" fill="#cfa860"/>
+  <path d="M360,1134 C408,1106 458,1080 508,1054 C556,1028 606,1002 648,980" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M430,1136 l104,-56 M500,1136 l90,-49 M572,1136 l68,-37 M416,1112 l96,-52 M488,1116 l76,-41" fill="none" stroke="#a3854e" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <path d="M470,1078 c1,-14 -1,-28 0,-42 l14,-1 c1,14 -1,28 0,40 M612,1002 c1,-13 -1,-26 0,-38 l13,-1 c1,12 -1,25 0,37" fill="#8a6a44" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M480,1038 C520,1050 570,1030 618,1002" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="70" cy="948" r="1.5"/><circle cx="230" cy="986" r="1.3"/><circle cx="524" cy="922" r="1.6"/>
+    <circle cx="160" cy="1104" r="1.4"/><circle cx="360" cy="756" r="1.2"/><circle cx="612" cy="716" r="1.3"/>
+    <circle cx="42" cy="700" r="1.2"/><circle cx="286" cy="1122" r="1.5"/>
+  </g>
+</svg>

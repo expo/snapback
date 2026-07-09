@@ -1,0 +1,307 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="dusk3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5f7386"/>
+      <stop offset="0.35" stop-color="#8ba0ae"/>
+      <stop offset="0.6" stop-color="#d8c39a"/>
+      <stop offset="0.78" stop-color="#e2ad74"/>
+      <stop offset="1" stop-color="#d99e63"/>
+    </linearGradient>
+    <radialGradient id="sun3" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f0d08e" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#f0d08e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- paper + dusk sky -->
+  <rect width="640" height="1136" fill="#f5efe1"/>
+  <rect width="640" height="820" fill="url(#dusk3)"/>
+  <rect y="800" width="640" height="336" fill="#8f8878"/>
+
+  <!-- calm high streak -->
+  <path d="M58 212 C160 204 262 208 342 214 C260 222 148 222 58 212 Z" fill="#f0e2c4" opacity="0.22"/>
+
+  <!-- dusk cloud streaks -->
+  <path d="M40 342 C140 330 260 332 350 340 C300 352 140 354 40 342 Z" fill="#cf9268" opacity="0.35"/>
+  <path d="M330 396 C420 386 520 388 596 396 C540 408 400 408 330 396 Z" fill="#cf9268" opacity="0.32"/>
+  <path d="M120 434 C200 426 290 428 352 434 C300 444 180 444 120 434 Z" fill="#d99e6e" opacity="0.28"/>
+
+  <!-- low sun glow behind skyline -->
+  <circle cx="432" cy="648" r="150" fill="url(#sun3)"/>
+
+  <!-- ============ BACKGROUND SKYLINE ============ -->
+  <g>
+    <path d="M18 700 C17 656 19 606 18 568 L84 566 C83 610 85 660 84 700 Z" fill="#7e93a4"/>
+    <path d="M86 700 C85 630 87 540 86 478 L112 476 L112 460 L128 460 L128 476 L146 478 C145 542 147 632 146 700 Z" fill="#6a7d8e"/>
+    <path d="M150 700 C149 664 151 626 150 598 L224 596 C223 630 225 666 224 700 Z" fill="#7e93a4"/>
+    <path d="M228 700 C227 640 229 566 228 518 L256 516 L258 500 L272 500 L274 516 L286 518 C285 568 287 642 286 700 Z" fill="#7e93a4"/>
+    <path d="M292 700 C291 656 293 606 292 554 L330 552 L330 588 L356 590 C355 626 357 666 356 700 Z" fill="#6a7d8e"/>
+    <path d="M362 700 C361 626 363 528 362 472 L428 470 C427 530 429 628 428 700 Z" fill="#7e93a4"/>
+    <path d="M434 700 C433 668 435 634 434 608 L498 606 C497 636 499 670 498 700 Z" fill="#7e93a4"/>
+    <path d="M504 700 C503 646 505 580 504 534 L566 532 C565 582 567 648 566 700 Z" fill="#6a7d8e"/>
+    <path d="M572 700 C571 662 573 618 572 590 L642 588 L642 700 Z" fill="#7e93a4"/>
+    <path d="M394 470 C393 458 395 444 394 434" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+    <!-- sparse edge inking, aerial perspective -->
+    <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.5">
+      <path d="M86 480 C85 550 87 630 86 698"/>
+      <path d="M112 478 C130 476 138 477 146 478"/>
+      <path d="M362 474 C361 546 363 630 362 698"/>
+      <path d="M366 470 C388 468 408 470 426 469"/>
+      <path d="M228 520 C247 518 268 520 286 519"/>
+      <path d="M504 536 C525 534 546 536 566 535"/>
+      <path d="M18 570 C40 568 62 570 84 569"/>
+      <path d="M572 592 C595 590 618 592 640 590"/>
+    </g>
+    <!-- lit windows -->
+    <g fill="#e3b04b" opacity="0.9">
+      <path d="M30 586 h8 v10 h-8 Z"/><path d="M52 586 h8 v10 h-8 Z"/><path d="M40 620 h8 v10 h-8 Z"/><path d="M62 646 h8 v10 h-8 Z"/>
+      <path d="M96 496 h8 v10 h-8 Z"/><path d="M118 496 h8 v10 h-8 Z"/><path d="M96 540 h8 v10 h-8 Z"/><path d="M118 566 h8 v10 h-8 Z"/><path d="M108 620 h8 v10 h-8 Z"/><path d="M126 654 h8 v10 h-8 Z"/>
+      <path d="M162 614 h8 v10 h-8 Z"/><path d="M188 614 h8 v10 h-8 Z"/><path d="M176 648 h8 v10 h-8 Z"/><path d="M204 660 h8 v10 h-8 Z"/>
+      <path d="M240 534 h8 v10 h-8 Z"/><path d="M262 534 h8 v10 h-8 Z"/><path d="M240 578 h8 v10 h-8 Z"/><path d="M262 610 h8 v10 h-8 Z"/><path d="M250 652 h8 v10 h-8 Z"/>
+      <path d="M304 572 h8 v10 h-8 Z"/><path d="M318 606 h8 v10 h-8 Z"/><path d="M338 610 h8 v10 h-8 Z"/><path d="M306 648 h8 v10 h-8 Z"/>
+      <path d="M374 490 h8 v10 h-8 Z"/><path d="M396 490 h8 v10 h-8 Z"/><path d="M414 512 h8 v10 h-8 Z"/><path d="M374 546 h8 v10 h-8 Z"/><path d="M396 580 h8 v10 h-8 Z"/><path d="M414 620 h8 v10 h-8 Z"/><path d="M376 654 h8 v10 h-8 Z"/>
+      <path d="M446 622 h8 v10 h-8 Z"/><path d="M468 622 h8 v10 h-8 Z"/><path d="M456 656 h8 v10 h-8 Z"/>
+      <path d="M516 550 h8 v10 h-8 Z"/><path d="M538 550 h8 v10 h-8 Z"/><path d="M516 594 h8 v10 h-8 Z"/><path d="M538 628 h8 v10 h-8 Z"/><path d="M524 662 h8 v10 h-8 Z"/>
+      <path d="M586 606 h8 v10 h-8 Z"/><path d="M610 606 h8 v10 h-8 Z"/><path d="M598 644 h8 v10 h-8 Z"/><path d="M620 668 h8 v10 h-8 Z"/>
+    </g>
+  </g>
+
+  <!-- ============ SAP CENTER (fills off-register) ============ -->
+  <g transform="translate(4,-3)">
+    <!-- sweeping roof -->
+    <path d="M28 708 C122 678 222 662 322 660 C424 662 522 680 612 710 L616 744 C520 718 424 702 322 702 C220 702 122 718 24 746 Z" fill="#a8a294"/>
+    <!-- walls -->
+    <path d="M40 740 C140 716 230 704 322 704 C414 704 506 717 604 742 L602 820 L44 820 Z" fill="#cfc8b8"/>
+    <!-- central glass prism -->
+    <path d="M212 704 L322 666 L432 704 L410 818 L236 818 Z" fill="#7d94a6"/>
+    <path d="M250 706 L322 680 L338 706 L330 816 L266 816 Z" fill="#a9bcc9" opacity="0.8"/>
+    <path d="M356 712 L398 712 L384 814 L352 814 Z" fill="#a9bcc9" opacity="0.55"/>
+    <path d="M282 730 L316 730 L314 814 L280 814 Z" fill="#e8c27a" opacity="0.8"/>
+    <path d="M368 744 L392 744 L386 812 L364 812 Z" fill="#e8c27a" opacity="0.7"/>
+    <!-- side glass slivers -->
+    <path d="M60 744 L122 718 L130 818 L70 818 Z" fill="#7d94a6" opacity="0.85"/>
+    <path d="M514 718 L576 744 L568 818 L508 818 Z" fill="#7d94a6" opacity="0.85"/>
+    <path d="M84 760 L108 750 L112 816 L88 816 Z" fill="#e8c27a" opacity="0.6"/>
+    <path d="M528 748 L552 758 L548 816 L524 816 Z" fill="#a9bcc9" opacity="0.7"/>
+  </g>
+  <!-- arena ink -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 706 C124 676 222 660 322 658 C424 660 522 678 612 708" stroke-width="4.5"/>
+    <path d="M24 744 C124 716 222 700 322 700 C424 700 522 716 616 742" stroke-width="4"/>
+    <path d="M28 706 C26 719 25 732 24 744" stroke-width="3.5"/>
+    <path d="M612 708 C613 720 615 732 616 742" stroke-width="3.5"/>
+    <path d="M44 742 C43 768 45 796 44 818" stroke-width="3.5"/>
+    <path d="M602 740 C603 766 601 794 602 816" stroke-width="3.5"/>
+    <!-- prism edges -->
+    <path d="M212 702 C248 689 285 676 322 664 C359 676 396 689 432 702" stroke-width="4"/>
+    <path d="M236 816 C235 780 238 740 236 704" stroke-width="3.5"/>
+    <path d="M410 816 C411 780 408 740 410 704" stroke-width="3.5"/>
+    <!-- mullions -->
+    <g stroke-width="2.5" opacity="0.65">
+      <path d="M262 694 C260 734 263 778 261 814"/>
+      <path d="M292 684 C290 726 293 776 291 814"/>
+      <path d="M322 668 C320 716 323 770 321 814"/>
+      <path d="M352 684 C351 726 353 776 352 814"/>
+      <path d="M382 694 C381 734 383 778 382 814"/>
+      <path d="M224 742 C286 736 358 736 422 742"/>
+      <path d="M230 780 C290 775 354 775 416 780"/>
+    </g>
+    <!-- side sliver edges -->
+    <path d="M60 742 C81 733 102 725 122 716 L130 816" stroke-width="3"/>
+    <path d="M514 716 C535 725 556 733 576 742 L568 816" stroke-width="3"/>
+    <!-- wall reveal lines -->
+    <path d="M56 776 C90 768 130 764 162 762" stroke-width="2.5" opacity="0.5"/>
+    <path d="M470 762 C510 764 552 770 588 778" stroke-width="2.5" opacity="0.5"/>
+    <!-- entry ticks -->
+    <path d="M286 818 C285 806 287 794 286 784" stroke-width="3"/>
+    <path d="M356 818 C355 806 357 794 356 784" stroke-width="3"/>
+    <path d="M276 786 C300 784 344 786 366 784" stroke-width="3"/>
+  </g>
+
+  <!-- plaza band -->
+  <path d="M0 814 C160 808 420 812 640 806 L640 862 L0 862 Z" fill="#9aa58c" opacity="0.6"/>
+  <g fill="#8a9b7c">
+    <circle cx="78" cy="800" r="20"/>
+    <circle cx="118" cy="806" r="15"/>
+    <circle cx="562" cy="798" r="19"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M78 818 C77 830 79 844 78 854" stroke-width="3.5"/>
+    <path d="M118 820 C117 830 119 842 118 852" stroke-width="3"/>
+    <path d="M562 816 C561 828 563 842 562 852" stroke-width="3.5"/>
+    <path d="M64 794 C70 784 84 780 92 786" stroke-width="2.5" opacity="0.7"/>
+    <path d="M548 792 C554 782 568 778 576 784" stroke-width="2.5" opacity="0.7"/>
+    <!-- fence -->
+    <path d="M-4 866 C120 862 320 865 470 862 C532 861 590 864 644 861" stroke-width="3"/>
+    <g stroke-width="2.5" opacity="0.6">
+      <path d="M28 866 v16"/><path d="M64 865 v16"/><path d="M100 866 v16"/><path d="M136 865 v16"/>
+      <path d="M172 866 v16"/><path d="M208 865 v16"/><path d="M244 866 v16"/><path d="M280 865 v16"/>
+      <path d="M316 866 v16"/><path d="M352 865 v16"/><path d="M388 866 v16"/><path d="M424 865 v16"/>
+      <path d="M460 866 v16"/><path d="M496 865 v16"/><path d="M532 866 v16"/><path d="M568 865 v16"/><path d="M604 866 v16"/>
+    </g>
+  </g>
+
+  <!-- catenary -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M46 700 C45 754 47 812 46 862" stroke-width="4"/>
+    <path d="M46 726 C72 722 102 724 128 722" stroke-width="3"/>
+    <path d="M50 748 C76 738 102 732 126 726" stroke-width="2.5"/>
+    <path d="M-4 806 C140 800 340 804 520 800 C562 799 606 802 644 800" stroke-width="2.5"/>
+    <path d="M-4 786 C110 792 230 780 340 788 C440 794 550 782 644 788" stroke-width="2.5" opacity="0.7"/>
+    <path d="M120 788 v14"/><path d="M262 784 v18"/><path d="M406 790 v12"/><path d="M548 784 v16"/>
+    <!-- pantograph -->
+    <path d="M196 862 C210 852 224 844 236 836" stroke-width="3"/>
+    <path d="M236 836 C228 828 218 819 210 812" stroke-width="3"/>
+    <path d="M194 810 C210 808 226 810 240 808" stroke-width="3.5"/>
+  </g>
+
+  <!-- ============ CALTRAIN (foreground) ============ -->
+  <ellipse cx="330" cy="1062" rx="336" ry="26" fill="#5c564c" opacity="0.35"/>
+
+  <g transform="translate(-4,4)">
+    <!-- body -->
+    <path d="M-8 884 C60 872 180 866 320 866 C430 866 520 870 566 878 C602 884 624 906 632 940 C638 968 634 1000 618 1014 L-8 1018 Z" fill="#d3cdbd"/>
+    <!-- roof band -->
+    <path d="M-8 884 C60 872 180 866 320 866 C430 866 520 870 566 878 L562 892 C516 884 430 880 320 880 C182 880 62 886 -8 898 Z" fill="#6b6459" opacity="0.85"/>
+    <!-- upper window band -->
+    <path d="M14 894 C160 890 380 890 528 894 L528 928 C380 924 160 924 16 928 Z" fill="#454440"/>
+    <!-- lower window band segments -->
+    <path d="M14 942 C56 940 100 941 140 940 L140 978 C100 979 56 978 16 980 Z" fill="#454440"/>
+    <path d="M204 940 C270 938 344 938 408 940 L408 978 C344 976 270 976 204 978 Z" fill="#454440"/>
+    <path d="M472 940 C492 939 512 940 528 941 L528 978 C512 977 492 978 472 979 Z" fill="#454440"/>
+    <!-- windows: upper deck -->
+    <g fill="#7d94a6">
+      <path d="M26 898 h26 v22 h-26 Z"/><path d="M66 898 h26 v22 h-26 Z"/><path d="M106 898 h26 v22 h-26 Z"/>
+      <path d="M212 898 h26 v22 h-26 Z"/><path d="M252 898 h26 v22 h-26 Z"/><path d="M292 898 h26 v22 h-26 Z"/>
+      <path d="M332 898 h26 v22 h-26 Z"/><path d="M372 898 h26 v22 h-26 Z"/>
+      <path d="M478 898 h26 v22 h-26 Z"/>
+      <!-- lower deck -->
+      <path d="M28 946 h26 v24 h-26 Z"/><path d="M70 946 h26 v24 h-26 Z"/><path d="M110 946 h24 v24 h-24 Z"/>
+      <path d="M214 946 h26 v24 h-26 Z"/><path d="M256 946 h26 v24 h-26 Z"/><path d="M298 946 h26 v24 h-26 Z"/>
+      <path d="M340 946 h26 v24 h-26 Z"/><path d="M380 946 h24 v24 h-24 Z"/>
+      <path d="M478 946 h24 v24 h-24 Z"/>
+    </g>
+    <!-- red doors -->
+    <path d="M146 898 C162 896 182 896 198 898 L198 1010 L146 1010 Z" fill="#b5473a"/>
+    <path d="M414 898 C430 896 450 896 466 898 L466 1010 L414 1010 Z" fill="#b5473a"/>
+    <path d="M154 908 h14 v54 h-14 Z" fill="#7d94a6"/>
+    <path d="M176 908 h14 v54 h-14 Z" fill="#7d94a6"/>
+    <path d="M422 908 h14 v54 h-14 Z" fill="#7d94a6"/>
+    <path d="M444 908 h14 v54 h-14 Z" fill="#7d94a6"/>
+    <!-- red nose swoosh -->
+    <path d="M540 880 C572 886 598 902 614 932 C624 954 624 986 612 1006 L560 1010 C582 972 578 920 540 902 Z" fill="#b5473a"/>
+    <!-- windshield -->
+    <path d="M560 892 C580 900 596 916 606 938 L570 941 C564 921 556 904 546 896 Z" fill="#5d7385"/>
+    <!-- headlights + glow -->
+    <ellipse cx="630" cy="968" rx="34" ry="20" fill="#f0d896" opacity="0.45"/>
+    <circle cx="612" cy="956" r="7" fill="#ecc776"/>
+    <circle cx="602" cy="982" r="6" fill="#ecc776"/>
+    <path d="M620 948 L648 932 L648 996 L622 988 Z" fill="#f0d896" opacity="0.22"/>
+  </g>
+
+  <!-- train ink -->
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-6 888 C58 876 178 870 316 870 C398 870 470 872 524 875" stroke-width="4.5"/>
+    <path d="M538 876 C570 882 596 898 612 928 C622 950 622 982 610 1006" stroke-width="4.5"/>
+    <path d="M-6 1022 C160 1020 380 1020 614 1018" stroke-width="4"/>
+    <path d="M-6 902 C60 890 180 884 320 884 C430 884 508 886 558 894" stroke-width="3" opacity="0.7"/>
+    <!-- window bands -->
+    <path d="M10 898 C160 894 380 894 524 898 L524 932 C380 928 160 928 12 932 Z" stroke-width="3.5"/>
+    <path d="M10 946 C56 944 98 945 136 944 L136 982 C98 983 56 982 12 984 Z" stroke-width="3.5"/>
+    <path d="M200 944 C268 942 340 942 404 944 L404 982 C340 980 268 980 200 982 Z" stroke-width="3.5"/>
+    <path d="M468 944 C488 943 508 944 524 945 L524 982 C508 981 488 982 468 983 Z" stroke-width="3.5"/>
+    <!-- window mullions -->
+    <g stroke-width="2.5" opacity="0.6">
+      <path d="M58 900 C57 910 59 922 58 930"/>
+      <path d="M98 900 C97 910 99 922 98 930"/>
+      <path d="M244 900 C243 910 245 922 244 930"/>
+      <path d="M284 900 C283 910 285 922 284 930"/>
+      <path d="M324 900 C323 910 325 922 324 930"/>
+      <path d="M364 900 C363 910 365 922 364 930"/>
+      <path d="M62 948 C61 960 63 972 62 980"/>
+      <path d="M102 948 C101 960 103 972 102 980"/>
+      <path d="M248 948 C247 960 249 972 248 980"/>
+      <path d="M290 948 C289 960 291 972 290 980"/>
+      <path d="M332 948 C331 960 333 972 332 980"/>
+      <path d="M372 948 C371 960 373 972 372 980"/>
+    </g>
+    <!-- doors -->
+    <path d="M142 902 C158 900 178 900 194 902 L194 1014 L142 1014 Z" stroke-width="3.5"/>
+    <path d="M410 902 C426 900 446 900 462 902 L462 1014 L410 1014 Z" stroke-width="3.5"/>
+    <path d="M168 904 C167 940 169 982 168 1012" stroke-width="2.5" opacity="0.7"/>
+    <path d="M436 904 C435 940 437 982 436 1012" stroke-width="2.5" opacity="0.7"/>
+    <!-- nose details -->
+    <path d="M556 896 C576 904 592 920 602 942 L566 945 C560 925 552 908 542 900 Z" stroke-width="3.5"/>
+    <circle cx="608" cy="960" r="7" stroke-width="3"/>
+    <circle cx="598" cy="986" r="6" stroke-width="3"/>
+    <path d="M536 906 C568 922 576 966 560 1006" stroke-width="3" opacity="0.7"/>
+    <!-- skirt -->
+    <path d="M-6 1016 C120 1013 300 1015 470 1012 C520 1011 570 1014 606 1011" stroke-width="2.5" opacity="0.6"/>
+  </g>
+
+  <!-- bogies + wheels -->
+  <g transform="translate(-3,3)">
+    <path d="M56 1018 L192 1018 L186 1052 L62 1052 Z" fill="#3c3833"/>
+    <path d="M326 1018 L462 1018 L456 1052 L332 1052 Z" fill="#3c3833"/>
+    <path d="M516 1018 L608 1018 L600 1050 L522 1050 Z" fill="#3c3833"/>
+    <circle cx="95" cy="1052" r="19" fill="#3c3833"/>
+    <circle cx="155" cy="1052" r="19" fill="#3c3833"/>
+    <circle cx="365" cy="1052" r="19" fill="#3c3833"/>
+    <circle cx="425" cy="1052" r="19" fill="#3c3833"/>
+    <circle cx="558" cy="1052" r="19" fill="#3c3833"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <circle cx="92" cy="1055" r="19" stroke-width="3.5"/>
+    <circle cx="152" cy="1055" r="19" stroke-width="3.5"/>
+    <circle cx="362" cy="1055" r="19" stroke-width="3.5"/>
+    <circle cx="422" cy="1055" r="19" stroke-width="3.5"/>
+    <circle cx="555" cy="1055" r="19" stroke-width="3.5"/>
+    <circle cx="92" cy="1055" r="6" stroke-width="2.5" opacity="0.7"/>
+    <circle cx="152" cy="1055" r="6" stroke-width="2.5" opacity="0.7"/>
+    <circle cx="362" cy="1055" r="6" stroke-width="2.5" opacity="0.7"/>
+    <circle cx="422" cy="1055" r="6" stroke-width="2.5" opacity="0.7"/>
+    <circle cx="555" cy="1055" r="6" stroke-width="2.5" opacity="0.7"/>
+  </g>
+
+  <!-- ballast + rails -->
+  <path d="M0 1074 C160 1068 400 1072 640 1066 L640 1136 L0 1136 Z" fill="#a19885"/>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round">
+    <path d="M-4 1076 C180 1071 420 1074 644 1069" stroke-width="4"/>
+    <!-- foreground empty track -->
+    <g stroke-width="3.5" opacity="0.75">
+      <path d="M20 1102 v26"/><path d="M78 1101 v26"/><path d="M136 1102 v26"/><path d="M194 1101 v26"/>
+      <path d="M252 1102 v26"/><path d="M310 1101 v26"/><path d="M368 1102 v26"/><path d="M426 1101 v26"/>
+      <path d="M484 1102 v26"/><path d="M542 1101 v26"/><path d="M600 1102 v26"/>
+    </g>
+    <path d="M-4 1108 C200 1102 440 1106 644 1100" stroke-width="4"/>
+    <path d="M-4 1124 C200 1118 440 1122 644 1116" stroke-width="4"/>
+    <!-- ballast scribbles -->
+    <g stroke-width="2.5" opacity="0.45">
+      <path d="M44 1086 a6 4 0 0 0 12 0"/>
+      <path d="M170 1090 a6 4 0 0 0 12 0"/>
+      <path d="M300 1084 a6 4 0 0 0 12 0"/>
+      <path d="M452 1090 a6 4 0 0 0 12 0"/>
+      <path d="M584 1084 a6 4 0 0 0 12 0"/>
+    </g>
+  </g>
+
+  <!-- shadow hatching -->
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4">
+    <path d="M60 1030 l18 6"/><path d="M220 1034 l18 6"/><path d="M480 1030 l18 6"/>
+    <path d="M120 758 l8 10"/><path d="M470 756 l8 10"/>
+    <path d="M240 824 l9 8"/><path d="M300 826 l9 8"/><path d="M360 824 l9 8"/>
+    <path d="M542 916 l8 10"/><path d="M556 950 l8 10"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="70" cy="1092" r="1.7" opacity="0.5"/>
+    <circle cx="238" cy="1116" r="1.5" opacity="0.5"/>
+    <circle cx="392" cy="1088" r="1.8" opacity="0.45"/>
+    <circle cx="530" cy="1120" r="1.5" opacity="0.45"/>
+    <circle cx="618" cy="1090" r="1.6" opacity="0.4"/>
+    <circle cx="160" cy="846" r="1.4" opacity="0.4"/>
+    <circle cx="452" cy="850" r="1.4" opacity="0.4"/>
+    <circle cx="30" cy="960" r="1.5" opacity="0.4"/>
+  </g>
+</svg>

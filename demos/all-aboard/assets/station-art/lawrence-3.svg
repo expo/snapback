@@ -1,0 +1,237 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="sky3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bccdd6"/>
+      <stop offset="0.5" stop-color="#dbdec9"/>
+      <stop offset="0.85" stop-color="#f0e8ce"/>
+      <stop offset="1" stop-color="#f5efe1"/>
+    </linearGradient>
+    <linearGradient id="lawn3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a3ac8b"/>
+      <stop offset="1" stop-color="#8b9873"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper + morning sky -->
+  <rect x="0" y="0" width="640" height="1136" fill="#f5efe1"/>
+  <rect x="0" y="0" width="640" height="640" fill="url(#sky3)"/>
+
+  <!-- calm cloud washes in the quiet top zone -->
+  <path d="M80,130 C170,120 300,120 400,128 C450,132 440,144 370,145 C270,146 160,144 92,140 C56,137 52,133 80,130 Z" fill="#f5efe1" opacity="0.45"/>
+  <path d="M300,232 C380,224 480,226 550,234 C590,239 578,248 516,248 C440,248 360,246 312,242 C284,239 282,234 300,232 Z" fill="#eee6cd" opacity="0.5"/>
+
+  <!-- slanting morning light rays -->
+  <g fill="#f6ecca" opacity="0.35">
+    <path d="M470,300 L560,296 L330,700 L260,690 Z"/>
+    <path d="M560,330 L620,326 L470,730 L416,722 Z"/>
+  </g>
+
+  <!-- distant foothills -->
+  <path d="M-10,596 C60,580 130,574 200,580 C260,568 340,566 410,576 C470,566 550,566 610,576 C624,578 640,582 650,584 L650,640 L-10,640 Z" fill="#a9b3a4" opacity="0.55"/>
+
+  <!-- telephone pole + sagging wires -->
+  <path d="M540,352 C541,420 540,492 541,566 C541,596 540,626 541,656" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M506,376 C528,374 552,374 574,376 M510,398 C530,396 552,396 572,398" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M506,380 C440,398 340,414 220,424 C150,430 80,432 -8,432 M574,380 C600,384 624,390 648,396" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <path d="M510,402 C450,418 360,432 250,440 C170,446 80,448 -8,448" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <!-- small bird on wire -->
+  <path d="M300,431 C304,425 310,424 314,428 C316,432 314,437 309,438 C304,439 300,436 300,431 Z" fill="#2f2a24"/>
+  <path d="M312,428 C316,426 320,426 323,428" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- ===== ranch houses across the street ===== -->
+  <!-- left house -->
+  <g transform="translate(4,3)">
+    <path d="M-10,586 L216,580 L216,676 L-10,680 Z" fill="#e3d3ae"/>
+    <path d="M-10,586 L100,548 L232,576 L216,596 L-10,600 Z" fill="#b06a4c"/>
+  </g>
+  <path d="M-8,590 C60,586 130,583 214,582 M230,580 C186,570 142,562 100,552 C64,564 28,576 -8,590" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M214,582 C220,588 226,594 231,600 M216,584 C215,614 216,646 215,678 C142,679 68,681 -8,684" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- door + window -->
+  <g transform="translate(-3,3)"><rect x="150" y="606" width="34" height="70" fill="#7d94a8"/></g>
+  <path d="M152,608 C162,606 172,606 182,607 C183,630 182,654 183,678 C172,679 162,679 152,680 C151,656 152,632 152,608 Z" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <g transform="translate(3,3)"><rect x="30" y="612" width="76" height="42" fill="#c3d1da"/></g>
+  <path d="M32,614 C58,612 84,612 106,613 C107,626 106,640 107,655 C82,656 56,657 32,658 C31,643 32,628 32,614 Z M69,614 C68,628 69,642 68,656" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- chimney -->
+  <path d="M42,566 C41,554 42,544 41,534 C50,532 58,532 66,534 C67,546 66,556 67,568" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="45" y="537" width="18" height="28" fill="#c26b4a" transform="translate(3,2)"/>
+
+  <!-- right house -->
+  <g transform="translate(-4,4)">
+    <path d="M400,590 L650,586 L650,678 L400,682 Z" fill="#dfd0b0"/>
+    <path d="M384,594 L512,552 L650,580 L650,600 L400,604 Z" fill="#9c8a6a"/>
+  </g>
+  <path d="M386,596 C428,582 470,568 512,554 C558,564 604,573 648,582 M386,596 C468,592 552,590 648,588" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M402,598 C401,626 402,654 401,684 C482,682 564,680 648,680" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <g transform="translate(4,3)"><rect x="430" y="616" width="70" height="44" fill="#c3d1da"/></g>
+  <path d="M432,618 C456,616 480,616 500,617 C501,631 500,646 501,661 C478,662 454,663 432,664 C431,649 432,633 432,618 Z M466,618 C465,632 466,648 465,662" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <g transform="translate(-3,3)"><rect x="546" y="612" width="36" height="70" fill="#b06a4c"/></g>
+  <path d="M548,614 C558,612 570,612 580,613 C581,636 580,660 581,684 C570,685 558,685 548,686 C547,662 548,638 548,614 Z" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <!-- garage door hint -->
+  <path d="M600,616 C614,615 628,615 640,616 M600,630 C614,629 628,629 640,630 M600,644 C614,643 628,643 640,644 M600,658 C614,657 628,657 640,658" fill="none" stroke="#2f2a24" stroke-width="2.2" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- front hedges -->
+  <g transform="translate(-3,3)">
+    <path d="M-10,684 C50,674 120,672 190,676 C240,672 300,674 340,680 L340,706 C240,700 120,702 -10,710 Z" fill="#7c8a6e"/>
+    <path d="M420,684 C500,676 580,676 650,682 L650,708 C570,700 490,700 420,706 Z" fill="#7c8a6e"/>
+  </g>
+  <path d="M-8,688 C70,680 160,677 240,680 M270,682 C296,683 320,685 338,688 M422,686 C498,680 572,680 648,686" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- ===== street ===== -->
+  <path d="M-10,712 C210,700 430,700 650,712 L650,800 C430,786 210,786 -10,800 Z" fill="#b8b3a6"/>
+  <path d="M-8,714 C210,702 430,702 648,714 M-8,798 C210,784 430,784 648,798" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+  <path d="M80,756 C130,753 180,751 230,750 M300,749 C350,748 400,748 450,750 M510,751 C550,753 590,755 620,757" fill="none" stroke="#f5efe1" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+  <!-- sidewalk -->
+  <path d="M-10,802 C210,788 430,788 650,802 L650,836 C430,820 210,820 -10,836 Z" fill="#ddd3ba"/>
+  <path d="M-8,834 C210,818 430,818 648,834" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M110,806 C109,816 110,824 109,832 M280,800 C281,810 280,818 281,826 M450,802 C449,812 450,820 449,828" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- ===== the orchard yard ===== -->
+  <rect x="0" y="830" width="640" height="306" fill="url(#lawn3)"/>
+  <path d="M-8,838 C210,822 430,822 648,838" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- tree shadows on grass -->
+  <g fill="#6e7d5c" opacity="0.5">
+    <path d="M96,1010 C170,1002 260,1004 330,1016 C350,1020 344,1030 320,1028 C250,1020 168,1018 100,1024 C82,1026 80,1012 96,1010 Z"/>
+    <path d="M400,940 C460,934 530,936 584,946 C600,950 594,958 574,956 C520,950 456,948 404,952 C388,954 386,942 400,940 Z"/>
+  </g>
+
+  <!-- big apricot tree, left -->
+  <g transform="translate(5,-4)">
+    <path d="M40,846 C24,812 30,770 62,746 C50,712 70,676 108,668 C118,634 158,616 194,630 C232,618 272,640 278,678 C312,690 324,730 306,760 C324,790 314,830 282,846 C270,872 234,884 204,874 C176,892 136,890 112,870 C82,880 52,870 40,846 Z" fill="#94a186"/>
+  </g>
+  <g transform="translate(-5,5)">
+    <path d="M70,830 C58,802 64,770 88,752 C82,722 100,694 130,688 C142,662 174,650 202,660 C230,652 258,668 264,696 C288,708 296,738 282,760 C294,784 286,812 262,824 C252,844 224,852 202,844 C180,858 148,856 130,840 C108,848 82,848 70,830 Z" fill="#7c8a6e" opacity="0.75"/>
+  </g>
+  <!-- canopy ink outline, broken strokes -->
+  <path d="M44,842 C30,812 36,776 64,754 M58,742 C50,710 70,680 106,672 M116,662 C128,632 164,618 196,630 M210,626 C244,618 274,638 280,672" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M290,682 C318,696 328,730 310,758 M314,770 C328,798 318,832 288,846 M278,854 C266,878 234,888 206,878 M192,880 C168,894 134,890 114,872 M100,872 C74,880 48,868 42,848" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <!-- inner canopy scribbles -->
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.45">
+    <path d="M110,730 C122,720 138,720 148,730 C158,740 156,754 144,760"/>
+    <path d="M190,690 C202,682 218,684 226,694 C234,704 230,716 220,720"/>
+    <path d="M220,790 C232,782 246,784 254,794"/>
+    <path d="M84,796 C94,788 108,788 116,796"/>
+  </g>
+  <!-- apricots -->
+  <g fill="#e0a13e">
+    <circle cx="120" cy="712" r="8"/><circle cx="176" cy="672" r="8"/><circle cx="238" cy="702" r="8"/>
+    <circle cx="270" cy="762" r="8"/><circle cx="206" cy="756" r="8"/><circle cx="98" cy="778" r="8"/>
+    <circle cx="152" cy="820" r="8"/><circle cx="236" cy="828" r="8"/><circle cx="66" cy="812" r="7"/>
+  </g>
+  <g stroke="#2f2a24" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8">
+    <path d="M114,706 C118,701 125,700 129,705"/><path d="M170,666 C174,661 181,660 185,665"/>
+    <path d="M232,696 C236,691 243,690 247,695"/><path d="M264,756 C268,751 275,750 279,755"/>
+    <path d="M146,814 C150,809 157,808 161,813"/><path d="M230,822 C234,817 241,816 245,821"/>
+  </g>
+  <!-- gnarled trunk -->
+  <g transform="translate(4,3)">
+    <path d="M154,876 C150,912 144,950 132,986 C126,1006 118,1024 108,1040 L152,1044 C162,1020 170,996 176,970 C168,940 164,908 168,876 Z" fill="#6e5540"/>
+  </g>
+  <path d="M156,878 C152,914 146,952 134,988 C128,1006 120,1024 110,1040 M170,878 C166,910 168,942 176,972 C180,996 174,1022 164,1046" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M148,922 C138,914 130,904 124,894 M166,948 C176,940 184,930 190,920 M140,976 C132,970 126,962 122,954" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M158,896 C156,922 152,948 146,974" fill="none" stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- second apricot tree, right, smaller -->
+  <g transform="translate(-4,-3)">
+    <path d="M420,822 C406,798 412,766 438,750 C436,722 458,700 486,700 C500,678 532,672 552,686 C580,680 606,700 608,728 C630,742 634,772 618,792 C628,816 616,842 592,850 C578,866 550,870 532,858 C510,870 482,866 468,848 C444,852 424,842 420,822 Z" fill="#94a186"/>
+  </g>
+  <g transform="translate(4,4)">
+    <path d="M444,812 C434,792 440,768 460,756 C460,734 478,718 500,720 C512,702 538,698 554,710 C576,706 596,722 597,744 C614,756 616,778 604,794 C612,812 602,832 584,838 C572,850 550,852 536,842 C518,852 496,848 486,834 C466,838 450,828 444,812 Z" fill="#7c8a6e" opacity="0.7"/>
+  </g>
+  <path d="M424,818 C412,796 418,766 442,752 M448,740 C450,714 472,696 498,700 M510,692 C528,674 558,674 574,690 M586,698 C610,706 622,732 612,754 M618,766 C632,786 626,814 606,826 M596,836 C586,856 560,864 540,854 M526,856 C504,866 478,858 468,840 M456,838 C436,838 422,830 420,816" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <g fill="#e0a13e">
+    <circle cx="472" cy="760" r="7"/><circle cx="530" cy="726" r="7"/><circle cx="580" cy="768" r="7"/>
+    <circle cx="500" cy="808" r="7"/><circle cx="556" cy="820" r="7"/>
+  </g>
+  <path d="M494,802 C498,797 505,796 509,801 M524,720 C528,715 535,714 539,719" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <path d="M512,858 C508,886 500,914 488,938 M524,860 C522,886 526,912 534,936" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <g transform="translate(3,2)"><path d="M514,862 C510,888 502,914 492,936 L530,938 C524,912 520,886 522,862 Z" fill="#6e5540"/></g>
+  <path d="M518,894 C510,888 504,880 500,872" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- ===== wooden fruit ladder leaning into big tree ===== -->
+  <g transform="translate(4,3)">
+    <path d="M232,760 L248,762 L226,1052 L208,1050 Z" fill="#cf9f4e"/>
+    <path d="M296,776 L312,778 L338,1056 L320,1054 Z" fill="#cf9f4e"/>
+  </g>
+  <path d="M236,762 C232,810 228,860 224,912 C220,958 216,1004 212,1050 M250,764 C246,812 242,862 238,914 C234,960 230,1006 226,1052" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M300,778 C306,824 312,872 318,922 C322,966 328,1010 334,1054 M314,780 C320,826 326,874 332,924 C336,968 342,1012 348,1056" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- rungs -->
+  <g stroke="#2f2a24" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M244,818 C266,820 288,823 308,826"/>
+    <path d="M238,878 C262,881 286,884 316,888"/>
+    <path d="M232,938 C258,941 286,945 324,950"/>
+    <path d="M226,998 C254,1001 288,1006 332,1012"/>
+  </g>
+  <g stroke="#cf9f4e" stroke-width="6" stroke-linecap="round" opacity="0.85">
+    <path d="M247,822 L305,829"/><path d="M241,882 L313,891"/><path d="M235,942 L321,953"/><path d="M229,1002 L329,1015"/>
+  </g>
+  <!-- third back leg of orchard ladder -->
+  <path d="M276,772 C278,830 282,900 288,970 C290,998 294,1026 298,1052" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+  <!-- fruit basket at ladder foot -->
+  <g transform="translate(-3,3)"><path d="M366,1044 C392,1041 418,1041 440,1044 L432,1082 C412,1085 390,1085 376,1082 Z" fill="#cf9f4e"/></g>
+  <path d="M368,1046 C392,1043 416,1043 438,1046 C436,1058 434,1070 431,1082 C412,1085 392,1085 375,1082 C372,1070 370,1058 368,1046 Z M372,1060 C394,1057 416,1057 434,1060" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <g fill="#e0a13e">
+    <circle cx="386" cy="1040" r="8"/><circle cx="404" cy="1036" r="8"/><circle cx="422" cy="1040" r="8"/>
+  </g>
+  <path d="M380,1034 C384,1029 391,1028 395,1033 M416,1034 C420,1029 427,1028 431,1033" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- ===== sprinkler + mist catching light ===== -->
+  <!-- mist fans -->
+  <g fill="none" stroke="#e9f0ef" stroke-linecap="round" opacity="0.75">
+    <path d="M96,1078 C130,1026 180,986 240,966" stroke-width="7"/>
+    <path d="M96,1078 C140,1040 196,1012 258,1000" stroke-width="6"/>
+    <path d="M96,1078 C150,1054 210,1040 272,1036" stroke-width="5"/>
+    <path d="M96,1078 C74,1030 66,982 72,936" stroke-width="6"/>
+    <path d="M96,1078 C56,1044 30,1002 20,956" stroke-width="5"/>
+  </g>
+  <g fill="#f5efe1" opacity="0.85">
+    <circle cx="212" cy="982" r="3"/><circle cx="244" cy="1006" r="2.6"/><circle cx="188" cy="1022" r="2.4"/>
+    <circle cx="150" cy="994" r="2.8"/><circle cx="120" cy="962" r="2.5"/><circle cx="76" cy="962" r="2.7"/>
+    <circle cx="44" cy="990" r="2.5"/><circle cx="102" cy="1018" r="2.3"/><circle cx="160" cy="1046" r="2.6"/>
+    <circle cx="66" cy="1030" r="2.4"/><circle cx="228" cy="1044" r="2.2"/>
+  </g>
+  <!-- rainbow glint in the mist -->
+  <path d="M60,1002 C90,972 130,954 172,952" fill="none" stroke="#cf9f4e" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <path d="M64,1012 C94,984 132,966 172,964" fill="none" stroke="#c26b4a" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+  <!-- sprinkler head -->
+  <path d="M88,1080 C92,1072 100,1070 106,1074 C110,1080 108,1088 100,1090 C94,1092 88,1088 88,1080 Z" fill="#7d94a8" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M96,1090 C95,1098 96,1106 95,1112" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- hose wiggle -->
+  <path d="M96,1112 C130,1120 160,1108 192,1114 C224,1120 254,1110 286,1116 C312,1120 338,1114 362,1118" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+  <path d="M100,1116 C132,1123 162,1112 194,1118 C226,1124 256,1114 288,1120" fill="none" stroke="#5e7263" stroke-width="5" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- grass tuft hatching -->
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.4" fill="none">
+    <path d="M60,880 C62,874 64,870 66,866 M70,882 C73,876 76,872 79,868"/>
+    <path d="M330,872 C332,866 334,862 336,858 M340,874 C343,868 346,864 349,860"/>
+    <path d="M580,900 C582,894 584,890 586,886 M590,902 C593,896 596,892 599,888"/>
+    <path d="M420,986 C422,980 424,976 426,972 M430,988 C433,982 436,978 439,974"/>
+    <path d="M560,1060 C562,1054 564,1050 566,1046 M570,1062 C573,1056 576,1052 579,1048"/>
+    <path d="M40,1108 C42,1102 44,1098 46,1094 M50,1110 C53,1104 56,1100 59,1096"/>
+    <path d="M470,1096 C472,1090 474,1086 476,1082 M480,1098 C483,1092 486,1088 489,1084"/>
+  </g>
+  <!-- fallen apricots on lawn -->
+  <g fill="#e0a13e">
+    <circle cx="80" cy="1064" r="6"/><circle cx="368" cy="988" r="6"/><circle cx="270" cy="1084" r="6"/>
+  </g>
+  <path d="M74,1060 C78,1055 84,1054 88,1059 M264,1080 C268,1075 274,1074 278,1079" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- low picket fence fragment, right edge -->
+  <g stroke="#2f2a24" stroke-width="3" stroke-linecap="round" fill="none">
+    <path d="M588,928 C587,952 588,976 587,1000"/>
+    <path d="M614,924 C615,948 614,972 615,998"/>
+    <path d="M640,922 C639,946 640,970 639,996"/>
+    <path d="M578,946 C600,942 622,940 646,938"/>
+    <path d="M578,978 C600,974 622,972 646,970"/>
+  </g>
+  <g transform="translate(3,2)" fill="#e8ddc0" opacity="0.9">
+    <rect x="584" y="926" width="8" height="72"/><rect x="610" y="922" width="8" height="74"/><rect x="636" y="920" width="8" height="74"/>
+  </g>
+
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="350" cy="866" r="1.6"/><circle cx="120" cy="912" r="1.4"/><circle cx="452" cy="1064" r="1.7"/>
+    <circle cx="560" cy="852" r="1.4"/><circle cx="304" cy="1100" r="1.6"/><circle cx="200" cy="1066" r="1.4"/>
+    <circle cx="614" cy="1104" r="1.6"/>
+  </g>
+</svg>

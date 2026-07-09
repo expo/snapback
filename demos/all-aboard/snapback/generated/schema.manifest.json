@@ -1,6 +1,6 @@
 {
   "app": {
-    "description": "Caltrain next-train demo: nearest station, next north/south trains, live departure predictions from 511.org StopMonitoring when configured, and routed walk/bike ETAs through a server-side directions action. Full-bleed poster-art Contract/Exact surface over generated Snapback artifacts — gesture-driven on web (surface glue), native macOS/iOS-ready.",
+    "description": "Caltrain next-train demo: nearest station, next north/south trains, live departure predictions from 511.org StopMonitoring when configured, and routed walk/bike ETAs through a server-side directions action. White-board Contract/Exact surface under a Caltrain-red station header with day-rotating hand-drawn scenes (ENG-23719), over generated Snapback artifacts — gesture-driven on web (surface glue), native macOS/iOS-ready.",
     "iconUrl": "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20128%20128'%3E%3Crect%20width='128'%20height='128'%20rx='28'%20fill='%2305070f'/%3E%3Cpath%20d='M25%2082h78'%20stroke='%23f4d35e'%20stroke-width='7'%20stroke-linecap='round'/%3E%3Cpath%20d='M38%2032h52a12%2012%200%200%201%2012%2012v30a12%2012%200%200%201-12%2012H38a12%2012%200%200%201-12-12V44a12%2012%200%200%201%2012-12Z'%20fill='%23f7f7f2'/%3E%3Cpath%20d='M38%2044h52v18H38z'%20fill='%233062b5'/%3E%3Ccircle%20cx='45'%20cy='86'%20r='7'%20fill='%23f7f7f2'/%3E%3Ccircle%20cx='83'%20cy='86'%20r='7'%20fill='%23f7f7f2'/%3E%3Cpath%20d='M49%2072h30'%20stroke='%2305070f'%20stroke-width='5'%20stroke-linecap='round'/%3E%3C/svg%3E",
     "name": "All Aboard"
   },
@@ -9,7 +9,7 @@
   "artifactKind": "schemaManifest",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "c93aa60534b9c1e4bdb8170f2560eca955579a476a1e758aa795790299e4e3db",
+  "inputsHash": "83d30152fb590945371175ae35d0a24b405cc7d2d5600524d564db1c384fccb2",
   "portabilityFlags": [],
   "schemaHash": "sha256:12d02c2bee99feb2",
   "schemaVersion": "snapback.v0",

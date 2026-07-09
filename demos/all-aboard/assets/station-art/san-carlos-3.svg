@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+<rect width="640" height="1136" fill="#f5efe1"/>
+<path d="M0 0h640v322c-56 8-112-4-168 4-56 8-112-6-168 2-56 8-112-6-166 2-48 6-94-4-138 2z" fill="#9db4c4" opacity="0.38"/>
+<path d="M0 214c72-8 148 4 224-4 80-8 156 6 232-2 64-6 126 4 184-2v130c-72 10-144-4-216 4-76 8-150-6-224 2-70 8-136-4-200 4z" fill="#c6d5de" opacity="0.45"/>
+<path d="M120 110c22-13 56-15 80-5 26-8 58-2 70 10-13 13-45 17-72 13-27 6-60 1-78-9z" fill="#f9f4e7" opacity="0.85"/>
+<path d="M430 78c20-11 52-13 74-4 22-5 48 1 56 12-13 11-42 14-66 11-24 5-50 0-64-9z" fill="#f9f4e7" opacity="0.8"/>
+<g stroke="#f5efe1" fill="none" stroke-linecap="round" opacity="0.65">
+<path d="M80 176c50-4 100 3 150-2" stroke-width="4"/>
+<path d="M380 156c54-3 108 4 162-2" stroke-width="4"/>
+<path d="M220 236c42-3 84 2 126-1" stroke-width="3.5"/>
+</g>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.4" opacity="0.5">
+<path d="M492 300c7-6 14-6 19-1m1 0c6-5 12-5 17 0"/>
+<path d="M548 320c6-5 12-5 16-1m1 0c5-4 10-4 14 0"/>
+</g>
+<!-- distant ridge -->
+<path d="M0 366c60-28 130-40 200-38 74 2 142 22 216 18 78-4 152-26 224-18v82H0z" fill="#9db4c4" opacity="0.5"/>
+<!-- sage hills -->
+<path d="M0 402c54-34 126-52 196-46 66 6 122 34 190 34 74 0 150-30 254-20v100H0z" fill="#9aab8c" opacity="0.8"/>
+<path d="M300 420c56-26 128-34 196-24 56 8 100 26 144 30v50H300z" fill="#7c8f6e" opacity="0.6"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.2" opacity="0.4">
+<path d="M40 396c40-20 86-30 132-30"/>
+<path d="M360 412c46-16 98-20 146-12"/>
+<path d="M120 420c18-4 36-6 54-5m180 8c20-4 40-6 60-4"/>
+</g>
+<g fill="#556b4a" opacity="0.8">
+<circle cx="90" cy="426" r="5"/><circle cx="130" cy="432" r="4"/><circle cx="530" cy="428" r="5"/><circle cx="570" cy="434" r="4"/><circle cx="300" cy="438" r="4"/>
+</g>
+<!-- runway -->
+<path d="M0 442l640-8 0 54-640 6z" fill="#b9b3a6" opacity="0.6"/>
+<path d="M-4 442c108-3 214-6 322-8 108-2 214-4 322-4" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.6"/>
+<path d="M-4 496c108-2 214-4 322-5 108-1 214-2 322-3" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.6"/>
+<g stroke="#f5efe1" fill="none" stroke-linecap="round" stroke-width="5" opacity="0.85">
+<path d="M40 468c16-1 32-1 48-1m60-1c16 0 32-1 48-1m62-1c16 0 32 0 48-1m62 0c16 0 32 0 48-1m60 0c16 0 32 0 48 0"/>
+</g>
+<!-- grass apron edge -->
+<path d="M0 494l640-6 0 118-640 6z" fill="#9aab8c" opacity="0.5"/>
+<g stroke="#7c8f6e" fill="none" stroke-linecap="round" stroke-width="2.5" opacity="0.85">
+<path d="M60 560c-2-8-2-14 0-20m8 20c1-8 4-13 8-17"/>
+<path d="M560 552c-2-8-2-14 0-20m8 20c1-8 4-13 8-17"/>
+<path d="M320 588c-2-7-2-13 0-18m8 18c1-7 4-12 7-15"/>
+</g>
+<!-- small shed -->
+<path d="M28 546l84 2 0 62-86-2z" fill="#7d97ad" opacity="0.85"/>
+<path d="M20 548l50-16 52 16z" fill="#4a4238" opacity="0.85"/>
+<path d="M18 548c17-6 34-11 51-17m2 0c17 6 34 11 51 17m-104 2c1 20-1 40 0 60m106-60c1 20-1 40 0 58m-108 2c36 2 72 0 108 0" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M52 566l20 1 0 26-20-1z" fill="#4a4238"/>
+<!-- hangar -->
+<path d="M134 524l364 2 2 82-368-2z" fill="#ece1c8"/>
+<path d="M130 524c40-72 120-100 186-100 66 0 146 30 184 98z" fill="#b9b3a6"/>
+<path d="M126 526c22-38 54-68 94-84m14-6c24-8 50-12 76-12 66 0 148 30 186 100" stroke="#2f2a24" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.4" opacity="0.45">
+<path d="M170 522c26-52 82-82 142-84"/>
+<path d="M456 520c-22-46-66-76-118-82"/>
+<path d="M150 500c88-4 178-6 268-4m-250-40c76-4 154-4 228 0" opacity="0.35"/>
+</g>
+<path d="M126 526c1 26-1 54 0 80m376-82c1 26-1 54 0 78m-378 4c92 3 184-2 276 1 34 1 68 0 102 1" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<!-- hangar doors -->
+<path d="M212 530l218 2 2 74-222-2z" fill="#7d97ad"/>
+<path d="M396 532l32 0 2 72-34-1z" fill="#4a4238"/>
+<path d="M208 530c74 2 148 1 222 2m2 2c1 24-1 48 0 72m-226-74c1 24-1 48 0 72" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.4" opacity="0.6">
+<path d="M254 532c1 24-1 48 0 72m44-72c1 24-1 48 0 72m44-71c1 24-1 47 0 70m44-70c1 23-1 46 0 69"/>
+</g>
+<path d="M226 548c30 1 60 1 90 1" stroke="#f5efe1" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.6"/>
+<!-- windsock -->
+<path d="M590 512c-1-20 1-42 0-62" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<path d="M590 448l34 8-2 12-32-6z" fill="#bf6f4a"/>
+<path d="M588 446c12 3 23 6 35 9m0 2c-1 4-1 8-2 12m0 0c-11-2-22-4-33-7" stroke="#2f2a24" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+<!-- apron -->
+<path d="M0 610l640-6v532H0z" fill="#cfc7b4" opacity="0.65"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.4" opacity="0.35">
+<path d="M0 726c108-4 214 2 322-2 106-4 212 2 318-2"/>
+<path d="M0 878c110-4 218 2 328-2 104-4 208 2 312-2"/>
+<path d="M0 1030c108-4 216 2 324-2 106-4 210 2 316-2"/>
+<path d="M160 616c-2 90-4 180-4 270m330-272c2 86 4 172 4 258"/>
+</g>
+<!-- ================= helicopter (yellow Hiller) ================= -->
+<ellipse cx="230" cy="916" rx="130" ry="16" fill="#2f2a24" opacity="0.1"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.5" opacity="0.3">
+<path d="M130 908c56 4 112 4 168 0m-186 14c66 6 134 6 200-2m-176 16c50 4 100 4 150-2"/>
+</g>
+<!-- rotor -->
+<path d="M232 736c0-13 1-26 0-38" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M52 706c62-14 124-18 178-8" stroke="#2f2a24" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+<path d="M234 698c56-10 114-8 168 4" stroke="#2f2a24" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+<circle cx="232" cy="698" r="7" fill="#4a4238"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.2" opacity="0.3">
+<path d="M70 692c26-6 52-10 78-11m230 16c22 3 44 8 64 15"/>
+</g>
+<!-- engine + body fill (off-register yellow) -->
+<path d="M240 776c42-10 74 4 82 32 6 24-8 46-38 50-24 3-44-6-52-24-8-20-6-46 8-58z" fill="#d9a441"/>
+<path d="M300 800c28-4 52 0 68 6" fill="none" stroke="#d9a441" stroke-width="9" opacity="0.85" stroke-linecap="round"/>
+<!-- bubble -->
+<circle cx="198" cy="802" r="58" fill="#c6d5de" opacity="0.55"/>
+<path d="M198 742c32 0 58 26 59 58 1 33-26 60-58 60-33 0-60-27-60-60 0-16 6-31 17-42" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M160 764c8-10 20-17 32-19" stroke="#f5efe1" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.8"/>
+<path d="M150 806c30-4 62-4 92 2" stroke="#2f2a24" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.45"/>
+<!-- seat + stick -->
+<path d="M176 800c10-3 20-3 30-1m-14 2c-1 10-2 20-1 30" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+<!-- body outline -->
+<path d="M244 772c34-8 62 2 72 26 8 22-2 44-28 50-22 5-42-3-50-20" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M262 792c12-3 24-1 32 6" stroke="#2f2a24" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+<!-- tail boom truss -->
+<path d="M314 800c44-5 88-9 130-13" stroke="#2f2a24" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+<path d="M312 826c44-9 88-17 130-26" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.5" opacity="0.75">
+<path d="M340 798c2 8 3 16 4 24m28-27c2 8 3 15 4 22m26-25c2 7 3 14 4 20m24-23c2 6 3 12 4 18"/>
+</g>
+<!-- tail rotor -->
+<circle cx="450" cy="786" r="6" fill="#4a4238"/>
+<path d="M452 758c2 18-2 38 0 56" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<path d="M436 776l14 8-2 12-14-6z" fill="#d9a441"/>
+<!-- skids -->
+<g stroke="#2f2a24" fill="none" stroke-linecap="round">
+<path d="M186 854c-3 16-5 32-6 48m82-46c2 15 3 30 3 44" stroke-width="3.5"/>
+<path d="M150 904c60 8 122 8 182-2" stroke-width="4.5"/>
+<path d="M150 904c-10-4-18-12-22-24" stroke-width="4"/>
+<path d="M126 886c56 6 114 6 168-2" stroke-width="3.5" opacity="0.7"/>
+<path d="M126 886c-8-4-14-10-17-20" stroke-width="3.5" opacity="0.7"/>
+</g>
+<!-- ================= vintage prop plane ================= -->
+<ellipse cx="470" cy="1084" rx="160" ry="16" fill="#2f2a24" opacity="0.1"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.5" opacity="0.3">
+<path d="M340 1078c86 6 172 6 258-2m-240 18c76 6 152 6 226-2"/>
+</g>
+<!-- fuselage fill -->
+<path d="M336 998c2-26 32-42 74-44 60-4 130-8 206-14 4 12 2 22-4 28-52 14-132 24-192 32-38 6-70 10-82 10-4-4-3-8-2-12z" fill="#bf6f4a"/>
+<!-- tail fill -->
+<path d="M598 942c4-26 10-46 22-58 10 8 12 26 8 46l-8 14z" fill="#bf6f4a"/>
+<path d="M578 952l58 8-2 14-60-8z" fill="#ece1c8"/>
+<!-- cowl -->
+<circle cx="342" cy="982" r="31" fill="#b9b3a6"/>
+<path d="M338 952c17-1 31 12 32 29 1 17-12 31-29 32-17 1-31-12-32-29-1-16 11-30 27-32" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<g fill="#4a4238" opacity="0.7">
+<circle cx="342" cy="968" r="3.4"/><circle cx="355" cy="978" r="3.4"/><circle cx="350" cy="994" r="3.4"/><circle cx="333" cy="994" r="3.4"/><circle cx="328" cy="977" r="3.4"/>
+</g>
+<!-- prop -->
+<path d="M314 930c-6 18-8 36-6 52" stroke="#2f2a24" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+<path d="M310 988c-6 18-4 36 2 50" stroke="#2f2a24" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+<circle cx="311" cy="984" r="7" fill="#4a4238"/>
+<!-- canopy -->
+<path d="M410 956c6-20 34-26 50-14l-2 14z" fill="#c6d5de" opacity="0.7"/>
+<path d="M406 954c8-20 36-28 54-14m-2 12c-17-2-34-1-50 2" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+<!-- fuselage outline -->
+<path d="M334 996c4-24 32-38 72-40 58-4 128-8 204-14" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M614 970c-50 14-128 22-188 30-38 5-70 9-84 9" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M362 972c62-8 126-14 190-20" stroke="#ece1c8" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.9"/>
+<!-- tail outline -->
+<path d="M600 940c4-24 10-44 22-56m2 2c8 10 10 26 6 44m-2 6c-2 5-5 9-8 13" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<path d="M574 950c20 3 40 6 60 8m1 3c-1 5-2 9-3 13m-1 0c-19-3-39-6-58-9" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+<!-- wing -->
+<path d="M370 1002c56 12 118 24 176 30 5 12 1 22-9 26-60-4-122-16-172-30-4-10-2-20 5-26z" fill="#ece1c8"/>
+<path d="M366 1000c58 12 120 24 178 30" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M548 1032c4 11 0 20-9 24m-2 1c-58-5-118-16-168-30m-4-2c-4-9-2-17 4-23" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-width="2.2" opacity="0.45">
+<path d="M420 1012c-2 9-3 18-3 27m52-16c-2 9-3 17-3 25"/>
+</g>
+<!-- landing gear -->
+<path d="M394 1010c2 18-1 36 1 52m56-46c1 15 0 30 1 44" stroke="#2f2a24" stroke-width="4" fill="none" stroke-linecap="round"/>
+<circle cx="396" cy="1076" r="17" fill="#4a4238"/>
+<path d="M380 1074c1-9 8-16 17-16 9 1 16 9 15 18-1 9-9 16-18 15-8-1-14-8-14-15" stroke="#2f2a24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<circle cx="396" cy="1076" r="4" fill="#ece1c8"/>
+<circle cx="452" cy="1062" r="14" fill="#4a4238"/>
+<path d="M439 1060c1-7 7-13 14-12 7 0 13 7 12 14-1 8-7 13-15 12-6-1-11-7-11-12" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+<circle cx="452" cy="1062" r="3.4" fill="#ece1c8"/>
+<circle cx="618" cy="976" r="6" fill="#4a4238"/>
+<path d="M616 958c1 4 1 8 2 12" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+<!-- chocks -->
+<path d="M372 1088l14 4-12 6z" fill="#bf6f4a"/>
+<path d="M420 1090l-14 4 12 6z" fill="#bf6f4a"/>
+<!-- cone -->
+<path d="M584 902l10 34-22 2z" fill="#bf6f4a"/>
+<path d="M582 900c4 12 8 24 11 36m1 1c-8 1-16 2-24 2m0 0c4-13 8-26 12-39" stroke="#2f2a24" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<path d="M566 940c14 1 28 1 40 0" stroke="#2f2a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+<!-- tie-down rings -->
+<circle cx="120" cy="1000" r="5" fill="none" stroke="#2f2a24" stroke-width="2.5" opacity="0.6"/>
+<circle cx="320" cy="1120" r="5" fill="none" stroke="#2f2a24" stroke-width="2.5" opacity="0.6"/>
+<!-- speckles -->
+<g fill="#2f2a24" opacity="0.5">
+<circle cx="80" cy="1080" r="1.6"/><circle cx="180" cy="1050" r="1.4"/><circle cx="280" cy="1100" r="1.5"/><circle cx="560" cy="1110" r="1.5"/><circle cx="620" cy="1050" r="1.3"/><circle cx="60" cy="960" r="1.3"/><circle cx="500" cy="940" r="1.2"/><circle cx="240" cy="660" r="1.2"/><circle cx="560" cy="640" r="1.2"/><circle cx="100" cy="680" r="1.2"/>
+</g>
+<g fill="#d6b285" opacity="0.85">
+<circle cx="140" cy="1100" r="2.6"/><circle cx="420" cy="1120" r="2.4"/><circle cx="600" cy="980" r="2.4"/><circle cx="70" cy="1010" r="2.2"/>
+</g>
+</svg>

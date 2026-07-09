@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+  <defs>
+    <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#48586a"/>
+      <stop offset="0.5" stop-color="#66788a"/>
+      <stop offset="0.85" stop-color="#9aa4a4"/>
+      <stop offset="1" stop-color="#c8bfa4"/>
+    </linearGradient>
+    <radialGradient id="marqueeGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#eede9f" stop-opacity="0.85"/>
+      <stop offset="0.55" stop-color="#e8c87a" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#e8c87a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="street" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616a"/>
+      <stop offset="1" stop-color="#3f4650"/>
+    </linearGradient>
+  </defs>
+
+  <!-- paper base -->
+  <rect x="0" y="0" width="640" height="1136" fill="#f5efe1"/>
+  <!-- dusk sky -->
+  <rect x="0" y="0" width="640" height="700" fill="url(#dusk)"/>
+  <!-- calm high cloud bands -->
+  <path d="M80 130 C150 118 250 116 320 126 C370 132 410 130 444 124 C470 120 490 124 496 132 C464 146 380 152 310 148 C226 144 130 150 90 142 C72 138 68 134 80 130 Z" fill="#7d8fa0" opacity="0.5"/>
+  <path d="M320 226 C380 216 460 214 512 224 C544 230 556 236 544 244 C506 254 428 254 380 248 C346 244 308 234 320 226 Z" fill="#8a9aa8" opacity="0.45"/>
+  <!-- moon -->
+  <circle cx="150" cy="170" r="30" fill="#eee7cf" opacity="0.9"/>
+  <path d="M140 152 C154 148 168 154 174 166 M176 174 C178 186 172 198 160 202" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <circle cx="142" cy="176" r="4" fill="#c8c0a8" opacity="0.6"/>
+  <circle cx="158" cy="162" r="3" fill="#c8c0a8" opacity="0.5"/>
+
+  <!-- warm glow behind marquee -->
+  <ellipse cx="205" cy="770" rx="290" ry="240" fill="url(#marqueeGlow)"/>
+
+  <!-- ===================== RIGHT SIDE BUILDINGS ===================== -->
+  <path d="M424 462 L560 456 L562 900 L426 906 Z" fill="#6b5a4e"/>
+  <path d="M560 402 L640 398 L640 896 L562 900 Z" fill="#57616c"/>
+  <path d="M422 460 C468 457 520 455 558 456 M558 456 L560 898 M424 462 L426 902" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M562 402 C588 400 616 399 638 399 M562 404 L563 896" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M420 462 L420 450 C450 446 526 444 562 448 L562 460" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <!-- lit windows right -->
+  <g fill="#e8c87a">
+    <path d="M444 496 L468 495 L469 530 L445 531 Z"/>
+    <path d="M490 494 L514 493 L515 528 L491 529 Z"/>
+    <path d="M444 560 L468 559 L469 594 L445 595 Z" opacity="0.75"/>
+    <path d="M490 558 L514 557 L515 592 L491 593 Z"/>
+    <path d="M444 626 L468 625 L469 660 L445 661 Z"/>
+    <path d="M490 624 L514 623 L515 658 L491 659 Z" opacity="0.7"/>
+    <path d="M580 436 L604 435 L605 472 L581 473 Z"/>
+    <path d="M580 502 L604 501 L605 538 L581 539 Z" opacity="0.8"/>
+    <path d="M580 568 L604 567 L605 604 L581 605 Z"/>
+    <path d="M580 636 L604 635 L605 672 L581 673 Z" opacity="0.7"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.7">
+    <path d="M442 496 L468 494 L470 530 L444 532 Z M488 494 L514 492 L516 528 L490 530 Z M442 560 L468 558 L470 594 L444 596 Z M488 558 L514 556 L516 592 L490 594 Z M442 626 L468 624 L470 660 L444 662 Z M488 624 L514 622 L516 658 L490 660 Z"/>
+    <path d="M578 436 L604 434 L606 472 L580 474 Z M578 502 L604 500 L606 538 L580 540 Z M578 568 L604 566 L606 604 L580 606 Z M578 636 L604 634 L606 672 L580 674 Z"/>
+  </g>
+  <!-- right awning + shopfront glow -->
+  <path d="M430 726 C470 722 520 720 556 722 L560 758 C520 756 470 758 434 762 Z" fill="#c26d4f"/>
+  <path d="M428 726 C472 721 522 719 558 721 M434 760 C474 756 522 754 560 756 M446 724 L448 758 M478 722 L480 757 M510 721 L512 756 M542 720 L544 755" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M440 770 L552 764 L554 852 L442 858 Z" fill="#e8c87a" opacity="0.85"/>
+  <path d="M438 770 C476 766 520 764 554 764 M554 764 L556 850 M440 772 L442 856 M442 856 C480 852 522 850 556 850" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M496 768 L498 852" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- ===================== MOVIE PALACE (left) ===================== -->
+  <!-- facade wash off-register -->
+  <path d="M-4 344 L296 336 L300 908 L0 916 Z" fill="#a8836a"/>
+  <path d="M22 368 L272 360 L274 396 L24 404 Z" fill="#c9a24e" opacity="0.55"/>
+  <!-- parapet ornament -->
+  <path d="M-2 344 C60 339 180 335 294 336" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M296 338 L298 904 M0 348 L2 912" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M20 336 C22 326 30 320 40 320 C50 320 56 326 58 336 M120 334 C122 322 132 314 144 314 C156 314 166 322 168 333 M232 333 C234 324 241 318 250 318 C259 318 266 324 268 332" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M22 336 C24 328 32 323 40 323 C48 323 54 328 56 336 Z M124 334 C127 325 135 318 144 318 C153 318 161 324 164 333 Z M234 333 C236 326 242 322 250 322 C257 322 263 326 265 332 Z" fill="#d9a94e"/>
+  <!-- cornice bands -->
+  <path d="M20 370 C100 365 200 362 274 362 M22 400 C102 395 202 393 272 393" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M36 380 L44 379 M60 379 L68 378 M84 378 L92 377 M108 377 L116 376 M132 376 L140 375 M156 375 L164 375 M180 375 L188 374 M204 374 L212 373 M228 373 L236 372 M252 372 L260 372" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <!-- grand arched window, glowing -->
+  <path d="M96 574 L96 486 C96 448 124 424 158 424 C192 424 218 448 218 486 L219 570 Z" fill="#e8c87a"/>
+  <path d="M92 572 C92 544 92 516 93 488 C94 452 118 425 150 421 M166 421 C196 425 220 450 221 486 C222 514 222 542 222 568" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M90 574 C132 570 182 568 224 569" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M157 424 L157 570 M96 500 C136 496 180 494 219 495 M110 452 C142 448 176 447 206 450" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+  <path d="M120 436 C110 446 103 460 100 476 M196 436 C206 446 213 460 216 476" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <!-- small flanking niches -->
+  <path d="M36 470 L64 469 L65 540 L37 541 Z" fill="#8a6a52"/>
+  <path d="M34 470 C44 468 56 468 66 469 M66 469 L67 540 M35 471 L36 541 M36 541 C46 539 58 539 67 540" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <!-- ===================== BLADE SIGN (blank) ===================== -->
+  <path d="M236 388 L292 386 L296 668 L240 670 Z" fill="#c26d4f"/>
+  <path d="M244 396 L284 394 L287 658 L247 660 Z" fill="#e8c87a" opacity="0.55"/>
+  <path d="M234 388 C254 386 276 385 290 386 M290 386 C292 478 294 572 294 664 M236 390 C238 482 240 576 241 666 M241 666 C258 664 278 663 294 664" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <path d="M296 400 C308 400 316 408 316 418 C316 428 308 434 298 434 M297 460 C309 460 317 468 317 478 C317 488 309 494 299 494" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <!-- blade bulbs -->
+  <g fill="#eede9f">
+    <circle cx="248" cy="404" r="4"/><circle cx="249" cy="436" r="4"/><circle cx="250" cy="468" r="4"/><circle cx="250" cy="500" r="4"/><circle cx="251" cy="532" r="4"/><circle cx="252" cy="564" r="4"/><circle cx="252" cy="596" r="4"/><circle cx="253" cy="628" r="4"/>
+    <circle cx="280" cy="402" r="4"/><circle cx="281" cy="434" r="4"/><circle cx="282" cy="466" r="4"/><circle cx="282" cy="498" r="4"/><circle cx="283" cy="530" r="4"/><circle cx="284" cy="562" r="4"/><circle cx="284" cy="594" r="4"/><circle cx="285" cy="626" r="4"/>
+  </g>
+  <!-- ===================== MARQUEE (glowing, blank) ===================== -->
+  <path d="M28 700 L330 690 L344 762 L20 774 Z" fill="#eede9f"/>
+  <path d="M26 698 C120 693 240 689 328 689 M328 689 C334 712 339 736 343 760 M343 760 C240 764 120 769 22 772 M22 772 C23 748 24 722 26 698" fill="none" stroke="#2f2a24" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M30 722 C130 717 250 713 336 713 M26 748 C130 743 250 739 340 739" fill="none" stroke="#2f2a24" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+  <!-- marquee underside shadow + support -->
+  <path d="M24 776 C130 771 250 767 342 764 L344 782 C250 785 130 789 26 794 Z" fill="#8a6a52"/>
+  <path d="M24 776 L26 792 M342 764 L345 780 M26 792 C130 788 250 784 344 780" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- marquee bulb rows -->
+  <g fill="#f5efe1">
+    <circle cx="44" cy="708" r="4.5"/><circle cx="80" cy="706" r="4.5"/><circle cx="116" cy="704" r="4.5"/><circle cx="152" cy="703" r="4.5"/><circle cx="188" cy="701" r="4.5"/><circle cx="224" cy="700" r="4.5"/><circle cx="260" cy="698" r="4.5"/><circle cx="296" cy="697" r="4.5"/><circle cx="324" cy="696" r="4.5"/>
+    <circle cx="40" cy="762" r="4.5"/><circle cx="78" cy="760" r="4.5"/><circle cx="116" cy="758" r="4.5"/><circle cx="154" cy="756" r="4.5"/><circle cx="192" cy="754" r="4.5"/><circle cx="230" cy="752" r="4.5"/><circle cx="268" cy="750" r="4.5"/><circle cx="306" cy="749" r="4.5"/><circle cx="334" cy="748" r="4.5"/>
+  </g>
+  <!-- entrance below marquee, glowing doors -->
+  <path d="M60 800 L120 797 L122 900 L62 904 Z" fill="#e8c87a"/>
+  <path d="M150 796 L210 793 L212 896 L152 900 Z" fill="#eede9f"/>
+  <path d="M240 792 L298 789 L300 892 L242 896 Z" fill="#e8c87a"/>
+  <g fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round">
+    <path d="M58 800 C80 798 102 797 122 797 M122 797 L124 900 M60 802 L62 902"/>
+    <path d="M148 796 C170 794 192 793 212 793 M212 793 L214 896 M150 798 L152 898"/>
+    <path d="M238 792 C260 790 280 789 300 789 M300 789 L302 892 M240 794 L242 894"/>
+    <path d="M90 799 L92 900 M180 795 L182 897 M270 791 L272 893" stroke-width="2.5" opacity="0.6"/>
+  </g>
+  <!-- facade hatching -->
+  <g stroke="#2f2a24" stroke-width="1.8" stroke-linecap="round" opacity="0.3" fill="none">
+    <path d="M14 430 L34 424 M15 456 L35 450 M15 484 L36 478 M16 512 L36 506 M16 540 L37 534 M17 568 L37 562 M17 596 L38 590 M18 624 L38 618 M18 652 L39 646"/>
+    <path d="M232 700 L214 706 M236 716 L216 722 M240 732 L220 738"/>
+  </g>
+
+  <!-- ===================== STRING LIGHTS ===================== -->
+  <path d="M298 470 C340 502 390 518 426 520 M298 530 C346 566 396 582 430 584 M300 592 C350 630 400 646 432 648" fill="none" stroke="#2f2a24" stroke-width="2" stroke-linecap="round" opacity="0.65"/>
+  <g fill="#eede9f">
+    <circle cx="318" cy="486" r="5"/><circle cx="344" cy="500" r="5"/><circle cx="372" cy="510" r="5"/><circle cx="400" cy="516" r="5"/>
+    <circle cx="322" cy="550" r="5"/><circle cx="350" cy="566" r="5"/><circle cx="380" cy="576" r="5"/><circle cx="408" cy="582" r="5"/>
+    <circle cx="326" cy="614" r="5"/><circle cx="356" cy="632" r="5"/><circle cx="386" cy="641" r="5"/><circle cx="414" cy="646" r="5"/>
+  </g>
+  <g fill="#e8c87a" opacity="0.35">
+    <circle cx="318" cy="486" r="10"/><circle cx="372" cy="510" r="10"/><circle cx="350" cy="566" r="10"/><circle cx="408" cy="582" r="10"/><circle cx="326" cy="614" r="10"/><circle cx="386" cy="641" r="10"/>
+  </g>
+
+  <!-- ===================== STREET + SIDEWALK ===================== -->
+  <path d="M0 916 L640 900 L640 1136 L0 1136 Z" fill="url(#street)"/>
+  <path d="M0 916 C110 911 300 905 470 902 C530 901 590 900 640 900" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <!-- sidewalk strip -->
+  <path d="M0 916 L640 900 L640 934 L0 952 Z" fill="#9aa4a4" opacity="0.7"/>
+  <path d="M0 950 C160 942 380 934 640 932" fill="none" stroke="#2f2a24" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <!-- warm light pooling on street -->
+  <path d="M60 970 C140 962 260 958 330 962 C300 1010 260 1070 240 1130 C160 1130 90 1130 40 1130 C44 1074 50 1020 60 970 Z" fill="#e8c87a" opacity="0.28"/>
+  <path d="M440 940 C480 937 540 935 580 936 C572 990 566 1050 562 1110 C520 1112 480 1114 450 1116 C446 1056 442 996 440 940 Z" fill="#e8c87a" opacity="0.18"/>
+  <!-- street reflection strokes -->
+  <g fill="none" stroke="#eede9f" stroke-linecap="round" opacity="0.5">
+    <path d="M120 1000 C122 1024 124 1048 128 1072 M180 990 C182 1020 184 1052 188 1084 M250 984 C250 1010 251 1038 252 1064 M300 1000 C298 1030 296 1062 296 1092" stroke-width="3.5"/>
+    <path d="M480 970 C482 998 484 1028 486 1056 M540 964 C540 992 541 1022 542 1050" stroke-width="3"/>
+  </g>
+  <g fill="none" stroke="#2f2a24" stroke-linecap="round" opacity="0.4">
+    <path d="M20 1024 C120 1016 280 1010 420 1008 M436 1008 C500 1006 570 1006 636 1006" stroke-width="3"/>
+    <path d="M0 1096 C150 1086 340 1080 520 1080 M536 1080 C572 1080 608 1081 640 1082" stroke-width="3.5"/>
+  </g>
+
+  <!-- ===================== CROWD ===================== -->
+  <g stroke="#2f2a24" stroke-linecap="round" fill="none">
+    <!-- group under marquee -->
+    <circle cx="96" cy="856" r="10" fill="#2f2a24" stroke="none"/>
+    <path d="M96 867 C95 888 94 906 93 922 M93 922 L84 956 M94 922 L103 954 M90 880 L80 900 M102 880 L112 898" stroke-width="4.5"/>
+    <circle cx="134" cy="862" r="9" fill="#2f2a24" stroke="none"/>
+    <path d="M134 872 C134 892 134 908 134 922 M134 922 L127 954 M135 922 L142 954 M129 884 L120 902 M139 884 L148 900" stroke-width="4"/>
+    <circle cx="196" cy="854" r="10" fill="#2f2a24" stroke="none"/>
+    <path d="M196 865 C195 886 194 904 194 920 M194 920 L185 954 M195 920 L204 952 M190 878 L181 898 M202 878 L211 896" stroke-width="4.5"/>
+    <circle cx="232" cy="860" r="8" fill="#2f2a24" stroke="none"/>
+    <path d="M232 869 C232 888 232 904 232 918 M232 918 L226 948 M233 918 L240 948 M228 880 L220 896 M236 880 L244 895" stroke-width="3.5"/>
+    <!-- child holding hand -->
+    <circle cx="258" cy="884" r="6" fill="#2f2a24" stroke="none"/>
+    <path d="M258 891 C258 904 258 914 258 922 M258 922 L253 944 M258 922 L264 944 M254 898 L246 890 M262 898 L268 906" stroke-width="3"/>
+    <!-- couple crossing street right -->
+    <circle cx="404" cy="880" r="9" fill="#2f2a24" stroke="none"/>
+    <path d="M404 890 C403 910 402 926 402 940 M402 940 L392 974 M403 940 L413 972 M398 902 L389 920 M410 902 L420 918" stroke-width="4"/>
+    <circle cx="438" cy="884" r="8" fill="#2f2a24" stroke="none"/>
+    <path d="M438 893 C438 912 438 928 438 940 M438 940 L431 972 M439 940 L447 970 M433 904 L425 920 M443 904 L451 918" stroke-width="3.5"/>
+    <!-- figures by shopfront right -->
+    <circle cx="502" cy="872" r="8" fill="#2f2a24" stroke="none"/>
+    <path d="M502 881 C502 900 502 916 502 928 M502 928 L496 958 M503 928 L510 956 M498 892 L490 908 M506 892 L514 906" stroke-width="3.5"/>
+    <circle cx="532" cy="876" r="7" fill="#2f2a24" stroke="none"/>
+    <path d="M532 884 C532 900 532 914 532 926 M532 926 L527 954 M533 926 L539 952 M528 894 L522 908 M536 894 L542 906" stroke-width="3"/>
+    <!-- distant small figures center -->
+    <circle cx="348" cy="852" r="6" fill="#2f2a24" stroke="none"/>
+    <path d="M348 859 C348 872 348 882 348 890 M348 890 L343 910 M348 890 L354 910 M344 866 L338 876 M352 866 L358 876" stroke-width="3"/>
+    <circle cx="374" cy="856" r="5" fill="#2f2a24" stroke="none"/>
+    <path d="M374 862 C374 874 374 882 374 890 M374 890 L370 906 M374 890 L379 906" stroke-width="2.5"/>
+  </g>
+  <!-- warm rim light on crowd -->
+  <path d="M88 852 C92 846 100 844 106 848 M188 850 C192 844 200 842 206 846 M396 876 C400 870 408 868 414 872" fill="none" stroke="#e8c87a" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- lamppost foreground right -->
+  <path d="M606 668 C607 780 608 920 610 1090" fill="none" stroke="#2f2a24" stroke-width="5" stroke-linecap="round"/>
+  <path d="M606 668 C594 664 586 654 586 642 C586 630 596 620 608 620 C620 620 630 630 630 642 C630 654 621 664 610 668" fill="none" stroke="#2f2a24" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="608" cy="643" r="17" fill="#eede9f"/>
+  <circle cx="608" cy="643" r="30" fill="#e8c87a" opacity="0.3"/>
+  <path d="M598 1088 C606 1084 614 1084 622 1088" fill="none" stroke="#2f2a24" stroke-width="4" stroke-linecap="round"/>
+  <!-- ink speckles -->
+  <g fill="#2f2a24">
+    <circle cx="356" cy="760" r="1.5" opacity="0.5"/>
+    <circle cx="66" cy="640" r="1.4" opacity="0.5"/>
+    <circle cx="470" cy="880" r="1.6" opacity="0.45"/>
+    <circle cx="210" cy="1064" r="1.5" opacity="0.4"/>
+    <circle cx="560" cy="1044" r="1.4" opacity="0.45"/>
+    <circle cx="330" cy="928" r="1.3" opacity="0.5"/>
+    <circle cx="150" cy="988" r="1.5" opacity="0.4"/>
+  </g>
+</svg>

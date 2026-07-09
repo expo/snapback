@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 1136">
+<defs>
+<radialGradient id="g1"><stop offset="0" stop-color="#ecc96e" stop-opacity=".9"/><stop offset=".55" stop-color="#ecc96e" stop-opacity=".32"/><stop offset="1" stop-color="#ecc96e" stop-opacity="0"/></radialGradient>
+<linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a3bac9"/><stop offset="1" stop-color="#d2dad6"/></linearGradient>
+</defs>
+<rect width="640" height="1136" fill="#f5efe1"/>
+<!-- sky wash -->
+<path d="M0 0 H640 V450 C602 456 566 445 528 451 C486 458 450 446 412 452 C372 458 336 447 298 452 C256 458 220 447 182 452 C142 458 104 448 64 453 C40 456 16 449 0 453 Z" fill="url(#sky1)" opacity=".92"/>
+<path d="M84 148 C96 126 138 116 168 124 C188 106 232 104 254 120 C282 112 306 126 304 144 C300 160 274 168 246 164 C222 176 184 176 160 166 C128 174 94 166 84 152 Z" fill="#f5efe1" opacity=".8"/>
+<path d="M400 214 C412 198 446 192 470 199 C488 187 520 188 534 200 C552 196 566 206 564 218 C560 230 538 235 516 232 C496 240 466 240 448 233 C424 238 402 230 400 219 Z" fill="#f5efe1" opacity=".7"/>
+<!-- distant tree band behind trains -->
+<path d="M0 470 C64 462 128 471 192 465 C266 459 338 469 410 463 C486 457 562 467 640 461 V608 H0 Z" fill="#9aa88a" opacity=".55"/>
+<!-- track ballast band -->
+<path d="M0 858 C110 852 220 860 330 855 C440 850 545 858 640 853 V908 H0 Z" fill="#6b6154" opacity=".7"/>
+<!-- canopy fills, off-register -->
+<path d="M-14 386 C86 368 204 358 326 357 C446 356 558 365 654 382 L654 430 C558 413 446 405 326 406 C204 407 86 415 -14 432 Z" fill="#b8b2a4"/>
+<path d="M-14 428 C86 411 204 403 326 402 C446 401 558 410 654 426 L654 450 C558 434 446 426 326 427 C204 428 86 436 -14 452 Z" fill="#8f887a" opacity=".85"/>
+<!-- columns fills -->
+<path d="M18 434 L38 433 L36 902 L20 903 Z" fill="#b8b2a4"/>
+<path d="M314 432 L332 432 L330 884 L312 884 Z" fill="#b8b2a4"/>
+<path d="M602 433 L620 434 L622 902 L604 901 Z" fill="#b8b2a4"/>
+<!-- left train (Caltrain) fills -->
+<path d="M64 880 L64 616 C64 585 80 569 110 567 L254 567 C284 569 300 586 300 617 L300 880 Z" fill="#dad3c2"/>
+<path d="M76 566 C120 556 240 556 288 566 L288 580 C240 572 120 572 76 580 Z" fill="#8f887a"/>
+<path d="M102 600 C142 592 218 592 260 600 L252 664 C214 657 148 657 110 664 Z" fill="#7d97ab"/>
+<path d="M70 706 C146 700 224 700 296 706 L296 748 C224 742 146 742 70 748 Z" fill="#c07352"/>
+<path d="M72 838 C148 834 226 834 294 838 L292 880 L74 880 Z" fill="#6b6154" opacity=".85"/>
+<circle cx="108" cy="782" r="12" fill="#e8c86a"/>
+<circle cx="252" cy="782" r="12" fill="#e8c86a"/>
+<!-- right train (BART) fills -->
+<path d="M348 880 L348 622 C348 594 360 580 386 578 L546 578 C574 580 588 595 588 624 L588 880 Z" fill="#ece5d2"/>
+<path d="M360 578 C420 570 516 570 578 578 L578 592 C516 584 420 584 360 592 Z" fill="#8f887a"/>
+<path d="M382 610 C424 604 508 604 550 610 L544 664 C506 658 428 658 388 664 Z" fill="#4c5560"/>
+<path d="M354 678 C430 672 508 672 584 678 L584 714 C508 708 430 708 354 714 Z" fill="#7d97ab"/>
+<path d="M356 840 C430 836 510 836 582 840 L580 880 L358 880 Z" fill="#6b6154" opacity=".85"/>
+<circle cx="384" cy="756" r="11" fill="#e8c86a"/>
+<circle cx="552" cy="756" r="11" fill="#e8c86a"/>
+<!-- platform fills -->
+<path d="M0 902 C106 897 212 903 318 899 C424 896 530 902 640 898 V1136 H0 Z" fill="#ded4bd"/>
+<path d="M0 912 C110 907 220 912 330 908 C440 905 545 910 640 906 L640 934 C540 938 436 933 330 936 C224 940 112 935 0 940 Z" fill="#c9a24b" opacity=".9"/>
+<!-- ink work -->
+<g stroke="#2f2a24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<!-- canopy edges -->
+<path d="M-10 392 C48 382 106 375 164 369 C222 364 280 361 322 360" stroke-width="4.5"/>
+<path d="M354 360 C420 361 488 366 546 372 C588 377 620 382 648 388" stroke-width="4.2"/>
+<path d="M-10 450 C60 440 132 433 204 429 C244 427 282 426 314 426" stroke-width="3.4"/>
+<path d="M346 426 C420 426 494 430 560 437 C592 440 622 445 648 449" stroke-width="3.6"/>
+<path d="M-8 420 C70 409 160 402 250 399" stroke-width="2.5" opacity=".55"/>
+<path d="M380 399 C468 401 552 408 632 418" stroke-width="2.5" opacity=".55"/>
+<!-- fascia hatch -->
+<path d="M58 434 C57 440 59 446 58 451 M118 430 C117 437 119 443 118 448 M178 427 C177 434 179 440 178 445 M238 425 C237 432 239 438 238 443 M410 425 C409 432 411 438 410 443 M470 428 C469 435 471 441 470 446 M530 431 C529 438 531 444 530 449 M586 435 C585 441 587 447 586 452" stroke-width="2.5" opacity=".5"/>
+<!-- columns -->
+<path d="M21 438 C22 512 20 588 21 664 C22 742 20 820 21 896" stroke-width="3.2"/>
+<path d="M35 437 C34 514 36 592 35 670 C34 748 36 824 35 898" stroke-width="3"/>
+<path d="M311 434 C312 500 310 566 311 632 C312 700 310 768 311 836 C311 852 311 866 311 880" stroke-width="3.2"/>
+<path d="M329 434 C328 505 330 574 329 645 C328 716 330 788 329 858 C329 866 329 874 329 880" stroke-width="3"/>
+<path d="M605 437 C606 512 604 590 605 668 C606 746 604 822 605 896" stroke-width="3.2"/>
+<path d="M619 438 C618 516 620 594 619 672 C618 750 620 826 619 898" stroke-width="3"/>
+<!-- catenary and pantograph -->
+<path d="M42 492 C86 494 130 491 174 493 C218 495 260 492 296 493" stroke-width="2.5" opacity=".85"/>
+<path d="M60 454 C59 466 61 478 60 490 M250 452 C249 465 251 478 250 490" stroke-width="2.5" opacity=".7"/>
+<path d="M148 556 C158 536 168 516 176 496 M204 556 C194 538 186 518 178 497 M164 494 C173 493 183 493 192 492" stroke-width="3"/>
+<!-- left train outline -->
+<path d="M62 878 C60 842 63 808 61 774 C59 740 62 708 60 676 C59 650 61 628 62 612 C63 592 72 578 88 572" stroke-width="4.6"/>
+<path d="M96 568 C142 561 200 560 256 564" stroke-width="4.2"/>
+<path d="M264 566 C282 570 294 583 296 604 C298 630 296 656 297 684 C298 720 296 754 297 788 C298 820 297 850 297 876" stroke-width="4.4"/>
+<path d="M290 880 C220 884 150 884 70 881" stroke-width="3.8"/>
+<path d="M80 560 C130 551 232 551 284 560" stroke-width="3" opacity=".8"/>
+<path d="M97 597 C140 589 220 589 263 597 M258 599 C255 620 253 642 250 661 M250 661 C212 654 150 654 106 661 M104 659 C102 640 100 618 98 600" stroke-width="3.2"/>
+<path d="M66 702 C140 696 230 696 298 702 M66 744 C140 738 230 738 298 744" stroke-width="3"/>
+<path d="M97 780 C97 772 103 767 111 768 C119 769 123 776 121 784 C119 791 111 794 104 792 C99 790 96 786 97 781" stroke-width="3"/>
+<path d="M241 780 C241 772 247 767 255 768 C263 769 267 776 265 784 C263 791 255 794 248 792 C243 790 240 786 241 781" stroke-width="3"/>
+<path d="M74 834 C150 829 230 829 292 834" stroke-width="2.8" opacity=".8"/>
+<path d="M172 880 C172 885 172 890 172 894 M172 894 C179 895 187 895 194 894 M194 894 C194 890 194 885 194 880" stroke-width="3"/>
+<path d="M92 848 C97 855 102 862 107 869 M116 846 C121 853 126 861 131 868 M232 846 C237 853 242 861 247 868 M256 848 C261 855 266 862 271 869" stroke-width="2.5" opacity=".55"/>
+<!-- right train outline -->
+<path d="M346 878 C344 844 347 810 345 776 C343 742 346 710 344 678 C343 654 345 636 346 622 C347 602 355 588 372 582" stroke-width="4.5"/>
+<path d="M380 580 C428 573 500 573 542 576" stroke-width="4.2"/>
+<path d="M552 578 C570 582 582 595 584 616 C586 646 584 676 585 708 C586 744 584 778 585 812 C586 836 585 858 585 876" stroke-width="4.4"/>
+<path d="M578 880 C510 884 440 884 356 881" stroke-width="3.8"/>
+<path d="M364 572 C418 564 518 564 574 572" stroke-width="3" opacity=".8"/>
+<path d="M378 606 C422 599 510 599 554 606 M552 608 C550 626 548 646 546 662 M546 662 C506 655 428 655 384 662 M382 660 C380 643 379 624 378 608" stroke-width="3.2"/>
+<path d="M350 674 C428 668 510 668 588 674 M350 710 C428 704 510 704 588 710" stroke-width="3"/>
+<path d="M468 620 C467 660 469 700 468 740 C467 776 468 806 468 836" stroke-width="2.5" opacity=".7"/>
+<path d="M374 754 C374 747 379 742 386 743 C393 744 397 750 395 757 C393 763 386 766 380 764 C376 762 373 759 374 755" stroke-width="3"/>
+<path d="M542 754 C542 747 547 742 554 743 C561 744 565 750 563 757 C561 763 554 766 548 764 C544 762 541 759 542 755" stroke-width="3"/>
+<path d="M358 836 C432 831 512 831 580 836" stroke-width="2.8" opacity=".8"/>
+<path d="M376 848 C381 855 386 862 391 869 M400 846 C405 853 410 861 415 868 M520 846 C525 853 530 861 535 868 M544 848 C549 855 554 862 559 869" stroke-width="2.5" opacity=".55"/>
+<!-- gap shadow hatch behind middle column -->
+<path d="M303 640 C302 660 304 680 303 700 M338 660 C337 682 339 704 338 726 M304 760 C303 782 305 804 304 826" stroke-width="2.5" opacity=".4"/>
+<!-- platform edge and tactile -->
+<path d="M0 900 C90 896 180 901 270 898" stroke-width="4"/>
+<path d="M300 897 C412 894 526 899 640 896" stroke-width="3.8"/>
+<path d="M2 938 C110 933 218 938 326 934 M356 933 C450 930 546 934 638 931" stroke-width="2.6" opacity=".7"/>
+<path d="M40 922 C40 922 40 923 40 923 M92 920 C92 920 92 921 92 921 M144 919 C144 919 144 920 144 920 M196 918 C196 918 196 919 196 919 M248 917 C248 917 248 918 248 918 M392 915 C392 915 392 916 392 916 M444 914 C444 914 444 915 444 915 M496 913 C496 913 496 914 496 914 M548 913 C548 913 548 914 548 914 M600 912 C600 912 600 913 600 913" stroke-width="4.5" opacity=".6"/>
+<!-- platform joints -->
+<path d="M126 950 C122 1012 127 1074 122 1134" stroke-width="2.5" opacity=".4"/>
+<path d="M262 948 C259 1010 263 1072 258 1134" stroke-width="2.5" opacity=".4"/>
+<path d="M402 947 C405 1009 401 1071 407 1134" stroke-width="2.5" opacity=".4"/>
+<path d="M538 948 C542 1010 537 1072 544 1134" stroke-width="2.5" opacity=".4"/>
+<!-- shadow hatch on platform under trains -->
+<path d="M110 906 C118 916 126 926 134 936 M150 905 C158 915 166 925 174 935 M190 904 C198 914 206 924 214 934 M230 904 C238 914 246 924 254 934 M400 903 C408 913 416 923 424 933 M440 902 C448 912 456 922 464 932 M480 902 C488 912 496 922 504 932 M520 901 C528 911 536 921 544 931" stroke-width="2.5" opacity=".45"/>
+<path d="M420 1060 C432 1074 444 1088 456 1102 M452 1054 C464 1068 476 1082 488 1096" stroke-width="2.5" opacity=".3"/>
+<!-- lamp posts -->
+<path d="M78 1136 C76 1090 79 1044 77 998 C76 976 77 958 77 946" stroke-width="4.6"/>
+<path d="M60 946 C71 941 85 941 96 945" stroke-width="3.4"/>
+<path d="M66 928 C66 921 71 916 78 916 C85 916 90 921 89 929 C88 936 82 940 76 939 C70 938 65 934 66 929" stroke-width="3"/>
+<path d="M566 1136 C568 1092 565 1048 567 1004 C568 982 567 964 567 952" stroke-width="4.6"/>
+<path d="M550 952 C561 947 575 947 586 951" stroke-width="3.4"/>
+<path d="M556 934 C556 927 561 922 568 922 C575 922 580 927 579 935 C578 942 572 946 566 945 C560 944 555 940 556 935" stroke-width="3"/>
+<!-- distant scribble trees at edges -->
+<path d="M6 512 C14 500 28 500 34 510 C44 506 52 514 48 524 C56 528 52 540 42 540 C34 548 18 546 14 538 C4 538 0 526 6 518" stroke-width="2.5" opacity=".5"/>
+</g>
+<!-- ceiling lights -->
+<circle cx="100" cy="456" r="24" fill="url(#g1)"/><circle cx="100" cy="454" r="6" fill="#e0b45a"/>
+<circle cx="215" cy="452" r="24" fill="url(#g1)"/><circle cx="215" cy="450" r="6" fill="#e0b45a"/>
+<circle cx="425" cy="452" r="24" fill="url(#g1)"/><circle cx="425" cy="450" r="6" fill="#e0b45a"/>
+<circle cx="540" cy="456" r="24" fill="url(#g1)"/><circle cx="540" cy="454" r="6" fill="#e0b45a"/>
+<!-- lamp glows -->
+<circle cx="77" cy="928" r="30" fill="url(#g1)"/><circle cx="77" cy="928" r="8" fill="#e8c86a"/>
+<circle cx="567" cy="934" r="30" fill="url(#g1)"/><circle cx="567" cy="934" r="8" fill="#e8c86a"/>
+<circle cx="108" cy="782" r="20" fill="url(#g1)"/>
+<circle cx="252" cy="782" r="20" fill="url(#g1)"/>
+<circle cx="384" cy="756" r="18" fill="url(#g1)"/>
+<circle cx="552" cy="756" r="18" fill="url(#g1)"/>
+<!-- ink speckles -->
+<g fill="#2f2a24" opacity=".5">
+<circle cx="388" cy="472" r="1.6"/><circle cx="56" cy="524" r="1.3"/><circle cx="626" cy="708" r="1.7"/><circle cx="342" cy="1052" r="1.4"/><circle cx="180" cy="1090" r="1.8"/><circle cx="470" cy="990" r="1.2"/><circle cx="292" cy="516" r="1.3"/><circle cx="606" cy="330" r="1.2"/><circle cx="40" cy="336" r="1.4"/><circle cx="520" cy="1118" r="1.6"/>
+</g>
+</svg>
