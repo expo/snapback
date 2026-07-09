@@ -790,3 +790,28 @@ and propagates. Non-configured query cells stay `[]` in both modes, and the
 push path is unchanged (no polling; fan-out owns the boundary). Gated by
 `packages/snapback-contract/multi-live-poll-reconcile.test.mjs` (plain node,
 mock client/runtime).
+
+
+### 10.7 Render-first surface mode (2026-07-09, ENG-23736)
+
+The adapter treated the connection as a precondition: construction awaited
+every live snapshot-with-subscribe before returning links, and the generated
+per-binding modules throw when links are read before configuration — so an
+app that wants a useful first paint from bundled/deterministic data (All
+Aboard's board-first startup, ENG-23727) had to hand-roll a forwarding-links
+shim. That shim is now the package's render-first mode
+(`packages/snapback-contract/render-first.mjs`):
+`createRenderFirstSnapbackContractSurface(options)` returns synchronously —
+query links hand the runtime forwarding handles that stay silent (binding
+holds `pending`, the `.contract`'s `loading` arm renders), mutation links
+queue, ephemeral map links stay silent — while connection, an app-supplied
+`connect` preflight (health/ensure; D4 stays app-owned), and subscription
+establishment run in the background on capped backoff (1s doubling to 15s).
+Bindings go live in place when the real surface attaches. Transient failures
+retry forever behind the app's bundled-data UI (`onRetry` hook per attempt);
+a structured contract diagnostic is a build defect — `attached` rejects
+immediately with no retry, but the handle still returns mountable links so
+the app paints either way. A dispose racing a late-succeeding construction
+disposes the fresh surface rather than leaking it (the §10.5 posture).
+Gated by `packages/snapback-contract/render-first.test.mjs`; All Aboard's
+`deferred-links.ts` shim is deleted in favor of this mode.

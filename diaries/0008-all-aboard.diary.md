@@ -1345,3 +1345,51 @@ Re-porting each redesign would roughly double the demo's UI work for no new
 comparison signal. If a future gate wants a fresh apples-to-apples run, that
 is a new re-baseline issue (the freeze note says exactly that), and the
 re-baseline cost is itself a data point the diary should then record.
+
+## 2026-07-09 — the deferred-links shim moves into the adapter (ENG-23736)
+
+The ENG-23727 entry above ends on the friction that mattered: mount-before-
+connect required ~100 lines of hand-rolled deferred-links glue every
+offline-tolerant Snapback app would copy verbatim. That glue is now the
+adapter's job. `@snapback/contract` grew a render-first mode
+(`packages/snapback-contract/render-first.mjs`, re-exported from the package
+root):
+
+- `createRenderFirstSnapbackContractSurface(options)` takes the same options
+  as `createSnapbackContractSurface` plus a `connect` hook (the app's
+  health/ensure preflight — D4 semantics stay app-owned facts) and `onRetry`,
+  and returns **synchronously**: `links` (every manifest binding, queries
+  pending, mutations queued, ephemeral maps silent), `attached`
+  (promise of the real surface), `surface()`, `diagnostics`,
+  `onFirstDelivery`, `dispose`. Connection, ensure, and subscription
+  establishment run behind the mounted app on the same 1s→15s capped backoff
+  All Aboard shipped with; bindings go live in place on attach.
+- Failure posture is split honestly: transient errors retry forever behind
+  the bundled-data UI; a structured contract diagnostic (stale generated
+  artifacts) is a build defect — it rejects `attached` immediately, retries
+  nothing, and still hands back mountable links, so the app paints either
+  way instead of dying at module scope.
+- `main.ts` here dropped `deferred-links.ts` (deleted) and `connectBackend`
+  for a single `createRenderFirstSnapbackContractSurface` call; the ensure
+  facts (`provisioned`) move into the `connect` hook, the offline pill into
+  `onRetry`, and HMR teardown is one `renderFirst.dispose()`.
+- A dispose that races a late-succeeding construction disposes the freshly
+  established surface (live subscriptions, receipt listener) instead of
+  leaking it — the same ENG-23383 posture the base adapter has.
+
+Ergonomics note for the comparison ledger: this is the second time an All
+Aboard product requirement (paint like a webpage) turned into adapter
+surface. The pattern held: prove the behavior in the app with a shim, then
+promote the shim wholesale — the adapter version is the shim plus the retry
+loop and teardown discipline the app copy had accreted anyway. What a React +
+Convex app gets implicitly (queries just render `loading` until the socket
+is up) Snapback's Contract path now gets as one entry point.
+
+Verification: package suite 8/8 files green including the new
+`render-first.test.mjs` (sync links, silent-until-attach forwarding, queued
+mutations, backoff schedule, diagnostic-no-retry, dispose-races-construction,
+promise-shaped runtime, ephemeral forwarding); browser 24/24 on the adapter
+path — the ENG-23727 startup checks measured board paint at 233 ms vs backend
+attach at 295 ms with code-to-board 42 ms (inside the 100 ms budget), and the
+backend-unreachable open still rendered the honestly-labeled schedule board;
+browser-react 18/18, contract-live 2/2, headless 12/12, `ref-check` clean.

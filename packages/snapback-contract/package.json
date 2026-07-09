@@ -4,12 +4,13 @@
   "type": "module",
   "exports": {
     ".": "./index.mjs",
+    "./render-first": "./render-first.mjs",
     "./build-preset": "./build-preset.mjs",
     "./exact-conformance": "./exact-conformance.mjs",
     "./exact-package": "./exact-package.mjs",
     "./exact-project-check": "./exact-project-check.mjs"
   },
   "scripts": {
-    "test": "node index.test.mjs && node build-preset.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs && node multi-live-poll-reconcile.test.mjs && node ephemeral-resubscribe-race.test.mjs"
+    "test": "node index.test.mjs && node build-preset.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs && node multi-live-poll-reconcile.test.mjs && node ephemeral-resubscribe-race.test.mjs && node render-first.test.mjs"
   }
 }

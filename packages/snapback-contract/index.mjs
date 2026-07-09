@@ -10,6 +10,11 @@
 export const SNAPBACK_CONTRACT_ADAPTER_VERSION = 1;
 export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 
+// Render-first mode (ENG-23736): links synchronously, backend attaches behind
+// the mounted app. Lives in ./render-first.mjs; re-exported so the package
+// root stays the single import site.
+export { createDeferredContractLinks, createRenderFirstSnapbackContractSurface } from './render-first.mjs';
+
 // Contract data manifest versions this adapter accepts. v2 (LLP 0034 D3) is an
 // additive extension of v1 per Exact LLP 0284 §2.4: old fields remain valid
 // inputs, so v1 manifests keep working unmodified.

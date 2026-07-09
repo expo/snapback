@@ -10,9 +10,11 @@
 // from the deterministic schedule shipped in the bundle — first paint is
 // already a useful train board, never a boot/provision/connect sequence.
 // Backend work (health, ensure, live-subscribe) runs BEHIND the board through
-// deferred links (./deferred-links.ts): the query bindings hold 'pending'
-// (the .contract's `loading` arm renders the schedule board with an honest
-// status note) until the real surface attaches and live rows stream in.
+// the adapter's render-first mode (ENG-23736): links return synchronously,
+// the query bindings hold 'pending' (the .contract's `loading` arm renders
+// the schedule board with an honest status note) until the surface attaches
+// and live rows stream in. The hand-rolled deferred-links shim this surface
+// used to carry is deleted — the adapter owns that behavior now.
 //
 // The backend phase is still D4-shaped (LLP 0034 §5): connect + health +
 // inspect-first provisioning — schema/functions load ONLY when inspection
@@ -22,10 +24,11 @@
 // live session (the LLP 0275 C4 footgun). Deferring it changes when it runs,
 // not what it does.
 
+import * as contractRuntime from '@exact/contract/runtime';
 import { mount, reset } from '@exact/contract/runtime';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
-import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
+import { createRenderFirstSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
 import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
@@ -35,13 +38,11 @@ import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
-import { createDeferredContractLinks } from './deferred-links';
 import { installGestures } from './gestures';
 import { installDirections } from './directions';
 import { setBackendState, setDeviceLocation, setRouteEstimateInvoker } from './data';
 import app from './app.contract';
 
-let activeSurface: { dispose?: () => void } | null = null;
 let disposeGestures: (() => void) | null = null;
 let disposeDirections: (() => void) | null = null;
 let disposeRefreshAction: (() => void) | null = null;
@@ -256,48 +257,6 @@ async function mountBoard(client: SnapbackClient): Promise<void> {
   void watchLocation();
 }
 
-// Backend attach, behind the board: health + the single idempotent
-// mount-lifecycle ensure (LLP 0034 §5 / ENG-22527 — the server inspects,
-// provisions only what is missing, seeds only when the schedule tables are
-// empty) + the generated Contract adapter with live push (LLP 0034 D1).
-// Transient failures (server down, network) retry on capped backoff while the
-// board keeps showing scheduled departures under an honest note; a structured
-// contract diagnostic (stale generated artifacts) is a build defect, not an
-// outage, and fails loudly instead of retrying forever.
-async function connectBackend(client: SnapbackClient): Promise<{
-  provisioned: string[];
-  surface: Awaited<ReturnType<typeof createSnapbackContractSurface>>;
-}> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      await client.health();
-      const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
-      const provisioned = [
-        ensured.schema === 'provisioned' ? 'schema' : null,
-        ensured.functions === 'provisioned' ? 'functions' : null,
-        ensured.seed === 'seeded' ? 'seed' : null,
-      ].filter((action): action is string => action !== null);
-
-      const surface = await createSnapbackContractSurface({
-        runtime: await import('@exact/contract/runtime'),
-        client,
-        manifest: contractDataManifest,
-        artifactIndex,
-        schemaManifest,
-        functionManifest: functionsManifest,
-        liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
-      });
-      return { provisioned, surface };
-    } catch (error) {
-      if ((error as { diagnostic?: unknown }).diagnostic) throw error;
-      setBackendState('offline');
-      const delayMs = Math.min(15_000, 1_000 * 2 ** Math.min(attempt, 4));
-      console.warn(`[all-aboard] backend connect failed (attempt ${attempt + 1}); retrying in ${delayMs}ms`, error);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-  }
-}
-
 const client = new SnapbackClient(snapbackBaseUrl());
 setRouteEstimateInvoker(async (args) => {
   const run = await client.action('routeEstimate', { args });
@@ -308,27 +267,49 @@ setRouteEstimateInvoker(async (args) => {
   return run.result ?? {};
 });
 
-// Deferred links stand in for the adapter until the backend attaches: the
-// generated bindings resolve immediately, queries hold 'pending', mutations
-// queue. The one links configuration survives for the app's lifetime — the
-// shim forwards to the real surface after attach.
-const deferredLinks = createDeferredContractLinks({
-  queries: Object.entries((contractDataManifest as { queries?: Record<string, { ephemeral?: boolean }> }).queries ?? {})
-    .filter(([, descriptor]) => descriptor?.ephemeral !== true)
-    .map(([name]) => name),
-  mutations: Object.keys((contractDataManifest as { mutations?: Record<string, unknown> }).mutations ?? {}),
+// Backend attach, behind the board (ENG-23736): the adapter's render-first
+// mode returns links synchronously (queries hold 'pending', mutations queue)
+// and runs the backend phase behind them — the D4-shaped health + single
+// idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527: the server
+// inspects, provisions only what is missing, seeds only when the schedule
+// tables are empty) via the `connect` hook, then the generated Contract
+// surface with live push (LLP 0034 D1). Transient failures (server down,
+// network) retry on capped backoff while the board keeps showing scheduled
+// departures under an honest note; a structured contract diagnostic (stale
+// generated artifacts) is a build defect, not an outage, and fails loudly
+// instead of retrying forever.
+let provisioned: string[] = [];
+const renderFirst = createRenderFirstSnapbackContractSurface({
+  runtime: contractRuntime,
+  client,
+  manifest: contractDataManifest,
+  artifactIndex,
+  schemaManifest,
+  functionManifest: functionsManifest,
+  liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
+  connect: async () => {
+    await client.health();
+    const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+    provisioned = [
+      ensured.schema === 'provisioned' ? 'schema' : null,
+      ensured.functions === 'provisioned' ? 'functions' : null,
+      ensured.seed === 'seeded' ? 'seed' : null,
+    ].filter((action): action is string => action !== null);
+  },
+  onRetry: (error, { attempt, delayMs }) => {
+    setBackendState('offline');
+    console.warn(`[all-aboard] backend connect failed (attempt ${attempt + 1}); retrying in ${delayMs}ms`, error);
+  },
 });
-configureSnapbackContractLinks(deferredLinks.links as never);
-deferredLinks.onFirstDelivery(() => {
+configureSnapbackContractLinks(renderFirst.links as never);
+renderFirst.onFirstDelivery(() => {
   timing.liveDataAppliedMs = performance.now();
   logTiming('live data applied', timing.liveDataAppliedMs);
 });
 
 const ready = (async () => {
   await mountBoard(client);
-  const { provisioned, surface } = await connectBackend(client);
-  activeSurface = surface;
-  deferredLinks.attach(surface.links as never);
+  const surface = await renderFirst.attached;
   setBackendState('connected');
   timing.backendConnectedMs = performance.now();
   logTiming('backend connected', timing.backendConnectedMs);
@@ -366,9 +347,7 @@ if (import.meta.hot) {
     disposeDirections = null;
     disposeLocationRequest = null;
     setRouteEstimateInvoker(null);
-    deferredLinks.dispose();
-    activeSurface?.dispose?.();
-    activeSurface = null;
+    renderFirst.dispose();
     resetSnapbackContractLinks();
     reset();
   });
