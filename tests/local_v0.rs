@@ -794,7 +794,7 @@ fn permission_epoch_scope_failure_rejects_before_any_write() {
         },
         read_set: Vec::new(),
         correlation: None,
-    };
+        ctx_ledger: None,    };
     let (result, receipt) =
         snapback.invoke_mutation_recording("createWithEpochBump", unauthenticated);
     let error = result.expect_err("unevaluable permission scope must reject the mutation");
@@ -1294,7 +1294,7 @@ fn read_set_conflict_rejects_stale_mutation() {
             version: observed_version,
         }],
         correlation: None,
-    };
+        ctx_ledger: None,    };
     let error = snapback
         .invoke_mutation("setCompleted", stale)
         .expect_err("stale read set should conflict");
@@ -1341,10 +1341,12 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
 
     let mut concurrent = LocalSnapback::open(&db_path).expect("open concurrent snapback");
     concurrent.load_functions(todo_functions());
+    // Flip completed to a NEW value so the first handler's visibility poll
+    // observes the commit (the row starts at completed=false).
     concurrent
         .invoke_mutation(
             "setCompleted",
-            input(json!({ "id": todo_id, "completed": false }), "user_1"),
+            input(json!({ "id": todo_id, "completed": true }), "user_1"),
         )
         .expect("concurrent patch");
 
@@ -1403,7 +1405,7 @@ fn e3_hostplan_conflict_uses_client_baseline() {
             version: v0,
         }],
         correlation: None,
-    };
+        ctx_ledger: None,    };
     let error = snapback
         .invoke_mutation("setCompleted", stale)
         .expect_err("stale client baseline should conflict");
@@ -1420,7 +1422,7 @@ fn e3_hostplan_conflict_uses_client_baseline() {
             version: v1,
         }],
         correlation: None,
-    };
+        ctx_ledger: None,    };
     let committed = snapback
         .invoke_mutation("setCompleted", current)
         .expect("current client baseline should commit");
@@ -2443,8 +2445,15 @@ globalThis.__snapbackHandlers = {
   async setCompleted(ctx, args) {
     const todo = await ctx.db.get('todos', args.id);
     if (!todo) return 0;
-    const start = Date.now();
-    while (Date.now() - start < 2000) {}
+    // Deterministic stale window: instead of busy-waiting on the ambient
+    // clock (denied in the deterministic tier — LLP 0051 Increment 2), poll
+    // until the concurrent writer's committed flip becomes visible to fresh
+    // reads, then attempt the patch. Bounded: if nothing flips, fall through
+    // — commit-time read-set validation is what the caller asserts on.
+    for (var i = 0; i < 100000; i++) {
+      const fresh = await ctx.db.get('todos', args.id);
+      if (fresh && fresh.completed !== todo.completed) break;
+    }
     return (await ctx.db.patch('todos', args.id, {
       completed: args.completed,
     })) ? 1 : 0;
@@ -2753,7 +2762,7 @@ fn input(args: Value, user_id: &str) -> HandlerInput {
         auth: auth(user_id),
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 fn auth(user_id: &str) -> AuthInput {

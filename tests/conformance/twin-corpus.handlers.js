@@ -42,6 +42,15 @@ globalThis.__snapbackHandlers = {
     await ctx.db.insert('items', { label: 'stamped-' + id, rank: 2 });
     return { now: now, idLength: String(id).length };
   },
+  async ledgeredIds(ctx, args) {
+    // LLP 0051 D1: two runtime.id answers + one insert row id share one
+    // ordered generatedIds sequence; now is the frozen invocation clock.
+    var a = await ctx.runtime.id();
+    var b = await ctx.runtime.id();
+    var now = await ctx.runtime.now();
+    var rowId = await ctx.db.insert('items', { label: 'ledger-' + args.tag, rank: 3 });
+    return { a: a, b: b, now: now, rowId: rowId };
+  },
   async logsThings(ctx) {
     console.log('one', 1, true);
     console.warn('two');

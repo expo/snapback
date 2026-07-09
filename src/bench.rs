@@ -160,10 +160,20 @@ globalThis.__snapbackHandlers = {
   async createOther(ctx, args) {
     return await ctx.db.insert('others', { label: args.label });
   },
+  async busySpin(ctx, args) {
+    // Calibration probe for busyCreate: burn args.iters and return quickly.
+    var sink = 0;
+    for (var i = 0; i < args.iters; i++) { sink += (i * 31) % 97; }
+    return [{ sink: sink % 1000 }];
+  },
   async busyCreate(ctx, args) {
-    const start = Date.now();
-    while (Date.now() - start < args.busyMs) {}
-    return await ctx.db.insert('todos', { title: 'busy', done: false });
+    // Clock-free busy spin: the deterministic tier denies Date.now at
+    // runtime (LLP 0051 Increment 2), so the writer burns a host-calibrated
+    // iteration count instead of busy-waiting on a wall clock. The bench
+    // only needs the write lock held for roughly the requested window.
+    var sink = 0;
+    for (var i = 0; i < args.iters; i++) { sink += (i * 31) % 97; }
+    return await ctx.db.insert('todos', { title: 'busy-' + (sink % 10), done: false });
   }
 };
 "#;
@@ -289,6 +299,7 @@ fn functions() -> FunctionManifest {
             mutation("touchTodo", "todos"),
             mutation("createOther", "others"),
             mutation("busyCreate", "todos"),
+            query("busySpin", "todos"),
         ],
         ..FunctionManifest::default()
     }
@@ -315,7 +326,7 @@ fn args(value: Value) -> HandlerInput {
         auth: auth(),
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 fn measure_vm_cost(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
@@ -604,7 +615,7 @@ fn measure_read_set_validation(config: &BenchConfig) -> crate::diagnostic::Snapb
     }
     let with_read_set = |title: &str, read_set: Vec<ReadDependency>| HandlerInput {
         correlation: None,
-        args: json!({ "title": title }),
+        ctx_ledger: None,        args: json!({ "title": title }),
         auth: auth(),
         read_set,
     };
@@ -685,7 +696,7 @@ fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::Snapbac
             auth: auth(),
             read_set: Vec::new(),
             correlation: None,
-        };
+            ctx_ledger: None,        };
         let result = db.commit_buffered_writes(
             &input,
             vec![BufferedWrite::Insert {
@@ -718,7 +729,7 @@ fn commit_insert(
         auth: auth(),
         read_set: Vec::new(),
         correlation: None,
-    };
+        ctx_ledger: None,    };
     db.commit_buffered_writes(
         &input,
         vec![BufferedWrite::Insert {
@@ -832,12 +843,29 @@ fn measure_read_during_write_at(
     lane.invoke_query("listTodos", args(json!({})))?;
 
     let shared = std::sync::Arc::new(std::sync::Mutex::new(snapback));
+    // Calibrate the clock-free busy spin (the deterministic tier denies
+    // Date.now inside handlers — LLP 0051 Increment 2): time a fixed
+    // iteration count, take the best of two runs (the second is warm), and
+    // scale to the requested window. Rounding down inflates the window,
+    // which only makes the queued-mutex lower bound safer.
+    let probe_iters: u64 = 200_000;
+    let mut best_probe_us = u64::MAX;
+    for _ in 0..2 {
+        let start = Instant::now();
+        shared
+            .lock()
+            .expect("bench probe lock")
+            .invoke_query("busySpin", args(json!({ "iters": probe_iters })))?;
+        best_probe_us = best_probe_us.min(start.elapsed().as_micros().max(1) as u64);
+    }
+    let iters_per_ms = ((probe_iters * 1_000) / best_probe_us).max(100);
     let busy_ms = config.busy_write_ms;
+    let busy_iters = busy_ms * iters_per_ms;
     let spawn_busy_writer = |shared: std::sync::Arc<std::sync::Mutex<LocalSnapback>>| {
         std::thread::spawn(move || {
             let mut snapback = shared.lock().expect("bench writer lock");
             snapback
-                .invoke_mutation("busyCreate", args(json!({ "busyMs": busy_ms })))
+                .invoke_mutation("busyCreate", args(json!({ "iters": busy_iters })))
                 .expect("bench busy mutation");
         })
     };

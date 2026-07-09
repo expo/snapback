@@ -1367,7 +1367,7 @@ fn handler_input(args: Value, user_id: &str) -> HandlerInput {
         },
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 async fn text(resp: axum::response::Response) -> String {

@@ -523,7 +523,7 @@ globalThis.__snapbackHandlers = {{
             auth: AuthInput::default(),
             read_set: Vec::new(),
             correlation: None,
-        }
+            ctx_ledger: None,        }
     }
 
     fn count(snapback: &LocalSnapback) -> u64 {

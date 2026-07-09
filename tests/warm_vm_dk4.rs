@@ -235,7 +235,7 @@ fn input(args: Value) -> HandlerInput {
         auth: AuthInput::default(),
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 fn input_as(user: &str, args: Value) -> HandlerInput {
@@ -248,7 +248,7 @@ fn input_as(user: &str, args: Value) -> HandlerInput {
         },
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 fn query_row(snapback: &LocalSnapback, name: &str) -> Value {

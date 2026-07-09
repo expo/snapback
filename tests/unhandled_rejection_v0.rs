@@ -162,7 +162,7 @@ fn input(args: Value) -> HandlerInput {
         auth: AuthInput::default(),
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 fn items(snapback: &LocalSnapback) -> Vec<Value> {

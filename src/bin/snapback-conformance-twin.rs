@@ -395,7 +395,7 @@ fn input(args: Value) -> HandlerInput {
         auth: AuthInput::default(),
         read_set: Vec::new(),
         correlation: None,
-    }
+        ctx_ledger: None,    }
 }
 
 /// LLP 0010-style placeholder normalization: opaque ids become `$ID:<n>` in
