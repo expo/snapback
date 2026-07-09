@@ -66,7 +66,9 @@ await runAcceptance(suite, async () => {
   server = await startServer({ port: 4424, db: ':memory:', cwd: repoRoot,
     provenance: { appId: 'all-aboard', artifactsPath: join(repoRoot, 'demos', 'all-aboard', 'snapback', 'generated', 'artifacts.json') } });
   db = new SnapbackClient(server.baseUrl);
-  const forceTick = () => fetch(`${server.baseUrl}/_snapback/api/cron/tick`, { method: 'POST' }).then((r) => r.json());
+  // Authenticated AdminWrite tick via the kit client — a raw fetch here
+  // swallowed the 401 and silently never ticked the scheduler (ENG-23706).
+  const forceTick = () => db.cronTick();
 
   await db.loadSchema(gen('schema.manifest.json'));
   await db.loadFunctions(gen('functions.manifest.json'));

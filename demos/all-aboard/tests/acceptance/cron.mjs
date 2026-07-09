@@ -35,7 +35,11 @@ const suite = createSuite('all-aboard cron (Phase 2)');
 let server = null;
 let db = null;
 
-const forceTick = () => fetch(`${server.baseUrl}/_snapback/api/cron/tick`, { method: 'POST' }).then((r) => r.json());
+// Authenticated tick via the kit client: /_snapback/api/cron/tick is an
+// AdminWrite, and the raw unauthenticated fetch this used to be swallowed a
+// 401 SNAPBACK_ADMIN_TOKEN_REQUIRED — the scheduler never saw the tick and
+// the suite failed 3 checks downstream with no hint (ENG-23706).
+const forceTick = () => db.cronTick();
 const inspectJob = async () => {
   const state = await (await fetch(`${server.baseUrl}/inspect`)).json();
   return (state.cron?.jobs ?? []).find((j) => j.name === 'warmPoll') ?? null;
