@@ -20,7 +20,7 @@ use serde_json::Value;
 use crate::admin::AdminInspect;
 use crate::diagnostic::Diagnostic;
 use crate::ephemeral::RealtimeEnvelope;
-use crate::host_ops::{HostOpsResult, HostReadyDescriptor};
+use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
 use crate::live_wire::{LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt};
 use crate::local::{
     InspectState, LiveResumeOutput, LiveSubscribeOutput, LiveUnsubscribeOutput, PublicInspect,
@@ -76,6 +76,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "host-ready.schema.json",
             schemars::schema_for!(HostReadyDescriptor),
+        ),
+        // The mutationDryRun report (LLP 0051 D8 / Increment 4): the
+        // function.explain result the Exact-side Acto dry-run wraps. Embeds
+        // CtxAnswerLedger, putting the D1 ledger wire shape under the DK-7
+        // gate (the ENG-23892 deferral).
+        finish(
+            "dry-run.report.schema.json",
+            schemars::schema_for!(DryRunReport),
         ),
         finish(
             "inspect.admin.schema.json",

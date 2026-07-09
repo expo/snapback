@@ -131,6 +131,7 @@ fn representative_inspect() -> InspectState {
             ibex_ctx_db_host_bridge: CapabilityState::Available,
             async_handler_completion: CapabilityState::Available,
             sqlite_lock_held_across_async: CapabilityState::NotYetWired,
+            mutation_dry_run: true,
         },
         schema: SchemaManifest::default(),
         functions: FunctionManifest::default(),

@@ -73,6 +73,22 @@ pub struct MutationCommit {
     pub write_dependencies: Vec<CapturedWriteDependency>,
 }
 
+/// One executed IR mutation plan with its recorded deterministic answers —
+/// what the plan wrote (or would write), every host-generated id in answer
+/// order, and the frozen evaluation clock. The commit path discards the
+/// ledger halves; the dry-run path reports them as `deterministicInputs`
+/// (LLP 0051 D8).
+pub struct MutationPlanExecution {
+    pub commit: MutationCommit,
+    /// Host-generated ids in answer order (`Insert`/`InsertEach` row ids) —
+    /// the IR half of LLP 0051 D1's one ordered `generatedIds` sequence.
+    pub generated_ids: Vec<String>,
+    /// The frozen evaluation clock every clock expression answered with.
+    pub now_ms: u64,
+    /// The database version the plan evaluated against.
+    pub snapshot_version: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CapturedReadDependency {
     pub kind: CapturedReadKind,
@@ -560,6 +576,33 @@ impl LocalDatabase {
         plan: &MutationPlan,
         input: &HandlerInput,
     ) -> SnapbackResult<MutationCommit> {
+        Ok(self.execute_mutation_plan(plan, input, true)?.commit)
+    }
+
+    /// Dry-run an IR mutation (LLP 0051 D8): the identical step loop, binding
+    /// environment, in-transaction `Get` reads, and read-set validation as
+    /// `execute_mutation` — then the transaction is rolled back instead of
+    /// committed. Fidelity is by construction: this *is* the commit path with
+    /// the final `COMMIT` swapped for `ROLLBACK`, so the answer is evidence,
+    /// not a lower-fidelity evaluator (LLP 0024 §Dry-Run rule).
+    ///
+    /// @ref LLP 0051#d8-the-agent-surface-dry-run-becomes-cheap-and-trustworthy —
+    ///   plan evaluation against a snapshot with a recorded ledger;
+    ///   execute-and-discard on the buffered substrate.
+    pub fn dry_run_mutation(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+    ) -> SnapbackResult<MutationPlanExecution> {
+        self.execute_mutation_plan(plan, input, false)
+    }
+
+    fn execute_mutation_plan(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        apply: bool,
+    ) -> SnapbackResult<MutationPlanExecution> {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite mutation");
         // @ref LLP 0003#execution-and-write-semantics — one mutation commits all buffered writes at one version.
         let schema = self.schema.clone();
@@ -588,6 +631,10 @@ impl LocalDatabase {
         let mut bindings = BTreeMap::new();
         let mut changes = Vec::new();
         let mut read_dependencies: Vec<CapturedReadDependency> = Vec::new();
+        // Every host-generated id in answer order — the IR half of the
+        // ctx-answer ledger (LLP 0051 D1's `generatedIds`), reported by
+        // dry-run as `deterministicInputs`.
+        let mut generated_ids: Vec<String> = Vec::new();
 
         for step in &plan.steps {
             match step {
@@ -598,6 +645,7 @@ impl LocalDatabase {
                 } => {
                     let table = schema_table(&schema, table)?;
                     let id = new_id();
+                    generated_ids.push(id.clone());
                     if let Some(binding) = bind_id_as {
                         bindings.insert(binding.clone(), Value::String(id.clone()));
                     }
@@ -841,6 +889,7 @@ impl LocalDatabase {
                         let mut item_bindings = bindings.clone();
                         item_bindings.insert(item_as.clone(), item);
                         let id = new_id();
+                        generated_ids.push(id.clone());
                         let row = eval_value_map(values, input, &item_bindings, now_ms)?;
                         let changed_fields = changed_field_names(&row);
                         let document =
@@ -887,18 +936,29 @@ impl LocalDatabase {
         } else {
             next_version
         };
-        tx.commit()?;
+        if apply {
+            tx.commit()?;
+        } else {
+            // Execute-and-discard (LLP 0051 D8): everything above — writes,
+            // change-log records, the version bump — evaporates here.
+            tx.rollback()?;
+        }
 
-        Ok(MutationCommit {
-            output: MutationOutput {
-                version,
-                changed_count: changes.len(),
-                result,
-                ctx_ledger: None,
+        Ok(MutationPlanExecution {
+            commit: MutationCommit {
+                output: MutationOutput {
+                    version,
+                    changed_count: changes.len(),
+                    result,
+                    ctx_ledger: None,
+                },
+                write_dependencies: captured_writes_from_changes(&changes),
+                changes,
+                read_dependencies,
             },
-            write_dependencies: captured_writes_from_changes(&changes),
-            changes,
-            read_dependencies,
+            generated_ids,
+            now_ms,
+            snapshot_version: current_version,
         })
     }
 
@@ -908,6 +968,32 @@ impl LocalDatabase {
         writes: Vec<BufferedWrite>,
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
+    ) -> SnapbackResult<MutationCommit> {
+        self.apply_buffered_writes(input, writes, read_dependencies, result, true)
+    }
+
+    /// Dry-run the buffered-write commit (LLP 0051 D8): identical read-set
+    /// validation and write application as `commit_buffered_writes`, rolled
+    /// back instead of committed. The JS-tier half of execute-and-discard —
+    /// the handler already ran against the buffered ctx; this answers what
+    /// its writes would do without keeping them.
+    pub fn dry_run_buffered_writes(
+        &mut self,
+        input: &HandlerInput,
+        writes: Vec<BufferedWrite>,
+        read_dependencies: Vec<CapturedReadDependency>,
+        result: Value,
+    ) -> SnapbackResult<MutationCommit> {
+        self.apply_buffered_writes(input, writes, read_dependencies, result, false)
+    }
+
+    fn apply_buffered_writes(
+        &mut self,
+        input: &HandlerInput,
+        writes: Vec<BufferedWrite>,
+        read_dependencies: Vec<CapturedReadDependency>,
+        result: Value,
+        apply: bool,
     ) -> SnapbackResult<MutationCommit> {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite commit");
         // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
@@ -1005,7 +1091,13 @@ impl LocalDatabase {
         } else {
             next_version
         };
-        tx.commit()?;
+        if apply {
+            tx.commit()?;
+        } else {
+            // Execute-and-discard (LLP 0051 D8): validated and applied above,
+            // discarded here.
+            tx.rollback()?;
+        }
 
         Ok(MutationCommit {
             output: MutationOutput {

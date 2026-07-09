@@ -2147,6 +2147,10 @@
         "ibexSubmodule": {
           "$ref": "#/$defs/IbexSubmoduleCapability"
         },
+        "mutationDryRun": {
+          "description": "`function.explain` kind `mutationDryRun` is served for queries'\nsibling tier pair — HostPlan (IR) and IbexModule mutations\n(LLP 0051 D8 / Increment 4). The per-function `dryRunSupported`\ncatalog bit (LLP 0024 §Catalog) rides LLP 0042's generated catalog;\nuntil that lands this capability is the honest wire marker.",
+          "type": "boolean"
+        },
         "sqliteLockHeldAcrossAsync": {
           "$ref": "#/$defs/CapabilityState"
         }
@@ -2158,7 +2162,8 @@
         "hostPlanRuntime",
         "ibexCtxDbHostBridge",
         "asyncHandlerCompletion",
-        "sqliteLockHeldAcrossAsync"
+        "sqliteLockHeldAcrossAsync",
+        "mutationDryRun"
       ],
       "type": "object"
     },

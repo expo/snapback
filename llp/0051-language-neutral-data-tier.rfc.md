@@ -905,6 +905,21 @@ disciplines.
    mutation, not an invented example.
 4. **Dry-run (D8):** `mutationDryRun` built on the buffered substrate
    with ledgers, IR tier first; MCP `dryRunSupported` goes true.
+   **Status: shipped (ENG-23896, 2026-07-09), both tiers.**
+   `function.explain` kind `mutationDryRun` is served over host-ops:
+   the commit path itself with the final COMMIT swapped for ROLLBACK
+   (`execute_mutation_plan` for HostPlan, the buffered-write path under
+   the recorded ctx-answer ledger for IbexModule), so `wouldCommit` /
+   `predictedWrites` / `readSet` / `deterministicInputs` are evidence,
+   not simulation. The report shape is `DryRunReport`
+   (`schemas/dry-run.report.schema.json`, DK-7 drift-gated) — this also
+   puts the D1 ledger wire shape under a committed schema, closing the
+   ENG-23892 deferral. The other pinned explain kinds fail closed
+   (`SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED`). Because the LLP 0042
+   catalog is still unbuilt, the honest wire marker for "dry-run goes
+   true" is `runtime.mutationDryRun` on the inspect payload; the
+   per-function `dryRunSupported` bit rides the generated catalog when
+   LLP 0042 lands. Suite: `tests/dry_run_v0.rs`.
 5. **Parity slice (D6):** LLP 0043 M1+M2 with derived IR overlays in
    the JS client — the first Parity-class claim, gated on the replay
    corpus **and** on derived overlays passing the adapter's existing
