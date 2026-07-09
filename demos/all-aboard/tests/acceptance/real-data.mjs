@@ -237,6 +237,23 @@ await runAcceptance(suite, async () => {
     assertEqual(feedState.lastSource, '511-siri-stop-monitoring', 'feed marker still the live snapshot');
   });
 
+  await suite.check('a refresh past the budget window polls 511 upstream again (ENG-23730)', async () => {
+    // pollBudgetMs can only LOWER the window (claimFeedPoll clamps to the
+    // 180s production ceiling); a ~1s synthetic window proves expiry without
+    // waiting out the real budget. The sleep guarantees the last granted
+    // claim (two checks up) is older than the lowered window.
+    const upstream = () => mock.requests.filter((r) => r.path === '/transit/StopMonitoring').length;
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const before = upstream();
+    const result = await db.action('refreshFeed', {
+      args: { trigger: 'test-expiry', feedUrl: `${mock.baseUrl}/transit/StopMonitoring`, pollBudgetMs: 1000 },
+    });
+    assert(result.ok, `refreshFeed failed: ${JSON.stringify(result.diagnostic)}`);
+    assert(result.result.skipped === undefined, `an expired window must poll, not skip: ${JSON.stringify(result.result)}`);
+    assertEqual(result.result.source, '511-siri-stop-monitoring', 'snapshot source');
+    assertEqual(upstream(), before + 1, 'exactly one new upstream 511 request after the window expired');
+  });
+
   await suite.check('a key set through the admin config API reaches the live fetch (the setup-page path)', async () => {
     // Clear the ENG-23642 upstream-poll budget so this check exercises the
     // fetch path rather than the updated-recently guard.

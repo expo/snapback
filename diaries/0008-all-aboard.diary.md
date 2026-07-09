@@ -1102,3 +1102,34 @@ Browser Contract suite 17/17 against a fresh worktree bootstrap (station
 header swipe, board train swipe, settings sheet, ETA-in-settings, service
 filters, live push, D4 double-boot all green). Screenshot pass over
 home/trip/settings/stations on a 390×844 viewport to eyeball the design.
+
+## 2026-07-08 — two agents, one throttle (ENG-23730 reconciling with ENG-23642)
+
+ENG-23730 asked for exactly what I set out to build: stop treating the 60s
+warm poll as a 511 request cadence, gate `refreshFeed` behind a freshness
+window, keep the fallback honest, prove it in tests. I built it — a read-only
+`checkLiveFeedFreshness` mutation both engines called before egress, plus a
+codegen relaxation to allow `writes: []` — and while my suites were going
+green, ENG-23642 landed on `origin/main` with a *transactional* budget:
+`claimFeedPoll` stamps `lastUpstreamPollAt` inside the mutation, so two
+triggers racing one window can never both fetch, and a granted-but-failed
+attempt naturally waits out a full window. Their claim-stamp design is simply
+better than my check-then-fetch (which I had documented as "accepted race
+slack"), so the right move was to throw mine away and keep theirs.
+
+What this session actually landed, then, is the residue ENG-23730 still
+named: LLP 0028's stale "All Aboard targets a 60s freshness window" text (the
+cadence-vs-budget distinction now lives in §Schedule/cadence and §Demand
+gating), a miniflare-side proof that the budget gates the deployed action
+route (the coordinator injects `pollBudgetMs = 0` for scheduled test runs, so
+nothing on the Cloudflare engine had ever exercised the deny path), and an
+explicit expiry-then-refetch check in the local suite via the lower-only
+`pollBudgetMs` override.
+
+Process note worth keeping: with several agents working sibling worktrees of
+this repo concurrently, "current repo evidence" in an issue can be stale by
+the time implementation finishes. The expensive part of this task wasn't the
+gate — it was noticing, mid-verification, that `origin/main` had moved five
+commits and now contained a sibling implementation, then having the
+discipline to diff intent against the landed design instead of pushing a
+duplicate. Fetch before you rebase, and read what arrived.

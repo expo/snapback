@@ -11,7 +11,12 @@ over the deployed All Aboard separate the demand-armed warm-poll hours from
 the quiet hours on the billing surface, and the overnight window is shown to
 be a *connected* window — demand-gating held the alarm up because a
 subscriber existed — so the no-connection idle→zero evidence lands on the
-alarm-free notes deployment in LLP 0040 §As-built instead); 2026-07-07
+alarm-free notes deployment in LLP 0040 §As-built instead); 2026-07-08
+(ENG-23730: §Schedule/cadence and §Demand gating now distinguish the job
+cadence from the upstream request cadence — All Aboard polls at 180s
+(ENG-23642) and its action's transactional `claimFeedPoll` budget caps real
+511 requests at one per window regardless of trigger; an `everyMs` never
+implies an external-API budget, which belongs to the action); 2026-07-07
 (ENG-23627 / LLP 0049 ratification: §Scale-to-zero
 tension — the demand-armed DO alarm is now All Aboard's accepted Cloudflare
 warm-poll shape, superseding the minute-static-wakeup default this document
@@ -133,7 +138,10 @@ silently omitting the job.
 
 Two forms, both supported:
 
-- **fixed interval** (`everyMs`) — All Aboard targets a 60s freshness window;
+- **fixed interval** (`everyMs`) — All Aboard polls every 180s (ENG-23642;
+  originally 60s), with the upstream 511 request rate additionally capped by
+  the action's own transactional `claimFeedPoll` budget — the job cadence and
+  the external-API budget are deliberately separate numbers (ENG-23730);
 - **calendar expression** (`cron: "0 3 * * *"`) — e.g. a nightly GTFS refresh.
 
 Minimum granularity is a **target capability fact**, not a constant: local can run
@@ -241,7 +249,12 @@ demand gating must be explicit in the manifest, visible in inspect/admin, and
 testable. A demand-gated job should report why it is `armed`, `inactive:no-demand`,
 or `catching-up`, and its staleness policy for the first subscriber after idle.
 Do not infer demand-gating from a job name or cadence alone; a 60s train refresh
-and a 60s compliance monitor have different product requirements.
+and a 60s compliance monitor have different product requirements. Nor does the
+job cadence dictate the upstream request cadence: All Aboard's `warmPoll` runs
+an action whose own transactional budget (`claimFeedPoll`, one 511 poll per
+180s window shared by cron and manual refresh — ENG-23642/ENG-23730) decides
+whether a granted run may actually touch the external API. Rate-limit
+budgeting belongs to the action, not the scheduler.
 
 ### Scheduler state and run ledger
 

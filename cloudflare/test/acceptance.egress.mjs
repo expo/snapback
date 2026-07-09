@@ -30,7 +30,7 @@ const SECRET_BINDINGS = {
   SNAPBACK_CONFIG_GENERATION: '1',
 };
 
-const EXPECTED_CHECKS = 15;
+const EXPECTED_CHECKS = 17;
 let checks = 0;
 function check(label, condition) {
   checks += 1;
@@ -145,6 +145,34 @@ async function main() {
         feedState.rows[0].lastError === '' &&
         departures.rows.length === 3 &&
         departures.rows.every((row) => row.stationId === 'palo-alto' && row.predictedDepartureMs > Date.now())
+    );
+
+    // --- upstream-poll budget on the deployed engine (ENG-23730) ----------
+    // The scheduled-run path bypasses the budget under SNAPBACK_TESTING
+    // (the coordinator injects pollBudgetMs = 0 so the cron suite can use
+    // synthetic cadences), so this is the miniflare-side proof that the
+    // ENG-23642 claimFeedPoll budget actually gates the action route.
+    const refreshAgain = await client.action('refreshFeed', { args: { trigger: 'manual', feedUrl } });
+    check(
+      'a second refresh inside the 180s budget answers updated-recently with no second upstream request',
+      refreshAgain.ok === true &&
+        refreshAgain.result.skipped === 'updated-recently' &&
+        Number(refreshAgain.result.retryInMs) > 0 &&
+        mock.seen.feedKeys.length === 1
+    );
+    // pollBudgetMs can only LOWER the window (claimFeedPoll clamps to the
+    // production ceiling); a ~1s synthetic window proves expiry-then-refetch
+    // without waiting out the real 180s budget.
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    const refreshExpired = await client.action('refreshFeed', {
+      args: { trigger: 'manual', feedUrl, pollBudgetMs: 1200 },
+    });
+    check(
+      'a refresh past the (test-lowered) budget window polls upstream again',
+      refreshExpired.ok === true &&
+        refreshExpired.result.skipped === undefined &&
+        refreshExpired.result.source === '511-siri-stop-monitoring' &&
+        mock.seen.feedKeys.length === 2
     );
 
     // --- directions path through coordinator header substitution ----------
