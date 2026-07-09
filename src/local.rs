@@ -13,6 +13,10 @@ use crate::live_matcher::{
     LiveDeltaKind, LiveDeltaOutcome, compute_live_delta, live_subscription_may_be_affected,
     query_dependencies_from_plan,
 };
+use crate::live_wire::{
+    LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope, LiveSocketServerFrame, MutationReceiptOutcome,
+    Receipt, SubscriptionReceiptEvent,
+};
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AuthInput, CapabilityManifest, FunctionDefinition,
     FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
@@ -272,7 +276,7 @@ pub struct LiveSubscribeInput {
     pub supersedes: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeOutput {
     pub subscription_id: String,
     pub snapshot: QueryOutput,
@@ -297,7 +301,7 @@ pub struct LiveResumeInput {
     pub recorded_permission_epochs: BTreeMap<String, u64>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveResumeOutput {
     pub subscription_id: String,
     pub mode: String,
@@ -317,7 +321,7 @@ pub struct LiveUnsubscribeInput {
     pub auth: AuthInput,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveUnsubscribeOutput {
     pub subscription_id: String,
     pub disposed: bool,
@@ -353,51 +357,10 @@ pub struct EnsureAppOutcome {
     pub profile: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct LiveUpdate {
-    pub kind: String,
-    pub subscription_id: String,
-    pub function: String,
-    pub version: u64,
-    pub rows: Vec<Value>,
-}
-
-/// The additive op-log delta payload (DK-3 / LLP 0034 OQ1): per-row
-/// add/update/remove transitions for the analyzable subset, sent instead of a
-/// whole-result `live_replace` when the fan-out can compute the delta without
-/// re-running the query. `live_replace` stays the fallback and the wire
-/// default; a client that only understands `live_replace` is unaffected.
-///
-/// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 — op-log
-/// deltas for the analyzable syncable-live subset.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct LiveDelta {
-    pub kind: String,
-    pub subscription_id: String,
-    pub function: String,
-    pub version: u64,
-    pub ops: Vec<LiveDeltaWireOp>,
-}
-
-/// One wire delta op: `op` is `"add"`, `"update"`, or `"remove"`; `row` is the
-/// current row for add/update and absent for remove.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct LiveDeltaWireOp {
-    pub op: String,
-    pub id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub row: Option<Value>,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct LiveResyncRequired {
-    pub kind: String,
-    pub reason: String,
-    pub subscription_id: String,
-    pub scope: String,
-    pub epoch: u64,
-    pub clear_retained: bool,
-}
+// The live fan-out envelope types (`live_replace` / `live_delta` /
+// `resync_required`) moved to `crate::live_wire` (LLP 0051 D4 / ENG-23891):
+// they are schema-governed wire shapes now, generated into
+// `schemas/live.envelope.schema.json` and drift-gated.
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -1024,21 +987,28 @@ impl LocalSnapback {
             self.live_delivery.last_fanout_subscriptions = dropped_subscriptions.len();
             let now_ms = now_millis();
             for subscription in &dropped_subscriptions {
-                self.receipts.push_global(json!({
-                    "kind": "subscription",
-                    "event": "disposed",
-                    "reason": "reset",
-                    "subscriptionId": subscription.id.clone(),
-                    "scope": subscription.input.args.clone(),
-                    "snapshotVersion": Value::Null,
-                    "receivedAtMs": now_ms,
-                }));
-                let Ok(payload) = serde_json::to_vec(&LiveResyncRequired {
-                    kind: "resync_required".to_owned(),
+                self.receipts.push_global(
+                    Receipt::Subscription {
+                        event: SubscriptionReceiptEvent::Disposed,
+                        reason: Some("reset".to_owned()),
+                        subscription_id: Some(subscription.id.clone()),
+                        superseded_by: None,
+                        lane: None,
+                        binding_id: None,
+                        collection: None,
+                        removed: None,
+                        scope: subscription.input.args.clone(),
+                        snapshot_version: None,
+                        correlation: None,
+                        received_at_ms: now_ms,
+                    }
+                    .into_value(),
+                );
+                let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
                     reason: "reset".to_owned(),
-                    subscription_id: subscription.id.clone(),
-                    scope: String::new(),
-                    epoch: 0,
+                    subscription_id: Some(subscription.id.clone()),
+                    scope: Some(String::new()),
+                    epoch: Some(0),
                     clear_retained: true,
                 }) else {
                     continue;
@@ -1290,27 +1260,27 @@ impl LocalSnapback {
             .filter(|tables| !tables.is_empty());
         let result = self.invoke_mutation_commit(name, input);
         let (outcome, rollback_reason, snapshot_version) = match &result {
-            Ok(commit) => ("confirmed", None, commit.output.version),
+            Ok(commit) => (MutationReceiptOutcome::Confirmed, None, commit.output.version),
             Err(error) => (
-                "rejected",
+                MutationReceiptOutcome::Rejected,
                 // The diagnostic CODE only — messages may embed argument
                 // values (§3.3 privacy).
                 Some(error.diagnostic.code.clone()),
                 self.db.current_version().unwrap_or(0),
             ),
         };
-        let receipt = json!({
-            "kind": "mutation",
-            "mutationId": format!("mut_{}", Uuid::now_v7().simple()),
-            "mutation": name,
-            "outcome": outcome,
-            "rollbackReason": rollback_reason,
-            "affectedTables": affected_tables,
-            "snapshotVersion": snapshot_version,
-            "transport": transport,
-            "correlation": correlation,
-            "receivedAtMs": now_millis(),
-        });
+        let receipt = Receipt::Mutation {
+            mutation_id: format!("mut_{}", Uuid::now_v7().simple()),
+            mutation: name.to_owned(),
+            outcome,
+            rollback_reason,
+            affected_tables,
+            snapshot_version,
+            transport: transport.to_owned(),
+            correlation: correlation.unwrap_or(Value::Null),
+            received_at_ms: now_millis(),
+        }
+        .into_value();
         self.receipts.push_global(receipt.clone());
         (result.map(|commit| commit.output), receipt)
     }
@@ -1419,16 +1389,21 @@ impl LocalSnapback {
                 && owner.user_id == subscription_input.auth.user_id;
             if same_connection && same_owner {
                 self.subscriptions.remove(old_id);
-                let receipt = json!({
-                    "kind": "subscription",
-                    "event": "disposed",
-                    "reason": "superseded",
-                    "subscriptionId": old_id,
-                    "supersededBy": subscription_id.clone(),
-                    "scope": subscription_input.args.clone(),
-                    "snapshotVersion": query.output.version,
-                    "receivedAtMs": now_millis(),
-                });
+                let receipt = Receipt::Subscription {
+                    event: SubscriptionReceiptEvent::Disposed,
+                    reason: Some("superseded".to_owned()),
+                    subscription_id: Some(old_id.clone()),
+                    superseded_by: Some(subscription_id.clone()),
+                    lane: None,
+                    binding_id: None,
+                    collection: None,
+                    removed: None,
+                    scope: subscription_input.args.clone(),
+                    snapshot_version: Some(query.output.version),
+                    correlation: None,
+                    received_at_ms: now_millis(),
+                }
+                .into_value();
                 self.receipts.push_connection(&input.connection_id, receipt);
             }
         }
@@ -1450,15 +1425,25 @@ impl LocalSnapback {
         // REQUIRED (the subscription's routing/scope args); the adapter's
         // opaque correlation is echoed verbatim; transport is a kit fact and
         // is stitched there.
-        let receipt = json!({
-            "kind": "subscription",
-            "event": "established",
-            "subscriptionId": subscription_id.clone(),
-            "scope": subscription_input.args.clone(),
-            "snapshotVersion": query.output.version,
-            "correlation": capped_correlation(subscription_input.correlation.clone()),
-            "receivedAtMs": now_millis(),
-        });
+        let receipt = Receipt::Subscription {
+            event: SubscriptionReceiptEvent::Established,
+            reason: None,
+            subscription_id: Some(subscription_id.clone()),
+            superseded_by: None,
+            lane: None,
+            binding_id: None,
+            collection: None,
+            removed: None,
+            scope: subscription_input.args.clone(),
+            snapshot_version: Some(query.output.version),
+            // Always present on established receipts (null when the adapter
+            // sent none) — the pre-typed wire emitted the key unconditionally.
+            correlation: Some(
+                capped_correlation(subscription_input.correlation.clone()).unwrap_or(Value::Null),
+            ),
+            received_at_ms: now_millis(),
+        }
+        .into_value();
         self.receipts
             .push_connection(&input.connection_id, receipt.clone());
 
@@ -1517,15 +1502,21 @@ impl LocalSnapback {
         self.subscriptions.remove(&subscription.id);
         // Losing the last watcher of a demand-gated live query disarms cron.
         self.refresh_cron_active();
-        let receipt = json!({
-            "kind": "subscription",
-            "event": "disposed",
-            "reason": "unsubscribed",
-            "subscriptionId": subscription.id.clone(),
-            "scope": subscription.input.args.clone(),
-            "snapshotVersion": self.db.current_version().unwrap_or(0),
-            "receivedAtMs": now_millis(),
-        });
+        let receipt = Receipt::Subscription {
+            event: SubscriptionReceiptEvent::Disposed,
+            reason: Some("unsubscribed".to_owned()),
+            subscription_id: Some(subscription.id.clone()),
+            superseded_by: None,
+            lane: None,
+            binding_id: None,
+            collection: None,
+            removed: None,
+            scope: subscription.input.args.clone(),
+            snapshot_version: Some(self.db.current_version().unwrap_or(0)),
+            correlation: None,
+            received_at_ms: now_millis(),
+        }
+        .into_value();
         self.receipts
             .push_connection(&subscription.connection_id, receipt.clone());
         Ok(LiveUnsubscribeOutput {
@@ -2522,15 +2513,23 @@ impl LocalSnapback {
             .filter(|subscription| subscription.connection_id == connection_id)
         {
             dropped_subscriptions += 1;
-            self.receipts.push_global(json!({
-                "kind": "subscription",
-                "event": "disposed",
-                "reason": "disconnected",
-                "subscriptionId": subscription.id.clone(),
-                "scope": subscription.input.args.clone(),
-                "snapshotVersion": Value::Null,
-                "receivedAtMs": now_ms,
-            }));
+            self.receipts.push_global(
+                Receipt::Subscription {
+                    event: SubscriptionReceiptEvent::Disposed,
+                    reason: Some("disconnected".to_owned()),
+                    subscription_id: Some(subscription.id.clone()),
+                    superseded_by: None,
+                    lane: None,
+                    binding_id: None,
+                    collection: None,
+                    removed: None,
+                    scope: subscription.input.args.clone(),
+                    snapshot_version: None,
+                    correlation: None,
+                    received_at_ms: now_ms,
+                }
+                .into_value(),
+            );
         }
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
@@ -3157,8 +3156,7 @@ impl LocalSnapback {
                     continue;
                 }
             };
-            let payload = match serde_json::to_vec(&LiveUpdate {
-                kind: "live_replace".to_owned(),
+            let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
                 subscription_id: subscription.id.clone(),
                 function: subscription.function.clone(),
                 version: query.output.version,
@@ -3244,17 +3242,16 @@ impl LocalSnapback {
             .iter()
             .map(|op| LiveDeltaWireOp {
                 op: match op.kind {
-                    LiveDeltaKind::Add => "add".to_owned(),
-                    LiveDeltaKind::Update => "update".to_owned(),
-                    LiveDeltaKind::Remove => "remove".to_owned(),
+                    LiveDeltaKind::Add => LiveDeltaOpKind::Add,
+                    LiveDeltaKind::Update => LiveDeltaOpKind::Update,
+                    LiveDeltaKind::Remove => LiveDeltaOpKind::Remove,
                 },
                 id: op.id.clone(),
                 row: op.row.clone(),
             })
             .collect();
 
-        let payload = match serde_json::to_vec(&LiveDelta {
-            kind: "live_delta".to_owned(),
+        let payload = match serde_json::to_vec(&LiveEnvelope::LiveDelta {
             subscription_id: subscription.id.clone(),
             function: subscription.function.clone(),
             version,
@@ -3377,12 +3374,11 @@ impl LocalSnapback {
             "error": diagnostic.details,
         });
         self.record_diagnostics(vec![diagnostic]);
-        if let Ok(payload) = serde_json::to_vec(&LiveResyncRequired {
-            kind: "resync_required".to_owned(),
+        if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
             reason: reason.to_owned(),
-            subscription_id: subscription.id.clone(),
-            scope: String::new(),
-            epoch: 0,
+            subscription_id: Some(subscription.id.clone()),
+            scope: Some(String::new()),
+            epoch: Some(0),
             clear_retained: true,
         }) {
             self.ephemeral
@@ -3436,12 +3432,11 @@ impl LocalSnapback {
         }
 
         for (subscription, scope, epoch) in stale {
-            let payload = match serde_json::to_vec(&LiveResyncRequired {
-                kind: "resync_required".to_owned(),
+            let payload = match serde_json::to_vec(&LiveEnvelope::ResyncRequired {
                 reason: "permission_epoch_changed".to_owned(),
-                subscription_id: subscription.id.clone(),
-                scope: scope.clone(),
-                epoch,
+                subscription_id: Some(subscription.id.clone()),
+                scope: Some(scope.clone()),
+                epoch: Some(epoch),
                 clear_retained: true,
             }) {
                 Ok(payload) => payload,
@@ -3972,17 +3967,14 @@ fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
     match envelope {
         RealtimeEnvelope::Durable(message) => String::from_utf8(message.payload)
             .or_else(|error| {
-                serde_json::to_string(&json!({
-                    "kind": "durable_bytes",
-                    "payload": error.into_bytes(),
-                }))
+                serde_json::to_string(&LiveSocketServerFrame::DurableBytes {
+                    payload: error.into_bytes(),
+                })
             })
             .ok(),
-        RealtimeEnvelope::Ephemeral(message) => serde_json::to_string(&json!({
-            "kind": "ephemeral",
-            "message": message,
-        }))
-        .ok(),
+        RealtimeEnvelope::Ephemeral(message) => {
+            serde_json::to_string(&LiveSocketServerFrame::Ephemeral { message }).ok()
+        }
     }
 }
 

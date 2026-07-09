@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "LiveDeltaOpKind": {
+      "enum": [
+        "add",
+        "update",
+        "remove"
+      ],
+      "type": "string"
+    },
+    "LiveDeltaWireOp": {
+      "description": "One `live_delta` op: the row is present for add/update and absent for\nremove.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/LiveDeltaOpKind"
+        },
+        "row": true
+      },
+      "required": [
+        "op",
+        "id"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.envelope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A durable-lane fan-out envelope: what a live-query subscriber receives,\nunwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]\nbytes on the HTTP polling drain).\n\n`live_replace` is the wire default (whole-result refresh); `live_delta` is\nthe DK-3 op-log fast path for the analyzable unordered subset;\n`resync_required` tells the client its subscription (or, connection-wide,\nits whole outbox) can no longer be trusted and it must re-snapshot.",
+  "oneOf": [
+    {
+      "description": "Whole-result refresh for one subscription.",
+      "properties": {
+        "function": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "live_replace",
+          "type": "string"
+        },
+        "rows": {
+          "items": true,
+          "type": "array"
+        },
+        "subscription_id": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "subscription_id",
+        "function",
+        "version",
+        "rows"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Op-log delta (DK-3 / LLP 0008): only the rows that entered/left/changed\nthe subscription's result. Unordered by contract — ordered queries fall\nback to `live_replace`.",
+      "properties": {
+        "function": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "live_delta",
+          "type": "string"
+        },
+        "ops": {
+          "items": {
+            "$ref": "#/$defs/LiveDeltaWireOp"
+          },
+          "type": "array"
+        },
+        "subscription_id": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "subscription_id",
+        "function",
+        "version",
+        "ops"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The subscription (or the whole connection, when `subscription_id` is\nabsent — outbox overflow) must re-snapshot. Known reasons today:\n`reset`, `outbox_overflow`, `permission_epoch_changed`,\n`live_delta_failed`, `live_refresh_failed`, `live_serialize_failed`,\n`permission_resync_serialize_failed`. A string, not an enum: the\nrecovery is identical for every reason and new reasons must not break\ndeployed decoders.",
+      "properties": {
+        "clear_retained": {
+          "type": "boolean"
+        },
+        "epoch": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "kind": {
+          "const": "resync_required",
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "scope": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subscription_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "reason",
+        "clear_retained"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "LiveEnvelope"
+}

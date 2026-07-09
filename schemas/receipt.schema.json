@@ -1,0 +1,165 @@
+{
+  "$defs": {
+    "MutationReceiptOutcome": {
+      "enum": [
+        "confirmed",
+        "rejected"
+      ],
+      "type": "string"
+    },
+    "SubscriptionReceiptEvent": {
+      "enum": [
+        "established",
+        "disposed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A retention-ring receipt (LLP 0034 §3.2): connectionless facts about\nmutations and subscription lifecycle, served by the receipts snapshot and\nechoed in live-subscribe/unsubscribe outputs. Privacy (§3.3): receipts\ncarry opaque ids, versions, table names, and reasons — never row data or\nargument values.",
+  "oneOf": [
+    {
+      "description": "One mutation invocation: confirmed or rejected, with the write\nsurface that fan-out used.",
+      "properties": {
+        "affectedTables": {
+          "description": "`null` means EXPLICITLY unknown (an IbexModule handler without a\ndeclared write set) — distinct from `[]`, no tables.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "correlation": {
+          "description": "Adapter-supplied opaque correlation, echoed verbatim (capped)."
+        },
+        "kind": {
+          "const": "mutation",
+          "type": "string"
+        },
+        "mutation": {
+          "type": "string"
+        },
+        "mutationId": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/MutationReceiptOutcome"
+        },
+        "receivedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rollbackReason": {
+          "description": "The diagnostic CODE only — messages may embed argument values\n(§3.3 privacy). `null` on confirmed mutations.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "snapshotVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "transport": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "mutationId",
+        "mutation",
+        "outcome",
+        "snapshotVersion",
+        "transport",
+        "correlation",
+        "receivedAtMs"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Subscription lifecycle: established / disposed, on both the durable\nlive-query lane and the ephemeral room lane (`lane: \"ephemeral\"`,\nwhich carries `bindingId`/`collection` instead of `subscriptionId`).",
+      "properties": {
+        "bindingId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "collection": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "correlation": true,
+        "event": {
+          "$ref": "#/$defs/SubscriptionReceiptEvent"
+        },
+        "kind": {
+          "const": "subscription",
+          "type": "string"
+        },
+        "lane": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "receivedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "removed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "scope": {
+          "description": "The subscription's routing/scope args (REQUIRED — LLP 0034 §3.2)."
+        },
+        "snapshotVersion": {
+          "description": "`null` when no storage read is safe at the emission site (the\ndisconnect teardown path) — the honest \"unknown at death\" value.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "subscriptionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "supersededBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "event",
+        "scope",
+        "receivedAtMs"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Receipt"
+}

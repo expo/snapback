@@ -8,7 +8,7 @@ bun-only suite crashes** — this file is the map.
 
 | Runtime | Suites | Why |
 | --- | --- | --- |
-| **`node`** (>= 22, built-in `fetch`/`WebSocket`) | `client-errors`, `provider-live-conformance`, `regression-reconnect-nuke`, `regression-fake-live`, `regression-handshake-loss`, `regression-gc-starvation`, `regression-overlay-crossroom`, `regression-mixed-transport`, `regression-midflight-resync`, `live-delta-e2e`, `provenance-unit` | Pure Snapback-kit JS; no Exact import. |
+| **`node`** (>= 22, built-in `fetch`/`WebSocket`) | `client-errors`, `provider-live-conformance`, `regression-reconnect-nuke`, `regression-fake-live`, `regression-handshake-loss`, `regression-gc-starvation`, `regression-overlay-crossroom`, `regression-mixed-transport`, `regression-midflight-resync`, `live-delta-e2e`, `provenance-unit`, `live-wire-schema` | Pure Snapback-kit JS; no Exact import. |
 | **`bun`** (required — do **not** use node) | `regression-ephemeral-wiring`, `regression-optimistic-clobber`, `regression-multilive-scoped` | Import the Exact **Contract runtime**, whose `.js`-suffixed TypeScript imports (e.g. `./signals.js` → `signals.ts`) resolve **only** under bun. |
 
 `scripts/verify-local-proof` runs every suite under its correct runtime — the

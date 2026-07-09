@@ -19,11 +19,16 @@ use serde_json::Value;
 
 use crate::admin::AdminInspect;
 use crate::diagnostic::Diagnostic;
+use crate::ephemeral::RealtimeEnvelope;
 use crate::host_ops::{HostOpsResult, HostReadyDescriptor};
-use crate::local::{InspectState, PublicInspect};
+use crate::live_wire::{LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt};
+use crate::local::{
+    InspectState, LiveResumeOutput, LiveSubscribeOutput, LiveUnsubscribeOutput, PublicInspect,
+};
 use crate::manifest::{
     CapabilityManifest, FunctionManifest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
+use crate::server::{ConnectionGrant, ErrorResponse};
 use crate::storage::StorageInfo;
 
 /// A generated schema artifact: the committed file name (relative to the
@@ -75,6 +80,47 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "inspect.admin.schema.json",
             schemars::schema_for!(AdminInspect),
+        ),
+        // The client-visible live wire (LLP 0051 D4 / ENG-23891): fan-out
+        // envelopes, socket control frames both directions, receipts, the
+        // HTTP polling wrapper, the connection grant, the error envelope,
+        // and the live HTTP operation outputs.
+        finish(
+            "live.envelope.schema.json",
+            schemars::schema_for!(LiveEnvelope),
+        ),
+        finish(
+            "live.socket-server.schema.json",
+            schemars::schema_for!(LiveSocketServerFrame),
+        ),
+        finish(
+            "live.socket-client.schema.json",
+            schemars::schema_for!(LiveSocketClientMessage),
+        ),
+        finish("receipt.schema.json", schemars::schema_for!(Receipt)),
+        finish(
+            "realtime.envelope.schema.json",
+            schemars::schema_for!(RealtimeEnvelope),
+        ),
+        finish(
+            "connection.grant.schema.json",
+            schemars::schema_for!(ConnectionGrant),
+        ),
+        finish(
+            "error.response.schema.json",
+            schemars::schema_for!(ErrorResponse),
+        ),
+        finish(
+            "live.subscribe.output.schema.json",
+            schemars::schema_for!(LiveSubscribeOutput),
+        ),
+        finish(
+            "live.resume.output.schema.json",
+            schemars::schema_for!(LiveResumeOutput),
+        ),
+        finish(
+            "live.unsubscribe.output.schema.json",
+            schemars::schema_for!(LiveUnsubscribeOutput),
         ),
     ]
 }

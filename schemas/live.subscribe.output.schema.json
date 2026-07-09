@@ -1,0 +1,50 @@
+{
+  "$defs": {
+    "QueryOutput": {
+      "properties": {
+        "rows": {
+          "items": true,
+          "type": "array"
+        },
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "rows"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.subscribe.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "permission_epochs": {
+      "additionalProperties": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "receipt": {
+      "description": "Server half of the 'established' receipt (LLP 0034 §3.2, ENG-22478)."
+    },
+    "snapshot": {
+      "$ref": "#/$defs/QueryOutput"
+    },
+    "subscription_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subscription_id",
+    "snapshot"
+  ],
+  "title": "LiveSubscribeOutput",
+  "type": "object"
+}
