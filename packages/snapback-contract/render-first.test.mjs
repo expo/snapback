@@ -5,8 +5,23 @@
 // Pure mock client/runtime; runs under plain node (no server, no Exact).
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { createRenderFirstSnapbackContractSurface, createDeferredContractLinks } from './index.mjs';
+
+// Exact's Hermes fallback lowers the barrel to ordered CommonJS. The
+// render-first module imports the core exports from that barrel, so its
+// re-export must execute only after the core functions have initialized.
+// Plain ESM hides this ordering bug; pin the native-load invariant directly.
+{
+  const indexSource = readFileSync(new URL('./index.mjs', import.meta.url), 'utf8');
+  const coreExport = indexSource.indexOf('export async function createSnapbackContractSurface');
+  const renderFirstReExport = indexSource.indexOf(
+    "export { createDeferredContractLinks, createRenderFirstSnapbackContractSurface } from './render-first.mjs'",
+  );
+  assert.ok(coreExport >= 0, 'core surface export must remain present');
+  assert.ok(renderFirstReExport > coreExport, 'render-first re-export must follow core adapter exports');
+}
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const until = async (predicate, label, timeoutMs = 2_000) => {

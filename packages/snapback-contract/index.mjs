@@ -13,11 +13,6 @@ export const SNAPBACK_CONTRACT_ADAPTER_VERSION = 1;
 export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 export const SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS = 'Parity';
 
-// Render-first mode (ENG-23736): links synchronously, backend attaches behind
-// the mounted app. Lives in ./render-first.mjs; re-exported so the package
-// root stays the single import site.
-export { createDeferredContractLinks, createRenderFirstSnapbackContractSurface } from './render-first.mjs';
-
 // Derived optimistic overlays (Exact LLP 0329 E-B): generated default
 // reducers for IR-tier mutations whose manifest embeds the plan. Lives in
 // ./derived-overlay.mjs; re-exported so the package root stays the single
@@ -2233,3 +2228,11 @@ function validateDescriptorSet(manifest, artifacts, diag) {
     }
   }
 }
+
+// Render-first mode (ENG-23736): links synchronously, backend attaches behind
+// the mounted app. Keep this re-export after the core adapter exports: the
+// Hermes fallback lowers ESM to ordered CommonJS, and render-first imports the
+// core functions above. Re-exporting it before those functions initialized the
+// circular barrel with undefined bindings on native startup.
+// @ref LLP 0034#107-render-first-surface-mode-2026-07-09-eng-23736
+export { createDeferredContractLinks, createRenderFirstSnapbackContractSurface } from './render-first.mjs';

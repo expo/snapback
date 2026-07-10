@@ -1,5 +1,5 @@
 diff --git a/src/vite-plugin.ts b/src/vite-plugin.ts
-index d8d08ba77e4181ad23610a4cbf5b58ec122204bd..77dc969e4fb958b1ab4a012af3b318587c190f51 100644
+index d8d08ba77e4181ad23610a4cbf5b58ec122204bd..466f29c93a7287330bee19ffb9a513763209bf16 100644
 --- a/src/vite-plugin.ts
 +++ b/src/vite-plugin.ts
 @@ -176,15 +176,83 @@ const EXACT_APP_ICON_ALIAS_FALLBACK = resolve(
@@ -202,3 +202,123 @@ index d8d08ba77e4181ad23610a4cbf5b58ec122204bd..77dc969e4fb958b1ab4a012af3b31858
  }
  
  async function readCompactExactWindowsUrlBuiltinSource(): Promise<string> {
+@@ -8414,6 +8534,13 @@ async function loadExactModuleOnce(
+     platform,
+     rootDir,
+   );
++  source = await applyExactNativeDefineReplacements(
++    server,
++    environment,
++    source,
++    resolvedModuleUrl,
++    targetDescriptor,
++  );
+   source = await transformExactNativeHermesSource(
+     source,
+     resolvedModuleUrl,
+@@ -9322,0 +9450,105 @@ async function transformExactNativeHermesSource(
++// ENG-23908: Vite's `vite:define` transform skips client-consumer
++// environments — on dev-web the configured `define` constants are instead
++// assigned onto `globalThis` by /@vite/client (clientInjectionsPlugin), so
++// free identifiers still resolve in the browser. The Exact native
++// environments are client-consumer too, but Hermes never loads
++// /@vite/client, so a configured define (e.g. Snapback's
++// `__SNAPBACK_API_ORIGIN__`) reached native module source as a free
++// identifier and threw ReferenceError before the app mounted. Inline the
++// environment's configured defines with esbuild's AST-aware `define`
++// (shadowed locals and string literals stay untouched), matching build
++// semantics on the native dev path. Serves both /__exact/module-bundle and
++// the startup artifact — they share these module records.
++export interface ExactNativeDefineReplacements {
++  define: Record<string, string>;
++  pattern: RegExp;
++}
++
++const exactNativeDefineReplacementsCache = new WeakMap<
++  object,
++  ExactNativeDefineReplacements | null
++>();
++
++const EXACT_NATIVE_DEFINE_KEY_PATTERN =
++  /^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/;
++
++export function buildExactNativeDefineReplacements(
++  configuredDefine: Record<string, unknown> | undefined,
++): ExactNativeDefineReplacements | null {
++  const define: Record<string, string> = {};
++  for (const [key, value] of Object.entries(configuredDefine ?? {})) {
++    // Only identifier dot-chains are expressible as esbuild defines, and
++    // `import.meta.*` stays owned by Vite's own env handling.
++    if (
++      !EXACT_NATIVE_DEFINE_KEY_PATTERN.test(key) ||
++      key === 'import' ||
++      key.startsWith('import.')
++    ) {
++      continue;
++    }
++    // Same value handling as vite:define's handleDefineValue: strings are
++    // raw expressions, everything else serializes to a literal.
++    define[key] =
++      value === undefined
++        ? 'undefined'
++        : typeof value === 'string'
++          ? value
++          : JSON.stringify(value);
++  }
++  const keys = Object.keys(define);
++  if (keys.length === 0) {
++    return null;
++  }
++  // Same shape as vite:define's pattern gate: each dot may appear as an
++  // optional-chain access in authored source.
++  const pattern = new RegExp(
++    keys.map((key) => escapeRegExp(key).replace(/\\\./g, '\\??\\.')).join('|'),
++  );
++  return { define, pattern };
++}
++
++function resolveExactNativeDefineReplacements(
++  environment: ViteDevServer['environments'][string],
++): ExactNativeDefineReplacements | null {
++  const cached = exactNativeDefineReplacementsCache.get(environment);
++  if (cached !== undefined) {
++    return cached;
++  }
++  const replacements = buildExactNativeDefineReplacements(
++    (environment.config as { define?: Record<string, unknown> }).define,
++  );
++  exactNativeDefineReplacementsCache.set(environment, replacements);
++  return replacements;
++}
++
++async function applyExactNativeDefineReplacements(
++  server: ViteDevServer,
++  environment: ViteDevServer['environments'][string],
++  source: string,
++  moduleUrl: string,
++  targetDescriptor: ClientTargetDescriptor,
++): Promise<string> {
++  if (targetDescriptor.kind !== 'native' || isExactNonJsModuleUrl(moduleUrl)) {
++    return source;
++  }
++  const replacements = resolveExactNativeDefineReplacements(environment);
++  if (!replacements || !replacements.pattern.test(source)) {
++    return source;
++  }
++  try {
++    const transformed = await transformWithEsbuild(source, moduleUrl, {
++      define: replacements.define,
++      loader: 'js',
++      sourcemap: false,
++    });
++    return transformed.code;
++  } catch (error) {
++    server.config.logger.warn(
++      `[exact] Failed to inline configured \`define\` constants into native module "${moduleUrl}": ` +
++        `${error instanceof Error ? error.message : String(error)}. ` +
++        'Serving the module untransformed; defines referenced without a typeof guard will throw on native.',
++    );
++    return source;
++  }
++}
++
