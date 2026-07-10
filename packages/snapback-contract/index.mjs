@@ -568,22 +568,24 @@ export async function createSnapbackContractSurface({
       let queued = null;
       let mutationCommitted = false;
       let mutationOutput = null;
-      if (offlineReplayEnabled && optimisticOp?.ctxLedger) {
-        queued = await clientStore.enqueueMutation({
-          id: optimisticOp.mutationId,
-          function: name,
-          args,
-          readSet: [],
-          ctxLedger: optimisticOp.ctxLedger,
-          authFingerprint: storeAuthFingerprint,
-          optimisticId: optimisticOp.optimisticId,
-          baseVersion: optimisticOp.baseVersion,
-          schemaHash: storeExpectation.schemaHash,
-          inputsHash: storeExpectation.inputsHash,
-        });
-        durablePendingCount += 1;
-      }
+      let mutationDeliveryStarted = false;
       try {
+        if (offlineReplayEnabled && optimisticOp?.ctxLedger) {
+          queued = await clientStore.enqueueMutation({
+            id: optimisticOp.mutationId,
+            function: name,
+            args,
+            readSet: [],
+            ctxLedger: optimisticOp.ctxLedger,
+            authFingerprint: storeAuthFingerprint,
+            optimisticId: optimisticOp.optimisticId,
+            baseVersion: optimisticOp.baseVersion,
+            schemaHash: storeExpectation.schemaHash,
+            inputsHash: storeExpectation.inputsHash,
+          });
+          durablePendingCount += 1;
+        }
+        mutationDeliveryStarted = true;
         // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
         // into this correlation when the runtime supplies them.
         const output = await client.mutate(name, {
@@ -605,6 +607,22 @@ export async function createSnapbackContractSurface({
         await reconcile();
         return output;
       } catch (error) {
+        if (!mutationDeliveryStarted) {
+          // The optimistic row is visible before this async path starts. If
+          // durable enqueue fails, the mutation was never safe to deliver and
+          // no later server write may keep re-applying that phantom overlay.
+          if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
+          const diagnostic = publishDiagnostic(
+            'SNAPBACK_CLIENT_STORE_WRITE_FAILED',
+            error instanceof Error ? error.message : String(error),
+            { mutation: name, operation: 'enqueueMutation' },
+          );
+          writeServerRows(lastServerRows, lastServerVersion);
+          if (error && typeof error === 'object' && error.diagnostic === undefined) {
+            error.diagnostic = diagnostic;
+          }
+          throw error;
+        }
         if (mutationCommitted) {
           if (isConnectivityFailure(error)) retainedOffline = true;
           publishDiagnostic(

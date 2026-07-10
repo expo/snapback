@@ -316,4 +316,44 @@ assert.equal(JSON.stringify(tombstone).includes('old-payload'), false);
 assert.equal(JSON.stringify(await durableB.failedMutations()).includes('old-failed-payload'), false);
 assert.equal(await durableB.getRetainedQuery('todos:{}', { authFingerprint: 'auth:stable' }), null);
 
+// A durable enqueue failure must roll back the already-rendered optimistic
+// row and fail before contacting the server. Otherwise every later server-row
+// write would re-apply a mutation that was neither sent nor safely queued.
+const enqueueFailureClient = makeClient();
+const enqueueFailureBaseStore = createMemorySnapbackClientStore();
+const enqueueFailureStore = {
+  ...enqueueFailureBaseStore,
+  async enqueueMutation() {
+    throw new Error('durable enqueue unavailable');
+  },
+};
+const enqueueFailureSurface = await createSnapbackContractSurface({
+  runtime,
+  client: enqueueFailureClient,
+  clientStore: enqueueFailureStore,
+  userId: USER,
+  manifest,
+  queryName: 'listTodos',
+  boundaryKey: 'todos',
+});
+await assert.rejects(
+  enqueueFailureSurface.links.createTodo({ title: 'must roll back' }),
+  (error) => {
+    assert.equal(error.diagnostic?.code, 'SNAPBACK_CLIENT_STORE_WRITE_FAILED');
+    assert.equal(error.diagnostic?.details?.operation, 'enqueueMutation');
+    return true;
+  },
+);
+assert.deepEqual(enqueueFailureSurface.boundary.current('todos'), []);
+assert.equal(enqueueFailureSurface.pendingCount(), 0);
+assert.deepEqual(enqueueFailureClient.state.deliveries, []);
+assert.equal(
+  enqueueFailureSurface.diagnostics.filter(
+    (diagnostic) => diagnostic.code === 'SNAPBACK_CLIENT_STORE_WRITE_FAILED'
+      && diagnostic.details?.operation === 'enqueueMutation',
+  ).length,
+  1,
+);
+enqueueFailureSurface.dispose();
+
 console.log('offline-replay.test.mjs: all assertions passed');
