@@ -5,7 +5,11 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
+client mutation settlement, full-resync-before-replay, and replay tests; broader
+conflict/delta-resume work remains as scoped below. Earlier: cross-family review
+revisions, ratified by Charlie — see
 `reviews/0043-offline-replay-retention.claude.md`: claim language aligned with
 LLP 0012's parity rule, client-side replay restored per 0008, DK-9 cited
 instead of re-enumerated, suppression/conflict machinery restated; initial
@@ -24,13 +28,13 @@ into two product milestones, plus a named third that stays out of scope:
 3. (later, explicitly out of scope here, mirroring 0008's own pin)
    delta-resume with pending offline mutations.
 
-A note on claims, because LLP 0012 pins the rule: **no local handler execution
-means no local-first/parity claim**, and this slice's non-goals exclude local
-handler execution. Milestone 1 licenses "your data is readable offline";
-milestone 2 licenses "offline edits that replay safely." Neither licenses
-"local-first" in the parity sense, and the README's present-tense local-first
-language should be softened to match whichever milestone has actually landed —
-coordinated with 0012's labeling rules, not around them.
+A note on claims, because LLP 0012 pins the rule: **no local execution means no
+local-first/parity claim**. This RFC excludes arbitrary JS handler execution;
+LLP 0051 subsequently supplies local execution for the closed IR tier. The
+shipped composition may therefore report `Parity` only for a store-configured
+surface whose complete mutation set is locally IR-derivable. Retention or queue
+support alone, and every mixed/no-store/multi-query/system surface, remains
+`Online`.
 
 Terminology: "retention" in this document means the **client's** retained
 store. LLP 0008 §Retention and Resume is about the *server's* change journal;
@@ -177,4 +181,10 @@ fingerprint is checked before replay and a mismatch surfaces
 
 ## Status
 
-Draft. This RFC is the gap-closing slice for the offline/local-first claim.
+Draft, with the first closed-IR single-query M1/M2 slice implemented by
+ENG-23965. Shipped evidence covers retained stale boot, reload persistence,
+ordered create/toggle/delete replay, lost-response exactly-once settlement,
+auth wipe/mismatch, artifact quarantine, exact ledger consumption, and
+authoritative convergence. The broader acceptance rows (richer conflict UI and
+the explicitly later delta-resume-with-pending milestone) remain future work;
+they do not widen the shipped Parity predicate.

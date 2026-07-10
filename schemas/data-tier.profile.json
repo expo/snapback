@@ -3,9 +3,11 @@
   "bounds": {
     "maxExprDepth": 32,
     "maxInsertEachFanout": 1024,
+    "maxLedgerIdBytes": 256,
     "maxLedgerIds": 1024,
     "maxSerializedBytes": 65536,
-    "maxSteps": 64
+    "maxSteps": 64,
+    "opaqueIdPattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
   },
   "caseSchemaPath": "schemas/data-tier.case.schema.json",
   "compatibility": {

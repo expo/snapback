@@ -65,6 +65,11 @@
           "minimum": 0,
           "type": "integer"
         },
+        "maxLedgerIdBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
         "maxLedgerIds": {
           "format": "uint",
           "minimum": 0,
@@ -79,6 +84,9 @@
           "format": "uint",
           "minimum": 0,
           "type": "integer"
+        },
+        "opaqueIdPattern": {
+          "type": "string"
         }
       },
       "required": [
@@ -86,7 +94,9 @@
         "maxExprDepth",
         "maxInsertEachFanout",
         "maxSerializedBytes",
-        "maxLedgerIds"
+        "maxLedgerIds",
+        "maxLedgerIdBytes",
+        "opaqueIdPattern"
       ],
       "type": "object"
     }

@@ -10,7 +10,7 @@ Product code today:
 - `src/contract_exact.rs` owns Snapback-side Contract/Exact capability diagnostics that core can emit without importing Exact.
 - `demos/_kit/client.mjs` is the framework-neutral online Snapback client used by headless and Contract acceptance.
 - `packages/snapback-codegen` (the product codegen package; `demos/_kit/codegen.mjs` is a compatibility re-export) projects Snapback demo artifacts into generated Contract binding modules under `snapback/generated/contract/`, including runtime links and per-query/per-mutation descriptor sidecars.
-- `packages/snapback-contract/` is the first package-equivalent Snapback Contract adapter: generated-artifact validation, boundary hydration, manifest-derived runtime links, quiet headless Contract mounting, optimistic mutations, reconciliation, provider seam, row sync state, Online capability reporting, and the shared system-surface boundary/link helper used by the admin console.
+- `packages/snapback-contract/` is the first package-equivalent Snapback Contract adapter: generated-artifact validation, boundary hydration, manifest-derived runtime links, quiet headless Contract mounting, optimistic mutations, reconciliation, retained-query/outbox storage, ordered D1-ledger replay, provider seam, row sync state, per-surface Online/Parity capability reporting, and the shared Online-only system-surface boundary/link helper used by the admin console.
 - `packages/snapback-contract/build-preset.mjs` is the first build/dev-serve preset: it owns the shared Exact/Contract Vite plugin ordering, route-registry and entry preflights, static/native target selection, Snapback base-path rewrite, and the browser-only admin dev proxy shape.
 - `packages/snapback-contract/exact-conformance.mjs` discovers, requires, and can run the Exact-owned provider conformance gate. It resolves the local Exact checkout, inspects `exact-verify.json` for `data-provider-conformance`, searches known suite paths, reports structured diagnostics for stale/missing Exact capability, and invokes `bun scripts/exact-verify.mjs --check data-provider-conformance --json` when asked to run the Exact check.
 - `packages/snapback-contract/exact-package.mjs` imports `@exact/contract` compiler, runtime, and conformance exports through the package export map when installed, falling back to a configured Exact checkout package root while Snapback still runs from sibling source trees. It is exported as `@snapback/contract/exact-package`.
@@ -42,7 +42,13 @@ The todo Contract surface follows this sequence:
 9. Reconciliation re-queries Snapback and republishes authoritative rows into the boundary.
 10. Provider users call the same backend through `createBoundaryContractDataProvider`.
 
-This is Online only. It does not run handlers locally, queue offline mutations, replay deterministically, or claim Parity.
+That sequence remains the Online fallback. A single live-query surface earns
+`Parity` only when it is configured with a client store, the generated manifest
+claims `offlineReplay`, and every mutation declared on the surface has an IR
+plan derivable for the bound table. That path retains authorized rows, evaluates
+the closed IR locally for its overlay/ledger, queues before sending, full-resyncs
+before ordered reconnect replay, and reconciles to server truth. Multi-query,
+system, mixed-tier, and no-store surfaces remain `Online`.
 
 Todo v2 adds useful checks on this lifecycle: the adapter exposes
 `declaredQueries` and `declaredMutations` from the generated Contract data
@@ -100,9 +106,11 @@ bun demos/todo-v2/tests/acceptance/provider-conformance.mjs
 
 The Todo v2 fixture starts a live in-memory Snapback server, creates the
 package-owned Contract provider, and passes the Exact suite as
-`snapback-todo-v2-provider` for the capabilities Snapback claims. This closes
-the first LLP 0021 Phase 2 provider-conformance gate for Todo v2; it does not
-claim Parity or offline replay.
+`snapback-todo-v2-provider` for its Online conformance subset. Separate
+`packages/snapback-contract/offline-replay.test.mjs` evidence gates the
+Parity-only behavior: retained reload, create/toggle/delete queue ordering,
+lost-response exactly-once replay, convergence, auth wipe, artifact quarantine,
+and serialized localStorage restart.
 
 The admin Contract surface follows a related but system-app-specific sequence:
 

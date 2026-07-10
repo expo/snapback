@@ -1,7 +1,7 @@
 {
   "id": "todo-v2",
   "title": "Todo list v2",
-  "description": "A second todo reference app used to test LLP 0021 Phase 0-2: a richer row shape, a generated Contract binding surface with an extra mutation, Exact project checks for generated descriptors, a wrong-native-server-shape capability diagnostic, and an Exact-owned provider conformance fixture.",
+  "description": "A second todo reference app used to test LLP 0021 and LLP 0051 D6: a richer row shape, an all-IR generated Contract binding surface, retained/offline replay, Exact project checks, a wrong-native-server-shape capability diagnostic, and an Exact-owned provider conformance fixture.",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
   "systems": ["API", "Storage", "Runtime", "Sync", "Realtime", "Developer experience", "Contract/Exact"],
@@ -10,7 +10,9 @@
     "runtimeEngine": "host-plan",
     "liveSubscriptions": true,
     "syncableLiveQuery": true,
-    "mutationReadSetValidation": true
+    "mutationReadSetValidation": true,
+    "offlineRetention": true,
+    "optimisticReplay": true
   },
   "backend": {
     "source": "snapback/schema.mjs + snapback/functions.mjs",
@@ -48,6 +50,7 @@
       "runner": "bun demos/todo-v2/tests/acceptance/contract.mjs",
       "descriptorRunner": "bun demos/todo-v2/tests/acceptance/contract-descriptors.mjs",
       "adapterSemanticsRunner": "bun demos/todo-v2/tests/acceptance/adapter-semantics.mjs",
+      "offlineReplayRunner": "node packages/snapback-contract/offline-replay.test.mjs",
       "providerConformanceRunner": "bun demos/todo-v2/tests/acceptance/provider-conformance.mjs",
       "browserRunner": "bun install --cwd demos/todo-v2/surfaces/contract (once), then SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 bun run --cwd demos/todo-v2/surfaces/contract dev (Exact consumed from the npm registry; the surface bun.lock is the pin - ENG-22480 model, migrated by ENG-23899)",
       "build": "bun run --cwd demos/todo-v2/surfaces/contract build (vite build via the exactContractWeb preset -> surfaces/contract/dist/web/)",
@@ -96,11 +99,12 @@
       "provider seam subscribe + mutate on live backend",
       "Exact-owned DataProvider conformance suite passes against the Snapback provider",
       "runtime links include the generated setPriority mutation",
+      "retained authorized rows and queued create/toggle/delete survive reload",
+      "reconnect full-resyncs, replays by monotonic sequence, and applies each mutation exactly once",
       "no demo-local Contract sidecars are required"
     ]
   },
   "capabilityGaps": [
-    "offline_mutation_replay",
     "ibex_ctx_db_host_bridge (JS ctx.db handlers; v0 uses declarative HostPlans)",
     "postgres",
     "cloudflare",
@@ -119,7 +123,7 @@
     "SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH"
   ],
   "notClaiming": [
-    "offline-first / local handler replay (this is an Online-class integration)",
+    "arbitrary JS handler replay, mixed-tier/multi-query offline parity, and delta-resume with pending writes",
     "Partiful-scale throughput (this is a demo shape, not a benchmark)",
     "JS handler execution (HostPlan declarative plans only in v0)"
   ]

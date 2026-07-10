@@ -13,8 +13,8 @@
 //!   Snapback public artifact shape; committed JSON schemas are generated.
 
 use crate::manifest::{
-    CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, MutationPlan, SNAPBACK_SCHEMA_VERSION,
-    TableManifest,
+    CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, MutationPlan, REPLAY_OPAQUE_ID_MAX_BYTES,
+    REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, TableManifest,
 };
 use crate::value_expr::{
     DATA_TIER_PROFILE_VERSION, MAX_EXPR_DEPTH, MAX_INSERT_EACH_FANOUT, MAX_PLAN_SERIALIZED_BYTES,
@@ -41,6 +41,8 @@ pub struct DataTierPlanBounds {
     pub max_insert_each_fanout: usize,
     pub max_serialized_bytes: usize,
     pub max_ledger_ids: usize,
+    pub max_ledger_id_bytes: usize,
+    pub opaque_id_pattern: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -98,6 +100,8 @@ impl DataTierProfile {
                 max_insert_each_fanout: MAX_INSERT_EACH_FANOUT,
                 max_serialized_bytes: MAX_PLAN_SERIALIZED_BYTES,
                 max_ledger_ids: crate::manifest::CTX_ANSWER_LEDGER_MAX_IDS,
+                max_ledger_id_bytes: REPLAY_OPAQUE_ID_MAX_BYTES,
+                opaque_id_pattern: REPLAY_OPAQUE_ID_PATTERN.to_owned(),
             },
             pinned_functions: PINNED_FUNCTIONS
                 .iter()

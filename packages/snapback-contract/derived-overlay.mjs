@@ -414,7 +414,13 @@ export const planDerivableForTable = (plan, table) => {
 export const deriveOptimisticReducer = ({ name, plan, table, onError = null }) => {
   if (!planDerivableForTable(plan, table)) return null;
 
-  return (rows, args, { userId = null, optimisticId, baseVersion = null } = {}) => {
+  return (rows, args, {
+    userId = null,
+    optimisticId,
+    baseVersion = null,
+    nowMs = Date.now(),
+    runtimeId = null,
+  } = {}) => {
     const original = rows;
     try {
       // Mirror the server's fail-closed bounds check: an over-bound plan is a
@@ -425,6 +431,7 @@ export const deriveOptimisticReducer = ({ name, plan, table, onError = null }) =
       let provisionalCount = 0;
       const nextProvisionalId = () => {
         provisionalCount += 1;
+        if (typeof runtimeId === 'function') return runtimeId(provisionalCount);
         return provisionalCount === 1 ? optimisticId : `${optimisticId}_${provisionalCount}`;
       };
       const bindings = new Map();
@@ -433,7 +440,7 @@ export const deriveOptimisticReducer = ({ name, plan, table, onError = null }) =
         args: args ?? {},
         authUserId: userId,
         bindings,
-        nowMs: Date.now(),
+        nowMs,
         runtimeId: nextProvisionalId,
       };
       let out = [...(rows ?? [])];
@@ -470,9 +477,12 @@ export const deriveOptimisticReducer = ({ name, plan, table, onError = null }) =
         const kind = Object.keys(step)[0];
         const body = step[kind];
         if (kind === 'Insert') {
-          const evaluated = evalValues(body.values);
+          // Server order is implicit row id first, then the value map. This is
+          // load-bearing when values also contain RuntimeId: both tiers must
+          // consume one shared ledger in the same order.
           const id = nextProvisionalId();
           if (body.bind_id_as) bindings.set(body.bind_id_as, id);
+          const evaluated = evalValues(body.values);
           if (!committedMatch(body.values, evaluated)) {
             out = [...out, { ...evaluated, _id: id, optimistic: true }];
           }
@@ -501,8 +511,14 @@ export const deriveOptimisticReducer = ({ name, plan, table, onError = null }) =
           bindings.set(body.bind_as, evalValueExpr(body.expr, env));
           if (exprIsStable(body.expr, stableBindings)) stableBindings.add(body.bind_as);
         } else if (kind === 'DeleteWhere') {
+          // SQL lowering evaluates each filter value once before scanning;
+          // do the same so RuntimeId answers are not consumed once per row.
+          const filters = (body.filter ?? []).map((filter) => ({
+            ...filter,
+            value: { Literal: evalValueExpr(filter.value, env) },
+          }));
           out = out.filter(
-            (row) => !(body.filter ?? []).every((clause) => filterMatchesRow(clause, env, row)),
+            (row) => !filters.every((clause) => filterMatchesRow(clause, env, row)),
           );
         } else if (kind === 'InsertEach') {
           const source = evalValueExpr(body.source, env);
@@ -518,8 +534,8 @@ export const deriveOptimisticReducer = ({ name, plan, table, onError = null }) =
             const itemStable = new Set(stableBindings);
             itemStable.add(body.item_as); // item derives from args — stable
             const itemEnv = { ...env, bindings: itemBindings };
-            const evaluated = evalValues(body.values, itemEnv);
             const id = nextProvisionalId();
+            const evaluated = evalValues(body.values, itemEnv);
             if (!committedMatch(body.values, evaluated, itemStable)) {
               out = [...out, { ...evaluated, _id: id, optimistic: true }];
             }
@@ -527,6 +543,13 @@ export const deriveOptimisticReducer = ({ name, plan, table, onError = null }) =
         } else {
           fail('SNAPBACK_PLAN_UNSUPPORTED_STEP', `unsupported mutation step ${kind}`);
         }
+      }
+      // Return expressions run after every step on the server and may consume
+      // RuntimeId answers even though the optimistic reducer does not expose
+      // the mutation's return value. Evaluate just the ledger-bearing forms.
+      if (plan.return_value && typeof plan.return_value === 'object') {
+        if ('Expr' in plan.return_value) evalValueExpr(plan.return_value.Expr, env);
+        if ('Document' in plan.return_value) evalValueExpr(plan.return_value.Document.id, env);
       }
       return out;
     } catch (error) {

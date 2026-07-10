@@ -213,6 +213,57 @@ const todoPlan = {
   );
 }
 
+// D1 answer order matches the Rust HostPlan evaluator exactly: implicit
+// insert id, value-map RuntimeId, then return-expression RuntimeId.
+{
+  const answers = [];
+  const plan = {
+    steps: [{
+      Insert: {
+        table: 'todos',
+        values: { title: { Arg: 'title' }, token: 'RuntimeId' },
+        bind_id_as: 'rowId',
+      },
+    }],
+    return_value: { Expr: 'RuntimeId' },
+  };
+  const reducer = deriveOptimisticReducer({ name: 'orderedIds', plan, table: 'todos' });
+  const rows = reducer([], { title: 'ordered' }, {
+    optimisticId: 'fallback',
+    runtimeId() {
+      const id = `ledger_${answers.length + 1}`;
+      answers.push(id);
+      return id;
+    },
+    nowMs: 1,
+  });
+  assert.deepEqual(answers, ['ledger_1', 'ledger_2', 'ledger_3']);
+  assert.equal(rows[0]._id, 'ledger_1');
+  assert.equal(rows[0].token, 'ledger_2');
+}
+
+// DeleteWhere lowers filter values once before its scan (not once per row),
+// which is also load-bearing for ledger consumption.
+{
+  let calls = 0;
+  const plan = {
+    steps: [{
+      DeleteWhere: {
+        table: 'todos',
+        filter: [{ field: 'token', op: 'Eq', value: 'RuntimeId' }],
+      },
+    }],
+    return_value: 'ChangedCount',
+  };
+  const reducer = deriveOptimisticReducer({ name: 'deleteToken', plan, table: 'todos' });
+  reducer([{ token: 'id_1' }, { token: 'id_2' }], {}, {
+    optimisticId: 'fallback',
+    runtimeId: () => `id_${++calls}`,
+    nowMs: 1,
+  });
+  assert.equal(calls, 1);
+}
+
 // Manifest-level derivation: only mutations with derivable embedded plans.
 {
   const manifest = {

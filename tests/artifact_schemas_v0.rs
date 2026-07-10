@@ -35,7 +35,8 @@ use snapback::local::{
     PublicInspect,
 };
 use snapback::manifest::{
-    AuthInput, CapabilityManifest, FunctionManifest, HandlerInput, MutationPlan,
+    AuthInput, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, FunctionManifest, HandlerInput,
+    MutationPlan, MutationRequest, REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN,
     SNAPBACK_SCHEMA_VERSION, SchemaManifest, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use snapback::runtime::{
@@ -74,6 +75,65 @@ fn assert_validates(file: &str, value: &Value) {
          mismatch):\n{}",
         errors.join("\n")
     );
+}
+
+fn assert_rejects(file: &str, value: &Value) {
+    let schema = committed(file);
+    let validator = jsonschema::validator_for(&schema)
+        .unwrap_or_else(|error| panic!("compile committed {file}: {error}"));
+    assert!(
+        !validator.is_valid(value),
+        "an out-of-contract value unexpectedly validates against {file}: {value}"
+    );
+}
+
+#[test]
+fn mutation_replay_bounds_match_the_public_data_tier_profile() {
+    let schema = committed("mutation.input.schema.json");
+    let profile = DataTierProfile::current();
+    let client_id = &schema["properties"]["clientMutationId"];
+    let ledger_ids = &schema["$defs"]["CtxAnswerLedger"]["properties"]["ids"];
+
+    assert_eq!(client_id["minLength"], json!(1));
+    assert_eq!(client_id["maxLength"], json!(REPLAY_OPAQUE_ID_MAX_BYTES));
+    assert_eq!(client_id["pattern"], json!(REPLAY_OPAQUE_ID_PATTERN));
+    assert_eq!(ledger_ids["maxItems"], json!(profile.bounds.max_ledger_ids));
+    assert_eq!(
+        ledger_ids["items"]["maxLength"],
+        json!(profile.bounds.max_ledger_id_bytes)
+    );
+    assert_eq!(
+        ledger_ids["items"]["pattern"],
+        json!(profile.bounds.opaque_id_pattern)
+    );
+    assert_eq!(profile.bounds.max_ledger_ids, CTX_ANSWER_LEDGER_MAX_IDS);
+
+    let base = serde_json::to_value(MutationRequest {
+        input: HandlerInput::default(),
+        client_mutation_id: Some("cm_valid".to_owned()),
+    })
+    .unwrap();
+    for invalid in [String::new(), "bad/id".to_owned(), "x".repeat(257)] {
+        let mut request = base.clone();
+        request["clientMutationId"] = json!(invalid);
+        assert_rejects("mutation.input.schema.json", &request);
+    }
+
+    let mut too_many = base.clone();
+    too_many["ctx_ledger"] = json!({
+        "version": 1,
+        "ids": vec!["id"; CTX_ANSWER_LEDGER_MAX_IDS + 1],
+        "now": 1,
+    });
+    assert_rejects("mutation.input.schema.json", &too_many);
+
+    let mut bad_ledger_id = base;
+    bad_ledger_id["ctx_ledger"] = json!({
+        "version": 1,
+        "ids": ["bad/id"],
+        "now": 1,
+    });
+    assert_rejects("mutation.input.schema.json", &bad_ledger_id);
 }
 
 /// Drift gate: what the Rust types generate now must equal what is committed.
@@ -528,7 +588,11 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     );
     assert_validates(
         "mutation.input.schema.json",
-        &serde_json::to_value(&input).unwrap(),
+        &serde_json::to_value(MutationRequest {
+            input: input.clone(),
+            client_mutation_id: Some("cm_schema_roundtrip".to_owned()),
+        })
+        .unwrap(),
     );
     assert_validates(
         "live.subscribe.input.schema.json",

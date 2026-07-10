@@ -5,7 +5,8 @@ use crate::live_matcher::{
 };
 use crate::manifest::{HandlerInput, IbexModule, MutationOutput, QueryOutput, QueryPlan};
 use crate::storage::{
-    BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead, LocalDatabase, MutationCommit,
+    BufferedWrite, CapturedReadDependency, CapturedReadKind, ClientMutationIdentity, DbRead,
+    LocalDatabase, MutationCommit,
 };
 use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
@@ -157,17 +158,16 @@ impl RuntimeManager {
         input: HandlerInput,
         db: &mut LocalDatabase,
         pool: Option<&WarmVmPool>,
+        identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<MutationCommit> {
         let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true)?;
         let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
         // The recorded (or replayed) ctx-answer ledger rides the output
         // (LLP 0051 D1) so LLP 0043 M2 producers and dry-run consumers have
         // the captured environment as a defined channel.
-        let ctx_ledger = invocation.take_ctx_ledger();
+        let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext { writes, reads, .. } = invocation;
-        let mut commit = db.commit_buffered_writes(&input, writes, reads, result)?;
-        commit.output.ctx_ledger = Some(ctx_ledger);
-        Ok(commit)
+        db.commit_buffered_writes_idempotent(&input, writes, reads, result, ctx_ledger, identity)
     }
 
     /// Dry-run an Ibex-module mutation (LLP 0051 D8): the handler runs for
@@ -183,7 +183,7 @@ impl RuntimeManager {
     ) -> SnapbackResult<MutationCommit> {
         let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true)?;
         let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
-        let ctx_ledger = invocation.take_ctx_ledger();
+        let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext { writes, reads, .. } = invocation;
         let mut commit = db.dry_run_buffered_writes(&input, writes, reads, result)?;
         commit.output.ctx_ledger = Some(ctx_ledger);
@@ -375,6 +375,29 @@ fn validate_replay_ledger(input: &HandlerInput) -> SnapbackResult<Option<ReplayL
             ),
         ));
     }
+    if ledger.ids.len() > crate::manifest::CTX_ANSWER_LEDGER_MAX_IDS {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
+            "runtime",
+            format!(
+                "ctx-answer ledger contains {} ids, past the declared bound ({})",
+                ledger.ids.len(),
+                crate::manifest::CTX_ANSWER_LEDGER_MAX_IDS
+            ),
+        ));
+    }
+    if let Some((index, _)) = ledger
+        .ids
+        .iter()
+        .enumerate()
+        .find(|(_, id)| !crate::manifest::replay_opaque_id_is_valid(id))
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_ID_INVALID",
+            "runtime",
+            format!("ctx-answer ledger id at index {index} is not a valid opaque replay id"),
+        ));
+    }
     if let Some(fingerprint) = &ledger.auth_fingerprint {
         let current = crate::manifest::auth_fingerprint(&input.auth);
         if *fingerprint != current {
@@ -494,8 +517,21 @@ impl<'a> IbexHostContext<'a> {
     /// The `auth_fingerprint` is deliberately left unset — that channel is
     /// server-retained per the D1 wire split; producers that retain it attach
     /// it themselves.
-    pub(crate) fn take_ctx_ledger(&mut self) -> crate::manifest::CtxAnswerLedger {
-        crate::manifest::CtxAnswerLedger {
+    pub(crate) fn take_ctx_ledger(&mut self) -> SnapbackResult<crate::manifest::CtxAnswerLedger> {
+        if let Some(replay) = self.replay.as_ref()
+            && replay.cursor != replay.ids.len()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CTX_LEDGER_UNUSED_IDS",
+                "runtime",
+                format!(
+                    "replay consumed {} of {} ledgered ids; the handler diverged from its recording",
+                    replay.cursor,
+                    replay.ids.len()
+                ),
+            ));
+        }
+        Ok(crate::manifest::CtxAnswerLedger {
             version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
             ids: match &self.replay {
                 Some(replay) => replay.ids.clone(),
@@ -503,7 +539,7 @@ impl<'a> IbexHostContext<'a> {
             },
             now: self.now_ms,
             auth_fingerprint: None,
-        }
+        })
     }
 
     /// The single host id source for the deterministic tier (LLP 0051 D1):

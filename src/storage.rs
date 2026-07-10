@@ -1,13 +1,16 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::manifest::{
-    FieldManifest, FieldType, FilterOp, HandlerInput, MutationOutput, MutationPlan, MutationStep,
-    OrderDirection, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData,
-    TableManifest, ValueExpr,
+    CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest,
+    FieldType, FilterOp, HandlerInput, MutationOutput, MutationPlan, MutationStep, OrderDirection,
+    QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest,
+    ValueExpr, auth_fingerprint, replay_opaque_id_is_valid,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Number, Value, json};
+use sha2::{Digest, Sha256};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -71,6 +74,34 @@ pub struct MutationCommit {
     pub read_dependencies: Vec<CapturedReadDependency>,
     #[serde(default)]
     pub write_dependencies: Vec<CapturedWriteDependency>,
+}
+
+/// Durable identity for one queued client mutation. The server stores this in
+/// the same SQLite transaction as the mutation result, closing the
+/// response-loss/reconnect duplicate window (LLP 0043 M2).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ClientMutationIdentity {
+    pub id: String,
+    pub function: String,
+    pub auth_fingerprint: String,
+    pub input_fingerprint: String,
+}
+
+struct BufferedCommitOptions<'a> {
+    ctx_ledger: Option<CtxAnswerLedger>,
+    apply: bool,
+    identity: Option<&'a ClientMutationIdentity>,
+}
+
+impl ClientMutationIdentity {
+    pub fn new(id: impl Into<String>, function: impl Into<String>, input: &HandlerInput) -> Self {
+        Self {
+            id: id.into(),
+            function: function.into(),
+            auth_fingerprint: auth_fingerprint(&input.auth),
+            input_fingerprint: mutation_input_fingerprint(input),
+        }
+    }
 }
 
 /// One executed IR mutation plan with its recorded deterministic answers —
@@ -234,6 +265,71 @@ impl LocalDatabase {
                 .map(|table| table.name.clone())
                 .collect(),
         })
+    }
+
+    /// Return the durably settled result for a client mutation identity.
+    /// Function/auth mismatches fail closed instead of treating the key as a
+    /// cache hit under different authority.
+    pub fn client_mutation_result(
+        &self,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<Option<MutationOutput>> {
+        validate_client_mutation_identity(identity)?;
+        let row: Option<(String, String, String, String)> = self
+            .conn
+            .query_row(
+                "SELECT function, auth_fingerprint, input_fingerprint, output_json
+                 FROM _snapback_client_mutations WHERE client_mutation_id = ?1",
+                params![identity.id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()?;
+        let Some((function, retained_auth, retained_input, output_json)) = row else {
+            return Ok(None);
+        };
+        if function != identity.function {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                "sync",
+                "client mutation id was already used for another function",
+            )
+            .with_details(json!({
+                "clientMutationId": identity.id,
+                "expectedFunction": function,
+                "actualFunction": identity.function,
+            })));
+        }
+        if retained_auth != identity.auth_fingerprint {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_STALE_RESULT",
+                "auth",
+                "client mutation was recorded under another auth context",
+            )
+            .with_details(json!({ "clientMutationId": identity.id })));
+        }
+        if retained_input != identity.input_fingerprint {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                "sync",
+                "client mutation id was already used with another mutation payload",
+            )
+            .with_details(json!({
+                "clientMutationId": identity.id,
+                "reason": "input_fingerprint_mismatch",
+            })));
+        }
+        let output = serde_json::from_str(&output_json).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+                "storage",
+                "stored client mutation result could not be decoded",
+            )
+            .with_details(json!({
+                "clientMutationId": identity.id,
+                "error": error.to_string(),
+            }))
+        })?;
+        Ok(Some(output))
     }
 
     pub fn current_version(&self) -> SnapbackResult<u64> {
@@ -401,6 +497,7 @@ impl LocalDatabase {
             tx.execute(&format!("DELETE FROM {}", quote_ident(&table.name)?), [])?;
         }
         tx.execute("DELETE FROM _snapback_changes", [])?;
+        tx.execute("DELETE FROM _snapback_client_mutations", [])?;
         tx.execute(
             "DELETE FROM _snapback_meta WHERE key = ?1",
             params![META_RETENTION_FLOOR],
@@ -576,7 +673,18 @@ impl LocalDatabase {
         plan: &MutationPlan,
         input: &HandlerInput,
     ) -> SnapbackResult<MutationCommit> {
-        Ok(self.execute_mutation_plan(plan, input, true)?.commit)
+        Ok(self.execute_mutation_plan(plan, input, true, None)?.commit)
+    }
+
+    pub fn execute_mutation_idempotent(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<MutationCommit> {
+        Ok(self
+            .execute_mutation_plan(plan, input, true, Some(identity))?
+            .commit)
     }
 
     /// Dry-run an IR mutation (LLP 0051 D8): the identical step loop, binding
@@ -594,7 +702,7 @@ impl LocalDatabase {
         plan: &MutationPlan,
         input: &HandlerInput,
     ) -> SnapbackResult<MutationPlanExecution> {
-        self.execute_mutation_plan(plan, input, false)
+        self.execute_mutation_plan(plan, input, false, None)
     }
 
     fn execute_mutation_plan(
@@ -602,11 +710,16 @@ impl LocalDatabase {
         plan: &MutationPlan,
         input: &HandlerInput,
         apply: bool,
+        identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<MutationPlanExecution> {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite mutation");
         // @ref LLP 0003#execution-and-write-semantics — one mutation commits all buffered writes at one version.
         let schema = self.schema.clone();
-        let now_ms = now_millis();
+        let replay_ledger = validate_plan_replay_ledger(input)?;
+        let now_ms = replay_ledger
+            .as_ref()
+            .map(|ledger| ledger.now)
+            .unwrap_or_else(now_millis);
         let current_version = self.current_version()?;
         let next_version = current_version + 1;
         let tx = self.conn.transaction()?;
@@ -634,7 +747,8 @@ impl LocalDatabase {
         // Every host-generated id in answer order — the IR half of the
         // ctx-answer ledger (LLP 0051 D1's `generatedIds`), reported by
         // dry-run as `deterministicInputs`.
-        let mut generated_ids: Vec<String> = Vec::new();
+        let plan_ids = RefCell::new(PlanIdSource::new(replay_ledger));
+        let next_id = || plan_ids.borrow_mut().next();
 
         for step in &plan.steps {
             match step {
@@ -644,13 +758,12 @@ impl LocalDatabase {
                     bind_id_as,
                 } => {
                     let table = schema_table(&schema, table)?;
-                    let id = new_id();
-                    generated_ids.push(id.clone());
+                    let id = next_id()?;
                     if let Some(binding) = bind_id_as {
                         bindings.insert(binding.clone(), Value::String(id.clone()));
                     }
 
-                    let row = eval_value_map(values, input, &bindings, now_ms)?;
+                    let row = eval_value_map(values, input, &bindings, now_ms, &next_id)?;
                     let changed_fields = changed_field_names(&row);
                     let document = insert_document(&tx, table, &id, &row, next_version, now_ms)?;
                     record_change(
@@ -675,8 +788,11 @@ impl LocalDatabase {
                     if values.is_empty() {
                         continue;
                     }
-                    let id = expect_string(eval_expr(id, input, &bindings, now_ms)?, "patch id")?;
-                    let row = eval_value_map(values, input, &bindings, now_ms)?;
+                    let id = expect_string(
+                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        "patch id",
+                    )?;
+                    let row = eval_value_map(values, input, &bindings, now_ms, &next_id)?;
                     let changed_fields = changed_field_names(&row);
                     if patch_document(&tx, table, &id, &row, next_version, now_ms)? {
                         let document = get_document_from_tx(&tx, table, &id)?;
@@ -700,7 +816,10 @@ impl LocalDatabase {
                 }
                 MutationStep::Delete { table, id } => {
                     let table = schema_table(&schema, table)?;
-                    let id = expect_string(eval_expr(id, input, &bindings, now_ms)?, "delete id")?;
+                    let id = expect_string(
+                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        "delete id",
+                    )?;
                     let document = get_document_from_tx(&tx, table, &id)?;
                     if delete_document(&tx, table, &id)? {
                         record_change(
@@ -734,7 +853,10 @@ impl LocalDatabase {
                     else_error,
                 } => {
                     let table = schema_table(&schema, table)?;
-                    let id = expect_string(eval_expr(id, input, &bindings, now_ms)?, "get id")?;
+                    let id = expect_string(
+                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        "get id",
+                    )?;
                     let document = get_document_from_tx(&tx, table, &id)?;
                     let dependency = match &document {
                         Some(_) => CapturedReadDependency {
@@ -789,7 +911,7 @@ impl LocalDatabase {
                     }
                 }
                 MutationStep::Guard { cond, else_error } => {
-                    let value = eval_expr(cond, input, &bindings, now_ms)?;
+                    let value = eval_expr(cond, input, &bindings, now_ms, Some(&next_id))?;
                     if !crate::value_expr::truthy(&value) {
                         return Err(SnapbackError::error(
                             else_error.clone(),
@@ -800,7 +922,7 @@ impl LocalDatabase {
                     }
                 }
                 MutationStep::Let { bind_as, expr } => {
-                    let value = eval_expr(expr, input, &bindings, now_ms)?;
+                    let value = eval_expr(expr, input, &bindings, now_ms, Some(&next_id))?;
                     bindings.insert(bind_as.clone(), value);
                 }
                 MutationStep::DeleteWhere { table, filter } => {
@@ -814,8 +936,14 @@ impl LocalDatabase {
                         limit: None,
                         indexed_by: None,
                     };
-                    let (sql, params) =
-                        build_query_sql(table, &scan_plan, input, &bindings, now_ms)?;
+                    let (sql, params) = build_query_sql(
+                        table,
+                        &scan_plan,
+                        input,
+                        &bindings,
+                        now_ms,
+                        Some(&next_id),
+                    )?;
                     let rows = {
                         let mut statement = tx.prepare(&sql)?;
                         let columns = statement
@@ -864,7 +992,7 @@ impl LocalDatabase {
                     values,
                 } => {
                     let table = schema_table(&schema, table)?;
-                    let source_value = eval_expr(source, input, &bindings, now_ms)?;
+                    let source_value = eval_expr(source, input, &bindings, now_ms, Some(&next_id))?;
                     let Value::Array(items) = source_value else {
                         return Err(SnapbackError::error(
                             "SNAPBACK_PLAN_SOURCE_INVALID",
@@ -888,9 +1016,8 @@ impl LocalDatabase {
                         // The item binding is scoped to this step's value maps.
                         let mut item_bindings = bindings.clone();
                         item_bindings.insert(item_as.clone(), item);
-                        let id = new_id();
-                        generated_ids.push(id.clone());
-                        let row = eval_value_map(values, input, &item_bindings, now_ms)?;
+                        let id = next_id()?;
+                        let row = eval_value_map(values, input, &item_bindings, now_ms, &next_id)?;
                         let changed_fields = changed_field_names(&row);
                         let document =
                             insert_document(&tx, table, &id, &row, next_version, now_ms)?;
@@ -924,19 +1051,45 @@ impl LocalDatabase {
             Some(ReturnValue::Binding(name)) => bindings.get(name).cloned().unwrap_or(Value::Null),
             Some(ReturnValue::Document { table, id }) => {
                 let table = schema_table(&schema, table)?;
-                let id = expect_string(eval_expr(id, input, &bindings, now_ms)?, "document id")?;
+                let id = expect_string(
+                    eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                    "document id",
+                )?;
                 get_document_from_tx(&tx, table, &id)?.unwrap_or(Value::Null)
             }
             Some(ReturnValue::ChangedCount) | None => json!(changes.len()),
-            Some(ReturnValue::Expr(expr)) => eval_expr(expr, input, &bindings, now_ms)?,
+            Some(ReturnValue::Expr(expr)) => {
+                eval_expr(expr, input, &bindings, now_ms, Some(&next_id))?
+            }
         };
+
+        plan_ids.borrow().ensure_exact_consumption()?;
+        let generated_ids = plan_ids.borrow().generated.clone();
 
         let version = if changes.is_empty() {
             current_version
         } else {
             next_version
         };
+        let output_ledger = CtxAnswerLedger {
+            version: CTX_ANSWER_LEDGER_VERSION,
+            ids: match replay_ledger.as_ref() {
+                Some(ledger) => ledger.ids.clone(),
+                None => generated_ids.clone(),
+            },
+            now: now_ms,
+            auth_fingerprint: None,
+        };
+        let output = MutationOutput {
+            version,
+            changed_count: changes.len(),
+            result,
+            ctx_ledger: Some(output_ledger),
+        };
         if apply {
+            if let Some(identity) = identity {
+                record_client_mutation_result(&tx, identity, &output)?;
+            }
             tx.commit()?;
         } else {
             // Execute-and-discard (LLP 0051 D8): everything above — writes,
@@ -946,12 +1099,7 @@ impl LocalDatabase {
 
         Ok(MutationPlanExecution {
             commit: MutationCommit {
-                output: MutationOutput {
-                    version,
-                    changed_count: changes.len(),
-                    result,
-                    ctx_ledger: None,
-                },
+                output,
                 write_dependencies: captured_writes_from_changes(&changes),
                 changes,
                 read_dependencies,
@@ -969,7 +1117,39 @@ impl LocalDatabase {
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
     ) -> SnapbackResult<MutationCommit> {
-        self.apply_buffered_writes(input, writes, read_dependencies, result, true)
+        self.apply_buffered_writes(
+            input,
+            writes,
+            read_dependencies,
+            result,
+            BufferedCommitOptions {
+                ctx_ledger: None,
+                apply: true,
+                identity: None,
+            },
+        )
+    }
+
+    pub(crate) fn commit_buffered_writes_idempotent(
+        &mut self,
+        input: &HandlerInput,
+        writes: Vec<BufferedWrite>,
+        read_dependencies: Vec<CapturedReadDependency>,
+        result: Value,
+        ctx_ledger: CtxAnswerLedger,
+        identity: Option<&ClientMutationIdentity>,
+    ) -> SnapbackResult<MutationCommit> {
+        self.apply_buffered_writes(
+            input,
+            writes,
+            read_dependencies,
+            result,
+            BufferedCommitOptions {
+                ctx_ledger: Some(ctx_ledger),
+                apply: true,
+                identity,
+            },
+        )
     }
 
     /// Dry-run the buffered-write commit (LLP 0051 D8): identical read-set
@@ -984,7 +1164,17 @@ impl LocalDatabase {
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
     ) -> SnapbackResult<MutationCommit> {
-        self.apply_buffered_writes(input, writes, read_dependencies, result, false)
+        self.apply_buffered_writes(
+            input,
+            writes,
+            read_dependencies,
+            result,
+            BufferedCommitOptions {
+                ctx_ledger: None,
+                apply: false,
+                identity: None,
+            },
+        )
     }
 
     fn apply_buffered_writes(
@@ -993,7 +1183,7 @@ impl LocalDatabase {
         writes: Vec<BufferedWrite>,
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
-        apply: bool,
+        options: BufferedCommitOptions<'_>,
     ) -> SnapbackResult<MutationCommit> {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite commit");
         // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
@@ -1091,7 +1281,16 @@ impl LocalDatabase {
         } else {
             next_version
         };
-        if apply {
+        let output = MutationOutput {
+            version,
+            changed_count: changes.len(),
+            result,
+            ctx_ledger: options.ctx_ledger,
+        };
+        if options.apply {
+            if let Some(identity) = options.identity {
+                record_client_mutation_result(&tx, identity, &output)?;
+            }
             tx.commit()?;
         } else {
             // Execute-and-discard (LLP 0051 D8): validated and applied above,
@@ -1100,12 +1299,7 @@ impl LocalDatabase {
         }
 
         Ok(MutationCommit {
-            output: MutationOutput {
-                version,
-                changed_count: changes.len(),
-                result,
-                ctx_ledger: None,
-            },
+            output,
             write_dependencies: captured_writes_from_changes(&changes),
             changes,
             read_dependencies,
@@ -1156,6 +1350,16 @@ impl LocalDatabase {
             -- table_name = ?, which was a full scan on the (version, id) index.
             CREATE INDEX IF NOT EXISTS _snapback_changes_by_table_version
               ON _snapback_changes(table_name, version);
+            -- LLP 0043 M2: exactly-once queued replay. The settled output and
+            -- data changes are written in one SQLite transaction.
+            CREATE TABLE IF NOT EXISTS _snapback_client_mutations (
+              client_mutation_id TEXT PRIMARY KEY,
+              function TEXT NOT NULL,
+              auth_fingerprint TEXT NOT NULL,
+              input_fingerprint TEXT NOT NULL,
+              output_json TEXT NOT NULL,
+              settled_at_ms INTEGER NOT NULL
+            );
             ",
         )?;
         Ok(())
@@ -1204,7 +1408,7 @@ pub(crate) fn query_on(
     crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
     let table = schema_table(schema, &plan.table)?;
     validate_query_index(table, plan)?;
-    let (sql, values) = build_query_sql(table, plan, input, &BTreeMap::new(), now_millis())?;
+    let (sql, values) = build_query_sql(table, plan, input, &BTreeMap::new(), now_millis(), None)?;
     let mut statement = conn.prepare(&sql)?;
     let columns = statement
         .column_names()
@@ -1757,6 +1961,7 @@ fn build_query_sql(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
+    runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     let mut sql = format!("SELECT * FROM {}", quote_ident(&table.name)?);
     let mut values = Vec::new();
@@ -1767,13 +1972,13 @@ fn build_query_sql(
         match filter.op {
             FilterOp::Eq => {
                 let field_type = field_type(table, &filter.field);
-                let value = eval_expr(&filter.value, input, bindings, now_ms)?;
+                let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
                 values.push(json_to_sql_value(&value, field_type)?);
                 where_parts.push(format!("{} = ?", quote_ident(&filter.field)?));
             }
             FilterOp::In => {
                 let field_type = field_type(table, &filter.field);
-                let value = eval_expr(&filter.value, input, bindings, now_ms)?;
+                let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
                 let Some(items) = value.as_array() else {
                     return Err(SnapbackError::error(
                         "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
@@ -1802,7 +2007,7 @@ fn build_query_sql(
             }
             FilterOp::Lt | FilterOp::Lte | FilterOp::Gt | FilterOp::Gte => {
                 let field_type = field_type(table, &filter.field);
-                let value = eval_expr(&filter.value, input, bindings, now_ms)?;
+                let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
                 values.push(json_to_sql_value(&value, field_type)?);
                 let op = match filter.op {
                     FilterOp::Lt => "<",
@@ -2133,10 +2338,14 @@ fn eval_value_map(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
+    runtime_id: &dyn Fn() -> SnapbackResult<String>,
 ) -> SnapbackResult<Map<String, Value>> {
     let mut output = Map::new();
     for (key, expr) in values {
-        output.insert(key.clone(), eval_expr(expr, input, bindings, now_ms)?);
+        output.insert(
+            key.clone(),
+            eval_expr(expr, input, bindings, now_ms, Some(runtime_id))?,
+        );
     }
     Ok(output)
 }
@@ -2149,13 +2358,15 @@ fn eval_expr(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
+    runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
 ) -> SnapbackResult<Value> {
+    let default_id = || Ok(new_id());
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),
         bindings: Some(bindings),
         now_ms: Some(now_ms),
-        runtime_id: Some(&new_id),
+        runtime_id: Some(runtime_id.unwrap_or(&default_id)),
     };
     crate::value_expr::eval_value_expr(expr, &env).map_err(|error| error.into_snapback())
 }
@@ -2564,6 +2775,188 @@ fn expect_string(value: Value, label: &str) -> SnapbackResult<String> {
             format!("{label} must evaluate to a string"),
         )
     })
+}
+
+fn validate_plan_replay_ledger(input: &HandlerInput) -> SnapbackResult<Option<&CtxAnswerLedger>> {
+    let Some(ledger) = input.ctx_ledger.as_ref() else {
+        return Ok(None);
+    };
+    if ledger.version != CTX_ANSWER_LEDGER_VERSION {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED",
+            "runtime",
+            format!(
+                "ctx-answer ledger version {} is not supported (current: {})",
+                ledger.version, CTX_ANSWER_LEDGER_VERSION
+            ),
+        ));
+    }
+    if ledger.ids.len() > CTX_ANSWER_LEDGER_MAX_IDS {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
+            "runtime",
+            format!(
+                "ctx-answer ledger contains {} ids, past the declared bound ({})",
+                ledger.ids.len(),
+                CTX_ANSWER_LEDGER_MAX_IDS
+            ),
+        ));
+    }
+    if let Some((index, _)) = ledger
+        .ids
+        .iter()
+        .enumerate()
+        .find(|(_, id)| !replay_opaque_id_is_valid(id))
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_ID_INVALID",
+            "runtime",
+            format!("ctx-answer ledger id at index {index} is not a valid opaque replay id"),
+        ));
+    }
+    if let Some(recorded) = ledger.auth_fingerprint.as_ref()
+        && *recorded != auth_fingerprint(&input.auth)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_STALE_RESULT",
+            "runtime",
+            "ctx-answer ledger was recorded under a different auth context",
+        ));
+    }
+    Ok(Some(ledger))
+}
+
+struct PlanIdSource<'a> {
+    replay: Option<&'a CtxAnswerLedger>,
+    cursor: usize,
+    generated: Vec<String>,
+}
+
+impl<'a> PlanIdSource<'a> {
+    fn new(replay: Option<&'a CtxAnswerLedger>) -> Self {
+        Self {
+            replay,
+            cursor: 0,
+            generated: Vec::new(),
+        }
+    }
+
+    fn next(&mut self) -> SnapbackResult<String> {
+        if self.generated.len() >= CTX_ANSWER_LEDGER_MAX_IDS {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
+                "runtime",
+                format!(
+                    "mutation requested more than {} host-generated ids",
+                    CTX_ANSWER_LEDGER_MAX_IDS
+                ),
+            ));
+        }
+        let id = match self.replay {
+            Some(ledger) => ledger.ids.get(self.cursor).cloned().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_CTX_LEDGER_EXHAUSTED",
+                    "runtime",
+                    format!(
+                        "replay consumed all {} ledgered ids and the mutation asked for another",
+                        ledger.ids.len()
+                    ),
+                )
+            })?,
+            None => new_id(),
+        };
+        self.cursor += 1;
+        self.generated.push(id.clone());
+        Ok(id)
+    }
+
+    fn ensure_exact_consumption(&self) -> SnapbackResult<()> {
+        if let Some(ledger) = self.replay
+            && self.cursor != ledger.ids.len()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CTX_LEDGER_UNUSED_IDS",
+                "runtime",
+                format!(
+                    "replay consumed {} of {} ledgered ids; the mutation diverged from its recording",
+                    self.cursor,
+                    ledger.ids.len()
+                ),
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn validate_client_mutation_identity(identity: &ClientMutationIdentity) -> SnapbackResult<()> {
+    if !replay_opaque_id_is_valid(&identity.id) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CLIENT_MUTATION_ID_INVALID",
+            "sync",
+            "client mutation id must match the declared opaque replay-id bounds/alphabet",
+        ));
+    }
+    Ok(())
+}
+
+fn mutation_input_fingerprint(input: &HandlerInput) -> String {
+    // Correlation is receipt-routing metadata and may legitimately change on
+    // app reload. Args, optimistic baseline, and replay ledger identify the
+    // logical mutation and must be byte-equivalent after canonical key sort.
+    let value = canonical_json(json!({
+        "args": input.args,
+        "readSet": input.read_set,
+        "ctxLedger": input.ctx_ledger,
+    }));
+    let encoded = serde_json::to_vec(&value).expect("mutation identity JSON serializes");
+    let mut digest = Sha256::new();
+    digest.update(encoded);
+    format!("sha256:{:x}", digest.finalize())
+}
+
+fn canonical_json(value: Value) -> Value {
+    match value {
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(key, value)| (key, canonical_json(value)))
+                .collect::<BTreeMap<_, _>>()
+                .into_iter()
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.into_iter().map(canonical_json).collect()),
+        other => other,
+    }
+}
+
+fn record_client_mutation_result(
+    tx: &Transaction<'_>,
+    identity: &ClientMutationIdentity,
+    output: &MutationOutput,
+) -> SnapbackResult<()> {
+    validate_client_mutation_identity(identity)?;
+    let output_json = serde_json::to_string(output).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+            "storage",
+            "client mutation result could not be encoded",
+        )
+        .with_details(json!({ "error": error.to_string() }))
+    })?;
+    tx.execute(
+        "INSERT INTO _snapback_client_mutations(
+           client_mutation_id, function, auth_fingerprint, input_fingerprint,
+           output_json, settled_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            identity.id,
+            identity.function,
+            identity.auth_fingerprint,
+            identity.input_fingerprint,
+            output_json,
+            now_millis() as i64,
+        ],
+    )?;
+    Ok(())
 }
 
 pub(crate) fn new_id() -> String {

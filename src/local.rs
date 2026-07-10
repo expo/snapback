@@ -26,8 +26,9 @@ use crate::manifest::{
 };
 use crate::runtime::{IbexActionHost, RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
-    CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow, DbRead,
-    LocalDatabase, MutationCommit, ReaderPool, StorageInfo, TableScan,
+    CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow,
+    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool, StorageInfo,
+    TableScan,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -1282,6 +1283,16 @@ impl LocalSnapback {
         input: HandlerInput,
         transport: &str,
     ) -> (SnapbackResult<MutationOutput>, Value) {
+        self.invoke_mutation_recording_with_id(name, input, None, transport)
+    }
+
+    pub fn invoke_mutation_recording_with_id(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        transport: &str,
+    ) -> (SnapbackResult<MutationOutput>, Value) {
         let correlation = capped_correlation(input.correlation.clone());
         // affectedTables from DECLARED writes; a function that declares none
         // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
@@ -1291,9 +1302,16 @@ impl LocalSnapback {
             .function(name)
             .map(|function| function.write_set_summary.tables.clone())
             .filter(|tables| !tables.is_empty());
-        let result = self.invoke_mutation_commit(name, input);
+        let receipt_mutation_id = client_mutation_id
+            .clone()
+            .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+        let result = self.invoke_mutation_commit_with_id(name, input, client_mutation_id);
         let (outcome, rollback_reason, snapshot_version) = match &result {
-            Ok(commit) => (MutationReceiptOutcome::Confirmed, None, commit.output.version),
+            Ok(commit) => (
+                MutationReceiptOutcome::Confirmed,
+                None,
+                commit.output.version,
+            ),
             Err(error) => (
                 MutationReceiptOutcome::Rejected,
                 // The diagnostic CODE only — messages may embed argument
@@ -1303,7 +1321,7 @@ impl LocalSnapback {
             ),
         };
         let receipt = Receipt::Mutation {
-            mutation_id: format!("mut_{}", Uuid::now_v7().simple()),
+            mutation_id: receipt_mutation_id,
             mutation: name.to_owned(),
             outcome,
             rollback_reason,
@@ -1330,6 +1348,27 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> SnapbackResult<MutationCommit> {
+        self.invoke_mutation_commit_with_id(name, input, None)
+    }
+
+    fn invoke_mutation_commit_with_id(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+    ) -> SnapbackResult<MutationCommit> {
+        let identity =
+            client_mutation_id.map(|id| ClientMutationIdentity::new(id, name.to_owned(), &input));
+        if let Some(identity) = identity.as_ref()
+            && let Some(output) = self.db.client_mutation_result(identity)?
+        {
+            return Ok(MutationCommit {
+                output,
+                changes: Vec::new(),
+                read_dependencies: Vec::new(),
+                write_dependencies: Vec::new(),
+            });
+        }
         let function = self.function(name)?.clone();
         if function.kind != FunctionKind::Mutation {
             return Err(SnapbackError::error(
@@ -1347,14 +1386,18 @@ impl LocalSnapback {
         // post-commit path below is infallible by construction.
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         let commit = match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
-                self.db.execute_mutation(plan, &input)?
-            }
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => match identity.as_ref() {
+                Some(identity) => self
+                    .db
+                    .execute_mutation_idempotent(plan, &input, identity)?,
+                None => self.db.execute_mutation(plan, &input)?,
+            },
             FunctionRuntime::IbexModule(module) => self.runtime.invoke_ibex_mutation(
                 module,
                 input.clone(),
                 &mut self.db,
                 Some(&self.warm_vms),
+                identity.as_ref(),
             )?,
             _ => {
                 return Err(SnapbackError::error(
@@ -4068,7 +4111,7 @@ fn eval_action_expr(
     metadata: &CronRunMetadata,
     snapback: &LocalSnapback,
 ) -> SnapbackResult<Value> {
-    let generate_id = || snapback.db.generate_id();
+    let generate_id = || Ok(snapback.db.generate_id());
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),

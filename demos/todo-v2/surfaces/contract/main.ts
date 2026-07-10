@@ -2,7 +2,10 @@ import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
-import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
+import {
+  createLocalStorageSnapbackClientStore,
+  createSnapbackContractSurface,
+} from '../../../../packages/snapback-contract/index.mjs';
 import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
@@ -16,6 +19,7 @@ import {
 
 const ADA = 'user_ada';
 let activeSurface: { dispose?: () => void } | null = null;
+let activeReconnect: (() => void) | null = null;
 
 // Build-time API origin injected by vite.config.ts `define`.
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
@@ -85,14 +89,24 @@ function status(message: string, state: 'booting' | 'ready' | 'error' = 'booting
 async function boot(): Promise<void> {
   status('Connecting to Snapback...');
   const client = new SnapbackClient(snapbackBaseUrl());
-  await client.health();
+  const clientStore = createLocalStorageSnapbackClientStore({
+    key: 'snapback.todo-v2.client-store.v1',
+  });
 
   // Single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
   // provisions only what is missing, seeds only when the todos table is
   // empty — the boot-path reset is gone (D4 edit 1), so a reload preserves
   // your data.
-  status('Ensuring backend provisioning...');
-  await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+  try {
+    await client.health();
+    status('Ensuring backend provisioning...');
+    await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+  } catch {
+    // The surface below may still boot from an authorized retained snapshot.
+    // If this is a first run (nothing retained), construction fails with the
+    // original network error instead of inventing an empty app.
+    status('Backend unavailable — checking retained data...');
+  }
 
   status('Mounting Contract surface...');
   installContractWebHost();
@@ -105,6 +119,7 @@ async function boot(): Promise<void> {
     // override per mutation.
     runtime: await import('@exact/contract/runtime'),
     client,
+    clientStore,
     userId: ADA,
     manifest: contractDataManifest,
     artifactIndex,
@@ -112,6 +127,13 @@ async function boot(): Promise<void> {
     functionManifest: functionsManifest,
   });
   activeSurface = surface;
+  const reconnect = () => {
+    void surface.reconnect?.().catch((error: unknown) => {
+      console.warn('[snapback-todo-v2] reconnect replay deferred', error);
+    });
+  };
+  activeReconnect = reconnect;
+  globalThis.addEventListener?.('online', reconnect);
   configureSnapbackContractLinks(surface.links);
   mount(app);
   status('Ready', 'ready');
@@ -125,6 +147,8 @@ boot().catch((error) => {
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
+    if (activeReconnect) globalThis.removeEventListener?.('online', activeReconnect);
+    activeReconnect = null;
     activeSurface?.dispose?.();
     activeSurface = null;
     resetSnapbackContractLinks();

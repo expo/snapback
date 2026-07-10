@@ -8,7 +8,7 @@
     "headlessBoot": true,
     "initialSnapshot": true,
     "localReplica": false,
-    "offlineReplay": false,
+    "offlineReplay": true,
     "optimisticMutations": true,
     "rowSyncState": true,
     "serverRunnableQueries": true,
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "inputsHash": "d4caff165d7aaba29ca44f3cb921616a08a0de7dffcc139ac2e8989987261067",
+  "inputsHash": "d32cba317653c3825affded661eaa11f317181efbe236ee69ffb0a18db98cfda",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {

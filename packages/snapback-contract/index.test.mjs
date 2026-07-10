@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 
-import { createSnapbackContractSurface } from './index.mjs';
+import {
+  createSnapbackContractSurface,
+  createSnapbackSystemContractSurface,
+} from './index.mjs';
 
 const baseManifest = (queries) => ({
   artifactKind: 'contractDataManifest',
@@ -93,6 +96,7 @@ async function waitFor(assertion, timeoutMs = 1_000) {
   });
 
   assert.deepEqual(Object.keys(surface.provider.queries), ['listTodos']);
+  assert.equal(surface.capabilityClass, 'Online', 'default/no-store surface stays Online');
   assert.deepEqual(Object.keys(surface.links), ['listTodos']);
   assert.deepEqual(surface.links.listTodos(), [{ _id: 'todo_1', title: 'Bound' }]);
   assert.equal(surface.links.otherTodos, undefined);
@@ -132,6 +136,7 @@ async function waitFor(assertion, timeoutMs = 1_000) {
   resolvers.get('feedState')();
   resolvers.get('trains')();
   const surface = await surfacePromise;
+  assert.equal(surface.capabilityClass, 'Online', 'multi-query surface stays Online');
   assert.deepEqual(surface.liveQueries, ['trains', 'feedState']);
   surface.dispose();
 }
@@ -212,6 +217,15 @@ async function waitFor(assertion, timeoutMs = 1_000) {
   disposeSource();
   surface.dispose();
   assert(overlayDisposed >= 1);
+}
+
+{
+  const surface = await createSnapbackSystemContractSurface({
+    runtime: mockRuntime(),
+    resources: { inspect: { initial: [{ ok: true }] } },
+  });
+  assert.equal(surface.capabilityClass, 'Online', 'system surface stays Online');
+  surface.dispose();
 }
 
 console.log('snapback contract adapter tests: ok');

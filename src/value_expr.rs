@@ -24,7 +24,7 @@
 //!   the v1 expression profile, its closed function library, and the
 //!   null-propagation/defaulting semantics the demo corpus decided.
 
-use crate::diagnostic::SnapbackError;
+use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{BinaryOp, UnaryOp, ValueExpr};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
@@ -58,7 +58,7 @@ pub struct ExprEnv<'a> {
     /// Fresh-id source (`RuntimeId`). Pluggable because callers differ
     /// (storage `new_id`, cron actions use the store's generator); absent in
     /// the matcher, where `RuntimeId` is unanalyzable by definition.
-    pub runtime_id: Option<&'a dyn Fn() -> String>,
+    pub runtime_id: Option<&'a dyn Fn() -> SnapbackResult<String>>,
 }
 
 pub enum ExprError {
@@ -136,7 +136,7 @@ fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResul
         },
         ValueExpr::Literal(value) => Ok(value.clone()),
         ValueExpr::RuntimeId => match env.runtime_id {
-            Some(generate) => Ok(Value::String(generate())),
+            Some(generate) => generate().map(Value::String).map_err(ExprError::Fail),
             None => Err(ExprError::Unanalyzable("RuntimeId")),
         },
         ValueExpr::RuntimeNow => match env.now_ms {
@@ -575,8 +575,8 @@ fn validate_expr(expr: &ValueExpr, depth: usize) -> Result<(), SnapbackError> {
 mod tests {
     use super::*;
 
-    fn test_id() -> String {
-        "id-test".to_owned()
+    fn test_id() -> SnapbackResult<String> {
+        Ok("id-test".to_owned())
     }
 
     fn env<'a>(args: &'a Value, bindings: &'a BTreeMap<String, Value>) -> ExprEnv<'a> {

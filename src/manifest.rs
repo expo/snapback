@@ -940,6 +940,28 @@ pub struct HandlerInput {
     pub ctx_ledger: Option<CtxAnswerLedger>,
 }
 
+/// Client-visible mutation request envelope. The idempotency key is mutation
+/// only: queries remain server-authoritative reads and are never queued or
+/// ledgered as writes (LLP 0043 M1/M2).
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct MutationRequest {
+    #[serde(flatten)]
+    pub input: HandlerInput,
+    /// Durable client-generated identity for exactly-once reconnect replay.
+    /// Reusing an id with another function or auth context is rejected.
+    #[serde(
+        default,
+        rename = "clientMutationId",
+        alias = "client_mutation_id",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[schemars(
+        length(min = 1, max = REPLAY_OPAQUE_ID_MAX_BYTES),
+        pattern(REPLAY_OPAQUE_ID_PATTERN)
+    )]
+    pub client_mutation_id: Option<String>,
+}
+
 /// The ctx-answer ledger (LLP 0051 D1): the ordered answers the deterministic
 /// ctx surface gave during one invocation. Record mode produces it; replay
 /// mode consumes it. Reads are never ledgered — `ctx.db` reads always
@@ -958,6 +980,13 @@ pub struct CtxAnswerLedger {
     /// `ctx.runtime.id()` answers and `ctx.db.insert` row-id generation share
     /// one ordered sequence.
     #[serde(default)]
+    #[schemars(
+        length(max = CTX_ANSWER_LEDGER_MAX_IDS),
+        inner(
+            length(min = 1, max = REPLAY_OPAQUE_ID_MAX_BYTES),
+            pattern(REPLAY_OPAQUE_ID_PATTERN)
+        )
+    )]
     pub ids: Vec<String>,
     /// The frozen invocation clock every `ctx.runtime.now()` answered with.
     #[serde(default)]
@@ -984,6 +1013,23 @@ pub const CTX_ANSWER_LEDGER_VERSION: u32 = 1;
 /// gets a typed error (`SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED`), not an
 /// unbounded artifact.
 pub const CTX_ANSWER_LEDGER_MAX_IDS: usize = 1024;
+
+/// Shared wire/storage bound for client mutation ids and captured generated
+/// ids. The alphabet makes JSON Schema `maxLength` byte-equivalent to the Rust
+/// runtime check and keeps ids safe as opaque SQLite/document keys.
+pub const REPLAY_OPAQUE_ID_MAX_BYTES: usize = 256;
+pub const REPLAY_OPAQUE_ID_PATTERN: &str = r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$";
+
+pub fn replay_opaque_id_is_valid(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() || bytes.len() > REPLAY_OPAQUE_ID_MAX_BYTES {
+        return false;
+    }
+    bytes[0].is_ascii_alphanumeric()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
+}
 
 /// Stable fingerprint of the resolved auth context (LLP 0043 §Auth posture):
 /// FNV-1a over the canonical field tuple. A staleness guard, not a
@@ -1030,9 +1076,9 @@ pub struct MutationOutput {
     pub changed_count: usize,
     pub result: Value,
     /// The recorded ctx-answer ledger for this invocation (LLP 0051 D1).
-    /// Present for Ibex-module mutations (record mode records; replay mode
-    /// echoes the consumed ledger); absent on HostPlan mutations, whose
-    /// id/clock determinism is the IR evaluator's own (D2). The
+    /// Present for mutations in both executable tiers (record mode records;
+    /// replay mode echoes the consumed ledger). HostPlan and Ibex share the
+    /// same bounded id/clock contract so queued replay is tier-neutral. The
     /// `auth_fingerprint` member stays unset here — that channel is
     /// server-retained (D1 wire split).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1174,7 +1220,6 @@ pub enum ResourceLimitStatus {
 /// this declaration and embedded by codegen (LLP 0032 P2).
 pub fn local_v0_default_capability_gaps() -> Vec<String> {
     vec![
-        "offline_mutation_replay".to_owned(),
         "postgres".to_owned(),
         "cloudflare".to_owned(),
         "hosted_untrusted_code".to_owned(),
@@ -1211,8 +1256,8 @@ impl CapabilityManifest {
             ephemeral_websocket_publish: true,
             ephemeral_local_room_authority: true,
             ephemeral_hosted_adapter: false,
-            offline_retention: false,
-            optimistic_replay: false,
+            offline_retention: true,
+            optimistic_replay: true,
             mutation_isolation_mode: "handler-captured-read-set-validation".to_owned(),
             auth_impersonation: true,
             permission_diagnostics: false,

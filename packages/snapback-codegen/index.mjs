@@ -747,6 +747,8 @@ export async function generate(backendDir) {
   const hasDerivedOverlayMutations = Object.values(contractMutations).some(
     (descriptor) => descriptor.plan !== undefined,
   );
+  const allMutationsReplayable = Object.values(contractMutations).length > 0
+    && Object.values(contractMutations).every((descriptor) => descriptor.plan !== undefined);
   const contractManifest = {
     artifactKind: 'contractDataManifest',
     schemaVersion: SCHEMA_VERSION,
@@ -765,13 +767,11 @@ export async function generate(backendDir) {
       // True exactly when some mutation carries a derivable IR plan: the
       // adapter's generated default overlay backs the claim (LLP 0329 §E5).
       optimisticMutations: hasDerivedOverlayMutations,
-      // The two E-B flags (Exact LLP 0329 §E5). `offlineReplay` stays false
-      // until the LLP 0051 D1-ledgered client queue exists; `Parity`
-      // (snapback LLP 0012) is claimable only when BOTH are true and the
-      // provider passes the replay corpus — flags are the mechanism, the
-      // class is the claim.
+      // LLP 0051 D6: the same closed IR plans now drive both the derived
+      // overlay and the D1-ledgered durable client queue. A manifest with no
+      // IR mutation cannot claim offline replay.
       derivedOptimisticOverlays: hasDerivedOverlayMutations,
-      offlineReplay: false,
+      offlineReplay: allMutationsReplayable,
       rowSyncState: true,
       serverRunnableQueries: true,
       forceStates: true,

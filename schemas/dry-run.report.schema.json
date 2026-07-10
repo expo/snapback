@@ -14,8 +14,12 @@
           "default": [],
           "description": "Every host-generated id, in answer order (LLP 0008's `generatedIds`):\n`ctx.runtime.id()` answers and `ctx.db.insert` row-id generation share\none ordered sequence.",
           "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
             "type": "string"
           },
+          "maxItems": 1024,
           "type": "array"
         },
         "now": {

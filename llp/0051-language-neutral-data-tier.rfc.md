@@ -5,7 +5,9 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-09 (ENG-23964 resolves Q2 with the Rust-generated,
+**Revised:** 2026-07-09 (ENG-23965 ships Increment 5's retained-query store,
+D1-ledgered durable queue, exact reconnect replay, and narrowly gated first
+Parity surface; ENG-23964 resolves Q2 with the Rust-generated,
 commit-addressed public profile/corpus channel and completes D4's HTTP input
 schemas; earlier r3 — second review round (dated re-review sections
 in `llp/reviews/0051-*`) plus reconciliation with Exact LLP 0329 r4 and its
@@ -103,8 +105,8 @@ already has, in five moves:
    an executor matrix that grows from {Ibex, workerd-V8} to include the
    IR evaluator and the WASM runtime.
 
-Together these produce the client story (D6): Online today, **Parity by
-construction** — retained reads (LLP 0043 M1) + the mutation queue with
+Together these produce the client story (D6): an Online fallback and narrowly
+gated **Parity by construction** — retained reads (LLP 0043 M1) + the mutation queue with
 ledgers (M2 + D1) + local IR evaluation for *derived* optimistic overlays
 (D2), all behind DK-9's store-agnostic contract, implementable in any
 language from the committed schemas. And they produce the agent story
@@ -638,20 +640,18 @@ already ships the executor-swap harness. D5 joins them:
 - Corpus cases for the data tier are **data** (plans + ledgers), not JS
   functions, so every implementation in every language can run them —
   the corpus, not the Rust host, is the definition of correct.
-- **Status honesty:** LLP 0010's corpus format and runners are designed,
-  not built — `tests/conformance/` holds exactly the twin's JS handler
-  corpus today, and no `$NOW`/`$ID` placeholder exists under `tests/`
-  yet. D5 includes standing that machinery up; until it lands,
-  data-tier cases stage through the twin harness (which is built and
-  proven) as a bridge.
+- **Status honesty:** ENG-23964 publishes the data-tier profile and corpus as
+  commit-addressed, hash-verified artifacts with Rust/JS consumers and drift
+  gates. New engines still have to pass that corpus; a partial evaluator never
+  widens its capability claim.
 
-### D6. Clients by class: Online today, Parity by construction
+### D6. Clients by class: Online fallback, Parity by construction
 
-Using the Online/Parity client-class vocabulary — defined in LLP 0012,
-reported today by the adapter as `SNAPBACK_CONTRACT_CAPABILITY_CLASS =
-'Online'`:
+Using the Online/Parity client-class vocabulary — defined in LLP 0012, whose
+legacy/default class remains `SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online'`:
 
-- **Online (shipped):** unchanged, plus D4's generated wire shapes.
+- **Online (shipped):** the fallback for no-store, mixed-tier, multi-query,
+  and system surfaces, plus D4's generated wire shapes.
 - **Parity (the LLP 0043 + this-RFC composition):** retained reads
   (M1) + the queued mutation replay (M2) with D1 ledgers + **local IR
   evaluation for optimistic overlays**. For IR mutations the overlay is
@@ -673,7 +673,9 @@ reported today by the adapter as `SNAPBACK_CONTRACT_CAPABILITY_CLASS =
   Q10. JS-handler mutations keep the reducer path (or accept
   pending-without-overlay); nothing about Parity requires client-side
   JS execution, honoring LLP 0043's non-goal permanently rather than
-  provisionally.
+  provisionally. As shipped, a surface reports `Parity` only if every declared
+  mutation is IR-derivable for its bound table; partial support never upgrades
+  the surface-wide claim.
 - **Non-JS clients (Rust, Swift-hosted, widget processes):** consume the
   committed schemas (D4), implement the store contract (DK-9 — a
   document/result cache plus outbox; explicitly no SQL semantics
@@ -933,19 +935,30 @@ disciplines.
    reducer regression suite (duplicate-reapply, reconcile-failure) for
    every mutation they cover, with receipts identifying the overlay
    class per mutation (0329 E-B is the Exact-side half of this gate).
-   *Status (2026-07-09, ENG-23898): the Exact-side half (0329 E-B) is
-   landed.* `packages/snapback-contract/derived-overlay.mjs` derives
-   reducers from manifest-embedded plans (codegen embeds `plan` per IR
-   mutation and claims `optimisticMutations` /
-   `derivedOptimisticOverlays` honestly; `offlineReplay` stays false);
+   *Status (2026-07-09, ENG-23965): shipped end to end.*
+   `packages/snapback-contract/client-store.mjs` supplies the async DK-9
+   contract with deterministic memory and serialized localStorage
+   implementations; retained rows are auth/artifact scoped, queued writes use
+   monotonic sequence numbers, and artifact changes quarantine rather than
+   replay old writes. `clientMutationId` settlement is atomic with SQLite data
+   changes, survives reopen, and returns the original output on redelivery.
+   Reconnect full-resyncs before replay, then settles each entry in sequence;
+   typed rejection drops-and-marks-failed. Rust and JS suites cover auth stale,
+   ledger exhaustion/unused answers, lost response after commit, reload,
+   create/toggle/delete convergence, and exactly-once application. The earlier
+   ENG-23898 Exact-side half remains the overlay mechanism:
+   `packages/snapback-contract/derived-overlay.mjs` derives reducers from
+   manifest-embedded plans (codegen embeds `plan` per IR mutation and claims
+   `optimisticMutations` / `derivedOptimisticOverlays` honestly, while
+   `offlineReplay` requires the complete mutation set to be IR-backed);
    the derived path passes the mirrored duplicate-reapply /
    reconcile-failure suites and replays 24/29 corpus cases
    (multi-table cases are out of single-boundary overlay scope);
    mutation receipts carry `overlayClass` per mutation; todo-v2 rides
    derived overlays with its hand reducers deleted (demos/todo keeps
-   reducers — the override path stays first-class). The Parity CLAIM
-   itself still waits on the replay corpus + the D1-ledgered offline
-   queue (this increment's remaining half).
+   reducers — the override path stays first-class). Only fully IR-derivable,
+   single-query, store-configured surfaces claim `Parity`; every other adapter
+   surface continues to report `Online`.
 6. **WASM runtime (D3):** `WasmModule` variant + content-addressed
    artifact storage + wasmtime executor locally (with the density/fuel
    measurement gate); CF deploy-time binding proof after; TS toolchain

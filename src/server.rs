@@ -1,11 +1,11 @@
 use crate::admin::{AppState, ServerContext};
 use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
-use crate::live_wire::{
-    LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
-};
 use crate::ephemeral::{
     DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
+};
+use crate::live_wire::{
+    LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
     AppActionStage, ConfigVerifyStage, EphemeralApi, FunctionRunResult, InspectState,
@@ -13,8 +13,8 @@ use crate::local::{
     StagedAppAction, StagedConfigVerify,
 };
 use crate::manifest::{
-    FunctionManifest, HandlerInput, MutationOutput, QueryOutput, QueryPlan, SchemaManifest,
-    SeedData,
+    FunctionManifest, HandlerInput, MutationOutput, MutationRequest, QueryOutput, QueryPlan,
+    SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
 use axum::extract::rejection::JsonRejection;
@@ -1946,14 +1946,19 @@ async fn invoke_query(
 async fn invoke_mutation(
     State(state): State<SharedSnapback>,
     Path(name): Path<String>,
-    input: Result<Json<HandlerInput>, JsonRejection>,
+    input: Result<Json<MutationRequest>, JsonRejection>,
 ) -> Result<Json<Value>, ApiError> {
-    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
     // Receipt emission rides the L7 blocking offload: the recording call
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
     // assembled from its (result, receipt) pair back on the async side.
     let (result, receipt) = with_snapback(&state, move |snapback| {
-        snapback.invoke_mutation_recording_with_transport(&name, input, "http")
+        snapback.invoke_mutation_recording_with_id(
+            &name,
+            request.input,
+            request.client_mutation_id,
+            "http",
+        )
     })
     .await;
     match result {

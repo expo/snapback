@@ -133,16 +133,20 @@ proves rejected optimistic mutations republish authoritative rows, proves one
 combined pending mutation count covers runtime links and provider mutations,
 and those mutations are server-authoritative and visible to the headless surface
 — two surfaces over one backend. The provider conformance runner also passes
-Exact's owned DataProvider suite against the Snapback provider for the Online
-capabilities Snapback claims.
+Exact's owned DataProvider suite against the Snapback provider's Online subset.
+The separate package replay suite covers the retained/outbox behavior Exact's
+generic suite does not yet exercise.
 
 ## What it is NOT claiming
 
-This is a demo shape, not a scale benchmark. It is an **Online**-class
-integration (server-authoritative mutations with optimistic UI), **not**
-local-first/Parity: there is no local handler replay. v0 runs declarative
-`HostPlan`s, not JavaScript `ctx.db` handlers (the Ibex host-call bridge is a
-capability gap). See `demo.snapback.json` `capabilityGaps` / `notClaiming`.
+This is a demo shape, not a scale benchmark. Its Contract single-query surface
+is the first narrowly earned **Parity** class: every declared mutation is a
+closed `HostPlan`, the same IR derives the local overlay and captured ledger,
+authorized rows/outbox survive browser reload in the client store, and reconnect
+full-resyncs before exactly-once ordered replay. Server results remain
+authoritative. This does **not** claim arbitrary JavaScript-handler execution,
+multi-query offline parity, CRDT merge, or the later delta-resume-with-pending
+milestone. Mixed-tier Todo and system/admin surfaces stay Online.
 
 ## Native Rust tier (no JS)
 
@@ -162,4 +166,5 @@ ios/ContractNativeLab/build.sh
 
 This is a local replica proving plan-execution parity (exact
 `contract-native/tests/todo_demo.rs` drives add/toggle/delete headlessly);
-live-server parity for native clients rides LLP 0051 Increments 5–6.
+the shared-host/native packaging of that client store rides later delivery
+milestones even though the JS/web Parity slice is now shipped.

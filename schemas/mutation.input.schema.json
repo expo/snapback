@@ -37,8 +37,12 @@
           "default": [],
           "description": "Every host-generated id, in answer order (LLP 0008's `generatedIds`):\n`ctx.runtime.id()` answers and `ctx.db.insert` row-id generation share\none ordered sequence.",
           "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
             "type": "string"
           },
+          "maxItems": 1024,
           "type": "array"
         },
         "now": {
@@ -82,6 +86,7 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/mutation.input.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Client-visible mutation request envelope. The idempotency key is mutation\nonly: queries remain server-authoritative reads and are never queued or\nledgered as writes (LLP 0043 M1/M2).",
   "properties": {
     "args": {
       "default": null
@@ -93,6 +98,16 @@
         "session_id": null,
         "user_id": null
       }
+    },
+    "clientMutationId": {
+      "description": "Durable client-generated identity for exactly-once reconnect replay.\nReusing an id with another function or auth context is rejected.",
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "correlation": {
       "description": "Opaque adapter-stitched correlation (LLP 0034 §3.2, ENG-22478): the\nExact adapter's join keys (`actionInvocationId`, `optimisticWaveId`,\n`rootId`, `bindingIds`) live inside. The provider echoes it verbatim\non receipts and never interprets it."
@@ -116,6 +131,6 @@
       "type": "array"
     }
   },
-  "title": "HandlerInput",
+  "title": "MutationRequest",
   "type": "object"
 }

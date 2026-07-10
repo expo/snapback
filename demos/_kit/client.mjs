@@ -348,12 +348,25 @@ export class SnapbackClient {
     return this.#req('POST', `/action/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
   }
 
-  async mutate(ref, { args = {}, userId, readSet = [], correlation = null } = {}) {
+  async mutate(ref, {
+    args = {},
+    userId,
+    readSet = [],
+    correlation = null,
+    clientMutationId = null,
+    ctxLedger = null,
+  } = {}) {
     const name = functionName(ref);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
     // the receipt; the provider never interprets it.
     if (correlation) body.correlation = correlation;
+    // LLP 0043 M2: a queued mutation keeps one durable identity and one
+    // captured answer ledger across retries/reloads. The server settles the
+    // id atomically with data changes and returns the original result on a
+    // duplicate delivery.
+    if (clientMutationId) body.clientMutationId = clientMutationId;
+    if (ctxLedger) body.ctx_ledger = ctxLedger;
     try {
       const json = await this.#req('POST', `/mutation/${name}`, body);
       if (json?.receipt) this.recordReceipt(json.receipt);

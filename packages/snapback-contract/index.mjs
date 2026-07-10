@@ -3,12 +3,15 @@
 // @ref LLP 0005#contractexact-integration - the generated Contract adapter owns
 //   the boring seams Valet demos copied by hand: boot, query-boundary wiring,
 //   mutation invocation, initial snapshot, pending state, and provider wiring.
-// @ref LLP 0012#capability-manifest - Online vs. Parity: this adapter speaks the
-//   wire protocol and runs mutations on the server. It does not run handlers
-//   locally, so it reports Online and must not be presented as Parity.
+// @ref LLP 0012#capability-manifest / LLP 0051 D6 — the adapter's Parity
+//   slice is the closed IR tier: derived local overlays + a D1-ledgered durable
+//   queue. Surfaces without a configured client store still report Online.
 
 export const SNAPBACK_CONTRACT_ADAPTER_VERSION = 1;
+// Legacy/default and every non-offline surface stay Online. Parity is a
+// per-surface earned result, never a package-wide default.
 export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
+export const SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS = 'Parity';
 
 // Render-first mode (ENG-23736): links synchronously, backend attaches behind
 // the mounted app. Lives in ./render-first.mjs; re-exported so the package
@@ -26,7 +29,21 @@ export {
   OVERLAY_CLASSES,
 } from './derived-overlay.mjs';
 
+export {
+  createClientMutationId,
+  createLocalStorageSnapbackClientStore,
+  createMemorySnapbackClientStore,
+  retainedQueryKey,
+  snapbackAuthFingerprint,
+  SNAPBACK_CLIENT_STORE_VERSION,
+} from './client-store.mjs';
+
 import { deriveOptimisticReducers } from './derived-overlay.mjs';
+import {
+  createClientMutationId,
+  retainedQueryKey,
+  snapbackAuthFingerprint,
+} from './client-store.mjs';
 
 // Contract data manifest versions this adapter accepts. v2 (LLP 0034 D3) is an
 // additive extension of v1 per Exact LLP 0284 §2.4: old fields remain valid
@@ -135,6 +152,10 @@ export async function createSnapbackContractSurface({
   artifactIndex = null,
   schemaManifest = null,
   functionManifest = null,
+  // LLP 0043 DK-9: async store contract for retained rows + monotonic queued
+  // mutations. Configure memory in tests, localStorage/IndexedDB on web, and
+  // SQLite on native. Omit it for the pre-offline Online-class behavior.
+  clientStore = null,
   // Single-query mode binds one named manifest query to one boundary key.
   // Both are app facts with no product default (LLP 0032 P5 removed the
   // todo-demo defaults this generic package used to ship); multi-query
@@ -257,7 +278,11 @@ export async function createSnapbackContractSurface({
     const queryNames = Object.keys(manifest?.queries ?? {});
     const mutationNames = Object.keys(manifest?.mutations ?? {});
     const boundQueryNames = new Set([queryName]);
-
+    const publishDiagnostic = (code, message, details = {}) => {
+      const diagnostic = contractDiagnostic(code, message, details);
+      diagnostics.push(diagnostic);
+      return diagnostic;
+    };
     // The C1 fix (LLP 0034 D1; Exact LLP 0284 §5.3): when the bound descriptor
     // is live (manifest v2 `mode`/`defaultLive`, or the legacy `subscription`
     // field), the surface subscribes over the kit's stream transport and pushes
@@ -272,6 +297,45 @@ export async function createSnapbackContractSurface({
         && boundDescriptor.defaultLive !== false,
     );
     const wantLivePush = livePush && descriptorIsLive && typeof client.liveQuery === 'function';
+    const boundTable = boundDescriptor?.reads?.[0] ?? null;
+    const derivedReducers = deriveOptimisticReducers({
+      manifest,
+      table: boundTable,
+      onError: publishDiagnostic,
+    });
+    const everyMutationReplayable = mutationNames.length > 0
+      && mutationNames.every((name) => typeof derivedReducers[name] === 'function');
+    const offlineReplayEnabled = Boolean(
+      clientStore
+      && descriptorIsLive
+      && everyMutationReplayable
+      && manifest?.capabilities?.offlineReplay === true,
+    );
+    const storeAuthFingerprint = snapbackAuthFingerprint(userId ?? null);
+    const storeQueryKey = retainedQueryKey(queryName, queryArgs);
+    const storeExpectation = {
+      authFingerprint: storeAuthFingerprint,
+      schemaHash: schemaManifest?.schemaHash ?? manifest?.schemaHash ?? null,
+      inputsHash: manifest?.inputsHash ?? null,
+    };
+    if (clientStore) {
+      await clientStore.scopeToAuth(storeAuthFingerprint);
+      await clientStore.scopeToArtifacts({
+        schemaHash: storeExpectation.schemaHash,
+        inputsHash: storeExpectation.inputsHash,
+      });
+    }
+    let durablePendingCount = 0;
+    let retainedOffline = false;
+    let lastServerVersion = 0;
+    const restoredPending = offlineReplayEnabled
+      ? await clientStore.pendingMutations({
+          authFingerprint: storeAuthFingerprint,
+          schemaHash: storeExpectation.schemaHash,
+          inputsHash: storeExpectation.inputsHash,
+        })
+      : [];
+    durablePendingCount = restoredPending.length;
 
     let boundary = null;
     const liveCellObservers = new Set();
@@ -323,36 +387,79 @@ export async function createSnapbackContractSurface({
     const applyOptimisticOverlay = (rows) => {
       let out = rows;
       for (const op of inFlightOptimistic) {
-        out = op.reducer(out, op.args, {
+        let ledgerCursor = 0;
+        const ledgerRuntimeId = op.ctxLedger
+          ? () => {
+              const id = op.ctxLedger.ids[ledgerCursor++];
+              if (id !== undefined) return id;
+              const error = new Error('optimistic replay consumed past its captured id ledger');
+              error.code = 'SNAPBACK_CTX_LEDGER_EXHAUSTED';
+              throw error;
+            }
+          : null;
+        const ctx = {
           userId,
           optimisticId: op.optimisticId,
           baseVersion: op.baseVersion,
+          nowMs: op.ctxLedger?.now,
+          runtimeId: ledgerRuntimeId,
+        };
+        if (op.ledgerReducer && op.reducer !== op.ledgerReducer) {
+          op.ledgerReducer(out, op.args, ctx);
+        }
+        out = op.reducer(out, op.args, {
+          ...ctx,
+          runtimeId: op.reducer === op.ledgerReducer ? ledgerRuntimeId : null,
         });
       }
       return out;
     };
 
-    const writeServerRows = (rows) => {
+    const retainRows = (rows, version = maxServerRowVersion(rows)) => {
+      if (!offlineReplayEnabled) return;
+      void clientStore.putRetainedQuery(storeQueryKey, {
+        rows,
+        version,
+        cursor: { stream: queryName, version },
+        authFingerprint: storeAuthFingerprint,
+        schemaHash: storeExpectation.schemaHash,
+        inputsHash: storeExpectation.inputsHash,
+      }).catch((error) => {
+        publishDiagnostic(
+          'SNAPBACK_CLIENT_STORE_WRITE_FAILED',
+          error instanceof Error ? error.message : String(error),
+          { query: queryName },
+        );
+      });
+    };
+
+    const writeServerRows = (rows, version = maxServerRowVersion(rows)) => {
       lastServerRows = rows;
+      lastServerVersion = version ?? maxServerRowVersion(rows);
+      retainRows(rows, lastServerVersion);
       if (disposed || !boundary) return rows;
       const overlaid = applyOptimisticOverlay(rows);
       boundary.write(boundaryKey, () => overlaid);
       return overlaid;
     };
 
-    const surfaceConnection = () => (wantLivePush ? liveHandle?.connection ?? 'connecting' : null);
+    const surfaceConnection = () => (
+      wantLivePush
+        ? retainedOffline ? 'stale' : liveHandle?.connection ?? 'connecting'
+        : null
+    );
 
-    let initial;
-    if (wantLivePush) {
-      liveHandle = await client.liveQuery(queryName, {
+    const openLive = async () => {
+      const handle = await client.liveQuery(queryName, {
         connectionId: surfaceConnectionId,
         args: queryArgs,
         userId,
         transport: 'stream',
         stream: liveStreamOptions,
         correlation: surfaceCorrelation,
-        onUpdate: (rows) => {
-          writeServerRows(rows);
+        onUpdate: (rows, detail = {}) => {
+          retainedOffline = false;
+          writeServerRows(rows, detail.version);
         },
         onConnectionChange: (connection, detail) => {
           // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each live
@@ -365,18 +472,61 @@ export async function createSnapbackContractSurface({
         },
         onSubscriptionEvent,
       });
-      initial = liveHandle.rows;
-    } else {
-      initial = (await client.query(queryName, { args: queryArgs, userId })).rows;
+      liveHandle = handle;
+      retainedOffline = false;
+      return handle;
+    };
+
+    let initial;
+    const retained = offlineReplayEnabled
+      ? await clientStore.getRetainedQuery(storeQueryKey, storeExpectation)
+      : null;
+    try {
+      if (wantLivePush) {
+        const handle = await openLive();
+        initial = handle.rows;
+        lastServerVersion = handle.version ?? maxServerRowVersion(initial);
+      } else {
+        const snapshot = await client.query(queryName, { args: queryArgs, userId });
+        initial = snapshot.rows;
+        lastServerVersion = snapshot.version ?? maxServerRowVersion(initial);
+      }
+      retainRows(initial, lastServerVersion);
+    } catch (error) {
+      if (!retained) throw error;
+      initial = retained.rows;
+      lastServerVersion = retained.version ?? maxServerRowVersion(initial);
+      retainedOffline = true;
+      publishDiagnostic(
+        'SNAPBACK_RETAINED_QUERY_STALE',
+        'Serving retained authorized rows while the server is unavailable.',
+        { query: queryName, version: lastServerVersion },
+      );
     }
     lastServerRows = initial;
     boundary = runtime.createContractMockQueryBoundary({ [boundaryKey]: initial });
-    if (wantLivePush && liveHandle.rows !== initial) {
+    if (wantLivePush && liveHandle && liveHandle.rows !== initial) {
       // An update that raced boundary creation is not lost: rewrite from the
       // handle's latest rows (idempotent when nothing changed).
       lastServerRows = liveHandle.rows;
       boundary.write(boundaryKey, () => liveHandle.rows);
     }
+    for (const record of restoredPending) {
+      const reducer = typeof optimisticReducers[record.function] === 'function'
+        ? optimisticReducers[record.function]
+        : derivedReducers[record.function] ?? null;
+      if (!reducer) continue;
+      inFlightOptimistic.add({
+        mutationId: record.id,
+        reducer,
+        ledgerReducer: derivedReducers[record.function],
+        args: record.args,
+        optimisticId: record.optimisticId ?? record.ctxLedger?.ids?.[0] ?? record.id,
+        baseVersion: record.baseVersion ?? lastServerVersion,
+        ctxLedger: record.ctxLedger,
+      });
+    }
+    if (restoredPending.length > 0) writeServerRows(lastServerRows, lastServerVersion);
     // Zero-scope presence rooms subscribe once up front so an `ephemeral`
     // binding's first snapshot delivers synchronously (ENG-22479).
     await ephemeralWiring.prewarm();
@@ -387,18 +537,15 @@ export async function createSnapbackContractSurface({
       }
     };
 
-    const publishDiagnostic = (code, message, details = {}) => {
-      const diagnostic = contractDiagnostic(code, message, details);
-      diagnostics.push(diagnostic);
-      return diagnostic;
-    };
-
     // Reconcile fetches authoritative rows and writes them with the in-flight
     // optimistic overlay applied (other mutations may still be in flight);
     // returns the rows as written.
     const reconcile = async () => {
-      const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
-      return writeServerRows(rows);
+      const snapshot = await client.query(queryName, { args: queryArgs, userId });
+      return writeServerRows(
+        snapshot.rows,
+        snapshot.version ?? maxServerRowVersion(snapshot.rows),
+      );
     };
 
     const track = (promise) => {
@@ -411,16 +558,83 @@ export async function createSnapbackContractSurface({
       return task;
     };
 
+    const isConnectivityFailure = (error) => (
+      error?.status === undefined
+      && error?.diagnostic === undefined
+      && error?.code !== 'SNAPBACK_AUTH_STALE_RESULT'
+    );
+
     const persistMutation = async (name, args, optimisticOp = null) => {
+      let queued = null;
+      let mutationCommitted = false;
+      let mutationOutput = null;
+      if (offlineReplayEnabled && optimisticOp?.ctxLedger) {
+        queued = await clientStore.enqueueMutation({
+          id: optimisticOp.mutationId,
+          function: name,
+          args,
+          readSet: [],
+          ctxLedger: optimisticOp.ctxLedger,
+          authFingerprint: storeAuthFingerprint,
+          optimisticId: optimisticOp.optimisticId,
+          baseVersion: optimisticOp.baseVersion,
+          schemaHash: storeExpectation.schemaHash,
+          inputsHash: storeExpectation.inputsHash,
+        });
+        durablePendingCount += 1;
+      }
       try {
         // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
         // into this correlation when the runtime supplies them.
-        await client.mutate(name, { args, userId, correlation: surfaceCorrelation });
+        const output = await client.mutate(name, {
+          args,
+          userId,
+          correlation: surfaceCorrelation,
+          clientMutationId: queued?.id ?? null,
+          ctxLedger: queued?.ctxLedger ?? null,
+        });
+        mutationCommitted = true;
+        mutationOutput = output;
+        if (queued) {
+          await clientStore.settleMutation(queued.id, { status: 'confirmed', output });
+          durablePendingCount = Math.max(0, durablePendingCount - 1);
+        }
         // The commit landed: drop the optimistic op BEFORE reconciling so the
         // authoritative row is not doubled by its own overlay.
         if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
         await reconcile();
+        return output;
       } catch (error) {
+        if (mutationCommitted) {
+          if (isConnectivityFailure(error)) retainedOffline = true;
+          publishDiagnostic(
+            'SNAPBACK_CONTRACT_RECONCILE_FAILED',
+            error instanceof Error ? error.message : String(error),
+            { mutation: name, args, committed: true },
+          );
+          // The mutation result is confirmed. A failed client-store settle
+          // leaves its entry queued for idempotent redelivery; a failed query
+          // leaves the last authoritative rows marked stale. Neither may be
+          // misreported as a rejected mutation.
+          writeServerRows(lastServerRows, lastServerVersion);
+          return mutationOutput;
+        }
+        if (queued && isConnectivityFailure(error)) {
+          retainedOffline = true;
+          publishDiagnostic(
+            'SNAPBACK_OFFLINE_MUTATION_QUEUED',
+            'Mutation retained for ordered replay after reconnect.',
+            { mutation: name, clientMutationId: queued.id, sequence: queued.sequence },
+          );
+          return { queued: true, clientMutationId: queued.id };
+        }
+        if (queued) {
+          await clientStore.settleMutation(queued.id, {
+            status: 'failed',
+            diagnostic: error?.diagnostic ?? { message: error instanceof Error ? error.message : String(error) },
+          });
+          durablePendingCount = Math.max(0, durablePendingCount - 1);
+        }
         if (optimisticOp) inFlightOptimistic.delete(optimisticOp);
         publishDiagnostic('SNAPBACK_CONTRACT_MUTATION_FAILED', error instanceof Error ? error.message : String(error), {
           mutation: name,
@@ -465,12 +679,6 @@ export async function createSnapbackContractSurface({
     // generated default reducer. App reducers stay first-class and override
     // per name; mutations touching tables this boundary cannot see stay
     // pending-without-overlay (no overlay beats a wrong prediction).
-    const boundTable = boundDescriptor?.reads?.[0] ?? null;
-    const derivedReducers = deriveOptimisticReducers({
-      manifest,
-      table: boundTable,
-      onError: publishDiagnostic,
-    });
     for (const name of mutationNames) {
       const appReducer = optimisticReducers[name];
       const activeReducer = typeof appReducer === 'function' ? appReducer : derivedReducers[name] ?? null;
@@ -484,20 +692,50 @@ export async function createSnapbackContractSurface({
         const reducer = activeReducer;
         let optimisticOp = null;
         if (typeof reducer === 'function') {
+          const mutationId = createClientMutationId(`cm_${name}`);
+          const ledgerIds = [];
+          const nowMs = Date.now();
+          const runtimeId = () => {
+            if (ledgerIds.length >= 1024) {
+              const error = new Error('offline replay ledger exceeded 1024 ids');
+              error.code = 'SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED';
+              throw error;
+            }
+            const id = `${mutationId}_id_${ledgerIds.length + 1}`;
+            ledgerIds.push(id);
+            return id;
+          };
           optimisticOp = {
+            mutationId,
             reducer,
+            ledgerReducer: derivedReducers[name],
             args,
             optimisticId: `optimistic_${++optimisticSeq}`,
             baseVersion: maxServerRowVersion(lastServerRows),
+            ctxLedger: derivedReducers[name]
+              ? { version: 1, ids: ledgerIds, now: nowMs }
+              : null,
           };
           inFlightOptimistic.add(optimisticOp);
-          boundary.write(boundaryKey, (rows) =>
-            reducer(rows, args, {
+          boundary.write(boundaryKey, (rows) => {
+            const ledgerCtx = {
               userId,
               optimisticId: optimisticOp.optimisticId,
               baseVersion: optimisticOp.baseVersion,
-            }),
-          );
+              nowMs,
+              runtimeId,
+            };
+            // When an app reducer overrides the derived prediction, still run
+            // the shared IR evaluator once to capture every RuntimeId/implicit
+            // row-id answer for the durable replay ledger.
+            if (derivedReducers[name] && reducer !== derivedReducers[name]) {
+              derivedReducers[name](rows, args, ledgerCtx);
+            }
+            return reducer(rows, args, {
+              ...ledgerCtx,
+              runtimeId: reducer === derivedReducers[name] ? runtimeId : null,
+            });
+          });
         }
         return track(persistMutation(name, args, optimisticOp));
       };
@@ -510,15 +748,9 @@ export async function createSnapbackContractSurface({
     }
     const providerMutations = {};
     for (const name of mutationNames) {
-      providerMutations[name] = async (args, qb) => {
+      providerMutations[name] = async (args, _qb) => {
         assertActive();
-        await track((async () => {
-          await client.mutate(name, { args, userId, correlation: surfaceCorrelation });
-          // reconcile writes overlaid rows; write the same rows through the
-          // provider's boundary handle so concurrent optimistic ops survive.
-          const rows = await reconcile();
-          qb.write(boundaryKey, () => rows);
-        })());
+        await links[name](args);
       };
     }
 
@@ -533,7 +765,11 @@ export async function createSnapbackContractSurface({
         const rows = (await client.query(queryName, { args: queryArgs, userId })).rows;
         const row = rows.find((r) => r._id === rowId);
         return row
-          ? { syncedVersion: row._version, approxSyncedAt: null, pendingMutations: pending.size > 0 }
+          ? {
+              syncedVersion: row._version,
+              approxSyncedAt: null,
+              pendingMutations: pending.size > 0 || durablePendingCount > 0,
+            }
           : null;
       },
     });
@@ -572,14 +808,88 @@ export async function createSnapbackContractSurface({
     // (the `ephemeral` grammar's initializer expects a provider-backed handle).
     Object.assign(links, ephemeralWiring.buildLinks(provider, runtime));
 
+    const removeOptimisticMutation = (mutationId) => {
+      for (const op of inFlightOptimistic) {
+        if (op.mutationId === mutationId) inFlightOptimistic.delete(op);
+      }
+    };
+
+    // LLP 0043 M2 reconnect order is load-bearing: authoritative full resync
+    // first, then the durable queue strictly by client sequence. Reads are
+    // never replay-ledgered; every mutation executes against current server
+    // state and each settle is followed by a fresh authoritative snapshot.
+    const replayAfterReconnect = async () => {
+      assertActive();
+      if (!offlineReplayEnabled) return { replayed: 0, failed: 0 };
+
+      const initialResync = await client.query(queryName, { args: queryArgs, userId });
+      retainedOffline = false;
+      writeServerRows(
+        initialResync.rows,
+        initialResync.version ?? maxServerRowVersion(initialResync.rows),
+      );
+
+      const queued = await clientStore.pendingMutations({
+        authFingerprint: storeAuthFingerprint,
+        schemaHash: storeExpectation.schemaHash,
+        inputsHash: storeExpectation.inputsHash,
+      });
+      let replayed = 0;
+      let failed = 0;
+      for (const record of queued) {
+        try {
+          const output = await client.mutate(record.function, {
+            args: record.args,
+            userId,
+            readSet: record.readSet ?? [],
+            correlation: surfaceCorrelation,
+            clientMutationId: record.id,
+            ctxLedger: record.ctxLedger,
+          });
+          await clientStore.settleMutation(record.id, { status: 'confirmed', output });
+          durablePendingCount = Math.max(0, durablePendingCount - 1);
+          replayed += 1;
+        } catch (error) {
+          if (isConnectivityFailure(error)) {
+            retainedOffline = true;
+            throw error;
+          }
+          await clientStore.settleMutation(record.id, {
+            status: 'failed',
+            diagnostic: error?.diagnostic ?? { message: error instanceof Error ? error.message : String(error) },
+          });
+          durablePendingCount = Math.max(0, durablePendingCount - 1);
+          failed += 1;
+          publishDiagnostic(
+            'SNAPBACK_OFFLINE_MUTATION_FAILED',
+            error instanceof Error ? error.message : String(error),
+            { mutation: record.function, clientMutationId: record.id },
+          );
+        }
+        removeOptimisticMutation(record.id);
+        await reconcile();
+      }
+
+      if (wantLivePush && !liveHandle) {
+        const handle = await openLive();
+        writeServerRows(handle.rows, handle.version);
+      }
+      return { replayed, failed };
+    };
+
     return {
       adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
-      capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
+      capabilityClass: offlineReplayEnabled
+        ? SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS
+        : SNAPBACK_CONTRACT_CAPABILITY_CLASS,
       boundary,
       links,
       provider,
       diagnostics,
-      pendingCount: () => pending.size,
+      pendingCount: () => Math.max(pending.size, durablePendingCount),
+      retained: () => retainedOffline,
+      reconnect: () => track(replayAfterReconnect()),
+      failedMutations: () => clientStore?.failedMutations?.() ?? Promise.resolve([]),
       declaredQueries: queryNames,
       declaredMutations: mutationNames,
       // LLP 0034 D1 facts: whether the bound descriptor streams server push, and
