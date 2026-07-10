@@ -197,6 +197,15 @@ class ProofClient {
     return response.json();
   }
 
+  async kitMutation(name, args) {
+    const response = await this.mf.dispatchFetch(`${this.base}/mutation/${encodeURIComponent(name)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ args }),
+    });
+    return { status: response.status, body: await response.json() };
+  }
+
   async openLiveSocket() {
     const response = await this.mf.dispatchFetch(`${this.base}/live/stream`, {
       headers: { upgrade: 'websocket' },

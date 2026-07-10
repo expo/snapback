@@ -23,10 +23,11 @@ import path from 'node:path';
 import fs from 'node:fs';
 import Ajv from 'ajv/dist/2020.js';
 import { startProof } from './harness.mjs';
+import { classifyHandlerPlatformFailure, classifyPlatformError } from '../src/platform-errors.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-const EXPECTED_CHECKS = 42;
+const EXPECTED_CHECKS = 50;
 
 const results = [];
 function check(name, condition, detail) {
@@ -176,6 +177,79 @@ async function main() {
       m1.ok && m2.ok && Math.abs(m1.version - m2.version) === 1,
       JSON.stringify({ v1: m1.version, v2: m2.version }));
 
+    const burst = await Promise.all(
+      Array.from({ length: 32 }, (_, index) =>
+        client.mutation('addNote', { boardId: 'b1', text: `bounded-burst-${index}` })
+      )
+    );
+    const burstCommits = burst.filter((result) => result.ok);
+    const burstOverloads = burst.filter((result) => result.code === 'SNAPBACK_OVERLOADED');
+    const burstVersions = burstCommits.map((result) => result.version).sort((left, right) => left - right);
+    check('a 32-way burst commits gap-free or returns only structured retryable admission overloads',
+      burstOverloads.length > 0 && burstCommits.length + burstOverloads.length === burst.length &&
+        burstVersions.every((version, index) => index === 0 || version === burstVersions[index - 1] + 1) &&
+        burstOverloads.every((result) => result.details?.retryable === true && result.details?.backoff === true &&
+          result.details?.maxPendingInvocations < result.details?.serviceBindingInvocationLimit),
+      JSON.stringify({ committed: burstCommits.length, overloaded: burstOverloads.length, burstVersions }));
+
+    // -- platform limits are stable input/pressure results (ENG-23849) ------
+    const versionBeforeOversize = (await client.health()).version;
+    const oversizedAuthorId = 'x'.repeat(2_500_000);
+    const oversized = await client.mutation('addNote', {
+      boardId: 'b1',
+      text: 'must not commit',
+      authorId: oversizedAuthorId,
+    });
+    check('an oversized proof-protocol write returns SNAPBACK_VALUE_TOO_LARGE JSON',
+      oversized.ok === false && oversized.code === 'SNAPBACK_VALUE_TOO_LARGE' &&
+        oversized.details?.retryable === false &&
+        oversized.details?.limitBytes === manifest.runtimeFacts.maxRowBytes &&
+        oversized.details?.actualBytes > oversized.details?.limitBytes,
+      JSON.stringify(oversized));
+    const versionAfterOversize = (await client.health()).version;
+    check('an oversized write rolls back without advancing the commit version',
+      versionAfterOversize === versionBeforeOversize,
+      JSON.stringify({ before: versionBeforeOversize, after: versionAfterOversize }));
+    const oversizedKit = await client.kitMutation('addNote', {
+      boardId: 'b1',
+      text: 'must not commit either',
+      authorId: oversizedAuthorId,
+    });
+    check('the kit protocol receives the same structured size diagnostic with HTTP 413',
+      oversizedKit.status === 413 && oversizedKit.body.diagnostic?.code === 'SNAPBACK_VALUE_TOO_LARGE' &&
+        oversizedKit.body.diagnostic?.details?.limitBytes === manifest.runtimeFacts.maxRowBytes,
+      JSON.stringify(oversizedKit));
+    const afterOversize = await client.mutation('addNote', { boardId: 'b1', text: 'coordinator remains healthy' });
+    check('a valid mutation succeeds immediately after an oversized write is rejected',
+      afterOversize.ok === true && afterOversize.version === versionBeforeOversize + 1,
+      JSON.stringify(afterOversize));
+
+    const classifiedDepth = classifyHandlerPlatformFailure({
+      ok: false,
+      code: 'SNAPBACK_HANDLER_FAILED',
+      message: 'Subrequest depth limit exceeded. This request recursed through Workers too many times.',
+    });
+    const unrelatedHandlerFailure = classifyHandlerPlatformFailure({
+      ok: false,
+      code: 'SNAPBACK_HANDLER_FAILED',
+      message: 'ordinary app exception',
+    });
+    const directDepth = classifyPlatformError(
+      new Error('Subrequest depth limit exceeded. This request recursed through Workers too many times.')
+    );
+    const handlerValueLimit = classifyHandlerPlatformFailure(
+      { ok: false, code: 'SNAPBACK_VALUE_TOO_LARGE', message: 'host call exceeded the row limit' },
+      { maxRowBytes: manifest.runtimeFacts.maxRowBytes }
+    );
+    check('service-binding depth failures classify as retryable overload without folding unrelated handler failures',
+      classifiedDepth.code === 'SNAPBACK_OVERLOADED' && classifiedDepth.details?.retryable === true &&
+        classifiedDepth.details?.backoff === true && directDepth.code === 'SNAPBACK_OVERLOADED' &&
+        directDepth.details?.reason === 'service_binding_subrequest_depth' &&
+        handlerValueLimit.code === 'SNAPBACK_VALUE_TOO_LARGE' &&
+        handlerValueLimit.details?.limitBytes === manifest.runtimeFacts.maxRowBytes &&
+        unrelatedHandlerFailure.code === 'SNAPBACK_HANDLER_FAILED',
+      JSON.stringify({ classifiedDepth, directDepth, handlerValueLimit, unrelatedHandlerFailure }));
+
     // -- ambient-power denial (two directions) ------------------------------
     // The handler bundle has no denial handler itself; we prove denial by
     // deploying a probe via a second board mutation whose handler tries fetch.
@@ -274,6 +348,25 @@ async function main() {
     socket2.close();
   } finally {
     await client.dispose();
+  }
+
+  // The real request-chain cap exists only on Cloudflare. A testing-only
+  // zero-capacity admission seam deterministically pins both public envelope
+  // shapes in Miniflare; LLP 0050's remote burst remains the platform proof.
+  const saturated = await startProof({ bindings: { SNAPBACK_MAX_PENDING_INVOCATIONS: '0' } });
+  try {
+    const proofOverload = await saturated.mutation('addNote', { boardId: 'burst', text: 'retry me' });
+    check('proof-protocol admission failure is SNAPBACK_OVERLOADED and retryable with backoff',
+      proofOverload.code === 'SNAPBACK_OVERLOADED' && proofOverload.details?.retryable === true &&
+        proofOverload.details?.backoff === true && proofOverload.details?.reason === 'coordinator_admission_limit',
+      JSON.stringify(proofOverload));
+    const kitOverload = await saturated.kitMutation('addNote', { boardId: 'burst', text: 'retry me too' });
+    check('kit-protocol admission failure is a structured HTTP 503 overload diagnostic',
+      kitOverload.status === 503 && kitOverload.body.diagnostic?.code === 'SNAPBACK_OVERLOADED' &&
+        kitOverload.body.diagnostic?.details?.retryable === true,
+      JSON.stringify(kitOverload));
+  } finally {
+    await saturated.dispose();
   }
 
   const passed = results.filter((r) => r.ok).length;

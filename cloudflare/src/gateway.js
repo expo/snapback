@@ -14,6 +14,7 @@
 // resolved to an object id here. The name comes from the selected app bundle
 // (LLP 0049 Phase 0 deploy-time app selector — the 'snapback-app' alias).
 import { Coordinator } from './coordinator.js';
+import { classifyPlatformError, platformFailureResponse } from './platform-errors.js';
 import { appMeta, capabilityManifest } from 'snapback-app';
 
 export { Coordinator };
@@ -41,6 +42,17 @@ function coordinatorStub(env, doIdString) {
 
 export default {
   async fetch(request, env) {
+    try {
+      return await gatewayFetch(request, env);
+    } catch (error) {
+      const failure = classifyPlatformError(error, { maxRowBytes: capabilityManifest.runtimeFacts.maxRowBytes });
+      if (failure) return platformFailureResponse(new URL(request.url).pathname, failure);
+      throw error;
+    }
+  },
+};
+
+async function gatewayFetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -139,8 +151,7 @@ export default {
       return env.ASSETS.fetch(request);
     }
     return json(404, { error: 'not found', path });
-  },
-};
+}
 
 async function forward(stub, target, request) {
   return stub.fetch(target, {

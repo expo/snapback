@@ -5,7 +5,7 @@
 **Systems:** Deployment, Runtime, Storage, Realtime, Performance, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-09
-**Revised:** 2026-07-09 (initial)
+**Revised:** 2026-07-09 (ENG-23849 local platform-limit hardening)
 **Related:** LLP 0014, LLP 0028, LLP 0035, LLP 0040, LLP 0048, LLP 0049
 
 ## Summary
@@ -165,6 +165,38 @@ Both in **ENG-23849**:
    retry" from "your handler is broken" — and the subrequest-depth
    mechanism under parallel load deserves an investigation of its own.
 
+### ENG-23849 local hardening follow-up (2026-07-09)
+
+The code-side follow-up is implemented and regression-pinned without
+rewriting the historical remote observations above:
+
+- the commit path serializes each prospective row once, measures its UTF-8
+  bytes against the capability manifest's `runtimeFacts.maxRowBytes`, and
+  throws a typed `SNAPBACK_VALUE_TOO_LARGE` from inside the existing
+  row/version/journal transaction. The proof protocol returns JSON with the
+  platform, 2 MB limit, actual bytes, and `retryable: false`; the kit protocol
+  returns the same diagnostic with HTTP 413. The acceptance test proves the
+  version does not advance and the next valid mutation succeeds;
+- the coordinator's serialized-invocation tail now returns to `null` when the
+  queue drains, so the next request begins in its own request context instead
+  of extending an eternal Promise lineage. Admission is bounded at 16 pending
+  invocations (below Workers' documented 32-invocation service-binding chain
+  limit); excess work receives `SNAPBACK_OVERLOADED`, HTTP 503 on the kit
+  wire, `retryable: true`, and explicit backoff details;
+- gateway, coordinator, and handler-return paths share one Cloudflare
+  platform classifier. The measured *"Subrequest depth limit exceeded"*
+  message maps to overload, while an unrelated app exception remains
+  `SNAPBACK_HANDLER_FAILED`.
+
+Local evidence: `node cloudflare/test/acceptance.mjs` passes **50/50**. Its
+32-way burst commits a gap-free subset and classifies every shed request as
+retryable admission overload; deterministic proof/kit saturation seams pin
+both envelope shapes. Per LLP 0040's evidence split, Miniflare cannot prove
+the real service-binding depth behavior. A deployed 32/64-way burst plus
+1 MB/2.5 MB value rerun is still required after ENG-23840 restores deploy and
+admin credentials; until then the old remote distributions above remain the
+only real-platform observation.
+
 ## Credential caveat (2026-07-09)
 
 This run used only the public surface: the Cloudflare API token on this
@@ -179,8 +211,9 @@ recorded).
 
 ## Status
 
-Draft (initial numbers 2026-07-09). This report closes the percentile
-benchmark, max-practical-subscribers, and contention/overload items that
-LLP 0040 §Status listed as separating the proof from acceptance; whether the
-proof is now **Accepted** is the author's ratification call on LLP 0040
-itself.
+Draft (initial numbers and ENG-23849 local hardening 2026-07-09). This report
+closes the percentile benchmark, max-practical-subscribers, and
+contention/overload items that LLP 0040 §Status listed as separating the proof
+from acceptance; whether the proof is now **Accepted** is the author's
+ratification call on LLP 0040 itself. The structured-limit fix is locally
+verified but not yet redeployed; remote confirmation is blocked on ENG-23840.

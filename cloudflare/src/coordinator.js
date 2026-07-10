@@ -32,6 +32,15 @@
 // ambient-power denial test).
 
 import { HostContext, physicalTableName } from './host-ops.js';
+import {
+  DEFAULT_MAX_PENDING_INVOCATIONS,
+  classifyHandlerPlatformFailure,
+  classifyPlatformError,
+  overloadedFailure,
+  platformFailureError,
+  platformFailureResponse,
+  valueTooLargeFailure,
+} from './platform-errors.js';
 import { parseHandlerEnvelope } from '../../packages/snapback-harness/envelope.mjs';
 // The deploy-time app selector (LLP 0049 Phase 0): 'snapback-app' is an
 // aliased module specifier — wrangler config `alias` (and the Miniflare
@@ -42,6 +51,7 @@ import { parseHandlerEnvelope } from '../../packages/snapback-harness/envelope.m
 import {
   appMeta,
   bundleHash,
+  capabilityManifest,
   schema,
   functions,
   seed as appSeed,
@@ -53,6 +63,8 @@ const APP_SCHEMA_HASH = schema.schemaHash;
 const APP_BUNDLE_HASH = bundleHash;
 const APP_TABLES = new Set(schema.tables.map((table) => table.name));
 const CHANGE_JOURNAL_RETAIN_VERSIONS = 1000;
+const MAX_ROW_BYTES = Number(capabilityManifest.runtimeFacts.maxRowBytes);
+const UTF8_ENCODER = new TextEncoder();
 
 export class Coordinator {
   constructor(ctx, env) {
@@ -63,10 +75,15 @@ export class Coordinator {
     // (routed back from the handler isolate) finds its HostContext. Purely
     // in-memory and request-scoped: nothing across eviction depends on it.
     this.activeInvocations = new Map();
-    // The invocation mutex (ENG-23575): chains every invocation-bearing
-    // request so handler execution + commit + fan-out (and subscription
-    // snapshot + registration) are one critical section each.
-    this.invocationChain = Promise.resolve();
+    // The invocation mutex (ENG-23575): queue each invocation-bearing request
+    // so handler execution + commit + fan-out (and subscription snapshot +
+    // registration) are one critical section each. The tail returns to null
+    // when idle instead of becoming a permanent cross-request Promise chain;
+    // the old chain inherited request context until Cloudflare's service-
+    // binding depth limit surfaced under parallel bursts (ENG-23849).
+    this.invocationTail = null;
+    this.pendingInvocations = 0;
+    this.maxPendingInvocations = configuredPendingInvocationLimit(env);
     // Fresh per in-memory instance, never persisted: lets a remote client
     // observe a real platform eviction (the marker changes across a quiet
     // window) — the LLP 0040 decisive-evidence run reads it off /health.
@@ -75,15 +92,46 @@ export class Coordinator {
     this.ensureSchema();
   }
 
-  // Serialize `task` behind every previously queued invocation. Failures
-  // propagate to the caller but never poison the chain.
+  // Serialize `task` behind every previously queued invocation. Bound the
+  // accepted queue below Cloudflare's request-chain limit so excess work gets
+  // a stable retryable result instead of a late platform exception. Failures
+  // propagate to the caller but never poison the tail.
   runExclusive(task) {
-    const run = this.invocationChain.then(() => task());
-    this.invocationChain = run.then(
+    if (this.pendingInvocations >= this.maxPendingInvocations) {
+      return Promise.reject(
+        platformFailureError(
+          overloadedFailure({
+            reason: 'coordinator_admission_limit',
+            pendingInvocations: this.pendingInvocations,
+            maxPendingInvocations: this.maxPendingInvocations,
+          })
+        )
+      );
+    }
+
+    this.pendingInvocations += 1;
+    let run;
+    if (this.invocationTail === null) {
+      // Invoke directly in the new request's context whenever the mutex was
+      // idle. Promise.resolve().then(task) would create another inherited
+      // continuation — the failure mode measured in LLP 0050.
+      try {
+        run = Promise.resolve(task());
+      } catch (error) {
+        run = Promise.reject(error);
+      }
+    } else {
+      run = this.invocationTail.then(() => task());
+    }
+    const settled = run.then(
       () => undefined,
       () => undefined
     );
-    return run;
+    this.invocationTail = settled;
+    return run.finally(() => {
+      this.pendingInvocations -= 1;
+      if (this.invocationTail === settled) this.invocationTail = null;
+    });
   }
 
   ensureSchema() {
@@ -290,6 +338,17 @@ export class Coordinator {
   // --- HTTP + WebSocket routing ------------------------------------------
 
   async fetch(request) {
+    const path = new URL(request.url).pathname;
+    try {
+      return await this.route(request);
+    } catch (error) {
+      const failure = classifyPlatformError(error, { maxRowBytes: MAX_ROW_BYTES });
+      if (failure) return platformFailureResponse(path, failure);
+      throw error;
+    }
+  }
+
+  async route(request) {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -1217,7 +1276,7 @@ export class Coordinator {
             'the handler isolate could not install unhandled-rejection detection; the LLP 0009 conformance floor requires it on every engine',
         };
       }
-      const parsed = parseHandlerEnvelope(result.envelope);
+      const parsed = classifyHandlerPlatformFailure(parseHandlerEnvelope(result.envelope), { maxRowBytes: MAX_ROW_BYTES });
       return { ...parsed, host, observedVersion: host.observedVersion || this.currentVersion() };
     } finally {
       this.activeInvocations.delete(token);
@@ -1307,8 +1366,9 @@ export class Coordinator {
         const table = this.physicalTable(write.table);
         if (write.kind === 'insert') {
           const row = { _id: write.id, _version: nextVersion, _createdAt: nowMs, _updatedAt: nowMs, ...write.values };
-          this.sql.exec(`INSERT INTO ${table} (id, row_json) VALUES (?, ?)`, write.id, JSON.stringify(row));
-          this.recordChange(nextVersion, write.table, write.id, 'insert', row, nowMs);
+          const rowJson = this.serializeRow(write.table, row);
+          this.sql.exec(`INSERT INTO ${table} (id, row_json) VALUES (?, ?)`, write.id, rowJson);
+          this.recordChange(nextVersion, write.table, write.id, 'insert', rowJson, nowMs);
           changes.push({ table: write.table, id: write.id, op: 'insert' });
         } else if (write.kind === 'patch') {
           // Empty-values patches are no-ops on the local target
@@ -1318,8 +1378,9 @@ export class Coordinator {
           const existing = this.readRow(table, write.id);
           if (existing) {
             const row = { ...existing, ...write.values, _id: write.id, _version: nextVersion, _updatedAt: nowMs };
-            this.sql.exec(`UPDATE ${table} SET row_json = ? WHERE id = ?`, JSON.stringify(row), write.id);
-            this.recordChange(nextVersion, write.table, write.id, 'patch', row, nowMs);
+            const rowJson = this.serializeRow(write.table, row);
+            this.sql.exec(`UPDATE ${table} SET row_json = ? WHERE id = ?`, rowJson, write.id);
+            this.recordChange(nextVersion, write.table, write.id, 'patch', rowJson, nowMs);
             changes.push({ table: write.table, id: write.id, op: 'patch' });
           }
         } else if (write.kind === 'delete') {
@@ -1346,6 +1407,15 @@ export class Coordinator {
     return { version: changes.length > 0 ? nextVersion : currentVersion, changes };
   }
 
+  serializeRow(table, row) {
+    const rowJson = JSON.stringify(row);
+    const actualBytes = UTF8_ENCODER.encode(rowJson).byteLength;
+    if (actualBytes > MAX_ROW_BYTES) {
+      throw platformFailureError(valueTooLargeFailure({ limitBytes: MAX_ROW_BYTES, actualBytes, table }));
+    }
+    return rowJson;
+  }
+
   readRow(table, id) {
     for (const record of this.sql.exec(`SELECT row_json FROM ${table} WHERE id = ?`, id)) {
       return JSON.parse(record.row_json);
@@ -1353,14 +1423,14 @@ export class Coordinator {
     return null;
   }
 
-  recordChange(version, tableName, rowId, op, row, nowMs) {
+  recordChange(version, tableName, rowId, op, rowJson, nowMs) {
     this.sql.exec(
       `INSERT INTO _snapback_changes (version, table_name, row_id, op, row_json, changed_at_ms) VALUES (?, ?, ?, ?, ?, ?)`,
       version,
       tableName,
       rowId,
       op,
-      row ? JSON.stringify(row) : null,
+      rowJson,
       nowMs
     );
   }
@@ -1472,7 +1542,7 @@ export class Coordinator {
         for (const row of tables[name]) {
           const id = String(row._id || this.newId());
           const stored = { ...row, _id: id, _version: 1, _createdAt: nowMs, _updatedAt: nowMs };
-          this.sql.exec(`INSERT INTO ${physical} (id, row_json) VALUES (?, ?)`, id, JSON.stringify(stored));
+          this.sql.exec(`INSERT INTO ${physical} (id, row_json) VALUES (?, ?)`, id, this.serializeRow(name, stored));
         }
       }
       const current = this.currentVersion();
@@ -1867,6 +1937,18 @@ function sortJson(value) {
     sorted[key] = sortJson(value[key]);
   }
   return sorted;
+}
+
+function configuredPendingInvocationLimit(env) {
+  const configured = Number(env.SNAPBACK_MAX_PENDING_INVOCATIONS);
+  // A zero-capacity queue is a deterministic testing seam for the admission
+  // envelope. Production always accepts at least one invocation, and no
+  // override may raise the cap above the request-chain-safe default.
+  if (env.SNAPBACK_TESTING === '1' && configured === 0) return 0;
+  if (Number.isSafeInteger(configured) && configured > 0) {
+    return Math.min(configured, DEFAULT_MAX_PENDING_INVOCATIONS);
+  }
+  return DEFAULT_MAX_PENDING_INVOCATIONS;
 }
 
 function failure(result) {

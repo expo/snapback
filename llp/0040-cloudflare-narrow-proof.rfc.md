@@ -475,8 +475,16 @@ counters — were recorded 2026-07-08 above. Two diagnostics gaps the
 measurements exposed (oversized writes surface a raw platform HTML 500
 instead of a `SNAPBACK_*` envelope; burst-shed `SNAPBACK_HANDLER_FAILED` —
 the platform's subrequest-depth limit — carries no overload/retryable
-discrimination) are filed as ENG-23849 and do not block the measurement
-checklist.
+discrimination) were locally hardened in ENG-23849: serialized rows are
+checked against the manifest-owned 2 MB cap inside the commit transaction,
+and the coordinator mutex now resets its Promise tail when idle and admits a
+bounded queue below Cloudflare's 32-invocation service-binding chain limit.
+Both proof and kit protocols return structured `SNAPBACK_VALUE_TOO_LARGE`
+(non-retryable) or `SNAPBACK_OVERLOADED` (retryable with backoff) results.
+The Miniflare regression is 50/50, including a 32-way bounded burst with
+unique gap-free commit versions; that is not a real-platform limit proof.
+Redeploy and remote burst/oversize confirmation remain blocked on ENG-23840's
+credential repair.
 
 ## Review hardening (2026-07-07, ENG-23574–ENG-23593)
 
@@ -516,6 +524,17 @@ gaps; all are fixed and regression-pinned by the Miniflare acceptance suite:
   closed when the harness reports `rejectionDetectionSupported: false` —
   the same refusal as `src/workerd_exec.rs`. Rejection reasons ride
   `details.rejections`.
+- **Platform-limit envelopes** (ENG-23849): row JSON is byte-checked against
+  the generated capability manifest's `runtimeFacts.maxRowBytes` inside the
+  same transaction as rows/version/journal, so rejection rolls every staged
+  write back. The invocation mutex no longer retains an eternal cross-request
+  Promise chain: it starts directly in a fresh request context when idle and
+  caps pending work at 16, below Workers' 32-invocation service-binding chain
+  limit. Excess work returns `SNAPBACK_OVERLOADED` with retry/backoff details;
+  oversized writes return `SNAPBACK_VALUE_TOO_LARGE` with actual and limit
+  bytes. Gateway and coordinator classify platform exceptions through one
+  shared boundary, while unrelated handler failures still fail as handler
+  failures.
 
 ## Status
 
@@ -533,4 +552,5 @@ call.** Known residue tracked outside the checklist: ENG-23840 (dead
 credential path blocks any future admin-gated or analytics-bearing rerun),
 ENG-23841 (deliberate All Aboard no-subscriber window — an LLP 0028/0049
 claim, not part of this proof's acceptance), and ENG-23849 (the two
-diagnostics gaps noted in §As-built).
+diagnostics gaps noted in §As-built are locally regression-pinned; remote
+confirmation awaits ENG-23840).
