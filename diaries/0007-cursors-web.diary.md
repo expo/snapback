@@ -248,3 +248,21 @@ vite exits 1 with the diagnostic. I could **not** run the full 7/7: the suite
 cold-builds the Rust/ibex backend (`cargo run … --memory`), too heavy to bring
 up reliably here (a sibling worktree was mid-build). Runtime 7/7 remains
 dependent on the sibling checkout's state until ENG-22564 lands.
+
+## 2026-07-09 — ENG-22564: the canary bridge is deleted
+
+The predicted end state finally landed: cursors-web now consumes Exact `0.1.2`
+from its own package aliases and committed `bun.lock`. The re-homed source alias
+matrix, checkout capability preflight, `exact.pin.json`, and `cd ../../exact`
+scripts are all gone. The production-build gate now treats any surviving pin or
+missing lock as a hard error, so this exact dev-green/ship-broken failure class
+cannot silently return.
+
+The current Contract and React acceptance suites each pass 9/9 against that
+registry install, including the server-restart proof. That restart probe now
+re-provisions through the same idempotent `/app/ensure` contract as the real
+surfaces; its old direct `/_snapback/api/schema/load` call became admin-gated
+and was testing harness privilege rather than reconnection behavior. The React
+bootstrap had the same stale privileged fallback after an unknown-collection
+response, so it now uses `ensureApp({ schema })` directly, matching the
+Contract arm and keeping browser boot on the public D4 path.

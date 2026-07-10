@@ -5,9 +5,7 @@
 //   Snapback admin base-path rewrite are product recipe, not admin-local lore.
 
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
 
 const DEFAULT_ADMIN_DEV_API_TARGET = 'http://127.0.0.1:4287';
 const DEFAULT_ADMIN_DEV_HOST = '127.0.0.1';
@@ -28,7 +26,6 @@ export class SnapbackContractBuildError extends Error {
 
 export async function buildSnapbackContractStaticApp({
   root,
-  exactRoot = null,
   basePath = '/',
   entry = '/src/main.ts',
   outDir = 'dist',
@@ -47,10 +44,9 @@ export async function buildSnapbackContractStaticApp({
   const appRoot = resolve(root);
   const normalizedBasePath = normalizeBasePath(basePath);
   const resolvedOutDir = resolve(appRoot, outDir);
-  const { exactRoot: resolvedExactRoot, entry: normalizedEntry, exactModules } =
+  const { entry: normalizedEntry, exactModules } =
     await contractViteBaseConfig({
       root: appRoot,
-      exactRoot,
       entry,
       routeRegistry,
       exactPluginOptions: {
@@ -62,19 +58,15 @@ export async function buildSnapbackContractStaticApp({
 
   // The build goes through a real (generated) config file rather than an
   // inline config object. The static exporter's nested prerender server
-  // reconstructs its config from scratch unless the outer build carried a
-  // `configFile` (see exact-devtools `createStaticPrerenderServer`), and that
-  // reconstruction drops `server.fs.allow` — so the nested dev server, rooted
-  // at this app but loading Exact sources from the checkout, denies those
-  // reads and dies with nondeterministic "Failed to load url … Does the file
-  // exist?" on files that exist. The config file forwards the full config —
-  // including an fs.allow that spans both repos — to the nested server.
+  // reconstructs its config from the outer `configFile`; without one it drops
+  // the plugin/options graph and can fail with nondeterministic "Failed to load
+  // url … Does the file exist?" errors. Exact now resolves from app-local
+  // packages, so the old two-repository fs.allow is intentionally absent.
   const configFilePath = resolve(appRoot, '.snapback-contract-static.config.mjs');
   writeFileSync(
     configFilePath,
     renderStaticBuildConfig({
       appRoot,
-      exactRoot: resolvedExactRoot,
       exactModules,
       basePath: normalizedBasePath,
       entry: normalizeEntry(entry),
@@ -98,7 +90,7 @@ export async function buildSnapbackContractStaticApp({
 
   return {
     root: appRoot,
-    exactRoot: resolvedExactRoot,
+    exactSource: 'installed-packages',
     outDir: resolvedOutDir,
     basePath: normalizedBasePath,
     staticPlatformTargets,
@@ -107,7 +99,6 @@ export async function buildSnapbackContractStaticApp({
 
 export async function contractViteBaseConfig({
   root,
-  exactRoot = null,
   entry = '/src/main.ts',
   routeRegistry = 'src/app/routes.ts',
   exactPluginOptions = {},
@@ -122,7 +113,6 @@ export async function contractViteBaseConfig({
   const appRoot = resolve(root);
   const normalizedEntry = normalizeEntry(entry);
   const normalizedRouteRegistry = stripLeadingSlash(routeRegistry);
-  const resolvedExactRoot = resolveExactRoot(exactRoot);
 
   preflightAppFile({
     appRoot,
@@ -137,14 +127,13 @@ export async function contractViteBaseConfig({
     label: 'Exact route registry',
   });
 
-  const exactModules = preflightExactModules(resolvedExactRoot);
+  const exactModules = preflightExactModules(appRoot);
   const { exactVitePlugin } = await import(exactModules.exactVitePlugin);
   const { contractVitePlugin } = await import(exactModules.contractVitePlugin);
-  const { workspaceAliases } = await import(exactModules.workspaceAliases);
 
   return {
     root: appRoot,
-    exactRoot: resolvedExactRoot,
+    exactSource: 'installed-packages',
     entry: normalizedEntry,
     routeRegistry: normalizedRouteRegistry,
     exactModules,
@@ -161,7 +150,6 @@ export async function contractViteBaseConfig({
         contractVitePlugin(),
       ],
       resolve: {
-        alias: workspaceAliases,
         // ENG-22600: only dedupe react when the app root can actually resolve
         // it. Vite's dedupe forces bare `react` resolution to start from the
         // app root (tryNodeResolve: `if (dedupe.includes(pkgId)) basedir =
@@ -169,8 +157,8 @@ export async function contractViteBaseConfig({
         // failed, the dep never registered with the dev optimizer, and the
         // browser was handed Exact's raw CJS react/index.js — which has no
         // ESM named exports ("does not provide an export named
-        // 'isValidElement'"). Without dedupe the import resolves from the
-        // Exact source importer and the optimizer prebundles it (verified:
+        // 'isValidElement'”). Without dedupe the import resolves from the
+        // installed Exact package importer and the optimizer prebundles it (verified:
         // imports rewrite to /node_modules/.vite/deps/react.js). Keep dedupe
         // when the root can resolve react, since that is the dual-React guard
         // for surfaces that install their own copy.
@@ -184,7 +172,6 @@ export async function contractViteBaseConfig({
 
 export async function serveSnapbackContractApp({
   root,
-  exactRoot = null,
   entry = '/src/main.ts',
   routeRegistry = 'src/app/routes.ts',
   apiTarget = null,
@@ -201,10 +188,9 @@ export async function serveSnapbackContractApp({
     port,
     allowNonLoopbackHost,
   });
-  const { config, exactRoot: resolvedExactRoot, exactModules, entry: normalizedEntry } =
+  const { config, exactModules, entry: normalizedEntry } =
     await contractViteBaseConfig({
       root,
-      exactRoot,
       entry,
       routeRegistry,
       exactPluginOptions: {
@@ -249,7 +235,7 @@ export async function serveSnapbackContractApp({
   return {
     server,
     root: config.root,
-    exactRoot: resolvedExactRoot,
+    exactSource: 'installed-packages',
     entry: normalizedEntry,
     apiTarget: options.apiTarget,
     apiTargetSource: options.apiTargetSource,
@@ -368,29 +354,13 @@ export function createSnapbackWrongServerShapeDiagnostic({ requestPath } = {}) {
   };
 }
 
-function resolveExactRoot(exactRoot) {
-  return resolve(
-    exactRoot ??
-      process.env.SNAPBACK_EXACT_ROOT ??
-      resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'exact'),
-  );
-}
-
 // ENG-22600: see the `resolve.dedupe` comment in contractViteBaseConfig.
 // Dedupe entries are only safe when node resolution from the app root can
 // find the package; otherwise they silently disable Vite's dep optimizer for
 // that package and dev serve ships raw CJS to the browser. Exported for
 // build-preset.test.mjs (drop-out and re-arm coverage).
 export function resolveRootResolvableDedupe(appRoot, packageNames) {
-  const requireFromRoot = createRequire(resolve(appRoot, 'package.json'));
-  return packageNames.filter((name) => {
-    try {
-      requireFromRoot.resolve(`${name}/package.json`);
-      return true;
-    } catch {
-      return false;
-    }
-  });
+  return packageNames.filter((name) => findInstalledPackageRoot(appRoot, name) !== null);
 }
 
 function preflightAppFile({ appRoot, relativePath, code, label }) {
@@ -406,24 +376,32 @@ function preflightAppFile({ appRoot, relativePath, code, label }) {
   }
 }
 
-function preflightExactModules(exactRoot) {
-  const modules = {
-    vite: resolveExactViteModule(exactRoot),
-    exactVitePlugin: resolve(exactRoot, 'packages/exact-devtools/src/vite-plugin.ts'),
-    contractVitePlugin: resolve(exactRoot, 'packages/exact-contract/src/vite-plugin.ts'),
-    workspaceAliases: resolve(exactRoot, 'js/vite.shared.ts'),
+function preflightExactModules(appRoot) {
+  const specifiers = {
+    vite: 'vite',
+    exactVitePlugin: '@exact/devtools/vite-plugin',
+    contractVitePlugin: '@exact/contract/vite-plugin',
   };
-  const missing = Object.entries(modules).filter(([, path]) => !existsSync(path));
+  const modules = {};
+  const missing = [];
+  for (const [name, specifier] of Object.entries(specifiers)) {
+    const resolved = resolveInstalledPackageSpecifier(appRoot, specifier);
+    if (resolved) {
+      modules[name] = resolved;
+    } else {
+      missing.push({ name, specifier });
+    }
+  }
   if (missing.length > 0) {
     throw diagnosticError(
       'SNAPBACK_CAPABILITY_EXACT_MISSING',
-      'Exact checkout with Contract, devtools, and Vite workspace support was not found.',
+      'Installed Exact Contract/devtools packages and Vite were not found for this app.',
       {
-        exact_root: exactRoot,
-        missing: missing.map(([name, path]) => ({ name, path })),
+        app_root: appRoot,
+        missing,
         next_checks: [
-          'set SNAPBACK_EXACT_ROOT to a local Exact checkout',
-          'install Exact dependencies so node_modules/vite is present',
+          'run bun install in the app directory using its committed lockfile',
+          'verify package.json aliases @exact/* to the published @ccheever/exact-* versions',
         ],
       },
     );
@@ -431,13 +409,91 @@ function preflightExactModules(exactRoot) {
   return modules;
 }
 
+/**
+ * Resolve an installed package export from the app's node_modules hierarchy.
+ * Bun's createRequire(...).resolve() can use the process workspace instead of
+ * the synthetic app base, and npm aliases intentionally make package.json.name
+ * differ from the import key. Walking the installation key explicitly keeps
+ * admin builds package-only and deterministic (ENG-22564).
+ */
+export function resolveInstalledPackageSpecifier(appRoot, specifier) {
+  const parsed = parsePackageSpecifier(specifier);
+  if (!parsed) {
+    return null;
+  }
+  const packageRoot = findInstalledPackageRoot(appRoot, parsed.packageName);
+  if (!packageRoot) {
+    return null;
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+  const target = resolvePackageExportTarget(manifest, parsed.subpath);
+  if (!target) {
+    return null;
+  }
+  const path = resolve(packageRoot, target);
+  return existsSync(path) ? path : null;
+}
+
+function findInstalledPackageRoot(appRoot, packageName) {
+  let current = resolve(appRoot);
+  while (true) {
+    const packageRoot = join(current, 'node_modules', ...packageName.split('/'));
+    if (existsSync(join(packageRoot, 'package.json'))) {
+      return packageRoot;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+
+function parsePackageSpecifier(specifier) {
+  const parts = specifier.split('/');
+  if (specifier.startsWith('@')) {
+    if (parts.length < 2) {
+      return null;
+    }
+    return {
+      packageName: `${parts[0]}/${parts[1]}`,
+      subpath: parts.length > 2 ? `./${parts.slice(2).join('/')}` : '.',
+    };
+  }
+  if (!parts[0]) {
+    return null;
+  }
+  return {
+    packageName: parts[0],
+    subpath: parts.length > 1 ? `./${parts.slice(1).join('/')}` : '.',
+  };
+}
+
+function resolvePackageExportTarget(manifest, subpath) {
+  const entry = manifest.exports?.[subpath];
+  if (typeof entry === 'string') {
+    return entry;
+  }
+  if (entry && typeof entry === 'object') {
+    return entry.import ?? entry.default ?? null;
+  }
+  if (subpath === '.') {
+    return manifest.module ?? manifest.main ?? null;
+  }
+  return null;
+}
+
 // The generated static-build config file (see buildSnapbackContractStaticApp).
 // Everything the nested prerender server needs must live here, because that
-// server is created from this file alone: plugins, workspace aliases, dedupe,
-// and the two-repo fs.allow.
+// server is created from this file alone: installed package plugin paths and
+// the app-root dedupe decision must be carried through explicitly.
 function renderStaticBuildConfig({
   appRoot,
-  exactRoot,
   exactModules,
   basePath,
   entry,
@@ -445,17 +501,16 @@ function renderStaticBuildConfig({
   staticPlatformTargets,
   outDir,
 }) {
-  const repoRoot = findEnclosingRepoRoot(appRoot) ?? dirname(appRoot);
   const pluginOptions = {
     entry,
     routeRegistry,
     apps: [{ basePath, entry }],
     staticPlatformTargets,
   };
+  const dedupe = resolveRootResolvableDedupe(appRoot, ['react', 'react-dom']);
   return `// Generated by snapback-contract/build-preset.mjs for one static build. Deleted after.
 import { exactVitePlugin } from ${JSON.stringify(exactModules.exactVitePlugin)};
 import { contractVitePlugin } from ${JSON.stringify(exactModules.contractVitePlugin)};
-import { workspaceAliases } from ${JSON.stringify(exactModules.workspaceAliases)};
 
 export default {
   appType: 'custom',
@@ -468,11 +523,7 @@ export default {
     contractVitePlugin(),
   ],
   resolve: {
-    alias: workspaceAliases,
-    dedupe: ['react', 'react-dom'],
-  },
-  server: {
-    fs: { allow: [${JSON.stringify(repoRoot)}, ${JSON.stringify(exactRoot)}] },
+    dedupe: ${JSON.stringify(dedupe)},
   },
   build: {
     target: 'es2022',
@@ -482,31 +533,6 @@ export default {
   },
 };
 `;
-}
-
-function findEnclosingRepoRoot(start) {
-  let dir = start;
-  for (;;) {
-    if (existsSync(resolve(dir, '.git'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) return null;
-    dir = parent;
-  }
-}
-
-// Drive the build with the SAME vite copy exact-devtools itself resolves.
-// Under bun's isolated installs the workspace root and exact-devtools can pin
-// different vite versions; if the preset builds with one copy while the static
-// exporter's nested prerender server (created inside exact-devtools) uses the
-// other, the two instances share one dep-optimizer cache and invalidate each
-// other mid-crawl — surfacing as nondeterministic "Failed to load url … Does
-// the file exist?" on files that exist.
-function resolveExactViteModule(exactRoot) {
-  const candidates = [
-    resolve(exactRoot, 'packages/exact-devtools/node_modules/vite/dist/node/index.js'),
-    resolve(exactRoot, 'node_modules/vite/dist/node/index.js'),
-  ];
-  return candidates.find((path) => existsSync(path)) ?? candidates[1];
 }
 
 function normalizeBasePath(basePath) {

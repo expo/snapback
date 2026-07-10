@@ -9,9 +9,9 @@
 // channels dragged the TypeScript compiler into the client graph, ENG-22537)
 // shipped silently behind a green dev loop. The structural fix is a gate that
 // production-builds EVERY required web surface on every Exact pin bump, so this
-// class cannot recur silently. A "pin bump" is any change to a surface's pin
-// (all-aboard: surfaces/contract/bun.lock; cursors-web: surfaces/contract/
-// exact.pin.json) — this gate runs on every push/PR, which covers them.
+// class cannot recur silently. Every surface now pins Exact through its own
+// committed bun.lock; this gate runs on every push/PR, which covers every
+// package-version bump.
 //
 // Surface set is DERIVED from the demo manifests (demos/*/demo.snapback.json),
 // not a second hand-maintained list: a web surface is gated iff its manifest
@@ -19,22 +19,11 @@
 // with a package.json exists. A required web surface with no `build` script is
 // a FAILURE (the original cursors-web bug), never a skip.
 //
-// Two consumption modes, matching LLP 0015's two-lane CI model:
-//   * registry  — @exact/* installed from npm; the surface's bun.lock is the
-//                 package pin (all-aboard). Today @ccheever/exact-devtools
-//                 still needs SNAPBACK_EXACT_ROOT as a native-asset bridge
-//                 until ENG-22564 publishes packages that ship those assets.
-//   * checkout  — interim sibling-Exact-source bridge, pinned by exact.pin.json
-//                 (cursors-web, ENG-22797; durable fix ENG-22564). Builds only
-//                 in the integration lane when a clean checkout at the pinned
-//                 revision is present; otherwise LOUD-SKIPS in the core lane
-//                 with a declared reason — never a silent gap.
-//
-// SNAPBACK_REQUIRE_EXACT=1 upgrades every checkout-mode skip into a hard
-// failure (the integration lane / cold-clone discipline: required means
-// required, never skip).
+// ENG-22564 removes the old checkout mode completely: no exact.pin.json, no
+// SNAPBACK_EXACT_ROOT, and no sibling source tree used as a native-asset bridge.
+// A missing lockfile or surviving pin file is a hard failure.
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,7 +31,6 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEMOS_DIR = join(ROOT, 'demos');
 const BUILD_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_BUILD_TIMEOUT_MS ?? 300_000);
-const REQUIRE_EXACT = process.env.SNAPBACK_REQUIRE_EXACT === '1';
 const LIST_ONLY = process.argv.includes('--list');
 
 function log(msg) {
@@ -51,20 +39,6 @@ function log(msg) {
 function fail(msg) {
   process.stderr.write(`[required-surface-builds] FAIL: ${msg}\n`);
   process.exit(1);
-}
-
-// The interim checkout bridge (ENG-22797) resolves @exact/* against a sibling
-// Exact SOURCE checkout. Same discovery order the surface vite.config uses,
-// but the gate only treats a clean checkout at exact.pin.json as integration
-// proof. A random sibling worktree must not silently bless a required surface.
-function exactCheckoutCandidates() {
-  if (process.env.SNAPBACK_EXACT_ROOT) {
-    const p = resolve(process.env.SNAPBACK_EXACT_ROOT);
-    return existsSync(p) ? [p] : [];
-  }
-  return [resolve(ROOT, '../exact'), resolve(ROOT, 'vendor/exact')].filter((candidate) =>
-    existsSync(join(candidate, 'packages/exact-devtools/src/contract-web.ts')),
-  );
 }
 
 // Collect the gated surfaces from the demo manifests (single source of truth).
@@ -99,61 +73,12 @@ function collectRequiredWebSurfaces() {
 function classify(surface) {
   const pkg = JSON.parse(readFileSync(surface.pkgPath, 'utf8'));
   const hasBuild = Boolean(pkg.scripts?.build);
-  // exact.pin.json marks the interim sibling-checkout bridge; a registry
-  // surface pins through its committed lockfile instead.
-  const pinPath = join(surface.surfaceDir, 'exact.pin.json');
-  const mode = existsSync(pinPath) ? 'checkout' : 'registry';
-  const exactPin = mode === 'checkout' ? readExactPin(pinPath) : null;
-  return { ...surface, hasBuild, mode, exactPin };
-}
-
-function readExactPin(pinPath) {
-  try {
-    const parsed = JSON.parse(readFileSync(pinPath, 'utf8'));
-    return typeof parsed.revision === 'string' && parsed.revision.length > 0
-      ? parsed.revision
-      : null;
-  } catch (err) {
-    fail(`${pinPath.replace(ROOT + '/', '')} is not valid JSON: ${err.message}`);
-  }
-}
-
-function gitOutput(root, args) {
-  const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
-  if (result.status !== 0) return null;
-  return result.stdout.trim();
-}
-
-function resolvePinnedExactCheckout(surface) {
-  const candidates = exactCheckoutCandidates();
-  if (candidates.length === 0) {
-    return {
-      ok: false,
-      reason: process.env.SNAPBACK_EXACT_ROOT
-        ? `SNAPBACK_EXACT_ROOT does not exist or is not an Exact checkout: ${process.env.SNAPBACK_EXACT_ROOT}`
-        : 'no Exact checkout is available (set SNAPBACK_EXACT_ROOT or place a checkout at ../exact)',
-    };
-  }
-
-  const rejected = [];
-  for (const root of candidates) {
-    const head = gitOutput(root, ['rev-parse', 'HEAD']);
-    if (!head) {
-      rejected.push(`${root}: not a git checkout`);
-      continue;
-    }
-    if (surface.exactPin && head !== surface.exactPin) {
-      rejected.push(`${root}: HEAD ${head.slice(0, 12)} != exact.pin.json ${surface.exactPin.slice(0, 12)}`);
-      continue;
-    }
-    const dirty = gitOutput(root, ['status', '--porcelain', '--untracked-files=no']);
-    if (dirty) {
-      rejected.push(`${root}: checkout has tracked local changes`);
-      continue;
-    }
-    return { ok: true, root, head };
-  }
-  return { ok: false, reason: rejected.join('; ') };
+  return {
+    ...surface,
+    hasBuild,
+    hasLock: existsSync(join(surface.surfaceDir, 'bun.lock')),
+    hasLegacyPin: existsSync(join(surface.surfaceDir, 'exact.pin.json')),
+  };
 }
 
 function distHasArtifact(surfaceDir) {
@@ -234,44 +159,30 @@ async function main() {
 
   log(`required web surfaces (from demos/*/demo.snapback.json):`);
   for (const s of surfaces) {
-    log(`  - ${s.demoId}/${s.surfaceName} [${s.mode}]${s.hasBuild ? '' : ' (NO build script)'}`);
+    log(`  - ${s.demoId}/${s.surfaceName} [registry]${s.hasBuild ? '' : ' (NO build script)'}`);
   }
   if (LIST_ONLY) return;
 
   let built = 0;
-  let skipped = 0;
-
   for (const surface of surfaces) {
     const id = `${surface.demoId}/${surface.surfaceName}`;
-    process.stdout.write(`\n[required-surface-builds] == ${id} (${surface.mode}) ==\n`);
+    process.stdout.write(`\n[required-surface-builds] == ${id} (registry) ==\n`);
 
     // The original bug: a required web surface with no build script at all.
     if (!surface.hasBuild) {
       fail(`${id} is a required web surface but its package.json declares no \`build\` script — it can never be production-built (the ENG-22543 root cause). Add a build script.`);
     }
 
-    const env = { SNAPBACK_REQUIRE_EXACT: REQUIRE_EXACT ? '1' : process.env.SNAPBACK_REQUIRE_EXACT ?? '' };
-
-    if (surface.mode === 'checkout') {
-      const checkout = resolvePinnedExactCheckout(surface);
-      if (!checkout.ok) {
-        const reason = `${id} consumes Exact from a pinned sibling SOURCE checkout (interim ENG-22797 bridge; durable fix ENG-22564), but no clean checkout at ${surface.exactPin?.slice(0, 12) ?? 'the pinned revision'} is available: ${checkout.reason}.`;
-        if (REQUIRE_EXACT) {
-          fail(`${reason} SNAPBACK_REQUIRE_EXACT=1 forbids skipping a required surface build.`);
-        }
-        log(`SKIP (declared): ${reason}`);
-        log(`  core lane loud-skip — this surface is gated in the integration lane. Not a silent gap.`);
-        skipped += 1;
-        continue;
-      }
-      env.SNAPBACK_EXACT_ROOT = checkout.root;
-      log(`using Exact checkout: ${checkout.root} @ ${checkout.head.slice(0, 12)}`);
-    } else {
-      const install = await ensureRegistryInstall(surface);
-      if (!install.ok) fail(`${id}: ${install.reason}`);
+    if (surface.hasLegacyPin) {
+      fail(`${id}: legacy exact.pin.json survives; ENG-22564 requires registry packages + bun.lock only`);
     }
+    if (!surface.hasLock) {
+      fail(`${id}: no committed bun.lock; registry Exact consumption is not reproducibly pinned`);
+    }
+    const install = await ensureRegistryInstall(surface);
+    if (!install.ok) fail(`${id}: ${install.reason}`);
 
-    const result = await runBuild(surface, env);
+    const result = await runBuild(surface, {});
     if (!result.ok) {
       fail(`${id}: production build failed — ${result.reason}`);
     }
@@ -283,9 +194,9 @@ async function main() {
   }
 
   process.stdout.write('\n');
-  log(`verdict: ${built} required surface(s) production-built, ${skipped} declared-skip(s)`);
+  log(`verdict: ${built} required surface(s) production-built from committed registry locks`);
   if (built === 0) {
-    fail('no required surface was actually built — every gated surface skipped; the gate proved nothing');
+    fail('no required surface was actually built; the gate proved nothing');
   }
   log('REQUIRED-SURFACE-BUILDS PASS');
 }

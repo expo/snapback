@@ -234,7 +234,7 @@ see [`diaries/0004-todo-v2.diary.md`](./diaries/0004-todo-v2.diary.md).
 ```sh
 node packages/snapback-codegen/index.mjs demos/todo/snapback   # generate manifests from source
 node demos/todo/tests/acceptance/headless.mjs     # required surface (node)
-bun  demos/todo/tests/acceptance/contract.mjs     # Contract/Exact surface (needs ../exact)
+bun  demos/todo/tests/acceptance/contract.mjs     # Contract/Exact surface (installed packages or local override)
 ```
 
 For the local proof lane that CI runs without requiring Exact, use:
@@ -243,8 +243,10 @@ For the local proof lane that CI runs without requiring Exact, use:
 SNAPBACK_VERIFY_EXACT=0 scripts/verify-local-proof
 ```
 
-With a compatible Exact checkout and `bun` available, omit
-`SNAPBACK_VERIFY_EXACT=0` to also run the Contract/admin checks.
+With the committed Exact package locks installed by the required-surface gate
+and `bun` available, omit `SNAPBACK_VERIFY_EXACT=0` to also run the
+Contract/admin checks. `SNAPBACK_EXACT_ROOT` remains a local-development
+override, not the default build path.
 
 ## Design docs (LLP)
 

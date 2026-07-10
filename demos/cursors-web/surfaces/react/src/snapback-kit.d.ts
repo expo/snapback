@@ -40,6 +40,7 @@ declare module '*/_kit/client.mjs' {
     health(): Promise<{ ok: boolean }>;
     loadSchema(manifest: unknown): Promise<unknown>;
     ensureEphemeralCollections(manifest: unknown): Promise<unknown>;
+    ensureApp(input: { schema?: unknown; functions?: unknown; seed?: unknown }): Promise<unknown>;
     subscribeEphemeral(
       ref: unknown,
       options: {

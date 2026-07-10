@@ -6,5 +6,13 @@
     "build": "./build.sh",
     "dev": "./dev.sh",
     "test": "node tests/contract-bindings.mjs && node tests/static-metadata.mjs && node tests/kv-layout.mjs && node tests/dev-serve-react-esm.mjs"
+  },
+  "dependencies": {
+    "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
+    "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
+    "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0"
   }
 }

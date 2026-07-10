@@ -3,7 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cfg=$PWD/vite.config.ts && cd ../../../../../exact && bun --bun node_modules/.bin/vite --config \"$cfg\" --host 127.0.0.1 --port 5184",
-    "build": "cfg=$PWD/vite.config.ts && cd ../../../../../exact && bun --bun node_modules/.bin/vite build --config \"$cfg\""
+    "dev": "bun --bun node_modules/.bin/vite --config vite.config.ts --host 127.0.0.1 --port 5184",
+    "build": "bun --bun node_modules/.bin/vite build --config vite.config.ts"
+  },
+  "dependencies": {
+    "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
+    "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
+    "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0"
   }
 }

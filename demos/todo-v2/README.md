@@ -63,8 +63,8 @@ node demos/todo-v2/surfaces/headless/run.mjs
 # 3. Headless acceptance (the required surface).
 node demos/todo-v2/tests/acceptance/headless.mjs
 
-# 4. Contract/Exact acceptance (optional surface; needs an Exact checkout + bun).
-#    Exact is resolved via SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact.
+# 4. Contract/Exact acceptance (optional surface; needs bun + installed packages).
+#    Local Exact checkouts remain an explicit development override.
 bun demos/todo-v2/tests/acceptance/contract.mjs
 
 # 5. Exact project-check validation for generated Contract descriptors.
@@ -93,8 +93,8 @@ npm registry (ENG-22480 model, matching all-aboard; migrated by ENG-23899):
 `@ccheever/exact-*` packages (see `surfaces/contract/package.json`), and the
 surface's committed `bun.lock` pins the exact bits — it replaced
 `exact.pin.json`. No sibling checkout and no `SNAPBACK_EXACT_ROOT` are needed
-for the browser surface; the acceptance runners still resolve an Exact
-checkout via `demos/_kit/exact-resolver.mjs`.
+for the browser surface; the acceptance resolver uses explicit/local checkouts
+when supplied and otherwise probes the installed package sets.
 
 The acceptance runners start an in-memory Snapback server on a dedicated port
 (reusing one if already healthy) and tear it down on exit.

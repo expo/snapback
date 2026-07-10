@@ -1,24 +1,21 @@
 // ENG-22600 regression smoke: boot the admin dev serve and prove the browser
-// module path gets ESM react from the dep optimizer, not Exact's raw CJS
-// react/index.js (which has no named exports and crashes the boot with
-// "does not provide an export named 'isValidElement'").
+// module path either stays React-free or gets ESM React from the dep optimizer,
+// never the installed Exact graph's raw CJS react/index.js (which has no named
+// exports and crashes the boot with "does not provide an export named
+// 'isValidElement'").
 //
 // @ref LLP 0023#shared-vite-config-the-anti-drift-move — guards the
 // conditional-dedupe seam in @snapback/contract's contractViteBaseConfig.
 //
-// Needs bun (Exact's vite plugins are imported from .ts sources) and a
-// sibling Exact checkout; without them it skips unless
-// SNAPBACK_REQUIRE_EXACT=1. Run directly (`node tests/dev-serve-react-esm.mjs`
-// re-executes itself under bun) or via `npm test` in admin-ui/.
+// Needs bun because the published Exact packages ship TypeScript sources.
+// Run directly (`node tests/dev-serve-react-esm.mjs` re-executes itself under
+// bun) or via `npm test` in admin-ui/.
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const adminRoot = resolve(here, '..');
-const exactRoot = resolve(
-  process.env.SNAPBACK_EXACT_ROOT ?? resolve(adminRoot, '..', '..', 'exact'),
-);
 const required = process.env.SNAPBACK_REQUIRE_EXACT === '1';
 
 function skip(reason) {
@@ -30,11 +27,11 @@ function skip(reason) {
   process.exit(0);
 }
 
-if (!existsSync(resolve(exactRoot, 'packages/exact-contract/src'))) {
-  skip(`no Exact checkout at ${exactRoot} (set SNAPBACK_EXACT_ROOT)`);
+if (!existsSync(resolve(adminRoot, 'node_modules', '@exact', 'contract', 'package.json'))) {
+  skip(`admin-ui Exact packages are not installed (run bun install --frozen-lockfile --cwd ${adminRoot})`);
 }
-if (!existsSync(resolve(exactRoot, 'node_modules/vite'))) {
-  skip(`Exact checkout at ${exactRoot} has no node_modules (run bun install there)`);
+if (!existsSync(resolve(adminRoot, 'node_modules', 'vite'))) {
+  skip(`admin-ui has no Vite install (run bun install --frozen-lockfile --cwd ${adminRoot})`);
 }
 
 // Exact's vite plugins are TypeScript sources; re-exec under bun when needed.
@@ -57,7 +54,6 @@ const { serveSnapbackContractApp } = await import(
 
 const { server } = await serveSnapbackContractApp({
   root: adminRoot,
-  exactRoot,
   entry: '/src/main.ts',
   routeRegistry: 'src/app/routes.ts',
   port: 5341,
@@ -121,9 +117,6 @@ for (let attempt = 0; attempt < 3; attempt++) {
 }
 
 const failures = [];
-if (reactSpecifiers.size === 0) {
-  failures.push('no react import found in the served module graph');
-}
 const unoptimized = [...reactSpecifiers].filter(
   (specifier) => !specifier.startsWith('/node_modules/.vite/deps/'),
 );
@@ -140,7 +133,7 @@ if (rawCjsModules.length > 0) {
 // imports in consumers to `__vite__cjsImport_react["isValidElement"]` — so
 // the runtime truth to assert is that the chunk evaluates as ESM and its
 // default export carries isValidElement.
-if (failures.length === 0) {
+if (failures.length === 0 && reactSpecifiers.size > 0) {
   const reactUrl = [...reactSpecifiers].find((specifier) =>
     specifier.startsWith('/node_modules/.vite/deps/react.js'),
   );
@@ -178,6 +171,8 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `admin dev-serve react-esm smoke: ok (react -> dep-optimizer ESM chunk with isValidElement; no raw CJS among crawled modules)`,
+  reactSpecifiers.size === 0
+    ? 'admin dev-serve react-esm smoke: ok (served Contract graph is React-free; no raw CJS among crawled modules)'
+    : 'admin dev-serve react-esm smoke: ok (react -> dep-optimizer ESM chunk with isValidElement; no raw CJS among crawled modules)',
 );
 process.exit(0);

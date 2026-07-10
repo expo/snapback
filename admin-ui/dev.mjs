@@ -21,7 +21,6 @@ console.log(`admin-ui: generated Contract bindings -> ${initial.outDir}`);
 
 const result = await serveSnapbackContractApp({
   root: here,
-  exactRoot: process.env.SNAPBACK_EXACT_ROOT ?? resolve(here, '../../exact'),
   entry: '/src/main.ts',
   routeRegistry: 'src/app/routes.ts',
   apiTarget: process.env.SNAPBACK_ADMIN_DEV_API ?? null,

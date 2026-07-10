@@ -5,20 +5,15 @@ name: required-surface-builds
 # it had never been production-built, so a `vite build` regression shipped
 # silently behind a green dev loop. This lane production-builds EVERY REQUIRED
 # demo web surface (derived from demos/*/demo.snapback.json) on every push/PR,
-# so a pin bump (all-aboard: surfaces/contract/bun.lock; cursors-web:
-# surfaces/contract/exact.pin.json) that breaks a required build fails here
+# so a package/lockfile bump that breaks a required build fails here
 # instead of shipping. scripts/check-required-surface-builds.mjs is the
 # canonical gate; verify-local-proof runs the same script, so local runs and
 # CI exercise one code path.
 #
-# This is the CORE lane (LLP 0015 §Peer Checkout Versus Submodule): registry
-# surfaces (all-aboard — @exact/* from npm, bun.lock is the pin) build here.
-# Until ENG-22564 publishes Exact packages that ship every native embedded
-# source, this lane checks out a pinned Exact asset source only for the patched
-# registry package's native startup bridge. That checkout is NOT integration
-# proof for sibling-checkout surfaces: scripts/check-required-surface-builds.mjs
-# still LOUD-SKIPS cursors-web unless the checkout is clean and exactly matches
-# surfaces/contract/exact.pin.json.
+# This is the CORE lane (LLP 0015 §Peer Checkout Versus Submodule): every
+# surface installs @exact/* from npm and bun.lock is the pin. ENG-22564 removed
+# the Exact checkout/native-asset bridge; this job proves a clean Snapback
+# checkout can install and build without sibling source state.
 #
 # NOTE: GitHub Actions is billing-blocked for this account as of 2026-07-02
 # (see all-aboard-cold-clone.yml), so this lane is verified by local runs of
@@ -41,18 +36,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # ENG-22564 bridge: @ccheever/exact-devtools@0.1.0 still needs the
-      # native startup template + Ibex URL builtin from an Exact source tree.
-      # Keep this ref pinned; when the packages publish those assets, remove
-      # this checkout and SNAPBACK_EXACT_ROOT from the build step.
-      - uses: actions/checkout@v7
-        with:
-          repository: ccheever/exact
-          ref: 9d085610145dca01aec8c83e50d844ad6ae8f6b5
-          path: exact
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_TOKEN }}
-
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -64,6 +47,4 @@ jobs:
       # inside the script (bun install --frozen-lockfile); a lockfile that
       # drifts fails, not resolves.
       - name: Production-build every required demo web surface
-        env:
-          SNAPBACK_EXACT_ROOT: ${{ github.workspace }}/exact
         run: node scripts/check-required-surface-builds.mjs

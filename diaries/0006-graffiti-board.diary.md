@@ -297,3 +297,11 @@ with no hand-written transport glue at all. Still open: automated two-browser
 CDP acceptance (cursors-web has one; the wall's browser checklist is manual
 today), the macOS AppKit host, hosted ephemeral adapters, and the Exact-side
 ephemeral row-shape gap above.
+
+## 2026-07-09 — ENG-22564: rated publish ships as an ordinary dependency
+
+Graffiti was added after ENG-22564 was filed, but it had inherited the same
+sibling-source pattern. It now pins Exact `0.1.2` in its own lockfile and imports
+the published preset directly. The channel, ephemeral binding, and rated
+`publish` grammar therefore build from the same immutable package set as the
+other demos; local Exact checkouts remain an explicit acceptance override only.

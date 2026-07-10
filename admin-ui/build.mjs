@@ -6,7 +6,7 @@
 //
 // Run via bun (it imports the Exact .ts sources directly). See build.sh.
 
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildSnapbackContractStaticApp } from '../packages/snapback-contract/build-preset.mjs';
@@ -18,7 +18,6 @@ await generateAdminContractBindings({ root: here });
 
 const result = await buildSnapbackContractStaticApp({
   root: here,
-  exactRoot: process.env.SNAPBACK_EXACT_ROOT ?? resolve(here, '../../exact'),
   basePath: '/_snapback/admin/',
   entry: '/src/main.ts',
   outDir: 'dist',

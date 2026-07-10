@@ -1,5 +1,0 @@
-{
-  "revision": "1ed2457e796008060b2a3cf1ab8f48904f1775e3",
-  "pinnedAt": "2026-07-02T15:11:05.000Z",
-  "note": "Exact checkout revision this surface was last verified against (ENG-22446). Bump deliberately: re-run with EXACT_WRITE_PIN=1 after verifying on the new revision. This pin carries LLP 0281 stage 0 COMPLETE (ENG-22524 + ENG-22525): pointer event attrs, value channels, and the authored rated `publish` view line (options spelling retired) this surface's write side compiles against, plus the publish descriptor kind the generated sidecar declares."
-}

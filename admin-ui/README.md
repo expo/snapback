@@ -26,14 +26,16 @@ URL is loadable by the native Exact macOS shell.
 ## Build
 
 ```sh
-./build.sh                 # → admin-ui/dist/  (needs the Exact checkout + bun)
+bun install --frozen-lockfile
+./build.sh                 # → admin-ui/dist/  (published Exact packages + bun)
 ```
 
 `build.sh` runs `build.mjs` under bun. `build.mjs` regenerates the admin
 Contract bindings, then delegates to
 `buildSnapbackContractStaticApp` in
 [`packages/snapback-contract/build-preset.mjs`](../packages/snapback-contract/build-preset.mjs),
-which owns the programmatic Vite `build()` with `configFile: false`,
+which resolves the installed `@exact/contract`, `@exact/devtools`, and Vite
+package exports and owns the programmatic Vite `build()`,
 `exactVitePlugin` before `contractVitePlugin`, route-registry and subdir-entry
 preflights, the LLP 0268 `mac` native envelope, and the post-build URL rewrite
 for the `/_snapback/admin/` mount. The current LLP 0021 inventory lives in

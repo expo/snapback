@@ -8,7 +8,7 @@
 //   valid just because the directory exists.
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const CONTRACT = 'packages/exact-contract/src';
@@ -58,9 +58,35 @@ export function resolveExact({ repoRoot, requiredCapabilities = [] } = {}) {
     candidate.missing = missing;
   }
 
+  // LLP 0015's final resolver rung: published packages. Each Contract app
+  // owns its package install deliberately, so discover installed surface/admin
+  // roots instead of making the Snapback workspace root a hidden dependency.
+  const packageCandidates = installedPackageCandidates(root);
+  for (const candidate of packageCandidates) {
+    const caps = probePackageCapabilities(candidate.packageRoot, candidate.installRoot);
+    const missing = required.filter((name) => caps[name] !== true);
+    if (missing.length === 0) {
+      return {
+        sourceKind: 'package',
+        path: candidate.installRoot,
+        packageRoot: candidate.packageRoot,
+        commit: null,
+        version: candidate.version,
+        capabilities: caps,
+        diagnostics: [],
+      };
+    }
+    candidate.caps = caps;
+    candidate.missing = missing;
+  }
+
   const probed = candidates
     .filter((c) => c.path && existsSync(c.path))
     .map((c) => `${c.kind}@${c.path} (missing: ${(c.missing ?? []).join(', ')}; caps: ${JSON.stringify(c.caps ?? {})})`);
+  const packageProbed = packageCandidates.map(
+    (candidate) =>
+      `package@${candidate.installRoot} (${candidate.version}; missing: ${(candidate.missing ?? []).join(', ')}; caps: ${JSON.stringify(candidate.caps ?? {})})`,
+  );
 
   return {
     sourceKind: 'missing',
@@ -72,18 +98,80 @@ export function resolveExact({ repoRoot, requiredCapabilities = [] } = {}) {
         severity: 'warning',
         subsystem: 'contract-integration',
         message:
-          `No Exact checkout with the required capabilities (${required.join(', ')}) was found.`,
+          `No Exact checkout or installed package set with the required capabilities (${required.join(', ')}) was found.`,
         details: {
           target_surface: 'Contract/Exact',
           requiredCapabilities: required,
-          searched: candidates.map((c) => `${c.kind}:${c.path}`),
-          probed,
+          searched: [
+            ...candidates.map((c) => `${c.kind}:${c.path}`),
+            ...packageInstallRoots(root).map((path) => `package:${path}`),
+          ],
+          probed: [...probed, ...packageProbed],
         },
         suggestedFix:
-          'Set SNAPBACK_EXACT_ROOT, add .snapback/local.json {"exactRoot":"..."}, or place an Exact checkout at ../exact.',
+          'Run bun install --frozen-lockfile in a Contract surface, or set SNAPBACK_EXACT_ROOT / .snapback/local.json for local Exact development.',
       },
     ],
   };
+}
+
+function packageInstallRoots(root) {
+  const roots = [process.cwd(), root, join(root, 'admin-ui')];
+  const demosDir = join(root, 'demos');
+  try {
+    for (const entry of readdirSync(demosDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        roots.push(join(demosDir, entry.name, 'surfaces', 'contract'));
+      }
+    }
+  } catch {
+    // A consumer can use the resolver without the demo corpus present.
+  }
+  return [...new Set(roots)];
+}
+
+function installedPackageCandidates(root) {
+  const candidates = [];
+  for (const installRoot of packageInstallRoots(root)) {
+    const packageRoot = join(installRoot, 'node_modules', '@exact', 'contract');
+    const manifest = readJson(join(packageRoot, 'package.json'));
+    if (!manifest || !existsSync(packageRoot)) continue;
+    candidates.push({
+      kind: 'package',
+      installRoot,
+      packageRoot,
+      version: manifest.version ?? null,
+    });
+  }
+  return candidates;
+}
+
+function probePackageCapabilities(packageRoot, installRoot) {
+  const runtimeDataProvider = join(packageRoot, 'src', 'runtime', 'data-provider.ts');
+  const channels = join(packageRoot, 'src', 'channels.ts');
+  return {
+    contractCompiler: packageExportExists(packageRoot, './compiler'),
+    runtime: packageExportExists(packageRoot, './runtime'),
+    dataBinding: existsSync(runtimeDataProvider),
+    agentApi: existsSync(join(installRoot, 'node_modules', '@exact', 'devtools', 'src', 'agent', 'server.ts')),
+    ephemeralBinding: fileContains(runtimeDataProvider, 'createProviderEphemeralHandle'),
+    valueChannels: fileContains(channels, 'pointerChannel'),
+  };
+}
+
+function packageExportExists(packageRoot, subpath) {
+  const manifest = readJson(join(packageRoot, 'package.json'));
+  const entry = manifest?.exports?.[subpath];
+  const target = typeof entry === 'string' ? entry : entry?.import ?? entry?.default;
+  return typeof target === 'string' && existsSync(join(packageRoot, target));
+}
+
+function readJson(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 function probeCapabilities(root) {
@@ -123,12 +211,4 @@ function gitCommit(root) {
   } catch {
     return null;
   }
-}
-
-// Resolve absolute module paths for the Contract compiler + runtime under a root.
-export function exactModulePaths(root) {
-  return {
-    compiler: join(root, CONTRACT, 'compiler', 'index.ts'),
-    runtime: join(root, CONTRACT, 'runtime', 'index.ts'),
-  };
 }

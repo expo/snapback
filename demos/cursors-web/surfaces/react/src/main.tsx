@@ -1,9 +1,9 @@
 // Cursor presence — React control-arm bootstrap (ENG-22531).
 //
 // Boot is D4-shaped like the Contract arm's main.ts (LLP 0034 §5; the
-// LLP 0025 second-window rule): health check, inspect-first ensure of the
-// generated ephemeral collections, provision only when the ensure says the
-// collections are unknown, never reset. Identity enters as ordinary props.
+// LLP 0025 second-window rule): health check, inspect-first app ensure of the
+// generated schema, provision only what is missing, never reset. Identity
+// enters as ordinary props.
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -37,14 +37,10 @@ function randomIdentity(): Identity {
 async function boot() {
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
-  try {
-    await client.ensureEphemeralCollections(schemaManifest);
-  } catch (error) {
-    const code = (error as { diagnostic?: { code?: string } })?.diagnostic?.code;
-    if (code !== 'SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION') throw error;
-    await client.loadSchema(schemaManifest);
-    await client.ensureEphemeralCollections(schemaManifest);
-  }
+  // Match the Contract arm's D4 bootstrap exactly: inspect and provision
+  // through the public idempotent app contract. Direct schema loading is an
+  // admin operation and must not be required by a browser surface.
+  await client.ensureApp({ schema: schemaManifest });
 
   const identity = randomIdentity();
 

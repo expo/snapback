@@ -12,6 +12,10 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const EXACT_CONTRACT_PACKAGE = '@exact/contract';
+const EXACT_CONTRACT_PUBLISHED_PACKAGES = new Set([
+  EXACT_CONTRACT_PACKAGE,
+  '@ccheever/exact-contract',
+]);
 
 export async function importExactContractCompiler({ exactRoot = null } = {}) {
   return importExactContractExport('./compiler', { exactRoot });
@@ -142,7 +146,7 @@ export function resolveExactContractExport(subpath, { exactRoot = null } = {}) {
 
   const packageJsonPath = join(packageRoot, 'package.json');
   const packageJson = readJson(packageJsonPath);
-  if (packageJson?.name !== EXACT_CONTRACT_PACKAGE) return null;
+  if (!EXACT_CONTRACT_PUBLISHED_PACKAGES.has(packageJson?.name)) return null;
 
   const exportTarget = resolvePackageExport(packageJson, subpath);
   if (!exportTarget) return null;
@@ -225,8 +229,8 @@ function packageResolutionError(specifier, exactRoot, cause) {
   const error = new Error(
     [
       `Unable to resolve ${specifier} from installed packages or Exact package exports.`,
-      exactRoot ? `Exact root: ${exactRoot}` : 'Exact root: <not configured>',
-      'Install @exact/contract or point SNAPBACK_EXACT_ROOT at a checkout that exports the requested module.',
+      exactRoot ? `Exact package/check-out root: ${exactRoot}` : 'Exact package/check-out root: <not configured>',
+      'Install @exact/contract from the committed package aliases, or point SNAPBACK_EXACT_ROOT at a checkout for local Exact development.',
     ].join('\n'),
   );
   error.code = 'SNAPBACK_CAPABILITY_EXACT_PACKAGE_EXPORT_MISSING';

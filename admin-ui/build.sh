@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build the Snapback admin Contract console to a static dist/.
 #
-# Delegates to build.mjs run under bun — bun imports the Exact .ts plugin
-# sources directly. build.mjs regenerates generated Contract bindings, then
+# Delegates to build.mjs run under bun — the published Exact packages ship TS
+# sources. build.mjs regenerates generated Contract bindings, then
 # calls the shared Snapback Contract build preset, which owns the plugin
 # ordering, preflights, static platform manifest, and mac native envelope for
 # the macOS Exact shell.
@@ -14,20 +14,18 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-exact_root="${SNAPBACK_EXACT_ROOT:-$here/../../exact}"
-
-if [ ! -d "$exact_root/packages/exact-contract/src" ]; then
-  echo "error: Exact checkout not found at $exact_root" >&2
-  echo "set SNAPBACK_EXACT_ROOT or place an Exact checkout at ../../exact" >&2
-  exit 1
-fi
 
 bun="${BUN:-$(command -v bun || echo "$HOME/.bun/bin/bun")}"
 if [ ! -x "$bun" ]; then
-  echo "error: bun not found (needed to import Exact .ts sources); set BUN or install bun" >&2
+  echo "error: bun not found (needed to import the published Exact TS packages); set BUN or install bun" >&2
   exit 1
 fi
 
-# Run from the Exact repo so its node_modules (vite/esbuild/hermesc) resolve.
-cd "$exact_root"
-exec env SNAPBACK_EXACT_ROOT="$exact_root" "$bun" "$here/build.mjs"
+if [ ! -f "$here/node_modules/@exact/contract/package.json" ]; then
+  echo "error: admin-ui Exact packages are not installed" >&2
+  echo "run: bun install --frozen-lockfile --cwd $here" >&2
+  exit 1
+fi
+
+cd "$here"
+exec "$bun" "$here/build.mjs"

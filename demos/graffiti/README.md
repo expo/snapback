@@ -49,8 +49,9 @@ node packages/snapback-codegen/index.mjs demos/graffiti/snapback
 # 2. Headless acceptance (the required surface; boots the Rust server itself).
 node demos/graffiti/tests/acceptance/headless.mjs
 
-# 3. Contract/Exact compile acceptance (optional; needs an Exact checkout + bun).
-SNAPBACK_EXACT_ROOT=../exact bun demos/graffiti/tests/acceptance/contract.mjs
+# 3. Contract/Exact compile acceptance (optional; needs bun + installed packages).
+bun install --cwd demos/graffiti/surfaces/contract
+bun demos/graffiti/tests/acceptance/contract.mjs
 
 # 4. The live multiplayer wall in the browser.
 cargo run -- --port 4431 --memory
@@ -58,6 +59,11 @@ SNAPBACK_GRAFFITI_API=http://127.0.0.1:4431 \
   bun run --cwd demos/graffiti/surfaces/contract dev
 #   then open http://127.0.0.1:5179/ in two browser windows and paint.
 ```
+
+The Contract surface consumes Exact `0.1.2` from the registry through
+`@exact/*` aliases; its committed `bun.lock` is the pin. `SNAPBACK_EXACT_ROOT`
+remains available only as an explicit acceptance-test override while developing
+unpublished Exact changes.
 
 On macOS, run `scripts/bootstrap-ibex-runtime` from the repo root first (or point
 `HERMES_*` env at a prepared Ibex checkout) so the spawned Snapback server links

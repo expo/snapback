@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-09 (ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
 `reviews/0041-packaged-dev-loop.claude.md`: runtime-distribution design
 section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
@@ -147,13 +147,20 @@ services.
 ### Demo dependency policy
 
 Repository demos should exercise the same packages the external loop would use.
-The pinning machinery partly exists — `exact.pin.json` files in the Contract
-surfaces detect sibling drift — but detection is not the gap: the pin cannot
-hold a shared sibling checkout still (diary-evidenced), and cursors-web's build
-still literally runs Vite from `../../exact`'s node_modules. The policy is
-therefore: demos consume a pinned vendored snapshot or a package tarball with a
-recorded version — never the sibling checkout directly — and a check fails if
-a demo reaches into a sibling path at all.
+ENG-22564 implemented that policy for the Contract corpus: every demo surface
+and `admin-ui` consumes published `@ccheever/exact-*` packages through stable
+`@exact/*` aliases, owns a committed `bun.lock`, and runs its own Vite binary.
+The old `exact.pin.json`, source-alias, patch, native-asset bridge, and
+`cd ../../exact` paths are gone. `scripts/check-required-surface-builds.mjs`
+hard-fails on a missing lock or surviving pin and production-builds required
+surfaces from frozen registry installs. The capability resolver still accepts
+an explicit/local Exact checkout before packages for unpublished Exact
+development, but ordinary demo/admin builds never reach into sibling source.
+
+That is the standing policy: demos consume a recorded package version (or a
+pinned vendored/tarball snapshot when registry publication is impossible),
+never sibling checkout HEAD. Local unpublished Exact work uses uncommitted
+tarball/link overrides and restores the committed registry lock before landing.
 
 ## Non-goals
 
@@ -186,8 +193,8 @@ a demo reaches into a sibling path at all.
 
 ## Open Questions
 
-- Should Exact/Contract packages be published before this lands, or should
-  Snapback vendor a pinned Contract runtime snapshot for templates?
+- Which Exact package-version cadence should generated templates follow once
+  `snapback new` exists, and how long should old template locks remain tested?
 - Schema JSON Schemas are generated from the Rust types (LLP 0037) — settled;
   what remains open is only how the external loop ships them: bundled with the
   CLI, published as a package, or served by the running server.

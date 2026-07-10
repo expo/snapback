@@ -450,3 +450,12 @@ Compared with Convex, this is still behind the mature live-query invalidation
 story, but it closes an important honesty gap: the demo can now prove that some
 irrelevant writes do not refresh subscribers, and it records the fan-out work it
 did.
+
+## 2026-07-09 — ENG-22564: the Todo surface stops borrowing Exact HEAD
+
+Todo now installs Exact `0.1.2` through its own `@exact/*` alias dependencies
+and committed `bun.lock`. The `exact.pin.json`, source import, and Vite binary
+from `../exact` are gone. This makes the browser/build loop feel like an app
+dependency again: `bun install`, then the local scripts. The acceptance resolver
+still accepts an explicit checkout for unpublished Exact work, but packages are
+now a capability-probed final rung instead of an unimplemented promise.

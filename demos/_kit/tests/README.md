@@ -8,15 +8,16 @@ bun-only suite crashes** — this file is the map.
 
 | Runtime | Suites | Why |
 | --- | --- | --- |
-| **`node`** (>= 22, built-in `fetch`/`WebSocket`) | `client-errors`, `provider-live-conformance`, `regression-reconnect-nuke`, `regression-fake-live`, `regression-handshake-loss`, `regression-gc-starvation`, `regression-overlay-crossroom`, `regression-mixed-transport`, `regression-midflight-resync`, `live-delta-e2e`, `provenance-unit`, `live-wire-schema` | Pure Snapback-kit JS; no Exact import. |
+| **`node`** (>= 22, built-in `fetch`/`WebSocket`) | `client-errors`, `exact-resolver-packages`, `provider-live-conformance`, `regression-reconnect-nuke`, `regression-fake-live`, `regression-handshake-loss`, `regression-gc-starvation`, `regression-overlay-crossroom`, `regression-mixed-transport`, `regression-midflight-resync`, `live-delta-e2e`, `provenance-unit`, `live-wire-schema` | Pure Snapback-kit JS; no live Exact import (`exact-resolver-packages` uses a synthetic package tree). |
 | **`bun`** (required — do **not** use node) | `regression-ephemeral-wiring`, `regression-optimistic-clobber`, `regression-multilive-scoped` | Import the Exact **Contract runtime**, whose `.js`-suffixed TypeScript imports (e.g. `./signals.js` → `signals.ts`) resolve **only** under bun. |
 
 `scripts/verify-local-proof` runs every suite under its correct runtime — the
 node suites directly, and all three Exact-importing suites under `bun`. The bun
-block is gated: it runs only when an Exact checkout resolves (see
-`exact-resolver.mjs`) and is skipped when Exact is unavailable or when
-`SNAPBACK_VERIFY_EXACT=0`. Run it with an Exact checkout present (or
-`SNAPBACK_VERIFY_EXACT=1`) to exercise the bun suites.
+block is gated: it runs only when an Exact checkout resolves or a Contract
+surface package set is installed (see `exact-resolver.mjs`), and is
+skipped when Exact is unavailable or when `SNAPBACK_VERIFY_EXACT=0`. Run it
+with the committed package locks installed, an Exact checkout present, or
+`SNAPBACK_VERIFY_EXACT=1` to exercise the bun suites.
 
 ## Why the bun-only suites crash under node
 
@@ -45,7 +46,7 @@ under bun. ... Re-run it with bun:
 
 ## Exact absence is a clean skip
 
-When bun **is** present but no Exact checkout resolves (see
-`exact-resolver.mjs`), the bun-only suites skip with a structured
+When bun **is** present but no Exact checkout or installed package set resolves
+(see `exact-resolver.mjs`), the bun-only suites skip with a structured
 `SNAPBACK_CAPABILITY_EXACT_MISSING` diagnostic and exit 0 — they never fail just
 because Exact is not installed.

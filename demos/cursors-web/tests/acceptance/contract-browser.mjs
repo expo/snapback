@@ -13,8 +13,9 @@
 // snapshot the agent surface serves (LLP 0281 §3.5), and the forced-map
 // proof (forceEphemeralState is LOCAL-ONLY; dispose restores live state).
 //
-// Integration lane: needs the Exact checkout + bun + Chrome; skips with the
-// standard structured diagnostic without them.
+// Integration lane: needs the surface's frozen Exact package install + bun +
+// Chrome; skips with the standard structured diagnostic without them unless
+// SNAPBACK_REQUIRE_EXACT=1.
 //
 // Run: node demos/cursors-web/tests/acceptance/contract-browser.mjs
 
@@ -55,10 +56,6 @@ let apiPort = API_PORT;
 let apiUrl = `http://127.0.0.1:${API_PORT}`;
 let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 
-const exactRoot = process.env.SNAPBACK_EXACT_ROOT
-  ? resolve(process.env.SNAPBACK_EXACT_ROOT)
-  : resolve(repoRoot, '..', 'exact');
-
 const EXPECTED_CHECKS = 9;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -95,21 +92,17 @@ async function stopApi() {
   });
 }
 
-// Re-provision a fresh `--memory` server: loadSchema BEFORE ensure (diary
-// 0011 hit exactly this; a schema-less restarted server leaves both arms
-// honestly degraded, which is expected — the suite provisions, never the arms).
+// Re-provision a fresh `--memory` server through the same D4-shaped,
+// idempotent app ensure route the surface uses. The old direct schema-load
+// call became admin-token-gated; bypassing the public bootstrap contract here
+// made the restart probe test the harness's privilege rather than reconnect.
 async function provisionApi() {
   const schemaManifest = JSON.parse(readFileSync(join(repoRoot, 'demos', 'cursors-web', 'snapback', 'generated', 'schema.manifest.json'), 'utf8'));
   const post = async (path, body) => {
     const res = await fetch(`${apiUrl}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status} ${await res.text()}`);
   };
-  await post('/_snapback/api/schema/load', schemaManifest);
-  await post('/ephemeral/collections/ensure', {
-    collections: schemaManifest.ephemeralCollections ?? [],
-    schemaHash: schemaManifest.schemaHash ?? null,
-    inputsHash: schemaManifest.inputsHash ?? null,
-  });
+  await post('/app/ensure', { schema: schemaManifest });
 }
 
 async function ensureApi() {
@@ -165,7 +158,7 @@ async function ensureVite() {
     viteUrl = `http://127.0.0.1:${vitePort}`;
   }
   const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--config', join(surfaceDir, 'vite.config.ts'), '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'],
-    { cwd: exactRoot, env: { ...process.env, SNAPBACK_CURSORS_API: apiUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
+    { cwd: surfaceDir, env: { ...process.env, SNAPBACK_CURSORS_API: apiUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
   let viteLog = '';
   child.stdout.on('data', (d) => { viteLog += d; });
   child.stderr.on('data', (d) => { viteLog += d; });
@@ -175,8 +168,15 @@ async function ensureVite() {
   throw new Error(`Vite did not become ready:\n${viteLog}`);
 }
 
-if (!existsSync(join(exactRoot, 'packages', 'exact-contract'))) {
-  console.log(`SKIP cursors-web contract browser — SNAPBACK_CAPABILITY_EXACT_MISSING (no Exact at ${exactRoot})`);
+const exactPackage = join(surfaceDir, 'node_modules', '@exact', 'contract', 'package.json');
+const viteBinary = join(surfaceDir, 'node_modules', '.bin', 'vite');
+if (!existsSync(exactPackage) || !existsSync(viteBinary)) {
+  const reason = `frozen surface packages are not installed at ${surfaceDir}`;
+  if (process.env.SNAPBACK_REQUIRE_EXACT === '1') {
+    console.error(`FAIL cursors-web contract browser — SNAPBACK_CAPABILITY_EXACT_MISSING (${reason})`);
+    process.exit(1);
+  }
+  console.log(`SKIP cursors-web contract browser — SNAPBACK_CAPABILITY_EXACT_MISSING (${reason})`);
   console.log('PASS cursors-web contract browser (ENG-22524) — skipped (declared capability gap)');
   process.exit(0);
 }
@@ -259,7 +259,13 @@ await runAcceptance(suite, async () => {
     const badgeOnA = await pageA.pollText(`cursor-name-${b.connection}`, 'bob', 8000);
     if (badgeOnA !== 'bob') throw new Error(`B's cursor missing on A: ${badgeOnA}`);
     const badgeOnB = await pageB.pollText(`cursor-name-${a.connection}`, 'alice', 8000);
-    if (badgeOnB !== 'alice') throw new Error(`A's cursor missing on B: ${badgeOnB}`);
+    if (badgeOnB !== 'alice') {
+      const debug = await pageB.eval(`({
+        status: document.querySelector('[data-testid="map-status"]')?.textContent ?? null,
+        receipts: window.cursorsWeb?.surface?.receipts?.().slice(-12) ?? [],
+      })`);
+      throw new Error(`A's cursor missing on B: ${badgeOnB}; debug=${JSON.stringify(debug)}`);
+    }
     // Self-presence appears and is styled distinctly (weight 800 + white).
     const selfOnA = await pageA.eval(`(() => {
       const el = document.querySelector('[data-testid="cursor-name-${a.connection}"]');

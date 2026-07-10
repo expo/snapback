@@ -12,15 +12,19 @@
 //   diagnostic, never a silent pass.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import { resolveExact, exactModulePaths } from '../../../_kit/exact-resolver.mjs';
+import { resolveExact } from '../../../_kit/exact-resolver.mjs';
 import {
   createSnapbackContractSurface,
   validateSnapbackContractArtifacts,
 } from '../../../../packages/snapback-contract/index.mjs';
+import {
+  importExactContractCompiler,
+  importExactContractRuntime,
+} from '../../../../packages/snapback-contract/exact-package.mjs';
 import { assert, assertEqual, createSuite } from '../../../_kit/harness.mjs';
 import { todoOptimisticReducers } from '../../surfaces/contract/optimistic.mjs';
 
@@ -62,9 +66,8 @@ if (exact.sourceKind === 'missing') {
 console.log(`Exact resolved via ${exact.sourceKind}@${exact.path} (commit ${exact.commit ?? 'n/a'})`);
 console.log(`  capabilities: ${JSON.stringify(exact.capabilities)}`);
 
-const paths = exactModulePaths(exact.path);
-const compilerMod = await import(pathToFileURL(paths.compiler).href);
-const runtimeMod = await import(pathToFileURL(paths.runtime).href);
+const compilerMod = await importExactContractCompiler({ exactRoot: exact.path });
+const runtimeMod = await importExactContractRuntime({ exactRoot: exact.path });
 
 const importSemantics = {
   listTodos: { kind: 'query', reads: ['todos'], readMode: 'sync' },

@@ -14,10 +14,8 @@ run() {
 
 exact_available() {
     command -v bun >/dev/null 2>&1 || return 1
-    if [ -n "${SNAPBACK_EXACT_ROOT:-}" ] && [ -d "$SNAPBACK_EXACT_ROOT" ]; then
-        return 0
-    fi
-    [ -d "$ROOT/../exact" ] || [ -d "$ROOT/vendor/exact" ]
+    [ -f "$ROOT/demos/all-aboard/surfaces/contract/node_modules/@exact/contract/package.json" ] ||
+        [ -f "$ROOT/demos/cursors-web/surfaces/contract/node_modules/@exact/contract/package.json" ]
 }
 
 case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
@@ -42,15 +40,9 @@ run scripts/check-generated-types
 run scripts/check-demo-surfaces
 # ENG-22543 (Diary 0011 flip-condition 2): production-build every REQUIRED demo
 # web surface so a dev-green/ship-broken surface can't recur silently. Registry
-# surfaces (all-aboard) build here unconditionally; the interim sibling-checkout
-# surface (cursors-web) builds when an Exact checkout is present and loud-skips
-# with a declared reason otherwise (core lane). SNAPBACK_VERIFY_EXACT=1 also
-# forbids that skip (integration lane / cold-clone discipline).
-if [ "$VERIFY_EXACT" = "1" ]; then
-    run env SNAPBACK_REQUIRE_EXACT=1 node scripts/check-required-surface-builds.mjs
-else
-    run node scripts/check-required-surface-builds.mjs
-fi
+# surfaces build here unconditionally from their committed registry locks; no
+# sibling Exact checkout or source-asset bridge participates.
+run node scripts/check-required-surface-builds.mjs
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
 run cargo clippy --all-targets -- -D warnings
 run cargo test
@@ -61,6 +53,7 @@ run node demos/_kit/tests/client-errors.mjs
 run node demos/_kit/tests/live-wire-schema.mjs
 run node demos/_kit/tests/provenance-unit.mjs
 run node demos/_kit/tests/codegen-regressions.mjs
+run node demos/_kit/tests/exact-resolver-packages.mjs
 run node demos/_kit/tests/provider-live-conformance.mjs
 run node demos/_kit/tests/regression-reconnect-nuke.mjs
 run node demos/_kit/tests/regression-fake-live.mjs
@@ -73,6 +66,8 @@ run node demos/_kit/tests/regression-midflight-resync.mjs
 run node demos/_kit/tests/live-delta-e2e.mjs
 run node packages/snapback-contract/index.test.mjs
 run node packages/snapback-contract/build-preset.test.mjs
+run node packages/snapback-contract/exact-package.test.mjs
+run node packages/snapback-contract/exact-conformance.test.mjs
 # The adapter's optimistic-overlay regression suite plus the derived-overlay
 # mirror (Exact LLP 0329 E-B gate): derived overlays must pass the same
 # duplicate-reapply / reconcile-failure scenarios as hand reducers, and the
@@ -93,13 +88,15 @@ if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then
         run bun demos/todo/tests/acceptance/contract.mjs
         run bun demos/todo-v2/tests/acceptance/contract.mjs
+        run bun demos/graffiti/tests/acceptance/contract.mjs
         run bun demos/all-aboard/tests/acceptance/contract-live.mjs
         run bun demos/_kit/tests/regression-optimistic-clobber.mjs
         run bun demos/_kit/tests/regression-ephemeral-wiring.mjs
         run bun demos/_kit/tests/regression-multilive-scoped.mjs
+        run bun install --frozen-lockfile --cwd admin-ui
         run bash -lc 'cd admin-ui && ./build.sh && npm test'
     elif [ "$VERIFY_EXACT" = "1" ]; then
-        printf '[snapback-verify] error: SNAPBACK_VERIFY_EXACT=1 but bun or an Exact checkout is unavailable\n' >&2
+        printf '[snapback-verify] error: SNAPBACK_VERIFY_EXACT=1 but bun or installed Exact packages are unavailable\n' >&2
         exit 1
     else
         printf '\n[snapback-verify] skipping Exact-dependent Contract/admin checks; set SNAPBACK_VERIFY_EXACT=1 to require them\n'

@@ -51,8 +51,8 @@ node demos/todo/surfaces/headless/run.mjs
 # 3. Headless acceptance (the required surface).
 node demos/todo/tests/acceptance/headless.mjs
 
-# 4. Contract/Exact acceptance (optional surface; needs an Exact checkout + bun).
-#    Exact is resolved via SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact.
+# 4. Contract/Exact acceptance (optional surface; needs bun + installed packages).
+#    Local Exact checkouts remain an explicit development override.
 bun demos/todo/tests/acceptance/contract.mjs
 
 # 5. Browser-hosted Contract surface (starts Vite; needs a running Snapback API).
@@ -65,11 +65,13 @@ SNAPBACK_TODO_API=http://127.0.0.1:4420 \
 bun run --cwd demos/todo/surfaces/contract build
 ```
 
-The surface uses the `exactContractWeb` paved-road preset: the Exact checkout
-is `SNAPBACK_EXACT_ROOT` (default: sibling `../exact`), and the revision the
-surface was last verified against is pinned in
-`surfaces/contract/exact.pin.json` — drift warns on dev/build; re-pin
-deliberately with `EXACT_WRITE_PIN=1` after verifying on a new revision.
+The surface uses the `exactContractWeb` paved-road preset from published Exact
+packages. `surfaces/contract/package.json` keeps imports at `@exact/*` through
+the `@ccheever/exact-*` aliases, and the committed `bun.lock` is the reproducible
+pin. Run `bun install --cwd demos/todo/surfaces/contract` once before the
+browser/build commands. Acceptance resolution still honors
+`SNAPBACK_EXACT_ROOT`, `.snapback/local.json`, `../exact`, and `vendor/exact`
+for local Exact development before falling back to an installed package set.
 
 The acceptance runners start an in-memory Snapback server on a dedicated port
 (reusing one if already healthy) and tear it down on exit.

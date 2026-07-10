@@ -160,3 +160,17 @@ what I was sure I could express.
    form inputs — so I stop playing it safe. The parity work in
    [diary 0003](./0003-admin-console-contract-parity.diary.md) is where I find out
    how much of the polish gap was the medium versus me.
+
+## 2026-07-09 — ENG-22564: admin build becomes package-local
+
+The admin console now owns Exact `0.1.2` and Vite in `admin-ui/package.json`
+with a committed lock. Its shared Snapback build preset resolves installed
+package exports instead of `SNAPBACK_EXACT_ROOT`, `build.sh`/`dev.sh` run from
+`admin-ui`, and the static native build no longer needs an Exact checkout for
+workspace aliases or embedded assets. This removes the most surprising part of
+the old recipe: changing a sibling worktree can no longer change an admin build
+without touching this repository.
+
+The dev-serve regression smoke also now treats a React-free Contract graph as
+the strongest passing outcome; if React is reachable, it still requires Vite's
+optimized ESM chunk and rejects raw CJS.

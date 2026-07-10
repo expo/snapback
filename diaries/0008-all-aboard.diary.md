@@ -1393,3 +1393,12 @@ path — the ENG-23727 startup checks measured board paint at 233 ms vs backend
 attach at 295 ms with code-to-board 42 ms (inside the 100 ms budget), and the
 backend-unreachable open still rendered the honestly-labeled schedule board;
 browser-react 18/18, contract-live 2/2, headless 12/12, `ref-check` clean.
+
+## 2026-07-09 — ENG-22564: the registry surface becomes native-self-contained
+
+All Aboard moved from patched Exact `0.1.0` to `0.1.2`. The published package
+now contains the optimizer exclusions, startup template/URL builtin, current
+runtime-host path, and native Vite-define handling, so the temporary Bun patch
+and nearby Exact checkout asset bridge are gone. The surface remains source-
+unchanged: package aliases plus the committed lock are finally the whole Exact
+dependency story for both web and native artifacts.

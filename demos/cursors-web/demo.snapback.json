@@ -38,8 +38,8 @@
     "contract": {
       "requirement": "required",
       "runner": "node demos/cursors-web/tests/acceptance/contract-browser.mjs",
-      "devServer": "cd ../exact && bun --bun node_modules/.bin/vite --config <repo>/demos/cursors-web/surfaces/contract/vite.config.ts --host 127.0.0.1 --port 5184",
-      "toolchain": "node>=24, cargo, bun, the Exact checkout (paved-road preset), local Google Chrome with Chrome DevTools Protocol",
+      "devServer": "bun install --cwd demos/cursors-web/surfaces/contract (once), then SNAPBACK_CURSORS_API=http://127.0.0.1:4425 bun run --cwd demos/cursors-web/surfaces/contract dev (Exact consumed from registry aliases; bun.lock is the pin)",
+      "toolchain": "node>=24, cargo, bun, published Exact packages at the committed lock, local Google Chrome with Chrome DevTools Protocol",
       "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "note": "Pure Contract end-to-end (ENG-22524, Exact LLP 0281 stage 0): read side through the `ephemeral` binding (ENG-22479; Exact LLP 0284 §5 item 4), write side through a value channel's rated publish. The imperative DOM arm was deleted with the stage-0 landing; diary 0007 carries its record."
     },

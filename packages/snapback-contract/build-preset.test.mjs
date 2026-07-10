@@ -7,6 +7,7 @@ import {
   SnapbackContractBuildError,
   createSnapbackAdminDevApiUnreachableDiagnostic,
   createSnapbackWrongServerShapeDiagnostic,
+  resolveInstalledPackageSpecifier,
   resolveRootResolvableDedupe,
   rewriteStaticBasePath,
   resolveSnapbackContractDevServerOptions,
@@ -95,6 +96,38 @@ assert.equal(wrongShape.details.target_surface, 'admin Contract dev server');
   } finally {
     rmSync(bareRoot, { recursive: true, force: true });
     rmSync(armedRoot, { recursive: true, force: true });
+  }
+}
+
+// ENG-22564: package-only builds resolve the import key from the app's
+// node_modules even when npm aliasing gives the installed manifest a different
+// published name. They must not inherit a package from this process workspace.
+{
+  const root = mkdtempSync(join(tmpdir(), 'snapback-package-resolver-'));
+  try {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'consumer-fixture' }));
+    assert.equal(resolveInstalledPackageSpecifier(root, '@exact/devtools/vite-plugin'), null);
+
+    const packageRoot = join(root, 'node_modules', '@exact', 'devtools');
+    mkdirSync(join(packageRoot, 'src'), { recursive: true });
+    writeFileSync(
+      join(packageRoot, 'package.json'),
+      JSON.stringify({
+        name: '@ccheever/exact-devtools',
+        version: '0.1.2',
+        exports: {
+          './vite-plugin': { import: './src/vite-plugin.ts' },
+        },
+      }),
+    );
+    writeFileSync(join(packageRoot, 'src', 'vite-plugin.ts'), 'export const exactVitePlugin = () => ({});\n');
+
+    assert.equal(
+      resolveInstalledPackageSpecifier(root, '@exact/devtools/vite-plugin'),
+      join(packageRoot, 'src', 'vite-plugin.ts'),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 }
 

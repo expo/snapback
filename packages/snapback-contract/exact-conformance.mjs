@@ -6,7 +6,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const EXACT_PROVIDER_CONFORMANCE_CHECK_ID = 'data-provider-conformance';
@@ -29,6 +29,29 @@ export function discoverExactProviderConformance({
   providerConformancePath = process.env.SNAPBACK_EXACT_PROVIDER_CONFORMANCE ?? null,
 } = {}) {
   const resolvedExactRoot = resolveExactRoot(exactRoot);
+  const installedConformance = resolveInstalledProviderConformance(resolvedExactRoot);
+  if (installedConformance) {
+    return {
+      ok: true,
+      status: 'available',
+      available: true,
+      runnable: true,
+      exactRoot: resolvedExactRoot,
+      expectedCheckId: EXACT_PROVIDER_CONFORMANCE_CHECK_ID,
+      exactVerify: {
+        path: null,
+        present: false,
+        check: {
+          id: EXACT_PROVIDER_CONFORMANCE_CHECK_ID,
+          source: 'package-export',
+        },
+        relatedChecks: [],
+        profiles: [],
+      },
+      candidates: [installedConformance],
+      diagnostics: [],
+    };
+  }
   const exactVerifyPath = resolve(resolvedExactRoot, 'exact-verify.json');
   const exactContractRuntimePath = resolve(
     resolvedExactRoot,
@@ -118,6 +141,35 @@ export function discoverExactProviderConformance({
     exactVerify,
     candidates,
     diagnostics,
+  };
+}
+
+function resolveInstalledProviderConformance(root) {
+  const packageRoot = join(root, 'node_modules', '@exact', 'contract');
+  const packageJsonPath = join(packageRoot, 'package.json');
+  if (!existsSync(packageJsonPath)) {
+    return null;
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+  } catch {
+    return null;
+  }
+  const entry = manifest.exports?.['./conformance'];
+  const target = typeof entry === 'string' ? entry : entry?.import ?? entry?.default;
+  if (typeof target !== 'string') {
+    return null;
+  }
+  const path = resolve(packageRoot, target);
+  if (!existsSync(path)) {
+    return null;
+  }
+  return {
+    source: 'package-export',
+    label: '@exact/contract/conformance',
+    path,
+    present: true,
   };
 }
 
@@ -291,6 +343,13 @@ async function main(argv) {
   if (args.run) {
     if (!report.exactVerify.check) {
       console.log(JSON.stringify(report, null, args.pretty ? 2 : 0));
+      return 1;
+    }
+    if (report.exactVerify.check.source === 'package-export') {
+      console.error(
+        '--run executes an Exact checkout registry command; an installed ' +
+          '@exact/contract/conformance export must be driven by a consumer provider fixture.',
+      );
       return 1;
     }
     const result = spawnSync(

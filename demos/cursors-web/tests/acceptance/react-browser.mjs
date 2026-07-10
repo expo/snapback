@@ -89,21 +89,17 @@ async function stopApi() {
   });
 }
 
-// Re-provision a fresh `--memory` server: loadSchema BEFORE ensure (diary
-// 0011 hit exactly this; a schema-less restarted server leaves both arms
-// honestly degraded, which is expected — the suite provisions, never the arms).
+// Re-provision a fresh `--memory` server through the same D4-shaped,
+// idempotent app ensure route the surface uses. The old direct schema-load
+// call became admin-token-gated; bypassing the public bootstrap contract here
+// made the restart probe test the harness's privilege rather than reconnect.
 async function provisionApi() {
   const schemaManifest = JSON.parse(readFileSync(join(repoRoot, 'demos', 'cursors-web', 'snapback', 'generated', 'schema.manifest.json'), 'utf8'));
   const post = async (path, body) => {
     const res = await fetch(`${apiUrl}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status} ${await res.text()}`);
   };
-  await post('/_snapback/api/schema/load', schemaManifest);
-  await post('/ephemeral/collections/ensure', {
-    collections: schemaManifest.ephemeralCollections ?? [],
-    schemaHash: schemaManifest.schemaHash ?? null,
-    inputsHash: schemaManifest.inputsHash ?? null,
-  });
+  await post('/app/ensure', { schema: schemaManifest });
 }
 
 async function ensureApi() {
