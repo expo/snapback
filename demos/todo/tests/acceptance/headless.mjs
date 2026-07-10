@@ -530,9 +530,16 @@ try {
 }
 
 async function adminRun(name, input) {
+  assert(
+    typeof server.adminToken === 'string' && server.adminToken.length > 0,
+    'startServer returned no admin token for the Todo acceptance function runner',
+  );
   const res = await fetch(`${server.baseUrl}/_snapback/api/functions/${name}/run`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'x-snapback-admin-token': server.adminToken,
+    },
     body: JSON.stringify(input),
   });
   const json = await res.json();
