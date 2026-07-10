@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "AuthInput": {
+      "properties": {
+        "principal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.resume.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "auth": {
+      "$ref": "#/$defs/AuthInput",
+      "default": {
+        "principal": null,
+        "session_id": null,
+        "user_id": null
+      }
+    },
+    "connection_id": {
+      "type": "string"
+    },
+    "recorded_permission_epochs": {
+      "additionalProperties": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "subscription_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subscription_id",
+    "connection_id"
+  ],
+  "title": "LiveResumeInput",
+  "type": "object"
+}

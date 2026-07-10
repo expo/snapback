@@ -19,6 +19,8 @@
 //
 // @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract
 
+import { readFileSync } from 'node:fs';
+
 import {
   arg, argOpt, authUserId, bindingRef, lit, runtimeNow,
   add, mod, mul, div, gte, cond, concat, call, coalesce, record, field, eqv, ne, or,
@@ -28,7 +30,13 @@ import {
 } from './define.mjs';
 import { serializeMutationPlan } from './index.mjs';
 
-export const CORPUS_VERSION = 1;
+const DATA_TIER_PROFILE = JSON.parse(
+  readFileSync(new URL('../../schemas/data-tier.profile.json', import.meta.url), 'utf8'),
+);
+
+// The Rust-generated public profile is the authority. A profile bump now
+// walks corpus generation instead of relying on a mirrored JS literal.
+export const CORPUS_VERSION = DATA_TIER_PROFILE.profileVersion;
 
 // Mirrors demos/all-aboard/snapback/handlers.mjs:11 (module-scope constant;
 // data-tier-builder assertions in data-tier-corpus.test.mjs check the drift).

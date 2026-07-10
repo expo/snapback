@@ -1,0 +1,121 @@
+{
+  "$defs": {
+    "AuthInput": {
+      "properties": {
+        "principal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "CtxAnswerLedger": {
+      "description": "The ctx-answer ledger (LLP 0051 D1): the ordered answers the deterministic\nctx surface gave during one invocation. Record mode produces it; replay\nmode consumes it. Reads are never ledgered — `ctx.db` reads always\nre-evaluate against the executing tier's current view; the ledger pins\n*answers* only. This is LLP 0043 M2's captured replay environment as a\ndefined channel: LLP 0008 pins the client wire to exactly\n`{generatedIds, now}`; the auth fingerprint is server-retained and never\ncrosses the client wire.",
+      "properties": {
+        "auth_fingerprint": {
+          "description": "Fingerprint of the resolved auth context the handler observed\n(LLP 0043 §Auth posture). Checked at replay when present: a mismatch\nsurfaces `SNAPBACK_AUTH_STALE_RESULT` rather than replaying under new\nauthority. Server-retained (D1 wire split) — record-mode outputs leave\nit unset on client-bound surfaces.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ids": {
+          "default": [],
+          "description": "Every host-generated id, in answer order (LLP 0008's `generatedIds`):\n`ctx.runtime.id()` answers and `ctx.db.insert` row-id generation share\none ordered sequence.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "now": {
+          "default": 0,
+          "description": "The frozen invocation clock every `ctx.runtime.now()` answered with.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "version": {
+          "default": 1,
+          "description": "Ledger format version, versioned alongside the shared data-tier\nprofile (LLP 0051 D5) so pre-extension ledgers stay replayable.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "ReadDependency": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "table",
+        "id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/query.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "args": {
+      "default": null
+    },
+    "auth": {
+      "$ref": "#/$defs/AuthInput",
+      "default": {
+        "principal": null,
+        "session_id": null,
+        "user_id": null
+      }
+    },
+    "correlation": {
+      "description": "Opaque adapter-stitched correlation (LLP 0034 §3.2, ENG-22478): the\nExact adapter's join keys (`actionInvocationId`, `optimisticWaveId`,\n`rootId`, `bindingIds`) live inside. The provider echoes it verbatim\non receipts and never interprets it."
+    },
+    "ctx_ledger": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CtxAnswerLedger"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Replay ledger (LLP 0051 D1): when present, the invocation runs in\nREPLAY mode — `ctx.runtime.now()` answers `ledger.now` and every\nhost-generated id (`ctx.runtime.id()` and `ctx.db.insert` row ids)\nconsumes `ledger.ids` in order. Consuming past the end is a typed\ndivergence error. Additive: absent means record mode, today's\nbehavior. Queries and mutations only; actions never carry one."
+    },
+    "read_set": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ReadDependency"
+      },
+      "type": "array"
+    }
+  },
+  "title": "HandlerInput",
+  "type": "object"
+}

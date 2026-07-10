@@ -1,0 +1,42 @@
+{
+  "artifactKind": "dataTierProfile",
+  "bounds": {
+    "maxExprDepth": 32,
+    "maxInsertEachFanout": 1024,
+    "maxLedgerIds": 1024,
+    "maxSerializedBytes": 65536,
+    "maxSteps": 64
+  },
+  "caseSchemaPath": "schemas/data-tier.case.schema.json",
+  "compatibility": {
+    "optionalTooNew": "skipped:corpus_version_too_new",
+    "producerTooOld": "SNAPBACK_DATA_TIER_VERSION_UNSUPPORTED",
+    "requiredTooNew": "SNAPBACK_DATA_TIER_VERSION_REQUIRED"
+  },
+  "corpus": "snapback-data-tier",
+  "corpusFormatVersion": 1,
+  "ledgerVersion": 1,
+  "pinnedFunctions": [
+    "len",
+    "trim",
+    "lower",
+    "abs",
+    "min",
+    "max",
+    "round",
+    "floor",
+    "ceil",
+    "coalesce"
+  ],
+  "profileVersion": 1,
+  "publication": {
+    "addressing": "commitSha",
+    "corpusDirectory": "tests/conformance/data-tier",
+    "corpusManifestPath": "tests/conformance/data-tier/corpus.manifest.json",
+    "kind": "gitPinnedCheckout",
+    "profilePath": "schemas/data-tier.profile.json",
+    "repository": "https://github.com/ccheever/snapback.git"
+  },
+  "publicationVersion": 1,
+  "schemaVersion": "snapback.v0"
+}

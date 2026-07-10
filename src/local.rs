@@ -296,7 +296,7 @@ impl From<InspectState> for PublicInspect {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeInput {
     pub connection_id: String,
     #[serde(default)]
@@ -320,7 +320,7 @@ pub struct LiveSubscribeOutput {
     pub receipt: Option<Value>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveResumeInput {
     pub subscription_id: String,
     pub connection_id: String,
@@ -346,7 +346,7 @@ pub struct LiveResumeOutput {
     pub permission_epochs: BTreeMap<String, u64>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveUnsubscribeInput {
     pub subscription_id: String,
     pub connection_id: String,

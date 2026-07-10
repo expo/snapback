@@ -13,15 +13,21 @@ correct.
   `packages/snapback-codegen/data-tier-corpus.test.mjs` (`--write` to
   regenerate).
 - **Executed** by the Rust host runner `tests/data_tier_corpus_v0.rs`.
-- **Consumed by reference** from Exact CI (Exact LLP 0329 E-A) and, later,
-  the `contract-native` data-tier evaluator (E-C).
+- **Published by pinned git checkout.** `schemas/data-tier.profile.json`
+  declares the public repository, commit-addressed channel, schema path, and
+  corpus path. `corpus.manifest.json` pins every case by SHA-256. A sibling
+  checkout remains a local cache only; consumers must pin a commit and may not
+  silently skip a required profile when that sibling is absent (ENG-23964).
+- **Consumed by reference** from Exact CI (Exact LLP 0329 E-A) and the
+  `contract-native` data-tier evaluator (E-C). There is one Snapback-owned
+  corpus; consumers never vendor a fork.
 
 ## Case shape
 
 ```jsonc
 {
   "corpus": "snapback-data-tier",
-  "corpusVersion": 1,              // shared data-tier profile version
+  "corpusVersion": 1,              // minimum data-tier profile version
   "name": "…",                     // file is <name>.case.json
   "notes": "…",                    // what this case pins, human-readable
   "schema": { "tables": [ … ] },   // TableManifest values (serde shape)
@@ -37,6 +43,14 @@ correct.
   }
 }
 ```
+
+The Rust-generated `schemas/data-tier.case.schema.json` is the shape authority.
+The sibling public profile and corpus-manifest schemas carry the compatibility
+tuple `(profileVersion, corpusFormatVersion, ledgerVersion, schemaVersion)`.
+An optional case above a consumer's supported profile soft-skips with
+`skipped:corpus_version_too_new`; a required mismatch fails typed with
+`SNAPBACK_DATA_TIER_VERSION_REQUIRED` (newer producer) or
+`SNAPBACK_DATA_TIER_VERSION_UNSUPPORTED` (older producer).
 
 Placeholders (staging bridge until the ctx-answer ledger — LLP 0051
 Increment 2 — makes outputs exact, LLP 0010's `$NOW`/`$ID` mechanism):

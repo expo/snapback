@@ -12,6 +12,7 @@
 // (tests/data_tier_corpus_v0.rs) and Exact-side consumers (LLP 0329 E-A)
 // read the files, never this module.
 
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +20,8 @@ import { buildCorpusCases, buildResetFeedPlan, buildApplyFeedTickPlan, PATTERN_I
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CORPUS_DIR = join(REPO_ROOT, 'tests', 'conformance', 'data-tier');
+const CORPUS_MANIFEST = join(CORPUS_DIR, 'corpus.manifest.json');
+const PROFILE_PATH = join(REPO_ROOT, 'schemas', 'data-tier.profile.json');
 const WRITE = process.argv.includes('--write');
 
 let failures = 0;
@@ -66,11 +69,33 @@ const fail = (message) => {
 }
 
 const cases = buildCorpusCases();
+const profile = JSON.parse(readFileSync(PROFILE_PATH, 'utf8'));
 const names = new Set();
 for (const corpusCase of cases) {
   if (names.has(corpusCase.name)) fail(`duplicate case name ${corpusCase.name}`);
   names.add(corpusCase.name);
 }
+
+const renderedCases = new Map(
+  cases.map((corpusCase) => [corpusCase.name, `${JSON.stringify(corpusCase, null, 2)}\n`]),
+);
+const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
+const corpusManifest = {
+  artifactKind: 'dataTierCorpusManifest',
+  corpus: profile.corpus,
+  corpusFormatVersion: profile.corpusFormatVersion,
+  profileVersion: profile.profileVersion,
+  ledgerVersion: profile.ledgerVersion,
+  profilePath: profile.publication.profilePath,
+  cases: cases.map((corpusCase) => ({
+    name: corpusCase.name,
+    path: `${corpusCase.name}.case.json`,
+    sha256: sha256(renderedCases.get(corpusCase.name)),
+    requiredCapabilities: ['irEvaluator'],
+    minimumProfileVersion: corpusCase.corpusVersion,
+  })),
+};
+const renderedManifest = `${JSON.stringify(corpusManifest, null, 2)}\n`;
 
 if (WRITE) {
   mkdirSync(CORPUS_DIR, { recursive: true });
@@ -94,7 +119,7 @@ if (WRITE) {
     const committed = readdirSync(CORPUS_DIR).filter((f) => f.endsWith('.case.json'));
     for (const corpusCase of cases) {
       const path = join(CORPUS_DIR, `${corpusCase.name}.case.json`);
-      const expected = `${JSON.stringify(corpusCase, null, 2)}\n`;
+      const expected = renderedCases.get(corpusCase.name);
       let actual;
       try {
         actual = readFileSync(path, 'utf8');
@@ -110,6 +135,21 @@ if (WRITE) {
       const name = file.slice(0, -'.case.json'.length);
       if (!names.has(name)) fail(`orphaned committed case ${file}`);
     }
+  }
+}
+
+if (WRITE) {
+  writeFileSync(CORPUS_MANIFEST, renderedManifest);
+  console.log(`wrote ${CORPUS_MANIFEST}`);
+} else {
+  let actual = null;
+  try {
+    actual = readFileSync(CORPUS_MANIFEST, 'utf8');
+  } catch {
+    fail(`missing committed corpus.manifest.json — run with --write`);
+  }
+  if (actual !== null && actual !== renderedManifest) {
+    fail('stale committed corpus.manifest.json — run with --write and commit');
   }
 }
 

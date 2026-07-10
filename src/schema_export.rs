@@ -18,15 +18,17 @@
 use serde_json::Value;
 
 use crate::admin::AdminInspect;
+use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
 use crate::diagnostic::Diagnostic;
 use crate::ephemeral::RealtimeEnvelope;
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
 use crate::live_wire::{LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt};
 use crate::local::{
-    InspectState, LiveResumeOutput, LiveSubscribeOutput, LiveUnsubscribeOutput, PublicInspect,
+    InspectState, LiveResumeInput, LiveResumeOutput, LiveSubscribeInput, LiveSubscribeOutput,
+    LiveUnsubscribeInput, LiveUnsubscribeOutput, PublicInspect,
 };
 use crate::manifest::{
-    CapabilityManifest, FunctionManifest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    CapabilityManifest, FunctionManifest, HandlerInput, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
 use crate::server::{ConnectionGrant, ErrorResponse};
 use crate::storage::StorageInfo;
@@ -54,6 +56,18 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "functions.manifest.schema.json",
             schemars::schema_for!(FunctionManifest),
+        ),
+        finish(
+            "data-tier.profile.schema.json",
+            schemars::schema_for!(DataTierProfile),
+        ),
+        finish(
+            "data-tier.corpus.schema.json",
+            schemars::schema_for!(DataTierCorpusManifest),
+        ),
+        finish(
+            "data-tier.case.schema.json",
+            schemars::schema_for!(DataTierCorpusCase),
         ),
         finish(
             "capability.manifest.schema.json",
@@ -123,14 +137,47 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(LiveSubscribeOutput),
         ),
         finish(
+            "live.subscribe.input.schema.json",
+            schemars::schema_for!(LiveSubscribeInput),
+        ),
+        finish(
             "live.resume.output.schema.json",
             schemars::schema_for!(LiveResumeOutput),
+        ),
+        finish(
+            "live.resume.input.schema.json",
+            schemars::schema_for!(LiveResumeInput),
         ),
         finish(
             "live.unsubscribe.output.schema.json",
             schemars::schema_for!(LiveUnsubscribeOutput),
         ),
+        finish(
+            "live.unsubscribe.input.schema.json",
+            schemars::schema_for!(LiveUnsubscribeInput),
+        ),
+        finish(
+            "query.input.schema.json",
+            schemars::schema_for!(HandlerInput),
+        ),
+        finish(
+            "mutation.input.schema.json",
+            schemars::schema_for!(HandlerInput),
+        ),
     ]
+}
+
+/// Generated public artifact instances owned by the Rust authority. These are
+/// committed beside the schemas so a pinned git checkout is sufficient for a
+/// non-Rust consumer.
+pub fn artifact_instances() -> Vec<SchemaArtifact> {
+    vec![SchemaArtifact {
+        file: "data-tier.profile.json",
+        schema: sorted_keys(
+            serde_json::to_value(DataTierProfile::current())
+                .expect("data-tier profile serializes to JSON"),
+        ),
+    }]
 }
 
 /// Convert a derived schema to a stable committed value: serialize it, stamp the

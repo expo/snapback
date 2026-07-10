@@ -14,14 +14,32 @@
 //!   schemas that make the Rust types the single source of truth.
 //! @ref LLP 0032#decision-docket — DK-7 / P3(c) regeneration entry point.
 
-use snapback::schema_export::{SchemaArtifact, artifact_schemas};
+use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 fn main() -> std::io::Result<()> {
     let schemas_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("schemas");
-    let artifacts = artifact_schemas();
-    write_schema_artifacts(&schemas_dir, &artifacts)
+    let schemas = artifact_schemas();
+    write_schema_artifacts(&schemas_dir, &schemas)?;
+    write_artifact_instances(&schemas_dir, &artifact_instances())
+}
+
+fn write_artifact_instances(
+    schemas_dir: &Path,
+    artifacts: &[SchemaArtifact],
+) -> std::io::Result<()> {
+    std::fs::create_dir_all(schemas_dir)?;
+    for artifact in artifacts {
+        let path = schemas_dir.join(artifact.file);
+        let rendered = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&artifact.schema).expect("artifact renders to JSON")
+        );
+        std::fs::write(&path, rendered)?;
+        println!("wrote {}", path.display());
+    }
+    Ok(())
 }
 
 fn write_schema_artifacts(schemas_dir: &Path, artifacts: &[SchemaArtifact]) -> std::io::Result<()> {

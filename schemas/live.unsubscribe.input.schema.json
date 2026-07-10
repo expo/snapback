@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "AuthInput": {
+      "properties": {
+        "principal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.unsubscribe.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "auth": {
+      "$ref": "#/$defs/AuthInput",
+      "default": {
+        "principal": null,
+        "session_id": null,
+        "user_id": null
+      }
+    },
+    "connection_id": {
+      "type": "string"
+    },
+    "subscription_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subscription_id",
+    "connection_id"
+  ],
+  "title": "LiveUnsubscribeInput",
+  "type": "object"
+}

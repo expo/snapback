@@ -5,7 +5,9 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-09 (r3 — second review round (dated re-review sections
+**Revised:** 2026-07-09 (ENG-23964 resolves Q2 with the Rust-generated,
+commit-addressed public profile/corpus channel and completes D4's HTTP input
+schemas; earlier r3 — second review round (dated re-review sections
 in `llp/reviews/0051-*`) plus reconciliation with Exact LLP 0329 r4 and its
 adversarial rounds: builder-first authoring adopted (the Contract grammar is
 0329's evidence-gated option); Increment 3 re-gated on the verified
@@ -842,6 +844,11 @@ disciplines.
    before the non-JS-client claim: the HTTP *request* bodies
    (subscribe/resume/unsubscribe inputs, mutation/query inputs) are
    typed serde but not yet schema-exported.
+   *Completed 2026-07-09 (ENG-23964).* Those five request families now
+   derive from the Rust serde authority and are committed as generated input
+   schemas. Together with ENG-23891's output/envelope set, D4's declared
+   non-JS HTTP inventory is schema-governed; adding a new client-visible route
+   body must join `artifact_schemas()` and its round-trip gate.
 2. **The ctx-answer ledger (D1):** first, close the Ibex
    deterministic-member gap for queries/mutations — two mechanisms, as
    on V8: member deny-stubs single-sourced from the allowlist
@@ -988,16 +995,24 @@ disciplines.
   the demand ledger. Named candidates already on it: `Exists`/`Count`
   filtered reads (Q4), `num`/`str`/`bool` coercion functions, an array
   constructor.
-- **Q2 — cross-repo profile/corpus consumption.** Partially answered by
+- **Q2 — cross-repo profile/corpus consumption — resolved 2026-07-09
+  (ENG-23964).**
   0329 r4: Exact CI *commits* to consuming the corpus by reference for
   its evaluators (0329 E3 — one corpus, two consumers, no vendored
   fork; the exact-conformance.mjs discovery pattern, reversed), with
-  compiler consumption conditional on the grammar option. What remains
-  snapback's to decide: publishing the committed profile schema, plan
-  bounds, and library list on the same channel (0329 EQ4's
-  durable-mechanism decision — pinned checkout, published artifact, or
-  generated fixture; a provisional pinned checkout is acceptable if
-  option work ever lands first, stated never silent).
+  compiler consumption conditional on the grammar option. Snapback chooses
+  the explicit **pinned git checkout** channel: the Rust-generated
+  `schemas/data-tier.profile.json` names the public repository and public
+  paths; consumers pin a commit SHA, and
+  `tests/conformance/data-tier/corpus.manifest.json` hashes every one of the
+  single Snapback-owned cases. The profile publishes the schema version,
+  profile/corpus/ledger tuple, plan bounds, pinned function library, and typed
+  optional-soft-skip/required-fail behavior. The profile, corpus manifest,
+  cases, and all five remaining D4 HTTP request bodies have Rust-generated,
+  drift-gated schemas. A sibling checkout is only a local cache; a required CI
+  consumer must fetch its pin or fail, never silently skip. Exact LLP
+  0329/0332 record their consumer lock separately; no Exact type crosses this
+  public Snapback boundary.
 - **Q3 — TS→WASM authoring toolchain** for authors who outgrow the IR:
   javy-class (fat, and in tension with LLP 0014's interpreter-in-WASM
   rejection on CF), typed-subset compiler, or "write Rust." Gates

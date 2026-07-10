@@ -23,17 +23,25 @@ use std::fs;
 use std::path::PathBuf;
 
 use snapback::cron::CronInspectState;
+use snapback::data_tier::{
+    DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DATA_TIER_PROFILE_FILE,
+    DataTierCaseExpectation, DataTierCaseSchema, DataTierCorpusCase, DataTierCorpusCaseEntry,
+    DataTierCorpusManifest, DataTierProfile,
+};
 use snapback::diagnostic::Diagnostic;
 use snapback::ephemeral::EphemeralDiagnostics;
-use snapback::local::{InspectState, LiveDeliveryStats, PublicInspect};
+use snapback::local::{
+    InspectState, LiveDeliveryStats, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
+    PublicInspect,
+};
 use snapback::manifest::{
-    CapabilityManifest, FunctionManifest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
-    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    AuthInput, CapabilityManifest, FunctionManifest, HandlerInput, MutationPlan,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use snapback::runtime::{
     CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
 };
-use snapback::schema_export::{SchemaArtifact, artifact_schemas};
+use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
 use snapback::storage::StorageInfo;
 
 fn schemas_dir() -> PathBuf {
@@ -77,6 +85,17 @@ fn dk7_committed_schemas_match_rust_types() {
             on_disk, schema,
             "{file} drifted from the Rust types; regenerate with \
              `cargo run --bin snapback-schemagen` (LLP 0037 / LLP 0032 P3c)"
+        );
+    }
+}
+
+#[test]
+fn dk7_committed_public_instances_match_rust_types() {
+    for SchemaArtifact { file, schema } in artifact_instances() {
+        let on_disk = committed(file);
+        assert_eq!(
+            on_disk, schema,
+            "{file} drifted from the Rust authority; regenerate with `cargo run --bin snapback-schemagen`"
         );
     }
 }
@@ -167,6 +186,51 @@ fn dk7_representative_values_validate_against_committed_schemas() {
         &serde_json::to_value(FunctionManifest::default()).unwrap(),
     );
     assert_validates(
+        "data-tier.profile.schema.json",
+        &serde_json::to_value(DataTierProfile::current()).unwrap(),
+    );
+    assert_validates(
+        "data-tier.corpus.schema.json",
+        &serde_json::to_value(DataTierCorpusManifest {
+            artifact_kind: "dataTierCorpusManifest".to_owned(),
+            corpus: DATA_TIER_CORPUS_NAME.to_owned(),
+            corpus_format_version: DATA_TIER_CORPUS_FORMAT_VERSION,
+            profile_version: snapback::value_expr::DATA_TIER_PROFILE_VERSION,
+            ledger_version: snapback::manifest::CTX_ANSWER_LEDGER_VERSION,
+            profile_path: DATA_TIER_PROFILE_FILE.to_owned(),
+            cases: vec![DataTierCorpusCaseEntry {
+                name: "empty".to_owned(),
+                path: "empty.case.json".to_owned(),
+                sha256: "sha256:test".to_owned(),
+                required_capabilities: vec!["irEvaluator".to_owned()],
+                minimum_profile_version: 1,
+            }],
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "data-tier.case.schema.json",
+        &serde_json::to_value(DataTierCorpusCase {
+            corpus: DATA_TIER_CORPUS_NAME.to_owned(),
+            corpus_version: DATA_TIER_CORPUS_FORMAT_VERSION,
+            name: "empty".to_owned(),
+            notes: None,
+            required_capabilities: vec!["irEvaluator".to_owned()],
+            minimum_profile_version: 1,
+            schema: DataTierCaseSchema { tables: Vec::new() },
+            seed: Default::default(),
+            plan: MutationPlan {
+                steps: Vec::new(),
+                return_value: None,
+            },
+            args: json!({}),
+            auth_user_id: None,
+            ctx_ledger: None,
+            expect: DataTierCaseExpectation::default(),
+        })
+        .unwrap(),
+    );
+    assert_validates(
         "capability.manifest.schema.json",
         &serde_json::to_value(CapabilityManifest::local_v0(vec!["postgres".to_owned()])).unwrap(),
     );
@@ -196,6 +260,33 @@ fn dk7_representative_values_validate_against_committed_schemas() {
         "inspect.public.schema.json",
         &serde_json::to_value(PublicInspect::from(inspect)).unwrap(),
     );
+}
+
+/// ENG-23964 publication gate: a clean consumer can trust the committed
+/// profile + corpus manifest + cases without compiling Rust.
+#[test]
+fn data_tier_publication_validates_against_committed_schemas() {
+    assert_validates(
+        "data-tier.profile.schema.json",
+        &committed("data-tier.profile.json"),
+    );
+
+    let corpus_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("conformance")
+        .join("data-tier");
+    let manifest: Value = serde_json::from_str(
+        &fs::read_to_string(corpus_dir.join("corpus.manifest.json")).expect("read corpus manifest"),
+    )
+    .expect("parse corpus manifest");
+    assert_validates("data-tier.corpus.schema.json", &manifest);
+
+    for entry in manifest["cases"].as_array().expect("manifest cases") {
+        let path = corpus_dir.join(entry["path"].as_str().expect("case path"));
+        let case: Value = serde_json::from_str(&fs::read_to_string(&path).expect("read case"))
+            .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+        assert_validates("data-tier.case.schema.json", &case);
+    }
 }
 
 /// Live-wire round trips (LLP 0051 D4 / ENG-23891): a representative value of
@@ -422,6 +513,32 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         })
         .unwrap(),
     );
+    let input = HandlerInput {
+        args: json!({ "listId": "l1" }),
+        auth: AuthInput {
+            principal: Some("user_1".to_owned()),
+            session_id: None,
+            user_id: Some("user_1".to_owned()),
+        },
+        ..HandlerInput::default()
+    };
+    assert_validates(
+        "query.input.schema.json",
+        &serde_json::to_value(&input).unwrap(),
+    );
+    assert_validates(
+        "mutation.input.schema.json",
+        &serde_json::to_value(&input).unwrap(),
+    );
+    assert_validates(
+        "live.subscribe.input.schema.json",
+        &serde_json::to_value(LiveSubscribeInput {
+            connection_id: "conn_1".to_owned(),
+            input: input.clone(),
+            supersedes: None,
+        })
+        .unwrap(),
+    );
     assert_validates(
         "live.resume.output.schema.json",
         &serde_json::to_value(LiveResumeOutput {
@@ -434,11 +551,30 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         .unwrap(),
     );
     assert_validates(
+        "live.resume.input.schema.json",
+        &serde_json::to_value(LiveResumeInput {
+            subscription_id: "sub_1".to_owned(),
+            connection_id: "conn_1".to_owned(),
+            auth: input.auth.clone(),
+            recorded_permission_epochs: Default::default(),
+        })
+        .unwrap(),
+    );
+    assert_validates(
         "live.unsubscribe.output.schema.json",
         &serde_json::to_value(LiveUnsubscribeOutput {
             subscription_id: "sub_1".to_owned(),
             disposed: true,
             receipt: None,
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "live.unsubscribe.input.schema.json",
+        &serde_json::to_value(LiveUnsubscribeInput {
+            subscription_id: "sub_1".to_owned(),
+            connection_id: "conn_1".to_owned(),
+            auth: input.auth,
         })
         .unwrap(),
     );

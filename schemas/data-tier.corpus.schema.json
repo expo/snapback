@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "DataTierCorpusCaseEntry": {
+      "properties": {
+        "minimumProfileVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "requiredCapabilities": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "sha256",
+        "minimumProfileVersion"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/data-tier.corpus.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "artifactKind": {
+      "type": "string"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/DataTierCorpusCaseEntry"
+      },
+      "type": "array"
+    },
+    "corpus": {
+      "type": "string"
+    },
+    "corpusFormatVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ledgerVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "profilePath": {
+      "type": "string"
+    },
+    "profileVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "corpus",
+    "corpusFormatVersion",
+    "profileVersion",
+    "ledgerVersion",
+    "profilePath",
+    "cases"
+  ],
+  "title": "DataTierCorpusManifest",
+  "type": "object"
+}

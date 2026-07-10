@@ -15,56 +15,18 @@
 //!
 //! @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract
 
-use serde::Deserialize;
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
+use snapback::data_tier::{
+    DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DataTierCompatibilityOutcome,
+    DataTierCorpusCase, DataTierCorpusManifest, compatibility_outcome,
+};
 use snapback::manifest::{
     AuthInput, HandlerInput, MutationPlan, SchemaManifest, SeedData, TableManifest,
 };
 use snapback::storage::LocalDatabase;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-
-#[derive(Deserialize)]
-struct CorpusCase {
-    corpus: String,
-    #[serde(rename = "corpusVersion")]
-    corpus_version: u32,
-    name: String,
-    #[serde(default)]
-    #[allow(dead_code)]
-    notes: Option<String>,
-    schema: CaseSchema,
-    #[serde(default)]
-    seed: BTreeMap<String, Vec<Map<String, Value>>>,
-    plan: MutationPlan,
-    #[serde(default)]
-    args: Value,
-    #[serde(default, rename = "authUserId")]
-    auth_user_id: Option<String>,
-    expect: CaseExpect,
-}
-
-#[derive(Deserialize)]
-struct CaseSchema {
-    tables: Vec<TableManifest>,
-}
-
-#[derive(Deserialize)]
-struct CaseExpect {
-    #[serde(default)]
-    result: Option<Value>,
-    #[serde(default, rename = "changedCount")]
-    changed_count: Option<usize>,
-    #[serde(default)]
-    rows: Option<BTreeMap<String, Vec<Map<String, Value>>>>,
-    #[serde(default)]
-    error: Option<CaseError>,
-}
-
-#[derive(Deserialize)]
-struct CaseError {
-    code: String,
-}
 
 fn corpus_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -144,6 +106,25 @@ fn scan_all_rows(db: &LocalDatabase, table: &str) -> Vec<Value> {
 #[test]
 fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
     let dir = corpus_dir();
+    let manifest_path = dir.join("corpus.manifest.json");
+    let manifest: DataTierCorpusManifest = serde_json::from_str(
+        &std::fs::read_to_string(&manifest_path).expect("read corpus manifest"),
+    )
+    .expect("parse corpus manifest through the public Rust shape");
+    assert_eq!(manifest.corpus, DATA_TIER_CORPUS_NAME);
+    assert_eq!(
+        manifest.corpus_format_version,
+        DATA_TIER_CORPUS_FORMAT_VERSION
+    );
+    assert_eq!(
+        compatibility_outcome(
+            manifest.profile_version,
+            snapback::value_expr::DATA_TIER_PROFILE_VERSION,
+            snapback::value_expr::DATA_TIER_PROFILE_VERSION,
+            true,
+        ),
+        DataTierCompatibilityOutcome::Compatible
+    );
     let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
         .unwrap_or_else(|error| panic!("corpus dir {} missing: {error}", dir.display()))
         .map(|entry| entry.expect("dir entry").path())
@@ -159,13 +140,41 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
         "no corpus cases found under {}",
         dir.display()
     );
+    assert_eq!(
+        paths.len(),
+        manifest.cases.len(),
+        "manifest/case count drift"
+    );
 
     for path in paths {
         let raw = std::fs::read_to_string(&path).expect("read case");
-        let case: CorpusCase = serde_json::from_str(&raw)
+        let case: DataTierCorpusCase = serde_json::from_str(&raw)
             .unwrap_or_else(|error| panic!("{}: case does not parse: {error}", path.display()));
-        assert_eq!(case.corpus, "snapback-data-tier", "{}", case.name);
-        assert_eq!(case.corpus_version, 1, "{}", case.name);
+        assert_eq!(case.corpus, DATA_TIER_CORPUS_NAME, "{}", case.name);
+        assert_eq!(
+            compatibility_outcome(
+                case.minimum_profile_version,
+                snapback::value_expr::DATA_TIER_PROFILE_VERSION,
+                snapback::value_expr::DATA_TIER_PROFILE_VERSION,
+                true,
+            ),
+            DataTierCompatibilityOutcome::Compatible,
+            "{}",
+            case.name
+        );
+        let entry = manifest
+            .cases
+            .iter()
+            .find(|entry| entry.name == case.name)
+            .unwrap_or_else(|| panic!("{} missing from corpus manifest", case.name));
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some(entry.path.as_str()),
+            "{} path drift",
+            case.name
+        );
+        let digest = format!("sha256:{:x}", Sha256::digest(raw.as_bytes()));
+        assert_eq!(digest, entry.sha256, "{} content hash drift", case.name);
 
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(SchemaManifest {
@@ -188,6 +197,7 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
                 session_id: None,
                 user_id: case.auth_user_id.clone(),
             },
+            ctx_ledger: case.ctx_ledger.clone(),
             ..HandlerInput::default()
         };
 
@@ -250,13 +260,15 @@ fn get_reads_are_captured_server_side() {
     let mut db = LocalDatabase::memory().expect("memory database");
     db.apply_schema(SchemaManifest {
         schema_hash: Some("read-capture".to_owned()),
-        tables: vec![serde_json::from_value::<TableManifest>(serde_json::json!({
-            "name": "rows",
-            "fields": [{ "name": "value", "field_type": "Json", "optional": true }],
-            "indexes": [],
-            "syncable": false
-        }))
-        .expect("table manifest")],
+        tables: vec![
+            serde_json::from_value::<TableManifest>(serde_json::json!({
+                "name": "rows",
+                "fields": [{ "name": "value", "field_type": "Json", "optional": true }],
+                "indexes": [],
+                "syncable": false
+            }))
+            .expect("table manifest"),
+        ],
         ..SchemaManifest::default()
     })
     .expect("apply schema");

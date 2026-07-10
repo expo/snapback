@@ -1,0 +1,875 @@
+{
+  "$defs": {
+    "BinaryOp": {
+      "enum": [
+        "Add",
+        "Sub",
+        "Mul",
+        "Div",
+        "Mod",
+        "Eq",
+        "Ne",
+        "Lt",
+        "Lte",
+        "Gt",
+        "Gte",
+        "And",
+        "Or"
+      ],
+      "type": "string"
+    },
+    "CtxAnswerLedger": {
+      "description": "The ctx-answer ledger (LLP 0051 D1): the ordered answers the deterministic\nctx surface gave during one invocation. Record mode produces it; replay\nmode consumes it. Reads are never ledgered — `ctx.db` reads always\nre-evaluate against the executing tier's current view; the ledger pins\n*answers* only. This is LLP 0043 M2's captured replay environment as a\ndefined channel: LLP 0008 pins the client wire to exactly\n`{generatedIds, now}`; the auth fingerprint is server-retained and never\ncrosses the client wire.",
+      "properties": {
+        "auth_fingerprint": {
+          "description": "Fingerprint of the resolved auth context the handler observed\n(LLP 0043 §Auth posture). Checked at replay when present: a mismatch\nsurfaces `SNAPBACK_AUTH_STALE_RESULT` rather than replaying under new\nauthority. Server-retained (D1 wire split) — record-mode outputs leave\nit unset on client-bound surfaces.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ids": {
+          "default": [],
+          "description": "Every host-generated id, in answer order (LLP 0008's `generatedIds`):\n`ctx.runtime.id()` answers and `ctx.db.insert` row-id generation share\none ordered sequence.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "now": {
+          "default": 0,
+          "description": "The frozen invocation clock every `ctx.runtime.now()` answered with.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "version": {
+          "default": 1,
+          "description": "Ledger format version, versioned alongside the shared data-tier\nprofile (LLP 0051 D5) so pre-extension ledgers stay replayable.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "DataTierCaseError": {
+      "properties": {
+        "code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "DataTierCaseExpectation": {
+      "properties": {
+        "changedCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataTierCaseError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": true,
+        "rows": {
+          "additionalProperties": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "DataTierCaseSchema": {
+      "properties": {
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/TableManifest"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "tables"
+      ],
+      "type": "object"
+    },
+    "FieldManifest": {
+      "properties": {
+        "field_type": {
+          "$ref": "#/$defs/FieldType"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "field_type"
+      ],
+      "type": "object"
+    },
+    "FieldType": {
+      "enum": [
+        "String",
+        "Boolean",
+        "Integer",
+        "Real",
+        "Json"
+      ],
+      "type": "string"
+    },
+    "FilterExpr": {
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/FilterOp"
+        },
+        "value": {
+          "$ref": "#/$defs/ValueExpr"
+        }
+      },
+      "required": [
+        "field",
+        "op",
+        "value"
+      ],
+      "type": "object"
+    },
+    "FilterOp": {
+      "enum": [
+        "Eq",
+        "In",
+        "Lt",
+        "Lte",
+        "Gt",
+        "Gte"
+      ],
+      "type": "string"
+    },
+    "IndexManifest": {
+      "properties": {
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "MutationPlan": {
+      "properties": {
+        "return_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReturnValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "steps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MutationStep"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "MutationStep": {
+      "description": "The data-tier v1 mutation step set (LLP 0051 D2). Two families:\nunconditional writes (`Insert`/`Patch`/`Delete`, the original plan forms)\nand the v1 extension — reads and guards (`Get`/`Guard`/`Let`, evaluated\ninside the commit transaction with reads captured server-side) plus the\ntwo closed set-oriented forms (`DeleteWhere`/`InsertEach`). General\niteration, recursion, and data-dependent cross-step control flow stay out\nof the profile permanently.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Insert": {
+              "properties": {
+                "bind_id_as": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "table": {
+                  "type": "string"
+                },
+                "values": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "table",
+                "values"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Insert"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Patch": {
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                },
+                "values": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "table",
+                "id",
+                "values"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Patch"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Delete": {
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Delete"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Point read by id, captured into the read-set. Missing is data, not\nfailure: with `else_error` unset the binding is null (composes with\n`coalesce` for the defaulting idiom); with `else_error` set the\nmutation fails with that typed code, mirroring `Guard`.",
+          "properties": {
+            "Get": {
+              "properties": {
+                "bind_as": {
+                  "type": "string"
+                },
+                "else_error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id",
+                "bind_as"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Get"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Truthiness check; failure is the author-supplied typed error code.",
+          "properties": {
+            "Guard": {
+              "properties": {
+                "cond": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "else_error": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cond",
+                "else_error"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Guard"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Bind a computed expression for later steps.",
+          "properties": {
+            "Let": {
+              "properties": {
+                "bind_as": {
+                  "type": "string"
+                },
+                "expr": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "bind_as",
+                "expr"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Let"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set-oriented delete over one table; the empty filter clears the table.\nNo more expressive than SQL `DELETE … WHERE`.",
+          "properties": {
+            "DeleteWhere": {
+              "properties": {
+                "filter": {
+                  "items": {
+                    "$ref": "#/$defs/FilterExpr"
+                  },
+                  "type": "array"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "filter"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "DeleteWhere"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "One insert per element of an argument-supplied array — a bounded\ncomprehension (fan-out capped by `MAX_INSERT_EACH_FANOUT`), not a\nloop construct. Each value is a `ValueExpr` over `item_as`.",
+          "properties": {
+            "InsertEach": {
+              "properties": {
+                "item_as": {
+                  "type": "string"
+                },
+                "source": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                },
+                "values": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "table",
+                "source",
+                "item_as",
+                "values"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "InsertEach"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ReturnValue": {
+      "oneOf": [
+        {
+          "enum": [
+            "ChangedCount"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binding": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Binding"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Document": {
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Document"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Expression-valued return (with the `Record` constructor this covers\nthe computed summaries real feed mutations return — LLP 0051 D2).",
+          "properties": {
+            "Expr": {
+              "$ref": "#/$defs/ValueExpr"
+            }
+          },
+          "required": [
+            "Expr"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TableManifest": {
+      "properties": {
+        "fields": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FieldManifest"
+          },
+          "type": "array"
+        },
+        "indexes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/IndexManifest"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "syncable": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "UnaryOp": {
+      "enum": [
+        "Not",
+        "Neg"
+      ],
+      "type": "string"
+    },
+    "ValueExpr": {
+      "description": "The data-tier v1 expression profile: a closed set — no arrows, no\nclosures, no free calls, no JS method binding — so every evaluator in\nevery language is finite work. Evaluation semantics live in one shared\nevaluator (`crate::value_expr`) and are pinned by the data-tier corpus.",
+      "oneOf": [
+        {
+          "enum": [
+            "AuthUserId",
+            "RuntimeId",
+            "RuntimeNow"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Strict arg lookup by dotted path; a missing arg is a typed error.",
+          "properties": {
+            "Arg": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Arg"
+          ],
+          "type": "object"
+        },
+        {
+          "const": "Args",
+          "description": "The whole args object — the null-safe base for optional-arg access\nvia `Field` (missing keys propagate null instead of failing).",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binding": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Binding"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Null-propagating access by arbitrary string key (hyphenated JSON keys\nare first-class; settles the IR half of Exact LLP 0329 EQ8).",
+          "properties": {
+            "Field": {
+              "properties": {
+                "base": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "base",
+                "key"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binary": {
+              "properties": {
+                "left": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "op": {
+                  "$ref": "#/$defs/BinaryOp"
+                },
+                "right": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "op",
+                "left",
+                "right"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Binary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Unary": {
+              "properties": {
+                "expr": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "op": {
+                  "$ref": "#/$defs/UnaryOp"
+                }
+              },
+              "required": [
+                "op",
+                "expr"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Unary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "If": {
+              "properties": {
+                "cond": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "else": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "then": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "cond",
+                "then",
+                "else"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "If"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "String-template lowering: concatenation of stringified parts.",
+          "properties": {
+            "Concat": {
+              "items": {
+                "$ref": "#/$defs/ValueExpr"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "Concat"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Call into the pinned function library (`value_expr::PINNED_FUNCTIONS`);\nanything else fails closed with a typed rejection.",
+          "properties": {
+            "Call": {
+              "properties": {
+                "args": {
+                  "items": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "array"
+                },
+                "func": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "func",
+                "args"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Call"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Closed record constructor — the same shape as `Insert`'s values map,\nevaluated by the same machinery.",
+          "properties": {
+            "Record": {
+              "properties": {
+                "fields": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Record"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/data-tier.case.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "args": {
+      "default": null
+    },
+    "authUserId": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "corpus": {
+      "type": "string"
+    },
+    "corpusVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ctxLedger": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CtxAnswerLedger"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expect": {
+      "$ref": "#/$defs/DataTierCaseExpectation"
+    },
+    "minimumProfileVersion": {
+      "default": 1,
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "plan": {
+      "$ref": "#/$defs/MutationPlan"
+    },
+    "requiredCapabilities": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "$ref": "#/$defs/DataTierCaseSchema"
+    },
+    "seed": {
+      "additionalProperties": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "default": {},
+      "type": "object"
+    }
+  },
+  "required": [
+    "corpus",
+    "corpusVersion",
+    "name",
+    "schema",
+    "plan",
+    "expect"
+  ],
+  "title": "DataTierCorpusCase",
+  "type": "object"
+}

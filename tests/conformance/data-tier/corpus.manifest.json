@@ -1,0 +1,271 @@
+{
+  "artifactKind": "dataTierCorpusManifest",
+  "corpus": "snapback-data-tier",
+  "corpusFormatVersion": 1,
+  "profileVersion": 1,
+  "ledgerVersion": 1,
+  "profilePath": "schemas/data-tier.profile.json",
+  "cases": [
+    {
+      "name": "todo-v2-create-todo",
+      "path": "todo-v2-create-todo.case.json",
+      "sha256": "sha256:1ac6620691da6fa619f00746046eb8ff5d015ffdf0661f4ce61401b2578ec329",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "todo-v2-set-completed",
+      "path": "todo-v2-set-completed.case.json",
+      "sha256": "sha256:f7a60b18f2f4641c53c834c7e4f294eeb1df2502be7612b84f4770258fa48c5f",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "todo-v2-patch-missing-row-is-soft",
+      "path": "todo-v2-patch-missing-row-is-soft.case.json",
+      "sha256": "sha256:306c66e65a608b7b30fd6aecfdda181172f8270e3030a230487dc7e8ef754291",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "todo-v2-delete-todo",
+      "path": "todo-v2-delete-todo.case.json",
+      "sha256": "sha256:c940f8e1b9087762289a6355df46077cc652afa485f87b8dad6be651558e3509",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "todo-create-guarded",
+      "path": "todo-create-guarded.case.json",
+      "sha256": "sha256:47da0e76b010368317def2a90380982abd2035ec9a779a02f188236f81ee422f",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "todo-create-guarded-empty-title",
+      "path": "todo-create-guarded-empty-title.case.json",
+      "sha256": "sha256:105b9f2597f2837576a0ef5244f97833dfeb585797a1257c44b6be6e7c91a1a6",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "all-aboard-reset-feed",
+      "path": "all-aboard-reset-feed.case.json",
+      "sha256": "sha256:dd1624db2e7ed9c19f47c7ec31831fa98acb2b3e1a5d6ae1ea8de795254b19f0",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "all-aboard-apply-feed-tick",
+      "path": "all-aboard-apply-feed-tick.case.json",
+      "sha256": "sha256:39f62758d4d7f0d60637c5fff5c53b3d1652302d88797baee4c265d868a2f53a",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "all-aboard-apply-feed-tick-first-run",
+      "path": "all-aboard-apply-feed-tick-first-run.case.json",
+      "sha256": "sha256:ab306322a033e97bcb8f04f93bbede66f97031885d377fe2910ed40df9ab2e96",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "all-aboard-live-snapshot-fragments",
+      "path": "all-aboard-live-snapshot-fragments.case.json",
+      "sha256": "sha256:04ae720fba70bcb99a6a3e60148217b54697caca7283e126bb487f442e924722",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-field-null-propagation",
+      "path": "expr-field-null-propagation.case.json",
+      "sha256": "sha256:fd810f2f53a3053ccdec827e8afe0fa4b1f7228828cd27a0054b7a51f5f299da",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-arithmetic-three-valued",
+      "path": "expr-arithmetic-three-valued.case.json",
+      "sha256": "sha256:6b52976804b52bd9a93a74aff5a9df260817e5c3b9922a90ccea8380086c7bb1",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-truthiness-or-vs-coalesce",
+      "path": "expr-truthiness-or-vs-coalesce.case.json",
+      "sha256": "sha256:31bd507b31466d5b90ea1b6d363ed28eb69d928d8b40356776f18ac46a491044",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-ternary-comparison",
+      "path": "expr-ternary-comparison.case.json",
+      "sha256": "sha256:15ad9247ddc4313c87739cf1f9f73f4276eb3edf8b03124e2af694903cb1ae25",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-string-template",
+      "path": "expr-string-template.case.json",
+      "sha256": "sha256:888c3d5a024b9e3790a652b676dac40c4689c85d170f1e5ad0663c127ae42fae",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-pinned-library",
+      "path": "expr-pinned-library.case.json",
+      "sha256": "sha256:db4175677f7a59beaf5b6228faa2a193748a099b73e47dc4a85eba825b278d36",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-equality-value-model",
+      "path": "expr-equality-value-model.case.json",
+      "sha256": "sha256:cf937f1d3c0d3d1da9b104c1f24c9720d55e4903202e5526513b0c8e4a36bb38",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "get-else-error",
+      "path": "get-else-error.case.json",
+      "sha256": "sha256:445a97bea5bc81cd69c625d38f3cd5c056c5b1b7f28448ea976bcbefda522bec",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "get-guard-read-check-write",
+      "path": "get-guard-read-check-write.case.json",
+      "sha256": "sha256:4cfb5ea8a3a7230087eb384f96618c8fa3239019d8d547b16b0d0adf351bba83",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "get-guard-rejects-non-owner",
+      "path": "get-guard-rejects-non-owner.case.json",
+      "sha256": "sha256:8eaefd76910d6b42befe62b606f1e8ca5aef005ad16b8ac8412d02484edd9095",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "let-binding-chain",
+      "path": "let-binding-chain.case.json",
+      "sha256": "sha256:3572d9da2dfdad3a98918206590b2dba16bad990dd7428f35f24da48840d2bf9",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "delete-where-filtered",
+      "path": "delete-where-filtered.case.json",
+      "sha256": "sha256:8ba4ab4cf51c0007ea80cfe09c572c039dc0d99669d74926a98fc07f9eaad460",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "reject-unknown-function",
+      "path": "reject-unknown-function.case.json",
+      "sha256": "sha256:ca923ac12969517b5f8e63c791d1c806c77b1a018d53be4bf432af2dc187effb",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "reject-plan-over-step-bound",
+      "path": "reject-plan-over-step-bound.case.json",
+      "sha256": "sha256:0f8f3468b38a1c30ed6367cb1869814ab156487ea7f4d8d15f1e1af5fa97c99e",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "reject-expr-over-depth-bound",
+      "path": "reject-expr-over-depth-bound.case.json",
+      "sha256": "sha256:1fefeeeefbed9d7a1d4ecb7d9c4641c57c8a447cd5078213d639770b2a4021af",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "reject-insert-each-non-array",
+      "path": "reject-insert-each-non-array.case.json",
+      "sha256": "sha256:71311f0a10826ad3cc334056c9d0d1ae26d50186c820df29b231a6a42fafc33e",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "reject-insert-each-over-fanout",
+      "path": "reject-insert-each-over-fanout.case.json",
+      "sha256": "sha256:a90bd39ab9e0c299c01340d752589ba25264dd1ac0ca86a21133833b9b0eecf4",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "reject-missing-binding",
+      "path": "reject-missing-binding.case.json",
+      "sha256": "sha256:383fefba43e530b37b4b0f3120f9c14efc31e311fffc8a691372b8af10e10bfc",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "reject-strict-arg-missing",
+      "path": "reject-strict-arg-missing.case.json",
+      "sha256": "sha256:9fd9ecc986e0f9badf67874271d6cf4dc5496871c15b9df30d3de9d00761d652",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    }
+  ]
+}

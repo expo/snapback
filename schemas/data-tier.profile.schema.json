@@ -1,0 +1,161 @@
+{
+  "$defs": {
+    "DataTierCompatibilityPolicy": {
+      "properties": {
+        "optionalTooNew": {
+          "description": "Optional cases above an evaluator's supported profile are not run.",
+          "type": "string"
+        },
+        "producerTooOld": {
+          "description": "A consumer requiring a newer producer is also a hard, typed failure.",
+          "type": "string"
+        },
+        "requiredTooNew": {
+          "description": "A required profile mismatch is a hard, typed failure.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "optionalTooNew",
+        "requiredTooNew",
+        "producerTooOld"
+      ],
+      "type": "object"
+    },
+    "DataTierGitPublication": {
+      "properties": {
+        "addressing": {
+          "type": "string"
+        },
+        "corpusDirectory": {
+          "type": "string"
+        },
+        "corpusManifestPath": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "profilePath": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "repository",
+        "addressing",
+        "profilePath",
+        "corpusManifestPath",
+        "corpusDirectory"
+      ],
+      "type": "object"
+    },
+    "DataTierPlanBounds": {
+      "properties": {
+        "maxExprDepth": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxInsertEachFanout": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxLedgerIds": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxSerializedBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxSteps": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxSteps",
+        "maxExprDepth",
+        "maxInsertEachFanout",
+        "maxSerializedBytes",
+        "maxLedgerIds"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/data-tier.profile.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "artifactKind": {
+      "type": "string"
+    },
+    "bounds": {
+      "$ref": "#/$defs/DataTierPlanBounds"
+    },
+    "caseSchemaPath": {
+      "type": "string"
+    },
+    "compatibility": {
+      "$ref": "#/$defs/DataTierCompatibilityPolicy"
+    },
+    "corpus": {
+      "type": "string"
+    },
+    "corpusFormatVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ledgerVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "pinnedFunctions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "profileVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "publication": {
+      "$ref": "#/$defs/DataTierGitPublication"
+    },
+    "publicationVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "publicationVersion",
+    "schemaVersion",
+    "profileVersion",
+    "corpusFormatVersion",
+    "ledgerVersion",
+    "corpus",
+    "bounds",
+    "pinnedFunctions",
+    "caseSchemaPath",
+    "publication",
+    "compatibility"
+  ],
+  "title": "DataTierProfile",
+  "type": "object"
+}
