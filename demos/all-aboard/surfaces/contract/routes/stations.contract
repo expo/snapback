@@ -1,0 +1,8 @@
+use AllAboard from "../app.contract"
+
+component AllAboardStationsRoute
+  props
+    route: object
+
+  view
+    AllAboard(screen="stations", initialStationId=route.search.station, initialEtaMode=route.search.eta)

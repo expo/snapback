@@ -165,23 +165,36 @@ bun run --cwd demos/all-aboard/surfaces/contract build   # -> surfaces/contract/
 surface's own `index.html` (the plugin's shell `'auto'` mode preserves it —
 ENG-22445), and is configured to emit Exact static native envelopes under
 `surfaces/contract/dist/web/__exact/native/{mac-appkit-hermes,ios-uikit-hermes}/`
-and `__exact/platform-manifest.json`. With the current registry Exact package,
-those envelopes use a `module-bundle.json` fallback instead of `startup.js`/HBC
-because the package does not ship the Exact host runtime source assets. The
-build fails if client chunks leak Node/native-only modules.
+and `__exact/platform-manifest.json`. The registry-only 0.1.2 path retains its
+module-bundle fallback; the commit-pinned LLP 0336 source gate emits production
+`startup.js` and Hermes bytecode for both hosts. The build fails if client
+chunks leak Node/native-only modules.
 
 ## Native (macOS / iOS)
 
-The same `app.contract` renders through the Exact `ExactApp` kernel host
-(`<exact>/ios/ExactApp`, targets `mac`/`ios`). Building and running that Swift
-host is out of scope for this repo, but the committed surface build path now
-generates macOS and iOS static native envelopes plus module bundles the host can
-consume. Nothing in the `.contract` is web-specific — the host and the `main.ts`
-boot differ, not the UI.
+The same routed `.contract` source renders through the Exact `ExactApp` kernel
+host (`<exact>/ios/ExactApp`, targets `mac`/`ios`). ENG-24168 built and ran the
+production envelopes on macOS and an iOS Simulator: both rendered the live
+Snapback-backed board, the native Motion pager committed a station change after
+trackpad follow/settle, and root-scoped Escape dismissed the Settings router
+presentation.
+
+For pre-publication integration, set `EXACT_ALL_ABOARD_SOURCE_ROOT` to the Exact
+checkout pinned by `exact-source.json`, then run the native source acceptance:
+
+```sh
+EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/exact \
+  node demos/all-aboard/tests/acceptance/native-source.mjs
+```
+
+That gate builds both static envelopes from the pinned Exact sources and checks
+their manifests/startup payloads. Set `EXACT_ALL_ABOARD_BUILD_HOSTS=1` on macOS
+to add clean macOS and iOS Simulator host builds. ENG-24185 tracks publishing
+the package set and advancing the normal registry-only pin.
 
 ## Capability gaps (declared, not faked)
 
-Swipe gestures (press affordances stand in), browser live-push in the Contract
-adapter (a store bridge stands in), a per-host egress allowlist, exact GTFS trip
+Browser live-push in the Contract adapter (a store bridge stands in), a per-host
+egress allowlist, exact GTFS trip
 matching, notifications, offline cache, Postgres, Cloudflare. See
 `demo.snapback.json` → `capabilityGaps` / `notClaiming`.

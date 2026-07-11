@@ -21,8 +21,8 @@
 // node_modules.
 
 import { realpathSync } from 'node:fs';
-
-import { exactContractWeb } from '@exact/devtools/contract-web';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const snapbackTarget = process.env.SNAPBACK_ALL_ABOARD_API ?? 'http://127.0.0.1:4420';
 
@@ -58,7 +58,40 @@ const sourceProvenanceProbe = {
     });
   },
 };
-export default ({ command }: { command: 'serve' | 'build' }) => ({
+function sourceAliases(exactRoot: string | undefined): Record<string, string> | undefined {
+  if (!exactRoot) return undefined;
+  const source = (...parts: string[]) => resolve(exactRoot, ...parts);
+  return {
+    '@exact/contract/runtime': source('packages/exact-contract/src/runtime/index.ts'),
+    '@exact/contract/exports': source('packages/exact-contract/src/exports.ts'),
+    '@exact/contract': source('packages/exact-contract/src/index.ts'),
+    '@exact/core/host-call-bridge': source('packages/exact-core/src/host-call-bridge.ts'),
+    '@exact/renderer/host-ops': source('packages/exact-renderer/src/host-ops.ts'),
+    '@exact/renderer/dom-mirror': source('packages/exact-renderer/src/dom-mirror.ts'),
+    '@exact/renderer/runtime': source('packages/exact-renderer/src/runtime.ts'),
+    '@exact/renderer/web-host': source('packages/exact-renderer/src/web-host.ts'),
+    '@exact/renderer': source('packages/exact-renderer/src/index.ts'),
+    '@exact/router/browser': source('packages/exact-router/src/browser.ts'),
+    '@exact/router/contract': source('packages/exact-router/src/contract.ts'),
+    '@exact/router/router': source('packages/exact-router/src/router.ts'),
+    '@exact/router/url-channel': source('packages/exact-router/src/url-channel.ts'),
+    '@exact/router': source('packages/exact-router/src/index.ts'),
+  };
+}
+
+export default async ({ command }: { command: 'serve' | 'build' }) => {
+  // G8 cross-repo acceptance pins an Exact checkout and sets this explicit
+  // source root. Normal product builds remain registry-only; the override is
+  // solely the native compatibility gate that must exercise the candidate
+  // Exact commit before its packages exist on npm.
+  const exactSourceRoot = process.env.EXACT_ALL_ABOARD_SOURCE_ROOT
+    ? realpathSync(process.env.EXACT_ALL_ABOARD_SOURCE_ROOT)
+    : undefined;
+  const contractWebModule = exactSourceRoot
+    ? await import(pathToFileURL(resolve(exactSourceRoot, 'packages/exact-devtools/src/contract-web.ts')).href)
+    : await import('@exact/devtools/contract-web');
+  const { exactContractWeb } = contractWebModule;
+  return ({
   root: __dirname,
   plugins: [
     sourceProvenanceProbe,
@@ -80,6 +113,9 @@ export default ({ command }: { command: 'serve' | 'build' }) => ({
     // would leave the stream transport permanently connecting.
     __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackTarget),
   },
+  resolve: {
+    alias: sourceAliases(exactSourceRoot),
+  },
   server: {
     host: '127.0.0.1',
     port: 5178,
@@ -96,4 +132,5 @@ export default ({ command }: { command: 'serve' | 'build' }) => ({
       },
     },
   },
-});
+  });
+};

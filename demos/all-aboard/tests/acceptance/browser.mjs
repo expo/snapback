@@ -70,7 +70,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 31;
+const EXPECTED_CHECKS = 32;
 
 // ENG-23727 warm-start bar: first useful board paint within this budget of
 // the surface script starting to execute (module fetch latency is Vite's,
@@ -697,6 +697,21 @@ async function main() {
       const home = await page.exists('station-header');
       if (!home) throw new Error('Done did not return to the board');
       return { onSettings, hasEta };
+    });
+
+    await suite.check('router presentation owns Escape dismissal (no app gesture glue)', async () => {
+      await page.click('open-settings');
+      const before = await page.exists('settings-screen');
+      if (!before) throw new Error('settings presentation did not open');
+      await page.eval(`(async () => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      })()`);
+      const home = await page.exists('station-header');
+      if (!home) throw new Error('router-owned Escape did not dismiss the presentation');
+      const pathname = await page.eval(`window.location.pathname`);
+      if (pathname !== '/') throw new Error(`Escape left the router at ${pathname}`);
+      return { before, home, pathname };
     });
 
     // Directions and station access (ENG-23795). Opening a maps app is web

@@ -1,7 +1,7 @@
 {
   "id": "all-aboard",
   "title": "All Aboard",
-  "description": "Caltrain next-train demo: nearest station, next north/south trains, live departure predictions from 511.org StopMonitoring when configured, and routed walk/bike ETAs through a server-side directions action. White-board Contract/Exact surface under a Caltrain-red station header with day-rotating hand-drawn scenes (ENG-23719), over generated Snapback artifacts — gesture-driven on web (surface glue), native macOS/iOS-ready.",
+  "description": "Caltrain next-train demo: nearest station, next north/south trains, live departure predictions from 511.org StopMonitoring when configured, and routed walk/bike ETAs through a server-side directions action. White-board Contract/Exact surface under a Caltrain-red station header with day-rotating hand-drawn scenes (ENG-23719), over generated Snapback artifacts — routed and gesture-complete on web, macOS, and iOS through Exact LLP 0336.",
   "iconUrl": "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20128%20128'%3E%3Crect%20width='128'%20height='128'%20rx='28'%20fill='%2305070f'/%3E%3Cpath%20d='M25%2082h78'%20stroke='%23f4d35e'%20stroke-width='7'%20stroke-linecap='round'/%3E%3Cpath%20d='M38%2032h52a12%2012%200%200%201%2012%2012v30a12%2012%200%200%201-12%2012H38a12%2012%200%200%201-12-12V44a12%2012%200%200%201%2012-12Z'%20fill='%23f7f7f2'/%3E%3Cpath%20d='M38%2044h52v18H38z'%20fill='%233062b5'/%3E%3Ccircle%20cx='45'%20cy='86'%20r='7'%20fill='%23f7f7f2'/%3E%3Ccircle%20cx='83'%20cy='86'%20r='7'%20fill='%23f7f7f2'/%3E%3Cpath%20d='M49%2072h30'%20stroke='%2305070f'%20stroke-width='5'%20stroke-linecap='round'/%3E%3C/svg%3E",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
@@ -68,15 +68,16 @@
       "toolchain": "node>=24, cargo, bun, local Google Chrome (CDP); Exact installs from the npm registry (no checkout)",
       "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "exact": {
-        "gestures": false,
+        "gestures": true,
         "geolocation": true,
         "image": true
       },
-      "gestureGlue": "swipe left/right = station, swipe up/down = train, bare tap = flip direction, arrow keys on desktop — implemented as web surface glue (surfaces/contract/gestures.ts) dispatching the declared press affordances; NOT a Contract primitive (LLP 0029 G1 stays open)"
+      "interactionModel": "Contract pager/key declarations compile to Exact's shared recognizer, arena, witness, and command path on web and the main-owned native Motion path on macOS/iOS (Exact LLP 0336 P1/P2); visible press affordances remain the agent/test path"
     },
     "native": {
-      "requirement": "generated_static_artifacts",
-      "note": "The same app.contract renders on macOS/iOS through the Exact ExactApp kernel host. The surface build emits static native envelopes for mac-appkit-hermes and ios-uikit-hermes under surfaces/contract/dist/web/__exact/native/; with the current registry Exact devtools package they carry module-bundle.json fallback payloads instead of startup.js/HBC."
+      "requirement": "commit_pinned_source_acceptance",
+      "runner": "EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/pinned/exact node demos/all-aboard/tests/acceptance/native-source.mjs",
+      "note": "The same routed Contract source renders on macOS/iOS through ExactApp. ENG-24168 built and ran production startup.js/HBC envelopes in both hosts; the source gate rebuilds both envelopes from exact-source.json's Exact commit. Set EXACT_ALL_ABOARD_BUILD_HOSTS=1 on macOS to add host builds. ENG-24185 tracks moving the normal registry pin beyond 0.1.2."
     },
     "react-control": {
       "requirement": "control_arm",
@@ -127,7 +128,7 @@
       "cron-authored delta reaches the browser through generated bindings with no poll pump (Exact LLP 0284 §5.3 item 3)",
       "second window boot is inspect-first and does not clear the first window (LLP 0034 D4 / LLP 0275 C4)",
       "paging strips declare physically adjacent cards at ±100% — no blank neighbors mid-gesture (ENG-23795)",
-      "gesture glue: header swipes page to the adjacent station, board swipes page the selected train, sheets go back on swipe right (region-scoped synthetic pointers, ENG-23719/ENG-23795)",
+      "shared interaction path: header and board pagers use Contract declarations backed by Exact web/native recognizers; router presentations own dismissal (Exact LLP 0336 P1/P2)",
       "train rows select on tap and sooner trains stay visible in compact form when a later train is selected (ENG-23795)",
       "the sticky footer carries the status dot (green live / gray not, honest non-live label), the location indicator, the Switch-to direction control, and system-style refresh/settings icons (ENG-23795)",
       "the footer gear opens the settings sheet (no bottom tabs, ENG-23719)",
@@ -140,7 +141,6 @@
     ]
   },
   "capabilityGaps": [
-    "swipe_gestures_not_in_contract",
     "maps_open_and_longpress_web_glue",
     "action_egress_per_host_allowlist",
     "exact_gtfs_trip_matching",
@@ -156,17 +156,15 @@
     "walkBike": "selected-station card uses routeEstimate through a server-side OpenRouteService/HeiGIT action when directions config is present; haversine remains the deterministic fallback and station-list estimate",
     "stationArt": "header scenes are the ENG-23684 hand-drawn originals (3 per station, 640x1136 SVG), inlined by scripts/gen-station-art.mjs into station-art.gen.mjs (~0.9MB source) and rotated by epoch day (ENG-23719) — zero runtime egress, deterministic, no attribution needed; the older poster-stylized Wikimedia photo module (station-photos.gen.mjs, ~1.5MB, credit line required) remains for the React control arm; flowing assets through the asset-storage subsystem instead of inlining is the follow-up",
     "egress": "opt-in via SNAPBACK_OUTBOUND_ACTIONS; product fetches are action-scoped and secret-backed, but the runtime grant is still coarse network:fetch rather than per-host allowlisted",
-    "gestures": "gesture-first interaction ships as web surface glue (gestures.ts) dragging the declared 3-cell paging strips 1:1 and dispatching the declared press affordances (ENG-23795); the Contract swipe primitive (LLP 0029 G1) remains the real fix and would delete the glue",
+    "gestures": "Exact LLP 0336 P1/P2 closed the pager gap with Contract pager declarations, shared command witnesses, web recognition, and native Motion; richer directional-flick vocabulary remains Exact ENG-24184 and is not required by this app",
     "mapsApps": "the directions affordance declares press= and longpress= (longpress is a real Contract event; native host-ops deliver EventType.LongPress) opening the actions sheet; on web, tap-to-open-maps, the long-press timer (the DOM mirror does not deliver onLongPress yet — filed separately), copy-address, and the persisted maps-app preference are glue (directions.ts); hosts without the glue open the sheet on press and its actions only dismiss — native URL-opening/clipboard host capabilities are the real fix (ENG-23795)",
     "webChrome": "the Exact plugin's shell 'auto' mode preserves the surface's own index.html (ENG-22445), which carries the page chrome; main.ts installWebChrome keeps an idempotent copy of the same rules so the surface also survives generated-shell hosts (height chain, dark backdrop, touch-action rules)"
   },
   "notClaiming": [
     "exact static GTFS schedule parity or GTFS-RT trip-to-schedule identity matching",
-    "swipe/pan gestures as a Contract primitive (web glue drags the declared paging strips; press affordances stand in)",
     "native maps-app deep-linking or clipboard (web glue opens URLs and copies; native hosts get the sheet without those side effects)",
     "notifications / leave-now",
     "offline/local-first live positions",
-    "a running native macOS/iOS shell in this repo",
     "multi-agency, fares, or trip planning",
     "a per-host egress allowlist (coarse network:fetch only)",
     "a high-frequency position fan-out scale benchmark"

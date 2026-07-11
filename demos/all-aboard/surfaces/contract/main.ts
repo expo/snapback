@@ -25,7 +25,7 @@
 // not what it does.
 
 import * as contractRuntime from '@exact/contract/runtime';
-import { mount, reset } from '@exact/contract/runtime';
+import { reset } from '@exact/contract/runtime';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createRenderFirstSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
@@ -38,17 +38,18 @@ import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
-import { installSheetDismissal } from './gestures';
 import { installDirections } from './directions';
 import { setBackendState, setColorScheme, setDeviceLocation, setRouteEstimateInvoker } from './data';
-import app from './app.contract';
+import { mountAllAboardRouter, type AllAboardRouterHandle } from './router';
+import { installTrainSelectionTransition } from './transitions';
 
-let disposeSheetDismissal: (() => void) | null = null;
+let routerHandle: AllAboardRouterHandle | null = null;
 let disposeDirections: (() => void) | null = null;
 let disposeRefreshAction: (() => void) | null = null;
 let disposeLocationRequest: (() => void) | null = null;
 let disposeClipperLink: (() => void) | null = null;
 let disposeColorScheme: (() => void) | null = null;
+let disposeTrainSelectionTransition: (() => void) | null = null;
 
 // Startup timing (ENG-23727 acceptance): all values are ms since timeOrigin
 // (performance.now() epoch) so the acceptance suite can compare them. The
@@ -302,7 +303,7 @@ async function mountBoard(client: SnapbackClient): Promise<void> {
     const { installContractWebHost } = await webHostReady;
     installContractWebHost();
   }
-  mount(app);
+  routerHandle = await mountAllAboardRouter();
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame((frameMs) => {
       timing.firstBoardPaintMs = frameMs;
@@ -312,16 +313,14 @@ async function mountBoard(client: SnapbackClient): Promise<void> {
     timing.firstBoardPaintMs = typeof performance !== 'undefined' ? performance.now() : 0;
   }
 
-  // P2 remainder only: sub-screen swipe/keyboard dismissal. Home paging and
-  // keys are declared in app.contract and owned by the Contract runtime.
   const rootEl = typeof document !== 'undefined' ? document.getElementById('exact-root') : null;
   if (rootEl) {
-    disposeSheetDismissal = installSheetDismissal(rootEl);
     disposeDirections = installDirections(rootEl);
     disposeRefreshAction = installRefreshAction(rootEl, client);
     disposeLocationRequest = installLocationRequest(rootEl);
     disposeClipperLink = installClipperLink(rootEl);
     disposeColorScheme = installColorScheme();
+    disposeTrainSelectionTransition = installTrainSelectionTransition(rootEl);
   }
   void watchLocation();
 }
@@ -411,17 +410,19 @@ void ready.then(({ surface, provisioned }) => {
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     if (disposeRefreshAction) disposeRefreshAction();
-    if (disposeSheetDismissal) disposeSheetDismissal();
+    routerHandle?.dispose();
     if (disposeDirections) disposeDirections();
     if (disposeLocationRequest) disposeLocationRequest();
     if (disposeClipperLink) disposeClipperLink();
     if (disposeColorScheme) disposeColorScheme();
+    if (disposeTrainSelectionTransition) disposeTrainSelectionTransition();
     disposeRefreshAction = null;
-    disposeSheetDismissal = null;
+    routerHandle = null;
     disposeDirections = null;
     disposeLocationRequest = null;
     disposeClipperLink = null;
     disposeColorScheme = null;
+    disposeTrainSelectionTransition = null;
     setRouteEstimateInvoker(null);
     renderFirst.dispose();
     resetSnapbackContractLinks();

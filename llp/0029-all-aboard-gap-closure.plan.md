@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-11 (G15 added: the update-economy family — reactive host state, a time primitive, value-based dirtiness — surfaced by the scroll-jank investigation and designed in LLP 0052); 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Revised:** 2026-07-11 (G1/G8 closed by Exact LLP 0336 P2 / ENG-24168: shared Contract pager bindings now run through native Motion on macOS/iOS, router presentations own dismissal, `gestures.ts` is deleted, and All Aboard was built and exercised in both native hosts; G15 added: the update-economy family — reactive host state, a time primitive, value-based dirtiness — surfaced by the scroll-jank investigation and designed in LLP 0052); 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
 **Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0032, LLP 0034, LLP 0036, LLP 0052, Diary 0008
 
 ## Summary
@@ -47,14 +47,14 @@ product-impact for a real transit app, not demo-impact.
 
 | # | Gap | Severity | Effort | Owner |
 |---|---|---|---|---|
-| G1 | Native pager gestures absent; web slice **closed 2026-07-11** (Exact LLP 0336 P1 / ENG-24167) | High | L | Exact LLP 0336 P2 |
+| G1 | Shared pager gestures — **closed 2026-07-11** (Exact LLP 0336 P1/P2, ENG-24167/ENG-24168) | High | L | Exact LLP 0336 |
 | G2 | Browser Contract adapter has no live-push, single-boundary — **closed 2026-07-02** (LLP 0032 P5 on LLP 0034 D1: adapter-owned live push, multi-query mode, `store.mjs` deleted, cron→Contract proof) | High | M | LLP 0020 / LLP 0008 |
 | G3 | Per-host egress allowlist not enforced (coarse `network:fetch`) | High | M | LLP 0009 |
 | G4 | Secrets seam is a static env blob, no rotation/scoping — **closed 2026-07-02** (LLP 0036 v1 slice) | Medium | M | LLP 0036 |
 | G5 | No live external feed polling (runs on recorded data) | Medium | M | LLP 0027 / LLP 0028 |
 | G6 | Cron run duration always 0; start/finish collapse — **closed 2026-07-01** (LLP 0032 S5.D8) | Low | S | LLP 0028 |
 | G7 | Stale-read / demand catch-up trigger unbuilt | Medium | M | LLP 0028 |
-| G8 | Native macOS/iOS surface not built or run here | Medium | M | Exact host / LLP 0015 |
+| G8 | Native macOS/iOS surface — **closed 2026-07-11** (ENG-24168) | Medium | M | Exact host / LLP 0015 |
 | G9 | No Contract geolocation binding (surface glue instead) | Medium | M | LLP 0020 |
 | G10 | Notifications ("leave now") not built | Low | L | Notifications (v1 named) |
 | G11 | No offline schedule cache (Online-class only) | Low | M | LLP 0008 |
@@ -62,24 +62,26 @@ product-impact for a real transit app, not demo-impact.
 | G13 | Timezone/DST simplification (client local + fixed offset) | Low | S | LLP 0027 |
 | G14 | Safe-area insets have no Contract primitive (userland device glue) | Medium | M | Exact / Contract layout |
 
-### G1 — Native pager gestures absent; web slice closed 2026-07-11 (Exact LLP 0336 P1 / ENG-24167)
+### G1 — Shared pager gestures closed 2026-07-11 (Exact LLP 0336 P1/P2)
 
-**What & evidence.** Exact LLP 0336 P1 closed the web half without adding a
+**Closed.** Exact LLP 0336 P1 closed the web half without adding a
 misleading `swipe=` event: All Aboard's station and train strips are Contract
 `pager` nodes backed by Exact's shared DOM recognizer/arena, claim regions,
 wheel normalization, arrow-key bindings, visible witnesses, mounted snapshot,
-and dispatch receipts. The old pager/home-key glue and directions long-press
-timer are gone. Native still lacks the P2 Motion presenter/recognizer and
-protocol handshake, so the cross-surface gap remains open there.
+and dispatch receipts. P2 added the main-owned Rust Motion pager, AppKit/UIKit
+recognizer adapters, protocol binding/commit handshake, native key scope, and
+router-owned presentation dismissal. The old pager/home-key/long-press/sheet
+dismissal glue is gone with `gestures.ts` itself.
 
-**Impact.** Web now delivers the zero-chrome spatial model through declared
-Contract semantics. Native still exposes only the press witnesses, so gesture
-parity and G8 remain release work.
+**Evidence.** The full browser acceptance still drives synthetic pointer and
+wheel traces. The production native envelope was built and run in both macOS
+and iOS hosts; an AppKit trackpad sequence committed one semantic station
+change after native-owned follow/settle, and root-scoped Escape dismissed a
+router presentation. The visible press witnesses remain the agent/test path.
 
-**Closing the remainder.** Land LLP 0336 P2's native minimum Motion slice and
-router presentations, run All Aboard in the native hosts, and delete the final
-sheet-dismissal glue. P1 deliberately reserves `swipe*=` fail-closed; pager is
-the honest high-level primitive for this interaction.
+P1/P2 deliberately keep `swipe*=` fail-closed; `pager` is the honest high-level
+primitive for this interaction. Richer vocabulary and the full Motion substrate
+continue under Exact ENG-24183/ENG-24184 rather than reopening this gap.
 
 **History (2026-07-01; contiguous paging 2026-07-09, ENG-23795).** The
 redesign pass shipped the swipe UX on web as demo-local surface glue:
@@ -268,31 +270,23 @@ LLP 0028 specifies. Surface `catching-up` in the activation state.
 
 **Effort.** M. **Owner.** [LLP 0028](./0028-cron-scheduled-execution.rfc.md).
 
-### G8 — Native macOS/iOS surface not built or run
+### G8 — Native macOS/iOS surface closed 2026-07-11 (ENG-24168)
 
-**What & evidence.** The same `app.contract` is native-ready (it renders through
-Exact's Rust kernel host), and the Contract surface build now emits macOS/iOS
-static native envelopes. With the current registry Exact devtools package those
-envelopes use module-bundle fallback payloads rather than startup.js/HBC because
-the package does not include Exact host runtime source assets. This repo still
-does not build or run the Swift `ExactApp` host. Snapback's admin can *serve*
-static native discovery artifacts only when `SNAPBACK_ADMIN_DIST` is configured
-(`src/contract_exact.rs`, `src/admin.rs`), otherwise it returns
-`SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE`.
+**Closed.** The same routed `.contract` source built production `startup.js` and
+Hermes bytecode envelopes for `mac-appkit-hermes` and `ios-uikit-hermes` against
+a commit-pinned Exact source checkout. Exact's Swift host built for macOS and an
+iOS Simulator, loaded the envelopes, and rendered the live Snapback-backed app.
 
-**Impact.** The multi-surface claim is *architecturally* true (one `.contract`, two
-hosts) but not *demonstrated* — no one has watched All Aboard run on a Mac or a
-phone.
+**Evidence.** Structured host logs recorded 528 rendered nodes on both hosts.
+On macOS a native horizontal wheel sequence moved the header pager and produced
+exactly one router-visible station commit after settle; opening Settings and
+pressing Escape exercised the root-scoped native key/router path. iOS rendered
+the same app from the same envelope source. The cross-repo gate rebuilds both
+native envelopes from the pinned Exact revision; ENG-24185 tracks advancing the
+ordinary npm-registry pin after publication.
 
-**Closing it.** Build `ExactApp` for `mac`/`ios`, point it at either the emitted
-static envelope or a native-enabled Exact dev server for the All Aboard surface
-(the `.contract` unchanged; the `main.ts` boot and host differ), and add a native
-acceptance check (structured tree, like the web one). Optionally wire
-`SNAPBACK_ADMIN_DIST` so the Snapback admin can serve the native envelope. Note:
-native geolocation would use the Exact location module (see G9).
-
-**Effort.** M (toolchain + a Swift build, not new UI). **Owner.** Exact host +
-[LLP 0015](./0015-demo-application-suite.plan.md) surface conventions.
+**Residual.** Publishing the Exact package set and moving the registry-only path
+off 0.1.2 is ENG-24185. Native geolocation remains G9; it was never part of G8.
 
 ### G9 — No Contract geolocation binding
 

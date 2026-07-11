@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/ccheever/exact.git",
+  "commit": "529a1bd9663ce68ccaa81263acf587fa03612ba1",
+  "issue": "ENG-24168",
+  "verifiedAt": "2026-07-11",
+  "scope": "LLP 0336 P1/P2 source integration: Contract router, web pager, native Motion pager, macOS/iOS envelopes"
+}

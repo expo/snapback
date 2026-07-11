@@ -3,7 +3,7 @@
 // app.contract `use`s is declared pure (depends on its args) so the compiler can
 // type the derives without importing the implementation.
 
-import { defineContractModule, pure } from '@exact/contract/exports';
+import { capability, defineContractModule, pure } from '@exact/contract/exports';
 
 export default defineContractModule('./data.ts', {
   getUserLocation: pure({ params: ['tick'], result: 'UserLocation', depends: 'args' }),
@@ -34,6 +34,8 @@ export default defineContractModule('./data.ts', {
   serviceColor: pure({ params: ['service'], result: 'string', depends: 'args' }),
   serviceTint: pure({ params: ['service'], result: 'string', depends: 'args' }),
   etaModeLabel: pure({ params: ['mode'], result: 'string', depends: 'args' }),
+  preferredEtaMode: pure({ params: ['fallback', 'tick'], result: 'string', depends: 'args' }),
+  setEtaModePreference: capability({ params: { mode: 'string' }, effects: ['device.preference.write'] }),
   effectiveEtaMode: pure({ params: ['station', 'mode', 'tick'], result: 'string', depends: 'args' }),
   walkBikeSummary: pure({ params: ['station', 'mode', 'tick'], result: 'string', depends: 'args' }),
   walkBikeLine: pure({ params: ['station', 'mode', 'tick'], result: 'string', depends: 'args' }),

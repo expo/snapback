@@ -1728,3 +1728,41 @@ modal long-press, and the still-deferred sheet dismissal. One useful extraction
 finding landed back in Exact: touch policy must be refreshed after every DOM
 mirror sync (not lazily on first pointerdown), and spring-back must install its
 transition after the transform helper's reset.
+
+## 2026-07-11 (third entry) — one router, native Motion, and G1/G8 close (Exact LLP 0336 P2 / ENG-24168)
+
+P2 removed the remainder instead of growing another adapter. All Aboard now has
+four filesystem-shaped Contract route modules (home, stations, settings, trip)
+behind Exact's React-free Contract router adapter. `app.contract` receives route
+props and calls router `navigate`, `replace`, `back`, and `setSearch`; screen and
+trip selection are no longer a private second navigation state. Browser history
+and the native host URL/history channel observe that same router. Settings,
+stations, and trip are router presentations, so framework-owned Escape/back
+dismissal deleted the last sheet logic from `gestures.ts`; the file is gone.
+
+The candidate Exact checkout added the native half of the same pager contract:
+complete binding descriptors cross the binary protocol, AppKit/UIKit recognizer
+adapters feed a main-owned Rust Motion pager, presenter layers follow and settle
+without per-frame runtime renders, and one generation-tokened semantic commit
+returns through Contract before re-centering. The arena kept the web rules:
+deepest eligible same-axis claim wins, equal depth fails closed, and native key
+events are root-scoped. A real integration run caught one subtle bug here:
+router-owned key callbacks were being invoked inside Contract's action state-write
+wrapper. Splitting those callback scopes made native Escape dismiss Settings
+cleanly while preserving the wrapper for actual Contract key actions.
+
+G8 is no longer an architectural assertion. A production source build emitted
+`startup.js` and Hermes bytecode for macOS and iOS; ExactApp rendered the live
+Snapback-backed board in both hosts (528 nodes in the first run). On macOS, a
+synthetic trackpad sequence over the station header produced one URL/station
+commit after native-owned follow/settle and no per-frame JS dispatch. On iOS the
+same routed Contract source rendered in the Simulator. Browser acceptance stayed
+on its synthetic pointer/wheel traces and added router-owned Escape coverage.
+
+The durable pre-publication seam is a commit-pinned source gate: Snapback records
+the Exact revision in `demos/all-aboard/exact-source.json`, builds both native
+envelopes through `EXACT_ALL_ABOARD_SOURCE_ROOT`, and optionally compiles both
+Swift hosts. The ordinary registry path remains deliberately pinned to 0.1.2;
+ENG-24185 owns publishing the coherent P1/P2 package set and advancing it.
+Exact ENG-24183 and ENG-24184 own the full Motion substrate and later interaction
+vocabulary, respectively—neither is hidden inside the now-closed G1/G8 claim.

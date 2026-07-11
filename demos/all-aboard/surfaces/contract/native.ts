@@ -4,7 +4,7 @@
 // This entry keeps the native artifact graph Contract-first and avoids pulling
 // the web-host renderer into macOS/iOS startup bundles.
 
-import { mount, reset } from '@exact/contract/runtime';
+import { reset } from '@exact/contract/runtime';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
@@ -18,7 +18,7 @@ import {
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
 import { setDeviceLocation } from './data';
-import app from './app.contract';
+import { mountAllAboardRouter, type AllAboardRouterHandle } from './router';
 
 function createApp<T extends Record<string, unknown>>(config: T): T {
   return config;
@@ -34,6 +34,7 @@ createApp({
 });
 
 let activeSurface: { dispose?: () => void } | null = null;
+let routerHandle: AllAboardRouterHandle | null = null;
 
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
 
@@ -62,7 +63,7 @@ async function boot(): Promise<void> {
   activeSurface = surface;
   configureSnapbackContractLinks(surface.links as never);
   setDeviceLocation(null, 'unavailable');
-  mount(app);
+  routerHandle = await mountAllAboardRouter();
 }
 
 const ready = boot();
@@ -72,6 +73,8 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     activeSurface?.dispose?.();
     activeSurface = null;
+    routerHandle?.dispose();
+    routerHandle = null;
     resetSnapbackContractLinks();
     reset();
   });

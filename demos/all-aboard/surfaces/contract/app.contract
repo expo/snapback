@@ -57,6 +57,11 @@ use liveTrainStatus from "../../snapback/generated/contract/liveTrainStatus.quer
 use liveDepartures from "../../snapback/generated/contract/liveDepartures.query.ts"
 use feedState from "../../snapback/generated/contract/feedState.query.ts"
 
+use navigate from "@exact/router/contract"
+use replace from "@exact/router/contract"
+use back from "@exact/router/contract"
+use setSearch from "@exact/router/contract"
+
 use getSelectedStation from "./data.ts"
 use searchStations from "./data.ts"
 use adjacentStationId from "./data.ts"
@@ -87,6 +92,8 @@ use formatCountdownMinutes from "./data.ts"
 use serviceColor from "./data.ts"
 use serviceTint from "./data.ts"
 use etaModeLabel from "./data.ts"
+use preferredEtaMode from "./data.ts"
+use setEtaModePreference from "./data.ts"
 use walkBikeLine from "./data.ts"
 use directionsLabel from "./data.ts"
 use stationAddress from "./data.ts"
@@ -102,14 +109,18 @@ use positionLabel from "./data.ts"
 use fractionPercent from "./data.ts"
 
 component AllAboard
+  props
+    screen: string = "home"
+    initialStationId: string = null
+    initialEtaMode: string = "auto"
+    routeTripId: string = null
+
   state nowMs = now()
-  state stationId = null
+  state stationId = initialStationId
   state directionOverride = null
-  state screen = "home"
-  state tripId = null
   state query = ""
   state heroOffset = 0
-  state etaMode = "auto"
+  state etaMode = preferredEtaMode(initialEtaMode, now())
   state directionsOpen = false
 
   query delayRows = liveTrainStatus({})
@@ -147,7 +158,7 @@ component AllAboard
   derive feedSource = feedSourceBadge(feedRows, nowMs)
   derive bootNote = backendStatusNote(nowMs)
   derive matches = searchStations(query, nowMs)
-  derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows, departureRows) : null
+  derive trip = routeTripId ? getTrainRun(routeTripId, nowMs, delayRows, departureRows) : null
   derive tripCall = trip ? boardingCall(trip, station.id, nowMs) : null
 
   mutation refresh = applyFeedTick
@@ -165,11 +176,11 @@ component AllAboard
   // (requestLocation/cycleMaps/openClipper) still stamp the precise clock.
   action tick writes nowMs
     nowMs = now() - now() % 5000
-  action goToStation(id) writes stationId, screen, query, heroOffset
+  action goToStation(id) writes stationId, query, heroOffset
     stationId = id
-    screen = "home"
     query = ""
     heroOffset = 0
+    replace({ to: "/", search: { station: id, eta: etaMode } })
   action toggleDirection(next) writes directionOverride, heroOffset
     directionOverride = next
     heroOffset = 0
@@ -181,6 +192,8 @@ component AllAboard
   // reachable from the explicit Settings modes.
   action toggleEtaMode writes etaMode
     etaMode = etaMode == "auto" ? "bike" : etaMode == "bike" ? "walk" : "auto"
+    setEtaModePreference(etaMode)
+    setSearch({ station: station.id, eta: etaMode })
   // The real geolocation re-request is web-surface glue (main.ts intercepts
   // the location presses, ENG-22795); the action re-stamps the clock so the
   // hint re-derives immediately once the glue updates the device location.
@@ -199,19 +212,17 @@ component AllAboard
     directionsOpen = true
   action closeDirections writes directionsOpen
     directionsOpen = false
-  action openStations writes screen, query
-    screen = "stations"
+  action openStations writes query
     query = ""
-  action openSettings writes screen
-    screen = "settings"
+    navigate({ to: "/stations", search: { station: station.id, eta: etaMode } })
+  action openSettings
+    navigate({ to: "/settings", search: { station: station.id, eta: etaMode } })
   action setQuery(value) writes query
     query = value
-  action openTrip(id) writes tripId, screen
-    tripId = id
-    screen = "trip"
-  action goHome writes screen, tripId
-    screen = "home"
-    tripId = null
+  action openTrip(id)
+    navigate({ to: "/trip/[tripId]", params: { tripId: id }, search: { station: station.id, eta: etaMode } })
+  action goHome
+    back()
   action doRefresh mutates refresh
     refresh({ trigger: "manual" })
 

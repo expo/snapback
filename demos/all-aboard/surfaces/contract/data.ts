@@ -78,6 +78,18 @@ export type MapsApp = 'default' | 'apple' | 'google';
 const MAPS_APPS: MapsApp[] = ['default', 'apple', 'google'];
 let mapsApp: MapsApp = 'default';
 
+export type EtaMode = 'auto' | 'walk' | 'bike';
+let etaModePreference: EtaMode = 'auto';
+
+export function preferredEtaMode(fallback?: string | null, _tick?: number): EtaMode {
+  if (etaModePreference !== 'auto') return etaModePreference;
+  return fallback === 'walk' || fallback === 'bike' ? fallback : 'auto';
+}
+
+export function setEtaModePreference(next: string | null): void {
+  etaModePreference = next === 'walk' || next === 'bike' ? next : 'auto';
+}
+
 export function getMapsApp(): MapsApp {
   return mapsApp;
 }
