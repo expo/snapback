@@ -1766,3 +1766,39 @@ Swift hosts. The ordinary registry path remains deliberately pinned to 0.1.2;
 ENG-24185 owns publishing the coherent P1/P2 package set and advancing it.
 Exact ENG-24183 and ENG-24184 own the full Motion substrate and later interaction
 vocabulary, respectively—neither is hidden inside the now-closed G1/G8 claim.
+
+---
+
+## Erratum (2026-07-11): the "reference-decided patch on every host" mechanism was wrong for native
+
+The thread-question entry above (2026-07-11, "Why a ticker can stall a
+scroll view at all") states that "what lands in the patch is decided by
+REFERENCE, not value" and that "the UI thread re-applied props across the
+tree once per second regardless of where JS ran." The LLP 0052 review round
+falsified the native half of that claim against the pinned
+`@exact/renderer@0.1.2` sources, and the entry stands corrected as follows
+(per the diary rules, this is an appended erratum; the original entry is
+unchanged):
+
+- The props-reference gate quoted from `dom-mirror.ts` (ENG-23260) governs
+  the **plain-web DOM mirror only** — the mirror explicitly does not install
+  when a real protocol host owns pixels.
+- On **native**, canonical element props and style were **already
+  value-diffed** before encoding (`propsEqual`, `collectChangedStyleKeys` in
+  `host-ops.ts`; only non-empty buffers dispatch) — fresh-but-value-equal
+  element props produced no protocol ops, so the UI thread did not re-apply
+  element props across the tree.
+- Native's real equality hole is **raw text**: every re-fired text binding
+  calls `updateTextContent`, which re-emits the string without comparing it
+  to the previous value, and each text set remeasures in the kernel
+  (ENG-23161). The per-second native cost was a batch of same-text ops, not
+  a tree-wide prop re-apply.
+- The web half of the entry stands: the mirror's element gate is
+  props-reference-based, the mirror shares the page's main thread, and the
+  recompute cascade is real on every host.
+
+The palette-singleton and quantization fixes were right for the right
+reasons on web and for adjacent reasons on native (they stop the recompute
+cascade and the text re-emits at the source). The corrected per-host
+mechanism table lives in LLP 0052 (Design → "the equality landscape");
+the framework-side closure is tracked there and as LLP 0029 G15.

@@ -207,13 +207,18 @@ function isDark(): boolean {
 // stable derive results; D3/D4 (value-based dirtiness, derive memoization)
 // are the framework-side closure.
 // IDENTITY MATTERS: the two palettes are module singletons, not fresh
-// objects per call. The renderer's change detection is props-REFERENCE
-// based (dom-mirror.ts "same props reference means nothing to apply",
-// ENG-23260): a derive that returns a value-equal but fresh object marks
-// every node reading it dirty, and the UI thread re-applies the whole
-// themed tree on every clock tick — the main-thread stall behind the
-// scroll jank. Stable identity per scheme means a tick that changes no
-// color contributes no theme-driven work to the patch.
+// objects per call. A fresh-but-value-equal result re-fires every reader
+// through reference-based signal propagation, and per host (the corrected
+// LLP 0052 mechanism; Diary 0008 erratum 2026-07-11): on plain web the DOM
+// mirror's element gate is props-REFERENCE based (dom-mirror.ts "same props
+// reference means nothing to apply", ENG-23260), so the mirror re-applied
+// themed elements on the main thread every tick; on native, element props
+// are value-diffed before encoding — the tick cost there was the re-fired
+// text bindings' same-text ops (updateTextContent has no equality check),
+// not element re-applies. Stable identity per scheme stops the THEME-DRIVEN
+// share of both at the source — a tick that changes no color advances no
+// palette-reader version; clock-fed bindings that don't read the palette
+// still re-fire until the LLP 0052 framework work lands.
 const LIGHT_PALETTE = buildLightPalette();
 const DARK_PALETTE = buildDarkPalette();
 

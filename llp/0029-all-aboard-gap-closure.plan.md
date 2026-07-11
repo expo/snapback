@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-11 (G1/G8 closed by Exact LLP 0336 P2 / ENG-24168: shared Contract pager bindings now run through native Motion on macOS/iOS, router presentations own dismissal, `gestures.ts` is deleted, and All Aboard was built and exercised in both native hosts; G15 added: the update-economy family — reactive host state, a time primitive, value-based dirtiness — surfaced by the scroll-jank investigation and designed in LLP 0052); 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Revised:** 2026-07-11 (G1/G8 closed by Exact LLP 0336 P2 / ENG-24168: shared Contract pager bindings now run through native Motion on macOS/iOS, router presentations own dismissal, `gestures.ts` is deleted, and All Aboard was built and exercised in both native hosts; G15 added: the update-economy family — reactive host state, a time primitive, value-based dirtiness — surfaced by the scroll-jank investigation and designed in LLP 0052); 2026-07-11 (LLP 0052 review round, same day: G15's mechanism corrected — native element props are already value-diffed before encoding, so the native hole is raw-text re-emits, not reference-based element dirtiness; G15 added to the gap table and sequencing; G9's evidence refreshed off the deleted `store.mjs`; the cache-buster inventory corrected to six seams); 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
 **Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0032, LLP 0034, LLP 0036, LLP 0052, Diary 0008
 
 ## Summary
@@ -61,6 +61,7 @@ product-impact for a real transit app, not demo-impact.
 | G12 | Walk/bike is haversine, not real routing | Low | M | LLP 0027 |
 | G13 | Timezone/DST simplification (client local + fixed offset) | Low | S | LLP 0027 |
 | G14 | Safe-area insets have no Contract primitive (userland device glue) | Medium | M | Exact / Contract layout |
+| G15 | Update economy: clock-as-invalidation convention, no time primitive, value-equality holes (web-mirror elements, raw text) | High | M–L | LLP 0052 / Exact |
 
 ### G1 — Shared pager gestures closed 2026-07-11 (Exact LLP 0336 P1/P2)
 
@@ -290,10 +291,14 @@ off 0.1.2 is ENG-24185. Native geolocation remains G9; it was never part of G8.
 
 ### G9 — No Contract geolocation binding
 
-**What & evidence.** There is no Contract geolocation capability; All Aboard wires
-`navigator.geolocation` in `main.ts` and pushes coordinates into `store.mjs`, with a
-default-station fallback when denied. Exact's own Caltrain twin skips geolocation
-entirely. Native would need the `@exact/exact-location` module instead.
+**What & evidence (refreshed 2026-07-11).** There is no Contract geolocation
+capability; All Aboard wires `navigator.geolocation` in `main.ts` (and the native
+shim in `native.ts`) and pushes coordinates into `data.ts` module state via
+`setDeviceLocation`, re-read by derives only because the ticking clock forces
+recomputation. (The `store.mjs` path this entry originally cited was deleted with
+the G2 closure.) A default-station fallback covers denial. Exact's own Caltrain
+twin skips geolocation entirely. Native would need the `@exact/exact-location`
+module instead.
 
 **Impact.** Geolocation "binds" through hand-written, web-only surface glue; the
 native surface would need a *different* path, so the one-`.contract` story has a
@@ -400,17 +405,22 @@ All Aboard is the first consumer.
 
 ### G15 — Update economy: no reactive host state, no time primitive, identity-based dirtiness
 
-**What & evidence (2026-07-11).** Three composing gaps made the app ship
-near-whole-screen patches to the UI thread on every 1s tick (the scroll-jank
-investigation, Diary 0008 2026-07-10/11): (1) glue/module state cannot
-invalidate a derive, so the ticking clock became the universal invalidation
-token — the "nowMs cache-buster" seam is reinvented five times in this one
-demo (geolocation, maps preference, color scheme, backend state, safe-area);
-(2) there is no time primitive, so wall-time enters the app dataflow at 1 Hz
-and everything downstream recomputes; (3) renderer dirtiness is
-props-REFERENCE-based (the ENG-23260 fast path), so derives returning
-fresh-but-value-equal objects mark the whole tree dirty. The VM running off
-the UI thread does not help: the patch is applied on the UI thread.
+**What & evidence (2026-07-11; mechanism corrected same day by the LLP 0052
+review round).** Three composing gaps made every 1s tick re-fire most of
+the dataflow (20 of the app's 28 top-level derives take the clock directly,
+plus their downstream readers through fresh composite results) (the scroll-jank investigation, Diary 0008 2026-07-10/11):
+(1) glue/module state cannot invalidate a derive, so the ticking clock became
+the universal invalidation token — the "nowMs cache-buster" seam appears six
+times in this one demo (geolocation, maps preference, color scheme, backend
+state, safe-area, route-estimate results); (2) there is no time primitive, so
+wall-time enters the app dataflow at 1 Hz and everything downstream
+recomputes; (3) value-equality holes at the render boundary turn the re-fires
+into host work — on plain web the DOM mirror's dirtiness is
+props-reference-based (the ENG-23260 fast path), so fresh-but-value-equal
+objects re-apply whole elements on the main thread; on native, element props
+are already value-diffed before encoding, but raw text is not — every
+re-fired text binding re-emits its string (and the kernel remeasures per text
+set), so the UI thread applied a same-text op batch every tick.
 
 **Interim (shipped 2026-07-10/11).** Clock quantization (`now() - now() %
 5000`, exploiting the signal layer's Object.is write-skip) plus reference-
@@ -418,14 +428,20 @@ stable palette singletons. Conventions, not fixes — each must be known and
 re-applied per app, per derive.
 
 **Closing it.** [LLP 0052](./0052-contract-update-economy-and-host-state.rfc.md)
-owns the design: reactive `host` bindings (subsumes G9 and the binding half
-of G14), host-side countdown/clock text plus `now(granularity)`, value-based
-dirtiness at the patch boundary, derive memoization semantics, and a
-dev-mode patch profiler.
+owns the design: reactive `host` bindings built on the signal-backed
+capability seam (subsumes G9 and the binding half of G14),
+deadline-driven time (`now(granularity)` as periodic-deadline sugar,
+`invalidateAt(deadline)` for target-relative logic, host-scheduled time
+presentation), value-completion at
+the render boundary (DOM-mirror element state; same-text skip on all hosts),
+opt-in derive memoization, and phased update-economy instrumentation
+(baseline counters first, then a provenance-joined profiler). The normative
+implementations are Exact-owned (LLP 0021's boundary); LLP 0052 records the
+requirements and evidence.
 
-**Effort.** M–L across five items (LLP 0052 sequences them; the profiler is
-S and first). **Owner.** LLP 0052 / Exact runtime; All Aboard is the first
-consumer.
+**Effort.** M–L across five items (LLP 0052 sequences them; Phase 0
+instrumentation and the cache-buster lint are S and first). **Owner.** LLP 0052 / Exact runtime; All Aboard is the first
+consumer. Tracked as ENG-24188 (umbrella) with per-stage children.
 
 ## Proposed sequencing
 
@@ -443,6 +459,11 @@ Ordered by unblocking value, not severity alone:
    read-through story LLP 0028 specifies.
 5. **Reach surfaces & features (M–L):** G8 (native run), G11 (offline cache),
    G1 (gestures), G10 (notifications) — larger, each its own effort, none blocking.
+6. **Update economy & host bindings (S first, then M–L):** G15 per LLP 0052's
+   sequencing — Phase 0 instrumentation and the derive-parameter lint land
+   first (S), then the raw-text skip, `now(granularity)`, and `host` bindings
+   (which subsume G9 and G14's binding half). G14's layout half ("surface
+   bleeds, content insets") stays with Exact/Contract layout.
 
 No single item is required for the next demo. G1 and G10 are genuinely large
 (new Exact/Notifications capabilities) and should be scheduled as their own work,
