@@ -24,7 +24,15 @@ import { realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const snapbackTarget = process.env.SNAPBACK_ALL_ABOARD_API ?? 'http://127.0.0.1:4420';
+// Page-visible API origin (injected into the browser bundle). `same-origin`
+// makes the kit use relative `/snapback/*` paths so a Tailscale/LAN Vite host
+// stays same-origin and avoids Snapback's loopback-only CORS.
+const snapbackApiOrigin = process.env.SNAPBACK_ALL_ABOARD_API ?? 'http://127.0.0.1:4420';
+// Upstream the Vite `/snapback` proxy actually dials. When the page origin is
+// `same-origin`, the proxy still needs a real localhost API target.
+const snapbackProxyTarget =
+  process.env.SNAPBACK_ALL_ABOARD_API_PROXY ??
+  (snapbackApiOrigin === 'same-origin' ? 'http://127.0.0.1:4420' : snapbackApiOrigin);
 
 // ENG-22753: dev-only source-provenance probe. The acceptance suites reuse an
 // already-running Vite only after this probe proves it serves THIS checkout's
@@ -52,7 +60,7 @@ const sourceProvenanceProbe = {
           app: 'all-aboard',
           surface: 'contract',
           root: realpathSync(__dirname),
-          apiOrigin: snapbackTarget,
+          apiOrigin: snapbackApiOrigin,
         }),
       );
     });
@@ -111,7 +119,7 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
     // under `bun --bun` never completes proxied WebSocket upgrades (the
     // ws:true proxy below logs the forward, then the tunnel hangs), which
     // would leave the stream transport permanently connecting.
-    __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackTarget),
+    __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackApiOrigin),
   },
   resolve: {
     alias: sourceAliases(exactSourceRoot),
@@ -120,9 +128,12 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
     host: '127.0.0.1',
     port: 5178,
     strictPort: false,
+    // Tailscale MagicDNS / LAN hostnames must be allowed when the UI is opened
+    // off-loopback (Vite 8 blocks unknown Host headers with 403 by default).
+    allowedHosts: true,
     proxy: {
       '/snapback': {
-        target: snapbackTarget,
+        target: snapbackProxyTarget,
         changeOrigin: true,
         // The live stream (LLP 0034 D1) is a WebSocket at
         // /snapback/live/{connection}/stream; without ws:true the proxy
