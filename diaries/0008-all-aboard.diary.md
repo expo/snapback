@@ -1627,3 +1627,75 @@ scroll span 165→(H−98) / footer 98 with controls clear of the indicator,
 then removes the global and watches the chrome return to 106/64 within a
 tick. The exact-side ExactRenderTreeTests run is noted in that repo's
 commit.
+
+## 2026-07-11 — the detail screen answers the main question; hunting the scroll jank; a morph that earns its keep
+
+Three items from live phone use.
+
+**Minutes-to-boarding on the trip screen.** The detail screen listed every
+stop's clock time but never said the one thing the app exists to say: how
+many minutes until this train reaches *your* station. New `boardingCall`
+helper (boarding stop's countdown, name, time, and an honest `departed`
+flag once its call is past) renders as a hero-styled headline card between
+the title block and the progress bar. The board and the detail screen now
+lead with the same number.
+
+**The scroll jank had a specific shape.** The 1s ticker writes `nowMs`,
+every derive recomputes (boardTrains over the whole rest of the day,
+heroStops rebuilding a trip, terminalHint, the art lookup), and the tree
+re-renders — a periodic main-thread stall that lands mid-scroll and reads
+as jank. The observation that unlocked the cheap fix: nothing visible in
+this app changes faster than minute precision, and the runtime
+equality-skips same-value state writes (signals.ts Object.is). So the tick
+stays at 1s but writes `now() - now() % 5000` — 4 of 5 ticks write the same
+number and are free; presses that need an immediate re-derive still stamp
+the precise clock. 80% of the periodic stalls gone for one line. The
+lesson generalizes: with equality-skipped writes, quantizing a clock IS the
+render throttle, no scheduler needed. (Remaining suspects if it still
+stutters on device: the non-passive wheel listener adds scroll latency on
+desktop only; and the every-5s pass still re-derives everything — caching
+boardTrains would be the next lever.)
+
+**Tap-to-select morph, via View Transitions.** Is animating the row
+expand/collapse tacky? Fast, no; slow, yes. The gesture glue now wraps
+compact-row presses in `document.startViewTransition`: the tapped row is
+named before capture, the new hero card gets the same name after the
+press's state flush (one macrotask — rendering is suppressed inside the
+callback, so no rAF there), and the browser morphs one into the other in
+170ms (duration pinned in the web-chrome CSS). Progressive enhancement all
+the way down: no API, reduced-motion, or gesture-driven presses (the strip
+already slides) fall back to the instant update. Contract note: this is
+again glue over the mirror — a declared transition primitive would subsume
+it the same way swipe= subsumes gestures.ts (ENG-24056's family).
+
+**Why a ticker can stall a scroll view at all (the thread question).** The
+VM does run off the UI thread on the native hosts — but the tick's render
+does not stay in the VM: it produces a patch the UI thread must apply, and
+what lands in the patch is decided by REFERENCE, not value. The renderer's
+change detection is props-identity based (dom-mirror.ts: "same props
+reference means nothing to apply", ENG-23260), and derives that return
+fresh-but-value-equal objects every call — themePalette was the worst,
+since every themed node reads it — mark the whole tree dirty each tick. So
+the UI thread re-applied props across the tree once per second regardless
+of where JS ran; on web (the DOM mirror shares the page's main thread)
+there is no separation at all. Two fixes landed: the clock quantization
+(above) makes 4 of 5 ticks produce no render, and themePalette now returns
+per-scheme module singletons so a render that changes no color contributes
+no theme-driven work to the patch. The general rule this leaves behind:
+under identity-based dirtiness, a derive's return-value identity is part
+of its contract — cache what didn't change.
+
+A gotcha worth recording: the first suite run after these changes failed
+3/29 with dark-palette colors where light was asserted — because the host
+Mac's auto-appearance had flipped to dark overnight, headless Chrome
+inherited prefers-color-scheme: dark, and the app now honors it. The
+feature working was the test breaking. The suite now pins every page open
+to `?appearance=light` (the override shipped for exactly this) and only the
+dark-mode check flips schemes, explicitly. If a UI follows ambient OS
+state, its tests must pin that state — "passes during the day" is a real
+failure mode.
+
+Verification: trip-detail-live 8/8 (boardingCall minutes/departed/null
+shapes); browser 29/29 on fresh ports (the trip-detail check now also asserts the
+numeric boarding countdown), with the nowMs-derived polls widened to
+tolerate the 5s clock bucket and the suite pinned to the light scheme.

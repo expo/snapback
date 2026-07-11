@@ -190,9 +190,27 @@ function isDark(): boolean {
 // relationships (warm near-black board, soft raised cards, warm hairlines,
 // a lifted Caltrain red for text accents — pure #C8102E fails contrast as
 // text on the dark board).
+//
+// @ref LLP 0052#motivation — interim update-economy mitigation: reference-
+// stable derive results; D3/D4 (value-based dirtiness, derive memoization)
+// are the framework-side closure.
+// IDENTITY MATTERS: the two palettes are module singletons, not fresh
+// objects per call. The renderer's change detection is props-REFERENCE
+// based (dom-mirror.ts "same props reference means nothing to apply",
+// ENG-23260): a derive that returns a value-equal but fresh object marks
+// every node reading it dirty, and the UI thread re-applies the whole
+// themed tree on every clock tick — the main-thread stall behind the
+// scroll jank. Stable identity per scheme means a tick that changes no
+// color contributes no theme-driven work to the patch.
+const LIGHT_PALETTE = buildLightPalette();
+const DARK_PALETTE = buildDarkPalette();
+
 export function themePalette(_tick?: number) {
-  if (!isDark()) {
-    return {
+  return isDark() ? DARK_PALETTE : LIGHT_PALETTE;
+}
+
+function buildLightPalette() {
+  return {
       scheme: 'light',
       bg: '#ffffff',
       card: '#ffffff',
@@ -220,7 +238,9 @@ export function themePalette(_tick?: number) {
       dotIdle: '#D8D2C9',
       scrim: '#00000055',
     };
-  }
+}
+
+function buildDarkPalette() {
   return {
     scheme: 'dark',
     bg: '#14171C',
@@ -804,6 +824,27 @@ export function heroStops(runId: string, stationId: string, nowMs: number, delay
     { id: 'gap', gap: true, name: '', time: '', isBoarding: false },
     ...rest.slice(-2).map(chip),
   ];
+}
+
+// The trip screen's headline number: minutes until this train reaches the
+// boarding station — the primary question of the whole app, so the detail
+// screen answers it too instead of only listing per-stop clock times. Null
+// when the trip does not serve the boarding station; `departed` once the
+// train's own call there is in the past (beyond the same grace the board
+// rows use).
+export function boardingCall(
+  trip: { stops?: Array<{ station: { id: string; shortName: string }; predictedTimeMs: number; estimated?: boolean }> } | null,
+  stationId: string,
+  nowMs: number,
+) {
+  const stop = trip?.stops?.find((s) => s.station.id === stationId);
+  if (!stop) return null;
+  return {
+    departed: Number(stop.predictedTimeMs) < nowMs - DEPARTED_GRACE_MS,
+    minutes: modelFormatCountdown(stop.predictedTimeMs, nowMs),
+    name: stop.station.shortName,
+    time: stopClockLabel(stop),
+  };
 }
 
 // The served stops from the boarding station onward — the hero chips'

@@ -162,7 +162,11 @@ async function main() {
     cdp = await connectCdp(chrome.ws);
     cleanups.push(() => cdp.close());
     page = await cdp.newPage();
-    await page.navigate(`${viteUrl}/`);
+    // Pin the scheme: the app follows the OS appearance, and this host may
+    // be in dark mode when the suite runs. The color assertions are written
+    // against the light palette; the dark-mode check flips explicitly via
+    // window.__aaSetColorScheme.
+    await page.navigate(`${viteUrl}/?appearance=light`);
 
     await suite.check('surface boots against the live Snapback backend', async () => {
       const boot = await page.eval(`(async () => {
@@ -225,12 +229,12 @@ async function main() {
       if (hasHintText) throw new Error('location hint text should be gone from the board');
       await page.setGeolocation(37.77639, -122.39472);
       await page.click('location-indicator');
-      const granted = await page.pollText('station-name', '^San Francisco$', 8000);
+      const granted = await page.pollText('station-name', '^San Francisco$', 12000);
       if (granted !== 'San Francisco') throw new Error(`nearest station not selected: ${granted}`);
       const iconColor = await page.evalPoll(
         `document.querySelector('[data-testid="location-indicator"] svg')?.getAttribute('stroke') ?? ''`,
         (c) => /0A84FF/i.test(c),
-        5000,
+        9000,
       );
       if (!/0A84FF/i.test(iconColor ?? '')) throw new Error(`footer icon did not turn blue on a device fix: ${iconColor}`);
       // The press asks for a fresh fix (maximumAge 0), not the cached one:
@@ -238,7 +242,7 @@ async function main() {
       // also restores the Mountain View start downstream checks assume.
       await page.setGeolocation(37.3894, -122.0819);
       await page.click('location-indicator');
-      const restored = await page.pollText('station-name', '^Mountain View$', 8000);
+      const restored = await page.pollText('station-name', '^Mountain View$', 12000);
       if (restored !== 'Mountain View') throw new Error(`indicator press did not re-read the position: ${restored}`);
       return { granted, iconColor, restored };
     });
@@ -301,8 +305,12 @@ async function main() {
       if (!service) throw new Error('service badge missing beside the train name');
       const caption = await page.text('position-caption');
       if (caption !== 'TRIP PROGRESS') throw new Error(`progress bar not labeled: ${caption}`);
+      // The detail screen answers the app's primary question too: minutes
+      // until this train reaches the boarding station.
+      const countdown = await page.text('trip-countdown');
+      if (!/^\d+$/.test(countdown ?? '')) throw new Error(`trip boarding countdown not numeric: ${countdown}`);
       await page.click('trip-back');
-      return { position, back, service, caption };
+      return { position, back, service, caption, countdown };
     });
 
     await suite.check('Refresh press drives refreshFeed action; freshness goes live', async () => {
@@ -401,7 +409,7 @@ async function main() {
 
     await suite.check('second window boot does not clear the first (D4 inspect-first)', async () => {
       const page2 = await cdp.newPage();
-      await page2.navigate(`${viteUrl}/`);
+      await page2.navigate(`${viteUrl}/?appearance=light`);
       const second = await page2.eval(`(async () => {
         const d = Date.now() + 20000;
         while (!window.allAboard) { if (Date.now() > d) throw new Error('second window never booted'); await new Promise(r=>setTimeout(r,50)); }
@@ -603,7 +611,7 @@ async function main() {
       const darkBg = await page.evalPoll(
         `getComputedStyle(document.querySelector('[data-testid="all-aboard-main"]')).backgroundColor`,
         (c) => c === 'rgb(20, 23, 28)',
-        4000,
+        9000,
       );
       if (darkBg !== 'rgb(20, 23, 28)') throw new Error(`board did not go dark: ${darkBg}`);
       const darkInk = await page.eval(`getComputedStyle(document.querySelector('[data-testid="active-direction"]')).color`);
@@ -614,7 +622,7 @@ async function main() {
       const restored = await page.evalPoll(
         `getComputedStyle(document.querySelector('[data-testid="all-aboard-main"]')).backgroundColor`,
         (c) => c === 'rgb(255, 255, 255)',
-        4000,
+        9000,
       );
       if (restored !== 'rgb(255, 255, 255)') throw new Error(`board did not restore to light: ${restored}`);
       return { lightBg, darkBg, darkInk };
@@ -747,7 +755,7 @@ async function main() {
       const page3 = await cdp.newPage();
       try {
         await page3.blockUrls(`${apiUrl}/*`);
-        await page3.navigate(`${viteUrl}/`);
+        await page3.navigate(`${viteUrl}/?appearance=light`);
         await page3.waitForTestId('station-name');
         const stationName = await page3.text('station-name');
         const heroMinutes = await page3.text('hero-minutes');

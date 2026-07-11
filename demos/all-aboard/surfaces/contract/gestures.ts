@@ -18,6 +18,9 @@
 //   - the sheet screens (stations / settings / trip) go back on swipe right;
 //   - arrow keys mirror the zones for desktop: ←/→ earlier/later train,
 //     ↑/↓ previous/next station (the corridor runs north→south);
+//   - tapping a compact train row morphs it into the hero card via the View
+//     Transitions API (fast, 170ms; no-op without browser support or under
+//     prefers-reduced-motion) — see onCaptureClick below;
 //   - trackpad two-finger swipes mirror the drag zones too: they arrive as
 //     WHEEL events (no pointer sequence), so a horizontal wheel gesture over
 //     the board pages the train and over the header pages the station —
@@ -359,6 +362,58 @@ export function installGestures(root: HTMLElement): Cleanup {
     }
   }
 
+  // Tap-to-select morph: selecting a train from a compact row animates the
+  // row expanding into the hero card (and the old hero collapsing away)
+  // through the View Transitions API — a fast 170ms morph (duration set in
+  // main.ts CSS), not a fade. Progressive enhancement: browsers without
+  // startViewTransition, prefers-reduced-motion users, and gesture-driven
+  // presses (dispatching=true — the pager strip already animates those via
+  // transforms) all get the plain instant update. The captured click is
+  // re-dispatched inside the transition callback; the runtime flushes state
+  // on a microtask, so one macrotask later the new tree is in the DOM and
+  // the named elements pair up: tapped row (old) -> hero card (new).
+  const reducedMotion =
+    typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let morphing = false;
+
+  function onCaptureClick(event: MouseEvent) {
+    if (dispatching || morphing || reducedMotion) return;
+    const doc = document as Document & {
+      startViewTransition?: (update: () => Promise<void> | void) => { finished: Promise<void> };
+    };
+    if (typeof doc.startViewTransition !== 'function') return;
+    if (!onHome() || directionsOpen()) return;
+    const target = event.target;
+    if (!(target instanceof Element) || typeof target.closest !== 'function') return;
+    const row = target.closest('[data-testid^="train-"]');
+    if (!(row instanceof HTMLElement)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const oldHero = q('hero-departure');
+    row.style.viewTransitionName = 'aa-train-in';
+    if (oldHero) oldHero.style.viewTransitionName = 'aa-train-out';
+    morphing = true;
+    const transition = doc.startViewTransition(async () => {
+      dispatching = true;
+      try {
+        row.click();
+      } finally {
+        dispatching = false;
+      }
+      // One macrotask: the runtime flushes the press's state write on a
+      // microtask, so the new tree is committed by the time this resolves.
+      // (No rAF here — rendering is suppressed inside the capture phase.)
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      q('hero-departure')?.style.setProperty('view-transition-name', 'aa-train-in');
+    });
+    transition.finished.catch(() => {}).finally(() => {
+      morphing = false;
+      row.style.removeProperty('view-transition-name');
+      oldHero?.style.removeProperty('view-transition-name');
+      q('hero-departure')?.style.removeProperty('view-transition-name');
+    });
+  }
+
   const onPointerUp = (event: PointerEvent) => endGesture(event, false);
   const onPointerCancel = (event: PointerEvent) => endGesture(event, true);
 
@@ -367,6 +422,7 @@ export function installGestures(root: HTMLElement): Cleanup {
   root.addEventListener('pointerup', onPointerUp);
   root.addEventListener('pointercancel', onPointerCancel);
   root.addEventListener('wheel', onWheel, { passive: false });
+  root.addEventListener('click', onCaptureClick, true);
   window.addEventListener('keydown', onKeyDown);
 
   return () => {
@@ -375,6 +431,7 @@ export function installGestures(root: HTMLElement): Cleanup {
     root.removeEventListener('pointerup', onPointerUp);
     root.removeEventListener('pointercancel', onPointerCancel);
     root.removeEventListener('wheel', onWheel);
+    root.removeEventListener('click', onCaptureClick, true);
     window.removeEventListener('keydown', onKeyDown);
     if (settleTimer) clearTimeout(settleTimer);
     if (wheelQuietTimer) clearTimeout(wheelQuietTimer);

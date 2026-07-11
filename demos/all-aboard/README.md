@@ -22,8 +22,10 @@ ellipsis and the run's last two stops (arrival at the end of the line), with
 the full stop list on the trip detail; all sooner trains stay
 visible as compact rows once paged past (the list just grows and the user
 scrolls — the primary use case is the next few trains anyway), every row
-selects its train on tap, and tapping the selected card opens the trip
-detail. The header distance line is a directions affordance (tap =
+selects its train on tap — a fast View-Transitions morph animates the row
+expanding into the selected card where the browser supports it — and
+tapping the selected card opens the trip detail, which leads with the
+minutes until that train reaches your station. The header distance line is a directions affordance (tap =
 preferred maps app, long-press = Apple Maps / Google Maps / copy-address
 sheet; ETA mode auto-picks biking beyond an 18-minute walk). The sticky
 footer carries the live-status dot (green live / gray not, with the honest

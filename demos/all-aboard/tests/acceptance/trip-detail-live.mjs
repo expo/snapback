@@ -14,7 +14,7 @@
 
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 
-const { getTrainRun, heroStops, upcomingStops, stopClockLabel } = await import('../../surfaces/contract/data.ts');
+const { getTrainRun, heroStops, boardingCall, upcomingStops, stopClockLabel } = await import('../../surfaces/contract/data.ts');
 
 const suite = createSuite('all-aboard live trip detail');
 
@@ -120,6 +120,18 @@ await runAcceptance(suite, async () => {
     const shortChips = heroStops(`live:${short._id}`, 'hillsdale', NOW, [], [short]);
     assert(shortChips.every((chip) => !chip.gap), 'short runs render every stop, no gap');
     assertEqual(shortChips[shortChips.length - 1].id, 'san-francisco', 'short run still ends at the terminal');
+  });
+
+  await suite.check('boardingCall answers minutes-to-boarding on the trip screen', async () => {
+    const boarding = liveRow(); // departs san-carlos at NOW + 5 min
+    const trip = getTrainRun(`live:${boarding._id}`, NOW, [], [boarding]);
+    const call = boardingCall(trip, 'san-carlos', NOW);
+    assert(call, 'boarding stop resolves');
+    assertEqual(call.minutes, 5, 'countdown is minutes until the boarding call');
+    assertEqual(call.departed, false, 'upcoming call is not departed');
+    const gone = boardingCall(trip, 'san-carlos', NOW + 10 * MIN);
+    assertEqual(gone.departed, true, 'a past call reads as departed');
+    assertEqual(boardingCall(trip, 'hillsdale', NOW), null, 'stations behind the boarding stop return null');
   });
 
   await suite.check('demo-schedule runs still resolve through the model unchanged', async () => {

@@ -5,8 +5,8 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
-**Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0032, LLP 0034, LLP 0036, Diary 0008
+**Revised:** 2026-07-11 (G15 added: the update-economy family — reactive host state, a time primitive, value-based dirtiness — surfaced by the scroll-jank investigation and designed in LLP 0052); 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0032, LLP 0034, LLP 0036, LLP 0052, Diary 0008
 
 ## Summary
 
@@ -405,6 +405,35 @@ content insets" split before the userland glue can be deleted.
 
 **Effort.** M (runtime wiring + notation). **Owner.** Exact / Contract layout;
 All Aboard is the first consumer.
+
+### G15 — Update economy: no reactive host state, no time primitive, identity-based dirtiness
+
+**What & evidence (2026-07-11).** Three composing gaps made the app ship
+near-whole-screen patches to the UI thread on every 1s tick (the scroll-jank
+investigation, Diary 0008 2026-07-10/11): (1) glue/module state cannot
+invalidate a derive, so the ticking clock became the universal invalidation
+token — the "nowMs cache-buster" seam is reinvented five times in this one
+demo (geolocation, maps preference, color scheme, backend state, safe-area);
+(2) there is no time primitive, so wall-time enters the app dataflow at 1 Hz
+and everything downstream recomputes; (3) renderer dirtiness is
+props-REFERENCE-based (the ENG-23260 fast path), so derives returning
+fresh-but-value-equal objects mark the whole tree dirty. The VM running off
+the UI thread does not help: the patch is applied on the UI thread.
+
+**Interim (shipped 2026-07-10/11).** Clock quantization (`now() - now() %
+5000`, exploiting the signal layer's Object.is write-skip) plus reference-
+stable palette singletons. Conventions, not fixes — each must be known and
+re-applied per app, per derive.
+
+**Closing it.** [LLP 0052](./0052-contract-update-economy-and-host-state.rfc.md)
+owns the design: reactive `host` bindings (subsumes G9 and the binding half
+of G14), host-side countdown/clock text plus `now(granularity)`, value-based
+dirtiness at the patch boundary, derive memoization semantics, and a
+dev-mode patch profiler.
+
+**Effort.** M–L across five items (LLP 0052 sequences them; the profiler is
+S and first). **Owner.** LLP 0052 / Exact runtime; All Aboard is the first
+consumer.
 
 ## Proposed sequencing
 

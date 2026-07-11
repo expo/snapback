@@ -128,6 +128,9 @@ function installWebChrome(): void {
     /* The directions affordance long-presses into the sheet (ENG-23795):
        keep the browser's own touch callout/selection off it. */
     [data-testid^="station-directions-"] { cursor: pointer; -webkit-touch-callout: none; }
+    /* Tap-to-select morph (gestures.ts onCaptureClick): quick, not showy. */
+    ::view-transition-group(*) { animation-duration: 170ms; }
+    ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 170ms; }
     input::placeholder { color: rgba(26, 31, 39, 0.4); }
     body[data-aa-scheme="dark"] input::placeholder { color: rgba(242, 244, 247, 0.4); }
     #boot-status { display: none; position: fixed; left: 16px; bottom: 16px; z-index: 99; max-width: min(520px, calc(100vw - 32px));

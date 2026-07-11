@@ -27,6 +27,7 @@ export default defineContractModule('./data.ts', {
   shortHeadsign: pure({ params: ['departure'], result: 'string', depends: 'args' }),
   getTrainRun: pure({ params: ['runId', 'nowMs', 'delayRows'], result: 'TrainRun', depends: 'args' }),
   heroStops: pure({ params: ['runId', 'stationId', 'nowMs', 'delayRows', 'departureRows'], result: 'HeroStopChip[]', depends: 'args' }),
+  boardingCall: pure({ params: ['trip', 'stationId', 'nowMs'], result: 'BoardingCall', depends: 'args' }),
   upcomingStops: pure({ params: ['runId', 'stationId', 'nowMs', 'limit', 'delayRows'], result: 'TripStop[]', depends: 'args' }),
   formatClockTime: pure({ params: ['timestamp'], result: 'string', depends: 'args' }),
   formatCountdownMinutes: pure({ params: ['target', 'nowMs'], result: 'number', depends: 'args' }),

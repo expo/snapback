@@ -6,8 +6,9 @@
 // generated liveTrainStatus/liveDepartures/feedState descriptors — server push
 // over the shared live socket (LLP 0034 D1; Exact LLP 0284 §5.3), no
 // hand-written pump, no store. The view derives from pure helpers in ./data.ts,
-// passing the bound rows as arguments. A 1s `every` ticker advances nowMs so
-// countdowns tick (UI clock, not transport). The delays region carries a
+// passing the bound rows as arguments. A 1s `every` ticker advances nowMs —
+// quantized to 5s buckets, so only every fifth tick actually re-renders —
+// and countdowns tick (UI clock, not transport). The delays region carries a
 // `stale rows` arm (Exact LLP 0284 §2.2 connection sugar): on a missed
 // freshness budget the board keeps rendering last-known delays under a visible
 // reconnecting note.
@@ -82,6 +83,7 @@ use delayLabel from "./data.ts"
 use delayColor from "./data.ts"
 use shortHeadsign from "./data.ts"
 use getTrainRun from "./data.ts"
+use boardingCall from "./data.ts"
 use heroStops from "./data.ts"
 use stopClockLabel from "./data.ts"
 use formatClockTime from "./data.ts"
@@ -150,11 +152,23 @@ component AllAboard
   derive bootNote = backendStatusNote(nowMs)
   derive matches = searchStations(query, nowMs)
   derive trip = tripId ? getTrainRun(tripId, nowMs, delayRows, departureRows) : null
+  derive tripCall = trip ? boardingCall(trip, station.id, nowMs) : null
 
   mutation refresh = applyFeedTick
 
+  // @ref LLP 0052#motivation — interim update-economy mitigation: the
+  // quantized clock treats tick FREQUENCY; the framework-side closure
+  // (host bindings, time primitive, value-based dirtiness) deletes it.
+  // The clock is quantized to 5s buckets: every visible time in the app is
+  // minute-precision (countdowns, clock labels, freshness), so re-rendering
+  // each second bought nothing — and the full-tree derive+render pass every
+  // tick is exactly the periodic main-thread stall that made scrolling feel
+  // janky once the board grew to the whole rest of the day. The runtime
+  // equality-skips same-value state writes (signals.ts Object.is), so 4 of
+  // 5 ticks are free; presses that need an immediate re-derive
+  // (requestLocation/cycleMaps/openClipper) still stamp the precise clock.
   action tick writes nowMs
-    nowMs = now()
+    nowMs = now() - now() % 5000
   action goToStation(id) writes stationId, screen, query, heroOffset
     stationId = id
     screen = "home"
@@ -262,7 +276,7 @@ component AllAboard
             when screen == "settings"
               SettingsScreen(nowMs=nowMs, etaMode=etaMode, locHint=locHint, feedSource=feedSource, freshness=freshness, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, toggleEtaMode=toggleEtaMode, requestLocation=requestLocation, cycleMaps=cycleMaps, goHome=goHome)
             else
-              TripDetail(trip=trip, stationId=station.id, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, goHome=goHome)
+              TripDetail(trip=trip, tripCall=tripCall, nowMs=nowMs, stationId=station.id, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, goHome=goHome)
 
 // One header identity block — art scene beside the CALTRAIN wordmark, station
 // name, and a sub line. Used for the offscreen prev/next pager cells; the
@@ -670,6 +684,8 @@ component SettingsScreen
 component TripDetail
   props
     trip: object
+    tripCall: object
+    nowMs: number
     stationId: string
     theme: object
     topInset: number
@@ -694,6 +710,21 @@ component TripDetail
                     text trip.service size=12 weight=700 color=serviceColor(trip.service) testId="trip-service"
                 text `${trip.origin.name} → ${trip.destination.name}` size=14 color=theme.secondary
                 text `${trip.durationMinutes} min · ${trip.stopCount} stops · ${delayLabel(trip)}` size=12 color=theme.muted
+              // The headline number: minutes until this train reaches the
+              // boarding station — the app's primary question, answered here
+              // too, not just on the board. Once the train's own call at the
+              // station has passed, an honest one-line "departed" note.
+              when tripCall
+                when tripCall.departed
+                  text `Departed ${tripCall.name} · ${tripCall.time}` size=12 weight=600 color=theme.muted testId="trip-countdown-departed"
+                else
+                  row gap=8 align="flex-end" radius=16 padding=14 background=theme.heroBg borderWidth=1.5 borderColor=theme.heroBorder width="100%"
+                    text `${tripCall.minutes}` size=40 weight=800 lineHeight=38 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.ink testId="trip-countdown"
+                    text "min" size=13 weight=600 color=theme.secondary paddingBottom=3
+                    spacer
+                    column gap=1 align="flex-end" paddingBottom=2
+                      text `until it reaches ${tripCall.name}` size=12 weight=600 color=theme.body
+                      text tripCall.time size=11 family="ui-monospace, Menlo, monospace" color=theme.muted
               // The live corridor-position indicator, labeled so the bar
               // reads as progress, not decoration (ENG-23795).
               column gap=8 radius=16 padding=14 background=theme.soft borderWidth=1 borderColor=theme.hairline
