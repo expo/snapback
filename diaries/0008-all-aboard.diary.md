@@ -1564,3 +1564,66 @@ rest-of-day fade monotonic with a floor, Clipper opens clippercard.com under
 a desktop UA, dark flip restyles the board within a tick and restores);
 trip-detail-live 7/7; ref-check clean; light and dark screenshots eyeballed
 against the running dev server.
+
+## 2026-07-11 — the iPhone: safe area and the free-scrolling board (ENG-24169)
+
+First real run on a physical iPhone (screenshot feedback): the red header
+drew under the status bar with the station name colliding with the clock,
+the footer controls ran into the home-indicator corners, and the departures
+board panned in every direction instead of scrolling vertically. Three
+defects, two repos.
+
+**Safe area is a Contract gap, closed in userland.** The iOS host DOES
+publish real insets — `viewSafeAreaInsetsDidChange` → presentation
+controller → a Hermes eval that sets `globalThis.exact.safeAreaInsets` —
+and the Exact renderer even has a full safe-area system (regions,
+edge modes, contentInset-vs-framePadding strategies). Neither reaches this
+app: the renderer's system is fed from `@exact/core` window-state, whose
+`__exactSafeAreaRegionsChanged` hook only `@exact/js` window-management
+registers, and the contract native startup never loads that module. So the
+insets sit in a global nobody reads. Contract itself has no `safeArea`
+attribute (`pinToSafeArea` in layout-intent is a stub that lowers to
+nothing). The fix is the by-now-familiar device-glue seam: data.ts grows
+`safeAreaInsets(nowMs)` next to geolocation/appearance — it reads the host
+global live on every derive, so the 1s clock adopts rotation/inset changes
+within a tick — and the .contract derives `insets`, `headerHeight = 106 +
+insets.top`, `footerHeight = 64 + insets.bottom`, `barHeight = 64 +
+insets.top`, threading them as ordinary number props. The red surfaces
+bleed under the notch (height grows), only their content shifts (the pager
+strip starts at `top=topInset`; the sub-screen bars pad and keep
+`justify="center"` centering in the remaining 64). Even if the renderer
+default someday engages here it would be the wrong shape for this design —
+it pads the ROOT, showing board-white above a pushed-down header; an app
+that draws its own full-bleed chrome has to consume insets itself.
+
+**Arithmetic in attrs works.** `paddingBottom=18 + bottomInset` parses fine
+mid-attr-list — the expression grammar is expression-first and a following
+`name=` terminates it. Still computed the main heights as root derives:
+one source of truth, and the components stay dumb.
+
+**The free scroll was a host bug, not an app bug.** The board's UIScrollView
+got its contentSize from `ExactRenderTree.buildNodeSnapshot` (exact repo,
+shared iOS/macOS presenter snapshot), which bubbles descendant content
+extents up into scrollable bounds and only treated scrollView/list children
+as self-clipping. The ENG-23795 hero pager — offscreen cells at ±100%
+inside an `overflow="hidden"` wrapper — therefore leaked 2× the board
+width into the scroll's contentSize, and UIKit happily enabled horizontal
+panning over content the presenter itself clips (`clipsToBounds =
+overflow == 1`). Fixed in ExactRenderTree: `overflow == 1` children now
+clip their content contribution just like scroll containers, matching the
+presenters' visual semantics, with a regression test in
+ExactRenderTreeTests modeling exactly this pager-inside-scroll shape. The
+lesson for Contract apps: the ±100% clipped-strip paging pattern is only
+sound if every layer (web mirror, hit-testing, content sizing) honors
+overflow — the third of these didn't until today.
+
+Verification: the contract surface builds; browser acceptance 26/29 with my
+change vs 25/29 baseline on the same run environment (the 3 remaining
+failures are pre-existing light-palette assertions that fail because the
+host macOS is in Dark mode, plus a flaky boot check that passed with the
+change); a targeted CDP check injects `exact.safeAreaInsets = {top:59,
+bottom:34}` into the web surface and measures header 165 / pager top 59 /
+scroll span 165→(H−98) / footer 98 with controls clear of the indicator,
+then removes the global and watches the chrome return to 106/64 within a
+tick. The exact-side ExactRenderTreeTests run is noted in that repo's
+commit.

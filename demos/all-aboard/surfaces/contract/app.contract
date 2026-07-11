@@ -71,6 +71,7 @@ use ticketIconSvg from "./data.ts"
 use refreshIconSvg from "./data.ts"
 use settingsIconSvg from "./data.ts"
 use themePalette from "./data.ts"
+use safeAreaInsets from "./data.ts"
 use activeDirection from "./data.ts"
 use oppositeDirection from "./data.ts"
 use directionTitle from "./data.ts"
@@ -122,6 +123,15 @@ component AllAboard
   derive locHint = locationHint(nowMs)
   derive locColor = locationIndicatorColor(nowMs)
   derive theme = themePalette(nowMs)
+  // Device safe area (notch / home indicator), read live off the ticking
+  // clock like every other device-glue derive. The app owns its full-bleed
+  // chrome, so the chrome heights grow by the insets: the red surfaces
+  // extend under the status bar while their CONTENT stays inside the safe
+  // area, and the footer keeps its controls above the home indicator.
+  derive insets = safeAreaInsets(nowMs)
+  derive headerHeight = 106 + insets.top
+  derive footerHeight = 64 + insets.bottom
+  derive barHeight = 64 + insets.top
   derive activeDir = activeDirection(directionOverride, station)
   derive oppositeDir = oppositeDirection(activeDir)
   derive board = boardTrains(station.id, activeDir, nowMs, heroOffset, delayRows, departureRows, feedRows)
@@ -212,9 +222,9 @@ component AllAboard
 
         when screen == "home"
           column position="absolute" top=0 left=0 right=0 bottom=0 background=theme.bg testId="station-screen"
-            StationHeader(station=station, art=art, prevStation=prevStation, prevArt=prevArt, nextStation=nextStation, nextArt=nextArt, prevStationId=prevStationId, nextStationId=nextStationId, walkBike=walkBike, dirLabel=dirLabel, goToStation=goToStation, openStations=openStations, openDirections=openDirections)
+            StationHeader(station=station, art=art, prevStation=prevStation, prevArt=prevArt, nextStation=nextStation, nextArt=nextArt, prevStationId=prevStationId, nextStationId=nextStationId, walkBike=walkBike, dirLabel=dirLabel, topInset=insets.top, headerHeight=headerHeight, goToStation=goToStation, openStations=openStations, openDirections=openDirections)
 
-            scroll position="absolute" top=106 left=0 right=0 bottom=64 background=theme.bg testId="board-content"
+            scroll position="absolute" top=headerHeight left=0 right=0 bottom=footerHeight background=theme.bg testId="board-content"
               column gap=10 padding=18 paddingTop=14 paddingBottom=24 maxWidth=620 alignSelf="center" width="100%"
                 // The delays region dispatches on the live binding: `stale`
                 // (Exact LLP 0284 §2.2 sugar) wins over `ready` while the
@@ -241,18 +251,18 @@ component AllAboard
                   ready rows
                     DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, board=board, feedIssue=feedIssue, theme=theme, delayRows=rows, departureRows=departureRows, openTrip=openTrip, selectTrain=selectTrain, trainFirst=trainFirst)
 
-            StickyFooter(feedSource=feedSource, freshness=freshness, oppositeDir=oppositeDir, oppositeBoard=oppositeBoard, nowMs=nowMs, locColor=locColor, theme=theme, toggleDirection=toggleDirection, requestLocation=requestLocation, openClipper=openClipper, doRefresh=doRefresh, openSettings=openSettings)
+            StickyFooter(feedSource=feedSource, freshness=freshness, oppositeDir=oppositeDir, oppositeBoard=oppositeBoard, nowMs=nowMs, locColor=locColor, theme=theme, footerHeight=footerHeight, bottomInset=insets.bottom, toggleDirection=toggleDirection, requestLocation=requestLocation, openClipper=openClipper, doRefresh=doRefresh, openSettings=openSettings)
 
             when directionsOpen
-              DirectionsSheet(station=station, theme=theme, closeDirections=closeDirections)
+              DirectionsSheet(station=station, theme=theme, bottomInset=insets.bottom, closeDirections=closeDirections)
         else
           when screen == "stations"
-            StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, etaMode=etaMode, activeDir=activeDir, theme=theme, delayRows=delayRows, departureRows=departureRows, feedRows=feedRows, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
+            StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, etaMode=etaMode, activeDir=activeDir, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, delayRows=delayRows, departureRows=departureRows, feedRows=feedRows, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
           else
             when screen == "settings"
-              SettingsScreen(nowMs=nowMs, etaMode=etaMode, locHint=locHint, feedSource=feedSource, freshness=freshness, theme=theme, toggleEtaMode=toggleEtaMode, requestLocation=requestLocation, cycleMaps=cycleMaps, goHome=goHome)
+              SettingsScreen(nowMs=nowMs, etaMode=etaMode, locHint=locHint, feedSource=feedSource, freshness=freshness, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, toggleEtaMode=toggleEtaMode, requestLocation=requestLocation, cycleMaps=cycleMaps, goHome=goHome)
             else
-              TripDetail(trip=trip, stationId=station.id, theme=theme, goHome=goHome)
+              TripDetail(trip=trip, stationId=station.id, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, goHome=goHome)
 
 // One header identity block — art scene beside the CALTRAIN wordmark, station
 // name, and a sub line. Used for the offscreen prev/next pager cells; the
@@ -294,13 +304,18 @@ component StationHeader
     nextStationId: string
     walkBike: string
     dirLabel: string
+    topInset: number
+    headerHeight: number
     goToStation: (id) => void
     openStations: () => void
     openDirections: () => void
 
   view
-    column position="absolute" top=0 left=0 right=0 height=106 background="#C8102E" overflow="hidden" testId="station-header"
-      column position="absolute" top=0 left=0 right=0 bottom=0 testId="station-pager"
+    // The red surface bleeds under the status bar (height includes the top
+    // safe-area inset); the pager strip starts below the inset so the
+    // station identity and chevrons stay clear of the notch/clock.
+    column position="absolute" top=0 left=0 right=0 height=headerHeight background="#C8102E" overflow="hidden" testId="station-header"
+      column position="absolute" top=topInset left=0 right=0 bottom=0 testId="station-pager"
         when prevStationId != station.id
           column position="absolute" top=0 bottom=0 left="-100%" width="100%" justify="center" testId="header-cell-prev"
             HeaderIdentity(name=prevStation.name, art=prevArt, sub=`Zone ${prevStation.zone}`)
@@ -473,6 +488,8 @@ component StickyFooter
     nowMs: number
     locColor: string
     theme: object
+    footerHeight: number
+    bottomInset: number
     toggleDirection: (next) => void
     requestLocation: () => void
     openClipper: () => void
@@ -480,7 +497,9 @@ component StickyFooter
     openSettings: () => void
 
   view
-    column position="absolute" left=0 right=0 bottom=0 height=64 background=theme.bg testId="sticky-footer"
+    // The footer surface runs to the physical bottom edge; paddingBottom
+    // keeps the controls above the home indicator / curved corners.
+    column position="absolute" left=0 right=0 bottom=0 height=footerHeight paddingBottom=bottomInset background=theme.bg testId="sticky-footer"
       row height=1 background=theme.hairline width="100%"
       row flex=1 align="center" justify="space-between" width="100%" maxWidth=620 alignSelf="center" paddingLeft=16 paddingRight=12
         row gap=8 align="center"
@@ -525,13 +544,14 @@ component DirectionsSheet
   props
     station: object
     theme: object
+    bottomInset: number
     closeDirections: () => void
 
   view
     column position="absolute" top=0 left=0 right=0 bottom=0 testId="directions-overlay"
       button press=closeDirections label="Close directions" testId="directions-scrim" position="absolute" top=0 left=0 right=0 bottom=0 background=theme.scrim borderWidth=0 radius=0 padding=0
         column width="100%" height="100%"
-      column position="absolute" left=0 right=0 bottom=0 align="center" padding=10
+      column position="absolute" left=0 right=0 bottom=0 align="center" padding=10 paddingBottom=10 + bottomInset
         column width="100%" maxWidth=600 background=theme.card radius=18 padding=16 gap=8 testId="directions-sheet"
           column gap=2 align="flex-start" width="100%"
             text `Directions to ${station.name}` size=16 weight=800 color=theme.ink
@@ -557,6 +577,9 @@ component StationsPicker
     etaMode: string
     activeDir: string
     theme: object
+    topInset: number
+    barHeight: number
+    bottomInset: number
     delayRows: object[]
     departureRows: object[]
     feedRows: object[]
@@ -566,13 +589,13 @@ component StationsPicker
 
   view
     column position="absolute" top=0 left=0 right=0 bottom=0 background=theme.bg testId="stations-screen"
-      column position="absolute" top=0 left=0 right=0 height=64 background="#C8102E" justify="center"
+      column position="absolute" top=0 left=0 right=0 height=barHeight paddingTop=topInset background="#C8102E" justify="center"
         row justify="space-between" align="center" width="100%" maxWidth=620 alignSelf="center" paddingLeft=18 paddingRight=18
           text "Stations" size=20 weight=800 color="#ffffff" headingLevel=1
           button press=goHome label="Back" testId="stations-back" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff26" borderWidth=1 borderColor="#ffffff40"
             text "Done" size=12 weight=700 color="#ffffff"
-      scroll position="absolute" top=64 left=0 right=0 bottom=0 background=theme.bg
-        column gap=10 padding=18 maxWidth=620 alignSelf="center" width="100%"
+      scroll position="absolute" top=barHeight left=0 right=0 bottom=0 background=theme.bg
+        column gap=10 padding=18 maxWidth=620 alignSelf="center" width="100%" paddingBottom=18 + bottomInset
           input value=query change=setQuery placeholder="Search stations" label="Search stations" testId="station-search" padding=12 radius=12 background=theme.soft borderColor=theme.hairline borderWidth=1 color=theme.ink size=14
           column gap=2
             each s in matches key=s.id
@@ -594,6 +617,9 @@ component SettingsScreen
     feedSource: object
     freshness: string
     theme: object
+    topInset: number
+    barHeight: number
+    bottomInset: number
     toggleEtaMode: () => void
     requestLocation: () => void
     cycleMaps: () => void
@@ -601,13 +627,13 @@ component SettingsScreen
 
   view
     column position="absolute" top=0 left=0 right=0 bottom=0 background=theme.bg testId="settings-screen"
-      column position="absolute" top=0 left=0 right=0 height=64 background="#C8102E" justify="center"
+      column position="absolute" top=0 left=0 right=0 height=barHeight paddingTop=topInset background="#C8102E" justify="center"
         row justify="space-between" align="center" width="100%" maxWidth=620 alignSelf="center" paddingLeft=18 paddingRight=18
           text "Settings" size=20 weight=800 color="#ffffff" headingLevel=1
           button press=goHome label="Back" testId="settings-back" paddingTop=6 paddingBottom=6 paddingLeft=13 paddingRight=13 radius=999 background="#ffffff26" borderWidth=1 borderColor="#ffffff40"
             text "Done" size=12 weight=700 color="#ffffff"
-      scroll position="absolute" top=64 left=0 right=0 bottom=0 background=theme.bg
-        column gap=12 padding=18 maxWidth=620 alignSelf="center" width="100%"
+      scroll position="absolute" top=barHeight left=0 right=0 bottom=0 background=theme.bg
+        column gap=12 padding=18 maxWidth=620 alignSelf="center" width="100%" paddingBottom=18 + bottomInset
           column gap=8 radius=16 padding=14 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%"
             row justify="space-between" align="center" width="100%"
               column gap=2 align="flex-start"
@@ -646,16 +672,19 @@ component TripDetail
     trip: object
     stationId: string
     theme: object
+    topInset: number
+    barHeight: number
+    bottomInset: number
     goHome: () => void
 
   view
     column position="absolute" top=0 left=0 right=0 bottom=0 background=theme.bg testId="trip-screen"
-      column position="absolute" top=0 left=0 right=0 height=64 background="#C8102E" justify="center"
+      column position="absolute" top=0 left=0 right=0 height=barHeight paddingTop=topInset background="#C8102E" justify="center"
         row justify="space-between" align="center" width="100%" maxWidth=620 alignSelf="center" paddingLeft=8 paddingRight=18
           button press=goHome label="Back" testId="trip-back" width=44 height=44 background="transparent" borderWidth=0 justify="center" align="center"
             text "‹" size=30 weight=700 color="#ffffff"
-      scroll position="absolute" top=64 left=0 right=0 bottom=0 background=theme.bg
-        column gap=12 padding=18 maxWidth=620 alignSelf="center" width="100%"
+      scroll position="absolute" top=barHeight left=0 right=0 bottom=0 background=theme.bg
+        column gap=12 padding=18 maxWidth=620 alignSelf="center" width="100%" paddingBottom=18 + bottomInset
           when trip
             column gap=12 width="100%"
               column gap=3

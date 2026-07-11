@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Revised:** 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
 **Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0032, LLP 0034, LLP 0036, Diary 0008
 
 ## Summary
@@ -60,6 +60,7 @@ product-impact for a real transit app, not demo-impact.
 | G11 | No offline schedule cache (Online-class only) | Low | M | LLP 0008 |
 | G12 | Walk/bike is haversine, not real routing | Low | M | LLP 0027 |
 | G13 | Timezone/DST simplification (client local + fixed offset) | Low | S | LLP 0027 |
+| G14 | Safe-area insets have no Contract primitive (userland device glue) | Medium | M | Exact / Contract layout |
 
 ### G1 — Swipe/pan gestures absent in Contract
 
@@ -372,6 +373,38 @@ timezone, not a fixed offset), in a shared helper used by surface + tests, and p
 the test clock accordingly. Small and self-contained.
 
 **Effort.** S. **Owner.** [LLP 0027](./0027-all-aboard-caltrain-demo.plan.md).
+
+### G14 — Safe-area insets have no Contract primitive
+
+**What & evidence (2026-07-11, ENG-24169).** Contract has no `safeArea`
+attribute and no inset value an app can bind (`pinToSafeArea` in the runtime's
+layout-intent lowering is a stub that resolves to nothing). The Exact renderer
+carries a full safe-area system (regions, per-edge modes, contentInset vs
+framePadding strategies), but it is fed from `@exact/core` window-state, whose
+`__exactSafeAreaRegionsChanged` hook only `@exact/js` window-management
+registers — and the contract native startup never loads that module. The iOS
+host publishes real insets into `globalThis.exact.safeAreaInsets`, where they
+sat unread; on the first iPhone run the red header drew under the status bar
+and the footer ran into the home-indicator corners.
+
+**Interim (shipped with ENG-24169).** The same userland device-glue seam as
+geolocation/appearance: `data.ts` `safeAreaInsets(nowMs)` reads the host
+global live off the ticking clock (with `setSafeAreaInsets` as an explicit
+override), and the `.contract` derives chrome heights (`106 + insets.top`,
+`64 + insets.bottom`) threaded to the header/footer/scroll/sub-screens as
+number props. Correct behavior, wrong ownership — every full-bleed Contract
+app would have to re-implement this.
+
+**Closing it.** Either wire window-state into the contract native startup so
+the renderer's declarative system engages (and grow a Contract `safeArea=`
+attribute over it, letting apps opt chrome nodes in/out per edge), or expose
+the insets as a first-class Contract binding. Note the renderer default
+(container padding on root children) is the wrong shape for apps that draw
+their own full-bleed chrome — the attribute must support the "surface bleeds,
+content insets" split before the userland glue can be deleted.
+
+**Effort.** M (runtime wiring + notation). **Owner.** Exact / Contract layout;
+All Aboard is the first consumer.
 
 ## Proposed sequencing
 

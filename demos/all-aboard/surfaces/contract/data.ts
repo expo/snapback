@@ -251,6 +251,52 @@ export function themePalette(_tick?: number) {
   };
 }
 
+// --- Safe area (device-capability glue, like location and appearance) ---------
+//
+// The app draws its own full-bleed chrome (absolute sticky header/footer), so
+// it must consume the device safe area itself: the red header extends under
+// the iOS status bar / notch with its content pushed down, and the footer
+// keeps its controls above the home indicator. The native Exact host
+// publishes the real insets as `globalThis.exact.safeAreaInsets` (the
+// renderer-level safe-area system never engages for this surface: the
+// contract native startup does not register the window-management
+// __exactSafeAreaRegionsChanged hook, so window-state stays zero). Reading
+// the host global live on each derive — off the ticking clock, like every
+// other device-glue helper here — adopts inset changes (rotation, dynamic
+// island) within a second. On web the browser owns the safe area and the
+// host global is absent, so everything stays zero; setSafeAreaInsets is the
+// explicit override seam for tests and any host without the global.
+
+export type SafeAreaInsetsValue = { top: number; right: number; bottom: number; left: number };
+let safeAreaOverride: SafeAreaInsetsValue | null = null;
+
+export function setSafeAreaInsets(next: Partial<SafeAreaInsetsValue> | null): void {
+  safeAreaOverride = next
+    ? {
+        top: clampInset(next.top),
+        right: clampInset(next.right),
+        bottom: clampInset(next.bottom),
+        left: clampInset(next.left),
+      }
+    : null;
+}
+
+function clampInset(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+export function safeAreaInsets(_tick?: number): SafeAreaInsetsValue {
+  if (safeAreaOverride) return safeAreaOverride;
+  const host = (globalThis as { exact?: { safeAreaInsets?: Partial<SafeAreaInsetsValue> } })
+    .exact?.safeAreaInsets;
+  return {
+    top: clampInset(host?.top),
+    right: clampInset(host?.right),
+    bottom: clampInset(host?.bottom),
+    left: clampInset(host?.left),
+  };
+}
+
 // --- Backend attach state (board-first startup, ENG-23727) --------------------
 //
 // The board mounts before the backend attaches, so the surface needs an
