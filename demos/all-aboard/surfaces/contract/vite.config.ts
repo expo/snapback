@@ -58,15 +58,35 @@ const sourceProvenanceProbe = {
     });
   },
 };
-function sourceAliases(exactRoot: string | undefined): Record<string, string> | undefined {
-  if (!exactRoot) return undefined;
+function sourceAliases(
+  exactRoot: string | undefined,
+  command: 'serve' | 'build',
+): Record<string, string> {
+  if (!exactRoot) {
+    return {
+      '@exact/app-agent-bootstrap': resolve(__dirname, 'native-agent-bootstrap.registry.ts'),
+    };
+  }
   const source = (...parts: string[]) => resolve(exactRoot, ...parts);
   return {
+    '@exact/app-agent-bootstrap': source(
+      command === 'build'
+        ? 'js/src/native-release/app-agent-bootstrap.static.ts'
+        : 'js/src/app-agent-bootstrap.native.ts',
+    ),
+    // The lazy app bootstrap requests this canonical dev-module id. External
+    // source-pinned surfaces do not have Exact's /src tree at their Vite root,
+    // so bridge the id back to the candidate checkout explicitly.
+    '/src/agent-bootstrap.native.ts': source('js/src/agent-bootstrap.native.ts'),
     '@exact/contract/runtime': source('packages/exact-contract/src/runtime/index.ts'),
     '@exact/contract/exports': source('packages/exact-contract/src/exports.ts'),
     '@exact/contract': source('packages/exact-contract/src/index.ts'),
     '@exact/core/host-call-bridge': source('packages/exact-core/src/host-call-bridge.ts'),
     '@exact/renderer/update-economy': source('packages/exact-renderer/src/update-economy.ts'),
+    '@exact/renderer/inspector': source('packages/exact-renderer/src/inspector.ts'),
+    '@exact/renderer/text-input-preflight-diagnostics': source(
+      'packages/exact-renderer/src/text-input-preflight-diagnostics.ts',
+    ),
     '@exact/renderer/host-ops': source('packages/exact-renderer/src/host-ops.ts'),
     '@exact/renderer/dom-mirror': source('packages/exact-renderer/src/dom-mirror.ts'),
     '@exact/renderer/runtime': source('packages/exact-renderer/src/runtime.ts'),
@@ -74,6 +94,10 @@ function sourceAliases(exactRoot: string | undefined): Record<string, string> | 
     '@exact/renderer': source('packages/exact-renderer/src/index.ts'),
     '@exact/router/browser': source('packages/exact-router/src/browser.ts'),
     '@exact/router/contract': source('packages/exact-router/src/contract.ts'),
+    '@exact/router/navigation-receipts': source(
+      'packages/exact-router/src/navigation-receipts.ts',
+    ),
+    '@exact/router/runtime-state': source('packages/exact-router/src/runtime-state.ts'),
     '@exact/router/router': source('packages/exact-router/src/router.ts'),
     '@exact/router/url-channel': source('packages/exact-router/src/url-channel.ts'),
     '@exact/router': source('packages/exact-router/src/index.ts'),
@@ -121,7 +145,7 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
     ),
   },
   resolve: {
-    alias: sourceAliases(exactSourceRoot),
+    alias: sourceAliases(exactSourceRoot, command),
   },
   server: {
     host: '127.0.0.1',

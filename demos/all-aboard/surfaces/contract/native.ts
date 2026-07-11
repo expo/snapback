@@ -6,6 +6,7 @@
 
 import * as contractRuntime from '@exact/contract/runtime';
 import { reset } from '@exact/contract/runtime';
+import { ensureAppAgentBootstrap } from '@exact/app-agent-bootstrap';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
@@ -102,6 +103,12 @@ async function boot(): Promise<void> {
 }
 
 const ready = boot();
+void ensureAppAgentBootstrap().catch((error: unknown) => {
+  console.warn(
+    '[All Aboard] native agent bootstrap failed:',
+    error instanceof Error ? error.message : String(error),
+  );
+});
 (globalThis as { allAboard?: unknown }).allAboard = {
   ready,
   updateEconomy: updateEconomyDiagnostics(),
