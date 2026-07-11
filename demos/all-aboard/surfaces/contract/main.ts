@@ -40,13 +40,15 @@ import {
 } from '../../snapback/generated/contract/runtime-links';
 import { installGestures } from './gestures';
 import { installDirections } from './directions';
-import { setBackendState, setDeviceLocation, setRouteEstimateInvoker } from './data';
+import { setBackendState, setColorScheme, setDeviceLocation, setRouteEstimateInvoker } from './data';
 import app from './app.contract';
 
 let disposeGestures: (() => void) | null = null;
 let disposeDirections: (() => void) | null = null;
 let disposeRefreshAction: (() => void) | null = null;
 let disposeLocationRequest: (() => void) | null = null;
+let disposeClipperLink: (() => void) | null = null;
+let disposeColorScheme: (() => void) | null = null;
 
 // Startup timing (ENG-23727 acceptance): all values are ms since timeOrigin
 // (performance.now() epoch) so the acceptance suite can compare them. The
@@ -114,6 +116,7 @@ function installWebChrome(): void {
   style.textContent = `
     html, body, #exact-root { height: 100%; margin: 0; }
     body { background: #ffffff; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; }
+    body[data-aa-scheme="dark"] { background: #14171C; }
     #exact-root { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
     #exact-root input, #exact-root textarea { -webkit-user-select: text; user-select: text; }
     /* Gesture zones (ENG-23719): the header owns its pointer entirely (station
@@ -121,17 +124,56 @@ function installWebChrome(): void {
        horizontal axis to the train-walk gesture (gestures.ts). */
     [data-testid="station-header"] { touch-action: none; }
     [data-testid="board-content"] { touch-action: pan-y; }
-    [data-testid="location-hint"], [data-testid="settings-location"] { cursor: pointer; }
+    [data-testid="settings-location"] { cursor: pointer; }
     /* The directions affordance long-presses into the sheet (ENG-23795):
        keep the browser's own touch callout/selection off it. */
     [data-testid^="station-directions-"] { cursor: pointer; -webkit-touch-callout: none; }
     input::placeholder { color: rgba(26, 31, 39, 0.4); }
+    body[data-aa-scheme="dark"] input::placeholder { color: rgba(242, 244, 247, 0.4); }
     #boot-status { display: none; position: fixed; left: 16px; bottom: 16px; z-index: 99; max-width: min(520px, calc(100vw - 32px));
       padding: 10px 12px; border: 1px solid #b4525f; border-radius: 10px; background: #0d1322;
       color: #ffb3bd; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
     #boot-status[data-state="error"] { display: block; }
   `;
   document.head.appendChild(style);
+}
+
+// Dark mode (device-capability glue, same seam as geolocation): follow the
+// OS prefers-color-scheme, adopt flips live via the media-query change
+// listener, and honor a ?appearance=dark|light URL override — the override
+// is what lets tests and screenshots pin a scheme without OS emulation. The
+// applied scheme lands in data.ts module state (themePalette re-derives on
+// the 1s clock) and on <body data-aa-scheme> for the page backdrop.
+// window.__aaSetColorScheme is the same entry point exposed for acceptance
+// checks, which cannot synthesize a real media-query flip.
+function installColorScheme(): () => void {
+  const apply = (scheme: string) => {
+    setColorScheme(scheme);
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.dataset.aaScheme = scheme === 'dark' ? 'dark' : 'light';
+    }
+  };
+  (globalThis as { __aaSetColorScheme?: (scheme: string) => void }).__aaSetColorScheme = apply;
+
+  let override: string | null = null;
+  try {
+    override = new URL(window.location.href).searchParams.get('appearance');
+  } catch {
+    /* no usable location (non-browser host) */
+  }
+  if (override === 'dark' || override === 'light') {
+    apply(override);
+    return () => {};
+  }
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    apply('light');
+    return () => {};
+  }
+  const query = window.matchMedia('(prefers-color-scheme: dark)');
+  apply(query.matches ? 'dark' : 'light');
+  const onChange = (event: MediaQueryListEvent) => apply(event.matches ? 'dark' : 'light');
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
 }
 
 // The only visible startup chrome is a hard-failure notice (ENG-23727):
@@ -193,18 +235,45 @@ async function watchLocation(): Promise<void> {
   requestDeviceLocation();
 }
 
-// The location-hint press re-runs the geolocation request from a user gesture
-// (the .contract's press is intercepted here the same way the refresh button
-// is: geolocation is web-surface glue, not contract state).
+// A location press — the footer indicator icon or the Settings location line
+// — re-runs the geolocation request from a user gesture (the .contract's
+// press is intercepted here the same way the refresh button is: geolocation
+// is web-surface glue, not contract state).
 function installLocationRequest(rootEl: HTMLElement): () => void {
   const listener = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    if (!target.closest('[data-testid="location-hint"], [data-testid="settings-location"], [data-testid="location-indicator"]')) return;
+    if (!target.closest('[data-testid="settings-location"], [data-testid="location-indicator"]')) return;
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
     requestDeviceLocation(true);
+  };
+  rootEl.addEventListener('click', listener, true);
+  return () => rootEl.removeEventListener('click', listener, true);
+}
+
+// The footer Clipper press opens the right place to get or refill a card —
+// device-aware: the Clipper app's store listing on iOS/Android, the Clipper
+// website everywhere else. Opening URLs is a platform capability, so this is
+// web glue over the declared press (same seam as maps/geolocation); the
+// native hosts need their own URL affordance (see the LLP 0029 G1 ticket).
+function clipperUrl(): string {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent ?? '' : '';
+  if (/iPhone|iPad|iPod/.test(ua)) return 'https://apps.apple.com/us/app/clipper-card/id1481471559';
+  if (/Android/.test(ua)) return 'https://play.google.com/store/apps/details?id=com.cubic.ctp.app';
+  return 'https://www.clippercard.com/';
+}
+
+function installClipperLink(rootEl: HTMLElement): () => void {
+  const listener = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (!target.closest('[data-testid="clipper"]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    window.open(clipperUrl(), '_blank', 'noopener');
   };
   rootEl.addEventListener('click', listener, true);
   return () => rootEl.removeEventListener('click', listener, true);
@@ -253,6 +322,8 @@ async function mountBoard(client: SnapbackClient): Promise<void> {
     disposeDirections = installDirections(rootEl);
     disposeRefreshAction = installRefreshAction(rootEl, client);
     disposeLocationRequest = installLocationRequest(rootEl);
+    disposeClipperLink = installClipperLink(rootEl);
+    disposeColorScheme = installColorScheme();
   }
   void watchLocation();
 }
@@ -342,10 +413,14 @@ if (import.meta.hot) {
     if (disposeGestures) disposeGestures();
     if (disposeDirections) disposeDirections();
     if (disposeLocationRequest) disposeLocationRequest();
+    if (disposeClipperLink) disposeClipperLink();
+    if (disposeColorScheme) disposeColorScheme();
     disposeRefreshAction = null;
     disposeGestures = null;
     disposeDirections = null;
     disposeLocationRequest = null;
+    disposeClipperLink = null;
+    disposeColorScheme = null;
     setRouteEstimateInvoker(null);
     renderFirst.dispose();
     resetSnapbackContractLinks();

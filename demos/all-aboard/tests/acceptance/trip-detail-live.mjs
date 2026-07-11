@@ -1,6 +1,6 @@
 // All Aboard — live train-detail trip reconstruction acceptance (ENG-23729).
 //
-// Pure-helper checks over the Contract surface's getTrainRun/upcomingStops for
+// Pure-helper checks over the Contract surface's getTrainRun/heroStops/upcomingStops for
 // live 511 runs. 511 StopMonitoring is stop-centric — one journey shows up as
 // one liveDepartures row per monitored station — and the train detail screen
 // must join those rows back into a real trip: the full served stop sequence,
@@ -14,7 +14,7 @@
 
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 
-const { getTrainRun, upcomingStops, stopClockLabel } = await import('../../surfaces/contract/data.ts');
+const { getTrainRun, heroStops, upcomingStops, stopClockLabel } = await import('../../surfaces/contract/data.ts');
 
 const suite = createSuite('all-aboard live trip detail');
 
@@ -104,6 +104,22 @@ await runAcceptance(suite, async () => {
     assert(!stops[0].time.startsWith('~'), 'the boarding stop time is real, no approx marker');
     assert(stops[1].time.startsWith('~'), 'pattern-derived times carry the approx marker');
     assertEqual(stopClockLabel({ predictedTimeMs: NOW, estimated: false }), stopClockLabel({ predictedTimeMs: NOW }), 'absent flag renders plain');
+  });
+
+  await suite.check('heroStops chips are boarding + ellipsis + the last two stops; short runs skip the ellipsis', async () => {
+    // sb-local from San Carlos serves many more stops: boarding, gap, last 2.
+    const boarding = liveRow();
+    const chips = heroStops(`live:${boarding._id}`, 'san-carlos', NOW, [], [boarding]);
+    assertEqual(chips.length, 4, 'boarding + gap + last two');
+    assert(chips[0].isBoarding && chips[0].id === 'san-carlos', 'first chip is the boarding stop');
+    assert(chips[1].gap === true, 'second chip is the ellipsis marker');
+    assertEqual(chips[3].id, 'san-jose', 'last chip is the end of the line');
+    assert(chips[3].time.length > 0, 'terminal chip carries its arrival time');
+    // Three stops or fewer from boarding: everything fits, no ellipsis.
+    const short = liveRow({ stationId: 'hillsdale', direction: 'north', patternId: '', headsign: 'San Francisco' });
+    const shortChips = heroStops(`live:${short._id}`, 'hillsdale', NOW, [], [short]);
+    assert(shortChips.every((chip) => !chip.gap), 'short runs render every stop, no gap');
+    assertEqual(shortChips[shortChips.length - 1].id, 'san-francisco', 'short run still ends at the terminal');
   });
 
   await suite.check('demo-schedule runs still resolve through the model unchanged', async () => {

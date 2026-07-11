@@ -1402,3 +1402,165 @@ runtime-host path, and native Vite-define handling, so the temporary Bun patch
 and nearby Exact checkout asset bridge are gone. The surface remains source-
 unchanged: package aliases plus the committed lock are finally the whole Exact
 dependency story for both web and native artifacts.
+
+## 2026-07-10 — footer owns the opposite direction; the board stops repeating it
+
+Feedback pass on the ENG-23795 board, four items from screenshots of the
+running app.
+
+**One fact, one place.** The board had grown two renderings of "when is the
+other direction?": the teaser row at the bottom of the train list and the
+footer's "Switch to Southbound" control. The teaser row is gone; its one
+unique datum — the opposite direction's next-train countdown — moved into the
+footer switch ("Switch to / **Southbound** · 15 min"). Same lesson as the
+ENG-23795 direction-pill removal: when two affordances answer the same
+question, keep the one that also *does* something. In Contract terms this was
+pleasantly mechanical — delete the `when oppositeBoard.primary` block, drop
+three now-unused DirectionBoard props, pass `oppositeBoard`/`nowMs` to
+StickyFooter — the compiler's prop checking caught every call site.
+
+**No cap on the paged-past list.** `boardTrains` kept only the last 2
+paged-past trains as compact rows (`offset - 2`), which made "next train
+(+5)" show a hole: five trains paged past, three invisible. The cap is gone —
+`before` is now `rows.slice(0, offset)`. There will never be a million
+trains; a long compact list above the hero honestly communicates "you are
+many trains into the future", and the primary use case (ASAP departures,
+offset 0) never sees it anyway. One-line change in the helper, zero .contract
+changes — the each-loop just renders what it's given.
+
+**The icon is the signal.** The "Location unavailable — showing a default
+stop" hint line under the board is gone; location state now lives only in the
+footer's location icon color (blue device fix / gray fallback), with the full
+sentence retained in Settings. Removing it also removed a press affordance
+(the hint doubled as the re-prompt gesture) — the footer icon already carried
+the same press through the main.ts glue, so nothing was lost, but it's a
+reminder that in this app "text that looks like a status line" is often
+secretly a button; grep main.ts for the testId before deleting anything.
+
+**Text glyphs are not icons.** The footer's ⬉ ↻ ⚙ rendered at visibly
+different weights and optical sizes (platform font dependent) inside beige
+outlined circles — collectively scruffy. Replaced with 24-grid stroke SVGs
+(2px round strokes, feather-style) served through `image svgSource=` — the
+same inline-SVG host the hand-drawn station art uses — with the stroke color
+baked into the markup so web and native render identically, and the location
+icon taking the live indicator color. The circles lost their border and
+lightened. Contract note: `svgSource` + a string-returning helper is a
+perfectly good icon system; there is no icon primitive and this didn't miss
+one.
+
+Verification: browser suite 22/24 against the long-running reused :4420
+server — the two failures are the suite's fresh admin token vs the old
+server process (HTTP 401 on cron manual run, the Diary 0008 stale-server
+gotcha again), not the change; re-ran on fresh ports for 24/24. The
+geolocation check now drives the footer icon (`location-indicator`) and
+asserts the SVG stroke flips to #0A84FF on a device fix; the footer check
+asserts the switch countdown and the teaser's absence.
+
+## 2026-07-10 (second entry) — the card answers "when does it arrive", and the trackpad counts as a finger
+
+Two more feedback items on the board.
+
+**Stop chips point at the destination, not the next three stations.** The
+hero card's chips were `upcomingStops(…, 4)` — boarding plus the next three
+intermediate stops — which answered a question nobody on this screen asked
+(the intermediates are one tap away on the trip detail) while omitting the
+one the headsign raises: *when does it get there?* New `heroStops` helper:
+the boarding chip, an `…` marker, and the run's last two stops with their
+arrival times ("6:56p 22nd Street · 7:00p 4th & King"); runs three stops or
+shorter just show everything. The Contract `each` took a `when stop.gap`
+arm for the ellipsis without fuss — heterogeneous rows in a keyed loop are
+just a flag on the item, no separate list plumbing. `upcomingStops` stays
+(the live-reconstruction suite leans on its per-stop estimated markers),
+with a comment saying why.
+
+**Wheel events are the third input modality, and I'd shipped two.** "Swipe
+anywhere in the white area to change trains" already worked — for touch and
+mouse drags: `regionOf` routes any pointer sequence starting inside
+`board-content` to the hero pager. But a Mac trackpad two-finger swipe never
+produces a pointer sequence; it arrives as `WheelEvent`s, and the glue ate
+none of them, so the gesture the user actually performs on a laptop
+silently did nothing. Added a wheel handler scoped to the same regions
+(board pages trains, header pages stations): accumulate `deltaX` when the
+gesture is decisively horizontal, commit one page per 70px, then a 450ms
+lockout + 250ms quiet-reset so one physical swipe's event burst pages
+exactly once. `preventDefault` on the claimed events also stops Chrome's
+horizontal-overscroll history navigation from firing on the same swipe.
+Lesson for the gesture-glue ledger (LLP 0029 G1): "swipe" on the web is
+pointers AND wheel — a native host gets this for free from its scroll-view
+APIs, the DOM mirror has to remember the trackpad exists.
+
+Verification: trip-detail-live 7/7 (new heroStops shape check: long run =
+boarding/gap/last-two, short run = no gap); browser 26/26 on fresh ports —
+the two new checks assert the terminal chip matches the active direction's
+corridor terminal and that synthetic wheel bursts page forward and back
+exactly once each way.
+
+## 2026-07-10 (third entry) — footer polish, the whole day on the board, dark mode, and the native-host wall
+
+Feedback round from screenshots of both hosts (web and the native macOS app),
+plus a dark-mode request. Six items, one Linear ticket (ENG-24056).
+
+**The switch target must not read as the current direction.** The footer's
+"Switch to **Southbound**" rendered the direction name in bold Caltrain red —
+which reads as "you are on Southbound." Now gray (theme.secondary), same
+weight; the red on the board belongs to the active-direction accents only.
+
+**The board shows the whole rest of the day.** `boardTrains` capped the rows
+after the hero at 3; now it returns every remaining departure (a 96-row
+model-side limit a full Caltrain weekday direction never reaches). Rows more
+than three past the selected train fade by 0.12 per step, floored at 0.38 —
+the tail is scannable but the eye stays on the next few departures. The
+`fade` value is computed in the helper next to `offset`/`testId`; the
+.contract just says `opacity=d.fade`.
+
+**The directions sheet was pinned to the left on macOS.** `alignSelf=center`
+on an absolutely positioned node centers on the web mirror but not in the
+native kernel's layout. Restructured: an absolute full-width wrapper with
+`align="center"` and an inset, the sheet a plain flex child with
+maxWidth 600. Cross-host lesson: don't combine alignSelf with
+position=absolute in a .contract — center through a wrapper's align, which
+both layouts implement.
+
+**Tap-vs-sheet on native is a capability gap, not a design choice.** The
+user asked for "tap opens the Settings maps app, long-press opens the menu"
+— which IS the web behavior (directions.ts glue). On the native host every
+press opens the sheet because opening a URL is web glue the native kernel
+does not have. Folded into ENG-24056 rather than papered over.
+
+**Clipper button.** Fourth footer icon (stroke ticket), press intercepted by
+main.ts glue: iOS → the Clipper app's App Store listing, Android → its Play
+listing, desktop → clippercard.com. Same device-capability seam as maps and
+geolocation; on native it is declared and inert until the URL-open gap
+closes.
+
+**Swipes on the native macOS host: filed, not fixed.** All Aboard's gestures
+are ~400 lines of web glue over the DOM mirror; the native kernel has no
+counterpart and Contract has no swipe primitive to declare (LLP 0027 gap /
+LLP 0029 G1). Filed ENG-24056 (Exact project) asking for host-implemented
+gesture primitives, with the pager strips here as the ready-made test case
+and the URL-open + keyboard gaps as scoping notes.
+
+**Dark mode in a literals-everywhere .contract.** The palette-literals-
+inlined convention met its limit: theming means one source of truth per
+color. Added `themePalette(nowMs)` in data.ts — light is the shipped
+ENG-23719 palette verbatim, dark the same relationships on a warm near-black
+board (#14171C, raised cards #1E232B, lifted red accent #F06478 because
+brand #C8102E fails as text on dark) — and a `derive theme` threading the
+token object through every component as an ordinary prop. The scheme is
+device glue like geolocation: main.ts follows prefers-color-scheme, adopts
+flips live via the change listener, honors ?appearance=dark|light for
+tests/screenshots, and exposes the same setter as window.__aaSetColorScheme
+for the acceptance check. Scheme-dependent colors computed in data.ts
+(delayColor, serviceTint, feedSourceBadge, footer icon strokes) read the
+module state directly — they re-derive through the ticking clock, so no
+signature changed. The Caltrain-red header and NEXT TRAIN pill keep brand
+red in both schemes on purpose. The refactor itself was ~40 mechanical
+literal→token swaps in the .contract; the compiler's prop checking made the
+threading safe, and nothing about Contract resisted the pattern — but note
+there is no first-class theme primitive either; this is userland.
+
+Verification: browser 29/29 on fresh ports (new checks: gray switch color,
+rest-of-day fade monotonic with a floor, Clipper opens clippercard.com under
+a desktop UA, dark flip restyles the board within a tick and restores);
+trip-detail-live 7/7; ref-check clean; light and dark screenshots eyeballed
+against the running dev server.

@@ -70,7 +70,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 24;
+const EXPECTED_CHECKS = 29;
 
 // ENG-23727 warm-start bar: first useful board paint within this budget of
 // the surface script starting to execute (module fetch latency is Vite's,
@@ -212,26 +212,35 @@ async function main() {
     });
 
     // ENG-22795: granting geolocation must move the board onto the real
-    // location — via the permission change listener and the location-hint
-    // press (the gesture-driven retry) — instead of dead-ending on a silent
-    // auto-denied prompt. Position pinned to San Francisco 4th & King, far
-    // from the Mountain View default, so nearest-station selection is
-    // unambiguous. Runs before any station navigation sets stationId.
-    await suite.check('granting location adopts the real position; hint press retries the prompt', async () => {
+    // location — via the permission change listener and the footer
+    // location-indicator press (the gesture-driven retry) — instead of
+    // dead-ending on a silent auto-denied prompt. The hint-text line under
+    // the board is gone: the footer icon's color is the location signal
+    // (blue on a device fix, gray on any fallback). Position pinned to San
+    // Francisco 4th & King, far from the Mountain View default, so
+    // nearest-station selection is unambiguous. Runs before any station
+    // navigation sets stationId.
+    await suite.check('granting location adopts the real position; footer icon retries and turns blue', async () => {
+      const hasHintText = await page.eval(`!!document.querySelector('[data-testid="location-hint"]')`);
+      if (hasHintText) throw new Error('location hint text should be gone from the board');
       await page.setGeolocation(37.77639, -122.39472);
-      await page.click('location-hint');
-      const hint = await page.pollText('location-hint', 'Using your location', 8000);
-      if (!/Using your location/.test(hint ?? '')) throw new Error(`hint did not adopt device location: ${hint}`);
+      await page.click('location-indicator');
       const granted = await page.pollText('station-name', '^San Francisco$', 8000);
       if (granted !== 'San Francisco') throw new Error(`nearest station not selected: ${granted}`);
+      const iconColor = await page.evalPoll(
+        `document.querySelector('[data-testid="location-indicator"] svg')?.getAttribute('stroke') ?? ''`,
+        (c) => /0A84FF/i.test(c),
+        5000,
+      );
+      if (!/0A84FF/i.test(iconColor ?? '')) throw new Error(`footer icon did not turn blue on a device fix: ${iconColor}`);
       // The press asks for a fresh fix (maximumAge 0), not the cached one:
       // move the pinned position and tap again — the board must follow. This
       // also restores the Mountain View start downstream checks assume.
       await page.setGeolocation(37.3894, -122.0819);
-      await page.click('location-hint');
+      await page.click('location-indicator');
       const restored = await page.pollText('station-name', '^Mountain View$', 8000);
-      if (restored !== 'Mountain View') throw new Error(`hint press did not re-read the position: ${restored}`);
-      return { hint, granted, restored };
+      if (restored !== 'Mountain View') throw new Error(`indicator press did not re-read the position: ${restored}`);
+      return { granted, iconColor, restored };
     });
 
     await suite.check('press affordance: previous-station changes the station card', async () => {
@@ -242,15 +251,28 @@ async function main() {
       return { before, after };
     });
 
-    await suite.check('direction switch lives in the sticky footer, with Switch-to copy', async () => {
+    await suite.check('direction switch lives in the sticky footer, with Switch-to copy and the opposite countdown', async () => {
       // ENG-23795: the direction pill is gone; the switch is the footer's
-      // center control, "Switch to" de-emphasized over the destination.
+      // center control, "Switch to" de-emphasized over the destination. The
+      // board's opposite-direction teaser row is gone too — the footer switch
+      // carries that train's countdown instead.
       const inFooter = await page.eval(
         `!!document.querySelector('[data-testid="sticky-footer"] [data-testid="flip-direction"]')`,
       );
       if (!inFooter) throw new Error('flip-direction is not inside the sticky footer');
       const copy = await page.eval(`document.querySelector('[data-testid="flip-direction"]').textContent`);
       if (!/Switch to/.test(copy ?? '')) throw new Error(`Switch-to copy missing: ${copy}`);
+      const teaser = await page.eval(`!!document.querySelector('[data-testid="opposite-line"]')`);
+      if (teaser) throw new Error('opposite-direction teaser row should be gone from the board');
+      // The countdown renders whenever the opposite direction still has a
+      // train (the demo corridor always does); when present it must be a
+      // well-formed minutes figure.
+      const switchTime = await page.eval(`document.querySelector('[data-testid="switch-direction-time"]')?.textContent ?? ''`);
+      if (!/^\d+ min$/.test(switchTime)) throw new Error(`switch countdown missing or malformed: ${switchTime}`);
+      // The switch target is gray, not Caltrain red — red read as "this IS
+      // the current direction".
+      const switchColor = await page.eval(`getComputedStyle(document.querySelector('[data-testid="switch-direction-name"]')).color`);
+      if (switchColor !== 'rgb(87, 96, 108)') throw new Error(`switch target not de-emphasized gray: ${switchColor}`);
       const footer = await page.eval(`(() => {
         const r = document.querySelector('[data-testid="sticky-footer"]').getBoundingClientRect();
         return { bottomGap: Math.abs(window.innerHeight - r.bottom), hasDot: !!document.querySelector('[data-testid="data-source-dot"]') };
@@ -482,6 +504,120 @@ async function main() {
       const arrows = await page.eval(`!!document.querySelector('[data-testid="service-filter"]')`);
       if (arrows) throw new Error('service filter chips unexpectedly present');
       return { first, paged, back };
+    });
+
+    await suite.check('hero stop chips: boarding stop, ellipsis, then the end of the line', async () => {
+      // The chips answer "when does it leave here / when does it arrive at
+      // the end", not "what are the next few stops" — boarding chip, a gap
+      // marker when intermediate stops are elided, and the run's last two
+      // stops. The terminal chip must match the active direction's corridor
+      // terminal (every demo-schedule run serves the full pattern).
+      await page.eval(`(async () => { document.querySelector('[data-testid="train-first"]')?.click(); await new Promise(r=>setTimeout(r,300)); })()`);
+      const ids = await page.eval(
+        `Array.from(document.querySelectorAll('[data-testid="hero-departure"] [data-testid^="hero-stop-"]')).map((el) => el.getAttribute('data-testid'))`,
+      );
+      if (!Array.isArray(ids) || ids.length < 2) throw new Error(`too few stop chips: ${JSON.stringify(ids)}`);
+      if (ids.length > 4) throw new Error(`chips not truncated to the end of the line: ${JSON.stringify(ids)}`);
+      const hasGap = ids.includes('hero-stop-gap');
+      if (hasGap && ids[1] !== 'hero-stop-gap') throw new Error(`gap marker out of place: ${JSON.stringify(ids)}`);
+      const direction = await page.text('active-direction');
+      const terminal = /North/.test(direction ?? '') ? 'hero-stop-san-francisco' : 'hero-stop-san-jose';
+      if (ids[ids.length - 1] !== terminal) throw new Error(`last chip is not the ${direction} terminal: ${JSON.stringify(ids)}`);
+      const lastChip = await page.eval(`document.querySelector('[data-testid="${terminal}"]').textContent`);
+      if (!/\d+:\d{2}[ap] /.test(lastChip ?? '')) throw new Error(`terminal chip missing its arrival time: ${lastChip}`);
+      return { ids, direction, lastChip };
+    });
+
+    await suite.check('trackpad wheel swipe anywhere on the board pages between trains', async () => {
+      // Two-finger trackpad swipes arrive as wheel events, not pointers; a
+      // horizontal wheel gesture over any part of the white board area must
+      // page the selected train exactly once per swipe (accumulate + lockout).
+      const num = (s) => (s ?? '').match(/#\d+/)?.[0] ?? null;
+      const first = num(await page.text('hero-meta'));
+      const wheel = (dx) => page.eval(`(() => {
+        const el = document.querySelector('[data-testid="board-content"]');
+        el.dispatchEvent(new WheelEvent('wheel', { deltaX: ${dx}, deltaY: 3, bubbles: true, cancelable: true }));
+        return true;
+      })()`);
+      await wheel(120);
+      const paged = await page.evalPoll(
+        `document.querySelector('[data-testid="hero-meta"]').textContent`,
+        (t) => num(t) !== first,
+        3000,
+      );
+      if (num(paged) === first) throw new Error(`wheel swipe did not page (${first} -> ${num(paged)})`);
+      await sleep(500); // clear the one-page-per-swipe lockout
+      await wheel(-120);
+      const back = await page.evalPoll(
+        `document.querySelector('[data-testid="hero-meta"]').textContent`,
+        (t) => num(t) === first,
+        3000,
+      );
+      if (num(back) !== first) throw new Error(`reverse wheel swipe did not page back (${num(back)} != ${first})`);
+      return { first, paged: num(paged), back: num(back) };
+    });
+
+    await suite.check('rest-of-day rows render below the hero, fading past three trains out', async () => {
+      // The board shows every remaining departure for the day; rows more
+      // than three past the selected train carry a gradually decreasing
+      // opacity (floored, never invisible) so the tail stays scannable.
+      await page.eval(`(async () => { document.querySelector('[data-testid="train-first"]')?.click(); await new Promise(r=>setTimeout(r,300)); })()`);
+      const rows = await page.eval(`Array.from(document.querySelectorAll('[data-testid="train-next"], [data-testid^="train-at-"]'))
+        .map((el) => ({ id: el.getAttribute('data-testid'), opacity: parseFloat(getComputedStyle(el).opacity) }))`);
+      if (!Array.isArray(rows) || rows.length < 1) throw new Error('no rest-of-day rows rendered');
+      for (const row of rows.slice(0, 3)) {
+        if (row.opacity !== 1) throw new Error(`row within 3 of the hero must not fade: ${JSON.stringify(row)}`);
+      }
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i].opacity > rows[i - 1].opacity + 0.001) throw new Error(`fade is not monotonic at ${JSON.stringify(rows[i])}`);
+      }
+      if (rows.length >= 5) {
+        const tail = rows[rows.length - 1];
+        if (!(tail.opacity < 1) || !(tail.opacity >= 0.38)) throw new Error(`tail row not faded within the floor: ${JSON.stringify(tail)}`);
+      }
+      return { count: rows.length, firstOpacity: rows[0]?.opacity, lastOpacity: rows[rows.length - 1]?.opacity };
+    });
+
+    await suite.check('footer Clipper button opens the device-appropriate Clipper link', async () => {
+      await page.eval(`window.__aaOpened = []; window.open = (u) => { window.__aaOpened.push(u); return null; };`);
+      const opened = await page.eval(`(async () => {
+        document.querySelector('[data-testid="clipper"]').click();
+        await new Promise((r) => setTimeout(r, 200));
+        return window.__aaOpened;
+      })()`);
+      if (!Array.isArray(opened) || opened.length !== 1) throw new Error(`expected one clipper open: ${JSON.stringify(opened)}`);
+      // Headless Chrome is a desktop UA: the website, not an app store.
+      if (!/clippercard\.com/.test(opened[0])) throw new Error(`not the Clipper site: ${opened[0]}`);
+      return { opened };
+    });
+
+    await suite.check('dark mode: the scheme flip restyles the board within a tick', async () => {
+      // The scheme is device glue (prefers-color-scheme / ?appearance=);
+      // window.__aaSetColorScheme is the same entry point, exposed because a
+      // real media-query flip cannot be synthesized from page JS. themePalette
+      // re-derives on the 1s clock, so the flip lands within a tick.
+      const bgOf = () => page.eval(`getComputedStyle(document.querySelector('[data-testid="all-aboard-main"]')).backgroundColor`);
+      const lightBg = await bgOf();
+      if (lightBg !== 'rgb(255, 255, 255)') throw new Error(`expected a white light-mode board: ${lightBg}`);
+      await page.eval(`window.__aaSetColorScheme('dark'); true`);
+      const darkBg = await page.evalPoll(
+        `getComputedStyle(document.querySelector('[data-testid="all-aboard-main"]')).backgroundColor`,
+        (c) => c === 'rgb(20, 23, 28)',
+        4000,
+      );
+      if (darkBg !== 'rgb(20, 23, 28)') throw new Error(`board did not go dark: ${darkBg}`);
+      const darkInk = await page.eval(`getComputedStyle(document.querySelector('[data-testid="active-direction"]')).color`);
+      if (darkInk !== 'rgb(242, 244, 247)') throw new Error(`title text not lifted for dark: ${darkInk}`);
+      const bodyScheme = await page.eval(`document.body.dataset.aaScheme`);
+      if (bodyScheme !== 'dark') throw new Error(`body backdrop not switched: ${bodyScheme}`);
+      await page.eval(`window.__aaSetColorScheme('light'); true`);
+      const restored = await page.evalPoll(
+        `getComputedStyle(document.querySelector('[data-testid="all-aboard-main"]')).backgroundColor`,
+        (c) => c === 'rgb(255, 255, 255)',
+        4000,
+      );
+      if (restored !== 'rgb(255, 255, 255)') throw new Error(`board did not restore to light: ${restored}`);
+      return { lightBg, darkBg, darkInk };
     });
 
     await suite.check('footer gear opens the settings sheet', async () => {

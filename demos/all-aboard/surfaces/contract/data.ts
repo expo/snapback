@@ -159,6 +159,98 @@ export function setRouteEstimateInvoker(invoker: ((args: RouteEstimateArgs) => P
   routeInFlight.clear();
 }
 
+// --- Appearance (device-capability glue, like location) ------------------------
+//
+// Dark mode. The scheme is module state written by the web glue (main.ts:
+// prefers-color-scheme media query + change listener, with a ?appearance=
+// URL override for tests and debugging) and read by themePalette, which the
+// .contract derives off the ticking clock — so an OS appearance flip restyles
+// the board within a second, no reload. The Caltrain-red header and the NEXT
+// TRAIN pill deliberately keep their brand red + white in both schemes; the
+// board surfaces, text, and accents swap. On native hosts without the glue
+// the app stays light — a declared gap (ENG-24056 territory), not a bug.
+
+export type ColorScheme = 'light' | 'dark';
+let colorScheme: ColorScheme = 'light';
+
+export function setColorScheme(next: string | null): void {
+  colorScheme = next === 'dark' ? 'dark' : 'light';
+}
+
+export function getColorScheme(): ColorScheme {
+  return colorScheme;
+}
+
+function isDark(): boolean {
+  return colorScheme === 'dark';
+}
+
+// Every layout color the .contract uses, as one derive-friendly token object.
+// Light is the shipped ENG-23719 palette verbatim; dark keeps the same
+// relationships (warm near-black board, soft raised cards, warm hairlines,
+// a lifted Caltrain red for text accents — pure #C8102E fails contrast as
+// text on the dark board).
+export function themePalette(_tick?: number) {
+  if (!isDark()) {
+    return {
+      scheme: 'light',
+      bg: '#ffffff',
+      card: '#ffffff',
+      ink: '#1A1F27',
+      body: '#2A313B',
+      secondary: '#57606C',
+      muted: '#8A93A0',
+      hairline: '#E7E2DB',
+      soft: '#F7F5F2',
+      chip: '#F2EFEA',
+      iconBtn: '#F5F3F0',
+      heroBg: '#FDF7F5',
+      heroBorder: '#C8102E3D',
+      accent: '#C8102E',
+      accentSoftBg: '#C8102E14',
+      accentSoftBorder: '#C8102E3D',
+      accentFaintBg: '#C8102E0D',
+      accentFaintBorder: '#C8102E4D',
+      warnText: '#92400E',
+      warnBg: '#B4530914',
+      warnBorder: '#B4530936',
+      noteText: '#5B6470',
+      noteBg: '#8A93A014',
+      noteBorder: '#8A93A036',
+      dotIdle: '#D8D2C9',
+      scrim: '#00000055',
+    };
+  }
+  return {
+    scheme: 'dark',
+    bg: '#14171C',
+    card: '#1E232B',
+    ink: '#F2F4F7',
+    body: '#D5DAE1',
+    secondary: '#A6ADBA',
+    muted: '#7A828E',
+    hairline: '#2A2F37',
+    soft: '#1A1F26',
+    chip: '#252B34',
+    iconBtn: '#232932',
+    heroBg: '#261B1E',
+    heroBorder: '#C8102E80',
+    accent: '#F06478',
+    accentSoftBg: '#F0647824',
+    accentSoftBorder: '#F0647852',
+    accentFaintBg: '#F0647817',
+    accentFaintBorder: '#F0647860',
+    warnText: '#FBBF24',
+    warnBg: '#B4530926',
+    warnBorder: '#B4530955',
+    noteText: '#A6ADBA',
+    noteBg: '#8A93A01F',
+    noteBorder: '#8A93A03D',
+    dotIdle: '#3A4048',
+    scrim: '#00000088',
+  };
+}
+
 // --- Backend attach state (board-first startup, ENG-23727) --------------------
 //
 // The board mounts before the backend attaches, so the surface needs an
@@ -200,11 +292,13 @@ export function locationSource(_tick?: number): string {
   return deviceLocationSource;
 }
 
-// A friendly, on-card signal of whether the nearest station came from the device
-// or a fallback — so a denied/dismissed permission prompt is legible, not silent.
-// The denied line says what to do about it: once the user re-allows access (the
-// hint press re-prompts; a site-settings flip fires the permission change event
-// main.ts listens for), the board adopts the real location without a reload.
+// A friendly signal of whether the nearest station came from the device or a
+// fallback — so a denied/dismissed permission prompt is legible, not silent.
+// Shown in Settings only; the home board communicates location state through
+// the footer icon color alone (locationIndicatorColor). The denied line says
+// what to do about it: once the user re-allows access (the Settings press
+// re-prompts; a site-settings flip fires the permission change event main.ts
+// listens for), the board adopts the real location without a reload.
 export function locationHint(_tick?: number): string {
   switch (deviceLocationSource) {
     case 'device': return '📍 Using your location';
@@ -214,11 +308,47 @@ export function locationHint(_tick?: number): string {
   }
 }
 
-// The sticky-footer location indicator (ENG-23795): the usual up-left
-// navigation glyph, blue while the board is on the real device location and
-// gray on any fallback.
+// The sticky-footer location indicator (ENG-23795): blue while the board is
+// on the real device location and gray on any fallback. The icon is the ONLY
+// home-board location signal — the old hint-text line under the board is
+// gone; the full explanation (and the retry affordance) lives in Settings.
 export function locationIndicatorColor(_tick?: number): string {
-  return deviceLocationSource === 'device' ? '#0A84FF' : '#9CA3AF';
+  if (deviceLocationSource === 'device') return '#0A84FF';
+  return isDark() ? '#8A93A0' : '#9CA3AF';
+}
+
+// --- Sticky-footer icons -------------------------------------------------------
+//
+// Proper stroke icons (24-unit grid, 2px round strokes) rendered through the
+// contract `image svgSource=` inline-SVG host, replacing the mismatched text
+// glyphs (⬉ ↻ ⚙) that drew at different weights and optical sizes per
+// platform font. The stroke color is baked into the markup so the same string
+// renders identically on the web mirror and native hosts.
+
+function strokeIconSvg(color: string, body: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+}
+
+// Navigation arrow; takes the live locationIndicatorColor so the icon itself
+// says device fix (blue) vs fallback (gray).
+export function locationIconSvg(color: string): string {
+  return strokeIconSvg(color, '<polygon points="3 11 22 2 13 21 11 13 3 11"/>');
+}
+
+// Ticket icon for the Clipper affordance (get / refill a Clipper card). The
+// press is web glue in main.ts — device-aware: the Clipper app store listing
+// on iOS/Android, clippercard.com elsewhere. Like the other footer icons it
+// takes its stroke color from the theme (theme.secondary).
+export function ticketIconSvg(color: string): string {
+  return strokeIconSvg(color, '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/>');
+}
+
+export function refreshIconSvg(color: string): string {
+  return strokeIconSvg(color, '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>');
+}
+
+export function settingsIconSvg(color: string): string {
+  return strokeIconSvg(color, '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>');
 }
 
 export function getSelectedStation(stationId: string | null, _tick?: number) {
@@ -366,9 +496,15 @@ export function getDirectionBoard(
 // remaining train. Alongside the hero the board carries:
 //   - heroPrev/heroNext: the physically adjacent cards for the paging strip
 //     (visible mid-gesture, exactly the native contiguous-page model);
-//   - before: the sooner trains already paged past, in compact rows above the
-//     hero, so paging to a later train never makes earlier trains vanish;
-//   - rest: the trains after the hero.
+//   - before: ALL the sooner trains already paged past, in compact rows above
+//     the hero, so paging to a later train never makes earlier trains vanish.
+//     No cap: the list can only grow to the day's remaining departures, and a
+//     selection far in the future SHOULD read as "many trains from now" — the
+//     user scrolls; the primary use case is the next few trains anyway;
+//   - rest: ALL the trains after the hero for the rest of the day. The rows
+//     more than three past the selected train gradually fade (the `fade`
+//     opacity, floored so the last trains stay legible) — the full day is
+//     scannable, but the eye stays on the next few departures.
 // Every before/rest row carries its absolute offset (press = select that
 // train) and a precomputed testId: the rows adjacent to the hero are
 // 'train-prev'/'train-next', so the keyboard/gesture/native press paths keep
@@ -383,23 +519,29 @@ export function boardTrains(
   feedRows: FeedRow[],
 ) {
   const wanted = Math.max(0, heroOffset ?? 0);
+  // A full weekday of one-direction Caltrain departures is well under this;
+  // the board shows the whole rest of the day, not a moving window.
+  const dayLimit = Math.max(96, wanted + 2);
   const rows = isLiveFeed(feedRows)
-    ? liveDeparturesFor(stationId, direction, nowMs, departureRows, wanted + 5)
-    : modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), wanted + 5);
+    ? liveDeparturesFor(stationId, direction, nowMs, departureRows, dayLimit)
+    : modelUpcomingDepartures(stationId, direction, nowMs, delaysFrom(delayRows), dayLimit);
   const offset = rows.length === 0 ? 0 : Math.min(wanted, rows.length - 1);
+  // Rows more than 3 past the hero fade by 0.12 per step, floored at 0.38.
+  const fadeFor = (absolute: number) =>
+    absolute <= offset + 3 ? 1 : Math.max(0.38, 1 - (absolute - offset - 3) * 0.12);
   const withMeta = (row: (typeof rows)[number], absolute: number) => ({
     ...row,
     offset: absolute,
+    fade: fadeFor(absolute),
     testId:
       absolute === offset - 1 ? 'train-prev' : absolute === offset + 1 ? 'train-next' : `train-at-${absolute}`,
   });
-  const beforeStart = Math.max(0, offset - 2);
   return {
     hero: rows[offset] ?? null,
     heroPrev: offset > 0 ? rows[offset - 1] : null,
     heroNext: rows[offset + 1] ?? null,
-    before: rows.slice(beforeStart, offset).map((row, i) => withMeta(row, beforeStart + i)),
-    rest: rows.slice(offset + 1, offset + 4).map((row, i) => withMeta(row, offset + 1 + i)),
+    before: rows.slice(0, offset).map((row, i) => withMeta(row, i)),
+    rest: rows.slice(offset + 1).map((row, i) => withMeta(row, offset + 1 + i)),
     hasPrev: offset > 0,
     hasNext: rows.length > offset + 1,
     offset,
@@ -434,10 +576,13 @@ export function delayLabel(dep: { delaySeconds?: number } | null): string {
   return s >= 45 ? `${Math.max(1, Math.round(s / 60))} min late` : 'on time';
 }
 
-// Darker on-time/late hues than the old dark-board palette: these sit on the
-// white board now (ENG-23719) and the light tints failed contrast there.
+// Scheme-aware on-time/late hues: dark ink-ish hues on the white board
+// (ENG-23719 — the light tints failed contrast there), lifted variants on
+// the dark board where the deep hues disappear.
 export function delayColor(dep: { delaySeconds?: number } | null): string {
-  return (dep?.delaySeconds ?? 0) >= 45 ? '#B45309' : '#047857';
+  const late = (dep?.delaySeconds ?? 0) >= 45;
+  if (isDark()) return late ? '#FBBF24' : '#34D399';
+  return late ? '#B45309' : '#047857';
 }
 
 // Compact destination for the departure rows ("Diridon", not "San Jose
@@ -587,7 +732,37 @@ export function getTrainRun(runId: string, nowMs: number, delayRows: DelayRow[],
   return modelTrainRun(runId, nowMs, delaysFrom(delayRows));
 }
 
-// The served stops from the boarding station onward, for the expanded hero.
+// The hero card's stop chips: the boarding stop, then the END of the run —
+// an ellipsis marker and the last two stops — not the next few intermediate
+// stops. The card answers "when does it leave here" and "when does it get
+// where it's going"; the full stop list is one tap away on the trip detail.
+// Fewer than four stops from boarding need no ellipsis: everything fits.
+export function heroStops(runId: string, stationId: string, nowMs: number, delayRows: DelayRow[], departureRows: LiveDepartureRow[]) {
+  const trip = getTrainRun(runId, nowMs, delayRows, departureRows);
+  if (!trip) return [];
+  const boardingIndex = trip.stops.findIndex((stop: { station: { id: string } }) => stop.station.id === stationId);
+  const from = boardingIndex >= 0 ? boardingIndex : 0;
+  const stops = trip.stops.slice(from);
+  if (stops.length === 0) return [];
+  const chip = (stop: { station: { id: string; shortName: string }; predictedTimeMs: number; estimated?: boolean }) => ({
+    id: stop.station.id,
+    gap: false,
+    name: stop.station.shortName,
+    time: stopClockLabel(stop),
+    isBoarding: stop.station.id === stationId,
+  });
+  const rest = stops.slice(1);
+  if (rest.length <= 3) return [chip(stops[0]), ...rest.map(chip)];
+  return [
+    chip(stops[0]),
+    { id: 'gap', gap: true, name: '', time: '', isBoarding: false },
+    ...rest.slice(-2).map(chip),
+  ];
+}
+
+// The served stops from the boarding station onward — the hero chips'
+// predecessor, kept for the live-run reconstruction checks
+// (trip-detail-live.mjs) that assert per-stop estimated markers.
 export function upcomingStops(runId: string, stationId: string, nowMs: number, limit: number, delayRows: DelayRow[], departureRows: LiveDepartureRow[]) {
   const trip = getTrainRun(runId, nowMs, delayRows, departureRows);
   if (!trip) return [];
@@ -623,7 +798,9 @@ export function serviceColor(service: string): string {
 }
 
 export function serviceTint(service: string): string {
-  return `${modelServiceColor(service)}22`; // ~13% alpha pill background
+  // ~13% alpha pill background on light; a touch stronger on the dark board
+  // where 13% of a mid hue vanishes into the surface.
+  return `${modelServiceColor(service)}${isDark() ? '30' : '22'}`;
 }
 
 // --- Walk / bike (haversine over the seed coordinates) ------------------------
@@ -787,23 +964,31 @@ export function feedSourceBadge(
   dot: string;
 } {
   const feed = feedRows?.[0] ?? null;
+  const dark = isDark();
+  const grayDot = dark ? '#6B7280' : '#9CA3AF';
   // No feed row yet (board-first startup, before the live bindings deliver):
   // the board is on the deterministic schedule — its own honest category,
   // neither a committed demo feed nor live 511 (ENG-23727).
   if (!feed) {
-    return { live: false, label: 'SCHEDULE', color: '#1D4ED8', tint: '#1D4ED812', border: '#1D4ED836', dot: '#9CA3AF' };
+    const blue = dark ? '#60A5FA' : '#1D4ED8';
+    return { live: false, label: 'SCHEDULE', color: blue, tint: `${blue}12`, border: `${blue}36`, dot: grayDot };
   }
   const liveSource = (feed?.lastSource ?? '') === LIVE_FEED_SOURCE;
-  // Light-theme badge colors (ENG-23719): the badge sits on the white board.
+  // Badge colors sit on the board surface: the deep light-scheme hues
+  // (ENG-23719) disappear on the dark board, so dark lifts each hue.
   if (!liveSource) {
-    return { live: false, label: 'DEMO DATA', color: '#92400E', tint: '#B4530914', border: '#B4530936', dot: '#9CA3AF' };
+    const amber = dark ? '#FBBF24' : '#92400E';
+    return { live: false, label: 'DEMO DATA', color: amber, tint: '#B4530914', border: '#B4530936', dot: grayDot };
   }
   const fetchedAt = Number(feed?.fetchedAt) || 0;
   const staleAfterMs = Number(feed?.staleAfterMs) > 0 ? Number(feed?.staleAfterMs) : DEFAULT_STALE_AFTER_MS;
   const fresh = typeof nowMs !== 'number' || fetchedAt <= 0 || nowMs - fetchedAt <= staleAfterMs;
-  return fresh
-    ? { live: true, label: 'LIVE', color: '#047857', tint: '#04785712', border: '#04785736', dot: '#059669' }
-    : { live: false, label: 'STALE', color: '#B91C1C', tint: '#B91C1C12', border: '#B91C1C36', dot: '#9CA3AF' };
+  if (fresh) {
+    const green = dark ? '#34D399' : '#047857';
+    return { live: true, label: 'LIVE', color: green, tint: `${green}12`, border: `${green}36`, dot: '#059669' };
+  }
+  const red = dark ? '#F87171' : '#B91C1C';
+  return { live: false, label: 'STALE', color: red, tint: `${red}12`, border: `${red}36`, dot: grayDot };
 }
 
 // --- Position indicator (for the train detail continuum) ----------------------

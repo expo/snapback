@@ -15,16 +15,33 @@ scenes per station — ENG-23684 — rotating by epoch day) and is the
 station-paging surface: it clips a 3-cell strip whose adjacent stations'
 cards physically sit at ±100%, so a swipe drags real neighboring content
 (native contiguous paging, no fade). The board below scrolls vertically and
-pages horizontally between trains the same way; sooner trains stay visible
-as compact rows once paged past, every row selects its train on tap, and
-tapping the selected card opens the trip detail. The header distance line is
-a directions affordance (tap = preferred maps app, long-press = Apple
-Maps / Google Maps / copy-address sheet; ETA mode auto-picks biking beyond
-an 18-minute walk). The sticky footer carries the live-status dot (green
-live / gray not, with the honest DEMO DATA / SCHEDULE / STALE label when not
-live), the location indicator, the "Switch to Southbound/Northbound"
-direction control, and system-style ↻ / ⚙ icon buttons — no bottom tabs, no
-direction pill, no train arrows, no service-filter chips. The stations sheet
+pages horizontally between trains the same way — touch drag, mouse drag, or
+trackpad two-finger swipe, anywhere in the white area between header and
+footer; the selected card's stop chips show the boarding stop plus an
+ellipsis and the run's last two stops (arrival at the end of the line), with
+the full stop list on the trip detail; all sooner trains stay
+visible as compact rows once paged past (the list just grows and the user
+scrolls — the primary use case is the next few trains anyway), every row
+selects its train on tap, and tapping the selected card opens the trip
+detail. The header distance line is a directions affordance (tap =
+preferred maps app, long-press = Apple Maps / Google Maps / copy-address
+sheet; ETA mode auto-picks biking beyond an 18-minute walk). The sticky
+footer carries the live-status dot (green live / gray not, with the honest
+DEMO DATA / SCHEDULE / STALE label when not live), the "Switch to
+Southbound/Northbound" direction control (gray, so it never reads as the
+current direction) with the opposite direction's own next-train countdown,
+and round stroke-icon Clipper / location / refresh / settings buttons (the
+Clipper ticket opens the device-appropriate get/refill link — app store on
+iOS/Android, clippercard.com elsewhere; the location icon is the only
+home-board location signal: blue on a device fix, gray on fallback) — no
+bottom tabs, no direction pill, no train arrows, no service-filter chips,
+no opposite-direction teaser row on the board. The board lists every
+remaining departure for the day, gradually fading rows more than three past
+the selected train. The whole app respects the OS appearance: dark mode
+follows `prefers-color-scheme`, flips live without a reload, and a
+`?appearance=dark|light` URL param pins it for tests and screenshots (the
+Caltrain-red header and NEXT TRAIN pill keep their brand red in both
+schemes). The stations sheet
 adds an end-of-line hint per row (`… San Jose Diridon 9:16`). Regenerate the
 inlined art with `node demos/all-aboard/scripts/gen-station-art.mjs` after
 changing the SVGs.

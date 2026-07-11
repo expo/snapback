@@ -17,7 +17,13 @@
 //     capture it (board-content declares touch-action: pan-y in main.ts);
 //   - the sheet screens (stations / settings / trip) go back on swipe right;
 //   - arrow keys mirror the zones for desktop: ←/→ earlier/later train,
-//     ↑/↓ previous/next station (the corridor runs north→south).
+//     ↑/↓ previous/next station (the corridor runs north→south);
+//   - trackpad two-finger swipes mirror the drag zones too: they arrive as
+//     WHEEL events (no pointer sequence), so a horizontal wheel gesture over
+//     the board pages the train and over the header pages the station —
+//     without this, "swipe anywhere in the white area" works on touch but
+//     silently does nothing on a Mac trackpad. Vertical wheel stays native
+//     scroll; a commit locks briefly so one physical swipe pages once.
 //
 // Dispatch is deliberately dumb: every recognized gesture CLICKS a visible
 // press affordance the .contract declares — the header edge chevrons, the
@@ -270,6 +276,43 @@ export function installGestures(root: HTMLElement): Cleanup {
     }
   }
 
+  // Trackpad two-finger swipes: WheelEvents, not pointers. Accumulate the
+  // horizontal delta and page on a threshold; a short lockout after a commit
+  // (plus a quiet-period reset) turns one physical swipe's event burst into
+  // exactly one page turn. deltaX > 0 is "fingers swept left" (content moves
+  // toward the right side), which matches drag-left: the next train/station.
+  const WHEEL_COMMIT_PX = 70;
+  const WHEEL_LOCK_MS = 450;
+  const WHEEL_QUIET_MS = 250;
+  let wheelAccumX = 0;
+  let wheelLockUntil = 0;
+  let wheelQuietTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function onWheel(event: WheelEvent) {
+    if (!onHome() || directionsOpen()) return;
+    const target = event.target as Element | null;
+    if (!target || typeof target.closest !== 'function') return;
+    const from = regionOf(target);
+    if (from !== 'board' && from !== 'header') return;
+    if (Math.abs(event.deltaX) <= Math.abs(event.deltaY) * 1.25) return; // vertical scroll stays native
+    // Ours now: keep the browser's horizontal-overscroll history navigation
+    // from also firing on the same gesture.
+    event.preventDefault();
+    const now = performance.now();
+    if (now < wheelLockUntil) return;
+    wheelAccumX += event.deltaX;
+    if (wheelQuietTimer) clearTimeout(wheelQuietTimer);
+    wheelQuietTimer = setTimeout(() => {
+      wheelAccumX = 0;
+    }, WHEEL_QUIET_MS);
+    if (Math.abs(wheelAccumX) < WHEEL_COMMIT_PX) return;
+    const direction: -1 | 1 = wheelAccumX > 0 ? 1 : -1;
+    wheelAccumX = 0;
+    wheelLockUntil = now + WHEEL_LOCK_MS;
+    if (from === 'header') commitStation(direction);
+    else commitTrain(direction);
+  }
+
   function onKeyDown(event: KeyboardEvent) {
     const target = event.target as Element | null;
     if (target && typeof target.closest === 'function' && target.closest('input, textarea, select')) {
@@ -323,6 +366,7 @@ export function installGestures(root: HTMLElement): Cleanup {
   root.addEventListener('pointermove', onPointerMove);
   root.addEventListener('pointerup', onPointerUp);
   root.addEventListener('pointercancel', onPointerCancel);
+  root.addEventListener('wheel', onWheel, { passive: false });
   window.addEventListener('keydown', onKeyDown);
 
   return () => {
@@ -330,7 +374,9 @@ export function installGestures(root: HTMLElement): Cleanup {
     root.removeEventListener('pointermove', onPointerMove);
     root.removeEventListener('pointerup', onPointerUp);
     root.removeEventListener('pointercancel', onPointerCancel);
+    root.removeEventListener('wheel', onWheel);
     window.removeEventListener('keydown', onKeyDown);
     if (settleTimer) clearTimeout(settleTimer);
+    if (wheelQuietTimer) clearTimeout(wheelQuietTimer);
   };
 }
