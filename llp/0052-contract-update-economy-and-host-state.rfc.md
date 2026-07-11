@@ -5,7 +5,9 @@
 **Systems:** Contract/Exact, Developer experience, Demo apps
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-07-11
-**Revised:** 2026-07-11 (round-4 final pass, per the fourth Claude and GPT-5
+**Revised:** 2026-07-11 (ENG-24189 Phase 0 web baseline recorded — four-arm
+20.25 s matrix over the real All Aboard surface; D3/D2/D5 numeric gates fixed
+from the raw counters; physical-iPhone trace remains explicitly open); 2026-07-11 (round-4 final pass, per the fourth Claude and GPT-5
 reviews under `llp/reviews/0052-*` — both SATISFIED, no blocking or major
 concerns remaining: header/Status counts corrected (ten helpers, four
 rounds); the deadline boundary encoded as first-representable-instant-after
@@ -728,7 +730,10 @@ updates.
 
 ## Acceptance gates
 
-Numbers to be fixed by Phase 0 baselines; the shapes are:
+The ENG-24189 web baseline and raw counters live in
+`demos/all-aboard/measurements/`. The physical-iPhone/thread trace remains open,
+so the hardware-independent count gates below are fixed while native timing is
+not yet claimed.
 
 - **D3**: a commit in which every element's DOM-observable snapshot, style
   leaf, and text string is value-equal — with unchanged topology and child
@@ -738,7 +743,11 @@ Numbers to be fixed by Phase 0 baselines; the shapes are:
   suspense-hidden text updated while hidden re-emits on unhide — so an
   implementation with the compare-after-assign bug (which suppresses real
   updates too) cannot pass. (The mirror's
-  traversal residual is measured by Phase 0, not gated by D3.)
+  traversal residual is measured by Phase 0, not gated by D3.) The measured
+  all-equal `current` wave starts at **127 redundant DOM applies, 158 same-text
+  attempts, 160 protocol ops / 3,398 bytes, one layout request, and 577 mirror
+  visits**. D3 takes the first five counts to zero; the 577-node walk remains
+  measured residual.
 - **D1**: scheme, insets, and geolocation flow through `host` bindings in All
   Aboard; the six-seam inventory table above deletes to at most the typed
   `appGlue` entries; G9 and G14's binding half close in LLP 0029. Behavioral
@@ -754,7 +763,10 @@ Numbers to be fixed by Phase 0 baselines; the shapes are:
   deadline; countdown/freshness text updates without waking the app
   dataflow, and target-relative transitions (countdown minute flips,
   departure expiry, feed staleness) fire at their deadlines — not up to a
-  minute late on a wall-aligned tick.
+  minute late on a wall-aligned tick. In the baseline, `current` still wakes
+  four times in 20.25 s and runs 304 effects per active wave; the migrated
+  idle window has **zero periodic app-dataflow waves** (declared logic
+  deadlines and independently injected host events are the only exceptions).
 - **D4**: a value-equal `boardTrains` recompute under keyed structural
   sharing returns the same outer reference and produces zero downstream
   re-fires in the D5 counters. A one-row-changed recompute keeps every other
@@ -764,8 +776,12 @@ Numbers to be fixed by Phase 0 baselines; the shapes are:
   D3).
 - **D5**: with the quantization mitigation reverted, the Phase 1 profiler on
   All Aboard reports (near-)zero value-equal host ops per tick after D1–D3 —
-  and the profiler itself costs ≤ a Phase-0-set bound in dev, zero in
-  production builds. Attribution is itself gated: a fixture with a known
+  and the default console warning fires at **at least 100 host attempts with
+  at least 80% value-equal in one commit** (the measured `current` wave is 285
+  at 100%). The profiler adds at most **1 ms or 10% (whichever is larger) to
+  p95 commit time** against the reporter-disabled dev control, keeps this
+  fixture's frame p95 at or below 11 ms, and adds zero eager production
+  modules/counters. Attribution is itself gated: a fixture with a known
   derive→binding diamond reports both the terminal binding and the
   first-changed upstream derive correctly under fan-in.
 

@@ -484,3 +484,8 @@ try {
 } finally {
   await cleanup();
 }
+
+// Node's built-in WebSocket can retain an already-closed DevTools handle on
+// successful runs. Every owned child has been awaited above; terminate the
+// measurement CLI explicitly so a valid report cannot hang CI indefinitely.
+process.exit(0);

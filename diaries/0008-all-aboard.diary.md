@@ -1831,3 +1831,22 @@ pin cannot compile the current router grammar, so this pre-publication run must
 use the already established commit-pinned source override; ENG-24185 continues
 to own coherent package publication rather than hiding that release step in a
 demo benchmark.
+
+The first full web capture made the original complaint numerical. Over 20.25
+seconds, reverting both mitigations produced 21 commits, 10,206 effect runs,
+3,280 same-text writes, 3,360 protocol ops, 12,117 mirror visits, and 6,237 DOM
+`applyProps` calls. Every applied element description was value-equal. The
+palette singleton made each active wave substantially cheaper but did nothing
+to the 158 same-text attempts and 160 protocol ops per wave; the 5 s clock
+reduced the number of waves but did nothing to their shape. Together the two
+app fixes cut aggregate commit time by 87%, yet each remaining wave still ran
+304 effects and walked all 577 mirrored nodes. That is unusually crisp evidence
+for the framework split in LLP 0052: D3 quiets the host boundary, while D1/D2/D4
+are needed to stop the upstream work and the residual mirror walk.
+
+The raw report and readable summary live under
+`demos/all-aboard/measurements/`. They also set the Phase-1 warning threshold
+(100 attempts at 80% equal) and dev overhead bound. The native row remains
+honestly incomplete: Xcode listed the paired physical iPhone as offline during
+the run, so a simulator/mac trace can exercise the plumbing but cannot be
+substituted for the device performance result.
