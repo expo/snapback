@@ -40,6 +40,54 @@ import {
 import { STATION_ART_SCENES } from '../../snapback/shared/station-art.gen.mjs';
 const DEFAULT_LOCATION = { lat: 37.3894, lng: -122.0819 }; // Mountain View fallback
 
+// --- LLP 0052 Phase 0 update-economy experiment -----------------------------
+//
+// ENG-24189 measures the shipped mitigations as a 2x2 matrix rather than
+// comparing only the two endpoints. The default is the shipped `current`
+// behavior. A test/run may select `pre`, `clock-only`, `palette-only`, or
+// `current` through `?updateEconomy=<variant>` before the Contract root mounts.
+// This seam is intentionally demo-local and disappears with the completed
+// D1-D4 migration; it is not an application API.
+
+export type UpdateEconomyExperiment = 'pre' | 'clock-only' | 'palette-only' | 'current';
+
+let updateEconomyExperiment: UpdateEconomyExperiment = 'current';
+
+export function configureUpdateEconomyExperiment(value?: string | null): UpdateEconomyExperiment {
+  let requested = value;
+  if (requested == null) {
+    try {
+      requested = new URL(globalThis.location?.href ?? '').searchParams.get('updateEconomy');
+    } catch {
+      requested = null;
+    }
+  }
+  updateEconomyExperiment =
+    requested === 'pre' || requested === 'clock-only' || requested === 'palette-only'
+      ? requested
+      : 'current';
+  return updateEconomyExperiment;
+}
+
+export function updateEconomyExperimentSnapshot(): {
+  variant: UpdateEconomyExperiment;
+  clockQuantized: boolean;
+  paletteSingleton: boolean;
+} {
+  return {
+    variant: updateEconomyExperiment,
+    clockQuantized:
+      updateEconomyExperiment === 'clock-only' || updateEconomyExperiment === 'current',
+    paletteSingleton:
+      updateEconomyExperiment === 'palette-only' || updateEconomyExperiment === 'current',
+  };
+}
+
+export function updateEconomyTick(nowMs: number): number {
+  const { clockQuantized } = updateEconomyExperimentSnapshot();
+  return clockQuantized ? nowMs - nowMs % 5000 : nowMs;
+}
+
 // --- Device location (device-capability glue, set by main.ts) -----------------
 
 type LatLng = { lat: number; lng: number };
@@ -223,7 +271,8 @@ const LIGHT_PALETTE = buildLightPalette();
 const DARK_PALETTE = buildDarkPalette();
 
 export function themePalette(_tick?: number) {
-  return isDark() ? DARK_PALETTE : LIGHT_PALETTE;
+  const palette = isDark() ? DARK_PALETTE : LIGHT_PALETTE;
+  return updateEconomyExperimentSnapshot().paletteSingleton ? palette : { ...palette };
 }
 
 function buildLightPalette() {

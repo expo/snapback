@@ -1802,3 +1802,32 @@ reasons on web and for adjacent reasons on native (they stop the recompute
 cascade and the text re-emits at the source). The corrected per-host
 mechanism table lives in LLP 0052 (Design → "the equality landscape");
 the framework-side closure is tracked there and as LLP 0029 G15.
+
+## 2026-07-11 (fourth entry) — Phase 0 makes update economy measurable (ENG-24189)
+
+LLP 0052 could not responsibly set numeric gates from the original jank report:
+the two userland mitigations had landed together, and renderer telemetry did not
+count equal-but-attempted work. The demo now has a temporary, explicitly scoped
+four-arm experiment (`pre`, `clock-only`, `palette-only`, `current`). It changes
+only the clock quantization and palette identity seams and defaults to the
+shipped `current` behavior. Native bundles can pin the same arm at build time;
+the browser uses a query parameter. This keeps the comparison inside the real
+All Aboard app instead of reconstructing a toy tree.
+
+The accompanying runner owns every process it starts: a memory Snapback server,
+source-pinned Exact Vite server, and Chrome with a unique profile and debugging
+port. It waits for backend attach, resets Exact's development counters, samples
+20 one-second ticks per arm at a pinned viewport, and records reactive churn,
+host attempts/equality, protocol/layout work, DOM mirror visits/applies, commit
+time, and frame intervals as raw JSON. That isolation was more work than a
+microbenchmark, but it prevents the machine-global port/process contamination
+that has repeatedly made cross-worktree UI evidence ambiguous.
+
+The Exact side felt pleasantly composable once the framework exposed one
+reporting authority shared by its equality predicates and renderer counters:
+All Aboard only selects the two historical mitigations and asks the public
+reactive runtime for churn. The friction remains package staging. The registry
+pin cannot compile the current router grammar, so this pre-publication run must
+use the already established commit-pinned source override; ENG-24185 continues
+to own coherent package publication rather than hiding that release step in a
+demo benchmark.

@@ -39,7 +39,14 @@ import {
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
 import { installDirections } from './directions';
-import { setBackendState, setColorScheme, setDeviceLocation, setRouteEstimateInvoker } from './data';
+import {
+  configureUpdateEconomyExperiment,
+  setBackendState,
+  setColorScheme,
+  setDeviceLocation,
+  setRouteEstimateInvoker,
+  updateEconomyExperimentSnapshot,
+} from './data';
 import { mountAllAboardRouter, type AllAboardRouterHandle } from './router';
 import { installTrainSelectionTransition } from './transitions';
 
@@ -50,6 +57,31 @@ let disposeLocationRequest: (() => void) | null = null;
 let disposeClipperLink: (() => void) | null = null;
 let disposeColorScheme: (() => void) | null = null;
 let disposeTrainSelectionTransition: (() => void) | null = null;
+
+configureUpdateEconomyExperiment();
+
+interface UpdateEconomyRendererApi {
+  getReport(): unknown;
+  reset(): void;
+  configure(flags: Record<string, boolean>): unknown;
+}
+
+function updateEconomyDiagnostics() {
+  const renderer = () =>
+    (globalThis as { __exactUpdateEconomy?: UpdateEconomyRendererApi })
+      .__exactUpdateEconomy;
+  return {
+    ...updateEconomyExperimentSnapshot(),
+    sample: (sinceWave?: number) => ({
+      reactive: contractRuntime.reactiveChurn(
+        sinceWave === undefined ? {} : { sinceWave },
+      ),
+      renderer: renderer()?.getReport() ?? null,
+    }),
+    resetRenderer: () => renderer()?.reset(),
+    configureRenderer: (flags: Record<string, boolean>) => renderer()?.configure(flags),
+  };
+}
 
 // Startup timing (ENG-23727 acceptance): all values are ms since timeOrigin
 // (performance.now() epoch) so the acceptance suite can compare them. The
@@ -395,6 +427,7 @@ const ready = (async () => {
 (globalThis as { allAboard?: unknown }).allAboard = {
   ready,
   startupTiming: timing,
+  updateEconomy: updateEconomyDiagnostics(),
 };
 void ready.then(({ surface, provisioned }) => {
   (globalThis as { allAboard?: unknown }).allAboard = {
@@ -404,6 +437,7 @@ void ready.then(({ surface, provisioned }) => {
     connections: () => surface.connections(),
     provisioned,
     startupTiming: timing,
+    updateEconomy: updateEconomyDiagnostics(),
   };
 }).catch(() => { /* boot failure already surfaced via showBootError */ });
 

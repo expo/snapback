@@ -36,6 +36,7 @@ export default defineContractModule('./data.ts', {
   etaModeLabel: pure({ params: ['mode'], result: 'string', depends: 'args' }),
   preferredEtaMode: pure({ params: ['fallback', 'tick'], result: 'string', depends: 'args' }),
   setEtaModePreference: capability({ params: { mode: 'string' }, effects: ['device.preference.write'] }),
+  updateEconomyTick: capability({ params: { nowMs: 'number' }, effects: [] }),
   effectiveEtaMode: pure({ params: ['station', 'mode', 'tick'], result: 'string', depends: 'args' }),
   walkBikeSummary: pure({ params: ['station', 'mode', 'tick'], result: 'string', depends: 'args' }),
   walkBikeLine: pure({ params: ['station', 'mode', 'tick'], result: 'string', depends: 'args' }),

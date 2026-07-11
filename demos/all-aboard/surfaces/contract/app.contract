@@ -107,6 +107,7 @@ use emptyDelayRows from "./data.ts"
 use positionFraction from "./data.ts"
 use positionLabel from "./data.ts"
 use fractionPercent from "./data.ts"
+use updateEconomyTick from "./data.ts"
 
 component AllAboard
   props
@@ -175,7 +176,7 @@ component AllAboard
   // 5 ticks are free; presses that need an immediate re-derive
   // (requestLocation/cycleMaps/openClipper) still stamp the precise clock.
   action tick writes nowMs
-    nowMs = now() - now() % 5000
+    nowMs = updateEconomyTick(now())
   action goToStation(id) writes stationId, query, heroOffset
     stationId = id
     query = ""

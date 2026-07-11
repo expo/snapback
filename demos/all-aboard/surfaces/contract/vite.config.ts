@@ -66,6 +66,7 @@ function sourceAliases(exactRoot: string | undefined): Record<string, string> | 
     '@exact/contract/exports': source('packages/exact-contract/src/exports.ts'),
     '@exact/contract': source('packages/exact-contract/src/index.ts'),
     '@exact/core/host-call-bridge': source('packages/exact-core/src/host-call-bridge.ts'),
+    '@exact/renderer/update-economy': source('packages/exact-renderer/src/update-economy.ts'),
     '@exact/renderer/host-ops': source('packages/exact-renderer/src/host-ops.ts'),
     '@exact/renderer/dom-mirror': source('packages/exact-renderer/src/dom-mirror.ts'),
     '@exact/renderer/runtime': source('packages/exact-renderer/src/runtime.ts'),
@@ -112,6 +113,12 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
     // ws:true proxy below logs the forward, then the tunnel hangs), which
     // would leave the stream transport permanently connecting.
     __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackTarget),
+    // ENG-24189 Phase 0 native bundles cannot receive a browser query before
+    // the Contract root mounts. The measurement harness pins each 2x2 arm at
+    // build time; ordinary builds omit the env and preserve `current`.
+    __ALL_ABOARD_UPDATE_ECONOMY__: JSON.stringify(
+      process.env.ALL_ABOARD_UPDATE_ECONOMY ?? 'current',
+    ),
   },
   resolve: {
     alias: sourceAliases(exactSourceRoot),
