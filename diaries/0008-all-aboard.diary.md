@@ -1850,3 +1850,37 @@ The raw report and readable summary live under
 honestly incomplete: Xcode listed the paired physical iPhone as offline during
 the run, so a simulator/mac trace can exercise the plumbing but cannot be
 substituted for the device performance result.
+
+## 2026-07-11 (fifth entry) — the same Phase 0 matrix on a real AppKit host
+
+The macOS-native run closed two uncertainties that the browser runner could not.
+First, it reproduced the four application arms in the real 528-node AppKit tree:
+clock quantization reduced commit frequency, the palette singleton reduced
+element attempts per commit, and the corrected native mechanism was visible in
+the counters — value-equal elements were already encoder-no-ops while equal raw
+text still produced protocol and layout work with D3 disabled.
+
+Second, the first D3-on pass found an honest one-op residual rather than rounding
+it away. The protocol tap decoded 53 bytes per commit as an unchanged, two-entry
+`SetPagerBindings` snapshot, not framing. Exact then cached descriptor equality
+without suppressing the zero-count detach signal; the same host rerun at
+`928b1bd60` recorded three value-equal commits with zero protocol ops, zero bytes,
+and zero layout requests. This was a good example of why the LLP 0052 gate says
+zero: treating a redundant host mutation as bookkeeping would have hidden a real
+boundary leak.
+
+The awkward part was external native-agent boot. The static All Aboard entry did
+not call Exact's app-agent seam, and the lazy agent module's canonical `/src`
+identifier pointed at the Snapback surface root rather than the source-pinned
+Exact checkout. A small runner bridge now calls the seam and aliases both the app
+bootstrap and canonical lazy module id. The module-bundle endpoint returns the
+source-pinned graph and Acto can capture a single coherent native tree,
+screenshot, and diagnostics snapshot instead of relying on ad hoc pixels.
+
+The profiler receipt is deliberately modest. It confirms Hermes work on
+`com.exact.runtime`, but an agent reporter call polluted the recording window, so
+it does not justify a parse/measure/layout percentage. The raw counters and
+protocol tap are the quantitative evidence; a later native signpost trace should
+answer the stage-attribution question cleanly. The named physical iPhone was
+offline, so this evidence is macOS-native only and says so explicitly in the
+durable report under `demos/all-aboard/measurements/`.
