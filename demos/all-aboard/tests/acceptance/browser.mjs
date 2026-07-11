@@ -70,7 +70,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 32;
+const EXPECTED_CHECKS = 33;
 
 // ENG-23727 warm-start bar: first useful board paint within this budget of
 // the surface script starting to execute (module fetch latency is Vite's,
@@ -157,6 +157,13 @@ async function main() {
   await runAcceptance(suite, async () => {
     await ensureApi();
     await ensureVite();
+    await suite.check('dev shell leaves native discovery to content negotiation', async () => {
+      const html = await (await fetch(`${viteUrl}/`)).text();
+      return {
+        ok: !html.includes('rel="exact:platform-manifest"') && !html.includes("rel='exact:platform-manifest'"),
+        detail: 'static platform-manifest discovery must only be injected by production builds',
+      };
+    });
     const chrome = await launchChrome();
     cleanups.push(() => chrome.stop());
     cdp = await connectCdp(chrome.ws);

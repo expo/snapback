@@ -1802,3 +1802,29 @@ reasons on web and for adjacent reasons on native (they stop the recompute
 cascade and the text re-emits at the source). The corrected per-host
 mechanism table lives in LLP 0052 (Design → "the equality landscape");
 the framework-side closure is tracked there and as LLP 0029 G15.
+
+## 2026-07-11 (fourth entry) — physical iPhone startup over Tailscale (ENG-23988)
+
+The physical-device closeout exposed two independent seams that localhost and
+production-envelope checks did not cover. First, a Tailscale-loaded page cannot
+use Snapback's loopback API origin directly; the Vite surface now supports a
+`same-origin` browser value backed by a separate localhost proxy target and
+accepts LAN hostnames. Second, the preserved HTML shell still hardcoded the
+static platform-manifest link that Exact now injects only during production
+builds. In dev that path fell through to the HTML shell, so the iPhone host read
+HTML where it expected a manifest and showed a white screen before JavaScript
+startup. Removing the stale link restored Exact's dev content negotiation while
+the production build continued to inject the real static link and envelopes.
+
+The concrete workflow mattered: `bun install` reapplied cleanly, the
+render-first cycle regression passed, the source-pinned build emitted ready iOS
+and macOS Hermes envelopes, and the Tailscale URL served both the app and
+`/snapback/health`. On a rebuilt physical iPhone host,
+`http://100.88.75.121:5178/` then rendered the All Aboard board; taps and native
+scrolling worked, and a follow-up check confirmed the framework swipe gestures
+worked too. The host briefly remained on its own title screen while the
+roughly 5 MB dev startup artifact loaded, which is useful UX feedback but was
+not another startup failure. Compared with a browser-only React/Supabase-style
+demo loop, the native discovery and package/source pin layers add meaningful
+diagnostic surface area; Exact's explicit startup-artifact endpoint made the
+final fault mechanically testable once the request path was inspected.
