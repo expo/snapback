@@ -8,10 +8,8 @@
 //   - TAP on the header directions line ([station-directions-<id>]) opens the
 //     preferred maps app directly. The contract press under that click would
 //     open the directions sheet, so the tap is intercepted;
-//   - LONG-PRESS (500ms, within slop) lets the contract press through — the
-//     glue synthesizes the click itself — so the bottom sheet opens with
-//     Apple Maps / Google Maps / Copy address. On hosts without this glue
-//     every press opens the sheet: honest degradation, one extra tap;
+//   - LONG-PRESS delivery belongs to Exact's shared recognizer; this module
+//     deliberately owns no timers or pointer state;
 //   - the sheet's rows keep their contract press (which closes the sheet) and
 //     get their side effect from a NON-blocking capture listener here;
 //   - the Settings maps-app row cycles the preference (data.ts module state,
@@ -27,8 +25,6 @@ import { cycleMapsApp, directionsUrl, getMapsApp, setMapsApp, stationAddress } f
 type Cleanup = () => void;
 
 const MAPS_APP_STORAGE_KEY = 'all-aboard.mapsApp';
-const LONG_PRESS_MS = 500;
-const LONG_PRESS_SLOP_PX = 10;
 
 function isApplePlatform(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -67,50 +63,6 @@ export function installDirections(root: HTMLElement): Cleanup {
     /* storage may be unavailable (private mode); the default stands */
   }
 
-  // Long-press state on the directions affordance. The synthetic click the
-  // timer dispatches must reach the contract (opens the sheet); the browser's
-  // own trailing click after the release must not then also open maps.
-  let pressTimer: ReturnType<typeof setTimeout> | null = null;
-  let pressOrigin: { x: number; y: number } | null = null;
-  let synthetic = false;
-  let longPressConsumed = false;
-
-  const cancelPressTimer = () => {
-    if (pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-    pressOrigin = null;
-  };
-
-  const onPointerDown = (event: PointerEvent) => {
-    if (!event.isPrimary || event.button !== 0) return;
-    const affordance = (event.target as Element).closest('[data-testid^="station-directions-"]');
-    if (!affordance) return;
-    longPressConsumed = false;
-    pressOrigin = { x: event.clientX, y: event.clientY };
-    pressTimer = setTimeout(() => {
-      pressTimer = null;
-      longPressConsumed = true;
-      synthetic = true;
-      try {
-        (affordance as HTMLElement).click();
-      } finally {
-        synthetic = false;
-      }
-    }, LONG_PRESS_MS);
-  };
-
-  const onPointerMove = (event: PointerEvent) => {
-    if (!pressOrigin || !pressTimer) return;
-    if (
-      Math.abs(event.clientX - pressOrigin.x) > LONG_PRESS_SLOP_PX ||
-      Math.abs(event.clientY - pressOrigin.y) > LONG_PRESS_SLOP_PX
-    ) {
-      cancelPressTimer();
-    }
-  };
-
-  const onPointerEnd = () => cancelPressTimer();
-
   // Tap on the directions line: open the preferred maps app instead of the
   // contract's sheet press (which stays the long-press / native path).
   const onDirectionsClick = (event: MouseEvent) => {
@@ -118,16 +70,9 @@ export function installDirections(root: HTMLElement): Cleanup {
     if (!(target instanceof Element)) return;
     const affordance = target.closest('[data-testid^="station-directions-"]');
     if (!affordance) return;
-    if (synthetic) return; // the long-press timer's own click → contract sheet
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    if (longPressConsumed) {
-      // The browser's trailing click after a long-press release: the sheet is
-      // already open; do not also open maps.
-      longPressConsumed = false;
-      return;
-    }
     openMaps(directionsUrl(stationIdFrom(affordance), resolveMapsApp(), travelModeFrom(affordance)));
   };
 
@@ -165,19 +110,10 @@ export function installDirections(root: HTMLElement): Cleanup {
     openMaps(directionsUrl(stationId, action === 'directions-apple' ? 'apple' : 'google', mode));
   };
 
-  root.addEventListener('pointerdown', onPointerDown);
-  root.addEventListener('pointermove', onPointerMove);
-  root.addEventListener('pointerup', onPointerEnd);
-  root.addEventListener('pointercancel', onPointerEnd);
   root.addEventListener('click', onDirectionsClick, true);
   root.addEventListener('click', onAugmentingClick, true);
 
   return () => {
-    cancelPressTimer();
-    root.removeEventListener('pointerdown', onPointerDown);
-    root.removeEventListener('pointermove', onPointerMove);
-    root.removeEventListener('pointerup', onPointerEnd);
-    root.removeEventListener('pointercancel', onPointerEnd);
     root.removeEventListener('click', onDirectionsClick, true);
     root.removeEventListener('click', onAugmentingClick, true);
   };

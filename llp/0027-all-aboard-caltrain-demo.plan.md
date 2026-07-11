@@ -248,27 +248,17 @@ E3 service-filter chips are gone (paging + tap-to-select made them
 redundant; filters had no strong use case on a board whose job is "next
 train").
 
-*As implemented:* Contract still has no swipe primitive (LLP 0029 G1), so this
-model ships on web as **surface glue** — `surfaces/contract/gestures.ts`
-recognizes the region-scoped swipes, drags the declared pager strips 1:1 with
-the finger (rubber-banding at corridor/list edges where no neighbor cell is
-declared), settles the strip onto the adjacent card, and only then dispatches
-the same press affordance a tap would use: the header edge chevrons for
-stations, the compact train rows adjacent to the selected card (testIds
-`train-prev` / `train-next`) for trains. Swipe-right-to-go-back on the sheet
-screens and arrow-key equivalents (←/→ earlier/later train, ↑/↓ adjacent
-station) ride the same dispatch. One action path serves gestures, taps,
-keyboard, tests, and the native host; when the Exact motion primitives land,
-the glue file is deleted and `swipe=` attributes replace it. The directions
-affordance is the same seam (`surfaces/contract/directions.ts`): it declares
-both `press=` and `longpress=` opening the actions sheet — `longpress` is a
-real Contract event and the native host-ops table delivers
-`EventType.LongPress` — while on web the glue intercepts the tap to open the
-preferred maps app (Settings-cycled, localStorage-persisted) and supplies
-the long-press timer the DOM mirror does not deliver yet (filed as its own
-gap). The open-in-maps and copy-address side effects are web glue; hosts
-without it get a sheet that dismisses honestly — visible, never
-half-working.
+*As implemented (Exact LLP 0336 P1 / ENG-24167):* the two contiguous strips
+are Contract `pager` declarations. Exact's web arena recognizes pointer and
+wheel input, arbitrates the declared claim regions, installs the effective
+`touch-action`, drags/springs/settles the adjacent cells, and dispatches the
+same command as the visible chevron or train-row witness. Pager arrows and
+the home mnemonics are declared bindings, not app listeners. The surviving
+`surfaces/contract/gestures.ts` is intentionally only the P2 remainder:
+sub-screen swipe-right plus Escape/ArrowLeft dismissal until those screens
+become router presentations. `directions.ts` still owns URL/clipboard/maps
+preference side effects, but Exact now delivers its declared `longpress`;
+the demo-local timer is gone. The native Motion/host slice remains G1/G8 work.
 Acceptance drives the affordances by testId and the gestures by synthetic
 pointer sequences dispatched from the element under the start point, since
 region decides meaning

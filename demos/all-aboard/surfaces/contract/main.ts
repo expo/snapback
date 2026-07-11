@@ -38,12 +38,12 @@ import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
-import { installGestures } from './gestures';
+import { installSheetDismissal } from './gestures';
 import { installDirections } from './directions';
 import { setBackendState, setColorScheme, setDeviceLocation, setRouteEstimateInvoker } from './data';
 import app from './app.contract';
 
-let disposeGestures: (() => void) | null = null;
+let disposeSheetDismissal: (() => void) | null = null;
 let disposeDirections: (() => void) | null = null;
 let disposeRefreshAction: (() => void) | null = null;
 let disposeLocationRequest: (() => void) | null = null;
@@ -105,8 +105,8 @@ function snapbackBaseUrl(): string {
 
 // The Exact dev server serves its own generated HTML shell (index.html is not
 // consulted), so the web-host page chrome lives here: the viewport height
-// chain the full-bleed stack needs, the dark backdrop, gesture touch-action
-// rules, and text-selection scoping. This is surface glue in the same sense as
+// chain the full-bleed stack needs, the dark backdrop, and text-selection
+// scoping. Pager touch-action is framework-owned (Exact LLP 0336 P1). This is surface glue in the same sense as
 // the geolocation and boot-status wiring.
 function installWebChrome(): void {
   if (typeof document === 'undefined' || document.getElementById('all-aboard-web-css')) return;
@@ -117,13 +117,8 @@ function installWebChrome(): void {
     html, body, #exact-root { height: 100%; margin: 0; }
     body { background: #ffffff; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; }
     body[data-aa-scheme="dark"] { background: #14171C; }
-    #exact-root { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+    #exact-root { -webkit-user-select: none; user-select: none; }
     #exact-root input, #exact-root textarea { -webkit-user-select: text; user-select: text; }
-    /* Gesture zones (ENG-23719): the header owns its pointer entirely (station
-       swipes); the board keeps native vertical scrolling and yields only the
-       horizontal axis to the train-walk gesture (gestures.ts). */
-    [data-testid="station-header"] { touch-action: none; }
-    [data-testid="board-content"] { touch-action: pan-y; }
     [data-testid="settings-location"] { cursor: pointer; }
     /* The directions affordance long-presses into the sheet (ENG-23795):
        keep the browser's own touch callout/selection off it. */
@@ -317,11 +312,11 @@ async function mountBoard(client: SnapbackClient): Promise<void> {
     timing.firstBoardPaintMs = typeof performance !== 'undefined' ? performance.now() : 0;
   }
 
-  // Gesture-first interaction as web surface glue (LLP 0029 G1): swipes and
-  // arrow keys drive the same press affordances the .contract declares.
+  // P2 remainder only: sub-screen swipe/keyboard dismissal. Home paging and
+  // keys are declared in app.contract and owned by the Contract runtime.
   const rootEl = typeof document !== 'undefined' ? document.getElementById('exact-root') : null;
   if (rootEl) {
-    disposeGestures = installGestures(rootEl);
+    disposeSheetDismissal = installSheetDismissal(rootEl);
     disposeDirections = installDirections(rootEl);
     disposeRefreshAction = installRefreshAction(rootEl, client);
     disposeLocationRequest = installLocationRequest(rootEl);
@@ -398,7 +393,10 @@ const ready = (async () => {
 // Test/debug facts: the browser acceptance suite asserts the paved path
 // through these (livePush, per-query connection values, the provisioning
 // actions this window actually performed) plus the ENG-23727 startup timing.
-(globalThis as { allAboard?: unknown }).allAboard = { ready, startupTiming: timing };
+(globalThis as { allAboard?: unknown }).allAboard = {
+  ready,
+  startupTiming: timing,
+};
 void ready.then(({ surface, provisioned }) => {
   (globalThis as { allAboard?: unknown }).allAboard = {
     ready,
@@ -413,13 +411,13 @@ void ready.then(({ surface, provisioned }) => {
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     if (disposeRefreshAction) disposeRefreshAction();
-    if (disposeGestures) disposeGestures();
+    if (disposeSheetDismissal) disposeSheetDismissal();
     if (disposeDirections) disposeDirections();
     if (disposeLocationRequest) disposeLocationRequest();
     if (disposeClipperLink) disposeClipperLink();
     if (disposeColorScheme) disposeColorScheme();
     disposeRefreshAction = null;
-    disposeGestures = null;
+    disposeSheetDismissal = null;
     disposeDirections = null;
     disposeLocationRequest = null;
     disposeClipperLink = null;

@@ -30,17 +30,13 @@
 // direction's own next-train countdown beside it), and stroke-icon refresh /
 // settings buttons.
 //
-// PAGING (ENG-23795): both paging surfaces are declared 3-cell strips —
+// PAGING (ENG-23795 / Exact LLP 0336 P1): both paging surfaces are declared
+// framework-owned 3-cell pagers —
 // prev/current/next station header cards, prev/current/next hero train cards
 // — physically adjacent at left ±100% inside a clipped container, exactly the
-// native contiguous-page model. Contract still has no swipe primitive
-// (LLP 0027 gesture gap; LLP 0029 G1), so ON WEB the glue (gestures.ts) drags
-// the strip 1:1 with the finger and settles it into the adjacent page before
-// dispatching the same press affordance a native host would tap: the header
-// edge chevrons for stations, the compact train rows adjacent to the hero
-// (testIds train-prev / train-next) for trains. No fade-out/fade-in: the
-// neighbor card is already there and slides in. When Exact grows real gesture
-// primitives, gestures.ts is deleted and swipe= attributes replace it.
+// native contiguous-page model. On web the Contract runtime owns pointer and
+// wheel recognition, claim arbitration, transforms, and arrow keys. The
+// visible chevrons/rows remain the command witnesses and tap affordances.
 //
 // Composition: the root AllAboard component owns all state, derives, actions,
 // and the contract block; the screen components below are presentational and
@@ -219,6 +215,15 @@ component AllAboard
   action doRefresh mutates refresh
     refresh({ trigger: "manual" })
 
+  // Home-screen mnemonic bindings share the same actions and visible
+  // witnesses as taps. They remain disabled when their witness is absent
+  // (for example Enter when there is no hero departure).
+  key "Enter" -> openTrip(board.hero.id) fallback="hero-departure"
+  key "f" -> toggleDirection(oppositeDir) fallback="flip-direction"
+  key "r" -> doRefresh fallback="refresh"
+  key "s" -> openStations fallback="change-station"
+  key "g" -> openSettings fallback="open-settings"
+
   task ticker mount
     every(1000, tick)
 
@@ -298,11 +303,10 @@ component HeaderIdentity
         text sub size=12 color="#ffffffcc"
 
 // The sticky station header (ENG-23719/ENG-23795): Caltrain red, the
-// station-paging surface. It clips a 3-cell pager strip — the adjacent
-// stations' identity cards physically at ±100% — which the web glue drags
-// 1:1 and settles into the neighbor (gestures.ts); the edge chevrons are the
-// press affordances that commit the same page turn everywhere (native hosts,
-// keyboard, acceptance tests). Pressing the identity block opens the stations
+// station-paging surface. Its pager owns a 3-cell strip — the adjacent
+// stations' identity cards physically at ±100% — plus pointer/wheel/arrow
+// recognition. The edge chevrons are the visible command witnesses and tap
+// affordances. Pressing the identity block opens the stations
 // sheet; the directions line under the name is its own affordance
 // (ENG-23795): tap opens the preferred maps app (web glue), long-press — or
 // plain press on hosts without the glue — opens the directions sheet.
@@ -320,7 +324,7 @@ component StationHeader
     dirLabel: string
     topInset: number
     headerHeight: number
-    goToStation: (id) => void
+    goToStation: action(id: string)
     openStations: () => void
     openDirections: () => void
 
@@ -329,41 +333,36 @@ component StationHeader
     // safe-area inset); the pager strip starts below the inset so the
     // station identity and chevrons stay clear of the notch/clock.
     column position="absolute" top=0 left=0 right=0 height=headerHeight background="#C8102E" overflow="hidden" testId="station-header"
-      column position="absolute" top=topInset left=0 right=0 bottom=0 testId="station-pager"
+      pager axis="horizontal" keys="vertical" claim="station-header" prev=goToStation(prevStationId) next=goToStation(nextStationId) fallbackPrev="prev-station" fallbackNext="next-station" position="absolute" top=topInset left=0 right=0 bottom=0 testId="station-pager"
         when prevStationId != station.id
-          column position="absolute" top=0 bottom=0 left="-100%" width="100%" justify="center" testId="header-cell-prev"
-            HeaderIdentity(name=prevStation.name, art=prevArt, sub=`Zone ${prevStation.zone}`)
-        column position="absolute" top=0 bottom=0 left="0%" width="100%" justify="center"
-          row align="center" width="100%" height="100%" maxWidth=620 alignSelf="center"
-            button press=goToStation(prevStationId) label="Previous station" testId="prev-station" width=40 height="100%" background="transparent" borderWidth=0 justify="center" align="center" opacity=prevStationId == station.id ? 0.25 : 1
-              text "‹" size=30 weight=700 color="#ffffff"
-            row gap=12 align="center" flex=1
-              when art != ""
-                button press=openStations label="Change station" background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0
-                  column width=54 height=74 radius=10 overflow="hidden" borderWidth=2 borderColor="#ffffff59" background="#ffffff22"
-                    image svgSource=art alt=`${station.name} station scene` width="100%" height="100%" objectFit="cover" testId="station-art"
-              column gap=2 align="flex-start" flex=1
-                button press=openStations label="Change station" testId="change-station" background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
-                  column gap=2 align="flex-start"
-                    text "CALTRAIN" size=10 weight=800 letterSpacing=2.4 color="#ffffffa6"
-                    text station.name size=23 weight=800 lineHeight=26 color="#ffffff" testId="station-name" headingLevel=1
-                // The directions affordance (ENG-23795): a SIBLING of the
-                // change-station button, never nested inside it (a nested
-                // press would bubble into "change station" too). longpress is
-                // a DECLARED Contract event (web renderer timer + native
-                // EventType.LongPress) that opens the actions sheet; press
-                // also opens it, so hosts without the web glue get the sheet
-                // on plain tap — on web the glue intercepts the tap to open
-                // the preferred maps app directly. The station id rides in
-                // the testId and the resolved travel mode in the label — the
-                // web glue parses both to build the maps URL.
-                button press=openDirections longpress=openDirections label=dirLabel testId=`station-directions-${station.id}` background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
-                  text `Zone ${station.zone} · ${walkBike}` size=12 color="#ffffffcc" testId="walk-bike"
-            button press=goToStation(nextStationId) label="Next station" testId="next-station" width=40 height="100%" background="transparent" borderWidth=0 justify="center" align="center" opacity=nextStationId == station.id ? 0.25 : 1
-              text "›" size=30 weight=700 color="#ffffff"
+          cell side="prev"
+            column justify="center" height="100%" testId="header-cell-prev"
+              HeaderIdentity(name=prevStation.name, art=prevArt, sub=`Zone ${prevStation.zone}`)
+        cell side="current"
+          column justify="center" height="100%"
+            row align="center" width="100%" height="100%" maxWidth=620 alignSelf="center"
+              button press=goToStation(prevStationId) label="Previous station" testId="prev-station" width=40 height="100%" background="transparent" borderWidth=0 justify="center" align="center" opacity=prevStationId == station.id ? 0.25 : 1
+                text "‹" size=30 weight=700 color="#ffffff"
+              row gap=12 align="center" flex=1
+                when art != ""
+                  button press=openStations label="Change station" background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0
+                    column width=54 height=74 radius=10 overflow="hidden" borderWidth=2 borderColor="#ffffff59" background="#ffffff22"
+                      image svgSource=art alt=`${station.name} station scene` width="100%" height="100%" objectFit="cover" testId="station-art"
+                column gap=2 align="flex-start" flex=1
+                  button press=openStations label="Change station" testId="change-station" background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
+                    column gap=2 align="flex-start"
+                      text "CALTRAIN" size=10 weight=800 letterSpacing=2.4 color="#ffffffa6"
+                      text station.name size=23 weight=800 lineHeight=26 color="#ffffff" testId="station-name" headingLevel=1
+                  // Long-press delivery is framework-owned on web. The click
+                  // side-effect bridge still opens the preferred maps app.
+                  button press=openDirections longpress=openDirections label=dirLabel testId=`station-directions-${station.id}` background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
+                    text `Zone ${station.zone} · ${walkBike}` size=12 color="#ffffffcc" testId="walk-bike"
+              button press=goToStation(nextStationId) label="Next station" testId="next-station" width=40 height="100%" background="transparent" borderWidth=0 justify="center" align="center" opacity=nextStationId == station.id ? 0.25 : 1
+                text "›" size=30 weight=700 color="#ffffff"
         when nextStationId != station.id
-          column position="absolute" top=0 bottom=0 left="100%" width="100%" justify="center" testId="header-cell-next"
-            HeaderIdentity(name=nextStation.name, art=nextArt, sub=`Zone ${nextStation.zone}`)
+          cell side="next"
+            column justify="center" height="100%" testId="header-cell-next"
+              HeaderIdentity(name=nextStation.name, art=nextArt, sub=`Zone ${nextStation.zone}`)
 
 // One train as the expanded highlighted card: countdown, service class,
 // number, delay, headsign, and the stop chips — the boarding stop plus an
@@ -421,7 +420,7 @@ component DirectionBoard
     delayRows: object[]
     departureRows: object[]
     openTrip: (id) => void
-    selectTrain: (offset) => void
+    selectTrain: action(offset: number)
     trainFirst: () => void
 
   view
@@ -452,18 +451,20 @@ component DirectionBoard
                         text d.service size=9 weight=700 color=serviceColor(d.service)
                     text `${formatClockTime(d.predictedDepartureMs)} · #${d.trainNumber}` size=11 family="ui-monospace, Menlo, monospace" color=theme.muted
 
-          // The selected train: a clipped 3-cell paging strip. The web glue
-          // drags [hero-pager]; the neighbor cards are physically at ±100%.
+          // The selected train: a framework-owned clipped 3-cell pager.
           column width="100%" overflow="hidden" position="relative"
-            column width="100%" position="relative" testId="hero-pager"
-              button press=openTrip(board.hero.id) label="Open selected train" testId="hero-departure" background="transparent" borderWidth=0 padding=0 width="100%"
-                HeroCard(dep=board.hero, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero")
+            pager axis="horizontal" keys="horizontal" claim="board-content" prev=selectTrain(board.offset - 1) next=selectTrain(board.offset + 1) fallbackPrev="train-prev" fallbackNext="train-next" width="100%" testId="hero-pager"
               when board.heroPrev
-                column position="absolute" top=0 bottom=0 left="-100%" width="100%" testId="hero-cell-prev"
-                  HeroCard(dep=board.heroPrev, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero-prev")
+                cell side="prev"
+                  column width="100%" testId="hero-cell-prev"
+                    HeroCard(dep=board.heroPrev, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero-prev")
+              cell side="current"
+                button press=openTrip(board.hero.id) label="Open selected train" testId="hero-departure" background="transparent" borderWidth=0 padding=0 width="100%"
+                  HeroCard(dep=board.hero, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero")
               when board.heroNext
-                column position="absolute" top=0 bottom=0 left="100%" width="100%" testId="hero-cell-next"
-                  HeroCard(dep=board.heroNext, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero-next")
+                cell side="next"
+                  column width="100%" testId="hero-cell-next"
+                    HeroCard(dep=board.heroNext, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero-next")
 
           // Every remaining train for the rest of the day — pressing selects
           // (pages to) that train; the selected card is the affordance for
@@ -544,8 +545,8 @@ component StickyFooter
           button press=openSettings label="Settings" testId="open-settings" width=36 height=36 radius=18 background=theme.iconBtn borderWidth=0 justify="center" align="center"
             image svgSource=settingsIconSvg(theme.secondary) alt="" width=17 height=17
 
-// The directions bottom sheet (ENG-23795): reached by long-press on the
-// header directions line (web glue) or plain press on hosts without the glue.
+// The directions bottom sheet (ENG-23795): reached by framework-delivered
+// long-press on the header directions line or plain press on hosts without it.
 // The open/copy side effects are web glue over these presses (directions.ts);
 // each press also closes the sheet, so hosts without the glue degrade to a
 // visible sheet that dismisses honestly instead of half-working.
@@ -562,7 +563,7 @@ component DirectionsSheet
     closeDirections: () => void
 
   view
-    column position="absolute" top=0 left=0 right=0 bottom=0 testId="directions-overlay"
+    column position="absolute" top=0 left=0 right=0 bottom=0 accessibilityModal=true focusTrap=true dismiss=closeDirections testId="directions-overlay"
       button press=closeDirections label="Close directions" testId="directions-scrim" position="absolute" top=0 left=0 right=0 bottom=0 background=theme.scrim borderWidth=0 radius=0 padding=0
         column width="100%" height="100%"
       column position="absolute" left=0 right=0 bottom=0 align="center" padding=10 paddingBottom=10 + bottomInset

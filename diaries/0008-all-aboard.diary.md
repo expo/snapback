@@ -1699,3 +1699,32 @@ Verification: trip-detail-live 8/8 (boardingCall minutes/departed/null
 shapes); browser 29/29 on fresh ports (the trip-detail check now also asserts the
 numeric boarding countdown), with the nowMs-derived polls widened to
 tolerate the 5s clock bucket and the suite pinned to the light scheme.
+
+## 2026-07-11 (second entry) — the pager and keys leave app glue (Exact LLP 0336 P1 / ENG-24167)
+
+All Aboard is now the acceptance fixture for Exact's first shared interaction
+slice. The station header and selected-train strip are Contract `pager` nodes:
+their prev/current/next cells stay physically adjacent, while Exact's web arena
+owns pointer drags, trackpad wheel normalization/lockout, claim arbitration,
+rubber-band/spring/settle motion, trailing-click suppression, and arrow keys.
+The header claims `station-header`; the hero pager crosses its component
+boundary to claim `board-content`. Visible chevrons and train rows remain the
+ordinary tap affordances and static/runtime witnesses.
+
+The old `gestures.ts` did not disappear entirely because LLP 0336 draws the P1
+boundary carefully. It is now a small P2 remainder containing only swipe-right
+and Escape/ArrowLeft dismissal for stations/settings/trip. Home pager logic,
+wheel state, and home key switches are gone. The `f/r/s/g/Enter` bindings live
+as Contract `key` lines, with the same visible command witnesses. Directions
+keeps only maps/clipboard/preference side effects; Exact's long-press delivery
+replaced its local 500ms timer, and the sheet declares its modal barrier plus
+`dismiss=`.
+
+Acceptance retained the old synthetic pointer and wheel sequences instead of
+turning them into click-only checks. The candidate Exact packages pass the full
+browser suite with explicit checks for adjacent cells, framework-computed
+`touch-action`, pointer and wheel paging, pager arrows, mnemonic case-folding,
+modal long-press, and the still-deferred sheet dismissal. One useful extraction
+finding landed back in Exact: touch policy must be refreshed after every DOM
+mirror sync (not lazily on first pointerdown), and spring-back must install its
+transition after the transform helper's reset.

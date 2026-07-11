@@ -19,13 +19,10 @@
         background: #ffffff;
         overflow: hidden;
       }
-      /* Gesture zones (ENG-23719): the red header owns its pointer (station
-         swipes); the board scrolls natively and yields only the horizontal
-         axis to the train-walk gesture. Double-tap zoom is off app-wide. */
-      #exact-root { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+      /* Pager claim-region touch-action is installed by Exact (LLP 0336 P1).
+         Keep only app-wide text-selection behavior here. */
+      #exact-root { -webkit-user-select: none; user-select: none; }
       #exact-root input, #exact-root textarea { -webkit-user-select: text; user-select: text; }
-      [data-testid="station-header"] { touch-action: none; }
-      [data-testid="board-content"] { touch-action: pan-y; }
       input::placeholder { color: rgba(26, 31, 39, 0.4); }
       /* Hard-failure notice only (ENG-23727): startup never shows progress
          chrome — the board itself is the first paint, and degraded backends

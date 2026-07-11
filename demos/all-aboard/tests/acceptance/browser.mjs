@@ -70,7 +70,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 29;
+const EXPECTED_CHECKS = 31;
 
 // ENG-23727 warm-start bar: first useful board paint within this budget of
 // the surface script starting to execute (module fetch latency is Vite's,
@@ -444,10 +444,9 @@ async function main() {
       return { second, firstStillLive: conns };
     });
 
-    // Gesture layer (LLP 0027 interaction model via web surface glue; LLP 0029
-    // G1 remains open — these drive the same press affordances by pointer).
-    // ENG-23795: paging is contiguous — both surfaces declare 3-cell strips
-    // whose neighbor cards are physically adjacent during the gesture.
+    // Exact LLP 0336 P1: the shared Contract recognizer owns both contiguous
+    // pagers. These synthetic pointer/wheel sequences are retained from the
+    // old glue suite as migration acceptance, not replaced with click tests.
 
     await suite.check('paging strips declare physically adjacent cards at ±100% (no blank neighbors)', async () => {
       const rects = await page.eval(`(() => {
@@ -468,11 +467,26 @@ async function main() {
       return rects;
     });
 
+    await suite.check('pager arena installs the effective touch-action policy on claim regions', async () => {
+      const policy = await page.eval(`(() => {
+        const header = document.querySelector('[data-testid="station-header"]');
+        const board = document.querySelector('[data-testid="board-content"]');
+        const pager = document.querySelector('[data-testid="hero-pager"]');
+        pager.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 77, isPrimary: true, button: 0, buttons: 1, bubbles: true, clientX: 120, clientY: 480 }));
+        pager.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 77, isPrimary: true, button: 0, bubbles: true, clientX: 120, clientY: 480 }));
+        return { header: getComputedStyle(header).touchAction, board: getComputedStyle(board).touchAction };
+      })()`);
+      if (policy.header !== 'pan-y' || policy.board !== 'pan-y') {
+        throw new Error(`framework pager policy missing: ${JSON.stringify(policy)}`);
+      }
+      return policy;
+    });
+
     await suite.check('gesture: swipe left on the header pages to the adjacent station', async () => {
       // ENG-23719 gesture zones: station navigation lives on the red header
       // (y within the 106px sticky band), not the scrolling board below it.
       const before = await page.text('station-name');
-      await page.swipe('h', -170, { cy: 53 });
+      await page.swipe('h', -170, { cy: 53, targetId: 'station-header' });
       const after = await page.text('station-name');
       if (!before || before === after) throw new Error(`station did not change (${before} -> ${after})`);
       return { before, after };
@@ -484,8 +498,13 @@ async function main() {
       // meta line — a live delay delta can move the predicted time mid-check.
       const num = (s) => (s ?? '').match(/#\d+/)?.[0] ?? null;
       const before = num(await page.text('hero-meta'));
-      await page.swipe('h', -170, { cy: 480 });
-      const after = num(await page.text('hero-meta'));
+      await page.swipe('h', -170, { cy: 480, targetId: 'board-content' });
+      const afterText = await page.evalPoll(
+        `document.querySelector('[data-testid="hero-meta"]')?.textContent ?? ''`,
+        (value) => num(value) !== before,
+        3000,
+      );
+      const after = num(afterText);
       if (!before || before === after) throw new Error(`hero train did not change (${before} -> ${after})`);
       return { before, after };
     });
@@ -496,12 +515,26 @@ async function main() {
       // row pages the strip to that train, and paged-past trains remain as
       // compact rows instead of disappearing.
       const num = (s) => (s ?? '').match(/#\d+/)?.[0] ?? null;
-      // Reset to the next train if an earlier check left the board paged.
-      await page.eval(`(async () => { document.querySelector('[data-testid="train-first"]')?.click(); await new Promise(r=>setTimeout(r,350)); })()`);
+      // Continue from the page selected by the preceding swipe. This proves
+      // the visible following row and pager compose without resetting the
+      // binding generation between the two interactions.
       const first = num(await page.text('hero-meta'));
-      await page.click('train-next');
-      const paged = num(await page.text('hero-meta'));
-      if (!paged || paged === first) throw new Error(`train-next row did not page (${first} -> ${paged})`);
+      const nextRows = await page.eval(`(() => {
+        const rows = Array.from(document.querySelectorAll('[data-testid="train-next"]'));
+        const visible = rows.filter((el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden');
+        const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+        const dispatched = visible.at(-1)?.dispatchEvent(event) ?? false;
+        return { total: rows.length, visible: visible.length, dispatched, defaultPrevented: event.defaultPrevented };
+      })()`);
+      const pagedText = await page.evalPoll(
+        `document.querySelector('[data-testid="hero-meta"]')?.textContent ?? ''`,
+        (value) => num(value) !== first,
+        3000,
+      );
+      const paged = num(pagedText);
+      if (!paged || paged === first) {
+        throw new Error(`train-next row did not page (${first} -> ${paged}); rows=${JSON.stringify(nextRows)}`);
+      }
       const compact = await page.exists('earlier-trains');
       if (!compact) throw new Error('sooner trains vanished after paging forward');
       const compactNum = num(await page.eval(`document.querySelector('[data-testid="train-prev"]')?.textContent ?? ''`));
@@ -563,6 +596,32 @@ async function main() {
       );
       if (num(back) !== first) throw new Error(`reverse wheel swipe did not page back (${num(back)} != ${first})`);
       return { first, paged: num(paged), back: num(back) };
+    });
+
+    await suite.check('declared pager arrows and mnemonic keys share visible command witnesses', async () => {
+      const num = (s) => (s ?? '').match(/#\d+/)?.[0] ?? null;
+      await page.eval(`(async () => { document.querySelector('[data-testid="train-first"]')?.click(); await new Promise(r=>setTimeout(r,300)); })()`);
+      const firstTrain = num(await page.text('hero-meta'));
+      await page.eval(`document.querySelector('[data-testid="hero-pager"]')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })); true`);
+      const nextTrainText = await page.evalPoll(
+        `document.querySelector('[data-testid="hero-meta"]')?.textContent ?? ''`,
+        (value) => num(value) !== firstTrain,
+        3000,
+      );
+      const beforeDirection = await page.text('active-direction');
+      await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'F', bubbles: true, cancelable: true })); true`);
+      const afterDirection = await page.evalPoll(
+        `document.querySelector('[data-testid="active-direction"]')?.textContent ?? ''`,
+        (value) => value !== beforeDirection,
+        3000,
+      );
+      await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true, cancelable: true })); true`);
+      const settings = await page.evalPoll(`!!document.querySelector('[data-testid="settings-screen"]')`, Boolean, 3000);
+      if (!settings) throw new Error('g mnemonic did not open settings');
+      await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); true`);
+      const home = await page.evalPoll(`!!document.querySelector('[data-testid="station-screen"]')`, Boolean, 3000);
+      if (!home) throw new Error('deferred sheet Escape did not return home');
+      return { firstTrain, nextTrain: num(nextTrainText), beforeDirection, afterDirection };
     });
 
     await suite.check('rest-of-day rows render below the hero, fading past three trains out', async () => {
@@ -868,7 +927,7 @@ async function connectCdp(url) {
         text: (id) => evalRaw(`document.querySelector('${sel(id)}')?.textContent.trim() ?? null`),
         exists: (id) => evalRaw(`!!document.querySelector('${sel(id)}')`),
         click: (id) => evalRaw(`(async () => { const el = document.querySelector('${sel(id)}'); if (!el) throw new Error('no ${id}'); el.click(); await new Promise(r=>setTimeout(r,350)); })()`),
-        // Synthetic pointer gestures against the glue layer (gestures.ts).
+        // Synthetic pointer gestures against Exact's shared pager recognizer.
         // Gesture meaning is region-scoped (ENG-23719), so callers pass the
         // start point: cy≈53 hits the sticky header, cy≈480 the board.
         swipe: (axis, delta, at = {}) => evalRaw(`(async () => {
@@ -877,7 +936,7 @@ async function connectCdp(url) {
           // Dispatch from the element under the start point (bubbles to the
           // root listener): the glue scopes gesture meaning by the pointerdown
           // target's region (header vs board), so target=root would misfile it.
-          const origin = document.elementFromPoint(cx, cy) ?? root;
+          const origin = ${at.targetId ? `document.querySelector('[data-testid="${at.targetId}"]') ?? ` : ''}document.elementFromPoint(cx, cy) ?? root;
           const opts = (x, y, extra) => ({ bubbles: true, cancelable: true, pointerId: 7, isPrimary: true, button: 0, buttons: 1, clientX: x, clientY: y, pointerType: 'touch', ...extra });
           const pointAt = (i) => { const d = ${delta} * (i / steps); return '${axis}' === 'h' ? [cx + d, cy] : [cx, cy + d]; };
           origin.dispatchEvent(new PointerEvent('pointerdown', opts(cx, cy)));
@@ -887,7 +946,16 @@ async function connectCdp(url) {
           await new Promise(r => setTimeout(r, 650));
         })()`),
         waitForTestId: (id) => evalRaw(`(async () => { const d = Date.now()+8000; while (Date.now()<d) { if (document.querySelector('${sel(id)}')) return true; await new Promise(r=>setTimeout(r,80)); } throw new Error('timeout waiting for ${id}'); })()`),
-        evalPoll: (expr, _pred, ms) => evalRaw(`(async () => { const d = Date.now()+${ms}; let v; while (Date.now()<d) { v = ${expr}; if (/Updated/.test(v)) return v; await new Promise(r=>setTimeout(r,150)); } return v; })()`),
+        evalPoll: async (expr, predicate, ms) => {
+          const deadline = Date.now() + ms;
+          let value;
+          while (Date.now() < deadline) {
+            value = await evalRaw(expr);
+            if (predicate(value)) return value;
+            await sleep(150);
+          }
+          return value;
+        },
         // Poll a testId's text until it matches the pattern (or time out,
         // returning the last value for the caller's error message).
         pollText: (id, pattern, ms) => evalRaw(`(async () => { const d = Date.now()+${ms}; let v; while (Date.now()<d) { v = document.querySelector('${sel(id)}')?.textContent.trim() ?? null; if (v !== null && new RegExp(${JSON.stringify(pattern)}).test(v)) return v; await new Promise(r=>setTimeout(r,120)); } return v; })()`),

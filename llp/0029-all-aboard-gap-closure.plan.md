@@ -47,7 +47,7 @@ product-impact for a real transit app, not demo-impact.
 
 | # | Gap | Severity | Effort | Owner |
 |---|---|---|---|---|
-| G1 | Swipe/pan gestures absent in Contract | High | L | Exact motion RFCs |
+| G1 | Native pager gestures absent; web slice **closed 2026-07-11** (Exact LLP 0336 P1 / ENG-24167) | High | L | Exact LLP 0336 P2 |
 | G2 | Browser Contract adapter has no live-push, single-boundary — **closed 2026-07-02** (LLP 0032 P5 on LLP 0034 D1: adapter-owned live push, multi-query mode, `store.mjs` deleted, cron→Contract proof) | High | M | LLP 0020 / LLP 0008 |
 | G3 | Per-host egress allowlist not enforced (coarse `network:fetch`) | High | M | LLP 0009 |
 | G4 | Secrets seam is a static env blob, no rotation/scoping — **closed 2026-07-02** (LLP 0036 v1 slice) | Medium | M | LLP 0036 |
@@ -62,28 +62,26 @@ product-impact for a real transit app, not demo-impact.
 | G13 | Timezone/DST simplification (client local + fixed offset) | Low | S | LLP 0027 |
 | G14 | Safe-area insets have no Contract primitive (userland device glue) | Medium | M | Exact / Contract layout |
 
-### G1 — Swipe/pan gestures absent in Contract
+### G1 — Native pager gestures absent; web slice closed 2026-07-11 (Exact LLP 0336 P1 / ENG-24167)
 
-**What & evidence.** LLP 0027's interaction model is swipe-first (left/right =
-station, up/down = train). Those primitives do not exist: the Contract event
-vocabulary is exactly `press change submit longpress focus blur scrollend refresh`,
-the kernel `EventType` has no swipe/pan opcode, and `swipe`/`OnSwipeDown`/`gesture`
-appear only in two **unbuilt** Exact motion RFCs. All Aboard shipped press
-affordances (◀ ▶ buttons, a Flip button, tap-a-train) and declared `exact.gestures:
-false`.
+**What & evidence.** Exact LLP 0336 P1 closed the web half without adding a
+misleading `swipe=` event: All Aboard's station and train strips are Contract
+`pager` nodes backed by Exact's shared DOM recognizer/arena, claim regions,
+wheel normalization, arrow-key bindings, visible witnesses, mounted snapshot,
+and dispatch receipts. The old pager/home-key glue and directions long-press
+timer are gone. Native still lacks the P2 Motion presenter/recognizer and
+protocol handshake, so the cross-surface gap remains open there.
 
-**Impact.** The zero-chrome, spatial mental model LLP 0027 wants is not
-achievable; the app is a button UI, not a gesture UI. This is the single biggest
-delta between the shipped surface and the product vision.
+**Impact.** Web now delivers the zero-chrome spatial model through declared
+Contract semantics. Native still exposes only the press witnesses, so gesture
+parity and G8 remain release work.
 
-**Closing it.** Land the Exact motion primitives end-to-end: a directional gesture
-recognizer in the kernel, a new `EventType` (pan/swipe with direction + velocity)
-over the host-ops protocol, a Contract event attribute (`swipe=` / `onSwipeLeft=`
-…), and web + native host bindings. Then the demo swaps press affordances for
-`swipe=` handlers that call the same actions. Gate acceptance through Exact's
-structured tree, not synthetic DOM events.
+**Closing the remainder.** Land LLP 0336 P2's native minimum Motion slice and
+router presentations, run All Aboard in the native hosts, and delete the final
+sheet-dismissal glue. P1 deliberately reserves `swipe*=` fail-closed; pager is
+the honest high-level primitive for this interaction.
 
-**Interim (2026-07-01; contiguous paging 2026-07-09, ENG-23795).** The
+**History (2026-07-01; contiguous paging 2026-07-09, ENG-23795).** The
 redesign pass shipped the swipe UX on web as demo-local surface glue:
 `surfaces/contract/gestures.ts` recognizes the LLP 0027 gestures and
 dispatches by clicking the declared press affordances, so one action path
