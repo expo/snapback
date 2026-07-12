@@ -33,6 +33,18 @@ globalThis.__snapbackHandlers = {
   async listItems(ctx) {
     return await ctx.db.query('items').order('rank', 'asc').collect();
   },
+  async insertOptionalOrderAndRead(ctx) {
+    await ctx.db.insert('items', { label: 'high', rank: 2 });
+    await ctx.db.insert('items', { label: 'omitted' });
+    await ctx.db.insert('items', { label: 'low', rank: 1 });
+    return {
+      asc: await ctx.db.query('items').order('rank', 'asc').take(2).collect(),
+      desc: await ctx.db.query('items').order('rank', 'desc').take(2).collect()
+    };
+  },
+  async listLimitedItems(ctx, args) {
+    return await ctx.db.query('items').order('rank', args.direction).take(2).collect();
+  },
   async probeMemberDenied(ctx, args) {
     var parts = args.name.split('.');
     var holder = globalThis[parts[0]];
@@ -101,6 +113,8 @@ fn functions() -> FunctionManifest {
             define("ledgeredIds", FunctionKind::Mutation),
             define("idFlood", FunctionKind::Mutation),
             define("listItems", FunctionKind::Query),
+            define("insertOptionalOrderAndRead", FunctionKind::Mutation),
+            define("listLimitedItems", FunctionKind::Query),
             define("probeMemberDenied", FunctionKind::Query),
             define("probeDateCtor", FunctionKind::Query),
         ],
@@ -177,6 +191,54 @@ fn replay_mode_reproduces_the_recorded_answers() {
         Some(&ledger.ids)
     );
     assert_eq!(replayed.ctx_ledger.map(|l| l.now), Some(ledger.now));
+}
+
+#[test]
+fn buffered_optional_order_fields_match_committed_null_last_ordering() {
+    let mut snapback = configured();
+    // Force IDs so the omitted row sorts first by ID. Before ENG-24490 the
+    // buffered overlay treated its missing rank as an unorderable key and
+    // fell back to this ID, while committed SQL materialized NULL and put it
+    // last. The two present rows must win the limit in both directions.
+    let ledger = CtxAnswerLedger {
+        version: CTX_ANSWER_LEDGER_VERSION,
+        ids: vec![
+            "z-high".to_owned(),
+            "a-omitted".to_owned(),
+            "m-low".to_owned(),
+        ],
+        now: 123,
+        auth_fingerprint: None,
+    };
+    let output = snapback
+        .invoke_mutation(
+            "insertOptionalOrderAndRead",
+            replay_input(json!({}), ledger),
+        )
+        .expect("buffered ordering mutation");
+    let labels = |rows: &Value| {
+        rows.as_array()
+            .expect("rows")
+            .iter()
+            .map(|row| row["label"].as_str().expect("label").to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(labels(&output.result["asc"]), ["low", "high"]);
+    assert_eq!(labels(&output.result["desc"]), ["high", "low"]);
+
+    for (direction, expected) in [("asc", ["low", "high"]), ("desc", ["high", "low"])] {
+        let committed = snapback
+            .invoke_query("listLimitedItems", input(json!({ "direction": direction })))
+            .expect("committed ordering query");
+        assert_eq!(
+            committed
+                .rows
+                .iter()
+                .map(|row| row["label"].as_str().expect("label"))
+                .collect::<Vec<_>>(),
+            expected,
+        );
+    }
 }
 
 #[test]

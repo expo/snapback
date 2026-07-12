@@ -402,7 +402,10 @@ fn query_boundary(plan: &QueryPlan, rows: &[Value]) -> Option<Value> {
 pub(crate) fn sort_key(plan: &QueryPlan, row: &Value) -> Option<Value> {
     let mut values = Vec::with_capacity(plan.order.len() + 1);
     for order in &plan.order {
-        values.push(row.get(&order.field)?.clone());
+        // Optional fields omitted from a buffered insert are the same logical
+        // NULL that storage materializes after commit. Normalizing here keeps
+        // read-your-writes ordering identical on both sides of that commit.
+        values.push(row.get(&order.field).cloned().unwrap_or(Value::Null));
     }
     // @ref LLP 0007#query-semantics — every explicit order ends with the portable,
     // ascending `_id` tie-break, including captured top-N boundary keys.
@@ -1007,6 +1010,11 @@ mod delta_tests {
                 compare_sort_keys(&plan, &json!([1, "a"]), &json!([1, "b"])),
                 Some(Ordering::Less),
                 "_id is the final ascending tie-break for {direction:?}"
+            );
+            assert_eq!(
+                sort_key(&plan, &json!({ "_id": "missing-rank" })),
+                Some(json!([null, "missing-rank"])),
+                "an omitted optional field is the same ordering key as stored NULL",
             );
         }
     }
