@@ -2256,7 +2256,14 @@ fn parse_optional_json<T: serde::de::DeserializeOwned>(
             "nonempty request body requires Content-Type: application/json",
         ));
     }
-    serde_json::from_slice(&body)
+    let value: Value = serde_json::from_slice(&body)
+        .map_err(|error| ApiError::request_json_invalid(error.to_string()))?;
+    if !value.is_object() {
+        return Err(ApiError::request_json_invalid(
+            "request body must be a JSON object",
+        ));
+    }
+    serde_json::from_value(value)
         .map(Some)
         .map_err(|error| ApiError::request_json_invalid(error.to_string()))
 }
@@ -3136,8 +3143,9 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, DetachedActionHost, SharedSnapback,
-        parse_action_watchdog_timeout, status_for_diagnostic_code,
+        ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, DetachedActionHost,
+        OpenConnectionRequest, SharedSnapback, parse_action_watchdog_timeout, parse_optional_json,
+        status_for_diagnostic_code,
     };
     use crate::local::{LocalSnapback, StagedAction};
     use crate::manifest::{
@@ -3145,7 +3153,8 @@ mod tests {
         HandlerPlan, IbexModule, MutationPlan, SchemaManifest,
     };
     use crate::runtime::IbexActionHost;
-    use axum::http::StatusCode;
+    use axum::body::Bytes;
+    use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
     use std::collections::BTreeSet;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -3154,6 +3163,29 @@ mod tests {
     use std::time::{Duration, Instant};
     use syn::visit::Visit;
     use tokio::sync::Mutex;
+
+    #[test]
+    fn optional_json_rejects_a_sequence_that_serde_would_map_to_a_struct() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        let error = parse_optional_json::<OpenConnectionRequest>(
+            &headers,
+            Ok(Bytes::from_static(br#"["sequence-as-connection-id"]"#)),
+        )
+        .expect_err("optional JSON routes accept objects, never serde struct sequences");
+        assert_eq!(error.0.diagnostic.code, "SNAPBACK_REQUEST_JSON_INVALID");
+        assert_eq!(
+            error.0.diagnostic.message,
+            "request body was not valid JSON for this operation"
+        );
+        assert_eq!(
+            error.0.diagnostic.details["error"],
+            "request body must be a JSON object"
+        );
+    }
 
     fn has_cfg_test(attributes: &[syn::Attribute]) -> bool {
         attributes.iter().any(|attribute| {

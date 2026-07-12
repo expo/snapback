@@ -61,45 +61,135 @@ try {
     }
   }
 
-  const beforeMalformed = await proof.health();
-  const bodyRoutes = [
-    ['/query', {}],
-    ['/mutation/addNote', {}],
-    ['/action/probeSlowFetch', {}],
-    ['/connection/open', {}],
-    ['/app/ensure', {}],
-    ['/live/listNotes/subscribe', {}],
-    ['/__test/action', {}],
-    ['/cron/run', { headers: { 'x-snapback-admin-token': ADMIN_TOKEN } }],
-  ];
-  for (const [path, options] of bodyRoutes) {
-    const malformed = await raw(path, { ...options, body: '{"truncated":' });
-    if (malformed.status !== 400 || code(malformed.body) !== 'SNAPBACK_JSON_INVALID') {
-      throw new Error(`${path} malformed JSON did not return stable 400: ${JSON.stringify(malformed)}`);
-    }
-  }
-  const wrongType = await raw('/query', { body: '{}', contentType: 'text/plain' });
-  const empty = await raw('/query', { body: '' });
-  const wrongShape = await raw('/query', { body: '[]' });
-  if (wrongType.status !== 415 || code(wrongType.body) !== 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED') throw new Error(JSON.stringify(wrongType));
-  if (empty.status !== 400 || code(empty.body) !== 'SNAPBACK_JSON_BODY_REQUIRED') throw new Error(JSON.stringify(empty));
-  if (wrongShape.status !== 400 || code(wrongShape.body) !== 'SNAPBACK_JSON_OBJECT_REQUIRED') throw new Error(JSON.stringify(wrongShape));
+  const testState = async (path) => {
+    const response = await fetch(`${base}${path}`, { method: 'POST' });
+    assert.equal(response.status, 200, `${path} state probe failed`);
+    return response.json();
+  };
+  const sideEffectFingerprint = async () => {
+    const health = await proof.health();
+    const notes = await proof.query('listNotes', { boardId: 'b' });
+    const connections = await testState('/__test/connection-state');
+    const cron = await testState('/__test/cron-claims');
+    return {
+      version: health.version,
+      notes: { version: notes.version, rows: notes.rows },
+      connections: connections.connections,
+      subscriptions: connections.subscriptions,
+      cronClaims: cron.claims,
+      cronMutationResults: cron.mutationResults,
+    };
+  };
 
-  const invalidUtf8 = await raw('/query', {
-    body: new Uint8Array([0x7b, 0x22, 0x78, 0x22, 0x3a, 0x22, 0xc3, 0x28, 0x22, 0x7d]),
+  const diagnostic = (status, diagnosticCode, message, details = null) => ({
+    status,
+    body: {
+      ok: false,
+      code: diagnosticCode,
+      message,
+      diagnostic: {
+        code: diagnosticCode,
+        message,
+        ...(details ? { details } : {}),
+      },
+    },
   });
-  if (invalidUtf8.status !== 400 || code(invalidUtf8.body) !== 'SNAPBACK_UTF8_INVALID') {
-    throw new Error(`invalid UTF-8 was not rejected fatally: ${JSON.stringify(invalidUtf8)}`);
+  const bodyFailures = [
+    {
+      name: 'missing content type',
+      request: { body: new Uint8Array([0x7b, 0x7d]), contentType: null },
+      expected: diagnostic(415, 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED', 'JSON endpoints require Content-Type: application/json'),
+    },
+    {
+      name: 'wrong content type',
+      request: { body: '{}', contentType: 'text/plain' },
+      expected: diagnostic(415, 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED', 'JSON endpoints require Content-Type: application/json'),
+    },
+    {
+      name: 'empty required body',
+      request: { body: '' },
+      expected: diagnostic(400, 'SNAPBACK_JSON_BODY_REQUIRED', 'a JSON object request body is required'),
+    },
+    {
+      name: 'malformed JSON',
+      request: { body: '{"value": nope}' },
+      expected: diagnostic(400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'),
+    },
+    {
+      name: 'truncated JSON',
+      request: { body: '{"truncated":' },
+      expected: diagnostic(400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'),
+    },
+    {
+      name: 'wrong JSON shape',
+      request: { body: '[]' },
+      expected: diagnostic(400, 'SNAPBACK_JSON_OBJECT_REQUIRED', 'request body must be a JSON object'),
+    },
+    {
+      name: 'invalid UTF-8',
+      request: { body: new Uint8Array([0x7b, 0x22, 0x78, 0x22, 0x3a, 0x22, 0xc3, 0x28, 0x22, 0x7d]) },
+      expected: diagnostic(400, 'SNAPBACK_UTF8_INVALID', 'request body is not valid UTF-8'),
+    },
+    {
+      name: 'oversized body',
+      request: { body: JSON.stringify({ padding: 'x'.repeat(4_100_000) }) },
+      expected: diagnostic(
+        413,
+        'SNAPBACK_REQUEST_TOO_LARGE',
+        'JSON request body exceeds the 4000000-byte limit',
+        { limitBytes: 4_000_000 },
+      ),
+    },
+  ];
+  const bodyRoutes = [
+    { name: 'proof query', path: '/query' },
+    { name: 'proof mutation', path: '/mutation' },
+    { name: 'kit query', path: '/query/listNotes' },
+    { name: 'kit mutation', path: '/mutation/addNote' },
+    { name: 'kit action', path: '/action/probeSlowFetch' },
+    { name: 'connection grant', path: '/connection/open' },
+    { name: 'app ensure', path: '/app/ensure' },
+    { name: 'kit live subscribe', path: '/live/listNotes/subscribe' },
+    { name: 'kit live unsubscribe', path: '/live/listNotes/unsubscribe' },
+    { name: 'handler host call', path: '/host-call', headers: { 'x-snapback-host-token': 'invalid' } },
+    { name: 'testing action', path: '/__test/action' },
+    { name: 'operator cron run', path: '/cron/run', headers: { 'x-snapback-admin-token': ADMIN_TOKEN } },
+  ];
+  for (const route of bodyRoutes) {
+    const before = await sideEffectFingerprint();
+    for (const failure of bodyFailures) {
+      const actual = await raw(route.path, {
+        ...failure.request,
+        headers: { ...(route.headers || {}), ...(failure.request.headers || {}) },
+      });
+      assert.deepEqual(
+        actual,
+        failure.expected,
+        `${route.name} (${route.path}) did not preserve the exact ${failure.name} diagnostic`,
+      );
+    }
+    assert.deepEqual(
+      await sideEffectFingerprint(),
+      before,
+      `${route.name} body rejections invoked a handler or changed durable/connection/cron state`,
+    );
   }
 
-  const oversized = await raw('/query', { body: JSON.stringify({ padding: 'x'.repeat(4_100_000) }) });
-  if (oversized.status !== 413 || code(oversized.body) !== 'SNAPBACK_REQUEST_TOO_LARGE') {
-    throw new Error(`oversized streaming body was not bounded: ${JSON.stringify(oversized)}`);
-  }
-  const afterMalformed = await proof.health();
-  if (afterMalformed.version !== beforeMalformed.version) throw new Error('rejected request changed durable state');
+  // ENG-24368 focused regression: cron/run used to opt into allowEmpty and
+  // returned a semantic unknown-job error instead of the shared body error.
+  const emptyBodyFailure = bodyFailures.find((failure) => failure.name === 'empty required body');
+  const beforeEmptyCron = await sideEffectFingerprint();
+  assert.deepEqual(
+    await raw('/cron/run', {
+      ...emptyBodyFailure.request,
+      headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+    }),
+    emptyBodyFailure.expected,
+    '/cron/run must require the same JSON object body as every operator write',
+  );
+  assert.deepEqual(await sideEffectFingerprint(), beforeEmptyCron, 'empty /cron/run must not touch the scheduler ledger');
 
-  console.log('cloudflare protocol-hardening acceptance: schema, kind, JSON, UTF-8, and streaming-size gates passed');
+  console.log(`cloudflare protocol-hardening acceptance: schema, kind, and ${bodyRoutes.length * bodyFailures.length} exact body-rejection cases passed`);
 } finally {
   await proof.dispose();
 }

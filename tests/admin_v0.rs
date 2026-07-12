@@ -874,6 +874,7 @@ async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_
         (None, seed.to_string()),
         (Some("text/plain"), seed.to_string()),
         (Some("application/json"), "{not-json".to_owned()),
+        (Some("application/json"), "[]".to_owned()),
         (Some("application/json"), misspelled_seed),
     ] {
         let mut builder = Request::builder()
@@ -929,17 +930,103 @@ async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_
         StatusCode::OK
     );
 
-    let untyped_open = Request::builder()
-        .method("POST")
-        .uri("/connection/open")
-        .body(Body::from(r#"{"connectionId":"must_not_adopt"}"#))
-        .unwrap();
-    let response = app.clone().oneshot(untyped_open).await.unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(
-        json(response).await["diagnostic"]["code"],
-        "SNAPBACK_REQUEST_JSON_INVALID"
-    );
+    let open_request = |body: Body, content_type: Option<&str>| {
+        let mut request = Request::builder().method("POST").uri("/connection/open");
+        if let Some(content_type) = content_type {
+            request = request.header("content-type", content_type);
+        }
+        request.body(body).unwrap()
+    };
+    let mut invalid_utf8 = br#"{"connectionId":"open-invalid-utf8","padding":""#.to_vec();
+    invalid_utf8.extend_from_slice(&[0xc3, 0x28, b'"', b'}']);
+    let rejected_opens = vec![
+        (
+            "open-missing-content-type",
+            open_request(
+                Body::from(r#"{"connectionId":"open-missing-content-type"}"#),
+                None,
+            ),
+        ),
+        (
+            "open-wrong-content-type",
+            open_request(
+                Body::from(r#"{"connectionId":"open-wrong-content-type"}"#),
+                Some("text/plain"),
+            ),
+        ),
+        (
+            "open-malformed",
+            open_request(
+                Body::from(r#"{"connectionId":"open-malformed","extra":nope}"#),
+                Some("application/json"),
+            ),
+        ),
+        (
+            "open-truncated",
+            open_request(
+                Body::from(r#"{"connectionId":"open-truncated""#),
+                Some("application/json"),
+            ),
+        ),
+        (
+            "open-wrong-shape",
+            open_request(
+                Body::from(r#"["open-wrong-shape"]"#),
+                Some("application/json"),
+            ),
+        ),
+        (
+            "open-invalid-utf8",
+            open_request(Body::from(invalid_utf8), Some("application/json")),
+        ),
+        (
+            "open-oversized",
+            open_request(
+                Body::from(format!(
+                    r#"{{"connectionId":"open-oversized","padding":"{}"}}"#,
+                    "x".repeat(3_000_000)
+                )),
+                Some("application/json"),
+            ),
+        ),
+        (
+            "open-unknown-field",
+            open_request(
+                Body::from(r#"{"connectionId":"open-unknown-field","logPreviousToken":true}"#),
+                Some("application/json"),
+            ),
+        ),
+    ];
+    for (connection_id, request) in rejected_opens {
+        let response = app.clone().oneshot(request).await.unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "{connection_id} body must be rejected"
+        );
+        assert_eq!(
+            json(response).await["diagnostic"]["code"],
+            "SNAPBACK_REQUEST_JSON_INVALID",
+            "{connection_id} must use the stable optional-JSON diagnostic"
+        );
+
+        // Rejection must happen before the grant operation. The intended id
+        // remains unclaimed and is therefore adopted by the next valid open.
+        let valid = json(
+            app.clone()
+                .oneshot(post(
+                    "/connection/open",
+                    json!({ "connectionId": connection_id }),
+                ))
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(
+            valid["connectionId"], connection_id,
+            "rejected {connection_id} request must not reserve its grant id"
+        );
+    }
 
     let empty_open = Request::builder()
         .method("POST")
@@ -947,9 +1034,20 @@ async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_
         .body(Body::empty())
         .unwrap();
     assert_eq!(
-        app.oneshot(empty_open).await.unwrap().status(),
+        app.clone().oneshot(empty_open).await.unwrap().status(),
         StatusCode::OK
     );
+
+    let typed_open = json(
+        app.oneshot(post(
+            "/connection/open",
+            json!({ "connectionId": "open-valid-json" }),
+        ))
+        .await
+        .unwrap(),
+    )
+    .await;
+    assert_eq!(typed_open["connectionId"], "open-valid-json");
 }
 
 /// LLP 0032 S1 (LLP 0031 D3 §Enforcement) — the field-level trim the route

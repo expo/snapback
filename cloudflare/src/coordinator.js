@@ -823,7 +823,7 @@ export class Coordinator {
         }
         const outcome = await this.runCronJob(job, 'manual', Date.now());
         return json(200, { ok: true, ...outcome });
-      }, { allowEmpty: true }));
+      }));
     }
     if (path === '/host-call') {
       return this.serveHostCall(request);
