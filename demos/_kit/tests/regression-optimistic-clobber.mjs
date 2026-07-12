@@ -32,6 +32,7 @@ requireBunRuntime('_kit regression / optimistic-clobber');
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');
 const backendDir = join(repoRoot, 'demos', 'todo', 'snapback');
+const exactInstallRoot = join(repoRoot, 'demos', 'todo', 'surfaces', 'contract');
 const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'utf8'));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,7 +41,7 @@ const { createSnapbackContractSurface } = await import(join(repoRoot, 'packages/
 const { importExactContractRuntime } = await import(join(repoRoot, 'packages/snapback-contract/exact-package.mjs'));
 const { todoOptimisticReducers } = await import(join(repoRoot, 'demos/todo/surfaces/contract/optimistic.mjs'));
 
-const exact = resolveExact({ repoRoot });
+const exact = resolveExact({ repoRoot, targetInstallRoot: exactInstallRoot });
 if (exact.sourceKind === 'missing') {
   console.log(JSON.stringify({
     title: '_kit regression / optimistic-clobber',

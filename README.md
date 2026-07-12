@@ -243,10 +243,12 @@ For the local proof lane that CI runs without requiring Exact, use:
 SNAPBACK_VERIFY_EXACT=0 scripts/verify-local-proof
 ```
 
-With the committed Exact package locks installed by the required-surface gate
+With each target surface's committed Exact package lock installed by the required-surface gate
 and `bun` available, omit `SNAPBACK_VERIFY_EXACT=0` to also run the
 Contract/admin checks. `SNAPBACK_EXACT_ROOT` remains a local-development
-override, not the default build path.
+override, not the default build path. Acceptance probes only the package tree
+owned by the surface under test; an install in another demo or `admin-ui` never
+turns a missing target green.
 
 ## Design docs (LLP)
 

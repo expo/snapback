@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Reference apps, Contract/Exact, Client integration, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-12 (ENG-24380: the required-surface gate always runs a bounded frozen install and attests the installed Exact identity/source; linked checkouts require an explicit development override). Earlier: ENG-24374: lock-installed Exact packages are the default; checkouts require an explicit override, and import-time failures never fall through. 2026-07-03 (demo ladder: collaborative graffiti/whiteboard added as the rung between kanban and card game, reconciling the numbered ladder with LLP 0010/0016 per LLP 0016 R6; earlier same day, ENG-22219: the collaborative graffiti wall landed as `demos/graffiti/` — shipped-so-far record updated; earlier: 2026-07-01 LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
+**Revised:** 2026-07-12 (ENG-24380: the required-surface gate always runs a bounded frozen install and attests the installed Exact identity/source, with linked checkouts requiring an explicit development override; ENG-24374 follow-up: every Exact acceptance caller names its target surface install, and the resolver probes only that lockfile-owned tree rather than a foreign demo/admin/cwd install; earlier ENG-24374: lock-installed Exact packages are the default, checkouts require an explicit override, and import-time failures never fall through). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard added as the rung between kanban and card game, reconciling the numbered ladder with LLP 0010/0016 per LLP 0016 R6; earlier same day, ENG-22219: the collaborative graffiti wall landed as `demos/graffiti/` — shipped-so-far record updated; earlier: 2026-07-01 LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, LLP 0013, LLP 0025, LLP 0027, LLP 0034, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
 
 ## Summary
@@ -213,6 +213,13 @@ demo policy and ENG-24374):
 2. An untracked local config file under `.snapback/`, for example
    `.snapback/local.json`.
 3. The lock-installed published packages owned by the demo/admin surface.
+
+Step 3 is not a repository search. Every gate passes its own Contract/admin
+install root explicitly, and the resolver probes only that root. A missing or
+stale target therefore reports `SNAPBACK_CAPABILITY_EXACT_MISSING` even when
+the repo root, admin UI, or another demo has a compatible install. Selecting a
+different implementation requires the explicit checkout override in steps
+1–2; current working directory and directory enumeration never choose it.
 
 Sibling `../exact` and `vendor/exact` directories are never implicit
 candidates. An unpublished checkout participates only through steps 1–2, so

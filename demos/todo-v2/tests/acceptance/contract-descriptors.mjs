@@ -21,6 +21,7 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const backendDir = join(here, '..', '..', 'snapback');
+const contractDir = join(here, '..', '..', 'surfaces', 'contract');
 const contractFile = join(here, '..', '..', 'surfaces', 'contract', 'todo.contract');
 const gen = (file) => JSON.parse(readFileSync(join(backendDir, 'generated', file), 'utf8'));
 const demoManifest = JSON.parse(readFileSync(join(here, '..', '..', 'demo.snapback.json'), 'utf8'));
@@ -28,7 +29,7 @@ const demoManifest = JSON.parse(readFileSync(join(here, '..', '..', 'demo.snapba
 const artifactIndex = gen('artifacts.json');
 const contractDataManifest = gen('contract-data.manifest.json');
 
-const exact = resolveExact({ repoRoot });
+const exact = resolveExact({ repoRoot, targetInstallRoot: contractDir });
 if (exact.sourceKind === 'missing') {
   const expected = demoManifest.surfaces.contract;
   const report = {

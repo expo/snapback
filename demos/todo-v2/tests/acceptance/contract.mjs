@@ -38,7 +38,7 @@ const schemaManifest = gen('schema.manifest.json');
 const functionsManifest = gen('functions.manifest.json');
 const contractDataManifest = gen('contract-data.manifest.json');
 
-const exact = resolveExact({ repoRoot });
+const exact = resolveExact({ repoRoot, targetInstallRoot: contractDir });
 if (exact.sourceKind === 'missing') {
   const expected = demoManifest.surfaces.contract;
   const report = {

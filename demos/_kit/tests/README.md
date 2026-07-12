@@ -19,6 +19,10 @@ skipped when Exact is unavailable or when `SNAPBACK_VERIFY_EXACT=0`. Run it
 with the committed package locks installed, an Exact checkout present, or
 `SNAPBACK_VERIFY_EXACT=1` to exercise the bun suites.
 
+Each bun suite declares the Contract install belonging to its fixture (todo,
+todo-v2, or graffiti). Resolver success is intentionally target-local: a
+different demo's or admin-ui's installed Exact packages cannot satisfy it.
+
 ## Why the bun-only suites crash under node
 
 Exact ships TypeScript sources that import sibling modules with an explicit
@@ -46,7 +50,7 @@ under bun. ... Re-run it with bun:
 
 ## Exact absence is a clean skip
 
-When bun **is** present but no Exact checkout or installed package set resolves
+When bun **is** present but no explicit Exact checkout or the target fixture's installed package set resolves
 (see `exact-resolver.mjs`), the bun-only suites skip with a structured
 `SNAPBACK_CAPABILITY_EXACT_MISSING` diagnostic and exit 0 — they never fail just
 because Exact is not installed.

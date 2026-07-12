@@ -27,6 +27,7 @@ import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/h
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const backendDir = join(here, '..', '..', 'snapback');
+const contractDir = join(here, '..', '..', 'surfaces', 'contract');
 const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'utf8'));
 const seed = JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8'));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -35,7 +36,7 @@ const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'))
 const { createSnapbackContractSurface } = await import(join(repoRoot, 'packages/snapback-contract/index.mjs'));
 const { importExactContractRuntime } = await import(join(repoRoot, 'packages/snapback-contract/exact-package.mjs'));
 
-const exact = resolveExact({ repoRoot });
+const exact = resolveExact({ repoRoot, targetInstallRoot: contractDir });
 if (exact.sourceKind === 'missing') {
   console.log(JSON.stringify({
     title: 'all-aboard contract-live (LLP 0032 P5)',

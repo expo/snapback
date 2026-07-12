@@ -42,7 +42,7 @@ const functionsManifest = gen('functions.manifest.json');
 const contractDataManifest = gen('contract-data.manifest.json');
 
 // --- Resolve Exact (capability-probed) --------------------------------------
-const exact = resolveExact({ repoRoot });
+const exact = resolveExact({ repoRoot, targetInstallRoot: contractDir });
 if (exact.sourceKind === 'missing') {
   const expected = demoManifest.surfaces.contract;
   const report = {

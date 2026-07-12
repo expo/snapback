@@ -94,7 +94,7 @@ npm registry (ENG-22480 model, matching all-aboard; migrated by ENG-23899):
 surface's committed `bun.lock` pins the exact bits — it replaced
 `exact.pin.json`. No sibling checkout and no `SNAPBACK_EXACT_ROOT` are needed
 for the browser surface; the acceptance resolver uses explicit/local checkouts
-when supplied and otherwise probes the installed package sets.
+when supplied and otherwise probes only this surface's installed package set.
 
 The acceptance runners start an in-memory Snapback server on a dedicated port
 (reusing one if already healthy) and tear it down on exit.

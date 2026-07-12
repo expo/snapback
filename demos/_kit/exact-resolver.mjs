@@ -1,13 +1,13 @@
 // Capability-probed Exact resolver.
 //
 // @ref LLP 0041#demo-dependency-policy — ordinary verification resolves the
-// committed package install; unpublished checkout use requires an explicit env
-// or untracked local-config override and never happens merely because a sibling
-// directory exists.
+// caller-declared target surface's committed package install; unpublished
+// checkout use requires an explicit env or untracked local-config override and
+// never happens merely because another surface or sibling directory exists.
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 const CONTRACT = 'packages/exact-contract/src';
 const DEVTOOLS = 'packages/exact-devtools/src';
@@ -17,8 +17,14 @@ const DEVTOOLS = 'packages/exact-devtools/src';
 // valueChannels).
 const BASELINE_CAPABILITIES = ['contractCompiler', 'runtime', 'dataBinding'];
 
-export function resolveExact({ repoRoot, requiredCapabilities = [], logger = console.error } = {}) {
+export function resolveExact({
+  repoRoot,
+  targetInstallRoot = null,
+  requiredCapabilities = [],
+  logger = console.error,
+} = {}) {
   const root = repoRoot ?? process.cwd();
+  const target = targetInstallRoot ? resolve(targetInstallRoot) : null;
   // A required capability the probe table does not know stays in `missing`
   // and fails the candidate loudly here, instead of failing deep inside a
   // compile against an old checkout.
@@ -63,13 +69,14 @@ export function resolveExact({ repoRoot, requiredCapabilities = [], logger = con
   // An explicit override is fail-closed: a typo or incompatible checkout must
   // not silently fall through to a different locked implementation.
   if (overrides.length > 0) {
-    return missingResult({ root, required, overrides, packageCandidates: [], explicit: true });
+    return missingResult({ target, required, overrides, packageCandidates: [], explicit: true });
   }
 
   // LLP 0041's default resolver rung: published packages. Each Contract app
-  // owns its package install deliberately, so discover installed surface/admin
-  // roots instead of making the Snapback workspace root a hidden dependency.
-  const packageCandidates = installedPackageCandidates(root);
+  // owns exactly one package install deliberately. The caller names that root;
+  // never scan cwd, admin-ui, or sibling demos and accidentally prove the
+  // target against a different lockfile.
+  const packageCandidates = target ? [installedPackageCandidate(target)] : [];
   for (const candidate of packageCandidates) {
     const caps = probePackageCapabilities(candidate.packageRoot, candidate.installRoot);
     const missing = required.filter((name) => caps[name] !== true);
@@ -90,10 +97,10 @@ export function resolveExact({ repoRoot, requiredCapabilities = [], logger = con
     candidate.missing = missing;
   }
 
-  return missingResult({ root, required, overrides, packageCandidates, explicit: false });
+  return missingResult({ target, required, overrides, packageCandidates, explicit: false });
 }
 
-function missingResult({ root, required, overrides, packageCandidates, explicit }) {
+function missingResult({ target, required, overrides, packageCandidates, explicit }) {
   const probed = overrides
     .filter((c) => c.path && existsSync(c.path))
     .map((c) => `${c.kind}@${c.path} (missing: ${(c.missing ?? []).join(', ')}; caps: ${JSON.stringify(c.caps ?? {})})`);
@@ -114,54 +121,39 @@ function missingResult({ root, required, overrides, packageCandidates, explicit 
         message:
           explicit
             ? `The explicit Exact checkout does not provide the required capabilities (${required.join(', ')}).`
-            : `No locked Exact package set with the required capabilities (${required.join(', ')}) was found.`,
+            : target
+              ? `The target surface's locked Exact package set does not provide the required capabilities (${required.join(', ')}).`
+              : `No target Exact package install was declared for the required capabilities (${required.join(', ')}).`,
         details: {
           target_surface: 'Contract/Exact',
+          targetInstallRoot: target,
           requiredCapabilities: required,
           searched: [
             ...overrides.map((c) => `${c.kind}:${c.path ?? `<invalid config: ${c.configError}>`}`),
-            ...packageInstallRoots(root).map((path) => `package:${path}`),
+            ...(target ? [`package:${target}`] : []),
           ],
           probed: [...probed, ...packageProbed],
         },
         suggestedFix:
           explicit
             ? 'Fix or remove the explicit SNAPBACK_EXACT_ROOT / .snapback/local.json override.'
-            : 'Run bun install --frozen-lockfile in a Contract surface, or set SNAPBACK_EXACT_ROOT / .snapback/local.json for local Exact development.',
+            : target
+              ? `Run bun install --frozen-lockfile in ${target}, or set SNAPBACK_EXACT_ROOT / .snapback/local.json for local Exact development.`
+              : 'Pass the Contract surface install root to resolveExact({ targetInstallRoot }), or set an explicit local Exact checkout override.',
       },
     ],
   };
 }
 
-function packageInstallRoots(root) {
-  const roots = [process.cwd(), root, join(root, 'admin-ui')];
-  const demosDir = join(root, 'demos');
-  try {
-    for (const entry of readdirSync(demosDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        roots.push(join(demosDir, entry.name, 'surfaces', 'contract'));
-      }
-    }
-  } catch {
-    // A consumer can use the resolver without the demo corpus present.
-  }
-  return [...new Set(roots)];
-}
-
-function installedPackageCandidates(root) {
-  const candidates = [];
-  for (const installRoot of packageInstallRoots(root)) {
-    const packageRoot = join(installRoot, 'node_modules', '@exact', 'contract');
-    const manifest = readJson(join(packageRoot, 'package.json'));
-    if (!manifest || !existsSync(packageRoot)) continue;
-    candidates.push({
-      kind: 'package',
-      installRoot,
-      packageRoot,
-      version: manifest.version ?? null,
-    });
-  }
-  return candidates;
+function installedPackageCandidate(installRoot) {
+  const packageRoot = join(installRoot, 'node_modules', '@exact', 'contract');
+  const manifest = readJson(join(packageRoot, 'package.json'));
+  return {
+    kind: 'package',
+    installRoot,
+    packageRoot,
+    version: manifest?.version ?? null,
+  };
 }
 
 function probePackageCapabilities(packageRoot, installRoot) {

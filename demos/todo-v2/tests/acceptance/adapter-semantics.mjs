@@ -20,6 +20,7 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const backendDir = join(here, '..', '..', 'snapback');
+const contractDir = join(here, '..', '..', 'surfaces', 'contract');
 const gen = (file) => JSON.parse(readFileSync(join(backendDir, 'generated', file), 'utf8'));
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 
@@ -36,7 +37,7 @@ const seedRows = readJson(join(backendDir, 'seed.json')).tables.todos.map((row, 
   ...row,
 }));
 
-const exact = resolveExact({ repoRoot });
+const exact = resolveExact({ repoRoot, targetInstallRoot: contractDir });
 if (exact.sourceKind === 'missing') {
   const expected = demoManifest.surfaces.contract;
   const report = {
