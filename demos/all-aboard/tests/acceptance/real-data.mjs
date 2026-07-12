@@ -204,6 +204,8 @@ await runAcceptance(suite, async () => {
       },
     });
     assert(result.ok, `refreshFeed failed: ${JSON.stringify(result.diagnostic)}`);
+    const feedState = (await db.query('feedState', {})).rows[0];
+    assertEqual(feedState.lastError ?? '', '', 'live fetch diagnostic');
     assertEqual(result.result.source, '511-siri-stop-monitoring', 'snapshot source');
     assert(result.result.patterns.includes('sb-limited'), 'southbound limited updated');
     assert(result.result.patterns.includes('nb-local'), 'northbound local updated');
@@ -212,7 +214,6 @@ await runAcceptance(suite, async () => {
     assertEqual(statusRows['sb-limited'].delaySeconds, 180, 'southbound limited delay');
     assertEqual(statusRows['sb-limited'].status, 'delayed', 'southbound limited status');
     assertEqual(statusRows['nb-local'].delaySeconds, 60, 'northbound local delay');
-    const feedState = (await db.query('feedState', {})).rows[0];
     assertEqual(feedState.lastSource, '511-siri-stop-monitoring', 'feed source marker');
     assertEqual(feedState.lastError ?? '', '', 'no feed error');
     const departures = (await db.query('liveDepartures', {})).rows;
