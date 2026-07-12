@@ -88,6 +88,26 @@ try {
     if (previousRoot === undefined) delete process.env.SNAPBACK_EXACT_ROOT;
     else process.env.SNAPBACK_EXACT_ROOT = previousRoot;
   }
+
+  // A bad environment override is authoritative even when local config names
+  // a valid checkout. Silent fallback would make CI use a different Exact
+  // implementation than the operator requested.
+  mkdirSync(join(root, '.snapback'), { recursive: true });
+  writeFileSync(join(root, '.snapback', 'local.json'), JSON.stringify({ exactRoot: siblingRoot }));
+  process.env.SNAPBACK_EXACT_ROOT = join(workspace, 'missing-exact');
+  try {
+    const invalidEnvironment = resolveExact({ repoRoot: root, logger: null });
+    assert.equal(invalidEnvironment.sourceKind, 'missing');
+    assert.match(invalidEnvironment.diagnostics[0].details.searched[0], /^environment:/);
+    assert.equal(
+      invalidEnvironment.diagnostics[0].details.searched.some((entry) => entry.startsWith('local-config:')),
+      false,
+      'local config must not mask an explicit environment failure',
+    );
+  } finally {
+    if (previousRoot === undefined) delete process.env.SNAPBACK_EXACT_ROOT;
+    else process.env.SNAPBACK_EXACT_ROOT = previousRoot;
+  }
 } finally {
   rmSync(workspace, { recursive: true, force: true });
 }

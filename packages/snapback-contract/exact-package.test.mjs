@@ -44,6 +44,22 @@ try {
     (error) => error.code === 'EXACT_FIXTURE_BROKEN',
   );
 
+  // Resolution failures other than the optional package genuinely being
+  // absent are selected-environment failures and must propagate unchanged.
+  for (const resolutionError of [
+    Object.assign(new Error('invalid package config'), { code: 'ERR_INVALID_PACKAGE_CONFIG' }),
+    Object.assign(new Error("Cannot find package 'some-transitive-package'"), { code: 'ERR_MODULE_NOT_FOUND' }),
+  ]) {
+    await assert.rejects(
+      importExactContractExport('./runtime', {
+        resolveSpecifier: () => {
+          throw resolutionError;
+        },
+      }),
+      (error) => error === resolutionError,
+    );
+  }
+
   await assert.rejects(
     importExactContractExport('./missing', { exactRoot: root }),
     (error) => error.code === 'SNAPBACK_CAPABILITY_EXACT_PACKAGE_EXPORT_MISSING',

@@ -29,7 +29,9 @@ export function resolveExact({ repoRoot, requiredCapabilities = [], logger = con
     overrides.push({ kind: 'environment', path: process.env.SNAPBACK_EXACT_ROOT });
   }
   const localConfig = join(root, '.snapback', 'local.json');
-  if (existsSync(localConfig)) {
+  // Environment is the highest-precedence explicit override. If it is set,
+  // even incorrectly, never hide that failure by selecting local config.
+  if (overrides.length === 0 && existsSync(localConfig)) {
     try {
       const cfg = JSON.parse(readFileSync(localConfig, 'utf8'));
       if (cfg.exactRoot) overrides.push({ kind: 'local-config', path: cfg.exactRoot });

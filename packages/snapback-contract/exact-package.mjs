@@ -52,6 +52,7 @@ export async function importExactContractExport(subpath, {
     // surface unchanged.
     resolvedSpecifier = resolveSpecifier(specifier);
   } catch (error) {
+    if (!isExactContractPackageNotFound(error)) throw error;
     const resolved = resolveExactContractExport(subpath, { exactRoot });
     if (!resolved) {
       throw packageResolutionError(specifier, exactRoot, error);
@@ -60,6 +61,13 @@ export async function importExactContractExport(subpath, {
     return import(pathToFileURL(resolved.path).href);
   }
   return import(resolvedSpecifier);
+}
+
+function isExactContractPackageNotFound(error) {
+  if (error?.code !== 'ERR_MODULE_NOT_FOUND') return false;
+  const message = String(error?.message ?? '');
+  return message.includes(`Cannot find package '${EXACT_CONTRACT_PACKAGE}'`)
+    || message.includes(`Cannot find package "${EXACT_CONTRACT_PACKAGE}"`);
 }
 
 // Exact source checkouts ship TS-ESM sources whose relative specifiers use the
