@@ -133,18 +133,22 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
         },
       };
     };
-    links[`${name}Publish`] = (args = {}) =>
-      realLinks ? realLinks[`${name}Publish`](args) : whenReal().then((real) => real[`${name}Publish`](args));
+    links[`${name}Publish`] = (args = {}) => {
+      assertActive();
+      return realLinks ? realLinks[`${name}Publish`](args) : whenReal().then((real) => real[`${name}Publish`](args));
+    };
   }
   for (const name of mutations) {
-    links[name] = (args = {}) =>
-      realLinks ? realLinks[name](args) : whenReal().then((real) => real[name](args));
+    links[name] = (args = {}) => {
+      assertActive();
+      return realLinks ? realLinks[name](args) : whenReal().then((real) => real[name](args));
+    };
   }
 
   return {
     links,
     get attached() {
-      return realLinks !== null;
+      return realLinks !== null && !disposed;
     },
     attach(real) {
       if (realLinks || disposed) return;

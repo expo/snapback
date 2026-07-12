@@ -357,6 +357,13 @@ const makeRuntime = () => {
   assert.deepEqual(cells[0], { status: 'ready', entries: [] });
   assert.equal(await deferred.links.m({}), 'ran');
   deferred.dispose();
+  assert.equal(deferred.attached, false, 'disposed deferred links no longer report attached');
+  for (const invoke of [
+    () => deferred.links.m({ after: 'dispose' }),
+    () => deferred.links.presencePublish({ after: 'dispose' }),
+  ]) {
+    assert.throws(invoke, (error) => error.code === 'SNAPBACK_CONTRACT_SURFACE_DISPOSED');
+  }
 }
 
 
