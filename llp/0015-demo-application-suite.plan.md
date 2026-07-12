@@ -374,6 +374,11 @@ that surface's `node_modules`. Symlinks and out-of-tree packages fail unless the
 operator deliberately sets the local-development override. `[decided —
 ENG-24380]`
 
+The watchdog owns the whole subprocess tree on every failure, including a
+nonzero package-manager leader exit. On Windows it awaits `taskkill /T` and
+records whether that tree primitive completed before reporting the failure;
+starting a cleanup subprocess is not itself evidence that cleanup succeeded.
+
 Every demo acceptance profile should state:
 
 - data shape and seed size;

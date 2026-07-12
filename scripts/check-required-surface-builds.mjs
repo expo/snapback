@@ -106,23 +106,122 @@ function appendTail(current, chunk) {
   return next.length <= OUTPUT_TAIL_BYTES ? next : next.slice(-OUTPUT_TAIL_BYTES);
 }
 
-function signalProcessTree(child, signal, spawnImpl = spawn) {
-  if (!child?.pid) return;
-  if (process.platform === 'win32') {
+function cleanupError(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Signal one subprocess tree and report whether the tree primitive completed.
+ * Windows cleanup is asynchronous: callers must await taskkill rather than
+ * treating a successfully spawned taskkill process as a successfully killed
+ * tree.
+ */
+export function signalProcessTree(child, signal, {
+  spawnImpl = spawn,
+  platform = process.platform,
+  taskkillTimeoutMs = 2_000,
+  processKill = process.kill,
+} = {}) {
+  const pid = child?.pid;
+  if (!pid) {
+    return Promise.resolve({ ok: true, mechanism: 'none', signal, pid: null });
+  }
+  if (platform === 'win32') {
     // Windows has no negative-pid process groups. taskkill /T is the native
     // tree primitive; /F is reserved for the hard-kill leg.
-    const args = ['/pid', String(child.pid), '/t'];
+    const args = ['/pid', String(pid), '/t'];
     if (signal === 'SIGKILL') args.push('/f');
-    const killer = spawnImpl('taskkill', args, { stdio: 'ignore', windowsHide: true });
-    killer.on('error', () => {
-      if (child.exitCode === null) child.kill(signal);
+    return new Promise((resolveCleanup) => {
+      let settled = false;
+      let killer;
+      const fallbackLeader = () => {
+        if (child.exitCode != null || typeof child.kill !== 'function') return false;
+        try {
+          return child.kill(signal) !== false;
+        } catch {
+          return false;
+        }
+      };
+      const finishCleanup = (result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        resolveCleanup({
+          mechanism: 'taskkill',
+          signal,
+          pid,
+          args,
+          ...result,
+        });
+      };
+      try {
+        killer = spawnImpl('taskkill', args, { stdio: 'ignore', windowsHide: true });
+      } catch (error) {
+        resolveCleanup({
+          ok: false,
+          mechanism: 'taskkill',
+          signal,
+          pid,
+          args,
+          error: cleanupError(error),
+          leaderFallback: fallbackLeader(),
+        });
+        return;
+      }
+      const timeout = setTimeout(() => {
+        try { killer.kill?.('SIGKILL'); } catch { /* best effort */ }
+        finishCleanup({
+          ok: false,
+          timedOut: true,
+          error: `taskkill did not complete within ${taskkillTimeoutMs}ms`,
+          leaderFallback: fallbackLeader(),
+        });
+      }, taskkillTimeoutMs);
+      timeout.unref?.();
+      killer.once('error', (error) => finishCleanup({
+        ok: false,
+        error: cleanupError(error),
+        leaderFallback: fallbackLeader(),
+      }));
+      killer.once('close', (code, taskkillSignal) => finishCleanup({
+        ok: code === 0,
+        code,
+        taskkillSignal,
+        ...(code === 0
+          ? {}
+          : {
+              error: `taskkill exited ${code ?? taskkillSignal}`,
+              leaderFallback: fallbackLeader(),
+            }),
+      }));
     });
-    return;
   }
   try {
-    process.kill(-child.pid, signal);
-  } catch {
-    if (child.exitCode === null) child.kill(signal);
+    processKill(-pid, signal);
+    return Promise.resolve({ ok: true, mechanism: 'process-group', signal, pid });
+  } catch (error) {
+    // ESRCH proves there is no process left in the detached process group.
+    if (error?.code === 'ESRCH') {
+      return Promise.resolve({
+        ok: true,
+        mechanism: 'process-group',
+        signal,
+        pid,
+        alreadyExited: true,
+      });
+    }
+    let leaderFallback = false;
+    if (child.exitCode == null && typeof child.kill === 'function') {
+      try { leaderFallback = child.kill(signal) !== false; } catch { /* best effort */ }
+    }
+    return Promise.resolve({
+      ok: false,
+      mechanism: 'process-group',
+      signal,
+      pid,
+      error: cleanupError(error),
+      leaderFallback,
+    });
   }
 }
 
@@ -134,6 +233,9 @@ export function runBoundedProcess(command, args, {
   killGraceMs = 2_000,
   inheritOutput = true,
   spawnImpl = spawn,
+  platform = process.platform,
+  taskkillTimeoutMs = Math.max(killGraceMs, 2_000),
+  signalTree = signalProcessTree,
   // Optional readiness gate for callers that need the execution watchdog to
   // measure work after a child has explicitly initialized. The ordinary
   // install/build path leaves this null, so its watchdog starts immediately.
@@ -149,6 +251,9 @@ export function runBoundedProcess(command, args, {
     let readinessWatchdog = null;
     let timeoutReason = null;
     let readyReached = readyWhen === null;
+    let settling = false;
+    let termCleanup = null;
+    let killCleanup = null;
     let child;
 
     const finish = (result) => {
@@ -160,19 +265,64 @@ export function runBoundedProcess(command, args, {
       resolveRun({ ...result, output });
     };
 
+    const requestCleanup = (signal) => {
+      const existing = signal === 'SIGKILL' ? killCleanup : termCleanup;
+      if (existing) return existing;
+      const cleanup = Promise.resolve()
+        .then(() => signalTree(child, signal, {
+          spawnImpl,
+          platform,
+          taskkillTimeoutMs,
+        }))
+        .catch((error) => ({
+          ok: false,
+          mechanism: 'cleanup-seam',
+          signal,
+          pid: child?.pid ?? null,
+          error: cleanupError(error),
+        }));
+      if (signal === 'SIGKILL') killCleanup = cleanup;
+      else termCleanup = cleanup;
+      return cleanup;
+    };
+
+    const finishFailure = async (result) => {
+      if (settled || settling) return;
+      settling = true;
+      let cleanup;
+      // A completed Windows taskkill /T attests the tree operation itself. On
+      // POSIX, TERM delivery does not prove TERM-resistant descendants exited,
+      // so every failure still gets the hard process-group leg.
+      if (platform === 'win32' && termCleanup) {
+        const termResult = await termCleanup;
+        cleanup = termResult.ok ? termResult : await requestCleanup('SIGKILL');
+      } else {
+        cleanup = await requestCleanup('SIGKILL');
+      }
+      const reason = cleanup.ok
+        ? `${result.reason}; process tree terminated`
+        : `${result.reason}; process-tree cleanup not attested (${cleanup.error ?? 'unknown cleanup failure'})`;
+      finish({ ...result, reason, cleanup });
+    };
+
     const terminateForTimeout = (reason) => {
       if (timedOut || settled) return;
       timedOut = true;
       timeoutReason = reason;
-      signalProcessTree(child, 'SIGTERM', spawnImpl);
-      killTimer = setTimeout(() => signalProcessTree(child, 'SIGKILL', spawnImpl), killGraceMs);
+      void requestCleanup('SIGTERM');
+      killTimer = setTimeout(() => {
+        // Settle from the cleanup result even if a broken tree primitive never
+        // causes the leader's close event. `finishFailure` serializes Windows
+        // TERM -> KILL and bounds both taskkill attempts.
+        void finishFailure({ ok: false, timedOut: true, reason: timeoutReason });
+      }, killGraceMs);
       killTimer.unref?.();
     };
 
     const armExecutionWatchdog = () => {
       if (watchdog || timedOut || settled) return;
       watchdog = setTimeout(
-        () => terminateForTimeout(`exceeded ${timeoutMs}ms watchdog; process tree terminated`),
+        () => terminateForTimeout(`exceeded ${timeoutMs}ms watchdog`),
         timeoutMs,
       );
       watchdog.unref?.();
@@ -182,7 +332,7 @@ export function runBoundedProcess(command, args, {
       child = spawnImpl(command, args, {
         cwd,
         env,
-        detached: process.platform !== 'win32',
+        detached: platform !== 'win32',
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
@@ -203,9 +353,7 @@ export function runBoundedProcess(command, args, {
             armExecutionWatchdog();
           }
         } catch (error) {
-          terminateForTimeout(
-            `readiness predicate failed: ${error?.message ?? String(error)}; process tree terminated`,
-          );
+          terminateForTimeout(`readiness predicate failed: ${error?.message ?? String(error)}`);
         }
       }
     };
@@ -214,9 +362,7 @@ export function runBoundedProcess(command, args, {
 
     if (readyWhen) {
       readinessWatchdog = setTimeout(
-        () => terminateForTimeout(
-          `did not become ready within ${readinessTimeoutMs}ms; process tree terminated`,
-        ),
+        () => terminateForTimeout(`did not become ready within ${readinessTimeoutMs}ms`),
         readinessTimeoutMs,
       );
       readinessWatchdog.unref?.();
@@ -224,27 +370,29 @@ export function runBoundedProcess(command, args, {
       armExecutionWatchdog();
     }
 
-    child.once('error', (error) => finish({ ok: false, reason: `spawn failed: ${error.message}` }));
+    child.once('error', (error) => {
+      const failure = { ok: false, reason: `spawn failed: ${error.message}` };
+      if (child?.pid) void finishFailure(failure);
+      else finish(failure);
+    });
     // `exit` can precede the final stdout/stderr data events. `close` means the
     // child stdio handles are closed and the bounded diagnostic tail is fully
     // drained before callers inspect it.
     child.once('close', (code, signal) => {
       if (timedOut) {
-        // The process-group leader may honor TERM before a descendant does.
-        // Kill the group once more before clearing the grace timer so no
-        // detached package-manager worker survives a seemingly clean exit.
-        signalProcessTree(child, 'SIGKILL', spawnImpl);
-        finish({ ok: false, timedOut: true, reason: timeoutReason });
+        void finishFailure({ ok: false, timedOut: true, reason: timeoutReason });
       } else if (code === 0 && !readyReached) {
         // A nominally successful leader can still have left workers in its
         // process group. Readiness failure owns the same whole-tree cleanup as
         // a watchdog failure.
-        signalProcessTree(child, 'SIGKILL', spawnImpl);
-        finish({ ok: false, reason: 'exited 0 before required readiness was observed' });
+        void finishFailure({ ok: false, reason: 'exited 0 before required readiness was observed' });
       } else if (code === 0) {
         finish({ ok: true });
       } else {
-        finish({ ok: false, reason: `exited ${code ?? signal}` });
+        // A failing leader may have spawned workers which inherited neither its
+        // exit status nor its lifetime. Never publish the failure until the
+        // whole tree has received the hard cleanup leg.
+        void finishFailure({ ok: false, reason: `exited ${code ?? signal}` });
       }
     });
   });
