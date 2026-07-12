@@ -28,7 +28,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSyn
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { signalProcessTree } from './lib/process-tree.mjs';
+import { cleanupError, signalProcessTree } from './lib/process-tree.mjs';
 
 export { signalProcessTree } from './lib/process-tree.mjs';
 

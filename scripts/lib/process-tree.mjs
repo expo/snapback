@@ -5,7 +5,7 @@
 import { spawn } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 
-function cleanupError(error) {
+export function cleanupError(error) {
   return error instanceof Error ? error.message : String(error);
 }
 

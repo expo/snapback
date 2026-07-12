@@ -168,6 +168,45 @@ try {
   assert.match(hung.output, /install started/);
   assert(Date.now() - started < 2_000, 'hung install is bounded');
 
+  // A cleanup seam is injectable for platform simulations and tests. If that
+  // promise rejects, the gate must normalize the rejection into a bounded
+  // cleanup failure; it must not throw from its catch handler and strand the
+  // caller's runBoundedProcess promise (ENG-24378 follow-up).
+  const rejectingLeader = new EventEmitter();
+  rejectingLeader.pid = 4139;
+  rejectingLeader.exitCode = null;
+  rejectingLeader.signalCode = null;
+  rejectingLeader.stdout = new PassThrough();
+  rejectingLeader.stderr = new PassThrough();
+  rejectingLeader.kill = () => false;
+  const rejectingSignals = [];
+  let rejectionDeadline;
+  const rejectingCleanup = await Promise.race([
+    runBoundedProcess('fake-rejecting-cleanup', [], {
+      cwd: scratch,
+      timeoutMs: 5,
+      killGraceMs: 5,
+      inheritOutput: false,
+      spawnImpl: () => rejectingLeader,
+      signalTree: async (_child, signal) => {
+        rejectingSignals.push(signal);
+        throw new Error('injected cleanup rejection');
+      },
+    }),
+    new Promise((_, reject) => {
+      rejectionDeadline = setTimeout(
+        () => reject(new Error('rejecting cleanup did not settle within 500ms')),
+        500,
+      );
+    }),
+  ]).finally(() => clearTimeout(rejectionDeadline));
+  assert.equal(rejectingCleanup.ok, false);
+  assert.equal(rejectingCleanup.timedOut, true);
+  assert.deepEqual(rejectingSignals, ['SIGTERM', 'SIGKILL']);
+  assert.equal(rejectingCleanup.cleanup?.mechanism, 'cleanup-seam');
+  assert.equal(rejectingCleanup.cleanup?.error, 'injected cleanup rejection');
+  assert.match(rejectingCleanup.reason, /cleanup not attested \(injected cleanup rejection\)/);
+
   if (process.platform !== 'win32') {
     let exitProbes = 0;
     const attestedCleanup = await signalProcessTree({ pid: 4141 }, 'SIGKILL', {
