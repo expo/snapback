@@ -251,7 +251,60 @@ export const listRows = defineQuery({ table: selectedTable, args: {} });
   const rejected = await generate(dir);
   assert.equal(rejected.ok, false);
   assert(
-    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_COMMONJS_LOADER_UNHASHABLE'),
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_AMBIENT_IMPORT_UNHASHABLE'),
+    JSON.stringify(rejected.diagnostics),
+  );
+  assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
+}
+
+// Pure ESM can still escape the graph through Node builtins. A local file read
+// must fail before evaluation, and changing that untracked file must never
+// publish a new identity or semantics.
+{
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+  writeFileSync(join(dir, 'selected-table.txt'), 'todos\n');
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { readFileSync } from 'node:fs';
+import { defineQuery } from '${defineUrl}';
+const selectedTable = readFileSync(new URL('./selected-table.txt', import.meta.url), 'utf8').trim();
+export const listRows = defineQuery({ table: selectedTable, args: {} });
+`);
+
+  for (const selectedTable of ['todos', 'notes']) {
+    writeFileSync(join(dir, 'selected-table.txt'), `${selectedTable}\n`);
+    const rejected = await generate(dir);
+    assert.equal(rejected.ok, false);
+    assert(
+      rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_AMBIENT_IMPORT_UNHASHABLE'),
+      JSON.stringify(rejected.diagnostics),
+    );
+    assert.equal(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'), before);
+  }
+}
+
+// Computed property names do not evade the ambient-capability boundary: the
+// host-global root itself is rejected before it can recover a builtin loader.
+for (const source of [
+  `
+const fs = process['get' + 'BuiltinModule']('node:fs');
+export const selectedTable = fs.readFileSync(new URL('./selected-table.txt', import.meta.url), 'utf8').trim();
+`,
+  `
+const hostProcess = globalThis['pro' + 'cess'];
+const fs = hostProcess['get' + 'BuiltinModule']('node:fs');
+export const selectedTable = fs.readFileSync(new URL('./selected-table.txt', import.meta.url), 'utf8').trim();
+`,
+]) {
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'selected-table.txt'), 'notes\n');
+  writeFileSync(join(dir, 'function-helper.mjs'), source);
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_AMBIENT_ACCESS_UNHASHABLE'),
     JSON.stringify(rejected.diagnostics),
   );
   assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);

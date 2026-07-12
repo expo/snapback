@@ -2502,6 +2502,18 @@ function discoverLocalModuleGraph(entryPaths, backendDir, diagnostics, subsystem
       });
       return;
     }
+    const ambientAccess = unhashableAmbientAccess(source);
+    if (ambientAccess) {
+      diagnostics.push({
+        code: 'CODEGEN_AMBIENT_ACCESS_UNHASHABLE',
+        severity: 'error',
+        subsystem,
+        message: `${label} accesses ${ambientAccess}; codegen identity cannot account for host globals or their computed capabilities`,
+        path,
+        importedFrom,
+      });
+      return;
+    }
     graph.set(path, { path, label, source });
     if (/\.json$/i.test(path)) return;
     // A .js/.ts module's ESM interpretation comes from its nearest package
@@ -2511,18 +2523,17 @@ function discoverLocalModuleGraph(entryPaths, backendDir, diagnostics, subsystem
     if (moduleFormat.packageJson) visit(moduleFormat.packageJson, path);
     const imports = staticModuleImports(source, path, diagnostics, subsystem);
     for (const specifier of imports) {
-      if (specifier === 'node:module') {
+      if (specifier.startsWith('node:')) {
         diagnostics.push({
-          code: 'CODEGEN_COMMONJS_LOADER_UNHASHABLE',
+          code: 'CODEGEN_AMBIENT_IMPORT_UNHASHABLE',
           severity: 'error',
           subsystem,
-          message: `${label} imports node:module; codegen cannot prove dependencies loaded through its CommonJS/module-loader APIs`,
+          message: `${label} imports ${specifier}; codegen cannot hash data read through host builtin capabilities`,
           path,
           specifier,
         });
         continue;
       }
-      if (specifier.startsWith('node:')) continue;
       if (!isLocalModuleSpecifier(specifier)) {
         diagnostics.push({
           code: 'CODEGEN_AMBIGUOUS_IMPORT',
@@ -2602,6 +2613,14 @@ function commonJsLoaderToken(source) {
   const searchable = maskCommentsAndStrings(source);
   for (const token of ['createRequire', 'getBuiltinModule', 'require']) {
     if (new RegExp(`\\b${token}\\b`).test(searchable)) return `${token}()`;
+  }
+  return null;
+}
+
+function unhashableAmbientAccess(source) {
+  const searchable = maskCommentsAndStrings(source);
+  for (const token of ['process', 'globalThis', 'global', 'Bun', 'Deno']) {
+    if (new RegExp(`\\b${token}\\b`).test(searchable)) return token;
   }
   return null;
 }
