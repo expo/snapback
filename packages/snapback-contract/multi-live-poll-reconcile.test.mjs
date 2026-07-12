@@ -24,7 +24,7 @@ const makeManifest = () => ({
   queries: {
     alpha: { mode: 'live' },
     beta: { mode: 'live' },
-    gamma: { mode: 'snapshot' }, // not configured: stays an empty cell
+    gamma: { mode: 'snapshot' }, // deliberately omitted from liveQueries
   },
   mutations: {
     addRow: {},
@@ -69,7 +69,11 @@ const makeClient = ({ withLiveQuery = false, failQueryAfterMutate = false } = {}
 
 // Boundary mock that actually stores rows so tests can observe writes.
 const makeRuntime = () => ({
-  createProviderQueryHandle: () => ({}),
+  createProviderQueryHandle: (provider, name, args) => ({
+    subscribe(observer) {
+      return provider.subscribe(name, args, observer);
+    },
+  }),
   createContractMockQueryBoundary: (initialRows) => {
     const cells = new Map(Object.entries(initialRows));
     return {
@@ -110,7 +114,14 @@ const makeRuntime = () => ({
   );
   assert.deepEqual(surface.boundary.cells.get('alpha'), [{ _id: 'a1', _version: 1 }]);
   assert.deepEqual(surface.boundary.cells.get('beta'), [{ _id: 'b1', _version: 1 }]);
-  assert.deepEqual(surface.boundary.cells.get('gamma'), [], 'non-configured query stays an empty cell');
+  assert.equal(surface.boundary.cells.has('gamma'), false, 'unconfigured query has no successful empty boundary cell');
+  const gammaCells = [];
+  const gammaSubscription = surface.links.gamma({}).subscribe((cell) => gammaCells.push(cell));
+  assert.equal(gammaCells.length, 1);
+  assert.equal(gammaCells[0].status, 'error');
+  assert.equal(gammaCells[0].diagnostic.code, 'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED');
+  assert(surface.diagnostics.some((diagnostic) => diagnostic.code === 'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED'));
+  gammaSubscription.dispose();
   assert.equal(surface.connection('alpha'), null, 'no subscription: connection fact is null');
 
   await surface.links.addRow({ id: 'a2' });

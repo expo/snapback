@@ -1614,6 +1614,7 @@ async function createMultiLiveContractSurface({
       typeof entry === 'string' ? { name: entry, args: {} } : { name: entry.name, args: entry.args ?? {} });
     const liveQueryNames = liveQueryEntries.map((entry) => entry.name);
     const configuredLiveArgs = new Map(liveQueryEntries.map((entry) => [entry.name, entry.args]));
+    const configuredQueryNames = new Set(liveQueryNames);
     for (const name of liveQueryNames) {
       if (!manifest?.queries?.[name]) {
         throw new Error(`liveQueries names an unknown manifest query "${name}".`);
@@ -1693,13 +1694,10 @@ async function createMultiLiveContractSurface({
 
     // Establish every live subscription (snapshot-with-subscribe each; one
     // shared socket via the connection id) before the boundary exists, then
-    // build the boundary from the snapshots. Non-configured (non-live) query
-    // cells stay [] in both modes; only the configured entries carry data.
+    // build the boundary from the snapshots. Non-configured queries are not
+    // initialized as successful empty cells: binding one receives the typed
+    // unavailable diagnostic below instead.
     const initialRows = {};
-    for (const name of queryNames) {
-      if (manifest?.queries?.[name]?.ephemeral === true) continue;
-      initialRows[name] = [];
-    }
     if (wantLivePush) {
       const subscriptions = liveQueryEntries.map(({ name, args }) =>
         client.liveQuery(name, {
@@ -1812,6 +1810,7 @@ async function createMultiLiveContractSurface({
     const providerQueries = {};
     for (const name of queryNames) {
       if (manifest?.queries?.[name]?.ephemeral === true) continue; // §2.4 kind split
+      if (!configuredQueryNames.has(name)) continue;
       providerQueries[name] = (_args, qb) => qb.query(name, (rows) => rows, { key: name });
     }
     const providerMutations = {};
@@ -1835,6 +1834,21 @@ async function createMultiLiveContractSurface({
     const provider = {
       ...baseProvider,
       subscribe(subscribedQuery, args, observer) {
+        if (!configuredQueryNames.has(subscribedQuery)) {
+          const diagnostic = publishDiagnostic(
+            'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED',
+            `query binding "${subscribedQuery}" is present in the manifest but omitted from this surface's liveQueries configuration.`,
+            { query: subscribedQuery, configuredQueries: [...liveQueryNames] },
+          );
+          observer({
+            status: 'error',
+            rows: [],
+            value: [],
+            connection: null,
+            diagnostic,
+          });
+          return { dispose() {} };
+        }
         warnOnBindingArgsMismatch(subscribedQuery, args);
         if (!liveHandles.has(subscribedQuery)) {
           return baseProvider.subscribe(subscribedQuery, args, observer);
