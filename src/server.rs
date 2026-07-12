@@ -112,14 +112,19 @@ where
 }
 
 /// Default coarse wall-clock watchdog for detached Ibex actions (ENG-23324):
-/// the caller gets `SNAPBACK_ACTION_TIMEOUT` after this long even when the
-/// action's VM thread is stuck inside a hung outbound fetch.
+/// the watchdog fires after this long even when the action's VM thread is
+/// stuck inside a hung outbound fetch. Publishing the timeout may then wait
+/// through the bounded interrupt-teardown grace below.
 const ACTION_WATCHDOG_DEFAULT_MS: u64 = 30_000;
 /// Local actions may raise the default for slow external APIs, but a malformed
 /// environment value must not create an unrepresentable `Instant` or an
 /// effectively unbounded worker lifetime.
 const ACTION_WATCHDOG_MAX_MS: u64 = 15 * 60 * 1_000;
-const ACTION_INTERRUPT_GRACE_MS: u64 = 500;
+/// Bounded grace for Hermes async-break teardown after the public deadline.
+/// Six simultaneous outer+nested VMs can need more than 500ms to unwind on a
+/// saturated 2-core runner. Two seconds preserves pre-publication teardown for
+/// CPU-bound JavaScript while keeping the native-host fallback finite.
+const ACTION_INTERRUPT_GRACE_MS: u64 = 2_000;
 const ACTION_LOCK_POLL_MS: u64 = 5;
 
 fn action_watchdog_timeout_ms() -> u64 {

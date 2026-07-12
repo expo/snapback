@@ -31,7 +31,7 @@ use tower::ServiceExt;
 
 /// Shared watchdog budget for timeout-focused cases (ms).
 const WATCHDOG_MS: u64 = 800;
-const NON_TIMEOUT_PROOF_WATCHDOG_MS: u64 = 5_000;
+const NON_TIMEOUT_PROOF_WATCHDOG_MS: u64 = 10_000;
 static ACTION_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn serial_action_test() -> tokio::sync::MutexGuard<'static, ()> {
@@ -568,7 +568,7 @@ async fn repeated_nested_timeouts_do_not_accumulate_action_workers() {
         let app = app.clone();
         requests.push(tokio::spawn(async move {
             let response = tokio::time::timeout(
-                Duration::from_secs(3),
+                Duration::from_secs(5),
                 app.oneshot(post_json(
                     "/action/nestedHungAction",
                     handler_body(json!({})),
@@ -588,6 +588,15 @@ async fn repeated_nested_timeouts_do_not_accumulate_action_workers() {
             body["diagnostic"]["code"], "SNAPBACK_ACTION_TIMEOUT",
             "timed-out action must keep the stable watchdog code: {body}"
         );
+        // An inner Hermes deadline reports directly after the worker guard has
+        // dropped and has no workerTerminated field. If the outer watchdog wins,
+        // it must explicitly attest teardown rather than publish `false` for
+        // this CPU-only case.
+        assert_ne!(
+            body["diagnostic"]["details"]["workerTerminated"].as_bool(),
+            Some(false),
+            "CPU-bound action workers must terminate before timeout publication: {body}"
+        );
     }
 
     assert_eq!(
@@ -602,32 +611,25 @@ async fn repeated_nested_timeouts_do_not_accumulate_action_workers() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn action_run_does_not_hold_the_write_mutex() {
     let _serial = serial_action_test().await;
-    // This proof needs a long-running action as a concurrency witness, but it
-    // is not testing watchdog timing. Keep shared-runner scheduling from
-    // turning the 600ms witness into an unrelated 800ms timeout.
+    // This proof holds a native fetch open as a structural concurrency witness;
+    // it is not testing watchdog timing.
     set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
     let app = watchdog_app();
 
-    let action_started = Instant::now();
-    let action = {
-        let app = app.clone();
-        tokio::spawn(async move {
-            let response = app
-                .oneshot(post_json(
-                    "/action/busyAction",
-                    handler_body(json!({ "busyMs": 600 })),
-                ))
-                .await
-                .expect("busy action response");
-            (body_json(response).await, Instant::now())
-        })
-    };
+    let (url, fetch_started, release_fetch, fetch_server) = held_http_response().await;
+    let action = start_paused_action(app.clone(), url);
+    tokio::time::timeout(Duration::from_secs(2), fetch_started)
+        .await
+        .expect("action reaches native fetch before concurrent requests")
+        .expect("mutex-proof fetch-start signal");
+    assert!(
+        !action.is_finished(),
+        "held fetch must keep the action active"
+    );
 
-    tokio::time::sleep(Duration::from_millis(150)).await;
-
-    // At ~150ms into a ~600ms busy action, a request that secretly queued on
-    // the write mutex takes ≥450ms; a free write lane answers in milliseconds.
-    let mutation_started = Instant::now();
+    // The fixture will not answer until release_fetch is sent. If the detached
+    // action still owned the instance mutex, these requests would hit their
+    // coarse deadlock bounds instead of completing while the action is active.
     let mutation = tokio::time::timeout(
         Duration::from_secs(2),
         app.clone().oneshot(post_json(
@@ -636,31 +638,28 @@ async fn action_run_does_not_hold_the_write_mutex() {
         )),
     )
     .await
-    .expect("mutation must not stall behind the busy action")
+    .expect("mutation must not stall behind the held action")
     .expect("mutation response");
-    let mutation_elapsed = mutation_started.elapsed();
     let mutation_body = body_json(mutation).await;
     assert!(
         mutation_body.get("version").is_some(),
         "mid-action mutation must commit: {mutation_body}"
     );
     assert!(
-        mutation_elapsed < Duration::from_millis(450),
-        "the mutation must not queue behind the busy action ({mutation_elapsed:?})"
+        !action.is_finished(),
+        "mutation must finish before the held action"
     );
 
     // In-memory instances have no read lane: this query takes the write
     // mutex, which is exactly why it used to wedge for the action's duration.
-    let query_started = Instant::now();
     let query = tokio::time::timeout(
         Duration::from_secs(2),
         app.clone()
             .oneshot(post_json("/query/listTodos", handler_body(json!({})))),
     )
     .await
-    .expect("query must not stall behind the busy action")
+    .expect("query must not stall behind the held action")
     .expect("query response");
-    let query_elapsed = query_started.elapsed();
     let query_body = body_json(query).await;
     assert_eq!(
         query_body["rows"]
@@ -671,23 +670,19 @@ async fn action_run_does_not_hold_the_write_mutex() {
         "mid-action query must see the mid-action write: {query_body}"
     );
     assert!(
-        query_elapsed < Duration::from_millis(450),
-        "the in-memory query must not queue behind the busy action ({query_elapsed:?})"
+        !action.is_finished(),
+        "query must finish before the held action"
     );
-    let reads_finished = Instant::now();
 
-    let (action_body, action_finished) = action.await.expect("action task");
+    release_fetch.send(()).expect("release mutex-proof fetch");
+    let action_body = tokio::time::timeout(Duration::from_secs(2), action)
+        .await
+        .expect("released action settles")
+        .expect("action task");
+    fetch_server.await.expect("mutex-proof fetch server");
     assert_eq!(
         action_body["ok"], true,
-        "the busy action itself must succeed: {action_body}"
-    );
-    assert!(
-        action_finished - action_started >= Duration::from_millis(550),
-        "the busy action must actually have been long"
-    );
-    assert!(
-        reads_finished < action_finished,
-        "mutation and query must complete while the action is still running"
+        "the released action itself must succeed: {action_body}"
     );
 }
 
