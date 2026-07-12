@@ -37,7 +37,7 @@
       ]
     }
   },
-  "inputsHash": "2667ee3f9fa2b931c55ad5e014c8c7bf4f3f781cdb1932432151746120ef81b7",
+  "inputsHash": "d5842f7190fc9d936e36b7bec842f1189638548ea3ccc9bd38ebcb5eed4b1c5f",
   "manifestVersion": 2,
   "mutations": {},
   "provider": "snapback",
@@ -78,6 +78,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:d6b78dde59d8c525",
+  "schemaHash": "sha256:da922adaff848198",
   "schemaVersion": "snapback.v0"
 }

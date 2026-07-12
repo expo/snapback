@@ -31,7 +31,7 @@
     "contract/tripsQuery.query.ts",
     "contract/tripsQuery.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:688fd7dba3484fbc",
+  "bundleHash": "sha256:402eec30c0703da7",
   "config": [
     {
       "name": "caltrainFeed",
@@ -115,8 +115,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "69aee735844298dcaf609a2f3bf8d3b45d0ad47c1090550feef28abb39efcde7",
-  "schemaHash": "sha256:66d0682933bea31e",
+  "inputsHash": "ad6ece380c60f83baffe44a26c997d2fbae8b85600896eb57cd5f58c56189629",
+  "schemaHash": "sha256:28d6ef22685df713",
   "schemaVersion": "snapback.v0",
   "tables": [
     "stations",
