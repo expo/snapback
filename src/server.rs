@@ -2160,6 +2160,7 @@ async fn app_reset(
 }
 
 #[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct AppResetBody {
     #[serde(default)]
     seed: Option<SeedData>,

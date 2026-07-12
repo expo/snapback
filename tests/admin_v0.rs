@@ -868,11 +868,13 @@ async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_
     let seed = json!({ "seed": { "tables": { "todos": [
         { "_id": "must_not_land", "title": "ignored", "completed": false, "userId": "user_1" }
     ] } } });
+    let misspelled_seed = json!({ "sead": seed["seed"].clone() }).to_string();
 
     for (content_type, body) in [
         (None, seed.to_string()),
         (Some("text/plain"), seed.to_string()),
         (Some("application/json"), "{not-json".to_owned()),
+        (Some("application/json"), misspelled_seed),
     ] {
         let mut builder = Request::builder()
             .method("POST")
