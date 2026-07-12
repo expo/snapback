@@ -114,6 +114,76 @@ export default defineSchema({ todos: defineTable({ title: v.string() }) });
   assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
 }
 
+// A CommonJS helper may hide arbitrary transitive require() edges from the ESM
+// graph. Reject it before evaluation so changing the hidden leaf can never
+// leave a successful generation carrying the old identity.
+{
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { defineQuery } from '${defineUrl}';
+import helper from './function-helper.cjs';
+export const listRows = defineQuery({ table: helper.selectedTable, args: {} });
+`);
+  writeFileSync(join(dir, 'function-helper.cjs'), "module.exports = require('./selected-table.cjs');\n");
+  writeFileSync(join(dir, 'selected-table.cjs'), "module.exports = { selectedTable: 'notes' };\n");
+
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_COMMONJS_MODULE_UNHASHABLE'),
+    JSON.stringify(rejected.diagnostics),
+  );
+  assert.equal(
+    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+    before,
+    'a rejected unprovable graph must not publish a misleading new identity',
+  );
+}
+
+// createRequire can hide both local and bare dependency resolution behind an
+// alias. The token is rejected regardless of the requested specifier.
+for (const required of ['./selected-table.cjs', 'environment-package']) {
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { createRequire as makeRequire } from 'node:module';
+import { defineQuery } from '${defineUrl}';
+const load = makeRequire(import.meta.url);
+const selectedTable = load(${JSON.stringify(required)}).selectedTable;
+export const listRows = defineQuery({ table: selectedTable, args: {} });
+`);
+  writeFileSync(join(dir, 'selected-table.cjs'), "module.exports = { selectedTable: 'notes' };\n");
+
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_COMMONJS_LOADER_UNHASHABLE'),
+    JSON.stringify(rejected.diagnostics),
+  );
+  assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
+}
+
+// Bare ESM dependencies remain environment-dependent and must fail before
+// module evaluation just as they did before CommonJS hardening.
+{
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { defineQuery } from '${defineUrl}';
+import { selectedTable } from 'environment-package';
+export const listRows = defineQuery({ table: selectedTable, args: {} });
+`);
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_AMBIGUOUS_IMPORT'),
+    JSON.stringify(rejected.diagnostics),
+  );
+  assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
+}
+
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 
 console.log('dependency-graph.test.mjs: all cases passed');

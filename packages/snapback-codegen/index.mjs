@@ -2478,6 +2478,29 @@ function discoverLocalModuleGraph(entryPaths, backendDir, diagnostics, subsystem
       });
       return;
     }
+    if (commonJsModulePath(path)) {
+      diagnostics.push({
+        code: 'CODEGEN_COMMONJS_MODULE_UNHASHABLE',
+        severity: 'error',
+        subsystem,
+        message: `${label} is a CommonJS module; codegen cannot prove its transitive require() graph`,
+        path,
+        importedFrom,
+      });
+      return;
+    }
+    const commonJsLoader = commonJsLoaderToken(source);
+    if (commonJsLoader) {
+      diagnostics.push({
+        code: 'CODEGEN_COMMONJS_LOADER_UNHASHABLE',
+        severity: 'error',
+        subsystem,
+        message: `${label} uses ${commonJsLoader}; codegen cannot prove the dependency graph behind CommonJS loaders`,
+        path,
+        importedFrom,
+      });
+      return;
+    }
     graph.set(path, { path, label, source });
     if (/\.json$/i.test(path)) return;
     const imports = staticModuleImports(source, path, diagnostics, subsystem);
@@ -2528,6 +2551,18 @@ function discoverLocalModuleGraph(entryPaths, backendDir, diagnostics, subsystem
   };
   for (const entry of entryPaths) visit(entry);
   return graph;
+}
+
+function commonJsModulePath(path) {
+  return /\.(?:cjs|cts)$/i.test(path);
+}
+
+function commonJsLoaderToken(source) {
+  const searchable = maskCommentsAndStrings(source);
+  for (const token of ['createRequire', 'getBuiltinModule', 'require']) {
+    if (new RegExp(`\\b${token}\\b`).test(searchable)) return `${token}()`;
+  }
+  return null;
 }
 
 function moduleGraphIdentity(graph, backendDir) {

@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free). Earlier: ENG-24351: generated identity covers the complete permitted static local import graph and programmatic generation evaluates it in a fresh process; dynamic and ambiguous imports fail closed. 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
+**Revised:** 2026-07-12 (ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; ENG-24351 follow-up: CommonJS modules and loader escape hatches fail closed because their transitive dependency graph cannot be proven; earlier ENG-24351: generated identity covers the complete permitted static local import graph and programmatic generation evaluates it in a fresh process, while dynamic and ambiguous imports fail closed). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024
 
 ## Summary
@@ -292,7 +292,10 @@ only the entry files. Identity includes deterministic path/source pairs for ever
 transitive schema and function dependency; programmatic regeneration evaluates a
 fresh graph so the host's ESM cache cannot reuse an older helper. Dynamic imports,
 bare environment-dependent resolution, and query/hash-qualified local specifiers
-are rejected when codegen cannot prove and hash the edge. Handler modules remain a
+are rejected when codegen cannot prove and hash the edge. CommonJS modules and
+loader escape hatches (`require`, `createRequire`, and `getBuiltinModule`) are
+rejected for the same reason: their computed or package-scoped graph is not the
+static ESM graph used for identity. Handler modules remain a
 closed single-file runtime profile: imports are rejected before emission, so their
 complete permitted graph is the declared handler source itself.
 
