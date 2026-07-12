@@ -302,6 +302,13 @@ owner/ACL validation backend fail closed for persistent store I/O; Windows is
 in that state today rather than relying on an unknown inherited ACL (ENG-24346)
 directly.
 
+The on-disk format version is also a read/write compatibility boundary, not
+advisory metadata. Only the exactly supported version may expose values or be
+mutated. Older, newer, or otherwise unsupported versions return
+`SNAPBACK_CONFIG_STORE_VERSION_UNSUPPORTED` and preserve the original bytes;
+changing them requires an explicit migration. `[confirmed — Charlie Cheever /
+Codex, 2026-07-12, ENG-24492]`
+
 Alternatives considered:
 
 - **In the app SQLite database.** Rejected. The app database is exported,

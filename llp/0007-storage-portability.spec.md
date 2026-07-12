@@ -240,6 +240,13 @@ choice is deliberately *better* than Valet's, which stored `_createdAt`/
 cross-engine compare ambiguity ([LLP 0006](./0006-valet-retrospective.research.md),
 `[observed - Valet LLP 0014]`); keep integers.
 
+Runtime-owned timestamps use the non-negative half of the same JavaScript-safe
+integer profile: `0..=9_007_199_254_740_991` milliseconds. A recorded replay
+ledger is validated against that bound before either evaluator runs, and its
+frozen clock is the clock used by provisional rows, the handler result, the
+authoritative commit, and change-journal facts. Reconnect wall time must never
+replace it. `[confirmed — Charlie Cheever / Codex, 2026-07-12, ENG-24487/ENG-24489]`
+
 Handler-visible time comes from the runtime, and replay must reproduce it: Valet
 captured and retransmitted the mutation's `now` (alongside generated ids) so an
 offline-then-replayed insert produced the same timestamp on the client and the
@@ -258,7 +265,9 @@ First-slice requirements:
 - equality and inequality compare values of the same declared type only;
 - comparing unlike non-null types is an error;
 - null checks use explicit `isNull` and `isNotNull`;
-- sort order is stable and deterministic;
+- sort order is stable and deterministic: every explicit field order ends in
+  an ascending `_id` tie-break, including local/hosted SQL, buffered overlays,
+  and captured retained/live top-N boundary keys;
 - nulls sort after present values unless a future API explicitly chooses another
   null ordering;
 - pagination for large or mutable result sets uses cursors, not offsets;

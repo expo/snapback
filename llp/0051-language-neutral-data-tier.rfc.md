@@ -356,7 +356,10 @@ path.
   method dispatch), and calls into a **pinned function library** (`len`,
   `trim`, `lower`, `abs`, `min`, `max`, `round`, `floor`, `ceil`,
   `coalesce`; small, versioned, corpus-pinned — `round`/`min`/`max` is
-  the clamp idiom every real feed handler already uses). No arrows, no
+  the clamp idiom every real feed handler already uses). `round` is the exact
+  ECMAScript `Math.round` operation at representable half boundaries; mirrors
+  must call that operation or implement its comparison semantics directly,
+  never approximate it as `floor(x + 0.5)`. No arrows, no
   closures, no free calls, no JS method binding — the profile stays
   closed so every evaluator in every language is finite work.
 - **Steps grow reads and guards**: `Get { table, id, bind_as,

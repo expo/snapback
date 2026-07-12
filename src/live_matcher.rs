@@ -404,7 +404,7 @@ pub(crate) fn sort_key(plan: &QueryPlan, row: &Value) -> Option<Value> {
     for order in &plan.order {
         values.push(row.get(&order.field)?.clone());
     }
-    // @ref LLP 0007#queries — every explicit order ends with the portable,
+    // @ref LLP 0007#query-semantics — every explicit order ends with the portable,
     // ascending `_id` tie-break, including captured top-N boundary keys.
     values.push(Value::String(row.get("_id")?.as_str()?.to_owned()));
     Some(Value::Array(values))

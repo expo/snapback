@@ -187,6 +187,13 @@ the plugin should attach or report a target mismatch depending on mode. If the
 lock exists but has no reachable server URL, the plugin should report an
 ownership diagnostic rather than deleting the lock or starting a second server.
 
+The sidecar path is untrusted filesystem input even when the database directory
+is writable by the current user. Snapback opens the final path without following
+links/reparse points, requires a regular inode owned by the effective service
+identity, repairs it to an owner-only mode/ACL, and only then locks and rewrites
+through that validated descriptor. Platforms without an equivalent validation
+backend fail closed. `[confirmed — Charlie Cheever / Codex, 2026-07-12, ENG-24488]`
+
 The instance lock prevents two *servers* over one database; it does not prevent
 two *clients* from both driving destructive control calls against one attached
 server. In `auto` mode against the default `.snapback/dev.sqlite3`, the plugin
