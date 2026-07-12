@@ -297,13 +297,16 @@ values produced by isolated evaluation**. Thus an evaluator/toolchain semantic
 change cannot publish different definitions under the same content hash.
 
 Definition evaluation is a capability boundary, not a token blacklist. The
-bundled bytes run in a second Node process launched with no filesystem, network,
-child-process, worker, addon, or inspector permissions, inside a fresh VM context
-with no host objects and with string/Wasm code generation disabled. `process`,
-computed `globalThis` access, `getBuiltinModule`, `Function`/`eval` constructor
-paths, and equivalents therefore cannot recover unhashed input; a harmless local
-binding named `process` remains legal. Wall clock, locale/timezone, and randomness
-are also unavailable (`Date`, `Intl`, `Math.random`) so identical source cannot
+bundled bytes run under Node 24 or newer in a second process whose permission
+model denies filesystem, child-process, worker, addon, and inspector authority,
+inside a fresh VM context with no host objects or network globals and with
+string/Wasm code generation disabled. Node 24's permission model does **not**
+deny network syscalls; the network boundary is the capability-empty VM, while
+filesystem denial has both the VM and OS-permission layers. `process`, computed
+`globalThis` access, `getBuiltinModule`, `Function`/`eval` constructor paths, and
+equivalents therefore cannot recover unhashed input; a harmless local binding
+named `process` remains legal. Wall clock, locale/timezone, and randomness are
+also unavailable (`Date`, `Intl`, `Math.random`) so identical source cannot
 derive different definitions from ambient nondeterminism.
 
 A `.js` or `.ts` dependency is accepted only when its nearest package scope

@@ -12,6 +12,29 @@ const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const codegenPath = join(packageRoot, 'index.mjs');
 const dirs = [];
 
+// The isolated evaluator's filesystem backstop depends on the stable Node 24+
+// permission model. Pin an actual denied read, not only permission.has().
+{
+  const deniedPath = join(packageRoot, 'define.mjs');
+  const probe = spawnSync(process.execPath, [
+    '--permission',
+    '--input-type=module',
+    '--eval',
+    `
+import fs from 'node:fs';
+const finish = (code) => { console.log(code); process.exit(code === 'ERR_ACCESS_DENIED' ? 0 : 2); };
+try {
+  fs.readFileSync(${JSON.stringify(deniedPath)}, 'utf8');
+  finish('READ_ALLOWED');
+} catch (error) {
+  finish(error.code ?? 'UNKNOWN_ERROR');
+}
+`,
+  ], { encoding: 'utf8' });
+  assert.equal(probe.status, 0, probe.stderr || probe.stdout);
+  assert.equal(probe.stdout.trim(), 'ERR_ACCESS_DENIED');
+}
+
 function makeBackend() {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-graph-'));
   dirs.push(dir);
@@ -396,12 +419,26 @@ export const selectedTable = host.getBuiltinModule('node:fs').readFileSync(${JSO
   }
 }
 
+// Network and process authority are absent at the VM layer on Node 24, where
+// the OS permission model does not yet deny network syscalls.
+{
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'function-helper.mjs'), `
+const deniedGlobals = ['fetch', 'WebSocket', 'process', 'require', 'module', 'net', 'global', 'Bun', 'Deno'];
+export const selectedTable = deniedGlobals.every((name) => typeof globalThis[name] === 'undefined') ? 'notes' : 'todos';
+`);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.equal(manifests(dir).functions.functions[0].runtime.HostPlan.Query.table, 'notes');
+}
+
 // Ambient nondeterminism is denied too: identical sources cannot derive a
 // definition from wall time, randomness, or the host locale/timezone.
 for (const source of [
   "export const selectedTable = Date.now() % 2 ? 'todos' : 'notes';\n",
   "export const selectedTable = Math.random() < 0.5 ? 'todos' : 'notes';\n",
   "export const selectedTable = new Intl.DateTimeFormat().resolvedOptions().timeZone === 'UTC' ? 'todos' : 'notes';\n",
+  "export const selectedTable = fetch('http://127.0.0.1:9') ? 'todos' : 'notes';\n",
 ]) {
   const dir = makeBackend();
   writeFileSync(join(dir, 'function-helper.mjs'), source);

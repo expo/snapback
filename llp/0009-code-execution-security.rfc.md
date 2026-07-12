@@ -781,9 +781,12 @@ The source-authored **definition modules** that create those artifacts are an
 input-security boundary too. Snapback resolves their exact static local graph
 with an AST bundler, hashes every path/source pair and governing module-format
 manifest, and evaluates only the resulting bytes. Evaluation runs in a separate
-Node process with the permission model denying filesystem, network, child/worker,
-addon, and inspector authority, inside a capability-empty VM that denies dynamic
-code generation and ambient nondeterminism. This is the §Capability Model rule
+Node process whose permission model denies filesystem, child/worker, addon, and
+inspector authority, inside a capability-empty VM that exposes no process or
+network globals and denies dynamic code generation and ambient nondeterminism.
+Node 24 does not permission-gate network syscalls, so that split is deliberate:
+network denial is the VM capability boundary; filesystem denial has both layers.
+This is the §Capability Model rule
 applied to tooling: computed `Function`/`globalThis`/`process` tricks find no host
 power, rather than becoming an endless static-token arms race. Canonical
 serialized evaluated values join the source graph in the content hashes, so a

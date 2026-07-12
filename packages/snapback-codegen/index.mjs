@@ -2459,10 +2459,10 @@ const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 
 // A second process is intentional even though generate() already uses a
 // worker. The generation worker needs filesystem and output authority; this
-// evaluator gets none. `--permission` denies filesystem, network, child,
-// worker, addon, and inspector capabilities, while the VM removes the host
-// objects that could request them in the first place. The permission boundary
-// is the backstop if a future V8/VM escape is discovered.
+// evaluator gets none. On the Node 24 LTS baseline, `--permission` denies
+// filesystem, child, worker, addon, and inspector capabilities; the VM removes
+// process and all network globals as the network boundary. Filesystem
+// permission remains the backstop if a future V8/VM escape is discovered.
 const ISOLATED_DEFINITION_EVALUATOR = String.raw`
 import vm from 'node:vm';
 
@@ -2477,7 +2477,7 @@ function fail(message) {
 if (typeof process.permission?.has !== 'function') {
   fail('Node permission isolation is unavailable');
 }
-for (const capability of ['fs.read', 'fs.write', 'net', 'child', 'worker', 'addons', 'inspector']) {
+for (const capability of ['fs.read', 'fs.write', 'child', 'worker', 'addons', 'inspector']) {
   if (process.permission.has(capability)) fail('isolated evaluator unexpectedly has ' + capability);
 }
 
@@ -2722,22 +2722,17 @@ function definitionLoader(path) {
 }
 
 function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics) {
-  const permissionFlag = process.allowedNodeEnvironmentFlags.has('--permission')
-    ? '--permission'
-    : process.allowedNodeEnvironmentFlags.has('--experimental-permission')
-      ? '--experimental-permission'
-      : null;
-  if (permissionFlag === null) {
+  if (!process.allowedNodeEnvironmentFlags.has('--permission')) {
     diagnostics.push({
       code: 'CODEGEN_ISOLATED_EVALUATOR_FAILED',
       severity: 'error',
       subsystem: 'codegen',
-      message: 'this Node version does not provide the permission isolation required to evaluate definition modules',
+      message: 'codegen requires Node 24 or newer for stable filesystem permission isolation',
     });
     return Promise.resolve(null);
   }
   return new Promise((resolveResult) => {
-    const child = spawn(process.execPath, [permissionFlag, '--input-type=module', '--eval', ISOLATED_DEFINITION_EVALUATOR], {
+    const child = spawn(process.execPath, ['--permission', '--input-type=module', '--eval', ISOLATED_DEFINITION_EVALUATOR], {
       cwd: REPO_ROOT,
       env: {},
       stdio: ['pipe', 'pipe', 'pipe'],
