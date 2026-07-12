@@ -22,9 +22,10 @@ try {
 
   // Populate enough durable subscriptions that an accidental per-wake table
   // rewrite is observable and materially nontrivial.
-  const socket = await proof.openLiveSocket();
+  const sockets = [await proof.openLiveSocket(), await proof.openLiveSocket()];
   const subscriptionCount = 128;
   for (let index = 0; index < subscriptionCount; index += 1) {
+    const socket = sockets[index % sockets.length];
     socket.send({ type: 'subscribe', name: 'listNotes', args: { boardId: `layout-${index}` } });
     await socket.waitFor('snapshot');
   }
@@ -81,7 +82,7 @@ try {
     throw new Error('subscription function-selection index disappeared during migration');
   }
 
-  socket.close();
+  for (const socket of sockets) socket.close();
 
   const corrupt = await post('/__test/schema-hardening', { operation: 'corrupt-index' });
   if (!/CREATE UNIQUE INDEX/i.test(corrupt.indexSql) || !/\(id,/.test(corrupt.indexSql)) {
@@ -120,6 +121,26 @@ try {
   const postFuture = await post('/__test/storage-layout');
   if (!futureReset.reset || postFuture.subscriptionSchemaVersion !== 3) {
     throw new Error(`reset did not rebuild a future subscription schema: ${JSON.stringify({ futureReset, postFuture })}`);
+  }
+
+  for (const operation of ['corrupt-foundation-meta', 'corrupt-foundation-version']) {
+    const corrupted = await post('/__test/schema-hardening', { operation });
+    if (corrupted.startupError?.code !== 'SNAPBACK_CLOUDFLARE_FOUNDATION_SCHEMA_INVALID') {
+      throw new Error(`${operation} did not become a recoverable startup refusal: ${JSON.stringify(corrupted)}`);
+    }
+    const healthResponse = await fetch(`${base}/health`);
+    const healthBody = await healthResponse.json();
+    if (healthResponse.status !== 409 || healthBody.code !== 'SNAPBACK_CLOUDFLARE_FOUNDATION_SCHEMA_INVALID') {
+      throw new Error(`${operation} made /health unavailable: ${JSON.stringify(healthBody)}`);
+    }
+    if (operation === 'corrupt-foundation-version' && healthBody.version !== null) {
+      throw new Error(`corrupt version table must report an honest null version: ${JSON.stringify(healthBody)}`);
+    }
+    const reset = await proof.reset();
+    const healthy = await proof.health();
+    if (!reset.reset || healthy.ok !== true || !Number.isFinite(healthy.version)) {
+      throw new Error(`${operation} was not recoverable through authenticated reset: ${JSON.stringify({ reset, healthy })}`);
+    }
   }
   for (let index = 0; index < 3; index += 1) {
     const repeated = await proof.reset();

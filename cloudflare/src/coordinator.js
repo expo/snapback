@@ -33,6 +33,7 @@
 
 import { HostContext, physicalIndexName, physicalTableName, validateWriteValues } from './host-ops.js';
 import { nextNominalAfter } from './cron-utils.js';
+import { SUBSCRIPTION_LIMITS, SUBSCRIPTION_TEST_CEILINGS } from './limits.js';
 import {
   DEFAULT_MAX_PENDING_INVOCATIONS,
   classifyHandlerPlatformFailure,
@@ -107,7 +108,12 @@ export class Coordinator {
     this.testCronStopAfterClaimRemaining = env.SNAPBACK_TEST_CRON_STOP_AFTER_CLAIM === '1' ? 1 : 0;
     this.testCronInterruptDuringActionRemaining = env.SNAPBACK_TEST_CRON_INTERRUPT_DURING_ACTION === '1' ? 1 : 0;
     this.testCronStopBeforeFinishRemaining = env.SNAPBACK_TEST_CRON_STOP_BEFORE_FINISH === '1' ? 1 : 0;
+    this.testSocketLimitOverrides = null;
     this.initializeSchema();
+    // Hibernated sockets survive Worker deployments. Reconcile pre-cap state
+    // at construction as well as on HTTP requests so a socket-originated wake
+    // cannot keep an old over-limit registry alive indefinitely.
+    this.socketLimitError = this.reconcileAcceptedSocketBounds();
   }
 
   // Serialize `task` behind every previously queued invocation. Bound the
@@ -158,11 +164,33 @@ export class Coordinator {
   // the constructor before /health can explain the stale deployment and
   // authenticated /reset can rebuild it.
   initializeSchema() {
-    this.sql.exec(`CREATE TABLE IF NOT EXISTS _snapback_meta (key TEXT PRIMARY KEY, value TEXT)`);
-    this.startupError = this.validateDeploymentMetadata() || this.validateSubscriptionsSchemaVersion();
+    try {
+      this.sql.exec(`CREATE TABLE IF NOT EXISTS _snapback_meta (key TEXT PRIMARY KEY, value TEXT)`);
+      this.startupError =
+        this.validateDeploymentMetadata() ||
+        this.validateSubscriptionsSchemaVersion() ||
+        // Legacy v0-v2 registries can predate all hosted subscription caps.
+        // Refuse over-limit common rows before migrateSubscriptionsSchema()
+        // performs its copy; health/reset must remain available even when the
+        // old table is far too large to migrate safely.
+        this.validatePersistedSubscriptionBounds();
+    } catch (error) {
+      // Foundational table drift must not prevent the Durable Object from
+      // constructing. /health explains the refusal and authenticated /reset
+      // rebuilds the owned schema even when readMeta()/currentVersion() cannot
+      // interpret an unknown future layout.
+      this.startupError = staleArtifact(
+        (error && error.snapbackCode) || 'SNAPBACK_CLOUDFLARE_FOUNDATION_SCHEMA_INVALID',
+        'the durable metadata/version schema is incompatible; inspect health and reset or migrate before serving this deployment',
+        { cause: String((error && error.message) || error) }
+      );
+      return;
+    }
     if (this.startupError) return;
     try {
       this.ensureCurrentSchema();
+      this.startupError = this.validatePersistedSubscriptionBounds();
+      if (this.startupError) return;
       this.writeDeploymentMetadata();
     } catch (error) {
       this.startupError = staleArtifact(
@@ -366,6 +394,92 @@ export class Coordinator {
     });
   }
 
+  validatePersistedSubscriptionBounds() {
+    if (!this.tableExists('_snapback_subscriptions')) return null;
+    const columns = new Set(
+      [...this.sql.exec('PRAGMA table_info(_snapback_subscriptions)')].map((record) => String(record.name))
+    );
+    const missingCommonColumns = ['subscription_id', 'connection_id', 'function_name', 'args_json'].filter(
+      (column) => !columns.has(column)
+    );
+    if (missingCommonColumns.length > 0) {
+      return staleArtifact(
+        'SNAPBACK_SUBSCRIPTION_SCHEMA_INVALID',
+        'the durable subscription registry is missing columns common to every supported schema version; reset or migrate before serving it',
+        { missingColumns: missingCommonColumns }
+      );
+    }
+    const globalLimit = this.subscriptionGlobalLimit();
+    const globalCount = Number(
+      [...this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_subscriptions')][0]?.count || 0
+    );
+    if (globalCount > globalLimit) {
+      return staleArtifact(
+        'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT_EXCEEDED',
+        'the persisted subscription registry exceeds this deployment\'s enforced global limit; reset or migrate before serving it',
+        { limit: globalLimit, actual: globalCount }
+      );
+    }
+    const connectionLimit = this.subscriptionPerConnectionLimit();
+    const oversizedConnections = [...this.sql.exec(
+      `SELECT connection_id, COUNT(*) AS count FROM _snapback_subscriptions
+       GROUP BY connection_id HAVING COUNT(*) > ? ORDER BY count DESC LIMIT 1`,
+      connectionLimit
+    )];
+    if (oversizedConnections.length > 0) {
+      return staleArtifact(
+        'SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT_EXCEEDED',
+        'a persisted connection exceeds this deployment\'s enforced subscription limit; reset or migrate before serving it',
+        {
+          connectionId: String(oversizedConnections[0].connection_id),
+          limit: connectionLimit,
+          actual: Number(oversizedConnections[0].count),
+        }
+      );
+    }
+    const argsLimit = this.subscriptionArgsBytesLimit();
+    const oversizedRawArgs = [...this.sql.exec(
+      `SELECT subscription_id, length(CAST(args_json AS BLOB)) AS actual_bytes
+       FROM _snapback_subscriptions
+       WHERE length(CAST(args_json AS BLOB)) > ?
+       ORDER BY subscription_id LIMIT 1`,
+      argsLimit
+    )];
+    if (oversizedRawArgs.length > 0) {
+      return staleArtifact(
+        'SNAPBACK_SUBSCRIPTION_ARGS_LIMIT_EXCEEDED',
+        'a persisted subscription exceeds this deployment\'s enforced argument limit; reset or migrate before serving it',
+        {
+          subscriptionId: String(oversizedRawArgs[0].subscription_id),
+          limitBytes: argsLimit,
+          actualBytes: Number(oversizedRawArgs[0].actual_bytes),
+        }
+      );
+    }
+    for (const row of this.sql.exec('SELECT subscription_id, args_json FROM _snapback_subscriptions ORDER BY subscription_id')) {
+      const raw = String(row.args_json);
+      let canonical;
+      try {
+        canonical = canonicalJson(JSON.parse(raw));
+      } catch (_) {
+        return staleArtifact(
+          'SNAPBACK_SUBSCRIPTION_ARGS_INVALID',
+          'a persisted subscription carries invalid JSON arguments; reset or migrate before serving it',
+          { subscriptionId: String(row.subscription_id) }
+        );
+      }
+      const actualBytes = Math.max(UTF8_ENCODER.encode(raw).byteLength, UTF8_ENCODER.encode(canonical).byteLength);
+      if (actualBytes > argsLimit) {
+        return staleArtifact(
+          'SNAPBACK_SUBSCRIPTION_ARGS_LIMIT_EXCEEDED',
+          'a persisted subscription exceeds this deployment\'s enforced argument limit; reset or migrate before serving it',
+          { subscriptionId: String(row.subscription_id), limitBytes: argsLimit, actualBytes }
+        );
+      }
+    }
+    return null;
+  }
+
   testSubscriptionMigrationFault(step) {
     if (this.env.SNAPBACK_TESTING === '1' && this.testSubscriptionMigrationFailureAt === step) {
       throw codedError('SNAPBACK_TEST_SUBSCRIPTION_MIGRATION_FAILURE', `injected subscription migration failure at ${step}`);
@@ -478,6 +592,16 @@ export class Coordinator {
     } else if (operation === 'future-subscriptions') {
       this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION + 100));
       this.startupError = this.validateSubscriptionsSchemaVersion();
+    } else if (operation === 'corrupt-foundation-meta') {
+      this.sql.exec('DROP TABLE _snapback_meta');
+      this.sql.exec('CREATE TABLE _snapback_meta (future_key TEXT PRIMARY KEY, future_value TEXT)');
+      this.initializeSchema();
+      return json(200, { ok: true, startupError: this.startupError });
+    } else if (operation === 'corrupt-foundation-version') {
+      this.sql.exec('DROP TABLE _snapback_version');
+      this.sql.exec('CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, future_version INTEGER NOT NULL)');
+      this.initializeSchema();
+      return json(200, { ok: true, startupError: this.startupError });
     } else if (operation === 'reinitialize') {
       this.initializeSchema();
     } else if (operation === 'create-socketless-kit-orphan') {
@@ -492,6 +616,19 @@ export class Coordinator {
          VALUES ('orphan-sub', 'orphan-kit', ?, '{}', NULL)`,
         this.alarmJobs()[0]?.activation?.whileLive?.[0] || functions.find((fn) => fn.kind === 'LiveQuery')?.name || 'missing'
       );
+    } else if (operation === 'insert-legacy-subscription') {
+      this.sql.exec(
+        `INSERT INTO _snapback_subscriptions
+           (subscription_id, connection_id, function_name, args_json, socket_session_id)
+         VALUES (?, ?, ?, ?, NULL)`,
+        String(payload.subscriptionId || `legacy_${crypto.randomUUID()}`),
+        String(payload.connectionId || 'legacy-proof'),
+        String(payload.functionName || functions.find((fn) => fn.kind === 'LiveQuery')?.name || 'missing'),
+        String(payload.argsJson || '{}')
+      );
+      if (payload.schemaVersion != null) {
+        this.writeMeta('subscriptions_schema_version', String(payload.schemaVersion));
+      }
     }
     const indexSql = indexName
       ? [...this.sql.exec("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", indexName)]
@@ -508,6 +645,7 @@ export class Coordinator {
       orphanPresent: [...this.sql.exec(
         "SELECT 1 FROM _snapback_subscriptions WHERE subscription_id = 'orphan-sub'"
       )].length > 0,
+      subscriptionSchemaVersion: Number(this.readMeta('subscriptions_schema_version') || 0),
     });
   }
 
@@ -596,10 +734,27 @@ export class Coordinator {
     return records.length === 0 ? 0 : Number(records[0].version);
   }
 
+  healthVersion() {
+    try {
+      return this.currentVersion();
+    } catch (_) {
+      return null;
+    }
+  }
+
   appGeneration() {
     const raw = this.readMeta('app_generation');
     const value = Number(raw);
     return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+  }
+
+  nextResetGeneration() {
+    try {
+      const next = this.appGeneration() + 1;
+      return Number.isSafeInteger(next) && next > 0 ? next : 1;
+    } catch (_) {
+      return 1;
+    }
   }
 
   newId() {
@@ -629,19 +784,25 @@ export class Coordinator {
   async route(request) {
     const url = new URL(request.url);
     const path = url.pathname;
+    if (this.socketLimitError) {
+      this.socketLimitError = this.reconcileAcceptedSocketBounds();
+    }
+    const startupRefusal = this.startupError || this.socketLimitError;
 
     // A deployment/state mismatch refuses the data plane (fail closed) but
     // leaves /health for diagnosis, /reset for recovery, and /config/status
     // for operator config diagnosis (deployment config, not app data).
     if (
-      this.startupError &&
+      startupRefusal &&
       path !== '/health' &&
       path !== '/reset' &&
       path !== '/__test/corrupt-meta' &&
       path !== '/__test/schema-hardening' &&
+      path !== '/__test/connection-state' &&
+      path !== '/__test/socket-limit-upgrade' &&
       path !== '/config/status'
     ) {
-      return json(409, this.startupError);
+      return json(409, startupRefusal);
     }
     if (path === '/config/status') {
       return this.adminReadGated(request, () => this.configStatus());
@@ -667,10 +828,10 @@ export class Coordinator {
       return this.serveHostCall(request);
     }
     if (path === '/health') {
-      if (this.startupError) {
+      if (startupRefusal) {
         return json(409, {
-          ...this.startupError,
-          version: this.currentVersion(),
+          ...startupRefusal,
+          version: this.healthVersion(),
           // Deployment verification must still be able to distinguish a
           // fully bound new version from a stripped bootstrap version while
           // the data plane is correctly refusing stale persistent state.
@@ -678,6 +839,7 @@ export class Coordinator {
             handler: Boolean(this.env.HANDLER),
             actionHandler: Boolean(this.env.ACTION_HANDLER),
           },
+          workerVersion: workerVersionMetadata(this.env),
         });
       }
       return json(200, {
@@ -694,6 +856,7 @@ export class Coordinator {
           handler: Boolean(this.env.HANDLER),
           actionHandler: Boolean(this.env.ACTION_HANDLER),
         },
+        workerVersion: workerVersionMetadata(this.env),
       });
     }
     if (path === '/reset') {
@@ -780,7 +943,59 @@ export class Coordinator {
       return this.testingGated(request, () => json(200, {
         connections: [...this.sql.exec('SELECT connection_id, opened_at_ms, socket_session_id FROM _snapback_connections ORDER BY connection_id')],
         subscriptions: [...this.sql.exec('SELECT subscription_id, connection_id, socket_session_id FROM _snapback_subscriptions ORDER BY subscription_id')],
+        acceptedSocketCount: this.ctx.getWebSockets().length,
       }));
+    }
+    if (path === '/__test/socket-limit-upgrade') {
+      return this.testingGated(request, () => this.withJsonObject(request, (payload) => {
+        const requested = {
+          acceptedSockets: Number(payload.acceptedSockets),
+          legacyProofSockets: Number(payload.legacyProofSockets),
+          socketsPerConnection: Number(payload.socketsPerConnection),
+        };
+        for (const [key, value] of Object.entries(requested)) {
+          if (!Number.isSafeInteger(value) || value <= 0 || value > SUBSCRIPTION_TEST_CEILINGS[key]) {
+            return json(400, { ok: false, code: 'SNAPBACK_TEST_SOCKET_LIMIT_INVALID', key });
+          }
+        }
+        this.testSocketLimitOverrides = requested;
+        this.socketLimitError = this.reconcileAcceptedSocketBounds();
+        return json(200, {
+          ok: this.socketLimitError === null,
+          socketLimitError: this.socketLimitError,
+          acceptedSocketCount: this.ctx.getWebSockets().length,
+        });
+      }));
+    }
+    if (path === '/__test/subscription-linearization') {
+      return this.testingGated(request, () => this.withJsonObject(request, (payload) => {
+        const functionName = String(
+          payload.functionName || functions.find((fn) => fn.kind === 'LiveQuery')?.name || 'missing'
+        );
+        const candidate = {
+          connectionId: 'linearization-candidate',
+          functionName,
+          argsJson: canonicalJson({ boardId: 'candidate' }),
+        };
+        const stagedAdmission = this.subscriptionAdmission(candidate);
+        if (!stagedAdmission.ok) {
+          return json(409, { ok: false, stage: 'admission', stagedAdmission });
+        }
+        this.sql.exec(
+          `INSERT INTO _snapback_subscriptions
+             (subscription_id, connection_id, function_name, args_json, socket_session_id)
+           VALUES ('linearization-filler', 'linearization-filler', ?, ?, NULL)`,
+          functionName,
+          canonicalJson({ boardId: 'filler' })
+        );
+        const persisted = this.persistSubscription(candidate);
+        const rows = [...this.sql.exec(
+          `SELECT subscription_id FROM _snapback_subscriptions
+           WHERE connection_id IN ('linearization-candidate', 'linearization-filler')
+           ORDER BY subscription_id`
+        )].map((record) => String(record.subscription_id));
+        return json(200, { ok: true, stagedAdmission, persisted, rows });
+      }, { allowEmpty: true }));
     }
     if (path === '/__test/expire-connections') {
       return this.testingGated(request, async () => {
@@ -2266,6 +2481,285 @@ export class Coordinator {
     return DEFAULT_CONNECTION_GRANT_TTL_MS;
   }
 
+  subscriptionGlobalLimit() {
+    return this.testingBoundedLimit(
+      'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT',
+      SUBSCRIPTION_LIMITS.globalCount,
+      SUBSCRIPTION_TEST_CEILINGS.globalCount
+    );
+  }
+
+  subscriptionPerConnectionLimit() {
+    return this.testingBoundedLimit(
+      'SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT',
+      SUBSCRIPTION_LIMITS.perConnectionCount,
+      SUBSCRIPTION_TEST_CEILINGS.perConnectionCount
+    );
+  }
+
+  subscriptionArgsBytesLimit() {
+    return this.testingBoundedLimit(
+      'SNAPBACK_SUBSCRIPTION_ARGS_BYTES',
+      SUBSCRIPTION_LIMITS.canonicalArgsBytes,
+      SUBSCRIPTION_TEST_CEILINGS.canonicalArgsBytes
+    );
+  }
+
+  legacyProofSocketLimit() {
+    if (this.env.SNAPBACK_TESTING === '1' && this.testSocketLimitOverrides?.legacyProofSockets) {
+      return this.testSocketLimitOverrides.legacyProofSockets;
+    }
+    return this.testingBoundedLimit(
+      'SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT',
+      SUBSCRIPTION_LIMITS.legacyProofSockets,
+      SUBSCRIPTION_TEST_CEILINGS.legacyProofSockets
+    );
+  }
+
+  acceptedSocketLimit() {
+    if (this.env.SNAPBACK_TESTING === '1' && this.testSocketLimitOverrides?.acceptedSockets) {
+      return this.testSocketLimitOverrides.acceptedSockets;
+    }
+    return this.testingBoundedLimit(
+      'SNAPBACK_ACCEPTED_SOCKET_LIMIT',
+      SUBSCRIPTION_LIMITS.acceptedSockets,
+      SUBSCRIPTION_TEST_CEILINGS.acceptedSockets
+    );
+  }
+
+  socketsPerConnectionLimit() {
+    if (this.env.SNAPBACK_TESTING === '1' && this.testSocketLimitOverrides?.socketsPerConnection) {
+      return this.testSocketLimitOverrides.socketsPerConnection;
+    }
+    return this.testingBoundedLimit(
+      'SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT',
+      SUBSCRIPTION_LIMITS.socketsPerConnection,
+      SUBSCRIPTION_TEST_CEILINGS.socketsPerConnection
+    );
+  }
+
+  testingBoundedLimit(binding, fallback, ceiling) {
+    const configured = Number(this.env[binding]);
+    if (this.env.SNAPBACK_TESTING === '1' && Number.isSafeInteger(configured) && configured > 0) {
+      return Math.min(configured, ceiling);
+    }
+    return fallback;
+  }
+
+  reconcileAcceptedSocketBounds() {
+    const sockets = this.ctx.getWebSockets();
+    const staleKitSockets = [];
+    const proofSockets = [];
+    const physicalKitCounts = new Map();
+    for (const socket of sockets) {
+      let protocol = 'proof';
+      let connectionId = null;
+      let socketSessionId = null;
+      try {
+        protocol = this.socketProtocolFor(socket);
+        connectionId = this.connectionIdFor(socket);
+        socketSessionId = this.socketSessionFor(socket);
+      } catch (_) {
+        staleKitSockets.push(socket);
+        continue;
+      }
+      if (protocol !== 'kit') {
+        proofSockets.push(socket);
+        continue;
+      }
+      if (connectionId) {
+        physicalKitCounts.set(connectionId, (physicalKitCounts.get(connectionId) || 0) + 1);
+      }
+      let currentSession = null;
+      try {
+        currentSession = connectionId ? this.currentSocketSession(connectionId) : null;
+      } catch (_) {}
+      if (!connectionId || !socketSessionId || socketSessionId !== currentSession) {
+        staleKitSockets.push(socket);
+        continue;
+      }
+    }
+
+    // Session-replaced kit sockets are never legitimate demand. Ask the
+    // platform to retire them first even when aggregate counts are in range.
+    for (const socket of staleKitSockets) {
+      try { socket.close(1008, 'socket session replaced'); } catch (_) {}
+    }
+
+    const proofLimit = this.legacyProofSocketLimit();
+    const perConnectionLimit = this.socketsPerConnectionLimit();
+    const totalLimit = this.acceptedSocketLimit();
+    const overConnection = [...physicalKitCounts.entries()]
+      .filter(([, count]) => count > perConnectionLimit)
+      .sort(([left], [right]) => left.localeCompare(right));
+    const violated =
+      sockets.length > totalLimit ||
+      proofSockets.length > proofLimit ||
+      overConnection.length > 0;
+    if (!violated) return null;
+
+    // Upgrade policy: if an older deployment left ANY category over its new
+    // hard bound, close the complete hibernation registry. A partial keep-set
+    // cannot be chosen authoritatively for legacy proof sockets; disconnect +
+    // normal client reconnect is deterministic and leaves no hidden excess.
+    for (const socket of sockets) {
+      try { socket.close(1012, 'socket limits changed; reconnect'); } catch (_) {}
+    }
+    return staleArtifact(
+      'SNAPBACK_SOCKET_LIMIT_RECONCILIATION_PENDING',
+      'hibernated sockets from an older deployment exceed the enforced limits; all were closed and clients may retry after cleanup completes',
+      {
+        policy: 'close-all-and-retry',
+        actualAcceptedSockets: sockets.length,
+        maxAcceptedSockets: totalLimit,
+        actualLegacyProofSockets: proofSockets.length,
+        maxLegacyProofSockets: proofLimit,
+        maxSocketsPerConnection: perConnectionLimit,
+        overLimitConnections: overConnection.map(([connectionId, count]) => ({ connectionId, count })),
+      }
+    );
+  }
+
+  async testSubscriptionStageDelay() {
+    if (this.env.SNAPBACK_TESTING !== '1') return;
+    const delayMs = Number(this.env.SNAPBACK_TEST_SUBSCRIPTION_STAGE_DELAY_MS);
+    if (Number.isFinite(delayMs) && delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(delayMs, 1000)));
+    }
+  }
+
+  subscriptionAdmission({ connectionId, functionName, argsJson, supersedes = null, socketSessionId = null }) {
+    const argsBytes = UTF8_ENCODER.encode(argsJson).byteLength;
+    const argsLimit = this.subscriptionArgsBytesLimit();
+    if (argsBytes > argsLimit) {
+      return {
+        ok: false,
+        status: 413,
+        code: 'SNAPBACK_SUBSCRIPTION_ARGS_TOO_LARGE',
+        message: `canonical subscription arguments exceed the ${argsLimit}-byte durable limit`,
+        details: { limitBytes: argsLimit, actualBytes: argsBytes },
+      };
+    }
+
+    const existing = [...this.sql.exec(
+      `SELECT subscription_id FROM _snapback_subscriptions
+       WHERE connection_id = ? AND function_name = ? AND args_json = ?`,
+      connectionId,
+      functionName,
+      argsJson
+    )];
+    if (existing.length > 0) {
+      return { ok: true, existingId: String(existing[0].subscription_id), argsBytes };
+    }
+
+    let releasesSlot = false;
+    if (typeof supersedes === 'string' && supersedes.length > 0) {
+      const replaced = socketSessionId == null
+        ? [...this.sql.exec(
+            `SELECT 1 FROM _snapback_subscriptions
+             WHERE subscription_id = ? AND connection_id = ?`,
+            supersedes,
+            connectionId
+          )]
+        : [...this.sql.exec(
+            `SELECT 1 FROM _snapback_subscriptions
+             WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?`,
+            supersedes,
+            connectionId,
+            socketSessionId
+          )];
+      releasesSlot = replaced.length > 0;
+    }
+
+    const globalCount = Number(
+      [...this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_subscriptions')][0]?.count || 0
+    );
+    const connectionCount = Number(
+      [...this.sql.exec(
+        'SELECT COUNT(*) AS count FROM _snapback_subscriptions WHERE connection_id = ?',
+        connectionId
+      )][0]?.count || 0
+    );
+    const release = releasesSlot ? 1 : 0;
+    const globalLimit = this.subscriptionGlobalLimit();
+    if (globalCount - release >= globalLimit) {
+      return {
+        ok: false,
+        status: 429,
+        code: 'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT',
+        message: `the durable subscription registry is limited to ${globalLimit} rows`,
+        details: { limit: globalLimit },
+      };
+    }
+    const connectionLimit = this.subscriptionPerConnectionLimit();
+    if (connectionCount - release >= connectionLimit) {
+      return {
+        ok: false,
+        status: 429,
+        code: 'SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT',
+        message: `one connection is limited to ${connectionLimit} durable subscriptions`,
+        details: { limit: connectionLimit },
+      };
+    }
+    return { ok: true, existingId: null, argsBytes };
+  }
+
+  persistSubscription({ connectionId, functionName, argsJson, supersedes = null, socketSessionId = null }) {
+    let outcome = null;
+    this.ctx.storage.transactionSync(() => {
+      // Re-run admission at the write linearization point. runExclusive
+      // already serializes every ordinary subscribe path, but this closes the
+      // invariant locally if a future caller stages its snapshot elsewhere.
+      const admission = this.subscriptionAdmission({
+        connectionId,
+        functionName,
+        argsJson,
+        supersedes,
+        socketSessionId,
+      });
+      if (!admission.ok) {
+        outcome = admission;
+        return;
+      }
+      if (typeof supersedes === 'string' && supersedes.length > 0) {
+        if (socketSessionId == null) {
+          this.sql.exec(
+            'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?',
+            supersedes,
+            connectionId
+          );
+        } else {
+          this.sql.exec(
+            'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
+            supersedes,
+            connectionId,
+            socketSessionId
+          );
+        }
+      }
+      this.sql.exec(
+        `INSERT INTO _snapback_subscriptions
+           (subscription_id, connection_id, function_name, args_json, socket_session_id)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(connection_id, function_name, args_json)
+         DO UPDATE SET socket_session_id = excluded.socket_session_id`,
+        `sub_${crypto.randomUUID()}`,
+        connectionId,
+        functionName,
+        argsJson,
+        socketSessionId
+      );
+      const rows = [...this.sql.exec(
+        'SELECT subscription_id FROM _snapback_subscriptions WHERE connection_id = ? AND function_name = ? AND args_json = ?',
+        connectionId,
+        functionName,
+        argsJson
+      )];
+      outcome = { ok: true, subscriptionId: String(rows[0].subscription_id) };
+    });
+    return outcome;
+  }
+
   reapExpiredConnections(nowMs = Date.now()) {
     const cutoff = nowMs - this.connectionGrantTtlMs();
     const expired = [];
@@ -2523,6 +3017,18 @@ export class Coordinator {
         'a current authenticated WebSocket session is required before subscribing'
       );
     }
+    const argsJson = canonicalJson(args);
+    const admission = this.subscriptionAdmission({
+      connectionId,
+      functionName: name,
+      argsJson,
+      supersedes: typeof payload.supersedes === 'string' ? payload.supersedes : null,
+      socketSessionId,
+    });
+    if (!admission.ok) {
+      return kitError(admission.status, admission.code, admission.message, admission.details);
+    }
+    await this.testSubscriptionStageDelay();
     const result = await this.invokeHandler(name, 'query', args);
     if (!result.ok) return kitFailure(result);
     if (this.currentSocketSession(connectionId) !== socketSessionId) {
@@ -2533,40 +3039,20 @@ export class Coordinator {
       );
     }
     const version = result.observedVersion ?? this.currentVersion();
-    const argsJson = canonicalJson(args);
-    if (payload.supersedes) {
-      this.sql.exec(
-        'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
-        String(payload.supersedes),
-        connectionId,
-        socketSessionId
-      );
-    }
-    this.sql.exec(
-      `INSERT INTO _snapback_subscriptions
-         (subscription_id, connection_id, function_name, args_json, socket_session_id)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(connection_id, function_name, args_json)
-       DO UPDATE SET socket_session_id = excluded.socket_session_id`,
-      `sub_${crypto.randomUUID()}`,
+    const persisted = this.persistSubscription({
       connectionId,
-      name,
+      functionName: name,
       argsJson,
-      socketSessionId
-    );
-    let subscriptionId = null;
-    for (const record of this.sql.exec(
-      'SELECT subscription_id FROM _snapback_subscriptions WHERE connection_id = ? AND function_name = ? AND args_json = ?',
-      connectionId,
-      name,
-      argsJson
-    )) {
-      subscriptionId = String(record.subscription_id);
+      supersedes: typeof payload.supersedes === 'string' ? payload.supersedes : null,
+      socketSessionId,
+    });
+    if (!persisted.ok) {
+      return kitError(persisted.status, persisted.code, persisted.message, persisted.details);
     }
     // Subscribe arms the demand-gated warm poll (LLP 0049 Phase 3).
     await this.reconcileCronActivation();
     return json(200, {
-      subscription_id: subscriptionId,
+      subscription_id: persisted.subscriptionId,
       snapshot: { version, rows: result.value },
       permission_epochs: {},
     });
@@ -2624,6 +3110,51 @@ export class Coordinator {
       (tokenProtocol ? tokenProtocol.slice('snapback.connection-token.'.length) : null);
     const denied = this.verifyConnection(connectionId, presented);
     if (denied) return denied;
+    const connectionSocketLimit = this.socketsPerConnectionLimit();
+    const priorConnectionSockets = this.ctx.getWebSockets(connectionId).filter((socket) => {
+      try {
+        return this.socketProtocolFor(socket) === 'kit';
+      } catch (_) {
+        return false;
+      }
+    });
+    // A reconnect is a replacement, not an additional resource claim. Close
+    // every older tagged socket before checking the physical fail-safe caps;
+    // otherwise undetected network loss can strand a grant at its cap and
+    // permanently reject legitimate reconnects.
+    for (const socket of priorConnectionSockets) {
+      try {
+        socket.close(1008, 'socket session replaced');
+      } catch (_) {}
+    }
+    // Count everything the runtime still reports after close requests. Some
+    // runtimes unregister synchronously and others do so after this handler;
+    // the latter get a retryable 429 for this attempt, never a soft cap that
+    // admits limit + 1 physical sockets.
+    const connectionSockets = this.ctx.getWebSockets(connectionId).filter((socket) => {
+      try {
+        return this.socketProtocolFor(socket) === 'kit';
+      } catch (_) {
+        return false;
+      }
+    }).length;
+    if (connectionSockets >= connectionSocketLimit) {
+      return kitError(
+        429,
+        'SNAPBACK_CONNECTION_SOCKET_LIMIT',
+        `one connection grant is limited to ${connectionSocketLimit} accepted WebSockets`,
+        { limit: connectionSocketLimit }
+      );
+    }
+    const socketLimit = this.acceptedSocketLimit();
+    if (this.ctx.getWebSockets().length >= socketLimit) {
+      return kitError(
+        429,
+        'SNAPBACK_ACCEPTED_SOCKET_LIMIT',
+        `the coordinator is limited to ${socketLimit} accepted WebSockets`,
+        { limit: socketLimit }
+      );
+    }
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
     const socketSessionId = `wss_${crypto.randomUUID()}`;
@@ -2653,6 +3184,31 @@ export class Coordinator {
   // --- live subscriptions ------------------------------------------------
 
   acceptLiveSocket(request) {
+    const proofSockets = this.ctx.getWebSockets().filter((socket) => {
+      try {
+        return this.socketProtocolFor(socket) === 'proof';
+      } catch (_) {
+        return false;
+      }
+    }).length;
+    const socketLimit = this.legacyProofSocketLimit();
+    if (proofSockets >= socketLimit) {
+      return requestDiagnostic(
+        429,
+        'SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT',
+        `the legacy proof WebSocket surface is limited to ${socketLimit} live sockets`,
+        { limit: socketLimit }
+      );
+    }
+    const totalSocketLimit = this.acceptedSocketLimit();
+    if (this.ctx.getWebSockets().length >= totalSocketLimit) {
+      return requestDiagnostic(
+        429,
+        'SNAPBACK_ACCEPTED_SOCKET_LIMIT',
+        `the coordinator is limited to ${totalSocketLimit} accepted WebSockets`,
+        { limit: totalSocketLimit }
+      );
+    }
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
     const connectionId = crypto.randomUUID();
@@ -2693,6 +3249,10 @@ export class Coordinator {
   }
 
   async webSocketMessage(ws, message) {
+    if (this.socketLimitError) {
+      try { ws.close(1013, 'socket limits reconciling'); } catch (_) {}
+      return;
+    }
     let parsed;
     try {
       parsed = JSON.parse(typeof message === 'string' ? message : new TextDecoder().decode(message));
@@ -2747,6 +3307,23 @@ export class Coordinator {
       ws.send(JSON.stringify({ type: 'error', code: 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY', name: parsed.name }));
       return;
     }
+    const argsJson = canonicalJson(parsed.args || {});
+    const admission = this.subscriptionAdmission({
+      connectionId,
+      functionName: parsed.name,
+      argsJson,
+      supersedes: typeof parsed.supersedes === 'string' ? parsed.supersedes : null,
+      socketSessionId,
+    });
+    if (!admission.ok) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        code: admission.code,
+        message: admission.message,
+        ...(admission.details ? { details: admission.details } : {}),
+      }));
+      return;
+    }
     // Authoritative initial snapshot BEFORE any delta (LLP 0040 §Acceptance):
     // run the query, record the subscription at the resulting version, then
     // send the snapshot tagged with that version.
@@ -2757,34 +3334,26 @@ export class Coordinator {
     }
     if (socketSessionId && socketSessionId !== this.currentSocketSession(connectionId)) return;
     const version = result.observedVersion ?? this.currentVersion();
-    const argsJson = canonicalJson(parsed.args || {});
-    // Subscription identity is (connection, function, args) — a re-subscribe
-    // from React StrictMode or a client retry reuses the existing row and id
-    // instead of double-registering (the UNIQUE constraint above).
-    this.sql.exec(
-      `INSERT INTO _snapback_subscriptions (subscription_id, connection_id, function_name, args_json, socket_session_id)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(connection_id, function_name, args_json)
-       DO UPDATE SET socket_session_id = excluded.socket_session_id`,
-      `sub_${crypto.randomUUID()}`,
+    const persisted = this.persistSubscription({
       connectionId,
-      parsed.name,
+      functionName: parsed.name,
       argsJson,
-      socketSessionId
-    );
-    let subscriptionId = null;
-    for (const record of this.sql.exec(
-      'SELECT subscription_id FROM _snapback_subscriptions WHERE connection_id = ? AND function_name = ? AND args_json = ?',
-      connectionId,
-      parsed.name,
-      argsJson
-    )) {
-      subscriptionId = String(record.subscription_id);
+      supersedes: typeof parsed.supersedes === 'string' ? parsed.supersedes : null,
+      socketSessionId,
+    });
+    if (!persisted.ok) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        code: persisted.code,
+        message: persisted.message,
+        ...(persisted.details ? { details: persisted.details } : {}),
+      }));
+      return;
     }
     ws.send(
       JSON.stringify({
         type: 'snapshot',
-        subscriptionId,
+        subscriptionId: persisted.subscriptionId,
         function: parsed.name,
         version,
         rows: result.value,
@@ -2954,6 +3523,7 @@ export class Coordinator {
 
   resetOwnedTables() {
     const systemTables = [
+      '_snapback_meta',
       '_snapback_changes',
       '_snapback_version',
       '_snapback_subscriptions_next',
@@ -2992,12 +3562,13 @@ export class Coordinator {
     // boundary. Any invalid artifact leaves the complete pre-reset state.
     const preparedSeed = appSeed ? this.prepareSeed(appSeed) : [];
     let seeded = false;
-    const nextGeneration = this.appGeneration() + 1;
+    const nextGeneration = this.nextResetGeneration();
     // @ref LLP 0028#scheduler-state-and-run-ledger — reset is an action
     // abandonment boundary; its generation is checked again at nested commit.
     this.ctx.storage.transactionSync(() => {
       this.resetOwnedTables();
       this.testResetFault('after-journal');
+      this.sql.exec(`CREATE TABLE _snapback_meta (key TEXT PRIMARY KEY, value TEXT)`);
       // Recreate every known runtime table from this deployment. This does not
       // interpret an unknown future subscription schema and cannot retain a
       // retired app_* table or stale same-name index definition. Config cursor
@@ -3169,6 +3740,18 @@ function normalizeSqlDefinition(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+function workerVersionMetadata(env) {
+  const metadata = env && env.SNAPBACK_VERSION_METADATA;
+  if (!metadata || typeof metadata !== 'object' || typeof metadata.id !== 'string' || metadata.id.length === 0) {
+    return null;
+  }
+  return {
+    id: metadata.id,
+    tag: typeof metadata.tag === 'string' ? metadata.tag : '',
+    timestamp: typeof metadata.timestamp === 'string' ? metadata.timestamp : '',
+  };
+}
+
 async function readBoundedTextStream(stream, limitBytes) {
   if (stream === null) return { ok: true, text: '' };
   const reader = stream.getReader();
@@ -3233,8 +3816,8 @@ function failure(result) {
 // Kit-protocol errors carry the local server's ApiError envelope — a non-2xx
 // status with a structured `diagnostic` — which demos/_kit/client.mjs turns
 // into its coded Error (and keys grant refresh on).
-function kitError(status, code, message) {
-  return json(status, { diagnostic: { code, message } });
+function kitError(status, code, message, details = null) {
+  return json(status, { diagnostic: { code, message, ...(details ? { details } : {}) } });
 }
 
 function kitFailure(result) {

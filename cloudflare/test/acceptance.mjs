@@ -24,10 +24,11 @@ import fs from 'node:fs';
 import Ajv from 'ajv/dist/2020.js';
 import { startProof } from './harness.mjs';
 import { classifyHandlerPlatformFailure, classifyPlatformError } from '../src/platform-errors.js';
+import { SUBSCRIPTION_LIMITS } from '../src/limits.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-const EXPECTED_CHECKS = 50;
+const EXPECTED_CHECKS = 51;
 
 const results = [];
 function check(name, condition, detail) {
@@ -42,8 +43,13 @@ async function main() {
     // -- capability manifest served + schema-valid --------------------------
     const manifest = await client.inspect();
     check('capability manifest served with the proof profile id',
-      manifest.targetProfileId === 'cloudflare-do-sqlite-v8',
-      `got ${manifest.targetProfileId}`);
+      manifest.targetProfileId === 'cloudflare-do-sqlite-v8' &&
+        manifest.offlineRetention === false && manifest.optimisticReplay === false,
+      JSON.stringify({
+        targetProfileId: manifest.targetProfileId,
+        offlineRetention: manifest.offlineRetention,
+        optimisticReplay: manifest.optimisticReplay,
+      }));
     check('manifest names code_hot_load as a missing capability',
       Array.isArray(manifest.capabilityGaps) && manifest.capabilityGaps.includes('code_hot_load'),
       JSON.stringify(manifest.capabilityGaps));
@@ -58,6 +64,16 @@ async function main() {
         manifest.capabilityGaps.includes('auth_impersonation') &&
         manifest.capabilityGaps.includes('handler_captured_read_set_validation'),
       JSON.stringify(manifest.capabilityGaps));
+    const subscriptionLimit = manifest.resourceLimits.find((entry) => entry.name === 'maximum_subscription_count');
+    check('manifest advertises the exact subscription ceilings enforced by the coordinator',
+      subscriptionLimit?.status === 'Enforced' &&
+        manifest.runtimeFacts?.maxSubscriptionsGlobal === SUBSCRIPTION_LIMITS.globalCount &&
+        manifest.runtimeFacts?.maxSubscriptionsPerConnection === SUBSCRIPTION_LIMITS.perConnectionCount &&
+        manifest.runtimeFacts?.maxSubscriptionArgsBytes === SUBSCRIPTION_LIMITS.canonicalArgsBytes &&
+        manifest.runtimeFacts?.maxLegacyProofSockets === SUBSCRIPTION_LIMITS.legacyProofSockets &&
+        manifest.runtimeFacts?.maxAcceptedSockets === SUBSCRIPTION_LIMITS.acceptedSockets &&
+        manifest.runtimeFacts?.maxSocketsPerConnection === SUBSCRIPTION_LIMITS.socketsPerConnection,
+      JSON.stringify({ subscriptionLimit, runtimeFacts: manifest.runtimeFacts, expected: SUBSCRIPTION_LIMITS }));
 
     const schema = JSON.parse(
       fs.readFileSync(path.join(repoRoot, 'schemas/capability.manifest.schema.json'), 'utf8')

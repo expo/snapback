@@ -321,4 +321,305 @@ try {
   await bounded.dispose();
 }
 
+// The legacy proof socket cannot bypass hosted bounds: accepted sockets,
+// durable rows, rows per connection, and canonical args bytes all have hard
+// ceilings. Persisted over-limit state fails startup but leaves health/reset.
+const boundedSubscriptions = await startProof({
+  app: 'notes',
+  port: 0,
+  bindings: {
+    SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT: '3',
+    SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT: '2',
+    SNAPBACK_SUBSCRIPTION_ARGS_BYTES: '64',
+    SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT: '2',
+  },
+});
+try {
+  const base = await boundedSubscriptions.url();
+  const first = await boundedSubscriptions.openLiveSocket();
+  const second = await boundedSubscriptions.openLiveSocket();
+  const refusedSocket = await boundedSubscriptions.raw('/live/stream', { headers: { upgrade: 'websocket' } });
+  assert.equal(refusedSocket.status, 429);
+  assert.equal((await refusedSocket.json()).code, 'SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT');
+
+  first.send({ type: 'subscribe', name: 'listNotes', args: { boardId: 'a' } });
+  assert.equal((await first.waitFor('snapshot')).type, 'snapshot');
+  first.send({ type: 'subscribe', name: 'listNotes', args: { boardId: 'b' } });
+  assert.equal((await first.waitFor('snapshot')).type, 'snapshot');
+  first.send({ type: 'subscribe', name: 'listNotes', args: { boardId: 'c' } });
+  assert.equal((await first.waitFor('error')).code, 'SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT');
+
+  second.send({ type: 'subscribe', name: 'listNotes', args: { boardId: 'd' } });
+  assert.equal((await second.waitFor('snapshot')).type, 'snapshot');
+  second.send({ type: 'subscribe', name: 'listNotes', args: { boardId: 'e' } });
+  assert.equal((await second.waitFor('error')).code, 'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT');
+  second.send({ type: 'subscribe', name: 'listNotes', args: { boardId: 'x'.repeat(100) } });
+  const oversized = await second.waitFor('error');
+  assert.equal(oversized.code, 'SNAPBACK_SUBSCRIPTION_ARGS_TOO_LARGE');
+  assert.equal(oversized.details?.limitBytes, 64);
+  const boundedState = await jsonFetch(base, '/__test/connection-state', {});
+  assert.equal(boundedState.body.subscriptions.length, 3, 'rejected legacy subscriptions persist no rows');
+
+  await jsonFetch(base, '/__test/schema-hardening', {
+    operation: 'insert-legacy-subscription',
+    subscriptionId: 'overflow-global',
+    connectionId: 'legacy-overflow',
+    functionName: 'listNotes',
+    argsJson: '{"boardId":"overflow"}',
+    schemaVersion: 2,
+  });
+  const globalRefusal = await jsonFetch(base, '/__test/schema-hardening', { operation: 'reinitialize' });
+  assert.equal(globalRefusal.body.startupError?.code, 'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT_EXCEEDED');
+  assert.equal(
+    globalRefusal.body.subscriptionSchemaVersion,
+    2,
+    'over-limit legacy rows must be refused before the v2→v3 copy starts'
+  );
+  assert.equal((await fetch(`${base}/health`)).status, 409);
+  assert.equal((await boundedSubscriptions.reset()).reset, true);
+  first.close();
+  second.close();
+
+  for (let index = 0; index < 3; index += 1) {
+    await jsonFetch(base, '/__test/schema-hardening', {
+      operation: 'insert-legacy-subscription',
+      subscriptionId: `overflow-connection-${index}`,
+      connectionId: 'one-legacy-connection',
+      functionName: 'listNotes',
+      argsJson: JSON.stringify({ boardId: `legacy-${index}` }),
+    });
+  }
+  const connectionRefusal = await jsonFetch(base, '/__test/schema-hardening', { operation: 'reinitialize' });
+  assert.equal(connectionRefusal.body.startupError?.code, 'SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT_EXCEEDED');
+  assert.equal((await boundedSubscriptions.reset()).reset, true);
+
+  await jsonFetch(base, '/__test/schema-hardening', {
+    operation: 'insert-legacy-subscription',
+    subscriptionId: 'overflow-args',
+    connectionId: 'legacy-args',
+    functionName: 'listNotes',
+    argsJson: JSON.stringify({ boardId: 'z'.repeat(100) }),
+  });
+  const argsRefusal = await jsonFetch(base, '/__test/schema-hardening', { operation: 'reinitialize' });
+  assert.equal(argsRefusal.body.startupError?.code, 'SNAPBACK_SUBSCRIPTION_ARGS_LIMIT_EXCEEDED');
+  assert.equal((await boundedSubscriptions.reset()).reset, true);
+  assert.equal((await boundedSubscriptions.health()).ok, true);
+} finally {
+  await boundedSubscriptions.dispose();
+}
+
+const concurrentSubscriptions = await startProof({
+  app: 'notes',
+  port: 0,
+  bindings: {
+    SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT: '1',
+    SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT: '1',
+    SNAPBACK_TEST_SUBSCRIPTION_STAGE_DELAY_MS: '100',
+  },
+});
+try {
+  const base = await concurrentSubscriptions.url();
+  const opened = [];
+  for (const label of ['concurrent-a', 'concurrent-b']) {
+    const grant = await jsonFetch(base, '/connection/open', { connectionId: label });
+    const response = await concurrentSubscriptions.raw(`/live/${grant.body.connectionId}/stream`, {
+      headers: { upgrade: 'websocket', 'x-snapback-connection-token': grant.body.connectionToken },
+    });
+    response.webSocket.accept();
+    opened.push({ grant: grant.body, socket: response.webSocket });
+  }
+  const attempts = await Promise.all(opened.map(({ grant }, index) => jsonFetch(
+    base,
+    '/live/listNotes/subscribe',
+    { connection_id: grant.connectionId, input: { args: { boardId: `concurrent-${index}` } } },
+    { 'x-snapback-connection-token': grant.connectionToken }
+  )));
+  assert.deepEqual(attempts.map((attempt) => attempt.status).sort((a, b) => a - b), [200, 429]);
+  assert.equal(attempts.find((attempt) => attempt.status === 429)?.body.diagnostic?.code, 'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT');
+  const state = await jsonFetch(base, '/__test/connection-state', {});
+  assert.equal(state.body.subscriptions.length, 1, 'delayed concurrent snapshots cannot overbook the persisted cap');
+  for (const { socket } of opened) socket.close();
+} finally {
+  await concurrentSubscriptions.dispose();
+}
+
+// Make the second admission inside persistSubscription load-bearing: stage a
+// candidate while capacity is available, consume the final slot, then attempt
+// the write. The stale staged decision must not overbook durable state.
+const linearizedSubscriptions = await startProof({
+  app: 'notes',
+  port: 0,
+  bindings: {
+    SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT: '1',
+    SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT: '1',
+  },
+});
+try {
+  const base = await linearizedSubscriptions.url();
+  const linearized = await jsonFetch(base, '/__test/subscription-linearization', {});
+  assert.equal(linearized.status, 200);
+  assert.equal(linearized.body.stagedAdmission?.ok, true);
+  assert.equal(linearized.body.persisted?.ok, false);
+  assert.equal(linearized.body.persisted?.code, 'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT');
+  assert.deepEqual(linearized.body.rows, ['linearization-filler']);
+} finally {
+  await linearizedSubscriptions.dispose();
+}
+
+const boundedSockets = await startProof({
+  app: 'notes',
+  port: 0,
+  bindings: { SNAPBACK_ACCEPTED_SOCKET_LIMIT: '3' },
+});
+try {
+  const base = await boundedSockets.url();
+  const grant = await jsonFetch(base, '/connection/open', { connectionId: 'socket-flood' });
+  const sockets = [];
+  let current = null;
+  for (let index = 0; index < 5; index += 1) {
+    const previous = current;
+    const response = await boundedSockets.raw(`/live/${grant.body.connectionId}/stream`, {
+      headers: { upgrade: 'websocket', 'x-snapback-connection-token': grant.body.connectionToken },
+    });
+    assert.equal(response.status, 101);
+    response.webSocket.accept();
+    current = response.webSocket;
+    const state = await jsonFetch(base, '/__test/connection-state', {});
+    assert.equal(state.body.acceptedSocketCount, 1, 'reconnect must replace, not accumulate, accepted sockets');
+    // Miniflare's in-process client endpoint does not surface the server-side
+    // close event, so the authoritative hibernation registry count above is
+    // the observable that proves the old accepted socket was removed.
+    if (previous) previous.close();
+  }
+  sockets.push(current);
+
+  const secondGrant = await jsonFetch(base, '/connection/open', { connectionId: 'socket-global' });
+  const secondSocket = await boundedSockets.raw(`/live/${secondGrant.body.connectionId}/stream`, {
+    headers: { upgrade: 'websocket', 'x-snapback-connection-token': secondGrant.body.connectionToken },
+  });
+  assert.equal(secondSocket.status, 101);
+  secondSocket.webSocket.accept();
+  sockets.push(secondSocket.webSocket);
+  const thirdGrant = await jsonFetch(base, '/connection/open', { connectionId: 'socket-global-third' });
+  const thirdSocket = await boundedSockets.raw(`/live/${thirdGrant.body.connectionId}/stream`, {
+    headers: { upgrade: 'websocket', 'x-snapback-connection-token': thirdGrant.body.connectionToken },
+  });
+  assert.equal(thirdSocket.status, 101);
+  thirdSocket.webSocket.accept();
+  sockets.push(thirdSocket.webSocket);
+  const fourthGrant = await jsonFetch(base, '/connection/open', { connectionId: 'socket-global-refused' });
+  const globallyRefused = await boundedSockets.raw(`/live/${fourthGrant.body.connectionId}/stream`, {
+    headers: { upgrade: 'websocket', 'x-snapback-connection-token': fourthGrant.body.connectionToken },
+  });
+  assert.equal(globallyRefused.status, 429);
+  assert.equal((await globallyRefused.json()).diagnostic?.code, 'SNAPBACK_ACCEPTED_SOCKET_LIMIT');
+  for (const socket of sockets) socket.close();
+} finally {
+  await boundedSockets.dispose();
+}
+
+// Miniflare retains a close-requested hibernation socket until the upgrade
+// handler returns. With a one-socket test ceiling, replacement therefore
+// closes the old socket and returns retryable 429; the retry is admitted only
+// after the authoritative registry drops to zero. This proves close lag can
+// never make the advertised physical cap soft.
+const strictSocketCap = await startProof({
+  app: 'notes',
+  port: 0,
+  bindings: {
+    SNAPBACK_ACCEPTED_SOCKET_LIMIT: '1',
+    SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT: '1',
+  },
+});
+try {
+  const base = await strictSocketCap.url();
+  const grant = await jsonFetch(base, '/connection/open', { connectionId: 'strict-reconnect' });
+  const open = async () => strictSocketCap.raw(`/live/${grant.body.connectionId}/stream`, {
+    headers: { upgrade: 'websocket', 'x-snapback-connection-token': grant.body.connectionToken },
+  });
+  const waitForSocketCount = async (expected) => {
+    const deadline = Date.now() + 2_000;
+    let last = null;
+    while (Date.now() < deadline) {
+      try {
+        last = await jsonFetch(base, '/__test/connection-state', {});
+        if (last.body.acceptedSocketCount === expected) return;
+      } catch (_) {}
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error(`accepted socket registry did not reach ${expected}: ${JSON.stringify(last?.body)}`);
+  };
+  let currentResponse = await open();
+  assert.equal(currentResponse.status, 101);
+  let current = currentResponse.webSocket;
+  current.accept();
+  for (let index = 0; index < 3; index += 1) {
+    const closeAndRetry = await open();
+    assert.equal(closeAndRetry.status, 429);
+    assert.equal((await closeAndRetry.json()).diagnostic?.code, 'SNAPBACK_CONNECTION_SOCKET_LIMIT');
+    await waitForSocketCount(0);
+    current.close();
+    currentResponse = await open();
+    assert.equal(currentResponse.status, 101);
+    current = currentResponse.webSocket;
+    current.accept();
+    await waitForSocketCount(1);
+  }
+  current.close();
+} finally {
+  await strictSocketCap.dispose();
+}
+
+// A deployment can wake with hibernated sockets admitted under older, larger
+// ceilings. Simulate that upgrade by lowering testing-only limits after three
+// proof sockets exist: startup posture is a structured refusal while the
+// deterministic close-all cleanup runs, then health and bounded admission
+// recover without an operator reset.
+const upgradedSocketCaps = await startProof({
+  app: 'notes',
+  port: 0,
+  bindings: {
+    SNAPBACK_ACCEPTED_SOCKET_LIMIT: '4',
+    SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT: '4',
+  },
+});
+try {
+  const base = await upgradedSocketCaps.url();
+  const oldSockets = [];
+  for (let index = 0; index < 3; index += 1) {
+    const response = await upgradedSocketCaps.raw('/live/stream', { headers: { upgrade: 'websocket' } });
+    assert.equal(response.status, 101);
+    response.webSocket.accept();
+    oldSockets.push(response.webSocket);
+  }
+  const lowered = await jsonFetch(base, '/__test/socket-limit-upgrade', {
+    acceptedSockets: 1,
+    legacyProofSockets: 1,
+    socketsPerConnection: 1,
+  });
+  assert.equal(lowered.status, 200);
+  assert.equal(lowered.body.ok, false);
+  assert.equal(lowered.body.socketLimitError?.code, 'SNAPBACK_SOCKET_LIMIT_RECONCILIATION_PENDING');
+  assert.equal(lowered.body.socketLimitError?.details?.policy, 'close-all-and-retry');
+  const deadline = Date.now() + 2_000;
+  let upgradedState = null;
+  while (Date.now() < deadline) {
+    upgradedState = await jsonFetch(base, '/__test/connection-state', {});
+    if (upgradedState.body.acceptedSocketCount === 0) break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.equal(upgradedState?.body.acceptedSocketCount, 0, 'over-limit hibernated registry must be drained');
+  assert.equal((await upgradedSocketCaps.health()).ok, true);
+  const admitted = await upgradedSocketCaps.raw('/live/stream', { headers: { upgrade: 'websocket' } });
+  assert.equal(admitted.status, 101);
+  admitted.webSocket.accept();
+  const bounded = await upgradedSocketCaps.raw('/live/stream', { headers: { upgrade: 'websocket' } });
+  assert.equal(bounded.status, 429);
+  assert.equal((await bounded.json()).code, 'SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT');
+  admitted.webSocket.close();
+  for (const socket of oldSockets) socket.close();
+} finally {
+  await upgradedSocketCaps.dispose();
+}
+
 console.log('cloudflare security-hardening acceptance: seed, actions, grants, redaction, admin status, and WebSocket ownership passed');

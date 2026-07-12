@@ -49,7 +49,7 @@
     },
     {
       "name": "maximum_subscription_count",
-      "status": "Advisory"
+      "status": "Enforced"
     }
   ],
   "capabilityGaps": [
@@ -83,6 +83,12 @@
     "commit": "single-transactionSync (version + rows + journal)",
     "maxRowBytes": 2000000,
     "maxObjectStorageBytes": 10000000000,
+    "maxSubscriptionsGlobal": 2048,
+    "maxSubscriptionsPerConnection": 64,
+    "maxSubscriptionArgsBytes": 32768,
+    "maxLegacyProofSockets": 128,
+    "maxAcceptedSockets": 256,
+    "maxSocketsPerConnection": 2,
     "wallClockNote": "enforced by the platform (object/request kill); measured value in the benchmark report",
     "codeHotLoad": "missing — deployed Workers forbid dynamic eval; an app-code change is a deploy",
     "handlerHarness": "single-sourced LLP 0048 harness (packages/snapback-harness)",

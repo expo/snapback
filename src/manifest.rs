@@ -1415,6 +1415,12 @@ impl CapabilityManifest {
         manifest.ephemeral_realtime = false;
         manifest.ephemeral_websocket_publish = false;
         manifest.ephemeral_local_room_authority = false;
+        // Do not inherit newer local-only queued/offline semantics as the
+        // local profile grows. This hosted proof has no retained offline
+        // journal or optimistic replay engine; its capability gap below is
+        // the matching machine-readable refusal.
+        manifest.offline_retention = false;
+        manifest.optimistic_replay = false;
         manifest.cron = false;
         // The proof's supported query subset is single-table only (LLP 0040
         // §Measurements: evidence for the supported query subset only).
@@ -1468,7 +1474,7 @@ impl CapabilityManifest {
             },
             ResourceLimit {
                 name: "maximum_subscription_count".to_owned(),
-                status: ResourceLimitStatus::Advisory,
+                status: ResourceLimitStatus::Enforced,
             },
         ];
         manifest.runtime_facts = Some(runtime_facts);
