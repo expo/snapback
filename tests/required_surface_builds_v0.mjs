@@ -17,6 +17,7 @@ import { PassThrough } from 'node:stream';
 import {
   ensureRegistryInstall,
   runBoundedProcess,
+  signalProcessTree,
   verifyInstalledExactContract,
 } from '../scripts/check-required-surface-builds.mjs';
 
@@ -168,6 +169,30 @@ try {
   assert(Date.now() - started < 2_000, 'hung install is bounded');
 
   if (process.platform !== 'win32') {
+    let exitProbes = 0;
+    const attestedCleanup = await signalProcessTree({ pid: 4141 }, 'SIGKILL', {
+      processGroupTimeoutMs: 100,
+      processGroupPollMs: 1,
+      processKill: (_pid, signal) => {
+        if (signal === 'SIGKILL') return;
+        exitProbes += 1;
+        if (exitProbes < 3) return;
+        throw Object.assign(new Error('group gone'), { code: 'ESRCH' });
+      },
+    });
+    assert.equal(attestedCleanup.ok, true);
+    assert.equal(attestedCleanup.exitAttested, true);
+    assert.equal(exitProbes, 3, 'SIGKILL cleanup waits for an ESRCH group probe');
+
+    const unattestedCleanup = await signalProcessTree({ pid: 4241 }, 'SIGKILL', {
+      processGroupTimeoutMs: 5,
+      processGroupPollMs: 1,
+      processKill: () => {},
+    });
+    assert.equal(unattestedCleanup.ok, false);
+    assert.equal(unattestedCleanup.timedOut, true);
+    assert.match(unattestedCleanup.error, /process group still existed/);
+
     const nonzeroTree = await runBoundedProcess(process.execPath, ['-e', [
       'const { spawn } = require("node:child_process");',
       'const child = spawn(process.execPath, ["-e", "process.on(\\"SIGTERM\\", () => {}); setInterval(() => {}, 1000)"], { stdio: "ignore" });',
@@ -183,9 +208,9 @@ try {
     assert.equal(nonzeroTree.ok, false);
     assert.match(nonzeroTree.reason, /exited 7; process tree terminated/);
     assert.equal(nonzeroTree.cleanup?.ok, true, JSON.stringify(nonzeroTree.cleanup));
+    assert.equal(nonzeroTree.cleanup?.leaderClosed, true);
     const nonzeroGrandchildPid = Number(/nonzero-grandchild:(\d+)/.exec(nonzeroTree.output)?.[1]);
     assert(Number.isInteger(nonzeroGrandchildPid), `missing nonzero grandchild pid in ${nonzeroTree.output}`);
-    await new Promise((resolve) => setTimeout(resolve, 100));
     let nonzeroGrandchildAlive = true;
     try { process.kill(nonzeroGrandchildPid, 0); } catch (error) {
       if (error.code === 'ESRCH') nonzeroGrandchildAlive = false;
@@ -212,7 +237,6 @@ try {
     assert.equal(tree.timedOut, true);
     const grandchildPid = Number(/grandchild:(\d+)/.exec(tree.output)?.[1]);
     assert(Number.isInteger(grandchildPid), `missing grandchild pid in ${tree.output}`);
-    await new Promise((resolve) => setTimeout(resolve, 100));
     let alive = true;
     try { process.kill(grandchildPid, 0); } catch (error) {
       if (error.code === 'ESRCH') alive = false;
@@ -259,6 +283,7 @@ try {
   assert.equal(windowsCleanup.taskkillCompleted, true, 'failure settlement awaits taskkill close');
   assert.deepEqual(windowsCleanup.taskkillCalls, [['/pid', '4242', '/t', '/f']]);
   assert.equal(windowsCleanup.result.cleanup?.ok, true);
+  assert.equal(windowsCleanup.result.cleanup?.leaderClosed, true);
   assert.match(windowsCleanup.result.reason, /process tree terminated/);
 
   const windowsCleanupFailure = await fakeWindowsRun(5);
@@ -266,6 +291,35 @@ try {
   assert.equal(windowsCleanupFailure.result.cleanup?.ok, false);
   assert.equal(windowsCleanupFailure.result.cleanup?.code, 5);
   assert.match(windowsCleanupFailure.result.reason, /cleanup not attested.*taskkill exited 5/);
+
+  const unclosedWindowsLeader = new EventEmitter();
+  unclosedWindowsLeader.pid = 4292;
+  unclosedWindowsLeader.exitCode = null;
+  unclosedWindowsLeader.stdout = new PassThrough();
+  unclosedWindowsLeader.stderr = new PassThrough();
+  unclosedWindowsLeader.kill = () => true;
+  const unclosedWindowsSpawn = (command) => {
+    if (command !== 'taskkill') {
+      queueMicrotask(() => unclosedWindowsLeader.emit('error', new Error('leader spawn failure')));
+      return unclosedWindowsLeader;
+    }
+    const killer = new EventEmitter();
+    killer.kill = () => true;
+    setTimeout(() => killer.emit('close', 0, null), 1);
+    return killer;
+  };
+  const unclosedWindowsResult = await runBoundedProcess('fake-unclosed-command', [], {
+    cwd: scratch,
+    timeoutMs: 1_000,
+    inheritOutput: false,
+    platform: 'win32',
+    spawnImpl: unclosedWindowsSpawn,
+    taskkillTimeoutMs: 100,
+    leaderCloseTimeoutMs: 5,
+  });
+  assert.equal(unclosedWindowsResult.cleanup?.ok, false);
+  assert.equal(unclosedWindowsResult.cleanup?.leaderClosed, false);
+  assert.match(unclosedWindowsResult.reason, /cleanup not attested.*leader close was not observed/);
 
   const timeoutLeader = new EventEmitter();
   timeoutLeader.pid = 4343;

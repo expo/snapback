@@ -26,6 +26,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -110,6 +111,53 @@ function cleanupError(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function processGroupGone(pid, processKill) {
+  try {
+    processKill(-pid, 0);
+    return { gone: false };
+  } catch (error) {
+    if (error?.code === 'ESRCH') return { gone: true };
+    return { gone: false, error };
+  }
+}
+
+async function attestProcessGroupExit(pid, {
+  processKill,
+  timeoutMs,
+  pollMs,
+}) {
+  const deadline = performance.now() + Math.max(0, timeoutMs);
+  let polls = 0;
+  let lastProbeError = null;
+  for (;;) {
+    polls += 1;
+    const probe = processGroupGone(pid, processKill);
+    if (probe.gone) return { ok: true, exitAttested: true, polls };
+    // EPERM and other transient probe failures do not attest exit, but they
+    // also need not make cleanup fail immediately while the bounded window can
+    // still reach an authoritative ESRCH observation.
+    lastProbeError = probe.error ? cleanupError(probe.error) : null;
+    const remainingMs = deadline - performance.now();
+    if (remainingMs <= 0) {
+      return {
+        ok: false,
+        exitAttested: false,
+        polls,
+        timedOut: true,
+        error: lastProbeError
+          ? `process-group exit was not attested after ${timeoutMs}ms; last probe failed: ${lastProbeError}`
+          : `process group still existed after ${timeoutMs}ms cleanup attestation`,
+      };
+    }
+    // This timer intentionally remains referenced. A killed child no longer
+    // keeps Node alive, but the gate must publish its verdict only after this
+    // bounded exit attestation has completed.
+    await new Promise((resolvePoll) => {
+      setTimeout(resolvePoll, Math.max(1, Math.min(pollMs, remainingMs)));
+    });
+  }
+}
+
 /**
  * Signal one subprocess tree and report whether the tree primitive completed.
  * Windows cleanup is asynchronous: callers must await taskkill rather than
@@ -120,6 +168,8 @@ export function signalProcessTree(child, signal, {
   spawnImpl = spawn,
   platform = process.platform,
   taskkillTimeoutMs = 2_000,
+  processGroupTimeoutMs = 2_000,
+  processGroupPollMs = 10,
   processKill = process.kill,
 } = {}) {
   const pid = child?.pid;
@@ -198,7 +248,30 @@ export function signalProcessTree(child, signal, {
   }
   try {
     processKill(-pid, signal);
-    return Promise.resolve({ ok: true, mechanism: 'process-group', signal, pid });
+    if (signal !== 'SIGKILL') {
+      return Promise.resolve({
+        ok: true,
+        mechanism: 'process-group',
+        signal,
+        pid,
+        delivered: true,
+        exitAttested: false,
+      });
+    }
+    // Successful kill(2) delivery is not evidence that the group has exited.
+    // Poll the group with signal 0 until ESRCH proves no member remains; only
+    // that observation can support cleanup.ok in the gate result.
+    return attestProcessGroupExit(pid, {
+      processKill,
+      timeoutMs: processGroupTimeoutMs,
+      pollMs: processGroupPollMs,
+    }).then((attestation) => ({
+      mechanism: 'process-group',
+      signal,
+      pid,
+      delivered: true,
+      ...attestation,
+    }));
   } catch (error) {
     // ESRCH proves there is no process left in the detached process group.
     if (error?.code === 'ESRCH') {
@@ -208,6 +281,7 @@ export function signalProcessTree(child, signal, {
         signal,
         pid,
         alreadyExited: true,
+        exitAttested: true,
       });
     }
     let leaderFallback = false;
@@ -235,6 +309,9 @@ export function runBoundedProcess(command, args, {
   spawnImpl = spawn,
   platform = process.platform,
   taskkillTimeoutMs = Math.max(killGraceMs, 2_000),
+  processGroupTimeoutMs = Math.max(killGraceMs, 2_000),
+  processGroupPollMs = 10,
+  leaderCloseTimeoutMs = platform === 'win32' ? taskkillTimeoutMs : processGroupTimeoutMs,
   signalTree = signalProcessTree,
   // Optional readiness gate for callers that need the execution watchdog to
   // measure work after a child has explicitly initialized. The ordinary
@@ -255,6 +332,11 @@ export function runBoundedProcess(command, args, {
     let termCleanup = null;
     let killCleanup = null;
     let child;
+    let leaderClosed = false;
+    let resolveLeaderClosed;
+    const leaderClosedPromise = new Promise((resolveClose) => {
+      resolveLeaderClosed = resolveClose;
+    });
 
     const finish = (result) => {
       if (settled) return;
@@ -273,6 +355,8 @@ export function runBoundedProcess(command, args, {
           spawnImpl,
           platform,
           taskkillTimeoutMs,
+          processGroupTimeoutMs,
+          processGroupPollMs,
         }))
         .catch((error) => ({
           ok: false,
@@ -298,6 +382,24 @@ export function runBoundedProcess(command, args, {
         cleanup = termResult.ok ? termResult : await requestCleanup('SIGKILL');
       } else {
         cleanup = await requestCleanup('SIGKILL');
+      }
+      if (cleanup.ok) {
+        let leaderCloseTimer;
+        const closeObserved = leaderClosed || await Promise.race([
+          leaderClosedPromise.then(() => true),
+          new Promise((resolveClose) => {
+            leaderCloseTimer = setTimeout(() => resolveClose(false), leaderCloseTimeoutMs);
+          }),
+        ]);
+        if (leaderCloseTimer) clearTimeout(leaderCloseTimer);
+        cleanup = closeObserved
+          ? { ...cleanup, leaderClosed: true }
+          : {
+              ...cleanup,
+              ok: false,
+              leaderClosed: false,
+              error: `process tree exited but leader close was not observed within ${leaderCloseTimeoutMs}ms`,
+            };
       }
       const reason = cleanup.ok
         ? `${result.reason}; process tree terminated`
@@ -379,6 +481,8 @@ export function runBoundedProcess(command, args, {
     // child stdio handles are closed and the bounded diagnostic tail is fully
     // drained before callers inspect it.
     child.once('close', (code, signal) => {
+      leaderClosed = true;
+      resolveLeaderClosed();
       if (timedOut) {
         void finishFailure({ ok: false, timedOut: true, reason: timeoutReason });
       } else if (code === 0 && !readyReached) {
