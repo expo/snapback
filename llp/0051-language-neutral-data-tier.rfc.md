@@ -5,7 +5,7 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics and paired D5 cases; ENG-24298 closes two remaining non-JS HTTP seams with
+**Revised:** 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
 the connection re-open bearer is request-only and structurally absent from
 responses, receipts, and retained state. Earlier: 2026-07-09 — ENG-23965 ships Increment 5's retained-query store,
@@ -519,6 +519,12 @@ host language (ENG-24350):
 - numeric concat is ECMAScript `Number::toString` (including the 1e-6/1e21
   notation boundaries), and any non-finite arithmetic result normalizes to
   JSON null before it can enter a return value or row.
+- external values from args, fields, bindings, literals, and runtime answers
+  enter the client evaluator through a recursive JSON-transport boundary:
+  non-finite numbers normalize to null, JSON's array-slot and object-field
+  omission rules are preserved, and effectful or non-serializable graphs
+  (accessors, exotic prototypes, cycles, and BigInt) suppress the optimistic
+  prediction rather than creating a row the serde-based server cannot see.
 
 ### D3. WASM handler artifacts: one set of bytes, every tier
 
@@ -680,9 +686,10 @@ already ships the executor-swap harness. D5 joins them:
   gates. New engines still have to pass that corpus; a partial evaluator never
   widens its capability claim. ENG-24350 adds paired host/derived-overlay
   fixtures for own-field reads, `__proto__` records, `+0` array access,
-  scalar string order, the trim table, number-format boundaries, and
-  non-finite arithmetic; these are v1 corrections to the already-declared
-  portable semantics, not a new expression form.
+  scalar string order, the trim table, number-format boundaries, non-finite
+  arithmetic, and the recursive JSON transport boundary; these are v1
+  corrections to the already-declared portable semantics, not a new
+  expression form.
 
 ### D6. Clients by class: Online fallback, Parity by construction
 

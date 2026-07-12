@@ -180,6 +180,131 @@ assert.ok(abortReplayed >= 9, `replayed ${abortReplayed} rejection cases (>= 9 e
   assert.equal(value.__proto__, 'own-data');
 }
 
+// The overlay sees the JSON transport value, never raw JavaScript values.
+// Pin every external evaluator source (Arg, Field, and Binding), recursively:
+// non-finite numbers and unsupported array slots become null, unsupported
+// object fields disappear, and -0 becomes JSON's +0.
+{
+  const unsupported = () => {};
+  const symbol = Symbol('not-json');
+  const nested = [NaN, -Infinity, -0, undefined, unsupported, symbol];
+  nested.length = 7; // Sparse slots follow JSON.stringify's null rule too.
+  const payload = {
+    score: Infinity,
+    nested,
+    absent: undefined,
+    callback: unsupported,
+    token: symbol,
+  };
+  const arg = evalValueExpr({ Arg: 'payload' }, {
+    args: { payload },
+    bindings: new Map(),
+  });
+  assert.equal(Object.getPrototypeOf(arg), null, 'Arg objects enter the JSON record model');
+  assert.equal(arg.score, null, 'Arg recursively normalizes non-finite numbers');
+  assert.deepEqual(arg.nested, [null, null, 0, null, null, null, null]);
+  assert.deepEqual(Object.keys(arg).sort(), ['nested', 'score']);
+
+  const field = evalValueExpr({
+    Field: { base: { Arg: 'payload' }, key: 'score' },
+  }, { args: { payload }, bindings: new Map() });
+  assert.equal(field, null, 'Field reads the canonicalized Arg object');
+
+  const binding = evalValueExpr({ Binding: 'saved' }, {
+    args: {},
+    bindings: new Map([['saved', payload]]),
+  });
+  assert.equal(binding.score, null, 'Binding recursively normalizes non-finite numbers');
+  assert.deepEqual(binding.nested, [null, null, 0, null, null, null, null]);
+  assert.deepEqual(Object.keys(binding).sort(), ['nested', 'score']);
+}
+
+// The same three source forms are pinned through an actual optimistic plan,
+// not only through the exported evaluator helper.
+{
+  const payload = { score: Infinity, nested: [Infinity, undefined] };
+  const plan = {
+    steps: [
+      { Let: { bind_as: 'saved', expr: { Arg: 'payload' } } },
+      {
+        Insert: {
+          table: 'todos',
+          values: {
+            argValue: { Arg: 'rawNumber' },
+            fieldValue: { Field: { base: { Arg: 'payload' }, key: 'score' } },
+            bindingValue: { Binding: 'saved' },
+          },
+          bind_id_as: null,
+        },
+      },
+    ],
+    return_value: null,
+  };
+  const reducer = deriveOptimisticReducer({ name: 'jsonBoundary', plan, table: 'todos' });
+  const [row] = reducer([], { rawNumber: Infinity, payload }, {
+    optimisticId: 'json_boundary_1',
+    nowMs: 1,
+  });
+  assert.equal(row.argValue, null, 'Arg cannot put Infinity in an optimistic row');
+  assert.equal(row.fieldValue, null, 'Field cannot put Infinity in an optimistic row');
+  assert.equal(row.bindingValue.score, null, 'Binding cannot put Infinity in an optimistic row');
+  assert.deepEqual(row.bindingValue.nested, [null, null]);
+}
+
+// Values whose transport result could be effectful or cannot exist in JSON
+// abort the prediction. The mutation still goes to the server; only the
+// potentially dishonest optimistic row is suppressed.
+{
+  const plan = {
+    steps: [{
+      Insert: {
+        table: 'todos',
+        values: { payload: { Arg: 'payload' } },
+        bind_id_as: null,
+      },
+    }],
+    return_value: null,
+  };
+  const rejects = [
+    1n,
+    new Date(0),
+    { toJSON: () => ({ changed: true }) },
+    Object.defineProperty({}, 'value', { enumerable: true, get: () => 1 }),
+  ];
+  const cyclic = {};
+  cyclic.self = cyclic;
+  rejects.push(cyclic);
+  for (const payload of rejects) {
+    const errors = [];
+    const reducer = deriveOptimisticReducer({
+      name: 'rejectNonJson',
+      plan,
+      table: 'todos',
+      onError: (_code, _message, details) => errors.push(details),
+    });
+    const original = [{ _id: 'existing' }];
+    assert.equal(reducer(original, { payload }, { optimisticId: 'rejected' }), original);
+    assert.equal(errors[0]?.code, 'SNAPBACK_EXPR_TYPE');
+  }
+
+  for (const [payload, expectedCode] of [
+    [undefined, 'SNAPBACK_ARG_MISSING'],
+    [() => {}, 'SNAPBACK_EXPR_TYPE'],
+    [Symbol('not-json'), 'SNAPBACK_EXPR_TYPE'],
+  ]) {
+    const errors = [];
+    const reducer = deriveOptimisticReducer({
+      name: 'rejectUnsupportedRoot',
+      plan,
+      table: 'todos',
+      onError: (_code, _message, details) => errors.push(details),
+    });
+    const original = [{ _id: 'existing' }];
+    assert.equal(reducer(original, { payload }, { optimisticId: 'rejected' }), original);
+    assert.equal(errors[0]?.code, expectedCode);
+  }
+}
+
 const todoPlan = {
   steps: [
     {

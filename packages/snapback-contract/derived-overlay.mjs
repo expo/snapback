@@ -58,6 +58,87 @@ const numberValue = (value) => {
   return Object.is(value, -0) ? 0 : value;
 };
 
+// The server evaluates serde_json::Value, never a raw JavaScript object graph.
+// Canonicalize every external expression value to the same transport domain
+// before it can affect a prediction. This intentionally mirrors the stable
+// JSON.stringify rules (non-finite numbers -> null; unsupported object fields
+// omitted; unsupported/sparse array slots -> null) while rejecting values
+// whose second serialization could observe behavior: cycles, BigInt,
+// accessors, toJSON/class instances, and other exotic objects. A skipped
+// overlay is honest; a row containing a value the server can never see is not.
+const OMIT_JSON_FIELD = Object.freeze({});
+
+const canonicalJsonValue = (
+  value,
+  { container = 'top', seen = new WeakSet(), depth = 0, path = '$' } = {},
+) => {
+  if (depth > MAX_EXPR_DEPTH) {
+    fail('SNAPBACK_EXPR_TYPE', `JSON value at ${path} exceeds the client evaluator depth bound`);
+  }
+  if (value === null) return null;
+  const kind = typeof value;
+  if (kind === 'string' || kind === 'boolean') return value;
+  if (kind === 'number') return numberValue(value);
+  if (kind === 'undefined' || kind === 'function' || kind === 'symbol') {
+    if (container === 'object') return OMIT_JSON_FIELD;
+    if (container === 'array') return null;
+    fail('SNAPBACK_EXPR_TYPE', `${path} is not a JSON value (${kind})`);
+  }
+  if (kind === 'bigint') {
+    fail('SNAPBACK_EXPR_TYPE', `${path} is not a JSON value (bigint)`);
+  }
+  if (kind !== 'object') {
+    fail('SNAPBACK_EXPR_TYPE', `${path} is not a JSON value (${kind})`);
+  }
+  for (let cursor = value; cursor !== null; cursor = Object.getPrototypeOf(cursor)) {
+    if (hasOwn(cursor, 'toJSON')) {
+      fail('SNAPBACK_EXPR_TYPE', `JSON value at ${path} may not define toJSON`);
+    }
+  }
+  if (seen.has(value)) fail('SNAPBACK_EXPR_TYPE', `cyclic JSON value at ${path}`);
+  seen.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const output = new Array(value.length);
+      for (let index = 0; index < value.length; index += 1) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (!descriptor) {
+          if (String(index) in value) {
+            fail('SNAPBACK_EXPR_TYPE', `JSON array slot ${path}[${index}] may not be inherited`);
+          }
+          output[index] = null; // JSON.stringify's sparse-array rule.
+        } else if (!hasOwn(descriptor, 'value')) {
+          fail('SNAPBACK_EXPR_TYPE', `JSON array slot ${path}[${index}] must be a data property`);
+        } else {
+          output[index] = canonicalJsonValue(descriptor.value, {
+            container: 'array', seen, depth: depth + 1, path: `${path}[${index}]`,
+          });
+        }
+      }
+      return output;
+    }
+
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      fail('SNAPBACK_EXPR_TYPE', `JSON object at ${path} must have a plain or null prototype`);
+    }
+    const output = Object.create(null);
+    for (const key of Object.keys(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !hasOwn(descriptor, 'value')) {
+        fail('SNAPBACK_EXPR_TYPE', `JSON field ${path}.${key} must be a data property`);
+      }
+      const field = canonicalJsonValue(descriptor.value, {
+        container: 'object', seen, depth: depth + 1, path: `${path}.${key}`,
+      });
+      if (field !== OMIT_JSON_FIELD) output[key] = field;
+    }
+    return output;
+  } finally {
+    seen.delete(value);
+  }
+};
+
 const portableTrim = (value) => value.replace(
   /^[\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+|[\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+$/g,
   '',
@@ -141,7 +222,12 @@ const lookupPath = (value, path) => {
   let current = value;
   for (const part of path.split('.')) {
     if (current === null || typeof current !== 'object' || Array.isArray(current)) return undefined;
-    current = hasOwn(current, part) ? current[part] : undefined;
+    const descriptor = Object.getOwnPropertyDescriptor(current, part);
+    if (!descriptor) return undefined;
+    if (!hasOwn(descriptor, 'value')) {
+      fail('SNAPBACK_EXPR_TYPE', `handler arg ${path} traverses an accessor property`);
+    }
+    current = descriptor.value;
     if (current === undefined) return undefined;
   }
   return current;
@@ -279,7 +365,7 @@ export const evalValueExpr = (expr, env, depth = 0) => {
   if (depth > MAX_EXPR_DEPTH) {
     fail('SNAPBACK_PLAN_BOUNDS', `expression depth exceeds the declared bound (${MAX_EXPR_DEPTH})`);
   }
-  if (expr === 'Args') return env.args ?? {};
+  if (expr === 'Args') return canonicalJsonValue(env.args ?? {});
   if (expr === 'AuthUserId') {
     if (typeof env.authUserId !== 'string') {
       fail('SNAPBACK_AUTH_USER_MISSING', 'handler requested auth.user_id but no user was supplied');
@@ -288,7 +374,7 @@ export const evalValueExpr = (expr, env, depth = 0) => {
   }
   if (expr === 'RuntimeId') {
     if (typeof env.runtimeId !== 'function') fail('SNAPBACK_EXPR_UNANALYZABLE', 'RuntimeId is not available');
-    return env.runtimeId();
+    return canonicalJsonValue(env.runtimeId());
   }
   if (expr === 'RuntimeNow') {
     if (typeof env.nowMs !== 'number' || !Number.isFinite(env.nowMs)) {
@@ -302,21 +388,21 @@ export const evalValueExpr = (expr, env, depth = 0) => {
   if (hasOwn(expr, 'Arg')) {
     const value = lookupPath(env.args ?? {}, expr.Arg);
     if (value === undefined) fail('SNAPBACK_ARG_MISSING', `handler arg ${expr.Arg} was not provided`);
-    return value;
+    return canonicalJsonValue(value);
   }
   if (hasOwn(expr, 'Binding')) {
     const bindings = env.bindings ?? new Map();
     if (!bindings.has(expr.Binding)) {
       fail('SNAPBACK_BINDING_MISSING', `handler binding ${expr.Binding} was not available`);
     }
-    return bindings.get(expr.Binding);
+    return canonicalJsonValue(bindings.get(expr.Binding));
   }
   if (hasOwn(expr, 'Literal')) {
-    return typeof expr.Literal === 'number' ? numberValue(expr.Literal) : expr.Literal;
+    return canonicalJsonValue(expr.Literal);
   }
   if (hasOwn(expr, 'Field')) {
     const base = evalValueExpr(expr.Field.base, env, depth + 1);
-    return fieldAccess(base, expr.Field.key);
+    return canonicalJsonValue(fieldAccess(base, expr.Field.key));
   }
   if (hasOwn(expr, 'Binary')) {
     const left = evalValueExpr(expr.Binary.left, env, depth + 1);
