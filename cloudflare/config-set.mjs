@@ -25,7 +25,8 @@
 //   4. poll /config/status until it reports generation >= N (state: applied),
 //      or time out and report that the write remains pending.
 //
-// Secret values ride argv/env into the wrangler payload and are never echoed.
+// Secret values ride stdin directly into the wrangler payload and are never
+// echoed or accepted as command-line arguments.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
