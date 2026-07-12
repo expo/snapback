@@ -22,6 +22,88 @@ function snapbackFail(code, message) {
 }
 
 const TABLE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const SYSTEM_FIELDS = new Set(['_id', '_version', '_createdAt', '_updatedAt']);
+
+function fieldType(field) {
+  return String(field.type || field.field_type || '').toLowerCase();
+}
+
+function tableManifest(schemaTables, table) {
+  return schemaTables instanceof Map ? schemaTables.get(String(table || '')) || null : null;
+}
+
+function writeFailure(code, message, details = null) {
+  return { ok: false, code, message, ...(details ? { details } : {}) };
+}
+
+function validateFieldValue(table, field, value) {
+  if (value === null && field.optional) return null;
+  const type = fieldType(field);
+  let valid = false;
+  if (type === 'string') valid = typeof value === 'string';
+  else if (type === 'boolean') valid = typeof value === 'boolean';
+  else if (type === 'integer') valid = Number.isSafeInteger(value);
+  else if (type === 'real' || type === 'number' || type === 'float') {
+    valid = typeof value === 'number' && Number.isFinite(value);
+  } else if (type === 'json') {
+    try {
+      valid = JSON.stringify(value) !== undefined;
+    } catch (_) {
+      valid = false;
+    }
+  }
+  return valid
+    ? null
+    : writeFailure(
+        'SNAPBACK_FIELD_TYPE_MISMATCH',
+        `expected ${type || 'declared'} value for ${table.name}.${field.name}`,
+        { table: table.name, field: field.name, expected: type || null }
+      );
+}
+
+// Manifest-enforced portable write boundary (LLP 0007). Insert validation
+// materializes absent optional fields as null, matching the local SQLite
+// document shape; patches validate only the fields they carry.
+export function validateWriteValues(schemaTables, tableName, values, { insert = false } = {}) {
+  const table = tableManifest(schemaTables, tableName);
+  if (!table) {
+    return writeFailure('SNAPBACK_UNKNOWN_TABLE', `unknown table ${tableName}`);
+  }
+  if (!values || typeof values !== 'object' || Array.isArray(values)) {
+    return writeFailure('SNAPBACK_HANDLER_HOST_CALL_INVALID', `ctx.db write values for ${tableName} must be an object`);
+  }
+  const fields = new Map((table.fields || []).map((field) => [field.name, field]));
+  for (const key of Object.keys(values)) {
+    if (SYSTEM_FIELDS.has(key)) {
+      return writeFailure('SNAPBACK_SYSTEM_FIELD_WRITE', `${key} is managed by Snapback`, { table: table.name, field: key });
+    }
+    const field = fields.get(key);
+    if (!field) {
+      return writeFailure('SNAPBACK_UNKNOWN_FIELD', `unknown field ${table.name}.${key}`, { table: table.name, field: key });
+    }
+    const invalid = validateFieldValue(table, field, values[key]);
+    if (invalid) return invalid;
+  }
+  const normalized = {};
+  if (insert) {
+    for (const field of table.fields || []) {
+      if (Object.prototype.hasOwnProperty.call(values, field.name)) {
+        normalized[field.name] = values[field.name];
+      } else if (field.optional) {
+        normalized[field.name] = null;
+      } else {
+        return writeFailure(
+          'SNAPBACK_FIELD_MISSING',
+          `required field ${table.name}.${field.name} is missing`,
+          { table: table.name, field: field.name }
+        );
+      }
+    }
+  } else {
+    Object.assign(normalized, values);
+  }
+  return { ok: true, values: normalized };
+}
 
 // Manifest-derived physical-table gate (ENG-23578): handler-provided table
 // names never reach SQL identifier position unless they are declared in the
@@ -40,13 +122,15 @@ export function physicalTableName(table, allowedTables) {
 // query|mutation. `nowMs` is frozen for the invocation (LLP 0007 replay).
 // `tables` is the schema-declared table-name set (ENG-23578).
 export class HostContext {
-  constructor({ sql, mode, nowMs, epoch, newId, tables, runMutation = null, hostFetch = null }) {
+  constructor({ sql, mode, nowMs, epoch, newId, tables, schemaTables = null, runMutation = null, hostFetch = null, control = null }) {
     this.sql = sql;
     this.mode = mode;
     this.nowMs = nowMs;
     this.epoch = epoch;
     this.newId = newId;
     this.tables = tables || new Set();
+    this.schemaTables = schemaTables || new Map();
+    this.control = control;
     this.writes = []; // buffered BufferedWrite {kind, table, id, values}
     this.reads = []; // captured read dependencies (for the live matcher)
     this.observedVersion = null;
@@ -56,6 +140,22 @@ export class HostContext {
     // secret-resolving egress boundary. Queries and mutations get neither.
     this.runMutationHook = runMutation;
     this.hostFetchHook = hostFetch;
+  }
+
+  abandon(code = 'SNAPBACK_ACTION_TIMEOUT', message = 'the invocation was abandoned') {
+    if (this.control) {
+      this.control.abandoned = true;
+      this.control.code = code;
+      this.control.message = message;
+    }
+  }
+
+  abandonedFailure() {
+    if (!this.control || !this.control.abandoned) return null;
+    return snapbackFail(
+      this.control.code || 'SNAPBACK_HANDLER_STALE_CONTINUATION',
+      this.control.message || 'the invocation is no longer active'
+    );
   }
 
   ensureWritable(op) {
@@ -84,7 +184,7 @@ export class HostContext {
 
   unknownTable(op, table) {
     return snapbackFail(
-      'SNAPBACK_HANDLER_HOST_CALL_INVALID',
+      'SNAPBACK_UNKNOWN_TABLE',
       `ctx.db.${op} referenced table "${table}", which is not declared in the app schema`
     );
   }
@@ -101,6 +201,28 @@ export class HostContext {
   // filter_matches_row in src/live_matcher.rs); ties break on the id
   // column, matching applyPlan's _id tie-break.
   storageQuery(physical, plan) {
+    const table = tableManifest(this.schemaTables, plan.table);
+    if (!table) throw new Error(`unknown table ${plan.table}`);
+    const declaredFields = new Set((table.fields || []).map((field) => field.name));
+    const ensureQueryField = (field) => {
+      const name = String(field || '');
+      if (!SYSTEM_FIELDS.has(name) && !declaredFields.has(name)) {
+        const error = new Error(`unknown field ${table.name}.${name}`);
+        error.snapbackCode = 'SNAPBACK_UNKNOWN_FIELD';
+        throw error;
+      }
+      return name;
+    };
+    let requestedIndex = null;
+    if (plan.indexed_by != null) {
+      const name = String(plan.indexed_by);
+      requestedIndex = (table.indexes || []).find((index) => index.name === name) || null;
+      if (!requestedIndex) {
+        const error = new Error(`query declares index "${name}" which table "${table.name}" does not define`);
+        error.snapbackCode = 'SNAPBACK_QUERY_UNKNOWN_INDEX';
+        throw error;
+      }
+    }
     const where = [];
     const params = [];
     // json_extract yields 1/0 for JSON booleans, and the SQLite binding layer
@@ -110,6 +232,7 @@ export class HostContext {
       return value === undefined ? null : value;
     };
     for (const filter of plan.filters || []) {
+      ensureQueryField(filter.field);
       const target = literalValue(filter.value);
       switch (filter.op) {
         case 'Eq':
@@ -147,9 +270,10 @@ export class HostContext {
       }
     }
     let sql = `SELECT row_json FROM ${physical}`;
+    if (requestedIndex) sql += ` INDEXED BY ${physicalIndexName(table.name, requestedIndex.name)}`;
     if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
     const order = (plan.order || [])
-      .map((entry) => `${fieldExpr(entry.field)} ${entry.direction === 'Desc' ? 'DESC' : 'ASC'}`)
+      .map((entry) => `${fieldExpr(ensureQueryField(entry.field))} ${entry.direction === 'Desc' ? 'DESC' : 'ASC'}`)
       .join(', ');
     if (order) sql += ` ORDER BY ${order}, id ASC`;
     if (plan.limit != null) {
@@ -227,6 +351,8 @@ export class HostContext {
   // { ok:true, value } or { ok:false, code, message }; the action-only ops
   // return promises (the coordinator's serveHostCall awaits).
   handle(op, args) {
+    const abandoned = this.abandonedFailure();
+    if (abandoned) return abandoned;
     switch (op) {
       case 'action.runMutation': {
         if (this.mode !== 'action' || typeof this.runMutationHook !== 'function') {
@@ -261,6 +387,10 @@ export class HostContext {
         try {
           stored = this.storageQuery(physical, hasBuffered ? { ...plan, limit: null } : plan);
         } catch (error) {
+          const code = error && error.snapbackCode;
+          if (typeof code === 'string') {
+            return snapbackFail(code, error.message);
+          }
           return snapbackFail(
             'SNAPBACK_HANDLER_HOST_CALL_INVALID',
             `ctx.db.query received an unsupported query plan: ${error.message}`
@@ -288,8 +418,10 @@ export class HostContext {
         const denied = this.ensureWritable('insert');
         if (denied) return denied;
         if (!this.physicalTable(args.table)) return this.unknownTable('insert', args.table);
+        const validated = validateWriteValues(this.schemaTables, args.table, args.values || {}, { insert: true });
+        if (!validated.ok) return validated;
         const id = this.newId();
-        this.writes.push({ kind: 'insert', table: args.table, id, values: args.values || {} });
+        this.writes.push({ kind: 'insert', table: args.table, id, values: validated.values });
         return { ok: true, value: id };
       }
       case 'db.patch': {
@@ -297,12 +429,14 @@ export class HostContext {
         if (denied) return denied;
         const physical = this.physicalTable(args.table);
         if (!physical) return this.unknownTable('patch', args.table);
+        const validated = validateWriteValues(this.schemaTables, args.table, args.values || {}, { insert: false });
+        if (!validated.ok) return validated;
         const stored = this.storageGet(physical, args.id);
         // Point reads on patch/delete are captured exactly as on the Rust
         // path (capture_point_read, ENG-23582 divergence 4).
         this.reads.push({ kind: 'point', table: args.table, id: args.id });
         const existed = this.applyBufferedToPoint(args.table, args.id, stored) != null;
-        this.writes.push({ kind: 'patch', table: args.table, id: args.id, values: args.values || {} });
+        this.writes.push({ kind: 'patch', table: args.table, id: args.id, values: validated.values });
         return { ok: true, value: existed };
       }
       case 'db.delete': {
@@ -380,6 +514,15 @@ function fieldExpr(field) {
     throw new Error(`invalid query field ${name}`);
   }
   return name === '_id' ? 'id' : `json_extract(row_json, '$.${name}')`;
+}
+
+export function physicalIndexName(table, index) {
+  const tableName = String(table || '');
+  const indexName = String(index || '');
+  if (!TABLE_IDENTIFIER.test(tableName) || !TABLE_IDENTIFIER.test(indexName)) {
+    throw new Error(`invalid index identity ${tableName}.${indexName}`);
+  }
+  return `idx_app_${tableName}_${indexName}`;
 }
 
 function literalValue(value) {

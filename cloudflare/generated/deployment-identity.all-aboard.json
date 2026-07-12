@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "app": "all-aboard",
+  "schemaHash": "sha256:e892cbe30bf60746f04613e7d9339abec41024f1c62a00d6359f077982410cca",
+  "bundleHash": "sha256:49b83fe3d10eb81dc9c879d4fc8733f278c973bcc57192ce9d9c1d6989315ba0",
+  "inputsHash": "sha256:e7a72701022d38c9bcd694f504fd7c93081f10479d70d465d6d2401d32c440af",
+  "inputs": [
+    "cloudflare/app/all-aboard.app.js",
+    "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json",
+    "cloudflare/src/coordinator.js",
+    "cloudflare/src/cron-utils.js",
+    "cloudflare/src/gateway.js",
+    "cloudflare/src/handler-worker.js",
+    "cloudflare/src/host-ops.js",
+    "cloudflare/src/platform-errors.js",
+    "demos/all-aboard/snapback/generated/functions.manifest.json",
+    "demos/all-aboard/snapback/generated/schema.manifest.json",
+    "demos/all-aboard/snapback/seed.json",
+    "packages/snapback-harness/allowlist.json",
+    "packages/snapback-harness/compat.json",
+    "packages/snapback-harness/ctx-bootstrap.js",
+    "packages/snapback-harness/envelope.mjs",
+    "packages/snapback-harness/workerd/handler-server.mjs",
+    "packages/snapback-harness/workerd/rejection-ledger.mjs",
+    "packages/snapback-harness/workerd/strip.mjs"
+  ]
+}

@@ -13,6 +13,7 @@
 // ambient-power denial test).
 
 import capabilityManifest from '../generated/capability.manifest.cloudflare-do-sqlite-v8.json';
+import deploymentIdentityArtifact from '../generated/deployment-identity.notes.json';
 
 // Uniform app-bundle surface for the LLP 0049 deploy-time app selector: every
 // bundle exports appMeta/seed/capabilityManifest alongside schema/functions,
@@ -35,6 +36,7 @@ export const config = [];
 export const cron = [];
 
 export { capabilityManifest };
+export const deploymentIdentity = deploymentIdentityArtifact;
 
 export const schema = {
   schemaHash: 'notes-app-v1',
@@ -65,14 +67,14 @@ export const functions = [
   // not advance the version (ENG-23583), off-schema tables must be refused
   // (ENG-23578), and a detached rejection parked on a host call must fail the
   // mutation with nothing committed (ENG-23584/ENG-23585).
-  { name: 'touchNote', kind: 'Mutation', export: 'touchNote', tables: ['notes'] },
+  { name: 'touchNote', kind: 'Mutation', export: 'touchNote', tables: ['notes'], testingOnly: true },
   // ENG-23606 regression probes: null/missing optional-field filters must
   // behave identically on the SQL-pushdown path (no buffered writes) and the
   // buffered-overlay path (mid-mutation, after a write).
-  { name: 'listNotesByAuthor', kind: 'LiveQuery', export: 'listNotesByAuthor', tables: ['notes'] },
-  { name: 'probeNullSemantics', kind: 'Mutation', export: 'probeNullSemantics', tables: ['notes'] },
-  { name: 'probeBadTable', kind: 'Mutation', export: 'probeBadTable', tables: ['notes'] },
-  { name: 'addNoteDetachedFailure', kind: 'Mutation', export: 'addNoteDetachedFailure', tables: ['notes'] },
+  { name: 'listNotesByAuthor', kind: 'LiveQuery', export: 'listNotesByAuthor', tables: ['notes'], testingOnly: true },
+  { name: 'probeNullSemantics', kind: 'Mutation', export: 'probeNullSemantics', tables: ['notes'], testingOnly: true },
+  { name: 'probeBadTable', kind: 'Mutation', export: 'probeBadTable', tables: ['notes'], testingOnly: true },
+  { name: 'addNoteDetachedFailure', kind: 'Mutation', export: 'addNoteDetachedFailure', tables: ['notes'], testingOnly: true },
 ];
 
 // One handler module, the same `globalThis.__snapbackHandlers` contract the

@@ -19,6 +19,7 @@ import schemaManifest from '../../demos/all-aboard/snapback/generated/schema.man
 import functionsManifest from '../../demos/all-aboard/snapback/generated/functions.manifest.json';
 import seedData from '../../demos/all-aboard/snapback/seed.json';
 import capabilityManifest from '../generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json';
+import deploymentIdentityArtifact from '../generated/deployment-identity.all-aboard.json';
 
 export const appMeta = {
   name: 'all-aboard',
@@ -28,6 +29,7 @@ export const appMeta = {
 };
 
 export { capabilityManifest };
+export const deploymentIdentity = deploymentIdentityArtifact;
 
 export const schema = {
   schemaHash: schemaManifest.schemaHash,
@@ -187,13 +189,15 @@ export const functions = [
   // Secret-grant probes for the LLP 0049 Phase 1 acceptance: the action
   // observes redacted descriptor handles (and their fail-closed expose());
   // the query and mutation prove ctx.secrets does not exist outside actions.
-  { name: 'probeSecrets', kind: 'Action', export: 'probeSecrets', uses: ['caltrainFeed', 'directions'], tables: [] },
-  { name: 'probeSecretsQuery', kind: 'Query', export: 'probeSecretsQuery' },
-  { name: 'probeSecretsMutation', kind: 'Mutation', export: 'probeSecretsMutation', tables: ['trainStatus'] },
+  { name: 'probeSecrets', kind: 'Action', export: 'probeSecrets', uses: ['caltrainFeed', 'directions'], tables: [], testingOnly: true },
+  { name: 'probeSecretsQuery', kind: 'Query', export: 'probeSecretsQuery', testingOnly: true },
+  { name: 'probeSecretsMutation', kind: 'Mutation', export: 'probeSecretsMutation', tables: ['trainStatus'], testingOnly: true },
   // Concurrency probe for the LLP 0049 Phase 2 acceptance: a deliberately
   // slow host fetch that must not block queries, mutations, or live pushes
   // on the same coordinator (the off-mutex execution contract).
-  { name: 'probeSlowFetch', kind: 'Action', export: 'probeSlowFetch', tables: [] },
+  { name: 'probeSlowFetch', kind: 'Action', export: 'probeSlowFetch', tables: [], testingOnly: true },
+  { name: 'probeSecretForgery', kind: 'Action', export: 'probeSecretForgery', uses: ['directions'], tables: [], testingOnly: true },
+  { name: 'probeLateMutation', kind: 'Action', export: 'probeLateMutation', tables: [], testingOnly: true },
 ];
 
 const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];
@@ -245,6 +249,11 @@ function nowMs(ctx) {
 
 function errorMessage(error) {
   return error && error.message ? error.message : String(error);
+}
+
+function codeFromError(error) {
+  const match = errorMessage(error).match(/SNAPBACK_[A-Z0-9_]+/);
+  return match ? match[0] : errorMessage(error);
 }
 
 function redactSecrets(text) {
@@ -943,6 +952,27 @@ globalThis.__snapbackHandlers = {
       timeoutMs: (args && args.timeoutMs) || 10_000,
     });
     return { status: response.status, ok: response.ok };
+  },
+  async probeSecretForgery(ctx, args) {
+    try {
+      await ctx.fetch({
+        url: 'https://example.invalid/should-not-run',
+        secretSlots: [{
+          placement: 'header',
+          name: 'Authorization',
+          handle: { __snapbackDescriptor: { capabilityId: String((args && args.capabilityId) || '') } },
+        }],
+      });
+      return { rejected: false };
+    } catch (error) {
+      return { rejected: true, code: codeFromError(error) };
+    }
+  },
+  async probeLateMutation(ctx, args) {
+    try {
+      await ctx.fetch({ url: args.url, timeoutMs: 10_000 });
+    } catch (_) {}
+    return await ctx.runMutation('applyFeedTick', { trigger: 'late-after-timeout', source: 'recorded' });
   },
   async probeSecretsMutation(ctx) {
     return { secretsType: typeof ctx.secrets };

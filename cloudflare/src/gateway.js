@@ -81,7 +81,12 @@ async function gatewayFetch(request, env) {
     if (path === '/health') return stub.fetch('http://coordinator/health');
     // Operator config diagnosis (LLP 0049 Phase 1): names, set/missing
     // state, grants, generation — never values.
-    if (path === '/config/status') return stub.fetch('http://coordinator/config/status');
+    if (path === '/config/status') {
+      return stub.fetch('http://coordinator/config/status', {
+        method: request.method,
+        headers: request.headers,
+      });
+    }
     // Cron ledger/activation status (LLP 0049 Phase 3), and the admin-gated
     // manual run trigger — forwarded with the caller's method and headers so
     // the coordinator enforces the token gate (ENG-23587).
@@ -94,6 +99,11 @@ async function gatewayFetch(request, env) {
       });
     }
     if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/__test/')) {
+      if (request.method !== 'POST') {
+        return json(405, {
+          diagnostic: { code: 'SNAPBACK_METHOD_NOT_ALLOWED', message: `${path} requires POST` },
+        });
+      }
       return forward(stub, `http://coordinator${path}`, request);
     }
     // Destructive admin endpoints: forwarded with the caller's method and
@@ -103,6 +113,12 @@ async function gatewayFetch(request, env) {
       return stub.fetch(`http://coordinator${path}`, { method: request.method, headers: request.headers });
     }
     if (KIT_ROUTE.test(path)) {
+      const expectedMethod = path.startsWith('/outbox/') ? 'GET' : 'POST';
+      if (request.method !== expectedMethod) {
+        return json(405, {
+          diagnostic: { code: 'SNAPBACK_METHOD_NOT_ALLOWED', message: `${path} requires ${expectedMethod}` },
+        });
+      }
       // Kit routes carry auth headers (x-snapback-connection-token), so the
       // full header set forwards; the coordinator enforces the token gate.
       return stub.fetch(`http://coordinator${path}`, {
@@ -156,7 +172,7 @@ async function gatewayFetch(request, env) {
 async function forward(stub, target, request) {
   return stub.fetch(target, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': request.headers.get('content-type') || '' },
     body: await request.text(),
   });
 }

@@ -31,7 +31,8 @@
 // storage handle, env, or ambient global (LLP 0009, verified by the
 // ambient-power denial test).
 
-import { HostContext, physicalTableName } from './host-ops.js';
+import { HostContext, physicalIndexName, physicalTableName, validateWriteValues } from './host-ops.js';
+import { nextNominalAfter } from './cron-utils.js';
 import {
   DEFAULT_MAX_PENDING_INVOCATIONS,
   classifyHandlerPlatformFailure,
@@ -57,13 +58,19 @@ import {
   seed as appSeed,
   config as appConfig,
   cron as appCron,
+  deploymentIdentity,
 } from 'snapback-app';
 
 const APP_SCHEMA_HASH = schema.schemaHash;
 const APP_BUNDLE_HASH = bundleHash;
 const APP_TABLES = new Set(schema.tables.map((table) => table.name));
+const APP_SCHEMA_TABLES = new Map(schema.tables.map((table) => [table.name, table]));
 const CHANGE_JOURNAL_RETAIN_VERSIONS = 1000;
 const MAX_ROW_BYTES = Number(capabilityManifest.runtimeFacts.maxRowBytes);
+const MAX_REQUEST_BYTES = Math.max(4_000_000, MAX_ROW_BYTES * 2);
+const MAX_HOST_RESPONSE_BYTES = 1_000_000;
+const SUBSCRIPTION_SCHEMA_VERSION = 2;
+const CRON_CLAIM_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const UTF8_ENCODER = new TextEncoder();
 
 export class Coordinator {
@@ -89,6 +96,7 @@ export class Coordinator {
     // window) — the LLP 0040 decisive-evidence run reads it off /health.
     this.bootMarker = crypto.randomUUID();
     this.startupError = null;
+    this.testCronStopAfterClaimRemaining = env.SNAPBACK_TEST_CRON_STOP_AFTER_CLAIM === '1' ? 1 : 0;
     this.ensureSchema();
   }
 
@@ -155,6 +163,7 @@ export class Coordinator {
     // args, and connection id — rehydrated lazily on wake. In-memory
     // registries die at eviction while their sockets live on. The identity
     // uniqueness is the idempotence contract for React StrictMode/retry paths.
+    const hadSubscriptions = this.tableExists('_snapback_subscriptions');
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS _snapback_subscriptions (
          subscription_id TEXT PRIMARY KEY,
@@ -164,7 +173,14 @@ export class Coordinator {
          UNIQUE(connection_id, function_name, args_json)
        )`
     );
-    this.migrateSubscriptionsSchema();
+    if (hadSubscriptions) {
+      this.migrateSubscriptionsSchema();
+    } else {
+      this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION));
+    }
+    this.sql.exec(
+      'CREATE INDEX IF NOT EXISTS idx_snapback_subscriptions_function ON _snapback_subscriptions (function_name)'
+    );
     // Connection grants for the kit wire protocol (ENG-23442 shape): ids are
     // server-granted capabilities paired with a bearer token. Durable, so a
     // grant survives eviction/hibernation exactly like the subscriptions
@@ -173,9 +189,11 @@ export class Coordinator {
       `CREATE TABLE IF NOT EXISTS _snapback_connections (
          connection_id TEXT PRIMARY KEY,
          token TEXT NOT NULL,
-         opened_at_ms INTEGER NOT NULL
+         opened_at_ms INTEGER NOT NULL,
+         socket_session_id TEXT
        )`
     );
+    this.ensureColumn('_snapback_connections', 'socket_session_id', 'TEXT');
     // Pool rotation cursors (LLP 0049 §Config And Secrets, OQ1): coordinator-
     // local durable metadata, NEVER values. Applied modulo the current member
     // count at grant time, so a pool edit can never strand a cursor out of
@@ -213,43 +231,93 @@ export class Coordinator {
          scheduled_at_ms INTEGER NOT NULL,
          run_id TEXT NOT NULL,
          claimed_at_ms INTEGER NOT NULL,
-         state TEXT NOT NULL
+         state TEXT NOT NULL,
+         lease_expires_at_ms INTEGER,
+         attempt INTEGER NOT NULL DEFAULT 1
+       )`
+    );
+    this.ensureColumn('_snapback_cron_claims', 'lease_expires_at_ms', 'INTEGER');
+    this.ensureColumn('_snapback_cron_claims', 'attempt', 'INTEGER NOT NULL DEFAULT 1');
+    this.sql.exec('CREATE INDEX IF NOT EXISTS idx_snapback_cron_claims_job ON _snapback_cron_claims (job_name, scheduled_at_ms)');
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_action_limits (
+         action_name TEXT PRIMARY KEY,
+         window_started_at_ms INTEGER NOT NULL,
+         count INTEGER NOT NULL
        )`
     );
     for (const table of schema.tables) {
       this.sql.exec(
         `CREATE TABLE IF NOT EXISTS ${this.physicalTable(table.name)} (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)`
       );
+      this.ensureDeclaredIndexes(table);
     }
     this.startupError = this.validateDeploymentMetadata();
     if (!this.startupError) this.writeDeploymentMetadata();
   }
 
   migrateSubscriptionsSchema() {
-    this.sql.exec('DROP TABLE IF EXISTS _snapback_subscriptions_next');
-    this.sql.exec(
-      `CREATE TABLE IF NOT EXISTS _snapback_subscriptions_next (
-         subscription_id TEXT PRIMARY KEY,
-         connection_id TEXT NOT NULL,
-         function_name TEXT NOT NULL,
-         args_json TEXT NOT NULL,
-         UNIQUE(connection_id, function_name, args_json)
-       )`
-    );
-    this.sql.exec(
-      `INSERT OR IGNORE INTO _snapback_subscriptions_next (subscription_id, connection_id, function_name, args_json)
-       SELECT subscription_id, connection_id, function_name, args_json
-       FROM _snapback_subscriptions
-       ORDER BY subscription_id`
-    );
-    this.sql.exec('DROP TABLE _snapback_subscriptions');
-    this.sql.exec('ALTER TABLE _snapback_subscriptions_next RENAME TO _snapback_subscriptions');
+    const current = Number(this.readMeta('subscriptions_schema_version') || 0);
+    if (current >= SUBSCRIPTION_SCHEMA_VERSION) return;
+    this.ctx.storage.transactionSync(() => {
+      this.sql.exec('DROP TABLE IF EXISTS _snapback_subscriptions_next');
+      this.sql.exec(
+        `CREATE TABLE _snapback_subscriptions_next (
+           subscription_id TEXT PRIMARY KEY,
+           connection_id TEXT NOT NULL,
+           function_name TEXT NOT NULL,
+           args_json TEXT NOT NULL,
+           UNIQUE(connection_id, function_name, args_json)
+         )`
+      );
+      this.sql.exec(
+        `INSERT OR IGNORE INTO _snapback_subscriptions_next (subscription_id, connection_id, function_name, args_json)
+         SELECT subscription_id, connection_id, function_name, args_json
+         FROM _snapback_subscriptions
+         ORDER BY subscription_id`
+      );
+      this.sql.exec('DROP TABLE _snapback_subscriptions');
+      this.sql.exec('ALTER TABLE _snapback_subscriptions_next RENAME TO _snapback_subscriptions');
+      this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION));
+    });
+  }
+
+  tableExists(name) {
+    for (const _record of this.sql.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", name)) return true;
+    return false;
+  }
+
+  ensureColumn(table, column, declaration) {
+    for (const record of this.sql.exec(`PRAGMA table_info(${table})`)) {
+      if (String(record.name) === column) return;
+    }
+    this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${declaration}`);
+  }
+
+  ensureDeclaredIndexes(table) {
+    const fields = new Set((table.fields || []).map((field) => field.name));
+    for (const index of table.indexes || []) {
+      if (!index || !Array.isArray(index.fields) || index.fields.length === 0) {
+        throw new Error(`SNAPBACK_SCHEMA_EMPTY_INDEX: ${table.name}.${index && index.name}`);
+      }
+      const expressions = index.fields.map((field) => {
+        if (field !== '_id' && !fields.has(field)) {
+          throw new Error(`SNAPBACK_UNKNOWN_FIELD: index ${table.name}.${index.name} references ${field}`);
+        }
+        return field === '_id' ? 'id' : `json_extract(row_json, '$.${field}')`;
+      });
+      const unique = index.unique ? 'UNIQUE ' : '';
+      this.sql.exec(
+        `CREATE ${unique}INDEX IF NOT EXISTS ${physicalIndexName(table.name, index.name)} ON ${this.physicalTable(table.name)} (${expressions.join(', ')})`
+      );
+    }
   }
 
   expectedMetadata() {
     return {
-      schema_hash: APP_SCHEMA_HASH,
-      bundle_hash: APP_BUNDLE_HASH,
+      schema_hash: deploymentIdentity.schemaHash,
+      bundle_hash: deploymentIdentity.bundleHash,
+      inputs_hash: deploymentIdentity.inputsHash,
     };
   }
 
@@ -258,6 +326,15 @@ export class Coordinator {
       return String(record.value);
     }
     return null;
+  }
+
+  writeMeta(key, value) {
+    this.sql.exec(
+      `INSERT INTO _snapback_meta (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      key,
+      String(value)
+    );
   }
 
   hasPersistentAppState() {
@@ -290,7 +367,11 @@ export class Coordinator {
       }
       if (storedValue != null && storedValue !== expectedValue) {
         return staleArtifact(
-          key === 'schema_hash' ? 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH' : 'SNAPBACK_STALE_CLOUDFLARE_BUNDLE_HASH',
+          key === 'schema_hash'
+            ? 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH'
+            : key === 'bundle_hash'
+              ? 'SNAPBACK_STALE_CLOUDFLARE_BUNDLE_HASH'
+              : 'SNAPBACK_STALE_CLOUDFLARE_INPUTS_HASH',
           `stored ${key} does not match this deployment; reset or migrate before serving it`,
           { key, expected: expectedValue, actual: storedValue }
         );
@@ -301,12 +382,7 @@ export class Coordinator {
 
   writeDeploymentMetadata() {
     for (const [key, value] of Object.entries(this.expectedMetadata())) {
-      this.sql.exec(
-        `INSERT INTO _snapback_meta (key, value) VALUES (?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-        key,
-        value
-      );
+      this.writeMeta(key, value);
     }
   }
 
@@ -332,7 +408,10 @@ export class Coordinator {
   }
 
   functionByName(name) {
-    return functions.find((fn) => fn.name === name);
+    const fn = functions.find((entry) => entry.name === name);
+    if (!fn) return null;
+    if (fn.testingOnly === true && this.env.SNAPBACK_TESTING !== '1') return null;
+    return fn;
   }
 
   // --- HTTP + WebSocket routing ------------------------------------------
@@ -365,7 +444,7 @@ export class Coordinator {
       return json(409, this.startupError);
     }
     if (path === '/config/status') {
-      return this.configStatus();
+      return this.adminReadGated(request, () => this.configStatus());
     }
     if (path === '/cron/status') {
       return this.cronStatus();
@@ -375,8 +454,7 @@ export class Coordinator {
     // run-now route. Manual runs claim a unique key; they never consume a
     // scheduled slot.
     if (path === '/cron/run') {
-      return this.adminGated(request, async () => {
-        const payload = await request.json().catch(() => ({}));
+      return this.adminGated(request, () => this.withJsonObject(request, async (payload) => {
         const job = this.alarmJobs().find((entry) => entry.name === String(payload.job || ''));
         if (!job) {
           return json(404, { ok: false, code: 'SNAPBACK_CRON_JOB_UNKNOWN', message: `no alarm job ${payload.job}` });
@@ -384,7 +462,7 @@ export class Coordinator {
         const runId = crypto.randomUUID();
         const outcome = await this.runCronJob(job, 'manual', Date.now(), `manual:${runId}`);
         return json(200, { ok: true, ...outcome });
-      });
+      }, { allowEmpty: true }));
     }
     if (path === '/host-call') {
       return this.serveHostCall(request);
@@ -413,10 +491,24 @@ export class Coordinator {
       // and under the invocation mutex — a reset interleaving with an
       // in-flight mutation would let pre-reset buffered writes commit into
       // the freshly reset store (ENG-23575's rationale applies here too).
-      return this.adminGated(request, () => this.runExclusive(() => this.reset()));
+      return this.adminGated(request, () =>
+        this.runExclusive(async () => {
+          try {
+            return await this.reset();
+          } catch (error) {
+            return json(500, {
+              ok: false,
+              code: (error && error.snapbackCode) || 'SNAPBACK_RESET_FAILED',
+              message: 'the atomic reset failed; the previous state was preserved',
+            });
+          }
+        })
+      );
     }
     if (path === '/__test/corrupt-meta') {
-      return this.testingGated(request, async () => this.corruptMetaForTest(await request.json()));
+      return this.testingGated(request, () =>
+        this.withJsonObject(request, (payload) => this.corruptMetaForTest(payload))
+      );
     }
     // Testing-only action invocation (LLP 0049 Phase 1): exercises the
     // action grant path — descriptor construction, fail-closed handles,
@@ -425,12 +517,11 @@ export class Coordinator {
     // SNAPBACK_TESTING=1; the capability manifest keeps outbound_actions as
     // a declared gap.
     if (path === '/__test/action') {
-      return this.testingGated(request, async () => {
-        const payload = await request.json();
+      return this.testingGated(request, () => this.withJsonObject(request, async (payload) => {
         const outcome = await this.executeAction(payload.name, payload.args || {}, 'test');
         if (!outcome.ok) return json(200, { ok: false, code: outcome.diagnostic.code, message: outcome.diagnostic.message });
         return json(200, { ok: true, result: outcome.result });
-      });
+      }));
     }
     // Testing-only alarm trigger: fires the dispatcher exactly as a DO alarm
     // wakeup would, so the Miniflare acceptance can exercise duplicate-slot
@@ -445,22 +536,19 @@ export class Coordinator {
     // attach for a function — the descriptors-only fact is asserted by test,
     // not by convention (LLP 0049 Phase 1 exit evidence).
     if (path === '/__test/secrets-payload') {
-      return this.testingGated(request, async () => {
-        const payload = await request.json();
+      return this.testingGated(request, () => this.withJsonObject(request, async (payload) => {
         const fn = this.functionByName(payload.name);
         if (!fn) return json(404, { error: `no function ${payload.name}` });
         const mode = payload.mode || (fn.kind === 'Action' ? 'action' : 'query');
         const secretsJson = mode === 'action' ? this.buildActionGrantsJson(fn, { advance: false }) : null;
         return json(200, { name: fn.name, mode, secretsJson });
-      });
+      }));
     }
     if (path === '/query') {
-      const payload = await request.json();
-      return this.runExclusive(() => this.handleQuery(payload));
+      return this.withJsonObject(request, (payload) => this.runExclusive(() => this.handleQuery(payload)));
     }
     if (path === '/mutation') {
-      const payload = await request.json();
-      return this.runExclusive(() => this.handleMutation(payload));
+      return this.withJsonObject(request, (payload) => this.runExclusive(() => this.handleMutation(payload)));
     }
     if (path === '/live/stream') {
       return this.acceptLiveSocket(request);
@@ -475,13 +563,11 @@ export class Coordinator {
     {
       const kitQuery = path.match(/^\/query\/([A-Za-z0-9_-]+)$/);
       if (kitQuery) {
-        const payload = await request.json();
-        return this.runExclusive(() => this.kitQuery(kitQuery[1], payload));
+        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitQuery(kitQuery[1], payload)));
       }
       const kitMutation = path.match(/^\/mutation\/([A-Za-z0-9_-]+)$/);
       if (kitMutation) {
-        const payload = await request.json();
-        return this.runExclusive(() => this.kitMutation(kitMutation[1], payload));
+        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitMutation(kitMutation[1], payload)));
       }
       // The generated client.action transport (LLP 0049 Phase 2). NOT wrapped
       // in runExclusive: executeAction stages under the mutex, runs the
@@ -490,31 +576,32 @@ export class Coordinator {
       // queries, mutations, or live pushes.
       const kitAction = path.match(/^\/action\/([A-Za-z0-9_-]+)$/);
       if (kitAction) {
-        const payload = await request.json();
-        const outcome = await this.executeAction(kitAction[1], (payload && payload.args) || {}, 'manual');
-        return json(200, outcome);
+        return this.withJsonObject(request, async (payload) => {
+          const outcome = await this.executeAction(kitAction[1], (payload && payload.args) || {}, 'manual');
+          return json(200, outcome);
+        });
       }
       if (path === '/connection/open') {
-        const payload = await request.json();
-        return this.runExclusive(() => this.kitOpenConnection(payload));
+        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitOpenConnection(payload)));
       }
       if (path === '/app/ensure') {
-        const payload = await request.json();
-        return this.runExclusive(() => this.kitEnsureApp(payload));
+        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitEnsureApp(payload)));
       }
       const kitSubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/subscribe$/);
       if (kitSubscribe) {
-        const payload = await request.json();
-        const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
-        if (denied) return denied;
-        return this.runExclusive(() => this.kitSubscribe(kitSubscribe[1], payload));
+        return this.withJsonObject(request, (payload) => {
+          const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
+          if (denied) return denied;
+          return this.runExclusive(() => this.kitSubscribe(kitSubscribe[1], payload));
+        });
       }
       const kitUnsubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/unsubscribe$/);
       if (kitUnsubscribe) {
-        const payload = await request.json();
-        const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
-        if (denied) return denied;
-        return this.runExclusive(() => this.kitUnsubscribe(payload));
+        return this.withJsonObject(request, (payload) => {
+          const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
+          if (denied) return denied;
+          return this.runExclusive(() => this.kitUnsubscribe(payload));
+        });
       }
       const kitStream = path.match(/^\/live\/([A-Za-z0-9_.-]+)\/stream$/);
       if (kitStream) {
@@ -570,6 +657,25 @@ export class Coordinator {
     return run();
   }
 
+  adminReadGated(request, run) {
+    if (request.method !== 'GET') {
+      return json(405, { ok: false, code: 'SNAPBACK_ADMIN_METHOD_NOT_ALLOWED', message: 'admin reads are GET-only' });
+    }
+    const expected = this.env.SNAPBACK_ADMIN_TOKEN;
+    if (typeof expected !== 'string' || expected.length === 0) {
+      return json(403, {
+        ok: false,
+        code: 'SNAPBACK_ADMIN_DISABLED',
+        message: 'no SNAPBACK_ADMIN_TOKEN is configured; the admin surface is disabled',
+      });
+    }
+    const presented = request.headers.get('x-snapback-admin-token') || '';
+    if (presented !== expected) {
+      return json(403, { ok: false, code: 'SNAPBACK_ADMIN_TOKEN_INVALID', message: 'missing or invalid admin token' });
+    }
+    return run();
+  }
+
   testingGated(request, run) {
     if (this.env.SNAPBACK_TESTING !== '1') {
       return json(404, { error: 'not found' });
@@ -578,6 +684,12 @@ export class Coordinator {
       return json(405, { ok: false, code: 'SNAPBACK_TEST_METHOD_NOT_ALLOWED', message: 'test endpoints are POST-only' });
     }
     return run();
+  }
+
+  async withJsonObject(request, run, options = {}) {
+    const parsed = await parseJsonObjectRequest(request, options);
+    if (!parsed.ok) return parsed.response;
+    return run(parsed.value);
   }
 
   corruptMetaForTest(payload) {
@@ -665,19 +777,30 @@ export class Coordinator {
   // NEVER values. The handler isolate's ctx.secrets builds fail-closed
   // descriptor handles from this (descriptorsOnly), and the local
   // values-in-secretsJson shape never ports to this profile.
-  buildActionGrantsJson(fn, { advance = true } = {}) {
+  buildActionGrants(fn, { advance = true } = {}) {
     const uses = Array.isArray(fn.uses) ? fn.uses : [];
     const entries = {};
+    const capabilities = new Map();
     for (const entryName of uses) {
       if (!this.declaredConfigEntry(entryName)) continue;
       const members = this.poolMembers(entryName);
+      const rotatingCursor = members.length > 0 ? this.nextRotationCursor(entryName, { advance }) % members.length : 0;
+      const firstCapabilityId = `sec_${crypto.randomUUID()}`;
+      const rotatingCapabilityId = `sec_${crypto.randomUUID()}`;
+      capabilities.set(firstCapabilityId, { entryName, cursor: 0 });
+      capabilities.set(rotatingCapabilityId, { entryName, cursor: rotatingCursor });
       entries[entryName] = {
         set: members.length > 0,
         memberCount: members.length,
-        cursor: members.length > 0 ? this.nextRotationCursor(entryName, { advance }) % members.length : 0,
+        firstCapabilityId,
+        rotatingCapabilityId,
       };
     }
-    return JSON.stringify({ descriptorsOnly: true, entries });
+    return { secretsJson: JSON.stringify({ descriptorsOnly: true, entries }), capabilities };
+  }
+
+  buildActionGrantsJson(fn, options = {}) {
+    return this.buildActionGrants(fn, options).secretsJson;
   }
 
   // The value-resolution boundary (Phase 2 host-mediated fetch unwraps
@@ -717,6 +840,7 @@ export class Coordinator {
     }
     const grants = {};
     for (const fn of functions) {
+      if (fn.testingOnly === true && this.env.SNAPBACK_TESTING !== '1') continue;
       if (fn.kind === 'Action' && Array.isArray(fn.uses) && fn.uses.length > 0) {
         grants[fn.name] = [...fn.uses];
       }
@@ -758,27 +882,51 @@ export class Coordinator {
       if (!fn || fn.kind !== 'Action') {
         return { error: { code: 'SNAPBACK_ACTION_UNKNOWN', message: `${name} is not an action on this app` } };
       }
+      const limited = this.claimActionBudget(name, trigger);
+      if (limited) return { error: limited };
       return { fn };
     });
     if (staged.error) {
       return { ok: false, function: name, kind: 'Action', diagnostic: staged.error };
     }
     const timeoutMs = this.actionTimeoutMs();
+    const control = {
+      abandoned: false,
+      code: null,
+      message: null,
+      host: null,
+      abortController: new AbortController(),
+    };
     let timer = null;
     const watchdog = new Promise((resolve) => {
       timer = setTimeout(
-        () =>
+        () => {
+          const message = `action ${name} exceeded the ${timeoutMs}ms wall-clock budget; the invocation failed`;
+          control.abandoned = true;
+          control.code = 'SNAPBACK_ACTION_TIMEOUT';
+          control.message = message;
+          if (control.host) control.host.abandon(control.code, message);
+          control.abortController.abort(control.code);
           resolve({
             ok: false,
             code: 'SNAPBACK_ACTION_TIMEOUT',
-            message: `action ${name} exceeded the ${timeoutMs}ms wall-clock budget; the invocation failed`,
-          }),
+            message,
+          });
+        },
         timeoutMs
       );
     });
     let result;
     try {
-      result = await Promise.race([this.invokeHandler(name, 'action', args, { trigger }), watchdog]);
+      const sanitizedArgs = { ...(args || {}) };
+      if (this.env.SNAPBACK_TESTING !== '1') {
+        delete sanitizedArgs.pollBudgetMs;
+        delete sanitizedArgs.feedUrl;
+        delete sanitizedArgs.baseUrl;
+        delete sanitizedArgs.timeoutMs;
+        delete sanitizedArgs.url;
+      }
+      result = await Promise.race([this.invokeHandler(name, 'action', sanitizedArgs, { trigger, control }), watchdog]);
     } finally {
       clearTimeout(timer);
     }
@@ -796,6 +944,34 @@ export class Coordinator {
   actionTimeoutMs() {
     const raw = Number(this.env.SNAPBACK_ACTION_TIMEOUT_MS);
     return Number.isFinite(raw) && raw > 0 ? raw : 30_000;
+  }
+
+  claimActionBudget(name, trigger) {
+    if (trigger === 'scheduled') return null;
+    const configured = Number(this.env.SNAPBACK_ACTION_RATE_LIMIT_PER_MINUTE);
+    const limit = Number.isSafeInteger(configured) && configured > 0 ? Math.min(configured, 600) : 60;
+    const nowMs = Date.now();
+    const windowMs = 60_000;
+    let row = null;
+    for (const record of this.sql.exec('SELECT * FROM _snapback_action_limits WHERE action_name = ?', name)) row = record;
+    const windowStartedAt = row ? Number(row.window_started_at_ms) : nowMs;
+    const inWindow = nowMs - windowStartedAt >= 0 && nowMs - windowStartedAt < windowMs;
+    const count = inWindow && row ? Number(row.count) : 0;
+    if (count >= limit) {
+      return {
+        code: 'SNAPBACK_ACTION_RATE_LIMITED',
+        message: `action ${name} exceeded the ${limit}-per-minute public invocation budget`,
+        details: { retryable: true, retryAfterMs: Math.max(1, windowMs - (nowMs - windowStartedAt)) },
+      };
+    }
+    this.sql.exec(
+      `INSERT INTO _snapback_action_limits (action_name, window_started_at_ms, count) VALUES (?, ?, ?)
+       ON CONFLICT(action_name) DO UPDATE SET window_started_at_ms = excluded.window_started_at_ms, count = excluded.count`,
+      name,
+      inWindow ? windowStartedAt : nowMs,
+      count + 1
+    );
+    return null;
   }
 
   // The action's durable leg: a FULL nested mutation invocation — handler,
@@ -822,7 +998,10 @@ export class Coordinator {
   // scrub; handler-side redaction remains defense in depth, not the line.
   // Destination allowlisting is not yet implemented on this profile — a
   // named manifest fact (runtimeFacts.egress), not a silent difference.
-  async hostActionFetch(request) {
+  async hostActionFetch(request, capabilities, control) {
+    if (control && control.abandoned) {
+      return { ok: false, code: control.code || 'SNAPBACK_ACTION_TIMEOUT', message: control.message || 'action abandoned' };
+    }
     const urlText = String(request.url || '');
     let url;
     try {
@@ -840,19 +1019,16 @@ export class Coordinator {
     const resolvedValues = [];
     for (const slot of request.secretSlots || []) {
       const descriptor = slot && slot.secret;
-      if (!descriptor || typeof descriptor.name !== 'string') {
+      const capabilityId = descriptor && descriptor.capabilityId;
+      const capability = typeof capabilityId === 'string' && capabilities instanceof Map
+        ? capabilities.get(capabilityId)
+        : null;
+      if (!capability) {
         return { ok: false, code: 'SNAPBACK_HOST_FETCH_SLOT_INVALID', message: 'a secret slot carried no descriptor' };
       }
-      if (!this.declaredConfigEntry(descriptor.name)) {
-        return {
-          ok: false,
-          code: 'SNAPBACK_CONFIG_UNDECLARED',
-          message: `${descriptor.name} is not a declared config entry`,
-        };
-      }
-      const value = this.resolveSecretValue(descriptor.name, descriptor.cursor);
+      const value = this.resolveSecretValue(capability.entryName, capability.cursor);
       if (value == null) {
-        return { ok: false, code: 'SNAPBACK_CONFIG_MISSING', message: `${descriptor.name} has no value set` };
+        return { ok: false, code: 'SNAPBACK_CONFIG_MISSING', message: `${capability.entryName} has no value set` };
       }
       resolvedValues.push(value);
       if (slot.placement === 'query-param') {
@@ -870,7 +1046,9 @@ export class Coordinator {
     const redact = (text) => {
       let out = String(text ?? '');
       for (const value of resolvedValues) {
-        if (value.length > 0) out = out.split(value).join('[redacted]');
+        for (const variant of secretRepresentations(value)) {
+          if (variant.length > 0) out = out.split(variant).join('[redacted]');
+        }
       }
       return out;
     };
@@ -882,6 +1060,11 @@ export class Coordinator {
     );
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort('SNAPBACK_HOST_FETCH_TIMEOUT'), timeoutMs);
+    const abortForAction = () => controller.abort(control && control.code ? control.code : 'SNAPBACK_ACTION_TIMEOUT');
+    if (control && control.abortController) {
+      if (control.abortController.signal.aborted) abortForAction();
+      else control.abortController.signal.addEventListener('abort', abortForAction, { once: true });
+    }
     try {
       const response = await fetch(url.toString(), {
         method: String(request.method || 'GET'),
@@ -890,12 +1073,22 @@ export class Coordinator {
         signal: controller.signal,
       });
       const bodyText = await response.text();
+      const responseBytes = UTF8_ENCODER.encode(bodyText).byteLength;
+      if (responseBytes > MAX_HOST_RESPONSE_BYTES) {
+        return {
+          ok: false,
+          code: 'SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE',
+          message: `host fetch response exceeded ${MAX_HOST_RESPONSE_BYTES} bytes`,
+        };
+      }
       return {
         ok: true,
         value: {
           status: response.status,
           ok: response.ok,
-          url: redact(url.toString()),
+          // Return the handler-authored URL, never the host-substituted URL.
+          // The latter is a secret-bearing representation even when encoded.
+          url: urlText,
           bodyText: redact(bodyText),
         },
       };
@@ -903,10 +1096,13 @@ export class Coordinator {
       return {
         ok: false,
         code: 'SNAPBACK_HOST_FETCH_FAILED',
-        message: `host fetch to ${redact(url.toString())} failed: ${redact((error && error.message) || error)}`,
+        message: `host fetch to ${urlText} failed: ${redact((error && error.message) || error)}`,
       };
     } finally {
       clearTimeout(timer);
+      if (control && control.abortController) {
+        control.abortController.signal.removeEventListener('abort', abortForAction);
+      }
     }
   }
 
@@ -1000,7 +1196,17 @@ export class Coordinator {
       const state = this.readCronState(job.name);
       if (!state || Number(state.armed) !== 1 || state.next_nominal_at_ms == null) continue;
       const nominal = Number(state.next_nominal_at_ms);
-      if (next === null || nominal < next) next = nominal;
+      let wakeAt = nominal;
+      const key = `${job.name}@${nominal}`;
+      for (const claim of this.sql.exec(
+        'SELECT state, lease_expires_at_ms FROM _snapback_cron_claims WHERE idempotency_key = ?',
+        key
+      )) {
+        if (String(claim.state) === 'claimed' && Number(claim.lease_expires_at_ms || 0) > Date.now()) {
+          wakeAt = Number(claim.lease_expires_at_ms);
+        }
+      }
+      if (next === null || wakeAt < next) next = wakeAt;
     }
     if (next === null) {
       await this.ctx.storage.deleteAlarm();
@@ -1037,28 +1243,21 @@ export class Coordinator {
   async runCronJob(job, trigger, scheduledAtMs, idempotencyKey = null) {
     const runId = crypto.randomUUID();
     const key = idempotencyKey || `${job.name}@${scheduledAtMs}`;
-    this.sql.exec(
-      `INSERT OR IGNORE INTO _snapback_cron_claims (idempotency_key, job_name, scheduled_at_ms, run_id, claimed_at_ms, state)
-       VALUES (?, ?, ?, ?, ?, 'claimed')`,
-      key,
-      job.name,
-      scheduledAtMs,
-      runId,
-      Date.now()
-    );
-    let claimedBy = null;
-    for (const record of this.sql.exec(
-      'SELECT run_id FROM _snapback_cron_claims WHERE idempotency_key = ?',
-      key
-    )) {
-      claimedBy = String(record.run_id);
-    }
+    const claim = this.claimCronSlot(job, key, scheduledAtMs, runId);
     const interval = this.jobIntervalMs(job);
-    if (claimedBy !== runId) {
-      // Already claimed (duplicate wakeup / alarm retry): advance past the
-      // slot so the dispatcher re-arms for the NEXT nominal, execute nothing.
-      this.advanceNominal(job, scheduledAtMs, interval);
-      return { duplicate: true, idempotencyKey: key };
+    if (claim.terminal) {
+      if (!idempotencyKey) this.advanceNominal(job, scheduledAtMs, interval);
+      return { duplicate: true, terminal: true, idempotencyKey: key };
+    }
+    if (!claim.acquired) {
+      // A live lease is not completion. Keep the nominal slot in place; the
+      // alarm dispatcher re-arms at the lease boundary and recovers it if the
+      // owning attempt never reaches a terminal update.
+      return { duplicate: true, inFlight: true, leaseExpiresAtMs: claim.leaseExpiresAtMs, idempotencyKey: key };
+    }
+    if (this.env.SNAPBACK_TESTING === '1' && this.testCronStopAfterClaimRemaining > 0) {
+      this.testCronStopAfterClaimRemaining -= 1;
+      return { duplicate: false, claimedOnly: true, runId, idempotencyKey: key };
     }
     const startedAt = Date.now();
     let outcome = 'ok';
@@ -1086,9 +1285,11 @@ export class Coordinator {
     }
     const finishedAt = Date.now();
     this.sql.exec(
-      `UPDATE _snapback_cron_claims SET state = ? WHERE idempotency_key = ?`,
+      `UPDATE _snapback_cron_claims SET state = ?, lease_expires_at_ms = NULL
+       WHERE idempotency_key = ? AND run_id = ?`,
       outcome === 'ok' ? 'done' : 'failed',
-      key
+      key,
+      runId
     );
     this.writeCronState(job.name, {
       last_run_id: runId,
@@ -1102,18 +1303,78 @@ export class Coordinator {
     if (!idempotencyKey) {
       this.advanceNominal(job, scheduledAtMs, interval);
     }
+    this.pruneCronClaims(finishedAt);
     return { duplicate: false, runId, outcome, idempotencyKey: key };
+  }
+
+  cronLeaseMs() {
+    const configured = Number(this.env.SNAPBACK_CRON_CLAIM_LEASE_MS);
+    if (this.env.SNAPBACK_TESTING === '1' && Number.isFinite(configured) && configured > 0) return configured;
+    return Math.max(60_000, this.actionTimeoutMs() + 5_000);
+  }
+
+  claimCronSlot(job, key, scheduledAtMs, runId) {
+    const nowMs = Date.now();
+    const leaseExpiresAtMs = nowMs + this.cronLeaseMs();
+    let result = null;
+    this.ctx.storage.transactionSync(() => {
+      let existing = null;
+      for (const record of this.sql.exec('SELECT * FROM _snapback_cron_claims WHERE idempotency_key = ?', key)) {
+        existing = record;
+      }
+      if (!existing) {
+        this.sql.exec(
+          `INSERT INTO _snapback_cron_claims
+             (idempotency_key, job_name, scheduled_at_ms, run_id, claimed_at_ms, state, lease_expires_at_ms, attempt)
+           VALUES (?, ?, ?, ?, ?, 'claimed', ?, 1)`,
+          key,
+          job.name,
+          scheduledAtMs,
+          runId,
+          nowMs,
+          leaseExpiresAtMs
+        );
+        result = { acquired: true, terminal: false, leaseExpiresAtMs, attempt: 1 };
+        return;
+      }
+      const state = String(existing.state);
+      if (state === 'done' || state === 'failed') {
+        result = { acquired: false, terminal: true, state };
+        return;
+      }
+      const currentLease = Number(existing.lease_expires_at_ms || 0);
+      if (state === 'claimed' && currentLease > nowMs) {
+        result = { acquired: false, terminal: false, leaseExpiresAtMs: currentLease };
+        return;
+      }
+      const attempt = Math.max(1, Number(existing.attempt || 1)) + 1;
+      this.sql.exec(
+        `UPDATE _snapback_cron_claims
+         SET run_id = ?, claimed_at_ms = ?, state = 'claimed', lease_expires_at_ms = ?, attempt = ?
+         WHERE idempotency_key = ?`,
+        runId,
+        nowMs,
+        leaseExpiresAtMs,
+        attempt,
+        key
+      );
+      result = { acquired: true, terminal: false, leaseExpiresAtMs, attempt };
+    });
+    return result;
+  }
+
+  pruneCronClaims(nowMs) {
+    this.sql.exec(
+      `DELETE FROM _snapback_cron_claims
+       WHERE state IN ('done', 'failed') AND claimed_at_ms < ?`,
+      nowMs - CRON_CLAIM_RETENTION_MS
+    );
   }
 
   // Advance to the next FUTURE nominal slot: one catch-up run per recovery,
   // never a stampede of missed ticks (LLP 0028).
   advanceNominal(job, fromNominalMs, intervalMs) {
-    const nowMs = Date.now();
-    let next = fromNominalMs + intervalMs;
-    if (next <= nowMs) {
-      const behind = Math.ceil((nowMs - next) / intervalMs) + 1;
-      next = fromNominalMs + intervalMs * (behind + 1);
-    }
+    const next = nextNominalAfter(fromNominalMs, intervalMs, Date.now());
     this.writeCronState(job.name, { next_nominal_at_ms: next });
   }
 
@@ -1180,9 +1441,18 @@ export class Coordinator {
     if (!fn) {
       return { ok: false, code: 'SNAPBACK_HANDLER_EXPORT_MISSING', message: `no function ${fnName}` };
     }
+    if (!functionKindMatchesMode(fn.kind, mode)) {
+      return {
+        ok: false,
+        code: 'SNAPBACK_FUNCTION_KIND_MISMATCH',
+        message: `${fnName} is declared ${fn.kind}, not ${mode}`,
+        details: { function: fnName, declaredKind: fn.kind, requestedMode: mode },
+      };
+    }
     // Grants are action-only (LLP 0036): queries and mutations receive
     // secretsJson null and therefore no ctx.secrets at all.
-    const secretsJson = mode === 'action' ? this.buildActionGrantsJson(fn) : null;
+    const grants = mode === 'action' ? this.buildActionGrants(fn) : { secretsJson: null, capabilities: new Map() };
+    const secretsJson = grants.secretsJson;
     const runJson =
       mode === 'action'
         ? JSON.stringify({
@@ -1193,23 +1463,36 @@ export class Coordinator {
         : null;
     const token = crypto.randomUUID();
     const epoch = `${Date.now()}-${token}`;
-    const host = new HostContext({
+    let host;
+    const control = options.control || null;
+    host = new HostContext({
       sql: this.sql,
       mode,
       nowMs: Date.now(),
       epoch,
       newId: () => this.newId(),
       tables: APP_TABLES,
+      schemaTables: APP_SCHEMA_TABLES,
+      control,
       // Action-only host capabilities (LLP 0049 Phase 2). runMutation
       // reacquires the invocation mutex per commit — the ENG-23324 pattern:
       // the action itself executes OFF the mutex, so a slow external fetch
       // never stalls queries, mutations, or live pushes on this object.
       runMutation:
         mode === 'action'
-          ? (name, mutationArgs) => this.runExclusive(() => this.runMutationForAction(name, mutationArgs))
+          ? (name, mutationArgs) =>
+              this.runExclusive(() => {
+                const abandoned = host.abandonedFailure();
+                if (abandoned) return abandoned;
+                return this.runMutationForAction(name, mutationArgs);
+              })
           : null,
-      hostFetch: mode === 'action' ? (request) => this.hostActionFetch(request) : null,
+      hostFetch: mode === 'action' ? (request) => this.hostActionFetch(request, grants.capabilities, control) : null,
     });
+    if (control) {
+      control.host = host;
+      if (control.abandoned) host.abandon(control.code, control.message);
+    }
     this.activeInvocations.set(token, host);
     // Actions run on their own handler Worker when the deploy carries one
     // (ACTION_HANDLER): the handler server chains invocations per isolate
@@ -1290,7 +1573,9 @@ export class Coordinator {
   // through these calls.
   async serveHostCall(request) {
     const token = request.headers.get('x-snapback-host-token') || '';
-    const body = await request.json();
+    const parsedBody = await parseJsonObjectRequest(request);
+    if (!parsedBody.ok) return parsedBody.response;
+    const body = parsedBody.value;
     const host = this.activeInvocations.get(token);
     if (!host) {
       return json(200, {
@@ -1329,7 +1614,7 @@ export class Coordinator {
 
   async handleQuery(payload) {
     const result = await this.invokeHandler(payload.name, 'query', payload.args);
-    if (!result.ok) return json(200, failure(result));
+    if (!result.ok) return json(result.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, failure(result));
     return json(200, { ok: true, version: result.observedVersion ?? this.currentVersion(), rows: result.value });
   }
 
@@ -1337,7 +1622,7 @@ export class Coordinator {
 
   async handleMutation(payload) {
     const result = await this.invokeHandler(payload.name, 'mutation', payload.args);
-    if (!result.ok) return json(200, failure(result));
+    if (!result.ok) return json(result.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, failure(result));
     const commit = this.commit(result.host);
     // Push from the commit path — no timer, no polling (LLP 0040 §Version
     // contract). Rehydrates subscriptions from storage first, so a woken or
@@ -1509,9 +1794,22 @@ export class Coordinator {
         ? 'matched'
         : 'gated';
     let seedState = 'skipped-absent';
-    const seedSource = posted.seed || appSeed;
-    if (seedSource && schemaState !== 'gated' && functionsState !== 'gated') {
-      seedState = this.seedIfEmpty(seedSource) ? 'seeded' : 'skipped-nonempty';
+    if (posted.seed && (!appSeed || canonicalJson(posted.seed) !== canonicalJson(appSeed))) {
+      return kitError(
+        403,
+        'SNAPBACK_UNTRUSTED_SEED',
+        'the Cloudflare production profile accepts only its compiled deployment seed'
+      );
+    }
+    const identityMatched = schemaState === 'matched' && functionsState === 'matched';
+    const testingProfile = this.env.SNAPBACK_TESTING === '1';
+    if (appSeed && (identityMatched || testingProfile)) {
+      // Caller bytes are never the seed source: even when an older generated
+      // client posts the same seed for compatibility, the host uses the
+      // compiled artifact after proving equality above.
+      seedState = this.seedIfEmpty(appSeed) ? 'seeded' : 'skipped-nonempty';
+    } else if (posted.seed || appSeed) {
+      seedState = 'gated';
     }
     return json(200, {
       schema: schemaState,
@@ -1527,30 +1825,65 @@ export class Coordinator {
   // stable id (patch-shaped upserts), so the seed is the schema's ground
   // state, not an app mutation.
   seedIfEmpty(seedSource) {
-    const tables = (seedSource && seedSource.tables) || {};
-    const names = Object.keys(tables).filter((name) => APP_TABLES.has(name));
-    if (names.length === 0) return false;
+    const prepared = this.prepareSeed(seedSource);
+    if (prepared.length === 0) return false;
+    const names = [...new Set(prepared.map((entry) => entry.table))];
     for (const name of names) {
       for (const record of this.sql.exec(`SELECT COUNT(*) AS count FROM ${this.physicalTable(name)}`)) {
         if (Number(record.count) > 0) return false;
       }
     }
-    const nowMs = Date.now();
     this.ctx.storage.transactionSync(() => {
-      for (const name of names) {
-        const physical = this.physicalTable(name);
-        for (const row of tables[name]) {
-          const id = String(row._id || this.newId());
-          const stored = { ...row, _id: id, _version: 1, _createdAt: nowMs, _updatedAt: nowMs };
-          this.sql.exec(`INSERT INTO ${physical} (id, row_json) VALUES (?, ?)`, id, this.serializeRow(name, stored));
-        }
-      }
-      const current = this.currentVersion();
-      if (current < 1) {
-        this.sql.exec('UPDATE _snapback_version SET version = 1 WHERE id = 1');
-      }
+      this.applyPreparedSeed(prepared, Date.now());
     });
     return true;
+  }
+
+  prepareSeed(seedSource) {
+    const tables = seedSource && seedSource.tables;
+    if (!tables || typeof tables !== 'object' || Array.isArray(tables)) return [];
+    const prepared = [];
+    for (const [name, rows] of Object.entries(tables)) {
+      if (!APP_TABLES.has(name)) {
+        throw codedError('SNAPBACK_UNKNOWN_TABLE', `seed references unknown table ${name}`);
+      }
+      if (!Array.isArray(rows)) {
+        throw codedError('SNAPBACK_SEED_INVALID', `seed table ${name} must be an array`);
+      }
+      for (const input of rows) {
+        if (!input || typeof input !== 'object' || Array.isArray(input)) {
+          throw codedError('SNAPBACK_SEED_INVALID', `seed row for ${name} must be an object`);
+        }
+        const id = input._id == null ? this.newId() : String(input._id);
+        const values = { ...input };
+        delete values._id;
+        const validated = validateWriteValues(APP_SCHEMA_TABLES, name, values, { insert: true });
+        if (!validated.ok) throw codedError(validated.code, validated.message, validated.details);
+        prepared.push({ table: name, id, values: validated.values });
+      }
+    }
+    return prepared;
+  }
+
+  applyPreparedSeed(prepared, nowMs) {
+    for (const entry of prepared) {
+      const physical = this.physicalTable(entry.table);
+      const stored = {
+        ...entry.values,
+        _id: entry.id,
+        _version: 1,
+        _createdAt: nowMs,
+        _updatedAt: nowMs,
+      };
+      this.sql.exec(
+        `INSERT INTO ${physical} (id, row_json) VALUES (?, ?)`,
+        entry.id,
+        this.serializeRow(entry.table, stored)
+      );
+    }
+    if (prepared.length > 0 && this.currentVersion() < 1) {
+      this.sql.exec('UPDATE _snapback_version SET version = 1 WHERE id = 1');
+    }
   }
 
   // POST /query/:name — the kit's QueryOutput shape { version, rows }.
@@ -1646,16 +1979,29 @@ export class Coordinator {
       .map((value) => value.trim())
       .filter(Boolean);
     const tokenProtocol = protocols.find((value) => value.startsWith('snapback.connection-token.'));
+    const queryToken = url.searchParams.get('connection_token');
+    if (queryToken && !request.headers.get('x-snapback-connection-token') && !tokenProtocol) {
+      return kitError(
+        401,
+        'SNAPBACK_CONNECTION_TOKEN_QUERY_FORBIDDEN',
+        'WebSocket connection tokens must use the connection-token header or snapback.connection-token subprotocol'
+      );
+    }
     const presented =
       request.headers.get('x-snapback-connection-token') ||
-      url.searchParams.get('connection_token') ||
       (tokenProtocol ? tokenProtocol.slice('snapback.connection-token.'.length) : null);
     const denied = this.verifyConnection(connectionId, presented);
     if (denied) return denied;
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
+    const socketSessionId = `wss_${crypto.randomUUID()}`;
+    this.sql.exec(
+      'UPDATE _snapback_connections SET socket_session_id = ? WHERE connection_id = ?',
+      socketSessionId,
+      connectionId
+    );
     this.ctx.acceptWebSocket(server, [connectionId]);
-    server.serializeAttachment({ connectionId, protocol: 'kit' });
+    server.serializeAttachment({ connectionId, protocol: 'kit', socketSessionId });
     const headers = protocols.includes('snapback.v1') ? { 'sec-websocket-protocol': 'snapback.v1' } : undefined;
     return new Response(null, { status: 101, webSocket: client, headers });
   }
@@ -1685,6 +2031,21 @@ export class Coordinator {
     // Sockets accepted before the kit protocol existed carry no tag; they are
     // proof-protocol by construction.
     return (attachment && attachment.protocol) || 'proof';
+  }
+
+  socketSessionFor(ws) {
+    const attachment = ws.deserializeAttachment();
+    return attachment && attachment.socketSessionId;
+  }
+
+  currentSocketSession(connectionId) {
+    for (const record of this.sql.exec(
+      'SELECT socket_session_id FROM _snapback_connections WHERE connection_id = ?',
+      connectionId
+    )) {
+      return record.socket_session_id == null ? null : String(record.socket_session_id);
+    }
+    return null;
   }
 
   async webSocketMessage(ws, message) {
@@ -1784,10 +2145,21 @@ export class Coordinator {
     const byConnection = new Map();
     for (const ws of sockets) {
       const id = this.connectionIdFor(ws);
-      if (id) byConnection.set(id, ws);
+      if (!id) continue;
+      if (this.socketProtocolFor(ws) === 'kit') {
+        const session = this.socketSessionFor(ws);
+        if (!session || session !== this.currentSocketSession(id)) continue;
+      }
+      byConnection.set(id, ws);
     }
     const subs = [];
-    for (const record of this.sql.exec('SELECT * FROM _snapback_subscriptions')) {
+    const affectedNames = [...affectedFunctions];
+    if (affectedNames.length === 0) return;
+    const placeholders = affectedNames.map(() => '?').join(', ');
+    for (const record of this.sql.exec(
+      `SELECT * FROM _snapback_subscriptions WHERE function_name IN (${placeholders})`,
+      ...affectedNames
+    )) {
       subs.push(record);
     }
     const groups = new Map();
@@ -1864,6 +2236,16 @@ export class Coordinator {
   async webSocketClose(ws) {
     const connectionId = this.connectionIdFor(ws);
     if (connectionId) {
+      if (this.socketProtocolFor(ws) === 'kit') {
+        const closingSession = this.socketSessionFor(ws);
+        const currentSession = this.currentSocketSession(connectionId);
+        if (currentSession && closingSession !== currentSession) return;
+        this.sql.exec(
+          'UPDATE _snapback_connections SET socket_session_id = NULL WHERE connection_id = ? AND socket_session_id = ?',
+          connectionId,
+          closingSession
+        );
+      }
       this.sql.exec('DELETE FROM _snapback_subscriptions WHERE connection_id = ?', connectionId);
       // A departing socket may have been the last live subscriber: cancel
       // the warm-poll alarm so the idle object hibernates with zero wakeups.
@@ -1871,33 +2253,40 @@ export class Coordinator {
     }
   }
 
-  webSocketError(ws) {
-    this.webSocketClose(ws);
+  async webSocketError(ws) {
+    await this.webSocketClose(ws);
   }
 
   async reset() {
-    this.sql.exec('DELETE FROM _snapback_changes');
-    this.sql.exec('UPDATE _snapback_version SET version = 0 WHERE id = 1');
-    this.sql.exec('DELETE FROM _snapback_subscriptions');
-    // App-state reset also resets cron runtime state (claims + ledger) and
-    // disarms via the reconcile below; configured secrets and rotation
-    // cursors are deployment config and deliberately survive.
-    this.sql.exec('DELETE FROM _snapback_cron_claims');
-    this.sql.exec('DELETE FROM _snapback_cron_state');
-    for (const table of schema.tables) {
-      this.sql.exec(`DELETE FROM ${this.physicalTable(table.name)}`);
-    }
-    // A reset empties the persistent state, so this deployment's metadata is
-    // now authoritative — recover from a stale-artifact refusal.
-    this.writeDeploymentMetadata();
-    this.startupError = null;
-    // Bundles that ship deterministic seed data (All Aboard) return to the
-    // seeded ground state — the local reset(seed) semantics; the notes
-    // fixture (seed: null) keeps its start-empty reset.
+    // Validate and serialize the compiled seed before the destructive
+    // boundary. Any invalid artifact leaves the complete pre-reset state.
+    const preparedSeed = appSeed ? this.prepareSeed(appSeed) : [];
     let seeded = false;
-    if (appSeed) {
-      seeded = this.seedIfEmpty(appSeed);
-    }
+    this.ctx.storage.transactionSync(() => {
+      this.sql.exec('DELETE FROM _snapback_changes');
+      this.testResetFault('after-journal');
+      this.sql.exec('UPDATE _snapback_version SET version = 0 WHERE id = 1');
+      this.sql.exec('DELETE FROM _snapback_subscriptions');
+      // App-state reset also resets cron/runtime admission state; configured
+      // secrets and rotation cursors are deployment config and survive.
+      this.sql.exec('DELETE FROM _snapback_cron_claims');
+      this.sql.exec('DELETE FROM _snapback_cron_state');
+      this.sql.exec('DELETE FROM _snapback_action_limits');
+      this.testResetFault('after-runtime-state');
+      for (const table of schema.tables) {
+        this.sql.exec(`DELETE FROM ${this.physicalTable(table.name)}`);
+      }
+      this.testResetFault('after-app-rows');
+      this.writeDeploymentMetadata();
+      if (preparedSeed.length > 0) {
+        this.applyPreparedSeed(preparedSeed, Date.now());
+        seeded = true;
+      }
+      this.testResetFault('after-seed');
+    });
+    // Only publish the recovered startup posture after the transaction
+    // commits; a rolled-back reset must retain its stale refusal too.
+    this.startupError = null;
     // Subscriptions and cron state are gone: drop any armed object alarm.
     await this.reconcileCronActivation();
     for (const ws of this.ctx.getWebSockets()) {
@@ -1911,6 +2300,12 @@ export class Coordinator {
     }
     return json(200, { reset: true, seeded });
   }
+
+  testResetFault(step) {
+    if (this.env.SNAPBACK_TESTING === '1' && this.env.SNAPBACK_TEST_RESET_FAIL_AFTER === step) {
+      throw codedError('SNAPBACK_RESET_INJECTED_FAILURE', `injected reset failure at ${step}`);
+    }
+  }
 }
 
 // A stale-deployment refusal (SNAPBACK_STALE_CLOUDFLARE_*): served on every
@@ -1920,13 +2315,49 @@ function staleArtifact(code, message, details) {
   return { ok: false, code, message, details };
 }
 
+function codedError(code, message, details = null) {
+  const error = new Error(`${code}: ${message}`);
+  error.snapbackCode = code;
+  error.snapbackDetails = details;
+  return error;
+}
+
 function functionTables(fn) {
   if (Array.isArray(fn.tables) && fn.tables.length > 0) return fn.tables;
   return [schema.tables[0].name];
 }
 
+function functionKindMatchesMode(kind, mode) {
+  if (mode === 'query') return kind === 'Query' || kind === 'LiveQuery';
+  if (mode === 'mutation') return kind === 'Mutation';
+  if (mode === 'action') return kind === 'Action';
+  return false;
+}
+
 function canonicalJson(value) {
   return JSON.stringify(sortJson(value ?? {}));
+}
+
+function secretRepresentations(value) {
+  const raw = String(value || '');
+  if (!raw) return [];
+  const variants = new Set([raw]);
+  try {
+    variants.add(encodeURIComponent(raw));
+  } catch (_) {}
+  try {
+    const params = new URLSearchParams();
+    params.set('v', raw);
+    variants.add(params.toString().slice(2));
+  } catch (_) {}
+  try {
+    const encoded = JSON.stringify(raw);
+    if (encoded && encoded.length >= 2) variants.add(encoded.slice(1, -1));
+  } catch (_) {}
+  for (const encoded of [...variants]) {
+    variants.add(encoded.replace(/%[0-9A-F]{2}/g, (part) => part.toLowerCase()));
+  }
+  return [...variants].sort((left, right) => right.length - left.length);
 }
 
 function sortJson(value) {
@@ -1967,7 +2398,104 @@ function kitError(status, code, message) {
 function kitFailure(result) {
   const body = { diagnostic: { code: result.code, message: result.message } };
   if (result.details) body.diagnostic.details = result.details;
-  return json(500, body);
+  return json(clientFailureCode(result.code) ? 400 : 500, body);
+}
+
+function clientFailureCode(code) {
+  return new Set([
+    'SNAPBACK_FUNCTION_KIND_MISMATCH',
+    'SNAPBACK_UNKNOWN_TABLE',
+    'SNAPBACK_UNKNOWN_FIELD',
+    'SNAPBACK_QUERY_UNKNOWN_INDEX',
+    'SNAPBACK_FIELD_MISSING',
+    'SNAPBACK_FIELD_TYPE_MISMATCH',
+    'SNAPBACK_SYSTEM_FIELD_WRITE',
+  ]).has(code);
+}
+
+function requestDiagnostic(status, code, message, details = null) {
+  const diagnostic = { code, message, ...(details ? { details } : {}) };
+  // Keep both the proof protocol's top-level code and the kit protocol's
+  // diagnostic envelope so every JSON endpoint has one stable 4xx shape.
+  return json(status, { ok: false, code, message, diagnostic });
+}
+
+async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
+  const contentLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+    return {
+      ok: false,
+      response: requestDiagnostic(
+        413,
+        'SNAPBACK_REQUEST_TOO_LARGE',
+        `JSON request body exceeds the ${MAX_REQUEST_BYTES}-byte limit`,
+        { limitBytes: MAX_REQUEST_BYTES }
+      ),
+    };
+  }
+
+  const contentType = (request.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
+  if (contentType !== 'application/json') {
+    if (allowEmpty && request.body === null) return { ok: true, value: {} };
+    return {
+      ok: false,
+      response: requestDiagnostic(
+        415,
+        'SNAPBACK_CONTENT_TYPE_UNSUPPORTED',
+        'JSON endpoints require Content-Type: application/json'
+      ),
+    };
+  }
+
+  let text = '';
+  let totalBytes = 0;
+  if (request.body !== null) {
+    const reader = request.body.getReader();
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_REQUEST_BYTES) {
+        await reader.cancel('SNAPBACK_REQUEST_TOO_LARGE');
+        return {
+          ok: false,
+          response: requestDiagnostic(
+            413,
+            'SNAPBACK_REQUEST_TOO_LARGE',
+            `JSON request body exceeds the ${MAX_REQUEST_BYTES}-byte limit`,
+            { limitBytes: MAX_REQUEST_BYTES }
+          ),
+        };
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+  }
+  if (text.trim().length === 0) {
+    if (allowEmpty) return { ok: true, value: {} };
+    return {
+      ok: false,
+      response: requestDiagnostic(400, 'SNAPBACK_JSON_BODY_REQUIRED', 'a JSON object request body is required'),
+    };
+  }
+
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (_) {
+    return {
+      ok: false,
+      response: requestDiagnostic(400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'),
+    };
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {
+      ok: false,
+      response: requestDiagnostic(400, 'SNAPBACK_JSON_OBJECT_REQUIRED', 'request body must be a JSON object'),
+    };
+  }
+  return { ok: true, value };
 }
 
 function json(status, value) {

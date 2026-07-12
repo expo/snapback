@@ -138,7 +138,7 @@ async function main() {
     const badMessage = badTable.ok && badTable.result ? String(badTable.result.message || '') : JSON.stringify(badTable);
     check('an off-schema table name is refused with the stable host-call code',
       badTable.ok && badTable.result && badTable.result.inserted === false &&
-        badMessage.indexOf('SNAPBACK_HANDLER_HOST_CALL_INVALID') === 0,
+        badMessage.indexOf('SNAPBACK_UNKNOWN_TABLE') === 0,
       badMessage);
 
     // -- error-code taxonomy matches the Rust hosts (ENG-23586) --------------

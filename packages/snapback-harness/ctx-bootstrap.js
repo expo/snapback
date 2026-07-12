@@ -45,7 +45,7 @@
   // what the action-only host fetch capability accepts in a placement slot;
   // the coordinator resolves it to the real value only at its own fetch
   // boundary.
-  function makeDescriptorHandle(name, cursor) {
+  function makeDescriptorHandle(name, capabilityId) {
     var marker = "[snapback secret " + name + "]";
     function failClosed(method) {
       return function() {
@@ -56,18 +56,21 @@
         );
       };
     }
+    var descriptor = { capabilityId: capabilityId };
+    try { Object.freeze(descriptor); } catch (_) {}
     var handle = {
       expose: failClosed("expose"),
       asBearer: failClosed("asBearer"),
       toString: function() { return marker; },
       toJSON: function() { return marker; },
-      __snapbackDescriptor: { name: name, cursor: cursor }
+      __snapbackDescriptor: descriptor
     };
     try {
       Object.defineProperty(handle, Symbol.toPrimitive, {
         value: function() { return marker; }
       });
     } catch (_) {}
+    try { Object.freeze(handle); } catch (_) {}
     return handle;
   }
   function makeSecrets(grants) {
@@ -82,8 +85,11 @@
         if (!entry.set || !(entry.memberCount > 0)) {
           throw snapbackError("SNAPBACK_CONFIG_MISSING", name + " has no value set");
         }
-        var cursor = rotate ? (entry.cursor || 0) % entry.memberCount : 0;
-        return makeDescriptorHandle(name, cursor);
+        var capabilityId = rotate ? entry.rotatingCapabilityId : entry.firstCapabilityId;
+        if (typeof capabilityId !== "string" || capabilityId.length === 0) {
+          throw snapbackError("SNAPBACK_CONFIG_UNDECLARED", name + " has no invocation-scoped capability");
+        }
+        return makeDescriptorHandle(name, capabilityId);
       }
       if (!entry.set || !entry.values || !entry.values.length) {
         throw snapbackError("SNAPBACK_CONFIG_MISSING", name + " has no value set");
@@ -317,7 +323,7 @@
           slots.push({
             placement: slot.placement,
             name: slot.name,
-            secret: descriptor || slot.secret || null
+            secret: descriptor || null
           });
         }
         return host("host.fetch", {

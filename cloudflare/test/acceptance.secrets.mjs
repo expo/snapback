@@ -50,7 +50,9 @@ async function main() {
   };
   try {
     // --- config status ----------------------------------------------------
-    const status = await (await fetch(`${base}/config/status`)).json();
+    const status = await (await fetch(`${base}/config/status`, {
+      headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+    })).json();
     const caltrain = status.declarations.find((entry) => entry.name === 'caltrainFeed');
     const directions = status.declarations.find((entry) => entry.name === 'directions');
     check(
@@ -104,14 +106,14 @@ async function main() {
     );
     check('the action result carries no key material', !containsKeyMaterial(run1));
 
-    // --- rotation cursor: advances per grant, modulo member count ---------
+    // --- invocation-scoped opaque capabilities ---------------------------
     const run2 = await post('/__test/action', { name: 'probeSecrets' });
     const run3 = await post('/__test/action', { name: 'probeSecrets' });
     check(
-      'pooled rotation cursor advances per grant and wraps modulo the member count',
-      probe1.caltrainFeed.descriptor.cursor === 0 &&
-        run2.result.caltrainFeed.descriptor.cursor === 1 &&
-        run3.result.caltrainFeed.descriptor.cursor === 0
+      'secret capabilities are opaque and freshly scoped to each invocation',
+      typeof probe1.caltrainFeed.descriptor.capabilityId === 'string' &&
+        probe1.caltrainFeed.descriptor.capabilityId !== run2.result.caltrainFeed.descriptor.capabilityId &&
+        run2.result.caltrainFeed.descriptor.capabilityId !== run3.result.caltrainFeed.descriptor.capabilityId
     );
 
     // --- queries and mutations are secret-free -----------------------------
@@ -124,7 +126,9 @@ async function main() {
 
     // --- destructive reset does not clear configured secrets ---------------
     await proof.reset();
-    const statusAfterReset = await (await fetch(`${base}/config/status`)).json();
+    const statusAfterReset = await (await fetch(`${base}/config/status`, {
+      headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+    })).json();
     const caltrainAfter = statusAfterReset.declarations.find((entry) => entry.name === 'caltrainFeed');
     check(
       'destructive reset leaves configured secrets and generation intact',
@@ -141,7 +145,12 @@ async function main() {
     );
     // An entry write with NO generation-bearing activation: the runtime still
     // reports generation 7, so the writer's staged generation 8 stays pending.
-    const pending = await attestApplied(base, staged, { timeoutMs: 1200, intervalMs: 300 });
+    const pending = await attestApplied(base, staged, {
+      timeoutMs: 1200,
+      intervalMs: 300,
+      adminToken: ADMIN_TOKEN,
+      expectedEntries: { caltrainFeed: [KEY_A] },
+    });
     check('without a generation-bearing activation the write stays pending', pending === 'pending');
     // The generation-bearing activation lands (a fresh deployment whose env
     // carries the bumped stamp — Miniflare's projection of the bulk write's
@@ -153,7 +162,12 @@ async function main() {
     });
     try {
       const activatedBase = await activated.url();
-      const applied = await attestApplied(activatedBase, staged, { timeoutMs: 5000, intervalMs: 200 });
+      const applied = await attestApplied(activatedBase, staged, {
+        timeoutMs: 5000,
+        intervalMs: 200,
+        adminToken: ADMIN_TOKEN,
+        expectedEntries: { caltrainFeed: [KEY_A, KEY_B] },
+      });
       check('the generation-bearing activation attests applied via /config/status', applied === 'applied');
     } finally {
       await activated.dispose();

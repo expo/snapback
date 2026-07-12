@@ -1,0 +1,24 @@
+{
+  "format": 1,
+  "app": "notes",
+  "schemaHash": "sha256:3448853cd93359eb4e859cebf3c14e22f9a305634d5169043cfdac9f090e128d",
+  "bundleHash": "sha256:dd9aa3a5e13bfe392004fd643f40c724a4d3fcb0bb878da3423ee2e353ea9561",
+  "inputsHash": "sha256:bb7a717daa4057e552da789ab54e00c25250860c2fd5cfce45772caff5e9073e",
+  "inputs": [
+    "cloudflare/app/notes.app.js",
+    "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
+    "cloudflare/src/coordinator.js",
+    "cloudflare/src/cron-utils.js",
+    "cloudflare/src/gateway.js",
+    "cloudflare/src/handler-worker.js",
+    "cloudflare/src/host-ops.js",
+    "cloudflare/src/platform-errors.js",
+    "packages/snapback-harness/allowlist.json",
+    "packages/snapback-harness/compat.json",
+    "packages/snapback-harness/ctx-bootstrap.js",
+    "packages/snapback-harness/envelope.mjs",
+    "packages/snapback-harness/workerd/handler-server.mjs",
+    "packages/snapback-harness/workerd/rejection-ledger.mjs",
+    "packages/snapback-harness/workerd/strip.mjs"
+  ]
+}
