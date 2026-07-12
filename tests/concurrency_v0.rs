@@ -28,8 +28,8 @@ use std::time::{Duration, Instant};
 use tower::ServiceExt;
 
 /// LLP 0032 L6 — concurrent reads proceed during a long-running write. A busy
-/// mutation holds the write lane for ~900ms; read-lane queries issued while it
-/// runs complete in a small fraction of that and observe the pre-write state.
+/// mutation holds the write lane; after observing that lock directly,
+/// read-lane queries complete before the writer and see the pre-write state.
 #[test]
 fn l6_concurrent_reads_proceed_during_a_long_write() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -59,9 +59,16 @@ fn l6_concurrent_reads_proceed_during_a_long_write() {
         })
     };
 
-    // Give the writer time to enter the busy handler (VM create + eval start
-    // is a few ms even in debug builds), then read while it holds the lock.
-    thread::sleep(Duration::from_millis(250));
+    // Synchronize on the actual write-lane lock instead of guessing how long
+    // VM startup takes under host load (ENG-24384 / ENG-23980 / ENG-23490).
+    let wait_started = Instant::now();
+    while shared.try_lock().is_ok() {
+        assert!(
+            wait_started.elapsed() < Duration::from_secs(2),
+            "writer never acquired the write lane"
+        );
+        thread::yield_now();
+    }
     let mut read_latencies = Vec::new();
     let reads_started = Instant::now();
     for _ in 0..5 {
@@ -80,11 +87,6 @@ fn l6_concurrent_reads_proceed_during_a_long_write() {
     let reads_finished = Instant::now();
 
     let (write_started, write_finished) = writer.join().expect("writer thread");
-    let write_elapsed = write_finished - write_started;
-    assert!(
-        write_elapsed >= Duration::from_millis(800),
-        "the busy mutation must actually have been long ({write_elapsed:?})"
-    );
     assert!(
         reads_finished < write_finished,
         "reads must complete while the write still holds the write lane"
@@ -212,9 +214,10 @@ async fn l7_busy_mutation_does_not_stall_other_endpoints() {
     })
     .await
     .expect("setup");
-    let app = snapback::server::app(AppState::detached(snapback));
+    let state = AppState::detached(snapback);
+    let write_lane = state.snapback.clone();
+    let app = snapback::server::app(state);
 
-    let busy_started = Instant::now();
     let busy = {
         let app = app.clone();
         tokio::spawn(async move {
@@ -229,12 +232,24 @@ async fn l7_busy_mutation_does_not_stall_other_endpoints() {
         })
     };
 
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if write_lane.try_lock().is_err() {
+                break;
+            }
+            assert!(
+                !busy.is_finished(),
+                "busy mutation finished before taking the lane"
+            );
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("busy mutation must acquire the write lane");
 
-    // Latency bounds discriminate the lanes: at ~250ms into a ~900ms busy
-    // write, a request that secretly queued on the write mutex takes ≥650ms;
-    // a read-lane request takes milliseconds. 500ms splits them with margin
-    // on both sides.
+    // We observed the writer holding the lane above. The completion-order
+    // assertion below is the decisive lane proof; these 500ms bounds catch a
+    // separate gross read-latency regression without relying on host timing.
     let health_started = Instant::now();
     let health = tokio::time::timeout(
         Duration::from_secs(2),
@@ -276,10 +291,6 @@ async fn l7_busy_mutation_does_not_stall_other_endpoints() {
 
     let (busy_status, busy_finished) = busy.await.expect("busy task");
     assert_eq!(busy_status, StatusCode::OK);
-    assert!(
-        busy_finished - busy_started >= Duration::from_millis(800),
-        "the busy mutation must actually have been long"
-    );
     assert!(
         reads_finished < busy_finished,
         "health and query must complete while the busy mutation is still running"
@@ -463,17 +474,17 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
 }
 
 /// LLP 0032 L9 (the payoff over L6/L7) — ephemeral operations proceed while a
-/// long-running mutation holds the global write mutex. A busy Ibex mutation
-/// occupies the write lane for ~900ms; HTTP ephemeral subscribe/publish, the
-/// outbox drain, and a WebSocket socket-text publish all complete in a small
-/// fraction of that, because the room authority no longer takes the global
-/// mutex (LLP 0026 Phase 2). The latency bounds discriminate the lanes the
-/// same way the l7 test does: a request that secretly queued on the write
-/// mutex takes ≥650ms at this point in the busy write; 500ms splits the
-/// outcomes with margin.
+/// long-running mutation holds the global write mutex. A generously calibrated
+/// busy Ibex mutation occupies the write lane; HTTP ephemeral
+/// subscribe/publish, the outbox drain, and a WebSocket socket-text publish all
+/// complete in a small fraction of that, because the room authority no longer
+/// takes the global mutex (LLP 0026 Phase 2). The test synchronizes on the
+/// actual locked lane and requires every operation to finish before that lock
+/// holder, so the proof does not depend on a fixed wall-clock duration.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
 
     let dir = tempfile::tempdir().expect("tempdir");
     let db_path = dir.path().join("l9-busy.sqlite3");
@@ -489,8 +500,9 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     .expect("setup");
     // ENG-23442: grants for the three connections this test exercises. The
     // registry is its own small lock, so verification cannot queue behind the
-    // busy write lane — which is exactly what the latency bounds below prove.
+    // busy write lane — which the lock observation/completion ordering proves.
     let state = AppState::detached(snapback);
+    let write_lane = state.snapback.clone();
     let observer_grant = state
         .connections
         .open(Some("l9-observer".to_owned()), None, true);
@@ -512,7 +524,6 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
         })
     };
 
-    let busy_started = Instant::now();
     let busy = {
         let app = app.clone();
         tokio::spawn(async move {
@@ -527,7 +538,20 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
         })
     };
 
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if write_lane.try_lock().is_err() {
+                break;
+            }
+            assert!(
+                !busy.is_finished(),
+                "busy mutation finished before taking the lane"
+            );
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("busy mutation must acquire the write lane");
 
     let ephemeral_request = |connection: &str| {
         json!({
@@ -587,12 +611,16 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     // WebSocket socket-text publish while the write lane is still busy: the
     // pre-L9 handler locked the global mutex inline for these frames.
     let started = Instant::now();
+    let mut ws_request = format!("ws://{addr}/live/l9-ws/stream")
+        .into_client_request()
+        .expect("ws request");
+    ws_request.headers_mut().insert(
+        "x-snapback-connection-token",
+        ws_grant.connection_token.parse().expect("token header"),
+    );
     let (mut socket, _) = tokio::time::timeout(
         Duration::from_secs(2),
-        tokio_tungstenite::connect_async(format!(
-            "ws://{addr}/live/l9-ws/stream?connection_token={}",
-            ws_grant.connection_token
-        )),
+        tokio_tungstenite::connect_async(ws_request),
     )
     .await
     .expect("ws connect must not stall behind the busy mutation")
@@ -666,12 +694,8 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     let (busy_status, busy_finished) = busy.await.expect("busy task");
     assert_eq!(busy_status, StatusCode::OK);
     assert!(
-        busy_finished - busy_started >= Duration::from_millis(800),
-        "the busy mutation must actually have been long"
-    );
-    assert!(
         ephemeral_finished < busy_finished,
-        "every ephemeral operation must complete while the busy mutation still runs"
+        "every ephemeral operation must complete while the observed write-lane holder still runs"
     );
     server.abort();
 }
@@ -828,8 +852,8 @@ globalThis.__snapbackHandlers = {
   async busyCreate(ctx, args) {
     // Clock-free busy spin: the deterministic tier denies Date.now at
     // runtime (LLP 0051 Increment 2). The iteration count is calibrated
-    // host-side by busy_iters_for(); floor rounding only lengthens the
-    // window, which is the safe direction for every bound below.
+    // host-side by busy_iters_for(), using fastest-of-five sampling plus a
+    // 3x margin to absorb parallel-suite load swings (ENG-24384).
     var sink = 0;
     for (var i = 0; i < args.iters; i++) { sink += (i * 31) % 97; }
     return await ctx.db.insert('todos', {
@@ -973,20 +997,24 @@ fn concurrency_functions() -> FunctionManifest {
 }
 
 /// Calibrate the clock-free busy spin (LLP 0051 Increment 2 denies Date.now
-/// inside query/mutation handlers): time a fixed iteration count, best of
-/// two runs, and scale to the requested window. Floor rounding inflates the
-/// window, which only strengthens the "writer held the lane" bounds.
+/// inside query/mutation handlers). Parallel test load can inflate one short
+/// probe and make a later mutation much faster, so sample a larger probe five
+/// times, take the fastest observation, and retain a 3x safety margin. That
+/// margin preserves the actual lane-separation proof under host-load swings;
+/// it does not loosen any measured assertion (ENG-24384).
 fn busy_iters_for(snapback: &LocalSnapback, busy_ms: u64) -> u64 {
-    let probe_iters: u64 = 200_000;
+    let probe_iters: u64 = 1_000_000;
     let mut best_us = u64::MAX;
-    for _ in 0..2 {
+    for _ in 0..5 {
         let started = Instant::now();
         snapback
             .invoke_query("busySpin", input(json!({ "iters": probe_iters }), "user_1"))
             .expect("busy calibration probe");
         best_us = best_us.min(started.elapsed().as_micros().max(1) as u64);
     }
-    busy_ms * ((probe_iters * 1_000) / best_us).max(100)
+    busy_ms
+        .saturating_mul(((probe_iters * 1_000) / best_us).max(100))
+        .saturating_mul(3)
 }
 
 fn input(args: Value, user_id: &str) -> HandlerInput {
