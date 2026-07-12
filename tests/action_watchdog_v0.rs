@@ -29,9 +29,9 @@ use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
 
-/// One shared watchdog budget for the whole binary (ms).
+/// Shared watchdog budget for timeout-focused cases (ms).
 const WATCHDOG_MS: u64 = 800;
-const GENERATION_FENCE_WATCHDOG_MS: u64 = 5_000;
+const NON_TIMEOUT_PROOF_WATCHDOG_MS: u64 = 5_000;
 static ACTION_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn serial_action_test() -> tokio::sync::MutexGuard<'static, ()> {
@@ -343,7 +343,7 @@ async fn paused_host_call_free_action_rejects_reload_and_reset_drift() {
     // timing. Function reload can spawn the Ibex CLI and exceed the 800ms
     // hostile-handler budget on a loaded full-suite host; keep that unrelated
     // watchdog from winning the race we are trying to observe.
-    set_watchdog_env_ms(GENERATION_FENCE_WATCHDOG_MS);
+    set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
     let (state, app) = watchdog_state_and_app();
 
     let (reload_url, reload_started, release_reload, reload_server) = held_http_response().await;
@@ -602,7 +602,10 @@ async fn repeated_nested_timeouts_do_not_accumulate_action_workers() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn action_run_does_not_hold_the_write_mutex() {
     let _serial = serial_action_test().await;
-    set_watchdog_env();
+    // This proof needs a long-running action as a concurrency witness, but it
+    // is not testing watchdog timing. Keep shared-runner scheduling from
+    // turning the 600ms witness into an unrelated 800ms timeout.
+    set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
     let app = watchdog_app();
 
     let action_started = Instant::now();
