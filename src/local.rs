@@ -24,7 +24,7 @@ use crate::manifest::{
     PublicFunctionManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
     SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, ctx_ledger_version,
 };
-use crate::runtime::{IbexActionHost, RuntimeCapabilities, RuntimeManager};
+use crate::runtime::{ExecutedIbexMutation, IbexActionHost, RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
     CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow,
     ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool, StorageInfo,
@@ -464,6 +464,22 @@ pub(crate) struct DetachedIbexAction {
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
     pub runtime: RuntimeManager,
+}
+
+pub(crate) enum StagedNestedMutation {
+    InLock,
+    Detached(Box<DetachedIbexMutation>),
+}
+
+pub(crate) struct DetachedIbexMutation {
+    pub function: FunctionDefinition,
+    pub epoch_scopes: BTreeSet<String>,
+    pub read: DetachedMutationRead,
+}
+
+pub(crate) enum DetachedMutationRead {
+    Lane(ReadLane),
+    Snapshot(Box<LocalDatabase>),
 }
 
 /// Staging outcome for the app-action envelope surface: either a ready
@@ -1395,6 +1411,14 @@ impl LocalSnapback {
             }
         };
 
+        Ok(self.finish_mutation_commit(epoch_scopes, commit))
+    }
+
+    fn finish_mutation_commit(
+        &mut self,
+        epoch_scopes: BTreeSet<String>,
+        commit: MutationCommit,
+    ) -> MutationCommit {
         let permission_changes = if commit.output.changed_count > 0 {
             self.advance_permission_epochs(&epoch_scopes)
         } else {
@@ -1410,7 +1434,34 @@ impl LocalSnapback {
                 self.notify_live_subscriptions_in_frame(&commit.changes, &resynced);
             }
         }
-        Ok(commit)
+        commit
+    }
+
+    pub(crate) fn commit_detached_ibex_mutation(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        expected_function: &FunctionDefinition,
+        epoch_scopes: BTreeSet<String>,
+        executed: ExecutedIbexMutation,
+    ) -> SnapbackResult<MutationOutput> {
+        let function = self.function(name)?.clone();
+        if function != *expected_function {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MUTATION_CONFLICT",
+                "runtime",
+                format!("mutation {name} changed while an action-hosted invocation was running"),
+            ));
+        }
+        let commit = self.db.commit_buffered_writes_idempotent(
+            &input,
+            executed.writes,
+            executed.reads,
+            executed.result,
+            executed.ctx_ledger,
+            None,
+        )?;
+        Ok(self.finish_mutation_commit(epoch_scopes, commit).output)
     }
 
     /// `mutationDryRun` (LLP 0051 D8 / Increment 4): execute the mutation
@@ -2043,6 +2094,47 @@ impl LocalSnapback {
         }
     }
 
+    pub(crate) fn stage_nested_mutation(
+        &self,
+        name: &str,
+        input: &HandlerInput,
+    ) -> SnapbackResult<StagedNestedMutation> {
+        let function = self.function(name)?.clone();
+        if function.kind != FunctionKind::Mutation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not a mutation"),
+            ));
+        }
+        match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => Ok(StagedNestedMutation::InLock),
+            FunctionRuntime::IbexModule(_) => {
+                // Preserve the ordinary mutation contract: resolve and
+                // validate permission-epoch scopes before any handler code
+                // executes. The resolved set rides the detached effect to its
+                // bounded commit window.
+                let epoch_scopes = evaluate_permission_epoch_scopes(&function, input)?;
+                let read = if self.db.reader_pool().is_some() {
+                    DetachedMutationRead::Lane(self.read_lane())
+                } else {
+                    DetachedMutationRead::Snapshot(Box::new(self.db.detached_read_snapshot()?))
+                };
+                Ok(StagedNestedMutation::Detached(Box::new(
+                    DetachedIbexMutation {
+                        function,
+                        epoch_scopes,
+                        read,
+                    },
+                )))
+            }
+            _ => Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not a mutation"),
+            )),
+        }
+    }
     /// Validate declared config entries fail-closed, validate per-function
     /// `uses` grants, and run the one-time deprecated env-blob import.
     ///
@@ -3123,7 +3215,7 @@ impl LocalSnapback {
                     snapback,
                     _marker: PhantomData,
                 };
-                runtime.invoke_ibex_action(module, input, metadata, &mut host, grants)
+                runtime.invoke_ibex_action(module, input, metadata, &mut host, grants, None)
             }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_KIND_MISMATCH",
@@ -3837,6 +3929,29 @@ impl ReadLane {
             Some(&self.warm_vms),
         )?;
         Ok(invocation.output)
+    }
+
+    pub(crate) fn execute_detached_ibex_mutation(
+        &self,
+        module: &crate::manifest::IbexModule,
+        input: HandlerInput,
+        deadline: Instant,
+    ) -> SnapbackResult<ExecutedIbexMutation> {
+        let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
+        let manifests = self.manifests();
+        let reader = pool.checkout()?;
+        let tx = reader.conn().unchecked_transaction()?;
+        crate::storage::current_version_on(&tx)?;
+        crate::runtime::execute_ibex_mutation(
+            module,
+            input,
+            DbRead::Pinned {
+                conn: &tx,
+                schema: &manifests.schema,
+            },
+            None,
+            Some(deadline),
+        )
     }
 
     /// Serve the `/health` payload without the global mutex.

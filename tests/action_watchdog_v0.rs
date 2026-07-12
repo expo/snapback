@@ -27,6 +27,11 @@ use tower::ServiceExt;
 
 /// One shared watchdog budget for the whole binary (ms).
 const WATCHDOG_MS: u64 = 800;
+static ACTION_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+async fn serial_action_test() -> tokio::sync::MutexGuard<'static, ()> {
+    ACTION_TEST_LOCK.lock().await
+}
 
 fn set_watchdog_env() {
     // SAFETY: every test in this binary writes the same value before starting
@@ -62,6 +67,14 @@ globalThis.__snapbackHandlers = {
     const start = Date.now();
     while (Date.now() - start < args.busyMs) {}
     return await ctx.runMutation('createTodo', { title: 'late write' });
+  },
+
+  async hungMutation(ctx) {
+    while (true) {}
+  },
+
+  async nestedHungAction(ctx) {
+    return await ctx.runMutation('hungMutation', {});
   },
 
   async readAction(ctx, args) {
@@ -151,8 +164,10 @@ fn watchdog_functions() -> FunctionManifest {
         functions: vec![
             ibex("listTodos", FunctionKind::LiveQuery),
             ibex("createTodo", FunctionKind::Mutation),
+            ibex("hungMutation", FunctionKind::Mutation),
             ibex("busyAction", FunctionKind::Action),
             ibex("lateWriteAction", FunctionKind::Action),
+            ibex("nestedHungAction", FunctionKind::Action),
             ibex("readAction", FunctionKind::Action),
             ibex("cronAction", FunctionKind::Action),
             ibex("quickProbe", FunctionKind::Action),
@@ -221,10 +236,148 @@ fn handler_body(args: Value) -> Value {
     json!({ "args": args, "auth": { "user_id": "user_1" } })
 }
 
+/// ENG-24340: a mutation invoked by an action executes against a detached
+/// snapshot/read lane. If its handler never returns, the action watchdog can
+/// still answer and the instance lock remains available to healthy requests.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn nested_hung_mutation_times_out_without_wedging_the_instance() {
+    let _serial = serial_action_test().await;
+    set_watchdog_env();
+    let app = watchdog_app();
+
+    let started = Instant::now();
+    let response = tokio::time::timeout(
+        Duration::from_secs(3),
+        app.clone().oneshot(post_json(
+            "/action/nestedHungAction",
+            handler_body(json!({})),
+        )),
+    )
+    .await
+    .expect("the watchdog must answer while the nested mutation is hung")
+    .expect("action response");
+    let elapsed = started.elapsed();
+    let body = body_json(response).await;
+
+    assert_eq!(body["ok"], false, "timed-out action must fail: {body}");
+    assert_eq!(
+        body["diagnostic"]["code"], "SNAPBACK_ACTION_TIMEOUT",
+        "diagnostic must be the watchdog code: {body}"
+    );
+    assert!(
+        elapsed >= Duration::from_millis(WATCHDOG_MS - 100)
+            && elapsed < Duration::from_millis(1500),
+        "the nested handler must not delay the watchdog ({elapsed:?})"
+    );
+
+    let health = tokio::time::timeout(
+        Duration::from_millis(500),
+        app.clone().oneshot(
+            Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .expect("request"),
+        ),
+    )
+    .await
+    .expect("health must not queue behind the hung mutation")
+    .expect("health response");
+    assert_eq!(
+        health.status(),
+        200,
+        "healthy instance must remain available"
+    );
+
+    let mutation = tokio::time::timeout(
+        Duration::from_secs(1),
+        app.clone().oneshot(post_json(
+            "/mutation/createTodo",
+            handler_body(json!({ "title": "after nested timeout" })),
+        )),
+    )
+    .await
+    .expect("healthy mutation must not queue behind the hung mutation")
+    .expect("mutation response");
+    let mutation_body = body_json(mutation).await;
+    assert!(
+        mutation_body.get("version").is_some(),
+        "healthy mutation must still commit: {mutation_body}"
+    );
+
+    let query = tokio::time::timeout(
+        Duration::from_secs(1),
+        app.clone()
+            .oneshot(post_json("/query/listTodos", handler_body(json!({})))),
+    )
+    .await
+    .expect("healthy query must not queue behind the hung mutation")
+    .expect("query response");
+    let query_body = body_json(query).await;
+    assert_eq!(
+        query_body["rows"].as_array().map(Vec::len),
+        Some(1),
+        "query must observe the healthy commit: {query_body}"
+    );
+}
+
+/// Repeated hostile handlers are actually interrupted, not merely detached.
+/// This is the resource half of ENG-24340: every timed-out action worker (and
+/// its nested Hermes runtime) must be gone before its response is published.
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn repeated_nested_timeouts_do_not_accumulate_action_workers() {
+    let _serial = serial_action_test().await;
+    set_watchdog_env();
+
+    // Establish an empty baseline defensively before creating the hostile
+    // actions whose worker lifecycle this test measures.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while snapback::server::detached_action_worker_count() != 0 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("pre-existing action workers must drain");
+
+    let app = watchdog_app();
+    let mut requests = Vec::new();
+    for _ in 0..6 {
+        let app = app.clone();
+        requests.push(tokio::spawn(async move {
+            let response = tokio::time::timeout(
+                Duration::from_secs(3),
+                app.oneshot(post_json(
+                    "/action/nestedHungAction",
+                    handler_body(json!({})),
+                )),
+            )
+            .await
+            .expect("watchdog response")
+            .expect("action response");
+            body_json(response).await
+        }));
+    }
+
+    for request in requests {
+        let body = request.await.expect("request task");
+        assert_eq!(body["ok"], false, "timed-out action must fail: {body}");
+        assert_eq!(
+            body["diagnostic"]["code"], "SNAPBACK_ACTION_TIMEOUT",
+            "timed-out action must keep the stable watchdog code: {body}"
+        );
+    }
+
+    assert_eq!(
+        snapback::server::detached_action_worker_count(),
+        0,
+        "timeout responses must not leave action CPU threads alive"
+    );
+}
+
 /// While an Ibex action occupies its VM thread, mutations and (write-lane,
 /// in-memory) queries proceed: the action no longer holds the global mutex.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn action_run_does_not_hold_the_write_mutex() {
+    let _serial = serial_action_test().await;
     set_watchdog_env();
     let app = watchdog_app();
 
@@ -316,6 +469,7 @@ async fn action_run_does_not_hold_the_write_mutex() {
 /// after the caller saw failure), and the instance stays healthy.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn watchdog_abandons_a_stuck_action_and_rejects_late_commits() {
+    let _serial = serial_action_test().await;
     set_watchdog_env();
     let app = watchdog_app();
 
@@ -386,6 +540,7 @@ async fn watchdog_abandons_a_stuck_action_and_rejects_late_commits() {
 /// stays denied to actions (fail-closed), exactly as on the in-lock path.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn detached_action_ctx_db_stays_denied() {
+    let _serial = serial_action_test().await;
     set_watchdog_env();
     let app = watchdog_app();
 
@@ -414,6 +569,7 @@ async fn detached_action_ctx_db_stays_denied() {
 /// recorded in verification state either way.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_verify_probe_runs_detached_under_the_watchdog() {
+    let _serial = serial_action_test().await;
     set_watchdog_env();
     let app = watchdog_app();
 
@@ -535,6 +691,7 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
 /// whose mutation committed.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cron_tick_executes_claims_through_the_detached_flow() {
+    let _serial = serial_action_test().await;
     set_watchdog_env();
     let app = watchdog_app();
 

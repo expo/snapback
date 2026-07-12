@@ -3,7 +3,9 @@ use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::live_matcher::{
     compare_sort_keys, query_dependency_metadata, row_matches_query_filters, sort_key,
 };
-use crate::manifest::{HandlerInput, IbexModule, MutationOutput, QueryOutput, QueryPlan};
+use crate::manifest::{
+    CtxAnswerLedger, HandlerInput, IbexModule, MutationOutput, QueryOutput, QueryPlan,
+};
 use crate::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, ClientMutationIdentity, DbRead,
     LocalDatabase, MutationCommit,
@@ -82,6 +84,16 @@ pub trait IbexActionHost {
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput>;
 }
 
+/// A mutation handler's completed, still-uncommitted effect buffer. Detached
+/// action-hosted mutations execute into this owned value outside the global
+/// instance mutex; only the bounded validation/SQLite commit re-enters it.
+pub(crate) struct ExecutedIbexMutation {
+    pub writes: Vec<BufferedWrite>,
+    pub reads: Vec<CapturedReadDependency>,
+    pub result: Value,
+    pub ctx_ledger: CtxAnswerLedger,
+}
+
 impl RuntimeManager {
     pub fn detect() -> Self {
         // @ref LLP 0002#decision — local dev reports Ibex as the canonical engine.
@@ -155,14 +167,15 @@ impl RuntimeManager {
         pool: Option<&WarmVmPool>,
         identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<MutationCommit> {
-        let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true)?;
-        let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
-        // The recorded (or replayed) ctx-answer ledger rides the output
-        // (LLP 0051 D1) so LLP 0043 M2 producers and dry-run consumers have
-        // the captured environment as a defined channel.
-        let ctx_ledger = invocation.take_ctx_ledger()?;
-        let IbexHostContext { writes, reads, .. } = invocation;
-        db.commit_buffered_writes_idempotent(&input, writes, reads, result, ctx_ledger, identity)
+        let executed = execute_ibex_mutation(module, input.clone(), DbRead::Live(db), pool, None)?;
+        db.commit_buffered_writes_idempotent(
+            &input,
+            executed.writes,
+            executed.reads,
+            executed.result,
+            executed.ctx_ledger,
+            identity,
+        )
     }
 
     /// Dry-run an Ibex-module mutation (LLP 0051 D8): the handler runs for
@@ -192,14 +205,36 @@ impl RuntimeManager {
         run: CronRunMetadata,
         host: &mut dyn IbexActionHost,
         grants: Value,
+        deadline: Option<Instant>,
     ) -> SnapbackResult<Value> {
         let mut invocation = IbexHostContext::new_action(input, run, host, grants);
         // Actions always run fresh — no pool, by the DK-4 scope fence. That
         // fence is also what keeps per-invocation config grants (LLP 0036)
         // out of any reused VM: granted values ride the composed source of a
         // fresh runtime, never a pooled one.
-        run_ibex_handler_with_context(module, &mut invocation, None)
+        run_ibex_handler_with_context_until(module, &mut invocation, None, deadline)
     }
+}
+
+pub(crate) fn execute_ibex_mutation(
+    module: &IbexModule,
+    input: HandlerInput,
+    db: DbRead<'_>,
+    pool: Option<&WarmVmPool>,
+    deadline: Option<Instant>,
+) -> SnapbackResult<ExecutedIbexMutation> {
+    let mut invocation = IbexHostContext::new(db, input, true)?;
+    let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline)?;
+    // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
+    // D1) so the later commit is semantically identical to the in-lock path.
+    let ctx_ledger = invocation.take_ctx_ledger()?;
+    let IbexHostContext { writes, reads, .. } = invocation;
+    Ok(ExecutedIbexMutation {
+        writes,
+        reads,
+        result,
+        ctx_ledger,
+    })
 }
 
 /// Run an Ibex query handler against any read view — the write lane passes the
@@ -251,6 +286,8 @@ unsafe extern "C" {
         is_bytecode: c_int,
         out_value: *mut *mut c_char,
     ) -> c_int;
+    fn ex_hermes_watch_time_limit(runtime: *mut HermesRuntimeOpaque, timeout_ms: u32) -> c_int;
+    fn ex_hermes_unwatch_time_limit(runtime: *mut HermesRuntimeOpaque);
     fn ex_hermes_free_string(value: *mut c_char);
     fn ex_hermes_set_host_call(
         runtime: *mut HermesRuntimeOpaque,
@@ -302,6 +339,29 @@ impl RuntimeGuard {
 
     pub(crate) fn ptr(&self) -> *mut HermesRuntimeOpaque {
         self.0
+    }
+
+    fn watch_until(&self, deadline: Instant) -> SnapbackResult<RuntimeTimeLimit<'_>> {
+        let timeout_ms = remaining_deadline_ms(deadline)?;
+        let status = unsafe { ex_hermes_watch_time_limit(self.0, timeout_ms) };
+        if status != 0 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ACTION_TIMEOUT_SETUP_FAILED",
+                "runtime",
+                "Ibex could not arm the action execution time limit",
+            ));
+        }
+        Ok(RuntimeTimeLimit { runtime: self })
+    }
+}
+
+struct RuntimeTimeLimit<'a> {
+    runtime: &'a RuntimeGuard,
+}
+
+impl Drop for RuntimeTimeLimit<'_> {
+    fn drop(&mut self) {
+        unsafe { ex_hermes_unwatch_time_limit(self.runtime.0) };
     }
 }
 
@@ -1112,6 +1172,15 @@ fn run_ibex_handler_with_context(
     invocation: &mut IbexHostContext<'_>,
     pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<Value> {
+    run_ibex_handler_with_context_until(module, invocation, pool, None)
+}
+
+fn run_ibex_handler_with_context_until(
+    module: &IbexModule,
+    invocation: &mut IbexHostContext<'_>,
+    pool: Option<&WarmVmPool>,
+    deadline: Option<Instant>,
+) -> SnapbackResult<Value> {
     // @ref LLP 0048#architecture — the twin swaps only the handler executor:
     // storage, host-op implementation, and the logical host-call protocol are
     // this same context either way. Actions stay on Ibex (egress and secrets
@@ -1121,7 +1190,15 @@ fn run_ibex_handler_with_context(
         crate::workerd_exec::HandlerBackend::WorkerdV8
     ) && !matches!(invocation.mode, IbexInvocationMode::Action)
     {
-        return crate::workerd_exec::run_handler_workerd(module, invocation);
+        return match deadline {
+            Some(deadline) => {
+                let timeout_ms = u64::from(remaining_deadline_ms(deadline)?);
+                crate::workerd_exec::with_wall_clock_timeout_ms(timeout_ms, || {
+                    crate::workerd_exec::run_handler_workerd(module, invocation)
+                })
+            }
+            None => crate::workerd_exec::run_handler_workerd(module, invocation),
+        };
     }
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // scope fences: only queries and mutations take the warm path; actions
@@ -1137,6 +1214,9 @@ fn run_ibex_handler_with_context(
     }
 
     let runtime = RuntimeGuard::create()?;
+    let time_limit = deadline
+        .map(|deadline| runtime.watch_until(deadline))
+        .transpose()?;
     let source = invocation_source(module, invocation)?;
 
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D1: the
@@ -1154,6 +1234,9 @@ fn run_ibex_handler_with_context(
     CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
         *slot.borrow_mut() = previous_context;
     });
+    // The untrusted eval has returned (success or error); stop the monitor
+    // before inspecting fixed runtime bookkeeping or destroying the VM.
+    drop(time_limit);
 
     let output = eval_result?;
     let rejections = take_unhandled_rejections(runtime.0)?;
@@ -1161,6 +1244,22 @@ fn run_ibex_handler_with_context(
         return Err(unhandled_rejection_error(module, rejections));
     }
     parse_handler_output(module, output)
+}
+
+fn remaining_deadline_ms(deadline: Instant) -> SnapbackResult<u32> {
+    let remaining = deadline
+        .checked_duration_since(Instant::now())
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ACTION_TIMEOUT",
+                "runtime",
+                "action execution deadline elapsed before the handler could run",
+            )
+        })?;
+    let rounded_up_ms = remaining
+        .as_millis()
+        .saturating_add(u128::from(remaining.subsec_nanos() % 1_000_000 != 0));
+    Ok(rounded_up_ms.clamp(1, u128::from(u32::MAX)) as u32)
 }
 
 /// The DK-4 warm path: check out a VM keyed by the exact module source, run
@@ -1359,7 +1458,11 @@ pub(crate) fn eval(
         return Ok(output);
     }
 
-    let code = if output.contains("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED") {
+    let code = if output.contains("Javascript execution has timed out")
+        || output.contains("SNAPBACK_ACTION_TIMEOUT")
+    {
+        "SNAPBACK_ACTION_TIMEOUT"
+    } else if output.contains("SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED") {
         "SNAPBACK_HANDLER_CAPABILITY_DENIED"
     } else if output.contains("SNAPBACK_HANDLER_EXPORT_MISSING") {
         "SNAPBACK_HANDLER_EXPORT_MISSING"

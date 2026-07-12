@@ -250,6 +250,27 @@ impl LocalDatabase {
         self.reader_pool.clone()
     }
 
+    /// Capture an owned, in-memory read snapshot for detached handler
+    /// execution when the live database has no WAL reader pool (`:memory:`).
+    /// The backup runs while the caller holds the short instance lock; handler
+    /// JavaScript runs only after this owned copy has been returned.
+    ///
+    /// @ref LLP 0028#execution-the-action-class — ENG-24340 isolates nested
+    /// mutation execution from the live in-memory write connection.
+    pub(crate) fn detached_read_snapshot(&self) -> SnapbackResult<Self> {
+        let mut conn = Connection::open_in_memory()?;
+        {
+            let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
+            backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
+        }
+        Ok(Self {
+            conn,
+            path: None,
+            schema: self.schema.clone(),
+            reader_pool: None,
+        })
+    }
+
     pub fn schema(&self) -> &SchemaManifest {
         &self.schema
     }

@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-12 (ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-12 (ENG-24340: nested Ibex mutations execute against an isolated read view outside the instance mutex, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -362,32 +362,43 @@ demand/read-through trigger runs an action; the action fetches; the action calls
 mutations.* This keeps the deterministic mutation/commit model intact and reuses
 the realtime machinery rather than inventing a second write path.
 
-**As built (ENG-23324, 2026-07-07): detached execution and the watchdog.**
+**As built (ENG-23324 / ENG-24340, revised 2026-07-12): detached execution and
+the watchdog.**
 Server-triggered Ibex actions no longer run under the global write mutex.
 The invocation is *staged* under the lock (module source, per-invocation
 config grants, and runtime handle cloned out), then executed on a dedicated
-thread with no instance lock held; every host call — `ctx.runMutation`, and
-any raw `db.*` host call arriving in action mode — reacquires the mutex for
-just that one call. A hung outbound fetch therefore stalls only its own
-action. The run is bounded by a coarse wall-clock watchdog
+thread with no instance lock held. Raw `db.*` host calls arriving in action
+mode reacquire the mutex for just that one call. An Ibex `ctx.runMutation`
+handler instead executes outside the mutex against a pinned WAL read view (or
+an owned SQLite snapshot for an in-memory instance), buffering its writes and
+captured reads. Only commit-time validation, the SQLite commit, permission
+epoch advancement, and realtime fan-out reacquire the mutex. A hung outbound
+fetch or nested mutation handler therefore stalls only its own action. The run
+is bounded by a coarse wall-clock watchdog
 (`SNAPBACK_ACTION_TIMEOUT_MS`, default 30s; `action_wall_clock_timeout`
 reports **Enforced** in the capability manifest, while query/mutation
 `wall_clock_timeout` stays Missing). On timeout the caller receives
-`SNAPBACK_ACTION_TIMEOUT` and the run is abandoned — the abandonment flag
-flips *while holding the instance mutex*, so a host call either committed
-before the flag flipped or is rejected; no commit can land after the caller
-was told the action failed. Mutations committed before the timeout stand,
-which is exactly the no-action-level-transaction contract below. The VM
-thread cannot be killed mid-eval; it runs out and its result is discarded.
+`SNAPBACK_ACTION_TIMEOUT` and the run is abandoned. Timeout and the bounded
+commit window share an independent commit gate: a host call either commits
+before abandonment wins that gate, or its buffered effect is discarded. The
+watchdog never waits for an unbounded instance lock, and no commit can land
+after the caller was told the action failed. Mutations committed before the
+timeout stand, which is exactly the no-action-level-transaction contract
+below. The outer action VM and every nested mutation VM are armed to the same
+remaining deadline through Hermes' interruptible-eval time-limit monitor.
+CPU-bound JavaScript is asynchronously broken, its fresh VM is destroyed, and
+its OS worker exits before the timeout result is published; repeated hostile
+loops therefore do not accumulate live CPU workers. The outer watchdog keeps a
+short, bounded termination grace as a fail-safe for native host work.
 Cron follows the same structure: a tick *claims* due runs under the lock,
 executes each claim detached (same watchdog), and *finishes* each claim back
 under the lock — the claim-to-finish window now spans the real run duration,
 and claims are stateful, so concurrent tickers (scheduler, admin tick,
 manual run) cannot double-claim a NoOverlap job. Host-plan actions (bounded
-mutation steps, no egress) and the config-verify probe path still execute
-under the lock. `POST /action/{name}`, the admin function runner, the cron
-scheduler, `/_snapback/api/cron/tick`, and manual cron runs all route
-through the detached flow.
+mutation steps, no egress) still execute under the lock. The config-verify
+probe uses the same detached/watchdogged Ibex path. `POST /action/{name}`, the
+admin function runner, the cron scheduler, `/_snapback/api/cron/tick`, and
+manual cron runs all route through the detached flow.
 
 Actions should not receive the mutation surface of `ctx.db`. If an action needs
 durable state before deciding what to write, it can call a query or call a

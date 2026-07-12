@@ -8,13 +8,13 @@ use crate::live_wire::{
     LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
-    AppActionStage, ConfigVerifyStage, EphemeralApi, FunctionRunResult, InspectState,
-    LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction,
-    StagedAppAction, StagedConfigVerify,
+    AppActionStage, ConfigVerifyStage, DetachedMutationRead, EphemeralApi, FunctionRunResult,
+    InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
+    StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
 };
 use crate::manifest::{
-    CtxAnswerLedger, FunctionManifest, HandlerInput, MutationOutput, MutationRequest,
-    SchemaManifest, SeedData,
+    CtxAnswerLedger, FunctionManifest, FunctionRuntime, HandlerInput, MutationOutput,
+    MutationRequest, SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
 use axum::extract::rejection::{BytesRejection, JsonRejection};
@@ -32,7 +32,8 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex as StdMutex;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -40,6 +41,31 @@ use tokio::time::{Duration, interval};
 use uuid::Uuid;
 
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
+
+static DETACHED_ACTION_WORKERS: AtomicUsize = AtomicUsize::new(0);
+
+/// Diagnostic/test visibility for the bounded-action worker invariant. A
+/// timed-out action must interrupt its VM and return this count to baseline;
+/// otherwise repeated hostile handlers would accumulate live CPU threads.
+#[doc(hidden)]
+pub fn detached_action_worker_count() -> usize {
+    DETACHED_ACTION_WORKERS.load(Ordering::SeqCst)
+}
+
+struct DetachedActionWorkerGuard;
+
+impl DetachedActionWorkerGuard {
+    fn enter() -> Self {
+        DETACHED_ACTION_WORKERS.fetch_add(1, Ordering::SeqCst);
+        Self
+    }
+}
+
+impl Drop for DetachedActionWorkerGuard {
+    fn drop(&mut self) {
+        DETACHED_ACTION_WORKERS.fetch_sub(1, Ordering::SeqCst);
+    }
+}
 
 /// Run write-lane work against the instance without blocking a tokio worker.
 ///
@@ -89,6 +115,7 @@ where
 /// the caller gets `SNAPBACK_ACTION_TIMEOUT` after this long even when the
 /// action's VM thread is stuck inside a hung outbound fetch.
 const ACTION_WATCHDOG_DEFAULT_MS: u64 = 30_000;
+const ACTION_INTERRUPT_GRACE_MS: u64 = 500;
 
 fn action_watchdog_timeout_ms() -> u64 {
     std::env::var("SNAPBACK_ACTION_TIMEOUT_MS")
@@ -98,19 +125,21 @@ fn action_watchdog_timeout_ms() -> u64 {
         .unwrap_or(ACTION_WATCHDOG_DEFAULT_MS)
 }
 
-/// The action host for detached (off-mutex) Ibex action runs: each host call
-/// reacquires the global instance mutex for just that one call, and checks
-/// the watchdog's abandonment flag *after* acquiring it. The watchdog flips
-/// the flag while holding the same mutex, so a timeout has an unambiguous
-/// linearization point: a `ctx.runMutation` either committed before the flag
-/// flipped, or is rejected — never "commits after the caller was told the
-/// action failed".
+/// The action host for detached (off-mutex) Ibex action runs. Read host calls
+/// reacquire the global instance mutex for one call. Ibex mutations execute
+/// into an owned effect buffer against an isolated read view and reacquire the
+/// mutex only for their bounded commit window. An independent gate linearizes
+/// that commit with watchdog abandonment, so a mutation either commits before
+/// abandonment or is discarded — never after the caller was told the action
+/// failed.
 ///
 /// @ref LLP 0028#execution-the-action-class — ENG-23324: actions no longer
 /// hold the global write mutex for the duration of the run.
 struct DetachedActionHost {
     state: SharedSnapback,
     abandoned: Arc<AtomicBool>,
+    commit_gate: Arc<StdMutex<()>>,
+    deadline: Instant,
 }
 
 impl DetachedActionHost {
@@ -132,17 +161,77 @@ impl DetachedActionHost {
 impl IbexActionHost for DetachedActionHost {
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
         let mut snapback = self.lock_live("runMutation")?;
-        snapback.invoke_mutation(name, input)
+        match snapback.stage_nested_mutation(name, &input)? {
+            StagedNestedMutation::InLock => {
+                let _commit = self
+                    .commit_gate
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if self.abandoned.load(Ordering::SeqCst) {
+                    return Err(action_abandoned("runMutation"));
+                }
+                snapback.invoke_mutation(name, input)
+            }
+            StagedNestedMutation::Detached(staged) => {
+                drop(snapback);
+                let module = match &staged.function.runtime {
+                    FunctionRuntime::IbexModule(module) => module,
+                    _ => unreachable!("detached nested mutation must be an Ibex module"),
+                };
+                let executed = match staged.read {
+                    DetachedMutationRead::Lane(read) => {
+                        read.execute_detached_ibex_mutation(module, input.clone(), self.deadline)?
+                    }
+                    DetachedMutationRead::Snapshot(db) => crate::runtime::execute_ibex_mutation(
+                        module,
+                        input.clone(),
+                        crate::storage::DbRead::Live(db.as_ref()),
+                        None,
+                        Some(self.deadline),
+                    )?,
+                };
+
+                // Acquire the instance before the independent commit gate. If
+                // another writer is stuck, the watchdog can still take the
+                // gate, mark abandonment, and answer; this host call later
+                // observes the flag and discards its buffer. If this call gets
+                // the gate first, the watchdog waits only for the bounded
+                // validation/SQLite commit (ENG-24340).
+                let mut snapback = self.state.clone().blocking_lock_owned();
+                let _commit = self
+                    .commit_gate
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if self.abandoned.load(Ordering::SeqCst) {
+                    return Err(action_abandoned("runMutation"));
+                }
+                snapback.commit_detached_ibex_mutation(
+                    name,
+                    input,
+                    &staged.function,
+                    staged.epoch_scopes,
+                    executed,
+                )
+            }
+        }
     }
+}
+
+fn action_abandoned(op: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ACTION_TIMEOUT",
+        "runtime",
+        format!("ctx.{op} rejected: the action exceeded its wall-clock watchdog and was abandoned"),
+    )
 }
 
 /// Run a staged Ibex action on a detached thread under a wall-clock watchdog.
 ///
-/// The action holds no instance lock while it runs — its host calls reacquire
-/// the mutex per call — so a hung outbound fetch stalls only this action, not
-/// writes, cron, or in-memory queries. On timeout the run is *abandoned*: the
-/// VM thread cannot be killed mid-eval, so it is left to run out with every
-/// further host call rejected, and its eventual result is discarded.
+/// The action holds no instance lock while it runs; nested Ibex handlers also
+/// execute outside it, so a hung fetch or mutation stalls only this action,
+/// not writes, cron, or in-memory queries. On timeout Hermes asynchronously
+/// breaks the eval and the fresh runtime is destroyed. The abandonment gate
+/// rejects any host call that races with that teardown.
 /// Mutations the action committed before the timeout remain committed —
 /// actions are not transactions (LLP 0028).
 async fn run_detached_ibex_action(
@@ -152,22 +241,51 @@ async fn run_detached_ibex_action(
     metadata: CronRunMetadata,
 ) -> SnapbackResult<Value> {
     let timeout_ms = action_watchdog_timeout_ms();
+    let started = Instant::now();
+    let deadline = started + Duration::from_millis(timeout_ms);
+    // Give Hermes' async-break monitor a small teardown margin before the
+    // public watchdog fires. Normal timeout responses therefore come only
+    // after the runtime and its OS worker have been destroyed; the outer
+    // timer remains the fail-safe for a native host call that cannot unwind.
+    let interrupt_cushion_ms = (timeout_ms / 10).clamp(1, 50);
+    let execution_deadline = deadline
+        .checked_sub(Duration::from_millis(interrupt_cushion_ms))
+        .unwrap_or(deadline);
     let abandoned = Arc::new(AtomicBool::new(false));
-    let (sender, receiver) = tokio::sync::oneshot::channel();
+    let commit_gate = Arc::new(StdMutex::new(()));
+    let (sender, mut receiver) = tokio::sync::oneshot::channel();
     let spawned = std::thread::Builder::new()
         .name("snapback-action".to_owned())
         .spawn({
             let state = state.clone();
             let abandoned = abandoned.clone();
+            let commit_gate = commit_gate.clone();
             move || {
-                let crate::local::DetachedIbexAction {
-                    module,
-                    grants,
-                    runtime,
-                } = *action;
-                let mut host = DetachedActionHost { state, abandoned };
-                let _ = sender
-                    .send(runtime.invoke_ibex_action(&module, input, metadata, &mut host, grants));
+                let result = {
+                    let _worker = DetachedActionWorkerGuard::enter();
+                    let crate::local::DetachedIbexAction {
+                        module,
+                        grants,
+                        runtime,
+                    } = *action;
+                    let mut host = DetachedActionHost {
+                        state,
+                        abandoned,
+                        commit_gate,
+                        deadline: execution_deadline,
+                    };
+                    runtime.invoke_ibex_action(
+                        &module,
+                        input,
+                        metadata,
+                        &mut host,
+                        grants,
+                        Some(execution_deadline),
+                    )
+                };
+                // Runtime/host/worker guards are gone before publishing the
+                // result, so a returned timeout proves no CPU worker leaked.
+                let _ = sender.send(result);
             }
         });
     if let Err(error) = spawned {
@@ -178,7 +296,7 @@ async fn run_detached_ibex_action(
         )
         .with_details(json!({ "error": error.to_string() })));
     }
-    match tokio::time::timeout(Duration::from_millis(timeout_ms), receiver).await {
+    match tokio::time::timeout(Duration::from_millis(timeout_ms), &mut receiver).await {
         Ok(Ok(result)) => result,
         Ok(Err(_closed)) => Err(SnapbackError::error(
             "SNAPBACK_ACTION_THREAD_FAILED",
@@ -186,12 +304,39 @@ async fn run_detached_ibex_action(
             "action execution thread terminated without reporting a result",
         )),
         Err(_elapsed) => {
-            // Flip the abandonment flag while holding the instance mutex: a
-            // host call already past the flag check finishes its commit first
-            // (it holds the mutex), and every later call is rejected.
-            let guard = state.lock().await;
-            abandoned.store(true, Ordering::SeqCst);
-            drop(guard);
+            // Linearize timeout against the bounded commit gate, independent
+            // of the global instance lock. A nested handler can be permanently
+            // hung, so waiting for that lock here would defeat the watchdog.
+            let gate = commit_gate.clone();
+            let abandoned_for_timeout = abandoned.clone();
+            tokio::task::spawn_blocking(move || {
+                let _gate = gate
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                abandoned_for_timeout.store(true, Ordering::SeqCst);
+            })
+            .await
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ACTION_THREAD_FAILED",
+                    "runtime",
+                    "action watchdog commit gate task failed",
+                )
+                .with_details(json!({ "error": error.to_string() }))
+            })?;
+
+            // Hermes' own async-break deadline should already be unwinding
+            // the VM. Give that bounded termination path a short grace window
+            // before publishing the watchdog response. The action thread
+            // sends only after destroying its runtime and decrementing the
+            // worker counter, so success here proves there is no live CPU
+            // worker left behind by this timeout.
+            let worker_terminated = tokio::time::timeout(
+                Duration::from_millis(ACTION_INTERRUPT_GRACE_MS),
+                &mut receiver,
+            )
+            .await
+            .is_ok();
             Err(SnapbackError::error(
                 "SNAPBACK_ACTION_TIMEOUT",
                 "runtime",
@@ -200,7 +345,10 @@ async fn run_detached_ibex_action(
                      mutations it committed before the timeout remain committed"
                 ),
             )
-            .with_details(json!({ "timeoutMs": timeout_ms })))
+            .with_details(json!({
+                "timeoutMs": timeout_ms,
+                "workerTerminated": worker_terminated,
+            })))
         }
     }
 }
