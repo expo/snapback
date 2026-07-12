@@ -617,9 +617,10 @@ fn decoder_fidelity_agrees_on_both_engines_and_with_the_spec() {
     }
 }
 
-/// ENG-24375: forgiving-base64 padding validation and streaming UTF-8 state
-/// are handler-visible allowlist semantics, so both engines must match the
-/// native/WHATWG expected values rather than merely agree with each other.
+/// ENG-24375: forgiving-base64 validation, the complete UTF-8 label table and
+/// Web IDL conversion, and streaming UTF-8 state are handler-visible allowlist
+/// semantics. Both engines must match the native/WHATWG expected values rather
+/// than merely agree with each other.
 #[test]
 fn encoding_boundaries_agree_on_both_engines_and_with_the_spec() {
     require_workerd!();
@@ -639,9 +640,21 @@ fn encoding_boundaries_agree_on_both_engines_and_with_the_spec() {
             "truncatedPaddingRejected": true
         },
         "labels": {
+            "utf8Hyphen": true,
+            "utf8Compact": true,
+            "unicode11Hyphen": true,
+            "unicode11Compact": true,
+            "unicode20Compact": true,
+            "xUnicode20Compact": true,
             "asciiWhitespace": true,
             "aliasAsciiWhitespace": true,
-            "internalSpaceRejected": true
+            "internalSpaceRejected": true,
+            "verticalTabRejected": true,
+            "nonBreakingSpaceRejected": true,
+            "nonUtf8Rejected": true,
+            "symbolTypeError": true,
+            "constructorIsWrapped": true,
+            "constructorEscapeRejected": true
         },
         "streaming": {
             "twoByte": ["", "¢", ""],

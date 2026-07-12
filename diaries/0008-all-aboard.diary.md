@@ -2064,3 +2064,14 @@ React/Convex or React/Supabase app would care about—time from receiving the ap
 to useful UI—not time from an implementation-chosen point inside its module
 graph. The static import can still be the right optimization; it simply no
 longer gets performance credit by moving work across the measurement boundary.
+
+A second review caught another optimistic boundary in the React control arm:
+calling `requestAnimationFrame` next to concurrent `root.render()` did not prove
+that React had committed a useful board first. `App` now emits its witness from
+a layout effect only after the home screen has both station identity and a hero
+departure in the committed tree. The bootstrap records the following animation
+frame only after crossing a complete rendering opportunity, and does not begin
+health/provision/live attachment until that boundary resolves. The acceptance
+timing includes the commit timestamp and asserts commit → frame → backend
+order, so an empty or merely scheduled React
+root can no longer satisfy the board-first claim.

@@ -38,12 +38,33 @@ const disposedError = () => {
   return error;
 };
 
+const disposalAggregate = (errors) => {
+  const error = new AggregateError(
+    errors,
+    'Render-first Snapback Contract teardown failed after completing cleanup.',
+  );
+  error.code = 'SNAPBACK_CONTRACT_SURFACE_DISPOSAL_FAILED';
+  return error;
+};
+
+const collectDisposalError = (errors, error) => {
+  if (
+    error instanceof AggregateError &&
+    error.code === 'SNAPBACK_CONTRACT_SURFACE_DISPOSAL_FAILED'
+  ) {
+    errors.push(...error.errors);
+  } else {
+    errors.push(error);
+  }
+};
+
 export function createDeferredContractLinks({ queries = [], mutations = [], ephemerals = [] } = {}) {
   let realLinks = null;
   let disposed = false;
   let delivered = false;
   const firstDeliveryCallbacks = new Set();
   const waiters = new Set();
+  const forwardingSubscriptions = new Set();
 
   const waitForReal = () => {
     if (disposed) return { promise: Promise.reject(disposedError()), cancel() {} };
@@ -83,6 +104,36 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
 
   const whenReal = () => waitForReal().promise;
 
+  const forwardSubscription = (subscribe) => {
+    const pending = waitForReal();
+    let inner = null;
+    const forwarding = {
+      disposed: false,
+      dispose() {
+        if (forwarding.disposed) return;
+        forwarding.disposed = true;
+        pending.cancel();
+        forwardingSubscriptions.delete(forwarding);
+        const active = inner;
+        inner = null;
+        active?.dispose();
+      },
+    };
+    forwardingSubscriptions.add(forwarding);
+    void pending.promise.then((real) => {
+      if (!real || forwarding.disposed || disposed) return;
+      const attached = subscribe(real);
+      // A real subscription may deliver synchronously. If that callback
+      // disposes this deferred surface, the registry sees `inner === null`;
+      // close the just-returned handle here instead of retaining it forever.
+      if (forwarding.disposed || disposed) attached?.dispose();
+      else inner = attached;
+    }).catch(() => {
+      forwarding.dispose();
+    });
+    return forwarding;
+  };
+
   const assertActive = () => {
     if (disposed) throw disposedError();
   };
@@ -113,27 +164,20 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
         key: `deferred:${name}`,
         read: () => [...lastRows],
         subscribe(notify) {
-          let subscriptionDisposed = false;
-          let inner = null;
-          const pending = waitForReal();
-          void pending.promise.then((real) => {
-            if (!real || subscriptionDisposed || disposed) return;
+          const forwarding = forwardSubscription((real) => {
             const handle = real[name](args);
-            inner = handle.subscribe((rows) => {
+            return handle.subscribe((rows) => {
               lastRows = rows;
               markDelivered();
               notify(rows);
             });
-          }).catch(() => {});
+          });
           return {
             get current() {
               return lastRows;
             },
             dispose() {
-              subscriptionDisposed = true;
-              pending.cancel();
-              inner?.dispose();
-              inner = null;
+              forwarding.dispose();
             },
           };
         },
@@ -151,19 +195,11 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
         name,
         key: `deferred:${name}`,
         subscribe(observer) {
-          let subscriptionDisposed = false;
-          let inner = null;
-          const pending = waitForReal();
-          void pending.promise.then((real) => {
-            if (!real || subscriptionDisposed || disposed) return;
-            inner = real[name](args).subscribe(observer);
-          }).catch(() => {});
+          const forwarding = forwardSubscription((real) =>
+            real[name](args).subscribe(observer));
           return {
             dispose() {
-              subscriptionDisposed = true;
-              pending.cancel();
-              inner?.dispose();
-              inner = null;
+              forwarding.dispose();
             },
           };
         },
@@ -210,11 +246,22 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
     dispose() {
       if (disposed) return;
       disposed = true;
+      const disposalErrors = [];
+      for (const subscription of [...forwardingSubscriptions]) {
+        try {
+          subscription.dispose();
+        } catch (error) {
+          // Continue deterministically in insertion order: one misbehaving
+          // inner handle cannot retain siblings or strand the waiters below.
+          disposalErrors.push(error);
+        }
+      }
       const error = disposedError();
       const pending = [...waiters];
       waiters.clear();
       for (const waiter of pending) waiter.reject(error);
       firstDeliveryCallbacks.clear();
+      if (disposalErrors.length > 0) throw disposalAggregate(disposalErrors);
     },
   };
 }
@@ -353,11 +400,25 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      cancelRetrySleep?.();
-      deferred.dispose();
-      realSurface?.dispose();
+      const disposalErrors = [];
+      try {
+        cancelRetrySleep?.();
+      } catch (error) {
+        collectDisposalError(disposalErrors, error);
+      }
+      try {
+        deferred.dispose();
+      } catch (error) {
+        collectDisposalError(disposalErrors, error);
+      }
+      try {
+        realSurface?.dispose();
+      } catch (error) {
+        collectDisposalError(disposalErrors, error);
+      }
       realSurface = null;
       rejectAttached(disposedError());
+      if (disposalErrors.length > 0) throw disposalAggregate(disposalErrors);
     },
   };
 }

@@ -72,7 +72,7 @@ const makeClient = ({ failures = 0 } = {}) => {
 
 // Mock Exact runtime: provider-backed query handles subscribe through the
 // boundary so a boundary.write (the live push path) reaches subscribers.
-const makeRuntime = () => {
+const makeRuntime = ({ subscriptionDisposeError = null } = {}) => {
   const cells = new Map(); // key -> rows
   const observers = new Map(); // key -> Set<notify>
   const boundary = {
@@ -103,7 +103,10 @@ const makeRuntime = () => {
           observers.get(name).add(notify);
           return {
             current: cells.get(name) ?? [],
-            dispose: () => observers.get(name).delete(notify),
+            dispose: () => {
+              observers.get(name).delete(notify);
+              if (subscriptionDisposeError) throw subscriptionDisposeError;
+            },
           };
         },
       };
@@ -417,6 +420,135 @@ const makeRuntime = () => {
   await tick();
   assert.equal(realSubscriptions, 0, 'cancelled mounts must not reappear when the backend attaches');
   deferred.dispose();
+}
+
+// --- low-level disposal releases forwarding subscriptions already attached ---
+{
+  const deferred = createDeferredContractLinks({ queries: ['q'], ephemerals: ['presence'] });
+  let queryDisposals = 0;
+  let ephemeralDisposals = 0;
+  const querySubscription = deferred.links.q({}).subscribe(() => {});
+  const ephemeralSubscription = deferred.links.presence({}).subscribe(() => {});
+  deferred.attach({
+    q: () => ({
+      subscribe() {
+        return { current: [], dispose() { queryDisposals += 1; } };
+      },
+    }),
+    presence: () => ({
+      subscribe() {
+        return { dispose() { ephemeralDisposals += 1; } };
+      },
+    }),
+  });
+  await tick();
+  deferred.dispose();
+  assert.equal(queryDisposals, 1, 'deferred disposal closes an attached query forwarder');
+  assert.equal(ephemeralDisposals, 1, 'deferred disposal closes an attached ephemeral forwarder');
+  querySubscription.dispose();
+  ephemeralSubscription.dispose();
+  assert.equal(queryDisposals, 1, 'later query disposal is idempotent');
+  assert.equal(ephemeralDisposals, 1, 'later ephemeral disposal is idempotent');
+}
+
+// A real handle may synchronously deliver before subscribe() returns. The
+// observer can dispose the outer primitive in that window; the returned inner
+// handle still has to be closed once it exists.
+{
+  const deferred = createDeferredContractLinks({ queries: ['q'] });
+  let innerDisposals = 0;
+  deferred.links.q({}).subscribe(() => deferred.dispose());
+  deferred.attach({
+    q: () => ({
+      subscribe(observer) {
+        observer([{ id: 'sync' }]);
+        return { current: [], dispose() { innerDisposals += 1; } };
+      },
+    }),
+  });
+  await tick();
+  assert.equal(innerDisposals, 1, 'reentrant disposal closes the synchronously-created inner handle');
+}
+
+// A broken inner disposer cannot abort the teardown fan-out and retain later
+// subscriptions. Cleanup completes, then reports every failure in stable
+// subscription order.
+{
+  const deferred = createDeferredContractLinks({ queries: ['q'] });
+  let subscriptions = 0;
+  let firstDisposals = 0;
+  let secondDisposals = 0;
+  let thirdDisposals = 0;
+  deferred.links.q({ id: 'first' }).subscribe(() => {});
+  deferred.links.q({ id: 'second' }).subscribe(() => {});
+  deferred.links.q({ id: 'third' }).subscribe(() => {});
+  deferred.attach({
+    q: () => ({
+      subscribe() {
+        subscriptions += 1;
+        const ordinal = subscriptions;
+        return {
+          current: [],
+          dispose() {
+            if (ordinal === 1) {
+              firstDisposals += 1;
+              throw new Error('fixture teardown failure 1');
+            }
+            if (ordinal === 2) {
+              secondDisposals += 1;
+              throw new Error('fixture teardown failure 2');
+            }
+            thirdDisposals += 1;
+          },
+        };
+      },
+    }),
+  });
+  await tick();
+  let disposalError = null;
+  try {
+    deferred.dispose();
+  } catch (error) {
+    disposalError = error;
+  }
+  assert(disposalError instanceof AggregateError);
+  assert.equal(disposalError.code, 'SNAPBACK_CONTRACT_SURFACE_DISPOSAL_FAILED');
+  assert.deepEqual(
+    disposalError.errors.map((error) => error.message),
+    ['fixture teardown failure 1', 'fixture teardown failure 2'],
+  );
+  assert.equal(firstDisposals, 1, 'the throwing disposer is attempted once');
+  assert.equal(secondDisposals, 1, 'each throwing disposer is attempted once');
+  assert.equal(thirdDisposals, 1, 'throwing siblings cannot abort later disposal');
+  assert.equal(deferred.pendingAttachCount, 0);
+}
+
+// High-level disposal must still release the attached Snapback surface when a
+// deferred provider subscription throws, then expose the deterministic error.
+{
+  const client = makeClient();
+  const providerError = new Error('provider teardown failed');
+  const handle = createRenderFirstSnapbackContractSurface({
+    runtime: makeRuntime({ subscriptionDisposeError: providerError }),
+    client,
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha'],
+  });
+  handle.links.alpha({}).subscribe(() => {});
+  await handle.attached;
+  await tick();
+  let disposalError = null;
+  try {
+    handle.dispose();
+  } catch (error) {
+    disposalError = error;
+  }
+  assert(disposalError instanceof AggregateError);
+  assert.equal(disposalError.code, 'SNAPBACK_CONTRACT_SURFACE_DISPOSAL_FAILED');
+  assert.deepEqual(disposalError.errors, [providerError]);
+  assert.equal(client.state.handles.every((inner) => inner.disposed), true);
+  assert.equal(handle.surface(), null);
 }
 
 // --- a throwing first-delivery observer cannot starve the query observer ---

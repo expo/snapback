@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -80,6 +88,36 @@ try {
     assert.equal(resolved.capabilities[capability], true, capability);
   }
 
+  // pnpm/Bun-style package-store links remain valid when the package's real
+  // identity stays inside this install's node_modules tree.
+  const storeTarget = join(root, 'demos', 'store-link', 'surfaces', 'contract');
+  writeCapableInstall(storeTarget, '0.1.2-store');
+  const storeLogicalContract = join(storeTarget, 'node_modules', '@exact', 'contract');
+  const storePhysicalContract = join(
+    storeTarget,
+    'node_modules',
+    '.pnpm',
+    '@exact+contract@0.1.2-store',
+    'node_modules',
+    '@exact',
+    'contract',
+  );
+  mkdirSync(join(storePhysicalContract, '..'), { recursive: true });
+  renameSync(storeLogicalContract, storePhysicalContract);
+  symlinkSync(
+    storePhysicalContract,
+    storeLogicalContract,
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+  const storeLinked = resolveExact({
+    repoRoot: root,
+    targetInstallRoot: storeTarget,
+    logger: null,
+  });
+  assert.equal(storeLinked.sourceKind, 'package');
+  assert.equal(storeLinked.packageRoot, storeLogicalContract);
+  assert.equal(storeLinked.version, '0.1.2-store');
+
   // A valid install elsewhere in the repo cannot rescue a missing target.
   const missingTarget = join(root, 'demos', 'missing', 'surfaces', 'contract');
   const missing = resolveExact({
@@ -113,6 +151,95 @@ try {
   assert.deepEqual(stale.diagnostics[0].details.searched, [`package:${staleTarget}`]);
   assert.match(stale.diagnostics[0].details.probed[0], new RegExp(staleTarget));
   assert.match(stale.diagnostics[0].details.probed[0], /runtime/);
+
+  // A package export is a root-relative `./` URL. A traversing target must
+  // not turn an unrelated existing file into compiler capability evidence.
+  const traversalTarget = join(root, 'demos', 'traversal', 'surfaces', 'contract');
+  writeCapableInstall(traversalTarget, '0.1.2-traversal');
+  const traversalContract = join(traversalTarget, 'node_modules', '@exact', 'contract');
+  const traversalManifest = JSON.parse(
+    readFileSync(join(traversalContract, 'package.json'), 'utf8'),
+  );
+  traversalManifest.exports['./compiler'].import = './../../escape-compiler.ts';
+  writeFileSync(join(traversalContract, 'package.json'), JSON.stringify(traversalManifest));
+  writeFileSync(
+    join(traversalTarget, 'node_modules', 'escape-compiler.ts'),
+    'export const escaped = true;\n',
+  );
+  const traversal = resolveExact({
+    repoRoot: root,
+    targetInstallRoot: traversalTarget,
+    logger: null,
+  });
+  assert.equal(traversal.sourceKind, 'missing');
+  assert.match(traversal.diagnostics[0].details.probed[0], /contractCompiler/);
+
+  // The same containment check is identity-based after lookup: an innocuous
+  // in-package target spelling cannot escape through a symlinked directory.
+  const symlinkTarget = join(root, 'demos', 'symlink', 'surfaces', 'contract');
+  writeCapableInstall(symlinkTarget, '0.1.2-symlink');
+  const symlinkContract = join(symlinkTarget, 'node_modules', '@exact', 'contract');
+  const externalCompiler = join(workspace, 'external-compiler');
+  mkdirSync(externalCompiler, { recursive: true });
+  writeFileSync(join(externalCompiler, 'index.ts'), 'export const escaped = true;\n');
+  rmSync(join(symlinkContract, 'src', 'compiler'), { recursive: true, force: true });
+  symlinkSync(
+    externalCompiler,
+    join(symlinkContract, 'src', 'compiler'),
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+  const symlinked = resolveExact({
+    repoRoot: root,
+    targetInstallRoot: symlinkTarget,
+    logger: null,
+  });
+  assert.equal(symlinked.sourceKind, 'missing');
+  assert.match(symlinked.diagnostics[0].details.probed[0], /contractCompiler/);
+
+  // The package root itself is also part of the install identity. A package
+  // symlink cannot make an Exact checkout outside this install's node_modules
+  // look like a lock-owned dependency.
+  const packageLinkTarget = join(root, 'demos', 'package-link', 'surfaces', 'contract');
+  const packageLinkParent = join(packageLinkTarget, 'node_modules', '@exact');
+  mkdirSync(packageLinkParent, { recursive: true });
+  symlinkSync(
+    join(foreignInstallRoot, 'node_modules', '@exact', 'contract'),
+    join(packageLinkParent, 'contract'),
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+  const packageLinked = resolveExact({
+    repoRoot: root,
+    targetInstallRoot: packageLinkTarget,
+    logger: null,
+  });
+  assert.equal(packageLinked.sourceKind, 'missing');
+  assert.match(packageLinked.diagnostics[0].details.probed[0], /contractCompiler/);
+
+  // Manifest evidence is subject to the same canonical package boundary as
+  // executable targets. A package.json symlink cannot import metadata from a
+  // foreign checkout while leaving target files locally shaped.
+  if (process.platform !== 'win32') {
+    const manifestLinkTarget = join(root, 'demos', 'manifest-link', 'surfaces', 'contract');
+    writeCapableInstall(manifestLinkTarget, '0.1.2-manifest-link');
+    const manifestLinkContract = join(
+      manifestLinkTarget,
+      'node_modules',
+      '@exact',
+      'contract',
+    );
+    const manifestPath = join(manifestLinkContract, 'package.json');
+    const externalManifest = join(workspace, 'external-package.json');
+    writeFileSync(externalManifest, readFileSync(manifestPath));
+    rmSync(manifestPath);
+    symlinkSync(externalManifest, manifestPath, 'file');
+    const manifestLinked = resolveExact({
+      repoRoot: root,
+      targetInstallRoot: manifestLinkTarget,
+      logger: null,
+    });
+    assert.equal(manifestLinked.sourceKind, 'missing');
+    assert.match(manifestLinked.diagnostics[0].details.probed[0], /contractCompiler/);
+  }
 
   const undeclared = resolveExact({ repoRoot: root, logger: null });
   assert.equal(undeclared.sourceKind, 'missing');

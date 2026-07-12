@@ -9,6 +9,12 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import {
+  isRealPathWithin,
+  resolveContainedPackagePath,
+  selectPackageExportTarget,
+} from '../../packages/snapback-contract/package-export-path.mjs';
+
 const CONTRACT = 'packages/exact-contract/src';
 const DEVTOOLS = 'packages/exact-devtools/src';
 
@@ -147,7 +153,8 @@ function missingResult({ target, required, overrides, packageCandidates, explici
 
 function installedPackageCandidate(installRoot) {
   const packageRoot = join(installRoot, 'node_modules', '@exact', 'contract');
-  const manifest = readJson(join(packageRoot, 'package.json'));
+  const manifestPath = resolveContainedPackagePath(packageRoot, './package.json');
+  const manifest = manifestPath ? readJson(manifestPath) : null;
   return {
     kind: 'package',
     installRoot,
@@ -157,23 +164,35 @@ function installedPackageCandidate(installRoot) {
 }
 
 function probePackageCapabilities(packageRoot, installRoot) {
-  const runtimeDataProvider = join(packageRoot, 'src', 'runtime', 'data-provider.ts');
-  const channels = join(packageRoot, 'src', 'channels.ts');
+  const nodeModulesRoot = join(installRoot, 'node_modules');
+  if (!isRealPathWithin(nodeModulesRoot, packageRoot)) return {};
+  const manifestPath = resolveContainedPackagePath(packageRoot, './package.json');
+  const manifest = manifestPath ? readJson(manifestPath) : null;
+  if (!['@exact/contract', '@ccheever/exact-contract'].includes(manifest?.name)) {
+    return {};
+  }
+  const runtimeDataProvider = resolveContainedPackagePath(
+    packageRoot,
+    './src/runtime/data-provider.ts',
+  );
+  const channels = resolveContainedPackagePath(packageRoot, './src/channels.ts');
+  const devtoolsRoot = join(installRoot, 'node_modules', '@exact', 'devtools');
+  const agentServer = isRealPathWithin(nodeModulesRoot, devtoolsRoot)
+    ? resolveContainedPackagePath(devtoolsRoot, './src/agent/server.ts')
+    : null;
   return {
-    contractCompiler: packageExportExists(packageRoot, './compiler'),
-    runtime: packageExportExists(packageRoot, './runtime'),
-    dataBinding: existsSync(runtimeDataProvider),
-    agentApi: existsSync(join(installRoot, 'node_modules', '@exact', 'devtools', 'src', 'agent', 'server.ts')),
+    contractCompiler: packageExportExists(packageRoot, manifest, './compiler'),
+    runtime: packageExportExists(packageRoot, manifest, './runtime'),
+    dataBinding: runtimeDataProvider !== null,
+    agentApi: agentServer !== null,
     ephemeralBinding: fileContains(runtimeDataProvider, 'createProviderEphemeralHandle'),
     valueChannels: fileContains(channels, 'pointerChannel'),
   };
 }
 
-function packageExportExists(packageRoot, subpath) {
-  const manifest = readJson(join(packageRoot, 'package.json'));
-  const entry = manifest?.exports?.[subpath];
-  const target = typeof entry === 'string' ? entry : entry?.import ?? entry?.default;
-  return typeof target === 'string' && existsSync(join(packageRoot, target));
+function packageExportExists(packageRoot, manifest, subpath) {
+  const target = selectPackageExportTarget(manifest, subpath);
+  return resolveContainedPackagePath(packageRoot, target) !== null;
 }
 
 function readJson(path) {

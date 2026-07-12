@@ -24,7 +24,7 @@
 // trains in the active direction. Edge chevrons, the ▲▼ train arrows, and the
 // flip pill are the visible, pressable stand-ins the gesture glue drives.
 
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 import {
   getAdjacentStation,
@@ -59,7 +59,11 @@ import { column, palette } from './ui.tsx';
 
 type Screen = 'home' | 'stations' | 'trip';
 
-export function App(props: { onRefresh: () => void; onRequestLocation: () => void }) {
+export function App(props: {
+  onRefresh: () => void;
+  onRequestLocation: () => void;
+  onUsefulBoardCommit: () => void;
+}) {
   const nowMs = useNow(1000);
   const live = useLiveState();
   const [stationId, setStationId] = useState<string | null>(null);
@@ -88,6 +92,17 @@ export function App(props: { onRefresh: () => void; onRequestLocation: () => voi
   const feedIssue = feedProblem(live.feedRows);
   const feedSource = feedSourceBadge(live.feedRows, nowMs);
   const bootNote = backendStatusNote(live.backendState);
+
+  // A root.render() call is only a scheduling event under concurrent React.
+  // This layout effect is the commit witness: both useful-board branches
+  // (station identity and numeric hero departure) have been reconciled into
+  // the DOM before it fires. The bootstrap crosses a complete animation-frame
+  // boundary and starts backend work only after that paint opportunity.
+  useLayoutEffect(() => {
+    if (screen === 'home' && station.name !== '' && board.hero) {
+      props.onUsefulBoardCommit();
+    }
+  }, [board.hero, props.onUsefulBoardCommit, screen, station.name]);
 
   // The delays region dispatches on the live subscription the way the
   // Contract `async delayRows` block does: `stale` wins over `ready` while

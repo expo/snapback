@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, Client integration, Developer experience, Testing, Packaging, Admin console, Runtime
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-05 (admin-console serving language caught up with LLP 0017's single-UI model: no-dist is now a missing-dist diagnostic, and stale/browser-only dists still fail native Exact artifact requests with structured diagnostics. Earlier: 2026-07-01 linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
+**Revised:** 2026-07-12 (ENG-24374: Exact package-export probing/import now rejects malformed or traversing targets and symlink escapes by lexical plus realpath containment). 2026-07-05 (admin-console serving language caught up with LLP 0017's single-UI model: no-dist is now a missing-dist diagnostic, and stale/browser-only dists still fail native Exact artifact requests with structured diagnostics. Earlier: 2026-07-01 linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
 **Related:** LLP 0005, LLP 0012, LLP 0016, LLP 0017, LLP 0020, LLP 0023, LLP 0030, Diary 0001, Diary 0002, Diary 0003, Valet LLP 0088 (retired prior-art), Exact 0263, Exact 0265, Exact 0268
 
 ## Summary
@@ -530,7 +530,14 @@ Done:
 - [x] [`packages/snapback-contract/exact-package.mjs`](../packages/snapback-contract/exact-package.mjs)
   prefers installed `@exact/contract` package exports for compiler, runtime,
   and conformance imports, with a checkout package-root fallback while local
-  integration still runs from sibling repos.
+  integration still runs from sibling repos. Export targets must use package-
+  relative syntax and remain under the selected package root both lexically
+  and after symlink resolution; installed resolution is checked against that
+  same manifest target before execution, and the selected package root's
+  canonical identity must remain under the selected install's `node_modules`.
+  The manifest is itself contained under the package, Node's built-in ESM
+  conditions are selected in author order (including `module-sync`), and a
+  legacy package-relative `main` spelling is normalized before validation.
 - [x] `@snapback/contract` exposes package subpaths for the Exact package
   resolver and generated descriptor project check:
   `@snapback/contract/exact-package` and

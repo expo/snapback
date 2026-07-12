@@ -98,7 +98,38 @@
     };
     g.TextEncoder = TextEncoderPolyfill;
   }
-  if (typeof g.TextDecoder !== "function") {
+  var normalizeTextDecoderLabel = function (label) {
+    // Web IDL's DOMString conversion rejects a Symbol before label lookup;
+    // String(Symbol()) is the one JavaScript conversion spelling that would
+    // otherwise turn it into text and incorrectly surface a RangeError.
+    if (typeof label === "symbol") {
+      throw new TypeError("TextDecoder label cannot be a Symbol");
+    }
+    // Encoding's get-an-encoding algorithm strips only Infra ASCII
+    // whitespace. String.prototype.trim() would also admit NBSP and other
+    // Unicode whitespace that native Workers correctly reject.
+    var normalized = String(label === undefined ? "utf-8" : label)
+      .replace(/^[\u0009\u000A\u000C\u000D\u0020]+|[\u0009\u000A\u000C\u000D\u0020]+$/g, "")
+      .toLowerCase();
+    if (
+      normalized !== "utf-8" &&
+      normalized !== "utf8" &&
+      normalized !== "unicode-1-1-utf-8" &&
+      normalized !== "unicode11utf8" &&
+      normalized !== "unicode20utf8" &&
+      normalized !== "x-unicode20utf8"
+    ) {
+      throw new RangeError("TextDecoder label " + normalized + " is not supported in allowlist slice 1");
+    }
+    // The alias table is an allowlist boundary, not a request to delegate
+    // alias support back to the host. Always invoke a native decoder with the
+    // canonical label so even a narrower UTF-8-only native implementation
+    // exposes the complete six-label observable slice.
+    return "utf-8";
+  };
+
+  var NativeTextDecoder = typeof g.TextDecoder === "function" ? g.TextDecoder : null;
+  if (!NativeTextDecoder) {
     // WHATWG-faithful UTF-8 decode (ENG-23593 / ENG-24375): honors any ArrayBufferView's
     // byteOffset/byteLength window, emits U+FFFD per the maximal-subpart rule
     // on invalid or flushed-truncated sequences (or throws when `fatal`),
@@ -122,14 +153,7 @@
       if (!(this instanceof TextDecoderPolyfill)) {
         throw new TypeError("Constructor TextDecoder requires 'new'");
       }
-      // WHATWG label matching strips only Infra's ASCII whitespace set. Do not
-      // use String.prototype.trim(), which also accepts non-ASCII whitespace.
-      var normalized = String(label === undefined ? "utf-8" : label)
-        .replace(/^[\u0009\u000A\u000C\u000D\u0020]+|[\u0009\u000A\u000C\u000D\u0020]+$/g, "")
-        .toLowerCase();
-      if (normalized !== "utf-8" && normalized !== "utf8" && normalized !== "unicode-1-1-utf-8") {
-        throw new RangeError("TextDecoder label " + normalized + " is not supported in allowlist slice 1");
-      }
+      normalizeTextDecoderLabel(label);
       this.encoding = "utf-8";
       this.fatal = !!(options && options.fatal);
       this.ignoreBOM = !!(options && options.ignoreBOM);
@@ -251,6 +275,49 @@
       return out;
     };
     g.TextDecoder = TextDecoderPolyfill;
+  } else {
+    // Ibex and Workers both expose native constructors in some runtime
+    // versions, but their accepted-label/conversion edges are not identical.
+    // Keep native byte decoding and wrap only the allowlisted UTF-8 constructor
+    // boundary so both engines expose one observable slice.
+    var TextDecoderLabelCompat = function TextDecoder(label, options) {
+      if (!new.target) {
+        throw new TypeError("Constructor TextDecoder requires 'new'");
+      }
+      var normalized = normalizeTextDecoderLabel(label);
+      return Reflect.construct(NativeTextDecoder, [normalized, options], new.target);
+    };
+    TextDecoderLabelCompat.prototype = NativeTextDecoder.prototype;
+    try {
+      // Sharing the native prototype preserves branded decode methods, but
+      // its original `.constructor` would hand handlers the unwrapped native
+      // constructor and let them bypass the UTF-8-only label boundary.
+      Object.defineProperty(TextDecoderLabelCompat.prototype, "constructor", {
+        value: TextDecoderLabelCompat,
+        configurable: true,
+        writable: true,
+      });
+    } catch (_) {
+      throw snapbackError(
+        "SNAPBACK_TEXT_DECODER_INSTALL_FAILED",
+        "TextDecoder native constructor escape could not be sealed"
+      );
+    }
+    try {
+      Object.defineProperty(g, "TextDecoder", {
+        value: TextDecoderLabelCompat,
+        configurable: true,
+        writable: true,
+      });
+    } catch (_) {
+      try { g.TextDecoder = TextDecoderLabelCompat; } catch (_) {}
+    }
+    if (g.TextDecoder !== TextDecoderLabelCompat) {
+      throw snapbackError(
+        "SNAPBACK_TEXT_DECODER_INSTALL_FAILED",
+        "TextDecoder label compatibility wrapper could not be installed"
+      );
+    }
   }
 
   // --- atob / btoa ----------------------------------------------------------

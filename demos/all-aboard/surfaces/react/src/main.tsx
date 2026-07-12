@@ -63,6 +63,7 @@ let reactRoot: ReturnType<typeof createRoot> | null = null;
 const timing: {
   htmlReceivedMs: number | null;
   scriptStartMs: number;
+  usefulBoardCommittedMs: number | null;
   firstBoardPaintMs: number | null;
   backendConnectedMs: number | null;
   liveDataAppliedMs: number | null;
@@ -72,6 +73,7 @@ const timing: {
     return nav ? nav.responseEnd : null;
   })(),
   scriptStartMs: performance.now(),
+  usefulBoardCommittedMs: null,
   firstBoardPaintMs: null,
   backendConnectedMs: null,
   liveDataAppliedMs: null,
@@ -80,6 +82,34 @@ const timing: {
 const logTiming = (label: string, at: number | null) => {
   console.log(`[all-aboard-react] ${label} at ${at === null ? '?' : Math.round(at)}ms`);
 };
+
+let resolveFirstBoardPaint!: () => void;
+const firstBoardPaintReady = new Promise<void>((resolvePaint) => {
+  resolveFirstBoardPaint = resolvePaint;
+});
+let usefulBoardCommitObserved = false;
+
+function markUsefulBoardCommitted(): void {
+  if (usefulBoardCommitObserved) return;
+  usefulBoardCommitObserved = true;
+  timing.usefulBoardCommittedMs = performance.now();
+  logTiming('useful board committed', timing.usefulBoardCommittedMs);
+  const markAfterPaint = () => {
+    if (timing.firstBoardPaintMs !== null) return;
+    // This is the second rAF callback. The browser had a complete rendering
+    // opportunity after the first callback, so the useful committed board has
+    // crossed a paint boundary before backend work is released. Record the
+    // callback observation on the same monotonic clock as the commit witness.
+    timing.firstBoardPaintMs = performance.now();
+    logTiming('first board paint', timing.firstBoardPaintMs);
+    resolveFirstBoardPaint();
+  };
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => requestAnimationFrame(markAfterPaint));
+  } else {
+    markAfterPaint();
+  }
+}
 
 // Build-time API origin injected by vite.config.ts `define`.
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
@@ -187,13 +217,13 @@ function renderBoard(client: SnapbackClient): void {
   reactRoot = createRoot(rootEl);
   reactRoot.render(
     <StrictMode>
-      <App onRefresh={refresh} onRequestLocation={() => requestDeviceLocation(true)} />
+      <App
+        onRefresh={refresh}
+        onRequestLocation={() => requestDeviceLocation(true)}
+        onUsefulBoardCommit={markUsefulBoardCommitted}
+      />
     </StrictMode>,
   );
-  requestAnimationFrame((frameMs) => {
-    timing.firstBoardPaintMs = frameMs;
-    logTiming('first board paint', frameMs);
-  });
 
   // Gesture-first interaction as web surface glue (LLP 0029 G1 in the
   // Contract arm; the same layer here): swipes and arrow keys drive the same
@@ -265,6 +295,7 @@ setRouteEstimateInvoker(async (args) => {
 
 const ready = (async () => {
   renderBoard(client);
+  await firstBoardPaintReady;
   const { provisioned, connections } = await connectBackend(client);
   setBackendState('connected');
   timing.backendConnectedMs = performance.now();

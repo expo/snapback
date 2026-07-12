@@ -9,7 +9,7 @@
     },
     {
       "name": "TextDecoder",
-      "semantics": "WHATWG utf-8 decode, including streaming state, incomplete-sequence flush, fatal recovery, and per-stream BOM handling; slice 1 accepts the utf-8, utf8, and unicode-1-1-utf-8 labels after trimming only WHATWG ASCII whitespace"
+      "semantics": "WHATWG utf-8 decode, including streaming state, incomplete-sequence flush, fatal recovery, and per-stream BOM handling; accepts every UTF-8 encoding label after trimming only WHATWG ASCII whitespace and applies Web IDL label conversion"
     },
     {
       "name": "atob",

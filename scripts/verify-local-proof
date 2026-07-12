@@ -32,6 +32,7 @@ cd "$ROOT"
 run ./ref-check --verbose
 run python3 tests/ref_check_v0.py
 run node tests/demo_setup_v0.mjs
+run node tests/allowlist_install_v0.mjs
 # LLP 0032 P7: the bring-up doctor's green path (read-only; red paths are
 # proven by hand in fresh worktrees).
 run scripts/ibex-doctor

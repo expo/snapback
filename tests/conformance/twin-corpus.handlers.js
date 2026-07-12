@@ -109,6 +109,22 @@ globalThis.__snapbackHandlers = {
         return false;
       }
     }
+    function decoderLabelThrows(label, errorName) {
+      try {
+        new TextDecoder(label);
+        return false;
+      } catch (error) {
+        return error && error.name === errorName;
+      }
+    }
+    function decoderConstructorLabelAccepted(label) {
+      try {
+        var Decoder = new TextDecoder().constructor;
+        return new Decoder(label).encoding === 'utf-8';
+      } catch (_) {
+        return false;
+      }
+    }
 
     var flushDecoder = new TextDecoder();
     var flush = [
@@ -156,9 +172,21 @@ globalThis.__snapbackHandlers = {
         truncatedPaddingRejected: invalidBase64('YWJjZA=')
       },
       labels: {
+        utf8Hyphen: decoderLabelAccepted('utf-8'),
+        utf8Compact: decoderLabelAccepted('UTF8'),
+        unicode11Hyphen: decoderLabelAccepted('unicode-1-1-utf-8'),
+        unicode11Compact: decoderLabelAccepted('unicode11utf8'),
+        unicode20Compact: decoderLabelAccepted('unicode20utf8'),
+        xUnicode20Compact: decoderLabelAccepted('x-unicode20utf8'),
         asciiWhitespace: decoderLabelAccepted(' \t\nutf-8\r\f '),
         aliasAsciiWhitespace: decoderLabelAccepted('\tUTF8\n'),
-        internalSpaceRejected: !decoderLabelAccepted('utf -8')
+        internalSpaceRejected: !decoderLabelAccepted('utf -8'),
+        verticalTabRejected: !decoderLabelAccepted('\u000Butf-8'),
+        nonBreakingSpaceRejected: !decoderLabelAccepted('\u00A0utf-8'),
+        nonUtf8Rejected: !decoderLabelAccepted('windows-1252'),
+        symbolTypeError: decoderLabelThrows(Symbol('utf-8'), 'TypeError'),
+        constructorIsWrapped: new TextDecoder().constructor === TextDecoder,
+        constructorEscapeRejected: !decoderConstructorLabelAccepted('windows-1252')
       },
       streaming: {
         twoByte: splitDecode([0xC2, 0xA2]),

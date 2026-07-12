@@ -6,10 +6,16 @@
 // @ref LLP 0021#phase-3-package-the-build-and-launch-recipe - prefer installed
 //   packages and explicit package-export probes over absolute source aliases.
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import * as nodeModule from 'node:module';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import {
+  isRealPathWithin,
+  resolveContainedPackagePath,
+  selectPackageExportTarget,
+} from './package-export-path.mjs';
 
 export const EXACT_CONTRACT_PACKAGE = '@exact/contract';
 const EXACT_CONTRACT_PUBLISHED_PACKAGES = new Set([
@@ -60,7 +66,10 @@ export async function importExactContractExport(subpath, {
     ensureSourceCheckoutSpecifierHook(resolved);
     return import(pathToFileURL(resolved.path).href);
   }
-  return import(resolvedSpecifier);
+  const resolved = validateInstalledExactContractExport(subpath, resolvedSpecifier);
+  if (!resolved) throw packageResolutionError(specifier, null, null);
+  ensureSourceCheckoutSpecifierHook(resolved);
+  return import(pathToFileURL(resolved.path).href);
 }
 
 function isExactContractPackageNotFound(error) {
@@ -171,14 +180,21 @@ export function resolveExactContractExport(subpath, { exactRoot = null } = {}) {
   const packageRoot = resolveExactContractPackageRoot({ exactRoot });
   if (!packageRoot) return null;
 
-  const packageJsonPath = join(packageRoot, 'package.json');
+  return resolveExactContractExportFromPackageRoot(subpath, packageRoot);
+}
+
+function resolveExactContractExportFromPackageRoot(subpath, packageRoot) {
+  const packageJsonPath = resolveContainedPackagePath(packageRoot, './package.json');
+  if (!packageJsonPath) return null;
   const packageJson = readJson(packageJsonPath);
   if (!EXACT_CONTRACT_PUBLISHED_PACKAGES.has(packageJson?.name)) return null;
 
   const exportTarget = resolvePackageExport(packageJson, subpath);
   if (!exportTarget) return null;
 
-  const resolvedPath = resolveFileCandidate(resolve(packageRoot, exportTarget));
+  const resolvedPath = resolveContainedPackagePath(packageRoot, exportTarget, {
+    probeFileCandidates: true,
+  });
   return resolvedPath
     ? {
         packageName: EXACT_CONTRACT_PACKAGE,
@@ -191,16 +207,79 @@ export function resolveExactContractExport(subpath, { exactRoot = null } = {}) {
     : null;
 }
 
+function validateInstalledExactContractExport(subpath, resolvedSpecifier) {
+  let resolvedPath;
+  try {
+    const url = new URL(resolvedSpecifier);
+    if (url.protocol !== 'file:') return null;
+    resolvedPath = fileURLToPath(url);
+  } catch {
+    return null;
+  }
+
+  const packageRoot = findContainingExactPackageRoot(resolvedPath);
+  if (!packageRoot) return null;
+  const nodeModulesRoot = findContainingNodeModulesRoot(packageRoot);
+  if (!nodeModulesRoot || !isRealPathWithin(nodeModulesRoot, packageRoot)) return null;
+  const expected = resolveExactContractExportFromPackageRoot(subpath, packageRoot);
+  if (!expected) return null;
+  try {
+    if (realpathSync(expected.path) !== realpathSync(resolvedPath)) return null;
+  } catch {
+    return null;
+  }
+  return expected;
+}
+
+function findContainingNodeModulesRoot(path) {
+  let current = path;
+  for (;;) {
+    if (basename(current) === 'node_modules') return current;
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function findContainingExactPackageRoot(path) {
+  let current = dirname(path);
+  for (;;) {
+    const lexicalManifestPath = join(current, 'package.json');
+    if (hasFilesystemEntry(lexicalManifestPath)) {
+      const packageJsonPath = resolveContainedPackagePath(current, './package.json');
+      if (!packageJsonPath) return null;
+      const packageJson = readJson(packageJsonPath);
+      return EXACT_CONTRACT_PUBLISHED_PACKAGES.has(packageJson?.name) ? current : null;
+    }
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function hasFilesystemEntry(path) {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function resolveExactContractPackageRoot({ exactRoot }) {
   const roots = exactRoot ? [exactRoot] : [process.cwd()];
 
   for (const root of roots) {
+    const nodeModulesRoot = join(root, 'node_modules');
     const installed = join(root, 'node_modules', '@exact', 'contract');
-    if (existsSync(join(installed, 'package.json'))) {
+    if (
+      resolveContainedPackagePath(installed, './package.json') &&
+      isRealPathWithin(nodeModulesRoot, installed)
+    ) {
       return installed;
     }
     const workspace = join(root, 'packages', 'exact-contract');
-    if (existsSync(join(workspace, 'package.json'))) {
+    if (resolveContainedPackagePath(workspace, './package.json')) {
       return workspace;
     }
   }
@@ -213,32 +292,7 @@ function exactContractSpecifier(subpath) {
 }
 
 function resolvePackageExport(packageJson, subpath) {
-  const normalized = subpath === './' ? '.' : subpath;
-  const exportsField = packageJson?.exports;
-  if (!exportsField || typeof exportsField !== 'object') {
-    return normalized === '.' && typeof packageJson?.main === 'string' ? packageJson.main : null;
-  }
-
-  const entry = exportsField[normalized];
-  if (typeof entry === 'string') return entry;
-  if (entry && typeof entry === 'object') {
-    if (typeof entry.import === 'string') return entry.import;
-    if (typeof entry.default === 'string') return entry.default;
-  }
-  return null;
-}
-
-function resolveFileCandidate(basePath) {
-  if (existsSync(basePath)) return basePath;
-  for (const extension of ['.ts', '.tsx', '.js', '.mjs', '.cjs']) {
-    const candidate = `${basePath}${extension}`;
-    if (existsSync(candidate)) return candidate;
-  }
-  for (const fileName of ['index.ts', 'index.tsx', 'index.js', 'index.mjs', 'index.cjs']) {
-    const candidate = join(basePath, fileName);
-    if (existsSync(candidate)) return candidate;
-  }
-  return null;
+  return selectPackageExportTarget(packageJson, subpath);
 }
 
 function readJson(path) {
