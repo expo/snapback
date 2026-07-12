@@ -597,8 +597,10 @@ demonstration path. The resulting contracts are now executable regressions:
   legitimate initializer.
 - Inserts, patches, seeds, and derived writes share manifest validation for
   required/type/unknown/protected-system-field rules. Declared expression
-  indexes are materialized and `withIndex` is validated; internal subscription
-  selection is indexed and fan-out queries only affected functions.
+  indexes are definition-reconciled (fields/order/uniqueness, not name-only)
+  and `withIndex` is validated; identity is checked before app DDL, internal
+  subscription selection is indexed, and fan-out queries only affected
+  functions.
 - Every JSON body streams through one bounded, fatal-UTF-8 object parser. The
   gateway no longer buffers an unbounded body first, and syntax, media type,
   empty body, shape, UTF-8, and size failures return stable 4xx diagnostics
@@ -606,31 +608,46 @@ demonstration path. The resulting contracts are now executable regressions:
 - Action timeouts own an abandonment flag that fences every later host call and
   the final nested-mutation commit. Testing actions and override arguments are
   absent from the production dispatch surface, public actions have bounded
-  admission, and function kind is checked at every route/nested boundary.
+  admission, and function kind is checked at every route/nested boundary. App
+  reset advances a generation, aborts active action fetches, and checks the
+  generation again at each nested commit.
 - Secret handles carry immutable invocation-scoped opaque ids. Host fetch
   resolves only the current action's private capability map, never returns a
   substituted URL, bounds upstream bodies, and scrubs raw, normalized,
-  URL/form-encoded (including double encoding), and JSON-escaped forms.
+  URL/form-encoded (including double encoding), and full/partial JSON Unicode
+  escapes across mixed-case BMP and astral encodings.
 - Cron claims distinguish terminal results from live leases. Expired claims
   recover, and scheduled nested-mutation results are recorded atomically with
   the app commit under the stable claim key, closing the
   commit-before-claim-finish double-commit window. The strict-next nominal math
-  is pinned at exact boundaries and after long downtime.
+  is pinned at exact boundaries and after long downtime. Admin manual run-now
+  remains a one-shot action and allocates no recoverable claim/replay rows;
+  scheduled/manual completions also generation-check reset before recreating
+  any finish/last-run/nominal state.
 - Subscription schema migration is versioned and transactional, so current
   wakes do no rewrite. Kit sockets have durable session ids: only the newest
   overlapping socket receives frames, and closing an obsolete socket cannot
-  delete its replacement's subscriptions. Query-string WebSocket credentials
-  are refused; subprotocol and explicit-header transport remain.
+  delete its replacement's subscriptions. HTTP subscribe requires a current
+  socket, every row/message/demand check is session-bound, and old socketless
+  migration rows are reaped. Hosted grants use route-safe bounded ids, a hard
+  durable cap, and an idle lease. Query-string WebSocket credentials are
+  refused; subprotocol and explicit-header transport remain.
 - Reset validates first and clears rows/version/journal/runtime metadata/seed
   in one transaction. That commit is the response linearization point;
   recoverable post-commit alarm cleanup cannot produce a false rollback 500.
+  It rebuilds the known current system/app schema, removes retired owned
+  `app_*` tables, and remains reachable after stale deployment metadata,
+  index-build failure, or an unknown future subscription version.
 - Deployment identities come from esbuild's transitive gateway/handler input
   graph plus normalized Wrangler compatibility/binding configs. The generated
   identity gate therefore changes with Cloudflare-only handler, schema, host
   contract, or compatibility edits. Mixed-state bootstrap touches only
-  confirmed-missing Workers, cleans partial bootstrap artifacts, requires a
-  final binding/health proof, and reports admin-secret state as verified
-  absent, preserved present, or unknown. Wrangler caches are ignored and
+  confirmed-missing Workers and re-probes attempted failures to prove their
+  absence. Existing workers snapshot their full active traffic set and restore
+  it on any later failure, with the gateway as the final compatibility
+  cutover. Admin secret writes are activations, so the final binding/health
+  proof runs after them; admin state is reported only as verified absent,
+  verified/preserved present, or unknown. Wrangler caches are ignored and
   rejected by the compatibility/hygiene gate.
 
 ## Status

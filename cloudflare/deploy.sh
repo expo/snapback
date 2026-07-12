@@ -67,24 +67,140 @@ if [[ "$app" == "all-aboard" ]]; then
 fi
 
 bootstrap_missing=()
-bootstrap_created=()
+bootstrap_attempted=()
+existing_configs=()
+existing_version_specs=()
+changed_existing=()
 bootstrap_temp_files=()
 deploy_verified=0
 
-cleanup_deploy() {
-  local status=$?
-  for temp in "${bootstrap_temp_files[@]}"; do
-    rm -f "$temp"
+array_contains() {
+  local needle="$1" item
+  shift
+  for item in "$@"; do
+    [[ "$item" == "$needle" ]] && return 0
   done
-  if [[ "$status" -ne 0 && "$deploy_verified" -ne 1 && "${#bootstrap_created[@]}" -gt 0 ]]; then
-    echo "!!> deploy failed after creating bootstrap-only Workers; restoring the confirmed-missing state" >&2
-    for config in "${bootstrap_created[@]}"; do
-      if npx wrangler delete --config "$config" --force >/dev/null 2>&1; then
-        echo "    removed bootstrap Worker from $config" >&2
-      else
-        echo "    WARNING: could not remove bootstrap Worker from $config; inspect it before retrying" >&2
-      fi
+  return 1
+}
+
+prior_version_specs() {
+  local config="$1" index
+  for ((index = 0; index < ${#existing_configs[@]}; index++)); do
+    if [[ "${existing_configs[$index]}" == "$config" ]]; then
+      printf '%s' "${existing_version_specs[$index]}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+active_version_specs_from_json() {
+  node -e "
+    const rows = JSON.parse(process.argv[1]);
+    if (!Array.isArray(rows) || rows.length === 0) process.exit(2);
+    const latest = rows[rows.length - 1];
+    if (!latest || !Array.isArray(latest.versions) || latest.versions.length === 0) process.exit(2);
+    const specs = latest.versions.map((entry) => {
+      if (!entry || typeof entry.version_id !== 'string' || entry.version_id.length === 0) process.exit(2);
+      const percentage = Number(entry.percentage);
+      if (!Number.isFinite(percentage) || percentage <= 0 || percentage > 100) process.exit(2);
+      return entry.version_id + '@' + percentage;
+    }).sort();
+    const total = latest.versions.reduce((sum, entry) => sum + Number(entry.percentage), 0);
+    if (Math.abs(total - 100) > 0.0001) process.exit(2);
+    process.stdout.write(specs.join(' '));
+  " "$1"
+}
+
+mark_existing_attempted() {
+  local config="$1"
+  if [[ "${#bootstrap_missing[@]}" -gt 0 ]] && array_contains "$config" "${bootstrap_missing[@]}"; then return 0; fi
+  if [[ "${#changed_existing[@]}" -eq 0 ]] || ! array_contains "$config" "${changed_existing[@]}"; then
+    changed_existing+=("$config")
+  fi
+}
+
+restore_existing_worker() {
+  local config="$1" specs current_json current_specs
+  specs="$(prior_version_specs "$config")" || return 1
+  local version_args=()
+  read -r -a version_args <<<"$specs"
+  echo "    restoring $config to $specs" >&2
+  # Even a nonzero local exit can follow remote activation. The subsequent
+  # deployment snapshot, not the CLI status alone, is the restoration proof.
+  npx wrangler versions deploy "${version_args[@]}" --config "$config" --yes >/dev/null 2>&1 || true
+  current_json="$(npx wrangler deployments list --config "$config" --json 2>/dev/null)" || return 1
+  current_specs="$(active_version_specs_from_json "$current_json" 2>/dev/null)" || return 1
+  [[ "$current_specs" == "$specs" ]]
+}
+
+restore_missing_worker() {
+  local config="$1" status
+  if worker_probe "$config"; then
+    # A failed local Wrangler process may still have activated remotely.
+    npx wrangler delete --config "$config" --force >/dev/null 2>&1 || true
+    if worker_probe "$config"; then
+      return 1
+    else
+      status=$?
+      [[ "$status" -eq 1 ]]
+      return
+    fi
+  else
+    status=$?
+    # Already confirmed missing is successful restoration. Auth/network/API
+    # ambiguity is not permission to delete and remains a critical failure.
+    [[ "$status" -eq 1 ]]
+  fi
+}
+
+cleanup_deploy() {
+  local status=$? config index cleanup_failed=0
+  if [[ "${#bootstrap_temp_files[@]}" -gt 0 ]]; then
+    for temp in "${bootstrap_temp_files[@]}"; do
+      rm -f "$temp"
     done
+  fi
+  if [[ "$status" -ne 0 && "$deploy_verified" -ne 1 ]]; then
+    if [[ "${#changed_existing[@]}" -gt 0 ]]; then
+      echo "!!> deploy failed; restoring every previously-existing Worker version" >&2
+      # Restore execution isolates first, then switch the gateway last as the
+      # compatibility cutover. This avoids leaving the live gateway bound to
+      # a handler from the failed deployment.
+      local restore_order=("$handler_config")
+      if [[ "$app" == "all-aboard" ]]; then restore_order+=("wrangler.all-aboard.action-handler.jsonc"); fi
+      restore_order+=("$gateway_config")
+      for config in "${restore_order[@]}"; do
+        if ! array_contains "$config" "${changed_existing[@]}"; then continue; fi
+        if restore_existing_worker "$config"; then
+          echo "    restored and attested $config" >&2
+        else
+          echo "    CRITICAL: could not prove restoration of $config; deployment remains failed closed" >&2
+          cleanup_failed=1
+        fi
+      done
+    fi
+    if [[ "${#bootstrap_attempted[@]}" -gt 0 ]]; then
+      echo "!!> restoring confirmed-missing Workers in reverse dependency order" >&2
+      # Dependents must disappear before the gateway they bind to. The
+      # attempted list is checked because a failing Wrangler command may have
+      # activated remotely before its local process returned nonzero.
+      local cleanup_order=()
+      if [[ "$app" == "all-aboard" ]]; then cleanup_order+=("wrangler.all-aboard.action-handler.jsonc"); fi
+      cleanup_order+=("$gateway_config" "$handler_config")
+      for config in "${cleanup_order[@]}"; do
+        if ! array_contains "$config" "${bootstrap_attempted[@]}"; then continue; fi
+        if restore_missing_worker "$config"; then
+          echo "    confirmed missing state restored for $config" >&2
+        else
+          echo "    CRITICAL: could not prove missing-state restoration for $config; inspect it before retrying" >&2
+          cleanup_failed=1
+        fi
+      done
+    fi
+    if [[ "$cleanup_failed" -ne 0 ]]; then
+      echo "!!> rollback/cleanup attestation failed; do not retry until remote state is inspected" >&2
+      fi
   fi
   return "$status"
 }
@@ -94,8 +210,14 @@ trap cleanup_deploy EXIT
 # not-found response, and 2 for auth/network/API ambiguity. An ambiguous
 # probe must never authorize a stripped deployment over a healthy Worker.
 worker_probe() {
-  local config="$1" output
+  local config="$1" output specs
+  WORKER_ACTIVE_SPECS=""
   if output="$(npx wrangler deployments list --config "$config" --json 2>&1)"; then
+    if ! specs="$(active_version_specs_from_json "$output" 2>/dev/null)"; then
+      echo "!!> $config exists, but its active deployment could not be snapshotted; refusing mutation" >&2
+      return 2
+    fi
+    WORKER_ACTIVE_SPECS="$specs"
     return 0
   fi
   if grep -Eqi 'worker[^[:alnum:]]+(not found|does not exist)|requested resource was not found|workers\.api\.error\.worker_not_found|code[^0-9]*(10090|10092)' <<<"$output"; then
@@ -108,7 +230,9 @@ worker_probe() {
 
 for config in "${bootstrap_configs[@]}"; do
   if worker_probe "$config"; then
-    echo "==> $config: Worker exists"
+    existing_configs+=("$config")
+    existing_version_specs+=("$WORKER_ACTIVE_SPECS")
+    echo "==> $config: Worker exists (active versions snapshotted)"
   else
     probe_status=$?
     if [[ "$probe_status" -eq 1 ]]; then
@@ -136,25 +260,28 @@ if [[ "${#bootstrap_missing[@]}" -gt 0 ]]; then
       delete cfg.services;
       fs.writeFileSync('$stripped', JSON.stringify(cfg, null, 2));
     "
+    bootstrap_attempted+=("$config")
     npx wrangler deploy --config "$stripped"
     rm -f "$stripped"
-    bootstrap_created+=("$config")
   done
 else
   echo "==> all Workers exist: skipping the bootstrap pass (only needed on first deploy)"
 fi
 
 echo "==> deploying handler isolate ($handler_worker)"
+mark_existing_attempted "$handler_config"
 npx wrangler deploy --config "$handler_config"
 
 if [[ "$app" == "all-aboard" ]]; then
   # The separate action-handler isolate (LLP 0049 Phase 2): slow action
   # fetches must not queue transactional invocations behind them.
   echo "==> deploying action handler isolate (snapback-all-aboard-action-handler)"
+  mark_existing_attempted "wrangler.all-aboard.action-handler.jsonc"
   npx wrangler deploy --config wrangler.all-aboard.action-handler.jsonc
 fi
 
 echo "==> deploying gateway + coordinator ($gateway_worker)"
+mark_existing_attempted "$gateway_config"
 gateway_deploy_log="$(mktemp)"
 bootstrap_temp_files+=("$gateway_deploy_log")
 npx wrangler deploy --config "$gateway_config" | tee "$gateway_deploy_log"
@@ -218,12 +345,6 @@ else
   fi
 fi
 
-# From here onward a partial-bootstrap cleanup must not delete a deployment
-# whose live gateway has proven its service bindings. The stronger health
-# check below can still refuse success (for example stale persisted state),
-# but that is an operator migration/reset condition, not a stripped bootstrap
-# that should be deleted automatically.
-deploy_verified=1
 if ! node -e "
   const body = JSON.parse(process.argv[1] || 'null');
   process.exit(body && body.ok === true ? 0 : 1);
@@ -247,6 +368,16 @@ if [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" && "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "
 elif [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" ]]; then
   echo "==> setting SNAPBACK_ADMIN_TOKEN secret on $gateway_worker"
   printf '%s' "$SNAPBACK_ADMIN_TOKEN" | npx wrangler secret put SNAPBACK_ADMIN_TOKEN --config "$gateway_config"
+  current_secrets="$(npx wrangler secret list --format json --config "$gateway_config")"
+  if node -e "
+    const rows = JSON.parse(process.argv[1]);
+    process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 0 : 1);
+  " "$current_secrets"; then
+    echo "==> verified SNAPBACK_ADMIN_TOKEN present; admin endpoints are enabled"
+  else
+    echo "!!> SNAPBACK_ADMIN_TOKEN write did not attest present" >&2
+    exit 1
+  fi
 elif [[ "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "1" ]]; then
   echo "==> explicitly removing SNAPBACK_ADMIN_TOKEN from $gateway_worker"
   current_secrets="$(npx wrangler secret list --format json --config "$gateway_config")"
@@ -285,6 +416,29 @@ else
   fi
   rm -f "$secret_list_log"
 fi
+
+# Worker secret put/delete is itself a new gateway Version activation. The
+# pre-secret health proof therefore cannot attest the final deployment. Repeat
+# both the binding and full health proof after the last possible activation;
+# only this point disarms rollback/cleanup.
+echo "==> re-probing final gateway version after admin-secret state settled"
+if ! probe_gateway_bindings "$probe_url" "$probe_attempts" "$probe_delay"; then
+  echo "!!> DEPLOY FAILED FINAL VERIFICATION: final gateway version is missing required service bindings" >&2
+  exit 1
+fi
+if ! node -e "
+  const body = JSON.parse(process.argv[1] || 'null');
+  process.exit(body && body.ok === true ? 0 : 1);
+" "${PROBED_HEALTH_BODY:-}"; then
+  health_code="$(node -e "
+    try { console.log(JSON.parse(process.argv[1]).code || 'unknown'); }
+    catch (_) { console.log('invalid-health-response'); }
+  " "${PROBED_HEALTH_BODY:-}")"
+  echo "!!> DEPLOY FAILED FINAL HEALTH VERIFICATION: $health_code" >&2
+  exit 1
+fi
+deploy_verified=1
+echo "==> final gateway activation is bound and healthy"
 
 if [[ "$app" == "all-aboard" ]]; then
   echo "==> configure app secrets (LLP 0049 Phase 1 guided config.set — one bulk"

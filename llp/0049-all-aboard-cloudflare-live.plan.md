@@ -10,8 +10,9 @@ the whole-codebase review hardened compiled-seed provisioning, manifest-backed
 storage/index enforcement, action abandonment and admission, invocation-scoped
 secret capabilities and encoded redaction, recoverable cron leases with
 commit-coupled mutation replay, socket-session ownership, atomic subscription
-migration/reset, source-derived deployment identity, authenticated config
-status and stdin-only config writes, and mixed-state-safe deploy bootstrap;
+migration/reset and schema rebuild, source-derived deployment identity,
+authenticated config status and stdin-only config writes, and rollback-attested
+mixed-state deploy bootstrap with a post-secret final health proof;
 focused Miniflare and mocked-deploy regressions pin every corrected boundary);
 2026-07-11 (ninth pass, ENG-23840 / ENG-23841 / ENG-23626:
 operational closeout — a valid Cloudflare account credential was restored and
@@ -270,6 +271,19 @@ The first All Aboard Cloudflare deployment remains a single-app proof:
 The deploy step compiles or copies the generated All Aboard artifacts into the
 Cloudflare app bundle. Runtime code hot-load remains a capability gap.
 
+**As-built deploy transaction (ENG-24364 / ENG-24388).** Before changing an
+existing Worker, the controller snapshots the latest deployment's complete
+version/traffic set. Any later failure restores and re-probes handler and
+action-handler first, then switches the gateway last as the compatibility
+cutover. A worker confirmed missing before bootstrap is tracked before each
+Wrangler attempt (local failure can follow remote activation), re-probed during
+cleanup, deleted only when confirmed present, and re-probed absent afterward;
+new dependents are removed action-handler → gateway → handler. Ambiguous state
+or unprovable rollback is a critical failed-closed result. Because secret
+put/delete creates another gateway version, bindings and full `/health` are
+probed again after the final admin-secret operation; only that proof commits a
+successful deploy.
+
 ### Config And Secrets
 
 Cloudflare implements LLP 0036's `deploy-time-binding` backend for this profile.
@@ -477,7 +491,10 @@ The staging:
    `SNAPBACK_ADMIN_TOKEN` POST surface as `/reset` and `/evict`, ENG-23587 —
    never a public run-now route) plus a coordinator Durable Object alarm drive
    `warmPoll` for active subscriptions. Subscribing to `liveTrainStatus` arms
-   the alarm; losing the last subscriber cancels it. This proves
+   the alarm only when the durable row belongs to the current authenticated
+   socket session; socketless/stale rows cannot create demand, and losing the
+   last current subscriber cancels it. Manual run-now is a one-shot action that
+   records last-run status without allocating scheduled claim/replay rows. This proves
    action → mutation → live push with zero idle wakeups.
 2. **Hardened durable runner stage:** the coordinator claims due runs in
    durable cron state with an expiring ownership lease, executes the action,
