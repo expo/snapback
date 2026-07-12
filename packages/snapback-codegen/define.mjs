@@ -18,8 +18,10 @@
 const FN = Symbol('snapback.fn');
 const CRON = Symbol('snapback.cron');
 const CONFIG = Symbol('snapback.config');
+const TABLE = Symbol('snapback.table');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
+const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 
 // ---------------------------------------------------------------------------
 // Validators (field + arg types). The vocabulary maps 1:1 onto the server's
@@ -58,6 +60,7 @@ export const v = {
 
 class TableBuilder {
   constructor(fields) {
+    this[TABLE] = true;
     this.__table = true;
     this.fields = fields;
     this.indexes = [];
@@ -125,14 +128,14 @@ export const ephemeral = {
       scope: spec.scope,
       routing: spec.routing ?? Object.keys(spec.scope),
       key: spec.key ?? 'connection',
-      ttlMs: spec.ttlMs,
+      ...(spec.ttlMs !== undefined ? { ttlMs: spec.ttlMs } : {}),
       maxTtlMs: spec.maxTtlMs ?? 30_000,
       maxValueBytes: spec.maxValueBytes ?? 1_024,
       hardMaxValueBytes: spec.hardMaxValueBytes ?? 4_096,
       publishRate: spec.publishRate ?? { sustainedHz: 20, burst: 60 },
       delivery: spec.delivery ?? { mode: 'latest', dispatchMs: 33 },
-      publish: spec.publish,
-      subscribe: spec.subscribe,
+      ...(spec.publish !== undefined ? { publish: spec.publish } : {}),
+      ...(spec.subscribe !== undefined ? { subscribe: spec.subscribe } : {}),
       value: spec.value,
       targets: spec.targets ?? ['local-dev-sqlite-ibex'],
       maxPendingEphemeralKeys: spec.maxPendingEphemeralKeys ?? 1_024,
@@ -494,8 +497,20 @@ export function isConfigDef(value) {
   return !!(value && value[CONFIG]);
 }
 
+export function isTableDef(value) {
+  return !!(
+    value
+    && value[TABLE]
+    && OBJECT_GET_PROTOTYPE_OF(value) === TableBuilder.prototype
+  );
+}
+
 export function isEphemeralCollectionDef(value) {
   return !!(value && value[EPHEMERAL_COLLECTION]);
+}
+
+export function isEphemeralDef(value) {
+  return !!(value && value[EPHEMERAL]);
 }
 
 export function assert(cond, message) {

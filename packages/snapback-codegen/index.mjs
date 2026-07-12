@@ -2523,6 +2523,16 @@ try {
     vm.runInContext(
       "(() => {\n" +
         "const denied = (name) => () => { throw new Error('[snapback-codegen] ambient ' + name + ' is unavailable'); };\n" +
+        "const denyMethod = (prototype, name) => Object.defineProperty(prototype, name, { value: denied(name), writable: false, configurable: false });\n" +
+        "for (const [prototype, names] of [\n" +
+          "[String.prototype, ['localeCompare', 'toLocaleLowerCase', 'toLocaleUpperCase']],\n" +
+          "[Number.prototype, ['toLocaleString']],\n" +
+          "[BigInt.prototype, ['toLocaleString']],\n" +
+          "[Date.prototype, ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString']],\n" +
+          "[Array.prototype, ['toLocaleString']],\n" +
+          "[Object.prototype, ['toLocaleString']],\n" +
+          "[Object.getPrototypeOf(Uint8Array.prototype), ['toLocaleString']],\n" +
+        "]) for (const name of names) denyMethod(prototype, name);\n" +
         "Object.defineProperty(Math, 'random', { value: denied('Math.random'), writable: false, configurable: false });\n" +
         "Object.defineProperty(globalThis, 'Date', { value: undefined, writable: false, configurable: false });\n" +
         "Object.defineProperty(globalThis, 'Intl', { value: undefined, writable: false, configurable: false });\n" +
@@ -2604,7 +2614,17 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
           'const __snapbackApply = Reflect.apply;',
           'const __snapbackObjectKeys = Object.keys;',
           'const __snapbackObjectCreate = Object.create;',
+          'const __snapbackObjectGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;',
+          'const __snapbackObjectGetPrototypeOf = Object.getPrototypeOf;',
+          'const __snapbackObjectHasOwn = Object.prototype.hasOwnProperty;',
+          'const __snapbackObjectIs = Object.is;',
+          'const __snapbackObjectPrototype = Object.prototype;',
+          'const __snapbackObjectSetPrototypeOf = Object.setPrototypeOf;',
           'const __snapbackArrayIsArray = Array.isArray;',
+          'const __snapbackArrayPrototype = Array.prototype;',
+          'const __snapbackNumberIsFinite = Number.isFinite;',
+          'const __snapbackReflectOwnKeys = Reflect.ownKeys;',
+          'const __snapbackString = String;',
           'const __snapbackSet = Set;',
           'const __snapbackSetHas = Set.prototype.has;',
           'const __snapbackSetAdd = Set.prototype.add;',
@@ -2710,7 +2730,7 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isFunctionDef } from ${define};`;
+  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isTableDef } from ${define};`;
   const normalization = String.raw`
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
@@ -2719,19 +2739,78 @@ function __snapbackDefinitionKind(value) {
   if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';
   return null;
 }
+function __snapbackKnownMarkerKind(value) {
+  const definitionKind = __snapbackDefinitionKind(value);
+  if (definitionKind !== null) return definitionKind;
+  if (isTableDef(value)) return 'table';
+  if (isEphemeralDef(value)) return 'ephemeral';
+  return null;
+}
+function __snapbackOwnDescriptor(value, key) {
+  return __snapbackApply(__snapbackObjectGetOwnPropertyDescriptor, null, [value, key]);
+}
+function __snapbackIsDataDescriptor(descriptor) {
+  return __snapbackApply(__snapbackObjectHasOwn, descriptor, ['value']);
+}
 function __snapbackNormalize(value, stack = new __snapbackSet()) {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number') return value;
-  if (value === undefined) return undefined;
-  if (typeof value !== 'object') throw new Error('definition values must be JSON-serializable data');
+  const valueType = typeof value;
+  if (value === null || valueType === 'string' || valueType === 'boolean') return value;
+  if (valueType === 'number') {
+    if (!__snapbackNumberIsFinite(value) || __snapbackObjectIs(value, -0)) {
+      throw new Error('definition numbers must be finite canonical JSON numbers (negative zero is unavailable)');
+    }
+    return value;
+  }
+  if (valueType !== 'object') throw new Error('definition values must be strict JSON data; undefined, functions, symbols, and bigint are unavailable');
   if (__snapbackApply(__snapbackSetHas, stack, [value])) throw new Error('definition values must not contain cycles');
   __snapbackApply(__snapbackSetAdd, stack, [value]);
   let output;
   if (__snapbackArrayIsArray(value)) {
+    if (__snapbackApply(__snapbackObjectGetPrototypeOf, null, [value]) !== __snapbackArrayPrototype) {
+      throw new Error('definition arrays must use the intrinsic Array prototype');
+    }
+    const ownKeys = __snapbackApply(__snapbackReflectOwnKeys, null, [value]);
+    if (ownKeys.length !== value.length + 1) {
+      throw new Error('definition arrays must be dense and must not carry extra or symbol properties');
+    }
     output = [];
-    for (let index = 0; index < value.length; index += 1) output[index] = __snapbackNormalize(value[index], stack);
+    __snapbackApply(__snapbackObjectSetPrototypeOf, null, [output, null]);
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = __snapbackOwnDescriptor(value, __snapbackString(index));
+      if (!descriptor) throw new Error('definition arrays must not contain holes');
+      if (!descriptor.enumerable || !__snapbackIsDataDescriptor(descriptor)) {
+        throw new Error('definition arrays must contain enumerable data elements, not accessors');
+      }
+      output[index] = __snapbackNormalize(descriptor.value, stack);
+    }
   } else {
+    const markerKind = __snapbackKnownMarkerKind(value);
+    const prototype = __snapbackApply(__snapbackObjectGetPrototypeOf, null, [value]);
+    if (prototype !== null && prototype !== __snapbackObjectPrototype && markerKind !== 'table') {
+      throw new Error('definition objects must be plain JSON objects');
+    }
     output = __snapbackObjectCreate(null);
-    for (const key of __snapbackObjectKeys(value)) output[key] = __snapbackNormalize(value[key], stack);
+    let markerSeen = false;
+    const ownKeys = __snapbackApply(__snapbackReflectOwnKeys, null, [value]);
+    for (let keyIndex = 0; keyIndex < ownKeys.length; keyIndex += 1) {
+      const key = ownKeys[keyIndex];
+      const descriptor = __snapbackOwnDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !__snapbackIsDataDescriptor(descriptor)) {
+        throw new Error('definition objects must contain enumerable data properties, not accessors or hidden state');
+      }
+      if (typeof key === 'symbol') {
+        if (markerKind === null || markerSeen || descriptor.value !== true) {
+          throw new Error('definition objects must not contain symbol-keyed data');
+        }
+        markerSeen = true;
+        continue;
+      }
+      if (markerKind !== null && key === '__snapbackDefinitionKind') {
+        throw new Error('definition objects must not define the reserved __snapbackDefinitionKind field');
+      }
+      output[key] = __snapbackNormalize(descriptor.value, stack);
+    }
+    if (markerKind !== null && !markerSeen) throw new Error('definition builder marker must be an own data property');
     const definitionKind = __snapbackDefinitionKind(value);
     if (definitionKind !== null) output.__snapbackDefinitionKind = definitionKind;
   }
@@ -2742,7 +2821,7 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
   if (kind === 'schema') {
     return `${imports}\nimport schema from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(schema));\n`;
   }
-  return `${imports}\nimport * as definitions from ${entry};\n${normalization}\nconst output = __snapbackObjectCreate(null);\nfor (const name of __snapbackObjectKeys(definitions)) {\n  if (__snapbackDefinitionKind(definitions[name]) !== null) output[name] = __snapbackNormalize(definitions[name]);\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(output);\n`;
+  return `${imports}\nimport * as definitions from ${entry};\n${normalization}\nconst output = __snapbackObjectCreate(null);\nconst definitionNames = __snapbackObjectKeys(definitions);\nfor (let nameIndex = 0; nameIndex < definitionNames.length; nameIndex += 1) {\n  const name = definitionNames[nameIndex];\n  if (__snapbackDefinitionKind(definitions[name]) !== null) output[name] = __snapbackNormalize(definitions[name]);\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(output);\n`;
 }
 
 function definitionLoader(path) {

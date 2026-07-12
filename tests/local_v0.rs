@@ -2028,14 +2028,15 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(
         schema.schema_hash.as_deref(),
         // Re-pinned after the ENG-24373 validator/index hardening and
-        // ENG-24351's unambiguous length-framed graph identity; the
-        // regen-and-diff gate proves this is reproducible from committed source.
-        Some("sha256:8effdaa2c9c165c0")
+        // ENG-24351's strict isolated JSON evaluation and unambiguous
+        // length-framed graph identity; the regen-and-diff gate proves this
+        // is reproducible from committed source.
+        Some("sha256:cd52155ebe40ed35")
     );
     assert!(schema.inputs_hash.is_some());
     let schema_value = serde_json::to_value(&schema).expect("schema roundtrip");
     assert_eq!(schema_value["artifactKind"], "schemaManifest");
-    assert_eq!(schema_value["schemaHash"], "sha256:8effdaa2c9c165c0");
+    assert_eq!(schema_value["schemaHash"], "sha256:cd52155ebe40ed35");
 
     let functions: FunctionManifest = serde_json::from_str(include_str!(
         "../demos/todo/snapback/generated/functions.manifest.json"
@@ -2047,13 +2048,13 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
         functions.bundle_hash.as_deref(),
         // Path-independent since the LLP 0034 review fix 4 (handler sources
         // hash by manifest-relative path): reproducible from any checkout.
-        // Re-pinned for ENG-24351's complete, freshly-loaded, length-framed
-        // local dependency graph and the LLP 0051 D2 mutation-IR v1 extension
+        // Re-pinned for ENG-24351's complete, freshly-loaded, strict-JSON,
+        // length-framed local graph and the LLP 0051 D2 mutation-IR v1 extension
         // (ENG-23893; the hash covers codegen inputs); previously when the
         // todo demo handler rejected empty titles, for the LLP 0032 P3
         // declared listTodos result validator, the P1 define.mjs move, and
         // the LLP 0036 `uses`/`config` additions.
-        Some("sha256:1b77c6b9d4c06d8e")
+        Some("sha256:7335368f8477b9df")
     );
 
     let list = functions

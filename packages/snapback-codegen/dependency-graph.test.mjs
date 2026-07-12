@@ -152,6 +152,63 @@ export const zeta = defineJsQuery({ source: 'z-handler.mjs', exportName: 'zeta',
   assert.notEqual(secondManifest.bundleHash, firstManifest.bundleHash, 'NUL-containing runtime handlers must not collide in bundle identity');
 }
 
+// Evaluated definitions cross a strict JSON-data boundary. JSON.stringify's
+// coercions are not validation: they would turn non-finite numbers and array
+// `undefined` into null, drop object properties, and flatten containers such
+// as Map/RegExp to `{}`. Every such value must fail with a structured
+// evaluation diagnostic while preserving the last proven artifacts.
+{
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+  const invalidValues = [
+    ['NaN', 'NaN'],
+    ['positive infinity', 'Infinity'],
+    ['negative infinity', '-Infinity'],
+    ['negative zero', '-0'],
+    ['undefined', 'undefined'],
+    ['object undefined', '{ kept: 1, dropped: undefined }'],
+    ['array undefined', '[1, undefined, 3]'],
+    ['sparse array', '[1, , 3]'],
+    ['array extra property', "Object.assign([1], { extra: 2 })"],
+    ['function', '() => 1'],
+    ['symbol', "Symbol('not-json')"],
+    ['symbol property', "Object.assign({}, { [Symbol('not-json')]: 1 })"],
+    ['bigint', '1n'],
+    ['map', "new Map([['key', 1]])"],
+    ['set', 'new Set([1])'],
+    ['regexp', '/not-json/'],
+    ['typed array', 'new Uint8Array([1])'],
+    ['date', 'new Date(0)'],
+    ['custom prototype', 'Object.create({ inherited: true })'],
+    ['hidden property', "Object.defineProperty({}, 'hidden', { value: 1, enumerable: false })"],
+    ['accessor', "Object.defineProperty({}, 'value', { enumerable: true, get() { throw new Error('ACCESSOR_EXECUTED'); } })"],
+  ];
+  for (const [name, expression] of invalidValues) {
+    writeFileSync(join(dir, 'functions.mjs'), `
+import { defineMutation, insert, lit } from '${defineUrl}';
+const invalidValue = ${expression};
+export const mutate = defineMutation({ args: {}, plan: insert('todos', { title: lit(invalidValue) }) });
+`);
+    const rejected = await generate(dir);
+    assert.equal(rejected.ok, false, `${name}: generation unexpectedly succeeded`);
+    assert(
+      rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_MODULE_EVALUATION_FAILED'),
+      `${name}: ${JSON.stringify(rejected.diagnostics)}`,
+    );
+    assert(
+      rejected.diagnostics.every((diagnostic) => !diagnostic.message.includes('ACCESSOR_EXECUTED')),
+      `${name}: normalization must inspect descriptors without invoking accessors`,
+    );
+    assert.equal(
+      readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+      before,
+      `${name}: rejected definition data must preserve the last proven artifact`,
+    );
+  }
+}
+
 // Dynamic and query/hash-qualified local imports are unprovable graph edges;
 // fail before evaluation and preserve existing generated output.
 for (const [source, expectedCode] of [
@@ -481,6 +538,17 @@ for (const source of [
   "export const selectedTable = Date.now() % 2 ? 'todos' : 'notes';\n",
   "export const selectedTable = Math.random() < 0.5 ? 'todos' : 'notes';\n",
   "export const selectedTable = new Intl.DateTimeFormat().resolvedOptions().timeZone === 'UTC' ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(String.prototype, 'locale' + 'Compare'); export const selectedTable = Reflect.apply(method, 'ä', ['z']) < 0 ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(String.prototype, 'toLocale' + 'LowerCase'); export const selectedTable = Reflect.apply(method, 'I', []) === 'i' ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(String.prototype, 'toLocale' + 'UpperCase'); export const selectedTable = Reflect.apply(method, 'i', []) === 'I' ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(Number.prototype, 'toLocale' + 'String'); export const selectedTable = Reflect.apply(method, 1234, []).includes(',') ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(BigInt.prototype, 'toLocale' + 'String'); export const selectedTable = Reflect.apply(method, 1234n, []).includes(',') ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(Array.prototype, 'toLocale' + 'String'); export const selectedTable = Reflect.apply(method, [1234], []).includes(',') ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(Object.prototype, 'toLocale' + 'String'); export const selectedTable = Reflect.apply(method, {}, []).length ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(Uint8Array.prototype, 'toLocale' + 'String'); export const selectedTable = Reflect.apply(method, new Uint8Array([1]), []).length ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(Date.prototype, 'toLocale' + 'String'); export const selectedTable = typeof method === 'function' ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(Date.prototype, 'toLocale' + 'DateString'); export const selectedTable = typeof method === 'function' ? 'todos' : 'notes';\n",
+  "const method = Reflect.get(Date.prototype, 'toLocale' + 'TimeString'); export const selectedTable = typeof method === 'function' ? 'todos' : 'notes';\n",
   "export const selectedTable = fetch('http://127.0.0.1:9') ? 'todos' : 'notes';\n",
 ]) {
   const dir = makeBackend();
@@ -502,6 +570,32 @@ for (const source of [
 const process = 'ordinary-local-binding';
 globalThis.__definitionScratch = process;
 export const selectedTable = globalThis.__definitionScratch === 'ordinary-local-binding' ? 'notes' : 'todos';
+`);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.equal(manifests(dir).functions.functions[0].runtime.HostPlan.Query.table, 'notes');
+}
+
+// The serializer uses captured intrinsics and prototype-less output. App code
+// cannot redirect normalization through a poisoned array iterator, inherited
+// index setter, or JSON toJSON hook after the bundle banner has installed the
+// trusted references.
+{
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'function-helper.mjs'), `
+Object.defineProperty(Array.prototype, '0', {
+  configurable: true,
+  set() { throw new Error('ARRAY_INDEX_SETTER_EXECUTED'); },
+});
+Object.defineProperty(Array.prototype, Symbol.iterator, {
+  configurable: true,
+  value() { throw new Error('ARRAY_ITERATOR_EXECUTED'); },
+});
+Object.defineProperty(Array.prototype, 'toJSON', {
+  configurable: true,
+  value() { throw new Error('ARRAY_TO_JSON_EXECUTED'); },
+});
+export const selectedTable = 'notes';
 `);
   const result = await generate(dir);
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
