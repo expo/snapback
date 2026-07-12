@@ -34,6 +34,7 @@
 import { HostContext, physicalIndexName, physicalTableName, validateWriteValues } from './host-ops.js';
 import { nextNominalAfter } from './cron-utils.js';
 import { SUBSCRIPTION_LIMITS, SUBSCRIPTION_TEST_CEILINGS } from './limits.js';
+import { compileSubscriptionSelection, SUBSCRIPTION_FUNCTION_INDEX } from './subscription-selection.js';
 import {
   DEFAULT_MAX_PENDING_INVOCATIONS,
   classifyHandlerPlatformFailure,
@@ -249,7 +250,7 @@ export class Coordinator {
       this.migrateSubscriptionsSchema();
     }
     this.sql.exec(
-      'CREATE INDEX IF NOT EXISTS idx_snapback_subscriptions_function ON _snapback_subscriptions (function_name)'
+      `CREATE INDEX IF NOT EXISTS ${SUBSCRIPTION_FUNCTION_INDEX} ON _snapback_subscriptions (function_name)`
     );
     // Pool rotation cursors (LLP 0049 §Config And Secrets, OQ1): coordinator-
     // local durable metadata, NEVER values. Applied modulo the current member
@@ -386,7 +387,7 @@ export class Coordinator {
       this.sql.exec('ALTER TABLE _snapback_subscriptions_next RENAME TO _snapback_subscriptions');
       this.testSubscriptionMigrationFault('after-rename');
       this.sql.exec(
-        'CREATE INDEX IF NOT EXISTS idx_snapback_subscriptions_function ON _snapback_subscriptions (function_name)'
+        `CREATE INDEX IF NOT EXISTS ${SUBSCRIPTION_FUNCTION_INDEX} ON _snapback_subscriptions (function_name)`
       );
       this.testSubscriptionMigrationFault('after-index');
       this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION));
@@ -3391,11 +3392,8 @@ export class Coordinator {
     const subs = [];
     const affectedNames = [...affectedFunctions];
     if (affectedNames.length === 0) return;
-    const placeholders = affectedNames.map(() => '?').join(', ');
-    for (const record of this.sql.exec(
-      `SELECT * FROM _snapback_subscriptions WHERE function_name IN (${placeholders})`,
-      ...affectedNames
-    )) {
+    const selection = compileSubscriptionSelection(affectedNames);
+    for (const record of this.sql.exec(selection.sql, ...selection.params)) {
       subs.push(record);
     }
     const groups = new Map();
