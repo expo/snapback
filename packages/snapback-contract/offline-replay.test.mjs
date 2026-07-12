@@ -503,12 +503,30 @@ for (const invalid of [
     direction: undefined,
   },
   {
-    label: 'generated mutation id disagrees with sequence',
+    label: 'invalid pending identity without cursor',
     raw: JSON.stringify({
       ...additiveV1,
-      origin: 'origin',
-      nextSequence: 3,
-      pending: [{ id: 'cm_origin_2', function: 'one', sequence: 1, status: 'pending' }],
+      artifactScope: {
+        schemaHash: 'sh',
+        inputsHash: 'ih',
+        targetProfileId: 'tp',
+        appId: 'a',
+        databaseId: 'db',
+        versionStreamId: 'stream',
+      },
+      nextSequence: 2,
+      pending: [{
+        id: 'one',
+        function: 'one',
+        sequence: 1,
+        status: 'pending',
+        schemaHash: 'sh',
+        inputsHash: 'ih',
+        targetProfileId: 'tp',
+        appId: 'a',
+        databaseId: 'db',
+        versionStreamId: 17,
+      }],
     }),
     code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
     direction: undefined,
@@ -567,6 +585,40 @@ for (const invalid of [
   assert.equal(recovered.version, 1, `${invalid.label}: explicit reset recovers`);
   assert.deepEqual(recovered.pending, [], `${invalid.label}: reset is visibly empty`);
 }
+
+// Opaque client mutation IDs and local sequence numbers are independent LLP
+// fields. Prefix-like caller IDs remain valid, while automatic generation
+// probes past an occupied ID instead of returning an unrelated old mutation.
+const opaqueIdState = {
+  ...additiveV1,
+  origin: 'origin',
+  nextSequence: 2,
+  pending: [{
+    id: 'cm_origin_custom',
+    function: 'custom',
+    sequence: 1,
+    status: 'pending',
+  }],
+};
+assert.equal((await createMemorySnapbackClientStore({ state: opaqueIdState }).snapshot())
+  .pending[0].id, 'cm_origin_custom');
+
+const generatedCollisionState = {
+  ...additiveV1,
+  origin: 'origin',
+  nextSequence: 2,
+  pending: [{
+    id: 'cm_origin_2',
+    function: 'callerOpaqueId',
+    sequence: 1,
+    status: 'pending',
+  }],
+};
+const generatedCollisionStore = createMemorySnapbackClientStore({ state: generatedCollisionState });
+const collisionSafe = await generatedCollisionStore.enqueueMutation({ function: 'newMutation' });
+assert.equal(collisionSafe.id, 'cm_origin_3');
+assert.equal(collisionSafe.sequence, 3);
+assert.equal((await generatedCollisionStore.snapshot()).pending.length, 2);
 
 // A caller can also hand the adapter an invalid new nested record. Validate a
 // detached candidate before commit so that rejection leaves the shared memory

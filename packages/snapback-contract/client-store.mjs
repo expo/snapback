@@ -9,6 +9,15 @@ export const SNAPBACK_CLIENT_STORE_VERSION = 1;
 export const MAX_OFFLINE_LEDGER_IDS = 1024;
 const SNAPBACK_CTX_LEDGER_VERSION = 1;
 const REPLAY_OPAQUE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
+const ARTIFACT_SCOPE_FIELDS = [
+  'schemaHash',
+  'inputsHash',
+  'targetProfileId',
+  'appId',
+  'databaseId',
+  'versionStreamId',
+];
+const RECORD_IDENTITY_FIELDS = ['authFingerprint', ...ARTIFACT_SCOPE_FIELDS];
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 
@@ -87,6 +96,15 @@ function assertStateField(condition, field) {
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
+function assertOptionalRecordIdentity(record, path) {
+  for (const field of RECORD_IDENTITY_FIELDS) {
+    assertStateField(
+      record[field] === undefined || record[field] === null || typeof record[field] === 'string',
+      `${path}.${field}`,
+    );
+  }
+}
+
 function assertCursor(cursor, path) {
   assertStateField(isRecord(cursor), path);
   assertStateField(typeof cursor.stream === 'string' && cursor.stream.length > 0, `${path}.stream`);
@@ -98,6 +116,7 @@ function assertCursor(cursor, path) {
 
 function assertMutationRecord(entry, path, expectedStatus) {
   assertStateField(isRecord(entry), path);
+  assertOptionalRecordIdentity(entry, path);
   assertStateField(typeof entry.id === 'string' && entry.id.length > 0, `${path}.id`);
   assertStateField(typeof entry.function === 'string' && entry.function.length > 0, `${path}.function`);
   assertStateField(
@@ -105,6 +124,12 @@ function assertMutationRecord(entry, path, expectedStatus) {
     `${path}.sequence`,
   );
   assertStateField(entry.status === expectedStatus, `${path}.status`);
+  if (entry.baseVersion !== undefined && entry.baseVersion !== null) {
+    assertStateField(
+      Number.isSafeInteger(entry.baseVersion) && entry.baseVersion >= 0,
+      `${path}.baseVersion`,
+    );
+  }
   if (entry.cursor !== undefined && entry.cursor !== null) {
     assertCursor(entry.cursor, `${path}.cursor`);
     if (entry.versionStreamId !== undefined && entry.versionStreamId !== null) {
@@ -117,9 +142,7 @@ function assertMutationRecord(entry, path, expectedStatus) {
     }
     if (entry.baseVersion !== undefined && entry.baseVersion !== null) {
       assertStateField(
-        Number.isSafeInteger(entry.baseVersion)
-          && entry.baseVersion >= 0
-          && entry.baseVersion === entry.cursor.version,
+        entry.baseVersion === entry.cursor.version,
         `${path}.baseVersion`,
       );
     }
@@ -142,6 +165,23 @@ function assertMutationRecord(entry, path, expectedStatus) {
       Number.isSafeInteger(entry.ctxLedger.now) && entry.ctxLedger.now >= 0,
       `${path}.ctxLedger.now`,
     );
+  }
+}
+
+function assertMatchesCurrentScope(record, path, state) {
+  if (state.authFingerprint) {
+    assertStateField(record.authFingerprint === state.authFingerprint, `${path}.authFingerprint`);
+  }
+  if (!state.artifactScope) return;
+  for (const field of ARTIFACT_SCOPE_FIELDS) {
+    const expected = state.artifactScope[field];
+    if (!expected) continue;
+    assertStateField(record[field] === expected, `${path}.${field}`);
+    if (field === 'versionStreamId') {
+      assertStateField(record.cursor !== undefined && record.cursor !== null, `${path}.cursor`);
+      assertCursor(record.cursor, `${path}.cursor`);
+      assertStateField(record.cursor.stream === expected, `${path}.cursor.stream`);
+    }
   }
 }
 
@@ -187,6 +227,16 @@ const normalizeState = (state) => {
       || (typeof state.artifactScope === 'object' && !Array.isArray(state.artifactScope)),
     'artifactScope',
   );
+  if (state.artifactScope !== null) {
+    for (const field of ARTIFACT_SCOPE_FIELDS) {
+      assertStateField(
+        state.artifactScope[field] === undefined
+          || state.artifactScope[field] === null
+          || typeof state.artifactScope[field] === 'string',
+        `artifactScope.${field}`,
+      );
+    }
+  }
   assertStateField(Number.isSafeInteger(state.nextSequence) && state.nextSequence >= 1, 'nextSequence');
   assertStateField(
     typeof state.retained === 'object' && state.retained !== null && !Array.isArray(state.retained),
@@ -199,7 +249,14 @@ const normalizeState = (state) => {
     // only the structural position, never the potentially sensitive key.
     const path = `retained.${index}`;
     assertStateField(isRecord(record), path);
+    assertOptionalRecordIdentity(record, path);
     assertStateField(Array.isArray(record.rows), `${path}.rows`);
+    if (record.version !== undefined && record.version !== null) {
+      assertStateField(
+        Number.isSafeInteger(record.version) && record.version >= 0,
+        `${path}.version`,
+      );
+    }
     if (record.cursor !== undefined && record.cursor !== null) {
       assertCursor(record.cursor, `${path}.cursor`);
       if (record.versionStreamId !== undefined && record.versionStreamId !== null) {
@@ -212,13 +269,12 @@ const normalizeState = (state) => {
       }
       if (record.version !== undefined && record.version !== null) {
         assertStateField(
-          Number.isSafeInteger(record.version)
-            && record.version >= 0
-            && record.version === record.cursor.version,
+          record.version === record.cursor.version,
           `${path}.version`,
         );
       }
     }
+    assertMatchesCurrentScope(record, path, state);
   });
   const seenIds = new Set();
   const seenSequences = new Set();
@@ -229,15 +285,11 @@ const normalizeState = (state) => {
     seenIds.add(entry.id);
     seenSequences.add(entry.sequence);
     highestSequence = Math.max(highestSequence, entry.sequence);
-
-    const generatedPrefix = `cm_${state.origin}_`;
-    if (entry.id.startsWith(generatedPrefix)) {
-      assertStateField(entry.id === `${generatedPrefix}${entry.sequence}`, `${path}.id`);
-    }
   };
   state.pending.forEach((entry, index) => {
     const path = `pending.${index}`;
     assertMutationRecord(entry, path, 'pending');
+    assertMatchesCurrentScope(entry, path, state);
     assertMutationIdentity(entry, path);
   });
   state.failed.forEach((entry, index) => {
@@ -389,12 +441,35 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         if (!recordMatchesCurrentScope(state, record)) {
           throw staleStoreScopeError('queued mutation write');
         }
-        const sequence = Number.isSafeInteger(record.sequence)
+        let sequence = Number.isSafeInteger(record.sequence)
           ? record.sequence
           : state.nextSequence;
-        const id = record.id ?? `cm_${state.origin}_${sequence}`;
-        const existing = state.pending.find((entry) => entry.id === id);
-        if (existing) return clone(existing);
+        let id = record.id;
+        if (id !== undefined && id !== null) {
+          const existing = state.pending.find((entry) => entry.id === id);
+          if (existing) return clone(existing);
+        } else {
+          const occupiedIds = new Set(
+            [...state.pending, ...state.failed].map((entry) => entry.id),
+          );
+          id = `cm_${state.origin}_${sequence}`;
+          while (occupiedIds.has(id)) {
+            if (sequence >= Number.MAX_SAFE_INTEGER - 1) {
+              throw clientStoreStateError(
+                'SNAPBACK_CLIENT_STORE_SEQUENCE_EXHAUSTED',
+                'client-store mutation sequence space is exhausted',
+              );
+            }
+            sequence += 1;
+            id = `cm_${state.origin}_${sequence}`;
+          }
+        }
+        if (!Number.isSafeInteger(sequence) || sequence >= Number.MAX_SAFE_INTEGER) {
+          throw clientStoreStateError(
+            'SNAPBACK_CLIENT_STORE_SEQUENCE_EXHAUSTED',
+            'client-store mutation sequence space is exhausted',
+          );
+        }
         state.nextSequence = Math.max(state.nextSequence, sequence + 1);
         const queued = clone({ ...record, id, sequence, status: 'pending' });
         state.pending.push(queued);
