@@ -267,7 +267,7 @@ const evalCall = (func, args) => {
       if (value === null) return null;
       if (typeof value !== 'number') return fail('SNAPBACK_EXPR_TYPE', `${func} expects a number`);
       if (func === 'abs') return numberValue(Math.abs(value));
-      if (func === 'round') return numberValue(Math.floor(value + 0.5)); // JS Math.round parity
+      if (func === 'round') return numberValue(Math.round(value));
       if (func === 'floor') return numberValue(Math.floor(value));
       return numberValue(Math.ceil(value));
     }

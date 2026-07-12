@@ -294,7 +294,7 @@ export class HostContext {
     if (requestedIndex) sql += ` INDEXED BY ${physicalIndexName(table.name, requestedIndex.name)}`;
     if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
     const order = (plan.order || [])
-      .map((entry) => `${fieldExpr(ensureQueryField(entry.field))} ${entry.direction === 'Desc' ? 'DESC' : 'ASC'}`)
+      .map((entry) => `${fieldExpr(ensureQueryField(entry.field))} ${entry.direction === 'Desc' ? 'DESC' : 'ASC'} NULLS LAST`)
       .join(', ');
     if (order) sql += ` ORDER BY ${order}, id ASC`;
     if (plan.limit != null) {
@@ -502,7 +502,7 @@ export function applyPlan(rows, plan) {
     result.sort((a, b) => compareValues(a._id, b._id));
     for (const order of plan.order.slice().reverse()) {
       const dir = order.direction === 'Desc' ? -1 : 1;
-      result.sort((a, b) => compareValues(a[order.field], b[order.field]) * dir);
+      result.sort((a, b) => compareOrderValues(a[order.field], b[order.field], dir));
     }
   }
   if (plan.limit != null) result = result.slice(0, plan.limit);
@@ -557,4 +557,14 @@ function compareValues(a, b) {
   if (a == null) return -1;
   if (b == null) return 1;
   return a < b ? -1 : 1;
+}
+
+// NULL is last in both directions (LLP 0007). Direction applies only to
+// present values; multiplying a NULL-aware comparator by -1 would make DESC
+// NULL-first and diverge from the portable contract.
+function compareOrderValues(a, b, direction) {
+  if (a === b) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return compareValues(a, b) * direction;
 }

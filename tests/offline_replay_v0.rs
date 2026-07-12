@@ -4,8 +4,8 @@
 use serde_json::{Value, json};
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
-    AuthInput, CtxAnswerLedger, FunctionManifest, HandlerInput, PermissionScopeExpr,
-    SchemaManifest, auth_fingerprint,
+    AuthInput, CtxAnswerLedger, FunctionManifest, HandlerInput, PORTABLE_TIMESTAMP_MAX_MS,
+    PermissionScopeExpr, SchemaManifest, auth_fingerprint,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -286,4 +286,42 @@ fn host_plan_record_and_replay_consume_the_ledger_exactly() {
         .expect_err("invalid ledger ids must fail before execution");
     assert_eq!(error.diagnostic.code, "SNAPBACK_CTX_LEDGER_ID_INVALID");
     assert_eq!(invalid.durable_version(), Some(0));
+}
+
+#[test]
+fn host_plan_replay_timestamp_is_portable_and_persisted_exactly() {
+    let mut recorder = memory();
+    let recorded = recorder
+        .invoke_mutation("createTodo", create_input(USER))
+        .expect("record host plan");
+    let mut ledger = recorded.ctx_ledger.expect("host plan ledger");
+    ledger.now = PORTABLE_TIMESTAMP_MAX_MS;
+
+    let mut accepted = memory();
+    let mut accepted_input = create_input(USER);
+    accepted_input.ctx_ledger = Some(ledger.clone());
+    let output = accepted
+        .invoke_mutation("createTodo", accepted_input)
+        .expect("maximum portable timestamp");
+    assert_eq!(
+        output.ctx_ledger.as_ref().map(|value| value.now),
+        Some(ledger.now)
+    );
+    let rows = accepted
+        .invoke_query("listTodos", input_for(USER, json!({})))
+        .expect("query persisted host-plan row")
+        .rows;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["_createdAt"], json!(PORTABLE_TIMESTAMP_MAX_MS));
+    assert_eq!(rows[0]["_updatedAt"], json!(PORTABLE_TIMESTAMP_MAX_MS));
+
+    let mut rejected = memory();
+    ledger.now = PORTABLE_TIMESTAMP_MAX_MS + 1;
+    let mut rejected_input = create_input(USER);
+    rejected_input.ctx_ledger = Some(ledger);
+    let error = rejected
+        .invoke_mutation("createTodo", rejected_input)
+        .expect_err("timestamp beyond the portable bound");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_TIMESTAMP_OUT_OF_RANGE");
+    assert_eq!(rejected.durable_version(), Some(0));
 }

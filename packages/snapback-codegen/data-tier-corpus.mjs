@@ -471,8 +471,12 @@ export function buildCorpusCases() {
       trim: call('trim', lit('  x  ')),
       lower: call('lower', lit('MiXeD')),
       abs: call('abs', lit(-4)),
+      roundPosBelowHalf: call('round', lit(0.49999999999999994)),
       roundHalf: call('round', lit(0.5)),
+      roundPosAboveHalf: call('round', lit(0.5000000000000001)),
+      roundNegBelowHalf: call('round', lit(-0.5000000000000001)),
       roundNegHalf: call('round', lit(-0.5)),
+      roundNegAboveHalf: call('round', lit(-0.49999999999999994)),
       floor: call('floor', lit(1.9)),
       ceil: call('ceil', lit(1.1)),
       clamp: call('max', lit(-300), call('min', lit(3600), call('round', lit(3999.6)))),
@@ -481,7 +485,9 @@ export function buildCorpusCases() {
     }),
     {
       len: 5, lenArr: 3, trim: 'x', lower: 'mixed', abs: 4,
-      roundHalf: 1, roundNegHalf: 0, floor: 1, ceil: 2, clamp: 3600,
+      roundPosBelowHalf: 0, roundHalf: 1, roundPosAboveHalf: 1,
+      roundNegBelowHalf: -1, roundNegHalf: 0, roundNegAboveHalf: 0,
+      floor: 1, ceil: 2, clamp: 3600,
       nullProp: null, minNull: null,
     },
   );

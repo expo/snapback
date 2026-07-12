@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import schemaManifest from '../../demos/all-aboard/snapback/generated/schema.manifest.json' with { type: 'json' };
 import functionsManifest from '../../demos/all-aboard/snapback/generated/functions.manifest.json' with { type: 'json' };
-import { HostContext, physicalIndexName } from '../src/host-ops.js';
+import { HostContext, applyPlan, physicalIndexName } from '../src/host-ops.js';
 import {
   compileSubscriptionSelection,
   SUBSCRIPTION_FUNCTION_INDEX,
@@ -134,6 +134,78 @@ function captureProductionRowQuery(plan) {
   assert.deepEqual(host.storageQuery(physicalTable, plan), []);
   assert.equal(calls.length, 1, 'storageQuery must execute one SQLite statement');
   return calls[0];
+}
+
+function executeProductionRowQuery(db, plan) {
+  const host = new HostContext({
+    sql: {
+      exec(sql, ...params) {
+        return db.prepare(sql).all(...params);
+      },
+    },
+    mode: 'query',
+    nowMs: 0,
+    epoch: 'query-ordering-acceptance',
+    newId: () => 'unused',
+    tables: new Set([table.name]),
+    schemaTables: new Map([[table.name, table]]),
+  });
+  return host.storageQuery(physicalTable, plan);
+}
+
+// LLP 0007 ordering conformance: Durable Object SQLite and the buffered
+// in-memory overlay both put null last in either direction and use `_id` as
+// the stable final tie-break. Limits therefore select the same rows before
+// and after a buffered commit.
+{
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE ${physicalTable} (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)`);
+  const rows = [
+    { _id: 'n', orderIndex: null },
+    { _id: 'b', orderIndex: 1 },
+    { _id: 'a', orderIndex: 1 },
+    { _id: 'z', orderIndex: 2 },
+  ];
+  const insert = db.prepare(`INSERT INTO ${physicalTable} (id, row_json) VALUES (?, ?)`);
+  for (const row of rows) insert.run(row._id, JSON.stringify(row));
+  try {
+    for (const [direction, expected] of [
+      ['Asc', ['a', 'b', 'z', 'n']],
+      ['Desc', ['z', 'a', 'b', 'n']],
+    ]) {
+      const plan = {
+        table: table.name,
+        filters: [],
+        order: [{ field: 'orderIndex', direction }],
+        limit: null,
+        indexed_by: null,
+      };
+      const compiled = captureProductionRowQuery(plan);
+      assert.match(compiled.sql, /NULLS LAST, id ASC$/);
+      assert.deepEqual(
+        executeProductionRowQuery(db, plan).map((row) => row._id),
+        expected,
+        `${direction} SQL ordering`,
+      );
+      assert.deepEqual(
+        applyPlan(rows, plan).map((row) => row._id),
+        expected,
+        `${direction} buffered-overlay ordering`,
+      );
+      assert.deepEqual(
+        executeProductionRowQuery(db, { ...plan, limit: 2 }).map((row) => row._id),
+        expected.slice(0, 2),
+        `${direction} limited SQL ordering`,
+      );
+      assert.deepEqual(
+        applyPlan(rows, { ...plan, limit: 2 }).map((row) => row._id),
+        expected.slice(0, 2),
+        `${direction} limited buffered-overlay ordering`,
+      );
+    }
+  } finally {
+    db.close();
+  }
 }
 
 function assertSearchesIndex(details, expectedIndex) {

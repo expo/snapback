@@ -3,7 +3,8 @@ use crate::manifest::{
     CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest,
     FieldType, FilterOp, HandlerInput, MutationOutput, MutationPlan, MutationStep, OrderDirection,
     QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest,
-    ValueExpr, auth_fingerprint, replay_opaque_id_is_valid,
+    ValueExpr, auth_fingerprint, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
+    validate_portable_timestamp_millis,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
@@ -811,6 +812,7 @@ impl LocalDatabase {
             .as_ref()
             .map(|ledger| ledger.now)
             .unwrap_or_else(now_millis);
+        validate_portable_timestamp_millis(now_ms)?;
         let current_version = self.current_version()?;
         let next_version = current_version + 1;
         let tx = self.conn.transaction()?;
@@ -1302,6 +1304,7 @@ impl LocalDatabase {
         writes: Vec<BufferedWrite>,
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
+        ctx_ledger: CtxAnswerLedger,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes(
             input,
@@ -1309,7 +1312,7 @@ impl LocalDatabase {
             read_dependencies,
             result,
             BufferedCommitOptions {
-                ctx_ledger: None,
+                ctx_ledger: Some(ctx_ledger),
                 apply: false,
                 identity: None,
             },
@@ -1358,7 +1361,17 @@ impl LocalDatabase {
         } = effects;
         // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
         let schema = self.schema.clone();
-        let now_ms = now_millis();
+        // The handler's frozen clock is part of the buffered effect, not a
+        // value to rediscover at reconnect/commit time. Replay, optimistic
+        // output, persisted system fields, and the journal therefore share
+        // one timestamp (LLP 0007 §Timestamps; LLP 0051 D1).
+        let now_ms = options
+            .ctx_ledger
+            .as_ref()
+            .or(input.ctx_ledger.as_ref())
+            .map(|ledger| ledger.now)
+            .unwrap_or_else(now_millis);
+        validate_portable_timestamp_millis(now_ms)?;
         let current_version = self.current_version()?;
         let next_version = current_version + 1;
         let tx = self.conn.transaction()?;
@@ -2210,8 +2223,15 @@ fn build_query_sql(
                 OrderDirection::Asc => "ASC",
                 OrderDirection::Desc => "DESC",
             };
-            order_parts.push(format!("{} {direction}", quote_ident(&order.field)?));
+            // Snapback owns ordering semantics: NULL is last in both
+            // directions, and `_id` is the final stable tie-break. Do not
+            // inherit SQLite's ASC NULL-first default (LLP 0007 §Queries).
+            order_parts.push(format!(
+                "{} {direction} NULLS LAST",
+                quote_ident(&order.field)?
+            ));
         }
+        order_parts.push("\"_id\" ASC".to_owned());
         sql.push_str(" ORDER BY ");
         sql.push_str(&order_parts.join(", "));
     }
@@ -2547,6 +2567,17 @@ fn eval_expr(
     crate::value_expr::eval_value_expr(expr, &env).map_err(|error| error.into_snapback())
 }
 
+fn timestamp_to_sql_millis(value: u64) -> SnapbackResult<i64> {
+    validate_portable_timestamp_millis(value)?;
+    i64::try_from(value).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_TIMESTAMP_OUT_OF_RANGE",
+            "storage",
+            format!("runtime timestamp {value} cannot be represented by the storage engine"),
+        )
+    })
+}
+
 fn insert_document(
     tx: &Transaction<'_>,
     table: &TableManifest,
@@ -2581,8 +2612,8 @@ fn insert_document(
     let mut values = vec![
         SqlValue::Text(id.to_owned()),
         SqlValue::Integer(version as i64),
-        SqlValue::Integer(now_ms as i64),
-        SqlValue::Integer(now_ms as i64),
+        SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
+        SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
     ];
 
     for field in &table.fields {
@@ -2637,7 +2668,7 @@ fn patch_document(
     let mut assignments = vec!["_version = ?".to_owned(), "_updatedAt = ?".to_owned()];
     let mut values = vec![
         SqlValue::Integer(version as i64),
-        SqlValue::Integer(now_ms as i64),
+        SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
     ];
 
     for (field, value) in row {
@@ -2723,7 +2754,7 @@ fn record_change(
             ChangeOp::Delete => "delete",
         },
         row.map(Value::to_string),
-        now_ms as i64
+        timestamp_to_sql_millis(now_ms)?
     ])?;
     Ok(())
 }
@@ -2981,52 +3012,7 @@ fn expect_string(value: Value, label: &str) -> SnapbackResult<String> {
 }
 
 fn validate_plan_replay_ledger(input: &HandlerInput) -> SnapbackResult<Option<&CtxAnswerLedger>> {
-    let Some(ledger) = input.ctx_ledger.as_ref() else {
-        return Ok(None);
-    };
-    if ledger.version != CTX_ANSWER_LEDGER_VERSION {
-        return Err(SnapbackError::error(
-            "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED",
-            "runtime",
-            format!(
-                "ctx-answer ledger version {} is not supported (current: {})",
-                ledger.version, CTX_ANSWER_LEDGER_VERSION
-            ),
-        ));
-    }
-    if ledger.ids.len() > CTX_ANSWER_LEDGER_MAX_IDS {
-        return Err(SnapbackError::error(
-            "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
-            "runtime",
-            format!(
-                "ctx-answer ledger contains {} ids, past the declared bound ({})",
-                ledger.ids.len(),
-                CTX_ANSWER_LEDGER_MAX_IDS
-            ),
-        ));
-    }
-    if let Some((index, _)) = ledger
-        .ids
-        .iter()
-        .enumerate()
-        .find(|(_, id)| !replay_opaque_id_is_valid(id))
-    {
-        return Err(SnapbackError::error(
-            "SNAPBACK_CTX_LEDGER_ID_INVALID",
-            "runtime",
-            format!("ctx-answer ledger id at index {index} is not a valid opaque replay id"),
-        ));
-    }
-    if let Some(recorded) = ledger.auth_fingerprint.as_ref()
-        && *recorded != auth_fingerprint(&input.auth)
-    {
-        return Err(SnapbackError::error(
-            "SNAPBACK_AUTH_STALE_RESULT",
-            "runtime",
-            "ctx-answer ledger was recorded under a different auth context",
-        ));
-    }
-    Ok(Some(ledger))
+    validate_ctx_answer_ledger(input)
 }
 
 struct PlanIdSource<'a> {
@@ -3156,7 +3142,7 @@ fn record_client_mutation_result(
             identity.auth_fingerprint,
             identity.input_fingerprint,
             output_json,
-            now_millis() as i64,
+            timestamp_to_sql_millis(now_millis())?,
         ],
     )?;
     Ok(())
@@ -3183,11 +3169,18 @@ mod guarded_commit_tests {
         SchemaManifest {
             tables: vec![TableManifest {
                 name: "items".to_owned(),
-                fields: vec![FieldManifest {
-                    name: "title".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                }],
+                fields: vec![
+                    FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "rank".to_owned(),
+                        field_type: FieldType::Integer,
+                        optional: true,
+                    },
+                ],
                 indexes: Vec::new(),
                 syncable: true,
             }],
@@ -3492,5 +3485,91 @@ mod guarded_commit_tests {
         assert!(dropped.load(Ordering::SeqCst));
         assert!(!active.load(Ordering::SeqCst));
         assert_eq!(db.current_version().unwrap(), 1);
+    }
+
+    #[test]
+    fn buffered_commit_uses_the_invocation_ledger_clock_everywhere() {
+        let mut db = database();
+        let input = HandlerInput::default();
+        let mut ledger = ledger();
+        ledger.now = 123_456_789;
+        let commit = db
+            .commit_buffered_writes_idempotent(
+                &input,
+                buffered_writes(),
+                Vec::new(),
+                json!({ "now": ledger.now }),
+                ledger.clone(),
+                None,
+            )
+            .expect("buffered commit");
+
+        assert_eq!(commit.output.ctx_ledger, Some(ledger.clone()));
+        assert_eq!(commit.output.result["now"], json!(ledger.now));
+        for change in &commit.changes {
+            let row = change.row.as_ref().expect("insert row");
+            assert_eq!(row["_createdAt"], json!(ledger.now));
+            assert_eq!(row["_updatedAt"], json!(ledger.now));
+        }
+        let (minimum, maximum): (i64, i64) = db
+            .conn
+            .query_row(
+                "SELECT MIN(changed_at_ms), MAX(changed_at_ms) FROM _snapback_changes",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("journal timestamps");
+        assert_eq!((minimum, maximum), (ledger.now as i64, ledger.now as i64));
+    }
+
+    #[test]
+    fn ordered_queries_are_null_last_and_id_stable_in_both_directions() {
+        let mut db = database();
+        let rows = [
+            json!({ "_id": "n", "title": "null", "rank": null }),
+            json!({ "_id": "b", "title": "tie-b", "rank": 1 }),
+            json!({ "_id": "a", "title": "tie-a", "rank": 1 }),
+            json!({ "_id": "z", "title": "high", "rank": 2 }),
+        ]
+        .into_iter()
+        .map(|row| row.as_object().cloned().expect("seed row"))
+        .collect();
+        db.seed(SeedData {
+            tables: BTreeMap::from([("items".to_owned(), rows)]),
+        })
+        .expect("seed ordering fixture");
+
+        let ids = |direction, limit| {
+            db.query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "rank".to_owned(),
+                        direction,
+                    }],
+                    limit,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("ordered query")
+            .rows
+            .into_iter()
+            .map(|row| row["_id"].as_str().expect("row id").to_owned())
+            .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            ids(OrderDirection::Asc, None),
+            ["a", "b", "z", "n"],
+            "ASC must put NULL last and break ties by _id"
+        );
+        assert_eq!(
+            ids(OrderDirection::Desc, None),
+            ["z", "a", "b", "n"],
+            "DESC must still put NULL last and break ties by _id"
+        );
+        assert_eq!(ids(OrderDirection::Asc, Some(2)), ["a", "b"]);
     }
 }

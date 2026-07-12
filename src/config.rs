@@ -63,6 +63,11 @@ struct ConfigFileState {
     entries: BTreeMap<String, StoredEntry>,
 }
 
+#[derive(Deserialize)]
+struct ConfigFileHeader {
+    version: u32,
+}
+
 impl Default for ConfigFileState {
     fn default() -> Self {
         Self {
@@ -120,17 +125,43 @@ impl ConfigStore {
 
     pub fn open(path: PathBuf) -> SnapbackResult<Self> {
         let state = match crate::secure_file::read_owner_only(&path) {
-            Ok(bytes) => serde_json::from_slice::<ConfigFileState>(&bytes).map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_CONFIG_STORE_INVALID",
-                    "config",
-                    format!(
-                        "config store {} exists but could not be parsed; refusing to overwrite it",
-                        path.display()
-                    ),
-                )
-                .with_details(serde_json::json!({ "error": error.to_string() }))
-            })?,
+            Ok(bytes) => {
+                let invalid_store = |error: serde_json::Error| {
+                    SnapbackError::error(
+                        "SNAPBACK_CONFIG_STORE_INVALID",
+                        "config",
+                        format!(
+                            "config store {} exists but could not be parsed; refusing to overwrite it",
+                            path.display()
+                        ),
+                    )
+                    .with_details(serde_json::json!({ "error": error.to_string() }))
+                };
+                // Read only the version header first. A future format may no
+                // longer deserialize into today's entry shape; it must still
+                // receive the stable unsupported-version diagnostic and keep
+                // its bytes untouched rather than being mistaken for damage.
+                let header =
+                    serde_json::from_slice::<ConfigFileHeader>(&bytes).map_err(&invalid_store)?;
+                if header.version != CONFIG_STORE_FORMAT_VERSION {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CONFIG_STORE_VERSION_UNSUPPORTED",
+                        "config",
+                        format!(
+                            "config store {} uses format version {}, but this binary supports only version {}; refusing to expose or overwrite it",
+                            path.display(),
+                            header.version,
+                            CONFIG_STORE_FORMAT_VERSION
+                        ),
+                    )
+                    .with_details(serde_json::json!({
+                        "path": path,
+                        "foundVersion": header.version,
+                        "supportedVersion": CONFIG_STORE_FORMAT_VERSION,
+                    })));
+                }
+                serde_json::from_slice::<ConfigFileState>(&bytes).map_err(&invalid_store)?
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 ConfigFileState::default()
             }
@@ -676,6 +707,43 @@ mod tests {
         std::fs::write(&path, b"not json").unwrap();
         let error = ConfigStore::open(path).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_STORE_INVALID");
+    }
+
+    #[test]
+    fn unsupported_store_versions_fail_before_values_are_exposed_or_rewritten() {
+        let dir = tempfile::tempdir().unwrap();
+        for version in [0, CONFIG_STORE_FORMAT_VERSION + 1, u32::MAX] {
+            let path = dir.path().join(format!("store-v{version}.json"));
+            let bytes = serde_json::to_vec_pretty(&serde_json::json!({
+                "version": version,
+                "generation": 7,
+                "entries": {
+                    "futureSecret": {
+                        "values": ["must-not-be-exposed"],
+                        "setAtMs": 1,
+                        "source": "future-binary"
+                    }
+                }
+            }))
+            .unwrap();
+            std::fs::write(&path, &bytes).unwrap();
+
+            let error = ConfigStore::open(path.clone()).expect_err("version must fail closed");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_CONFIG_STORE_VERSION_UNSUPPORTED"
+            );
+            assert_eq!(error.diagnostic.details["foundVersion"], version);
+            assert_eq!(
+                error.diagnostic.details["supportedVersion"],
+                CONFIG_STORE_FORMAT_VERSION
+            );
+            assert_eq!(
+                std::fs::read(&path).unwrap(),
+                bytes,
+                "refusing an unsupported format must preserve its original bytes"
+            );
+        }
     }
 
     #[test]

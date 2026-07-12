@@ -197,9 +197,7 @@ impl RuntimeManager {
         let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
         let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext { writes, reads, .. } = invocation;
-        let mut commit = db.dry_run_buffered_writes(&input, writes, reads, result)?;
-        commit.output.ctx_ledger = Some(ctx_ledger);
-        Ok(commit)
+        db.dry_run_buffered_writes(&input, writes, reads, result, ctx_ledger)
     }
 
     pub fn invoke_ibex_action(
@@ -433,54 +431,9 @@ fn action_db_denied(op: &str) -> SnapbackError {
 /// mismatch surfaces `SNAPBACK_AUTH_STALE_RESULT` (LLP 0043 §Auth posture)
 /// rather than replaying under new authority.
 fn validate_replay_ledger(input: &HandlerInput) -> SnapbackResult<Option<ReplayLedger>> {
-    let Some(ledger) = &input.ctx_ledger else {
+    let Some(ledger) = crate::manifest::validate_ctx_answer_ledger(input)? else {
         return Ok(None);
     };
-    if ledger.version != crate::manifest::CTX_ANSWER_LEDGER_VERSION {
-        return Err(SnapbackError::error(
-            "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED",
-            "runtime",
-            format!(
-                "ctx-answer ledger version {} is not supported (current: {})",
-                ledger.version,
-                crate::manifest::CTX_ANSWER_LEDGER_VERSION
-            ),
-        ));
-    }
-    if ledger.ids.len() > crate::manifest::CTX_ANSWER_LEDGER_MAX_IDS {
-        return Err(SnapbackError::error(
-            "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
-            "runtime",
-            format!(
-                "ctx-answer ledger contains {} ids, past the declared bound ({})",
-                ledger.ids.len(),
-                crate::manifest::CTX_ANSWER_LEDGER_MAX_IDS
-            ),
-        ));
-    }
-    if let Some((index, _)) = ledger
-        .ids
-        .iter()
-        .enumerate()
-        .find(|(_, id)| !crate::manifest::replay_opaque_id_is_valid(id))
-    {
-        return Err(SnapbackError::error(
-            "SNAPBACK_CTX_LEDGER_ID_INVALID",
-            "runtime",
-            format!("ctx-answer ledger id at index {index} is not a valid opaque replay id"),
-        ));
-    }
-    if let Some(fingerprint) = &ledger.auth_fingerprint {
-        let current = crate::manifest::auth_fingerprint(&input.auth);
-        if *fingerprint != current {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_STALE_RESULT",
-                "runtime",
-                "ctx-answer ledger was recorded under a different auth context; \
-                 refusing to replay under new authority (LLP 0043 §Auth posture)",
-            ));
-        }
-    }
     Ok(Some(ReplayLedger {
         ids: ledger.ids.clone(),
         cursor: 0,
@@ -531,6 +484,7 @@ impl<'a> IbexHostContext<'a> {
             .as_ref()
             .map(|ledger| ledger.now)
             .unwrap_or_else(now_millis);
+        crate::manifest::validate_portable_timestamp_millis(now_ms)?;
         let reads = auth_dependencies(&input);
         let read_keys = read_dependency_keys(&reads);
         Ok(Self {

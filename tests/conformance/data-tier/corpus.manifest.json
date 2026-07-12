@@ -144,7 +144,7 @@
     {
       "name": "expr-pinned-library",
       "path": "expr-pinned-library.case.json",
-      "sha256": "sha256:db4175677f7a59beaf5b6228faa2a193748a099b73e47dc4a85eba825b278d36",
+      "sha256": "sha256:03f0bbe92a3c08fb681902674f1a899913ce45be1e08340e7e0a22408f662e5e",
       "requiredCapabilities": [
         "irEvaluator"
       ],

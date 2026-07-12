@@ -12,7 +12,8 @@ use snapback::local::LocalSnapback;
 use snapback::manifest::{
     AuthInput, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger,
     FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-    HandlerInput, IbexModule, SchemaManifest, TableManifest, auth_fingerprint,
+    HandlerInput, IbexModule, PORTABLE_TIMESTAMP_MAX_MS, SchemaManifest, TableManifest,
+    auth_fingerprint,
 };
 
 const LEDGER_MODULE_SOURCE: &str = r#"
@@ -176,6 +177,70 @@ fn replay_mode_reproduces_the_recorded_answers() {
         Some(&ledger.ids)
     );
     assert_eq!(replayed.ctx_ledger.map(|l| l.now), Some(ledger.now));
+}
+
+#[test]
+fn replay_clock_is_the_persisted_clock_and_obeys_the_portable_boundary() {
+    let mut recorder = configured();
+    let recorded = recorder
+        .invoke_mutation("ledgeredIds", input(json!({ "tag": "clock" })))
+        .expect("record mutation");
+    let mut ledger = recorded.ctx_ledger.expect("ledger");
+    ledger.now = PORTABLE_TIMESTAMP_MAX_MS;
+
+    let mut replayer = configured();
+    let preview = replayer
+        .dry_run_mutation(
+            "ledgeredIds",
+            replay_input(json!({ "tag": "clock" }), ledger.clone()),
+        )
+        .expect("dry-run replay at maximum portable timestamp");
+    assert!(preview.would_commit);
+    assert_eq!(preview.result["now"], json!(PORTABLE_TIMESTAMP_MAX_MS));
+    assert_eq!(
+        preview.ledger.as_ref().map(|value| value.now),
+        Some(ledger.now)
+    );
+    assert_eq!(preview.changes.len(), 1);
+    let provisional = preview.changes[0].row.as_ref().expect("provisional row");
+    assert_eq!(provisional["_createdAt"], json!(PORTABLE_TIMESTAMP_MAX_MS));
+    assert_eq!(provisional["_updatedAt"], json!(PORTABLE_TIMESTAMP_MAX_MS));
+
+    let replayed = replayer
+        .invoke_mutation(
+            "ledgeredIds",
+            replay_input(json!({ "tag": "clock" }), ledger.clone()),
+        )
+        .expect("maximum portable timestamp replays");
+    assert_eq!(replayed.result["now"], json!(PORTABLE_TIMESTAMP_MAX_MS));
+    assert_eq!(
+        replayed.ctx_ledger.as_ref().map(|value| value.now),
+        Some(ledger.now)
+    );
+    let rows = replayer
+        .invoke_query("listItems", input(json!({})))
+        .expect("query replayed row")
+        .rows;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["_createdAt"], json!(PORTABLE_TIMESTAMP_MAX_MS));
+    assert_eq!(rows[0]["_updatedAt"], json!(PORTABLE_TIMESTAMP_MAX_MS));
+
+    let mut beyond = configured();
+    ledger.now = PORTABLE_TIMESTAMP_MAX_MS + 1;
+    let error = beyond
+        .invoke_mutation(
+            "ledgeredIds",
+            replay_input(json!({ "tag": "clock" }), ledger),
+        )
+        .expect_err("timestamp past the portable boundary must fail before execution");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_TIMESTAMP_OUT_OF_RANGE");
+    assert!(
+        beyond
+            .invoke_query("listItems", input(json!({})))
+            .expect("query after rejected replay")
+            .rows
+            .is_empty()
+    );
 }
 
 #[test]

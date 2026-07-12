@@ -29,6 +29,15 @@ tokio = { version = "1.48", features = ["full"] }
 ureq = { version = "2", features = ["json"] }
 uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Threading",
+] }
+
 [dev-dependencies]
 jsonschema = "0.46.8"
 syn = { version = "2.0", features = ["full", "visit"] }

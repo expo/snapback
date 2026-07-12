@@ -341,8 +341,10 @@ fn eval_call(func: &str, mut args: Vec<Value>) -> ExprResult {
             let result = match func {
                 "abs" => number.abs(),
                 // JS Math.round: half-up toward +Infinity (not banker's, not
-                // away-from-zero) — (-0.5).round() is -0 in JS, 0.5 -> 1.
-                "round" => (number + 0.5).floor(),
+                // away-from-zero). Compare the representable fractional part
+                // directly: adding 0.5 first rounds some values immediately
+                // below a half boundary up to the boundary itself.
+                "round" => ecmascript_round(number),
                 "floor" => number.floor(),
                 "ceil" => number.ceil(),
                 _ => unreachable!(),
@@ -385,6 +387,18 @@ fn eval_call(func: &str, mut args: Vec<Value>) -> ExprResult {
             )
             .with_details(json!({ "function": other, "pinned": PINNED_FUNCTIONS })),
         )),
+    }
+}
+
+fn ecmascript_round(number: f64) -> f64 {
+    if !number.is_finite() || number == 0.0 || number.fract() == 0.0 {
+        return number;
+    }
+    let lower = number.floor();
+    if number - lower < 0.5 {
+        lower
+    } else {
+        lower + 1.0
     }
 }
 
@@ -689,6 +703,25 @@ mod tests {
             ],
         };
         assert_eq!(eval(&expr, &args), json!(3600));
+    }
+
+    #[test]
+    fn round_matches_ecmascript_at_representable_half_boundaries() {
+        let args = json!({});
+        for (value, expected) in [
+            (0.499_999_999_999_999_94, 0),
+            (0.5, 1),
+            (0.500_000_000_000_000_1, 1),
+            (-0.500_000_000_000_000_1, -1),
+            (-0.5, 0),
+            (-0.499_999_999_999_999_94, 0),
+        ] {
+            let expr = ValueExpr::Call {
+                func: "round".into(),
+                args: vec![ValueExpr::Literal(json!(value))],
+            };
+            assert_eq!(eval(&expr, &args), json!(expected), "Math.round({value})");
+        }
     }
 
     #[test]

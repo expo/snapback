@@ -170,6 +170,26 @@ assert.ok(abortReplayed >= 9, `replayed ${abortReplayed} rejection cases (>= 9 e
 
 // --- overlay-specific units ---------------------------------------------------
 
+// Native ECMAScript is the independent oracle for the mirrored client
+// evaluator. These are adjacent representable doubles around both half
+// boundaries; Math.floor(x + 0.5) gets the first case wrong.
+for (const value of [
+  0.49999999999999994,
+  0.5,
+  0.5000000000000001,
+  -0.5000000000000001,
+  -0.5,
+  -0.49999999999999994,
+]) {
+  const expected = Math.round(value);
+  const normalizedExpected = Object.is(expected, -0) ? 0 : expected;
+  const actual = evalValueExpr(
+    { Call: { func: 'round', args: [{ Literal: value }] } },
+    { args: {}, bindings: new Map() },
+  );
+  assert.equal(actual, normalizedExpected, `round(${value}) matches ECMAScript Math.round`);
+}
+
 // Record construction is a JSON-data operation, not ordinary JS assignment:
 // the legal key __proto__ must be an own field on a null-prototype record.
 {

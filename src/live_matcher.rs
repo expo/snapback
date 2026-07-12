@@ -414,10 +414,22 @@ pub(crate) fn compare_sort_keys(plan: &QueryPlan, left: &Value, right: &Value) -
         return None;
     }
     for ((left_value, right_value), order) in left.iter().zip(right.iter()).zip(plan.order.iter()) {
-        let mut ordering = json_value_cmp(left_value, right_value)?;
-        if order.direction == OrderDirection::Desc {
-            ordering = ordering.reverse();
-        }
+        // LLP 0007 fixes NULL last independently of direction. Reversing the
+        // whole scalar comparator would put NULL first for DESC, so only
+        // present-value ordering follows the requested direction.
+        let ordering = match (left_value.is_null(), right_value.is_null()) {
+            (true, true) => Ordering::Equal,
+            (true, false) => Ordering::Greater,
+            (false, true) => Ordering::Less,
+            (false, false) => {
+                let ordering = json_value_cmp(left_value, right_value)?;
+                if order.direction == OrderDirection::Desc {
+                    ordering.reverse()
+                } else {
+                    ordering
+                }
+            }
+        };
         if ordering != Ordering::Equal {
             return Some(ordering);
         }
@@ -963,6 +975,32 @@ mod delta_tests {
             ),
             Some(false)
         );
+    }
+
+    #[test]
+    fn sort_keys_keep_null_last_independent_of_direction() {
+        for direction in [OrderDirection::Asc, OrderDirection::Desc] {
+            let plan = QueryPlan {
+                table: "todos".to_owned(),
+                filters: Vec::new(),
+                order: vec![OrderExpr {
+                    field: "rank".to_owned(),
+                    direction: direction.clone(),
+                }],
+                limit: Some(2),
+                indexed_by: None,
+            };
+            assert_eq!(
+                compare_sort_keys(&plan, &json!([null]), &json!([1])),
+                Some(Ordering::Greater),
+                "NULL must sort after a present value for {direction:?}"
+            );
+            assert_eq!(
+                compare_sort_keys(&plan, &json!([1]), &json!([null])),
+                Some(Ordering::Less),
+                "a present value must sort before NULL for {direction:?}"
+            );
+        }
     }
 
     /// v1 profile expressions in filter values evaluate through the shared

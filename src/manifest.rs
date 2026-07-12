@@ -1013,6 +1013,7 @@ pub struct CtxAnswerLedger {
     pub ids: Vec<String>,
     /// The frozen invocation clock every `ctx.runtime.now()` answered with.
     #[serde(default)]
+    #[schemars(range(max = PORTABLE_TIMESTAMP_MAX_MS))]
     pub now: u64,
     /// Fingerprint of the resolved auth context the handler observed
     /// (LLP 0043 §Auth posture). Checked at replay when present: a mismatch
@@ -1037,11 +1038,96 @@ pub const CTX_ANSWER_LEDGER_VERSION: u32 = 1;
 /// unbounded artifact.
 pub const CTX_ANSWER_LEDGER_MAX_IDS: usize = 1024;
 
+/// Largest exact non-negative integer carried by the plain-JSON portable
+/// profile. Timestamps share the same bound as declared Integer values: every
+/// accepted millisecond value must survive JavaScript, SQLite, and hosted
+/// targets without aliasing or a signed-storage wrap.
+///
+/// @ref LLP 0007#data-model — the v0 JSON profile is JavaScript-safe-range
+/// bounded on every target.
+pub const PORTABLE_TIMESTAMP_MAX_MS: u64 = 9_007_199_254_740_991;
+
 /// Shared wire/storage bound for client mutation ids and captured generated
 /// ids. The alphabet makes JSON Schema `maxLength` byte-equivalent to the Rust
 /// runtime check and keeps ids safe as opaque SQLite/document keys.
 pub const REPLAY_OPAQUE_ID_MAX_BYTES: usize = 256;
 pub const REPLAY_OPAQUE_ID_PATTERN: &str = r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$";
+
+/// Validate a runtime-owned timestamp before an evaluator or storage adapter
+/// can observe it. Keeping this at the shared artifact boundary prevents the
+/// HostPlan and Ibex paths from accepting different timestamp domains.
+pub fn validate_portable_timestamp_millis(value: u64) -> SnapbackResult<()> {
+    if value <= PORTABLE_TIMESTAMP_MAX_MS {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_TIMESTAMP_OUT_OF_RANGE",
+        "runtime",
+        format!(
+            "runtime timestamp {value} is outside the portable millisecond range (maximum: {PORTABLE_TIMESTAMP_MAX_MS})"
+        ),
+    )
+    .with_details(serde_json::json!({
+        "value": value,
+        "maximum": PORTABLE_TIMESTAMP_MAX_MS,
+        "unit": "milliseconds",
+    })))
+}
+
+/// Validate the complete replay ledger once, before either evaluator begins.
+/// The local HostPlan and Ibex implementations deliberately share this gate so
+/// format, ids, authority, and time cannot drift across execution tiers.
+pub fn validate_ctx_answer_ledger(
+    input: &HandlerInput,
+) -> SnapbackResult<Option<&CtxAnswerLedger>> {
+    let Some(ledger) = input.ctx_ledger.as_ref() else {
+        return Ok(None);
+    };
+    if ledger.version != CTX_ANSWER_LEDGER_VERSION {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED",
+            "runtime",
+            format!(
+                "ctx-answer ledger version {} is not supported (current: {})",
+                ledger.version, CTX_ANSWER_LEDGER_VERSION
+            ),
+        ));
+    }
+    if ledger.ids.len() > CTX_ANSWER_LEDGER_MAX_IDS {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
+            "runtime",
+            format!(
+                "ctx-answer ledger contains {} ids, past the declared bound ({})",
+                ledger.ids.len(),
+                CTX_ANSWER_LEDGER_MAX_IDS
+            ),
+        ));
+    }
+    if let Some((index, _)) = ledger
+        .ids
+        .iter()
+        .enumerate()
+        .find(|(_, id)| !replay_opaque_id_is_valid(id))
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CTX_LEDGER_ID_INVALID",
+            "runtime",
+            format!("ctx-answer ledger id at index {index} is not a valid opaque replay id"),
+        ));
+    }
+    validate_portable_timestamp_millis(ledger.now)?;
+    if let Some(recorded) = ledger.auth_fingerprint.as_ref()
+        && *recorded != auth_fingerprint(&input.auth)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_STALE_RESULT",
+            "runtime",
+            "ctx-answer ledger was recorded under a different auth context; refusing to replay under new authority (LLP 0043 §Auth posture)",
+        ));
+    }
+    Ok(Some(ledger))
+}
 
 pub fn replay_opaque_id_is_valid(value: &str) -> bool {
     let bytes = value.as_bytes();

@@ -49,6 +49,7 @@
           "default": 0,
           "description": "The frozen invocation clock every `ctx.runtime.now()` answered with.",
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
