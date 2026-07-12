@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""Focused source-scan policy regression for the LLP ref checker."""
+
+import importlib.machinery
+import importlib.util
+import os
+import tempfile
+import unittest
+
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REF = "@" + "ref"
+loader = importlib.machinery.SourceFileLoader("snapback_ref_check", os.path.join(ROOT, "ref-check"))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+ref_check = importlib.util.module_from_spec(spec)
+loader.exec_module(ref_check)
+
+
+class RefCheckScanPolicyTest(unittest.TestCase):
+    def test_build_outputs_and_source_maps_do_not_affect_validation_or_counts(self):
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, "llp"))
+            with open(os.path.join(root, "llp", "0000-fixture.explainer.md"), "w", encoding="utf-8") as handle:
+                handle.write(
+                    "# Fixture\n\n"
+                    "**Type:** Explainer\n"
+                    "**Status:** Draft\n"
+                    "**Systems:** Testing\n"
+                    "**Author:** Test\n"
+                    "**Date:** 2026-07-12\n\n"
+                    "## Contract\n"
+                )
+            os.makedirs(os.path.join(root, "src"))
+            with open(os.path.join(root, "src", "app.js"), "w", encoding="utf-8") as handle:
+                handle.write(f"// {REF} LLP 0000#contract — valid source ref\n")
+
+            # Both contain broken refs, but neither is authored source.
+            os.makedirs(os.path.join(root, "target", "debug", ".fingerprint"))
+            with open(os.path.join(root, "target", "debug", ".fingerprint", "output"), "w", encoding="utf-8") as handle:
+                handle.write(f"// {REF} LLP 9999#missing — build output\n")
+            with open(os.path.join(root, "bundle.js.map"), "w", encoding="utf-8") as handle:
+                handle.write(f"// {REF} LLP 9999#missing — generated source map\n")
+
+            report, file_count, ref_count, doc_count = ref_check.check(root)
+            self.assertEqual(report.errors, [])
+            self.assertEqual(doc_count, 1)
+            self.assertEqual(ref_count, 1)
+            self.assertEqual(file_count, 2)  # one LLP document + one JS source
+
+
+if __name__ == "__main__":
+    unittest.main()

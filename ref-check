@@ -26,7 +26,22 @@ import re
 import sys
 
 SKIP_DIRS = {".git", ".hg", "node_modules", "__pycache__", ".venv", "venv",
-             "dist", "build", ".next", ".idea", ".vscode"}
+             "dist", "build", "target", "coverage", ".cache", ".next",
+             ".pytest_cache", ".turbo", ".idea", ".vscode"}
+# `ref-check` is a source/document validator, not a generic text crawler.
+# Keeping the scan surface explicit prevents machine-local build products and
+# source maps from changing counts or inventing refs while retaining every
+# source/config format used by this repository.
+SCAN_EXTENSIONS = {
+    ".c", ".cc", ".contract", ".cpp", ".css", ".go", ".h", ".hpp", ".html",
+    ".java", ".js", ".json", ".jsonc", ".jsonl", ".kt", ".md", ".mjs", ".mts",
+    ".py", ".rb", ".rs", ".sh", ".sql", ".swift", ".toml", ".ts", ".tsx",
+    ".txt", ".webmanifest", ".yaml", ".yml",
+}
+SCAN_BASENAMES = {
+    ".gitattributes", ".gitignore", ".gitmodules", "Dockerfile", "Makefile",
+}
+SCAN_EXTENSIONLESS_DIRS = {"scripts", ".githooks"}
 REQUIRED_FIELDS = ("Type", "Status", "Systems", "Author", "Date")
 GATED_STATUSES = {"accepted", "active"}
 MAX_BYTES = 2_000_000
@@ -65,6 +80,18 @@ def read_text(path):
             return f.read()
     except (UnicodeDecodeError, OSError):
         return None
+
+
+def is_scan_candidate(relpath):
+    """Whether a repository-relative path is source/config/document text."""
+    normalized = relpath.replace(os.sep, "/")
+    name = os.path.basename(normalized)
+    if name in SCAN_BASENAMES:
+        return True
+    _, extension = os.path.splitext(name)
+    if extension.lower() in SCAN_EXTENSIONS:
+        return True
+    return not extension and normalized.split("/", 1)[0] in SCAN_EXTENSIONLESS_DIRS
 
 
 def md_headings(text):
@@ -190,6 +217,8 @@ def check(root):
             full = os.path.join(dirpath, name)
             rel = os.path.relpath(full, root)
             if rel.startswith(exempt) or os.path.basename(rel) == "ref-check":
+                continue
+            if not is_scan_candidate(rel):
                 continue
             text = read_text(full)
             if text is None:
