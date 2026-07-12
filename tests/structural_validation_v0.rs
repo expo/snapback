@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use snapback::manifest::{
     AuthInput, BinaryOp, FieldManifest, FieldType, HandlerInput, IndexManifest, MutationPlan,
-    MutationStep, SchemaManifest, TableManifest, ValueExpr,
+    MutationStep, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
 };
 use snapback::storage::LocalDatabase;
 use std::collections::BTreeMap;
@@ -20,6 +20,8 @@ struct Corpus {
     schema: CorpusSchema,
     #[serde(rename = "validRow")]
     valid_row: Map<String, Value>,
+    #[serde(rename = "typeCases")]
+    type_cases: Vec<TypeCase>,
     cases: Vec<Case>,
 }
 
@@ -50,8 +52,31 @@ struct Case {
     expected_code: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct TypeCase {
+    name: String,
+    #[serde(rename = "fieldType")]
+    field_type: String,
+    value: Value,
+    #[serde(default, rename = "expectOk")]
+    expect_ok: bool,
+    #[serde(default, rename = "expectedCode")]
+    expected_code: Option<String>,
+}
+
 fn corpus() -> Corpus {
     serde_json::from_str(CORPUS_JSON).expect("structural-validation corpus parses")
+}
+
+fn field_type(name: &str) -> FieldType {
+    match name {
+        "string" => FieldType::String,
+        "boolean" => FieldType::Boolean,
+        "integer" => FieldType::Integer,
+        "real" => FieldType::Real,
+        "json" => FieldType::Json,
+        other => panic!("unsupported corpus field type {other}"),
+    }
 }
 
 fn schema(corpus: &Corpus) -> SchemaManifest {
@@ -65,14 +90,7 @@ fn schema(corpus: &Corpus) -> SchemaManifest {
                 .iter()
                 .map(|field| FieldManifest {
                     name: field.name.clone(),
-                    field_type: match field.field_type.as_str() {
-                        "string" => FieldType::String,
-                        "boolean" => FieldType::Boolean,
-                        "integer" => FieldType::Integer,
-                        "real" => FieldType::Real,
-                        "json" => FieldType::Json,
-                        other => panic!("unsupported corpus field type {other}"),
-                    },
+                    field_type: field_type(&field.field_type),
                     optional: field.optional,
                 })
                 .collect(),
@@ -350,6 +368,68 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
             "{} changed durable state for a missing row",
             case.name
         );
+    }
+}
+
+#[test]
+fn local_declared_field_types_consume_the_shared_boundary_corpus() {
+    let corpus = corpus();
+    for case in &corpus.type_cases {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(SchemaManifest {
+            schema_hash: Some(format!("structural-type-{}", case.name)),
+            tables: vec![TableManifest {
+                name: "typeRecords".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "value".to_owned(),
+                    field_type: field_type(&case.field_type),
+                    optional: false,
+                }],
+                indexes: vec![],
+                syncable: true,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("apply type-case schema");
+        let outcome = db.execute_mutation(
+            &MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "typeRecords".to_owned(),
+                    values: BTreeMap::from([(
+                        "value".to_owned(),
+                        ValueExpr::Literal(case.value.clone()),
+                    )]),
+                    bind_id_as: Some("insertedId".to_owned()),
+                }],
+                return_value: Some(ReturnValue::Expr(ValueExpr::Binding(
+                    "insertedId".to_owned(),
+                ))),
+            },
+            &input(json!({})),
+        );
+
+        if case.expect_ok {
+            let output = outcome
+                .unwrap_or_else(|error| panic!("{} rejected a valid value: {error:?}", case.name));
+            let id = output
+                .output
+                .result
+                .as_str()
+                .expect("insert returns bound id");
+            let stored = db
+                .get("typeRecords", id)
+                .expect("read type-case row")
+                .expect("type-case row exists");
+            assert_eq!(stored["value"], case.value, "{} changed value", case.name);
+        } else {
+            let error = outcome.expect_err("invalid type-case value must fail");
+            assert_eq!(
+                error.diagnostic.code,
+                case.expected_code.as_deref().expect("rejected case code"),
+                "{} returned the wrong code",
+                case.name
+            );
+        }
     }
 }
 

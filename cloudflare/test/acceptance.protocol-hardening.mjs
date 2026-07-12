@@ -62,6 +62,24 @@ for (const insert of [true, false]) {
   );
   assert.equal(requiredNull.code, 'SNAPBACK_FIELD_TYPE_MISMATCH');
 }
+for (const typeCase of structuralCorpus.typeCases) {
+  const typeTable = {
+    name: 'typeRecords',
+    fields: [{ name: 'value', type: typeCase.fieldType, optional: false }],
+  };
+  const result = validateWriteValues(
+    new Map([[typeTable.name, typeTable]]),
+    typeTable.name,
+    { value: typeCase.value },
+    { insert: true },
+  );
+  if (typeCase.expectOk) {
+    assert.equal(result.ok, true, `${typeCase.name}: ${JSON.stringify(result)}`);
+    assert.deepEqual(result.values.value, typeCase.value, `${typeCase.name} changed the value`);
+  } else {
+    assert.equal(result.code, typeCase.expectedCode, `${typeCase.name}: ${JSON.stringify(result)}`);
+  }
+}
 
 const proof = await startProof({ app: 'notes', port: 0 });
 try {

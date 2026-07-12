@@ -5,7 +5,7 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Revised:** 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032
 
 ## Summary
@@ -71,7 +71,8 @@ The first portable field vocabulary should include:
 
 - string;
 - boolean;
-- exact signed integer;
+- exact signed integer (the shipped plain-JSON v0 profile is bounded to
+  `[-(2^53-1), 2^53-1]`);
 - exact decimal;
 - floating-point number;
 - timestamp;
@@ -79,6 +80,14 @@ The first portable field vocabulary should include:
 - array of portable values;
 - nullable and optional variants;
 - references expressed as opaque ids.
+
+The v0 `Integer` validator uses the JavaScript-safe signed range on every
+target. Local SQLite must not accept a wider i64 value than a JavaScript/Worker
+target can distinguish: doing so makes one JSON number alias multiple integers
+and breaks the cross-target storage claim. Full exact 64-bit integers remain in
+the intended vocabulary, but require the tagged/string wire encoding already
+called out by LLP 0004 before they become part of the paved profile. `[confirmed
+— Charlie Cheever / Codex, 2026-07-12]`
 
 Binary values and asset bytes are not inline document fields on the paved path.
 They should be stored through the asset subsystem, with metadata and references

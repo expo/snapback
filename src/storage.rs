@@ -2788,6 +2788,13 @@ fn sqlite_to_json(value: ValueRef<'_>, field_type: Option<&FieldType>) -> Snapba
     }
 }
 
+// Plain JSON/JavaScript is the v0 portable wire, so declared Integer fields
+// use the one range every target represents without aliases. Exact i64 needs
+// a future tagged/string encoding rather than target-dependent acceptance.
+// @ref LLP 0007#data-model — portable v0 integers are JavaScript-safe signed integers.
+const PORTABLE_INTEGER_MAX: i64 = 9_007_199_254_740_991;
+const PORTABLE_INTEGER_MIN: i64 = -PORTABLE_INTEGER_MAX;
+
 fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackResult<SqlValue> {
     if value.is_null() {
         return Ok(SqlValue::Null);
@@ -2830,10 +2837,11 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
             .ok_or_else(|| type_error("boolean", value)),
         Some(FieldType::Integer) => value
             .as_i64()
+            .filter(|value| (PORTABLE_INTEGER_MIN..=PORTABLE_INTEGER_MAX).contains(value))
             .map(SqlValue::Integer)
             .or_else(|| {
                 value.as_u64().and_then(|value| {
-                    if value <= i64::MAX as u64 {
+                    if value <= PORTABLE_INTEGER_MAX as u64 {
                         Some(SqlValue::Integer(value as i64))
                     } else {
                         None

@@ -14,6 +14,74 @@
     "text": "valid row",
     "authorId": null
   },
+  "typeCases": [
+    {
+      "name": "string-wrong-type",
+      "fieldType": "string",
+      "value": 42,
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "boolean-wrong-type",
+      "fieldType": "boolean",
+      "value": "true",
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "integer-fraction-wrong-type",
+      "fieldType": "integer",
+      "value": 1.5,
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "integer-safe-maximum",
+      "fieldType": "integer",
+      "value": 9007199254740991,
+      "expectOk": true
+    },
+    {
+      "name": "integer-safe-minimum",
+      "fieldType": "integer",
+      "value": -9007199254740991,
+      "expectOk": true
+    },
+    {
+      "name": "integer-above-portable-range",
+      "fieldType": "integer",
+      "value": 9007199254740992,
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "integer-below-portable-range",
+      "fieldType": "integer",
+      "value": -9007199254740992,
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "real-wrong-type",
+      "fieldType": "real",
+      "value": "1.5",
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "real-valid",
+      "fieldType": "real",
+      "value": 1.5,
+      "expectOk": true
+    },
+    {
+      "name": "json-required-null",
+      "fieldType": "json",
+      "value": null,
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "json-valid-object",
+      "fieldType": "json",
+      "value": { "nested": true },
+      "expectOk": true
+    }
+  ],
   "cases": [
     {
       "name": "insert-missing-required",
