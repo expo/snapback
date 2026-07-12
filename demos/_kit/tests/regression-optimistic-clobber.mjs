@@ -54,7 +54,7 @@ if (exact.sourceKind === 'missing') {
 
 const runtime = await importExactContractRuntime({ exactRoot: exact.path });
 const server = await startServer({ port: 4418, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / optimistic-clobber (LLP 0034 review fix 3)');
 const ADA = 'user_ada';
 
@@ -75,7 +75,7 @@ try {
   await db.seed(JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8')));
 
   // The surface's client commits createTodo slowly: a 700ms in-flight window.
-  const slow = new SnapbackClient(server.baseUrl);
+  const slow = new SnapbackClient(server.baseUrl, server.clientOptions);
   const realMutate = SnapbackClient.prototype.mutate;
   slow.mutate = async function (ref, opts) {
     const name = typeof ref === 'string' ? ref : ref?.name;
@@ -113,7 +113,7 @@ try {
       // t+50: another client commits THEIRS; its fan-out (no MINE in it)
       // arrives over the stream while MINE is still in flight.
       await sleep(50);
-      const other = new SnapbackClient(server.baseUrl);
+      const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('createTodo', { args: { title: 'THEIRS' }, userId: ADA });
       await waitFor(() => latest.some((r) => r.title === 'THEIRS'), "the concurrent client's row");
       assert(!sawMineDisappear, 'optimistic row flashed out of the boundary during the in-flight window');

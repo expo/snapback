@@ -65,7 +65,7 @@ if (exact.sourceKind === 'missing') {
 
 const runtime = await importExactContractRuntime({ exactRoot: exact.path });
 let server = await startServer({ port: 4436, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / ephemeral-wiring (ENG-22479 review fixes 1-4 + ENG-22527 idle linger)');
 const ADA = 'user_ada';
 
@@ -227,7 +227,7 @@ try {
     // A fresh surface whose room subscribe is deliberately slowed, disposed
     // mid-flight: the late-resolving overlay must be torn down immediately —
     // no lane consumer (and no socket demand) survives the disposal.
-    const slow = new SnapbackClient(server.baseUrl);
+    const slow = new SnapbackClient(server.baseUrl, server.clientOptions);
     const realSubscribe = slow.subscribeEphemeral.bind(slow);
     slow.subscribeEphemeral = async (...args) => {
       await sleep(400);
@@ -262,7 +262,7 @@ try {
   // A dedicated surface with a FAST linger override so both arms run in
   // test time (production default is EPHEMERAL_IDLE_LINGER_MS = 30s).
   const LINGER_MS = 300;
-  const lingerClient = new SnapbackClient(server.baseUrl);
+  const lingerClient = new SnapbackClient(server.baseUrl, server.clientOptions);
   const realLingerSubscribe = lingerClient.subscribeEphemeral.bind(lingerClient);
   let lingerSubscribeCalls = 0;
   lingerClient.subscribeEphemeral = (...args) => {

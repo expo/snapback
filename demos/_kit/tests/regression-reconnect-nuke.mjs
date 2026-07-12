@@ -34,7 +34,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
 
 const server = await startServer({ port: 4416, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / reconnect-nuke (LLP 0034 review fix 1)');
 const ADA = 'user_ada';
 const X = 'race_conn';

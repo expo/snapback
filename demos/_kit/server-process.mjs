@@ -27,11 +27,12 @@
 
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createConnection } from 'node:net';
+import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 
 import {
-  freePort,
   readCheckoutBinaryIdentity,
   readCommittedBundleHash,
   verifyApiProvenance,
@@ -49,62 +50,173 @@ export async function startServer({
   // may still be reused if its /health server-binary identity matches this
   // checkout's clean build (ENG-22798). Default stays refuse-when-unverifiable.
   binaryProvenance = null,
+  startupTimeoutMs = 60_000,
 } = {}) {
-  let baseUrl = `http://127.0.0.1:${port}`;
+  return startServerWithDeps({
+    port,
+    db,
+    cwd,
+    env,
+    provenance,
+    binaryProvenance,
+    startupTimeoutMs,
+  }, {});
+}
 
-  // Something answers on the port. Reuse it ONLY on verified provenance;
-  // otherwise fall back — loudly — to a fresh isolated server (ENG-22757).
-  if (await isHealthy(baseUrl)) {
-    const verdict = await reuseVerdict(baseUrl, { provenance, binaryProvenance, cwd });
+// Narrow dependency seam for the lifecycle regression suite. Production
+// callers use startServer; tests substitute only the launched executable and
+// checkout identity while exercising the real ports, ready-file handshake,
+// HTTP probe, and process-tree teardown.
+export async function __startServerForTests(options = {}, deps = {}) {
+  return startServerWithDeps(options, deps);
+}
+
+async function startServerWithDeps({
+  port = 4399,
+  db = ':memory:',
+  cwd = process.cwd(),
+  env = {},
+  provenance = null,
+  binaryProvenance = null,
+  startupTimeoutMs = 60_000,
+} = {}, deps = {}) {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const requestedBaseUrl = `http://127.0.0.1:${port}`;
+  const occupied = port !== 0 && await isPortOccupied(port);
+
+  // A requested port is a reuse candidate, never an unsafe spawn target. A
+  // healthy matching Snapback process may be reused. Every other listener is
+  // named before we ask the OS for an isolated port; cargo is never launched
+  // into an occupied address (ENG-24378).
+  if (occupied && await isHealthy(requestedBaseUrl, fetchImpl)) {
+    const verdict = await reuseVerdict(requestedBaseUrl, {
+      provenance,
+      binaryProvenance,
+      cwd,
+      fetchImpl,
+    });
     if (verdict.ok) {
       console.log(`REUSED snapback server at :${port} (${verdict.detail})`);
-      return {
-        baseUrl,
-        adminToken: process.env.SNAPBACK_ADMIN_TOKEN ?? null,
-        stop: async () => {},
+      return serverHandle({
+        baseUrl: requestedBaseUrl,
+        adminToken: env.SNAPBACK_ADMIN_TOKEN ?? process.env.SNAPBACK_ADMIN_TOKEN ?? null,
         reused: true,
-      };
+        stop: async () => {},
+      });
     }
-    const isolated = await freePort();
     console.error(
       `PROVENANCE MISMATCH: a server answers /health on :${port} but ${verdict.reason}. ` +
-        `NOT reusing it — starting a fresh isolated server on :${isolated} (ENG-22757).`,
+        'NOT reusing it — the new server will use an OS-assigned isolated port (ENG-22757/ENG-24378).',
     );
-    port = isolated;
-    baseUrl = `http://127.0.0.1:${port}`;
+  } else if (occupied) {
+    console.error(
+      `PORT OCCUPIED: a non-Snapback or unhealthy listener owns 127.0.0.1:${port}. ` +
+        'NOT spawning into it — the new server will use an OS-assigned isolated port (ENG-24378).',
+    );
   }
 
-  const runtimeEnv = preflightLocalRuntime({ cwd });
+  const runtimeEnv = deps.preflight
+    ? deps.preflight({ cwd })
+    : preflightLocalRuntime({ cwd });
   const adminToken = resolveTestAdminToken(env);
-  if (adminToken) {
-    process.env.SNAPBACK_ADMIN_TOKEN = adminToken;
-  }
-
-  const args = ['run', '--quiet', '--', '--port', String(port)];
+  const expectedIdentity = deps.expectedIdentity ?? readCheckoutBinaryIdentity(cwd);
+  const readyDir = mkdtempSync(join(tmpdir(), 'snapback-server-'));
+  const readyFile = join(readyDir, 'ready.json');
+  // Port zero makes the listener bind itself atomically. The unique ready-file
+  // returns the chosen port and process nonce, eliminating the probe-then-bind
+  // race when helpers start in parallel.
+  const args = ['run', '--quiet', '--', '--port', '0', '--ready-file', readyFile];
   if (db === ':memory:') args.push('--memory');
   else args.push('--db', db);
 
-  const child = spawn('cargo', args, {
-    cwd,
-    env: { ...process.env, ...env, ...runtimeEnv, ...(adminToken ? { SNAPBACK_ADMIN_TOKEN: adminToken } : {}) },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  let log = '';
-  child.stdout.on('data', (d) => { log += d; });
-  child.stderr.on('data', (d) => { log += d; });
-
-  const deadline = Date.now() + 60_000; // first run may compile
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) {
-      throw new Error(`snapback server exited early (code ${child.exitCode}):\n${log}`);
-    }
-    if (await isHealthy(baseUrl)) {
-      return { baseUrl, adminToken, reused: false, stop: () => stopChild(child) };
-    }
-    await sleep(250);
+  const childEnv = {
+    ...process.env,
+    ...env,
+    ...runtimeEnv,
+    ...(adminToken ? { SNAPBACK_ADMIN_TOKEN: adminToken } : {}),
+    ...(expectedIdentity.gitCommit && expectedIdentity.gitCommit !== 'unknown'
+      ? { SNAPBACK_BUILD_GIT_COMMIT: expectedIdentity.gitCommit }
+      : {}),
+    SNAPBACK_BUILD_GIT_DIRTY: expectedIdentity.gitDirty ? 'true' : 'false',
+  };
+  const launch = deps.launchSpec
+    ? deps.launchSpec({ args, readyFile, cwd, env: childEnv, expectedIdentity })
+    : { command: 'cargo', args, cwd, env: childEnv };
+  let child;
+  try {
+    child = (deps.spawnImpl ?? spawn)(launch.command, launch.args, {
+      cwd: launch.cwd ?? cwd,
+      env: launch.env ?? childEnv,
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+  } catch (error) {
+    rmSync(readyDir, { recursive: true, force: true });
+    throw new Error(`snapback server spawn failed: ${error.message}`);
   }
-  await stopChild(child);
-  throw new Error(`snapback server did not become healthy on ${baseUrl}:\n${log}`);
+  let log = '';
+  let spawnError = null;
+  const appendLog = (chunk) => {
+    log += chunk;
+    if (log.length > 1024 * 1024) log = log.slice(-1024 * 1024);
+  };
+  child.stdout?.on('data', appendLog);
+  child.stderr?.on('data', appendLog);
+  child.once('error', (error) => { spawnError = error; });
+
+  const cleanup = () => rmSync(readyDir, { recursive: true, force: true });
+  const deadline = Date.now() + startupTimeoutMs; // first run may compile
+  try {
+    while (Date.now() < deadline) {
+      if (spawnError) {
+        throw new Error(`snapback server spawn failed: ${spawnError.message}`);
+      }
+      if (child.exitCode !== null || child.signalCode !== null) {
+        throw new Error(
+          `snapback server exited before verified readiness (${child.exitCode ?? child.signalCode}):\n${log}`,
+        );
+      }
+      const ready = readReadyDescriptor(readyFile);
+      if (ready) {
+        const verified = await verifySpawnedReady(ready, { expectedIdentity, fetchImpl });
+        if (verified.ok) {
+          const baseUrl = ready.serverUrl.replace(/\/$/, '');
+          return serverHandle({
+            baseUrl,
+            adminToken,
+            reused: false,
+            startupNonce: ready.startupNonce,
+            stop: async () => {
+              try { await stopChild(child); } finally { cleanup(); }
+            },
+          });
+        }
+        if (!verified.retry) {
+          throw new Error(`spawned server identity verification failed: ${verified.reason}`);
+        }
+      }
+      await sleep(100);
+    }
+    throw new Error(`snapback server did not publish verified readiness within ${startupTimeoutMs}ms:\n${log}`);
+  } catch (error) {
+    await stopChild(child);
+    cleanup();
+    throw error;
+  }
+}
+
+function serverHandle({ baseUrl, adminToken, reused, stop, startupNonce = null }) {
+  const credentials = Object.freeze({ adminToken });
+  return {
+    baseUrl,
+    adminToken,
+    credentials,
+    clientOptions: credentials,
+    reused,
+    startupNonce,
+    stop,
+  };
 }
 
 function resolveTestAdminToken(env) {
@@ -158,21 +270,167 @@ async function reuseVerdict(baseUrl, { provenance, binaryProvenance, cwd }) {
   };
 }
 
-async function isHealthy(baseUrl) {
+async function isHealthy(baseUrl, fetchImpl = fetch) {
   try {
-    const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(500) });
+    const res = await fetchImpl(`${baseUrl}/health`, { signal: AbortSignal.timeout(500) });
     return res.ok;
   } catch {
     return false;
   }
 }
 
-function stopChild(child) {
+function isPortOccupied(port) {
+  return new Promise((resolveOccupied) => {
+    const socket = createConnection({ host: '127.0.0.1', port });
+    let settled = false;
+    const finish = (occupied) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolveOccupied(occupied);
+    };
+    socket.once('connect', () => finish(true));
+    socket.once('error', () => finish(false));
+    socket.setTimeout(500, () => finish(true));
+  });
+}
+
+function readReadyDescriptor(path) {
+  if (!existsSync(path)) return null;
+  let ready;
+  try {
+    ready = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    throw new Error(`snapback ready file is malformed: ${error.message}`);
+  }
+  if (
+    ready?.ready !== true ||
+    typeof ready.serverUrl !== 'string' ||
+    !/^http:\/\/(?:127\.0\.0\.1|\[::1\]):\d+$/.test(ready.serverUrl) ||
+    !Number.isInteger(ready.port) ||
+    ready.port < 1 ||
+    ready.port > 65535 ||
+    typeof ready.startupNonce !== 'string' ||
+    ready.startupNonce.length === 0
+  ) {
+    throw new Error('snapback ready file is missing a loopback URL, bound port, or startup nonce');
+  }
+  if (Number(new URL(ready.serverUrl).port) !== ready.port) {
+    throw new Error('snapback ready file serverUrl and port disagree');
+  }
+  return ready;
+}
+
+async function verifySpawnedReady(ready, { expectedIdentity, fetchImpl }) {
+  let response;
+  try {
+    response = await fetchImpl(`${ready.serverUrl}/health`, { signal: AbortSignal.timeout(750) });
+  } catch (error) {
+    return { ok: false, retry: true, reason: `health not ready: ${error.message}` };
+  }
+  if (!response.ok) {
+    return { ok: false, retry: true, reason: `health returned HTTP ${response.status}` };
+  }
+  let health;
+  try {
+    health = await response.json();
+  } catch (error) {
+    return { ok: false, retry: false, reason: `health returned malformed JSON: ${error.message}` };
+  }
+  const binary = health?.binary;
+  if (!health?.ok || !binary || typeof binary !== 'object') {
+    return { ok: false, retry: false, reason: 'health is not a Snapback binary-identity response' };
+  }
+  if (binary.startupNonce !== ready.startupNonce) {
+    return {
+      ok: false,
+      retry: false,
+      reason: `health startup nonce ${binary.startupNonce ?? '<missing>'} does not match ready file ${ready.startupNonce}`,
+    };
+  }
+  if (
+    expectedIdentity.gitCommit &&
+    expectedIdentity.gitCommit !== 'unknown' &&
+    binary.gitCommit !== expectedIdentity.gitCommit
+  ) {
+    return {
+      ok: false,
+      retry: false,
+      reason: `health commit ${binary.gitCommit ?? '<missing>'} does not match checkout ${expectedIdentity.gitCommit}`,
+    };
+  }
+  if (
+    expectedIdentity.crateVersion &&
+    binary.crateVersion !== expectedIdentity.crateVersion
+  ) {
+    return {
+      ok: false,
+      retry: false,
+      reason: `health crate version ${binary.crateVersion ?? '<missing>'} does not match checkout ${expectedIdentity.crateVersion}`,
+    };
+  }
+  if (
+    typeof expectedIdentity.gitDirty === 'boolean' &&
+    binary.gitDirty !== expectedIdentity.gitDirty
+  ) {
+    return {
+      ok: false,
+      retry: false,
+      reason: `health dirty-build marker ${binary.gitDirty ?? '<missing>'} does not match checkout ${expectedIdentity.gitDirty}`,
+    };
+  }
+  return { ok: true };
+}
+
+function signalProcessTree(child, signal) {
+  if (!child?.pid) return;
+  if (process.platform === 'win32') {
+    const args = ['/pid', String(child.pid), '/t'];
+    if (signal === 'SIGKILL') args.push('/f');
+    const killer = spawn('taskkill', args, { stdio: 'ignore', windowsHide: true });
+    killer.once('error', () => {
+      if (child.exitCode === null) child.kill(signal);
+    });
+    return;
+  }
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    if (child.exitCode === null) child.kill(signal);
+  }
+}
+
+export function stopChild(child, { graceMs = 3_000 } = {}) {
   return new Promise((resolve) => {
-    if (child.exitCode !== null) return resolve();
-    const kill = setTimeout(() => child.kill('SIGKILL'), 3000);
-    child.on('exit', () => { clearTimeout(kill); resolve(); });
-    child.kill('SIGTERM');
+    if (!child?.pid) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    let killTimer = null;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (killTimer) clearTimeout(killTimer);
+      // Cargo may exit before a TERM-resistant binary or helper. One final
+      // group kill makes teardown about the whole spawned tree, not its leader.
+      signalProcessTree(child, 'SIGKILL');
+      child.off('exit', finish);
+      resolve();
+    };
+    // Register before checking state: an exit between these two operations is
+    // observed by the listener, closing the former stopChild race.
+    child.once('exit', finish);
+    if (child.exitCode !== null || child.signalCode !== null) {
+      finish();
+      return;
+    }
+    signalProcessTree(child, 'SIGTERM');
+    killTimer = setTimeout(() => {
+      signalProcessTree(child, 'SIGKILL');
+      finish();
+    }, graceMs);
+    killTimer.unref?.();
   });
 }
 

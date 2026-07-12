@@ -43,7 +43,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const server = await startServer({ port: 4433, db: ':memory:', cwd: repoRoot,
   provenance: { appId: 'graffiti', artifactsPath: join(repoRoot, 'demos', 'graffiti', 'snapback', 'generated', 'artifacts.json') } });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('graffiti / headless');
 
 try {

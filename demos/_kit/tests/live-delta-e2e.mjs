@@ -96,7 +96,7 @@ const functions = {
 };
 
 const server = await startServer({ port: 4419, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('live_delta end to end (LLP 0034 OQ1 / DK-3)');
 
 function recorder() {

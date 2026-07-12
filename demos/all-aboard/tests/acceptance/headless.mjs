@@ -63,7 +63,7 @@ let db = null;
 await runAcceptance(suite, async () => {
   server = await startServer({ port: 4408, db: ':memory:', cwd: repoRoot,
     provenance: { appId: 'all-aboard', artifactsPath: join(repoRoot, 'demos', 'all-aboard', 'snapback', 'generated', 'artifacts.json') } });
-  db = new SnapbackClient(server.baseUrl);
+  db = new SnapbackClient(server.baseUrl, server.clientOptions);
 
   await db.loadSchema(gen('schema.manifest.json'));
   await db.loadFunctions(gen('functions.manifest.json'));

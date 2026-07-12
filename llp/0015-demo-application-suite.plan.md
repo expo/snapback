@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Reference apps, Contract/Exact, Client integration, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-12 (ENG-24374: lock-installed Exact packages are the default; checkouts require an explicit override, and import-time failures never fall through). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard added as the rung between kanban and card game, reconciling the numbered ladder with LLP 0010/0016 per LLP 0016 R6; earlier same day, ENG-22219: the collaborative graffiti wall landed as `demos/graffiti/` — shipped-so-far record updated; earlier: 2026-07-01 LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
+**Revised:** 2026-07-12 (ENG-24380: the required-surface gate always runs a bounded frozen install and attests the installed Exact identity/source; linked checkouts require an explicit development override). Earlier: ENG-24374: lock-installed Exact packages are the default; checkouts require an explicit override, and import-time failures never fall through. 2026-07-03 (demo ladder: collaborative graffiti/whiteboard added as the rung between kanban and card game, reconciling the numbered ladder with LLP 0010/0016 per LLP 0016 R6; earlier same day, ENG-22219: the collaborative graffiti wall landed as `demos/graffiti/` — shipped-so-far record updated; earlier: 2026-07-01 LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, LLP 0013, LLP 0025, LLP 0027, LLP 0034, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
 
 ## Summary
@@ -357,6 +357,15 @@ A skip is valid only when all of the following are true:
 
 A required surface that is missing its toolchain, version, or capability is a
 failure, not a skip.
+
+The production-build gate does not treat an existing `node_modules` directory
+as evidence of that capability. For every required registry-backed surface it
+runs `bun install --frozen-lockfile` under a bounded process-tree watchdog,
+then verifies that `@exact/contract` is the published name and exact version
+pinned by the surface package and lockfile and that its real path remains under
+that surface's `node_modules`. Symlinks and out-of-tree packages fail unless the
+operator deliberately sets the local-development override. `[decided —
+ENG-24380]`
 
 Every demo acceptance profile should state:
 

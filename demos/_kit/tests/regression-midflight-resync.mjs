@@ -40,7 +40,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
 
 const server = await startServer({ port: 4438, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / mid-flight resync demand (ENG-23429)', { expectedChecks: 3 });
 const ADA = 'user_ada';
 const CONN = 'midflight_conn';
@@ -121,7 +121,7 @@ try {
       // A commit lands AFTER R1's snapshot. The handle never polls, so —
       // like the deltas the sticky-overflow window drops server-side — this
       // row can only ever arrive via a fresh snapshot.
-      const other = new SnapbackClient(server.baseUrl);
+      const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('createTodo', { args: { title: 'dropped behind the sentinel' }, userId: ADA });
 
       // Overflow #2 reaches the handle while R1 is still in flight — the

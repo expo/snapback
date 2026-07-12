@@ -65,7 +65,7 @@ const runtimeMod = await importExactContractRuntime({ exactRoot: exact.path });
 
 const server = await startServer({ port: 4404, db: ':memory:', cwd: repoRoot,
   provenance: { appId: 'todo-v2', artifactsPath: join(repoRoot, 'demos', 'todo-v2', 'snapback', 'generated', 'artifacts.json') } });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('todo-v2 / contract');
 
 const collectByTestId = (root, testId) => {
@@ -323,7 +323,7 @@ try {
     try {
       assert(cells[0]?.status === 'ready', 'no initial ready cell');
       assert('connection' in cells[0], 'live-bound cell should carry the connection axis (Exact LLP 0284 §2.2)');
-      const otherClient = new SnapbackClient(server.baseUrl);
+      const otherClient = new SnapbackClient(server.baseUrl, server.clientOptions);
       await otherClient.mutate('createTodo', { args: { title, priority: 'normal' }, userId: ADA });
       const timeout = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('server-authored delta never reached the Contract boundary')), 5_000).unref?.();

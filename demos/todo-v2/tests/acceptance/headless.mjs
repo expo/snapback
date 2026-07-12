@@ -43,7 +43,7 @@ const server = await startServer({
     artifactsPath: join(repoRoot, 'demos', 'todo-v2', 'snapback', 'generated', 'artifacts.json'),
   },
 });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('todo-v2 / headless');
 
 try {

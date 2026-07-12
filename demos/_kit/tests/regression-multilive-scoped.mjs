@@ -56,7 +56,7 @@ if (exact.sourceKind === 'missing') {
 
 const runtime = await importExactContractRuntime({ exactRoot: exact.path });
 const server = await startServer({ port: 4434, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / multilive-scoped (LLP 0034 §10.4)');
 const ADA = 'painter_ada';
 const BOARD = 'wall';
@@ -143,7 +143,7 @@ try {
     let threw = null;
     try {
       await createSnapbackContractSurface({
-        ...surfaceOptions(new SnapbackClient(server.baseUrl)),
+        ...surfaceOptions(new SnapbackClient(server.baseUrl, server.clientOptions)),
         liveQueries: ['listCells', { name: 'listCells', args: { boardId: BOARD } }],
       });
     } catch (error) {

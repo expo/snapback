@@ -81,7 +81,7 @@ let surface = null;
 try {
   server = await startServer({ port: 4405, db: ':memory:', cwd: repoRoot,
     provenance: { appId: 'todo-v2', artifactsPath: join(repoRoot, 'demos', 'todo-v2', 'snapback', 'generated', 'artifacts.json') } });
-  const db = new SnapbackClient(server.baseUrl);
+  const db = new SnapbackClient(server.baseUrl, server.clientOptions);
   await db.loadSchema(schemaManifest);
   await db.loadFunctions(functionsManifest);
   await db.reset();

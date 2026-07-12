@@ -28,7 +28,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
 
 const server = await startServer({ port: 4423, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / mixed-transport (ENG-22478 review)');
 const ADA = 'user_ada';
 const BOB = 'user_bob';
@@ -64,7 +64,7 @@ try {
     try {
       await waitFor(() => s.connection === 'live', "stream handle 'live'");
 
-      const other = new SnapbackClient(server.baseUrl);
+      const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('createTodo', { args: { title: 'for bob' }, userId: BOB });
       await other.mutate('createTodo', { args: { title: 'for ada' }, userId: ADA });
 

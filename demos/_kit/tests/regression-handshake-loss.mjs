@@ -82,7 +82,7 @@ globalThis.WebSocket = function PatchedWebSocket(url, protocols) {
 };
 
 const server = await startServer({ port: 4437, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / handshake-window loss (ENG-23428)');
 const ADA = 'user_ada';
 const CONN = 'handshake_loss_conn';
@@ -159,7 +159,7 @@ try {
       //    'live' with no server-side subscription, rows frozen forever.
       wsMode = 'real';
       await waitFor(() => handle.connection === 'live', "recovery to 'live'");
-      const other = new SnapbackClient(server.baseUrl);
+      const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('createTodo', { args: { title: 'after handshake loss' }, userId: ADA });
       await waitFor(
         () => handle.rows.some((r) => r.title === 'after handshake loss'),

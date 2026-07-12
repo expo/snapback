@@ -28,7 +28,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
 
 const server = await startServer({ port: 4419, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / gc-starvation (ENG-22478 review fix A)');
 const ADA = 'user_ada';
 const FAST = { heartbeatIntervalMs: 200, freshnessBudgetMs: 800, reconnectBaseDelayMs: 100, reconnectMaxDelayMs: 400 };
@@ -56,7 +56,7 @@ try {
       assert(a.subscriptionId !== b.subscriptionId, 'distinct subscriptions');
       await waitFor(() => a.connection === 'live' && b.connection === 'live', "both handles 'live'");
 
-      const other = new SnapbackClient(server.baseUrl);
+      const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('createTodo', { args: { title: 'update after B subscribed' }, userId: ADA });
       await waitFor(
         () => a.rows.some((r) => r.title === 'update after B subscribed'),

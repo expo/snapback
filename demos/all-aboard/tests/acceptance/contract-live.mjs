@@ -65,7 +65,7 @@ const waitFor = async (predicate, label, timeoutMs = 8_000) => {
 await runAcceptance(suite, async () => {
   server = await startServer({ port: 4424, db: ':memory:', cwd: repoRoot,
     provenance: { appId: 'all-aboard', artifactsPath: join(repoRoot, 'demos', 'all-aboard', 'snapback', 'generated', 'artifacts.json') } });
-  db = new SnapbackClient(server.baseUrl);
+  db = new SnapbackClient(server.baseUrl, server.clientOptions);
   // Authenticated AdminWrite tick via the kit client — a raw fetch here
   // swallowed the 401 and silently never ticked the scheduler (ENG-23706).
   const forceTick = () => db.cronTick();

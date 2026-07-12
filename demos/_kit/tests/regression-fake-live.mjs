@@ -29,7 +29,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
 
 const server = await startServer({ port: 4417, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('_kit regression / fake-live (LLP 0034 review fix 2)');
 const ADA = 'user_ada';
 
@@ -102,7 +102,7 @@ try {
     });
 
     await suite.check('server-authored writes arrive after recovery (nothing is silently lost)', async () => {
-      const other = new SnapbackClient(server.baseUrl);
+      const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('createTodo', { args: { title: 'missed forever?' }, userId: ADA });
       await waitFor(() => handle.rows.some((r) => r.title === 'missed forever?'), 'post-recovery delivery');
       return { rows: handle.rows.length, connection: handle.connection };

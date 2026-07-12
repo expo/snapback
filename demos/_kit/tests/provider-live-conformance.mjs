@@ -59,7 +59,7 @@ const FAST_STREAM = {
 };
 
 const server = await startServer({ port: 4407, db: ':memory:', cwd: repoRoot });
-const db = new SnapbackClient(server.baseUrl);
+const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 const suite = createSuite('provider live conformance (LLP 0034 D5)');
 
 // Bounded event-driven wait: resolves when `predicate()` is true, checked on
@@ -155,7 +155,7 @@ try {
       await recorder.waitFor(() => handle.connection === 'live', "connection 'live'");
       // Client A (a separate client object, plain HTTP) mutates; client B must
       // receive the update over the socket — handle.poll() is never called.
-      const clientA = new SnapbackClient(server.baseUrl);
+      const clientA = new SnapbackClient(server.baseUrl, server.clientOptions);
       await clientA.mutate('createTodo', { args: { title: 'pushed to B over stream' }, userId: ADA });
       await recorder.waitFor(
         () => handle.rows.some((row) => row.title === 'pushed to B over stream'),
@@ -193,7 +193,7 @@ try {
       await recorder.waitFor(() => handle.connection === 'polling', "'polling' after socket loss");
 
       // A server-authored write during the outage must converge after recovery.
-      const clientA = new SnapbackClient(server.baseUrl);
+      const clientA = new SnapbackClient(server.baseUrl, server.clientOptions);
       await clientA.mutate('createTodo', { args: { title: 'written during outage' }, userId: ADA });
 
       await recorder.waitFor(
@@ -239,7 +239,7 @@ try {
 
       // Restore: the retrying socket reconnects, re-enters through a fresh
       // snapshot ('resubscribed'), and data converges.
-      const clientA = new SnapbackClient(server.baseUrl);
+      const clientA = new SnapbackClient(server.baseUrl, server.clientOptions);
       await clientA.mutate('createTodo', { args: { title: 'written while stale' }, userId: ADA });
       await recorder.waitFor(
         () => recorder.events.some((e) => e.event === 'resubscribed'),
@@ -272,7 +272,7 @@ try {
     try {
       await recorder.waitFor(() => handle.connection === 'live', "connection 'live'");
       const snapshotVersion = handle.version;
-      const clientA = new SnapbackClient(server.baseUrl);
+      const clientA = new SnapbackClient(server.baseUrl, server.clientOptions);
       for (let i = 0; i < 5; i += 1) {
         await clientA.mutate('createTodo', { args: { title: `burst ${i}` }, userId: ADA });
       }
@@ -356,7 +356,7 @@ try {
       // arrive on the one socket. (Server-side, the outbox drains the durable
       // lane before the ephemeral lane within each tick — LLP 0013
       // §delivery-lanes; the kit preserves arrival order.)
-      const clientB = new SnapbackClient(server.baseUrl);
+      const clientB = new SnapbackClient(server.baseUrl, server.clientOptions);
       await clientB.publishEphemeral('boardCursors', {
         connectionId: 'presence_publisher',
         scope,
@@ -498,7 +498,7 @@ try {
       await recorder.waitFor(() => handle.connection === 'live', "connection 'live'");
       const rowsBefore = handle.rows.length;
 
-      const other = new SnapbackClient(server.baseUrl);
+      const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('bumpAdaPermissions', { args: {}, userId: 'user_admin' });
 
       await recorder.waitFor(
@@ -587,7 +587,7 @@ try {
       const transitionsBefore = tabB.transitions.length;
       db.liveStreamManager('tab_a').debugCloseSocket();
       await tabA.waitFor(() => tabA.transitions.some((t) => t.startsWith('live->')), "tab A's loss detected");
-      const other = new SnapbackClient(server.baseUrl);
+      const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('createTodo', { args: { title: 'while tab A is down' }, userId: ADA });
       await tabB.waitFor(
         () => handleB.rows.some((row) => row.title === 'while tab A is down'),
@@ -658,7 +658,7 @@ try {
       const windowMs = 1_200;
       let delivered = 0;
       let published = 0;
-      const publisher = new SnapbackClient(server.baseUrl);
+      const publisher = new SnapbackClient(server.baseUrl, server.clientOptions);
       const startedAt = Date.now();
       const floodUntil = startedAt + windowMs;
       const publishLoop = (async () => {
