@@ -115,19 +115,27 @@ where
 /// the caller gets `SNAPBACK_ACTION_TIMEOUT` after this long even when the
 /// action's VM thread is stuck inside a hung outbound fetch.
 const ACTION_WATCHDOG_DEFAULT_MS: u64 = 30_000;
+/// Local actions may raise the default for slow external APIs, but a malformed
+/// environment value must not create an unrepresentable `Instant` or an
+/// effectively unbounded worker lifetime.
+const ACTION_WATCHDOG_MAX_MS: u64 = 15 * 60 * 1_000;
 const ACTION_INTERRUPT_GRACE_MS: u64 = 500;
 
 fn action_watchdog_timeout_ms() -> u64 {
-    std::env::var("SNAPBACK_ACTION_TIMEOUT_MS")
-        .ok()
-        .and_then(|value| value.parse::<u64>().ok())
+    parse_action_watchdog_timeout(std::env::var("SNAPBACK_ACTION_TIMEOUT_MS").ok().as_deref())
+}
+
+fn parse_action_watchdog_timeout(raw: Option<&str>) -> u64 {
+    raw.and_then(|value| value.parse::<u64>().ok())
         .filter(|ms| *ms > 0)
+        .map(|ms| ms.min(ACTION_WATCHDOG_MAX_MS))
         .unwrap_or(ACTION_WATCHDOG_DEFAULT_MS)
 }
 
-/// The action host for detached (off-mutex) Ibex action runs. Read host calls
-/// reacquire the global instance mutex for one call. Ibex mutations execute
-/// into an owned effect buffer against an isolated read view and reacquire the
+/// The action host for detached (off-mutex) Ibex action runs. Raw action
+/// `ctx.db` operations are rejected before host dispatch; the trait's read
+/// methods retain a short-lock defense in depth. Ibex mutations execute into
+/// an owned effect buffer against an isolated read view and reacquire the
 /// mutex only for their bounded commit window. An independent gate linearizes
 /// that commit with watchdog abandonment, so a mutation either commits before
 /// abandonment or is discarded — never after the caller was told the action
@@ -174,14 +182,17 @@ impl IbexActionHost for DetachedActionHost {
             }
             StagedNestedMutation::Detached(staged) => {
                 drop(snapback);
-                let module = match &staged.function.runtime {
+                let module = match &staged.binding.function.runtime {
                     FunctionRuntime::IbexModule(module) => module,
                     _ => unreachable!("detached nested mutation must be an Ibex module"),
                 };
                 let executed = match staged.read {
-                    DetachedMutationRead::Lane(read) => {
-                        read.execute_detached_ibex_mutation(module, input.clone(), self.deadline)?
-                    }
+                    DetachedMutationRead::Lane(read) => read.execute_detached_ibex_mutation(
+                        module,
+                        input.clone(),
+                        &staged.binding.schema,
+                        self.deadline,
+                    )?,
                     DetachedMutationRead::Snapshot(db) => crate::runtime::execute_ibex_mutation(
                         module,
                         input.clone(),
@@ -205,13 +216,7 @@ impl IbexActionHost for DetachedActionHost {
                 if self.abandoned.load(Ordering::SeqCst) {
                     return Err(action_abandoned("runMutation"));
                 }
-                snapback.commit_detached_ibex_mutation(
-                    name,
-                    input,
-                    &staged.function,
-                    staged.epoch_scopes,
-                    executed,
-                )
+                snapback.commit_detached_ibex_mutation(name, input, staged.binding, executed)
             }
         }
     }
@@ -242,7 +247,15 @@ async fn run_detached_ibex_action(
 ) -> SnapbackResult<Value> {
     let timeout_ms = action_watchdog_timeout_ms();
     let started = Instant::now();
-    let deadline = started + Duration::from_millis(timeout_ms);
+    let deadline = started
+        .checked_add(Duration::from_millis(timeout_ms))
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ACTION_TIMEOUT_INVALID",
+                "runtime",
+                "configured action watchdog cannot be represented by the host clock",
+            )
+        })?;
     // Give Hermes' async-break monitor a small teardown margin before the
     // public watchdog fires. Normal timeout responses therefore come only
     // after the runtime and its OS worker have been destroyed; the outer
@@ -3005,8 +3018,32 @@ fn now_millis() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::status_for_diagnostic_code;
+    use super::{
+        ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, parse_action_watchdog_timeout,
+        status_for_diagnostic_code,
+    };
     use axum::http::StatusCode;
+
+    #[test]
+    fn action_watchdog_timeout_clamps_untrusted_environment_values() {
+        assert_eq!(
+            parse_action_watchdog_timeout(None),
+            ACTION_WATCHDOG_DEFAULT_MS
+        );
+        assert_eq!(
+            parse_action_watchdog_timeout(Some("not-a-number")),
+            ACTION_WATCHDOG_DEFAULT_MS
+        );
+        assert_eq!(
+            parse_action_watchdog_timeout(Some("0")),
+            ACTION_WATCHDOG_DEFAULT_MS
+        );
+        assert_eq!(parse_action_watchdog_timeout(Some("1")), 1);
+        assert_eq!(
+            parse_action_watchdog_timeout(Some(&u64::MAX.to_string())),
+            ACTION_WATCHDOG_MAX_MS
+        );
+    }
 
     /// LLP 0032 S5.D10 / ENG-24357 — internal/storage faults and new unknown
     /// codes are 5xx; only deliberately classified client errors are 4xx.

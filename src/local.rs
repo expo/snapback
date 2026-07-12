@@ -36,12 +36,17 @@ use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::sync::Mutex as StdMutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, PoisonError, RwLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
+static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
+
+fn next_app_generation() -> u64 {
+    NEXT_APP_GENERATION.fetch_add(1, Ordering::Relaxed)
+}
 
 /// Receipt retention (LLP 0034 §3 / ENG-22478): bounded in-memory rings — one
 /// global ring for connectionless facts (mutation receipts, disposed-on-
@@ -448,9 +453,9 @@ pub struct FunctionRunResult {
 ///
 /// Staging runs under the global instance mutex; execution of the
 /// `Detached` arm deliberately does not — the server runs Ibex actions on a
-/// watchdogged thread whose host calls reacquire the mutex per call, so a
-/// hung outbound fetch can no longer wedge writes, cron, and in-memory
-/// queries (ENG-23324).
+/// watchdogged thread. Nested mutations execute against an isolated read view
+/// and reacquire the mutex only for commit; raw action `ctx.db` calls are
+/// rejected before host dispatch (ENG-23324 / ENG-24339 / ENG-24340).
 pub(crate) enum StagedAction {
     /// Host-plan actions run bounded mutation steps with no egress; they
     /// execute under the lock exactly as before.
@@ -472,9 +477,15 @@ pub(crate) enum StagedNestedMutation {
 }
 
 pub(crate) struct DetachedIbexMutation {
-    pub function: FunctionDefinition,
-    pub epoch_scopes: BTreeSet<String>,
+    pub binding: DetachedMutationBinding,
     pub read: DetachedMutationRead,
+}
+
+pub(crate) struct DetachedMutationBinding {
+    pub function: FunctionDefinition,
+    pub schema: SchemaManifest,
+    pub app_generation: u64,
+    pub epoch_scopes: BTreeSet<String>,
 }
 
 pub(crate) enum DetachedMutationRead {
@@ -880,6 +891,10 @@ pub struct LocalSnapback {
     // per-instance warm VM pool (never process-global: two local app
     // instances must not share loaded code state). Shared with the read lane.
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
+    // Changes whenever loaded code/schema or the destructive app state
+    // boundary changes. Detached nested mutations bind this value at staging
+    // and must still match at commit (ENG-24340).
+    app_generation: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -911,8 +926,8 @@ struct LocalIbexActionHost<'a> {
     // - constructed only inside `LocalSnapback::invoke_action` from `&'a mut self`;
     // - never sent to another thread and used only by synchronous Ibex host calls
     //   during that one action invocation;
-    // - the read-only db pointer handed to the runtime is derived from this same
-    //   provenance root before any host call can reborrow `self`.
+    // - every trait operation derives from this same provenance root only for
+    //   the duration of its synchronous call.
     //
     // The S5.D1 nested-action test exercises the important behavioral edge:
     // a JS action can call back into an Ibex mutation and then make a second host
@@ -948,6 +963,7 @@ impl LocalSnapback {
         let ephemeral_collections = manifest.ephemeral_collections.clone();
         let diagnostics = self.db.apply_schema(manifest)?;
         self.ephemeral.replace_collections(ephemeral_collections);
+        self.app_generation = next_app_generation();
         self.refresh_read_manifests();
         self.record_diagnostics(diagnostics.clone());
         Ok(diagnostics)
@@ -962,6 +978,7 @@ impl LocalSnapback {
 
         self.functions = manifest;
         self.functions_loaded = true;
+        self.app_generation = next_app_generation();
         // New code means new warm-VM setup state; content keying already
         // prevents stale reuse, clearing also frees the old VMs' memory.
         self.warm_vms.clear();
@@ -994,6 +1011,7 @@ impl LocalSnapback {
 
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.db.reset()?;
+        self.app_generation = next_app_generation();
         self.warm_vms.clear();
         // ENG-23333: capture the live subscriptions being dropped so their
         // clients can be told. Clearing the map alone leaves every connected
@@ -1441,16 +1459,20 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        expected_function: &FunctionDefinition,
-        epoch_scopes: BTreeSet<String>,
+        binding: DetachedMutationBinding,
         executed: ExecutedIbexMutation,
     ) -> SnapbackResult<MutationOutput> {
         let function = self.function(name)?.clone();
-        if function != *expected_function {
+        if function != binding.function
+            || self.db.schema() != &binding.schema
+            || self.app_generation != binding.app_generation
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_MUTATION_CONFLICT",
                 "runtime",
-                format!("mutation {name} changed while an action-hosted invocation was running"),
+                format!(
+                    "app code or schema changed while action-hosted mutation {name} was running"
+                ),
             ));
         }
         let commit = self.db.commit_buffered_writes_idempotent(
@@ -1461,7 +1483,9 @@ impl LocalSnapback {
             executed.ctx_ledger,
             None,
         )?;
-        Ok(self.finish_mutation_commit(epoch_scopes, commit).output)
+        Ok(self
+            .finish_mutation_commit(binding.epoch_scopes, commit)
+            .output)
     }
 
     /// `mutationDryRun` (LLP 0051 D8 / Increment 4): execute the mutation
@@ -2122,8 +2146,12 @@ impl LocalSnapback {
                 };
                 Ok(StagedNestedMutation::Detached(Box::new(
                     DetachedIbexMutation {
-                        function,
-                        epoch_scopes,
+                        binding: DetachedMutationBinding {
+                            function,
+                            schema: self.db.schema().clone(),
+                            app_generation: self.app_generation,
+                            epoch_scopes,
+                        },
                         read,
                     },
                 )))
@@ -3074,6 +3102,7 @@ impl LocalSnapback {
             connections_last_seen: ConnectionActivity::default(),
             reaped_connections: 0,
             warm_vms: Arc::new(crate::warm_vm::WarmVmPool::from_env()),
+            app_generation: next_app_generation(),
             read_manifests,
             read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
             receipts: ReceiptLog::default(),
@@ -3206,10 +3235,9 @@ impl LocalSnapback {
                 // store is read through on every run (no caching), leaving VM
                 // reuse questions to the DK-4 machinery.
                 let grants = self.config_grants(&function);
-                // One provenance root: every host call — mutation writes and
-                // ctx.db reads alike — derives its reference from this *mut
-                // per call, so no read borrow outlives a write under Stacked
-                // Borrows. Host calls remain synchronous on this thread.
+                // One provenance root: runMutation (and the trait's unreachable
+                // raw-read defense) derives a reference from this *mut for one
+                // synchronous call, so no borrow outlives a later write.
                 let snapback = self as *mut LocalSnapback;
                 let mut host = LocalIbexActionHost {
                     snapback,
@@ -3935,20 +3963,17 @@ impl ReadLane {
         &self,
         module: &crate::manifest::IbexModule,
         input: HandlerInput,
+        schema: &SchemaManifest,
         deadline: Instant,
     ) -> SnapbackResult<ExecutedIbexMutation> {
         let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
-        let manifests = self.manifests();
         let reader = pool.checkout()?;
         let tx = reader.conn().unchecked_transaction()?;
         crate::storage::current_version_on(&tx)?;
         crate::runtime::execute_ibex_mutation(
             module,
             input,
-            DbRead::Pinned {
-                conn: &tx,
-                schema: &manifests.schema,
-            },
+            DbRead::Pinned { conn: &tx, schema },
             None,
             Some(deadline),
         )
@@ -4273,4 +4298,149 @@ fn now_millis() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DetachedIbexMutation, DetachedMutationRead, LocalSnapback, StagedNestedMutation};
+    use crate::manifest::{
+        FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
+        FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
+    };
+    use serde_json::json;
+    use std::time::{Duration, Instant};
+
+    const SCHEMA_RELOAD_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async insertOld(ctx) {
+    return await ctx.db.insert('items', { value: 'old-schema' });
+  },
+  async readNewTable(ctx) {
+    return (await ctx.db.query('new_items').collect()).length;
+  }
+};
+"#;
+
+    fn reload_schema(hash: &str, include_extra: bool) -> SchemaManifest {
+        let fields = vec![FieldManifest {
+            name: "value".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        }];
+        let mut tables = vec![TableManifest {
+            name: "items".to_owned(),
+            fields,
+            indexes: Vec::new(),
+            syncable: true,
+        }];
+        if include_extra {
+            tables.push(TableManifest {
+                name: "new_items".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "extra".to_owned(),
+                    field_type: FieldType::Boolean,
+                    optional: true,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+            });
+        }
+        SchemaManifest {
+            schema_hash: Some(hash.to_owned()),
+            tables,
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn reload_functions() -> FunctionManifest {
+        let define = |name: &str| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: SCHEMA_RELOAD_SOURCE.to_owned(),
+                    export: name.to_owned(),
+                }),
+            )
+        };
+        FunctionManifest {
+            functions: vec![define("insertOld"), define("readNewTable")],
+            ..FunctionManifest::default()
+        }
+    }
+
+    fn input() -> HandlerInput {
+        HandlerInput {
+            args: json!({}),
+            auth: Default::default(),
+            read_set: Vec::new(),
+            correlation: None,
+            ctx_ledger: None,
+        }
+    }
+
+    fn detached(snapback: &LocalSnapback, name: &str) -> Box<DetachedIbexMutation> {
+        match snapback
+            .stage_nested_mutation(name, &input())
+            .expect("stage nested mutation")
+        {
+            StagedNestedMutation::Detached(staged) => staged,
+            StagedNestedMutation::InLock => panic!("Ibex mutation must detach"),
+        }
+    }
+
+    #[test]
+    fn detached_mutation_binds_schema_and_app_generation_across_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut snapback =
+            LocalSnapback::open(dir.path().join("reload.sqlite")).expect("file-backed snapback");
+        snapback
+            .apply_schema(reload_schema("schema-v1", false))
+            .expect("apply v1");
+        snapback.load_functions(reload_functions());
+
+        let old_insert = detached(&snapback, "insertOld");
+        let new_table_read = detached(&snapback, "readNewTable");
+        snapback
+            .apply_schema(reload_schema("schema-v2", true))
+            .expect("apply v2 while mutations are detached");
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let DetachedIbexMutation { binding, read } = *new_table_read;
+        let module = match &binding.function.runtime {
+            FunctionRuntime::IbexModule(module) => module,
+            _ => unreachable!(),
+        };
+        let read = match read {
+            DetachedMutationRead::Lane(read) => read,
+            DetachedMutationRead::Snapshot(_) => panic!("file database must use WAL read lane"),
+        };
+        let error =
+            match read.execute_detached_ibex_mutation(module, input(), &binding.schema, deadline) {
+                Ok(_) => panic!("staged v1 execution must not see v2's new table"),
+                Err(error) => error,
+            };
+        let diagnostic = serde_json::to_string(&error.diagnostic).expect("diagnostic json");
+        assert!(
+            diagnostic.contains("SNAPBACK_UNKNOWN_TABLE") || diagnostic.contains("new_items"),
+            "execution must use the staged schema: {diagnostic}"
+        );
+
+        let DetachedIbexMutation { binding, read } = *old_insert;
+        let module = match &binding.function.runtime {
+            FunctionRuntime::IbexModule(module) => module,
+            _ => unreachable!(),
+        };
+        let read = match read {
+            DetachedMutationRead::Lane(read) => read,
+            DetachedMutationRead::Snapshot(_) => panic!("file database must use WAL read lane"),
+        };
+        let executed = read
+            .execute_detached_ibex_mutation(module, input(), &binding.schema, deadline)
+            .expect("old-schema-compatible handler executes against staged schema");
+        let error = snapback
+            .commit_detached_ibex_mutation("insertOld", input(), binding, executed)
+            .expect_err("schema/app generation changed before commit");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    }
 }
