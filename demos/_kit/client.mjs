@@ -766,6 +766,19 @@ export class SnapbackClient {
     // the socket open must not claim transport 'poll' on its receipt.
     let establishedEmitted = false;
     let establishTimer = null;
+    // @ref LLP 0034#108-hosted-stream-establishment-reconciles-through-current-socket-readiness-2026-07-12
+    //   — lifecycle-cancelable readiness and serialized supersession are one
+    //   safety contract around the only permitted hosted subscribe replays.
+    // Every pause/resume/dispose boundary invalidates older subscribe work.
+    // The signal cancels only this handle's readiness wrapper; the manager's
+    // shared ping/pong remains available to other handles on the connection.
+    let subscribeLifecycleEpoch = 0;
+    let subscribeLifecycleController = new AbortController();
+    // All snapshot-with-subscribe attempts for one handle are serialized.
+    // Resume, reconnect, resync, and fallback paths must capture `supersedes`
+    // only after the prior path has committed its subscription id.
+    let freshSubscribeTail = Promise.resolve();
+    let freshSubscribePending = 0;
 
     const handle = {
       subscriptionId: null,
@@ -781,7 +794,7 @@ export class SnapbackClient {
       if (connection === next) return;
       const previous = connection;
       connection = next;
-      onConnectionChange?.(next, { previous });
+      if (onConnectionChange) deliverIsolated(onConnectionChange, next, { previous });
     };
 
     // Full SubscriptionReceipts (LLP 0034 §3.2 / ENG-22478): the kit is the
@@ -826,6 +839,49 @@ export class SnapbackClient {
           // Best-effort: the subscription may already be gone (disconnect,
           // supersession) or the server unreachable — the reaper covers it.
         });
+    };
+
+    const subscribeLifecycleError = (state) => {
+      const code = state === 'disposed'
+        ? 'SNAPBACK_LIVE_QUERY_DISPOSED_DURING_SUBSCRIBE'
+        : 'SNAPBACK_LIVE_QUERY_PAUSED_DURING_SUBSCRIBE';
+      const error = new Error(`${code}: Snapback live query subscribe was cancelled because the handle was ${state}.`);
+      error.code = code;
+      error.diagnostic = { code, message: error.message.slice(code.length + 2) };
+      return error;
+    };
+
+    const invalidateSubscribeLifecycle = (state) => {
+      subscribeLifecycleEpoch += 1;
+      if (!subscribeLifecycleController.signal.aborted) {
+        subscribeLifecycleController.abort(subscribeLifecycleError(state));
+      }
+    };
+
+    const beginSubscribeLifecycle = () => {
+      if (!subscribeLifecycleController.signal.aborted) {
+        subscribeLifecycleController.abort(subscribeLifecycleError('paused'));
+      }
+      subscribeLifecycleEpoch += 1;
+      subscribeLifecycleController = new AbortController();
+    };
+
+    const currentSubscribeLifecycle = () => ({
+      epoch: subscribeLifecycleEpoch,
+      signal: subscribeLifecycleController.signal,
+    });
+
+    const assertSubscribeLifecycle = (lifecycle) => {
+      if (
+        disposed ||
+        paused ||
+        lifecycle.epoch !== subscribeLifecycleEpoch ||
+        lifecycle.signal !== subscribeLifecycleController.signal ||
+        lifecycle.signal.aborted
+      ) {
+        if (lifecycle.signal.reason instanceof Error) throw lifecycle.signal.reason;
+        throw subscribeLifecycleError(disposed ? 'disposed' : 'paused');
+      }
     };
 
     const applyDurable = (update) => {
@@ -873,13 +929,16 @@ export class SnapbackClient {
       }
     };
 
-    const subscribeFresh = async () => {
+    const subscribeFreshExclusive = async (lifecycle) => {
+      assertSubscribeLifecycle(lifecycle);
       // This handle's OWN previous subscription (reconnect/resync/resume
       // paths) is explicitly superseded; the first establish has none.
+      // Capture only after acquiring the per-handle subscribe queue.
       const supersedes = handle.subscriptionId ?? null;
       let attempt = null;
       let readinessRetries = 0;
       for (;;) {
+        assertSubscribeLifecycle(lifecycle);
         const epochAtStart = socketLossEpoch;
         const demandEpochAtStart = resubscribeDemandEpoch;
         try {
@@ -890,6 +949,14 @@ export class SnapbackClient {
             correlation,
             supersedes,
           });
+          try {
+            assertSubscribeLifecycle(lifecycle);
+          } catch (error) {
+            // The HTTP request cannot be cancelled after persistence. If its
+            // owner paused/disposed meanwhile, explicitly retire the late id.
+            bestEffortUnsubscribeLive(sub?.subscription_id);
+            throw error;
+          }
           attempt = { sub, epochAtStart, demandEpochAtStart };
           break;
         } catch (error) {
@@ -911,19 +978,17 @@ export class SnapbackClient {
           // ping/pong on the current generation and retry only then. If a
           // generation had already been proven ready, revalidate it (or let
           // its loss move the wait to the replacement generation).
-          await manager.waitUntilReady({ revalidate: manager.isReady() });
+          await manager.waitUntilReady({
+            revalidate: manager.isReady(),
+            signal: lifecycle.signal,
+          });
+          // Cancellation and readiness can settle in adjacent microtasks.
+          // Re-check immediately before the only replaying POST.
+          assertSubscribeLifecycle(lifecycle);
         }
       }
       const { sub, epochAtStart, demandEpochAtStart } = attempt;
-      if (disposed || paused) {
-        // The dispose/pause may have raced this fresh subscribe. The caller no
-        // longer owns the server registration, so tear down the late result
-        // immediately instead of leaking a zombie subscription.
-        bestEffortUnsubscribeLive(sub?.subscription_id);
-        const error = new Error('Snapback live query subscribe resolved after disposal.');
-        error.code = 'SNAPBACK_LIVE_QUERY_DISPOSED_DURING_SUBSCRIBE';
-        throw error;
-      }
+      assertSubscribeLifecycle(lifecycle);
       // Any successful fresh subscribe satisfies an outstanding need — clear
       // it here so every path (establish, resume, resubscribe) agrees —
       // UNLESS a socket loss raced the in-flight request (ENG-23428): the
@@ -942,6 +1007,25 @@ export class SnapbackClient {
       handle.version = sub.snapshot.version;
       handle.rows = sub.snapshot.rows;
       return sub;
+    };
+
+    const subscribeFresh = () => {
+      const lifecycle = currentSubscribeLifecycle();
+      freshSubscribePending += 1;
+      const queued = freshSubscribeTail.then(() => subscribeFreshExclusive(lifecycle));
+      // Keep the mutex usable after rejection, while attaching a rejection
+      // handler immediately so a cancelled queued attempt is never unhandled.
+      freshSubscribeTail = queued.then(() => undefined, () => undefined);
+      return queued.then(
+        (value) => {
+          freshSubscribePending -= 1;
+          return value;
+        },
+        (error) => {
+          freshSubscribePending -= 1;
+          throw error;
+        },
+      );
     };
 
     // After a successful (re)subscribe, settle the connection value from the
@@ -1015,6 +1099,11 @@ export class SnapbackClient {
         pendingResubscribeReason = reason;
         return false;
       }
+      // Resume/establish also use the fresh-subscribe queue. A resync demand
+      // that arrives while either is pending must remain visible if that
+      // older snapshot was already in flight, just like a demand arriving
+      // during the traditional resubscribe loop.
+      if (freshSubscribePending > 0) resubscribeDemandEpoch += 1;
       resubscribing = true;
       needsResubscribe = true;
       pendingResubscribeReason = reason;
@@ -1034,7 +1123,9 @@ export class SnapbackClient {
         }
       } catch (error) {
         if (!disposed && !paused) {
-          onConnectionChange?.(connection, { previous: connection, error });
+          if (onConnectionChange) {
+            deliverIsolated(onConnectionChange, connection, { previous: connection, error });
+          }
           scheduleResubscribeRetry(pendingResubscribeReason);
         }
         return false;
@@ -1185,12 +1276,13 @@ export class SnapbackClient {
       try {
         await subscribeFresh();
       } catch (error) {
+        disposed = true;
+        invalidateSubscribeLifecycle('disposed');
         stopFallback();
         clearResubscribeRetry();
         unregisterDurable();
         detachStream?.();
         detachStream = null;
-        disposed = true;
         setConnection('disconnected');
         throw error;
       }
@@ -1231,6 +1323,7 @@ export class SnapbackClient {
     handle.pause = () => {
       if (disposed || paused) return;
       paused = true;
+      invalidateSubscribeLifecycle('paused');
       stopFallback();
       clearResubscribeRetry();
       detachStream?.();
@@ -1241,6 +1334,8 @@ export class SnapbackClient {
     handle.resume = async () => {
       if (disposed || !paused) return;
       paused = false;
+      beginSubscribeLifecycle();
+      const resumeLifecycleEpoch = subscribeLifecycleEpoch;
       setConnection('connecting');
       if (transport === 'stream') {
         detachStream = attachStream();
@@ -1248,11 +1343,24 @@ export class SnapbackClient {
       try {
         await subscribeFresh();
       } catch (error) {
+        // A pause/dispose (or a newer resume after that pause) already owns
+        // cleanup. This stale continuation must not detach the newer stream
+        // or force its handle back into the paused state.
+        if (
+          disposed ||
+          paused ||
+          subscribeLifecycleEpoch !== resumeLifecycleEpoch
+        ) {
+          throw error;
+        }
         // Do not leak the re-attached stream (LLP 0034 review fix 5): return
         // to the paused state so the caller may retry resume() later.
+        stopFallback();
+        clearResubscribeRetry();
         detachStream?.();
         detachStream = null;
         paused = true;
+        invalidateSubscribeLifecycle('paused');
         setConnection('disconnected');
         throw error;
       }
@@ -1276,6 +1384,7 @@ export class SnapbackClient {
       emitEvent('disposed');
       const staleSubscriptionId = handle.subscriptionId;
       disposed = true;
+      invalidateSubscribeLifecycle('disposed');
       stopFallback();
       clearResubscribeRetry();
       if (establishTimer) {
@@ -1319,6 +1428,10 @@ class LiveStreamManager {
     this.durableListeners = new Set();
     this.ephemeralListeners = new Set();
     this.stateListeners = new Set();
+    // Readiness probes observe socket state without owning socket demand.
+    // A paused/disposed handle must be able to detach its last real listener
+    // and close the manager even while a caller is awaiting readiness.
+    this.readinessStateListeners = new Set();
     this.pendingRequests = new Map();
 
     this.ws = null;
@@ -1335,7 +1448,10 @@ class LiveStreamManager {
     // satisfy a later generation because #dispatch ignores non-current ws.
     this.socketGeneration = 0;
     this.readyGeneration = 0;
-    this.readinessPromise = null;
+    // One correlated ping/pong probe is shared by parallel callers. Each
+    // caller still gets its own abortable wrapper, so canceling one binding
+    // never cancels another binding's readiness wait.
+    this.readinessProbe = null;
     // True while the ENG-23442 grant handshake for a connect is in flight
     // (there is no this.ws yet, so #ensureSocket needs its own latch).
     this.connectPending = false;
@@ -1384,7 +1500,14 @@ class LiveStreamManager {
   /// session diagnostic; generic HTTP outcomes are never replayed.
   ///
   /// @ref LLP 0034#23-connection-axis-mapping-kit-derived-policy-over-d0-signals
-  waitUntilReady({ timeoutMs = this.freshnessBudgetMs, revalidate = false } = {}) {
+  waitUntilReady({ timeoutMs = this.freshnessBudgetMs, revalidate = false, signal } = {}) {
+    const cancellationError = () => signal?.reason instanceof Error
+      ? signal.reason
+      : liveStreamReadinessError(
+        'SNAPBACK_LIVE_STREAM_READINESS_CANCELLED',
+        `Snapback live stream readiness for ${this.connectionId} was cancelled`,
+      );
+    if (signal?.aborted) return Promise.reject(cancellationError());
     if (this.closed) {
       return Promise.reject(liveStreamReadinessError(
         'SNAPBACK_LIVE_STREAM_CLOSED',
@@ -1392,96 +1515,135 @@ class LiveStreamManager {
       ));
     }
     if (!revalidate && this.isReady()) return Promise.resolve(this.socketGeneration);
-    if (this.readinessPromise) return this.readinessPromise;
     if (revalidate) this.readyGeneration = 0;
-
-    const pending = new Promise((resolve, reject) => {
-      let settled = false;
-      let probing = false;
-      let offState = () => {};
-      const finish = (outcome, value) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        offState();
-        outcome(value);
+    let shared = this.readinessProbe;
+    if (!shared) {
+      shared = {
+        promise: null,
+        cancel: () => {},
+        settled: false,
+        waiters: 0,
       };
-      const deadline = Date.now() + timeoutMs;
-      const probe = () => {
-        if (settled || probing || !this.open) return;
-        const generation = this.socketGeneration;
-        if (this.readyGeneration === generation) {
-          finish(resolve, generation);
-          return;
-        }
-        probing = true;
-        const remainingMs = Math.max(1, deadline - Date.now());
-        const probeTimeoutMs = Math.min(this.heartbeatIntervalMs, remainingMs);
-        this.request({ type: 'ping' }, probeTimeoutMs).then(
-          (frame) => {
-            probing = false;
-            if (settled) return;
-            if (!this.open || this.socketGeneration !== generation) {
-              probe();
-              return;
-            }
-            if (frame?.kind !== LIVE_SOCKET_KINDS.PONG) {
-              this.debugCloseSocket();
-              return;
-            }
-            this.readyGeneration = generation;
+      const pending = new Promise((resolve, reject) => {
+        let settled = false;
+        let probing = false;
+        let timer = null;
+        let offState = () => {};
+        const finish = (outcome, value) => {
+          if (settled) return;
+          settled = true;
+          if (timer !== null) clearTimeout(timer);
+          offState();
+          outcome(value);
+        };
+        shared.cancel = (error) => finish(reject, error);
+        const deadline = Date.now() + timeoutMs;
+        const probe = () => {
+          if (settled || probing || !this.open) return;
+          const generation = this.socketGeneration;
+          if (this.readyGeneration === generation) {
             finish(resolve, generation);
-          },
-          () => {
-            probing = false;
-            if (settled) return;
-            // A raw-open socket that cannot answer the readiness ping is not
-            // usable authority. Force the ordinary loss/reconnect path; the
-            // same bounded wait continues on the replacement generation.
-            if (this.open && this.socketGeneration === generation) {
-              this.debugCloseSocket();
-            }
-          },
-        );
-      };
-      const timer = setTimeout(() => {
-        finish(
-          reject,
-          liveStreamReadinessError(
-            'SNAPBACK_LIVE_STREAM_READINESS_TIMEOUT',
-            `Snapback live stream for ${this.connectionId} did not become ready within ${timeoutMs}ms`,
-          ),
-        );
-      }, timeoutMs);
-      offState = this.onState((state) => {
-        if (state === 'open') {
-          probe();
-        } else if (state === 'closed') {
+            return;
+          }
+          probing = true;
+          const remainingMs = Math.max(1, deadline - Date.now());
+          const probeTimeoutMs = Math.min(this.heartbeatIntervalMs, remainingMs);
+          this.request({ type: 'ping' }, probeTimeoutMs).then(
+            (frame) => {
+              probing = false;
+              if (settled) return;
+              if (!this.open || this.socketGeneration !== generation) {
+                probe();
+                return;
+              }
+              if (frame?.kind !== LIVE_SOCKET_KINDS.PONG) {
+                this.debugCloseSocket();
+                return;
+              }
+              this.readyGeneration = generation;
+              finish(resolve, generation);
+            },
+            () => {
+              probing = false;
+              if (settled) return;
+              // A raw-open socket that cannot answer the readiness ping is
+              // not usable authority. Force ordinary loss/reconnect; the
+              // same bounded wait continues on the replacement generation.
+              if (this.open && this.socketGeneration === generation) {
+                this.debugCloseSocket();
+              }
+            },
+          );
+        };
+        timer = setTimeout(() => {
           finish(
             reject,
             liveStreamReadinessError(
-              'SNAPBACK_LIVE_STREAM_CLOSED',
-              `Snapback live stream for ${this.connectionId} closed before it became ready`,
+              'SNAPBACK_LIVE_STREAM_READINESS_TIMEOUT',
+              `Snapback live stream for ${this.connectionId} did not become ready within ${timeoutMs}ms`,
             ),
           );
-        }
+        }, timeoutMs);
+        const stateListener = (state) => {
+          if (state === 'open') {
+            probe();
+          } else if (state === 'closed') {
+            finish(
+              reject,
+              liveStreamReadinessError(
+                'SNAPBACK_LIVE_STREAM_CLOSED',
+                `Snapback live stream for ${this.connectionId} closed before it became ready`,
+              ),
+            );
+          }
+        };
+        this.readinessStateListeners.add(stateListener);
+        offState = () => this.readinessStateListeners.delete(stateListener);
+        this.#ensureSocket();
+        if (settled) offState();
+        probe();
       });
-      // A custom WebSocket can open synchronously from #ensureSocket inside
-      // onState(). In that case probe() may settle before onState returned its
-      // disposer; remove the now-installed listener explicitly.
-      if (settled) offState();
-      probe();
+      shared.promise = pending;
+      this.readinessProbe = shared;
+      const clear = () => {
+        shared.settled = true;
+        if (this.readinessProbe === shared) this.readinessProbe = null;
+      };
+      pending.then(clear, clear);
+    }
+
+    shared.waiters += 1;
+    const caller = new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (outcome, value) => {
+        if (settled) return;
+        settled = true;
+        signal?.removeEventListener('abort', onAbort);
+        outcome(value);
+      };
+      const onAbort = () => finish(reject, cancellationError());
+      signal?.addEventListener('abort', onAbort, { once: true });
+      shared.promise.then(
+        (generation) => finish(resolve, generation),
+        (error) => finish(reject, error),
+      );
+      // Abort may have raced listener registration.
+      if (signal?.aborted) onAbort();
     });
-    this.readinessPromise = pending;
-    const clear = () => {
-      if (this.readinessPromise === pending) this.readinessPromise = null;
-    };
-    pending.then(clear, clear);
-    return pending;
+    return caller.finally(() => {
+      shared.waiters -= 1;
+      if (shared.waiters === 0 && !shared.settled) {
+        shared.cancel(liveStreamReadinessError(
+          'SNAPBACK_LIVE_STREAM_READINESS_CANCELLED',
+          `Snapback live stream readiness for ${this.connectionId} has no active waiters`,
+        ));
+      }
+    });
   }
 
   #emitState(state, detail = {}) {
-    for (const listener of [...this.stateListeners]) listener(state, detail);
+    for (const listener of [...this.stateListeners]) deliverIsolated(listener, state, detail);
+    for (const listener of [...this.readinessStateListeners]) deliverIsolated(listener, state, detail);
   }
 
   #ensureSocket() {
@@ -1579,33 +1741,49 @@ class LiveStreamManager {
       this.#dispatch(frame);
     });
     const onLoss = () => {
-      if (this.ws !== ws) return;
       clearTimeout(connectTimer);
-      const wasOpen = this.open;
-      this.open = false;
-      this.ws = null;
-      this.#stopHeartbeat();
-      this.#failPendingRequests(new Error(`Snapback live stream lost: ${url}`));
-      if (this.closed) return;
-      // A socket that never opened may have been refused at the upgrade gate
-      // (stale grant after a server restart): re-run the handshake next try.
-      if (!wasOpen) this.grantSuspect = true;
-      // Emit on EVERY death of a constructed socket, retries included
-      // (ENG-23428): the server registers the stream task at upgrade
-      // completion, before any frame, so a retry socket that died without
-      // firing client 'open' may still have reached the server and triggered
-      // the disconnect that destroys the connection's subscriptions and
-      // outbox. Consumers must hear about every such loss to know a fresh
-      // subscribe is needed; swallowing retry failures left handles
-      // fake-healthy on a destroyed outbox.
-      this.#emitState('lost', { wasOpen });
-      this.#scheduleReconnect();
+      this.#loseSocket(ws, new Error(`Snapback live stream lost: ${url}`));
     };
     ws.addEventListener('close', onLoss, { once: true });
     ws.addEventListener('error', () => {
       // 'close' follows 'error' in both browser and undici WebSockets; loss
       // handling is centralized in the close handler.
     });
+  }
+
+  // Idempotent loss transition shared by close events and synchronous send
+  // failures. WebSocket.send() may throw after the socket passes our `open`
+  // check but enters CLOSING; treating that as immediate loss prevents an
+  // orphaned correlated request and starts bounded reconnect without waiting
+  // for a later close event that a custom implementation may never deliver.
+  #loseSocket(ws, error) {
+    if (this.ws !== ws) return;
+    const wasOpen = this.open;
+    this.open = false;
+    this.ws = null;
+    this.#stopHeartbeat();
+    this.#failPendingRequests(error instanceof Error
+      ? error
+      : new Error(`Snapback live stream lost: ${ws?.url ?? this.connectionId}`));
+    try {
+      ws.close();
+    } catch {
+      // The failed socket may already be closing.
+    }
+    if (this.closed) return;
+    // A socket that never opened may have been refused at the upgrade gate
+    // (stale grant after a server restart): re-run the handshake next try.
+    if (!wasOpen) this.grantSuspect = true;
+    // Emit on EVERY death of a constructed socket, retries included
+    // (ENG-23428): the server registers the stream task at upgrade
+    // completion, before any frame, so a retry socket that died without
+    // firing client 'open' may still have reached the server and triggered
+    // the disconnect that destroys the connection's subscriptions and
+    // outbox. Consumers must hear about every such loss to know a fresh
+    // subscribe is needed; swallowing retry failures left handles
+    // fake-healthy on a destroyed outbox.
+    this.#emitState('lost', { wasOpen });
+    this.#scheduleReconnect();
   }
 
   #scheduleReconnect() {
@@ -1637,10 +1815,12 @@ class LiveStreamManager {
       }
       this.requestSeq += 1;
       const requestId = `ping_${this.requestSeq}`;
+      const ws = this.ws;
+      if (!ws) return;
       try {
-        this.ws?.send(JSON.stringify({ type: 'ping', requestId }));
-      } catch {
-        // Loss handling rides the close event.
+        ws.send(JSON.stringify({ type: 'ping', requestId }));
+      } catch (error) {
+        this.#loseSocket(ws, error);
       }
     }, this.heartbeatIntervalMs);
     this.heartbeatTimer.unref?.();
@@ -1699,15 +1879,40 @@ class LiveStreamManager {
     if (!this.open || !this.ws) {
       return Promise.reject(new Error('Snapback live stream is not open'));
     }
+    const ws = this.ws;
     this.requestSeq += 1;
     const requestId = message.requestId ?? `req_${this.requestSeq}`;
-    const promise = new Promise((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject });
+    let encoded;
+    try {
+      encoded = JSON.stringify({ ...message, requestId });
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    let pending;
+    const response = new Promise((resolve, reject) => {
+      pending = { resolve, reject };
+      this.pendingRequests.set(requestId, pending);
     });
-    this.ws.send(JSON.stringify({ ...message, requestId }));
-    return withTimeout(promise, timeoutMs, `timed out waiting for live-socket response ${requestId}`).finally(() => {
+    const timed = withTimeout(
+      response,
+      timeoutMs,
+      `timed out waiting for live-socket response ${requestId}`,
+    ).finally(() => {
       this.pendingRequests.delete(requestId);
     });
+    try {
+      ws.send(encoded);
+    } catch (error) {
+      // Remove/reject this exact record before the socket-wide loss rejects
+      // the remaining requests. Never rethrow synchronously: callers always
+      // receive the Promise-shaped request failure they registered for.
+      if (this.pendingRequests.get(requestId) === pending) {
+        this.pendingRequests.delete(requestId);
+        pending.reject(error);
+      }
+      this.#loseSocket(ws, error);
+    }
+    return timed;
   }
 
   #failPendingRequests(error) {
@@ -1729,6 +1934,7 @@ class LiveStreamManager {
   }
 
   close() {
+    if (this.closed) return;
     this.closed = true;
     this.#stopHeartbeat();
     if (this.reconnectTimer) {
@@ -1750,6 +1956,7 @@ class LiveStreamManager {
     this.durableListeners.clear();
     this.ephemeralListeners.clear();
     this.stateListeners.clear();
+    this.readinessStateListeners.clear();
     this.onRelease();
   }
 }
@@ -1773,9 +1980,9 @@ function cappedCorrelation(correlation) {
 // EphemeralOverlay.#notifyChange: a throwing app callback must never discard
 // the rest of a destructively drained batch or escape an async socket
 // listener as an unhandled rejection.
-function deliverIsolated(consumer, payload) {
+function deliverIsolated(consumer, ...payload) {
   try {
-    consumer(payload);
+    consumer(...payload);
   } catch {
     // Consumer errors are the consumer's problem, not the delivery's.
   }

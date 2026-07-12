@@ -23,6 +23,7 @@ class FakeWebSocket {
     this.url = url;
     this.listeners = new Map();
     this.sent = [];
+    this.closeCalls = 0;
     FakeWebSocket.instances.push(this);
   }
   addEventListener(type, handler, options) {
@@ -39,6 +40,7 @@ class FakeWebSocket {
     this.sent.push(message);
   }
   close() {
+    this.closeCalls += 1;
     this.dispatch('close', {});
   }
 }
@@ -581,6 +583,410 @@ try {
     );
     handles.forEach((handle) => handle.dispose());
     return { sockets: FakeWebSocket.instances.length - before, attempts: Object.fromEntries(attempts) };
+  });
+
+  await suite.check('a synchronous readiness send failure is Promise-shaped and reconnects cleanly', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_readiness_send_throw');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      if (subscribeCalls === 1) throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+      return { subscription_id: 'sub_after_send_throw', snapshot: { version: 2, rows: [] } };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+    const unhandled = [];
+    const onUnhandled = (error) => unhandled.push(error);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const before = FakeWebSocket.instances.length;
+      const establishing = db.liveQuery('listTodos', {
+        connectionId: 'conn_readiness_send_throw',
+        transport: 'stream',
+        stream: {
+          freshnessBudgetMs: 500,
+          reconnectBaseDelayMs: 1,
+          reconnectMaxDelayMs: 1,
+        },
+      });
+      const first = await nextSocket(before);
+      await waitFor(() => subscribeCalls === 1, 'the effect-free refusal before send failure');
+      first.send = () => {
+        throw new Error('socket entered CLOSING before send');
+      };
+      // Before the fix this escaped dispatch synchronously and orphaned the
+      // pending response promise. It must now enter the ordinary loss path.
+      first.dispatch('open', {});
+      const replacement = await nextSocket(before + 1);
+      assert(first.closeCalls >= 1, 'the send-failed socket is closed immediately');
+      replacement.dispatch('open', {});
+      acknowledgePing(replacement, await nextSentPing(replacement));
+      const handle = await establishing;
+      await sleep(20);
+      assertEqual(subscribeCalls, 2, 'the refused subscribe replays once on the ready replacement');
+      assertEqual(unhandled.length, 0, `send failure leaked no unhandled rejection: ${unhandled.map((e) => e?.message ?? e)}`);
+      handle.dispose();
+      return { subscribeCalls, replacementSockets: FakeWebSocket.instances.length - before };
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  await suite.check('an open socket withholding readiness pong is replaced within the outer budget', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_readiness_no_pong');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      if (subscribeCalls === 1) throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+      return { subscription_id: 'sub_after_no_pong', snapshot: { version: 2, rows: [] } };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+    const before = FakeWebSocket.instances.length;
+    const establishing = db.liveQuery('listTodos', {
+      connectionId: 'conn_readiness_no_pong',
+      transport: 'stream',
+      stream: {
+        heartbeatIntervalMs: 15,
+        freshnessBudgetMs: 200,
+        reconnectBaseDelayMs: 1,
+        reconnectMaxDelayMs: 1,
+      },
+    });
+    const first = await nextSocket(before);
+    first.dispatch('open', {});
+    await nextSentPing(first); // deliberately withheld
+    const replacement = await nextSocket(before + 1);
+    assert(first.closeCalls >= 1, 'a socket that misses the probe deadline is force-closed');
+    assertEqual(subscribeCalls, 1, 'no HTTP replay occurs without a current-generation pong');
+    replacement.dispatch('open', {});
+    acknowledgePing(replacement, await nextSentPing(replacement));
+    const handle = await establishing;
+    assertEqual(subscribeCalls, 2, 'the replay lands only after replacement readiness');
+    handle.dispose();
+    return { subscribeCalls, sockets: FakeWebSocket.instances.length - before };
+  });
+
+  await suite.check('persistent authoritative readiness refusals stop at the exact retry cap', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_readiness_retry_cap');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+    };
+    const before = FakeWebSocket.instances.length;
+    const establishing = db.liveQuery('listTodos', {
+      connectionId: 'conn_readiness_retry_cap',
+      transport: 'stream',
+      stream: { freshnessBudgetMs: 1_000 },
+    });
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    const firstPing = await nextSentPing(ws);
+    acknowledgePing(ws, firstPing);
+    await waitFor(() => subscribeCalls === 2, 'the first bounded replay');
+    const secondPing = await nextSentPing(ws, 1);
+    acknowledgePing(ws, secondPing);
+    const error = await assertThrows(
+      () => establishing,
+      'SNAPBACK_CONNECTION_SOCKET_REQUIRED',
+      'the final refusal must surface after the bounded retry count',
+    );
+    await sleep(20);
+    assertEqual(subscribeCalls, 3, 'two retries mean exactly three total POST attempts');
+    assertEqual(ws.sent.length, 2, 'each permitted retry requires one fresh readiness proof');
+    return { code: error.diagnostic.code, subscribeCalls, probes: ws.sent.length };
+  });
+
+  await suite.check('pausing one shared readiness caller cancels only that handle', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_shared_readiness_cancel');
+    const db = new SnapbackClient('http://stub');
+    const attempts = new Map();
+    db.subscribeLive = async (name) => {
+      const count = (attempts.get(name) ?? 0) + 1;
+      attempts.set(name, count);
+      if (count === 2) throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+      return {
+        subscription_id: `sub_${name}_${count}`,
+        snapshot: { version: count, rows: [] },
+      };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+    const beforeInitial = FakeWebSocket.instances.length;
+    const initial = Promise.all(['alpha', 'beta'].map((name) => db.liveQuery(name, {
+      connectionId: 'conn_shared_readiness_cancel',
+      transport: 'stream',
+      stream: { freshnessBudgetMs: 1_000 },
+    })));
+    const initialSocket = await nextSocket(beforeInitial);
+    initialSocket.dispatch('open', {});
+    const [alpha, beta] = await initial;
+    alpha.pause();
+    beta.pause();
+
+    const beforeResume = FakeWebSocket.instances.length;
+    const alphaResume = alpha.resume();
+    const alphaOutcome = alphaResume.then(
+      () => ({ error: null }),
+      (error) => ({ error }),
+    );
+    const betaResume = beta.resume();
+    await waitFor(
+      () => attempts.get('alpha') === 2 && attempts.get('beta') === 2,
+      'both optimistic resume refusals',
+    );
+    const resumeSocket = await nextSocket(beforeResume);
+    alpha.pause();
+    resumeSocket.dispatch('open', {});
+    const ping = await nextSentPing(resumeSocket);
+    acknowledgePing(resumeSocket, ping);
+    await betaResume;
+    const { error: alphaError } = await alphaOutcome;
+    assertEqual(alphaError?.code, 'SNAPBACK_LIVE_QUERY_PAUSED_DURING_SUBSCRIBE', 'paused caller settles with its lifecycle diagnostic');
+    assertEqual(attempts.get('alpha'), 2, 'paused caller never replays its refused POST');
+    assertEqual(attempts.get('beta'), 3, 'remaining caller retries after shared readiness');
+    assertEqual(resumeSocket.sent.length, 1, 'remaining caller keeps the single shared probe alive');
+    await alpha.resume();
+    assertEqual(attempts.get('alpha'), 3, 'a later lifecycle can resume cleanly after cancellation');
+    alpha.dispose();
+    beta.dispose();
+    return { attempts: Object.fromEntries(attempts), probes: resumeSocket.sent.length };
+  });
+
+  await suite.check('dispose during readiness releases last demand and cannot persist afterward', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_dispose_during_readiness');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    const unsubscribed = [];
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      if (subscribeCalls === 1) {
+        return { subscription_id: 'sub_before_dispose', snapshot: { version: 1, rows: [] } };
+      }
+      if (subscribeCalls === 2) throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+      return { subscription_id: 'sub_forbidden_late', snapshot: { version: 3, rows: [] } };
+    };
+    db.unsubscribeLive = async (_name, { subscriptionId }) => {
+      unsubscribed.push(subscriptionId);
+      return { removed: true };
+    };
+    const beforeInitial = FakeWebSocket.instances.length;
+    const initial = db.liveQuery('listTodos', {
+      connectionId: 'conn_dispose_during_readiness',
+      transport: 'stream',
+      stream: { freshnessBudgetMs: 1_000 },
+    });
+    const initialSocket = await nextSocket(beforeInitial);
+    initialSocket.dispatch('open', {});
+    const handle = await initial;
+    handle.pause();
+
+    const beforeResume = FakeWebSocket.instances.length;
+    const resumeOutcome = handle.resume().then(
+      () => ({ error: null }),
+      (error) => ({ error }),
+    );
+    await waitFor(() => subscribeCalls === 2, 'resume refusal before disposal');
+    const staleSocket = await nextSocket(beforeResume);
+    handle.dispose();
+    const { error } = await resumeOutcome;
+    assertEqual(error?.code, 'SNAPBACK_LIVE_QUERY_DISPOSED_DURING_SUBSCRIBE', 'dispose cancels its readiness wrapper promptly');
+    assert(staleSocket.closeCalls >= 1, 'detaching the last real listener closes the waiting socket');
+    assertEqual(db.__liveStreamManagers.size, 0, 'the cancelled readiness observer holds no manager demand');
+    // A hostile late open/pong on the stale transport must not release the
+    // cancelled retry loop or create a server subscription after disposal.
+    staleSocket.dispatch('open', {});
+    staleSocket.dispatch('message', { data: JSON.stringify({ kind: 'pong', requestId: 'stale' }) });
+    await sleep(20);
+    assertEqual(subscribeCalls, 2, 'no post-disposal subscribe POST is issued');
+    assert(unsubscribed.includes('sub_before_dispose'), 'dispose retires the previously owned subscription');
+    assert(!unsubscribed.includes('sub_forbidden_late'), 'no nonexistent late subscription needed cleanup');
+    return { subscribeCalls, managers: db.__liveStreamManagers.size, unsubscribed };
+  });
+
+  await suite.check('resume and reconnect serialize into one explicit supersession chain', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_resume_reconnect_serial');
+    const db = new SnapbackClient('http://stub');
+    const calls = [];
+    const active = new Set();
+    let inFlight = 0;
+    let maxInFlight = 0;
+    db.subscribeLive = async (_name, options) => {
+      const callNumber = calls.length + 1;
+      const record = { callNumber, supersedes: options.supersedes ?? null };
+      calls.push(record);
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      try {
+        if (callNumber === 2) {
+          throw diagnosticError('SNAPBACK_CONNECTION_SESSION_REPLACED');
+        }
+        await sleep(10);
+        const subscriptionId = `sub_${callNumber}`;
+        if (record.supersedes) active.delete(record.supersedes);
+        active.add(subscriptionId);
+        return { subscription_id: subscriptionId, snapshot: { version: callNumber, rows: [] } };
+      } finally {
+        inFlight -= 1;
+      }
+    };
+    db.unsubscribeLive = async (_name, { subscriptionId }) => {
+      active.delete(subscriptionId);
+      return { removed: true };
+    };
+
+    const beforeInitial = FakeWebSocket.instances.length;
+    const initial = db.liveQuery('listTodos', {
+      connectionId: 'conn_resume_reconnect_serial',
+      transport: 'stream',
+      fallbackToPoll: false,
+      stream: {
+        freshnessBudgetMs: 1_000,
+        reconnectBaseDelayMs: 1,
+        reconnectMaxDelayMs: 1,
+      },
+    });
+    const initialSocket = await nextSocket(beforeInitial);
+    initialSocket.dispatch('open', {});
+    const handle = await initial;
+    assertEqual([...active], ['sub_1'], 'initial server model has one active subscription');
+    handle.pause();
+
+    const beforeResume = FakeWebSocket.instances.length;
+    const resuming = handle.resume();
+    await waitFor(() => calls.length === 2, 'effect-free resume refusal');
+    const refusedSocket = await nextSocket(beforeResume);
+    refusedSocket.dispatch('open', {});
+    const stalePing = await nextSentPing(refusedSocket);
+    refusedSocket.dispatch('close', {});
+
+    const replacement = await nextSocket(beforeResume + 1);
+    replacement.dispatch('open', {});
+    const currentPing = await nextSentPing(replacement);
+    acknowledgePing(replacement, stalePing);
+    await sleep(10);
+    assertEqual(calls.length, 2, 'an old-generation pong cannot release the replacement wait');
+    acknowledgePing(replacement, currentPing);
+    await resuming;
+    await waitFor(() => calls.length === 4 && inFlight === 0, 'serialized reconnect subscribe behind resume');
+    assertEqual(maxInFlight, 1, 'fresh subscribe POSTs never overlap for one handle');
+    assertEqual(
+      calls.map((call) => call.supersedes),
+      [null, 'sub_1', 'sub_1', 'sub_3'],
+      'successful resume and reconnect form an explicit old -> resume -> reconnect chain',
+    );
+    assertEqual([...active], ['sub_4'], 'the server model has exactly one active subscription after the race');
+    assertEqual(handle.subscriptionId, 'sub_4', 'the handle points at the sole active subscription');
+    handle.dispose();
+    await waitFor(() => active.size === 0, 'final active subscription cleanup');
+    return { maxInFlight, supersedes: calls.map((call) => call.supersedes), active: active.size };
+  });
+
+  await suite.check('a throwing connection observer cannot starve the readiness probe', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_throwing_state_observer');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    let observerThrows = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      if (subscribeCalls === 2) throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+      return { subscription_id: `sub_observer_${subscribeCalls}`, snapshot: { version: subscribeCalls, rows: [] } };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+    const beforeInitial = FakeWebSocket.instances.length;
+    const initial = db.liveQuery('listTodos', {
+      connectionId: 'conn_throwing_state_observer',
+      transport: 'stream',
+      stream: { freshnessBudgetMs: 1_000 },
+    });
+    const initialSocket = await nextSocket(beforeInitial);
+    initialSocket.dispatch('open', {});
+    const handle = await initial;
+    handle.pause();
+    const beforeResume = FakeWebSocket.instances.length;
+    const manager = db.liveStreamManager('conn_throwing_state_observer', { freshnessBudgetMs: 1_000 });
+    const stopThrowingObserver = manager.onState((state) => {
+      if (state === 'open') {
+        observerThrows += 1;
+        throw new Error('observational callback failure');
+      }
+    });
+    const resuming = handle.resume();
+    await waitFor(() => subscribeCalls === 2, 'resume refusal with throwing observer armed');
+    const ws = await nextSocket(beforeResume);
+    ws.dispatch('open', {});
+    const ping = await nextSentPing(ws);
+    acknowledgePing(ws, ping);
+    await resuming;
+    assertEqual(observerThrows, 1, 'the observer did throw on the manager open transition');
+    assertEqual(subscribeCalls, 3, 'readiness observer still ran and released the one safe retry');
+    stopThrowingObserver();
+    handle.dispose();
+    return { observerThrows, subscribeCalls };
+  });
+
+  await suite.check('failed resume after socket loss quiesces fallback and queued retry work', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_failed_resume_quiescence');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    let drainCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      if (subscribeCalls === 1) {
+        return { subscription_id: 'sub_quiescent_initial', snapshot: { version: 1, rows: [] } };
+      }
+      if (subscribeCalls === 2) throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+      throw new Error('resume retry failed after readiness');
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+    db.drainConnection = async () => {
+      drainCalls += 1;
+      return { durable: [], ephemeral: [] };
+    };
+    const beforeInitial = FakeWebSocket.instances.length;
+    const initial = db.liveQuery('listTodos', {
+      connectionId: 'conn_failed_resume_quiescence',
+      transport: 'stream',
+      pollCadenceMs: 5,
+      stream: {
+        freshnessBudgetMs: 1_000,
+        reconnectBaseDelayMs: 1,
+        reconnectMaxDelayMs: 1,
+      },
+    });
+    const initialSocket = await nextSocket(beforeInitial);
+    initialSocket.dispatch('open', {});
+    const handle = await initial;
+    handle.pause();
+
+    const beforeResume = FakeWebSocket.instances.length;
+    const resuming = handle.resume();
+    await waitFor(() => subscribeCalls === 2, 'resume readiness refusal');
+    const refusedSocket = await nextSocket(beforeResume);
+    refusedSocket.dispatch('open', {});
+    await nextSentPing(refusedSocket);
+    refusedSocket.dispatch('close', {}); // starts fallback before replacement
+    const replacement = await nextSocket(beforeResume + 1);
+    replacement.dispatch('open', {});
+    acknowledgePing(replacement, await nextSentPing(replacement));
+    const error = await assertThrows(() => resuming, undefined, 'resume retry failure must surface');
+    assert(error.message.includes('resume retry failed'), `unexpected resume failure: ${error.message}`);
+    const drainsAtFailure = drainCalls;
+    await sleep(30);
+    assertEqual(drainCalls, drainsAtFailure, 'paused failure state runs no fallback drain interval');
+    assertEqual(handle.connection, 'disconnected', 'failed resume returns the handle to disconnected');
+    assertEqual(db.__liveStreamManagers.size, 0, 'failed resume releases the manager and queued reconnect work');
+    handle.dispose();
+    return { subscribeCalls, drainCalls };
   });
 
   await suite.check('eng_23391: a throwing consumer never discards the rest of a destructively drained batch', async () => {
