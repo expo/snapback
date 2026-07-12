@@ -1119,8 +1119,7 @@ async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
     assert_eq!(unknown_field.status(), StatusCode::BAD_REQUEST);
     let unknown_field = json(unknown_field).await;
     assert_eq!(
-        unknown_field["diagnostic"]["code"],
-        "SNAPBACK_REQUEST_JSON_INVALID",
+        unknown_field["diagnostic"]["code"], "SNAPBACK_REQUEST_JSON_INVALID",
         "unknown connection-open fields use the stable strict-body diagnostic"
     );
 
