@@ -198,6 +198,7 @@ export const functions = [
   { name: 'probeSlowFetch', kind: 'Action', export: 'probeSlowFetch', tables: [], testingOnly: true },
   { name: 'probeSecretForgery', kind: 'Action', export: 'probeSecretForgery', uses: ['directions'], tables: [], testingOnly: true },
   { name: 'probeLateMutation', kind: 'Action', export: 'probeLateMutation', tables: [], testingOnly: true },
+  { name: 'probeNestedTimeout', kind: 'Action', export: 'probeNestedTimeout', tables: [], testingOnly: true },
 ];
 
 const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];
@@ -973,6 +974,9 @@ globalThis.__snapbackHandlers = {
       await ctx.fetch({ url: args.url, timeoutMs: 10_000 });
     } catch (_) {}
     return await ctx.runMutation('applyFeedTick', { trigger: 'late-after-timeout', source: 'recorded' });
+  },
+  async probeNestedTimeout(ctx) {
+    return await ctx.runMutation('applyFeedTick', { trigger: 'nested-timeout-probe', source: 'recorded' });
   },
   async probeSecretsMutation(ctx) {
     return { secretsType: typeof ctx.secrets };

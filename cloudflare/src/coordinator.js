@@ -978,13 +978,27 @@ export class Coordinator {
   // commit, fan-out — executed under the invocation mutex (the caller wraps
   // this in runExclusive). Returns the mutation handler's value; a failure
   // carries its code back into the action as a coded error.
-  async runMutationForAction(name, args) {
+  async runMutationForAction(name, args, parentHost = null) {
     const fn = this.functionByName(name);
     if (!fn || fn.kind !== 'Mutation') {
       return { ok: false, code: 'SNAPBACK_ACTION_MUTATION_UNKNOWN', message: `${name} is not a mutation on this app` };
     }
     const result = await this.invokeHandler(name, 'mutation', args);
     if (!result.ok) return { ok: false, code: result.code, message: result.message };
+    // Deterministic test seam for the watchdog/commit race: hold a completed
+    // nested mutation immediately before its synchronous commit boundary.
+    // Production has no delay; the abandonment recheck below is the rule.
+    const testDelayMs = this.env.SNAPBACK_TESTING === '1'
+      ? Number(this.env.SNAPBACK_TEST_NESTED_COMMIT_DELAY_MS)
+      : 0;
+    if (Number.isFinite(testDelayMs) && testDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, testDelayMs));
+    }
+    // This check and commit execute in the same runExclusive critical
+    // section with no await between them. If the parent watchdog won while
+    // the nested handler was pending, its writes are discarded atomically.
+    const abandoned = parentHost && parentHost.abandonedFailure();
+    if (abandoned) return abandoned;
     const commit = this.commit(result.host);
     await this.fanOut(commit);
     return { ok: true, value: result.value };
@@ -1484,7 +1498,7 @@ export class Coordinator {
               this.runExclusive(() => {
                 const abandoned = host.abandonedFailure();
                 if (abandoned) return abandoned;
-                return this.runMutationForAction(name, mutationArgs);
+                return this.runMutationForAction(name, mutationArgs, host);
               })
           : null,
       hostFetch: mode === 'action' ? (request) => this.hostActionFetch(request, grants.capabilities, control) : null,
