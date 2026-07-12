@@ -166,6 +166,97 @@ export const listRows = defineQuery({ table: selectedTable, args: {} });
   assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
 }
 
+// `.js` format is controlled by its nearest package scope. A CommonJS-scoped
+// helper is rejected as a whole, including computed `module['require']` forms
+// whose loader token cannot be found safely by scanning strings.
+{
+  const dir = makeBackend();
+  const helperDir = join(dir, 'commonjs-helper');
+  mkdirSync(helperDir);
+  writeFileSync(join(helperDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
+  writeFileSync(join(helperDir, 'selected-table.js'), "module.exports = { selectedTable: 'notes' };\n");
+  writeFileSync(
+    join(helperDir, 'index.js'),
+    "module.exports = module['require']('./selected-table.js');\n",
+  );
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { defineQuery } from '${defineUrl}';
+import helper from './commonjs-helper/index.js';
+export const listRows = defineQuery({ table: helper.selectedTable, args: {} });
+`);
+
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_COMMONJS_MODULE_UNHASHABLE'),
+    JSON.stringify(rejected.diagnostics),
+  );
+  assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
+}
+
+// Supported ESM `.js` helpers retain their semantics, and the package manifest
+// that establishes that format participates in identity.
+{
+  const dir = makeBackend();
+  const helperDir = join(dir, 'esm-helper');
+  mkdirSync(helperDir);
+  const packagePath = join(helperDir, 'package.json');
+  writeFileSync(packagePath, JSON.stringify({ type: 'module', version: '1' }));
+  writeFileSync(join(helperDir, 'index.js'), "export const selectedTable = 'notes';\n");
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { defineQuery } from '${defineUrl}';
+import { selectedTable } from './esm-helper/index.js';
+export const listRows = defineQuery({ table: selectedTable, args: {} });
+`);
+
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = manifests(dir);
+  assert.equal(before.functions.functions[0].runtime.HostPlan.Query.table, 'notes');
+
+  writeFileSync(packagePath, JSON.stringify({ type: 'module', version: '2' }));
+  const second = await generate(dir);
+  assert.equal(second.ok, true, JSON.stringify(second.diagnostics));
+  const after = manifests(dir);
+  assert.notEqual(second.inputsHash, first.inputsHash, 'governing package.json must be hashed');
+  assert.notEqual(after.functions.bundleHash, before.functions.bundleHash);
+
+  writeFileSync(packagePath, JSON.stringify({ type: 'commonjs', version: '2' }));
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_COMMONJS_MODULE_UNHASHABLE'),
+    JSON.stringify(rejected.diagnostics),
+  );
+  assert.equal(
+    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+    `${JSON.stringify(after.functions, null, 2)}\n`,
+    'a package-scope format flip must not overwrite the last proven ESM identity',
+  );
+}
+
+// Even computed access cannot hide a loader when the ESM source imports the
+// node:module capability that makes it possible.
+{
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'functions.mjs'), `
+import Module from 'node:module';
+import { defineQuery } from '${defineUrl}';
+const makeRequire = Module['create' + 'Require'];
+const load = makeRequire(import.meta.url);
+const selectedTable = load('./selected-table.cjs').selectedTable;
+export const listRows = defineQuery({ table: selectedTable, args: {} });
+`);
+  writeFileSync(join(dir, 'selected-table.cjs'), "module.exports = { selectedTable: 'notes' };\n");
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_COMMONJS_LOADER_UNHASHABLE'),
+    JSON.stringify(rejected.diagnostics),
+  );
+  assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
+}
+
 // Bare ESM dependencies remain environment-dependent and must fail before
 // module evaluation just as they did before CommonJS hardening.
 {

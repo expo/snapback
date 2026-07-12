@@ -293,9 +293,12 @@ transitive schema and function dependency; programmatic regeneration evaluates a
 fresh graph so the host's ESM cache cannot reuse an older helper. Dynamic imports,
 bare environment-dependent resolution, and query/hash-qualified local specifiers
 are rejected when codegen cannot prove and hash the edge. CommonJS modules and
-loader escape hatches (`require`, `createRequire`, and `getBuiltinModule`) are
-rejected for the same reason: their computed or package-scoped graph is not the
-static ESM graph used for identity. Handler modules remain a
+loader escape hatches (`require`, `createRequire`, `getBuiltinModule`, and the
+`node:module` capability) are rejected for the same reason: their computed or
+package-scoped graph is not the static ESM graph used for identity. A `.js` or
+`.ts` dependency is accepted only when its nearest `package.json` declares
+`type: module`; that governing manifest itself joins the hash. CommonJS-scoped
+or package-ambiguous files fail closed. Handler modules remain a
 closed single-file runtime profile: imports are rejected before emission, so their
 complete permitted graph is the declared handler source itself.
 

@@ -2478,12 +2478,13 @@ function discoverLocalModuleGraph(entryPaths, backendDir, diagnostics, subsystem
       });
       return;
     }
-    if (commonJsModulePath(path)) {
+    const moduleFormat = graphModuleFormat(path);
+    if (moduleFormat.commonJs) {
       diagnostics.push({
         code: 'CODEGEN_COMMONJS_MODULE_UNHASHABLE',
         severity: 'error',
         subsystem,
-        message: `${label} is a CommonJS module; codegen cannot prove its transitive require() graph`,
+        message: `${label} is a CommonJS module${moduleFormat.packageJson ? ` under ${moduleFormat.packageJson}` : ''}; codegen cannot prove its transitive loader graph`,
         path,
         importedFrom,
       });
@@ -2503,8 +2504,24 @@ function discoverLocalModuleGraph(entryPaths, backendDir, diagnostics, subsystem
     }
     graph.set(path, { path, label, source });
     if (/\.json$/i.test(path)) return;
+    // A .js/.ts module's ESM interpretation comes from its nearest package
+    // scope. Hash that manifest as part of the graph so changing `type` (or
+    // replacing the package identity) can never leave a successful stale
+    // artifact behind.
+    if (moduleFormat.packageJson) visit(moduleFormat.packageJson, path);
     const imports = staticModuleImports(source, path, diagnostics, subsystem);
     for (const specifier of imports) {
+      if (specifier === 'node:module') {
+        diagnostics.push({
+          code: 'CODEGEN_COMMONJS_LOADER_UNHASHABLE',
+          severity: 'error',
+          subsystem,
+          message: `${label} imports node:module; codegen cannot prove dependencies loaded through its CommonJS/module-loader APIs`,
+          path,
+          specifier,
+        });
+        continue;
+      }
       if (specifier.startsWith('node:')) continue;
       if (!isLocalModuleSpecifier(specifier)) {
         diagnostics.push({
@@ -2553,8 +2570,32 @@ function discoverLocalModuleGraph(entryPaths, backendDir, diagnostics, subsystem
   return graph;
 }
 
-function commonJsModulePath(path) {
-  return /\.(?:cjs|cts)$/i.test(path);
+function graphModuleFormat(path) {
+  if (/\.(?:cjs|cts)$/i.test(path)) return { commonJs: true, packageJson: null };
+  if (!/\.(?:js|ts)$/i.test(path) || /\.(?:mjs|mts)$/i.test(path)) {
+    return { commonJs: false, packageJson: null };
+  }
+  const packageJson = nearestPackageJson(path);
+  if (!packageJson) return { commonJs: true, packageJson: null };
+  try {
+    const manifest = JSON.parse(readFileSync(packageJson, 'utf8'));
+    return { commonJs: manifest?.type !== 'module', packageJson };
+  } catch {
+    // Node cannot give an ambiguous/malformed package scope a portable ESM
+    // interpretation. Fail closed through the CommonJS/unprovable boundary.
+    return { commonJs: true, packageJson };
+  }
+}
+
+function nearestPackageJson(path) {
+  let directory = dirname(path);
+  for (;;) {
+    const candidate = join(directory, 'package.json');
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(directory);
+    if (parent === directory) return null;
+    directory = parent;
+  }
 }
 
 function commonJsLoaderToken(source) {
