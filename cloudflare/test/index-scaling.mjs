@@ -208,6 +208,70 @@ function executeProductionRowQuery(db, plan) {
   }
 }
 
+// SQLite BINARY and Rust string ordering follow Unicode scalar values; JS's
+// native `<` follows UTF-16 code units and reverses this astral/BMP pair. The
+// Cloudflare overlay must use the portable scalar comparator too.
+{
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE ${physicalTable} (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)`);
+  const rows = [
+    { _id: 'a-astral', name: '\u{10000}' },
+    { _id: 'b-bmp', name: '\uE000' },
+  ];
+  const insert = db.prepare(`INSERT INTO ${physicalTable} (id, row_json) VALUES (?, ?)`);
+  for (const row of rows) insert.run(row._id, JSON.stringify(row));
+  try {
+    for (const [direction, expected] of [
+      ['Asc', ['b-bmp', 'a-astral']],
+      ['Desc', ['a-astral', 'b-bmp']],
+    ]) {
+      const plan = {
+        table: table.name,
+        filters: [],
+        order: [{ field: 'name', direction }],
+        limit: null,
+        indexed_by: null,
+      };
+      assert.deepEqual(executeProductionRowQuery(db, plan).map((row) => row._id), expected);
+      assert.deepEqual(applyPlan(rows, plan).map((row) => row._id), expected);
+    }
+  } finally {
+    db.close();
+  }
+}
+
+// Json arrays/objects have no declared portable order. Reject the field type
+// before any SQL or buffered-overlay work rather than letting each engine
+// invent a different coercion/text order.
+{
+  const jsonTable = {
+    name: 'json_items',
+    fields: [{ name: 'metadata', field_type: 'Json', optional: true }],
+    indexes: [],
+  };
+  let sqlCalls = 0;
+  const host = new HostContext({
+    sql: { exec() { sqlCalls += 1; return []; } },
+    mode: 'query',
+    nowMs: 0,
+    epoch: 'json-order-rejection',
+    newId: () => 'unused',
+    tables: new Set([jsonTable.name]),
+    schemaTables: new Map([[jsonTable.name, jsonTable]]),
+  });
+  assert.throws(
+    () => host.storageQuery('app_json_items', {
+      table: jsonTable.name,
+      filters: [],
+      order: [{ field: 'metadata', direction: 'Asc' }],
+      limit: 1,
+      indexed_by: null,
+    }),
+    (error) => error?.snapbackCode === 'SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE',
+  );
+  assert.equal(sqlCalls, 0, 'unsupported Json ordering fails before storage execution');
+}
+
 function assertSearchesIndex(details, expectedIndex) {
   assert.equal(details.length, 1, `expected one query-plan operation: ${JSON.stringify(details)}`);
   assert.match(details[0], /^SEARCH /, `expected indexed SEARCH, got ${JSON.stringify(details)}`);

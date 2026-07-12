@@ -224,12 +224,21 @@ export class HostContext {
   storageQuery(physical, plan) {
     const table = tableManifest(this.schemaTables, plan.table);
     if (!table) throw new Error(`unknown table ${plan.table}`);
-    const declaredFields = new Set((table.fields || []).map((field) => field.name));
+    const declaredFields = new Map((table.fields || []).map((field) => [field.name, field]));
     const ensureQueryField = (field) => {
       const name = String(field || '');
       if (!SYSTEM_FIELDS.has(name) && !declaredFields.has(name)) {
         const error = new Error(`unknown field ${table.name}.${name}`);
         error.snapbackCode = 'SNAPBACK_UNKNOWN_FIELD';
+        throw error;
+      }
+      return name;
+    };
+    const ensureOrderableQueryField = (field) => {
+      const name = ensureQueryField(field);
+      if (declaredFields.get(name)?.field_type === 'Json') {
+        const error = new Error(`query order field ${table.name}.${name} has non-portable Json type`);
+        error.snapbackCode = 'SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE';
         throw error;
       }
       return name;
@@ -294,7 +303,7 @@ export class HostContext {
     if (requestedIndex) sql += ` INDEXED BY ${physicalIndexName(table.name, requestedIndex.name)}`;
     if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
     const order = (plan.order || [])
-      .map((entry) => `${fieldExpr(ensureQueryField(entry.field))} ${entry.direction === 'Desc' ? 'DESC' : 'ASC'} NULLS LAST`)
+      .map((entry) => `${fieldExpr(ensureOrderableQueryField(entry.field))} ${entry.direction === 'Desc' ? 'DESC' : 'ASC'} NULLS LAST`)
       .join(', ');
     if (order) sql += ` ORDER BY ${order}, id ASC`;
     if (plan.limit != null) {
@@ -556,7 +565,22 @@ function compareValues(a, b) {
   if (a === b) return 0;
   if (a == null) return -1;
   if (b == null) return 1;
+  if (typeof a === 'string' && typeof b === 'string') return compareUnicodeScalars(a, b);
   return a < b ? -1 : 1;
+}
+
+function compareUnicodeScalars(left, right) {
+  let leftIndex = 0;
+  let rightIndex = 0;
+  while (leftIndex < left.length && rightIndex < right.length) {
+    const leftPoint = left.codePointAt(leftIndex);
+    const rightPoint = right.codePointAt(rightIndex);
+    if (leftPoint !== rightPoint) return leftPoint < rightPoint ? -1 : 1;
+    leftIndex += leftPoint > 0xFFFF ? 2 : 1;
+    rightIndex += rightPoint > 0xFFFF ? 2 : 1;
+  }
+  if (leftIndex === left.length && rightIndex === right.length) return 0;
+  return leftIndex === left.length ? -1 : 1;
 }
 
 // NULL is last in both directions (LLP 0007). Direction applies only to

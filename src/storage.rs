@@ -2218,7 +2218,7 @@ fn build_query_sql(
     if !plan.order.is_empty() {
         let mut order_parts = Vec::new();
         for order in &plan.order {
-            ensure_field_or_system(table, &order.field)?;
+            ensure_orderable_field(table, &order.field)?;
             let direction = match order.direction {
                 OrderDirection::Asc => "ASC",
                 OrderDirection::Desc => "DESC",
@@ -2952,6 +2952,24 @@ fn ensure_field_or_system(table: &TableManifest, field: &str) -> SnapbackResult<
     ensure_field(table, field).map(|_| ())
 }
 
+fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<()> {
+    ensure_field_or_system(table, field)?;
+    if matches!(field_type(table, field), Some(FieldType::Json)) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
+            "query",
+            format!(
+                "query order field {}.{field} has non-portable Json type",
+                table.name
+            ),
+        )
+        .with_detail("table", table.name.clone())
+        .with_detail("field", field.to_owned())
+        .with_detail("fieldType", "Json"));
+    }
+    Ok(())
+}
+
 fn field_type<'a>(table: &'a TableManifest, field: &str) -> Option<&'a FieldType> {
     table.field(field).map(|field| &field.field_type)
 }
@@ -3178,6 +3196,11 @@ mod guarded_commit_tests {
                     FieldManifest {
                         name: "rank".to_owned(),
                         field_type: FieldType::Integer,
+                        optional: true,
+                    },
+                    FieldManifest {
+                        name: "metadata".to_owned(),
+                        field_type: FieldType::Json,
                         optional: true,
                     },
                 ],
@@ -3571,5 +3594,31 @@ mod guarded_commit_tests {
             "DESC must still put NULL last and break ties by _id"
         );
         assert_eq!(ids(OrderDirection::Asc, Some(2)), ["a", "b"]);
+    }
+
+    #[test]
+    fn json_order_fields_fail_closed_before_sql_or_overlay_execution() {
+        let db = database();
+        let error = db
+            .query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "metadata".to_owned(),
+                        direction: OrderDirection::Asc,
+                    }],
+                    limit: Some(1),
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect_err("Json field ordering has no portable scalar comparator");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
+        );
+        assert_eq!(error.diagnostic.details["field"], "metadata");
+        assert_eq!(error.diagnostic.details["fieldType"], "Json");
     }
 }

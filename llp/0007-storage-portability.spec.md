@@ -270,6 +270,9 @@ First-slice requirements:
   and captured retained/live top-N boundary keys;
 - nulls sort after present values unless a future API explicitly chooses another
   null ordering;
+- explicit ordering is limited to scalar/system fields; `Json` fields fail
+  closed until Snapback defines one canonical array/object order across every
+  engine;
 - pagination for large or mutable result sets uses cursors, not offsets;
 - offset-style `skip(n)` is a small-data convenience and should warn on
   production-marked unbounded queries.
