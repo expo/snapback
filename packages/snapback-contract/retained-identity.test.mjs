@@ -73,6 +73,71 @@ const identity = {
   assert.equal(await store.getRetainedQuery('q', targetB), null, 'reset/version-stream switch clears retained rows');
 }
 
+// Cross-instance race: an old surface begins work, then another surface moves
+// the shared store to a new stream before the old persistence call reaches the
+// store. Both retained rows and queued writes fail closed against the CURRENT
+// scope, so old/private bytes cannot be reinserted after the clear.
+{
+  const store = createMemorySnapbackClientStore();
+  await store.scopeToAuth(identity.authFingerprint);
+  await store.scopeToArtifacts(identity);
+  let releaseOld;
+  const oldGate = new Promise((resolve) => { releaseOld = resolve; });
+  const oldRecord = {
+    ...identity,
+    rows: [{ secret: 'old-stream' }],
+    version: 5,
+    cursor: { stream: identity.versionStreamId, version: 5 },
+  };
+  const oldRetainedWrite = (async () => {
+    await oldGate;
+    return store.putRetainedQuery('q', oldRecord);
+  })();
+  const oldQueueWrite = (async () => {
+    await oldGate;
+    return store.enqueueMutation({
+      ...identity,
+      function: 'oldMutation',
+      args: { secret: 'old-queue' },
+      cursor: { stream: identity.versionStreamId, version: 5 },
+    });
+  })();
+
+  const nextScope = { ...identity, versionStreamId: 'stream-new-owner' };
+  await store.scopeToArtifacts(nextScope);
+  releaseOld();
+  for (const staleWrite of [oldRetainedWrite, oldQueueWrite]) {
+    await assert.rejects(staleWrite, (error) => error.code === 'SNAPBACK_CLIENT_STORE_SCOPE_STALE');
+  }
+  const snapshot = await store.snapshot();
+  assert.deepEqual(snapshot.retained, {});
+  assert.deepEqual(snapshot.pending, []);
+  assert.equal(JSON.stringify(snapshot).includes('old-stream'), false);
+  assert.equal(JSON.stringify(snapshot).includes('old-queue'), false);
+}
+
+// v1 migration: legacy retained bytes predate full identity scope. The first
+// scoped use must wipe them even when there is no pending queue.
+{
+  const legacyState = {
+    version: 1,
+    origin: 'legacy-origin',
+    authFingerprint: identity.authFingerprint,
+    artifactScope: null,
+    nextSequence: 1,
+    retained: {
+      q: { rows: [{ secret: 'legacy-retained' }], authFingerprint: identity.authFingerprint },
+    },
+    pending: [],
+    failed: [],
+  };
+  const store = createMemorySnapbackClientStore({ state: legacyState });
+  await store.scopeToArtifacts(identity);
+  const snapshot = await store.snapshot();
+  assert.deepEqual(snapshot.retained, {});
+  assert.equal(JSON.stringify(snapshot).includes('legacy-retained'), false);
+}
+
 const manifest = {
   artifactKind: 'contractDataManifest',
   manifestVersion: 2,
@@ -111,6 +176,42 @@ const runtime = {
     return { boundary, ...options };
   },
 };
+
+// A stable URL is neither a database identity nor a reset epoch. Without
+// explicit/server-issued databaseId and versionStreamId the adapter must remain
+// Online; a different database or destructive reset can occupy this exact URL
+// while restarting version numbering.
+{
+  const store = createMemorySnapbackClientStore();
+  const client = {
+    baseUrl: 'http://same-server-before-and-after-reset',
+    async liveQuery() {
+      return { rows: [], version: 0, connection: 'live', dispose() {} };
+    },
+    async query() {
+      return { rows: [], version: 0 };
+    },
+    async mutate() {
+      return { changed: 0 };
+    },
+  };
+  const surface = await createSnapbackContractSurface({
+    runtime,
+    client,
+    clientStore: store,
+    userId: 'retained-user',
+    manifest,
+    artifactIndex: { appId: identity.appId },
+    schemaManifest: { schemaHash: identity.schemaHash, targetProfile: identity.targetProfileId },
+    retainedIdentity: null,
+    queryName: 'listRows',
+    boundaryKey: 'rows',
+  });
+  assert.equal(surface.capabilityClass, 'Online');
+  assert(surface.diagnostics.some((diagnostic) => diagnostic.code === 'SNAPBACK_RETAINED_IDENTITY_INCOMPLETE'));
+  assert.deepEqual((await store.snapshot()).retained, {});
+  surface.dispose();
+}
 
 // Adapter-level serialization: hold the first persistence call open while
 // newer live versions arrive. Later calls must not even enter the store until

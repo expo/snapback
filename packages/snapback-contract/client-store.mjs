@@ -86,6 +86,17 @@ const recordMatchesArtifacts = (record, expected = {}) => (
   && (!expected.versionStreamId || record.cursor?.stream === expected.versionStreamId)
 );
 
+const recordMatchesCurrentScope = (state, record) => recordMatchesArtifacts(record, {
+  authFingerprint: state.authFingerprint,
+  ...(state.artifactScope ?? {}),
+});
+
+function staleStoreScopeError(operation) {
+  const error = new Error(`${operation} belongs to a stale client-store auth/artifact stream scope`);
+  error.code = 'SNAPBACK_CLIENT_STORE_SCOPE_STALE';
+  return error;
+}
+
 function createStore({ read, write }) {
   const load = () => normalizeState(read());
   const save = (state) => {
@@ -127,8 +138,9 @@ function createStore({ read, write }) {
       };
       const changed = state.artifactScope !== null
         && stableJson(state.artifactScope) !== stableJson(nextScope);
-      const unknownLegacyQueue = state.artifactScope === null && state.pending.length > 0;
-      if (changed || unknownLegacyQueue) {
+      const unknownLegacyState = state.artifactScope === null
+        && (state.pending.length > 0 || Object.keys(state.retained).length > 0);
+      if (changed || unknownLegacyState) {
         state.retained = {};
         // Failed records can contain the original args. An artifact boundary
         // is also a privacy boundary: discard old failures, then retain only
@@ -166,6 +178,9 @@ function createStore({ read, write }) {
 
     async putRetainedQuery(key, record) {
       const state = load();
+      if (!recordMatchesCurrentScope(state, record)) {
+        throw staleStoreScopeError('retained query write');
+      }
       const current = state.retained[key];
       if (
         current
@@ -184,6 +199,9 @@ function createStore({ read, write }) {
 
     async enqueueMutation(record) {
       const state = load();
+      if (!recordMatchesCurrentScope(state, record)) {
+        throw staleStoreScopeError('queued mutation write');
+      }
       const sequence = Number.isSafeInteger(record.sequence)
         ? record.sequence
         : state.nextSequence++;

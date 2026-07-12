@@ -324,7 +324,6 @@ export async function createSnapbackContractSurface({
         ?? null,
       databaseId: retainedIdentity?.databaseId
         ?? client?.databaseId
-        ?? client?.baseUrl
         ?? null,
       targetProfileId: retainedIdentity?.targetProfileId
         ?? schemaManifest?.targetProfileId
@@ -333,9 +332,6 @@ export async function createSnapbackContractSurface({
         ?? null,
       versionStreamId: retainedIdentity?.versionStreamId
         ?? client?.versionStreamId
-        ?? retainedIdentity?.databaseId
-        ?? client?.databaseId
-        ?? client?.baseUrl
         ?? null,
     };
     const retainedIdentityComplete = Object.values(storeIdentity)
