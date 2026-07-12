@@ -391,6 +391,39 @@ for (const invalid of [
     direction: undefined,
   },
   {
+    label: 'truncated pending record',
+    raw: JSON.stringify({ ...additiveV1, pending: [null] }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'truncated retained record',
+    raw: JSON.stringify({ ...additiveV1, retained: { q: null } }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'truncated failed record',
+    raw: JSON.stringify({ ...additiveV1, failed: [null] }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'truncated replay ledger',
+    raw: JSON.stringify({
+      ...additiveV1,
+      pending: [{
+        id: 'pending-1',
+        function: 'createTodo',
+        sequence: 1,
+        status: 'pending',
+        ctxLedger: {},
+      }],
+    }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
     label: 'future version',
     raw: JSON.stringify({ version: 999, pending: [{ id: 'must-survive' }] }),
     code: 'SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED',

@@ -83,6 +83,38 @@ function assertStateField(condition, field) {
   }
 }
 
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+function assertMutationRecord(entry, path, expectedStatus) {
+  assertStateField(isRecord(entry), path);
+  assertStateField(typeof entry.id === 'string' && entry.id.length > 0, `${path}.id`);
+  assertStateField(typeof entry.function === 'string' && entry.function.length > 0, `${path}.function`);
+  assertStateField(
+    Number.isSafeInteger(entry.sequence) && entry.sequence >= 1,
+    `${path}.sequence`,
+  );
+  assertStateField(entry.status === expectedStatus, `${path}.status`);
+  if (entry.cursor !== undefined && entry.cursor !== null) {
+    assertStateField(isRecord(entry.cursor), `${path}.cursor`);
+  }
+  if (entry.ctxLedger !== undefined && entry.ctxLedger !== null) {
+    assertStateField(isRecord(entry.ctxLedger), `${path}.ctxLedger`);
+    assertStateField(
+      Number.isSafeInteger(entry.ctxLedger.version) && entry.ctxLedger.version >= 1,
+      `${path}.ctxLedger.version`,
+    );
+    assertStateField(
+      Array.isArray(entry.ctxLedger.ids)
+        && entry.ctxLedger.ids.every((id) => typeof id === 'string'),
+      `${path}.ctxLedger.ids`,
+    );
+    assertStateField(
+      Number.isSafeInteger(entry.ctxLedger.now) && entry.ctxLedger.now >= 0,
+      `${path}.ctxLedger.now`,
+    );
+  }
+}
+
 const normalizeState = (state) => {
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
     throw clientStoreStateError(
@@ -127,6 +159,22 @@ const normalizeState = (state) => {
   );
   assertStateField(Array.isArray(state.pending), 'pending');
   assertStateField(Array.isArray(state.failed), 'failed');
+  Object.values(state.retained).forEach((record, index) => {
+    // Query keys can contain canonicalized user arguments. Diagnostics name
+    // only the structural position, never the potentially sensitive key.
+    const path = `retained.${index}`;
+    assertStateField(isRecord(record), path);
+    assertStateField(Array.isArray(record.rows), `${path}.rows`);
+    if (record.cursor !== undefined && record.cursor !== null) {
+      assertStateField(isRecord(record.cursor), `${path}.cursor`);
+    }
+  });
+  state.pending.forEach((entry, index) => {
+    assertMutationRecord(entry, `pending.${index}`, 'pending');
+  });
+  state.failed.forEach((entry, index) => {
+    assertMutationRecord(entry, `failed.${index}`, 'failed');
+  });
   return state;
 };
 
