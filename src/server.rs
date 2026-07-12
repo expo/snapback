@@ -120,6 +120,7 @@ const ACTION_WATCHDOG_DEFAULT_MS: u64 = 30_000;
 /// effectively unbounded worker lifetime.
 const ACTION_WATCHDOG_MAX_MS: u64 = 15 * 60 * 1_000;
 const ACTION_INTERRUPT_GRACE_MS: u64 = 500;
+const ACTION_LOCK_POLL_MS: u64 = 5;
 
 fn action_watchdog_timeout_ms() -> u64 {
     parse_action_watchdog_timeout(std::env::var("SNAPBACK_ACTION_TIMEOUT_MS").ok().as_deref())
@@ -135,11 +136,12 @@ fn parse_action_watchdog_timeout(raw: Option<&str>) -> u64 {
 /// The action host for detached (off-mutex) Ibex action runs. Raw action
 /// `ctx.db` operations are rejected before host dispatch; the trait's read
 /// methods retain a short-lock defense in depth. Ibex mutations execute into
-/// an owned effect buffer against an isolated read view and reacquire the
-/// mutex only for their bounded commit window. An independent gate linearizes
-/// that commit with watchdog abandonment, so a mutation either commits before
-/// abandonment or is discarded — never after the caller was told the action
-/// failed.
+/// an owned effect buffer against an isolated read view. Instance/gate
+/// acquisition is deadline-aware; HostPlan and buffered-write iteration poll
+/// lifecycle outside the independent gate, which is returned only for final
+/// SQLite commit. The gate linearizes that commit with watchdog abandonment,
+/// so a mutation either commits before abandonment or is discarded — never
+/// after the caller was told the action failed.
 ///
 /// @ref LLP 0028#execution-the-action-class — ENG-23324: actions no longer
 /// hold the global write mutex for the duration of the run.
@@ -165,21 +167,61 @@ impl DetachedActionHost {
                 current_generation,
             ));
         }
+        if Instant::now() >= self.deadline {
+            return Err(action_deadline_elapsed(op));
+        }
         Ok(())
     }
 
     fn lock_live(&self, op: &str) -> SnapbackResult<tokio::sync::OwnedMutexGuard<LocalSnapback>> {
-        let guard = self.state.clone().blocking_lock_owned();
-        self.validate_live(op)?;
-        let current_generation = guard.app_generation();
-        if current_generation != self.app_generation {
-            return Err(action_generation_conflict(
-                op,
-                self.app_generation,
-                current_generation,
-            ));
+        loop {
+            self.validate_live(op)?;
+            if let Ok(guard) = self.state.clone().try_lock_owned() {
+                // Abandonment, deadline, or generation can advance between the
+                // optimistic check and lock acquisition. Recheck before using
+                // any instance authority.
+                self.validate_live(op)?;
+                let current_generation = guard.app_generation();
+                if current_generation != self.app_generation {
+                    return Err(action_generation_conflict(
+                        op,
+                        self.app_generation,
+                        current_generation,
+                    ));
+                }
+                return Ok(guard);
+            }
+
+            let remaining = self.deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Err(action_deadline_elapsed(op));
+            }
+            // Never park while holding the commit gate or instance mutex. The
+            // watchdog can therefore mark abandonment independently, and this
+            // worker observes it within one short polling interval.
+            std::thread::park_timeout(remaining.min(Duration::from_millis(ACTION_LOCK_POLL_MS)));
         }
-        Ok(guard)
+    }
+
+    fn lock_commit_live(&self, op: &str) -> SnapbackResult<std::sync::MutexGuard<'_, ()>> {
+        loop {
+            self.validate_live(op)?;
+            let guard = match self.commit_gate.try_lock() {
+                Ok(guard) => Some(guard),
+                Err(std::sync::TryLockError::Poisoned(poisoned)) => Some(poisoned.into_inner()),
+                Err(std::sync::TryLockError::WouldBlock) => None,
+            };
+            if let Some(guard) = guard {
+                self.validate_live(op)?;
+                return Ok(guard);
+            }
+
+            let remaining = self.deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Err(action_deadline_elapsed(op));
+            }
+            std::thread::park_timeout(remaining.min(Duration::from_millis(ACTION_LOCK_POLL_MS)));
+        }
     }
 }
 
@@ -194,16 +236,12 @@ impl IbexActionHost for DetachedActionHost {
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
         let mut snapback = self.lock_live("runMutation")?;
         match snapback.stage_nested_mutation(name, &input)? {
-            StagedNestedMutation::InLock => {
-                let _commit = self
-                    .commit_gate
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if self.abandoned.load(Ordering::SeqCst) {
-                    return Err(action_abandoned("runMutation"));
-                }
-                snapback.invoke_mutation(name, input)
-            }
+            StagedNestedMutation::InLock => snapback.invoke_host_plan_mutation_guarded(
+                name,
+                input,
+                || self.validate_live("runMutation"),
+                || self.lock_commit_live("runMutation"),
+            ),
             StagedNestedMutation::Detached(staged) => {
                 drop(snapback);
                 let module = match &staged.binding.function.runtime {
@@ -226,21 +264,20 @@ impl IbexActionHost for DetachedActionHost {
                     )?,
                 };
 
-                // Acquire the instance before the independent commit gate. If
-                // another writer is stuck, the watchdog can still take the
-                // gate, mark abandonment, and answer; this host call later
-                // observes the flag and discards its buffer. If this call gets
-                // the gate first, the watchdog waits only for the bounded
-                // validation/SQLite commit (ENG-24340).
-                let mut snapback = self.state.clone().blocking_lock_owned();
-                let _commit = self
-                    .commit_gate
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if self.abandoned.load(Ordering::SeqCst) {
-                    return Err(action_abandoned("runMutation"));
-                }
-                snapback.commit_detached_ibex_mutation(name, input, staged.binding, executed)
+                // Acquire the instance before the independent commit gate. A
+                // wedged writer cannot strand this action worker: lock_live
+                // polls abandonment/deadline without holding either lock. If
+                // this call gets the gate first, the watchdog waits only for
+                // the bounded validation/SQLite commit (ENG-24340).
+                let mut snapback = self.lock_live("runMutation")?;
+                snapback.commit_detached_ibex_mutation_guarded(
+                    name,
+                    input,
+                    staged.binding,
+                    executed,
+                    || self.validate_live("runMutation"),
+                    || self.lock_commit_live("runMutation"),
+                )
             }
         }
     }
@@ -251,6 +288,16 @@ fn action_abandoned(op: &str) -> SnapbackError {
         "SNAPBACK_ACTION_TIMEOUT",
         "runtime",
         format!("ctx.{op} rejected: the action exceeded its wall-clock watchdog and was abandoned"),
+    )
+}
+
+fn action_deadline_elapsed(op: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ACTION_TIMEOUT",
+        "runtime",
+        format!(
+            "ctx.{op} rejected: the action exceeded its wall-clock execution deadline before the host operation could complete"
+        ),
     )
 }
 
@@ -339,6 +386,12 @@ async fn run_detached_ibex_action(
                         grants,
                         Some(execution_deadline),
                     );
+                    let result = match result {
+                        Err(_error) if Instant::now() >= execution_deadline => {
+                            Err(action_deadline_elapsed("action.execute"))
+                        }
+                        other => other,
+                    };
                     // @ref LLP 0028#execution-the-action-class — an action may
                     // await native fetch/timer work and return without making
                     // another Snapback host call. Linearize successful
@@ -376,6 +429,11 @@ async fn run_detached_ibex_action(
             let gate = commit_gate.clone();
             let abandoned_for_timeout = abandoned.clone();
             tokio::task::spawn_blocking(move || {
+                // Detached workers return this gate only from their final
+                // precommit callback, so the sole possible owner spans an
+                // already-built SQLite transaction's identity write + COMMIT,
+                // never handler code, plan iteration, instance-lock waiting,
+                // or realtime fan-out.
                 let _gate = gate
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);

@@ -1963,6 +1963,8 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_CONFIG_UNDECLARED"
         | "SNAPBACK_CONFIG_MISSING"
         | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
+        | "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        | "SNAPBACK_ACTION_TIMEOUT"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"
         // LLP 0051 D1: ledger divergence and the ledger-length limit are
@@ -2295,6 +2297,14 @@ mod parse_handler_output_tests {
         assert_eq!(
             parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_VALUE_TOO_LARGE"}}"#),
             Err("SNAPBACK_VALUE_TOO_LARGE".to_owned())
+        );
+        assert_eq!(
+            parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_ACTION_TIMEOUT"}}"#),
+            Err("SNAPBACK_ACTION_TIMEOUT".to_owned())
+        );
+        assert_eq!(
+            parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_ACTION_GENERATION_CONFLICT"}}"#),
+            Err("SNAPBACK_ACTION_GENERATION_CONFLICT".to_owned())
         );
         assert_eq!(
             parse(r#"{"r":{"__snapbackOk":false,"code":"MADE_UP_BY_HANDLER"}}"#),

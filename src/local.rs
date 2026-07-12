@@ -26,9 +26,9 @@ use crate::manifest::{
 };
 use crate::runtime::{ExecutedIbexMutation, IbexActionHost, RuntimeCapabilities, RuntimeManager};
 use crate::storage::{
-    CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow,
-    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool, StorageInfo,
-    TableScan,
+    BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
+    ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
+    StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -43,6 +43,15 @@ use uuid::Uuid;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
+
+#[cfg(test)]
+thread_local! {
+    /// Focused guarded-commit tests install a one-shot assertion here. It runs
+    /// after the SQLite commit callback's guard has dropped and immediately
+    /// before permission/live postcommit work begins.
+    static BEFORE_MUTATION_POSTCOMMIT_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        std::cell::RefCell::new(None);
+}
 
 fn next_app_generation() -> u64 {
     NEXT_APP_GENERATION.fetch_add(1, Ordering::Relaxed)
@@ -1339,6 +1348,21 @@ impl LocalSnapback {
         transport: &str,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
         let correlation = capped_correlation(input.correlation.clone());
+        let receipt_mutation_id = client_mutation_id
+            .clone()
+            .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+        let result = self.invoke_mutation_commit_with_id(name, input, client_mutation_id);
+        self.record_mutation_commit(name, transport, correlation, receipt_mutation_id, result)
+    }
+
+    fn record_mutation_commit(
+        &mut self,
+        name: &str,
+        transport: &str,
+        correlation: Option<Value>,
+        receipt_mutation_id: String,
+        result: SnapbackResult<MutationCommit>,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         // affectedTables from DECLARED writes; a function that declares none
         // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
         // never a silently-empty list (LLP 0034 §3.2 / Exact 0263 honesty).
@@ -1347,10 +1371,6 @@ impl LocalSnapback {
             .function(name)
             .map(|function| function.write_set_summary.tables.clone())
             .filter(|tables| !tables.is_empty());
-        let receipt_mutation_id = client_mutation_id
-            .clone()
-            .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
-        let result = self.invoke_mutation_commit_with_id(name, input, client_mutation_id);
         let (outcome, rollback_reason, snapshot_version) = match &result {
             Ok(commit) => (
                 MutationReceiptOutcome::Confirmed,
@@ -1378,6 +1398,28 @@ impl LocalSnapback {
         };
         self.receipts.push_global(receipt.clone().into_value());
         (result.map(|commit| commit.output), receipt)
+    }
+
+    /// Host-plan mutation invoked from a detached action. Plan/data iteration
+    /// remains outside the action commit gate and polls the shared lifecycle;
+    /// `before_commit` returns the guard held only across SQLite COMMIT.
+    pub(crate) fn invoke_host_plan_mutation_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationOutput>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        let correlation = capped_correlation(input.correlation.clone());
+        let receipt_mutation_id = format!("mut_{}", Uuid::now_v7().simple());
+        let result =
+            self.invoke_host_plan_mutation_commit_guarded(name, input, check_live, before_commit);
+        self.record_mutation_commit(name, "local", correlation, receipt_mutation_id, result)
+            .0
     }
 
     /// Receipt retention surface (LLP 0034 §3 / ENG-22478): the bounded rings,
@@ -1455,11 +1497,51 @@ impl LocalSnapback {
         Ok(self.finish_mutation_commit(epoch_scopes, commit))
     }
 
+    fn invoke_host_plan_mutation_commit_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        check_live()?;
+        let function = self.function(name)?.clone();
+        if function.kind != FunctionKind::Mutation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not a mutation"),
+            ));
+        }
+        let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
+        let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not a host-plan mutation"),
+            ));
+        };
+        let commit = self
+            .db
+            .execute_mutation_guarded(plan, &input, check_live, before_commit)?;
+        Ok(self.finish_mutation_commit(epoch_scopes, commit))
+    }
+
     fn finish_mutation_commit(
         &mut self,
         epoch_scopes: BTreeSet<String>,
         commit: MutationCommit,
     ) -> MutationCommit {
+        #[cfg(test)]
+        BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
+            if let Some(hook) = slot.borrow_mut().take() {
+                hook();
+            }
+        });
         let permission_changes = if commit.output.changed_count > 0 {
             self.advance_permission_epochs(&epoch_scopes)
         } else {
@@ -1478,13 +1560,20 @@ impl LocalSnapback {
         commit
     }
 
-    pub(crate) fn commit_detached_ibex_mutation(
+    pub(crate) fn commit_detached_ibex_mutation_guarded<G, Check, BeforeCommit>(
         &mut self,
         name: &str,
         input: HandlerInput,
         binding: DetachedMutationBinding,
         executed: ExecutedIbexMutation,
-    ) -> SnapbackResult<MutationOutput> {
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationOutput>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        check_live()?;
         let function = self.function(name)?.clone();
         if function != binding.function
             || self.db.schema() != &binding.schema
@@ -1498,13 +1587,17 @@ impl LocalSnapback {
                 ),
             ));
         }
-        let commit = self.db.commit_buffered_writes_idempotent(
+        let commit = self.db.commit_buffered_writes_idempotent_guarded(
             &input,
-            executed.writes,
-            executed.reads,
-            executed.result,
-            executed.ctx_ledger,
+            BufferedCommitPayload {
+                writes: executed.writes,
+                read_dependencies: executed.reads,
+                result: executed.result,
+                ctx_ledger: executed.ctx_ledger,
+            },
             None,
+            check_live,
+            before_commit,
         )?;
         Ok(self
             .finish_mutation_commit(binding.epoch_scopes, commit)
@@ -4329,12 +4422,21 @@ fn now_millis() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{DetachedIbexMutation, DetachedMutationRead, LocalSnapback, StagedNestedMutation};
-    use crate::manifest::{
-        FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
-        FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
+    use super::{
+        BEFORE_MUTATION_POSTCOMMIT_HOOK, DetachedIbexMutation, DetachedMutationRead, LocalSnapback,
+        StagedNestedMutation,
     };
+    use crate::manifest::{
+        CtxAnswerLedger, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
+        FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationPlan,
+        MutationStep, ReturnValue, SchemaManifest, TableManifest, ValueExpr, ctx_ledger_version,
+    };
+    use crate::runtime::ExecutedIbexMutation;
+    use crate::storage::BufferedWrite;
     use serde_json::json;
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::{Duration, Instant};
 
     const SCHEMA_RELOAD_SOURCE: &str = r#"
@@ -4396,6 +4498,77 @@ globalThis.__snapbackHandlers = {
         }
     }
 
+    fn guarded_functions() -> FunctionManifest {
+        let mut values = BTreeMap::new();
+        values.insert("value".to_owned(), ValueExpr::Literal(json!("guarded")));
+        FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "hostInsert",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                        steps: vec![MutationStep::Insert {
+                            table: "items".to_owned(),
+                            values,
+                            bind_id_as: None,
+                        }],
+                        return_value: Some(ReturnValue::ChangedCount),
+                    })),
+                ),
+                FunctionDefinition::new(
+                    "ibexInsert",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async ibexInsert() { return null; } };"
+                            .to_owned(),
+                        export: "ibexInsert".to_owned(),
+                    }),
+                ),
+            ],
+            ..FunctionManifest::default()
+        }
+    }
+
+    fn guarded_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(reload_schema("guarded-schema", false))
+            .expect("apply guarded schema");
+        snapback.load_functions(guarded_functions());
+        snapback
+    }
+
+    fn cancelled() -> crate::diagnostic::SnapbackError {
+        crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_ACTION_TIMEOUT",
+            "runtime",
+            "guarded local commit test cancellation",
+        )
+    }
+
+    struct GateScopeProbe {
+        active: Arc<AtomicBool>,
+    }
+
+    impl Drop for GateScopeProbe {
+        fn drop(&mut self) {
+            self.active.store(false, Ordering::SeqCst);
+        }
+    }
+
+    fn install_postcommit_gate_assertion(active: Arc<AtomicBool>, observed: Arc<AtomicBool>) {
+        BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
+            assert!(slot.borrow().is_none(), "postcommit hook must be one-shot");
+            *slot.borrow_mut() = Some(Box::new(move || {
+                assert!(
+                    !active.load(Ordering::SeqCst),
+                    "commit gate guard must drop before permission/live fan-out"
+                );
+                observed.store(true, Ordering::SeqCst);
+            }));
+        });
+    }
+
     fn input() -> HandlerInput {
         HandlerInput {
             args: json!({}),
@@ -4414,6 +4587,129 @@ globalThis.__snapbackHandlers = {
             StagedNestedMutation::Detached(staged) => staged,
             StagedNestedMutation::InLock => panic!("Ibex mutation must detach"),
         }
+    }
+
+    fn executed_insert() -> ExecutedIbexMutation {
+        let mut values = serde_json::Map::new();
+        values.insert("value".to_owned(), json!("guarded"));
+        ExecutedIbexMutation {
+            writes: vec![BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: "guarded_item".to_owned(),
+                values,
+            }],
+            reads: Vec::new(),
+            result: json!("guarded_item"),
+            ctx_ledger: CtxAnswerLedger {
+                version: ctx_ledger_version(),
+                ids: Vec::new(),
+                now: 0,
+                auth_fingerprint: None,
+            },
+        }
+    }
+
+    #[test]
+    fn guarded_host_plan_local_path_rolls_back_and_releases_gate_before_postcommit() {
+        let mut cancelled_snapback = guarded_snapback();
+        let error = cancelled_snapback
+            .invoke_host_plan_mutation_guarded(
+                "hostInsert",
+                input(),
+                || Ok(()),
+                || -> crate::diagnostic::SnapbackResult<()> { Err(cancelled()) },
+            )
+            .expect_err("precommit cancellation must reject the host plan");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_eq!(cancelled_snapback.durable_version(), Some(0));
+        assert_eq!(
+            cancelled_snapback
+                .db
+                .scan_table("items", 10, 0)
+                .expect("cancelled scan")
+                .total,
+            0
+        );
+        let receipts = cancelled_snapback.receipts_snapshot(None);
+        let receipt = receipts["global"]
+            .as_array()
+            .and_then(|items| items.last())
+            .expect("rejected host-plan receipt");
+        assert_eq!(receipt["rollbackReason"], "SNAPBACK_ACTION_TIMEOUT");
+
+        let mut committed = guarded_snapback();
+        let active = Arc::new(AtomicBool::new(false));
+        let observed = Arc::new(AtomicBool::new(false));
+        install_postcommit_gate_assertion(active.clone(), observed.clone());
+        committed
+            .invoke_host_plan_mutation_guarded("hostInsert", input(), || Ok(()), {
+                let active = active.clone();
+                move || {
+                    active.store(true, Ordering::SeqCst);
+                    Ok(GateScopeProbe { active })
+                }
+            })
+            .expect("guarded host-plan commit");
+        assert!(observed.load(Ordering::SeqCst));
+        assert!(!active.load(Ordering::SeqCst));
+        assert_eq!(committed.durable_version(), Some(1));
+    }
+
+    #[test]
+    fn guarded_buffered_local_path_rolls_back_and_releases_gate_before_postcommit() {
+        let mut cancelled_snapback = guarded_snapback();
+        let DetachedIbexMutation {
+            binding,
+            read: _read,
+        } = *detached(&cancelled_snapback, "ibexInsert");
+        let error = cancelled_snapback
+            .commit_detached_ibex_mutation_guarded(
+                "ibexInsert",
+                input(),
+                binding,
+                executed_insert(),
+                || Ok(()),
+                || -> crate::diagnostic::SnapbackResult<()> { Err(cancelled()) },
+            )
+            .expect_err("precommit cancellation must reject buffered writes");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_eq!(cancelled_snapback.durable_version(), Some(0));
+        assert_eq!(
+            cancelled_snapback
+                .db
+                .scan_table("items", 10, 0)
+                .expect("cancelled scan")
+                .total,
+            0
+        );
+
+        let mut committed = guarded_snapback();
+        let DetachedIbexMutation {
+            binding,
+            read: _read,
+        } = *detached(&committed, "ibexInsert");
+        let active = Arc::new(AtomicBool::new(false));
+        let observed = Arc::new(AtomicBool::new(false));
+        install_postcommit_gate_assertion(active.clone(), observed.clone());
+        committed
+            .commit_detached_ibex_mutation_guarded(
+                "ibexInsert",
+                input(),
+                binding,
+                executed_insert(),
+                || Ok(()),
+                {
+                    let active = active.clone();
+                    move || {
+                        active.store(true, Ordering::SeqCst);
+                        Ok(GateScopeProbe { active })
+                    }
+                },
+            )
+            .expect("guarded buffered commit");
+        assert!(observed.load(Ordering::SeqCst));
+        assert!(!active.load(Ordering::SeqCst));
+        assert_eq!(committed.durable_version(), Some(1));
     }
 
     #[test]
@@ -4466,7 +4762,14 @@ globalThis.__snapbackHandlers = {
             .execute_detached_ibex_mutation(module, input(), &binding.schema, deadline)
             .expect("old-schema-compatible handler executes against staged schema");
         let error = snapback
-            .commit_detached_ibex_mutation("insertOld", input(), binding, executed)
+            .commit_detached_ibex_mutation_guarded(
+                "insertOld",
+                input(),
+                binding,
+                executed,
+                || Ok(()),
+                || Ok(()),
+            )
             .expect_err("schema/app generation changed before commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }

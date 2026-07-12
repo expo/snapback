@@ -93,6 +93,19 @@ struct BufferedCommitOptions<'a> {
     identity: Option<&'a ClientMutationIdentity>,
 }
 
+pub(crate) struct BufferedCommitPayload {
+    pub writes: Vec<BufferedWrite>,
+    pub read_dependencies: Vec<CapturedReadDependency>,
+    pub result: Value,
+    pub ctx_ledger: CtxAnswerLedger,
+}
+
+struct BufferedEffects {
+    writes: Vec<BufferedWrite>,
+    read_dependencies: Vec<CapturedReadDependency>,
+    result: Value,
+}
+
 impl ClientMutationIdentity {
     pub fn new(id: impl Into<String>, function: impl Into<String>, input: &HandlerInput) -> Self {
         Self {
@@ -697,6 +710,34 @@ impl LocalDatabase {
         Ok(self.execute_mutation_plan(plan, input, true, None)?.commit)
     }
 
+    /// Execute a host plan with lifecycle checks throughout its finite step
+    /// loops, then acquire a caller-owned guard only for the final SQLite
+    /// commit. Detached actions use this to keep untrusted/data-dependent plan
+    /// execution outside their abandonment gate while still linearizing the
+    /// durable commit against the public watchdog.
+    pub(crate) fn execute_mutation_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        Ok(self
+            .execute_mutation_plan_with_lifecycle(
+                plan,
+                input,
+                true,
+                None,
+                &check_live,
+                before_commit,
+            )?
+            .commit)
+    }
+
     pub fn execute_mutation_idempotent(
         &mut self,
         plan: &MutationPlan,
@@ -733,7 +774,26 @@ impl LocalDatabase {
         apply: bool,
         identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<MutationPlanExecution> {
+        self.execute_mutation_plan_with_lifecycle(plan, input, apply, identity, &|| Ok(()), || {
+            Ok(())
+        })
+    }
+
+    fn execute_mutation_plan_with_lifecycle<G, Check, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        apply: bool,
+        identity: Option<&ClientMutationIdentity>,
+        check_live: &Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationPlanExecution>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite mutation");
+        check_live()?;
         // @ref LLP 0003#execution-and-write-semantics — one mutation commits all buffered writes at one version.
         let schema = self.schema.clone();
         let replay_ledger = validate_plan_replay_ledger(input)?;
@@ -772,6 +832,7 @@ impl LocalDatabase {
         let next_id = || plan_ids.borrow_mut().next();
 
         for step in &plan.steps {
+            check_live()?;
             match step {
                 MutationStep::Insert {
                     table,
@@ -975,6 +1036,7 @@ impl LocalDatabase {
                         let mut matched = statement.query(params_from_iter(params.iter()))?;
                         let mut rows = Vec::new();
                         while let Some(row) = matched.next()? {
+                            check_live()?;
                             rows.push(row_to_document(row, table, &columns)?);
                         }
                         rows
@@ -982,6 +1044,7 @@ impl LocalDatabase {
                     // Row-granular deletes so live_delta membership maintenance
                     // sees each removal, exactly as per-row Delete steps.
                     for row in rows {
+                        check_live()?;
                         let Some(id) = row.get("_id").and_then(Value::as_str).map(str::to_owned)
                         else {
                             continue;
@@ -1034,6 +1097,7 @@ impl LocalDatabase {
                         ));
                     }
                     for item in items {
+                        check_live()?;
                         // The item binding is scoped to this step's value maps.
                         let mut item_bindings = bindings.clone();
                         item_bindings.insert(item_as.clone(), item);
@@ -1108,6 +1172,12 @@ impl LocalDatabase {
             ctx_ledger: Some(output_ledger),
         };
         if apply {
+            check_live()?;
+            // The returned guard deliberately lives through tx.commit(). The
+            // caller chooses the linearization primitive; no plan step, row
+            // scan, expression evaluation, or live fan-out runs while held.
+            let _commit_guard = before_commit()?;
+            check_live()?;
             if let Some(identity) = identity {
                 record_client_mutation_result(&tx, identity, &output)?;
             }
@@ -1173,6 +1243,44 @@ impl LocalDatabase {
         )
     }
 
+    /// Detached-action buffered commit with the same lifecycle split as
+    /// [`Self::execute_mutation_guarded`]: build and validate the transaction
+    /// under caller checks, then hold the caller's guard only across COMMIT.
+    pub(crate) fn commit_buffered_writes_idempotent_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        identity: Option<&ClientMutationIdentity>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        let BufferedCommitPayload {
+            writes,
+            read_dependencies,
+            result,
+            ctx_ledger,
+        } = payload;
+        self.apply_buffered_writes_with_lifecycle(
+            input,
+            BufferedEffects {
+                writes,
+                read_dependencies,
+                result,
+            },
+            BufferedCommitOptions {
+                ctx_ledger: Some(ctx_ledger),
+                apply: true,
+                identity,
+            },
+            &check_live,
+            before_commit,
+        )
+    }
+
     /// Dry-run the buffered-write commit (LLP 0051 D8): identical read-set
     /// validation and write application as `commit_buffered_writes`, rolled
     /// back instead of committed. The JS-tier half of execute-and-discard —
@@ -1206,7 +1314,38 @@ impl LocalDatabase {
         result: Value,
         options: BufferedCommitOptions<'_>,
     ) -> SnapbackResult<MutationCommit> {
+        self.apply_buffered_writes_with_lifecycle(
+            input,
+            BufferedEffects {
+                writes,
+                read_dependencies,
+                result,
+            },
+            options,
+            &|| Ok(()),
+            || Ok(()),
+        )
+    }
+
+    fn apply_buffered_writes_with_lifecycle<G, Check, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        effects: BufferedEffects,
+        options: BufferedCommitOptions<'_>,
+        check_live: &Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite commit");
+        check_live()?;
+        let BufferedEffects {
+            writes,
+            read_dependencies,
+            result,
+        } = effects;
         // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
         let schema = self.schema.clone();
         let now_ms = now_millis();
@@ -1220,6 +1359,7 @@ impl LocalDatabase {
 
         let mut changes = Vec::new();
         for write in writes {
+            check_live()?;
             match write {
                 BufferedWrite::Insert { table, id, values } => {
                     let table = schema_table(&schema, &table)?;
@@ -1309,6 +1449,11 @@ impl LocalDatabase {
             ctx_ledger: options.ctx_ledger,
         };
         if options.apply {
+            check_live()?;
+            // No handler/plan work runs under this guard; it linearizes only
+            // identity recording plus the final SQLite COMMIT.
+            let _commit_guard = before_commit()?;
+            check_live()?;
             if let Some(identity) = options.identity {
                 record_client_mutation_result(&tx, identity, &output)?;
             }
@@ -2989,4 +3134,326 @@ fn now_millis() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+#[cfg(test)]
+mod guarded_commit_tests {
+    use super::*;
+    use std::cell::Cell;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    fn schema() -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "items".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn database() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema()).expect("apply test schema");
+        db
+    }
+
+    fn file_database() -> (tempfile::TempDir, PathBuf, LocalDatabase) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("guarded.sqlite3");
+        let mut db = LocalDatabase::open(&path).expect("file database");
+        db.apply_schema(schema()).expect("apply test schema");
+        (dir, path, db)
+    }
+
+    fn insert_plan() -> MutationPlan {
+        let insert = |title: &str| {
+            let mut values = BTreeMap::new();
+            values.insert("title".to_owned(), ValueExpr::Literal(json!(title)));
+            MutationStep::Insert {
+                table: "items".to_owned(),
+                values,
+                bind_id_as: None,
+            }
+        };
+        MutationPlan {
+            steps: vec![insert("one"), insert("two")],
+            return_value: Some(ReturnValue::ChangedCount),
+        }
+    }
+
+    fn buffered_writes() -> Vec<BufferedWrite> {
+        [("item_one", "one"), ("item_two", "two")]
+            .into_iter()
+            .map(|(id, title)| {
+                let mut values = Map::new();
+                values.insert("title".to_owned(), json!(title));
+                BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: id.to_owned(),
+                    values,
+                }
+            })
+            .collect()
+    }
+
+    fn ledger() -> CtxAnswerLedger {
+        CtxAnswerLedger {
+            version: CTX_ANSWER_LEDGER_VERSION,
+            ids: Vec::new(),
+            now: 0,
+            auth_fingerprint: None,
+        }
+    }
+
+    fn buffered_payload() -> BufferedCommitPayload {
+        BufferedCommitPayload {
+            writes: buffered_writes(),
+            read_dependencies: Vec::new(),
+            result: json!(2),
+            ctx_ledger: ledger(),
+        }
+    }
+
+    fn cancelled() -> SnapbackError {
+        SnapbackError::error(
+            "SNAPBACK_ACTION_TIMEOUT",
+            "runtime",
+            "guarded commit test cancellation",
+        )
+    }
+
+    fn assert_empty(db: &LocalDatabase) {
+        assert_eq!(db.current_version().expect("version"), 0);
+        assert_eq!(db.scan_table("items", 10, 0).expect("scan").total, 0);
+    }
+
+    struct CommitVisibilityGuard {
+        reader: Connection,
+        active: Arc<AtomicBool>,
+        dropped: Arc<AtomicBool>,
+        expected_rows: i64,
+    }
+
+    impl Drop for CommitVisibilityGuard {
+        fn drop(&mut self) {
+            let visible: i64 = self
+                .reader
+                .query_row("SELECT COUNT(*) FROM items", [], |row| row.get(0))
+                .expect("guard drop visibility query");
+            assert_eq!(
+                visible, self.expected_rows,
+                "the caller's guard must remain alive through SQLite COMMIT"
+            );
+            self.active.store(false, Ordering::SeqCst);
+            self.dropped.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn guarded_host_plan_cancellation_rolls_back_rows_version_and_idempotency() {
+        let input = HandlerInput::default();
+        let plan = insert_plan();
+
+        let mut during_iteration = database();
+        let checks = Cell::new(0_usize);
+        let error = during_iteration
+            .execute_mutation_guarded(
+                &plan,
+                &input,
+                || {
+                    checks.set(checks.get() + 1);
+                    if checks.get() == 3 {
+                        Err(cancelled())
+                    } else {
+                        Ok(())
+                    }
+                },
+                || Ok(()),
+            )
+            .expect_err("second-step lifecycle check must cancel the transaction");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_empty(&during_iteration);
+
+        let mut before_commit = database();
+        let identity = ClientMutationIdentity::new("cm_host_guard", "hostPlan", &input);
+        let error = match before_commit.execute_mutation_plan_with_lifecycle(
+            &plan,
+            &input,
+            true,
+            Some(&identity),
+            &|| Ok(()),
+            || -> SnapbackResult<()> { Err(cancelled()) },
+        ) {
+            Ok(_) => panic!("precommit cancellation must roll back the transaction"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_empty(&before_commit);
+        assert_eq!(
+            before_commit
+                .client_mutation_result(&identity)
+                .expect("idempotency lookup"),
+            None,
+            "a rejected precommit cannot retain an idempotency result"
+        );
+    }
+
+    #[test]
+    fn guarded_buffered_cancellation_rolls_back_rows_version_and_idempotency() {
+        let input = HandlerInput::default();
+
+        let mut during_iteration = database();
+        let checks = Cell::new(0_usize);
+        let error = during_iteration
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                buffered_payload(),
+                None,
+                || {
+                    checks.set(checks.get() + 1);
+                    if checks.get() == 3 {
+                        Err(cancelled())
+                    } else {
+                        Ok(())
+                    }
+                },
+                || Ok(()),
+            )
+            .expect_err("second-write lifecycle check must cancel the transaction");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_empty(&during_iteration);
+
+        let mut before_commit = database();
+        let identity = ClientMutationIdentity::new("cm_buffer_guard", "ibex", &input);
+        let error = before_commit
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                buffered_payload(),
+                Some(&identity),
+                || Ok(()),
+                || -> SnapbackResult<()> { Err(cancelled()) },
+            )
+            .expect_err("buffered precommit cancellation must roll back");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_empty(&before_commit);
+        assert_eq!(
+            before_commit
+                .client_mutation_result(&identity)
+                .expect("idempotency lookup"),
+            None,
+            "a rejected buffered precommit cannot retain an idempotency result"
+        );
+    }
+
+    #[test]
+    fn guarded_host_plan_guard_starts_after_iteration_and_spans_commit() {
+        let (_dir, path, mut db) = file_database();
+        let reader = Connection::open(path).expect("visibility reader");
+        let active = Arc::new(AtomicBool::new(false));
+        let dropped = Arc::new(AtomicBool::new(false));
+        let saw_guarded_final_check = Arc::new(AtomicBool::new(false));
+        let checks_before_guard = Arc::new(AtomicUsize::new(0));
+
+        db.execute_mutation_guarded(
+            &insert_plan(),
+            &HandlerInput::default(),
+            {
+                let active = active.clone();
+                let saw_guarded_final_check = saw_guarded_final_check.clone();
+                let checks_before_guard = checks_before_guard.clone();
+                move || {
+                    if active.load(Ordering::SeqCst) {
+                        saw_guarded_final_check.store(true, Ordering::SeqCst);
+                    } else {
+                        checks_before_guard.fetch_add(1, Ordering::SeqCst);
+                    }
+                    Ok(())
+                }
+            },
+            {
+                let active = active.clone();
+                let dropped = dropped.clone();
+                let checks_before_guard = checks_before_guard.clone();
+                move || {
+                    assert!(
+                        checks_before_guard.load(Ordering::SeqCst) >= 3,
+                        "plan iteration must finish before gate acquisition"
+                    );
+                    active.store(true, Ordering::SeqCst);
+                    Ok(CommitVisibilityGuard {
+                        reader,
+                        active,
+                        dropped,
+                        expected_rows: 2,
+                    })
+                }
+            },
+        )
+        .expect("guarded host plan commit");
+
+        assert!(saw_guarded_final_check.load(Ordering::SeqCst));
+        assert!(dropped.load(Ordering::SeqCst));
+        assert!(!active.load(Ordering::SeqCst));
+        assert_eq!(db.current_version().unwrap(), 1);
+    }
+
+    #[test]
+    fn guarded_buffered_guard_starts_after_iteration_and_spans_commit() {
+        let (_dir, path, mut db) = file_database();
+        let reader = Connection::open(path).expect("visibility reader");
+        let active = Arc::new(AtomicBool::new(false));
+        let dropped = Arc::new(AtomicBool::new(false));
+        let saw_guarded_final_check = Arc::new(AtomicBool::new(false));
+        let checks_before_guard = Arc::new(AtomicUsize::new(0));
+
+        db.commit_buffered_writes_idempotent_guarded(
+            &HandlerInput::default(),
+            buffered_payload(),
+            None,
+            {
+                let active = active.clone();
+                let saw_guarded_final_check = saw_guarded_final_check.clone();
+                let checks_before_guard = checks_before_guard.clone();
+                move || {
+                    if active.load(Ordering::SeqCst) {
+                        saw_guarded_final_check.store(true, Ordering::SeqCst);
+                    } else {
+                        checks_before_guard.fetch_add(1, Ordering::SeqCst);
+                    }
+                    Ok(())
+                }
+            },
+            {
+                let active = active.clone();
+                let dropped = dropped.clone();
+                let checks_before_guard = checks_before_guard.clone();
+                move || {
+                    assert!(
+                        checks_before_guard.load(Ordering::SeqCst) >= 3,
+                        "buffered iteration must finish before gate acquisition"
+                    );
+                    active.store(true, Ordering::SeqCst);
+                    Ok(CommitVisibilityGuard {
+                        reader,
+                        active,
+                        dropped,
+                        expected_rows: 2,
+                    })
+                }
+            },
+        )
+        .expect("guarded buffered commit");
+
+        assert!(saw_guarded_final_check.load(Ordering::SeqCst));
+        assert!(dropped.load(Ordering::SeqCst));
+        assert!(!active.load(Ordering::SeqCst));
+        assert_eq!(db.current_version().unwrap(), 1);
+    }
 }

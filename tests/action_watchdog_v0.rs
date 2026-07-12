@@ -80,6 +80,11 @@ globalThis.__snapbackHandlers = {
     return { done: true };
   },
 
+  async pausedMutationAction(ctx, args) {
+    await fetch(args.url);
+    return await ctx.runMutation('createTodo', { title: 'after held instance lock' });
+  },
+
   async hungMutation(ctx) {
     while (true) {}
   },
@@ -179,6 +184,7 @@ fn watchdog_functions() -> FunctionManifest {
             ibex("busyAction", FunctionKind::Action),
             ibex("lateWriteAction", FunctionKind::Action),
             ibex("pausedSuccessAction", FunctionKind::Action),
+            ibex("pausedMutationAction", FunctionKind::Action),
             ibex("nestedHungAction", FunctionKind::Action),
             ibex("readAction", FunctionKind::Action),
             ibex("cronAction", FunctionKind::Action),
@@ -308,6 +314,19 @@ fn start_paused_action(app: axum::Router, url: String) -> tokio::task::JoinHandl
     })
 }
 
+fn start_paused_mutation_action(app: axum::Router, url: String) -> tokio::task::JoinHandle<Value> {
+    tokio::spawn(async move {
+        let response = app
+            .oneshot(post_json(
+                "/action/pausedMutationAction",
+                handler_body(json!({ "url": url })),
+            ))
+            .await
+            .expect("paused mutation action response");
+        body_json(response).await
+    })
+}
+
 /// A detached action can cross an app generation without another ctx host op:
 /// native fetch/timer work settles inside Ibex. Completion itself is therefore
 /// a generation fence, not merely every host call along the way.
@@ -368,6 +387,63 @@ async fn paused_host_call_free_action_rejects_reload_and_reset_drift() {
         reset_body["diagnostic"]["code"], "SNAPBACK_ACTION_GENERATION_CONFLICT",
         "host-call-free completion must observe reset: {reset_body}"
     );
+}
+
+/// A host call can reach the instance mutex after detached execution begins.
+/// Even if that mutex is then held forever, the public watchdog must answer
+/// and the action OS worker must drain while the lock remains unavailable.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn permanently_held_instance_mutex_does_not_leak_action_worker() {
+    let _serial = serial_action_test().await;
+    set_watchdog_env();
+
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while snapback::server::detached_action_worker_count() != 0 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("pre-existing action workers must drain");
+    let baseline = snapback::server::detached_action_worker_count();
+
+    let (state, app) = watchdog_state_and_app();
+    let (url, fetch_started, release_fetch, fetch_server) = held_http_response().await;
+    let started = Instant::now();
+    let action = start_paused_mutation_action(app, url);
+    tokio::time::timeout(Duration::from_secs(2), fetch_started)
+        .await
+        .expect("action reaches native fetch before instance lock is held")
+        .expect("held-lock fetch-start signal");
+
+    let held_instance = state.clone().lock_owned().await;
+    release_fetch.send(()).expect("release held-lock fetch");
+    let body = tokio::time::timeout(Duration::from_secs(2), action)
+        .await
+        .expect("watchdog answers while instance mutex remains held")
+        .expect("held-lock action task");
+    fetch_server.await.expect("held-lock fetch server");
+    let elapsed = started.elapsed();
+
+    assert_eq!(body["ok"], false, "timed-out action must fail: {body}");
+    assert_eq!(
+        body["diagnostic"]["code"], "SNAPBACK_ACTION_TIMEOUT",
+        "held-lock timeout keeps the stable watchdog diagnostic: {body}"
+    );
+    assert!(
+        elapsed >= Duration::from_millis(WATCHDOG_MS - 100)
+            && elapsed < Duration::from_millis(1500),
+        "the permanent mutex hold must not outlive the watchdog ({elapsed:?})"
+    );
+    assert_eq!(
+        snapback::server::detached_action_worker_count(),
+        baseline,
+        "the response must publish only after the lock-waiting worker drains"
+    );
+
+    // Keep the mutex unavailable through every timeout/worker assertion; only
+    // release it after the regression has proved no eventual acquisition was
+    // needed to make progress.
+    drop(held_instance);
 }
 
 /// ENG-24340: a mutation invoked by an action executes against a detached
