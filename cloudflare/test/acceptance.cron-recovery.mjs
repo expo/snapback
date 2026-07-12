@@ -93,6 +93,21 @@ try {
   }
   const committedVersion = committed.version;
   if (state.mutationResults < 2) throw new Error('nested mutation results were not durably recorded with their commits');
+  const activeMutationResults = state.mutationResults;
+
+  // The replay rows are part of the active claim's recoverable authority, not
+  // terminal history. Crossing the retention horizon after commit but before
+  // claim finish must preserve both the claim and every recorded nested result.
+  await post('/__test/prune-cron-claims');
+  state = await claims();
+  if (
+    state.claims.length !== 1 ||
+    state.claims[0]?.state !== 'claimed' ||
+    Number(state.claims[0]?.attempt) !== 3 ||
+    state.mutationResults !== activeMutationResults
+  ) {
+    throw new Error(`retention pruned active claim replay authority: ${JSON.stringify(state)}`);
+  }
 
   // Retry 4 replays those recorded mutation results and finishes the claim;
   // it may repeat at-least-once egress, but must never commit app state twice.
