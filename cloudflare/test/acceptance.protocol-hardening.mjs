@@ -1,11 +1,34 @@
 // ENG-24342 / ENG-24365 / ENG-24368: portable schema enforcement, exact
 // function-kind routing, and bounded/fatal JSON decoding on every body route.
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 
 function code(body) {
   return body?.code || body?.diagnostic?.code;
 }
+
+// @ref LLP 0007#validation-requirements — local SQLite and the hosted
+// target consume this one structural-write corpus; neither target gets to
+// prove portability with a hand-picked target-specific subset.
+const structuralCorpus = JSON.parse(fs.readFileSync(
+  new URL('../../tests/conformance/structural-validation.corpus.json', import.meta.url),
+  'utf8',
+));
+assert.equal(structuralCorpus.version, 1);
+const structuralCases = structuralCorpus.cases.filter((entry) => entry.operation !== 'seed');
+const seedCases = structuralCorpus.cases.filter((entry) => entry.operation === 'seed');
+for (const operation of ['insert', 'patch']) {
+  for (const field of ['_id', '_version', '_createdAt', '_updatedAt']) {
+    assert.ok(
+      structuralCases.some((entry) => entry.operation === operation && Object.hasOwn(entry.values || {}, field)),
+      `shared structural corpus is missing ${operation} coverage for ${field}`,
+    );
+  }
+}
+assert.ok(seedCases.length > 0, 'shared structural corpus must include compiled-seed rejection');
+assert.ok(structuralCases.some((entry) => entry.operation === 'derivedInsert'));
+assert.ok(structuralCases.some((entry) => entry.operation === 'derivedPatch'));
 
 const proof = await startProof({ app: 'notes', port: 0 });
 try {
@@ -19,27 +42,31 @@ try {
     return { status: response.status, body: await response.json() };
   };
 
-  // Schema validation on insert and patch: required, type, unknown, null,
-  // and every host-owned system field have stable portable codes.
-  const cases = [
-    [{ boardId: 'b' }, 'SNAPBACK_FIELD_MISSING'],
-    [{ boardId: 'b', text: 42 }, 'SNAPBACK_FIELD_TYPE_MISMATCH'],
-    [{ boardId: 'b', text: null }, 'SNAPBACK_FIELD_TYPE_MISMATCH'],
-    [{ boardId: 'b', text: 'ok', surprise: true }, 'SNAPBACK_UNKNOWN_FIELD'],
-  ];
-  for (const [values, expected] of cases) {
-    const result = await proof.mutation('insertRawNote', { values });
-    if (result.code !== expected) throw new Error(`schema case ${JSON.stringify(values)}: ${JSON.stringify(result)}`);
-  }
-  for (const field of ['_id', '_version', '_createdAt', '_updatedAt']) {
-    const result = await proof.mutation('insertRawNote', { values: { boardId: 'b', text: 'ok', [field]: 1 } });
-    if (result.code !== 'SNAPBACK_SYSTEM_FIELD_WRITE') {
-      throw new Error(`protected field ${field} was accepted: ${JSON.stringify(result)}`);
+  // Required/type/unknown/protected-field failures, including values derived
+  // inside the handler, must match the local runner case-for-case and leave
+  // the durable version untouched.
+  const inserted = await proof.mutation('insertRawNote', { values: { boardId: 'validation-board', text: 'valid' } });
+  for (const testCase of structuralCases) {
+    const before = await proof.health();
+    let result;
+    if (testCase.operation === 'insert') {
+      result = await proof.mutation('insertRawNote', { values: testCase.values });
+    } else if (testCase.operation === 'patch') {
+      result = await proof.mutation('touchNote', { id: inserted.result.id, values: testCase.values });
+    } else if (testCase.operation === 'derivedInsert' || testCase.operation === 'derivedPatch') {
+      result = await proof.mutation('writeDerivedRawNote', {
+        operation: testCase.operation === 'derivedPatch' ? 'patch' : 'insert',
+        id: inserted.result.id,
+        field: testCase.field,
+        left: testCase.left,
+        right: testCase.right,
+      });
+    } else {
+      throw new Error(`unknown structural corpus operation ${testCase.operation}`);
     }
+    assert.equal(code(result), testCase.expectedCode, `${testCase.name}: ${JSON.stringify(result)}`);
+    assert.equal((await proof.health()).version, before.version, `${testCase.name} changed durable state`);
   }
-  const inserted = await proof.mutation('insertRawNote', { values: { boardId: 'b', text: 'valid' } });
-  const patch = await proof.mutation('touchNote', { id: inserted.result.id, values: { _createdAt: 1 } });
-  if (patch.code !== 'SNAPBACK_SYSTEM_FIELD_WRITE') throw new Error(`protected patch was accepted: ${JSON.stringify(patch)}`);
   const unknownField = await proof.query('queryRawNotes', { field: 'notDeclared', value: 'x' });
   const unknownIndex = await proof.query('queryRawNotes', { index: 'not_declared', field: 'boardId', value: 'b' });
   if (unknownField.code !== 'SNAPBACK_UNKNOWN_FIELD' || unknownIndex.code !== 'SNAPBACK_QUERY_UNKNOWN_INDEX') {
@@ -192,6 +219,25 @@ try {
   console.log(`cloudflare protocol-hardening acceptance: schema, kind, and ${bodyRoutes.length * bodyFailures.length} exact body-rejection cases passed`);
 } finally {
   await proof.dispose();
+}
+
+// A compiled seed is host-owned, but it still crosses the identical manifest
+// validator. Compile each invalid shared-corpus row into the test Worker and
+// drive the real reset preparation path; caller-provided seed bytes remain
+// forbidden by the production /app/ensure contract.
+for (const testCase of seedCases) {
+  const seedProof = await startProof({
+    app: 'notes',
+    seedOverride: { tables: { [structuralCorpus.schema.table]: [testCase.values] } },
+  });
+  try {
+    const before = await seedProof.health();
+    const rejected = await seedProof.reset();
+    assert.equal(code(rejected), testCase.expectedCode, `${testCase.name}: ${JSON.stringify(rejected)}`);
+    assert.equal((await seedProof.health()).version, before.version, `${testCase.name} changed durable state`);
+  } finally {
+    await seedProof.dispose();
+  }
 }
 
 // ENG-24365's compatibility rule spans more than the representative notes

@@ -52,7 +52,30 @@ const APPS = {
   },
 };
 
-async function bundle(entry, appBundle) {
+function seedOverridePlugin(appPath, seedOverride) {
+  return {
+    name: 'snapback-test-seed-override',
+    setup(build) {
+      build.onResolve({ filter: /^snapback-app$/ }, () => ({
+        path: 'snapback-app-with-test-seed',
+        namespace: 'snapback-test-seed',
+      }));
+      build.onResolve({ filter: /.*/, namespace: 'snapback-test-seed' }, (args) => ({
+        path: path.isAbsolute(args.path) ? args.path : path.resolve(root, args.path),
+        namespace: 'file',
+      }));
+      build.onLoad({ filter: /.*/, namespace: 'snapback-test-seed' }, () => ({
+        contents: `export * from ${JSON.stringify(appPath)};\nexport const seed = ${JSON.stringify(seedOverride)};`,
+        loader: 'js',
+        resolveDir: root,
+      }));
+    },
+  };
+}
+
+async function bundle(entry, appBundle, { seedOverride } = {}) {
+  const appPath = path.join(root, appBundle);
+  const hasSeedOverride = seedOverride !== undefined;
   const result = await esbuild.build({
     entryPoints: [path.join(root, entry)],
     bundle: true,
@@ -61,7 +84,7 @@ async function bundle(entry, appBundle) {
     loader: { '.json': 'json' },
     platform: 'neutral',
     target: 'esnext',
-    alias: { 'snapback-app': path.join(root, appBundle) },
+    ...(hasSeedOverride ? { plugins: [seedOverridePlugin(appPath, seedOverride)] } : { alias: { 'snapback-app': appPath } }),
   });
   return result.outputFiles[0].text;
 }
@@ -74,12 +97,16 @@ async function bundle(entry, appBundle) {
 // `bindings` merges extra gateway-Worker bindings (e.g. the LLP 0049
 // deploy-time secret bindings SNAPBACK_SECRET_* and the
 // SNAPBACK_CONFIG_GENERATION attestation carrier) over the defaults.
-export async function startProof({ app = 'notes', port = null, bindings = {} } = {}) {
+// `seedOverride` is a test-only compile-time replacement for the selected
+// app's seed export. It lets structural-validation tests exercise the real
+// compiled-seed preparation path with intentionally invalid fixtures; caller
+// bytes still never become production seed authority.
+export async function startProof({ app = 'notes', port = null, bindings = {}, seedOverride } = {}) {
   const selected = APPS[app];
   if (!selected) throw new Error(`unknown proof app ${app}`);
   const [gatewayScript, handlerScript] = await Promise.all([
-    bundle('src/gateway.js', selected.bundle),
-    bundle('src/handler-worker.js', selected.bundle),
+    bundle('src/gateway.js', selected.bundle, { seedOverride }),
+    bundle('src/handler-worker.js', selected.bundle, { seedOverride }),
   ]);
 
   const workers = [

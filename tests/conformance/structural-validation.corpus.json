@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "schema": {
+    "table": "notes",
+    "fields": [
+      { "name": "boardId", "type": "string", "optional": false },
+      { "name": "text", "type": "string", "optional": false },
+      { "name": "authorId", "type": "string", "optional": true }
+    ]
+  },
+  "validRow": {
+    "_id": "structural-validation-existing",
+    "boardId": "validation-board",
+    "text": "valid row",
+    "authorId": null
+  },
+  "cases": [
+    {
+      "name": "insert-missing-required",
+      "operation": "insert",
+      "values": { "boardId": "validation-board" },
+      "expectedCode": "SNAPBACK_FIELD_MISSING"
+    },
+    {
+      "name": "insert-wrong-type",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "text": 42 },
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "insert-null-required",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "text": null },
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "insert-unknown-field",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "text": "valid", "surprise": true },
+      "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
+      "name": "insert-protected-id",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "text": "valid", "_id": "caller-id" },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "insert-protected-version",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "text": "valid", "_version": 99 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "insert-protected-created-at",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "text": "valid", "_createdAt": 1 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "insert-protected-updated-at",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "text": "valid", "_updatedAt": 1 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "patch-wrong-type",
+      "operation": "patch",
+      "values": { "text": 42 },
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "patch-null-required",
+      "operation": "patch",
+      "values": { "text": null },
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "patch-unknown-field",
+      "operation": "patch",
+      "values": { "surprise": true },
+      "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
+      "name": "patch-protected-id",
+      "operation": "patch",
+      "values": { "_id": "replacement-id" },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "patch-protected-version",
+      "operation": "patch",
+      "values": { "_version": 99 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "patch-protected-created-at",
+      "operation": "patch",
+      "values": { "_createdAt": 1 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "patch-protected-updated-at",
+      "operation": "patch",
+      "values": { "_updatedAt": 1 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "seed-missing-required",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "boardId": "validation-board" },
+      "expectedCode": "SNAPBACK_FIELD_MISSING"
+    },
+    {
+      "name": "seed-wrong-type",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "boardId": "validation-board", "text": 42 },
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "seed-null-required",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "boardId": "validation-board", "text": null },
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "seed-unknown-field",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "boardId": "validation-board", "text": "valid", "surprise": true },
+      "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
+      "name": "seed-protected-version",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "boardId": "validation-board", "text": "valid", "_version": 99 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "seed-protected-created-at",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "boardId": "validation-board", "text": "valid", "_createdAt": 1 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "seed-protected-updated-at",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "boardId": "validation-board", "text": "valid", "_updatedAt": 1 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "derived-insert-wrong-type",
+      "operation": "derivedInsert",
+      "field": "text",
+      "left": 20,
+      "right": 22,
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "derived-insert-protected-field",
+      "operation": "derivedInsert",
+      "field": "_createdAt",
+      "left": 20,
+      "right": 22,
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "derived-patch-wrong-type",
+      "operation": "derivedPatch",
+      "field": "text",
+      "left": 20,
+      "right": 22,
+      "expectedCode": "SNAPBACK_FIELD_TYPE_MISMATCH"
+    },
+    {
+      "name": "derived-patch-protected-field",
+      "operation": "derivedPatch",
+      "field": "_version",
+      "left": 20,
+      "right": 22,
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    }
+  ]
+}

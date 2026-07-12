@@ -591,9 +591,14 @@ impl LocalDatabase {
 
         for (table_name, rows) in seed.tables {
             let table = schema_table(&schema, &table_name)?;
-            for row in rows {
+            for mut row in rows {
+                // Declarative seeds may choose a stable id, but every other
+                // system field remains host-owned. Remove the seed identity
+                // carrier before entering the same insert validator used by
+                // handler/derived writes.
                 let id = row
-                    .get("_id")
+                    .remove("_id")
+                    .as_ref()
                     .and_then(Value::as_str)
                     .map(ToOwned::to_owned)
                     .unwrap_or_else(new_id);
@@ -2546,9 +2551,14 @@ fn insert_document(
     now_ms: u64,
 ) -> SnapbackResult<Value> {
     for key in row.keys() {
-        if !is_system_field(key) {
-            ensure_field(table, key)?;
+        if is_system_field(key) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SYSTEM_FIELD_WRITE",
+                "storage",
+                format!("{key} is managed by Snapback"),
+            ));
         }
+        ensure_field(table, key)?;
     }
 
     let mut document = Map::new();
@@ -2572,7 +2582,10 @@ fn insert_document(
 
     for field in &table.fields {
         let value = match row.get(&field.name) {
-            Some(value) => value.clone(),
+            Some(value) => {
+                validate_declared_field_value(field, value)?;
+                value.clone()
+            }
             None if field.optional => Value::Null,
             None => {
                 return Err(SnapbackError::error(
@@ -2635,6 +2648,7 @@ fn patch_document(
             ));
         }
         let field_manifest = ensure_field(table, field)?;
+        validate_declared_field_value(field_manifest, value)?;
         assignments.push(format!("{} = ?", quote_ident(field)?));
         values.push(json_to_sql_value(value, Some(&field_manifest.field_type))?);
     }
@@ -2846,6 +2860,13 @@ fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<
             Ok(value)
         }
     }
+}
+
+fn validate_declared_field_value(field: &FieldManifest, value: &Value) -> SnapbackResult<()> {
+    if value.is_null() && !field.optional {
+        return Err(type_error(field_type_name(&field.field_type), value));
+    }
+    Ok(())
 }
 
 fn type_error(expected: &str, value: &Value) -> SnapbackError {

@@ -950,6 +950,17 @@ export class Coordinator {
         return json(200, { expired: true });
       });
     }
+    // @ref LLP 0028#scheduler-state-and-run-ledger — retention may remove
+    // terminal claims and their replay rows, never a stale lease that still
+    // represents recoverable work. Advance only the pruning clock so the
+    // acceptance can prove both sides without a seven-day sleep.
+    if (path === '/__test/prune-cron-claims') {
+      return this.testingGated(request, () => {
+        const simulatedNowMs = Date.now() + CRON_CLAIM_RETENTION_MS + 1_000;
+        this.pruneCronClaims(simulatedNowMs);
+        return json(200, { pruned: true, simulatedNowMs });
+      });
+    }
     if (path === '/__test/storage-layout') {
       return this.testingGated(request, () => json(200, this.storageLayoutForTest()));
     }

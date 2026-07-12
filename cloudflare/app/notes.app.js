@@ -69,6 +69,7 @@ export const functions = [
   // mutation with nothing committed (ENG-23584/ENG-23585).
   { name: 'touchNote', kind: 'Mutation', export: 'touchNote', tables: ['notes'], testingOnly: true },
   { name: 'insertRawNote', kind: 'Mutation', export: 'insertRawNote', tables: ['notes'], testingOnly: true },
+  { name: 'writeDerivedRawNote', kind: 'Mutation', export: 'writeDerivedRawNote', tables: ['notes'], testingOnly: true },
   { name: 'queryRawNotes', kind: 'Query', export: 'queryRawNotes', tables: ['notes'], testingOnly: true },
   // ENG-23606 regression probes: null/missing optional-field filters must
   // behave identically on the SQL-pushdown path (no buffered writes) and the
@@ -141,6 +142,22 @@ globalThis.__snapbackHandlers = {
   },
   async insertRawNote(ctx, args) {
     return { id: await ctx.db.insert('notes', args.values) };
+  },
+  async writeDerivedRawNote(ctx, args) {
+    // ENG-24342 corpus probe: the invalid value/key is computed inside the
+    // handler so the test reaches the same host validation boundary as any
+    // ordinary derived write, rather than posting a pre-built row only.
+    const derived = { [args.field]: args.left + args.right };
+    if (args.operation === 'patch') {
+      return { existed: await ctx.db.patch('notes', args.id, derived) };
+    }
+    return {
+      id: await ctx.db.insert('notes', {
+        boardId: 'validation-board',
+        text: 'valid derived row',
+        ...derived,
+      }),
+    };
   },
   async queryRawNotes(ctx, args) {
     let query = ctx.db.query('notes');

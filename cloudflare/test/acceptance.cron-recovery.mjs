@@ -60,6 +60,21 @@ try {
     throw new Error(`after-claim fault did not preserve a recoverable claim: ${JSON.stringify(state)}`);
   }
 
+  // Retention is terminal-only. Even after its ownership lease expires and
+  // the simulated pruning clock crosses the full retention window, a claimed
+  // slot is recoverable work and must survive for the next attempt.
+  await post('/__test/expire-cron-claims');
+  await post('/__test/prune-cron-claims');
+  state = await claims();
+  if (
+    state.claims.length !== 1 ||
+    state.claims[0]?.state !== 'claimed' ||
+    Number(state.claims[0]?.lease_expires_at_ms) !== 0 ||
+    Number(state.claims[0]?.attempt) !== 1
+  ) {
+    throw new Error(`retention pruned an expired recoverable claim: ${JSON.stringify(state)}`);
+  }
+
   // Retry 2 enters the action and is interrupted at its first nested
   // mutation, before fetch or commit.
   state = await retry();
@@ -90,9 +105,17 @@ try {
     throw new Error(`post-commit recovery double-committed: ${JSON.stringify({ committed, finished })}`);
   }
 
+  // Once the same slot is terminal, crossing the retention window removes
+  // both the claim and its commit-coupled nested-mutation replay rows.
+  await post('/__test/prune-cron-claims');
+  state = await claims();
+  if (state.claims.length !== 0 || state.mutationResults !== 0) {
+    throw new Error(`terminal claim retention did not prune claim and replay rows together: ${JSON.stringify(state)}`);
+  }
+
   live.dispose();
   client.liveStreamManager('cron-recovery').close();
-  console.log('cloudflare cron-recovery acceptance: after-claim, during-action, and pre-finish faults recover without double commit');
+  console.log('cloudflare cron-recovery acceptance: faults recover without double commit and retention preserves active work only');
 } finally {
   await proof.dispose();
   server.close();
