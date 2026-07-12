@@ -19,7 +19,8 @@
 //
 // @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract
 
-import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   arg, argOpt, authUserId, bindingRef, lit, runtimeNow,
@@ -29,10 +30,16 @@ import {
   defineMutation,
 } from './define.mjs';
 import { serializeMutationPlan } from './index.mjs';
+import { decodeUtf8Source, resolveFileReadCapability } from './file-read-capability.mjs';
 
-const DATA_TIER_PROFILE = JSON.parse(
-  readFileSync(new URL('../../schemas/data-tier.profile.json', import.meta.url), 'utf8'),
-);
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const dataTierProfilePath = fileURLToPath(new URL('../../schemas/data-tier.profile.json', import.meta.url));
+const dataTierProfileBytes = resolveFileReadCapability(dataTierProfilePath, {
+  allowedRoots: [REPO_ROOT],
+  allowSymlink: false,
+  codePrefix: 'DATA_TIER_PROFILE',
+}).read();
+const DATA_TIER_PROFILE = JSON.parse(decodeUtf8Source(dataTierProfileBytes, dataTierProfilePath, 'DATA_TIER_PROFILE'));
 
 // The Rust-generated public profile is the authority. A profile bump now
 // walks corpus generation instead of relying on a mirrored JS literal.

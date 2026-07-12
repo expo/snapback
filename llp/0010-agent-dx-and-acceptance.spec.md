@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24351 isolation follow-up: an AST-resolved exact graph is evaluated as bundled bytes in a capability-empty, permission-denied child VM; computed ambient access and nondeterminism are unavailable by construction, including indirect locale-sensitive intrinsic methods; evaluated output must be strict JSON data rather than values `JSON.stringify` would silently coerce or drop; the cache-busting generation worker pins an empty exec-argument set, repository cwd, minimal environment, disconnected data stdio, and one IPC result so caller `--eval`/preload/debug authority cannot contaminate it; node_modules package scopes stop at their boundary; canonical evaluated values join artifact identity, and every identity domain/item is byte-length-framed so source-legal NUL bytes cannot alias path/source boundaries; ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; earlier ENG-24351: CommonJS/dynamic/ambiguous graphs fail closed and generated identity covers every permitted transitive input). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
+**Revised:** 2026-07-12 (ENG-24351 isolation follow-up: an AST-resolved exact graph is evaluated as bundled bytes in a capability-empty, permission-denied child VM; computed ambient access and nondeterminism are unavailable by construction, including indirect locale-sensitive intrinsic methods; evaluated output must be strict JSON data rather than values `JSON.stringify` would silently coerce or drop; every privileged input read is an fd-attested, root-contained capability and handler paths are canonical backend-relative identities; the cache-busting generation worker pins an empty exec-argument set, repository cwd, minimal environment, disconnected data stdio, and one IPC result so caller `--eval`/preload/debug authority cannot contaminate it; node_modules package scopes stop at their boundary; canonical evaluated values join artifact identity, and every identity domain/item is byte-length-framed so source-legal NUL bytes cannot alias path/source boundaries; ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; earlier ENG-24351: CommonJS/dynamic/ambiguous graphs fail closed and generated identity covers every permitted transitive input). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024
 
 ## Summary
@@ -320,6 +320,20 @@ declared codegen environment inputs plus OS process-launch/temp plumbing;
 `NODE_OPTIONS`, caller preloads, inspector flags, credentials, and caller cwd do
 not cross the boundary. Its stdin and stdout are disconnected, stderr is only
 the human diagnostic lane, and one IPC message is the structured result.
+
+All privileged source reads (entry and transitive definition modules, governing
+package manifests, handlers, seed/demo metadata, and committed codegen inputs)
+resolve through a named root capability, attest a regular-file target, open the
+canonical path with final-component no-follow where supported, compare the
+opened device/inode to the resolved target, and hash the exact fd bytes read.
+Handler source spellings are non-empty canonical forward-slash paths: absolute,
+drive/URL, encoded, backslash, dot-segment, unsupported-extension, and
+outside-root targets fail without replacing prior artifacts. In-root handler
+symlinks resolve to the target's backend-relative POSIX identity; outside
+symlinks fail. Definition graphs are limited to the canonical backend and this
+repository. Physically external package-store symlinks are deliberately not an
+ambient exception; supporting one later requires an explicit attested install
+root rather than the old "contains node_modules" heuristic.
 
 Definition evaluation is a capability boundary, not a token blacklist. The
 bundled bytes run under Node 24 or newer in a second process whose permission

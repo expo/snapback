@@ -16,11 +16,23 @@
 
 import { createHash } from 'node:crypto';
 import { fork, spawn } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, renameSync, realpathSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build as esbuild } from 'esbuild';
 import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS } from './define.mjs';
+import {
+  decodeUtf8Source,
+  resolveFileReadCapability,
+  resolveHandlerSourceCapability,
+} from './file-read-capability.mjs';
 import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '../snapback-contract/capabilities.mjs';
 import {
   generatedByHeader,
@@ -187,7 +199,12 @@ function loadCommittedSchema(schemaFile) {
     return { missing: `committed schema not found at ${path}` };
   }
   try {
-    return { schema: JSON.parse(readFileSync(path, 'utf8')) };
+    const bytes = resolveFileReadCapability(path, {
+      allowedRoots: [REPO_ROOT],
+      allowSymlink: false,
+      codePrefix: 'CODEGEN_COMMITTED_SCHEMA',
+    }).read();
+    return { schema: JSON.parse(decodeUtf8Source(bytes, path, 'CODEGEN_COMMITTED_SCHEMA')) };
   } catch (cause) {
     return { missing: `committed schema ${schemaFile} is not valid JSON: ${cause.message}` };
   }
@@ -317,23 +334,17 @@ export async function generateInProcess(backendDir) {
   const err = (code, subsystem, message, extra = {}) =>
     diagnostics.push({ code, severity: 'error', subsystem, message, ...extra });
 
-  const schemaPath = join(backendDir, 'schema.mjs');
-  const functionsPath = join(backendDir, 'functions.mjs');
-  const seedPath = join(backendDir, 'seed.json');
-  const handlerSourceCache = new Map();
-  readRequiredSource(schemaPath, diagnostics, {
-    code: 'SCHEMA_SOURCE_MISSING',
-    subsystem: 'schema',
-    message: `schema source ${schemaPath} could not be read`,
-  });
-  readRequiredSource(functionsPath, diagnostics, {
-    code: 'FUNCTION_SOURCE_MISSING',
-    subsystem: 'function',
-    message: `functions source ${functionsPath} could not be read`,
-  });
-  if (diagnostics.some((d) => d.severity === 'error')) {
+  let backendRoot;
+  try {
+    backendRoot = realpathSync(backendDir);
+  } catch (error) {
+    err('CODEGEN_BACKEND_UNREADABLE', 'codegen', `backend directory ${backendDir} could not be resolved: ${error.message}`, { path: backendDir });
     return { ok: false, diagnostics };
   }
+  const schemaPath = join(backendRoot, 'schema.mjs');
+  const functionsPath = join(backendRoot, 'functions.mjs');
+  const seedPath = join(backendRoot, 'seed.json');
+  const handlerSourceCache = new Map();
 
   // @ref LLP 0010#generated-artifacts — the AST resolver defines the complete
   // hashed graph; evaluation happens only from those bundled bytes, never by
@@ -341,8 +352,8 @@ export async function generateInProcess(backendDir) {
   // @ref LLP 0009#capability-model — static analysis is defense in depth. The
   // actual boundary is a capability-empty evaluator process plus a VM context
   // with string/Wasm code generation and nondeterministic globals disabled.
-  const schemaBuild = await buildDefinitionBundle(schemaPath, backendDir, diagnostics, 'schema', 'schema');
-  const functionsBuild = await buildDefinitionBundle(functionsPath, backendDir, diagnostics, 'function', 'functions');
+  const schemaBuild = await buildDefinitionBundle(schemaPath, backendRoot, diagnostics, 'schema', 'schema');
+  const functionsBuild = await buildDefinitionBundle(functionsPath, backendRoot, diagnostics, 'function', 'functions');
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -768,24 +779,42 @@ export async function generateInProcess(backendDir) {
   }
 
   // --- Hashes + emit ----------------------------------------------------------
-  const seedSource = existsSync(seedPath) ? readFileSync(seedPath, 'utf8') : null;
-  const contractCapabilitiesSource = readFileSync(join(packageDir(), '..', 'snapback-contract', 'capabilities.mjs'), 'utf8');
+  let seedSource = null;
+  if (existsSync(seedPath)) {
+    try {
+      seedSource = resolveFileReadCapability(seedPath, {
+        allowedRoots: [backendRoot],
+        codePrefix: 'SEED_SOURCE',
+      }).read();
+    } catch (error) {
+      err(error.codegenCode ?? 'SEED_SOURCE_UNREADABLE', 'seed', error.message, error.details ?? {});
+    }
+  }
+  let contractCapabilitiesSource = Buffer.alloc(0);
+  try {
+    contractCapabilitiesSource = resolveFileReadCapability(join(packageDir(), '..', 'snapback-contract', 'capabilities.mjs'), {
+      allowedRoots: [REPO_ROOT],
+      codePrefix: 'CODEGEN_CONTRACT_CAPABILITY_SOURCE',
+    }).read();
+  } catch (error) {
+    err(error.codegenCode ?? 'CODEGEN_CONTRACT_CAPABILITY_SOURCE_UNREADABLE', 'codegen', error.message, error.details ?? {});
+  }
   const canonicalCapability = loadCanonicalCapabilityManifest(err);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  const appId = inferAppId(backendDir);
-  const demoMetadata = readDemoAppMetadata(backendDir, appId, diagnostics);
+  const appId = inferAppId(backendRoot);
+  const demoMetadata = readDemoAppMetadata(backendRoot, appId, diagnostics);
   // Hash inputs use the MANIFEST-RELATIVE handler path (LLP 0034 review fix
   // 4): keying by absolute path baked the checkout location into inputsHash /
   // bundleHash, so committed artifacts only reproduced from the checkout that
   // generated them.
   const handlerInputs = [];
-  for (const [sourcePath, source] of [...handlerSourceCache.entries()].sort(([a], [b]) => compareCodeUnits(a, b))) {
-    handlerInputs.push(sourcePath, source ?? '');
+  for (const [sourcePath, entry] of [...handlerSourceCache.entries()].sort(([a], [b]) => compareCodeUnits(a, b))) {
+    handlerInputs.push(sourcePath, entry.bytes);
   }
-  const schemaGraphInputs = moduleGraphIdentity(schemaGraph, backendDir);
-  const functionsGraphInputs = moduleGraphIdentity(functionsGraph, backendDir);
+  const schemaGraphInputs = moduleGraphIdentity(schemaGraph, backendRoot);
+  const functionsGraphInputs = moduleGraphIdentity(functionsGraph, backendRoot);
   // Path/source pairs prove which bytes were admitted. Canonical isolated
   // values prove what those bytes meant under the current AST transformer and
   // evaluator. Binding both closes the case where a toolchain semantic change
@@ -936,7 +965,7 @@ export async function generateInProcess(backendDir) {
     return { ok: false, diagnostics };
   }
 
-  const outDir = join(backendDir, 'generated');
+  const outDir = join(backendRoot, 'generated');
   const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
   const apiTypes = renderApiTypes(functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
@@ -976,7 +1005,7 @@ export async function generateInProcess(backendDir) {
     // never values (LLP 0036).
     config: configEntries.map((entry) => ({ name: entry.name, required: entry.required, pool: entry.pool })),
   };
-  const tmpOutDir = join(backendDir, `.generated.tmp-${process.pid}-${Date.now()}`);
+  const tmpOutDir = join(backendRoot, `.generated.tmp-${process.pid}-${Date.now()}`);
   try {
     writeGeneratedOutput(tmpOutDir, {
       schemaManifest,
@@ -998,18 +1027,33 @@ export async function generateInProcess(backendDir) {
 
   return { ok: true, diagnostics, inputsHash, outDir, schemaManifest, functionManifest, capabilityManifest, contractManifest };
 
-  // Cache (and hash — see handlerInputs) by the manifest-relative sourcePath,
-  // never the absolute checkout path, so generated hashes are reproducible
-  // from any checkout (LLP 0034 review fix 4).
+  // Cache and hash by the fd-attested target's canonical backend-relative POSIX
+  // identity, never an authored alias or absolute checkout path.
   function loadHandlerSource(sourcePath, functionName) {
-    if (!handlerSourceCache.has(sourcePath)) {
-      const absolute = join(backendDir, sourcePath);
-      let source = '';
+    let capability;
+    try {
+      capability = resolveHandlerSourceCapability(backendRoot, sourcePath);
+    } catch (error) {
+      err(error.codegenCode ?? 'BUNDLE_SOURCE_UNREADABLE', 'bundle', `${functionName}: ${error.message}`, {
+        function: functionName,
+        source: sourcePath,
+        ...(error.details ?? {}),
+      });
+      return null;
+    }
+    if (!handlerSourceCache.has(capability.identity)) {
+      let bytes;
+      let source;
       try {
-        source = readFileSync(absolute, 'utf8');
+        bytes = capability.read();
+        source = decodeUtf8Source(bytes, capability.identity, 'BUNDLE_SOURCE');
       } catch (error) {
-        err('BUNDLE_SOURCE_MISSING', 'bundle', `${functionName}: handler source ${sourcePath} could not be read`, { function: functionName, source: sourcePath, error: error.message });
-        handlerSourceCache.set(sourcePath, null);
+        err(error.codegenCode ?? 'BUNDLE_SOURCE_UNREADABLE', 'bundle', `${functionName}: ${error.message}`, {
+          function: functionName,
+          source: sourcePath,
+          identity: capability.identity,
+          ...(error.details ?? {}),
+        });
         return null;
       }
       const blocked = scanUnsupportedHandlerSource(source);
@@ -1017,15 +1061,15 @@ export async function generateInProcess(backendDir) {
         for (const issue of blocked) {
           err(issue.code, 'bundle', `${functionName}: ${issue.message}`, {
             function: functionName,
-            source: sourcePath,
+            source: capability.identity,
             token: issue.token,
-            sourceSpan: { file: sourcePath, line: issue.line, column: issue.column },
+            sourceSpan: { file: capability.identity, line: issue.line, column: issue.column },
           });
         }
       }
-      handlerSourceCache.set(sourcePath, source);
+      handlerSourceCache.set(capability.identity, { bytes, source });
     }
-    return handlerSourceCache.get(sourcePath);
+    return handlerSourceCache.get(capability.identity).source;
   }
 }
 
@@ -2397,8 +2441,14 @@ function readDemoAppMetadata(backendDir, appId, diagnostics) {
   const demoManifestPath = resolve(backendDir, '..', 'demo.snapback.json');
   if (!existsSync(demoManifestPath)) return { source: null, identity: null };
   let source;
+  let sourceBytes;
   try {
-    source = readFileSync(demoManifestPath, 'utf8');
+    sourceBytes = resolveFileReadCapability(demoManifestPath, {
+      allowedRoots: [dirname(backendDir)],
+      allowSymlink: false,
+      codePrefix: 'DEMO_MANIFEST',
+    }).read();
+    source = decodeUtf8Source(sourceBytes, demoManifestPath, 'DEMO_MANIFEST');
   } catch (cause) {
     diagnostics.push({
       code: 'DEMO_MANIFEST_READ_FAILED',
@@ -2420,7 +2470,7 @@ function readDemoAppMetadata(backendDir, appId, diagnostics) {
       message: `demo manifest ${demoManifestPath} is not valid JSON: ${cause.message}`,
       path: demoManifestPath,
     });
-    return { source, identity: null };
+    return { source: sourceBytes, identity: null };
   }
   const app = manifest.app && typeof manifest.app === 'object' ? manifest.app : {};
   const identity = cleanObject({
@@ -2430,7 +2480,7 @@ function readDemoAppMetadata(backendDir, appId, diagnostics) {
     wordmarkUrl: readString(app.wordmarkUrl) ?? readString(app.wordmark_url) ?? readString(manifest.wordmarkUrl) ?? readString(manifest.wordmark_url),
   });
   if (identity.name === appId) delete identity.name;
-  return { source, identity: Object.keys(identity).length === 0 ? null : identity };
+  return { source: sourceBytes, identity: Object.keys(identity).length === 0 ? null : identity };
 }
 
 function readString(value) {
@@ -2489,15 +2539,6 @@ function compareCodeUnits(a, b) {
 
 function dict() {
   return Object.create(null);
-}
-
-function readRequiredSource(path, diagnostics, { code, subsystem, message }) {
-  try {
-    return readFileSync(path, 'utf8');
-  } catch (error) {
-    diagnostics.push({ code, severity: 'error', subsystem, message: `${message}: ${error.message}`, path, error: error.message });
-    return '';
-  }
 }
 
 function codegenWorkerFailure(error) {
@@ -2603,25 +2644,39 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
   });
 
   const addGraphFile = (candidate, importedFrom = null) => {
-    let path;
+    let capability;
     try {
-      path = realpathSync(candidate);
+      capability = resolveFileReadCapability(candidate, {
+        allowedRoots: [backendDir, REPO_ROOT],
+        codePrefix: 'CODEGEN_IMPORT',
+      });
     } catch (error) {
-      return { error: problem('CODEGEN_IMPORT_UNRESOLVED', `could not resolve local module ${candidate}: ${error.message}`, { path: candidate, importedFrom }) };
+      const isEntry = resolve(candidate) === entryPath;
+      const code = error.codegenCode === 'CODEGEN_IMPORT_OUTSIDE_ROOT'
+        ? 'CODEGEN_IMPORT_OUTSIDE_IDENTITY_ROOT'
+        : isEntry && error.codegenCode === 'CODEGEN_IMPORT_UNREADABLE'
+          ? (kind === 'schema' ? 'SCHEMA_SOURCE_MISSING' : 'FUNCTION_SOURCE_MISSING')
+          : error.codegenCode === 'CODEGEN_IMPORT_UNREADABLE'
+            ? 'CODEGEN_IMPORT_UNRESOLVED'
+            : (error.codegenCode ?? 'CODEGEN_IMPORT_UNRESOLVED');
+      return { error: problem(code, `could not resolve local module ${candidate}: ${error.message}`, { path: candidate, importedFrom }) };
     }
+    const path = capability.realPath;
     if (graph.has(path)) return { path, source: graph.get(path).source };
     const label = moduleIdentityLabel(path, backendDir);
     if (!label) {
       return { error: problem('CODEGEN_IMPORT_OUTSIDE_IDENTITY_ROOT', `local module ${path} is outside the app, repository, and a package install; its identity would not be reproducible`, { path, importedFrom }) };
     }
+    let bytes;
     let source;
     try {
-      source = readFileSync(path, 'utf8');
+      bytes = capability.read();
+      source = decodeUtf8Source(bytes, path, 'CODEGEN_IMPORT');
     } catch (error) {
-      return { error: problem('CODEGEN_IMPORT_UNREADABLE', `could not read local module ${path}: ${error.message}`, { path, importedFrom }) };
+      return { error: problem(error.codegenCode ?? 'CODEGEN_IMPORT_UNREADABLE', `could not read local module ${path}: ${error.message}`, { path, importedFrom }) };
     }
-    graph.set(path, { path, label, source });
-    return { path, source };
+    graph.set(path, { path, label, source, bytes });
+    return { path, source, bytes };
   };
 
   const facade = definitionFacadeSource(entryPath, definePath, resultKey, kind);
@@ -2710,12 +2765,17 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
               return { errors: [problem('CODEGEN_IMPORT_UNSUPPORTED', `${loaded.path} is not a supported JavaScript, TypeScript, or JSON definition dependency`, { path: loaded.path })] };
             }
             const moduleFormat = graphModuleFormat(loaded.path);
-            if (moduleFormat.commonJs) {
-              return { errors: [problem('CODEGEN_COMMONJS_MODULE_UNHASHABLE', `${moduleIdentityLabel(loaded.path, backendDir)} is a CommonJS module${moduleFormat.packageJson ? ` under ${moduleFormat.packageJson}` : ''}; codegen cannot prove its transitive loader graph`, { path: loaded.path })] };
-            }
             if (moduleFormat.packageJson) {
               const manifest = addGraphFile(moduleFormat.packageJson, loaded.path);
               if (manifest.error) return { errors: [manifest.error] };
+              try {
+                moduleFormat.commonJs = JSON.parse(manifest.source)?.type !== 'module';
+              } catch {
+                moduleFormat.commonJs = true;
+              }
+            }
+            if (moduleFormat.commonJs) {
+              return { errors: [problem('CODEGEN_COMMONJS_MODULE_UNHASHABLE', `${moduleIdentityLabel(loaded.path, backendDir)} is a CommonJS module${moduleFormat.packageJson ? ` under ${moduleFormat.packageJson}` : ''}; codegen cannot prove its transitive loader graph`, { path: loaded.path })] };
             }
             return {
               contents: loaded.source,
@@ -2964,14 +3024,9 @@ function graphModuleFormat(path) {
   }
   const packageJson = nearestPackageJson(path);
   if (!packageJson) return { commonJs: true, packageJson: null };
-  try {
-    const manifest = JSON.parse(readFileSync(packageJson, 'utf8'));
-    return { commonJs: manifest?.type !== 'module', packageJson };
-  } catch {
-    // Node cannot give an ambiguous/malformed package scope a portable ESM
-    // interpretation. Fail closed through the CommonJS/unprovable boundary.
-    return { commonJs: true, packageJson };
-  }
+  // The caller loads and hashes this manifest through addGraphFile before
+  // deciding the format, so classification and identity use the same fd bytes.
+  return { commonJs: null, packageJson };
 }
 
 function nearestPackageJson(path) {
@@ -2992,7 +3047,7 @@ function nearestPackageJson(path) {
 
 function moduleGraphIdentity(graph, backendDir) {
   return [...graph.values()]
-    .map(({ path, source }) => [moduleIdentityLabel(path, backendDir), source])
+    .map(({ path, bytes }) => [moduleIdentityLabel(path, backendDir), bytes])
     .sort(([a], [b]) => compareCodeUnits(a, b))
     .flatMap(([label, source]) => [label, source]);
 }
@@ -3097,8 +3152,14 @@ function canonicalCapabilityManifestPath() {
 function loadCanonicalCapabilityManifest(err) {
   const path = canonicalCapabilityManifestPath();
   let source;
+  let sourceBytes;
   try {
-    source = readFileSync(path, 'utf8');
+    sourceBytes = resolveFileReadCapability(path, {
+      allowedRoots: [REPO_ROOT],
+      allowSymlink: false,
+      codePrefix: 'CODEGEN_CAPABILITY_MANIFEST',
+    }).read();
+    source = decodeUtf8Source(sourceBytes, path, 'CODEGEN_CAPABILITY_MANIFEST');
   } catch (error) {
     err('CODEGEN_CAPABILITY_MANIFEST_MISSING', 'capability', `the server-declared capability manifest could not be read; regenerate with SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_`, { path, error: error.message });
     return { source: '', manifest: null };
@@ -3118,7 +3179,7 @@ function loadCanonicalCapabilityManifest(err) {
     });
     return { source: '', manifest: null };
   }
-  return { source, manifest };
+  return { source: sourceBytes, manifest };
 }
 
 // --- CLI ---------------------------------------------------------------------

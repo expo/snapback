@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { resolveHandlerSourceCapability } from './file-read-capability.mjs';
 import { generate } from './index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
@@ -237,6 +238,137 @@ export const zeta = defineJsQuery({ source: 'z-handler.mjs', exportName: 'zeta',
   assert.notEqual(secondManifestSource, firstManifestSource, 'the runtime handler bytes must actually differ');
   assert.notEqual(second.inputsHash, first.inputsHash, 'NUL-containing sources must not collide in the complete input identity');
   assert.notEqual(secondManifest.bundleHash, firstManifest.bundleHash, 'NUL-containing runtime handlers must not collide in bundle identity');
+}
+
+// Handler declarations are an app-rooted file capability, not a privileged
+// read primitive. Lexical aliases and realpath escapes fail before reading;
+// the last proven artifact survives. An in-root symlink is accepted but its
+// fd-attested target supplies the canonical POSIX identity and exact bytes.
+{
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+  const outside = mkdtempSync(join(tmpdir(), 'snapback-codegen-outside-'));
+  dirs.push(outside);
+  const outsideHandler = join(outside, 'secret.mjs');
+  writeFileSync(outsideHandler, "globalThis.__snapbackHandlers = { escaped() { return 'LOCAL_SECRET'; } };\n");
+  symlinkSync(outsideHandler, join(dir, 'outside-link.mjs'));
+  mkdirSync(join(dir, 'directory.mjs'));
+  writeFileSync(join(dir, 'handler.txt'), "globalThis.__snapbackHandlers = { escaped() { return 'text'; } };\n");
+  assert.throws(
+    () => resolveHandlerSourceCapability(dir, ''),
+    (error) => error.codegenCode === 'BUNDLE_SOURCE_PATH_INVALID',
+  );
+
+  const rejectedPaths = [
+    '../secret.mjs',
+    '%2e%2e/secret.mjs',
+    '..\\secret.mjs',
+    outsideHandler,
+    pathToFileURL(outsideHandler).href,
+    '.',
+    'nested//handler.mjs',
+    'outside-link.mjs',
+    'directory.mjs',
+    'handler.txt',
+  ];
+  for (const sourcePath of rejectedPaths) {
+    writeFileSync(join(dir, 'functions.mjs'), `
+import { defineJsQuery } from '${defineUrl}';
+export const escaped = defineJsQuery({ source: ${JSON.stringify(sourcePath)}, exportName: 'escaped', reads: ['todos'] });
+`);
+    const rejected = await generate(dir);
+    assert.equal(rejected.ok, false, `${sourcePath}: escaped handler path unexpectedly succeeded`);
+    assert(
+      rejected.diagnostics.some((diagnostic) => diagnostic.code.startsWith('BUNDLE_SOURCE_')),
+      `${sourcePath}: ${JSON.stringify(rejected.diagnostics)}`,
+    );
+    assert.equal(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'), before);
+  }
+
+  mkdirSync(join(dir, 'handlers'));
+  const realHandler = join(dir, 'handlers', 'real.mjs');
+  writeFileSync(realHandler, "globalThis.__snapbackHandlers = { escaped() { return 'inside'; } };\n");
+  symlinkSync(realHandler, join(dir, 'inside-link.mjs'));
+  assert.equal(
+    resolveHandlerSourceCapability(dir, 'inside-link.mjs').identity,
+    'handlers/real.mjs',
+  );
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { defineJsQuery } from '${defineUrl}';
+export const escaped = defineJsQuery({ source: 'inside-link.mjs', exportName: 'escaped', reads: ['todos'] });
+`);
+  const accepted = await generate(dir);
+  assert.equal(accepted.ok, true, JSON.stringify(accepted.diagnostics));
+  assert(accepted.functionManifest.functions[0].runtime.IbexModule.source.includes("return 'inside'"));
+
+  const swapPath = join(dir, 'swap.mjs');
+  const replacementPath = join(dir, 'replacement.mjs');
+  writeFileSync(swapPath, "globalThis.__snapbackHandlers = { swap() { return 'old'; } };\n");
+  writeFileSync(replacementPath, "globalThis.__snapbackHandlers = { swap() { return 'new'; } };\n");
+  const finalSwap = resolveHandlerSourceCapability(dir, 'swap.mjs', {
+    beforeOpen() {
+      rmSync(swapPath);
+      renameSync(replacementPath, swapPath);
+    },
+  });
+  assert.throws(
+    () => finalSwap.read(),
+    (error) => error.codegenCode === 'BUNDLE_SOURCE_CHANGED_DURING_READ',
+  );
+
+  mkdirSync(join(dir, 'parent'));
+  mkdirSync(join(dir, 'replacement-parent'));
+  writeFileSync(join(dir, 'parent', 'handler.mjs'), "globalThis.__snapbackHandlers = { swap() { return 'old-parent'; } };\n");
+  writeFileSync(join(dir, 'replacement-parent', 'handler.mjs'), "globalThis.__snapbackHandlers = { swap() { return 'new-parent'; } };\n");
+  const parentSwap = resolveHandlerSourceCapability(dir, 'parent/handler.mjs', {
+    beforeOpen() {
+      renameSync(join(dir, 'parent'), join(dir, 'retired-parent'));
+      renameSync(join(dir, 'replacement-parent'), join(dir, 'parent'));
+    },
+  });
+  assert.throws(
+    () => parentSwap.read(),
+    (error) => error.codegenCode === 'BUNDLE_SOURCE_CHANGED_DURING_READ',
+  );
+}
+
+// Optional fixed-name inputs use the same containment boundary. A seed symlink
+// outside the backend is rejected without replacing the prior artifacts.
+{
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = readFileSync(join(dir, 'generated', 'artifacts.json'), 'utf8');
+  const outside = mkdtempSync(join(tmpdir(), 'snapback-codegen-seed-outside-'));
+  dirs.push(outside);
+  const outsideSeed = join(outside, 'seed.json');
+  writeFileSync(outsideSeed, '{"todos":[]}\n');
+  symlinkSync(outsideSeed, join(dir, 'seed.json'));
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(rejected.diagnostics.some((diagnostic) => diagnostic.code === 'SEED_SOURCE_OUTSIDE_ROOT'), JSON.stringify(rejected.diagnostics));
+  assert.equal(readFileSync(join(dir, 'generated', 'artifacts.json'), 'utf8'), before);
+}
+
+// Definition entry/transitive modules use the same root policy. A relative
+// import symlink cannot turn the AST graph builder into an outside-file reader.
+{
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+  const outside = mkdtempSync(join(tmpdir(), 'snapback-codegen-module-outside-'));
+  dirs.push(outside);
+  const outsideHelper = join(outside, 'function-helper.mjs');
+  writeFileSync(outsideHelper, "export const selectedTable = 'notes';\n");
+  rmSync(join(dir, 'function-helper.mjs'));
+  symlinkSync(outsideHelper, join(dir, 'function-helper.mjs'));
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_IMPORT_OUTSIDE_IDENTITY_ROOT'), JSON.stringify(rejected.diagnostics));
+  assert.equal(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'), before);
 }
 
 // Evaluated definitions cross a strict JSON-data boundary. JSON.stringify's
