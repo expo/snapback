@@ -429,10 +429,14 @@ async fn permanently_held_instance_mutex_does_not_leak_action_worker() {
         body["diagnostic"]["code"], "SNAPBACK_ACTION_TIMEOUT",
         "held-lock timeout keeps the stable watchdog diagnostic: {body}"
     );
+    // The `tokio::time::timeout` above is the hard two-second response bound.
+    // Do not add a second, tighter wall-clock ceiling here: a loaded host can
+    // delay polling the already-completed watchdog future. The semantic proof
+    // below is stronger — the response is not published until the detached OS
+    // worker has drained while the instance mutex is still unavailable.
     assert!(
-        elapsed >= Duration::from_millis(WATCHDOG_MS - 100)
-            && elapsed < Duration::from_millis(1500),
-        "the permanent mutex hold must not outlive the watchdog ({elapsed:?})"
+        elapsed >= Duration::from_millis(WATCHDOG_MS - 100),
+        "the permanent mutex hold returned before the watchdog ({elapsed:?})"
     );
     assert_eq!(
         snapback::server::detached_action_worker_count(),

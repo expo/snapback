@@ -7,17 +7,36 @@ import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
 
+// Keep transport failures attributable. This suite intentionally drives both
+// Miniflare loopback HTTP and a local egress echo server; an unlabelled undici
+// ECONNRESET otherwise gives no clue which lifecycle boundary regressed.
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  try {
+    return await nativeFetch(input, init);
+  } catch (error) {
+    const target = typeof input === 'string' ? input : input?.url || String(input);
+    error.message = `${target}: ${error.message}`;
+    throw error;
+  }
+};
+
 const schema = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/generated/schema.manifest.json', import.meta.url), 'utf8'));
 const functions = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/generated/functions.manifest.json', import.meta.url), 'utf8'));
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 
 async function jsonFetch(base, path, body, headers = {}) {
-  const response = await fetch(`${base}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-  });
-  return { status: response.status, body: await response.json() };
+  try {
+    const response = await fetch(`${base}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, body: await response.json() };
+  } catch (error) {
+    error.message = `${path}: ${error.message}`;
+    throw error;
+  }
 }
 
 // Production: race an attacker seed against the legitimate compiled identity.

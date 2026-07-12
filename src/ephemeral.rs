@@ -1034,12 +1034,11 @@ type SharedOutbox = Arc<StdMutex<OutboundQueue>>;
 /// rate-bucket map, a room-granular expiry index, and atomic event counters.
 ///
 /// Lock order (outer to inner): `rooms` map → one room → { `outboxes` map,
-/// one outbox, `expiry_index` }, the inner three as leaves taken one at a
-/// time. Never two room locks; never a room lock while holding an outbox or
-/// index lock; nothing that holds a room lock ever waits on the `rooms` map
-/// (the retire/wipe/prune paths take the map first, and prune only
-/// `try_lock`s the room). `rate_buckets` and `connection_rooms` are pure
-/// leaves, taken with no other lock held.
+/// one outbox, `expiry_index`, `connection_rooms` }, the inner four as leaves
+/// taken one at a time. Never two room locks; never acquire a room or the
+/// `rooms` map while holding an outbox or index lock; nothing that holds a room
+/// lock ever waits on the `rooms` map (the retire/wipe/prune paths take the map
+/// first, and prune only `try_lock`s the room). `rate_buckets` is a pure leaf.
 ///
 /// @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — the sharded design and its lock order.
 struct EphemeralShared {
@@ -2236,11 +2235,13 @@ impl LocalEphemeralBackend {
     /// Record that `connection_id` has touched `room_id` (subscribed or
     /// published), so `disconnect` can visit exactly the rooms that may hold
     /// its registrations or owned entries (ENG-23348). Callers index before
-    /// the room operation becomes visible; the set is only consumed (and
-    /// dropped) by `disconnect`. Deliberately not trimmed on unsubscribe or
-    /// room prune: a stale room id costs one skipped map lookup at
-    /// disconnect, while trimming would need owner bookkeeping under extra
-    /// locks. Leaf lock — taken with no other lock held.
+    /// the room operation becomes visible, then rejected creates and every
+    /// unsubscribe/delete/expiry/prune path reconcile the edge with current
+    /// subscriber and owner membership. `disconnect` consumes the remaining
+    /// current-room set, so lifetime room churn cannot grow its work without
+    /// bound (ENG-24355). Leaf lock — taken with no other lock held.
+    ///
+    /// @ref LLP 0026#room-authority — the reverse index tracks current room authority membership, not historical touches.
     fn index_connection_room(&self, connection_id: &str, room_id: &RoomId) {
         lock(&self.shared.connection_rooms)
             .entry(connection_id.to_owned())
@@ -2312,25 +2313,38 @@ impl LocalEphemeralBackend {
     /// creates and unsubscribe/delete/expiry paths call this so lifetime room
     /// churn cannot make disconnect work grow without bound (ENG-24355).
     fn unindex_connection_room_if_unused(&self, connection_id: &str, room_id: &RoomId) {
-        let used = lock(&self.shared.rooms)
-            .get(room_id)
-            .cloned()
-            .is_some_and(|room| {
-                let room = lock(&room);
-                !room.retired
-                    && (room.subscribers.contains_key(connection_id)
-                        || room
-                            .owner_connections
-                            .values()
-                            .any(|connections| connections.contains(connection_id)))
-            });
-        if used {
+        self.unindex_connection_room_if_unused_with_observation(connection_id, room_id, || {});
+    }
+
+    /// Keep the routing-map and current room locks through reverse-index
+    /// reconciliation. Otherwise cleanup can observe an unused room, release
+    /// it, and then delete the edge after a concurrent subscribe/publish has
+    /// installed current authority and reasserted that same edge (ENG-24355
+    /// review). The callback is an inert production hook used by the
+    /// deterministic race regression below.
+    fn unindex_connection_room_if_unused_with_observation(
+        &self,
+        connection_id: &str,
+        room_id: &RoomId,
+        observed: impl FnOnce(),
+    ) {
+        let current_rooms = lock(&self.shared.rooms);
+        if let Some(room) = current_rooms.get(room_id) {
+            let room = lock(room);
+            observed();
+            self.sync_connection_room_index_locked(&room, connection_id, room_id);
             return;
         }
+
+        // Holding the routing map still makes absence linearizable with room
+        // creation. A creator may already have provisionally indexed itself,
+        // but it cannot make room state visible until this removal completes
+        // and will reassert the edge after its successful write.
+        observed();
         let mut index = lock(&self.shared.connection_rooms);
-        if let Some(rooms) = index.get_mut(connection_id) {
-            rooms.remove(room_id);
-            if rooms.is_empty() {
+        if let Some(indexed_rooms) = index.get_mut(connection_id) {
+            indexed_rooms.remove(room_id);
+            if indexed_rooms.is_empty() {
                 index.remove(connection_id);
             }
         }
@@ -2937,6 +2951,75 @@ mod tests {
             "subscribe/unsubscribe churn must leave no lifetime-monotone index"
         );
         assert_eq!(backend.diagnostics().room_count, 0);
+    }
+
+    #[test]
+    fn reverse_index_cleanup_linearizes_before_concurrent_room_reuse() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+        backend.subscribe(subscribe_request("race"), 1_000).unwrap();
+        let room_id = room();
+        let room_arc = lock(&backend.shared.rooms)
+            .get(&room_id)
+            .cloned()
+            .expect("subscribed room exists");
+
+        // Leave an unused current room, then remove the old edge so the test
+        // can observe exactly when the racing subscribe provisions its edge.
+        assert!(lock(&room_arc).subscribers.remove("race").is_some());
+        lock(&backend.shared.connection_rooms).remove("race");
+
+        let (observed_tx, observed_rx) = std::sync::mpsc::channel();
+        let (resume_tx, resume_rx) = std::sync::mpsc::channel();
+        let cleanup_backend = backend.clone();
+        let cleanup_room = room_id.clone();
+        let cleanup = std::thread::spawn(move || {
+            cleanup_backend.unindex_connection_room_if_unused_with_observation(
+                "race",
+                &cleanup_room,
+                || {
+                    observed_tx.send(()).unwrap();
+                    resume_rx.recv().unwrap();
+                },
+            );
+        });
+        observed_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .expect("cleanup reached the membership/index boundary");
+
+        // Cleanup is paused after observing the room but still owns the room
+        // lock. The reuse can provision its edge, but cannot install room
+        // authority until cleanup has removed that provisional edge.
+        let reuse_backend = backend.clone();
+        let reuse = std::thread::spawn(move || {
+            reuse_backend
+                .subscribe(subscribe_request("race"), 1_001)
+                .unwrap()
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        while !lock(&backend.shared.connection_rooms)
+            .get("race")
+            .is_some_and(|rooms| rooms.contains(&room_id))
+        {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "racing subscribe did not provision its reverse-index edge"
+            );
+            std::thread::yield_now();
+        }
+
+        resume_tx.send(()).unwrap();
+        cleanup.join().unwrap();
+        reuse.join().unwrap();
+
+        assert!(
+            lock(&backend.shared.connection_rooms)
+                .get("race")
+                .is_some_and(|rooms| rooms.contains(&room_id)),
+            "successful reuse must reassert an edge that cleanup cannot later delete"
+        );
+        backend.disconnect("race", 1_002);
+        assert_eq!(backend.diagnostics().subscriber_count, 0);
     }
 
     #[test]

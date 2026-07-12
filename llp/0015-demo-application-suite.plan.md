@@ -248,8 +248,9 @@ structured result:
 - diagnostics for missing or incompatible capabilities.
 
 This is capability-based resolution, not directory-based resolution. A stale
-peer checkout can exist at `../exact`; the demo must still fail or skip with a
-clear diagnostic if the required Exact capability is absent.
+ambient checkout can exist at `../exact` and must be ignored; a stale explicitly
+configured checkout override must fail with a clear diagnostic when the required
+Exact capability is absent.
 
 Each Contract surface should declare its Exact requirements in the demo
 manifest. At minimum:
@@ -352,8 +353,10 @@ SNAPBACK_EXACT_ROOT=../exact snapback demo test todo --surface contract
 ```
 
 `doctor` should be the normal place an agent learns whether Contract/Exact is
-available. A missing peer checkout should produce a machine-readable diagnostic,
-not instructions buried in a log.
+available. A missing or stale lock-installed package — or a missing explicitly
+configured checkout override — should produce a machine-readable diagnostic,
+not instructions buried in a log. Ordinary demo operation never probes an
+ambient peer checkout.
 
 ## Acceptance Rules
 
@@ -379,8 +382,8 @@ runs `bun install --frozen-lockfile` under a bounded process-tree watchdog,
 then verifies that `@exact/contract` is the published name and exact version
 pinned by the surface package and lockfile and that its real path remains under
 that surface's `node_modules`. Symlinks and out-of-tree packages fail unless the
-operator deliberately sets the local-development override. `[decided —
-ENG-24380]`
+operator deliberately sets the local-development override. `[confirmed —
+Charlie Cheever / Codex, 2026-07-12]`
 
 The watchdog owns the whole subprocess tree on every failure, including a
 nonzero package-manager leader exit. On Windows it awaits `taskkill /T` and
@@ -461,27 +464,22 @@ with those capabilities reported as honest gaps.
 - Which generated artifacts should be committed versus generated on demand?
 - What is the minimum Exact capability set that makes the Contract todo surface
   required instead of optional?
-- Should Snapback ever add `vendor/exact` as an optional submodule, or should CI
-  always clone Exact as a sibling checkout?
-- Where should the Exact integration commit/package pin live: demo manifest,
-  CI config, lockfile, or all three with one source of truth?
+- **Resolved:** Snapback does not add an Exact submodule or require a sibling
+  checkout for ordinary/CI demo operation. Each surface's committed lockfile is
+  the Exact package pin; a checkout is only an explicit development override.
 
 ## Status
 
-Draft. The first demo directory has landed: [`demos/todo/`](../demos/todo) with a
-required headless surface and an optional, **working** Contract/Exact surface over
-one generated Snapback backend (shared codegen/client/bridge in
-[`demos/_kit/`](../demos/_kit)). The Contract/Exact todo surface runs against real
-generated Snapback artifacts — it compiles the `.contract` against the generated
-descriptors with the real Exact compiler, mounts against the live local server,
-and proves a Contract-driven mutation is server-authoritative and visible to the
-headless surface. The build record is
-[`diaries/0001-todo-demo.diary.md`](../diaries/0001-todo-demo.diary.md).
+Draft as an evolving reference-app plan, with the initial integration milestones
+implemented. The suite now includes todo, todo-v2, All Aboard, graffiti, and
+cursors-web demos over generated Snapback artifacts and shared acceptance
+infrastructure. [`packages/snapback-contract/`](../packages/snapback-contract)
+owns the reusable Contract adapter, Exact resolver, build preset, and provider
+conformance seam; required Contract surfaces build from their committed registry
+locks, and multiple demos exercise durable plus ephemeral realtime paths.
 
-Open items this Plan still tracks, surfaced by that build: there is no published
-typed client/manifest package (wire shapes were derived from `src/manifest.rs`),
-no `@expo/snapback/contract` adapter (the bridge is currently demo-local in
-`demos/_kit/`), and the integration is Online-class (no local handler replay).
-This Plan should be revised again when a typed client package and the real
-Contract adapter land, and when a second demo (messaging or kanban) exercises the
-cross-surface realtime path.
+The Plan remains Draft for the rest of the application ladder, public package
+publication/naming, broader typed-client extraction, and additional hosted/native
+coverage. The original todo build record remains
+[`diaries/0001-todo-demo.diary.md`](../diaries/0001-todo-demo.diary.md); later
+diaries record the shipped cross-surface and collaborative rungs.

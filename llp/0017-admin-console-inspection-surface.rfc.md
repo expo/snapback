@@ -644,7 +644,7 @@ view model never carries a value.
 
 ## Validation Requirements
 
-Before this RFC moves beyond Draft, acceptance should prove:
+The accepted local contract must keep the following acceptance proofs green:
 
 - a prepared local `snapback` process serves the built Contract/Exact
   `/_snapback/admin/` and `/_snapback/api/inspect` from the same server without
@@ -735,9 +735,11 @@ where possible.
 - Should the packaged web console be embedded into the Rust binary from the
   start, or served from an installed asset directory until release packaging is
   settled?
-- What is the exact local admin token lifecycle: generated per process, stored
-  under `.snapback/`, printed once, or disabled unless a write operation is
-  requested?
+- **Resolved:** an explicit token wins; otherwise loopback file-backed servers
+  mint and owner-only persist a token beside the instance, ready-file launches
+  publish an owner-only sibling capability, and processes with neither location
+  keep an ephemeral token. Non-loopback admin stays disabled without an
+  explicit token.
 - Which existing v0 routes should become permanent aliases, and which should
   move entirely under `/_snapback/api/`?
 - Should read-only table browsing be allowed on hosted production data before
@@ -755,11 +757,11 @@ where possible.
 
 ## Status
 
-Draft. The first slice (see *Implementation status*) is implemented and
-validated on the local target: the same Snapback server serves the admin API and
-the packaged web console, with Vite-like tooling only an optional development
-convenience. The RFC stays Draft because the broader design is still open — the
-privileged-write surfaces (direct edits, raw SQL, the remaining ephemeral
-controls), the Contract/Exact admin surface, the local admin-token lifecycle,
-and the cross-document `schemaVersion` reconciliation with LLP 0012 are not yet
-settled. Promotion past Draft is the ratifying source's call.
+Accepted (ratified in the LLP 0032 R1 batch on 2026-07-01). The local target
+serves one headless admin contract and the packaged Contract/Exact console from
+the Snapback process; Vite remains an optional development proxy. The local
+admin-token lifecycle is implemented with explicit/minted capabilities,
+owner-only no-follow persistence, and trusted readiness discovery, while static
+assets are read through contained no-follow handles. Hosted authorization, raw
+SQL/direct-edit policy, and later schema-version evolution remain follow-up
+surface work, not unsettled prerequisites for this accepted local contract.

@@ -24,14 +24,17 @@ execution contexts are the default until pooling is proven safe.
 
 The single most important correction this revision makes, drawn from Valet
 ([LLP 0006](./0006-valet-retrospective.research.md)): **the choice of code engine
-is the threat model, and the canonical local engine cannot enforce a CPU or
-wall-clock timeout in-process.** Valet shipped no-op watchdog stubs and was, in its
-own words, "unsafe against CPU-exhaustion attackers" on the Hermes/Ibex path; its
-isolate-clean V8 path — the one suited to untrusted multi-tenant code — was designed
-but never built. This RFC therefore states honestly what each engine can enforce
-rather than assuming the runtime boundary is uniform, and treats a real watchdog or
-a killable process/isolate as a *prerequisite* for hosting untrusted code, not a
-later optimization.
+is the threat model, and the canonical local engine does not provide one uniform
+CPU/wall-clock budget for every invocation class.** Valet shipped no-op watchdog
+stubs and was, in its own words, "unsafe against CPU-exhaustion attackers" on its
+Hermes/Ibex path. Snapback now arms Hermes interruptible-eval deadlines for outer
+Action and nested Mutation VMs, asynchronously breaks CPU-bound JavaScript, and
+waits for those VM workers to exit before publishing the timeout. Ordinary Query
+and top-level Mutation preemption remains honestly Missing, and native host work
+can only be abandoned after a bounded grace rather than forcibly killed. This RFC
+therefore states what each engine and invocation class can enforce instead of
+assuming a uniform boundary; comprehensive preemption remains a prerequisite for
+hosting untrusted code.
 
 ## Threat Model
 
@@ -167,9 +170,12 @@ Why defer rather than build now:
   either lock. Plan and buffered-write iteration also polls outside the gate;
   only final SQLite commit owns it, and a precommit timeout rolls back rows,
   version, and idempotency state together. Mutations committed before the
-  timeout stand (actions are not transactions, LLP 0028), and the unkillable VM
-  thread runs out with its result discarded. Preemption for queries and
-  mutations remains owned by §Resource Limits, with the capability report
+  timeout stand (actions are not transactions, LLP 0028). CPU-bound outer-action
+  and nested-mutation JavaScript is asynchronously interrupted; the fresh VM is
+  destroyed and its OS worker exits before timeout publication. Native host work
+  retains a bounded termination grace and any later result is discarded.
+  Preemption for ordinary queries and top-level mutations remains owned by
+  §Resource Limits, with the capability report
   honestly declaring `wall_clock_timeout`/`cpu_budget` **Missing** on this
   target while `action_wall_clock_timeout` reports **Enforced**.
 
@@ -795,7 +801,7 @@ applied to tooling: computed `Function`/`globalThis`/`process` tricks find no ho
 power, rather than becoming an endless static-token arms race. Canonical
 serialized evaluated values join the source graph in the content hashes, so a
 toolchain semantic change cannot give identical source a different meaning under
-the same identity. `[decided — ENG-24351]`
+the same identity. `[confirmed — Charlie Cheever / Codex, 2026-07-12]`
 
 The server should record:
 

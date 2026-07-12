@@ -1292,10 +1292,12 @@ export class Coordinator {
   }
 
   // Action-only redacted grant descriptors (LLP 0049 §Config And Secrets):
-  // entry names, set/missing state, member count, and rotation cursor —
-  // NEVER values. The handler isolate's ctx.secrets builds fail-closed
-  // descriptor handles from this (descriptorsOnly), and the local
-  // values-in-secretsJson shape never ports to this profile.
+  // entry names, set/missing state, member count, and fresh opaque capability
+  // ids — NEVER values or forgeable rotation cursors. The cursor-to-value
+  // authority stays in the invocation-scoped coordinator map; the handler
+  // isolate's ctx.secrets builds fail-closed descriptor handles from the
+  // opaque ids (descriptorsOnly), and the local values-in-secretsJson shape
+  // never ports to this profile.
   buildActionGrants(fn, { advance = true } = {}) {
     // @ref LLP 0036#runtime-exposure-d5-d8 — grants are invocation-scoped
     // opaque capabilities, not forgeable config-entry descriptors.

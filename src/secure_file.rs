@@ -5,6 +5,8 @@
 //! uses `O_NOFOLLOW`, checks the inode is a regular file owned by the effective
 //! user, and repairs group/other permissions before any bytes are read.
 
+// @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — persisted capabilities are owner-only and validated through the opened inode.
+
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::Path;

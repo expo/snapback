@@ -2,6 +2,7 @@
 // the checked-in capability manifest. Keep the generated-manifest drift test
 // as the cross-language guard: the Rust emitter must advertise these exact
 // values before either artifact can land.
+// @ref LLP 0040#acceptance — reject bounded-resource overflow instead of silently evicting live authority.
 export const SUBSCRIPTION_LIMITS = Object.freeze({
   globalCount: 2048,
   perConnectionCount: 64,

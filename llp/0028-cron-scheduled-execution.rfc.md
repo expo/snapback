@@ -799,15 +799,17 @@ per-keystroke.
    only under the LLP 0009/0027 capability policy. The per-host allowlist gap stays
    explicit until Ibex threads host-scoped capability checks through the fetch path
    or Snapback adds an app-level URL check.
-6. **Hosted adapters:** implement Cloudflare only after LLP 0014 chooses the
-   profile-specific split, using the wakeup-source-vs-runner model above — a
-   durable runner owns the ledger/claim/no-overlap regardless of whether the wakeup
-   is a Cron Trigger, a DO alarm, or a demand event.
+6. **Hosted adapters — implemented for Cloudflare:** the Coordinator Durable
+   Object owns the SQLite job-state/run ledger, lease-backed claim/no-overlap
+   protocol, nested-mutation replay, and demand-aware alarm reconciliation. The
+   Durable Object alarm is the wakeup source for dynamically armed work; the
+   durable runner remains authoritative across retries, eviction, and missed
+   ticks.
 
 ## Validation requirements
 
-Before this RFC moves to `Active` or Cron is reported as implemented, the local
-implementation should prove:
+The shipped local and Cloudflare implementations must keep these standing proofs
+green:
 
 - invalid cron definitions produce structured diagnostics with source spans and
   do not silently disappear from generated manifests;
@@ -867,11 +869,11 @@ implementation should prove:
 - **Backfill** — should calendar jobs run-if-missed by default?
 - **Timezones** — calendar cron in UTC, app-configured zone, or per-job?
 - **Limits** — max runtime and concurrency per job and per tenant.
-- **Cloudflare runner/storage shape** — which LLP 0014 profile (D1 store + DO
-  coordinator vs DO app shard) owns the run ledger, which in turn forces the D1-CAS
-  claim or the DO-storage claim? The wakeup primitive remains first-class: Cron
-  Trigger for minute-compatible jobs, DO alarm for sub-minute or dynamically armed
-  jobs.
+- **Cloudflare runner/storage shape — resolved for the shipped profile:** the
+  app Coordinator Durable Object owns its SQLite run ledger and atomic claim;
+  Durable Object alarms wake sub-minute/dynamically armed jobs. A future
+  multi-object or control-plane topology must preserve that durable-runner
+  authority rather than silently reverting to wakeup-owned execution.
 - **CF limit verification** — confirm against current Cloudflare docs: the
   configured Cron-Trigger limits (the docs currently mix per-Worker and
   account-level language) and the CPU/wall ceiling for `scheduled()` and
@@ -883,12 +885,13 @@ implementation should prove:
 
 Accepted (ratified in the LLP 0032 R1 batch, 2026-07-01; the local scheduler
 and action→mutation path shipped per this design, and DK-6 calendar semantics
-were ratified 2026-07-02). The first consumer and forcing function is All Aboard
-([LLP 0027](./0027-all-aboard-caltrain-demo.plan.md)); this RFC unblocks its
-Phase 2 (real scheduled/demand refresh). It depends on
+were ratified 2026-07-02). All Aboard is the first consumer and forcing function
+([LLP 0027](./0027-all-aboard-caltrain-demo.plan.md)): local scheduled refresh
+and the Cloudflare Coordinator/DO-alarm projection now share strict-next missed-
+tick semantics, durable claims, recovery, and action→mutation enforcement. It
+depends on
 [LLP 0009](./0009-code-execution-security.rfc.md) for the action sandbox/secrets
 boundary and feeds one seam of the
-[LLP 0014](./0014-cloudflare-strategy.rfc.md) Cloudflare strategy. Implementation
-should start with the **local in-process scheduler and the action→mutation path**,
-proving determinism, read-through catch-up, and observability before any hosted
-adapter is attempted.
+[LLP 0014](./0014-cloudflare-strategy.rfc.md) Cloudflare strategy. Remaining
+work concerns additional policy/grammar and future target topologies, not whether
+the local or first hosted runner exists.

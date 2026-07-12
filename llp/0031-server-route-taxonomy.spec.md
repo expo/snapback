@@ -590,7 +590,7 @@ row-level/user auth remains LLP 0011 land — the grant authenticates the
 
 ## Status
 
-Accepted (ratified in the LLP 0032 R1 batch) and now **implemented**: LLP 0032
+Active and implemented (accepted in the LLP 0032 R1 batch): LLP 0032
 S1 landed the migration and the declared route registry with its enforcement
 tests (registry-invariant, retired-root-absent, WebSocket message-kind, and the
 field-level public-inspect trim), verified against a running server. The

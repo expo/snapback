@@ -1,5 +1,7 @@
 import { generateInProcess } from './index.mjs';
 
+// @ref LLP 0010#generated-artifacts — cache busting runs in a minimal worker before capability-denied definition evaluation.
+
 const backendDir = process.argv[2];
 
 try {

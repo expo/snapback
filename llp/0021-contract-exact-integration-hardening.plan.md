@@ -528,9 +528,11 @@ Done:
   admin-specific invocation of that preset, and `./build.sh` emits browser and
   native Exact artifacts under `admin-ui/dist/`.
 - [x] [`packages/snapback-contract/exact-package.mjs`](../packages/snapback-contract/exact-package.mjs)
-  prefers installed `@exact/contract` package exports for compiler, runtime,
-  and conformance imports, with a checkout package-root fallback while local
-  integration still runs from sibling repos. Export targets must use package-
+  resolves compiler, runtime, and conformance imports from the caller's
+  lock-installed `@exact/contract` package by default. A checkout root is
+  considered only when the caller explicitly configures that development
+  override; sibling directories, cwd packages, and other demos' installs are
+  never implicit fallbacks. Export targets must use package-
   relative syntax and remain under the selected package root both lexically
   and after symlink resolution; installed resolution is checked against that
   same manifest target before execution, and the selected package root's
@@ -555,8 +557,8 @@ Done:
   CJS/ESM boot crash (details in LLP 0023 "Shared Vite config"). Upstream, a
   fail-fast for missing explicit workspace-alias targets at `configResolved`
   plus a CI test of Exact's package `exports` maps are landing in the
-  exact-side ENG-22578 branch (same sweep); with those, sibling-checkout
-  drift that hits an alias or exports target (directly evidenced for the
+  exact-side ENG-22578 branch (same sweep); with those, explicitly selected
+  checkout drift that hits an alias or exports target (directly evidenced for the
   `agent/types.ts` instance; the inferred most-plausible cause for ENG-22578's
   `agent/state.ts`) is named at preflight instead of surfacing as a deep
   `Failed to load url` inside the build — drift elsewhere in the source tree
@@ -567,9 +569,6 @@ Open:
 - [ ] Decide the public package name (`@snapback/contract`,
   `@expo/snapback/contract`, or another namespace) and publish/install it
   rather than relying on a repo-local package-equivalent.
-- [ ] Replace sibling-checkout fallback with stable installed-package
-  dependencies and explicit Exact version/capability probes in CI lanes that
-  require Exact.
 - [ ] Get to a new Contract Snapback surface without custom Vite aliases or
   app-local post-build rewrites.
 - [ ] Resolve app dev-serve and managed-backend lifecycle through

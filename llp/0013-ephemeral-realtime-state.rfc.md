@@ -746,7 +746,7 @@ diagnostics are explicit.
 
 ## Validation requirements
 
-Before this RFC moves beyond `Draft`, the acceptance suite should prove:
+The accepted implementation must keep the following acceptance proofs green:
 
 - a two-client cursor fixture where subscriber B receives subscriber A's
   connection-owned cursor snapshot and live updates;
@@ -816,10 +816,11 @@ Before this RFC moves beyond `Draft`, the acceptance suite should prove:
 
 ## Status
 
-Draft. This RFC answers the LLP 0008 open question at the product-boundary level:
-presence and cursor-style state should ship as typed ephemeral realtime
-collections, not ordinary durable table sync and not raw Redis/memcached. It is
-ready to guide a local-process prototype, but should stay Draft until that
-prototype validates the WebSocket messages, auth behavior, coalescing, restart
-recovery, and fan-out ceiling. Hosted adapters should not be treated as settled
-until those local measurements exist.
+Accepted (ratified in the LLP 0032 R1 batch on 2026-07-01). The local-process
+implementation now validates the typed collection model, authenticated
+connection ownership, WebSocket snapshot/delta behavior, coalescing,
+restart/resync handling, bounded room/subscription state, and index-driven
+disconnect cleanup. Hosted adapter and multi-process lease choices remain open
+without reopening the accepted product boundary: ephemeral state is typed,
+lossy, TTL-bound realtime authority rather than durable table sync or a raw
+cache protocol.
