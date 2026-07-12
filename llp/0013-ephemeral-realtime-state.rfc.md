@@ -506,6 +506,14 @@ resnapshot. A `scopeEpoch` change signals lost sequencing continuity for the who
 room; an authorization change signals that one subscriber's visible set shrank.
 Unauthorized presence must not be visible merely because it is "temporary."
 
+Entry ownership is a **mutation-authority** boundary, not an implicit
+per-entry confidentiality filter. An authenticated subscriber authorized for
+the room receives that room's presence snapshot (including other users), which
+is the collaborative-presence purpose of the subsystem; a caller without the
+room's subscribe permission receives none of it. Within an authorized room, a
+connection still cannot address, replace, or delete another authenticated
+session/user's key (ENG-24353).
+
 Online status is privacy-sensitive. Snapback should not expose global user
 presence by default. Presence should normally be scoped to the object where the
 user is actively collaborating: board, document, channel, game, or room.

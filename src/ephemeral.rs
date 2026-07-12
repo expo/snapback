@@ -2003,13 +2003,14 @@ impl LocalEphemeralBackend {
                 ));
             }
         }
-        // Remove only the retired room ids. A concurrent operation that was
-        // provisionally indexed before retirement re-asserts its edge after
-        // it successfully creates/mutates the replacement room.
-        lock(&self.shared.connection_rooms).retain(|_, indexed| {
-            indexed.retain(|room_id| !retired_room_ids.contains(room_id));
-            !indexed.is_empty()
-        });
+        // Reconcile each retired identity against the routing map while that
+        // map is locked. A same-id replacement that already landed keeps its
+        // live edges; a creator that has not landed yet blocks on the map and
+        // reasserts its edge afterward. An unconditional retain here used to
+        // delete a live replacement's edge (ENG-24355 review).
+        for room_id in retired_room_ids {
+            self.reconcile_connection_room_index(&room_id);
+        }
         let outboxes: Vec<SharedOutbox> = lock(&self.shared.outboxes).values().cloned().collect();
         for outbox in outboxes {
             lock(&outbox).clear_ephemeral_lanes();
@@ -2268,6 +2269,37 @@ impl LocalEphemeralBackend {
             if rooms.is_empty() {
                 index.remove(connection_id);
             }
+        }
+    }
+
+    fn reconcile_connection_room_index(&self, room_id: &RoomId) {
+        let rooms = lock(&self.shared.rooms);
+        let current = rooms.get(room_id).cloned();
+        let current = current.as_ref().map(|room| lock(room));
+        let mut used = BTreeSet::new();
+        if let Some(room) = current.as_deref()
+            && !room.retired
+        {
+            used.extend(room.subscribers.keys().cloned());
+            for connections in room.owner_connections.values() {
+                used.extend(connections.iter().cloned());
+            }
+        }
+
+        let mut index = lock(&self.shared.connection_rooms);
+        index.retain(|connection_id, indexed| {
+            if used.contains(connection_id) {
+                indexed.insert(room_id.clone());
+            } else {
+                indexed.remove(room_id);
+            }
+            !indexed.is_empty()
+        });
+        for connection_id in used {
+            index
+                .entry(connection_id)
+                .or_default()
+                .insert(room_id.clone());
         }
     }
 
@@ -2893,6 +2925,34 @@ mod tests {
             "subscribe/unsubscribe churn must leave no lifetime-monotone index"
         );
         assert_eq!(backend.diagnostics().room_count, 0);
+    }
+
+    #[test]
+    fn retired_room_index_reconciliation_preserves_same_id_replacement() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection());
+        backend
+            .publish(publish_request("old", b"old"), 1_000)
+            .unwrap();
+        let room_id = room();
+
+        backend.reset_runtime_state();
+        backend
+            .publish(publish_request("replacement", b"new"), 1_001)
+            .unwrap();
+
+        // Deterministically model the final reconciliation step of a wipe
+        // that snapped the old RoomId before this replacement landed. It must
+        // inspect the current incarnation, not delete by RoomId alone.
+        backend.reconcile_connection_room_index(&room_id);
+        assert!(
+            lock(&backend.shared.connection_rooms)
+                .get("replacement")
+                .is_some_and(|rooms| rooms.contains(&room_id)),
+            "same-id replacement must remain reachable by disconnect"
+        );
+        backend.disconnect("replacement", 1_002);
+        assert_eq!(backend.diagnostics().entry_count, 0);
     }
 
     fn first_ephemeral(messages: Vec<RealtimeEnvelope>) -> EphemeralMessage {

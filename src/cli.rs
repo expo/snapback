@@ -111,7 +111,7 @@ pub enum HostCommand {
 #[derive(Debug, clap::Args)]
 pub struct TargetArgs {
     /// Server base URL (e.g. http://127.0.0.1:4287).
-    #[arg(long)]
+    #[arg(long, conflicts_with = "ready_file")]
     pub url: Option<String>,
     /// Readiness descriptor to resolve the server from (see `start --ready-file`).
     #[arg(long)]
@@ -282,6 +282,9 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
 /// Discovery failing just means the request goes out tokenless and surfaces
 /// the server's structured refusal.
 fn discover_minted_token(target: &TargetArgs) -> Option<String> {
+    if target.url.is_some() {
+        return None;
+    }
     let ready_file = target.ready_file.as_ref()?;
     let descriptor =
         HostReadyDescriptor::validate(&read_trusted_json_file(ready_file).ok()?).ok()?;
@@ -975,6 +978,34 @@ mod tests {
             None,
             "a network target has no local path-discovery channel"
         );
+    }
+
+    #[test]
+    fn mixed_url_and_ready_file_never_sends_the_local_ready_token() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("ready.json");
+        let sibling = crate::admin::admin_token_sibling(&ready);
+        std::fs::write(&sibling, b"sbat_local_only\n").unwrap();
+        let mut descriptor = stop_descriptor(Some("nonce"));
+        descriptor.admin_token_file = Some(sibling.display().to_string());
+        std::fs::write(&ready, serde_json::to_vec(&descriptor).unwrap()).unwrap();
+
+        let mixed = TargetArgs {
+            url: Some("http://attacker.invalid".to_owned()),
+            ready_file: Some(ready),
+            token: None,
+        };
+        assert_eq!(super::discover_minted_token(&mixed), None);
+
+        let parse = Cli::try_parse_from([
+            "snapback",
+            "inspect",
+            "--url",
+            "http://attacker.invalid",
+            "--ready-file",
+            "ready.json",
+        ]);
+        assert!(parse.is_err(), "the CLI must reject ambiguous mixed targets");
     }
 
     #[test]

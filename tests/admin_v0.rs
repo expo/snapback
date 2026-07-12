@@ -10,7 +10,7 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext};
-use snapback::ephemeral::EphemeralCollection;
+use snapback::ephemeral::{AuthContext, EphemeralCollection, KeyMode, Scope};
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AppIdentity, AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
@@ -1154,6 +1154,222 @@ async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
     let minted_id = minted["connectionId"].as_str().expect("id");
     assert_ne!(minted_id, "attacker_chosen");
     assert!(minted_id.starts_with("conn_"), "minted id: {minted_id}");
+}
+
+#[tokio::test]
+async fn ephemeral_identity_ownership_is_enforced_through_http_and_reconnect() {
+    let mut snapback = seeded_snapback();
+    let mut presence = EphemeralCollection::local_cursor("userPresence", "roomId")
+        .require_room_permission("presence");
+    presence.key_mode = KeyMode::User;
+    snapback.register_ephemeral_collection(presence);
+    let app = app_with_context(snapback, loopback_context(None));
+    let token_a = open_connection(app.clone(), "conn-a").await;
+    let token_b = open_connection(app.clone(), "conn-b").await;
+    let scope = Scope::from_pairs([("roomId", "shared")]);
+    let auth = |user: &str, permitted: bool| {
+        let auth = AuthContext {
+            user_id: Some(user.to_owned()),
+            ..AuthContext::default()
+        };
+        if permitted {
+            auth.with_room_permission("presence", &scope)
+        } else {
+            auth
+        }
+    };
+    let publish = |connection: &str, claimed: &str, authenticated: &str| {
+        json!({
+            "collection": "userPresence",
+            "scope": scope,
+            "connection_id": connection,
+            "session_id": null,
+            "user_id": claimed,
+            "custom_key": null,
+            "value": [1],
+            "ttl_ms": null,
+            "auth": auth(authenticated, true),
+        })
+    };
+
+    let created = app
+        .clone()
+        .oneshot(post_with_connection_token(
+            "/ephemeral/publish",
+            publish("conn-a", "user-a", "user-a"),
+            &token_a,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(created.status(), StatusCode::OK);
+
+    for (uri, body) in [
+        (
+            "/ephemeral/publish",
+            publish("conn-b", "user-a", "user-b"),
+        ),
+        (
+            "/ephemeral/delete",
+            json!({
+                "collection": "userPresence",
+                "scope": scope,
+                "connection_id": "conn-b",
+                "session_id": null,
+                "user_id": "user-a",
+                "custom_key": null,
+                "auth": auth("user-b", true),
+            }),
+        ),
+    ] {
+        let denied = app
+            .clone()
+            .oneshot(post_with_connection_token(uri, body, &token_b))
+            .await
+            .unwrap();
+        assert_eq!(denied.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            json(denied).await["diagnostic"]["code"],
+            "SNAPBACK_EPHEMERAL_UNAUTHORIZED"
+        );
+    }
+
+    // Ownership is mutation authority, not per-entry confidentiality: an
+    // authorized room peer sees the presence snapshot but still cannot
+    // address/modify user-a's key. A caller without room permission cannot
+    // read the room at all.
+    let peer_snapshot = json(
+        app.clone()
+            .oneshot(post_with_connection_token(
+                "/ephemeral/subscribe",
+                json!({
+                    "collection": "userPresence",
+                    "scope": scope,
+                    "connection_id": "conn-b",
+                    "auth": auth("user-b", true),
+                }),
+                &token_b,
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(peer_snapshot["Snapshot"]["entries"][0]["key"], "user-a");
+
+    let token_outsider = open_connection(app.clone(), "conn-outsider").await;
+    let denied_read = app
+        .clone()
+        .oneshot(post_with_connection_token(
+            "/ephemeral/subscribe",
+            json!({
+                "collection": "userPresence",
+                "scope": scope,
+                "connection_id": "conn-outsider",
+                "auth": auth("user-outsider", false),
+            }),
+            &token_outsider,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        json(denied_read).await["diagnostic"]["code"],
+        "SNAPBACK_EPHEMERAL_UNAUTHORIZED"
+    );
+
+    let reopened = json(
+        app.clone()
+            .oneshot(post(
+                "/connection/open",
+                json!({ "connectionId": "conn-a", "previousToken": token_a }),
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(reopened["connectionId"], "conn-a");
+    assert_eq!(reopened["connectionToken"], token_a);
+    let refreshed = app
+        .oneshot(post_with_connection_token(
+            "/ephemeral/publish",
+            publish("conn-a", "user-a", "user-a"),
+            &token_a,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(refreshed.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn ephemeral_session_identity_conflicts_fail_through_websocket_frames() {
+    let mut snapback = seeded_snapback();
+    let mut presence = EphemeralCollection::local_cursor("sessionPresence", "roomId");
+    presence.key_mode = KeyMode::Session;
+    snapback.register_ephemeral_collection(presence);
+    let state = AppState::detached(snapback);
+    let grant = state
+        .connections
+        .open(Some("conn-b".to_owned()), None, true);
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        axum::serve(listener, snapback::server::app(state))
+            .await
+            .unwrap();
+    });
+
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+    let mut request = format!("ws://{addr}/live/conn-b/stream")
+        .into_client_request()
+        .unwrap();
+    request.headers_mut().insert(
+        "x-snapback-connection-token",
+        grant.connection_token.parse().unwrap(),
+    );
+    let (mut stream, _) = connect_async(request).await.unwrap();
+
+    for (request_id, kind, extra) in [
+        (
+            "publish-conflict",
+            "ephemeral_publish",
+            json!({ "value": [1], "ttl_ms": null }),
+        ),
+        ("delete-conflict", "ephemeral_delete", json!({})),
+    ] {
+        let mut request = json!({
+            "collection": "sessionPresence",
+            "scope": { "roomId": "shared" },
+            "connection_id": "conn-b",
+            "session_id": "session-a",
+            "user_id": null,
+            "custom_key": null,
+            "auth": {
+                "principal": "user-b",
+                "session_id": "session-b",
+                "user_id": "user-b",
+                "permissions": []
+            }
+        });
+        request.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        stream
+            .send(tokio_tungstenite::tungstenite::Message::Text(
+                json!({ "type": kind, "requestId": request_id, "request": request })
+                    .to_string()
+                    .into(),
+            ))
+            .await
+            .unwrap();
+        let reply = tokio::time::timeout(Duration::from_secs(2), stream.next())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let reply: Value = serde_json::from_str(&reply.into_text().unwrap()).unwrap();
+        assert_eq!(reply["kind"], "ephemeral_error");
+        assert_eq!(
+            reply["diagnostic"]["code"],
+            "SNAPBACK_EPHEMERAL_UNAUTHORIZED"
+        );
+    }
+    server.abort();
 }
 
 /// ENG-23442 — connection ids are no longer bearerless capabilities: an
