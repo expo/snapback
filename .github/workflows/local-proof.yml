@@ -27,6 +27,15 @@ jobs:
         with:
           node-version: 24
 
+      - uses: oven-sh/setup-bun@v2
+
+      # The canonical proof regenerates committed artifacts and exercises the
+      # Cloudflare twin, both of which import root lockfile dependencies. A
+      # clean runner must prove those exact dependencies instead of inheriting
+      # an ambient node_modules tree (ENG-24385).
+      - name: Install JavaScript dependencies
+        run: bun install --frozen-lockfile
+
       - name: Install native build dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
 
