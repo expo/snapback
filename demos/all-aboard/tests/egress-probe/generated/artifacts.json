@@ -13,7 +13,7 @@
     "contract/queryProbe.query.ts",
     "contract/queryProbe.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:43c8d483a2c41cbd",
+  "bundleHash": "sha256:fe57cc9224b513c4",
   "config": [
     {
       "name": "feedKeys",
@@ -36,8 +36,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "03d7d0ea9609c3fd21886b4f1a1db4a78655f8998a0af87f7e6bcf1068ee0595",
-  "schemaHash": "sha256:673fc00fa556aa10",
+  "inputsHash": "f23f847f5f8a08d13640da28ba7fac59e0a44de62ee177ae720698791e62f7b2",
+  "schemaHash": "sha256:f35311497c336e40",
   "schemaVersion": "snapback.v0",
   "tables": [
     "probe"

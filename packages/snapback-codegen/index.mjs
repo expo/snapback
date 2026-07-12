@@ -778,9 +778,25 @@ export async function generateInProcess(backendDir) {
     canonicalCapability.source,
     ...handlerInputs,
   ];
-  const inputsHash = sha256(inputs.join('\0'));
-  const schemaContentHash = sha256([...schemaGraphInputs, 'schema-isolated-evaluation', schemaEvaluation].join('\0'));
-  const bundleContentHash = sha256([...functionsGraphInputs, 'functions-isolated-evaluation', functionsEvaluation, ...handlerInputs].join('\0'));
+  // @ref LLP 0010#generated-artifacts — every identity item is framed
+  // independently. A sentinel delimiter is insufficient because JavaScript
+  // and handler source may legally contain that byte: an author could otherwise
+  // move `\0<next path>\0` between two
+  // adjacent sources and preserve the hash while changing the emitted bundle.
+  // Distinct domains also prevent the three identity contracts from becoming
+  // interchangeable when their framed item sequences happen to match.
+  const inputsHash = sha256Framed('snapback-codegen/inputs-hash/v1', inputs);
+  const schemaContentHash = sha256Framed('snapback-codegen/schema-content-hash/v1', [
+    ...schemaGraphInputs,
+    'schema-isolated-evaluation',
+    schemaEvaluation,
+  ]);
+  const bundleContentHash = sha256Framed('snapback-codegen/bundle-content-hash/v1', [
+    ...functionsGraphInputs,
+    'functions-isolated-evaluation',
+    functionsEvaluation,
+    ...handlerInputs,
+  ]);
 
   const generatedAt = generatedAtMillis();
   const appIdentity = demoMetadata.identity;
@@ -2422,6 +2438,20 @@ function stableJson(value) {
 
 function sha256(text) {
   return createHash('sha256').update(text).digest('hex');
+}
+
+function sha256Framed(domain, items) {
+  const hash = createHash('sha256');
+  const append = (value) => {
+    const bytes = Buffer.from(value, 'utf8');
+    hash.update(`${bytes.length}:`, 'ascii');
+    hash.update(bytes);
+  };
+  append('snapback-codegen-framed-sha256/v1');
+  append(domain);
+  append(String(items.length));
+  for (const item of items) append(item);
+  return hash.digest('hex');
 }
 
 function compareCodeUnits(a, b) {

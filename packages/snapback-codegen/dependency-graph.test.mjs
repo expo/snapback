@@ -109,6 +109,49 @@ export const titleValidator = v.boolean();
   assert.equal(after.functions.functions[0].runtime.HostPlan.Query.table, 'notes');
 }
 
+// Source is byte input, so its framing must not rely on a byte that source may
+// itself contain. These two variants used to collide under `items.join("\0")`:
+// the `\0z-handler.mjs\0` boundary is moved from the second handler into the
+// first, while the second handler changes from one all-comment line to live
+// runtime code. The emitted manifests are intentionally different, and both
+// the whole-input identity and runtime bundle identity must say so.
+{
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { defineJsQuery } from '${defineUrl}';
+export const alpha = defineJsQuery({ source: 'a-handler.mjs', exportName: 'alpha', reads: ['todos'] });
+export const zeta = defineJsQuery({ source: 'z-handler.mjs', exportName: 'zeta', reads: ['todos'] });
+`);
+  const firstHandler = "globalThis.__snapbackHandlers = { alpha() { return 'alpha'; } };\n//";
+  const secondPath = 'z-handler.mjs';
+  const liveSecondHandler = "globalThis.__snapbackHandlers = { zeta() { return 'live'; } };";
+  const commentedSecondHandler = `//\0${secondPath}\0${liveSecondHandler}`;
+  const shiftedFirstHandler = `${firstHandler}\0${secondPath}\0//`;
+  assert.equal(
+    ['a-handler.mjs', firstHandler, secondPath, commentedSecondHandler].join('\0'),
+    ['a-handler.mjs', shiftedFirstHandler, secondPath, liveSecondHandler].join('\0'),
+    'the fixture must collide under the retired delimiter-only framing',
+  );
+
+  writeFileSync(join(dir, 'a-handler.mjs'), firstHandler);
+  writeFileSync(join(dir, secondPath), commentedSecondHandler);
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const firstManifestSource = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+  const firstManifest = JSON.parse(firstManifestSource);
+
+  writeFileSync(join(dir, 'a-handler.mjs'), shiftedFirstHandler);
+  writeFileSync(join(dir, secondPath), liveSecondHandler);
+  const second = await generate(dir);
+  assert.equal(second.ok, true, JSON.stringify(second.diagnostics));
+  const secondManifestSource = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+  const secondManifest = JSON.parse(secondManifestSource);
+
+  assert.notEqual(secondManifestSource, firstManifestSource, 'the runtime handler bytes must actually differ');
+  assert.notEqual(second.inputsHash, first.inputsHash, 'NUL-containing sources must not collide in the complete input identity');
+  assert.notEqual(secondManifest.bundleHash, firstManifest.bundleHash, 'NUL-containing runtime handlers must not collide in bundle identity');
+}
+
 // Dynamic and query/hash-qualified local imports are unprovable graph edges;
 // fail before evaluation and preserve existing generated output.
 for (const [source, expectedCode] of [
