@@ -37,7 +37,7 @@
       ]
     }
   },
-  "inputsHash": "0ba66bc871843ea02f6387e7126e3f378b60f8b11f810bd048c3680bc8e84383",
+  "inputsHash": "02f34ace10060b47d1c9e1f28012b8d8b930910948965379d60920666de04581",
   "manifestVersion": 2,
   "mutations": {
     "paintCell": {
@@ -210,7 +210,7 @@
       "transport": "push"
     }
   },
-  "receipts": "none",
+  "receipts": "mutation+subscription",
   "schemaHash": "sha256:5a816c04259658fc",
   "schemaVersion": "snapback.v0"
 }

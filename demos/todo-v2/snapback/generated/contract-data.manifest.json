@@ -37,7 +37,7 @@
       ]
     }
   },
-  "inputsHash": "e8171b7c6825ed1ce29c0ccd9f9b009dd9924e996058773b323270a7638bd6f1",
+  "inputsHash": "9c5e0de392ea5127348eda9e027c1ff1cec6edb33ee299094ae6bf2a888e1af1",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {
@@ -404,7 +404,7 @@
       "subscription": "initial-snapshot"
     }
   },
-  "receipts": "none",
+  "receipts": "mutation+subscription",
   "schemaHash": "sha256:933c5591717c22bc",
   "schemaVersion": "snapback.v0"
 }

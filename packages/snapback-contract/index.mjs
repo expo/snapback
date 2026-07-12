@@ -13,6 +13,12 @@ export const SNAPBACK_CONTRACT_ADAPTER_VERSION = 1;
 export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 export const SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS = 'Parity';
 
+export {
+  CONTRACT_RECEIPT_CAPABILITY,
+  contractReceiptCapability,
+  SNAPBACK_CONTRACT_RECEIPT_CAPABILITY,
+} from './capabilities.mjs';
+
 // Render-first mode (ENG-23736): links synchronously, backend attaches behind
 // the mounted app. Lives in ./render-first.mjs; re-exported so the package
 // root stays the single import site.

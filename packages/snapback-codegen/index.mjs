@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, renameSync,
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, isConfigDef, isCronDef, isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
+import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '../snapback-contract/capabilities.mjs';
 import {
   generatedByHeader,
   jsonLiteral,
@@ -679,6 +680,7 @@ export async function generate(backendDir) {
   // --- Hashes + emit ----------------------------------------------------------
   const seedSource = existsSync(seedPath) ? readFileSync(seedPath, 'utf8') : null;
   const defineSource = readFileSync(join(packageDir(), 'define.mjs'), 'utf8');
+  const contractCapabilitiesSource = readFileSync(join(packageDir(), '..', 'snapback-contract', 'capabilities.mjs'), 'utf8');
   const canonicalCapability = loadCanonicalCapabilityManifest(err);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -699,6 +701,7 @@ export async function generate(backendDir) {
     ...(seedSource === null ? [] : [seedSource]),
     ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
     defineSource,
+    contractCapabilitiesSource,
     canonicalCapability.source,
     ...handlerInputs,
   ];
@@ -778,9 +781,9 @@ export async function generate(backendDir) {
       branchableFixtures: false,
       headlessBoot: true,
     },
-    // Honest until LLP 0034 D2 lands: no MutationReceipt/SubscriptionReceipt
-    // surface exists yet (the D1 kit emits minimal subscription events only).
-    receipts: 'none',
+    // Shared with the adapter that exposes the kit's mutation/subscription
+    // receipt ring. This must never drift back to a generator-only default.
+    receipts: SNAPBACK_CONTRACT_RECEIPT_CAPABILITY,
     queries: contractQueries,
     mutations: contractMutations,
     ephemeral: contractEphemeralSection(ephemeralCollections),

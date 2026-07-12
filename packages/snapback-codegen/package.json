@@ -9,6 +9,6 @@
     "./contract-emitter": "./contract-emitter.mjs"
   },
   "scripts": {
-    "test": "node identifier-validation.test.mjs && node contract-binding-reads.test.mjs"
+    "test": "node identifier-validation.test.mjs && node contract-binding-reads.test.mjs && node receipt-capability.test.mjs"
   }
 }

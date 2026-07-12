@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./index.mjs",
+    "./capabilities": "./capabilities.mjs",
     "./render-first": "./render-first.mjs",
     "./client-store": "./client-store.mjs",
     "./build-preset": "./build-preset.mjs",
