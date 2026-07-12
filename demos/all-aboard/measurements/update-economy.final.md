@@ -1,11 +1,11 @@
 # All Aboard update-economy final receipt
 
-**Issue:** ENG-24188  
-**Design:** LLP 0052 D1–D5  
-**Status:** Web and macOS-native acceptance complete; physical-iPhone
-performance trace tracked separately in ENG-24221.  
-**Raw evidence:** `update-economy.final.web.json`  
-**Raw SHA-256:** `9dd4a280b56ec1f82cd53cc3e07c0cc200e6df0a3a4e456717f73a0efe3bbcfa`
+- **Issue:** ENG-24188
+- **Design:** LLP 0052 D1–D5
+- **Status:** Web and macOS-native acceptance complete; physical-iPhone
+  performance trace tracked separately in ENG-24221.
+- **Raw evidence:** `update-economy.final.web.json`
+- **Raw SHA-256:** `9dd4a280b56ec1f82cd53cc3e07c0cc200e6df0a3a4e456717f73a0efe3bbcfa`
 
 ## Revisions and method
 
