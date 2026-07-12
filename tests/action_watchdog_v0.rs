@@ -7,8 +7,9 @@
 //! instance deliberately — its queries take the write mutex, so "the query
 //! returns while an action runs" is the strongest form of the claim.
 //!
-//! Every test sets the same watchdog budget before starting its server, so
-//! parallel tests in this binary never observe a conflicting value.
+//! Tests serialize action-runtime construction before setting the process-wide
+//! watchdog posture, so a proof that is not about timeout timing may use a
+//! wider budget without racing the timeout-focused cases.
 
 use axum::body::Body;
 use axum::http::Request;
@@ -30,20 +31,25 @@ use tower::ServiceExt;
 
 /// One shared watchdog budget for the whole binary (ms).
 const WATCHDOG_MS: u64 = 800;
+const GENERATION_FENCE_WATCHDOG_MS: u64 = 5_000;
 static ACTION_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn serial_action_test() -> tokio::sync::MutexGuard<'static, ()> {
     ACTION_TEST_LOCK.lock().await
 }
 
-fn set_watchdog_env() {
-    // SAFETY: every test in this binary writes the same values before starting
-    // its server, so concurrent setters race only to store identical bytes.
-    unsafe { std::env::set_var("SNAPBACK_ACTION_TIMEOUT_MS", WATCHDOG_MS.to_string()) };
+fn set_watchdog_env_ms(timeout_ms: u64) {
+    // SAFETY: every test holds ACTION_TEST_LOCK before changing this
+    // process-global posture and keeps the guard through runtime teardown.
+    unsafe { std::env::set_var("SNAPBACK_ACTION_TIMEOUT_MS", timeout_ms.to_string()) };
     // All tests in this binary set the same process-global host posture before
     // constructing a runtime. The generation regression uses a real native
     // fetch pause so it can prove a host-call-free completion fence.
     unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
+}
+
+fn set_watchdog_env() {
+    set_watchdog_env_ms(WATCHDOG_MS);
 }
 
 /// Most watchdog cases use the same deterministic busy-loop stand-in as L6/L7;
@@ -333,7 +339,11 @@ fn start_paused_mutation_action(app: axum::Router, url: String) -> tokio::task::
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn paused_host_call_free_action_rejects_reload_and_reset_drift() {
     let _serial = serial_action_test().await;
-    set_watchdog_env();
+    // This proof exercises the completion-time generation fence, not timeout
+    // timing. Function reload can spawn the Ibex CLI and exceed the 800ms
+    // hostile-handler budget on a loaded full-suite host; keep that unrelated
+    // watchdog from winning the race we are trying to observe.
+    set_watchdog_env_ms(GENERATION_FENCE_WATCHDOG_MS);
     let (state, app) = watchdog_state_and_app();
 
     let (reload_url, reload_started, release_reload, reload_server) = held_http_response().await;
