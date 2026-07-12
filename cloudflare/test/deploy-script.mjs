@@ -10,6 +10,11 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const sourceCloudflareRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+assert.doesNotMatch(
+  fs.readFileSync(path.join(sourceCloudflareRoot, 'wrangler.jsonc'), 'utf8'),
+  /\bnpx\s+wrangler\b/,
+  'operator-facing deploy config must not recommend an auto-installing production controller',
+);
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'snapback-deploy-test-'));
 const bin = path.join(temp, 'bin');
 fs.mkdirSync(bin);
