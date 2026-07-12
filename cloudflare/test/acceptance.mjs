@@ -28,7 +28,7 @@ import { SUBSCRIPTION_LIMITS } from '../src/limits.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-const EXPECTED_CHECKS = 51;
+const EXPECTED_CHECKS = 52;
 
 const results = [];
 function check(name, condition, detail) {
@@ -83,6 +83,23 @@ async function main() {
     const valid = validate(manifest);
     check('capability manifest validates against its generated JSON Schema',
       valid, JSON.stringify(validate.errors));
+
+    // Every module selectable through the snapback-app alias must satisfy the
+    // coordinator's uniform named-export contract. This second bundle is a
+    // fast, load-bearing guard for the conformance fixture specifically: a
+    // missing deploymentIdentity fails here at esbuild time before the much
+    // longer three-engine twin regeneration reaches CI.
+    const twin = await startProof({ app: 'twin' });
+    try {
+      const twinHealth = await twin.health();
+      check('conformance twin app bundle supplies the coordinator deployment identity',
+        twinHealth.ok === true &&
+          twinHealth.schemaHash === 'conformance-twin-v0' &&
+          twinHealth.bundleHash === 'conformance-twin-bundle-v1',
+        JSON.stringify(twinHealth));
+    } finally {
+      await twin.dispose();
+    }
 
     // -- reset/seed ---------------------------------------------------------
     await client.reset();

@@ -35,10 +35,22 @@ export const cron = [];
 
 export { capabilityManifest };
 
+// The coordinator consumes one uniform identity contract from every module
+// selected through the `snapback-app` alias. Production apps import generated
+// deployment identities; this never-deployed, fresh-state conformance fixture
+// uses stable synthetic values that match the Rust twin's schema/bundle
+// contract. `inputsHash` still has to exist because coordinator metadata is
+// deliberately three-part and must not special-case the test app.
+export const deploymentIdentity = Object.freeze({
+  schemaHash: 'conformance-twin-v0',
+  bundleHash: 'conformance-twin-bundle-v1',
+  inputsHash: 'conformance-twin-inputs-v1',
+});
+
 // Mirrors the schema the twin runner applies on both Rust legs
 // (src/bin/snapback-conformance-twin.rs `schema()`).
 export const schema = {
-  schemaHash: 'conformance-twin-v0',
+  schemaHash: deploymentIdentity.schemaHash,
   tables: [
     {
       name: 'items',
@@ -52,7 +64,7 @@ export const schema = {
   ],
 };
 
-export const bundleHash = 'conformance-twin-bundle-v1';
+export const bundleHash = deploymentIdentity.bundleHash;
 
 // Every corpus case handler, kinds matching the Rust runner's corpus().
 // `noSuchExport` is deliberately registered with a nonexistent export so the
