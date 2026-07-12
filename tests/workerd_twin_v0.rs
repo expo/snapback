@@ -638,6 +638,11 @@ fn encoding_boundaries_agree_on_both_engines_and_with_the_spec() {
             "leadingPaddingRejected": true,
             "truncatedPaddingRejected": true
         },
+        "labels": {
+            "asciiWhitespace": true,
+            "aliasAsciiWhitespace": true,
+            "internalSpaceRejected": true
+        },
         "streaming": {
             "twoByte": ["", "¢", ""],
             "threeByte": ["", "", "€", ""],
@@ -656,7 +661,7 @@ fn encoding_boundaries_agree_on_both_engines_and_with_the_spec() {
         .unwrap_or_else(|error| panic!("{backend:?} encodingBoundaryFidelity failed: {error}"));
         assert_eq!(
             output.rows[0], expected,
-            "{backend:?}: base64/streaming decoder semantics diverged"
+            "{backend:?}: base64/TextDecoder boundary semantics diverged"
         );
     }
 }

@@ -122,7 +122,11 @@
       if (!(this instanceof TextDecoderPolyfill)) {
         throw new TypeError("Constructor TextDecoder requires 'new'");
       }
-      var normalized = String(label === undefined ? "utf-8" : label).toLowerCase();
+      // WHATWG label matching strips only Infra's ASCII whitespace set. Do not
+      // use String.prototype.trim(), which also accepts non-ASCII whitespace.
+      var normalized = String(label === undefined ? "utf-8" : label)
+        .replace(/^[\u0009\u000A\u000C\u000D\u0020]+|[\u0009\u000A\u000C\u000D\u0020]+$/g, "")
+        .toLowerCase();
       if (normalized !== "utf-8" && normalized !== "utf8" && normalized !== "unicode-1-1-utf-8") {
         throw new RangeError("TextDecoder label " + normalized + " is not supported in allowlist slice 1");
       }

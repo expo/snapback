@@ -6,7 +6,8 @@
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
 **Revised:** 2026-07-12 (ENG-24375: encoding boundary coverage now pins
-forgiving-base64 padding validation and streaming UTF-8 decoder state;
+forgiving-base64 padding validation, exact TextDecoder label trimming, and
+streaming UTF-8 decoder state;
 ENG-24339: adversarial twin coverage pins sealed invoke/settle globals,
 accessor and wrapper interception, and raw host-call denial); 2026-07-07
 (post-review author pass: internal manifest profile id
@@ -443,9 +444,11 @@ all are fixed and gated by the twin suites and the conformance corpus:
   a `queue-microtask-interleave` corpus case recording the divergence.
 - **Encoding boundaries** (ENG-24375): the Ibex `atob` fallback implements
   forgiving-base64's exact whitespace and padding validation, and its
-  `TextDecoder` carries incomplete 2/3/4-byte UTF-8 sequences across streaming
-  calls, flushes or fatally rejects incomplete input, resets after a fatal
-  decode, and applies BOM handling per stream. The
+  `TextDecoder` trims exactly WHATWG ASCII whitespace around supported UTF-8
+  labels (not broader ECMAScript/Unicode whitespace), carries incomplete
+  2/3/4-byte UTF-8 sequences across streaming calls, flushes or fatally rejects
+  incomplete input, resets after a fatal decode, and applies BOM handling per
+  stream. The
   `allowlist-encoding-boundary-fidelity` case pins those results on Ibex,
   local workerd, and the deployed Cloudflare-JS host-op leg.
 - **Egress posture** (ENG-23581): the data-driven denial applies to queries

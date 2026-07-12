@@ -102,6 +102,13 @@ globalThis.__snapbackHandlers = {
       output.push(decoder.decode());
       return output;
     }
+    function decoderLabelAccepted(label) {
+      try {
+        return new TextDecoder(label).encoding === 'utf-8';
+      } catch (_) {
+        return false;
+      }
+    }
 
     var flushDecoder = new TextDecoder();
     var flush = [
@@ -147,6 +154,11 @@ globalThis.__snapbackHandlers = {
         triplePaddingRejected: invalidBase64('A==='),
         leadingPaddingRejected: invalidBase64('=YQ='),
         truncatedPaddingRejected: invalidBase64('YWJjZA=')
+      },
+      labels: {
+        asciiWhitespace: decoderLabelAccepted(' \t\nutf-8\r\f '),
+        aliasAsciiWhitespace: decoderLabelAccepted('\tUTF8\n'),
+        internalSpaceRejected: !decoderLabelAccepted('utf -8')
       },
       streaming: {
         twoByte: splitDecode([0xC2, 0xA2]),
