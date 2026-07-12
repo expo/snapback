@@ -326,7 +326,8 @@ fn args(value: Value) -> HandlerInput {
         auth: auth(),
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    }
+        ctx_ledger: None,
+    }
 }
 
 fn measure_vm_cost(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
@@ -615,7 +616,8 @@ fn measure_read_set_validation(config: &BenchConfig) -> crate::diagnostic::Snapb
     }
     let with_read_set = |title: &str, read_set: Vec<ReadDependency>| HandlerInput {
         correlation: None,
-        ctx_ledger: None,        args: json!({ "title": title }),
+        ctx_ledger: None,
+        args: json!({ "title": title }),
         auth: auth(),
         read_set,
     };
@@ -696,7 +698,8 @@ fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::Snapbac
             auth: auth(),
             read_set: Vec::new(),
             correlation: None,
-            ctx_ledger: None,        };
+            ctx_ledger: None,
+        };
         let result = db.commit_buffered_writes(
             &input,
             vec![BufferedWrite::Insert {
@@ -729,7 +732,8 @@ fn commit_insert(
         auth: auth(),
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    };
+        ctx_ledger: None,
+    };
     db.commit_buffered_writes(
         &input,
         vec![BufferedWrite::Insert {

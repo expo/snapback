@@ -460,11 +460,7 @@ struct ReplayLedger {
 }
 
 impl<'a> IbexHostContext<'a> {
-    pub(crate) fn new(
-        db: DbRead<'a>,
-        input: HandlerInput,
-        writable: bool,
-    ) -> SnapbackResult<Self> {
+    pub(crate) fn new(db: DbRead<'a>, input: HandlerInput, writable: bool) -> SnapbackResult<Self> {
         let replay = validate_replay_ledger(&input)?;
         let now_ms = input
             .ctx_ledger
@@ -759,7 +755,8 @@ impl<'a> IbexHostContext<'a> {
                     auth: self.input.auth.clone(),
                     read_set: Vec::new(),
                     correlation: None,
-                    ctx_ledger: None,                };
+                    ctx_ledger: None,
+                };
                 let host = self
                     .action_host
                     .as_deref_mut()
@@ -1262,7 +1259,10 @@ fn take_unhandled_rejections(runtime: *mut HermesRuntimeOpaque) -> SnapbackResul
 /// commit that partial work (ENG-23361), so the invocation fails closed and
 /// the buffer is discarded — Node crashes on unhandled rejections and Convex
 /// fails the mutation; silently swallowing them is the one wrong option.
-pub(crate) fn unhandled_rejection_error(module: &IbexModule, rejections: Vec<String>) -> SnapbackError {
+pub(crate) fn unhandled_rejection_error(
+    module: &IbexModule,
+    rejections: Vec<String>,
+) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
         "runtime",
@@ -1542,14 +1542,16 @@ fn invocation_iife_source(
     // Obligation 3's settlement assumption is enforced, not assumed: an
     // unsettled invocation is a failed invocation, and its buffered writes
     // never commit.
-    Ok(include_str!("../packages/snapback-harness/invocation-iife.js")
-    .replace("__SNAPBACK_EXPORT__", &export_json)
-    .replace("__SNAPBACK_ARGS__", &args_literal)
-    .replace("__SNAPBACK_AUTH__", &auth_literal)
-    .replace("__SNAPBACK_MODE__", &mode_json)
-    .replace("__SNAPBACK_RUN__", &run_literal)
-    .replace("__SNAPBACK_SECRETS__", &secrets_literal)
-    .replace("__SNAPBACK_EPOCH__", &epoch_literal))
+    Ok(
+        include_str!("../packages/snapback-harness/invocation-iife.js")
+            .replace("__SNAPBACK_EXPORT__", &export_json)
+            .replace("__SNAPBACK_ARGS__", &args_literal)
+            .replace("__SNAPBACK_AUTH__", &auth_literal)
+            .replace("__SNAPBACK_MODE__", &mode_json)
+            .replace("__SNAPBACK_RUN__", &run_literal)
+            .replace("__SNAPBACK_SECRETS__", &secrets_literal)
+            .replace("__SNAPBACK_EPOCH__", &epoch_literal),
+    )
 }
 
 /// The once-per-VM warm setup eval: ambient restriction + ctx bootstrap +

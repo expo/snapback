@@ -814,12 +814,21 @@ pub enum MutationStep {
         else_error: Option<String>,
     },
     /// Truthiness check; failure is the author-supplied typed error code.
-    Guard { cond: ValueExpr, else_error: String },
+    Guard {
+        cond: ValueExpr,
+        else_error: String,
+    },
     /// Bind a computed expression for later steps.
-    Let { bind_as: String, expr: ValueExpr },
+    Let {
+        bind_as: String,
+        expr: ValueExpr,
+    },
     /// Set-oriented delete over one table; the empty filter clears the table.
     /// No more expressive than SQL `DELETE … WHERE`.
-    DeleteWhere { table: String, filter: Vec<FilterExpr> },
+    DeleteWhere {
+        table: String,
+        filter: Vec<FilterExpr>,
+    },
     /// One insert per element of an argument-supplied array — a bounded
     /// comprehension (fan-out capped by `MAX_INSERT_EACH_FANOUT`), not a
     /// loop construct. Each value is a `ValueExpr` over `item_as`.
@@ -835,7 +844,10 @@ pub enum MutationStep {
 pub enum ReturnValue {
     Literal(Value),
     Binding(String),
-    Document { table: String, id: ValueExpr },
+    Document {
+        table: String,
+        id: ValueExpr,
+    },
     ChangedCount,
     /// Expression-valued return (with the `Record` constructor this covers
     /// the computed summaries real feed mutations return — LLP 0051 D2).
@@ -863,13 +875,19 @@ pub enum ValueExpr {
     RuntimeNow,
     /// Null-propagating access by arbitrary string key (hyphenated JSON keys
     /// are first-class; settles the IR half of Exact LLP 0329 EQ8).
-    Field { base: Box<ValueExpr>, key: String },
+    Field {
+        base: Box<ValueExpr>,
+        key: String,
+    },
     Binary {
         op: BinaryOp,
         left: Box<ValueExpr>,
         right: Box<ValueExpr>,
     },
-    Unary { op: UnaryOp, expr: Box<ValueExpr> },
+    Unary {
+        op: UnaryOp,
+        expr: Box<ValueExpr>,
+    },
     If {
         cond: Box<ValueExpr>,
         then: Box<ValueExpr>,
@@ -880,10 +898,15 @@ pub enum ValueExpr {
     Concat(Vec<ValueExpr>),
     /// Call into the pinned function library (`value_expr::PINNED_FUNCTIONS`);
     /// anything else fails closed with a typed rejection.
-    Call { func: String, args: Vec<ValueExpr> },
+    Call {
+        func: String,
+        args: Vec<ValueExpr>,
+    },
     /// Closed record constructor — the same shape as `Insert`'s values map,
     /// evaluated by the same machinery.
-    Record { fields: BTreeMap<String, ValueExpr> },
+    Record {
+        fields: BTreeMap<String, ValueExpr>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]

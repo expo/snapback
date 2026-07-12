@@ -633,7 +633,11 @@ fn ctx_answer_ledger_is_equivalent_across_engines() {
         .ctx_ledger
         .clone()
         .expect("ibex mutation carries a ledger");
-    assert_eq!(ledger.ids.len(), 3, "two runtime.id answers + one insert id");
+    assert_eq!(
+        ledger.ids.len(),
+        3,
+        "two runtime.id answers + one insert id"
+    );
 
     // Replay the SAME ledger on both legs (fresh instances): identical
     // results, identical echoed ledgers.
@@ -658,10 +662,9 @@ fn ctx_answer_ledger_is_equivalent_across_engines() {
 
     // Record on the V8 leg too — the ledger channel is not Ibex-shaped.
     let mut v8_recorder = configured();
-    let v8_recorded = on_v8(|| {
-        v8_recorder.invoke_mutation("ledgeredIds", input(json!({ "tag": "twin-v8" })))
-    })
-    .expect("record-mode mutation on workerd-v8");
+    let v8_recorded =
+        on_v8(|| v8_recorder.invoke_mutation("ledgeredIds", input(json!({ "tag": "twin-v8" }))))
+            .expect("record-mode mutation on workerd-v8");
     let v8_ledger = v8_recorded
         .ctx_ledger
         .expect("v8 mutation carries a ledger");

@@ -215,8 +215,8 @@ fn read_json_file(path: &Path) -> anyhow::Result<Value> {
 fn read_trusted_json_file(path: &Path) -> anyhow::Result<Value> {
     let raw = crate::secure_file::read_owner_only(path)
         .with_context(|| format!("failed to read trusted local file {}", path.display()))?;
-    let raw = String::from_utf8(raw)
-        .with_context(|| format!("{} is not valid UTF-8", path.display()))?;
+    let raw =
+        String::from_utf8(raw).with_context(|| format!("{} is not valid UTF-8", path.display()))?;
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
 }
 
@@ -579,9 +579,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         // The minted-token surfacing (ENG-23443): the value is printed on the
         // start that minted it; afterwards the 0600 file is the capability
         // hand-off — reading it as this user is what local admin means.
-        println!(
-            "admin: writes require the minted local admin token (SNAPBACK_ADMIN_TOKEN unset)"
-        );
+        println!("admin: writes require the minted local admin token (SNAPBACK_ADMIN_TOKEN unset)");
         if minted.fresh {
             println!("admin token: {}", minted.token);
         }
@@ -783,9 +781,8 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, Cli, HostCommand, bind_first_available, bind_listener, parse_run_args,
+        Args, Cli, HostCommand, TargetArgs, bind_first_available, bind_listener, parse_run_args,
         prepare_database_path, reject_misdirected_serve_flags, write_ready_file_atomic,
-        TargetArgs,
     };
     use clap::Parser;
     use serde_json::json;
@@ -1005,7 +1002,10 @@ mod tests {
             "--ready-file",
             "ready.json",
         ]);
-        assert!(parse.is_err(), "the CLI must reject ambiguous mixed targets");
+        assert!(
+            parse.is_err(),
+            "the CLI must reject ambiguous mixed targets"
+        );
     }
 
     #[test]

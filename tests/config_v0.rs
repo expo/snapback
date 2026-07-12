@@ -138,7 +138,8 @@ fn run_action(snapback: &mut LocalSnapback, name: &str) -> snapback::local::Func
             auth: Default::default(),
             read_set: Vec::new(),
             correlation: None,
-            ctx_ledger: None,        },
+            ctx_ledger: None,
+        },
     )
 }
 

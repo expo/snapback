@@ -50,7 +50,10 @@ fn l6_concurrent_reads_proceed_during_a_long_write() {
             let started = Instant::now();
             let mut snapback = shared.lock().expect("writer lock");
             snapback
-                .invoke_mutation("busyCreate", input(json!({ "iters": busy_iters }), "user_1"))
+                .invoke_mutation(
+                    "busyCreate",
+                    input(json!({ "iters": busy_iters }), "user_1"),
+                )
                 .expect("busy mutation");
             (started, Instant::now())
         })
@@ -995,7 +998,8 @@ fn input(args: Value, user_id: &str) -> HandlerInput {
         },
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    }
+        ctx_ledger: None,
+    }
 }
 
 fn post_json(uri: &str, body: Value) -> Request<Body> {

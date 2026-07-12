@@ -166,11 +166,7 @@ fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResul
                 }
             }
         }
-        ValueExpr::If {
-            cond,
-            then,
-            r#else,
-        } => {
+        ValueExpr::If { cond, then, r#else } => {
             let cond = eval_at_depth(cond, env, depth + 1)?;
             if truthy(&cond) {
                 eval_at_depth(then, env, depth + 1)
@@ -370,7 +366,9 @@ fn eval_call(func: &str, mut args: Vec<Value>) -> ExprResult {
                     }
                 });
             }
-            Ok(number_value(best.expect("at least one argument checked above")))
+            Ok(number_value(
+                best.expect("at least one argument checked above"),
+            ))
         }
         other => Err(ExprError::Fail(
             SnapbackError::error(

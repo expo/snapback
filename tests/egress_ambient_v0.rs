@@ -113,7 +113,8 @@ fn input() -> HandlerInput {
         auth: Default::default(),
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    }
+        ctx_ledger: None,
+    }
 }
 
 fn run_action(snapback: &mut LocalSnapback, name: &str) -> Value {
@@ -156,7 +157,10 @@ fn mutations_still_deny_fetch_even_with_outbound_enabled() {
         .invoke_mutation("mutationFetchProbe", input())
         .expect("mutation runs");
     let probe = output.result;
-    let state = probe.get("fetchState").and_then(Value::as_str).unwrap_or("");
+    let state = probe
+        .get("fetchState")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     assert!(
         state == "denied" || state == "unavailable",
         "the transactional path must never get network, got {probe}"

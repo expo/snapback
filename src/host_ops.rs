@@ -519,7 +519,8 @@ fn run_function(
         },
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    };
+        ctx_ledger: None,
+    };
     match kind {
         FunctionKind::Query | FunctionKind::LiveQuery => {
             match snapback.invoke_query(&name, input) {

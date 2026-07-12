@@ -794,6 +794,7 @@ fn diagnostic_response(status: StatusCode, error: SnapbackError) -> Response {
         status,
         Json(crate::server::ErrorResponse {
             diagnostic: error.diagnostic,
+            receipt: None,
         }),
     )
         .into_response()
@@ -1153,7 +1154,10 @@ mod tests {
         std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
         let resolved = resolve_serve_admin_token(None, Some(file.clone())).unwrap();
         assert_eq!(resolved.token, "sbat_existing");
-        assert_eq!(std::fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(
+            std::fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
 
         let target = dir.path().join("target");
         let link = dir.path().join("link");

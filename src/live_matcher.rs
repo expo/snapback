@@ -673,7 +673,8 @@ mod dependency_gate_tests {
             auth: AuthInput::default(),
             read_set: Vec::new(),
             correlation: None,
-            ctx_ledger: None,        }
+            ctx_ledger: None,
+        }
     }
 
     fn ibex_live_query() -> FunctionDefinition {
@@ -885,7 +886,8 @@ mod delta_tests {
             auth: AuthInput::default(),
             read_set: Vec::new(),
             correlation: None,
-            ctx_ledger: None,        }
+            ctx_ledger: None,
+        }
     }
 
     fn unfiltered_plan() -> QueryPlan {

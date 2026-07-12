@@ -128,6 +128,7 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
         Some(mutation_id.clone()),
         "test",
     );
+    let first_receipt = first_receipt.into_value();
     let first = first.expect("first commit");
     assert_eq!(first.changed_count, 1);
     assert_eq!(first_receipt["mutationId"], json!(mutation_id));

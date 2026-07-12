@@ -439,7 +439,10 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
         .await
         .expect("quick verify response");
     let quick_body = body_json(quick).await;
-    assert_eq!(quick_body["ok"], true, "quick probe must pass: {quick_body}");
+    assert_eq!(
+        quick_body["ok"], true,
+        "quick probe must pass: {quick_body}"
+    );
     assert_eq!(quick_body["verified"]["ok"], true, "{quick_body}");
 
     // Kick off a verify whose probe outlives the watchdog.

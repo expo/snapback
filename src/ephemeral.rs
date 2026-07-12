@@ -183,14 +183,18 @@ fn encode_component(value: &str) -> String {
     format!("{}:{value}", value.len())
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, schemars::JsonSchema)]
+#[derive(
+    Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, schemars::JsonSchema,
+)]
 pub struct RoomId {
     pub collection: String,
     pub scope: Scope,
     pub routing_key: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, schemars::JsonSchema)]
+#[derive(
+    Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, schemars::JsonSchema,
+)]
 #[serde(transparent)]
 pub struct EntryKey(pub String);
 
@@ -1392,27 +1396,27 @@ impl LocalEphemeralBackend {
         let owner = entry_owner_for_delete(&collection, &request)?;
 
         let (removed, affected_connections) = match self.with_existing_room(&room_id, |room| {
-                self.sweep_room_locked(room, &room_id, Some(&collection), now_ms);
-                let Some(record) = room.entries.get(&key) else {
-                    return Ok((None, BTreeSet::new()));
-                };
-                if record.owner != owner {
-                    return Err(EphemeralError::new(
-                        EphemeralErrorCode::Unauthorized,
-                        "ephemeral entry is owned by another authenticated identity",
-                    ));
-                }
-                let affected = room
-                    .owner_connections
-                    .get(&record.owner)
-                    .cloned()
-                    .unwrap_or_default();
-                let removed = remove_entry_locked(room, &room_id, &key, RemoveReason::Deleted);
-                if let Some(message) = &removed {
-                    self.fan_out_locked(room, &room_id, &collection, message.clone());
-                }
-                Ok((removed, affected))
-            }) {
+            self.sweep_room_locked(room, &room_id, Some(&collection), now_ms);
+            let Some(record) = room.entries.get(&key) else {
+                return Ok((None, BTreeSet::new()));
+            };
+            if record.owner != owner {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::Unauthorized,
+                    "ephemeral entry is owned by another authenticated identity",
+                ));
+            }
+            let affected = room
+                .owner_connections
+                .get(&record.owner)
+                .cloned()
+                .unwrap_or_default();
+            let removed = remove_entry_locked(room, &room_id, &key, RemoveReason::Deleted);
+            if let Some(message) = &removed {
+                self.fan_out_locked(room, &room_id, &collection, message.clone());
+            }
+            Ok((removed, affected))
+        }) {
             Some(result) => result?,
             None => (None, BTreeSet::new()),
         };
@@ -2533,12 +2537,14 @@ fn resolved_identity(
     authenticated: Option<&str>,
     kind: &str,
 ) -> Result<String, EphemeralError> {
-    let authenticated = authenticated.filter(|value| !value.is_empty()).ok_or_else(|| {
-        EphemeralError::new(
-            EphemeralErrorCode::MissingOwner,
-            format!("missing authenticated {kind} identity"),
-        )
-    })?;
+    let authenticated = authenticated
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            EphemeralError::new(
+                EphemeralErrorCode::MissingOwner,
+                format!("missing authenticated {kind} identity"),
+            )
+        })?;
     if let Some(claimed) = claimed
         && claimed != authenticated
     {
@@ -2852,7 +2858,9 @@ mod tests {
             ttl_ms: None,
             auth: auth_for(&scope),
         };
-        backend.publish(custom_publish("conn-a", b"a"), 1_003).unwrap();
+        backend
+            .publish(custom_publish("conn-a", b"a"), 1_003)
+            .unwrap();
         assert_eq!(
             backend
                 .publish(custom_publish("conn-b", b"b"), 1_004)
@@ -2899,7 +2907,9 @@ mod tests {
             auth: AuthContext::default(),
         };
 
-        backend.subscribe(request("holder", "held".to_owned()), 1_000).unwrap();
+        backend
+            .subscribe(request("holder", "held".to_owned()), 1_000)
+            .unwrap();
         for n in 0..1_000 {
             assert_eq!(
                 backend
@@ -2913,7 +2923,9 @@ mod tests {
             !lock(&backend.shared.connection_rooms).contains_key("failed"),
             "failed room creation must roll back every provisional edge"
         );
-        backend.unsubscribe(request("holder", "held".to_owned())).unwrap();
+        backend
+            .unsubscribe(request("holder", "held".to_owned()))
+            .unwrap();
 
         for n in 0..1_000 {
             let request = request("churn", format!("room-{n}"));

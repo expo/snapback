@@ -18,6 +18,7 @@ use snapback::manifest::{
     MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData,
     TableManifest, ValueExpr,
 };
+use snapback::server::{ErrorResponse, MutationResponse};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
@@ -904,7 +905,10 @@ async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_
         .method("POST")
         .uri("/_snapback/api/app/reset")
         .header("content-type", "application/json")
-        .body(Body::from(format!(r#"{{"padding":"{}"}}"#, "x".repeat(3_000_000))))
+        .body(Body::from(format!(
+            r#"{{"padding":"{}"}}"#,
+            "x".repeat(3_000_000)
+        )))
         .unwrap();
     let response = app.clone().oneshot(oversized).await.unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
@@ -1104,6 +1108,16 @@ async fn s1_public_inspect_redacts_handler_source() {
 async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
     let app = app_with_context(seeded_snapback(), loopback_context(None));
 
+    let unknown_field = app
+        .clone()
+        .oneshot(post(
+            "/connection/open",
+            json!({ "connectionId": "readable_conn", "logPreviousToken": true }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(unknown_field.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
     let first = json(
         app.clone()
             .oneshot(post(
@@ -1204,10 +1218,7 @@ async fn ephemeral_identity_ownership_is_enforced_through_http_and_reconnect() {
     assert_eq!(created.status(), StatusCode::OK);
 
     for (uri, body) in [
-        (
-            "/ephemeral/publish",
-            publish("conn-b", "user-a", "user-b"),
-        ),
+        ("/ephemeral/publish", publish("conn-b", "user-a", "user-b")),
         (
             "/ephemeral/delete",
             json!({
@@ -1348,7 +1359,10 @@ async fn ephemeral_session_identity_conflicts_fail_through_websocket_frames() {
                 "permissions": []
             }
         });
-        request.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        request
+            .as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
         stream
             .send(tokio_tungstenite::tungstenite::Message::Text(
                 json!({ "type": kind, "requestId": request_id, "request": request })
@@ -1421,6 +1435,21 @@ async fn outbox_drain_and_live_subscribe_demand_the_connection_token() {
         .await
         .unwrap();
     assert_eq!(mutated.status(), StatusCode::OK);
+    let mutation_response: MutationResponse = serde_json::from_value(json(mutated).await)
+        .expect("direct mutation response matches its Rust wire authority");
+    assert_eq!(mutation_response.changed_count, 1);
+    let rejected = app
+        .clone()
+        .oneshot(post(
+            "/mutation/noSuchMutation",
+            json!({ "args": {}, "auth": { "user_id": "user_1" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(rejected.status(), StatusCode::NOT_FOUND);
+    let rejected: ErrorResponse = serde_json::from_value(json(rejected).await)
+        .expect("rejected mutation matches the typed error/receipt authority");
+    assert!(rejected.receipt.is_some());
 
     // Bare drain: 401 (token required).
     let bare = app
@@ -1691,7 +1720,8 @@ fn handler_input(args: Value, user_id: &str) -> HandlerInput {
         },
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    }
+        ctx_ledger: None,
+    }
 }
 
 async fn text(resp: axum::response::Response) -> String {

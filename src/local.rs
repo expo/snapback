@@ -561,7 +561,8 @@ pub(crate) fn cron_claim_input(claim: &CronRunClaim) -> HandlerInput {
         auth: Default::default(),
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    }
+        ctx_ledger: None,
+    }
 }
 
 /// Shared per-connection last-seen map for the L2 reaper. Ephemeral
@@ -1260,7 +1261,7 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-    ) -> (SnapbackResult<MutationOutput>, Value) {
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         self.invoke_mutation_recording_with_transport(name, input, "local")
     }
 
@@ -1269,7 +1270,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
         transport: &str,
-    ) -> (SnapbackResult<MutationOutput>, Value) {
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         self.invoke_mutation_recording_with_id(name, input, None, transport)
     }
 
@@ -1279,7 +1280,7 @@ impl LocalSnapback {
         input: HandlerInput,
         client_mutation_id: Option<String>,
         transport: &str,
-    ) -> (SnapbackResult<MutationOutput>, Value) {
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         let correlation = capped_correlation(input.correlation.clone());
         // affectedTables from DECLARED writes; a function that declares none
         // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
@@ -1317,9 +1318,8 @@ impl LocalSnapback {
             transport: transport.to_owned(),
             correlation: correlation.unwrap_or(Value::Null),
             received_at_ms: now_millis(),
-        }
-        .into_value();
-        self.receipts.push_global(receipt.clone());
+        };
+        self.receipts.push_global(receipt.clone().into_value());
         (result.map(|commit| commit.output), receipt)
     }
 
@@ -2477,7 +2477,8 @@ impl LocalSnapback {
             auth: Default::default(),
             read_set: Vec::new(),
             correlation: None,
-            ctx_ledger: None,        };
+            ctx_ledger: None,
+        };
         let mode = match self.stage_action_invocation(&probe) {
             Ok(mode) => mode,
             // A probe that cannot stage (unknown function, non-action) is a
@@ -3156,7 +3157,8 @@ impl LocalSnapback {
                             auth: input.auth.clone(),
                             read_set: Vec::new(),
                             correlation: None,
-                            ctx_ledger: None,                        },
+                            ctx_ledger: None,
+                        },
                     )?;
                     changed_count += output.changed_count;
                     last_result = output.result;
@@ -4104,8 +4106,7 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
             let mut writes = BTreeSet::new();
             for step in &plan.steps {
                 match step {
-                    MutationStep::Insert { table, .. }
-                    | MutationStep::InsertEach { table, .. } => {
+                    MutationStep::Insert { table, .. } | MutationStep::InsertEach { table, .. } => {
                         writes.insert(table.clone());
                     }
                     MutationStep::Patch { table, .. }

@@ -489,7 +489,10 @@ mod tests {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
         let reopened = ConfigStore::open(path.clone()).unwrap();
         assert_eq!(reopened.values("caltrainFeed").unwrap(), ["secret"]);
-        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
 
         let link = dir.path().join("store-link.json");
         std::os::unix::fs::symlink(&path, &link).unwrap();

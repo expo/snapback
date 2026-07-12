@@ -415,7 +415,8 @@ fn input(args: Value, user: &str) -> HandlerInput {
         },
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    }
+        ctx_ledger: None,
+    }
 }
 
 fn schema() -> SchemaManifest {

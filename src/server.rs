@@ -13,7 +13,8 @@ use crate::local::{
     StagedAppAction, StagedConfigVerify,
 };
 use crate::manifest::{
-    FunctionManifest, HandlerInput, MutationOutput, MutationRequest, SchemaManifest, SeedData,
+    CtxAnswerLedger, FunctionManifest, HandlerInput, MutationOutput, MutationRequest,
+    SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
 use axum::extract::rejection::{BytesRejection, JsonRejection};
@@ -23,7 +24,10 @@ use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::{Json, Router, body::{Body, Bytes}};
+use axum::{
+    Json, Router,
+    body::{Body, Bytes},
+};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -305,12 +309,29 @@ pub struct ConnectionRegistry {
 
 /// The `POST /connection/open` response: the (possibly adopted) connection id
 /// and the bearer the caller must present on every connection-scoped call.
-#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ConnectionGrant {
     #[serde(rename = "connectionId")]
     pub connection_id: String,
     #[serde(rename = "connectionToken")]
     pub connection_token: String,
+}
+
+/// The `POST /connection/open` request. `previousToken` is a bearer secret
+/// used only to prove ownership of an existing grant; it is request-only and
+/// must never enter diagnostics, receipts, retained client state, or logs.
+///
+/// @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —
+///   the complete non-JS client HTTP surface is Rust-owned and generated.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenConnectionRequest {
+    #[serde(default, alias = "connection_id")]
+    pub connection_id: Option<String>,
+    /// A prior grant's bearer. This field is deliberately absent from every
+    /// server response and from all receipt/capsule schemas.
+    #[serde(default, alias = "previous_token")]
+    pub previous_token: Option<String>,
 }
 
 impl ConnectionRegistry {
@@ -443,16 +464,6 @@ struct ConnectionTokenQuery {
     connection_token: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize)]
-struct OpenConnectionBody {
-    #[serde(default, rename = "connectionId", alias = "connection_id")]
-    connection_id: Option<String>,
-    /// The token from a previous grant of the same id, for idempotent
-    /// re-open across kit reconnects and server restarts.
-    #[serde(default, rename = "previousToken", alias = "previous_token")]
-    previous_token: Option<String>,
-}
-
 /// `POST /connection/open` — the connection handshake (ENG-23442). Public by
 /// design: it GRANTS a capability rather than exercising one, exactly like
 /// `/app/ensure`. The profile decides whether a caller-suggested id may be
@@ -463,7 +474,7 @@ async fn open_connection(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<ConnectionGrant>, ApiError> {
-    let body = parse_optional_json::<OpenConnectionBody>(&headers, body)?;
+    let body = parse_optional_json::<OpenConnectionRequest>(&headers, body)?;
     let (suggested, previous_token) = body
         .map(|body| (body.connection_id, body.previous_token))
         .unwrap_or_default();
@@ -497,8 +508,49 @@ pub struct DiagnosticsResponse {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ErrorResponse {
     pub diagnostic: Diagnostic,
+    /// Present only when a mutation reached the provider receipt boundary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<Receipt>,
+}
+
+/// Successful `POST /mutation/{name}` response. The mutation output and its
+/// terminal receipt are one closed, typed envelope; rejected mutations keep
+/// using [`ErrorResponse`] with the same receipt attached by the error path.
+///
+/// @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —
+///   direct mutation results are part of the generated client-visible wire.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MutationResponse {
+    pub version: u64,
+    pub changed_count: usize,
+    pub result: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ctx_ledger: Option<CtxAnswerLedger>,
+    pub receipt: Receipt,
+}
+
+impl MutationResponse {
+    fn from_output(output: MutationOutput, receipt: Receipt) -> Self {
+        // Exhaustive destructuring makes an added MutationOutput field a
+        // compile error here instead of silent drift in the public envelope.
+        let MutationOutput {
+            version,
+            changed_count,
+            result,
+            ctx_ledger,
+        } = output;
+        Self {
+            version,
+            changed_count,
+            result,
+            ctx_ledger,
+            receipt,
+        }
+    }
 }
 
 /// The app-data routes: the operations an ordinary app client calls. Every one
@@ -1958,14 +2010,13 @@ async fn invoke_query(
 }
 
 /// Mutations respond with the MutationOutput fields plus the provider-core
-/// MutationReceipt (LLP 0034 §3.2, ENG-22478) — additive, so pre-receipt
-/// clients are unaffected. A REJECTED mutation still produces a receipt; it
-/// rides the error envelope.
+/// MutationReceipt (LLP 0034 §3.2, ENG-22478). A REJECTED mutation still
+/// produces a receipt; it rides the error envelope.
 async fn invoke_mutation(
     State(state): State<SharedSnapback>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
-) -> Result<Json<Value>, ApiError> {
+) -> Result<Json<MutationResponse>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
     // Receipt emission rides the L7 blocking offload: the recording call
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
@@ -1980,14 +2031,7 @@ async fn invoke_mutation(
     })
     .await;
     match result {
-        Ok(output) => {
-            let mut body = serde_json::to_value(&output)
-                .unwrap_or_else(|_| json!({ "changed_count": output.changed_count }));
-            if let Some(object) = body.as_object_mut() {
-                object.insert("receipt".to_owned(), receipt);
-            }
-            Ok(Json(body))
-        }
+        Ok(output) => Ok(Json(MutationResponse::from_output(output, receipt))),
         Err(error) => Err(ApiError::with_receipt(error, receipt)),
     }
 }
@@ -2111,8 +2155,8 @@ async fn stream_live(
     // `snapback.connection-token.<token>` subprotocol instead. Query-string
     // credentials are intentionally ignored because URLs leak into logs,
     // history, proxies, and telemetry (ENG-24354).
-    let presented = header_connection_token(&headers)
-        .or_else(|| subprotocol_connection_token(&headers));
+    let presented =
+        header_connection_token(&headers).or_else(|| subprotocol_connection_token(&headers));
     if let Err(error) = connections.verify(&connection_id, presented.as_deref()) {
         return error.into_response();
     }
@@ -2600,7 +2644,7 @@ async fn disconnect(
 }
 
 #[derive(Debug)]
-pub struct ApiError(SnapbackError, Option<Value>);
+pub struct ApiError(SnapbackError, Option<Receipt>);
 
 impl ApiError {
     fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
@@ -2625,7 +2669,7 @@ impl ApiError {
 
     /// Attach a receipt to an error response (a REJECTED mutation still
     /// produces its receipt — LLP 0034 §3.2, ENG-22478).
-    fn with_receipt(error: SnapbackError, receipt: Value) -> Self {
+    fn with_receipt(error: SnapbackError, receipt: Receipt) -> Self {
         Self(error, Some(receipt))
     }
 }
@@ -2793,11 +2837,14 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = status_for_diagnostic_code(self.0.diagnostic.code.as_str());
-        let mut body = json!({ "diagnostic": self.0.diagnostic });
-        if let (Some(object), Some(receipt)) = (body.as_object_mut(), self.1) {
-            object.insert("receipt".to_owned(), receipt);
-        }
-        (status, Json(body)).into_response()
+        (
+            status,
+            Json(ErrorResponse {
+                diagnostic: self.0.diagnostic,
+                receipt: self.1,
+            }),
+        )
+            .into_response()
     }
 }
 

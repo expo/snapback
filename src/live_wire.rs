@@ -228,11 +228,7 @@ pub enum Receipt {
         superseded_by: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         lane: Option<String>,
-        #[serde(
-            default,
-            rename = "bindingId",
-            skip_serializing_if = "Option::is_none"
-        )]
+        #[serde(default, rename = "bindingId", skip_serializing_if = "Option::is_none")]
         binding_id: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         collection: Option<String>,
