@@ -418,7 +418,8 @@ export class HostContext {
         const denied = this.ensureWritable('insert');
         if (denied) return denied;
         if (!this.physicalTable(args.table)) return this.unknownTable('insert', args.table);
-        const validated = validateWriteValues(this.schemaTables, args.table, args.values || {}, { insert: true });
+        const insertValues = Object.prototype.hasOwnProperty.call(args, 'values') ? args.values : {};
+        const validated = validateWriteValues(this.schemaTables, args.table, insertValues, { insert: true });
         if (!validated.ok) return validated;
         const id = this.newId();
         this.writes.push({ kind: 'insert', table: args.table, id, values: validated.values });
@@ -429,7 +430,8 @@ export class HostContext {
         if (denied) return denied;
         const physical = this.physicalTable(args.table);
         if (!physical) return this.unknownTable('patch', args.table);
-        const validated = validateWriteValues(this.schemaTables, args.table, args.values || {}, { insert: false });
+        const patchValues = Object.prototype.hasOwnProperty.call(args, 'values') ? args.values : {};
+        const validated = validateWriteValues(this.schemaTables, args.table, patchValues, { insert: false });
         if (!validated.ok) return validated;
         const stored = this.storageGet(physical, args.id);
         // Point reads on patch/delete are captured exactly as on the Rust

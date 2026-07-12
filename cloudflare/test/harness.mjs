@@ -147,6 +147,10 @@ class ProofClient {
     return response.json();
   }
 
+  async raw(pathName, init = {}) {
+    return this.mf.dispatchFetch(`${this.base}${pathName}`, init);
+  }
+
   async reset() {
     const response = await this.mf.dispatchFetch(`${this.base}/reset`, {
       method: 'POST',

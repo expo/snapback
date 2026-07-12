@@ -197,8 +197,11 @@ export const functions = [
   // on the same coordinator (the off-mutex execution contract).
   { name: 'probeSlowFetch', kind: 'Action', export: 'probeSlowFetch', tables: [], testingOnly: true },
   { name: 'probeSecretForgery', kind: 'Action', export: 'probeSecretForgery', uses: ['directions'], tables: [], testingOnly: true },
+  { name: 'probeSecretForgeryNoGrant', kind: 'Action', export: 'probeSecretForgery', tables: [], testingOnly: true },
+  { name: 'probeSecretEcho', kind: 'Action', export: 'probeSecretEcho', uses: ['directions'], tables: [], testingOnly: true },
   { name: 'probeLateMutation', kind: 'Action', export: 'probeLateMutation', tables: [], testingOnly: true },
   { name: 'probeNestedTimeout', kind: 'Action', export: 'probeNestedTimeout', tables: [], testingOnly: true },
+  { name: 'probeWrongNestedKind', kind: 'Action', export: 'probeWrongNestedKind', tables: [], testingOnly: true },
 ];
 
 const PATTERN_IDS = ['sb-local', 'sb-limited', 'sb-bullet', 'nb-local', 'nb-limited', 'nb-bullet'];
@@ -969,6 +972,14 @@ globalThis.__snapbackHandlers = {
       return { rejected: true, code: codeFromError(error) };
     }
   },
+  async probeSecretEcho(ctx, args) {
+    const handle = ctx.secrets.get('directions');
+    const response = await ctx.fetch({
+      url: args.url,
+      secretSlots: [{ placement: 'query-param', name: 'secret', handle }],
+    });
+    return { url: response.url, bodyText: response.bodyText };
+  },
   async probeLateMutation(ctx, args) {
     try {
       await ctx.fetch({ url: args.url, timeoutMs: 10_000 });
@@ -977,6 +988,9 @@ globalThis.__snapbackHandlers = {
   },
   async probeNestedTimeout(ctx) {
     return await ctx.runMutation('applyFeedTick', { trigger: 'nested-timeout-probe', source: 'recorded' });
+  },
+  async probeWrongNestedKind(ctx) {
+    return await ctx.runMutation('stationsQuery', {});
   },
   async probeSecretsMutation(ctx) {
     return { secretsType: typeof ctx.secrets };

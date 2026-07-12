@@ -22,6 +22,12 @@ if (!BASE || !ADMIN_TOKEN) {
   process.exit(2);
 }
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
+const schemaManifest = JSON.parse(
+  fs.readFileSync(new URL('../../demos/all-aboard/snapback/generated/schema.manifest.json', import.meta.url), 'utf8')
+);
+const functionsManifest = JSON.parse(
+  fs.readFileSync(new URL('../../demos/all-aboard/snapback/generated/functions.manifest.json', import.meta.url), 'utf8')
+);
 
 const EXPECTED_CHECKS = 22;
 let checks = 0;
@@ -123,13 +129,15 @@ async function main() {
   );
 
   // --- provisioning + config ---------------------------------------------
-  const ensured = await client.ensureApp({ seed });
+  const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
   check(
     'ensureApp seeds the fresh deployment (or attests the seeded state)',
     ensured.seed === 'seeded' || ensured.seed === 'skipped-nonempty',
     ensured.seed
   );
-  const config = await (await fetch(`${BASE}/config/status`)).json();
+  const config = await (await fetch(`${BASE}/config/status`, {
+    headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+  })).json();
   const feedDecl = config.declarations.find((entry) => entry.name === 'caltrainFeed');
   const dirDecl = config.declarations.find((entry) => entry.name === 'directions');
   check(

@@ -72,7 +72,7 @@ async function gatewayFetch(request, env) {
       return stub.fetch('http://coordinator/host-call', {
         method: 'POST',
         headers: request.headers,
-        body: await request.text(),
+        body: request.body,
       });
     }
 
@@ -95,7 +95,7 @@ async function gatewayFetch(request, env) {
       return stub.fetch('http://coordinator/cron/run', {
         method: request.method,
         headers: request.headers,
-        body: request.method === 'GET' ? undefined : await request.text(),
+        body: request.method === 'GET' ? undefined : request.body,
       });
     }
     if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/__test/')) {
@@ -124,7 +124,7 @@ async function gatewayFetch(request, env) {
       return stub.fetch(`http://coordinator${path}`, {
         method: request.method,
         headers: request.headers,
-        body: request.method === 'GET' ? undefined : await request.text(),
+        body: request.method === 'GET' ? undefined : request.body,
       });
     }
     if (path === '/live/stream' || KIT_STREAM_ROUTE.test(path)) {
@@ -173,6 +173,6 @@ async function forward(stub, target, request) {
   return stub.fetch(target, {
     method: 'POST',
     headers: { 'content-type': request.headers.get('content-type') || '' },
-    body: await request.text(),
+    body: request.body,
   });
 }

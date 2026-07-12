@@ -39,7 +39,7 @@ export { capabilityManifest };
 export const deploymentIdentity = deploymentIdentityArtifact;
 
 export const schema = {
-  schemaHash: 'notes-app-v1',
+  schemaHash: deploymentIdentity.schemaHash,
   tables: [
     {
       name: 'notes',
@@ -54,7 +54,7 @@ export const schema = {
   ],
 };
 
-export const bundleHash = 'notes-app-bundle-v1';
+export const bundleHash = deploymentIdentity.bundleHash;
 
 export const functions = [
   { name: 'listNotes', kind: 'LiveQuery', export: 'listNotes', tables: ['notes'] },
@@ -68,6 +68,8 @@ export const functions = [
   // (ENG-23578), and a detached rejection parked on a host call must fail the
   // mutation with nothing committed (ENG-23584/ENG-23585).
   { name: 'touchNote', kind: 'Mutation', export: 'touchNote', tables: ['notes'], testingOnly: true },
+  { name: 'insertRawNote', kind: 'Mutation', export: 'insertRawNote', tables: ['notes'], testingOnly: true },
+  { name: 'queryRawNotes', kind: 'Query', export: 'queryRawNotes', tables: ['notes'], testingOnly: true },
   // ENG-23606 regression probes: null/missing optional-field filters must
   // behave identically on the SQL-pushdown path (no buffered writes) and the
   // buffered-overlay path (mid-mutation, after a write).
@@ -136,6 +138,15 @@ globalThis.__snapbackHandlers = {
     // untouched, matching the local target (ENG-23583).
     const existed = await ctx.db.patch('notes', args.id || 'missing-note-id', args.values || {});
     return { existed };
+  },
+  async insertRawNote(ctx, args) {
+    return { id: await ctx.db.insert('notes', args.values) };
+  },
+  async queryRawNotes(ctx, args) {
+    let query = ctx.db.query('notes');
+    if (args.index) query = query.withIndex(args.index);
+    if (args.field) query = query.eq(args.field, args.value);
+    return await query.collect();
   },
   async probeBadTable(ctx) {
     try {

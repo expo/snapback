@@ -23,6 +23,7 @@ const schemaManifest = readJson('demos/all-aboard/snapback/generated/schema.mani
 const functionsManifest = readJson('demos/all-aboard/snapback/generated/functions.manifest.json');
 const seed = readJson('demos/all-aboard/snapback/seed.json');
 const manifestSchema = readJson('schemas/capability.manifest.schema.json');
+const deploymentIdentity = readJson('cloudflare/generated/deployment-identity.all-aboard.json');
 
 function readJson(rel) {
   return JSON.parse(fs.readFileSync(path.join(repoRoot, rel), 'utf8'));
@@ -137,7 +138,13 @@ async function main() {
 
     // --- proof-protocol routes still serve this bundle --------------------
     const health = await proof.health();
-    check('proof /health serves the All Aboard hashes', health.ok === true && health.schemaHash === schemaManifest.schemaHash);
+    check(
+      'proof /health serves the source-derived All Aboard deployment hashes',
+      health.ok === true &&
+        health.schemaHash === deploymentIdentity.schemaHash &&
+        health.bundleHash === deploymentIdentity.bundleHash &&
+        health.clientArtifactIdentity.schemaHash === schemaManifest.schemaHash
+    );
     const proofQuery = await proof.query('tripsQuery', {});
     check('proof-protocol /query still works alongside the kit routes', proofQuery.ok === true && proofQuery.rows.length === 6);
 

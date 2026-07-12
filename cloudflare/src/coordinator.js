@@ -97,6 +97,8 @@ export class Coordinator {
     this.bootMarker = crypto.randomUUID();
     this.startupError = null;
     this.testCronStopAfterClaimRemaining = env.SNAPBACK_TEST_CRON_STOP_AFTER_CLAIM === '1' ? 1 : 0;
+    this.testCronInterruptDuringActionRemaining = env.SNAPBACK_TEST_CRON_INTERRUPT_DURING_ACTION === '1' ? 1 : 0;
+    this.testCronStopBeforeFinishRemaining = env.SNAPBACK_TEST_CRON_STOP_BEFORE_FINISH === '1' ? 1 : 0;
     this.ensureSchema();
   }
 
@@ -244,6 +246,21 @@ export class Coordinator {
          action_name TEXT PRIMARY KEY,
          window_started_at_ms INTEGER NOT NULL,
          count INTEGER NOT NULL
+      )`
+    );
+    // Stable results for nested mutations issued by retryable scheduled
+    // actions. The row is inserted in the SAME transaction as the mutation
+    // commit, closing the crash-after-commit/before-cron-finish gap: a retry
+    // replays the prior result instead of committing the mutation twice.
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_action_mutation_results (
+         action_idempotency_key TEXT NOT NULL,
+         sequence INTEGER NOT NULL,
+         mutation_name TEXT NOT NULL,
+         args_json TEXT NOT NULL,
+         result_json TEXT NOT NULL,
+         commit_version INTEGER NOT NULL,
+         PRIMARY KEY (action_idempotency_key, sequence)
        )`
     );
     for (const table of schema.tables) {
@@ -261,6 +278,7 @@ export class Coordinator {
     if (current >= SUBSCRIPTION_SCHEMA_VERSION) return;
     this.ctx.storage.transactionSync(() => {
       this.sql.exec('DROP TABLE IF EXISTS _snapback_subscriptions_next');
+      this.testSubscriptionMigrationFault('after-drop-next');
       this.sql.exec(
         `CREATE TABLE _snapback_subscriptions_next (
            subscription_id TEXT PRIMARY KEY,
@@ -270,16 +288,31 @@ export class Coordinator {
            UNIQUE(connection_id, function_name, args_json)
          )`
       );
+      this.testSubscriptionMigrationFault('after-create-next');
       this.sql.exec(
         `INSERT OR IGNORE INTO _snapback_subscriptions_next (subscription_id, connection_id, function_name, args_json)
          SELECT subscription_id, connection_id, function_name, args_json
          FROM _snapback_subscriptions
          ORDER BY subscription_id`
       );
+      this.testSubscriptionMigrationFault('after-copy');
       this.sql.exec('DROP TABLE _snapback_subscriptions');
+      this.testSubscriptionMigrationFault('after-drop-source');
       this.sql.exec('ALTER TABLE _snapback_subscriptions_next RENAME TO _snapback_subscriptions');
+      this.testSubscriptionMigrationFault('after-rename');
+      this.sql.exec(
+        'CREATE INDEX IF NOT EXISTS idx_snapback_subscriptions_function ON _snapback_subscriptions (function_name)'
+      );
+      this.testSubscriptionMigrationFault('after-index');
       this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION));
+      this.testSubscriptionMigrationFault('after-version');
     });
+  }
+
+  testSubscriptionMigrationFault(step) {
+    if (this.env.SNAPBACK_TESTING === '1' && this.testSubscriptionMigrationFailureAt === step) {
+      throw codedError('SNAPBACK_TEST_SUBSCRIPTION_MIGRATION_FAILURE', `injected subscription migration failure at ${step}`);
+    }
   }
 
   tableExists(name) {
@@ -311,6 +344,49 @@ export class Coordinator {
         `CREATE ${unique}INDEX IF NOT EXISTS ${physicalIndexName(table.name, index.name)} ON ${this.physicalTable(table.name)} (${expressions.join(', ')})`
       );
     }
+  }
+
+  storageLayoutForTest() {
+    let subscriptionRootPage = null;
+    let temporaryTablePresent = false;
+    for (const record of this.sql.exec(
+      "SELECT name, rootpage FROM sqlite_master WHERE type = 'table' AND name IN ('_snapback_subscriptions', '_snapback_subscriptions_next')"
+    )) {
+      if (String(record.name) === '_snapback_subscriptions') subscriptionRootPage = Number(record.rootpage);
+      if (String(record.name) === '_snapback_subscriptions_next') temporaryTablePresent = true;
+    }
+    let subscriptionCount = 0;
+    for (const record of this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_subscriptions')) {
+      subscriptionCount = Number(record.count);
+    }
+    const indexes = [...this.sql.exec(
+      "SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    )].map((record) => ({ name: String(record.name), table: String(record.tbl_name) }));
+    return {
+      subscriptionSchemaVersion: Number(this.readMeta('subscriptions_schema_version') || 0),
+      subscriptionRootPage,
+      subscriptionCount,
+      temporaryTablePresent,
+      indexes,
+    };
+  }
+
+  indexPlanForTest(payload) {
+    const table = APP_SCHEMA_TABLES.get(String(payload.table || ''));
+    if (!table) return kitError(400, 'SNAPBACK_UNKNOWN_TABLE', `unknown table ${payload.table}`);
+    const index = (table.indexes || []).find((entry) => entry.name === String(payload.index || ''));
+    if (!index) return kitError(400, 'SNAPBACK_QUERY_UNKNOWN_INDEX', `unknown index ${table.name}.${payload.index}`);
+    const field = index.fields[0];
+    const expression = field === '_id' ? 'id' : `json_extract(row_json, '$.${field}')`;
+    const details = [];
+    for (const record of this.sql.exec(
+      `EXPLAIN QUERY PLAN SELECT row_json FROM ${this.physicalTable(table.name)}
+       INDEXED BY ${physicalIndexName(table.name, index.name)} WHERE ${expression} = ?`,
+      payload.value == null ? '' : payload.value
+    )) {
+      details.push(String(record.detail || ''));
+    }
+    return json(200, { table: table.name, index: index.name, details });
   }
 
   expectedMetadata() {
@@ -469,13 +545,24 @@ export class Coordinator {
     }
     if (path === '/health') {
       if (this.startupError) {
-        return json(409, { ...this.startupError, version: this.currentVersion() });
+        return json(409, {
+          ...this.startupError,
+          version: this.currentVersion(),
+          // Deployment verification must still be able to distinguish a
+          // fully bound new version from a stripped bootstrap version while
+          // the data plane is correctly refusing stale persistent state.
+          bindings: {
+            handler: Boolean(this.env.HANDLER),
+            actionHandler: Boolean(this.env.ACTION_HANDLER),
+          },
+        });
       }
       return json(200, {
         ok: true,
         version: this.currentVersion(),
-        schemaHash: APP_SCHEMA_HASH,
-        bundleHash: APP_BUNDLE_HASH,
+        schemaHash: deploymentIdentity.schemaHash,
+        bundleHash: deploymentIdentity.bundleHash,
+        clientArtifactIdentity: { schemaHash: APP_SCHEMA_HASH, bundleHash: APP_BUNDLE_HASH },
         objectBoot: this.bootMarker,
         // Deploy-probe surface (ENG-23732): a live gateway serving the
         // bootstrap pass (services stripped) reports handler:false here, so
@@ -532,6 +619,48 @@ export class Coordinator {
         return json(200, { fired: true });
       });
     }
+    if (path === '/__test/cron-claims') {
+      return this.testingGated(request, () => {
+        const claims = [...this.sql.exec('SELECT * FROM _snapback_cron_claims ORDER BY scheduled_at_ms, idempotency_key')];
+        let mutationResults = 0;
+        for (const record of this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_action_mutation_results')) {
+          mutationResults = Number(record.count);
+        }
+        return json(200, { claims, mutationResults });
+      });
+    }
+    if (path === '/__test/expire-cron-claims') {
+      return this.testingGated(request, () => {
+        this.sql.exec("UPDATE _snapback_cron_claims SET lease_expires_at_ms = 0 WHERE state = 'claimed'");
+        return json(200, { expired: true });
+      });
+    }
+    if (path === '/__test/storage-layout') {
+      return this.testingGated(request, () => json(200, this.storageLayoutForTest()));
+    }
+    if (path === '/__test/index-plan') {
+      return this.testingGated(request, () => this.withJsonObject(request, (payload) => this.indexPlanForTest(payload)));
+    }
+    if (path === '/__test/subscription-migration') {
+      return this.testingGated(request, () => this.withJsonObject(request, (payload) => {
+        if (payload.forceLegacy !== false) {
+          this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION - 1));
+        }
+        this.testSubscriptionMigrationFailureAt = payload.failAt || null;
+        let error = null;
+        try {
+          this.migrateSubscriptionsSchema();
+        } catch (caught) {
+          error = {
+            code: caught.snapbackCode || 'SNAPBACK_TEST_SUBSCRIPTION_MIGRATION_FAILED',
+            message: String(caught.message || caught),
+          };
+        } finally {
+          this.testSubscriptionMigrationFailureAt = null;
+        }
+        return json(200, { ok: error === null, error, layout: this.storageLayoutForTest() });
+      }));
+    }
     // Testing-only payload echo: the exact secretsJson the coordinator would
     // attach for a function — the descriptors-only fact is asserted by test,
     // not by convention (LLP 0049 Phase 1 exit evidence).
@@ -578,7 +707,7 @@ export class Coordinator {
       if (kitAction) {
         return this.withJsonObject(request, async (payload) => {
           const outcome = await this.executeAction(kitAction[1], (payload && payload.args) || {}, 'manual');
-          return json(200, outcome);
+          return json(outcome.diagnostic?.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, outcome);
         });
       }
       if (path === '/connection/open') {
@@ -701,7 +830,7 @@ export class Coordinator {
     this.sql.exec(
       `INSERT INTO _snapback_meta (key, value) VALUES ('bundle_hash', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      payload.bundleHash || APP_BUNDLE_HASH
+      payload.bundleHash || deploymentIdentity.bundleHash
     );
     this.sql.exec('UPDATE _snapback_version SET version = 1 WHERE id = 1');
     this.startupError = this.validateDeploymentMetadata();
@@ -876,11 +1005,20 @@ export class Coordinator {
   // SNAPBACK_ACTION_TIMEOUT posture. No Durable Object transaction is ever
   // held across the external fetch: transactionSync appears only inside
   // commit(), which runs under the mutex after the fetch settled.
-  async executeAction(name, args, trigger) {
+  async executeAction(name, args, trigger, options = {}) {
     const staged = await this.runExclusive(() => {
       const fn = this.functionByName(name);
-      if (!fn || fn.kind !== 'Action') {
+      if (!fn) {
         return { error: { code: 'SNAPBACK_ACTION_UNKNOWN', message: `${name} is not an action on this app` } };
+      }
+      if (fn.kind !== 'Action') {
+        return {
+          error: {
+            code: 'SNAPBACK_FUNCTION_KIND_MISMATCH',
+            message: `${name} is declared ${fn.kind}, not action`,
+            details: { function: name, declaredKind: fn.kind, requestedMode: 'action' },
+          },
+        };
       }
       const limited = this.claimActionBudget(name, trigger);
       if (limited) return { error: limited };
@@ -925,8 +1063,21 @@ export class Coordinator {
         delete sanitizedArgs.baseUrl;
         delete sanitizedArgs.timeoutMs;
         delete sanitizedArgs.url;
+        delete sanitizedArgs.source;
+        sanitizedArgs.trigger = trigger === 'scheduled' ? 'cron' : 'manual';
       }
-      result = await Promise.race([this.invokeHandler(name, 'action', sanitizedArgs, { trigger, control }), watchdog]);
+      result = await Promise.race([
+        this.invokeHandler(name, 'action', sanitizedArgs, {
+          trigger,
+          control,
+          jobName: options.jobName || null,
+          // Only retryable scheduler claims get a durable replay identity.
+          // Public/manual actions are single attempts and must not leave an
+          // unbounded result ledger behind.
+          actionIdempotencyKey: options.idempotencyKey || null,
+        }),
+        watchdog,
+      ]);
     } finally {
       clearTimeout(timer);
     }
@@ -978,10 +1129,43 @@ export class Coordinator {
   // commit, fan-out — executed under the invocation mutex (the caller wraps
   // this in runExclusive). Returns the mutation handler's value; a failure
   // carries its code back into the action as a coded error.
-  async runMutationForAction(name, args, parentHost = null) {
+  async runMutationForAction(name, args, parentHost = null, replay = null) {
     const fn = this.functionByName(name);
-    if (!fn || fn.kind !== 'Mutation') {
+    if (!fn) {
       return { ok: false, code: 'SNAPBACK_ACTION_MUTATION_UNKNOWN', message: `${name} is not a mutation on this app` };
+    }
+    if (fn.kind !== 'Mutation') {
+      return {
+        ok: false,
+        code: 'SNAPBACK_FUNCTION_KIND_MISMATCH',
+        message: `${name} is declared ${fn.kind}, not mutation`,
+      };
+    }
+    const argsJson = canonicalJson(args || {});
+    if (replay && replay.actionIdempotencyKey != null) {
+      for (const record of this.sql.exec(
+        `SELECT mutation_name, args_json, result_json
+         FROM _snapback_action_mutation_results
+         WHERE action_idempotency_key = ? AND sequence = ?`,
+        replay.actionIdempotencyKey,
+        replay.sequence
+      )) {
+        if (String(record.mutation_name) !== name) {
+          return {
+            ok: false,
+            code: 'SNAPBACK_ACTION_REPLAY_DIVERGED',
+            message: `scheduled action replay diverged at mutation ${replay.sequence}`,
+          };
+        }
+        // The retry may have re-fetched fresher bytes and therefore derive
+        // different mutation arguments. The stable action key + sequence is
+        // the idempotency authority: return the already-committed result and
+        // never apply a second write. Keep the original args for diagnosis.
+        if (String(record.args_json) !== argsJson) {
+          console.warn('snapback scheduled action replay reused prior mutation result with changed args', name, replay.sequence);
+        }
+        return { ok: true, value: JSON.parse(String(record.result_json)) };
+      }
     }
     const result = await this.invokeHandler(name, 'mutation', args);
     if (!result.ok) return { ok: false, code: result.code, message: result.message };
@@ -999,7 +1183,22 @@ export class Coordinator {
     // the nested handler was pending, its writes are discarded atomically.
     const abandoned = parentHost && parentHost.abandonedFailure();
     if (abandoned) return abandoned;
-    const commit = this.commit(result.host);
+    const resultJson = canonicalJson(result.value);
+    const commit = this.commit(result.host, replay && replay.actionIdempotencyKey != null
+      ? (committed) => {
+          this.sql.exec(
+            `INSERT INTO _snapback_action_mutation_results
+               (action_idempotency_key, sequence, mutation_name, args_json, result_json, commit_version)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            replay.actionIdempotencyKey,
+            replay.sequence,
+            name,
+            argsJson,
+            resultJson,
+            committed.version
+          );
+        }
+      : null);
     await this.fanOut(commit);
     return { ok: true, value: result.value };
   }
@@ -1086,15 +1285,15 @@ export class Coordinator {
         body: request.body == null ? undefined : String(request.body),
         signal: controller.signal,
       });
-      const bodyText = await response.text();
-      const responseBytes = UTF8_ENCODER.encode(bodyText).byteLength;
-      if (responseBytes > MAX_HOST_RESPONSE_BYTES) {
+      const boundedBody = await readBoundedTextStream(response.body, MAX_HOST_RESPONSE_BYTES);
+      if (!boundedBody.ok) {
         return {
           ok: false,
-          code: 'SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE',
-          message: `host fetch response exceeded ${MAX_HOST_RESPONSE_BYTES} bytes`,
+          code: boundedBody.code,
+          message: boundedBody.message,
         };
       }
+      const bodyText = boundedBody.text;
       return {
         ok: true,
         value: {
@@ -1288,14 +1487,27 @@ export class Coordinator {
       args.pollBudgetMs = 0;
     }
     try {
-      const result = await this.executeAction(job.action, args, trigger);
+      const result = await this.executeAction(job.action, args, trigger, {
+        idempotencyKey: `cron:${key}`,
+        jobName: job.name,
+      });
       if (!result.ok) {
+        if (
+          this.env.SNAPBACK_TESTING === '1' &&
+          result.diagnostic.code === 'SNAPBACK_TEST_CRON_ACTION_INTERRUPTED'
+        ) {
+          return { duplicate: false, interruptedDuringAction: true, runId, idempotencyKey: key };
+        }
         outcome = 'failed';
         errorText = `${result.diagnostic.code}: ${result.diagnostic.message}`;
       }
     } catch (error) {
       outcome = 'failed';
       errorText = String((error && error.message) || error);
+    }
+    if (this.env.SNAPBACK_TESTING === '1' && this.testCronStopBeforeFinishRemaining > 0) {
+      this.testCronStopBeforeFinishRemaining -= 1;
+      return { duplicate: false, interruptedBeforeFinish: true, runId, outcome, idempotencyKey: key };
     }
     const finishedAt = Date.now();
     this.sql.exec(
@@ -1378,6 +1590,14 @@ export class Coordinator {
   }
 
   pruneCronClaims(nowMs) {
+    this.sql.exec(
+      `DELETE FROM _snapback_action_mutation_results
+       WHERE action_idempotency_key IN (
+         SELECT 'cron:' || idempotency_key FROM _snapback_cron_claims
+         WHERE state IN ('done', 'failed') AND claimed_at_ms < ?
+       )`,
+      nowMs - CRON_CLAIM_RETENTION_MS
+    );
     this.sql.exec(
       `DELETE FROM _snapback_cron_claims
        WHERE state IN ('done', 'failed') AND claimed_at_ms < ?`,
@@ -1479,6 +1699,10 @@ export class Coordinator {
     const epoch = `${Date.now()}-${token}`;
     let host;
     const control = options.control || null;
+    const actionIdempotencyKey = mode === 'action' && options.actionIdempotencyKey != null
+      ? String(options.actionIdempotencyKey)
+      : null;
+    let actionMutationSequence = 0;
     host = new HostContext({
       sql: this.sql,
       mode,
@@ -1496,9 +1720,26 @@ export class Coordinator {
         mode === 'action'
           ? (name, mutationArgs) =>
               this.runExclusive(() => {
+                if (
+                  options.trigger === 'scheduled' &&
+                  this.env.SNAPBACK_TESTING === '1' &&
+                  this.testCronInterruptDuringActionRemaining > 0
+                ) {
+                  this.testCronInterruptDuringActionRemaining -= 1;
+                  return {
+                    ok: false,
+                    code: 'SNAPBACK_TEST_CRON_ACTION_INTERRUPTED',
+                    message: 'injected cron interruption during action execution',
+                  };
+                }
                 const abandoned = host.abandonedFailure();
                 if (abandoned) return abandoned;
-                return this.runMutationForAction(name, mutationArgs, host);
+                const sequence = actionMutationSequence;
+                actionMutationSequence += 1;
+                return this.runMutationForAction(name, mutationArgs, host, {
+                  actionIdempotencyKey,
+                  sequence,
+                });
               })
           : null,
       hostFetch: mode === 'action' ? (request) => this.hostActionFetch(request, grants.capabilities, control) : null,
@@ -1652,8 +1893,8 @@ export class Coordinator {
   // whose writes all degrade to no-ops (patch on a missing row, empty-values
   // patch, delete of a missing row) keeps the current version, matching
   // src/storage.rs (ENG-23583).
-  commit(host) {
-    if (host.writes.length === 0) {
+  commit(host, transactionTail = null) {
+    if (host.writes.length === 0 && typeof transactionTail !== 'function') {
       return { version: this.currentVersion(), changes: [] };
     }
     const nowMs = Date.now();
@@ -1701,6 +1942,9 @@ export class Coordinator {
           'DELETE FROM _snapback_changes WHERE version <= ?',
           nextVersion - CHANGE_JOURNAL_RETAIN_VERSIONS
         );
+      }
+      if (typeof transactionTail === 'function') {
+        transactionTail({ version: changes.length > 0 ? nextVersion : currentVersion, changes });
       }
     });
     return { version: changes.length > 0 ? nextVersion : currentVersion, changes };
@@ -1924,8 +2168,11 @@ export class Coordinator {
   // receives this subscription's fan-out.
   async kitSubscribe(name, payload) {
     const fn = this.functionByName(name);
-    if (!fn || fn.kind !== 'LiveQuery') {
+    if (!fn) {
       return kitError(400, 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY', `${name} is not a live query`);
+    }
+    if (fn.kind !== 'LiveQuery') {
+      return kitError(400, 'SNAPBACK_FUNCTION_KIND_MISMATCH', `${name} is declared ${fn.kind}, not live query`);
     }
     const args = (payload && payload.input && payload.input.args) || {};
     const result = await this.invokeHandler(name, 'query', args);
@@ -1979,9 +2226,10 @@ export class Coordinator {
   }
 
   // GET /live/:connectionId/stream — the kit's managed shared socket. The
-  // token gate runs BEFORE the upgrade (browser WebSockets cannot set
-  // headers, so the token rides the `snapback.connection-token.<token>`
-  // subprotocol or the query string), and the accepted socket echoes
+  // token gate runs BEFORE the upgrade. Browser WebSockets cannot set
+  // headers, so their token rides only the
+  // `snapback.connection-token.<token>` subprotocol; non-browser clients may
+  // use the explicit header. Query credentials are refused. The socket echoes
   // `snapback.v1` — a browser fails the connection when it offered
   // subprotocols and the server echoed none.
   acceptKitSocket(request, connectionId, url) {
@@ -2286,6 +2534,7 @@ export class Coordinator {
       this.sql.exec('DELETE FROM _snapback_cron_claims');
       this.sql.exec('DELETE FROM _snapback_cron_state');
       this.sql.exec('DELETE FROM _snapback_action_limits');
+      this.sql.exec('DELETE FROM _snapback_action_mutation_results');
       this.testResetFault('after-runtime-state');
       for (const table of schema.tables) {
         this.sql.exec(`DELETE FROM ${this.physicalTable(table.name)}`);
@@ -2302,7 +2551,23 @@ export class Coordinator {
     // commits; a rolled-back reset must retain its stale refusal too.
     this.startupError = null;
     // Subscriptions and cron state are gone: drop any armed object alarm.
-    await this.reconcileCronActivation();
+    const cleanupWarnings = [];
+    try {
+      if (this.env.SNAPBACK_TESTING === '1' && this.env.SNAPBACK_TEST_RESET_POST_COMMIT_ALARM_FAILURE === '1') {
+        throw codedError('SNAPBACK_RESET_ALARM_CLEANUP_FAILED', 'injected post-commit alarm cleanup failure');
+      }
+      await this.reconcileCronActivation();
+    } catch (error) {
+      // The SQL transaction above is the reset linearization point. Alarm
+      // cleanup is recoverable (a stale alarm wakes once, observes no armed
+      // state, and disarms); it must never turn a committed reset into a 500
+      // that falsely promises the old state survived.
+      cleanupWarnings.push({
+        code: (error && error.snapbackCode) || 'SNAPBACK_RESET_ALARM_CLEANUP_DEFERRED',
+        message: 'reset committed, but alarm cleanup was deferred to the next coordinator wake',
+      });
+      console.warn('snapback reset post-commit alarm cleanup deferred', String((error && error.message) || error));
+    }
     for (const ws of this.ctx.getWebSockets()) {
       try {
         const frame =
@@ -2312,7 +2577,12 @@ export class Coordinator {
         ws.send(JSON.stringify(frame));
       } catch (_) {}
     }
-    return json(200, { reset: true, seeded });
+    return json(200, {
+      reset: true,
+      seeded,
+      cleanup: cleanupWarnings.length === 0 ? 'complete' : 'deferred',
+      ...(cleanupWarnings.length > 0 ? { warnings: cleanupWarnings } : {}),
+    });
   }
 
   testResetFault(step) {
@@ -2356,22 +2626,63 @@ function secretRepresentations(value) {
   const raw = String(value || '');
   if (!raw) return [];
   const variants = new Set([raw]);
-  try {
-    variants.add(encodeURIComponent(raw));
-  } catch (_) {}
-  try {
-    const params = new URLSearchParams();
-    params.set('v', raw);
-    variants.add(params.toString().slice(2));
-  } catch (_) {}
-  try {
-    const encoded = JSON.stringify(raw);
-    if (encoded && encoded.length >= 2) variants.add(encoded.slice(1, -1));
-  } catch (_) {}
+  try { variants.add(raw.normalize('NFC')); } catch (_) {}
+  try { variants.add(raw.normalize('NFD')); } catch (_) {}
+  // Include two reversible URL/form encoding layers; proxies and JSON APIs
+  // commonly echo an already-encoded query value after encoding it again.
+  for (let round = 0; round < 2; round += 1) {
+    for (const candidate of [...variants]) {
+      try { variants.add(encodeURIComponent(candidate)); } catch (_) {}
+      try {
+        const params = new URLSearchParams();
+        params.set('v', candidate);
+        variants.add(params.toString().slice(2));
+      } catch (_) {}
+    }
+  }
+  for (const candidate of [...variants]) {
+    try {
+      const encoded = JSON.stringify(candidate);
+      if (encoded && encoded.length >= 2) variants.add(encoded.slice(1, -1));
+    } catch (_) {}
+  }
   for (const encoded of [...variants]) {
     variants.add(encoded.replace(/%[0-9A-F]{2}/g, (part) => part.toLowerCase()));
   }
   return [...variants].sort((left, right) => right.length - left.length);
+}
+
+async function readBoundedTextStream(stream, limitBytes) {
+  if (stream === null) return { ok: true, text: '' };
+  const reader = stream.getReader();
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  let bytes = 0;
+  let text = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > limitBytes) {
+        await reader.cancel('SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE');
+        return {
+          ok: false,
+          code: 'SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE',
+          message: `host fetch response exceeded ${limitBytes} bytes`,
+        };
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return { ok: true, text };
+  } catch (_) {
+    try { await reader.cancel('SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8'); } catch (_) {}
+    return {
+      ok: false,
+      code: 'SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8',
+      message: 'host fetch response was not valid UTF-8',
+    };
+  }
 }
 
 function sortJson(value) {
@@ -2465,26 +2776,36 @@ async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
   let totalBytes = 0;
   if (request.body !== null) {
     const reader = request.body.getReader();
-    const decoder = new TextDecoder();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      totalBytes += value.byteLength;
-      if (totalBytes > MAX_REQUEST_BYTES) {
-        await reader.cancel('SNAPBACK_REQUEST_TOO_LARGE');
-        return {
-          ok: false,
-          response: requestDiagnostic(
-            413,
-            'SNAPBACK_REQUEST_TOO_LARGE',
-            `JSON request body exceeds the ${MAX_REQUEST_BYTES}-byte limit`,
-            { limitBytes: MAX_REQUEST_BYTES }
-          ),
-        };
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        totalBytes += value.byteLength;
+        if (totalBytes > MAX_REQUEST_BYTES) {
+          await reader.cancel('SNAPBACK_REQUEST_TOO_LARGE');
+          return {
+            ok: false,
+            response: requestDiagnostic(
+              413,
+              'SNAPBACK_REQUEST_TOO_LARGE',
+              `JSON request body exceeds the ${MAX_REQUEST_BYTES}-byte limit`,
+              { limitBytes: MAX_REQUEST_BYTES }
+            ),
+          };
+        }
+        text += decoder.decode(value, { stream: true });
       }
-      text += decoder.decode(value, { stream: true });
+      text += decoder.decode();
+    } catch (_) {
+      try {
+        await reader.cancel('SNAPBACK_UTF8_INVALID');
+      } catch (_) {}
+      return {
+        ok: false,
+        response: requestDiagnostic(400, 'SNAPBACK_UTF8_INVALID', 'request body is not valid UTF-8'),
+      };
     }
-    text += decoder.decode();
   }
   if (text.trim().length === 0) {
     if (allowEmpty) return { ok: true, value: {} };

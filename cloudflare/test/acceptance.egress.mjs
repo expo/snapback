@@ -263,7 +263,9 @@ async function main() {
     );
 
     // --- config status still carries no key material after egress ---------
-    const status = await (await fetch(`${base}/config/status`)).json();
+    const status = await (await fetch(`${base}/config/status`, {
+      headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+    })).json();
     check(
       'status JSON stays key-free after live egress',
       !JSON.stringify(status).includes(FEED_KEY) && !JSON.stringify(status).includes(DIRECTIONS_KEY)
