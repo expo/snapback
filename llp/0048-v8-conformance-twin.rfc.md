@@ -5,7 +5,9 @@
 **Systems:** Runtime, Security, Testing, Developer experience, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (post-review author pass: internal manifest profile id
+**Revised:** 2026-07-12 (ENG-24339: adversarial twin coverage now pins sealed
+invoke/settle globals, accessor and wrapper interception, and raw host-call
+denial); 2026-07-07 (post-review author pass: internal manifest profile id
 pinned as `local-conformance-sqlite-workerd-v8`, `nodejs_compat` refusal test
 added to acceptance, and the two author decisions given proposed defaults
 pending Charlie's nod — first allowlist slice (encoding/URL/base64/console)
@@ -405,6 +407,13 @@ all are fixed and gated by the twin suites and the conformance corpus:
   process-stable FFI global and epoch guard). The isolate-global rejection
   ledger is attributable because exactly one invocation runs — and drains to
   quiescence — at a time.
+- **Harness control-plane integrity** (ENG-24339): both engines install the
+  shared invoke/settle helpers non-writable and non-configurable before the
+  application module evaluates, and settlement calls the invocation helper
+  through a lexical reference. Ibex captures its original FFI transport at
+  bootstrap time. Twin probes cover hostile frozen globals, accessors,
+  wrapper interception, and raw host-call attempts; Rust independently
+  rejects action DB reads at the shared host-op boundary.
 - **Drain contract** (ENG-23584): the fixed 32-tick microtask drain is
   replaced by a quiescence contract — wait for this invocation's in-flight
   host calls, then yield real tasks (workerd defers `unhandledrejection`

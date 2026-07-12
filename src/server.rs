@@ -13,8 +13,7 @@ use crate::local::{
     StagedAppAction, StagedConfigVerify,
 };
 use crate::manifest::{
-    FunctionManifest, HandlerInput, MutationOutput, MutationRequest, QueryOutput, QueryPlan,
-    SchemaManifest, SeedData,
+    FunctionManifest, HandlerInput, MutationOutput, MutationRequest, SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
 use axum::extract::rejection::{BytesRejection, JsonRejection};
@@ -130,16 +129,6 @@ impl IbexActionHost for DetachedActionHost {
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
         let mut snapback = self.lock_live("runMutation")?;
         snapback.invoke_mutation(name, input)
-    }
-
-    fn query(&mut self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
-        let snapback = self.lock_live("db.query")?;
-        snapback.db_query(plan, input)
-    }
-
-    fn get(&mut self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
-        let snapback = self.lock_live("db.get")?;
-        snapback.db_get(table, id)
     }
 }
 

@@ -15,6 +15,29 @@
   function readonlyDenied(op) {
     return function() { throw snapbackError("SNAPBACK_HANDLER_WRITE_IN_QUERY", op); };
   }
+  // @ref LLP 0009#harness-control-plane-boundary — Capture the Ibex FFI
+  // transport before application code evaluates. Workerd supplies an
+  // invocation-local transport explicitly; on Ibex,
+  // reading g.__hostCall later would let a handler replace it with a wrapper
+  // and observe the otherwise-opaque invocation epoch.
+  var ibexHostCall = typeof g.__hostCall === "function" ? g.__hostCall : null;
+  function installTrustedFunction(name, value) {
+    // These names are control-plane entry points, not application extension
+    // points. Install non-writable/non-configurable properties before the
+    // handler module runs, and fail harness initialization if the runtime
+    // cannot enforce that boundary.
+    Object.defineProperty(g, name, {
+      value: value,
+      enumerable: false,
+      configurable: false,
+      writable: false
+    });
+    var descriptor = Object.getOwnPropertyDescriptor(g, name);
+    if (!descriptor || descriptor.value !== value || descriptor.configurable || descriptor.writable) {
+      throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", name);
+    }
+    try { Object.freeze(value); } catch (_) {}
+  }
   // The opaque secret handle (LLP 0036 D5/D8): every accidental
   // materialization path — stringify, JSON, template coercion, console —
   // yields a redacted marker; expose() is the explicit, greppable escape
@@ -177,8 +200,11 @@
   // and uses the host-injected `__hostCall` FFI global, which is
   // process-stable (the epoch guard, not the transport, is its staleness
   // defense).
-  g.__snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall) {
-    var hostCallFn = typeof hostCall === "function" ? hostCall : g.__hostCall;
+  var snapbackInvoke = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall) {
+    var hostCallFn = typeof hostCall === "function" ? hostCall : ibexHostCall;
+    if (typeof hostCallFn !== "function") {
+      throw snapbackError("SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT", "host transport unavailable");
+    }
     function host(op, args) {
       try {
         return hostCallFn(epoch + "|" + op, JSON.stringify(args || {}));
@@ -378,9 +404,9 @@
   // The envelope is only constructed after the awaited handler value exists,
   // so an untagged output on any engine means the handler never settled
   // (SNAPBACK_HANDLER_DID_NOT_SETTLE on the host side).
-  g.__snapbackSettle = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall) {
+  var snapbackSettle = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall) {
     try {
-      var value = await g.__snapbackInvoke(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall);
+      var value = await snapbackInvoke(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall);
       var encodedValue = JSON.stringify(value === undefined ? null : value, __snapbackJsonReplacer);
       if (encodedValue === undefined) {
         var resultError = new Error("handler returned a value that is not JSON-serializable");
@@ -394,4 +420,6 @@
       return JSON.stringify({ r: { __snapbackOk: false, code: code, message: message } }, __snapbackJsonReplacer);
     }
   };
+  installTrustedFunction("__snapbackInvoke", snapbackInvoke);
+  installTrustedFunction("__snapbackSettle", snapbackSettle);
 })(globalThis);

@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-07 (DK-5 re-decided — triggers 1–2 fired with LLP 0040/LLP 0047 starting the same day; build the twin now as LLP 0048's workerd-hosted runner behind the RPC-shaped handler seam, no native embed; the enduring Hermes-local engine posture recorded — device parity with Exact, capability security by construction, footprint, spinup; ratified by Charlie in-session, applied by Claude); 2026-07-07 (ENG-23361: an unhandled rejection in a detached promise chain now fails the invocation instead of committing its partial work as success — the ctx bootstrap installs a rejection ledger on the vendored then/promise hook slots and the host sweeps it after every successful eval, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed; §Invocation Isolation Obligation 3 updated); 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
+**Revised:** 2026-07-12 (ENG-24339: trusted invoke/settle helpers install before application source, are sealed and lexically linked, Ibex captures its original host transport, and action DB reads are rejected at the Rust host boundary); 2026-07-07 (DK-5 re-decided — triggers 1–2 fired with LLP 0040/LLP 0047 starting the same day; build the twin now as LLP 0048's workerd-hosted runner behind the RPC-shaped handler seam, no native embed; the enduring Hermes-local engine posture recorded — device parity with Exact, capability security by construction, footprint, spinup; ratified by Charlie in-session, applied by Claude); 2026-07-07 (ENG-23361: an unhandled rejection in a detached promise chain now fails the invocation instead of committing its partial work as success — the ctx bootstrap installs a rejection ledger on the vendored then/promise hook slots and the host sweeps it after every successful eval, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed; §Invocation Isolation Obligation 3 updated); 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0036, LLP 0040, LLP 0041, LLP 0043, LLP 0047, LLP 0048, https://github.com/ccheever/ibex
 
 ## Summary
@@ -369,7 +369,7 @@ path for debugging or A/B measurement.
 (the map's key equality is the correctness check; nothing can collide), and
 not the manifest `bundleHash` (that hashes manifest metadata, not the
 executable text). The full VM-determining setup input is (ambient
-restriction, module source, ctx bootstrap, reset install); the bootstrap and
+restriction, ctx bootstrap, module source, reset install); the bootstrap and
 reset are process-static, `SNAPBACK_OUTBOUND_ACTIONS` is env-static, and the
 ambient restriction text is **identical for queries and mutations** (only
 actions get the egress variant, and actions never pool) — an equality pinned
@@ -413,8 +413,8 @@ serialized write lane (mutations + fan-out re-runs — the largest win) reuses
 one VM per bundle, and concurrent L6 read-lane queries simply check out
 distinct VMs, warming extras on miss up to the bound.
 
-**Warm structure.** Setup eval, once per VM: ambient restriction + module
-source + ctx bootstrap + reset install (which captures the baseline described
+**Warm structure.** Setup eval, once per VM: ambient restriction + ctx
+bootstrap + module source + reset install (which captures the baseline described
 below). Per invocation: one eval of the small async-invoke IIFE — the same
 text the fresh path appends — then the reset eval. The S5.D1 host-context
 stack is pushed around **both** the setup and invoke evals, so module
@@ -482,6 +482,21 @@ and its own live context, and returning to the outer action restores the
 outer epoch alongside the outer context (same save/restore stack). Pinned by
 `dk4_stale_continuation_cannot_inject_into_another_invocation`, which fails
 against the pre-guard code.
+
+#### Harness control-plane boundary
+
+The ctx bootstrap evaluates before any application module and installs
+`__snapbackInvoke` and `__snapbackSettle` as
+non-writable, non-configurable functions whose implementation calls through
+lexical references. On Ibex it also captures the original `__hostCall` FFI
+transport before application code can wrap the global and observe an epoch.
+This ordering is security-significant: application source cannot reserve an
+accessor or frozen property at a harness name and receive the live invocation
+arguments. The Rust dispatcher is the final capability boundary and rejects
+`db.query`/`db.get` in action mode even if a raw call somehow carries a valid
+epoch; the action host exposes only named mutation invocation. Adversarial
+Ibex/workerd twin probes pin frozen-global, accessor, wrapper-interception,
+and raw-call denial (ENG-24339).
 
 **Fail-closed pooling.** The reset returns a JSON verdict; the Rust side
 pools the VM only on a parsed `ok: true`. Any handler eval error, reset eval

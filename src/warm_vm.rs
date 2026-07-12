@@ -46,7 +46,7 @@ pub(crate) struct WarmVm {
     /// still compares this exact text before reuse — no digest-only keying.
     key: String,
     source_hash: u64,
-    /// Whether the setup eval (ambient + module + bootstrap + reset install)
+    /// Whether the setup eval (ambient + bootstrap + module + reset install)
     /// has completed. Setup runs inside the invocation's host-context window
     /// so first-invocation module top-level host calls match the fresh path.
     set_up: bool,

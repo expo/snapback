@@ -73,18 +73,13 @@ pub struct IbexQueryRun {
     pub read_dependencies: Vec<CapturedReadDependency>,
 }
 
-/// The seam through which an action reaches instance state. Every db-touching
-/// host call an action-mode VM can make flows through one host, so the host
-/// implementation decides the locking policy: the in-lock host serves calls
-/// through the borrow it already holds, while the server's detached host
-/// reacquires the instance mutex per call so the action itself never holds it
-/// (ENG-23324). The JS ambient layer denies `ctx.db` to actions today —
-/// `query`/`get` here are the fail-safe boundary for a raw `db.*` host call
-/// arriving in action mode, not a sanctioned surface.
+/// The seam through which an action reaches instance state. Actions can
+/// mutate only through an explicitly named mutation; direct reads are not a
+/// capability of this host at all. The Rust host-call dispatcher separately
+/// rejects action-mode `db.query`/`db.get`, so the JS context shim is defense
+/// in depth rather than the capability boundary.
 pub trait IbexActionHost {
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput>;
-    fn query(&mut self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput>;
-    fn get(&mut self, table: &str, id: &str) -> SnapbackResult<Option<Value>>;
 }
 
 impl RuntimeManager {
@@ -355,6 +350,19 @@ fn action_host_missing() -> SnapbackError {
     )
 }
 
+fn action_db_denied(op: &str) -> SnapbackError {
+    // @ref LLP 0009#harness-control-plane-boundary — action DB denial is
+    // enforced on the shared host dispatcher, below the mutable JS surface.
+    // Preserve the public ctx shim's existing stable code. The important
+    // boundary is that even a raw host call carrying a valid invocation epoch
+    // cannot turn an action into a reader.
+    SnapbackError::error(
+        "SNAPBACK_HANDLER_WRITE_IN_QUERY",
+        "runtime",
+        format!("ctx.db.{op} is unavailable to action handlers"),
+    )
+}
+
 /// Validate a supplied replay ledger before the invocation runs (LLP 0051
 /// D1): the format version must be known, and when the ledger carries an auth
 /// fingerprint it must match the invocation's resolved auth context — a
@@ -609,6 +617,9 @@ impl<'a> IbexHostContext<'a> {
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
         match op {
             "db.query" => {
+                if self.mode == IbexInvocationMode::Action {
+                    return Err(action_db_denied("query"));
+                }
                 let plan = serde_json::from_value::<QueryPlan>(
                     args.get("plan").cloned().unwrap_or(Value::Null),
                 )
@@ -620,26 +631,6 @@ impl<'a> IbexHostContext<'a> {
                     )
                     .with_details(json!({ "error": error.to_string() }))
                 })?;
-                if self.mode == IbexInvocationMode::Action {
-                    // Actions read through the host (which decides locking —
-                    // ENG-23324) and skip read capture: an action is not a
-                    // transaction, so its read set is never consumed. No
-                    // buffered-write overlay either — actions cannot buffer
-                    // writes (`ensure_writable` rejects them).
-                    let host = self
-                        .action_host
-                        .as_deref_mut()
-                        .ok_or_else(action_host_missing)?;
-                    let output = host.query(&plan, &self.input)?;
-                    return serde_json::to_value(output).map_err(|error| {
-                        SnapbackError::error(
-                            "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
-                            "runtime",
-                            "ctx.db.query output could not be serialized",
-                        )
-                        .with_details(json!({ "error": error.to_string() }))
-                    });
-                }
                 let output = self.db().query(&plan, &self.input)?;
                 // Capture the read dependency on the storage result the plan
                 // declared (its limit included) — the buffered overlay below is
@@ -676,17 +667,11 @@ impl<'a> IbexHostContext<'a> {
                 })
             }
             "db.get" => {
+                if self.mode == IbexInvocationMode::Action {
+                    return Err(action_db_denied("get"));
+                }
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
-                if self.mode == IbexInvocationMode::Action {
-                    // Host-routed, capture-free read — same rationale as the
-                    // action arm of db.query above (ENG-23324).
-                    let host = self
-                        .action_host
-                        .as_deref_mut()
-                        .ok_or_else(action_host_missing)?;
-                    return Ok(host.get(&table, &id)?.unwrap_or(Value::Null));
-                }
                 let stored = self.db().get(&table, &id)?;
                 self.capture_point_read(&table, &id, stored.as_ref())?;
                 // E2: read-your-writes — fold buffered writes over the stored row.
@@ -1477,12 +1462,14 @@ fn invocation_source(
     module: &IbexModule,
     invocation: &IbexHostContext<'_>,
 ) -> SnapbackResult<String> {
+    // @ref LLP 0009#harness-control-plane-boundary — trusted helpers install
+    // and seal their globals before untrusted module source evaluates.
     Ok(format!(
         "{}\n{}\n{}\n{}\n{}",
         ambient_restriction_source(invocation.mode, outbound_actions_enabled()),
         allowlist_install_source(),
-        module.source,
         ctx_bootstrap_source(),
+        module.source,
         invocation_iife_source(module, invocation)?,
     ))
 }
@@ -1498,7 +1485,7 @@ fn allowlist_install_source() -> &'static str {
 
 /// The per-invocation tail of the eval source: the async IIFE that calls
 /// `__snapbackInvoke` with this invocation's literals. The fresh path appends
-/// it to ambient + module + bootstrap in one eval; the warm path evals it
+/// it to ambient + bootstrap + module in one eval; the warm path evals it
 /// alone against an already-set-up VM — same text either way, so the two
 /// paths cannot drift.
 fn invocation_iife_source(
@@ -1565,8 +1552,8 @@ fn invocation_iife_source(
     .replace("__SNAPBACK_EPOCH__", &epoch_literal))
 }
 
-/// The once-per-VM warm setup eval: ambient restriction + module source +
-/// ctx bootstrap + the reset installer (which captures the post-setup
+/// The once-per-VM warm setup eval: ambient restriction + ctx bootstrap +
+/// module source + the reset installer (which captures the post-setup
 /// baseline). The ambient text is the query/mutation deny set — identical for
 /// both warm modes (pinned by `dk4_query_and_mutation_share_one_ambient_restriction`);
 /// actions, whose ambient differs, never take this path.
@@ -1577,8 +1564,8 @@ fn warm_setup_source(module: &IbexModule) -> String {
         "{}\n{}\n{}\n{}\n{}",
         ambient_restriction_source(IbexInvocationMode::Query, outbound_actions_enabled()),
         allowlist_install_source(),
-        module.source,
         ctx_bootstrap_source(),
+        module.source,
         crate::warm_vm::RESET_INSTALL_SOURCE,
     )
 }
@@ -2053,6 +2040,63 @@ fn find_on_path(binary: &str) -> Option<PathBuf> {
 
 fn is_executable(path: &Path) -> bool {
     path.is_file()
+}
+
+#[cfg(test)]
+mod action_db_boundary_tests {
+    use super::{IbexActionHost, IbexHostContext};
+    use crate::cron::{CronRunMetadata, CronRunTrigger};
+    use crate::diagnostic::SnapbackResult;
+    use crate::manifest::{HandlerInput, MutationOutput};
+    use serde_json::json;
+
+    struct MutationOnlyHost;
+
+    impl IbexActionHost for MutationOnlyHost {
+        fn run_mutation(
+            &mut self,
+            _name: &str,
+            _input: HandlerInput,
+        ) -> SnapbackResult<MutationOutput> {
+            panic!("an action db-read denial must not reach its mutation-only host")
+        }
+    }
+
+    fn metadata() -> CronRunMetadata {
+        CronRunMetadata {
+            job_name: "security-test".to_owned(),
+            run_id: "security-test:1".to_owned(),
+            scheduled_at_ms: None,
+            due_at_ms: 1,
+            idempotency_key: "security-test".to_owned(),
+            slot_key: "security-test".to_owned(),
+            attempt: 1,
+            trigger: CronRunTrigger::Manual,
+        }
+    }
+
+    #[test]
+    fn action_db_reads_are_rejected_by_the_host_dispatcher() {
+        let mut host = MutationOnlyHost;
+        let mut context = IbexHostContext::new_action(
+            HandlerInput::default(),
+            metadata(),
+            &mut host,
+            json!(null),
+        );
+
+        for (op, args) in [
+            ("db.get", json!({ "table": "items", "id": "secret" })),
+            // Deliberately malformed: capability denial precedes plan parsing,
+            // so an action cannot use the read operation as a parser oracle.
+            ("db.query", json!({})),
+        ] {
+            let error = context
+                .handle_host_call(op, args)
+                .expect_err("action db reads must fail at the host boundary");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_WRITE_IN_QUERY");
+        }
+    }
 }
 
 #[cfg(test)]

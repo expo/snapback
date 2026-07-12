@@ -912,19 +912,6 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
         // thread; this pointer is valid only for the duration of one action run.
         unsafe { (&mut *self.snapback).invoke_mutation(name, input) }
     }
-
-    // The reads below derive their reference from the same provenance root as
-    // `run_mutation`'s write, one synchronous host call at a time — no read
-    // borrow is ever held across a mutation, which is what keeps the aliasing
-    // sound under Stacked Borrows (ENG-23324 removed the long-lived raw db
-    // pointer this path used to carry).
-    fn query(&mut self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
-        unsafe { (*self.snapback).db.query(plan, input) }
-    }
-
-    fn get(&mut self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
-        unsafe { (*self.snapback).db.get(table, id) }
-    }
 }
 
 impl LocalSnapback {
@@ -2054,21 +2041,6 @@ impl LocalSnapback {
             }
             _ => StagedAction::InLock,
         }
-    }
-
-    /// One-call read accessors for the detached action host: each `ctx.db`
-    /// host call of a detached action takes the global mutex just long enough
-    /// for one read (ENG-23324).
-    pub(crate) fn db_query(
-        &self,
-        plan: &QueryPlan,
-        input: &HandlerInput,
-    ) -> SnapbackResult<QueryOutput> {
-        self.db.query(plan, input)
-    }
-
-    pub(crate) fn db_get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
-        self.db.get(table, id)
     }
 
     /// Validate declared config entries fail-closed, validate per-function

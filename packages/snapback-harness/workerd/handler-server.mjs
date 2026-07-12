@@ -76,10 +76,10 @@ async function invoke(body, env) {
   // still reject before the sweep (ENG-23584).
   const inFlight = new Set();
 
-  // The host-call transport is invocation-local: it is handed to
-  // __snapbackSettle rather than read from a mutable global at call time, so
-  // an overlapping invocation can never swap the token/routing out from
-  // under an in-flight continuation (ENG-23574).
+  // The host-call transport is invocation-local: it is handed to the sealed
+  // __snapbackSettle helper rather than read from a mutable global at call
+  // time, so an overlapping invocation can never swap the token/routing out
+  // from under an in-flight continuation (ENG-23574 / ENG-24339).
   const hostCall = function (rawOp, argsJson) {
     const headers = {
       "content-type": "application/json",

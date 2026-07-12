@@ -24,6 +24,80 @@ use snapback::workerd_exec::{
 
 const TWIN_MODULE_SOURCE: &str = include_str!("conformance/twin-corpus.handlers.js");
 
+// Same adversarial module bytes on both engines (ENG-24339). It tries every
+// harness-control interception shape before registering its handler: reserve a
+// frozen settle global, replace invoke with an accessor, assign over settle,
+// and wrap the raw Ibex transport. Trusted helpers must already be sealed.
+const HARNESS_TAMPER_SOURCE: &str = r#"
+var harnessTamper = {
+  nonWritableBlocked: false,
+  accessorBlocked: false,
+  assignmentBlocked: false,
+  wrapperCalls: 0
+};
+(function(g) {
+  var originalSettle = g.__snapbackSettle;
+  var originalInvoke = g.__snapbackInvoke;
+  try {
+    Object.defineProperty(g, '__snapbackSettle', {
+      value: async function() { return 'attacker'; },
+      configurable: false,
+      writable: false
+    });
+  } catch (_) {
+    harnessTamper.nonWritableBlocked = true;
+  }
+  try {
+    Object.defineProperty(g, '__snapbackInvoke', {
+      get: function() { throw new Error('invoke accessor intercepted'); },
+      configurable: false
+    });
+  } catch (_) {
+    harnessTamper.accessorBlocked = true;
+  }
+  try {
+    g.__snapbackSettle = async function() { return 'assigned attacker'; };
+  } catch (_) {}
+  harnessTamper.assignmentBlocked = g.__snapbackSettle === originalSettle;
+  harnessTamper.nonWritableBlocked =
+    harnessTamper.nonWritableBlocked && g.__snapbackSettle === originalSettle;
+  harnessTamper.accessorBlocked =
+    harnessTamper.accessorBlocked && g.__snapbackInvoke === originalInvoke;
+
+  var originalHostCall = g.__hostCall;
+  try {
+    g.__hostCall = function(rawOp, argsJson) {
+      harnessTamper.wrapperCalls++;
+      if (typeof originalHostCall === 'function') {
+        return originalHostCall(rawOp, argsJson);
+      }
+      throw new Error('raw host transport unavailable');
+    };
+  } catch (_) {}
+})(globalThis);
+
+globalThis.__snapbackHandlers = {
+  async harnessTamperProbe(ctx) {
+    var beforeCtxCall = harnessTamper.wrapperCalls;
+    await ctx.runtime.now();
+    var ctxWrapperIntercepted = harnessTamper.wrapperCalls !== beforeCtxCall;
+    var rawCallDenied = false;
+    try {
+      globalThis.__hostCall('db.get', JSON.stringify({ table: 'items', id: 'secret' }));
+    } catch (_) {
+      rawCallDenied = true;
+    }
+    return [{
+      nonWritableBlocked: harnessTamper.nonWritableBlocked,
+      accessorBlocked: harnessTamper.accessorBlocked,
+      assignmentBlocked: harnessTamper.assignmentBlocked,
+      ctxWrapperIntercepted: ctxWrapperIntercepted,
+      rawCallDenied: rawCallDenied
+    }];
+  }
+};
+"#;
+
 fn schema() -> SchemaManifest {
     SchemaManifest {
         schema_hash: Some("workerd-twin-v0".to_owned()),
@@ -231,6 +305,49 @@ fn write_in_query_is_denied_on_both_engines() {
         assert_eq!(
             error.diagnostic.code, "SNAPBACK_HANDLER_WRITE_IN_QUERY",
             "{backend:?}: write-in-query must carry its stable code"
+        );
+    }
+}
+
+/// ENG-24339: harness entry points are installed before untrusted module
+/// evaluation and cannot be reserved, accessor-shadowed, assigned over, or
+/// used to wrap the live invocation transport. A direct raw call is denied.
+#[test]
+fn harness_control_plane_resists_tampering_on_both_engines() {
+    let mut snapback = LocalSnapback::memory().expect("snapback");
+    snapback.apply_schema(schema()).expect("schema");
+    snapback.load_functions(FunctionManifest {
+        functions: vec![FunctionDefinition::new(
+            "harnessTamperProbe",
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: HARNESS_TAMPER_SOURCE.to_owned(),
+                export: "harnessTamperProbe".to_owned(),
+            }),
+        )],
+        ..FunctionManifest::default()
+    });
+    let expected = json!({
+        "nonWritableBlocked": true,
+        "accessorBlocked": true,
+        "assignmentBlocked": true,
+        "ctxWrapperIntercepted": false,
+        "rawCallDenied": true
+    });
+    let mut backends = vec![HandlerBackend::Ibex];
+    if detect_workerd_binary().is_some() {
+        backends.push(HandlerBackend::WorkerdV8);
+    } else {
+        println!("SNAPBACK_CAPABILITY_WORKERD_MISSING: workerd half of tamper twin skipped");
+    }
+    for backend in backends {
+        let output = with_forced_backend(backend, || {
+            snapback.invoke_query("harnessTamperProbe", input(json!({})))
+        })
+        .unwrap_or_else(|error| panic!("{backend:?} harness tamper probe failed: {error}"));
+        assert_eq!(
+            output.rows[0], expected,
+            "{backend:?}: harness control-plane tampering escaped"
         );
     }
 }
