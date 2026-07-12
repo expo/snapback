@@ -2263,7 +2263,11 @@ fn parse_optional_json<T: serde::de::DeserializeOwned>(
             "request body must be a JSON object",
         ));
     }
-    serde_json::from_value(value)
+    // Deserialize the original bytes so serde's typed visitor still observes
+    // duplicate object keys. Converting the intermediate Value into T would
+    // collapse duplicates first and silently let the last destructive/reset
+    // or capability field win.
+    serde_json::from_slice(&body)
         .map(Some)
         .map_err(|error| ApiError::request_json_invalid(error.to_string()))
 }
@@ -3165,7 +3169,7 @@ mod tests {
     use tokio::sync::Mutex;
 
     #[test]
-    fn optional_json_rejects_a_sequence_that_serde_would_map_to_a_struct() {
+    fn optional_json_rejects_non_objects_and_duplicate_struct_fields() {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
@@ -3184,6 +3188,22 @@ mod tests {
         assert_eq!(
             error.0.diagnostic.details["error"],
             "request body must be a JSON object"
+        );
+
+        let duplicate = parse_optional_json::<OpenConnectionRequest>(
+            &headers,
+            Ok(Bytes::from_static(
+                br#"{"connectionId":"first","connectionId":"second"}"#,
+            )),
+        )
+        .expect_err("duplicate capability fields must not silently use the last value");
+        assert_eq!(duplicate.0.diagnostic.code, "SNAPBACK_REQUEST_JSON_INVALID");
+        assert!(
+            duplicate.0.diagnostic.details["error"]
+                .as_str()
+                .is_some_and(|message| message.contains("duplicate field")),
+            "typed serde visitor should preserve the duplicate-field diagnostic: {}",
+            duplicate.0.diagnostic.details["error"]
         );
     }
 

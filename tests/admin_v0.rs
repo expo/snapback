@@ -875,6 +875,10 @@ async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_
         (Some("text/plain"), seed.to_string()),
         (Some("application/json"), "{not-json".to_owned()),
         (Some("application/json"), "[]".to_owned()),
+        (
+            Some("application/json"),
+            r#"{"seed":null,"seed":null}"#.to_owned(),
+        ),
         (Some("application/json"), misspelled_seed),
     ] {
         let mut builder = Request::builder()
@@ -972,6 +976,15 @@ async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_
             "open-wrong-shape",
             open_request(
                 Body::from(r#"["open-wrong-shape"]"#),
+                Some("application/json"),
+            ),
+        ),
+        (
+            "open-duplicate-field",
+            open_request(
+                Body::from(
+                    r#"{"connectionId":"open-duplicate-first","connectionId":"open-duplicate-field"}"#,
+                ),
                 Some("application/json"),
             ),
         ),
