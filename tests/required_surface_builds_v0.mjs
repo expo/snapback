@@ -82,6 +82,41 @@ try {
     'linked Exact requires the explicit development override',
   );
 
+  const ancestorLinked = surface('ancestor-linked');
+  const externalModules = join(scratch, 'external-node-modules');
+  mkdirSync(join(externalModules, '@exact', 'contract'), { recursive: true });
+  writeFileSync(join(externalModules, '@exact', 'contract', 'package.json'), JSON.stringify({
+    name: '@ccheever/exact-contract',
+    version: '1.2.3',
+  }));
+  rmSync(join(ancestorLinked.surfaceDir, 'node_modules'), { recursive: true, force: true });
+  symlinkSync(externalModules, join(ancestorLinked.surfaceDir, 'node_modules'), 'dir');
+  const ancestorLinkedVerdict = verifyInstalledExactContract(ancestorLinked.surfaceDir);
+  assert.equal(ancestorLinkedVerdict.ok, false);
+  assert.match(ancestorLinkedVerdict.reason, /unexpected linked source.*node_modules/s);
+  assert.equal(
+    verifyInstalledExactContract(ancestorLinked.surfaceDir, { allowLinked: true }).ok,
+    true,
+    'a symlinked node_modules ancestor also requires the explicit development override',
+  );
+  let linkedInstallRuns = 0;
+  const linkedInstall = await ensureRegistryInstall(ancestorLinked, {
+    runInstall: async () => {
+      linkedInstallRuns += 1;
+      return { ok: true, output: '' };
+    },
+  });
+  assert.equal(linkedInstall.ok, false);
+  assert.equal(linkedInstallRuns, 0, 'a frozen install never mutates an unexpected linked tree');
+
+  const drained = await runBoundedProcess(
+    process.execPath,
+    ['-e', 'process.stdout.write("begin:" + "x".repeat(65536) + ":end")'],
+    { cwd: scratch, timeoutMs: 2_000, inheritOutput: false },
+  );
+  assert.equal(drained.ok, true);
+  assert.match(drained.output, /^begin:x+:end$/, 'successful process diagnostics drain before settlement');
+
   const started = Date.now();
   const hung = await runBoundedProcess(
     process.execPath,
@@ -105,6 +140,11 @@ try {
       timeoutMs: 100,
       killGraceMs: 50,
       inheritOutput: false,
+      // Do not race a 100ms execution watchdog against process startup. Arm it
+      // only after the fixture has published the descendant PID that the
+      // assertion below uses to prove process-tree cleanup.
+      readyWhen: (output) => /grandchild:\d+/.test(output),
+      readinessTimeoutMs: 2_000,
     });
     assert.equal(tree.timedOut, true);
     const grandchildPid = Number(/grandchild:(\d+)/.exec(tree.output)?.[1]);

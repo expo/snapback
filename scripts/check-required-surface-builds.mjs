@@ -134,20 +134,47 @@ export function runBoundedProcess(command, args, {
   killGraceMs = 2_000,
   inheritOutput = true,
   spawnImpl = spawn,
+  // Optional readiness gate for callers that need the execution watchdog to
+  // measure work after a child has explicitly initialized. The ordinary
+  // install/build path leaves this null, so its watchdog starts immediately.
+  readyWhen = null,
+  readinessTimeoutMs = timeoutMs,
 } = {}) {
   return new Promise((resolveRun) => {
     let output = '';
     let timedOut = false;
     let settled = false;
     let killTimer = null;
+    let watchdog = null;
+    let readinessWatchdog = null;
+    let timeoutReason = null;
     let child;
 
     const finish = (result) => {
       if (settled) return;
       settled = true;
-      clearTimeout(watchdog);
+      if (watchdog) clearTimeout(watchdog);
+      if (readinessWatchdog) clearTimeout(readinessWatchdog);
       if (killTimer) clearTimeout(killTimer);
       resolveRun({ ...result, output });
+    };
+
+    const terminateForTimeout = (reason) => {
+      if (timedOut || settled) return;
+      timedOut = true;
+      timeoutReason = reason;
+      signalProcessTree(child, 'SIGTERM', spawnImpl);
+      killTimer = setTimeout(() => signalProcessTree(child, 'SIGKILL', spawnImpl), killGraceMs);
+      killTimer.unref?.();
+    };
+
+    const armExecutionWatchdog = () => {
+      if (watchdog || timedOut || settled) return;
+      watchdog = setTimeout(
+        () => terminateForTimeout(`exceeded ${timeoutMs}ms watchdog; process tree terminated`),
+        timeoutMs,
+      );
+      watchdog.unref?.();
     };
 
     try {
@@ -166,26 +193,38 @@ export function runBoundedProcess(command, args, {
     const onData = (stream) => (chunk) => {
       output = appendTail(output, chunk);
       if (inheritOutput) stream.write(chunk);
+      if (readyWhen && !watchdog && readyWhen(output)) {
+        if (readinessWatchdog) clearTimeout(readinessWatchdog);
+        readinessWatchdog = null;
+        armExecutionWatchdog();
+      }
     };
     child.stdout?.on('data', onData(process.stdout));
     child.stderr?.on('data', onData(process.stderr));
 
-    const watchdog = setTimeout(() => {
-      timedOut = true;
-      signalProcessTree(child, 'SIGTERM', spawnImpl);
-      killTimer = setTimeout(() => signalProcessTree(child, 'SIGKILL', spawnImpl), killGraceMs);
-      killTimer.unref?.();
-    }, timeoutMs);
-    watchdog.unref?.();
+    if (readyWhen) {
+      readinessWatchdog = setTimeout(
+        () => terminateForTimeout(
+          `did not become ready within ${readinessTimeoutMs}ms; process tree terminated`,
+        ),
+        readinessTimeoutMs,
+      );
+      readinessWatchdog.unref?.();
+    } else {
+      armExecutionWatchdog();
+    }
 
     child.once('error', (error) => finish({ ok: false, reason: `spawn failed: ${error.message}` }));
-    child.once('exit', (code, signal) => {
+    // `exit` can precede the final stdout/stderr data events. `close` means the
+    // child stdio handles are closed and the bounded diagnostic tail is fully
+    // drained before callers inspect it.
+    child.once('close', (code, signal) => {
       if (timedOut) {
         // The process-group leader may honor TERM before a descendant does.
         // Kill the group once more before clearing the grace timer so no
         // detached package-manager worker survives a seemingly clean exit.
         signalProcessTree(child, 'SIGKILL', spawnImpl);
-        finish({ ok: false, timedOut: true, reason: `exceeded ${timeoutMs}ms watchdog; process tree terminated` });
+        finish({ ok: false, timedOut: true, reason: timeoutReason });
       } else if (code === 0) {
         finish({ ok: true });
       } else {
@@ -225,23 +264,43 @@ export function verifyInstalledExactContract(surfaceDir, {
   if (!expected.ok) return expected;
 
   const nodeModules = join(surfaceDir, 'node_modules');
+  const scopeRoot = join(nodeModules, '@exact');
   const packageRoot = join(nodeModules, '@exact', 'contract');
   const manifestPath = join(packageRoot, 'package.json');
-  if (!existsSync(manifestPath)) {
-    return { ok: false, reason: '@exact/contract missing from surface node_modules after frozen install' };
-  }
   try {
-    const linked = lstatSync(packageRoot).isSymbolicLink();
-    const modulesReal = realpathSync(nodeModules);
-    const packageReal = realpathSync(packageRoot);
-    const outside = packageReal !== modulesReal && !packageReal.startsWith(`${modulesReal}${sep}`);
-    if ((linked || outside) && !allowLinked) {
+    const pathStats = [
+      ['node_modules', nodeModules],
+      ['node_modules/@exact', scopeRoot],
+      ['node_modules/@exact/contract', packageRoot],
+    ].map(([label, path]) => {
+      try {
+        return { label, path, stat: lstatSync(path) };
+      } catch (error) {
+        if (error?.code === 'ENOENT') return { label, path, stat: null };
+        throw error;
+      }
+    });
+    const linkedSegments = pathStats
+      .filter(({ stat }) => stat?.isSymbolicLink())
+      .map(({ label }) => label);
+    const packagePresent = pathStats[2].stat !== null && existsSync(manifestPath);
+    const surfaceReal = realpathSync(surfaceDir);
+    const packageReal = packagePresent ? realpathSync(packageRoot) : null;
+    const outside = packageReal !== null
+      && packageReal !== surfaceReal
+      && !packageReal.startsWith(`${surfaceReal}${sep}`);
+    const linked = linkedSegments.length > 0 || outside;
+    if (linked && !allowLinked) {
       return {
         ok: false,
         reason:
-          `@exact/contract resolves to an unexpected linked source (${packageReal}); ` +
+          `@exact/contract resolves through an unexpected linked source ` +
+          `(${linkedSegments.join(', ') || packageReal}); ` +
           'set SNAPBACK_ALLOW_LINKED_EXACT=1 only for an explicit local-development override',
       };
+    }
+    if (!packagePresent) {
+      return { ok: false, reason: '@exact/contract missing from surface node_modules after frozen install' };
     }
     const installed = JSON.parse(readFileSync(manifestPath, 'utf8'));
     if (installed.name !== expected.name || installed.version !== expected.version) {
