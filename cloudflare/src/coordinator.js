@@ -69,8 +69,16 @@ const CHANGE_JOURNAL_RETAIN_VERSIONS = 1000;
 const MAX_ROW_BYTES = Number(capabilityManifest.runtimeFacts.maxRowBytes);
 const MAX_REQUEST_BYTES = Math.max(4_000_000, MAX_ROW_BYTES * 2);
 const MAX_HOST_RESPONSE_BYTES = 1_000_000;
-const SUBSCRIPTION_SCHEMA_VERSION = 2;
+const DEFAULT_ACTION_TIMEOUT_MS = 30_000;
+const MAX_ACTION_TIMEOUT_MS = 15 * 60 * 1000;
+const SUBSCRIPTION_SCHEMA_VERSION = 3;
 const CRON_CLAIM_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const DEFAULT_CONNECTION_GRANT_LIMIT = 1024;
+const MAX_CONNECTION_GRANT_LIMIT = 4096;
+const DEFAULT_CONNECTION_GRANT_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_CONNECTION_OPEN_RATE_PER_MINUTE = 120;
+const MAX_CONNECTION_ID_BYTES = 128;
+const CONNECTION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const UTF8_ENCODER = new TextEncoder();
 
 export class Coordinator {
@@ -99,7 +107,7 @@ export class Coordinator {
     this.testCronStopAfterClaimRemaining = env.SNAPBACK_TEST_CRON_STOP_AFTER_CLAIM === '1' ? 1 : 0;
     this.testCronInterruptDuringActionRemaining = env.SNAPBACK_TEST_CRON_INTERRUPT_DURING_ACTION === '1' ? 1 : 0;
     this.testCronStopBeforeFinishRemaining = env.SNAPBACK_TEST_CRON_STOP_BEFORE_FINISH === '1' ? 1 : 0;
-    this.ensureSchema();
+    this.initializeSchema();
   }
 
   // Serialize `task` behind every previously queued invocation. Bound the
@@ -144,8 +152,28 @@ export class Coordinator {
     });
   }
 
-  ensureSchema() {
+  // Startup is intentionally two-phase. The metadata table is the only DDL
+  // allowed before deployment identity and system-schema versions have been
+  // inspected. In particular, a newly-declared UNIQUE index must not throw in
+  // the constructor before /health can explain the stale deployment and
+  // authenticated /reset can rebuild it.
+  initializeSchema() {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS _snapback_meta (key TEXT PRIMARY KEY, value TEXT)`);
+    this.startupError = this.validateDeploymentMetadata() || this.validateSubscriptionsSchemaVersion();
+    if (this.startupError) return;
+    try {
+      this.ensureCurrentSchema();
+      this.writeDeploymentMetadata();
+    } catch (error) {
+      this.startupError = staleArtifact(
+        (error && error.snapbackCode) || 'SNAPBACK_CLOUDFLARE_SCHEMA_RECONCILIATION_FAILED',
+        'the durable schema could not be reconciled; inspect health and reset or migrate before serving this deployment',
+        { cause: String((error && error.message) || error) }
+      );
+    }
+  }
+
+  ensureCurrentSchema() {
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS _snapback_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)`
     );
@@ -165,24 +193,6 @@ export class Coordinator {
     // args, and connection id — rehydrated lazily on wake. In-memory
     // registries die at eviction while their sockets live on. The identity
     // uniqueness is the idempotence contract for React StrictMode/retry paths.
-    const hadSubscriptions = this.tableExists('_snapback_subscriptions');
-    this.sql.exec(
-      `CREATE TABLE IF NOT EXISTS _snapback_subscriptions (
-         subscription_id TEXT PRIMARY KEY,
-         connection_id TEXT NOT NULL,
-         function_name TEXT NOT NULL,
-         args_json TEXT NOT NULL,
-         UNIQUE(connection_id, function_name, args_json)
-       )`
-    );
-    if (hadSubscriptions) {
-      this.migrateSubscriptionsSchema();
-    } else {
-      this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION));
-    }
-    this.sql.exec(
-      'CREATE INDEX IF NOT EXISTS idx_snapback_subscriptions_function ON _snapback_subscriptions (function_name)'
-    );
     // Connection grants for the kit wire protocol (ENG-23442 shape): ids are
     // server-granted capabilities paired with a bearer token. Durable, so a
     // grant survives eviction/hibernation exactly like the subscriptions
@@ -196,6 +206,23 @@ export class Coordinator {
        )`
     );
     this.ensureColumn('_snapback_connections', 'socket_session_id', 'TEXT');
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_connection_admission (
+         id INTEGER PRIMARY KEY CHECK (id = 1),
+         window_started_at_ms INTEGER NOT NULL,
+         count INTEGER NOT NULL
+       )`
+    );
+    const hadSubscriptions = this.tableExists('_snapback_subscriptions');
+    if (!hadSubscriptions) {
+      this.createSubscriptionsTable('_snapback_subscriptions');
+      this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION));
+    } else {
+      this.migrateSubscriptionsSchema();
+    }
+    this.sql.exec(
+      'CREATE INDEX IF NOT EXISTS idx_snapback_subscriptions_function ON _snapback_subscriptions (function_name)'
+    );
     // Pool rotation cursors (LLP 0049 §Config And Secrets, OQ1): coordinator-
     // local durable metadata, NEVER values. Applied modulo the current member
     // count at grant time, so a pool edit can never strand a cursor out of
@@ -271,30 +298,58 @@ export class Coordinator {
       );
       this.ensureDeclaredIndexes(table);
     }
-    this.startupError = this.validateDeploymentMetadata();
-    if (!this.startupError) this.writeDeploymentMetadata();
+  }
+
+  createSubscriptionsTable(name) {
+    this.sql.exec(
+      `CREATE TABLE ${name} (
+         subscription_id TEXT PRIMARY KEY,
+         connection_id TEXT NOT NULL,
+         function_name TEXT NOT NULL,
+         args_json TEXT NOT NULL,
+         socket_session_id TEXT,
+         UNIQUE(connection_id, function_name, args_json)
+       )`
+    );
+  }
+
+  validateSubscriptionsSchemaVersion() {
+    if (!this.tableExists('_snapback_subscriptions')) return null;
+    const raw = this.readMeta('subscriptions_schema_version');
+    if (raw == null) return null; // legacy v0 is a known migration source
+    if (!/^[0-9]+$/.test(raw) || Number(raw) > SUBSCRIPTION_SCHEMA_VERSION) {
+      return staleArtifact(
+        'SNAPBACK_SUBSCRIPTION_SCHEMA_UNSUPPORTED',
+        'the durable subscription registry has an unknown schema version; reset or migrate before serving it',
+        { expectedAtMost: SUBSCRIPTION_SCHEMA_VERSION, actual: raw }
+      );
+    }
+    return null;
   }
 
   migrateSubscriptionsSchema() {
     const current = Number(this.readMeta('subscriptions_schema_version') || 0);
-    if (current >= SUBSCRIPTION_SCHEMA_VERSION) return;
+    if (current === SUBSCRIPTION_SCHEMA_VERSION) {
+      if (!this.tableHasColumn('_snapback_subscriptions', 'socket_session_id')) {
+        throw codedError(
+          'SNAPBACK_SUBSCRIPTION_SCHEMA_INVALID',
+          `subscription schema v${SUBSCRIPTION_SCHEMA_VERSION} is missing socket_session_id`
+        );
+      }
+      return;
+    }
     this.ctx.storage.transactionSync(() => {
       this.sql.exec('DROP TABLE IF EXISTS _snapback_subscriptions_next');
       this.testSubscriptionMigrationFault('after-drop-next');
-      this.sql.exec(
-        `CREATE TABLE _snapback_subscriptions_next (
-           subscription_id TEXT PRIMARY KEY,
-           connection_id TEXT NOT NULL,
-           function_name TEXT NOT NULL,
-           args_json TEXT NOT NULL,
-           UNIQUE(connection_id, function_name, args_json)
-         )`
-      );
+      this.createSubscriptionsTable('_snapback_subscriptions_next');
       this.testSubscriptionMigrationFault('after-create-next');
       this.sql.exec(
-        `INSERT OR IGNORE INTO _snapback_subscriptions_next (subscription_id, connection_id, function_name, args_json)
-         SELECT subscription_id, connection_id, function_name, args_json
-         FROM _snapback_subscriptions
+        `INSERT OR IGNORE INTO _snapback_subscriptions_next
+           (subscription_id, connection_id, function_name, args_json, socket_session_id)
+         SELECT s.subscription_id, s.connection_id, s.function_name, s.args_json, c.socket_session_id
+         FROM _snapback_subscriptions s
+         LEFT JOIN _snapback_connections c ON c.connection_id = s.connection_id
+         WHERE c.connection_id IS NULL OR c.socket_session_id IS NOT NULL
          ORDER BY subscription_id`
       );
       this.testSubscriptionMigrationFault('after-copy');
@@ -318,15 +373,18 @@ export class Coordinator {
   }
 
   tableExists(name) {
-    for (const _record of this.sql.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", name)) return true;
-    return false;
+    return [...this.sql.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", name)].length > 0;
   }
 
   ensureColumn(table, column, declaration) {
-    for (const record of this.sql.exec(`PRAGMA table_info(${table})`)) {
-      if (String(record.name) === column) return;
-    }
+    const columns = [...this.sql.exec(`PRAGMA table_info(${table})`)];
+    if (columns.some((record) => String(record.name) === column)) return;
     this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${declaration}`);
+  }
+
+  tableHasColumn(table, column) {
+    if (!this.tableExists(table)) return false;
+    return [...this.sql.exec(`PRAGMA table_info(${table})`)].some((record) => String(record.name) === column);
   }
 
   ensureDeclaredIndexes(table) {
@@ -342,9 +400,17 @@ export class Coordinator {
         return field === '_id' ? 'id' : `json_extract(row_json, '$.${field}')`;
       });
       const unique = index.unique ? 'UNIQUE ' : '';
-      this.sql.exec(
-        `CREATE ${unique}INDEX IF NOT EXISTS ${physicalIndexName(table.name, index.name)} ON ${this.physicalTable(table.name)} (${expressions.join(', ')})`
-      );
+      const name = physicalIndexName(table.name, index.name);
+      const expectedSql = `CREATE ${unique}INDEX ${name} ON ${this.physicalTable(table.name)} (${expressions.join(', ')})`;
+      let existingSql = null;
+      for (const record of this.sql.exec("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", name)) {
+        existingSql = record.sql == null ? null : String(record.sql);
+      }
+      if (existingSql !== null && normalizeSqlDefinition(existingSql) !== normalizeSqlDefinition(expectedSql)) {
+        this.sql.exec(`DROP INDEX ${name}`);
+        existingSql = null;
+      }
+      if (existingSql === null) this.sql.exec(expectedSql);
     }
   }
 
@@ -391,6 +457,60 @@ export class Coordinator {
     return json(200, { table: table.name, index: index.name, details });
   }
 
+  schemaHardeningForTest(payload) {
+    const operation = String(payload.operation || '');
+    const indexedTable = schema.tables.find((table) => (table.indexes || []).length > 0) || null;
+    const declaredIndex = indexedTable && indexedTable.indexes[0];
+    const indexName = declaredIndex ? physicalIndexName(indexedTable.name, declaredIndex.name) : null;
+    if (operation === 'corrupt-index') {
+      if (!indexName) return json(400, { ok: false, code: 'SNAPBACK_TEST_INDEX_UNAVAILABLE' });
+      this.sql.exec(`DROP INDEX IF EXISTS ${indexName}`);
+      this.sql.exec(
+        `CREATE UNIQUE INDEX ${indexName} ON ${this.physicalTable(indexedTable.name)}
+           (id, json_extract(row_json, '$.${declaredIndex.fields[0]}'))`
+      );
+    } else if (operation === 'reconcile-index') {
+      if (!indexedTable) return json(400, { ok: false, code: 'SNAPBACK_TEST_INDEX_UNAVAILABLE' });
+      this.ensureDeclaredIndexes(indexedTable);
+    } else if (operation === 'create-retired-table') {
+      this.sql.exec('CREATE TABLE IF NOT EXISTS app_retired_fixture (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)');
+      this.sql.exec("INSERT OR REPLACE INTO app_retired_fixture (id, row_json) VALUES ('retired', '{\"secret\":true}')");
+    } else if (operation === 'future-subscriptions') {
+      this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION + 100));
+      this.startupError = this.validateSubscriptionsSchemaVersion();
+    } else if (operation === 'reinitialize') {
+      this.initializeSchema();
+    } else if (operation === 'create-socketless-kit-orphan') {
+      this.sql.exec(
+        `INSERT OR REPLACE INTO _snapback_connections
+           (connection_id, token, opened_at_ms, socket_session_id) VALUES ('orphan-kit', 'orphan-token', ?, NULL)`,
+        Date.now()
+      );
+      this.sql.exec(
+        `INSERT OR REPLACE INTO _snapback_subscriptions
+           (subscription_id, connection_id, function_name, args_json, socket_session_id)
+         VALUES ('orphan-sub', 'orphan-kit', ?, '{}', NULL)`,
+        this.alarmJobs()[0]?.activation?.whileLive?.[0] || functions.find((fn) => fn.kind === 'LiveQuery')?.name || 'missing'
+      );
+    }
+    const indexSql = indexName
+      ? [...this.sql.exec("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", indexName)]
+          .map((record) => String(record.sql || ''))[0] || null
+      : null;
+    const ownedTables = [...this.sql.exec(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'app\\_%' ESCAPE '\\' ORDER BY name"
+    )].map((record) => String(record.name));
+    return json(200, {
+      ok: true,
+      startupError: this.startupError,
+      indexSql,
+      ownedTables,
+      orphanPresent: [...this.sql.exec(
+        "SELECT 1 FROM _snapback_subscriptions WHERE subscription_id = 'orphan-sub'"
+      )].length > 0,
+    });
+  }
+
   expectedMetadata() {
     return {
       schema_hash: deploymentIdentity.schemaHash,
@@ -400,10 +520,8 @@ export class Coordinator {
   }
 
   readMeta(key) {
-    for (const record of this.sql.exec('SELECT value FROM _snapback_meta WHERE key = ?', key)) {
-      return String(record.value);
-    }
-    return null;
+    const records = [...this.sql.exec('SELECT value FROM _snapback_meta WHERE key = ?', key)];
+    return records.length === 0 ? null : String(records[0].value);
   }
 
   writeMeta(key, value) {
@@ -417,16 +535,14 @@ export class Coordinator {
 
   hasPersistentAppState() {
     if (this.currentVersion() > 0) return true;
-    for (const table of schema.tables) {
-      for (const record of this.sql.exec(`SELECT COUNT(*) AS count FROM ${this.physicalTable(table.name)}`)) {
-        if (Number(record.count) > 0) return true;
-      }
-    }
-    for (const record of this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_changes')) {
-      if (Number(record.count) > 0) return true;
-    }
-    for (const record of this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_subscriptions')) {
-      if (Number(record.count) > 0) return true;
+    const owned = [...this.sql.exec(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND (name LIKE 'app\\_%' ESCAPE '\\' OR name IN ('_snapback_changes', '_snapback_subscriptions'))"
+    )];
+    for (const record of owned) {
+      const name = String(record.name);
+      if (!/^(?:app_[A-Za-z_][A-Za-z0-9_]*|_snapback_changes|_snapback_subscriptions)$/.test(name)) continue;
+      const counts = [...this.sql.exec(`SELECT COUNT(*) AS count FROM "${name}"`)];
+      if (counts.some((count) => Number(count.count) > 0)) return true;
     }
     return false;
   }
@@ -475,10 +591,15 @@ export class Coordinator {
   }
 
   currentVersion() {
-    for (const record of this.sql.exec('SELECT version FROM _snapback_version WHERE id = 1')) {
-      return Number(record.version);
-    }
-    return 0;
+    if (!this.tableExists('_snapback_version')) return 0;
+    const records = [...this.sql.exec('SELECT version FROM _snapback_version WHERE id = 1')];
+    return records.length === 0 ? 0 : Number(records[0].version);
+  }
+
+  appGeneration() {
+    const raw = this.readMeta('app_generation');
+    const value = Number(raw);
+    return Number.isSafeInteger(value) && value >= 0 ? value : 0;
   }
 
   newId() {
@@ -517,6 +638,7 @@ export class Coordinator {
       path !== '/health' &&
       path !== '/reset' &&
       path !== '/__test/corrupt-meta' &&
+      path !== '/__test/schema-hardening' &&
       path !== '/config/status'
     ) {
       return json(409, this.startupError);
@@ -529,16 +651,15 @@ export class Coordinator {
     }
     // Admin-gated manual run trigger on the existing SNAPBACK_ADMIN_TOKEN
     // POST surface (LLP 0049 §Warm Polling / ENG-23587) — never a public
-    // run-now route. Manual runs claim a unique key; they never consume a
-    // scheduled slot.
+    // run-now route. Manual runs are ordinary one-shot actions: they neither
+    // consume a scheduled slot nor allocate recoverable claim/replay rows.
     if (path === '/cron/run') {
       return this.adminGated(request, () => this.withJsonObject(request, async (payload) => {
         const job = this.alarmJobs().find((entry) => entry.name === String(payload.job || ''));
         if (!job) {
           return json(404, { ok: false, code: 'SNAPBACK_CRON_JOB_UNKNOWN', message: `no alarm job ${payload.job}` });
         }
-        const runId = crypto.randomUUID();
-        const outcome = await this.runCronJob(job, 'manual', Date.now(), `manual:${runId}`);
+        const outcome = await this.runCronJob(job, 'manual', Date.now());
         return json(200, { ok: true, ...outcome });
       }, { allowEmpty: true }));
     }
@@ -589,6 +710,9 @@ export class Coordinator {
               ok: false,
               code: (error && error.snapbackCode) || 'SNAPBACK_RESET_FAILED',
               message: 'the atomic reset failed; the previous state was preserved',
+              ...(this.env.SNAPBACK_TESTING === '1'
+                ? { details: { cause: String((error && error.message) || error) } }
+                : {}),
             });
           }
         })
@@ -621,6 +745,15 @@ export class Coordinator {
         return json(200, { fired: true });
       });
     }
+    if (path === '/__test/run-cron') {
+      return this.testingGated(request, () => this.withJsonObject(request, async (payload) => {
+        const job = this.alarmJobs().find((entry) => entry.name === String(payload.job || 'warmPoll'));
+        if (!job) return json(404, { ok: false, code: 'SNAPBACK_CRON_JOB_UNKNOWN' });
+        const trigger = payload.trigger === 'scheduled' ? 'scheduled' : 'manual';
+        const outcome = await this.runCronJob(job, trigger, Date.now());
+        return json(200, { ok: true, ...outcome });
+      }, { allowEmpty: true }));
+    }
     if (path === '/__test/cron-claims') {
       return this.testingGated(request, () => {
         const claims = [...this.sql.exec('SELECT * FROM _snapback_cron_claims ORDER BY scheduled_at_ms, idempotency_key')];
@@ -639,6 +772,29 @@ export class Coordinator {
     }
     if (path === '/__test/storage-layout') {
       return this.testingGated(request, () => json(200, this.storageLayoutForTest()));
+    }
+    if (path === '/__test/schema-hardening') {
+      return this.testingGated(request, () => this.withJsonObject(request, (payload) => this.schemaHardeningForTest(payload)));
+    }
+    if (path === '/__test/connection-state') {
+      return this.testingGated(request, () => json(200, {
+        connections: [...this.sql.exec('SELECT connection_id, opened_at_ms, socket_session_id FROM _snapback_connections ORDER BY connection_id')],
+        subscriptions: [...this.sql.exec('SELECT subscription_id, connection_id, socket_session_id FROM _snapback_subscriptions ORDER BY subscription_id')],
+      }));
+    }
+    if (path === '/__test/expire-connections') {
+      return this.testingGated(request, async () => {
+        this.sql.exec('UPDATE _snapback_connections SET opened_at_ms = 0 WHERE socket_session_id IS NULL');
+        const reaped = this.reapExpiredConnections();
+        await this.reconcileCronActivation();
+        return json(200, { reaped, remaining: this.connectionCount() });
+      });
+    }
+    if (path === '/__test/age-connections') {
+      return this.testingGated(request, () => {
+        this.sql.exec('UPDATE _snapback_connections SET opened_at_ms = 0 WHERE socket_session_id IS NULL');
+        return json(200, { aged: true });
+      });
     }
     if (path === '/__test/index-plan') {
       return this.testingGated(request, () => this.withJsonObject(request, (payload) => this.indexPlanForTest(payload)));
@@ -1026,7 +1182,7 @@ export class Coordinator {
       }
       const limited = this.claimActionBudget(name, trigger);
       if (limited) return { error: limited };
-      return { fn };
+      return { fn, appGeneration: this.appGeneration() };
     });
     if (staged.error) {
       return { ok: false, function: name, kind: 'Action', diagnostic: staged.error };
@@ -1038,6 +1194,7 @@ export class Coordinator {
       message: null,
       host: null,
       abortController: new AbortController(),
+      appGeneration: staged.appGeneration,
     };
     let timer = null;
     const watchdog = new Promise((resolve) => {
@@ -1085,6 +1242,8 @@ export class Coordinator {
     } finally {
       clearTimeout(timer);
     }
+    const resetFailure = this.actionGenerationFailure(control);
+    if (resetFailure) result = resetFailure;
     if (!result.ok) {
       return {
         ok: false,
@@ -1098,7 +1257,19 @@ export class Coordinator {
 
   actionTimeoutMs() {
     const raw = Number(this.env.SNAPBACK_ACTION_TIMEOUT_MS);
-    return Number.isFinite(raw) && raw > 0 ? raw : 30_000;
+    if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_ACTION_TIMEOUT_MS;
+    return Math.min(Math.floor(raw), MAX_ACTION_TIMEOUT_MS);
+  }
+
+  actionGenerationFailure(control) {
+    if (!control || control.appGeneration === this.appGeneration()) return null;
+    const message = 'the app was reset while this action was running; its buffered work was discarded';
+    control.abandoned = true;
+    control.code = 'SNAPBACK_ACTION_RESET_ABORTED';
+    control.message = message;
+    if (control.host) control.host.abandon(control.code, message);
+    if (!control.abortController.signal.aborted) control.abortController.abort(control.code);
+    return { ok: false, code: control.code, message };
   }
 
   claimActionBudget(name, trigger) {
@@ -1134,6 +1305,8 @@ export class Coordinator {
   // this in runExclusive). Returns the mutation handler's value; a failure
   // carries its code back into the action as a coded error.
   async runMutationForAction(name, args, parentHost = null, replay = null) {
+    const resetFailure = parentHost && this.actionGenerationFailure(parentHost.control);
+    if (resetFailure) return resetFailure;
     const fn = this.functionByName(name);
     if (!fn) {
       return { ok: false, code: 'SNAPBACK_ACTION_MUTATION_UNKNOWN', message: `${name} is not a mutation on this app` };
@@ -1147,13 +1320,14 @@ export class Coordinator {
     }
     const argsJson = canonicalJson(args || {});
     if (replay && replay.actionIdempotencyKey != null) {
-      for (const record of this.sql.exec(
+      const replays = [...this.sql.exec(
         `SELECT mutation_name, args_json, result_json
          FROM _snapback_action_mutation_results
          WHERE action_idempotency_key = ? AND sequence = ?`,
         replay.actionIdempotencyKey,
         replay.sequence
-      )) {
+      )];
+      for (const record of replays) {
         if (String(record.mutation_name) !== name) {
           return {
             ok: false,
@@ -1185,7 +1359,7 @@ export class Coordinator {
     // This check and commit execute in the same runExclusive critical
     // section with no await between them. If the parent watchdog won while
     // the nested handler was pending, its writes are discarded atomically.
-    const abandoned = parentHost && parentHost.abandonedFailure();
+    const abandoned = parentHost && (this.actionGenerationFailure(parentHost.control) || parentHost.abandonedFailure());
     if (abandoned) return abandoned;
     const resultJson = canonicalJson(result.value);
     const commit = this.commit(result.host, replay && replay.actionIdempotencyKey != null
@@ -1263,9 +1437,7 @@ export class Coordinator {
     const redact = (text) => {
       let out = String(text ?? '');
       for (const value of resolvedValues) {
-        for (const variant of secretRepresentations(value)) {
-          if (variant.length > 0) out = out.split(variant).join('[redacted]');
-        }
+        for (const pattern of secretRedactionPatterns(value)) out = out.replace(pattern, '[redacted]');
       }
       return out;
     };
@@ -1353,20 +1525,23 @@ export class Coordinator {
     if (job.activation && job.activation.kind !== 'WhileLive') return 1;
     if (whileLive.length === 0) return 0;
     const placeholders = whileLive.map(() => '?').join(', ');
-    for (const record of this.sql.exec(
-      `SELECT COUNT(*) AS count FROM _snapback_subscriptions WHERE function_name IN (${placeholders})`,
+    const counts = [...this.sql.exec(
+      `SELECT COUNT(*) AS count
+       FROM _snapback_subscriptions s
+       LEFT JOIN _snapback_connections c ON c.connection_id = s.connection_id
+       WHERE s.function_name IN (${placeholders})
+         AND (
+           (c.connection_id IS NULL AND s.socket_session_id IS NULL) OR
+           (s.socket_session_id IS NOT NULL AND s.socket_session_id = c.socket_session_id)
+         )`,
       ...whileLive
-    )) {
-      return Number(record.count);
-    }
-    return 0;
+    )];
+    return counts.length === 0 ? 0 : Number(counts[0].count);
   }
 
   readCronState(jobName) {
-    for (const record of this.sql.exec('SELECT * FROM _snapback_cron_state WHERE job_name = ?', jobName)) {
-      return record;
-    }
-    return null;
+    const records = [...this.sql.exec('SELECT * FROM _snapback_cron_state WHERE job_name = ?', jobName)];
+    return records.length === 0 ? null : records[0];
   }
 
   writeCronState(jobName, fields) {
@@ -1455,9 +1630,12 @@ export class Coordinator {
   // by its stable idempotency key (jobName, scheduledAt) BEFORE executing.
   // DO-alarm auto-retry re-runs the whole handler, so a duplicate wakeup for
   // an already-claimed slot advances the schedule without fetching or
-  // committing again. Manual runs claim a unique per-run key — they never
-  // consume a scheduled slot.
+  // committing again. Manual run-now is deliberately outside this durable
+  // replay protocol: it is one ordinary action attempt and leaves no orphaned
+  // claim or nested-mutation replay rows after a client/request failure.
   async runCronJob(job, trigger, scheduledAtMs, idempotencyKey = null) {
+    if (trigger === 'manual') return this.runManualCronJob(job, scheduledAtMs);
+    const runGeneration = this.appGeneration();
     const runId = crypto.randomUUID();
     const key = idempotencyKey || `${job.name}@${scheduledAtMs}`;
     const claim = this.claimCronSlot(job, key, scheduledAtMs, runId);
@@ -1509,6 +1687,9 @@ export class Coordinator {
       outcome = 'failed';
       errorText = String((error && error.message) || error);
     }
+    if (this.appGeneration() !== runGeneration) {
+      return { duplicate: false, runId, outcome: 'reset', resetAbandoned: true, idempotencyKey: key };
+    }
     if (this.env.SNAPBACK_TESTING === '1' && this.testCronStopBeforeFinishRemaining > 0) {
       this.testCronStopBeforeFinishRemaining -= 1;
       return { duplicate: false, interruptedBeforeFinish: true, runId, outcome, idempotencyKey: key };
@@ -1535,6 +1716,47 @@ export class Coordinator {
     }
     this.pruneCronClaims(finishedAt);
     return { duplicate: false, runId, outcome, idempotencyKey: key };
+  }
+
+  async runManualCronJob(job, scheduledAtMs) {
+    const runGeneration = this.appGeneration();
+    const runId = crypto.randomUUID();
+    const startedAt = Date.now();
+    let outcome = 'ok';
+    let errorText = '';
+    try {
+      const result = await this.executeAction(job.action, this.cronActionArgs(), 'manual', { jobName: job.name });
+      if (!result.ok) {
+        outcome = 'failed';
+        errorText = `${result.diagnostic.code}: ${result.diagnostic.message}`;
+      }
+    } catch (error) {
+      outcome = 'failed';
+      errorText = String((error && error.message) || error);
+    }
+    if (this.appGeneration() !== runGeneration) {
+      return { duplicate: false, runId, outcome: 'reset', resetAbandoned: true };
+    }
+    const finishedAt = Date.now();
+    this.writeCronState(job.name, {
+      last_run_id: runId,
+      last_scheduled_at_ms: scheduledAtMs,
+      last_trigger: 'manual',
+      last_outcome: outcome,
+      last_duration_ms: finishedAt - startedAt,
+      last_error: errorText,
+      last_finished_at_ms: finishedAt,
+    });
+    return { duplicate: false, runId, outcome };
+  }
+
+  cronActionArgs() {
+    const args = { trigger: 'cron' };
+    if (this.env.SNAPBACK_TESTING === '1' && typeof this.env.SNAPBACK_TEST_FEED_URL === 'string') {
+      args.feedUrl = this.env.SNAPBACK_TEST_FEED_URL;
+      args.pollBudgetMs = 0;
+    }
+    return args;
   }
 
   cronLeaseMs() {
@@ -1736,7 +1958,7 @@ export class Coordinator {
                     message: 'injected cron interruption during action execution',
                   };
                 }
-                const abandoned = host.abandonedFailure();
+                const abandoned = this.actionGenerationFailure(control) || host.abandonedFailure();
                 if (abandoned) return abandoned;
                 const sequence = actionMutationSequence;
                 actionMutationSequence += 1;
@@ -1750,6 +1972,7 @@ export class Coordinator {
     });
     if (control) {
       control.host = host;
+      this.actionGenerationFailure(control);
       if (control.abandoned) host.abandon(control.code, control.message);
     }
     this.activeInvocations.set(token, host);
@@ -1964,10 +2187,8 @@ export class Coordinator {
   }
 
   readRow(table, id) {
-    for (const record of this.sql.exec(`SELECT row_json FROM ${table} WHERE id = ?`, id)) {
-      return JSON.parse(record.row_json);
-    }
-    return null;
+    const records = [...this.sql.exec(`SELECT row_json FROM ${table} WHERE id = ?`, id)];
+    return records.length === 0 ? null : JSON.parse(records[0].row_json);
   }
 
   recordChange(version, tableName, rowId, op, rowJson, nowMs) {
@@ -1991,7 +2212,18 @@ export class Coordinator {
     if (!connectionId || typeof connectionId !== 'string') {
       return kitError(400, 'SNAPBACK_CONNECTION_ID_REQUIRED', 'a connection id is required');
     }
-    const stored = this.readConnectionToken(connectionId);
+    const grant = this.readConnectionGrant(connectionId);
+    const expired = Boolean(
+      grant && grant.socketSessionId === null && grant.openedAtMs <= Date.now() - this.connectionGrantTtlMs()
+    );
+    if (expired) {
+      this.ctx.storage.transactionSync(() => {
+        this.sql.exec('DELETE FROM _snapback_subscriptions WHERE connection_id = ?', connectionId);
+        this.sql.exec('DELETE FROM _snapback_connections WHERE connection_id = ? AND socket_session_id IS NULL', connectionId);
+      });
+      if (typeof this.ctx.waitUntil === 'function') this.ctx.waitUntil(this.reconcileCronActivation());
+    }
+    const stored = grant && !expired ? grant.token : null;
     if (!stored || !presentedToken || presentedToken !== stored) {
       return kitError(
         401,
@@ -2003,29 +2235,131 @@ export class Coordinator {
   }
 
   readConnectionToken(connectionId) {
-    for (const record of this.sql.exec(
-      'SELECT token FROM _snapback_connections WHERE connection_id = ?',
+    const grant = this.readConnectionGrant(connectionId);
+    return grant && grant.token;
+  }
+
+  readConnectionGrant(connectionId) {
+    const records = [...this.sql.exec(
+      'SELECT token, opened_at_ms, socket_session_id FROM _snapback_connections WHERE connection_id = ?',
       connectionId
-    )) {
-      return String(record.token);
+    )];
+    if (records.length === 0) return null;
+    return {
+      token: String(records[0].token),
+      openedAtMs: Number(records[0].opened_at_ms),
+      socketSessionId: records[0].socket_session_id == null ? null : String(records[0].socket_session_id),
+    };
+  }
+
+  connectionGrantLimit() {
+    const configured = Number(this.env.SNAPBACK_CONNECTION_GRANT_LIMIT);
+    if (this.env.SNAPBACK_TESTING === '1' && Number.isSafeInteger(configured) && configured > 0) {
+      return Math.min(configured, MAX_CONNECTION_GRANT_LIMIT);
     }
+    return DEFAULT_CONNECTION_GRANT_LIMIT;
+  }
+
+  connectionGrantTtlMs() {
+    const configured = Number(this.env.SNAPBACK_CONNECTION_GRANT_TTL_MS);
+    if (this.env.SNAPBACK_TESTING === '1' && Number.isFinite(configured) && configured > 0) return configured;
+    return DEFAULT_CONNECTION_GRANT_TTL_MS;
+  }
+
+  reapExpiredConnections(nowMs = Date.now()) {
+    const cutoff = nowMs - this.connectionGrantTtlMs();
+    const expired = [];
+    for (const record of this.sql.exec(
+      'SELECT connection_id FROM _snapback_connections WHERE socket_session_id IS NULL AND opened_at_ms <= ?',
+      cutoff
+    )) expired.push(String(record.connection_id));
+    if (expired.length === 0) return 0;
+    this.ctx.storage.transactionSync(() => {
+      for (const connectionId of expired) {
+        this.sql.exec('DELETE FROM _snapback_subscriptions WHERE connection_id = ?', connectionId);
+        this.sql.exec(
+          'DELETE FROM _snapback_connections WHERE connection_id = ? AND socket_session_id IS NULL AND opened_at_ms <= ?',
+          connectionId,
+          cutoff
+        );
+      }
+    });
+    return expired.length;
+  }
+
+  connectionCount() {
+    const records = [...this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_connections')];
+    return records.length === 0 ? 0 : Number(records[0].count);
+  }
+
+  claimConnectionOpenBudget() {
+    const configured = Number(this.env.SNAPBACK_CONNECTION_OPEN_RATE_PER_MINUTE);
+    const limit = this.env.SNAPBACK_TESTING === '1' && Number.isSafeInteger(configured) && configured > 0
+      ? Math.min(configured, 600)
+      : DEFAULT_CONNECTION_OPEN_RATE_PER_MINUTE;
+    const nowMs = Date.now();
+    const rows = [...this.sql.exec('SELECT window_started_at_ms, count FROM _snapback_connection_admission WHERE id = 1')];
+    const row = rows[0] || null;
+    const inWindow = Boolean(row && nowMs - Number(row.window_started_at_ms) >= 0 && nowMs - Number(row.window_started_at_ms) < 60_000);
+    const count = inWindow ? Number(row.count) : 0;
+    if (count >= limit) {
+      return kitError(
+        429,
+        'SNAPBACK_CONNECTION_OPEN_RATE_LIMIT',
+        `new connection grants are limited to ${limit} per minute; reuse an existing bearer or retry later`
+      );
+    }
+    this.sql.exec(
+      `INSERT INTO _snapback_connection_admission (id, window_started_at_ms, count) VALUES (1, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET window_started_at_ms = excluded.window_started_at_ms, count = excluded.count`,
+      inWindow ? Number(row.window_started_at_ms) : nowMs,
+      count + 1
+    );
     return null;
   }
 
-  // POST /connection/open (ENG-23442 shape): adopt the caller's readable id
-  // when it is free or when the caller presents the id's current token (the
-  // idempotent re-open a restarted client performs); mint a fresh wire id on
-  // a collision with a live grant so one browser tab can never hijack
-  // another's subscriptions.
-  kitOpenConnection(payload) {
-    const suggested = typeof payload.connectionId === 'string' && payload.connectionId.length > 0
+  // POST /connection/open (ENG-23442 shape): tests/local fixtures adopt a free
+  // caller-readable label, while production always mints the wire id. In every
+  // profile a caller presenting a granted id's current token reopens it
+  // idempotently; a collision never rotates another connection's bearer.
+  async kitOpenConnection(payload) {
+    const requested = typeof payload.connectionId === 'string' && payload.connectionId.length > 0
       ? payload.connectionId
-      : `conn_${crypto.randomUUID()}`;
-    const previousToken = typeof payload.previousToken === 'string' ? payload.previousToken : null;
-    const stored = this.readConnectionToken(suggested);
-    if (stored && previousToken === stored) {
-      return json(200, { connectionId: suggested, connectionToken: stored });
+      : null;
+    if (
+      requested !== null &&
+      (!CONNECTION_ID_PATTERN.test(requested) || UTF8_ENCODER.encode(requested).byteLength > MAX_CONNECTION_ID_BYTES)
+    ) {
+      return kitError(
+        400,
+        'SNAPBACK_CONNECTION_ID_INVALID',
+        `connection ids must use only ASCII letters, digits, underscores, or hyphens and fit in ${MAX_CONNECTION_ID_BYTES} UTF-8 bytes`
+      );
     }
+    const reaped = this.reapExpiredConnections();
+    if (reaped > 0) await this.reconcileCronActivation();
+    const previousToken = typeof payload.previousToken === 'string' ? payload.previousToken : null;
+    const requestedToken = requested === null ? null : this.readConnectionToken(requested);
+    if (requestedToken && previousToken === requestedToken) {
+      this.sql.exec('UPDATE _snapback_connections SET opened_at_ms = ? WHERE connection_id = ?', Date.now(), requested);
+      return json(200, { connectionId: requested, connectionToken: requestedToken });
+    }
+    if (this.connectionCount() >= this.connectionGrantLimit()) {
+      return kitError(
+        429,
+        'SNAPBACK_CONNECTION_GRANT_LIMIT',
+        'the durable connection-grant budget is full; close/reuse a grant or retry after idle grants expire'
+      );
+    }
+    const rateLimited = this.claimConnectionOpenBudget();
+    if (rateLimited) return rateLimited;
+    // Trusted tests/local fixtures retain readable labels. Hosted production
+    // always mints an unguessable wire id; a returned minted id can still be
+    // reopened idempotently with its bearer through the branch above.
+    const suggested = this.env.SNAPBACK_TESTING === '1' && requested !== null
+      ? requested
+      : `conn_${crypto.randomUUID()}`;
+    const stored = this.readConnectionToken(suggested);
     const connectionId = stored ? `conn_${crypto.randomUUID()}` : suggested;
     const token = crypto.randomUUID();
     this.sql.exec(
@@ -2093,9 +2427,8 @@ export class Coordinator {
     if (prepared.length === 0) return false;
     const names = [...new Set(prepared.map((entry) => entry.table))];
     for (const name of names) {
-      for (const record of this.sql.exec(`SELECT COUNT(*) AS count FROM ${this.physicalTable(name)}`)) {
-        if (Number(record.count) > 0) return false;
-      }
+      const counts = [...this.sql.exec(`SELECT COUNT(*) AS count FROM ${this.physicalTable(name)}`)];
+      if (counts.some((record) => Number(record.count) > 0)) return false;
     }
     this.ctx.storage.transactionSync(() => {
       this.applyPreparedSeed(prepared, Date.now());
@@ -2181,26 +2514,45 @@ export class Coordinator {
       return kitError(400, 'SNAPBACK_FUNCTION_KIND_MISMATCH', `${name} is declared ${fn.kind}, not live query`);
     }
     const args = (payload && payload.input && payload.input.args) || {};
+    const connectionId = String(payload.connection_id || '');
+    const socketSessionId = this.currentSocketSession(connectionId);
+    if (!socketSessionId) {
+      return kitError(
+        409,
+        'SNAPBACK_CONNECTION_SOCKET_REQUIRED',
+        'a current authenticated WebSocket session is required before subscribing'
+      );
+    }
     const result = await this.invokeHandler(name, 'query', args);
     if (!result.ok) return kitFailure(result);
+    if (this.currentSocketSession(connectionId) !== socketSessionId) {
+      return kitError(
+        409,
+        'SNAPBACK_CONNECTION_SESSION_REPLACED',
+        'the WebSocket session was replaced while the subscription snapshot was loading; retry on the current session'
+      );
+    }
     const version = result.observedVersion ?? this.currentVersion();
     const argsJson = canonicalJson(args);
-    const connectionId = payload.connection_id;
     if (payload.supersedes) {
       this.sql.exec(
-        'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?',
+        'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
         String(payload.supersedes),
-        connectionId
+        connectionId,
+        socketSessionId
       );
     }
     this.sql.exec(
-      `INSERT INTO _snapback_subscriptions (subscription_id, connection_id, function_name, args_json)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(connection_id, function_name, args_json) DO NOTHING`,
+      `INSERT INTO _snapback_subscriptions
+         (subscription_id, connection_id, function_name, args_json, socket_session_id)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(connection_id, function_name, args_json)
+       DO UPDATE SET socket_session_id = excluded.socket_session_id`,
       `sub_${crypto.randomUUID()}`,
       connectionId,
       name,
-      argsJson
+      argsJson,
+      socketSessionId
     );
     let subscriptionId = null;
     for (const record of this.sql.exec(
@@ -2221,10 +2573,20 @@ export class Coordinator {
   }
 
   async kitUnsubscribe(payload) {
+    const connectionId = String(payload.connection_id || '');
+    const socketSessionId = this.currentSocketSession(connectionId);
+    if (!socketSessionId) {
+      return kitError(
+        409,
+        'SNAPBACK_CONNECTION_SOCKET_REQUIRED',
+        'a current authenticated WebSocket session is required before unsubscribing'
+      );
+    }
     this.sql.exec(
-      'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?',
+      'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
       String(payload.subscription_id || ''),
-      String(payload.connection_id || '')
+      connectionId,
+      socketSessionId
     );
     // Last-unsubscribe cancels the warm-poll alarm (LLP 0049 Phase 3).
     await this.reconcileCronActivation();
@@ -2238,7 +2600,7 @@ export class Coordinator {
   // use the explicit header. Query credentials are refused. The socket echoes
   // `snapback.v1` — a browser fails the connection when it offered
   // subprotocols and the server echoed none.
-  acceptKitSocket(request, connectionId, url) {
+  async acceptKitSocket(request, connectionId, url) {
     // @ref LLP 0031#connection-capability-grants — browser bearer transport
     // is the subprotocol; URL credentials are outside the grant contract.
     if (request.headers.get('upgrade') !== 'websocket') {
@@ -2265,13 +2627,25 @@ export class Coordinator {
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
     const socketSessionId = `wss_${crypto.randomUUID()}`;
-    this.sql.exec(
-      'UPDATE _snapback_connections SET socket_session_id = ? WHERE connection_id = ?',
-      socketSessionId,
-      connectionId
-    );
+    this.ctx.storage.transactionSync(() => {
+      this.sql.exec(
+        'UPDATE _snapback_connections SET socket_session_id = ?, opened_at_ms = ? WHERE connection_id = ?',
+        socketSessionId,
+        Date.now(),
+        connectionId
+      );
+      // A replacement socket owns a new session. Rows from the obsolete
+      // session cannot represent demand and must not survive until its close
+      // event (which may never arrive after hibernation/network loss).
+      this.sql.exec(
+        'DELETE FROM _snapback_subscriptions WHERE connection_id = ? AND socket_session_id IS NOT NULL AND socket_session_id <> ?',
+        connectionId,
+        socketSessionId
+      );
+    });
     this.ctx.acceptWebSocket(server, [connectionId]);
     server.serializeAttachment({ connectionId, protocol: 'kit', socketSessionId });
+    await this.reconcileCronActivation();
     const headers = protocols.includes('snapback.v1') ? { 'sec-websocket-protocol': 'snapback.v1' } : undefined;
     return new Response(null, { status: 101, webSocket: client, headers });
   }
@@ -2309,13 +2683,13 @@ export class Coordinator {
   }
 
   currentSocketSession(connectionId) {
-    for (const record of this.sql.exec(
+    const records = [...this.sql.exec(
       'SELECT socket_session_id FROM _snapback_connections WHERE connection_id = ?',
       connectionId
-    )) {
-      return record.socket_session_id == null ? null : String(record.socket_session_id);
-    }
-    return null;
+    )];
+    return records.length === 0 || records[0].socket_session_id == null
+      ? null
+      : String(records[0].socket_session_id);
   }
 
   async webSocketMessage(ws, message) {
@@ -2326,15 +2700,35 @@ export class Coordinator {
       return;
     }
     const connectionId = this.connectionIdFor(ws);
+    if (this.socketProtocolFor(ws) === 'kit') {
+      const socketSessionId = this.socketSessionFor(ws);
+      if (!socketSessionId || socketSessionId !== this.currentSocketSession(connectionId)) {
+        try { ws.close(1008, 'socket session replaced'); } catch (_) {}
+        return;
+      }
+    }
     if (parsed.type === 'subscribe') {
       // Under the invocation mutex: the snapshot query, the version read, and
       // the registry insert must not interleave with a commit, or the rows
       // the snapshot carried predate a commit whose fan-out never saw the
       // registration — a silently skipped delta (ENG-23575).
-      await this.runExclusive(() => this.subscribe(ws, connectionId, parsed));
+      const socketSessionId = this.socketProtocolFor(ws) === 'kit' ? this.socketSessionFor(ws) : null;
+      await this.runExclusive(() => {
+        if (socketSessionId && socketSessionId !== this.currentSocketSession(connectionId)) return;
+        return this.subscribe(ws, connectionId, parsed, socketSessionId);
+      });
       await this.reconcileCronActivation();
     } else if (parsed.type === 'unsubscribe') {
-      this.sql.exec('DELETE FROM _snapback_subscriptions WHERE subscription_id = ?', parsed.subscriptionId);
+      if (this.socketProtocolFor(ws) === 'kit') {
+        this.sql.exec(
+          'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
+          parsed.subscriptionId,
+          connectionId,
+          this.socketSessionFor(ws)
+        );
+      } else {
+        this.sql.exec('DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?', parsed.subscriptionId, connectionId);
+      }
       await this.reconcileCronActivation();
     } else if (parsed.type === 'ping') {
       // The kit heartbeat expects the local server's `kind` field (any frame
@@ -2347,7 +2741,7 @@ export class Coordinator {
     }
   }
 
-  async subscribe(ws, connectionId, parsed) {
+  async subscribe(ws, connectionId, parsed, socketSessionId = null) {
     const fn = this.functionByName(parsed.name);
     if (!fn || fn.kind !== 'LiveQuery') {
       ws.send(JSON.stringify({ type: 'error', code: 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY', name: parsed.name }));
@@ -2361,19 +2755,22 @@ export class Coordinator {
       ws.send(JSON.stringify({ type: 'error', code: result.code, message: result.message }));
       return;
     }
+    if (socketSessionId && socketSessionId !== this.currentSocketSession(connectionId)) return;
     const version = result.observedVersion ?? this.currentVersion();
     const argsJson = canonicalJson(parsed.args || {});
     // Subscription identity is (connection, function, args) — a re-subscribe
     // from React StrictMode or a client retry reuses the existing row and id
     // instead of double-registering (the UNIQUE constraint above).
     this.sql.exec(
-      `INSERT INTO _snapback_subscriptions (subscription_id, connection_id, function_name, args_json)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(connection_id, function_name, args_json) DO NOTHING`,
+      `INSERT INTO _snapback_subscriptions (subscription_id, connection_id, function_name, args_json, socket_session_id)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(connection_id, function_name, args_json)
+       DO UPDATE SET socket_session_id = excluded.socket_session_id`,
       `sub_${crypto.randomUUID()}`,
       connectionId,
       parsed.name,
-      argsJson
+      argsJson,
+      socketSessionId
     );
     let subscriptionId = null;
     for (const record of this.sql.exec(
@@ -2437,6 +2834,10 @@ export class Coordinator {
       if (!affectedFunctions.has(sub.function_name)) continue;
       const ws = byConnection.get(sub.connection_id);
       if (!ws) continue;
+      if (
+        this.socketProtocolFor(ws) === 'kit' &&
+        String(sub.socket_session_id || '') !== String(this.socketSessionFor(ws) || '')
+      ) continue;
       const key = `${sub.function_name}\0${sub.args_json}`;
       let group = groups.get(key);
       if (!group) {
@@ -2447,6 +2848,8 @@ export class Coordinator {
         ws,
         subscriptionId: String(sub.subscription_id),
         protocol: this.socketProtocolFor(ws),
+        connectionId: String(sub.connection_id),
+        socketSessionId: sub.socket_session_id == null ? null : String(sub.socket_session_id),
       });
     }
     const pushes = [];
@@ -2472,6 +2875,10 @@ export class Coordinator {
         // race its close event) must not suppress delivery to the rest of
         // the group.
         try {
+          if (
+            member.protocol === 'kit' &&
+            member.socketSessionId !== this.currentSocketSession(member.connectionId)
+          ) continue;
           // Frame shape follows the socket's wire protocol: the kit client
           // consumes the local server's snake_case `kind` frames; the proof
           // acceptance suite pins the original camelCase `type` frames.
@@ -2511,12 +2918,19 @@ export class Coordinator {
         const currentSession = this.currentSocketSession(connectionId);
         if (currentSession && closingSession !== currentSession) return;
         this.sql.exec(
-          'UPDATE _snapback_connections SET socket_session_id = NULL WHERE connection_id = ? AND socket_session_id = ?',
+          'UPDATE _snapback_connections SET socket_session_id = NULL, opened_at_ms = ? WHERE connection_id = ? AND socket_session_id = ?',
+          Date.now(),
           connectionId,
           closingSession
         );
+        this.sql.exec(
+          'DELETE FROM _snapback_subscriptions WHERE connection_id = ? AND socket_session_id = ?',
+          connectionId,
+          closingSession
+        );
+      } else {
+        this.sql.exec('DELETE FROM _snapback_subscriptions WHERE connection_id = ?', connectionId);
       }
-      this.sql.exec('DELETE FROM _snapback_subscriptions WHERE connection_id = ?', connectionId);
       // A departing socket may have been the last live subscriber: cancel
       // the warm-poll alarm so the idle object hibernates with zero wakeups.
       await this.reconcileCronActivation();
@@ -2527,34 +2941,84 @@ export class Coordinator {
     await this.webSocketClose(ws);
   }
 
+  abandonActionsForReset() {
+    for (const host of this.activeInvocations.values()) {
+      if (host.mode !== 'action' || !host.control) continue;
+      const message = 'the app was reset while this action was running; its buffered work was discarded';
+      host.abandon('SNAPBACK_ACTION_RESET_ABORTED', message);
+      if (host.control.abortController && !host.control.abortController.signal.aborted) {
+        host.control.abortController.abort('SNAPBACK_ACTION_RESET_ABORTED');
+      }
+    }
+  }
+
+  resetOwnedTables() {
+    const systemTables = [
+      '_snapback_changes',
+      '_snapback_version',
+      '_snapback_subscriptions_next',
+      '_snapback_subscriptions',
+      '_snapback_connections',
+      '_snapback_connection_admission',
+      '_snapback_cron_state',
+      '_snapback_cron_claims',
+      '_snapback_action_limits',
+      '_snapback_action_mutation_results',
+    ];
+    const appTables = [...this.sql.exec(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'app\\_%' ESCAPE '\\'"
+    )].map((record) => String(record.name));
+    for (const table of systemTables) {
+      try {
+        this.sql.exec(`DROP TABLE IF EXISTS ${table}`);
+      } catch (error) {
+        throw codedError('SNAPBACK_RESET_SCHEMA_REBUILD_FAILED', `could not drop ${table}: ${String(error && error.message || error)}`);
+      }
+    }
+    for (const name of appTables) {
+      if (!/^app_[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+        throw codedError('SNAPBACK_RESET_OWNED_TABLE_INVALID', 'an owned app table has an invalid identifier');
+      }
+      try {
+        this.sql.exec(`DROP TABLE "${name}"`);
+      } catch (error) {
+        throw codedError('SNAPBACK_RESET_SCHEMA_REBUILD_FAILED', `could not drop ${name}: ${String(error && error.message || error)}`);
+      }
+    }
+  }
+
   async reset() {
     // Validate and serialize the compiled seed before the destructive
     // boundary. Any invalid artifact leaves the complete pre-reset state.
     const preparedSeed = appSeed ? this.prepareSeed(appSeed) : [];
     let seeded = false;
+    const nextGeneration = this.appGeneration() + 1;
+    // @ref LLP 0028#scheduler-state-and-run-ledger — reset is an action
+    // abandonment boundary; its generation is checked again at nested commit.
     this.ctx.storage.transactionSync(() => {
-      this.sql.exec('DELETE FROM _snapback_changes');
+      this.resetOwnedTables();
       this.testResetFault('after-journal');
-      this.sql.exec('UPDATE _snapback_version SET version = 0 WHERE id = 1');
-      this.sql.exec('DELETE FROM _snapback_subscriptions');
-      // App-state reset also resets cron/runtime admission state; configured
-      // secrets and rotation cursors are deployment config and survive.
-      this.sql.exec('DELETE FROM _snapback_cron_claims');
-      this.sql.exec('DELETE FROM _snapback_cron_state');
-      this.sql.exec('DELETE FROM _snapback_action_limits');
-      this.sql.exec('DELETE FROM _snapback_action_mutation_results');
+      // Recreate every known runtime table from this deployment. This does not
+      // interpret an unknown future subscription schema and cannot retain a
+      // retired app_* table or stale same-name index definition. Config cursor
+      // state is deployment-owned and intentionally survives app reset.
+      this.ensureCurrentSchema();
       this.testResetFault('after-runtime-state');
-      for (const table of schema.tables) {
-        this.sql.exec(`DELETE FROM ${this.physicalTable(table.name)}`);
-      }
       this.testResetFault('after-app-rows');
       this.writeDeploymentMetadata();
+      this.writeMeta('app_generation', String(nextGeneration));
       if (preparedSeed.length > 0) {
         this.applyPreparedSeed(preparedSeed, Date.now());
         seeded = true;
       }
       this.testResetFault('after-seed');
     });
+    // Actions execute off the coordinator mutex. Publish abandonment only
+    // after the SQL reset commits (a rolled-back reset must not kill valid
+    // work). No await separates the commit from this loop, and queued nested
+    // commits cannot enter until this reset releases the mutex. The persisted
+    // generation also catches staged-but-not-yet-registered actions.
+    this.abandonActionsForReset();
     // Only publish the recovered startup posture after the transaction
     // commits; a rolled-back reset must retain its stale refusal too.
     this.startupError = null;
@@ -2630,12 +3094,35 @@ function canonicalJson(value) {
   return JSON.stringify(sortJson(value ?? {}));
 }
 
-function secretRepresentations(value) {
+function secretRedactionPatterns(value) {
   const raw = String(value || '');
   if (!raw) return [];
-  const variants = new Set([raw]);
-  try { variants.add(raw.normalize('NFC')); } catch (_) {}
-  try { variants.add(raw.normalize('NFD')); } catch (_) {}
+  const normalized = new Set([raw]);
+  try { normalized.add(raw.normalize('NFC')); } catch (_) {}
+  try { normalized.add(raw.normalize('NFD')); } catch (_) {}
+  const patterns = [];
+
+  // Match one whole normalized secret while permitting each UTF-16 code unit
+  // to appear either raw or as a JSON Unicode escape. Building the alternation
+  // per unit covers full and partially escaped strings, surrogate-pair escapes
+  // for astral characters, and mixed hex casing (the regexp is insensitive)
+  // without ever redacting a mere prefix of the secret.
+  for (const candidate of normalized) {
+    const units = [];
+    for (let index = 0; index < candidate.length; index += 1) {
+      const unit = candidate.charCodeAt(index);
+      const alternatives = [
+        regexEscape(candidate[index]),
+        jsonBackslashEscapePattern(`u${unit.toString(16).padStart(4, '0')}`),
+      ];
+      const shortEscape = jsonShortEscape(unit);
+      if (shortEscape) alternatives.push(jsonBackslashEscapePattern(shortEscape.slice(1)));
+      units.push(`(?:${alternatives.join('|')})`);
+    }
+    patterns.push(new RegExp(units.join(''), 'gi'));
+  }
+
+  const variants = new Set(normalized);
   // Include two reversible URL/form encoding layers; proxies and JSON APIs
   // commonly echo an already-encoded query value after encoding it again.
   for (let round = 0; round < 2; round += 1) {
@@ -2648,16 +3135,38 @@ function secretRepresentations(value) {
       } catch (_) {}
     }
   }
-  for (const candidate of [...variants]) {
-    try {
-      const encoded = JSON.stringify(candidate);
-      if (encoded && encoded.length >= 2) variants.add(encoded.slice(1, -1));
-    } catch (_) {}
+  for (const encoded of [...variants].sort((left, right) => right.length - left.length)) {
+    if (encoded.length > 0 && !normalized.has(encoded)) patterns.push(new RegExp(regexEscape(encoded), 'gi'));
   }
-  for (const encoded of [...variants]) {
-    variants.add(encoded.replace(/%[0-9A-F]{2}/g, (part) => part.toLowerCase()));
-  }
-  return [...variants].sort((left, right) => right.length - left.length);
+  return patterns;
+}
+
+function regexEscape(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function jsonBackslashEscapePattern(suffix) {
+  // `\\+` in the regexp means one-or-more literal backslashes. A JSON body
+  // that itself carries a textual `\uXXXX` escape doubles that backslash;
+  // accepting either depth (and further reversible JSON wrapping) prevents
+  // the encoding layer from becoming a redaction bypass.
+  return `\\\\+${regexEscape(suffix)}`;
+}
+
+function jsonShortEscape(unit) {
+  if (unit === 0x08) return '\\b';
+  if (unit === 0x09) return '\\t';
+  if (unit === 0x0a) return '\\n';
+  if (unit === 0x0c) return '\\f';
+  if (unit === 0x0d) return '\\r';
+  if (unit === 0x22) return '\\"';
+  if (unit === 0x2f) return '\\/';
+  if (unit === 0x5c) return '\\\\';
+  return null;
+}
+
+function normalizeSqlDefinition(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 async function readBoundedTextStream(stream, limitBytes) {

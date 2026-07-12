@@ -5,7 +5,7 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-12 (ENG-24338/ENG-24346: trusted local token discovery and fail-closed owner-only capability/config file handling; ENG-24344/ENG-24362/ENG-24363/ENG-24366: Cloudflare grants use immutable invocation-scoped opaque capability ids, full config status requires admin auth, pooled secrets enter through stdin with member-state attestation, and reversible encoded secret forms are scrubbed at host fetch; earlier: 2026-07-07 ENG-23629 / LLP 0049 Phase 1: the first
+**Revised:** 2026-07-12 (ENG-24338/ENG-24346: trusted local token discovery and fail-closed owner-only capability/config file handling; ENG-24344/ENG-24362/ENG-24363/ENG-24366: Cloudflare grants use immutable invocation-scoped opaque capability ids, full config status requires admin auth, pooled secrets enter only through stdin with requested member-state and generation attestation, and reversible encoded secret forms—including partial or mixed-case JSON Unicode escapes for BMP and astral values—are scrubbed at host fetch; earlier: 2026-07-07 ENG-23629 / LLP 0049 Phase 1: the first
 `deploy-time-binding` backend landed on the Cloudflare proof target —
 descriptor-only action grants (values never enter the handler isolate),
 profile-scoped fail-closed `expose()`/`asBearer()` with
@@ -581,6 +581,13 @@ valued) in diagnostics. Acceptance below includes the negative tests — an
 accidental `JSON.stringify(ctx.secrets.get(...))`, a thrown error carrying a
 header, a `console.log` of the handle — all must yield redaction, proven by
 tests rather than asserted.
+
+The Cloudflare host-fetch scrub treats reversible encoding as a language, not
+a short list of strings: each UTF-16 unit may be raw, a short JSON escape, or
+one-or-more JSON-wrapping backslashes followed by a case-insensitive `uXXXX`.
+The matcher spans the whole normalized secret, so full and partially escaped
+BMP/astral values are removed without broad prefix redaction; URL/form and
+double-URL encodings remain covered separately.
 
 **Non-secret entries: readable values.** Actions read them via `ctx.config`.
 Queries and mutations do *not* get a `ctx.config` host API — they see

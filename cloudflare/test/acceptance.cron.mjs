@@ -111,14 +111,19 @@ async function main() {
       })
     ).json();
     const afterManual = await cronStatus();
+    const manualRecoveryState = await (
+      await fetch(`${base}/__test/cron-claims`, { method: 'POST' })
+    ).json();
     check(
-      'an admin manual run executes and records the ledger',
+      'an admin manual run executes without allocating recoverable claim/replay rows',
       manual.ok === true &&
         manual.outcome === 'ok' &&
         afterManual.lastRun.trigger === 'manual' &&
         afterManual.lastRun.outcome === 'ok' &&
         afterManual.lastRun.durationMs >= 0 &&
-        mock.seen.fetches === 1
+        mock.seen.fetches === 1 &&
+        manualRecoveryState.claims.length === 0 &&
+        manualRecoveryState.mutationResults === 0
     );
 
     // --- subscribe arms the alarm; scheduled runs fetch+commit+push -------

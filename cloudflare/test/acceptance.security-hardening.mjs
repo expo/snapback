@@ -50,6 +50,10 @@ try {
   const adminStatus = await adminStatusResponse.json();
   assert.equal(adminStatusResponse.status, 200);
   assert.ok(!Object.keys(adminStatus.grants).some((name) => name.startsWith('probe')));
+  const productionGrant = await jsonFetch(base, '/connection/open', { connectionId: 'caller-readable-label' });
+  assert.equal(productionGrant.status, 200);
+  assert.notEqual(productionGrant.body.connectionId, 'caller-readable-label');
+  assert.match(productionGrant.body.connectionId, /^conn_[A-Za-z0-9-]+$/);
 
   // Test-only arbitrary egress is absent, caller budget overrides are
   // stripped, and per-action admission limits cap public abuse.
@@ -69,7 +73,19 @@ try {
   await production.dispose();
 }
 
-const SPECIAL_SECRET = 'p+/%"\\ café\u0301';
+const SPECIAL_SECRET = 'p+/%"\\ café\u0301 / é / 😀A';
+function utf16Escaped(value, casing = 'lower') {
+  let output = '';
+  for (let index = 0; index < value.length; index += 1) {
+    let hex = value.charCodeAt(index).toString(16).padStart(4, '0');
+    if (casing === 'upper') hex = hex.toUpperCase();
+    if (casing === 'mixed') {
+      hex = [...hex].map((character, offset) => (offset % 2 === 0 ? character.toUpperCase() : character.toLowerCase())).join('');
+    }
+    output += `\\u${hex}`;
+  }
+  return output;
+}
 const echoServer = http.createServer((request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1');
   const raw = url.searchParams.get('secret') || '';
@@ -88,6 +104,10 @@ const echoServer = http.createServer((request, response) => {
     json: JSON.stringify(raw),
     nfc: raw.normalize('NFC'),
     nfd: raw.normalize('NFD'),
+    unicodeLower: utf16Escaped(raw, 'lower'),
+    unicodeUpper: utf16Escaped(raw, 'upper'),
+    unicodeMixed: utf16Escaped(raw, 'mixed'),
+    unicodePartial: raw.slice(0, 2) + utf16Escaped(raw.slice(2), 'mixed'),
   }));
 });
 await new Promise((resolve) => echoServer.listen(0, '127.0.0.1', resolve));
@@ -124,6 +144,10 @@ try {
     JSON.stringify(SPECIAL_SECRET).slice(1, -1),
     SPECIAL_SECRET.normalize('NFC'),
     SPECIAL_SECRET.normalize('NFD'),
+    utf16Escaped(SPECIAL_SECRET, 'lower'),
+    utf16Escaped(SPECIAL_SECRET, 'upper'),
+    utf16Escaped(SPECIAL_SECRET, 'mixed'),
+    SPECIAL_SECRET.slice(0, 2) + utf16Escaped(SPECIAL_SECRET.slice(2), 'mixed'),
   ]);
   for (const path of ['/echo', '/redirect']) {
     const echoed = await testAction('probeSecretEcho', { url: `${echoOrigin}${path}` });
@@ -150,6 +174,24 @@ try {
   const opened = await jsonFetch(base, '/connection/open', { connectionId: 'security-ws' });
   const connectionId = opened.body.connectionId;
   const token = opened.body.connectionToken;
+  const socketless = await jsonFetch(
+    base,
+    '/live/liveTrainStatus/subscribe',
+    { connection_id: connectionId, input: { args: {} } },
+    { 'x-snapback-connection-token': token }
+  );
+  assert.equal(socketless.status, 409);
+  assert.equal(socketless.body.diagnostic?.code, 'SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+  const socketlessState = await jsonFetch(base, '/__test/connection-state', {});
+  assert.equal(socketlessState.body.subscriptions.length, 0, 'socketless subscribe must not persist demand');
+  const socketlessCron = await (await fetch(`${base}/cron/status`)).json();
+  assert.equal(socketlessCron.jobs[0].activation.state, 'inactive:no-demand');
+  await jsonFetch(base, '/__test/schema-hardening', { operation: 'create-socketless-kit-orphan' });
+  const corruptSocketlessCron = await (await fetch(`${base}/cron/status`)).json();
+  assert.equal(corruptSocketlessCron.jobs[0].activation.demand, 0, 'a corrupt v3 socketless kit row must not count as proof demand');
+  const reapedSocketless = await jsonFetch(base, '/__test/subscription-migration', {});
+  assert.equal(reapedSocketless.body.layout.subscriptionSchemaVersion, 3);
+  assert.equal(reapedSocketless.body.layout.subscriptionCount, 0, 'v2→v3 migration must reap socketless kit rows');
   const queryOnly = await testing.raw(`/live/${connectionId}/stream?connection_token=${encodeURIComponent(token)}`, {
     headers: { upgrade: 'websocket' },
   });
@@ -198,6 +240,13 @@ try {
     { 'x-snapback-connection-token': token }
   );
   assert.equal(subscribed.status, 200);
+  // The first socket is now obsolete. Its socket-carried unsubscribe cannot
+  // delete the replacement session's row.
+  headerSocket.ws.send(JSON.stringify({ type: 'unsubscribe', subscriptionId: subscribed.body.subscription_id }));
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const replacementOwned = await jsonFetch(base, '/__test/connection-state', {});
+  assert.equal(replacementOwned.body.subscriptions.length, 1);
+  assert.notEqual(replacementOwned.body.subscriptions[0].socket_session_id, null);
   await testing.evict();
   headerSocket.ws.close();
   await new Promise((resolve) => setTimeout(resolve, 50));
@@ -223,6 +272,53 @@ try {
 } finally {
   await testing.dispose();
   echoServer.close();
+}
+
+// Durable connection capabilities are finite, route-safe, reaped after their
+// idle lease, and remain healthy across repeated destructive reset/open cycles.
+const bounded = await startProof({
+  app: 'notes',
+  port: 0,
+  bindings: {
+    SNAPBACK_CONNECTION_GRANT_LIMIT: '3',
+    SNAPBACK_CONNECTION_GRANT_TTL_MS: '60000',
+    SNAPBACK_CONNECTION_OPEN_RATE_PER_MINUTE: '4',
+  },
+});
+try {
+  const base = await bounded.url();
+  const invalid = await jsonFetch(base, '/connection/open', { connectionId: 'not route safe' });
+  const tooLong = await jsonFetch(base, '/connection/open', { connectionId: 'x'.repeat(129) });
+  assert.equal(invalid.body.diagnostic?.code, 'SNAPBACK_CONNECTION_ID_INVALID');
+  assert.equal(tooLong.body.diagnostic?.code, 'SNAPBACK_CONNECTION_ID_INVALID');
+  const openedGrants = new Map();
+  for (const connectionId of ['bounded-a', 'bounded-b', 'bounded-c']) {
+    const grant = await jsonFetch(base, '/connection/open', { connectionId });
+    assert.equal(grant.status, 200);
+    openedGrants.set(connectionId, grant.body.connectionToken);
+  }
+  const full = await jsonFetch(base, '/connection/open', { connectionId: 'bounded-d' });
+  assert.equal(full.status, 429);
+  assert.equal(full.body.diagnostic?.code, 'SNAPBACK_CONNECTION_GRANT_LIMIT');
+  await jsonFetch(base, '/__test/age-connections', {});
+  const expiredUse = await fetch(`${base}/outbox/bounded-a`, {
+    headers: { 'x-snapback-connection-token': openedGrants.get('bounded-a') },
+  });
+  assert.equal(expiredUse.status, 401, 'an idle-expired grant must be rejected even before the next open');
+  const expired = await jsonFetch(base, '/__test/expire-connections', {});
+  assert.equal(expired.body.reaped, 2);
+  assert.equal((await jsonFetch(base, '/connection/open', { connectionId: 'bounded-d' })).status, 200);
+  const rateLimited = await jsonFetch(base, '/connection/open', { connectionId: 'bounded-e' });
+  assert.equal(rateLimited.status, 429);
+  assert.equal(rateLimited.body.diagnostic?.code, 'SNAPBACK_CONNECTION_OPEN_RATE_LIMIT');
+  for (let index = 0; index < 5; index += 1) {
+    const reset = await bounded.reset();
+    assert.equal(reset.reset, true);
+    const reopened = await jsonFetch(base, '/connection/open', { connectionId: `after-reset-${index}` });
+    assert.equal(reopened.status, 200);
+  }
+} finally {
+  await bounded.dispose();
 }
 
 console.log('cloudflare security-hardening acceptance: seed, actions, grants, redaction, admin status, and WebSocket ownership passed');

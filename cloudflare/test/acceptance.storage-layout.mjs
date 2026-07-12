@@ -1,6 +1,7 @@
-// ENG-24349 / ENG-24361: declared expression indexes are real query-plan
-// inputs, and the subscription migration is versioned, atomic at every
-// statement boundary, and a no-op once current.
+// ENG-24349 / ENG-24360 / ENG-24361 / ENG-24367: declared expression indexes
+// are definition-reconciled, startup refusal remains recoverable, reset
+// rebuilds exactly the current owned schema, and subscription migration is
+// versioned and atomic at every statement boundary.
 import { startProof } from './harness.mjs';
 
 const proof = await startProof({ app: 'notes', port: 0 });
@@ -56,8 +57,19 @@ try {
     }
   }
 
+  await post('/__test/schema-hardening', { operation: 'create-socketless-kit-orphan' });
+  const withOrphan = await post('/__test/storage-layout');
+  if (withOrphan.subscriptionCount !== subscriptionCount + 1) {
+    throw new Error(`socketless kit orphan fixture was not installed: ${JSON.stringify(withOrphan)}`);
+  }
   const migrated = await post('/__test/subscription-migration', {});
-  if (!migrated.ok || migrated.layout.subscriptionSchemaVersion !== 2 || migrated.layout.subscriptionCount !== subscriptionCount) {
+  const orphanAfterMigration = await post('/__test/schema-hardening', {});
+  if (
+    !migrated.ok ||
+    migrated.layout.subscriptionSchemaVersion !== 3 ||
+    migrated.layout.subscriptionCount !== subscriptionCount ||
+    orphanAfterMigration.orphanPresent
+  ) {
     throw new Error(`successful migration lost state: ${JSON.stringify(migrated)}`);
   }
   const currentRootPage = migrated.layout.subscriptionRootPage;
@@ -70,7 +82,51 @@ try {
   }
 
   socket.close();
-  console.log('cloudflare storage-layout acceptance: expression indexes and atomic one-time subscription migration passed');
+
+  const corrupt = await post('/__test/schema-hardening', { operation: 'corrupt-index' });
+  if (!/CREATE UNIQUE INDEX/i.test(corrupt.indexSql) || !/\(id,/.test(corrupt.indexSql)) {
+    throw new Error(`index corruption fixture did not change uniqueness/field order: ${JSON.stringify(corrupt)}`);
+  }
+  const reconciled = await post('/__test/schema-hardening', { operation: 'reconcile-index' });
+  if (/CREATE UNIQUE INDEX/i.test(reconciled.indexSql) || !/json_extract\(row_json/i.test(reconciled.indexSql) || /\(id,/.test(reconciled.indexSql)) {
+    throw new Error(`same-name changed index definition survived reconciliation: ${JSON.stringify(reconciled)}`);
+  }
+
+  await post('/__test/schema-hardening', { operation: 'create-retired-table' });
+  await post('/__test/schema-hardening', { operation: 'corrupt-index' });
+  await proof.corruptMeta({ schemaHash: 'stale-before-ddl' });
+  const refused = await post('/__test/schema-hardening', { operation: 'reinitialize' });
+  if (refused.startupError?.code !== 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH' || !/CREATE UNIQUE INDEX/i.test(refused.indexSql)) {
+    throw new Error(`startup performed app DDL before identity refusal: ${JSON.stringify(refused)}`);
+  }
+  const refusedHealth = await fetch(`${base}/health`);
+  if (refusedHealth.status !== 409 || (await refusedHealth.json()).code !== 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH') {
+    throw new Error('stale startup did not remain diagnosable through /health');
+  }
+  const recovered = await proof.reset();
+  if (!recovered.reset) throw new Error(`stale startup was not recoverable through reset: ${JSON.stringify(recovered)}`);
+  const rebuilt = await post('/__test/schema-hardening', {});
+  if (rebuilt.ownedTables.includes('app_retired_fixture') || /CREATE UNIQUE INDEX/i.test(rebuilt.indexSql)) {
+    throw new Error(`reset retained retired data or a stale index: ${JSON.stringify(rebuilt)}`);
+  }
+
+  await post('/__test/schema-hardening', { operation: 'future-subscriptions' });
+  const futureHealth = await fetch(`${base}/health`);
+  const futureBody = await futureHealth.json();
+  if (futureHealth.status !== 409 || futureBody.code !== 'SNAPBACK_SUBSCRIPTION_SCHEMA_UNSUPPORTED') {
+    throw new Error(`future subscription schema was interpreted instead of refused: ${JSON.stringify(futureBody)}`);
+  }
+  const futureReset = await proof.reset();
+  const postFuture = await post('/__test/storage-layout');
+  if (!futureReset.reset || postFuture.subscriptionSchemaVersion !== 3) {
+    throw new Error(`reset did not rebuild a future subscription schema: ${JSON.stringify({ futureReset, postFuture })}`);
+  }
+  for (let index = 0; index < 3; index += 1) {
+    const repeated = await proof.reset();
+    if (!repeated.reset) throw new Error(`repeated schema reset ${index} failed: ${JSON.stringify(repeated)}`);
+  }
+
+  console.log('cloudflare storage-layout acceptance: index reconciliation, startup/reset recovery, and atomic subscription migration passed');
 } finally {
   await proof.dispose();
 }

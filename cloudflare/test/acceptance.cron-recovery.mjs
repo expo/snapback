@@ -97,3 +97,68 @@ try {
   await proof.dispose();
   server.close();
 }
+
+// A scheduler attempt finishing after app.reset must not recreate the claim,
+// last-run summary, or nominal state that reset just erased. Exercise both the
+// recoverable scheduled path and ordinary manual run-now while host fetch is
+// held across the reset linearization point.
+let heldArrivals = 0;
+const arrivalWaiters = [];
+const heldServer = http.createServer((_request, _response) => {
+  heldArrivals += 1;
+  while (arrivalWaiters.length > 0 && arrivalWaiters[0].target <= heldArrivals) {
+    arrivalWaiters.shift().resolve();
+  }
+});
+await new Promise((resolve) => heldServer.listen(0, '127.0.0.1', resolve));
+const waitForArrival = (target) => {
+  if (heldArrivals >= target) return Promise.resolve();
+  return new Promise((resolve) => arrivalWaiters.push({ target, resolve }));
+};
+const resetRace = await startProof({
+  app: 'all-aboard',
+  port: 0,
+  bindings: {
+    [bindingNameFor('all-aboard', 'caltrainFeed')]: JSON.stringify(['cron-reset-key']),
+    SNAPBACK_CONFIG_GENERATION: '1',
+    SNAPBACK_TEST_FEED_URL: `http://127.0.0.1:${heldServer.address().port}/held`,
+    SNAPBACK_ACTION_TIMEOUT_MS: '5000',
+  },
+});
+try {
+  const base = await resetRace.url();
+  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  await client.ensureApp({ seed });
+  const postJson = async (path, body = {}) => {
+    const response = await fetch(`${base}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return response.json();
+  };
+  for (const [index, trigger] of ['scheduled', 'manual'].entries()) {
+    const run = postJson('/__test/run-cron', { job: 'warmPoll', trigger });
+    await waitForArrival(index + 1);
+    const reset = await resetRace.reset();
+    const outcome = await run;
+    if (!reset.reset || outcome.resetAbandoned !== true || outcome.outcome !== 'reset') {
+      throw new Error(`${trigger} cron/reset race did not abandon cleanly: ${JSON.stringify({ reset, outcome })}`);
+    }
+    const status = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+    const recovery = await postJson('/__test/cron-claims');
+    if (
+      status.lastRun !== null ||
+      status.nextRun !== null ||
+      status.activation.state !== 'inactive:no-demand' ||
+      recovery.claims.length !== 0 ||
+      recovery.mutationResults !== 0
+    ) {
+      throw new Error(`${trigger} cron completion contaminated post-reset scheduler state: ${JSON.stringify({ status, recovery })}`);
+    }
+  }
+  console.log('cloudflare cron-reset acceptance: held scheduled and manual runs cannot recreate state after reset');
+} finally {
+  await resetRace.dispose();
+  heldServer.close();
+}
