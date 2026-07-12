@@ -258,8 +258,14 @@ export async function generate(backendDir) {
   const workerPath = fileURLToPath(new URL('./generate-worker.mjs', import.meta.url));
   return new Promise((resolveResult) => {
     const child = fork(workerPath, [resolve(backendDir)], {
-      cwd: process.cwd(),
-      env: process.env,
+      // The cache-busting worker is a deterministic tool boundary. Caller
+      // flags such as --eval/--input-type/--require/--inspect are not valid
+      // worker arguments, and NODE_OPTIONS/preload credentials are not inputs.
+      execArgv: [],
+      cwd: REPO_ROOT,
+      env: codegenWorkerEnvironment(),
+      // No inherited stdin/stdout; stderr remains the human diagnostic lane,
+      // while the single structured result travels over the dedicated IPC fd.
       stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
     });
     let settled = false;
@@ -278,6 +284,29 @@ export async function generate(backendDir) {
       resolveResult(codegenWorkerFailure(new Error(`codegen worker exited before returning a result (code ${code}, signal ${signal})`)));
     });
   });
+}
+
+function codegenWorkerEnvironment() {
+  const allowed = new Set([
+    // Explicit codegen inputs.
+    'SNAPBACK_OUTBOUND_ACTIONS',
+    'SNAPBACK_GENERATED_AT_MS',
+    'SOURCE_DATE_EPOCH',
+    // Minimal process-launch/temp plumbing, preserving the host's key casing.
+    'PATH',
+    'SYSTEMROOT',
+    'WINDIR',
+    'COMSPEC',
+    'PATHEXT',
+    'TEMP',
+    'TMP',
+    'TMPDIR',
+  ]);
+  const environment = Object.create(null);
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined && allowed.has(key.toUpperCase())) environment[key] = value;
+  }
+  return environment;
 }
 
 export async function generateInProcess(backendDir) {

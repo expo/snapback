@@ -10,6 +10,7 @@ import { generate } from './index.mjs';
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const codegenPath = join(packageRoot, 'index.mjs');
+const codegenUrl = pathToFileURL(codegenPath).href;
 const dirs = [];
 
 // The isolated evaluator's filesystem backstop depends on the stable Node 24+
@@ -64,6 +65,92 @@ function manifests(dir) {
     schema: JSON.parse(readFileSync(join(dir, 'generated', 'schema.manifest.json'), 'utf8')),
     functions: JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8')),
   };
+}
+
+function assertChildGeneration(child, label) {
+  assert.equal(child.status, 0, `${label}: ${child.stderr || child.stdout}`);
+  const result = JSON.parse(child.stdout.trim());
+  assert.equal(result.ok, true, `${label}: ${JSON.stringify(result.diagnostics)}`);
+}
+
+function moduleGenerationScript(dir) {
+  return `
+import { generate } from ${JSON.stringify(codegenUrl)};
+const result = await generate(${JSON.stringify(dir)});
+process.stdout.write(JSON.stringify(result));
+if (!result.ok) process.exitCode = 2;
+`;
+}
+
+// The cache-busting worker starts from an explicit process contract. CLI flags
+// accepted by a string/stdin parent must never be replayed against the worker
+// filename, and preload/debug authority must not cross through execArgv or
+// NODE_OPTIONS. Each case failed or ran the preload twice before the worker
+// pinned execArgv/cwd/env.
+{
+  const dir = makeBackend();
+
+  const inputType = spawnSync(process.execPath, ['--input-type=module'], {
+    cwd: dir,
+    env: process.env,
+    input: moduleGenerationScript(dir),
+    encoding: 'utf8',
+  });
+  assertChildGeneration(inputType, '--input-type parent');
+
+  const evalScript = `
+if (process.env.SNAPBACK_CODEGEN_EVAL_PARENT !== '1') process.exit(23);
+delete process.env.SNAPBACK_CODEGEN_EVAL_PARENT;
+import(${JSON.stringify(codegenUrl)}).then(async ({ generate }) => {
+  const result = await generate(${JSON.stringify(dir)});
+  process.stdout.write(JSON.stringify(result));
+  if (!result.ok) process.exitCode = 2;
+}).catch((error) => { console.error(error); process.exitCode = 3; });
+`;
+  const evalParent = spawnSync(process.execPath, ['--eval', evalScript], {
+    cwd: dir,
+    env: { ...process.env, SNAPBACK_CODEGEN_EVAL_PARENT: '1' },
+    encoding: 'utf8',
+  });
+  assertChildGeneration(evalParent, '--eval parent');
+
+  const preloadPath = join(dir, 'preload.cjs');
+  const preloadLog = join(dir, 'preload.log');
+  const runnerPath = join(dir, 'runner.mjs');
+  writeFileSync(preloadPath, `
+require('node:fs').appendFileSync(process.env.SNAPBACK_PRELOAD_LOG, String(process.pid) + '\\n');
+`);
+  writeFileSync(runnerPath, moduleGenerationScript(dir));
+  const preloadEnv = { ...process.env, SNAPBACK_PRELOAD_LOG: preloadLog };
+
+  const inspectParent = spawnSync(process.execPath, ['--inspect=0', runnerPath], {
+    cwd: dir,
+    env: process.env,
+    encoding: 'utf8',
+  });
+  assertChildGeneration(inspectParent, '--inspect parent');
+  assert.equal(
+    inspectParent.stderr.match(/Debugger listening on/g)?.length ?? 0,
+    1,
+    'only the explicitly inspected caller may open a debug endpoint',
+  );
+
+  const requireParent = spawnSync(process.execPath, ['--require', preloadPath, runnerPath], {
+    cwd: dir,
+    env: preloadEnv,
+    encoding: 'utf8',
+  });
+  assertChildGeneration(requireParent, '--require parent');
+  assert.equal(readFileSync(preloadLog, 'utf8').trim().split('\n').length, 1, '--require preload must run only in the caller');
+
+  writeFileSync(preloadLog, '');
+  const nodeOptionsParent = spawnSync(process.execPath, [runnerPath], {
+    cwd: dir,
+    env: { ...preloadEnv, NODE_OPTIONS: `--require=${preloadPath}` },
+    encoding: 'utf8',
+  });
+  assertChildGeneration(nodeOptionsParent, 'NODE_OPTIONS parent');
+  assert.equal(readFileSync(preloadLog, 'utf8').trim().split('\n').length, 1, 'NODE_OPTIONS preload must run only in the caller');
 }
 
 // Same-process regeneration: neither entry source changes, only transitive
