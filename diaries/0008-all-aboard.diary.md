@@ -2050,13 +2050,14 @@ Static ESM dependencies load and evaluate before `main.ts` can record
 `scriptStartMs`, so moving the renderer from a dynamic import to a static one
 moved most of the cost before the stopwatch. The user still waits for that
 work. The acceptance oracle now starts at the navigation response boundary;
-the script-start delta remains in the result only as a diagnostic. Its 750 ms
-dev-server budget takes the previously observed 495 ms worst case and adds
-roughly 50% host-load headroom instead of pretending Vite's cold transform
-work is free.
+the script-start delta remains in the result only as a diagnostic. The first
+cold isolated proofs measured 888 ms and 1.45 s response-to-board; the slower
+reported only 94 ms from entry-body start, leaving 1.36 s hidden. The 2.2 s
+dev-server bar adds roughly 50% host-load headroom over that observed maximum
+instead of pretending Vite's cold transform work is free.
 
 A clock-real regression imports a renderer stand-in whose top-level evaluation
-waits 900 ms. It demonstrates the old metric's failure mode directly: the
+waits 2.6 seconds. It demonstrates the old metric's failure mode directly: the
 entry-body delta stays below 100 ms, while the response-to-board oracle sees
 the full delay and rejects it. This made the proof more like what a user of a
 React/Convex or React/Supabase app would care about—time from receiving the app

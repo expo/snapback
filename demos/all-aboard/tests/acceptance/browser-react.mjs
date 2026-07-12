@@ -74,7 +74,7 @@ const EXPECTED_CHECKS = 18;
 // Mirrored from the Contract arm: include static dependency work between the
 // HTML response and entry-body execution. The script-start delta remains a
 // secondary diagnostic only. Overridable for deliberately slower CI hosts.
-const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 750);
+const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 2200);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };

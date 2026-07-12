@@ -75,10 +75,12 @@ const EXPECTED_CHECKS = 34;
 
 // ENG-24386 follow-up: the budget begins when the HTML response completes, so
 // static dependency fetch/evaluation cannot hide before the entry body records
-// scriptStartMs. The 750ms dev-server bar is the pre-fix observed 495ms worst
-// case plus ~50% host-load headroom; production remains materially faster.
+// scriptStartMs. Two cold isolated runs measured 888ms and 1450ms end to end
+// (the latter included 1356ms before the entry body); the 2200ms dev-server bar
+// retains ~50% host-load headroom over the observed maximum while still
+// bounding that previously invisible work. Production remains materially faster.
 // Overridable for deliberately slower CI hosts.
-const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 750);
+const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 2200);
 
 const suite = createSuite('all-aboard browser (Phase 1)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];

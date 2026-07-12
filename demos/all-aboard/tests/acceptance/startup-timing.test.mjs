@@ -23,7 +23,7 @@ try {
   // scriptStartMs. The old script-to-paint check sees only the tiny tail; the
   // response-bound oracle must see and reject the full delay.
   writeFileSync(join(dir, 'renderer-web-host.mjs'), `
-await new Promise((resolve) => setTimeout(resolve, 900));
+await new Promise((resolve) => setTimeout(resolve, 2600));
 export function installContractWebHost() {}
 `);
   writeFileSync(join(dir, 'entry.mjs'), `
@@ -44,9 +44,9 @@ export const firstBoardPaintMs = performance.now();
   const codeToBoardMs = timing.firstBoardPaintMs - timing.scriptStartMs;
   const responseToBoardMs = timing.firstBoardPaintMs - timing.htmlReceivedMs;
   assert(codeToBoardMs < 100, `entry-body-only metric should miss the static delay: ${JSON.stringify(timing)}`);
-  assert(responseToBoardMs >= 850, `static renderer delay must be observed: ${JSON.stringify(timing)}`);
+  assert(responseToBoardMs >= 2550, `static renderer delay must be observed: ${JSON.stringify(timing)}`);
   assert.throws(
-    () => assertFirstBoardPaintBudget(timing, 750),
+    () => assertFirstBoardPaintBudget(timing, 2200),
     /after HTML response.*entry-body diagnostic/,
   );
 } finally {
