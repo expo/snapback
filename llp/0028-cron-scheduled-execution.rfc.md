@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-11 (ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-12 (ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -312,6 +312,13 @@ The source manifest remains the definition of what jobs exist. When a job is
 renamed, removed, disabled, or its schedule changes, the runtime should reconcile
 state explicitly and report any orphaned history or migrated next-run state in
 inspect/admin output.
+
+Persisted runtime state is format-versioned. A missing state value means a new
+scheduler; an existing value that cannot be decoded, has an unknown version, or
+contains an incompatible partial record fails startup with
+`SNAPBACK_CRON_STATE_INVALID` and remains untouched for operator recovery. The
+versionless complete v1 shape is the explicit older migration accepted by the
+local target (ENG-24356); durable state never falls through to an empty default.
 
 **Validation-rejected jobs hold no runtime state (ENG-23417).** The fail-closed
 rule for invalid definitions covers redeploys, not just first deploys: when a

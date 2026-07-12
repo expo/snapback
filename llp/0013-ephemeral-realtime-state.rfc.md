@@ -5,7 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Revised:** 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026
 
 ## Summary
@@ -143,14 +143,19 @@ Common key modes should include:
 - **connection-owned:** one value per active connection, deleted when the
   connection ends or its lease expires; ideal for cursors and selections.
 - **session-owned:** one value per authenticated session; useful for typing
-  indicators across a reconnect window.
+  indicators across a reconnect window. The key is derived from authenticated
+  context; any caller-supplied identity is assertion-only and must match.
 - **user-owned:** one value per user; useful for coarse online status, but only
   when product privacy rules allow it. With multiple connections per user the entry
   is a shared lease: any of the user's active connections refreshes its TTL, and it
   is removed only when the last one lapses, so two tabs do not flap a user's
   presence on and off.
+  As with sessions, the authenticated identity is authoritative and conflicting
+  payload fields are rejected.
 - **custom key:** allowed when generated validation and auth can prove the
-  publisher may write that key.
+  publisher may write that key. Until that key-specific authorization exists,
+  the local baseline treats an arbitrary custom key as connection-owned: only
+  the connection that created it may replace or delete it (ENG-24353).
 
 Connection-owned should be the default for cursor-like state because it avoids
 two tabs overwriting each other and gives the server a simple cleanup rule.
@@ -236,7 +241,8 @@ an aspirational hosted-scale claim.
 
 Each accepted value becomes a room-local entry with at least:
 
-- owner identity: connection, session, user, or custom key owner;
+- owner identity: connection, authenticated session, authenticated user, or
+  the connection owning a custom-key address;
 - validated value;
 - server receive time;
 - expiry deadline;

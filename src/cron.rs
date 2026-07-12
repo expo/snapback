@@ -135,12 +135,32 @@ pub struct CronRunClaim {
 
 /// @ref LLP 0028#scheduler-state-and-run-ledger — cron definitions are source
 /// authored, while next/last/in-flight/history state is runtime-owned.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct LocalCronRuntime {
+    #[serde(default = "current_cron_runtime_version")]
+    version: u32,
     states: BTreeMap<String, CronJobRuntimeState>,
     recent_runs: VecDeque<CronRunRecord>,
     diagnostics: VecDeque<Diagnostic>,
     next_run_seq: u64,
+}
+
+const CRON_RUNTIME_FORMAT_VERSION: u32 = 1;
+
+const fn current_cron_runtime_version() -> u32 {
+    CRON_RUNTIME_FORMAT_VERSION
+}
+
+impl Default for LocalCronRuntime {
+    fn default() -> Self {
+        Self {
+            version: CRON_RUNTIME_FORMAT_VERSION,
+            states: BTreeMap::new(),
+            recent_runs: VecDeque::new(),
+            diagnostics: VecDeque::new(),
+            next_run_seq: 0,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -158,13 +178,31 @@ struct CronJobRuntimeState {
 }
 
 impl LocalCronRuntime {
-    pub fn from_persisted(value: Option<Value>) -> Self {
+    pub fn from_persisted(value: Option<Value>) -> SnapbackResult<Self> {
         let Some(value) = value else {
-            return Self::default();
+            return Ok(Self::default());
         };
-        let mut runtime: Self = serde_json::from_value(value).unwrap_or_default();
+        let mut runtime: Self = serde_json::from_value(value).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_CRON_STATE_INVALID",
+                "cron",
+                "stored cron runtime state exists but has an invalid shape; refusing to discard it",
+            )
+            .with_details(json!({ "error": error.to_string() }))
+        })?;
+        if runtime.version != CRON_RUNTIME_FORMAT_VERSION {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CRON_STATE_INVALID",
+                "cron",
+                "stored cron runtime state has an unsupported format version",
+            )
+            .with_details(json!({
+                "version": runtime.version,
+                "supportedVersion": CRON_RUNTIME_FORMAT_VERSION,
+            })));
+        }
         runtime.strip_result_payloads();
-        runtime
+        Ok(runtime)
     }
 
     pub fn persisted_value(&self) -> SnapbackResult<Value> {
@@ -1795,20 +1833,11 @@ mod tests {
             "persisted cron state must not include stripped result payloads"
         );
 
-        let reloaded = LocalCronRuntime::from_persisted(Some(json!({
-            "recent_runs": [{
-                "runId": "old",
-                "jobName": "poll",
-                "dueAtMs": 0,
-                "startedAtMs": 0,
-                "trigger": "Scheduled",
-                "attempt": 1,
-                "outcome": "Succeeded",
-                "idempotencyKey": "old",
-                "slotKey": "old",
-                "result": { "legacy": "payload" }
-            }]
-        })));
+        let mut legacy = persisted;
+        legacy["recent_runs"][0]["result"] = json!({ "legacy": "payload" });
+        // Versionless persisted values are the one supported older shape.
+        legacy.as_object_mut().unwrap().remove("version");
+        let reloaded = LocalCronRuntime::from_persisted(Some(legacy)).expect("migrate old state");
         assert_eq!(
             reloaded
                 .recent_runs
@@ -1816,6 +1845,31 @@ mod tests {
                 .and_then(|record| record.result.as_ref()),
             None
         );
+    }
+
+    #[test]
+    fn persisted_cron_state_fails_closed_on_incompatible_shapes() {
+        for invalid in [
+            json!({
+                "version": 999,
+                "states": {},
+                "recent_runs": [],
+                "diagnostics": [],
+                "next_run_seq": 0
+            }),
+            json!({
+                "version": 1,
+                "states": [],
+                "recent_runs": [],
+                "diagnostics": [],
+                "next_run_seq": 0
+            }),
+            json!({ "version": 1, "states": {} }),
+        ] {
+            let error = LocalCronRuntime::from_persisted(Some(invalid))
+                .expect_err("incompatible durable state must not become empty state");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_CRON_STATE_INVALID");
+        }
     }
 
     #[test]

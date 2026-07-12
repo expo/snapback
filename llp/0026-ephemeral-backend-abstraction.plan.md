@@ -5,7 +5,7 @@
 **Systems:** Realtime, Ephemeral state, Runtime, Deployment, Client integration, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-29
-**Revised:** 2026-07-07 (ENG-23346: the destructive-replacement boundary
+**Revised:** 2026-07-12 (ENG-24355: the connection→rooms reverse index now tracks current ownership/subscription, rolls back failed creation, and compacts on unsubscribe/delete/expiry/retirement, bounding disconnect by current footprint; earlier: 2026-07-07 ENG-23346: the destructive-replacement boundary
 clears only the ephemeral outbox lanes — queued durable live-query payloads
 answer subscriptions that survive the boundary and are preserved; the
 runtime reset still clears whole outboxes because it retires the durable
@@ -277,9 +277,12 @@ correctness, and sharded locks match the codebase's existing style
   WS teardown runs it while holding the global write mutex, so at the
   documented limits (4096 rooms × 1024 entries) the old full sweep made one
   network blip stall all durable writes behind thousands of room locks. The
-  index is a monotone superset until disconnect consumes it (unsubscribed or
-  pruned rooms stay indexed and are skipped as cheap missing-map lookups),
-  and rate buckets are keyed connection-first so their removal is one map
+  index provisions an edge before the operation becomes visible so disconnect
+  sees in-flight work, reasserts it after success, rolls it back on failure,
+  and removes it once the connection no longer owns or subscribes in the room.
+  Unsubscribe/delete/expiry/room retirement therefore compact lifetime churn
+  instead of making disconnect O(all rooms ever touched) (ENG-24355). Rate
+  buckets are keyed connection-first so their removal is one map
   operation instead of an O(all-buckets) retain. Expired entries in rooms
   the connection never touched are `cleanup_expired`'s job via the expiry
   index, no longer a disconnect side effect. Guarded by

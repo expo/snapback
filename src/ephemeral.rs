@@ -1046,13 +1046,12 @@ struct EphemeralShared {
     /// connection's buckets with a single map removal instead of an
     /// O(all-buckets) retain (ENG-23348).
     rate_buckets: StdMutex<BTreeMap<ConnectionId, BTreeMap<String, RateBucket>>>,
-    /// Reverse index: the rooms each connection has subscribed to or
-    /// published into, recorded *before* the room operation becomes visible,
-    /// so `disconnect` visits only that connection's rooms instead of
-    /// sweeping the whole store (ENG-23348). The set is a monotone superset
-    /// until disconnect consumes it: unsubscribed, pruned, or retired rooms
-    /// stay indexed and are skipped cheaply — never wrong, at worst a few
-    /// stale lookups. Leaf lock: never held while acquiring any other lock.
+    /// Reverse index: the rooms each connection currently subscribes to or
+    /// owns entries in. Operations provisionally index before becoming
+    /// visible (so disconnect finds in-flight work), then roll back failures
+    /// and remove edges on unsubscribe/delete/expiry/retirement. Disconnect
+    /// therefore scales with current footprint, not lifetime churn
+    /// (ENG-23348, ENG-24355).
     connection_rooms: StdMutex<BTreeMap<ConnectionId, BTreeSet<RoomId>>>,
     /// At most one entry per live room: `(deadline, room)` where `deadline`
     /// is a lower bound on the room's earliest entry expiry (mirrored in the
@@ -1278,6 +1277,15 @@ impl LocalEphemeralBackend {
         let outcome = match self.with_room_create(&room_id, |room| {
             self.sweep_room_locked(room, &room_id, Some(&collection), now_ms);
 
+            if let Some(previous) = room.entries.get(&key)
+                && previous.owner != owner
+            {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::Unauthorized,
+                    "ephemeral entry is owned by another authenticated identity",
+                ));
+            }
+
             let replaced_bytes = room.entries.get(&key).map(|record| record.serialized_bytes);
             if replaced_bytes.is_none()
                 && room.entries.len() >= self.shared.limits.max_entries_per_room
@@ -1329,6 +1337,11 @@ impl LocalEphemeralBackend {
             }
             remember_expiry_locked(room, expires_at_ms);
             room.value_bytes += value_len;
+            // Re-assert the edge after state becomes visible. The provisional
+            // edge above makes disconnect find an in-flight operation; this
+            // post-write edge closes the inverse race where a disconnect
+            // consumed that provisional edge before the room lock was won.
+            self.index_connection_room(&connection_id, &room_id);
             self.index_room_deadline(room, &room_id, expires_at_ms);
             self.fan_out_locked(
                 room,
@@ -1360,6 +1373,10 @@ impl LocalEphemeralBackend {
                 .rejected_publishes
                 .fetch_add(1, Ordering::Relaxed);
         }
+        if outcome.is_err() {
+            self.unindex_connection_room_if_unused(&connection_id, &room_id);
+            self.prune_room_if_empty(&room_id);
+        }
         outcome
     }
 
@@ -1372,17 +1389,36 @@ impl LocalEphemeralBackend {
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.publish, &request.scope, &request.auth)?;
         let key = entry_key_for_delete(&collection, &request)?;
+        let owner = entry_owner_for_delete(&collection, &request)?;
 
-        let removed = self
-            .with_existing_room(&room_id, |room| {
+        let (removed, affected_connections) = match self.with_existing_room(&room_id, |room| {
                 self.sweep_room_locked(room, &room_id, Some(&collection), now_ms);
+                let Some(record) = room.entries.get(&key) else {
+                    return Ok((None, BTreeSet::new()));
+                };
+                if record.owner != owner {
+                    return Err(EphemeralError::new(
+                        EphemeralErrorCode::Unauthorized,
+                        "ephemeral entry is owned by another authenticated identity",
+                    ));
+                }
+                let affected = room
+                    .owner_connections
+                    .get(&record.owner)
+                    .cloned()
+                    .unwrap_or_default();
                 let removed = remove_entry_locked(room, &room_id, &key, RemoveReason::Deleted);
                 if let Some(message) = &removed {
                     self.fan_out_locked(room, &room_id, &collection, message.clone());
                 }
-                removed
-            })
-            .flatten();
+                Ok((removed, affected))
+            }) {
+            Some(result) => result?,
+            None => (None, BTreeSet::new()),
+        };
+        for connection_id in affected_connections {
+            self.unindex_connection_room_if_unused(&connection_id, &room_id);
+        }
         self.prune_room_if_empty(&room_id);
         Ok(removed)
     }
@@ -1417,6 +1453,7 @@ impl LocalEphemeralBackend {
             }
         };
         if removed {
+            self.unindex_connection_room_if_unused(&request.connection_id, &room_id);
             self.prune_room_if_empty(&room_id);
         }
         Ok(removed)
@@ -1437,7 +1474,7 @@ impl LocalEphemeralBackend {
         self.index_connection_room(&request.connection_id, &room_id);
 
         // @ref LLP 0013#room-store-model -- snapshot and subscriber registration must be one room operation.
-        self.with_room_create(&room_id, |room| {
+        let outcome = match self.with_room_create(&room_id, |room| {
             self.sweep_room_locked(room, &room_id, Some(&collection), now_ms);
             if !room.subscribers.contains_key(&request.connection_id)
                 && room.subscribers.len() >= self.shared.limits.max_subscribers_per_room
@@ -1466,12 +1503,21 @@ impl LocalEphemeralBackend {
                 .collect();
             room.subscribers
                 .insert(request.connection_id.clone(), SubscriberState { outbox });
+            self.index_connection_room(&request.connection_id, &room_id);
             Ok(EphemeralMessage::Snapshot {
                 room: room_id.clone(),
                 scope_epoch: room.scope_epoch,
                 entries,
             })
-        })?
+        }) {
+            Ok(inner) => inner,
+            Err(error) => Err(error),
+        };
+        if outcome.is_err() {
+            self.unindex_connection_room_if_unused(&request.connection_id, &room_id);
+            self.prune_room_if_empty(&room_id);
+        }
+        outcome
     }
 
     /// Tear down one connection: its subscriber registrations, its owned
@@ -1926,6 +1972,7 @@ impl LocalEphemeralBackend {
     /// @ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — the Restarted/EpochChanged wiring.
     fn wipe_rooms_signaling_resync(&self, reason: ResyncReason) {
         let room_ids: Vec<RoomId> = lock(&self.shared.rooms).keys().cloned().collect();
+        let retired_room_ids = room_ids.iter().cloned().collect::<BTreeSet<_>>();
         let mut resyncs: Vec<(ConnectionId, EphemeralMessage)> = Vec::new();
         for room_id in room_ids {
             // Retire under map+room held together, so an operation retrying
@@ -1956,6 +2003,13 @@ impl LocalEphemeralBackend {
                 ));
             }
         }
+        // Remove only the retired room ids. A concurrent operation that was
+        // provisionally indexed before retirement re-asserts its edge after
+        // it successfully creates/mutates the replacement room.
+        lock(&self.shared.connection_rooms).retain(|_, indexed| {
+            indexed.retain(|room_id| !retired_room_ids.contains(room_id));
+            !indexed.is_empty()
+        });
         let outboxes: Vec<SharedOutbox> = lock(&self.shared.outboxes).values().cloned().collect();
         for outbox in outboxes {
             lock(&outbox).clear_ephemeral_lanes();
@@ -2102,6 +2156,12 @@ impl LocalEphemeralBackend {
             .filter_map(|(key, record)| (record.expires_at_ms <= now_ms).then_some(key.clone()))
             .collect::<Vec<_>>();
         for key in expired_keys {
+            let affected_connections = room
+                .entries
+                .get(&key)
+                .and_then(|record| room.owner_connections.get(&record.owner))
+                .cloned()
+                .unwrap_or_default();
             if let Some(message) = remove_entry_locked(room, room_id, &key, RemoveReason::Expired) {
                 self.shared
                     .counters
@@ -2109,6 +2169,9 @@ impl LocalEphemeralBackend {
                     .fetch_add(1, Ordering::Relaxed);
                 if let Some(collection) = collection {
                     self.fan_out_locked(room, room_id, collection, message);
+                }
+                for connection_id in affected_connections {
+                    self.sync_connection_room_index_locked(room, &connection_id, room_id);
                 }
             }
         }
@@ -2178,6 +2241,63 @@ impl LocalEphemeralBackend {
             .entry(connection_id.to_owned())
             .or_default()
             .insert(room_id.clone());
+    }
+
+    /// Reconcile one edge while the caller holds the corresponding room lock.
+    /// `disconnect` never holds the reverse-index lock while acquiring a room,
+    /// so room → index has no inverse lock order.
+    fn sync_connection_room_index_locked(
+        &self,
+        room: &RoomState,
+        connection_id: &str,
+        room_id: &RoomId,
+    ) {
+        let used = room.subscribers.contains_key(connection_id)
+            || room
+                .owner_connections
+                .values()
+                .any(|connections| connections.contains(connection_id));
+        let mut index = lock(&self.shared.connection_rooms);
+        if used {
+            index
+                .entry(connection_id.to_owned())
+                .or_default()
+                .insert(room_id.clone());
+        } else if let Some(rooms) = index.get_mut(connection_id) {
+            rooms.remove(room_id);
+            if rooms.is_empty() {
+                index.remove(connection_id);
+            }
+        }
+    }
+
+    /// Remove a reverse-index edge only when the room no longer contains a
+    /// subscriber registration or an owned entry for this connection. Failed
+    /// creates and unsubscribe/delete/expiry paths call this so lifetime room
+    /// churn cannot make disconnect work grow without bound (ENG-24355).
+    fn unindex_connection_room_if_unused(&self, connection_id: &str, room_id: &RoomId) {
+        let used = lock(&self.shared.rooms)
+            .get(room_id)
+            .cloned()
+            .is_some_and(|room| {
+                let room = lock(&room);
+                !room.retired
+                    && (room.subscribers.contains_key(connection_id)
+                        || room
+                            .owner_connections
+                            .values()
+                            .any(|connections| connections.contains(connection_id)))
+            });
+        if used {
+            return;
+        }
+        let mut index = lock(&self.shared.connection_rooms);
+        if let Some(rooms) = index.get_mut(connection_id) {
+            rooms.remove(room_id);
+            if rooms.is_empty() {
+                index.remove(connection_id);
+            }
+        }
     }
 
     fn ensure_outbox(&self, connection_id: &str) -> SharedOutbox {
@@ -2286,29 +2406,22 @@ fn entry_owner_for(
 ) -> Result<EntryOwner, EphemeralError> {
     match collection.key_mode {
         KeyMode::Connection => Ok(EntryOwner::Connection(request.connection_id.clone())),
-        KeyMode::Session => request
-            .session_id
-            .clone()
-            .or_else(|| request.auth.session_id.clone())
-            .map(EntryOwner::Session)
-            .ok_or_else(|| {
-                EphemeralError::new(EphemeralErrorCode::MissingOwner, "missing session owner")
-            }),
-        KeyMode::User => request
-            .user_id
-            .clone()
-            .or_else(|| request.auth.user_id.clone())
-            .map(EntryOwner::User)
-            .ok_or_else(|| {
-                EphemeralError::new(EphemeralErrorCode::MissingOwner, "missing user owner")
-            }),
-        KeyMode::Custom => request
-            .custom_key
-            .clone()
-            .map(EntryOwner::Custom)
-            .ok_or_else(|| {
-                EphemeralError::new(EphemeralErrorCode::MissingKey, "missing custom key")
-            }),
+        KeyMode::Session => resolved_identity(
+            request.session_id.as_deref(),
+            request.auth.session_id.as_deref(),
+            "session",
+        )
+        .map(EntryOwner::Session),
+        KeyMode::User => resolved_identity(
+            request.user_id.as_deref(),
+            request.auth.user_id.as_deref(),
+            "user",
+        )
+        .map(EntryOwner::User),
+        // A custom key is an address, not an authority claim. Until generated
+        // key-specific authorization exists, it is connection-owned: another
+        // connection cannot replace/delete it even if it guesses the key.
+        KeyMode::Custom => Ok(EntryOwner::Connection(request.connection_id.clone())),
     }
 }
 
@@ -2318,20 +2431,18 @@ fn entry_key_for_publish(
 ) -> Result<EntryKey, EphemeralError> {
     match collection.key_mode {
         KeyMode::Connection => Ok(EntryKey(request.connection_id.clone())),
-        KeyMode::Session => request
-            .session_id
-            .clone()
-            .or_else(|| request.auth.session_id.clone())
-            .map(EntryKey)
-            .ok_or_else(|| {
-                EphemeralError::new(EphemeralErrorCode::MissingKey, "missing session key")
-            }),
-        KeyMode::User => request
-            .user_id
-            .clone()
-            .or_else(|| request.auth.user_id.clone())
-            .map(EntryKey)
-            .ok_or_else(|| EphemeralError::new(EphemeralErrorCode::MissingKey, "missing user key")),
+        KeyMode::Session => resolved_identity(
+            request.session_id.as_deref(),
+            request.auth.session_id.as_deref(),
+            "session",
+        )
+        .map(EntryKey),
+        KeyMode::User => resolved_identity(
+            request.user_id.as_deref(),
+            request.auth.user_id.as_deref(),
+            "user",
+        )
+        .map(EntryKey),
         KeyMode::Custom => request.custom_key.clone().map(EntryKey).ok_or_else(|| {
             EphemeralError::new(EphemeralErrorCode::MissingKey, "missing custom key")
         }),
@@ -2344,24 +2455,67 @@ fn entry_key_for_delete(
 ) -> Result<EntryKey, EphemeralError> {
     match collection.key_mode {
         KeyMode::Connection => Ok(EntryKey(request.connection_id.clone())),
-        KeyMode::Session => request
-            .session_id
-            .clone()
-            .or_else(|| request.auth.session_id.clone())
-            .map(EntryKey)
-            .ok_or_else(|| {
-                EphemeralError::new(EphemeralErrorCode::MissingKey, "missing session key")
-            }),
-        KeyMode::User => request
-            .user_id
-            .clone()
-            .or_else(|| request.auth.user_id.clone())
-            .map(EntryKey)
-            .ok_or_else(|| EphemeralError::new(EphemeralErrorCode::MissingKey, "missing user key")),
+        KeyMode::Session => resolved_identity(
+            request.session_id.as_deref(),
+            request.auth.session_id.as_deref(),
+            "session",
+        )
+        .map(EntryKey),
+        KeyMode::User => resolved_identity(
+            request.user_id.as_deref(),
+            request.auth.user_id.as_deref(),
+            "user",
+        )
+        .map(EntryKey),
         KeyMode::Custom => request.custom_key.clone().map(EntryKey).ok_or_else(|| {
             EphemeralError::new(EphemeralErrorCode::MissingKey, "missing custom key")
         }),
     }
+}
+
+fn entry_owner_for_delete(
+    collection: &EphemeralCollection,
+    request: &DeleteRequest,
+) -> Result<EntryOwner, EphemeralError> {
+    match collection.key_mode {
+        KeyMode::Connection | KeyMode::Custom => {
+            Ok(EntryOwner::Connection(request.connection_id.clone()))
+        }
+        KeyMode::Session => resolved_identity(
+            request.session_id.as_deref(),
+            request.auth.session_id.as_deref(),
+            "session",
+        )
+        .map(EntryOwner::Session),
+        KeyMode::User => resolved_identity(
+            request.user_id.as_deref(),
+            request.auth.user_id.as_deref(),
+            "user",
+        )
+        .map(EntryOwner::User),
+    }
+}
+
+fn resolved_identity(
+    claimed: Option<&str>,
+    authenticated: Option<&str>,
+    kind: &str,
+) -> Result<String, EphemeralError> {
+    let authenticated = authenticated.filter(|value| !value.is_empty()).ok_or_else(|| {
+        EphemeralError::new(
+            EphemeralErrorCode::MissingOwner,
+            format!("missing authenticated {kind} identity"),
+        )
+    })?;
+    if let Some(claimed) = claimed
+        && claimed != authenticated
+    {
+        return Err(EphemeralError::new(
+            EphemeralErrorCode::Unauthorized,
+            format!("claimed {kind} identity conflicts with authenticated identity"),
+        ));
+    }
+    Ok(authenticated.to_owned())
 }
 
 #[derive(Clone, Debug, Default)]
@@ -2603,6 +2757,142 @@ mod tests {
             scope,
             connection_id: connection_id.to_owned(),
         }
+    }
+
+    #[test]
+    fn authenticated_identity_owns_session_user_and_custom_keys() {
+        let backend = LocalEphemeralBackend::new();
+        let mut users = collection();
+        users.name = "userPresence".to_owned();
+        users.key_mode = KeyMode::User;
+        backend.register_collection(users);
+
+        let scope = scope();
+        let mut publish = PublishRequest {
+            collection: "userPresence".to_owned(),
+            scope: scope.clone(),
+            connection_id: "conn-a".to_owned(),
+            session_id: None,
+            user_id: Some("user-a".to_owned()),
+            custom_key: None,
+            value: b"a".to_vec(),
+            ttl_ms: None,
+            auth: AuthContext {
+                user_id: Some("user-a".to_owned()),
+                ..auth_for(&scope)
+            },
+        };
+        backend.publish(publish.clone(), 1_000).unwrap();
+
+        publish.connection_id = "conn-b".to_owned();
+        publish.auth.user_id = Some("user-b".to_owned());
+        let error = backend
+            .publish(publish.clone(), 1_001)
+            .expect_err("caller-supplied user-a must not override authenticated user-b");
+        assert_eq!(error.code, EphemeralErrorCode::Unauthorized);
+
+        let delete = DeleteRequest {
+            collection: publish.collection.clone(),
+            scope: scope.clone(),
+            connection_id: "conn-b".to_owned(),
+            session_id: None,
+            user_id: Some("user-a".to_owned()),
+            custom_key: None,
+            auth: publish.auth.clone(),
+        };
+        assert_eq!(
+            backend.delete(delete, 1_002).unwrap_err().code,
+            EphemeralErrorCode::Unauthorized
+        );
+
+        let mut custom = collection();
+        custom.name = "customPresence".to_owned();
+        custom.key_mode = KeyMode::Custom;
+        backend.register_collection(custom);
+        let custom_publish = |connection: &str, value: &[u8]| PublishRequest {
+            collection: "customPresence".to_owned(),
+            scope: scope.clone(),
+            connection_id: connection.to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: Some("shared-name".to_owned()),
+            value: value.to_vec(),
+            ttl_ms: None,
+            auth: auth_for(&scope),
+        };
+        backend.publish(custom_publish("conn-a", b"a"), 1_003).unwrap();
+        assert_eq!(
+            backend
+                .publish(custom_publish("conn-b", b"b"), 1_004)
+                .unwrap_err()
+                .code,
+            EphemeralErrorCode::Unauthorized,
+            "custom keys are connection-owned until key-specific auth exists"
+        );
+        assert_eq!(
+            backend
+                .delete(
+                    DeleteRequest {
+                        collection: "customPresence".to_owned(),
+                        scope,
+                        connection_id: "conn-b".to_owned(),
+                        session_id: None,
+                        user_id: None,
+                        custom_key: Some("shared-name".to_owned()),
+                        auth: publish.auth,
+                    },
+                    1_005,
+                )
+                .unwrap_err()
+                .code,
+            EphemeralErrorCode::Unauthorized
+        );
+    }
+
+    #[test]
+    fn reverse_index_is_bounded_by_current_membership_not_lifetime_churn() {
+        let backend = LocalEphemeralBackend::with_limits(EphemeralStoreLimits {
+            max_active_rooms: 1,
+            ..EphemeralStoreLimits::default()
+        });
+        let mut cursors = EphemeralCollection::local_cursor("cursors", "boardId");
+        cursors.sustained_hz = 1_000_000;
+        cursors.burst = 1_000_000;
+        backend.register_collection(cursors);
+
+        let request = |connection: &str, board: String| SubscribeRequest {
+            collection: "cursors".to_owned(),
+            scope: Scope::from_pairs([("boardId", board)]),
+            connection_id: connection.to_owned(),
+            auth: AuthContext::default(),
+        };
+
+        backend.subscribe(request("holder", "held".to_owned()), 1_000).unwrap();
+        for n in 0..1_000 {
+            assert_eq!(
+                backend
+                    .subscribe(request("failed", format!("failed-{n}")), 1_001)
+                    .unwrap_err()
+                    .code,
+                EphemeralErrorCode::RoomLimitExceeded
+            );
+        }
+        assert!(
+            !lock(&backend.shared.connection_rooms).contains_key("failed"),
+            "failed room creation must roll back every provisional edge"
+        );
+        backend.unsubscribe(request("holder", "held".to_owned())).unwrap();
+
+        for n in 0..1_000 {
+            let request = request("churn", format!("room-{n}"));
+            backend.subscribe(request.clone(), 2_000).unwrap();
+            backend.unsubscribe(request).unwrap();
+        }
+        assert!(
+            !lock(&backend.shared.connection_rooms).contains_key("churn"),
+            "subscribe/unsubscribe churn must leave no lifetime-monotone index"
+        );
+        assert_eq!(backend.diagnostics().room_count, 0);
     }
 
     fn first_ephemeral(messages: Vec<RealtimeEnvelope>) -> EphemeralMessage {
@@ -3158,10 +3448,12 @@ mod tests {
 
         let mut first = publish_request("tab-a", b"online");
         first.user_id = Some("user-1".to_owned());
+        first.auth.user_id = Some("user-1".to_owned());
         let published = backend.publish(first, 1_000).unwrap();
 
         let mut second = publish_request("tab-b", b"online-again");
         second.user_id = Some("user-1".to_owned());
+        second.auth.user_id = Some("user-1".to_owned());
         backend.publish(second, 1_001).unwrap();
 
         backend.disconnect("tab-a", 1_010);

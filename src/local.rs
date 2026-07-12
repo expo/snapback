@@ -2978,7 +2978,7 @@ impl LocalSnapback {
 
     fn from_database(db: LocalDatabase) -> SnapbackResult<Self> {
         let runtime = RuntimeManager::detect();
-        let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?);
+        let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
         let mut recent_diagnostics = VecDeque::new();
         for diagnostic in runtime.diagnostics() {
             recent_diagnostics.push_back(diagnostic);
