@@ -289,7 +289,10 @@ happened.
 **Local baseline: a 0600 file in the instance directory** — e.g.
 `.snapback/config.json` beside the default `.snapback/dev.sqlite3`
 (`src/cli.rs`). Values plus minimal metadata (set-at timestamp, source, verified
-state); file mode 0600; owned by the store seam, never read by app code
+state); file mode 0600; owned by the store seam, never read by app code.
+Existing files are opened no-follow, must be regular and owned by the effective
+service identity, and are repaired to owner-only mode before any value is read;
+atomic replacement applies the same checks to temporary files (ENG-24346)
 directly.
 
 Alternatives considered:
@@ -729,8 +732,9 @@ access to `/_snapback/api/config/*`? Decision: **inherit the LLP 0031 admin
 model unchanged** — since ENG-23443 that is: an explicit `SNAPBACK_ADMIN_TOKEN`
 gates writes when set; without one, a served loopback instance **auto-mints** a
 local admin token (persisted 0600 next to the database or ready file, printed
-on the minting start, discoverable via the readiness descriptor's
-`adminTokenFile` and inspect's `admin.tokenFile`); admin stays disabled
+on the minting start, discoverable via a trusted local readiness descriptor's
+mechanically-derived `adminTokenFile`; inspect's `admin.tokenFile` is status
+metadata and is never followed by `--url` tooling (ENG-24338)); admin stays disabled
 entirely on a non-loopback bind without a token (`src/admin.rs`). Rationale:
 `config.set` is
 not a new authority class — the same lane already exposes `app.reset`, which is

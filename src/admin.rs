@@ -19,7 +19,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
@@ -272,8 +272,11 @@ pub fn resolve_serve_admin_token(
             file: None,
         });
     };
-    match std::fs::read_to_string(&path) {
+    match crate::secure_file::read_owner_only(&path) {
         Ok(existing) => {
+            let existing = String::from_utf8(existing).with_context(|| {
+                format!("admin token file {} is not valid UTF-8", path.display())
+            })?;
             let existing = existing.trim();
             if !existing.is_empty() {
                 return Ok(ResolvedAdminToken {
@@ -304,16 +307,7 @@ pub fn resolve_serve_admin_token(
 /// Persist a minted token owner-readable only: the file being 0600 is what
 /// scopes the capability to the current user on shared machines.
 fn write_token_file(path: &std::path::Path, token: &str) -> std::io::Result<()> {
-    use std::io::Write as _;
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt as _;
-        options.mode(0o600);
-    }
-    let mut file = options.open(path)?;
-    writeln!(file, "{token}")
+    crate::secure_file::write_owner_only(path, format!("{token}\n").as_bytes())
 }
 
 fn env_admin_dist() -> Option<PathBuf> {
@@ -679,7 +673,7 @@ pub fn admin_routes() -> Router<AppState> {
 /// through to a second UI.
 async fn console(State(ctx): State<Arc<ServerContext>>) -> Response {
     if let Some(dist) = &ctx.admin_dist
-        && let Ok(bytes) = tokio::fs::read(dist.join("index.html")).await
+        && let Ok(bytes) = read_admin_asset(dist, "index.html").await
     {
         return ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], bytes).into_response();
     }
@@ -704,11 +698,7 @@ async fn console_asset(
     State(ctx): State<Arc<ServerContext>>,
     Path(path): Path<String>,
 ) -> Response {
-    // Reject path traversal and empty segments before touching the filesystem.
-    if path
-        .split('/')
-        .any(|segment| segment.is_empty() || segment == "." || segment == "..")
-    {
+    if !safe_admin_asset_path(&path) {
         return StatusCode::NOT_FOUND.into_response();
     }
     // The shared admin client stays embedded so external tooling has a stable
@@ -731,7 +721,7 @@ async fn console_asset(
         }
         return StatusCode::NOT_FOUND.into_response();
     };
-    match tokio::fs::read(dist.join(&path)).await {
+    match read_admin_asset(dist, &path).await {
         Ok(bytes) => ([(header::CONTENT_TYPE, content_type_for(&path))], bytes).into_response(),
         Err(_) if exact_artifact => diagnostic_response(
             StatusCode::BAD_REQUEST,
@@ -739,6 +729,47 @@ async fn console_asset(
         ),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
+}
+
+fn safe_admin_asset_path(path: &str) -> bool {
+    // Backslashes are path separators on Windows even though URL paths use
+    // `/`; rejecting them everywhere keeps the same traversal contract on all
+    // build hosts. A drive prefix (`C:`) is rejected explicitly so a manifest
+    // built/tested on Unix cannot become unsafe when the binary moves.
+    if path.is_empty()
+        || path.contains('\\')
+        || path.split('/').any(|segment| {
+            segment.is_empty()
+                || segment == "."
+                || segment == ".."
+                || (segment.len() >= 2
+                    && segment.as_bytes()[0].is_ascii_alphabetic()
+                    && segment.as_bytes()[1] == b':')
+        })
+    {
+        return false;
+    }
+    FsPath::new(path)
+        .components()
+        .all(|component| matches!(component, Component::Normal(_)))
+}
+
+async fn read_admin_asset(dist: &FsPath, path: &str) -> std::io::Result<Vec<u8>> {
+    if !safe_admin_asset_path(path) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "admin asset path escapes the distribution root",
+        ));
+    }
+    let root = tokio::fs::canonicalize(dist).await?;
+    let target = tokio::fs::canonicalize(dist.join(path)).await?;
+    if !target.starts_with(&root) || target == root {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "admin asset target escapes the distribution root",
+        ));
+    }
+    tokio::fs::read(target).await
 }
 
 fn content_type_for(path: &str) -> &'static str {
@@ -1111,6 +1142,27 @@ mod tests {
         assert_eq!(second.token, first.token);
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn existing_token_file_is_repaired_and_symlinks_are_refused() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("token");
+        std::fs::write(&file, b"sbat_existing\n").unwrap();
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let resolved = resolve_serve_admin_token(None, Some(file.clone())).unwrap();
+        assert_eq!(resolved.token, "sbat_existing");
+        assert_eq!(std::fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o600);
+
+        let target = dir.path().join("target");
+        let link = dir.path().join("link");
+        std::fs::write(&target, b"sbat_target\n").unwrap();
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(resolve_serve_admin_token(None, Some(link)).is_err());
+        assert_eq!(std::fs::read_to_string(target).unwrap(), "sbat_target\n");
+    }
+
     #[test]
     fn blank_token_file_is_re_minted_and_no_file_means_ephemeral() {
         let dir = tempfile::tempdir().unwrap();
@@ -1139,6 +1191,39 @@ mod tests {
             admin_token_sibling(std::path::Path::new("ready.json")),
             PathBuf::from("ready.json.admin-token")
         );
+    }
+
+    #[test]
+    fn admin_asset_paths_reject_cross_platform_root_components() {
+        assert!(safe_admin_asset_path("assets/app.js"));
+        for unsafe_path in [
+            "../secret",
+            "assets/../secret",
+            "assets\\..\\secret",
+            "C:\\secret",
+            "//server/share",
+            "assets//app.js",
+        ] {
+            assert!(
+                !safe_admin_asset_path(unsafe_path),
+                "{unsafe_path:?} must be rejected"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn admin_asset_reader_refuses_symlinks_that_escape_the_dist() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let secret = outside.path().join("secret.txt");
+        std::fs::write(&secret, b"outside").unwrap();
+        std::os::unix::fs::symlink(&secret, root.path().join("escape.txt")).unwrap();
+
+        let error = read_admin_asset(root.path(), "escape.txt")
+            .await
+            .expect_err("an escaping symlink must not be served");
+        assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
     }
 
     #[test]

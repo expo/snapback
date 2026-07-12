@@ -409,12 +409,15 @@ async fn websocket_live_stream_pushes_existing_live_updates() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let (mut stream, _) = connect_async(format!(
-        "ws://{addr}/live/client_ws/stream?connection_token={}",
-        grant.connection_token
-    ))
-    .await
-    .unwrap();
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+    let mut request = format!("ws://{addr}/live/client_ws/stream")
+        .into_client_request()
+        .unwrap();
+    request.headers_mut().insert(
+        "x-snapback-connection-token",
+        grant.connection_token.parse().unwrap(),
+    );
+    let (mut stream, _) = connect_async(request).await.unwrap();
 
     {
         let mut snapback = shared.lock().await;
@@ -858,6 +861,91 @@ async fn s1_app_reset_seeds_when_given_a_seed_argument() {
     assert_eq!(scan["rows"][0]["title"], "Reset seeded");
 }
 
+#[tokio::test]
+async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_side_effects() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+    let seed = json!({ "seed": { "tables": { "todos": [
+        { "_id": "must_not_land", "title": "ignored", "completed": false, "userId": "user_1" }
+    ] } } });
+
+    for (content_type, body) in [
+        (None, seed.to_string()),
+        (Some("text/plain"), seed.to_string()),
+        (Some("application/json"), "{not-json".to_owned()),
+    ] {
+        let mut builder = Request::builder()
+            .method("POST")
+            .uri("/_snapback/api/app/reset");
+        if let Some(content_type) = content_type {
+            builder = builder.header("content-type", content_type);
+        }
+        let response = app
+            .clone()
+            .oneshot(builder.body(Body::from(body)).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            json(response).await["diagnostic"]["code"],
+            "SNAPBACK_REQUEST_JSON_INVALID"
+        );
+
+        let scan = json(
+            app.clone()
+                .oneshot(get("/_snapback/api/data/todos?limit=10&offset=0"))
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(scan["total"], 2, "rejected reset must not clear data");
+    }
+
+    let oversized = Request::builder()
+        .method("POST")
+        .uri("/_snapback/api/app/reset")
+        .header("content-type", "application/json")
+        .body(Body::from(format!(r#"{{"padding":"{}"}}"#, "x".repeat(3_000_000))))
+        .unwrap();
+    let response = app.clone().oneshot(oversized).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json(response).await["diagnostic"]["code"],
+        "SNAPBACK_REQUEST_JSON_INVALID"
+    );
+
+    let empty_reset = Request::builder()
+        .method("POST")
+        .uri("/_snapback/api/app/reset")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(
+        app.clone().oneshot(empty_reset).await.unwrap().status(),
+        StatusCode::OK
+    );
+
+    let untyped_open = Request::builder()
+        .method("POST")
+        .uri("/connection/open")
+        .body(Body::from(r#"{"connectionId":"must_not_adopt"}"#))
+        .unwrap();
+    let response = app.clone().oneshot(untyped_open).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json(response).await["diagnostic"]["code"],
+        "SNAPBACK_REQUEST_JSON_INVALID"
+    );
+
+    let empty_open = Request::builder()
+        .method("POST")
+        .uri("/connection/open")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(
+        app.oneshot(empty_open).await.unwrap().status(),
+        StatusCode::OK
+    );
+}
+
 /// LLP 0032 S1 (LLP 0031 D3 §Enforcement) — the field-level trim the route
 /// registry cannot see: public `/inspect` keeps the identity/compat facts and
 /// drops the two sensitive ones (`subscriptions[].connection_id`,
@@ -1197,12 +1285,32 @@ async fn stream_upgrade_requires_the_connection_token() {
     let bare = connect_async(format!("ws://{addr}/live/gated_ws/stream")).await;
     assert_eq!(upgrade_status(bare.expect_err("must refuse")), 401);
 
-    // Wrong token: refused with 403.
+    // Query-string credentials are never consumed, even when valid: they are
+    // treated exactly like a missing grant so the value cannot become URL
+    // metadata (ENG-24354).
     let wrong = connect_async(format!(
         "ws://{addr}/live/gated_ws/stream?connection_token=sct_not_the_token"
     ))
     .await;
-    assert_eq!(upgrade_status(wrong.expect_err("must refuse")), 403);
+    assert_eq!(upgrade_status(wrong.expect_err("must refuse")), 401);
+    let leaked = connect_async(format!(
+        "ws://{addr}/live/gated_ws/stream?connection_token={}",
+        grant.connection_token
+    ))
+    .await;
+    assert_eq!(upgrade_status(leaked.expect_err("must refuse")), 401);
+
+    // Explicit header transport remains available to non-browser clients.
+    let mut header_request = format!("ws://{addr}/live/gated_ws/stream")
+        .into_client_request()
+        .unwrap();
+    header_request.headers_mut().insert(
+        "x-snapback-connection-token",
+        grant.connection_token.parse().unwrap(),
+    );
+    let (_header_stream, _) = connect_async(header_request)
+        .await
+        .expect("header token upgrade");
 
     // Subprotocol transport (what a browser client uses): authenticates, and
     // the server echoes the negotiated `snapback.v1`.
@@ -1496,12 +1604,15 @@ async fn s3_websocket_frames_bind_to_the_socket_connection() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let (mut stream, _) = connect_async(format!(
-        "ws://{addr}/live/client_ws_a/stream?connection_token={}",
-        grant.connection_token
-    ))
-    .await
-    .unwrap();
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+    let mut request = format!("ws://{addr}/live/client_ws_a/stream")
+        .into_client_request()
+        .unwrap();
+    request.headers_mut().insert(
+        "x-snapback-connection-token",
+        grant.connection_token.parse().unwrap(),
+    );
+    let (mut stream, _) = connect_async(request).await.unwrap();
 
     let frame = |connection_id: &str| {
         json!({
@@ -1586,12 +1697,15 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let (mut stream, _) = connect_async(format!(
-        "ws://{addr}/live/owner_ws/stream?connection_token={}",
-        grant.connection_token
-    ))
-    .await
-    .unwrap();
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+    let mut request = format!("ws://{addr}/live/owner_ws/stream")
+        .into_client_request()
+        .unwrap();
+    request.headers_mut().insert(
+        "x-snapback-connection-token",
+        grant.connection_token.parse().unwrap(),
+    );
+    let (mut stream, _) = connect_async(request).await.unwrap();
 
     let text =
         |frame: Value| tokio_tungstenite::tungstenite::Message::Text(frame.to_string().into());

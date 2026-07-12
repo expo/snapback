@@ -24,6 +24,7 @@ pub mod local;
 pub mod manifest;
 pub mod runtime;
 pub mod schema_export;
+pub(crate) mod secure_file;
 pub mod server;
 pub mod storage;
 pub mod value_expr;

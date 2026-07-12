@@ -502,7 +502,11 @@ The fix makes the connection a **granted capability**:
   upgrade additionally accepts the `snapback.connection-token.<token>`
   subprotocol, because a browser `WebSocket` cannot set headers; the kit always
   offers `snapback.v1` alongside it and the server echoes `snapback.v1`, so the
-  negotiation stays legal. Socket **frames** need no per-frame token: the
+  negotiation stays legal. The WS upgrade deliberately rejects/ignores
+  `?connection_token=` credentials because URLs are routinely captured by
+  access logs, proxies, browser tooling, and telemetry; the outbox polling
+  fallback above is the only query-token transport (ENG-24354). Socket
+  **frames** need no per-frame token: the
   upgrade authenticated the socket, and the existing S3 sender gate keeps every
   frame bound to that socket's connection id.
 - **The socket-close disconnect does not revoke the grant.** `live_stream`

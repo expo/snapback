@@ -485,9 +485,14 @@ Local defaults:
   minted token persists 0600 next to the SQLite database (or the ready file
   for in-memory instances, or per-process when there is neither), is printed
   on the start that minted it, and is discoverable by same-user tooling
-  through the readiness descriptor's `adminTokenFile` and the admin inspect's
-  `admin.tokenFile` — reading the 0600 file *is* the local-admin capability
-  (LLP 0036 D3), and a browser page cannot read files. Non-loopback binds do
+  through a trusted local readiness descriptor's `adminTokenFile` — reading
+  the mechanically-derived 0600 sibling file *is* the local-admin capability
+  (LLP 0036 D3), and a browser page cannot read files. A CLI targeting an
+  arbitrary `--url` never reads a path returned by that network peer; inspect's
+  `admin.tokenFile` is an operator fact, not a token-discovery instruction
+  (ENG-24338). Existing capability files are opened without following links,
+  must be regular and owned by the service identity, and are repaired to 0600
+  before reuse (ENG-24346). Non-loopback binds do
   not mint: admin there stays disabled until an operator sets an explicit
   token. Embedded in-process routers (`server::router`,
   `AppState::detached`) keep the loopback-open default — they are not
@@ -563,8 +568,9 @@ Landed (steps 1–7 of the sketch):
   non-loopback bind disabled without a valid token; since ENG-23443 the serve
   path always resolves a token on loopback — auto-minting one
   (`resolve_serve_admin_token`, persisted 0600, surfaced via startup output,
-  `adminTokenFile` in the readiness descriptor, and `admin.tokenFile` in
-  inspect) whenever `SNAPBACK_ADMIN_TOKEN` is unset — so no HTTP-served
+  `adminTokenFile` in a trusted readiness descriptor, with `admin.tokenFile`
+  retained as inspect-only metadata) whenever `SNAPBACK_ADMIN_TOKEN` is unset
+  — so no HTTP-served
   instance accepts tokenless admin writes;
 - the one safe ephemeral control: token-gated cleanup of expired entries.
 

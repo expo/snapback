@@ -207,8 +207,10 @@ fn parse_run_args(args: Option<String>) -> anyhow::Result<Value> {
 }
 
 fn read_json_file(path: &Path) -> anyhow::Result<Value> {
-    let raw = std::fs::read_to_string(path)
-        .with_context(|| format!("failed to read {}", path.display()))?;
+    let raw = crate::secure_file::read_owner_only(path)
+        .with_context(|| format!("failed to read trusted local file {}", path.display()))?;
+    let raw = String::from_utf8(raw)
+        .with_context(|| format!("{} is not valid UTF-8", path.display()))?;
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
 }
 
@@ -247,7 +249,7 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
         .clone()
         .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
         .filter(|token| !token.is_empty())
-        .or_else(|| discover_minted_token(target, &url));
+        .or_else(|| discover_minted_token(target));
     let mut http = ureq::post(&format!("{url}/_snapback/api/host-ops"));
     if let Some(token) = token.filter(|token| !token.is_empty()) {
         http = http.set("x-snapback-admin-token", &token);
@@ -267,27 +269,21 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
 
 /// Minted-token discovery (ENG-23443): when the caller passed no explicit
 /// token, read the auto-minted token file the server points at — via the
-/// readiness descriptor's `adminTokenFile` or, for `--url` targets, the
-/// loopback-open admin inspect's `admin.tokenFile`. Being able to read that
-/// 0600 file as this user is what makes the CLI local admin (LLP 0036 D3);
-/// discovery failing just means the request goes out tokenless and surfaces
+/// readiness descriptor's `adminTokenFile`. The path must be the mechanical
+/// sibling of the trusted descriptor itself; a remote `--url` target can never
+/// name a local path for the CLI to read. Being able to read both owner-only
+/// files as this user is what makes the CLI local admin (LLP 0036 D3).
+/// Discovery failing just means the request goes out tokenless and surfaces
 /// the server's structured refusal.
-fn discover_minted_token(target: &TargetArgs, url: &str) -> Option<String> {
-    let file = if let Some(path) = &target.ready_file {
-        read_json_file(path)
-            .ok()?
-            .get("adminTokenFile")?
-            .as_str()?
-            .to_owned()
-    } else {
-        let inspect: Value = ureq::get(&format!("{url}/_snapback/api/inspect"))
-            .call()
-            .ok()?
-            .into_json()
-            .ok()?;
-        inspect.get("admin")?.get("tokenFile")?.as_str()?.to_owned()
-    };
-    let token = std::fs::read_to_string(file).ok()?;
+fn discover_minted_token(target: &TargetArgs) -> Option<String> {
+    let ready_file = target.ready_file.as_ref()?;
+    let descriptor = HostReadyDescriptor::validate(&read_json_file(ready_file).ok()?).ok()?;
+    let declared = PathBuf::from(descriptor.admin_token_file?);
+    let expected = crate::admin::admin_token_sibling(ready_file);
+    if declared != expected {
+        return None;
+    }
+    let token = String::from_utf8(crate::secure_file::read_owner_only(&declared).ok()?).ok()?;
     let token = token.trim();
     (!token.is_empty()).then(|| token.to_owned())
 }
@@ -779,6 +775,7 @@ mod tests {
     use super::{
         Args, Cli, HostCommand, bind_first_available, bind_listener, parse_run_args,
         prepare_database_path, reject_misdirected_serve_flags, write_ready_file_atomic,
+        TargetArgs,
     };
     use clap::Parser;
     use serde_json::json;
@@ -935,6 +932,51 @@ mod tests {
             .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp-"))
             .count();
         assert_eq!(leftovers, 0, "temporary ready files should be cleaned up");
+    }
+
+    #[test]
+    fn remote_url_never_selects_a_local_token_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let chosen_by_attacker = dir.path().join("local-secret");
+        std::fs::write(&chosen_by_attacker, b"must-not-leave-host").unwrap();
+        let target = TargetArgs {
+            url: Some("http://127.0.0.1:4400".to_owned()),
+            ready_file: None,
+            token: None,
+        };
+
+        assert_eq!(
+            super::discover_minted_token(&target),
+            None,
+            "a network target has no local path-discovery channel"
+        );
+    }
+
+    #[test]
+    fn ready_file_token_discovery_accepts_only_its_owner_only_sibling() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("ready.json");
+        let sibling = crate::admin::admin_token_sibling(&ready);
+        let arbitrary = dir.path().join("arbitrary-secret");
+        std::fs::write(&sibling, b"sbat_expected\n").unwrap();
+        std::fs::write(&arbitrary, b"sbat_attacker_chosen\n").unwrap();
+
+        let target = TargetArgs {
+            url: None,
+            ready_file: Some(ready.clone()),
+            token: None,
+        };
+        let mut descriptor = stop_descriptor(Some("nonce"));
+        descriptor.admin_token_file = Some(arbitrary.display().to_string());
+        std::fs::write(&ready, serde_json::to_vec(&descriptor).unwrap()).unwrap();
+        assert_eq!(super::discover_minted_token(&target), None);
+
+        descriptor.admin_token_file = Some(sibling.display().to_string());
+        std::fs::write(&ready, serde_json::to_vec(&descriptor).unwrap()).unwrap();
+        assert_eq!(
+            super::discover_minted_token(&target).as_deref(),
+            Some("sbat_expected")
+        );
     }
 
     #[tokio::test]

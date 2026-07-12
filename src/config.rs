@@ -119,7 +119,7 @@ impl ConfigStore {
     }
 
     pub fn open(path: PathBuf) -> SnapbackResult<Self> {
-        let state = match std::fs::read(&path) {
+        let state = match crate::secure_file::read_owner_only(&path) {
             Ok(bytes) => serde_json::from_slice::<ConfigFileState>(&bytes).map_err(|error| {
                 SnapbackError::error(
                     "SNAPBACK_CONFIG_STORE_INVALID",
@@ -393,23 +393,8 @@ fn store_io_error(path: &Path, op: &str, error: &std::io::Error) -> SnapbackErro
     .with_details(serde_json::json!({ "error": error.to_string() }))
 }
 
-#[cfg(unix)]
 fn write_owner_only(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)?;
-    file.write_all(bytes)?;
-    file.sync_all()
-}
-
-#[cfg(not(unix))]
-fn write_owner_only(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    std::fs::write(path, bytes)
+    crate::secure_file::write_owner_only(path, bytes)
 }
 
 #[cfg(test)]
@@ -488,6 +473,28 @@ mod tests {
             .permissions()
             .mode();
         assert_eq!(mode & 0o777, 0o600);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn existing_store_is_repaired_and_symlink_substitution_is_refused() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("store.json");
+        let mut store = ConfigStore::open(path.clone()).unwrap();
+        store
+            .set("caltrainFeed", vec!["secret".to_owned()], false, "test", 1)
+            .unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let reopened = ConfigStore::open(path.clone()).unwrap();
+        assert_eq!(reopened.values("caltrainFeed").unwrap(), ["secret"]);
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+
+        let link = dir.path().join("store-link.json");
+        std::os::unix::fs::symlink(&path, &link).unwrap();
+        let error = ConfigStore::open(link).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_STORE_IO");
     }
 
     #[test]

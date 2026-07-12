@@ -17,14 +17,14 @@ use crate::manifest::{
     SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
-use axum::extract::rejection::JsonRejection;
+use axum::extract::rejection::{BytesRejection, JsonRejection};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::{Json, Router, body::Body};
+use axum::{Json, Router, body::{Body, Bytes}};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -471,13 +471,19 @@ struct OpenConnectionBody {
 async fn open_connection(
     State(connections): State<ConnectionRegistry>,
     State(ctx): State<Arc<ServerContext>>,
-    body: Option<Json<OpenConnectionBody>>,
-) -> Json<ConnectionGrant> {
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<ConnectionGrant>, ApiError> {
+    let body = parse_optional_json::<OpenConnectionBody>(&headers, body)?;
     let (suggested, previous_token) = body
-        .map(|Json(body)| (body.connection_id, body.previous_token))
+        .map(|body| (body.connection_id, body.previous_token))
         .unwrap_or_default();
     let allow_suggested = ctx.profile.allows_provisioning();
-    Json(connections.open(suggested, previous_token.as_deref(), allow_suggested))
+    Ok(Json(connections.open(
+        suggested,
+        previous_token.as_deref(),
+        allow_suggested,
+    )))
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -1888,11 +1894,11 @@ async fn app_reset(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
     headers: HeaderMap,
-    body: Option<Json<AppResetBody>>,
+    body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<AppResetResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
     crate::admin::require_non_prod_profile(&ctx, "app.reset")?;
-    let seed = body.and_then(|Json(body)| body.seed);
+    let seed = parse_optional_json::<AppResetBody>(&headers, body)?.and_then(|body| body.seed);
     let seeded = with_snapback(
         &state,
         move |snapback| -> Result<_, crate::diagnostic::SnapbackError> {
@@ -1916,6 +1922,29 @@ struct AppResetBody {
 #[derive(Debug, Serialize)]
 struct AppResetResponse {
     seeded: Option<crate::manifest::MutationOutput>,
+}
+
+fn parse_optional_json<T: serde::de::DeserializeOwned>(
+    headers: &HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Option<T>, ApiError> {
+    let body = body.map_err(|error| ApiError::request_json_invalid(error.to_string()))?;
+    if body.is_empty() {
+        return Ok(None);
+    }
+    let is_json = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"));
+    if !is_json {
+        return Err(ApiError::request_json_invalid(
+            "nonempty request body requires Content-Type: application/json",
+        ));
+    }
+    serde_json::from_slice(&body)
+        .map(Some)
+        .map_err(|error| ApiError::request_json_invalid(error.to_string()))
 }
 
 /// `/query/{name}` runs on the lock-free read lane when the instance is
@@ -2084,16 +2113,16 @@ async fn stream_live(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     Path(connection_id): Path<String>,
-    Query(query): Query<ConnectionTokenQuery>,
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
     // The token gate runs BEFORE the upgrade: an unauthorized caller gets the
     // structured 401/403 diagnostic, never a socket. Browser WebSockets cannot
-    // set headers, so the token may ride the query string or the
-    // `snapback.connection-token.<token>` subprotocol instead.
+    // set headers, so the token rides the
+    // `snapback.connection-token.<token>` subprotocol instead. Query-string
+    // credentials are intentionally ignored because URLs leak into logs,
+    // history, proxies, and telemetry (ENG-24354).
     let presented = header_connection_token(&headers)
-        .or(query.connection_token)
         .or_else(|| subprotocol_connection_token(&headers));
     if let Err(error) = connections.verify(&connection_id, presented.as_deref()) {
         return error.into_response();
@@ -2590,13 +2619,17 @@ impl ApiError {
     }
 
     fn from_json_rejection(error: JsonRejection) -> Self {
+        Self::request_json_invalid(error.to_string())
+    }
+
+    fn request_json_invalid(error: impl Into<String>) -> Self {
         Self(
             SnapbackError::error(
                 "SNAPBACK_REQUEST_JSON_INVALID",
                 "server",
                 "request body was not valid JSON for this operation",
             )
-            .with_details(json!({ "error": error.to_string() })),
+            .with_details(json!({ "error": error.into() })),
             None,
         )
     }
@@ -2625,15 +2658,18 @@ impl From<SnapbackError> for ApiError {
 ///
 /// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D10: an
 /// internal-error class (5xx) so a client or agent can tell "you erred" (4xx)
-/// from "the server erred" (5xx); unrecognized failures default to 400, but
-/// storage-layer and explicitly-internal faults are 500.
+/// from "the server erred" (5xx). Client faults are allow-listed; every new or
+/// unrecognized code fails conservatively as 500 so a runtime/storage failure
+/// can never silently masquerade as bad input (ENG-24357).
 fn status_for_diagnostic_code(code: &str) -> StatusCode {
     match code {
         "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
             StatusCode::NOT_FOUND
         }
         "SNAPBACK_UNKNOWN_CRON_JOB" | "SNAPBACK_UNKNOWN_SUBSCRIPTION" => StatusCode::NOT_FOUND,
-        "SNAPBACK_MUTATION_CONFLICT" => StatusCode::CONFLICT,
+        "SNAPBACK_MUTATION_CONFLICT"
+        | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
         // (forbidden) from "needs the configured token" (unauthorized).
         "SNAPBACK_ADMIN_DISABLED"
@@ -2643,8 +2679,125 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_ADMIN_TOKEN_REQUIRED" | "SNAPBACK_CONNECTION_TOKEN_REQUIRED" => {
             StatusCode::UNAUTHORIZED
         }
-        "SNAPBACK_SQLITE_ERROR" | "SNAPBACK_INTERNAL_ERROR" => StatusCode::INTERNAL_SERVER_ERROR,
-        _ => StatusCode::BAD_REQUEST,
+        "SNAPBACK_EPHEMERAL_RATE_LIMITED" => StatusCode::TOO_MANY_REQUESTS,
+        "SNAPBACK_VALUE_TOO_LARGE" | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE" => {
+            StatusCode::PAYLOAD_TOO_LARGE
+        }
+        "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
+            StatusCode::GATEWAY_TIMEOUT
+        }
+        "SNAPBACK_OVERLOADED"
+        | "SNAPBACK_READ_LANE_UNAVAILABLE"
+        | "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING"
+        | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE"
+        | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING"
+        | "SNAPBACK_CAPABILITY_MINIFLARE_MISSING"
+        | "SNAPBACK_CAPABILITY_WORKERD_MISSING" => StatusCode::SERVICE_UNAVAILABLE,
+        // Exhaustive allow-list of request, declaration, authorization, and
+        // application-handler diagnostics. Adding a new code does not add it
+        // here automatically: the default below remains a truthful 500 until
+        // its producer deliberately chooses a client class.
+        "SNAPBACK_ARG_MISSING"
+        | "SNAPBACK_AUTH_STALE_RESULT"
+        | "SNAPBACK_AUTH_USER_MISSING"
+        | "SNAPBACK_BINDING_MISSING"
+        | "SNAPBACK_CAPTURED_READ_INVALID"
+        | "SNAPBACK_CLIENT_MUTATION_ID_INVALID"
+        | "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED"
+        | "SNAPBACK_CONFIG_ENTRY_INVALID"
+        | "SNAPBACK_CONFIG_MISSING"
+        | "SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED"
+        | "SNAPBACK_CONFIG_PROBE_INVALID"
+        | "SNAPBACK_CONFIG_PROBE_MISSING"
+        | "SNAPBACK_CONFIG_REQUIRED_MISSING"
+        | "SNAPBACK_CONFIG_TRANSIT_RULE"
+        | "SNAPBACK_CONFIG_UNDECLARED"
+        | "SNAPBACK_CONFIG_USES_UNKNOWN"
+        | "SNAPBACK_CONFIG_VALUE_INVALID"
+        | "SNAPBACK_CONFIG_VERIFY_COOLDOWN"
+        | "SNAPBACK_CRON_ACTION_KIND_MISMATCH"
+        | "SNAPBACK_CRON_ACTION_MISSING"
+        | "SNAPBACK_CRON_DUPLICATE_JOB"
+        | "SNAPBACK_CRON_INVALID_EXPRESSION"
+        | "SNAPBACK_CRON_INVALID_INTERVAL"
+        | "SNAPBACK_CRON_INVALID_SCHEDULE"
+        | "SNAPBACK_CRON_JOB_DISABLED"
+        | "SNAPBACK_CRON_JOB_IN_FLIGHT"
+        | "SNAPBACK_CRON_JOB_INVALID"
+        | "SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED"
+        | "SNAPBACK_CRON_TARGET_CADENCE_UNSUPPORTED"
+        | "SNAPBACK_CRON_UNSATISFIABLE_EXPRESSION"
+        | "SNAPBACK_CRON_WHILE_LIVE_EMPTY"
+        | "SNAPBACK_CRON_WHILE_LIVE_KIND_MISMATCH"
+        | "SNAPBACK_CRON_WHILE_LIVE_MISSING"
+        | "SNAPBACK_CTX_LEDGER_EXHAUSTED"
+        | "SNAPBACK_CTX_LEDGER_ID_INVALID"
+        | "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED"
+        | "SNAPBACK_CTX_LEDGER_UNUSED_IDS"
+        | "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED"
+        | "SNAPBACK_DATA_TIER_VERSION_REQUIRED"
+        | "SNAPBACK_DATA_TIER_VERSION_UNSUPPORTED"
+        | "SNAPBACK_EPHEMERAL_INVALID_SCOPE"
+        | "SNAPBACK_EPHEMERAL_INVALID_TTL"
+        | "SNAPBACK_EPHEMERAL_MISSING_KEY"
+        | "SNAPBACK_EPHEMERAL_MISSING_OWNER"
+        | "SNAPBACK_EPHEMERAL_ROOM_LIMIT_EXCEEDED"
+        | "SNAPBACK_EPHEMERAL_UNAUTHORIZED"
+        | "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION"
+        | "SNAPBACK_EXPECTED_STRING"
+        | "SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED"
+        | "SNAPBACK_EXPLAIN_KIND_UNKNOWN"
+        | "SNAPBACK_EXPR_TYPE"
+        | "SNAPBACK_EXPR_UNANALYZABLE"
+        | "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION"
+        | "SNAPBACK_FIELD_MISSING"
+        | "SNAPBACK_FIELD_TYPE_MISMATCH"
+        | "SNAPBACK_FUNCTION_KIND_MISMATCH"
+        | "SNAPBACK_FUNCTION_NOT_LIVE"
+        | "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED"
+        | "SNAPBACK_HANDLER_CAPABILITY_DENIED"
+        | "SNAPBACK_HANDLER_DID_NOT_SETTLE"
+        | "SNAPBACK_HANDLER_EXPORT_MISSING"
+        | "SNAPBACK_HANDLER_FAILED"
+        | "SNAPBACK_HANDLER_HOST_CALL_INVALID"
+        | "SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON"
+        | "SNAPBACK_HANDLER_HOST_CALL_MALFORMED"
+        | "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN"
+        | "SNAPBACK_HANDLER_RESULT_INVALID"
+        | "SNAPBACK_HANDLER_STALE_CONTINUATION"
+        | "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        | "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        | "SNAPBACK_HOST_OP_CLI_ONLY"
+        | "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED"
+        | "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN"
+        | "SNAPBACK_HOST_OP_INPUT_MISSING"
+        | "SNAPBACK_HOST_OP_UNIMPLEMENTED"
+        | "SNAPBACK_HOST_OP_UNKNOWN"
+        | "SNAPBACK_INVALID_FLOAT"
+        | "SNAPBACK_INVALID_IDENTIFIER"
+        | "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH"
+        | "SNAPBACK_PERMISSION_SCOPE_MISSING"
+        | "SNAPBACK_PLAN_BOUNDS"
+        | "SNAPBACK_PLAN_INVALID"
+        | "SNAPBACK_PLAN_SOURCE_INVALID"
+        | "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
+        | "SNAPBACK_QUERY_UNKNOWN_INDEX"
+        | "SNAPBACK_REQUEST_JSON_INVALID"
+        | "SNAPBACK_SCHEMA_DUPLICATE_FIELD"
+        | "SNAPBACK_SCHEMA_DUPLICATE_INDEX"
+        | "SNAPBACK_SCHEMA_DUPLICATE_TABLE"
+        | "SNAPBACK_SCHEMA_EMPTY_INDEX"
+        | "SNAPBACK_SCHEMA_FIELD_RETYPED"
+        | "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION"
+        | "SNAPBACK_SCHEMA_PARSE_FAILED"
+        | "SNAPBACK_SCHEMA_SYSTEM_FIELD"
+        | "SNAPBACK_SYSTEM_FIELD_WRITE"
+        | "SNAPBACK_UNSUPPORTED_BLOB"
+        | "SNAPBACK_V8_COMPAT_CONFIG_INVALID"
+        | "SNAPBACK_V8_COMPAT_FLAG_REFUSED"
+        | "SNAPBACK_WEBSOCKET_MESSAGE_INVALID"
+        | "SNAPBACK_WEBSOCKET_SENDER_MISMATCH" => StatusCode::BAD_REQUEST,
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
@@ -2671,8 +2824,8 @@ mod tests {
     use super::status_for_diagnostic_code;
     use axum::http::StatusCode;
 
-    /// LLP 0032 S5.D10 — internal/storage faults are 5xx, client errors are
-    /// 4xx, and unrecognized codes still default to 400.
+    /// LLP 0032 S5.D10 / ENG-24357 — internal/storage faults and new unknown
+    /// codes are 5xx; only deliberately classified client errors are 4xx.
     #[test]
     fn s5_d10_internal_errors_map_to_5xx() {
         assert_eq!(
@@ -2698,9 +2851,21 @@ mod tests {
         // An unrecognized (client-authoring) error still defaults to 400, so
         // the new 5xx class never widens by accident.
         assert_eq!(
-            status_for_diagnostic_code("SNAPBACK_SOMETHING_NEW"),
+            status_for_diagnostic_code("SNAPBACK_CONFIG_ENTRY_INVALID"),
             StatusCode::BAD_REQUEST
         );
+        for internal in [
+            "SNAPBACK_CONFIG_STORE_IO",
+            "SNAPBACK_ACTION_THREAD_SPAWN_FAILED",
+            "SNAPBACK_JSON_SERIALIZE_FAILED",
+            "SNAPBACK_SOMETHING_NEW",
+        ] {
+            assert_eq!(
+                status_for_diagnostic_code(internal),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "{internal} must not masquerade as a client fault"
+            );
+        }
     }
 
     use super::{

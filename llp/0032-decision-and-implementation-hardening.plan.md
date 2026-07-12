@@ -470,8 +470,12 @@ Each fix lands with a failing-then-passing test named for the step id.
   internal SQLite failures, maps to HTTP 400 (`src/server.rs:688-699`).
   Introduce an internal-error class so clients and agents can distinguish
   "you erred" from "the server erred". **Landed 2026-07-01** —
-  `status_for_diagnostic_code` maps `SNAPBACK_SQLITE_ERROR`/
-  `SNAPBACK_INTERNAL_ERROR` to 500; test `s5_d10_internal_errors_map_to_5xx`.
+  `status_for_diagnostic_code` initially mapped `SNAPBACK_SQLITE_ERROR`/
+  `SNAPBACK_INTERNAL_ERROR` to 500; ENG-24357 completed the fail-safe class:
+  intentional client diagnostics are now allow-listed and every new/unknown
+  code defaults to 500, preventing config I/O, runtime spawn, serialization,
+  or future server faults from silently inheriting HTTP 400. Test
+  `s5_d10_internal_errors_map_to_5xx` pins both sides.
 - **S5.D11 — Cron ticker swallows its own errors** [confirmed].
   `let _ = snapback.tick_cron(...)` every second (`src/server.rs:273`);
   claim/persistence failures vanish. (Failed cron *runs* already record
