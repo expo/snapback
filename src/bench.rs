@@ -70,11 +70,12 @@ impl BenchConfig {
             ephemeral_publishes: 40,
             // The busy window must dominate one read's own cost or the
             // read-during-write assertions cannot discriminate queueing from
-            // slowness: a debug-build fresh-VM read is ~90-130ms on a 2-core
-            // CI runner (measured on the first local-proof run), so a 120ms
-            // window failed the lane read without any queueing. 800ms keeps
-            // ~3x margin there while adding ~1.5s to the smoke lane.
-            busy_write_ms: 800,
+            // slowness. Debug-build fresh-VM reads have ranged from ~90ms to
+            // 262ms on 2-core CI runners; 800ms left less than a 2x gap after
+            // writer calibration and the quarter-window entry delay. A 1600ms
+            // window restores decisive headroom while keeping this smoke-only
+            // proof bounded; the full research profile remains 400ms.
+            busy_write_ms: 1_600,
         }
     }
 }
@@ -994,10 +995,11 @@ mod tests {
         // L6: during the same busy write, the read lane (a pooled reader that
         // does not queue) must decisively beat the mutex path (which waits out
         // the write). This is asserted *relative* — both are measured on the
-        // same runner in the same run — so it is machine-independent and does
-        // not flake on a slow shared runner the way an absolute bound does.
-        // The lock path's own lower bound confirms it genuinely queued behind
-        // the wall-clock busy window.
+        // same runner in the same run — which reduces machine dependence and
+        // avoids a fixed lane ceiling. The smoke busy window is still sized to
+        // dominate a cold concurrent read on slow shared runners. The lock
+        // path's own lower bound confirms it genuinely queued behind the
+        // wall-clock busy window.
         let busy_us = (BenchConfig::smoke().busy_write_ms * 1_000) as f64;
         ensure!(
             report.read_during_write_via_read_lane_us * 2.0 < report.read_during_write_via_lock_us,
