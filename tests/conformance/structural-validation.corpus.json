@@ -112,6 +112,24 @@
       "expectedCode": "SNAPBACK_FIELD_MISSING"
     },
     {
+      "name": "seed-invalid-id-type",
+      "operation": "seed",
+      "values": { "_id": 42, "boardId": "validation-board", "text": "valid" },
+      "expectedCode": "SNAPBACK_SEED_INVALID"
+    },
+    {
+      "name": "seed-null-id",
+      "operation": "seed",
+      "values": { "_id": null, "boardId": "validation-board", "text": "valid" },
+      "expectedCode": "SNAPBACK_SEED_INVALID"
+    },
+    {
+      "name": "seed-empty-id",
+      "operation": "seed",
+      "values": { "_id": "", "boardId": "validation-board", "text": "valid" },
+      "expectedCode": "SNAPBACK_SEED_INVALID"
+    },
+    {
       "name": "seed-wrong-type",
       "operation": "seed",
       "values": { "_id": "bad-seed", "boardId": "validation-board", "text": 42 },

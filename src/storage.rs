@@ -596,12 +596,17 @@ impl LocalDatabase {
                 // system field remains host-owned. Remove the seed identity
                 // carrier before entering the same insert validator used by
                 // handler/derived writes.
-                let id = row
-                    .remove("_id")
-                    .as_ref()
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-                    .unwrap_or_else(new_id);
+                let id = match row.remove("_id") {
+                    None => new_id(),
+                    Some(Value::String(id)) if !id.is_empty() => id,
+                    Some(_) => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEED_INVALID",
+                            "storage",
+                            format!("seed _id for {table_name} must be a nonempty string"),
+                        ));
+                    }
+                };
                 let document = insert_document(&tx, table, &id, &row, next_version, now_ms)?;
                 record_change(
                     &tx,
@@ -2629,10 +2634,6 @@ fn patch_document(
     version: u64,
     now_ms: u64,
 ) -> SnapbackResult<bool> {
-    if get_row_version(tx, table, id)?.is_none() {
-        return Ok(false);
-    }
-
     let mut assignments = vec!["_version = ?".to_owned(), "_updatedAt = ?".to_owned()];
     let mut values = vec![
         SqlValue::Integer(version as i64),
@@ -2651,6 +2652,13 @@ fn patch_document(
         validate_declared_field_value(field_manifest, value)?;
         assignments.push(format!("{} = ?", quote_ident(field)?));
         values.push(json_to_sql_value(value, Some(&field_manifest.field_type))?);
+    }
+    // Validate the complete patch before consulting row existence. The
+    // portable contract rejects malformed writes independent of current
+    // state; a missing id must not turn protected/unknown/wrong-type values
+    // into an accepted no-op while the hosted target rejects them.
+    if get_row_version(tx, table, id)?.is_none() {
+        return Ok(false);
     }
     values.push(SqlValue::Text(id.to_owned()));
 

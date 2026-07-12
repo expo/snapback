@@ -272,3 +272,59 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
         );
     }
 }
+
+#[test]
+fn local_missing_rows_still_validate_the_shared_patch_corpus() {
+    let corpus = corpus();
+    for case in corpus
+        .cases
+        .iter()
+        .filter(|case| matches!(case.operation.as_str(), "patch" | "derivedPatch"))
+    {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema(&corpus))
+            .expect("apply corpus schema");
+        let version_before = db.current_version().expect("version before case");
+        let values = if case.operation == "patch" {
+            literal_values(&case.values)
+        } else {
+            BTreeMap::from([(
+                case.field.clone().expect("derived patch field"),
+                derived_value(),
+            )])
+        };
+        let outcome = db.execute_mutation(
+            &MutationPlan {
+                steps: vec![MutationStep::Patch {
+                    table: corpus.schema.table.clone(),
+                    id: ValueExpr::Literal(Value::String(
+                        "structural-validation-missing".to_owned(),
+                    )),
+                    values,
+                }],
+                return_value: None,
+            },
+            &input(if case.operation == "derivedPatch" {
+                json!({
+                    "left": case.left.clone().expect("derived left"),
+                    "right": case.right.clone().expect("derived right"),
+                })
+            } else {
+                json!({})
+            }),
+        );
+
+        let error = outcome.expect_err("invalid patch must fail before missing-row lookup");
+        assert_eq!(
+            error.diagnostic.code, case.expected_code,
+            "{} returned the wrong diagnostic for a missing row",
+            case.name
+        );
+        assert_eq!(
+            db.current_version().expect("version after rejected case"),
+            version_before,
+            "{} changed durable state for a missing row",
+            case.name
+        );
+    }
+}

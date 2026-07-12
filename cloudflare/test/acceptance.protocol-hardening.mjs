@@ -47,25 +47,30 @@ try {
   // the durable version untouched.
   const inserted = await proof.mutation('insertRawNote', { values: { boardId: 'validation-board', text: 'valid' } });
   for (const testCase of structuralCases) {
-    const before = await proof.health();
-    let result;
-    if (testCase.operation === 'insert') {
-      result = await proof.mutation('insertRawNote', { values: testCase.values });
-    } else if (testCase.operation === 'patch') {
-      result = await proof.mutation('touchNote', { id: inserted.result.id, values: testCase.values });
-    } else if (testCase.operation === 'derivedInsert' || testCase.operation === 'derivedPatch') {
-      result = await proof.mutation('writeDerivedRawNote', {
-        operation: testCase.operation === 'derivedPatch' ? 'patch' : 'insert',
-        id: inserted.result.id,
-        field: testCase.field,
-        left: testCase.left,
-        right: testCase.right,
-      });
-    } else {
-      throw new Error(`unknown structural corpus operation ${testCase.operation}`);
+    const isPatch = testCase.operation === 'patch' || testCase.operation === 'derivedPatch';
+    const targetIds = isPatch ? [inserted.result.id, 'structural-validation-missing'] : [null];
+    for (const targetId of targetIds) {
+      const before = await proof.health();
+      let result;
+      if (testCase.operation === 'insert') {
+        result = await proof.mutation('insertRawNote', { values: testCase.values });
+      } else if (testCase.operation === 'patch') {
+        result = await proof.mutation('touchNote', { id: targetId, values: testCase.values });
+      } else if (testCase.operation === 'derivedInsert' || testCase.operation === 'derivedPatch') {
+        result = await proof.mutation('writeDerivedRawNote', {
+          operation: testCase.operation === 'derivedPatch' ? 'patch' : 'insert',
+          id: targetId,
+          field: testCase.field,
+          left: testCase.left,
+          right: testCase.right,
+        });
+      } else {
+        throw new Error(`unknown structural corpus operation ${testCase.operation}`);
+      }
+      const target = targetId === null ? 'insert' : targetId;
+      assert.equal(code(result), testCase.expectedCode, `${testCase.name} (${target}): ${JSON.stringify(result)}`);
+      assert.equal((await proof.health()).version, before.version, `${testCase.name} (${target}) changed durable state`);
     }
-    assert.equal(code(result), testCase.expectedCode, `${testCase.name}: ${JSON.stringify(result)}`);
-    assert.equal((await proof.health()).version, before.version, `${testCase.name} changed durable state`);
   }
   const unknownField = await proof.query('queryRawNotes', { field: 'notDeclared', value: 'x' });
   const unknownIndex = await proof.query('queryRawNotes', { index: 'not_declared', field: 'boardId', value: 'b' });

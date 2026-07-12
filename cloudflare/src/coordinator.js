@@ -3027,7 +3027,16 @@ export class Coordinator {
         if (!input || typeof input !== 'object' || Array.isArray(input)) {
           throw codedError('SNAPBACK_SEED_INVALID', `seed row for ${name} must be an object`);
         }
-        const id = input._id == null ? this.newId() : String(input._id);
+        let id = this.newId();
+        if (Object.hasOwn(input, '_id')) {
+          if (typeof input._id !== 'string' || input._id.length === 0) {
+            throw codedError(
+              'SNAPBACK_SEED_INVALID',
+              `seed _id for ${name} must be a nonempty string`
+            );
+          }
+          id = input._id;
+        }
         const values = { ...input };
         delete values._id;
         const validated = validateWriteValues(APP_SCHEMA_TABLES, name, values, { insert: true });
