@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -11,6 +11,7 @@ import {
   resolveRootResolvableDedupe,
   rewriteStaticBasePath,
   resolveSnapbackContractDevServerOptions,
+  withStaticBuildConfig,
 } from './build-preset.mjs';
 
 delete process.env.SNAPBACK_ADMIN_DEV_API;
@@ -97,6 +98,47 @@ assert.equal(wrongShape.details.target_surface, 'admin Contract dev server');
     rmSync(bareRoot, { recursive: true, force: true });
     rmSync(armedRoot, { recursive: true, force: true });
   }
+}
+
+// ENG-24379: two builds of one app must never share or delete a generated
+// Vite config. Hold both callbacks open at once and inspect each immutable
+// file before either cleanup runs.
+{
+  const paths = [];
+  const contents = [];
+  let release;
+  const bothEntered = new Promise((resolve) => {
+    release = resolve;
+  });
+  const entered = [];
+  const makeBuild = (basePath, outDir) => withStaticBuildConfig({
+    appRoot: '/tmp/app',
+    exactModules: {
+      exactVitePlugin: '/tmp/exact-vite.js',
+      contractVitePlugin: '/tmp/contract-vite.js',
+    },
+    basePath,
+    entry: '/src/main.ts',
+    routeRegistry: 'src/app/routes.ts',
+    staticPlatformTargets: ['web'],
+    outDir,
+  }, async (configPath) => {
+    paths.push(configPath);
+    contents.push(readFileSync(configPath, 'utf8'));
+    entered.push(true);
+    if (entered.length === 2) release();
+    await bothEntered;
+  });
+  await Promise.all([
+    makeBuild('/first', '/tmp/out-first'),
+    makeBuild('/second', '/tmp/out-second'),
+  ]);
+  assert.equal(new Set(paths).size, 2, 'parallel builds receive unique config paths');
+  assert.match(contents[0], /\/first/);
+  assert.match(contents[0], /out-first/);
+  assert.match(contents[1], /\/second/);
+  assert.match(contents[1], /out-second/);
+  assert(paths.every((path) => !existsSync(path)), 'every build removes only its own temp config');
 }
 
 // ENG-22564: package-only builds resolve the import key from the app's

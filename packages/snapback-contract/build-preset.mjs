@@ -4,7 +4,8 @@
 //   Vite plugin ordering, route-registry preflights, native artifact target, and
 //   Snapback admin base-path rewrite are product recipe, not admin-local lore.
 
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 const DEFAULT_ADMIN_DEV_API_TARGET = 'http://127.0.0.1:4287';
@@ -62,24 +63,17 @@ export async function buildSnapbackContractStaticApp({
   // the plugin/options graph and can fail with nondeterministic "Failed to load
   // url … Does the file exist?" errors. Exact now resolves from app-local
   // packages, so the old two-repository fs.allow is intentionally absent.
-  const configFilePath = resolve(appRoot, '.snapback-contract-static.config.mjs');
-  writeFileSync(
-    configFilePath,
-    renderStaticBuildConfig({
-      appRoot,
-      exactModules,
-      basePath: normalizedBasePath,
-      entry: normalizeEntry(entry),
-      routeRegistry: stripLeadingSlash(routeRegistry),
-      staticPlatformTargets,
-      outDir: resolvedOutDir,
-    }),
-  );
-  try {
+  await withStaticBuildConfig({
+    appRoot,
+    exactModules,
+    basePath: normalizedBasePath,
+    entry: normalizeEntry(entry),
+    routeRegistry: stripLeadingSlash(routeRegistry),
+    staticPlatformTargets,
+    outDir: resolvedOutDir,
+  }, async (configFilePath) => {
     await build({ configFile: configFilePath, logLevel });
-  } finally {
-    rmSync(configFilePath, { force: true });
-  }
+  });
 
   if (rewriteBasePath) {
     rewriteStaticBasePath({
@@ -95,6 +89,23 @@ export async function buildSnapbackContractStaticApp({
     basePath: normalizedBasePath,
     staticPlatformTargets,
   };
+}
+
+// Give every outer build and nested prerender server its own immutable config
+// path. The callback owns the complete lifetime: parallel builds cannot
+// overwrite one another, and cleanup removes the containing temp directory.
+export async function withStaticBuildConfig(options, run) {
+  const configDir = mkdtempSync(join(tmpdir(), 'snapback-contract-static-'));
+  const configFilePath = join(configDir, 'vite.config.mjs');
+  try {
+    writeFileSync(
+      configFilePath,
+      renderStaticBuildConfig(options),
+    );
+    return await run(configFilePath);
+  } finally {
+    rmSync(configDir, { recursive: true, force: true });
+  }
 }
 
 export async function contractViteBaseConfig({
