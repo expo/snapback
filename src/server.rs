@@ -3098,6 +3098,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION"
         | "SNAPBACK_SCHEMA_PARSE_FAILED"
         | "SNAPBACK_SCHEMA_SYSTEM_FIELD"
+        | "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND"
+        | "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION"
+        | "SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND"
+        | "SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION"
         | "SNAPBACK_SYSTEM_FIELD_WRITE"
         | "SNAPBACK_UNSUPPORTED_BLOB"
         | "SNAPBACK_V8_COMPAT_CONFIG_INVALID"
@@ -3142,10 +3146,614 @@ mod tests {
     };
     use crate::runtime::IbexActionHost;
     use axum::http::StatusCode;
+    use std::collections::BTreeSet;
+    use std::fs;
+    use std::path::{Path, PathBuf};
     use std::sync::atomic::AtomicBool;
     use std::sync::{Arc, Mutex as StdMutex};
     use std::time::{Duration, Instant};
+    use syn::visit::Visit;
     use tokio::sync::Mutex;
+
+    fn has_cfg_test(attributes: &[syn::Attribute]) -> bool {
+        attributes.iter().any(|attribute| {
+            if !attribute.path().is_ident("cfg") {
+                return false;
+            }
+            let syn::Meta::List(arguments) = &attribute.meta else {
+                return false;
+            };
+            // Skip only the exact test-only form. A future `cfg(not(test))` or
+            // mixed feature predicate must remain in the conservative source
+            // inventory rather than disappearing merely because it mentions
+            // the token `test`.
+            arguments.tokens.to_string() == "test"
+        })
+    }
+
+    fn item_attributes(item: &syn::Item) -> &[syn::Attribute] {
+        match item {
+            syn::Item::Const(item) => &item.attrs,
+            syn::Item::Enum(item) => &item.attrs,
+            syn::Item::ExternCrate(item) => &item.attrs,
+            syn::Item::Fn(item) => &item.attrs,
+            syn::Item::ForeignMod(item) => &item.attrs,
+            syn::Item::Impl(item) => &item.attrs,
+            syn::Item::Macro(item) => &item.attrs,
+            syn::Item::Mod(item) => &item.attrs,
+            syn::Item::Static(item) => &item.attrs,
+            syn::Item::Struct(item) => &item.attrs,
+            syn::Item::Trait(item) => &item.attrs,
+            syn::Item::TraitAlias(item) => &item.attrs,
+            syn::Item::Type(item) => &item.attrs,
+            syn::Item::Union(item) => &item.attrs,
+            syn::Item::Use(item) => &item.attrs,
+            _ => &[],
+        }
+    }
+
+    #[derive(Default)]
+    struct SnapbackLiteralVisitor {
+        literals: BTreeSet<String>,
+    }
+
+    impl SnapbackLiteralVisitor {
+        fn record_literal(&mut self, literal: &str) {
+            let bytes = literal.as_bytes();
+            let mut cursor = 0;
+            while let Some(relative_start) = literal[cursor..].find("SNAPBACK_") {
+                let start = cursor + relative_start;
+                let mut end = start + "SNAPBACK_".len();
+                while end < bytes.len()
+                    && (bytes[end].is_ascii_uppercase()
+                        || bytes[end].is_ascii_digit()
+                        || bytes[end] == b'_')
+                {
+                    end += 1;
+                }
+                self.literals.insert(literal[start..end].to_owned());
+                cursor = end;
+            }
+        }
+    }
+
+    impl<'ast> Visit<'ast> for SnapbackLiteralVisitor {
+        fn visit_item(&mut self, item: &'ast syn::Item) {
+            if !has_cfg_test(item_attributes(item)) {
+                syn::visit::visit_item(self, item);
+            }
+        }
+
+        fn visit_impl_item_fn(&mut self, function: &'ast syn::ImplItemFn) {
+            if !has_cfg_test(&function.attrs) {
+                syn::visit::visit_impl_item_fn(self, function);
+            }
+        }
+
+        fn visit_stmt_macro(&mut self, invocation: &'ast syn::StmtMacro) {
+            if !has_cfg_test(&invocation.attrs) {
+                syn::visit::visit_stmt_macro(self, invocation);
+            }
+        }
+
+        fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
+            self.record_literal(&literal.value());
+        }
+
+        fn visit_macro(&mut self, invocation: &'ast syn::Macro) {
+            // `syn` deliberately leaves a macro's arguments as tokens. Scan
+            // those tokens too so `format!`, `json!`, and helper macros cannot
+            // hide a newly emitted diagnostic from the inventory gate.
+            self.record_literal(&invocation.tokens.to_string());
+            syn::visit::visit_macro(self, invocation);
+        }
+    }
+
+    fn rust_sources_below(path: &Path, sources: &mut Vec<PathBuf>) {
+        for entry in fs::read_dir(path).expect("read Rust source directory") {
+            let path = entry.expect("read Rust source entry").path();
+            if path.is_dir() {
+                rust_sources_below(&path, sources);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                sources.push(path);
+            }
+        }
+    }
+
+    fn production_snapback_literals() -> BTreeSet<String> {
+        let mut sources = Vec::new();
+        rust_sources_below(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+            &mut sources,
+        );
+        sources.sort();
+
+        let mut visitor = SnapbackLiteralVisitor::default();
+        for source in sources {
+            let contents = fs::read_to_string(&source).expect("read Rust source");
+            let syntax = syn::parse_file(&contents)
+                .unwrap_or_else(|error| panic!("parse {}: {error}", source.display()));
+            visitor.visit_file(&syntax);
+        }
+        visitor.literals
+    }
+
+    // These are the only production `SNAPBACK_*` literals that are not
+    // diagnostic codes. Keep the reason beside each exclusion: the source
+    // inventory is intentionally broad enough to catch literals passed through
+    // helper constructors, embedded runtime source, and macros.
+    const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
+        (
+            "SNAPBACK_ACTION_SECRETS",
+            "legacy environment variable containing action secrets",
+        ),
+        (
+            "SNAPBACK_ACTION_TIMEOUT_MS",
+            "environment variable configuring the action watchdog",
+        ),
+        (
+            "SNAPBACK_ADMIN_DIST",
+            "environment variable naming the built admin snapshot",
+        ),
+        (
+            "SNAPBACK_ADMIN_TOKEN",
+            "environment variable carrying the admin bearer token",
+        ),
+        (
+            "SNAPBACK_ARGS__",
+            "suffix of the __SNAPBACK_ARGS__ embedded-runtime placeholder",
+        ),
+        (
+            "SNAPBACK_AUTH__",
+            "suffix of the __SNAPBACK_AUTH__ embedded-runtime placeholder",
+        ),
+        (
+            "SNAPBACK_BUILD_GIT_COMMIT",
+            "compile-time environment variable carrying build provenance",
+        ),
+        (
+            "SNAPBACK_BUILD_GIT_DIRTY",
+            "compile-time environment variable carrying build provenance",
+        ),
+        (
+            "SNAPBACK_EPOCH__",
+            "suffix of the __SNAPBACK_EPOCH__ embedded-runtime placeholder",
+        ),
+        (
+            "SNAPBACK_EXPORT__",
+            "suffix of the __SNAPBACK_EXPORT__ embedded-runtime placeholder",
+        ),
+        (
+            "SNAPBACK_FRESH_VM",
+            "environment variable opting out of the warm VM pool",
+        ),
+        (
+            "SNAPBACK_HANDLER_BACKEND",
+            "environment variable selecting the handler backend",
+        ),
+        (
+            "SNAPBACK_HANDLER_CONSOLE",
+            "environment variable selecting handler-console forwarding",
+        ),
+        (
+            "SNAPBACK_HANDLER_HOST_CALL_",
+            "diagnostic-code prefix used to recognize host-call failures",
+        ),
+        (
+            "SNAPBACK_IBEX",
+            "environment variable overriding the Ibex executable",
+        ),
+        (
+            "SNAPBACK_MARK__",
+            "suffix of the __SNAPBACK_MARK__ HTML template placeholder",
+        ),
+        (
+            "SNAPBACK_MODE__",
+            "suffix of the __SNAPBACK_MODE__ embedded-runtime placeholder",
+        ),
+        (
+            "SNAPBACK_OUTBOUND_ACTIONS",
+            "environment variable enabling outbound action capabilities",
+        ),
+        (
+            "SNAPBACK_PROFILE",
+            "environment variable selecting the server profile",
+        ),
+        (
+            "SNAPBACK_RUN__",
+            "suffix of the __SNAPBACK_RUN__ embedded-runtime placeholder",
+        ),
+        (
+            "SNAPBACK_SCHEMA_VERSION",
+            "Rust constant name interpolated into schema-export text",
+        ),
+        (
+            "SNAPBACK_SECRETS__",
+            "suffix of the __SNAPBACK_SECRETS__ embedded-runtime placeholder",
+        ),
+        (
+            "SNAPBACK_V8_WALL_CLOCK_TIMEOUT_MS",
+            "environment variable configuring the V8 watchdog",
+        ),
+        (
+            "SNAPBACK_WORKERD_BIN",
+            "environment variable overriding the workerd executable",
+        ),
+    ];
+
+    const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ARG_MISSING",
+        "SNAPBACK_AUTH_STALE_RESULT",
+        "SNAPBACK_AUTH_USER_MISSING",
+        "SNAPBACK_BINDING_MISSING",
+        "SNAPBACK_CAPTURED_READ_INVALID",
+        "SNAPBACK_CLIENT_MUTATION_ID_INVALID",
+        "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED",
+        "SNAPBACK_CONFIG_ENTRY_INVALID",
+        "SNAPBACK_CONFIG_MISSING",
+        "SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED",
+        "SNAPBACK_CONFIG_PROBE_INVALID",
+        "SNAPBACK_CONFIG_PROBE_MISSING",
+        "SNAPBACK_CONFIG_REQUIRED_MISSING",
+        "SNAPBACK_CONFIG_TRANSIT_RULE",
+        "SNAPBACK_CONFIG_UNDECLARED",
+        "SNAPBACK_CONFIG_USES_UNKNOWN",
+        "SNAPBACK_CONFIG_VALUE_INVALID",
+        "SNAPBACK_CONFIG_VERIFY_COOLDOWN",
+        "SNAPBACK_CRON_ACTION_KIND_MISMATCH",
+        "SNAPBACK_CRON_ACTION_MISSING",
+        "SNAPBACK_CRON_DUPLICATE_JOB",
+        "SNAPBACK_CRON_INVALID_EXPRESSION",
+        "SNAPBACK_CRON_INVALID_INTERVAL",
+        "SNAPBACK_CRON_INVALID_SCHEDULE",
+        "SNAPBACK_CRON_JOB_DISABLED",
+        "SNAPBACK_CRON_JOB_IN_FLIGHT",
+        "SNAPBACK_CRON_JOB_INVALID",
+        "SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED",
+        "SNAPBACK_CRON_TARGET_CADENCE_UNSUPPORTED",
+        "SNAPBACK_CRON_UNSATISFIABLE_EXPRESSION",
+        "SNAPBACK_CRON_WHILE_LIVE_EMPTY",
+        "SNAPBACK_CRON_WHILE_LIVE_KIND_MISMATCH",
+        "SNAPBACK_CRON_WHILE_LIVE_MISSING",
+        "SNAPBACK_CTX_LEDGER_EXHAUSTED",
+        "SNAPBACK_CTX_LEDGER_ID_INVALID",
+        "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
+        "SNAPBACK_CTX_LEDGER_UNUSED_IDS",
+        "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED",
+        "SNAPBACK_DATA_TIER_VERSION_REQUIRED",
+        "SNAPBACK_DATA_TIER_VERSION_UNSUPPORTED",
+        "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
+        "SNAPBACK_EPHEMERAL_INVALID_TTL",
+        "SNAPBACK_EPHEMERAL_MISSING_KEY",
+        "SNAPBACK_EPHEMERAL_MISSING_OWNER",
+        "SNAPBACK_EPHEMERAL_ROOM_LIMIT_EXCEEDED",
+        "SNAPBACK_EPHEMERAL_UNAUTHORIZED",
+        "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
+        "SNAPBACK_EXPECTED_STRING",
+        "SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED",
+        "SNAPBACK_EXPLAIN_KIND_UNKNOWN",
+        "SNAPBACK_EXPR_TYPE",
+        "SNAPBACK_EXPR_UNANALYZABLE",
+        "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION",
+        "SNAPBACK_FIELD_MISSING",
+        "SNAPBACK_FIELD_TYPE_MISMATCH",
+        "SNAPBACK_FUNCTION_KIND_MISMATCH",
+        "SNAPBACK_FUNCTION_NOT_LIVE",
+        "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
+        "SNAPBACK_HANDLER_CAPABILITY_DENIED",
+        "SNAPBACK_HANDLER_DID_NOT_SETTLE",
+        "SNAPBACK_HANDLER_EXPORT_MISSING",
+        "SNAPBACK_HANDLER_FAILED",
+        "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+        "SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON",
+        "SNAPBACK_HANDLER_HOST_CALL_MALFORMED",
+        "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
+        "SNAPBACK_HANDLER_RESULT_INVALID",
+        "SNAPBACK_HANDLER_STALE_CONTINUATION",
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
+        "SNAPBACK_HANDLER_WRITE_IN_QUERY",
+        "SNAPBACK_HOST_OP_CLI_ONLY",
+        "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED",
+        "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN",
+        "SNAPBACK_HOST_OP_INPUT_MISSING",
+        "SNAPBACK_HOST_OP_UNIMPLEMENTED",
+        "SNAPBACK_HOST_OP_UNKNOWN",
+        "SNAPBACK_INVALID_FLOAT",
+        "SNAPBACK_INVALID_IDENTIFIER",
+        "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH",
+        "SNAPBACK_PERMISSION_SCOPE_MISSING",
+        "SNAPBACK_PLAN_BOUNDS",
+        "SNAPBACK_PLAN_INVALID",
+        "SNAPBACK_PLAN_SOURCE_INVALID",
+        "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+        "SNAPBACK_QUERY_UNKNOWN_INDEX",
+        "SNAPBACK_REQUEST_JSON_INVALID",
+        "SNAPBACK_SCHEMA_DUPLICATE_FIELD",
+        "SNAPBACK_SCHEMA_DUPLICATE_INDEX",
+        "SNAPBACK_SCHEMA_DUPLICATE_TABLE",
+        "SNAPBACK_SCHEMA_EMPTY_INDEX",
+        "SNAPBACK_SCHEMA_FIELD_RETYPED",
+        "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION",
+        "SNAPBACK_SCHEMA_PARSE_FAILED",
+        "SNAPBACK_SCHEMA_SYSTEM_FIELD",
+        "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND",
+        "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION",
+        "SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND",
+        "SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION",
+        "SNAPBACK_SYSTEM_FIELD_WRITE",
+        "SNAPBACK_UNSUPPORTED_BLOB",
+        "SNAPBACK_V8_COMPAT_CONFIG_INVALID",
+        "SNAPBACK_V8_COMPAT_FLAG_REFUSED",
+        "SNAPBACK_WEBSOCKET_MESSAGE_INVALID",
+        "SNAPBACK_WEBSOCKET_SENDER_MISMATCH",
+    ];
+
+    const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ADMIN_TOKEN_REQUIRED",
+        "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
+    ];
+
+    const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ADMIN_DISABLED",
+        "SNAPBACK_CONNECTION_TOKEN_INVALID",
+        "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+        "SNAPBACK_PROFILE_FORBIDS",
+    ];
+
+    const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_UNKNOWN_CRON_JOB",
+        "SNAPBACK_UNKNOWN_FIELD",
+        "SNAPBACK_UNKNOWN_FUNCTION",
+        "SNAPBACK_UNKNOWN_SUBSCRIPTION",
+        "SNAPBACK_UNKNOWN_TABLE",
+    ];
+
+    const CONFLICT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+        "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
+        "SNAPBACK_MUTATION_CONFLICT",
+    ];
+
+    const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
+        "SNAPBACK_VALUE_TOO_LARGE",
+    ];
+
+    const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &["SNAPBACK_EPHEMERAL_RATE_LIMITED"];
+
+    const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_TIMEOUT",
+        "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED",
+    ];
+
+    const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
+        "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
+        "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING",
+        "SNAPBACK_CAPABILITY_MINIFLARE_MISSING",
+        "SNAPBACK_CAPABILITY_WORKERD_MISSING",
+        "SNAPBACK_OVERLOADED",
+        "SNAPBACK_READ_LANE_UNAVAILABLE",
+    ];
+
+    // These literals include internal errors plus informational/warning
+    // diagnostics that never normally become an `ApiError`. If one does reach
+    // that boundary, the fail-safe class is still 500 rather than a false 4xx.
+    const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+        "SNAPBACK_ACTION_HOST_MISSING",
+        "SNAPBACK_ACTION_METADATA_SERIALIZE_FAILED",
+        "SNAPBACK_ACTION_SECRETS_DEPRECATED",
+        "SNAPBACK_ACTION_SECRETS_INVALID",
+        "SNAPBACK_ACTION_THREAD_FAILED",
+        "SNAPBACK_ACTION_THREAD_SPAWN_FAILED",
+        "SNAPBACK_ACTION_TIMEOUT_INVALID",
+        "SNAPBACK_ACTION_TIMEOUT_SETUP_FAILED",
+        "SNAPBACK_BENCH_EPHEMERAL",
+        "SNAPBACK_BENCH_TEMPDIR",
+        "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
+        "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+        "SNAPBACK_CONFIG_ENV_IMPORTED",
+        "SNAPBACK_CONFIG_STORE_INVALID",
+        "SNAPBACK_CONFIG_STORE_IO",
+        "SNAPBACK_CONFIG_VERIFY",
+        "SNAPBACK_CONFIG_WRITE",
+        "SNAPBACK_CRON_RUN_RECORD_MISSING",
+        "SNAPBACK_CRON_RUN_SKIPPED_OVERLAP",
+        "SNAPBACK_CRON_STALE_IN_FLIGHT_CLEARED",
+        "SNAPBACK_CRON_STATE_INVALID",
+        "SNAPBACK_CRON_STATE_PARSE_FAILED",
+        "SNAPBACK_CRON_STATE_SERIALIZE_FAILED",
+        "SNAPBACK_DRY_RUN_LEDGER_ELIDED",
+        "SNAPBACK_HANDLER_HOST_CALL_PANIC",
+        "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
+        "SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT",
+        "SNAPBACK_HANDLER_INPUT_SERIALIZE_FAILED",
+        "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
+        "SNAPBACK_HOST_STOP_UNVERIFIABLE",
+        "SNAPBACK_IBEX_CLI_UNAVAILABLE",
+        "SNAPBACK_IBEX_FUNCTIONS_LOADED",
+        "SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE",
+        "SNAPBACK_JSON_PARSE_FAILED",
+        "SNAPBACK_JSON_SERIALIZE_FAILED",
+        "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
+        "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+        "SNAPBACK_RUNTIME_CREATE_FAILED",
+        "SNAPBACK_SCHEMA_SERIALIZE_FAILED",
+        "SNAPBACK_SQLITE_ERROR",
+        "SNAPBACK_V8_REJECTION_DETECTION_UNAVAILABLE",
+        "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
+        "SNAPBACK_V8_RUNNER_START_FAILED",
+    ];
+
+    const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
+        (StatusCode::BAD_REQUEST, BAD_REQUEST_DIAGNOSTICS),
+        (StatusCode::UNAUTHORIZED, UNAUTHORIZED_DIAGNOSTICS),
+        (StatusCode::FORBIDDEN, FORBIDDEN_DIAGNOSTICS),
+        (StatusCode::NOT_FOUND, NOT_FOUND_DIAGNOSTICS),
+        (StatusCode::CONFLICT, CONFLICT_DIAGNOSTICS),
+        (StatusCode::PAYLOAD_TOO_LARGE, PAYLOAD_TOO_LARGE_DIAGNOSTICS),
+        (StatusCode::TOO_MANY_REQUESTS, TOO_MANY_REQUESTS_DIAGNOSTICS),
+        (StatusCode::GATEWAY_TIMEOUT, GATEWAY_TIMEOUT_DIAGNOSTICS),
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            SERVICE_UNAVAILABLE_DIAGNOSTICS,
+        ),
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL_SERVER_ERROR_DIAGNOSTICS,
+        ),
+    ];
+
+    const STALE_ARTIFACT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND",
+        "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION",
+        "SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND",
+        "SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION",
+    ];
+
+    // `validate_artifact_header` assembles these four codes from a format
+    // template. Name the exact expansion so the source inventory cannot treat
+    // the template prefix as a concrete diagnostic or silently miss a family.
+    const DYNAMIC_DIAGNOSTIC_TEMPLATES: &[(&str, &[&str])] =
+        &[("SNAPBACK_STALE_", STALE_ARTIFACT_DIAGNOSTICS)];
+
+    fn expected_http_diagnostic_codes() -> BTreeSet<String> {
+        let mut expected = BTreeSet::new();
+        for (_, codes) in HTTP_STATUS_FAMILIES {
+            for code in *codes {
+                assert!(
+                    expected.insert((*code).to_owned()),
+                    "duplicate diagnostic status classification: {code}"
+                );
+            }
+        }
+        expected
+    }
+
+    /// LLP 0032 S5.D10 / ENG-24357 — every diagnostic emitted by the Rust
+    /// implementation has a reviewed HTTP result, across every status family.
+    #[test]
+    fn s5_d10_all_emitted_diagnostics_have_reviewed_http_status() {
+        for (expected_status, codes) in HTTP_STATUS_FAMILIES {
+            for code in *codes {
+                assert_eq!(
+                    status_for_diagnostic_code(code),
+                    *expected_status,
+                    "{code} drifted out of its reviewed HTTP family"
+                );
+            }
+        }
+
+        // Production remains fail-safe between reviews: a genuinely new code
+        // is 500, never the pre-ENG-24357 blanket 400.
+        for unknown in ["SNAPBACK_INTERNAL_ERROR", "SNAPBACK_FUTURE_DIAGNOSTIC"] {
+            assert_eq!(
+                status_for_diagnostic_code(unknown),
+                StatusCode::INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /// The forcing function: derive `SNAPBACK_*` literals from production Rust
+    /// ASTs (including helper arguments and macro token streams), normalize the
+    /// one audited format family, and require exact equality with the status
+    /// table. A new producer cannot inherit a status without a reviewable edit.
+    #[test]
+    fn s5_d10_production_diagnostic_inventory_cannot_drift() {
+        let mut emitted = production_snapback_literals();
+        let mut exclusions = BTreeSet::new();
+        for (literal, reason) in NON_DIAGNOSTIC_SNAPBACK_LITERALS {
+            assert!(!reason.is_empty(), "{literal} exclusion needs a reason");
+            assert!(
+                exclusions.insert(*literal),
+                "duplicate non-diagnostic exclusion: {literal}"
+            );
+            assert!(emitted.remove(*literal), "stale exclusion: {literal}");
+        }
+
+        for (template, expansions) in DYNAMIC_DIAGNOSTIC_TEMPLATES {
+            assert!(
+                emitted.remove(*template),
+                "dynamic diagnostic template changed or disappeared: {template}"
+            );
+            assert!(
+                !expansions.is_empty(),
+                "{template} needs explicit expansions"
+            );
+            for code in *expansions {
+                assert!(
+                    code.starts_with(template),
+                    "{code} is not an expansion of {template}"
+                );
+                assert!(
+                    emitted.contains(*code),
+                    "{code} must be explicit in the HTTP mapper as well as the format family"
+                );
+            }
+        }
+
+        assert_eq!(
+            emitted,
+            expected_http_diagnostic_codes(),
+            "production diagnostics and the reviewed HTTP table drifted"
+        );
+    }
+
+    #[test]
+    fn s5_d10_stale_artifact_diagnostics_are_bad_requests() {
+        let schema_kind = SchemaManifest {
+            artifact_kind: "functionManifest".to_owned(),
+            ..SchemaManifest::default()
+        };
+        let schema_version = SchemaManifest {
+            schema_version: "snapback.v999".to_owned(),
+            ..SchemaManifest::default()
+        };
+        let function_kind = FunctionManifest {
+            artifact_kind: "schemaManifest".to_owned(),
+            ..FunctionManifest::default()
+        };
+        let function_version = FunctionManifest {
+            schema_version: "snapback.v999".to_owned(),
+            ..FunctionManifest::default()
+        };
+
+        let emitted = [
+            schema_kind
+                .validate_artifact()
+                .expect_err("schema kind")
+                .diagnostic
+                .code,
+            schema_version
+                .validate_artifact()
+                .expect_err("schema version")
+                .diagnostic
+                .code,
+            function_kind
+                .validate_artifact()
+                .expect_err("function kind")
+                .diagnostic
+                .code,
+            function_version
+                .validate_artifact()
+                .expect_err("function version")
+                .diagnostic
+                .code,
+        ];
+        let expected = [
+            "SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND",
+            "SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION",
+            "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND",
+            "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION",
+        ];
+
+        assert_eq!(emitted, expected);
+        for code in emitted {
+            assert_eq!(status_for_diagnostic_code(&code), StatusCode::BAD_REQUEST);
+        }
+    }
 
     #[test]
     fn action_watchdog_timeout_clamps_untrusted_environment_values() {
@@ -3281,53 +3889,6 @@ mod tests {
             schema_error.diagnostic.code,
             "SNAPBACK_ACTION_GENERATION_CONFLICT"
         );
-    }
-
-    /// LLP 0032 S5.D10 / ENG-24357 — internal/storage faults and new unknown
-    /// codes are 5xx; only deliberately classified client errors are 4xx.
-    #[test]
-    fn s5_d10_internal_errors_map_to_5xx() {
-        assert_eq!(
-            status_for_diagnostic_code("SNAPBACK_SQLITE_ERROR"),
-            StatusCode::INTERNAL_SERVER_ERROR
-        );
-        assert_eq!(
-            status_for_diagnostic_code("SNAPBACK_INTERNAL_ERROR"),
-            StatusCode::INTERNAL_SERVER_ERROR
-        );
-        assert_eq!(
-            status_for_diagnostic_code("SNAPBACK_MUTATION_CONFLICT"),
-            StatusCode::CONFLICT
-        );
-        assert_eq!(
-            status_for_diagnostic_code("SNAPBACK_ACTION_GENERATION_CONFLICT"),
-            StatusCode::CONFLICT
-        );
-        assert_eq!(
-            status_for_diagnostic_code("SNAPBACK_ADMIN_TOKEN_REQUIRED"),
-            StatusCode::UNAUTHORIZED
-        );
-        assert_eq!(
-            status_for_diagnostic_code("SNAPBACK_UNKNOWN_TABLE"),
-            StatusCode::NOT_FOUND
-        );
-        // A deliberately classified client-authoring error remains 400.
-        assert_eq!(
-            status_for_diagnostic_code("SNAPBACK_CONFIG_ENTRY_INVALID"),
-            StatusCode::BAD_REQUEST
-        );
-        for internal in [
-            "SNAPBACK_CONFIG_STORE_IO",
-            "SNAPBACK_ACTION_THREAD_SPAWN_FAILED",
-            "SNAPBACK_JSON_SERIALIZE_FAILED",
-            "SNAPBACK_SOMETHING_NEW",
-        ] {
-            assert_eq!(
-                status_for_diagnostic_code(internal),
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "{internal} must not masquerade as a client fault"
-            );
-        }
     }
 
     use super::{

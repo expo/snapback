@@ -31,6 +31,7 @@ uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 
 [dev-dependencies]
 jsonschema = "0.46.8"
+syn = { version = "2.0", features = ["full", "visit"] }
 tempfile = "3.23"
 tokio-tungstenite = "0.29"
 tower = { version = "0.5", features = ["util"] }

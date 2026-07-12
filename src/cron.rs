@@ -1333,6 +1333,34 @@ mod tests {
         }
     }
 
+    /// ENG-24369 — keep the local scheduler's strict-next arithmetic pinned to
+    /// the same boundary/downtime vectors as `cloudflare/test/cron-utils.mjs`.
+    /// @ref LLP 0028#delivery-overlap-and-missed-ticks — coalesce missed slots,
+    /// then advance to the smallest nominal strictly after now.
+    #[test]
+    fn interval_strict_next_vectors_match_cloudflare() {
+        for (previous, interval, now, expected) in [
+            (0, 10, 9, 10),
+            (0, 10, 10, 20),
+            (0, 10, 11, 20),
+            (0, 10, 35, 40),
+            (0, 10, 40, 50),
+            (
+                1_700_000_000_000,
+                180_000,
+                1_700_000_999_999,
+                1_700_001_080_000,
+            ),
+        ] {
+            let job = interval_job("strictNext", interval);
+            assert_eq!(
+                next_nominal_after(&job, Some(previous), now),
+                Some(expected),
+                "previous={previous} interval={interval} now={now}"
+            );
+        }
+    }
+
     #[test]
     fn parse_accepts_v0_grammar() {
         let nightly = parse("0 3 * * *");
