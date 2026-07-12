@@ -5,7 +5,10 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-09 (ENG-23965 ships Increment 5's retained-query store,
+**Revised:** 2026-07-12 (ENG-24298 closes two remaining non-JS HTTP seams with
+Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
+the connection re-open bearer is request-only and structurally absent from
+responses, receipts, and retained state. Earlier: 2026-07-09 — ENG-23965 ships Increment 5's retained-query store,
 D1-ledgered durable queue, exact reconnect replay, and narrowly gated first
 Parity surface; ENG-23964 resolves Q2 with the Rust-generated,
 commit-addressed public profile/corpus channel and completes D4's HTTP input
@@ -595,6 +598,23 @@ shapes DK-7 stopped short of:
   repo is a single crate and the first Rust-client consumer doesn't
   exist. The schemas come first; the crate boundary is mechanical
   refactoring when D6's native client work starts.
+
+**As built — final direct-call seams (ENG-24298, 2026-07-12).** The successful
+`POST /mutation/{name}` envelope and `POST /connection/open` request now follow
+the same DK-7 path: public serde + `JsonSchema` Rust authorities, generated
+committed schemas, positive/negative instances, and the shared drift gate.
+The mutation envelope is closed and contains the typed `MutationOutput` plus
+its typed terminal `Receipt`; rejection continues through the separately
+governed error response. The connection request is also closed: its optional
+`previousToken` is explicitly a bearer secret used only to prove ownership of
+an existing grant and never appears in a response, receipt, diagnostic, log,
+capsule, or retained provider snapshot. Canonical camel-case is the generated
+wire; snake-case aliases remain an input-compatibility concession and are not
+a second schema. Both records are closed. Any field addition changes the
+committed schema and requires consumers to repin/regenerate; a required/renamed
+field or changed secret semantics additionally requires a Snapback schema-version
+change. Unknown request fields fail closed, so a newer client cannot silently
+exercise semantics an older server does not understand.
 
 This is the lowest-risk increment. Once the *full* client-visible
 surface above is schema-governed — not before — a third-language client

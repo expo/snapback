@@ -794,9 +794,11 @@ fn permission_epoch_scope_failure_rejects_before_any_write() {
         },
         read_set: Vec::new(),
         correlation: None,
-        ctx_ledger: None,    };
+        ctx_ledger: None,
+    };
     let (result, receipt) =
         snapback.invoke_mutation_recording("createWithEpochBump", unauthenticated);
+    let receipt = receipt.into_value();
     let error = result.expect_err("unevaluable permission scope must reject the mutation");
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_USER_MISSING");
     assert_eq!(receipt["outcome"], "rejected");
@@ -4719,6 +4721,7 @@ fn d2_mutation_receipts_echo_correlation_and_declare_affected_tables() {
     let mut with_correlation = input(json!({ "title": "receipted" }), "user_1");
     with_correlation.correlation = Some(correlation.clone());
     let (result, receipt) = snapback.invoke_mutation_recording("declaredWrites", with_correlation);
+    let receipt = receipt.into_value();
     let output = result.expect("mutation");
     assert_eq!(receipt["kind"], "mutation");
     assert_eq!(receipt["outcome"], "confirmed");
@@ -4737,12 +4740,14 @@ fn d2_mutation_receipts_echo_correlation_and_declare_affected_tables() {
         "undeclaredWrites",
         input(json!({ "title": "unknown writes" }), "user_1"),
     );
+    let unknown_receipt = unknown_receipt.into_value();
     assert_eq!(unknown_receipt["affectedTables"], Value::Null);
 
     // A rejected mutation still produces its receipt, with the diagnostic
     // CODE (never the message) as the rollback reason (§3.3 privacy).
     let (rejected, rejected_receipt) =
         snapback.invoke_mutation_recording("nope", input(json!({}), "user_1"));
+    let rejected_receipt = rejected_receipt.into_value();
     assert!(rejected.is_err());
     assert_eq!(rejected_receipt["outcome"], "rejected");
     assert_eq!(

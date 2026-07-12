@@ -1273,7 +1273,7 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-    ) -> (SnapbackResult<MutationOutput>, Value) {
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         self.invoke_mutation_recording_with_transport(name, input, "local")
     }
 
@@ -1282,7 +1282,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
         transport: &str,
-    ) -> (SnapbackResult<MutationOutput>, Value) {
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         self.invoke_mutation_recording_with_id(name, input, None, transport)
     }
 
@@ -1292,7 +1292,7 @@ impl LocalSnapback {
         input: HandlerInput,
         client_mutation_id: Option<String>,
         transport: &str,
-    ) -> (SnapbackResult<MutationOutput>, Value) {
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         let correlation = capped_correlation(input.correlation.clone());
         // affectedTables from DECLARED writes; a function that declares none
         // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
@@ -1330,9 +1330,8 @@ impl LocalSnapback {
             transport: transport.to_owned(),
             correlation: correlation.unwrap_or(Value::Null),
             received_at_ms: now_millis(),
-        }
-        .into_value();
-        self.receipts.push_global(receipt.clone());
+        };
+        self.receipts.push_global(receipt.clone().into_value());
         (result.map(|commit| commit.output), receipt)
     }
 

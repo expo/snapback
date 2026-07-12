@@ -364,7 +364,9 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     };
     use snapback::local::{LiveResumeOutput, LiveSubscribeOutput, LiveUnsubscribeOutput};
     use snapback::manifest::QueryOutput;
-    use snapback::server::{ConnectionGrant, ErrorResponse};
+    use snapback::server::{
+        ConnectionGrant, ErrorResponse, MutationResponse, OpenConnectionRequest,
+    };
 
     for envelope in [
         LiveEnvelope::LiveReplace {
@@ -551,10 +553,72 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         })
         .unwrap(),
     );
+    let open_request = serde_json::to_value(OpenConnectionRequest {
+        connection_id: Some("conn_1".to_owned()),
+        previous_token: Some("sct_prior_bearer".to_owned()),
+    })
+    .unwrap();
+    assert_validates("connection.open.input.schema.json", &open_request);
+    assert_validates("connection.open.input.schema.json", &json!({}));
+    let mut unknown_open_field = open_request.clone();
+    unknown_open_field["logPreviousToken"] = json!(true);
+    assert_rejects("connection.open.input.schema.json", &unknown_open_field);
+    assert_rejects(
+        "connection.open.input.schema.json",
+        &json!({ "previousToken": 7 }),
+    );
+
+    let mutation_response = MutationResponse {
+        version: 9,
+        changed_count: 1,
+        result: json!({ "id": "todo_1" }),
+        ctx_ledger: None,
+        receipt: Receipt::Mutation {
+            mutation_id: "mut_direct_1".to_owned(),
+            mutation: "addTodo".to_owned(),
+            outcome: MutationReceiptOutcome::Confirmed,
+            rollback_reason: None,
+            affected_tables: Some(vec!["todos".to_owned()]),
+            snapshot_version: 9,
+            transport: "http".to_owned(),
+            correlation: json!({ "actionInvocationId": "act_1" }),
+            received_at_ms: 1,
+        },
+    };
+    let mutation_response = serde_json::to_value(mutation_response).unwrap();
+    assert_validates("mutation.output.schema.json", &mutation_response);
+    assert!(mutation_response.get("previousToken").is_none());
+    assert!(mutation_response.get("connectionToken").is_none());
+    let mut missing_receipt = mutation_response.clone();
+    missing_receipt.as_object_mut().unwrap().remove("receipt");
+    assert_rejects("mutation.output.schema.json", &missing_receipt);
+    let mut unknown_output_field = mutation_response;
+    unknown_output_field["connectionToken"] = json!("must-not-appear");
+    assert_rejects("mutation.output.schema.json", &unknown_output_field);
+
     assert_validates(
         "error.response.schema.json",
         &serde_json::to_value(ErrorResponse {
             diagnostic: Diagnostic::error("SNAPBACK_TEST", "realtime", "boom"),
+            receipt: None,
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "error.response.schema.json",
+        &serde_json::to_value(ErrorResponse {
+            diagnostic: Diagnostic::error("SNAPBACK_REJECTED", "mutation", "rejected"),
+            receipt: Some(Receipt::Mutation {
+                mutation_id: "mut_rejected_1".to_owned(),
+                mutation: "addTodo".to_owned(),
+                outcome: MutationReceiptOutcome::Rejected,
+                rollback_reason: Some("SNAPBACK_REJECTED".to_owned()),
+                affected_tables: Some(vec!["todos".to_owned()]),
+                snapshot_version: 9,
+                transport: "http".to_owned(),
+                correlation: Value::Null,
+                received_at_ms: 2,
+            }),
         })
         .unwrap(),
     );

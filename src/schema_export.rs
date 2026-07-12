@@ -31,7 +31,7 @@ use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationRequest, SNAPBACK_SCHEMA_VERSION,
     SchemaManifest,
 };
-use crate::server::{ConnectionGrant, ErrorResponse};
+use crate::server::{ConnectionGrant, ErrorResponse, MutationResponse, OpenConnectionRequest};
 use crate::storage::StorageInfo;
 
 /// A generated schema artifact: the committed file name (relative to the
@@ -130,8 +130,16 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(ConnectionGrant),
         ),
         finish(
+            "connection.open.input.schema.json",
+            schemars::schema_for!(OpenConnectionRequest),
+        ),
+        finish(
             "error.response.schema.json",
             schemars::schema_for!(ErrorResponse),
+        ),
+        finish(
+            "mutation.output.schema.json",
+            schemars::schema_for!(MutationResponse),
         ),
         finish(
             "live.subscribe.output.schema.json",
