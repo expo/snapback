@@ -22,6 +22,17 @@ use std::ffi::OsString;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+#[cfg(unix)]
+use std::{
+    ffi::{CString, OsStr},
+    fs::{File, OpenOptions},
+    os::{
+        fd::{AsRawFd as _, FromRawFd as _},
+        unix::{ffi::OsStrExt as _, fs::OpenOptionsExt as _},
+    },
+};
+#[cfg(unix)]
+use tokio::io::AsyncReadExt as _;
 use tokio::sync::Mutex;
 
 /// A tiny failure shell, not a second admin UI. The admin console itself is the
@@ -754,22 +765,131 @@ fn safe_admin_asset_path(path: &str) -> bool {
         .all(|component| matches!(component, Component::Normal(_)))
 }
 
-async fn read_admin_asset(dist: &FsPath, path: &str) -> std::io::Result<Vec<u8>> {
+fn unsafe_admin_asset_error(message: &'static str) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::PermissionDenied, message)
+}
+
+#[cfg(unix)]
+fn openat_admin_component(parent: &File, name: &OsStr, directory: bool) -> std::io::Result<File> {
+    let name = CString::new(name.as_bytes())
+        .map_err(|_| unsafe_admin_asset_error("admin asset path contains a NUL byte"))?;
+    let flags = libc::O_RDONLY
+        | libc::O_CLOEXEC
+        | libc::O_NOFOLLOW
+        | if directory {
+            libc::O_DIRECTORY
+        } else {
+            // Refuse to block on a substituted FIFO/device before fstat can
+            // prove that the opened final object is a regular file.
+            libc::O_NONBLOCK
+        };
+    // SAFETY: `parent` is a live directory descriptor, `name` is NUL-terminated,
+    // and no creation flag is present (so openat takes no mode argument).
+    let descriptor = unsafe { libc::openat(parent.as_raw_fd(), name.as_ptr(), flags) };
+    if descriptor < 0 {
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() == Some(libc::ELOOP) {
+            return Err(unsafe_admin_asset_error(
+                "admin asset traversal refuses symbolic links",
+            ));
+        }
+        return Err(error);
+    }
+    // SAFETY: openat returned a new owned descriptor on success.
+    Ok(unsafe { File::from_raw_fd(descriptor) })
+}
+
+#[cfg(unix)]
+fn open_admin_dist_capability(dist: &FsPath) -> std::io::Result<File> {
+    // Resolve the configured root once, then never consult that path again.
+    // Opening every component of the resulting absolute path with O_NOFOLLOW
+    // means a concurrent path swap can only fail the capability acquisition;
+    // it cannot redirect the descriptor outside the resolved root.
+    let canonical = std::fs::canonicalize(dist)?;
+    let mut directory = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_CLOEXEC | libc::O_NOFOLLOW)
+        .open(FsPath::new("/"))?;
+    for component in canonical.components() {
+        match component {
+            Component::RootDir | Component::CurDir => {}
+            Component::Normal(name) => {
+                directory = openat_admin_component(&directory, name, true)?;
+            }
+            Component::ParentDir | Component::Prefix(_) => {
+                return Err(unsafe_admin_asset_error(
+                    "admin distribution root is not an absolute normal path",
+                ));
+            }
+        }
+    }
+    Ok(directory)
+}
+
+#[cfg(unix)]
+fn open_admin_asset_with_hook(
+    dist: &FsPath,
+    path: &str,
+    mut after_directory_open: impl FnMut(usize),
+) -> std::io::Result<File> {
+    // @ref LLP 0017#static-bundling-and-the-native-shell — containment and
+    // reading are one descriptor-relative operation, not two path lookups.
     if !safe_admin_asset_path(path) {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
+        return Err(unsafe_admin_asset_error(
             "admin asset path escapes the distribution root",
         ));
     }
-    let root = tokio::fs::canonicalize(dist).await?;
-    let target = tokio::fs::canonicalize(dist.join(path)).await?;
-    if !target.starts_with(&root) || target == root {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "admin asset target escapes the distribution root",
+    let mut directory = open_admin_dist_capability(dist)?;
+    after_directory_open(0);
+    let components = path.split('/').collect::<Vec<_>>();
+    for (index, component) in components.iter().enumerate() {
+        let final_component = index + 1 == components.len();
+        let opened = openat_admin_component(&directory, OsStr::new(component), !final_component)?;
+        if final_component {
+            if !opened.metadata()?.file_type().is_file() {
+                return Err(unsafe_admin_asset_error(
+                    "admin asset target is not a regular file",
+                ));
+            }
+            return Ok(opened);
+        }
+        directory = opened;
+        after_directory_open(index + 1);
+    }
+    Err(unsafe_admin_asset_error("admin asset path is empty"))
+}
+
+#[cfg(unix)]
+async fn read_admin_asset(dist: &FsPath, path: &str) -> std::io::Result<Vec<u8>> {
+    let dist = dist.to_owned();
+    let path = path.to_owned();
+    let file =
+        tokio::task::spawn_blocking(move || open_admin_asset_with_hook(&dist, &path, |_| {}))
+            .await
+            .map_err(|error| {
+                std::io::Error::other(format!("admin asset open task failed: {error}"))
+            })??;
+    let mut file = tokio::fs::File::from_std(file);
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).await?;
+    Ok(bytes)
+}
+
+#[cfg(not(unix))]
+async fn read_admin_asset(_dist: &FsPath, path: &str) -> std::io::Result<Vec<u8>> {
+    if !safe_admin_asset_path(path) {
+        return Err(unsafe_admin_asset_error(
+            "admin asset path escapes the distribution root",
         ));
     }
-    tokio::fs::read(target).await
+    // Cross-platform guarantee: never fall back to canonicalize-then-read.
+    // Until this target has a root-relative, no-reparse-point handle walk, its
+    // filesystem-backed admin console fails closed; the headless admin API and
+    // embedded setup/client assets remain available.
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "filesystem admin assets require a no-follow handle-relative backend on this platform",
+    ))
 }
 
 fn content_type_for(path: &str) -> &'static str {
@@ -1228,6 +1348,53 @@ mod tests {
             .await
             .expect_err("an escaping symlink must not be served");
         assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn admin_asset_open_is_stable_across_parent_symlink_swap() {
+        use std::io::Read as _;
+
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let assets = root.path().join("assets");
+        std::fs::create_dir(&assets).unwrap();
+        std::fs::write(assets.join("app.js"), b"safe bundle").unwrap();
+        std::fs::write(outside.path().join("app.js"), b"outside secret").unwrap();
+
+        // Swap the path only after the walker has opened the original assets
+        // directory. Any later path-based read would follow the new symlink;
+        // openat on the held directory descriptor must keep reading the
+        // original object instead.
+        let mut swapped = false;
+        let mut file = open_admin_asset_with_hook(root.path(), "assets/app.js", |step| {
+            if step == 1 {
+                std::fs::rename(&assets, root.path().join("held-assets")).unwrap();
+                std::os::unix::fs::symlink(outside.path(), &assets).unwrap();
+                swapped = true;
+            }
+        })
+        .expect("descriptor-relative open survives parent path replacement");
+        assert!(swapped, "test must exercise the swap window");
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, b"safe bundle");
+        assert_eq!(
+            std::fs::read(root.path().join("assets/app.js")).unwrap(),
+            b"outside secret",
+            "an ordinary post-swap path read demonstrates the old TOCTOU"
+        );
+    }
+
+    #[cfg(not(unix))]
+    #[tokio::test]
+    async fn admin_asset_reader_fails_closed_without_handle_relative_backend() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("app.js"), b"must not be served").unwrap();
+        let error = read_admin_asset(root.path(), "app.js")
+            .await
+            .expect_err("unsupported platform must never use a path-based fallback");
+        assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
     }
 
     #[test]

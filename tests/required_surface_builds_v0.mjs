@@ -117,6 +117,35 @@ try {
   assert.equal(drained.ok, true);
   assert.match(drained.output, /^begin:x+:end$/, 'successful process diagnostics drain before settlement');
 
+  const earlySuccess = await runBoundedProcess(
+    process.execPath,
+    ['-e', 'process.exit(0)'],
+    {
+      cwd: scratch,
+      timeoutMs: 100,
+      readinessTimeoutMs: 2_000,
+      readyWhen: () => false,
+      inheritOutput: false,
+    },
+  );
+  assert.equal(earlySuccess.ok, false);
+  assert.match(earlySuccess.reason, /exited 0 before required readiness/);
+
+  const throwingReadiness = await runBoundedProcess(
+    process.execPath,
+    ['-e', 'console.log("probe readiness"); setInterval(() => {}, 1000)'],
+    {
+      cwd: scratch,
+      timeoutMs: 100,
+      killGraceMs: 50,
+      readinessTimeoutMs: 2_000,
+      readyWhen: () => { throw new Error('predicate exploded'); },
+      inheritOutput: false,
+    },
+  );
+  assert.equal(throwingReadiness.ok, false);
+  assert.match(throwingReadiness.reason, /readiness predicate failed: predicate exploded/);
+
   const started = Date.now();
   const hung = await runBoundedProcess(
     process.execPath,

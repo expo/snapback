@@ -148,6 +148,7 @@ export function runBoundedProcess(command, args, {
     let watchdog = null;
     let readinessWatchdog = null;
     let timeoutReason = null;
+    let readyReached = readyWhen === null;
     let child;
 
     const finish = (result) => {
@@ -193,10 +194,19 @@ export function runBoundedProcess(command, args, {
     const onData = (stream) => (chunk) => {
       output = appendTail(output, chunk);
       if (inheritOutput) stream.write(chunk);
-      if (readyWhen && !watchdog && readyWhen(output)) {
-        if (readinessWatchdog) clearTimeout(readinessWatchdog);
-        readinessWatchdog = null;
-        armExecutionWatchdog();
+      if (readyWhen && !readyReached && !timedOut) {
+        try {
+          if (readyWhen(output)) {
+            readyReached = true;
+            if (readinessWatchdog) clearTimeout(readinessWatchdog);
+            readinessWatchdog = null;
+            armExecutionWatchdog();
+          }
+        } catch (error) {
+          terminateForTimeout(
+            `readiness predicate failed: ${error?.message ?? String(error)}; process tree terminated`,
+          );
+        }
       }
     };
     child.stdout?.on('data', onData(process.stdout));
@@ -225,6 +235,12 @@ export function runBoundedProcess(command, args, {
         // detached package-manager worker survives a seemingly clean exit.
         signalProcessTree(child, 'SIGKILL', spawnImpl);
         finish({ ok: false, timedOut: true, reason: timeoutReason });
+      } else if (code === 0 && !readyReached) {
+        // A nominally successful leader can still have left workers in its
+        // process group. Readiness failure owns the same whole-tree cleanup as
+        // a watchdog failure.
+        signalProcessTree(child, 'SIGKILL', spawnImpl);
+        finish({ ok: false, reason: 'exited 0 before required readiness was observed' });
       } else if (code === 0) {
         finish({ ok: true });
       } else {
