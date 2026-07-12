@@ -137,6 +137,41 @@ try {
     return { code: error.diagnostic.code };
   });
 
+  await suite.check('eng_24345: function route segments reject traversal and encoded separators', async () => {
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return { ok: true, status: 200, text: async () => '{}' };
+    };
+    const db = new SnapbackClient('http://stub', { adminToken: 'sbat_secret' });
+    const invalid = [
+      '.', '..', '../_snapback/api/app/reset', '%2e%2e', 'x/y', 'x%2fy',
+      'x\\y', 'x?admin=1', 'x#fragment', '',
+    ];
+    for (const name of invalid) {
+      const error = await assertThrows(() => db.query(name), undefined, `expected ${JSON.stringify(name)} to be rejected`);
+      assert(error instanceof TypeError, `expected TypeError for ${JSON.stringify(name)}`);
+    }
+    assertEqual(calls, 0, 'invalid names never reach fetch');
+    return { rejected: invalid.length };
+  });
+
+  await suite.check('eng_24345: admin credentials are scoped to system calls', async () => {
+    const requests = [];
+    globalThis.fetch = async (url, init = {}) => {
+      requests.push({ url: String(url), headers: init.headers ?? {} });
+      return { ok: true, status: 200, text: async () => '{}' };
+    };
+    const db = new SnapbackClient('http://stub', { adminToken: 'sbat_secret' });
+    await db.query({ name: 'safe_name' });
+    await db.reset();
+    assertEqual(new URL(requests[0].url).pathname, '/query/safe_name', 'generated name stays one route segment');
+    assert(!('x-snapback-admin-token' in requests[0].headers), 'data-plane request carries no admin credential');
+    assertEqual(new URL(requests[1].url).pathname, '/_snapback/api/app/reset', 'reset uses the system route');
+    assertEqual(requests[1].headers['x-snapback-admin-token'], 'sbat_secret', 'system request carries the admin credential');
+    return { dataPath: new URL(requests[0].url).pathname, adminPath: new URL(requests[1].url).pathname };
+  });
+
   await suite.check('s5_d3: admin client wraps non-JSON error bodies the same way', async () => {
     globalThis.fetch = stubFetch(502, '<html>proxy error</html>');
     const admin = new AdminClient('http://stub');

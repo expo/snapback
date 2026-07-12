@@ -64,6 +64,12 @@ export const DEFAULT_POLL_CADENCE_MS = 1_500;
 const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
 // Kit receipt ring bound — mirrors the server-side retention cap (LLP 0034 §3).
 const RECEIPT_RING_CAP = 256;
+// Generated function/collection identifiers are URL path components on the
+// app-data plane. Keep this grammar in lockstep with codegen's IDENT so a
+// caller-supplied reference cannot acquire authority through URL parsing.
+// @ref LLP 0031#the-invariant — app-data names must never normalize into the
+// privileged system namespace.
+const GENERATED_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 // The live wire kinds this kit dispatches on, pinned to the committed
 // Rust-generated schemas (LLP 0051 D4 / ENG-23891):
@@ -241,9 +247,9 @@ export class SnapbackClient {
     return `${prefix}:${normalizedScopeKey(scope)}`;
   }
 
-  async #req(method, path, body, headers) {
+  async #request(method, path, body, headers, { admin = false } = {}) {
     const merged = {
-      ...(this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
+      ...(admin && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(headers ?? {}),
     };
@@ -287,13 +293,21 @@ export class SnapbackClient {
     return json;
   }
 
+  #req(method, path, body, headers) {
+    return this.#request(method, path, body, headers);
+  }
+
+  #adminReq(method, path, body, headers) {
+    return this.#request(method, path, body, headers, { admin: true });
+  }
+
   health() { return this.#req('GET', '/health'); }
   inspect() { return this.#req('GET', '/inspect'); }
   // @ref LLP 0031#migration-plan — system writes moved from ungated root
   //   /admin/* aliases to the gated /_snapback/api/* namespace (D5). Per
   //   LLP 0017#security-defaults, served loopback writes now require a local
   //   admin token; the shared server harness supplies it for demos/tests.
-  loadSchema(manifest) { return this.#req('POST', '/_snapback/api/schema/load', manifest); }
+  loadSchema(manifest) { return this.#adminReq('POST', '/_snapback/api/schema/load', manifest); }
   ensureEphemeralCollections(manifestOrCollections) {
     const collections = Array.isArray(manifestOrCollections)
       ? manifestOrCollections
@@ -304,7 +318,7 @@ export class SnapbackClient {
       inputsHash: manifestOrCollections?.inputsHash ?? null,
     });
   }
-  loadFunctions(manifest) { return this.#req('POST', '/_snapback/api/functions/load', manifest); }
+  loadFunctions(manifest) { return this.#adminReq('POST', '/_snapback/api/functions/load', manifest); }
   // The single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
   // inspects schemaHash/bundleHash/collections against the posted generated
   // manifests, provisions ONLY what is missing/mismatched, seeds only when
@@ -331,21 +345,21 @@ export class SnapbackClient {
   }
   // app.reset folds seed in as an optional argument (LLP 0031 D5): reset() wipes,
   // reset(seed) / seed(seed) reset-then-seed. There is no seed-without-reset path.
-  reset(seed) { return this.#req('POST', '/_snapback/api/app/reset', seed ? { seed } : {}); }
-  seed(seed) { return this.#req('POST', '/_snapback/api/app/reset', { seed }); }
+  reset(seed) { return this.#adminReq('POST', '/_snapback/api/app/reset', seed ? { seed } : {}); }
+  seed(seed) { return this.#adminReq('POST', '/_snapback/api/app/reset', { seed }); }
   // Forced scheduler tick — an AdminWrite like the other /_snapback/api/*
   // system calls, so it must ride #req for the admin token and fail loudly on
   // a non-2xx instead of a raw fetch silently swallowing a 401 (ENG-23706).
-  cronTick() { return this.#req('POST', '/_snapback/api/cron/tick', {}); }
+  cronTick() { return this.#adminReq('POST', '/_snapback/api/cron/tick', {}); }
 
   query(ref, { args = {}, userId, readSet = [] } = {}) {
     const name = functionName(ref);
-    return this.#req('POST', `/query/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
+    return this.#req('POST', `/query/${encodeURIComponent(name)}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
   }
 
   action(ref, { args = {}, userId, readSet = [] } = {}) {
     const name = functionName(ref);
-    return this.#req('POST', `/action/${name}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
+    return this.#req('POST', `/action/${encodeURIComponent(name)}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
   }
 
   async mutate(ref, {
@@ -368,7 +382,7 @@ export class SnapbackClient {
     if (clientMutationId) body.clientMutationId = clientMutationId;
     if (ctxLedger) body.ctx_ledger = ctxLedger;
     try {
-      const json = await this.#req('POST', `/mutation/${name}`, body);
+      const json = await this.#req('POST', `/mutation/${encodeURIComponent(name)}`, body);
       if (json?.receipt) this.recordReceipt(json.receipt);
       return json;
     } catch (error) {
@@ -390,7 +404,7 @@ export class SnapbackClient {
       // the server disposes exactly that id. Never inferred — plain duplicate
       // subscribes coexist.
       if (supersedes) body.supersedes = supersedes;
-      return this.#req('POST', `/live/${name}/subscribe`, body, connectionTokenHeader(grant));
+      return this.#req('POST', `/live/${encodeURIComponent(name)}/subscribe`, body, connectionTokenHeader(grant));
     });
     if (response?.receipt) this.recordReceipt(response.receipt);
     return response;
@@ -400,7 +414,7 @@ export class SnapbackClient {
   /// live subscription; ownership mirrors resume_live.
   async unsubscribeLive(ref, { subscriptionId, connectionId, userId } = {}) {
     const name = functionName(ref);
-    const response = await this.#withGrant(connectionId, (grant) => this.#req('POST', `/live/${name}/unsubscribe`, {
+    const response = await this.#withGrant(connectionId, (grant) => this.#req('POST', `/live/${encodeURIComponent(name)}/unsubscribe`, {
       subscription_id: subscriptionId,
       connection_id: grant.id,
       auth: SnapbackClient.auth(userId),
@@ -512,7 +526,7 @@ export class SnapbackClient {
     const grant = this.__connectionGrants.has(connectionId)
       ? await this.connectionGrant(connectionId)
       : null;
-    return this.#req('POST', `/_snapback/api/connections/${grant?.id ?? connectionId}/disconnect`);
+    return this.#adminReq('POST', `/_snapback/api/connections/${encodeURIComponent(grant?.id ?? connectionId)}/disconnect`);
   }
 
   async drainEnvelopes(connectionId) {
@@ -1790,14 +1804,20 @@ function liveStreamProtocols(grant) {
 }
 
 function functionName(ref) {
-  if (typeof ref === 'string') return ref;
-  if (ref && typeof ref.name === 'string') return ref.name;
+  const name = typeof ref === 'string' ? ref : ref?.name;
+  if (typeof name === 'string' && GENERATED_IDENTIFIER.test(name)) return name;
+  if (typeof name === 'string') {
+    throw new TypeError(`Snapback function name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);
+  }
   throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
 }
 
 function collectionName(ref) {
-  if (typeof ref === 'string') return ref;
-  if (ref && typeof ref.name === 'string') return ref.name;
+  const name = typeof ref === 'string' ? ref : ref?.name;
+  if (typeof name === 'string' && GENERATED_IDENTIFIER.test(name)) return name;
+  if (typeof name === 'string') {
+    throw new TypeError(`Snapback collection name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);
+  }
   throw new TypeError(`Snapback ephemeral collection reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
 }
 
