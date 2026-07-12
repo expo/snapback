@@ -47,6 +47,12 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
 
+      # ENG-24383: verify-local-proof denies both vulnerabilities and
+      # unmaintained runtime dependencies. Pin the auditing tool so the gate's
+      # own CLI/lock resolution cannot drift under an otherwise unchanged PR.
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
       - name: Verify Snapback local proof
         env:
           SNAPBACK_VERIFY_EXACT: "0"

@@ -50,6 +50,10 @@ run node tests/required_surface_builds_v0.mjs
 run node demos/_kit/tests/server-process-lifecycle.mjs
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
 run cargo clippy --all-targets -- -D warnings
+# ENG-24383: the vendored Ibex runtime is part of Snapback's executable
+# dependency graph. Keep its PEM-parser migration closed by failing on both
+# vulnerabilities and packages RustSec has marked unmaintained.
+run cargo audit --deny unmaintained
 run cargo test
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
