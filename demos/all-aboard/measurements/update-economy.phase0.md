@@ -79,10 +79,11 @@ commit, exactly as LLP 0052 predicted.
   still emits once on unhide.
 - **D1/D2:** the current mitigation still wakes app dataflow four times in
   20.25 seconds and runs 304 effects per wave. After the host/time migration,
-  the same idle window must have **zero periodic app-dataflow waves**; only a
-  declared logic deadline or independently injected host change may wake it.
-  Presentation-only deadlines may update their terminal binding without an app
-  dataflow wave.
+  the same idle window must have **zero periodic app-computed recomputes or
+  fresh-equal allocations**; only a declared logic deadline or independently
+  injected host change may wake app-computed dependents. Presentation-only
+  deadlines may run a narrow terminal binding wave without recomputing app
+  derives.
 - **D4:** the count remains semantic rather than hardware-dependent: a
   value-equal keyed `boardTrains` recompute produces **zero downstream
   re-fires**; a one-row change re-fires only that keyed row's bindings.
@@ -90,10 +91,13 @@ commit, exactly as LLP 0052 predicted.
   host attempts with at least 80% value-equal in one commit** (the measured
   `current` wave is 285 at 100%). Full reports remain available below the
   warning threshold. Phase-1 profiling may add at most **1 ms or 10% (whichever
-  is larger) to p95 commit time** over the reporter-disabled dev control, keeps
-  the measured frame p95 at or below 11 ms on this fixture, and adds zero eager
-  production modules/counters; the Exact startup-budget gate enforces the last
-  condition.
+  is larger) to p95 commit time** over the reporter-disabled dev control. The
+  final portable frame gate first requires **p50 ≤ 20 ms** and at least **45
+  samples/s**, then uses **max(11 ms, 1.35 × the run's p50 cadence)** and
+  permits at most **max(2, ceil(0.2% of samples))** slower intervals: on
+  this raw trace `pre` fails at 21/2409 (limit 5), while `clock-only` is 0,
+  `palette-only` is 1, and `current` is 0. Production adds zero eager
+  modules/counters; the Exact startup-budget gate enforces that last condition.
 
 ## Native evidence still required
 

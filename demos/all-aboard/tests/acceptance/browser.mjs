@@ -70,7 +70,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 33;
+const EXPECTED_CHECKS = 34;
 
 // ENG-23727 warm-start bar: first useful board paint within this budget of
 // the surface script starting to execute (module fetch latency is Vite's,

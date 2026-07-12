@@ -713,7 +713,7 @@ measurement artifact rather than duplicated as mutable prose here.
 | D2 | Exact LLP 0330 §10: one injectable deadline queue, `now(granularity)`, `invalidateAt`, timezone generation, resume/hydration semantics, and terminal `temporal` text | the universal ticker is deleted; board expiry, feed staleness, art rollover, trip sampling, boarding, countdown, and freshness each declare their cadence/deadline; a scripted production deadline changes terminal text with zero app-dataflow recomputes |
 | D3 | Exact LLP 0330 §9: DOM-observable state equality and compare-before-assign raw-text equality, including changed-text and unhide coverage | equal raw text records one attempted/equal/skipped update and zero protocol work; the macOS-native recheck records zero redundant protocol ops, bytes, and layout requests |
 | D4 | Exact LLP 0330 §2.1: opt-in `memo`, comparator form, and bottom-up keyed `memoRows`, with fail-closed domain validation | the two board composites use `memoRows("id")`; conformance proves value-equal outer identity and one-row change sharing |
-| D5 | transitive purity/hidden-read diagnostics; reactive and renderer churn counters; causal commit profiler with terminal/upstream attribution, bounded retention, warning thresholds, public inspector access, and production Vite/Hermes removal gates | the lazy probe and `update-economy.mjs` join the real mounted surface to the profiler, verify every D1 reader, compare reporter control/enabled p95, gate attribution, and assert an idle window has zero periodic app-dataflow waves |
+| D5 | transitive purity/hidden-read diagnostics; reactive and renderer churn counters; causal commit profiler with terminal/upstream attribution, bounded retention, warning thresholds, public inspector access, and production Vite/Hermes removal gates | the lazy probe and `update-economy.mjs` join the real mounted surface to the profiler, verify every D1 reader, compare reporter control/enabled p95, gate attribution/retention, and assert an idle window has zero periodic app-computed recomputes or fresh-equal allocations |
 
 Durable evidence lives in:
 
@@ -754,10 +754,11 @@ updates.
 
 The ENG-24189 baseline, macOS-native protocol evidence, and the final migrated
 web report live in `demos/all-aboard/measurements/`. The gates below are now
-implemented and checked in Exact plus the mounted All Aboard surface. The later
-physical-iPhone attempt reached build/install/runtime connection but the device
-locked before a clean rendered run, so no physical-device frame or stage-timing
-claim is made.
+implemented and checked in Exact plus the mounted All Aboard surface. Separate
+product runs rendered All Aboard on a physical iPhone, but the LLP 0052
+candidate attempt reached only build/install/runtime connection before the
+device locked. No candidate physical-device frame, D1–D5, or stage-timing claim
+is made.
 
 - **D3**: a commit in which every element's DOM-observable snapshot, style
   leaf, and text string is value-equal — with unchanged topology and child
@@ -789,8 +790,10 @@ claim is made.
   departure expiry, feed staleness) fire at their deadlines — not up to a
   minute late on a wall-aligned tick. In the baseline, `current` still wakes
   four times in 20.25 s and runs 304 effects per active wave; the migrated
-  idle window has **zero periodic app-dataflow waves** (declared logic
-  deadlines and independently injected host events are the only exceptions).
+  idle window has **zero periodic app-computed recomputes or fresh-equal
+  allocations**. Authored terminal presentation deadlines may still run their
+  narrow binding waves/effects; declared logic deadlines and independently
+  injected host events may also wake their explicit dependents.
 - **D4**: a value-equal `boardTrains` recompute under keyed structural
   sharing returns the same outer reference and produces zero downstream
   re-fires in the D5 counters. A one-row-changed recompute keeps every other
@@ -804,8 +807,14 @@ claim is made.
   at least 80% value-equal in one commit** (the measured `current` wave is 285
   at 100%). The profiler adds at most **1 ms or 10% (whichever is larger) to
   p95 commit time** against the reporter-disabled dev control, keeps this
-  fixture's frame p95 at or below 11 ms, and adds zero eager production
-  modules/counters. Attribution is itself gated: a fixture with a known
+  fixture first proves a non-throttled evidence environment (**p50 ≤ 20 ms**
+  and at least **45 samples/s**), then keeps frame p95 at or below **max(11 ms,
+  1.35 × the run's p50 display cadence)** (so a healthy 60 Hz host is not
+  rejected while sustained dropped frames still are), with at most
+  **max(2, ceil(0.2% of samples))** intervals
+  above that threshold (so the measured once-per-second cascade cannot hide
+  below p95). It adds zero eager production modules/counters.
+  Attribution is itself gated: a fixture with a known
   derive→binding diamond reports both the terminal binding and the
   first-changed upstream derive correctly under fan-in.
 

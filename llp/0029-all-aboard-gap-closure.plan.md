@@ -282,11 +282,13 @@ On macOS a native horizontal wheel sequence moved the header pager and produced
 exactly one router-visible station commit after settle; opening Settings and
 pressing Escape exercised the root-scoped native key/router path. iOS rendered
 the same app from the same envelope source. The cross-repo gate rebuilds both
-native envelopes from the pinned Exact revision; ENG-24185 tracks advancing the
-ordinary npm-registry pin after publication.
+native envelopes from the pinned Exact revision. ENG-24185 subsequently
+published the coherent Exact `0.1.4` closure; the ordinary npm-registry path is
+locked to it and independently passes install, build, and browser acceptance.
 
-**Residual.** Publishing the Exact package set and moving the registry-only path
-off 0.1.2 is ENG-24185. Native geolocation remains G9; it was never part of G8.
+**Residual.** None for G8. Native geolocation was never part of G8 and is now
+closed under G9. LLP 0052's physical-device performance trace remains a
+separate, non-blocking evidence follow-up (ENG-24221), not a native-surface gap.
 
 ### G9 — Contract geolocation binding closed 2026-07-11
 

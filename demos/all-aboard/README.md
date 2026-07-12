@@ -3,9 +3,9 @@
 Answers one question before you touch anything: **when is the next train, north and
 south, from the station I'm closest to?** Built on Snapback (backend + cron +
 action-egress seam) with a Contract/Exact surface that renders from the same
-`app.contract` on web, macOS, and the iOS Simulator. A physical-iPhone run has
-additionally verified build, signing, install, and UIKit/Hermes runtime
-connection; its unlocked rendered/performance trace remains ENG-24221.
+`app.contract` on web, macOS, and the iOS Simulator. Physical-iPhone product
+startup, rendering, taps, scrolling, and framework swipes are also verified;
+the LLP 0052 candidate's unlocked D1–D5 performance trace remains ENG-24221.
 
 See [LLP 0027](../../llp/0027-all-aboard-caltrain-demo.plan.md) for the design and
 [Diary 0008](../../diaries/0008-all-aboard.diary.md) for the build experience.
@@ -82,7 +82,8 @@ TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/cron.mjs       # d
 node demos/all-aboard/tests/acceptance/egress.mjs                            # opt-in fetch seam
 TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/real-data.mjs  # mocked 511 + directions product actions
 node demos/all-aboard/tests/acceptance/browser.mjs                           # Contract surface (needs bun + `bun install` in surfaces/contract + Chrome)
-bun test demos/all-aboard/tests/acceptance/update-economy-helpers.test.ts    # migration/conformance helpers
+EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/exact \
+  bun test demos/all-aboard/tests/acceptance/update-economy-helpers.test.ts  # migration/conformance helpers
 EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/exact \
   node demos/all-aboard/tests/acceptance/update-economy.mjs                  # mounted D1–D5 report (20s default)
 ```
@@ -99,15 +100,16 @@ Two processes — the Snapback API and a Vite dev server (which serves the
 compiled `.contract` and proxies `/snapback`). The surface consumes Exact
 from the **npm registry** through the paved-road `exactContractWeb` preset
 (ENG-22463, ENG-22480): `surfaces/contract/package.json` declares npm alias
-dependencies (`"@exact/contract": "npm:@ccheever/exact-contract@0.1.2"`,
+dependencies (`"@exact/contract": "npm:@ccheever/exact-contract@0.1.4"`,
 plus renderer/devtools; imports stay `@exact/*`), and the committed
 `surfaces/contract/bun.lock` **is the pin** — it replaced `exact.pin.json`.
 No sibling Exact checkout, no `SNAPBACK_EXACT_ROOT`. Bump Exact deliberately
 by editing the alias versions, running `bun install`, re-verifying, and
-committing the lockfile. Version `0.1.2` includes the native optimizer,
-embedded startup assets, runtime/host updates, and native Vite-define handling
-that previously required the temporary `0.1.0` Bun patch and a nearby Exact
-checkout; the patch and source-asset bridge are gone (ENG-22564).
+committing the lockfile. Version `0.1.4` is the coherent 13-package closure at
+Exact `9a3a3498`: it includes LLP 0052's host/time/equality/memo/profiler
+semantics plus the native optimizer, embedded startup assets, router/pager
+runtime, and native Vite-define handling. No patch or sibling checkout is
+needed on the ordinary path (ENG-22564, ENG-24185, ENG-24188).
 
 ```sh
 # 0. One-time (and after dependency bumps): install the surface's packages
@@ -170,10 +172,13 @@ bun run --cwd demos/all-aboard/surfaces/contract build   # -> surfaces/contract/
 surface's own `index.html` (the plugin's shell `'auto'` mode preserves it —
 ENG-22445), and is configured to emit Exact static native envelopes under
 `surfaces/contract/dist/web/__exact/native/{mac-appkit-hermes,ios-uikit-hermes}/`
-and `__exact/platform-manifest.json`. The registry-only 0.1.2 path retains its
-module-bundle fallback; the commit-pinned LLP 0336 source gate emits production
-`startup.js` and Hermes bytecode for both hosts. The build fails if client
-chunks leak Node/native-only modules.
+and `__exact/platform-manifest.json`. The registry-only `0.1.4` path emits
+production `startup.js` for both hosts and records the explicit module-bundle
+fallback when no Hermes compiler is installed; the commit-pinned source gate
+uses Exact's prepared compiler to prove matching Hermes bytecode envelopes
+against the recorded revision before a future package release. The build fails
+if client chunks leak Node/native-only modules or production update-economy
+profiler code.
 
 ## Native (macOS / iOS)
 
@@ -182,7 +187,8 @@ host (`<exact>/ios/ExactApp`, targets `mac`/`ios`). ENG-24168 built and ran the
 production envelopes on macOS and an iOS Simulator: both rendered the live
 Snapback-backed board, the native Motion pager committed a station change after
 trackpad follow/settle, and root-scoped Escape dismissed the Settings router
-presentation.
+presentation. ENG-23988 separately rendered the product surface on a physical
+iPhone over Tailscale and verified taps, native scrolling, and framework swipes.
 
 For commit-pinned source verification, set `EXACT_ALL_ABOARD_SOURCE_ROOT` to
 the Exact checkout pinned by `exact-source.json`, then run the native source
@@ -195,9 +201,10 @@ EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/exact \
 
 That gate builds both static envelopes from the pinned Exact sources and checks
 their manifests/startup payloads. Set `EXACT_ALL_ABOARD_BUILD_HOSTS=1` on macOS
-to add clean macOS and iOS Simulator host builds. The physical-device receipt
-under `measurements/2026-07-11-eng-24189-native/` records the narrower verified
-scope without inferring a rendered or performance result from a locked device.
+to add clean macOS and iOS Simulator host builds. The LLP 0052 candidate's
+physical-device receipt under `measurements/2026-07-11-eng-24189-native/`
+records build/sign/install/runtime connection without substituting the separate
+product-rendering run for a migrated D1–D5 performance trace.
 
 ## Update-economy evidence (LLP 0052)
 

@@ -1,8 +1,9 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/ccheever/exact.git",
-  "commit": "529a1bd9663ce68ccaa81263acf587fa03612ba1",
-  "issue": "ENG-24168",
+  "commit": "9a3a349805e20095e99ce8e2a6072e4089bbb8a2",
+  "issue": "ENG-24188",
+  "packageVersion": "0.1.4",
   "verifiedAt": "2026-07-11",
-  "scope": "LLP 0336 P1/P2 source integration: Contract router, web pager, native Motion pager, macOS/iOS envelopes"
+  "scope": "LLP 0052 D1-D5 plus LLP 0336 P1/P2: reactive host state, deadline/temporal time, value-equal render skips, derive memoization, update-economy profiling, Contract router/pager/native envelopes"
 }

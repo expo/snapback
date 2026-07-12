@@ -77,14 +77,14 @@
     "native": {
       "requirement": "commit_pinned_source_acceptance",
       "runner": "EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/pinned/exact node demos/all-aboard/tests/acceptance/native-source.mjs",
-      "note": "The same routed Contract source renders on macOS/iOS through ExactApp. ENG-24168 built and ran production startup.js/HBC envelopes in both hosts; the source gate rebuilds both envelopes from exact-source.json's Exact commit. Set EXACT_ALL_ABOARD_BUILD_HOSTS=1 on macOS to add host builds. A later physical-iPhone run verified build, signing, install, and UIKit/Hermes runtime connection, but the locked device prevented a rendered/performance trace (ENG-24221)."
+      "note": "The same routed Contract source renders on macOS/iOS through ExactApp. ENG-24168 built and ran production startup.js/HBC envelopes in both hosts; ENG-23988 rendered the product surface on a physical iPhone and verified taps, scrolling, and framework swipes. The source gate rebuilds both envelopes from exact-source.json's Exact commit; set EXACT_ALL_ABOARD_BUILD_HOSTS=1 on macOS to add host builds. The LLP 0052 candidate's later build/sign/install/runtime attempt ended when the device locked, so its D1–D5 performance trace remains ENG-24221."
     },
     "update-economy": {
       "requirement": "required",
       "runner": "EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/pinned/exact node demos/all-aboard/tests/acceptance/update-economy.mjs",
-      "helperRunner": "bun test demos/all-aboard/tests/acceptance/update-economy-helpers.test.ts",
+      "helperRunner": "EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/pinned/exact bun test demos/all-aboard/tests/acceptance/update-economy-helpers.test.ts",
       "evidence": "demos/all-aboard/measurements/update-economy.final.web.json + update-economy.final.md",
-      "note": "LLP 0052 D1–D5 mounted-surface gate: frozen-clock host flips, deadline-driven terminal text, equal host-work suppression, keyed memo sharing, lazy profiler attribution/overhead, zero periodic idle dataflow, and frame timing. Phase 0 and macOS-native baseline evidence remain committed beside the final report."
+      "note": "LLP 0052 D1–D5 mounted-surface gate: frozen-clock host flips, deadline-driven terminal text, equal host-work suppression, keyed memo sharing, lazy profiler attribution/overhead, zero periodic idle app-computed work, and frame timing. Phase 0 and macOS-native baseline evidence remain committed beside the final report."
     },
     "react-control": {
       "requirement": "control_arm",
@@ -149,7 +149,7 @@
       "D3: a value-equal text attempt is counted and skipped before protocol/DOM work, while changed/unhidden text remains covered by Exact conformance",
       "D4: board and opposite-direction row composites use keyed memoization with equal-identity and one-row structural-sharing proof",
       "D5: the reporter loads lazily, attributes terminal and upstream work, reconciles host attempts, stays within the p95 overhead gate, and leaves production bundles free of profiler code",
-      "an idle 20-second mounted window performs zero periodic app-dataflow waves and keeps frame p95 at or below 11 ms"
+      "an idle 20-second mounted window performs zero periodic app-computed recomputes or fresh-equal allocations; only authored terminal/deadline binding waves may run. In a non-throttled evidence environment (p50 ≤20 ms; at least 45 samples/s), frame p95 stays at or below max(11 ms, 1.35 × p50), with no more than max(2, ceil(0.2% of samples)) slower intervals"
     ],
     "react-control": [
       "the React arm is a paved-road control FROZEN at its ENG-22450 baseline by decision (ENG-23821), with its own suite (browser-react.mjs); it deliberately does not track product redesigns — a future comparison gate files a fresh re-baseline issue"

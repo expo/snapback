@@ -1,7 +1,7 @@
 # Diary 0008: All Aboard — Caltrain next-train
 
 **Demo:** All Aboard (`demos/all-aboard/`)
-**Surfaces:** headless (required), cron (required), egress (required), Contract/Exact web (required), native macOS implemented; iOS envelope/build/install/runtime connection verified, physical render/performance trace pending
+**Surfaces:** headless (required), cron (required), egress (required), Contract/Exact web (required), native macOS and iOS Simulator implemented; physical-iPhone product rendering/interactions verified, LLP 0052 D1–D5 performance/stage trace pending
 **Author:** Claude
 **Date:** 2026-06-30
 **Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0015, LLP 0016, LLP 0004, LLP 0008, LLP 0013, LLP 0020, LLP 0052, Diary 0004, Diary 0007
@@ -1938,7 +1938,7 @@ tradeoff is stricter boundary work: capability descriptors, pure-helper
 arguments, and child props must be precise, while ordinary TypeScript/React
 would allow more ambient shortcuts.
 
-Verification before the final measurement was broad: browser 33/33; the
+Verification before the final measurement was broad: browser 34/34; the
 app-specific migration suite 4/4 with 52 assertions; headless 12/12; cron 7/7;
 adapter live-push 2/2; badge/deadline 6/6; trip detail 8/8; and a source-pinned
 production build emitted web plus ready macOS/iOS Hermes envelopes. The clean
@@ -1948,12 +1948,14 @@ receipt beside it.
 
 One limitation stays separate from the result. The initially observed gzipped
 511 fixture failure was independently fixed under ENG-24219 and the restored
-real-data lane is part of the final verification. A later paired physical
-iPhone attempt built, signed, installed, created the UIKit/Hermes
-runtime, and connected the target, but the device locked before a clean
-rendered launch. No screenshot, rendered-tree, frame, D1–D5 counter, or native
-stage-attribution claim is inferred from that partial receipt; ENG-24221 owns
-the unlocked-device follow-up.
+real-data lane is part of the final verification. ENG-23988's separate product
+startup lane did render on a physical iPhone and verified interactions. The
+LLP 0052 candidate attempt built, signed, installed, created the UIKit/Hermes
+runtime, and connected the target, but the device locked before its clean
+rendered measurement launch. No candidate screenshot, rendered-tree, frame,
+D1–D5 counter, or native stage-attribution claim is inferred from that partial
+receipt; ENG-24221 owns the unlocked-device follow-up.
+
 ## 2026-07-11 (seventh entry) — physical iPhone startup over Tailscale (ENG-23988)
 
 The physical-device closeout exposed two independent seams that localhost and
@@ -1979,3 +1981,35 @@ not another startup failure. Compared with a browser-only React/Supabase-style
 demo loop, the native discovery and package/source pin layers add meaningful
 diagnostic surface area; Exact's explicit startup-artifact endpoint made the
 final fault mechanically testable once the request path was inspected.
+
+## 2026-07-11 (eighth entry) — LLP 0052 release closeout (ENG-24188 / ENG-24185)
+
+The final review materially improved the framework, not just its test count.
+It found late-mounted host/temporal consumers after hydration release, bounded
+memo values that could be mutated into accessors, app-glue values larger than
+the equality budget, temporal builtins forged through native IR, unattributed
+and dropped profiler rows, and a lazy devtools edge that still emitted a small
+update-economy chunk in production. Each became a fail-closed implementation
+rule and regression before Exact `9a3a3498` landed. On the Snapback side, the
+review also replaced a ProMotion-specific p95 threshold with a cadence-aware
+gate that catches both sustained drops and the original sparse one-second
+stalls; the raw Phase 0 arms prove the new tail oracle discriminates the bad
+case instead of merely sounding quantitative.
+
+Publishing was deliberately one coherent operation. Exact's 13 paved-road
+packages were packed, dry-run, cold-installed through their alias dependency
+closure, then published publicly as `0.1.4`. All Aboard's five roots and Bun
+lock now resolve that one version from npm, while `exact-source.json` retains
+the exact commit for pre-publication/source-conformance work. This is more
+release ceremony than a typical React app consuming Convex or Supabase, but it
+eliminates a worse class of ambiguity: a demo that passes only because a nearby
+framework checkout happens to contain unpublished code. The final registry-only
+build/browser run and checksum-linked mounted report make that boundary
+reproducible.
+
+The physical-iPhone update-economy trace remains intentionally separate. A
+general product run rendered and interacted correctly on device, and the
+candidate built/signed/installed/connected, but no locked-device attempt is
+promoted into frame or native-stage evidence. ENG-24221 owns that last hardware
+measurement without holding the cross-platform semantics or package release
+open.

@@ -146,10 +146,12 @@ native runtime creation and connected the iOS target. The device then locked;
 the host denied a clean relaunch, so the attempt stopped there.
 
 That receipt proves build, signing, installation, runtime creation, and target
-connection only. It does **not** prove a rendered All Aboard tree, screenshot,
-user-visible correctness, D1–D5 counters, frame timing, or kernel/thread-stage
-attribution on physical iPhone hardware. Those claims remain open until an
-unlocked-device run can capture them directly (ENG-24221).
+connection for this candidate only. It does **not** prove its rendered All
+Aboard tree, screenshot, D1–D5 counters, frame timing, or kernel/thread-stage
+attribution on physical iPhone hardware. Separate product runs under ENG-24169
+and ENG-23988 already establish user-visible physical rendering/interactions;
+they are not substituted for the candidate performance trace. That trace stays
+open until an unlocked-device run can capture it directly (ENG-24221).
 
 ## Artifact checksums
 

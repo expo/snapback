@@ -28,6 +28,11 @@ const repoRoot = resolve(here, '..', '..', '..', '..');
 const surfaceDir = join(repoRoot, 'demos', 'all-aboard', 'surfaces', 'contract');
 const exactPinPath = join(repoRoot, 'demos', 'all-aboard', 'exact-source.json');
 const exactPin = JSON.parse(readFileSync(exactPinPath, 'utf8'));
+const surfacePackage = JSON.parse(readFileSync(join(surfaceDir, 'package.json'), 'utf8'));
+const exactAliasDependencies = Object.fromEntries(
+  Object.entries(surfacePackage.dependencies ?? {})
+    .filter(([name]) => name.startsWith('@exact/')),
+);
 const exactRoot = process.env.EXACT_ALL_ABOARD_SOURCE_ROOT
   ? resolve(process.env.EXACT_ALL_ABOARD_SOURCE_ROOT)
   : null;
@@ -40,6 +45,7 @@ const serverBin = resolve(
     ?? join(repoRoot, 'target', 'debug', 'snapback'),
 );
 const viewport = { width: 390, height: 844, deviceScaleFactor: 2, mobile: false };
+const allowDirtySource = process.env.ALL_ABOARD_UPDATE_ECONOMY_ALLOW_DIRTY === '1';
 
 const outputArg = process.argv.indexOf('--output');
 const outputPath = resolve(
@@ -74,12 +80,32 @@ function git(path, args) {
   return result.stdout.trim();
 }
 
-try {
-  git(exactRoot, ['merge-base', '--is-ancestor', exactPin.commit, 'HEAD']);
-} catch {
+const snapbackRevision = git(repoRoot, ['rev-parse', 'HEAD']);
+const snapbackDirty = git(repoRoot, ['status', '--short']);
+const exactRevision = git(exactRoot, ['rev-parse', 'HEAD']);
+const exactDirty = git(exactRoot, ['status', '--short']);
+if (exactRevision !== exactPin.commit) {
   throw new Error(
-    `Exact source must contain pinned revision ${exactPin.commit} from ${exactPin.repository}`,
+    `Exact source HEAD ${exactRevision} must equal pinned revision ${exactPin.commit} from ${exactPin.repository}`,
   );
+}
+if (!allowDirtySource && (snapbackDirty || exactDirty)) {
+  throw new Error(
+    `final update-economy evidence requires clean Snapback and Exact trees; ` +
+    `set ALL_ABOARD_UPDATE_ECONOMY_ALLOW_DIRTY=1 only for an uncommitted local smoke. ` +
+    JSON.stringify({ snapbackDirty, exactDirty }),
+  );
+}
+if (typeof exactPin.packageVersion !== 'string' || exactPin.packageVersion.length === 0) {
+  throw new Error('exact-source.json must record the coherent Exact packageVersion');
+}
+for (const [name, specifier] of Object.entries(exactAliasDependencies)) {
+  const expected = `npm:@ccheever/exact-${name.slice('@exact/'.length)}@${exactPin.packageVersion}`;
+  if (specifier !== expected) {
+    throw new Error(
+      `All Aboard Exact alias ${name} must equal ${expected}, got ${String(specifier)}`,
+    );
+  }
 }
 
 async function stopChild(child) {
@@ -316,8 +342,32 @@ function summarizeReactive(snapshot) {
   ].map((field) => [field, Number(snapshot?.[field] ?? 0)]));
 }
 
-function assertCauseAccounting(report, label) {
+function assertCauseAccounting(
+  report,
+  label,
+  { expectedUnattributedElements = 0, expectedUnattributedText = 0 } = {},
+) {
   const commits = report?.commits ?? [];
+  const history = report?.commitHistory ?? {};
+  const totalCommits = Number(report?.totals?.commits ?? 0);
+  const retainedCommits = Number(history.retained ?? -1);
+  const droppedCommits = Number(history.dropped ?? -1);
+  const firstSequence = commits[0]?.sequence ?? null;
+  const lastSequence = commits.at(-1)?.sequence ?? null;
+  if (
+    retainedCommits !== commits.length ||
+    droppedCommits < 0 ||
+    retainedCommits + droppedCommits !== totalCommits ||
+    Number(history.limit ?? -1) < retainedCommits ||
+    (history.firstRetainedSequence ?? null) !== firstSequence ||
+    (history.lastRetainedSequence ?? null) !== lastSequence ||
+    history.totalsScope !== 'session'
+  ) {
+    throw new Error(
+      `${label} commit retention is incomplete: ` +
+      JSON.stringify({ history, totalCommits, commits: commits.length, firstSequence, lastSequence }),
+    );
+  }
   const totalElements = Number(report?.totals?.hostElements?.attempts ?? 0);
   const totalText = Number(report?.totals?.hostText?.attempts ?? 0);
   const committedElements = commits.reduce(
@@ -330,14 +380,18 @@ function assertCauseAccounting(report, label) {
   );
   if (
     (totalElements + totalText > 0 && commits.length === 0) ||
-    committedElements !== totalElements ||
-    committedText !== totalText
+    committedElements > totalElements ||
+    committedText > totalText ||
+    (droppedCommits === 0 && committedElements !== totalElements) ||
+    (droppedCommits === 0 && committedText !== totalText)
   ) {
     throw new Error(
       `${label} commit totals are incomplete: ` +
       JSON.stringify({ totalElements, totalText, committedElements, committedText, commits: commits.length }),
     );
   }
+  let unattributedElementsTotal = 0;
+  let unattributedTextTotal = 0;
   for (const commit of commits) {
     const retainedElements = (commit.causes ?? [])
       .reduce((sum, cause) => sum + Number(cause.hostElementAttempts ?? 0), 0);
@@ -346,15 +400,33 @@ function assertCauseAccounting(report, label) {
     const attribution = commit.causeAttribution ?? {};
     const omittedElements = Number(attribution.omittedHostElementAttempts ?? 0);
     const omittedText = Number(attribution.omittedHostTextAttempts ?? 0);
+    const unattributedElements = Number(attribution.unattributedHostElementAttempts ?? 0);
+    const unattributedText = Number(attribution.unattributedHostTextAttempts ?? 0);
+    unattributedElementsTotal += unattributedElements;
+    unattributedTextTotal += unattributedText;
     const omitted = omittedElements + omittedText;
     if (
       Number(attribution.retained ?? -1) !== (commit.causes ?? []).length ||
-      retainedElements + omittedElements !== Number(commit.hostElements?.attempts ?? 0) ||
-      retainedText + omittedText !== Number(commit.hostText?.attempts ?? 0) ||
+      retainedElements + omittedElements + unattributedElements !== Number(commit.hostElements?.attempts ?? 0) ||
+      retainedText + omittedText + unattributedText !== Number(commit.hostText?.attempts ?? 0) ||
       Boolean(attribution.truncated) !== (omitted > 0)
     ) {
       throw new Error(`${label} cause attribution is incomplete: ${JSON.stringify(commit)}`);
     }
+  }
+  if (
+    unattributedElementsTotal !== expectedUnattributedElements ||
+    unattributedTextTotal !== expectedUnattributedText
+  ) {
+    throw new Error(
+      `${label} has unexpected unattributed host work: ` +
+      JSON.stringify({
+        unattributedElementsTotal,
+        unattributedTextTotal,
+        expectedUnattributedElements,
+        expectedUnattributedText,
+      }),
+    );
   }
 }
 
@@ -630,12 +702,18 @@ async function measureFinalSurface(page, viteUrl) {
     throw new Error(`D3 equal raw text was not skipped: ${JSON.stringify(equality.renderer)}`);
   }
   const equalityCommits = equality.renderer?.commits ?? [];
+  assertCauseAccounting(equality.renderer, 'D5 raw host probe', {
+    expectedUnattributedElements: 0,
+    expectedUnattributedText: 1,
+  });
   if (
     equalityCommits.length !== 1 ||
     equalityCommits[0]?.reactive !== null ||
     (equalityCommits[0]?.causes ?? []).length !== 0 ||
     Number(equality.renderer?.totals?.reactive?.waves ?? 0) !== 0 ||
-    equalityCommits[0]?.causeAttribution?.truncated === true
+    equalityCommits[0]?.causeAttribution?.truncated === true ||
+    Number(equalityCommits[0]?.causeAttribution?.unattributedHostElementAttempts ?? -1) !== 0 ||
+    Number(equalityCommits[0]?.causeAttribution?.unattributedHostTextAttempts ?? -1) !== 1
   ) {
     throw new Error(`D5 raw host probe attribution was not isolated: ${JSON.stringify(equality.renderer)}`);
   }
@@ -705,7 +783,10 @@ async function measureFinalSurface(page, viteUrl) {
   if (temporalText === temporal.candidate.text) {
     throw new Error(`scripted terminal deadline did not change text: ${JSON.stringify(temporal)}`);
   }
-  if (temporalReactiveDelta.computedRecomputes !== 0) {
+  const temporalFreshEqualResults = Number(
+    temporalAfter.renderer?.totals?.reactive?.freshEqualComputedResults ?? 0,
+  );
+  if (temporalReactiveDelta.computedRecomputes !== 0 || temporalFreshEqualResults !== 0) {
     const recomputedNodes = (temporalAfter.reactive?.nodes ?? [])
       .filter((node) => Number(node.recomputes ?? 0) > 0);
     throw new Error(
@@ -782,8 +863,10 @@ async function measureFinalSurface(page, viteUrl) {
     requestAnimationFrame(frame);
   })()`);
 
-  // A clean post-remount idle window stays completely asleep; this preserves
-  // the original broad-cascade regression gate alongside D1-D3.
+  // A clean post-remount idle window performs no app-computed work; authored
+  // terminal presentation deadlines may still run their narrow binding
+  // effects. This preserves the original broad-cascade regression gate
+  // alongside D1-D3 without misclassifying D2's intended terminal updates.
   const idleBefore = await page.evaluate(`(() => {
     const probe = globalThis.__aaUpdateEconomyProbe;
     probe.resetUpdateEconomyRenderer();
@@ -810,6 +893,14 @@ async function measureFinalSurface(page, viteUrl) {
       JSON.stringify(recomputedNodes),
     );
   }
+  const idleFreshEqualComputedResults = Number(
+    idleAfter.sample.renderer?.totals?.reactive?.freshEqualComputedResults ?? 0,
+  );
+  if (idleFreshEqualComputedResults !== 0) {
+    throw new Error(
+      `post-deadline idle window allocated ${idleFreshEqualComputedResults} fresh-equal computed results`,
+    );
+  }
   const idleEqualHostElements = Number(idleAfter.sample.renderer?.totals?.hostElements?.equal ?? 0);
   const idleEqualHostText = Number(idleAfter.sample.renderer?.totals?.hostText?.equal ?? 0);
   if (idleEqualHostElements !== 0 || idleEqualHostText !== 0) {
@@ -820,13 +911,34 @@ async function measureFinalSurface(page, viteUrl) {
   }
 
   const frames = frameSummary(idleAfter.frames);
-  const minimumFrameSamples = ticks * 30;
+  // Reject a throttled/sub-50Hz evidence environment before normalizing to its
+  // cadence; otherwise a sustained every-other-vsync regression could make a
+  // ~33 ms p50 look self-consistent and pass the ratio gate.
+  const minimumFrameSamples = ticks * 45;
+  const maximumFrameP50Ms = 20;
+  // rAF cadence is display-owned: an idle 60 Hz host has a healthy 16.7 ms
+  // p95 and can never satisfy the original ProMotion-specific 11 ms ceiling.
+  // Keep 11 ms as the high-refresh floor, then allow at most 35% jitter over
+  // this run's median cadence. p95 catches sustained drops; the 0.2% tail
+  // allowance also catches the original roughly once-per-second stalls, which
+  // are too sparse to move p95 on a 120 Hz trace.
+  const frameP95LimitMs = Math.max(11, Number(frames.p50Ms) * 1.35);
+  const slowFrameCount = idleAfter.frames.filter((value) => value > frameP95LimitMs).length;
+  const allowedSlowFrameCount = Math.max(2, Math.ceil(frames.count * 0.002));
   if (
     frames.count < minimumFrameSamples ||
+    !Number.isFinite(frames.p50Ms) ||
     !Number.isFinite(frames.p95Ms) ||
-    Number(frames.p95Ms) > 11
+    Number(frames.p50Ms) > maximumFrameP50Ms ||
+    Number(frames.p95Ms) > frameP95LimitMs ||
+    slowFrameCount > allowedSlowFrameCount
   ) {
-    throw new Error(`D5 frame p95 ${frames.p95Ms}ms exceeds 11ms: ${JSON.stringify(frames)}`);
+    throw new Error(
+      `D5 frame gate failed (p95 ${frames.p95Ms}ms / limit ${frameP95LimitMs}ms; ` +
+      `p50 ${frames.p50Ms}ms / max ${maximumFrameP50Ms}ms; ` +
+      `slow intervals ${slowFrameCount} / allowed ${allowedSlowFrameCount}): ` +
+      JSON.stringify(frames),
+    );
   }
 
   return {
@@ -889,6 +1001,15 @@ async function measureFinalSurface(page, viteUrl) {
     frames: {
       summary: frames,
       minimumSamples: minimumFrameSamples,
+      gate: {
+        maximumP50Ms: maximumFrameP50Ms,
+        p95LimitMs: frameP95LimitMs,
+        absoluteFloorMs: 11,
+        maxP95ToP50Ratio: 1.35,
+        slowFrameCount,
+        allowedSlowFrameCount,
+        maxSlowFrameRatio: 0.002,
+      },
       samplesMs: idleAfter.frames,
     },
   };
@@ -944,7 +1065,7 @@ async function main() {
   const result = await measureFinalSurface(page, viteUrl);
 
   const report = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     issue: 'ENG-24188',
     recordedAt: new Date().toISOString(),
     method: {
@@ -957,13 +1078,15 @@ async function main() {
       viewport,
       ticks,
       settleMs,
-      assertion: 'D1 equal host records produce zero waves; D2 scripted production deadline changes text with zero app recomputes; D3 equal raw text is skipped; D5 joins renderer commits to reactive waves with complete attribution; post-deadline idle recomputes stay zero',
+      assertion: 'D1 equal host records produce zero waves; D2 scripted production deadline changes text with zero app recomputes; D3 equal raw text is skipped; D5 joins bounded renderer history to reactive waves with complete retained/omitted/unattributed accounting and fresh-equal allocation metrics; post-deadline idle app recomputes/allocations stay zero; cadence-relative p95 and sparse-tail frame gates hold',
     },
     revisions: {
-      snapback: git(repoRoot, ['rev-parse', 'HEAD']),
-      snapbackDirty: git(repoRoot, ['status', '--short']),
-      exact: git(exactRoot, ['rev-parse', 'HEAD']),
-      exactDirty: git(exactRoot, ['status', '--short']),
+      snapback: snapbackRevision,
+      snapbackDirty,
+      exact: exactRevision,
+      exactDirty,
+      exactPackageVersion: exactPin.packageVersion,
+      exactAliases: exactAliasDependencies,
     },
     result,
   };
