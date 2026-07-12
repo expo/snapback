@@ -5,7 +5,7 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-03 (Phase 5 re-landed adapted to the post-sync main — ENG-22680: P1–P8 done-whens closed on this line, Milestone C reached, docket + acceptance status records restored; per-phase adaptation notes in §Phase 5). 2026-07-03 (§Phase 5 stranding note: Phase 5 was executed end to
+**Revised:** 2026-07-12 (ENG-24357: unknown/internal diagnostics now default 500 with explicit client-code allow-list; earlier: 2026-07-03 Phase 5 re-landed adapted to the post-sync main — ENG-22680: P1–P8 done-whens closed on this line, Milestone C reached, docket + acceptance status records restored; per-phase adaptation notes in §Phase 5). 2026-07-03 (§Phase 5 stranding note: Phase 5 was executed end to
 end on 2026-07-02 on a pre-origin-sync line now preserved as
 `backup/main-before-origin-sync-20260702`; its doc-only decision records —
 X1/DK-2, X2/DK-5, X4/DK-9, DK-10, the LLP 0011 and LLP 0036 ratifications,

@@ -5,7 +5,7 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-07 (ENG-23629 / LLP 0049 Phase 1: the first
+**Revised:** 2026-07-12 (ENG-24338/ENG-24346: trusted local token discovery and fail-closed owner-only capability/config file handling; earlier: 2026-07-07 ENG-23629 / LLP 0049 Phase 1: the first
 `deploy-time-binding` backend landed on the Cloudflare proof target —
 descriptor-only action grants (values never enter the handler isolate),
 profile-scoped fail-closed `expose()`/`asBearer()` with
