@@ -15,6 +15,7 @@
 // stores in `preferences.ts`; the only retained handle here is the transport
 // used by the route `resource`, while async result, expiry, and generation
 // state stay in Contract.
+// @ref LLP 0052#d2--time-as-a-host-concern — expiry, inclusive staleness, temporal text, and resource refreshes declare their next deadline instead of sharing a ticker.
 
 import {
   PATTERNS,
