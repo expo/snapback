@@ -62,7 +62,8 @@ run node scripts/check-required-surface-builds.mjs
 run node tests/required_surface_builds_v0.mjs
 run node demos/_kit/tests/server-process-lifecycle.mjs
 # @ref LLP 0010#native-runtime-bootstrap — prepare native artifacts here, then
-# perform the identity-stamped executable build immediately before acceptance.
+# stamp every subsequent Snapback Cargo unit with the checkout identity that
+# acceptance will verify.
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
 stamp_snapback_build_identity
 run cargo clippy --all-targets -- -D warnings
@@ -71,10 +72,33 @@ run cargo clippy --all-targets -- -D warnings
 # vulnerabilities and packages RustSec has marked unmaintained.
 run cargo audit --deny unmaintained
 run cargo test
-# ENG-24378 clean-runner follow-up: cargo test builds test harnesses, not the
-# normal server executable. Build it visibly and without the 60 s runtime-ready
-# deadline; startServer's subsequent cargo run sees the same identity stamp and
-# the readiness clock measures server startup rather than a 95-112 s cold link.
+# ENG-24378 clean-runner follow-up: clippy/test and the normal executable use
+# distinct large vendored-Ibex native archives. Reclaim completed workspace test
+# artifacts before constructing the acceptance binary instead of risking an
+# archiver crash at peak disk usage. Preserve dependency artifacts when that
+# leaves at least 8 GiB for the native archive and link; otherwise clean the
+# whole test profile. Keep local developer caches intact.
+if [ "${CI:-}" = "true" ]; then
+    run cargo clean --profile test -p snapback
+    if ! available_kib="$(df -Pk "$ROOT" | awk 'NR == 2 { print $4 }')"; then
+        available_kib=""
+    fi
+    case "$available_kib" in
+        ''|*[!0-9]*)
+            printf '[snapback-verify] unable to measure CI disk headroom; cleaning the test profile\n'
+            run cargo clean --profile test
+            ;;
+        *)
+            printf '[snapback-verify] CI Cargo headroom after workspace cleanup: %s KiB\n' "$available_kib"
+            if [ "$available_kib" -lt 8388608 ]; then
+                run cargo clean --profile test
+            fi
+            ;;
+    esac
+fi
+# cargo test builds test harnesses, not the normal server executable. Build it
+# visibly and outside the 60 s runtime-ready deadline; startServer's cargo run
+# sees the same identity stamp and measures startup rather than a cold link.
 run cargo build --locked --bin snapback
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
