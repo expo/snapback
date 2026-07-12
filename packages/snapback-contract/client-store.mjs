@@ -104,14 +104,11 @@ const normalizeState = (state) => {
       },
     );
   }
-  state.origin ??= newOrigin();
-  state.generation ??= 0;
-  state.authFingerprint ??= null;
-  state.artifactScope ??= null;
-  state.nextSequence ??= 1;
-  state.retained ??= {};
-  state.pending ??= [];
-  state.failed ??= [];
+  // `generation` is the one additive field introduced after v1 shipped; an
+  // absent value has an explicit migration. Every other field was present in
+  // the original v1 shape, so defaulting it would turn truncated durable JSON
+  // into empty success and let the next write destroy the only copy.
+  if (!Object.hasOwn(state, 'generation')) state.generation = 0;
   assertStateField(typeof state.origin === 'string' && state.origin.length > 0, 'origin');
   assertStateField(Number.isSafeInteger(state.generation) && state.generation >= 0, 'generation');
   assertStateField(

@@ -349,6 +349,30 @@ assert.equal(JSON.stringify(tombstone).includes('old-payload'), false);
 assert.equal(JSON.stringify(await durableB.failedMutations()).includes('old-failed-payload'), false);
 assert.equal(await durableB.getRetainedQuery('todos:{}', { authFingerprint: 'auth:stable' }), null);
 
+// `generation` was added to format v1 as an additive fencing fact. Its absent
+// form has one explicit migration; the original v1 core fields remain
+// mandatory so structural truncation cannot masquerade as a fresh store.
+const additiveV1 = {
+  version: 1,
+  origin: 'legacy-origin',
+  authFingerprint: null,
+  artifactScope: null,
+  nextSequence: 1,
+  retained: {},
+  pending: [],
+  failed: [],
+};
+const additiveBytes = new Map([['additive-v1', JSON.stringify(additiveV1)]]);
+const additiveStore = createLocalStorageSnapbackClientStore({
+  storage: {
+    getItem(key) { return additiveBytes.get(key) ?? null; },
+    setItem(key, value) { additiveBytes.set(key, value); },
+  },
+  key: 'additive-v1',
+  lockManager: createTestLockManager(),
+});
+assert.equal((await additiveStore.snapshot()).generation, 0, 'missing additive generation migrates');
+
 // Existing but uninterpretable bytes are never normalized into an empty
 // healthy queue. Every ordinary operation fails with a stable diagnostic and
 // leaves the exact bytes in place; only the explicit clear() recovery replaces
@@ -357,6 +381,12 @@ for (const invalid of [
   {
     label: 'corrupt JSON',
     raw: '{not-json',
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'truncated valid JSON',
+    raw: JSON.stringify({ version: 1 }),
     code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
     direction: undefined,
   },
