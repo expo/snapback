@@ -78,6 +78,9 @@ function sourceAliases(
     // source-pinned surfaces do not have Exact's /src tree at their Vite root,
     // so bridge the id back to the candidate checkout explicitly.
     '/src/agent-bootstrap.native.ts': source('js/src/agent-bootstrap.native.ts'),
+    '@exact/contract/runtime/memo': source('packages/exact-contract/src/runtime/memo.ts'),
+    '@exact/contract/runtime/temporal': source('packages/exact-contract/src/runtime/clock-authority.ts'),
+    '@exact/contract/runtime/host-bindings': source('packages/exact-contract/src/runtime/host-bindings.ts'),
     '@exact/contract/runtime': source('packages/exact-contract/src/runtime/index.ts'),
     '@exact/contract/exports': source('packages/exact-contract/src/exports.ts'),
     '@exact/contract': source('packages/exact-contract/src/index.ts'),
@@ -137,12 +140,6 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
     // ws:true proxy below logs the forward, then the tunnel hangs), which
     // would leave the stream transport permanently connecting.
     __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackTarget),
-    // ENG-24189 Phase 0 native bundles cannot receive a browser query before
-    // the Contract root mounts. The measurement harness pins each 2x2 arm at
-    // build time; ordinary builds omit the env and preserve `current`.
-    __ALL_ABOARD_UPDATE_ECONOMY__: JSON.stringify(
-      process.env.ALL_ABOARD_UPDATE_ECONOMY ?? 'current',
-    ),
   },
   resolve: {
     alias: sourceAliases(exactSourceRoot, command),

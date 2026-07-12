@@ -1,9 +1,9 @@
 // All Aboard — directions/maps web glue (ENG-23795).
 //
-// Opening a maps app, copying to the clipboard, and persisting the maps-app
-// preference are platform capabilities, not contract state — the same seam as
-// geolocation (main.ts / data.ts setDeviceLocation). The .contract declares
-// the affordances; this module gives them their web behavior:
+// Opening a maps app and copying to the clipboard are platform capabilities
+// around Contract-owned app state. The .contract owns and persists the maps
+// preference and declares the affordances; this module gives the remaining
+// side effects their web behavior:
 //
 //   - TAP on the header directions line ([station-directions-<id>]) opens the
 //     preferred maps app directly. The contract press under that click would
@@ -12,19 +12,17 @@
 //     deliberately owns no timers or pointer state;
 //   - the sheet's rows keep their contract press (which closes the sheet) and
 //     get their side effect from a NON-blocking capture listener here;
-//   - the Settings maps-app row cycles the preference (data.ts module state,
-//     persisted to localStorage); the contract press re-stamps the clock so
-//     mapsAppLabel re-derives.
+//   - Contract owns the maps-app preference as ordinary app state. Its current
+//     value rides in the affordance's accessible label, so this side-effect
+//     bridge never re-reads storage or invents a second live state channel.
 //
 // The station id rides in the affordance's testId and the resolved travel
-// mode in its accessible label ("Get walking/biking directions") — the
-// .contract owns what to open; this module only owns how.
+// mode and preferred app ride in its accessible label — the .contract owns
+// what to open; this module only owns how.
 
-import { cycleMapsApp, directionsUrl, getMapsApp, setMapsApp, stationAddress } from './data';
+import { directionsUrl, stationAddress } from './data';
 
 type Cleanup = () => void;
-
-const MAPS_APP_STORAGE_KEY = 'all-aboard.mapsApp';
 
 function isApplePlatform(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -32,9 +30,10 @@ function isApplePlatform(): boolean {
   return /Mac|iPhone|iPad|iPod/.test(probe);
 }
 
-function resolveMapsApp(): 'apple' | 'google' {
-  const preferred = getMapsApp();
-  if (preferred === 'apple' || preferred === 'google') return preferred;
+function resolveMapsApp(el: Element): 'apple' | 'google' {
+  const label = el.getAttribute('aria-label') ?? '';
+  if (/preferred app Apple Maps/i.test(label)) return 'apple';
+  if (/preferred app Google Maps/i.test(label)) return 'google';
   return isApplePlatform() ? 'apple' : 'google';
 }
 
@@ -56,13 +55,6 @@ function openMaps(url: string): void {
 }
 
 export function installDirections(root: HTMLElement): Cleanup {
-  // Boot: adopt the persisted preference before the first render reads it.
-  try {
-    setMapsApp(window.localStorage.getItem(MAPS_APP_STORAGE_KEY));
-  } catch {
-    /* storage may be unavailable (private mode); the default stands */
-  }
-
   // Tap on the directions line: open the preferred maps app instead of the
   // contract's sheet press (which stays the long-press / native path).
   const onDirectionsClick = (event: MouseEvent) => {
@@ -73,24 +65,14 @@ export function installDirections(root: HTMLElement): Cleanup {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    openMaps(directionsUrl(stationIdFrom(affordance), resolveMapsApp(), travelModeFrom(affordance)));
+    openMaps(directionsUrl(stationIdFrom(affordance), resolveMapsApp(affordance), travelModeFrom(affordance)));
   };
 
-  // Sheet rows and the Settings maps-app cycle: NON-blocking side effects —
-  // the contract press still runs (closes the sheet / re-stamps the clock).
+  // Sheet rows: NON-blocking side effects — the contract press still runs
+  // (and closes the sheet). The Settings preference is wholly Contract-owned.
   const onAugmentingClick = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const mapsAppRow = target.closest('[data-testid="maps-app"]');
-    if (mapsAppRow) {
-      const next = cycleMapsApp();
-      try {
-        window.localStorage.setItem(MAPS_APP_STORAGE_KEY, next);
-      } catch {
-        /* preference just won't persist */
-      }
-      return;
-    }
     const sheetAction = target.closest(
       '[data-testid="directions-apple"], [data-testid="directions-google"], [data-testid="directions-copy"]',
     );

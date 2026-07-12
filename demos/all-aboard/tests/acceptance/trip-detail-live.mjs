@@ -14,12 +14,20 @@
 
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 
-const { getTrainRun, heroStops, boardingCall, upcomingStops, stopClockLabel } = await import('../../surfaces/contract/data.ts');
+const {
+  getTrainRun,
+  heroStops,
+  boardingCall,
+  countdownTemporal,
+  upcomingStops,
+  stopClockLabel,
+} = await import('../../surfaces/contract/data.ts');
 
 const suite = createSuite('all-aboard live trip detail');
 
 const NOW = 1_800_000_000_000;
 const MIN = 60_000;
+const TIMEZONE_GENERATION = 1;
 
 let nextId = 0;
 function liveRow(overrides = {}) {
@@ -99,35 +107,65 @@ await runAcceptance(suite, async () => {
   await suite.check('upcomingStops and stopClockLabel mark estimated times approximate', async () => {
     const boarding = liveRow();
     const rows = [boarding];
-    const stops = upcomingStops(`live:${boarding._id}`, 'san-carlos', NOW, 4, [], rows);
+    const stops = upcomingStops(
+      `live:${boarding._id}`,
+      'san-carlos',
+      NOW,
+      4,
+      [],
+      rows,
+      TIMEZONE_GENERATION,
+    );
     assertEqual(stops.length, 4, 'expanded hero lists the requested window');
     assert(!stops[0].time.startsWith('~'), 'the boarding stop time is real, no approx marker');
     assert(stops[1].time.startsWith('~'), 'pattern-derived times carry the approx marker');
-    assertEqual(stopClockLabel({ predictedTimeMs: NOW, estimated: false }), stopClockLabel({ predictedTimeMs: NOW }), 'absent flag renders plain');
+    assertEqual(
+      stopClockLabel({ predictedTimeMs: NOW, estimated: false }, TIMEZONE_GENERATION),
+      stopClockLabel({ predictedTimeMs: NOW }, TIMEZONE_GENERATION),
+      'absent flag renders plain',
+    );
   });
 
   await suite.check('heroStops chips are boarding + ellipsis + the last two stops; short runs skip the ellipsis', async () => {
     // sb-local from San Carlos serves many more stops: boarding, gap, last 2.
     const boarding = liveRow();
-    const chips = heroStops(`live:${boarding._id}`, 'san-carlos', NOW, [], [boarding]);
+    const chips = heroStops(
+      `live:${boarding._id}`,
+      'san-carlos',
+      NOW,
+      [],
+      [boarding],
+      TIMEZONE_GENERATION,
+    );
     assertEqual(chips.length, 4, 'boarding + gap + last two');
     assert(chips[0].isBoarding && chips[0].id === 'san-carlos', 'first chip is the boarding stop');
     assert(chips[1].gap === true, 'second chip is the ellipsis marker');
     assertEqual(chips[3].id, 'san-jose', 'last chip is the end of the line');
-    assert(chips[3].time.length > 0, 'terminal chip carries its arrival time');
+    assert(/^~?\d{1,2}:\d{2}[ap]$/.test(chips[3].time), 'terminal chip carries a formatted arrival time');
     // Three stops or fewer from boarding: everything fits, no ellipsis.
     const short = liveRow({ stationId: 'hillsdale', direction: 'north', patternId: '', headsign: 'San Francisco' });
-    const shortChips = heroStops(`live:${short._id}`, 'hillsdale', NOW, [], [short]);
+    const shortChips = heroStops(
+      `live:${short._id}`,
+      'hillsdale',
+      NOW,
+      [],
+      [short],
+      TIMEZONE_GENERATION,
+    );
     assert(shortChips.every((chip) => !chip.gap), 'short runs render every stop, no gap');
     assertEqual(shortChips[shortChips.length - 1].id, 'san-francisco', 'short run still ends at the terminal');
   });
 
-  await suite.check('boardingCall answers minutes-to-boarding on the trip screen', async () => {
+  await suite.check('boardingCall keeps logic separate from its terminal temporal countdown', async () => {
     const boarding = liveRow(); // departs san-carlos at NOW + 5 min
     const trip = getTrainRun(`live:${boarding._id}`, NOW, [], [boarding]);
     const call = boardingCall(trip, 'san-carlos', NOW);
     assert(call, 'boarding stop resolves');
-    assertEqual(call.minutes, 5, 'countdown is minutes until the boarding call');
+    assertEqual(
+      countdownTemporal(call.predictedTimeMs, NOW).value,
+      5,
+      'terminal temporal countdown is minutes until the boarding call',
+    );
     assertEqual(call.departed, false, 'upcoming call is not departed');
     const gone = boardingCall(trip, 'san-carlos', NOW + 10 * MIN);
     assertEqual(gone.departed, true, 'a past call reads as departed');

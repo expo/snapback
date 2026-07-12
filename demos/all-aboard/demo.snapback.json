@@ -77,7 +77,14 @@
     "native": {
       "requirement": "commit_pinned_source_acceptance",
       "runner": "EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/pinned/exact node demos/all-aboard/tests/acceptance/native-source.mjs",
-      "note": "The same routed Contract source renders on macOS/iOS through ExactApp. ENG-24168 built and ran production startup.js/HBC envelopes in both hosts; the source gate rebuilds both envelopes from exact-source.json's Exact commit. Set EXACT_ALL_ABOARD_BUILD_HOSTS=1 on macOS to add host builds. ENG-24185 tracks moving the normal registry pin beyond 0.1.2."
+      "note": "The same routed Contract source renders on macOS/iOS through ExactApp. ENG-24168 built and ran production startup.js/HBC envelopes in both hosts; the source gate rebuilds both envelopes from exact-source.json's Exact commit. Set EXACT_ALL_ABOARD_BUILD_HOSTS=1 on macOS to add host builds. A later physical-iPhone run verified build, signing, install, and UIKit/Hermes runtime connection, but the locked device prevented a rendered/performance trace (ENG-24221)."
+    },
+    "update-economy": {
+      "requirement": "required",
+      "runner": "EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/pinned/exact node demos/all-aboard/tests/acceptance/update-economy.mjs",
+      "helperRunner": "bun test demos/all-aboard/tests/acceptance/update-economy-helpers.test.ts",
+      "evidence": "demos/all-aboard/measurements/update-economy.final.web.json + update-economy.final.md",
+      "note": "LLP 0052 D1–D5 mounted-surface gate: frozen-clock host flips, deadline-driven terminal text, equal host-work suppression, keyed memo sharing, lazy profiler attribution/overhead, zero periodic idle dataflow, and frame timing. Phase 0 and macOS-native baseline evidence remain committed beside the final report."
     },
     "react-control": {
       "requirement": "control_arm",
@@ -136,12 +143,20 @@
       "the stations list carries the end-of-line hint — ellipsis + terminal stop + arrival time (ENG-23795)",
       "the Settings ETA mode toggles walk/bike estimates app-wide (E4, ENG-22450; auto default resolves to bike beyond an 18-minute walk, ENG-23795)"
     ],
+    "update-economy": [
+      "D1: scheme, location, backend, and inset host readers update independently under a frozen clock; equal host records publish no work and reuse one physical subscription",
+      "D2: a deterministic deadline changes terminal temporal text without app-dataflow recomputation; the app has no universal ticker or ambient cache-buster",
+      "D3: a value-equal text attempt is counted and skipped before protocol/DOM work, while changed/unhidden text remains covered by Exact conformance",
+      "D4: board and opposite-direction row composites use keyed memoization with equal-identity and one-row structural-sharing proof",
+      "D5: the reporter loads lazily, attributes terminal and upstream work, reconciles host attempts, stays within the p95 overhead gate, and leaves production bundles free of profiler code",
+      "an idle 20-second mounted window performs zero periodic app-dataflow waves and keeps frame p95 at or below 11 ms"
+    ],
     "react-control": [
       "the React arm is a paved-road control FROZEN at its ENG-22450 baseline by decision (ENG-23821), with its own suite (browser-react.mjs); it deliberately does not track product redesigns — a future comparison gate files a fresh re-baseline issue"
     ]
   },
   "capabilityGaps": [
-    "maps_open_and_longpress_web_glue",
+    "native_maps_open_and_clipboard_capabilities",
     "action_egress_per_host_allowlist",
     "exact_gtfs_trip_matching",
     "notifications",
@@ -157,7 +172,7 @@
     "stationArt": "header scenes are the ENG-23684 hand-drawn originals (3 per station, 640x1136 SVG), inlined by scripts/gen-station-art.mjs into station-art.gen.mjs (~0.9MB source) and rotated by epoch day (ENG-23719) — zero runtime egress, deterministic, no attribution needed; the older poster-stylized Wikimedia photo module (station-photos.gen.mjs, ~1.5MB, credit line required) remains for the React control arm; flowing assets through the asset-storage subsystem instead of inlining is the follow-up",
     "egress": "opt-in via SNAPBACK_OUTBOUND_ACTIONS; product fetches are action-scoped and secret-backed, but the runtime grant is still coarse network:fetch rather than per-host allowlisted",
     "gestures": "Exact LLP 0336 P1/P2 closed the pager gap with Contract pager declarations, shared command witnesses, web recognition, and native Motion; richer directional-flick vocabulary remains Exact ENG-24184 and is not required by this app",
-    "mapsApps": "the directions affordance declares press= and longpress= (longpress is a real Contract event; native host-ops deliver EventType.LongPress) opening the actions sheet; on web, tap-to-open-maps, the long-press timer (the DOM mirror does not deliver onLongPress yet — filed separately), copy-address, and the persisted maps-app preference are glue (directions.ts); hosts without the glue open the sheet on press and its actions only dismiss — native URL-opening/clipboard host capabilities are the real fix (ENG-23795)",
+    "mapsApps": "the directions affordance declares press= and longpress= (a real Contract event delivered on web and native) and opens the actions sheet. The persisted maps-app choice is ordinary realm-lifetime Contract application state with best-effort localStorage mirroring, not host state. Web glue owns URL opening and clipboard side effects; native URL-opening/clipboard host capabilities remain the gap (ENG-23795).",
     "webChrome": "the Exact plugin's shell 'auto' mode preserves the surface's own index.html (ENG-22445), which carries the page chrome; main.ts installWebChrome keeps an idempotent copy of the same rules so the surface also survives generated-shell hosts (height chain, dark backdrop, touch-action rules)"
   },
   "notClaiming": [

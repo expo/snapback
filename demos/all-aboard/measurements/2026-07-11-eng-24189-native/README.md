@@ -136,6 +136,21 @@ present, but this capture deliberately records only the requested macOS-native
 evidence. Physical iPhone behavior remains to be rechecked when the device is
 available.
 
+### Later physical-device attempt (2026-07-11)
+
+The same named device later appeared locally as a paired iPhone 17 Pro Max on
+iOS 26.5.2 with Developer Mode enabled. Against source-pinned Exact
+`1debc7156`, the Debug `ExactApp` host built and signed successfully,
+`com.exact.ExactApp` installed, and a UIKit/Hermes source envelope launch reached
+native runtime creation and connected the iOS target. The device then locked;
+the host denied a clean relaunch, so the attempt stopped there.
+
+That receipt proves build, signing, installation, runtime creation, and target
+connection only. It does **not** prove a rendered All Aboard tree, screenshot,
+user-visible correctness, D1–D5 counters, frame timing, or kernel/thread-stage
+attribution on physical iPhone hardware. Those claims remain open until an
+unlocked-device run can capture them directly (ENG-24221).
+
 ## Artifact checksums
 
 | File | SHA-256 |

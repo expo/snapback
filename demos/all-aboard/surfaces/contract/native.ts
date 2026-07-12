@@ -1,11 +1,12 @@
 // All Aboard — static native Exact entry.
 //
-// The browser entry owns DOM chrome, geolocation prompts, and web gesture glue.
-// This entry keeps the native artifact graph Contract-first and avoids pulling
-// the web-host renderer into macOS/iOS startup bundles.
+// The browser entry owns DOM chrome and web-only side effects. Exact's native
+// host adapter owns device bindings such as geolocation; this entry keeps the
+// native artifact graph Contract-first and avoids pulling the web-host renderer
+// into macOS/iOS startup bundles.
 
-import * as contractRuntime from '@exact/contract/runtime';
 import { reset } from '@exact/contract/runtime';
+import { publishHostState } from '@exact/contract/runtime/host-bindings';
 import { ensureAppAgentBootstrap } from '@exact/app-agent-bootstrap';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
@@ -19,11 +20,7 @@ import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
-import {
-  configureUpdateEconomyExperiment,
-  setDeviceLocation,
-  updateEconomyExperimentSnapshot,
-} from './data';
+import { setRouteEstimateTransport } from './data';
 import { mountAllAboardRouter, type AllAboardRouterHandle } from './router';
 
 function createApp<T extends Record<string, unknown>>(config: T): T {
@@ -42,36 +39,6 @@ createApp({
 let activeSurface: { dispose?: () => void } | null = null;
 let routerHandle: AllAboardRouterHandle | null = null;
 
-declare const __ALL_ABOARD_UPDATE_ECONOMY__: string | undefined;
-configureUpdateEconomyExperiment(
-  typeof __ALL_ABOARD_UPDATE_ECONOMY__ === 'string'
-    ? __ALL_ABOARD_UPDATE_ECONOMY__
-    : undefined,
-);
-
-interface UpdateEconomyRendererApi {
-  getReport(): unknown;
-  reset(): void;
-  configure(flags: Record<string, boolean>): unknown;
-}
-
-function updateEconomyDiagnostics() {
-  const renderer = () =>
-    (globalThis as { __exactUpdateEconomy?: UpdateEconomyRendererApi })
-      .__exactUpdateEconomy;
-  return {
-    ...updateEconomyExperimentSnapshot(),
-    sample: (sinceWave?: number) => ({
-      reactive: contractRuntime.reactiveChurn(
-        sinceWave === undefined ? {} : { sinceWave },
-      ),
-      renderer: renderer()?.getReport() ?? null,
-    }),
-    resetRenderer: () => renderer()?.reset(),
-    configureRenderer: (flags: Record<string, boolean>) => renderer()?.configure(flags),
-  };
-}
-
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
 
 function snapbackBaseUrl(): string {
@@ -84,6 +51,13 @@ function snapbackBaseUrl(): string {
 
 async function boot(): Promise<void> {
   const client = new SnapbackClient(snapbackBaseUrl());
+  setRouteEstimateTransport(async (args) => {
+    const run = await client.action('routeEstimate', { args });
+    if (!run?.ok) {
+      throw new Error(run?.diagnostic?.message ?? 'routeEstimate action failed');
+    }
+    return run.result ?? {};
+  });
   await client.health();
   await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
 
@@ -98,8 +72,9 @@ async function boot(): Promise<void> {
   });
   activeSurface = surface;
   configureSnapbackContractLinks(surface.links as never);
-  setDeviceLocation(null, 'unavailable');
   routerHandle = await mountAllAboardRouter();
+  // @ref LLP 0052#d1--reactive-host-state-host-bindings — native projects provider lifecycle through the same declared binding as web.
+  publishHostState('backend', { status: 'connected' });
 }
 
 const ready = boot();
@@ -111,7 +86,6 @@ void ensureAppAgentBootstrap().catch((error: unknown) => {
 });
 (globalThis as { allAboard?: unknown }).allAboard = {
   ready,
-  updateEconomy: updateEconomyDiagnostics(),
 };
 
 if (import.meta.hot) {
@@ -120,6 +94,7 @@ if (import.meta.hot) {
     activeSurface = null;
     routerHandle?.dispose();
     routerHandle = null;
+    setRouteEstimateTransport(null);
     resetSnapbackContractLinks();
     reset();
   });

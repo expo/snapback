@@ -70,7 +70,7 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // guard lives in the shared harness (createSuite expectedChecks +
 // runAcceptance, ENG-22486). The declared-gap skip in main() returns before
 // runAcceptance, so it never reaches the guard.
-const EXPECTED_CHECKS = 32;
+const EXPECTED_CHECKS = 33;
 
 // ENG-23727 warm-start bar: first useful board paint within this budget of
 // the surface script starting to execute (module fetch latency is Vite's,
@@ -658,11 +658,10 @@ async function main() {
       return { opened };
     });
 
-    await suite.check('dark mode: the scheme flip restyles the board within a tick', async () => {
-      // The scheme is device glue (prefers-color-scheme / ?appearance=);
-      // window.__aaSetColorScheme is the same entry point, exposed because a
-      // real media-query flip cannot be synthesized from page JS. themePalette
-      // re-derives on the 1s clock, so the flip lands within a tick.
+    await suite.check('dark mode: the reactive scheme binding restyles the board', async () => {
+      // Exact owns the physical scheme subscription; ?appearance= and
+      // window.__aaSetColorScheme are deterministic host-publication controls
+      // because page JS cannot synthesize a real media-query flip.
       const bgOf = () => page.eval(`getComputedStyle(document.querySelector('[data-testid="all-aboard-main"]')).backgroundColor`);
       const lightBg = await bgOf();
       if (lightBg !== 'rgb(255, 255, 255)') throw new Error(`expected a white light-mode board: ${lightBg}`);
@@ -788,6 +787,68 @@ async function main() {
       return { first, second, stored };
     });
 
+    await suite.check('preferences survive router remounts when browser storage is denied', async () => {
+      await page.eval(`(() => {
+        window.__aaStorageMethods = {
+          getItem: Storage.prototype.getItem,
+          setItem: Storage.prototype.setItem,
+        };
+        Storage.prototype.getItem = function () { throw new DOMException('denied', 'SecurityError'); };
+        Storage.prototype.setItem = function () { throw new DOMException('denied', 'SecurityError'); };
+      })()`);
+      try {
+        await page.click('open-settings');
+        await page.click('maps-app');
+        await page.click('maps-app');
+        const chosenMaps = await page.text('maps-app');
+        if (chosenMaps !== 'Google Maps') throw new Error(`expected Google Maps under denied storage: ${chosenMaps}`);
+        await page.click('eta-mode');
+        const chosenEta = await page.text('eta-mode');
+        if (chosenEta !== '🚴 Bike') throw new Error(`expected Bike under denied storage: ${chosenEta}`);
+        await page.click('settings-back');
+
+        const label = await page.eval(
+          `document.querySelector('[data-testid^="station-directions-"]')?.getAttribute('aria-label') ?? ''`,
+        );
+        if (!/preferred app Google Maps/.test(label)) {
+          throw new Error(`Contract affordance lost the maps choice: ${label}`);
+        }
+        await page.eval(`window.__aaOpened = [];`);
+        await page.eval(`document.querySelector('[data-testid^="station-directions-"]')?.click()`);
+        const opened = await page.eval('window.__aaOpened');
+        if (!Array.isArray(opened) || !/google\.com\/maps/.test(opened[0] ?? '')) {
+          throw new Error(`directions ignored Contract maps state: ${JSON.stringify(opened)}`);
+        }
+
+        await page.click('open-settings');
+        const remountedMaps = await page.text('maps-app');
+        const remountedEta = await page.text('eta-mode');
+        if (remountedMaps !== chosenMaps || remountedEta !== chosenEta) {
+          throw new Error(
+            `preference remount drifted: ${JSON.stringify({ chosenMaps, chosenEta, remountedMaps, remountedEta })}`,
+          );
+        }
+
+        // Restore the baseline while the denied-storage path is still active.
+        await page.click('maps-app');
+        await page.click('eta-mode');
+        await page.click('eta-mode');
+        await page.click('settings-back');
+        return { chosenMaps, chosenEta, remountedMaps, remountedEta, opened };
+      } finally {
+        await page.eval(`(() => {
+          const methods = window.__aaStorageMethods;
+          if (methods) {
+            Storage.prototype.getItem = methods.getItem;
+            Storage.prototype.setItem = methods.setItem;
+          }
+          delete window.__aaStorageMethods;
+          window.localStorage.setItem('all-aboard.mapsApp', 'default');
+          window.localStorage.setItem('all-aboard.etaMode', 'auto');
+        })()`);
+      }
+    });
+
     // E4 (ENG-22450): the app-wide ETA mode toggle — in Settings since the
     // ENG-23719 redesign; the header summary and the stations sheet follow it.
 
@@ -796,6 +857,14 @@ async function main() {
       if (!/min walk/.test(walk ?? '')) throw new Error(`expected walk mode summary: ${walk}`);
       await page.click('open-settings');
       await page.click('eta-mode');
+      const firstToggle = await page.eval(`({
+        label: document.querySelector('[data-testid="eta-mode"]')?.textContent.trim() ?? null,
+        stored: window.localStorage.getItem('all-aboard.etaMode'),
+        search: new URL(window.location.href).searchParams.get('eta'),
+      })`);
+      if (firstToggle.label !== '🚴 Bike' || firstToggle.stored !== 'bike' || firstToggle.search !== 'bike') {
+        throw new Error(`one ETA press diverged across UI, storage, and route: ${JSON.stringify(firstToggle)}`);
+      }
       await page.click('settings-back');
       const bike = await page.text('walk-bike');
       if (!/min bike/.test(bike ?? '') || /walk/.test(bike ?? '')) throw new Error(`expected bike mode summary: ${bike}`);
@@ -816,7 +885,7 @@ async function main() {
       await page.click('settings-back');
       const auto = await page.text('walk-bike');
       if (!/min walk/.test(auto ?? '')) throw new Error(`auto mode summary did not resolve to walk: ${auto}`);
-      return { walk, bike, back, auto, autoLabel, pickerRow };
+      return { walk, firstToggle, bike, back, auto, autoLabel, pickerRow };
     });
 
     // ENG-23727: with the API origin unreachable, the open must still show

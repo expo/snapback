@@ -9,9 +9,9 @@
 // Run: node demos/all-aboard/tests/acceptance/badge-freshness.mjs
 // (node >= 22.18 strips the .ts types on import)
 
-import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
+import { assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 
-const { feedSourceBadge } = await import('../../surfaces/contract/data.ts');
+const { feedSourceBadge, feedStaleDeadline } = await import('../../surfaces/contract/data.ts');
 
 const suite = createSuite('all-aboard badge freshness');
 
@@ -52,9 +52,12 @@ await runAcceptance(suite, async () => {
     assertEqual(stale.label, 'STALE', '400s old is outside the default 390s window');
   });
 
-  await suite.check('no clock means no freshness verdict (badge stays source-derived)', async () => {
-    const badge = feedSourceBadge([{ lastSource: LIVE, fetchedAt: NOW - WINDOW * 10, staleAfterMs: WINDOW }]);
-    assertEqual(badge.label, 'LIVE', 'without nowMs the badge cannot age the snapshot out');
-    assert(badge.live, 'without nowMs the source verdict stands');
+  await suite.check('the deadline schedules the first millisecond after the inclusive boundary', async () => {
+    const rows = [{ lastSource: LIVE, fetchedAt: NOW, staleAfterMs: WINDOW }];
+    const deadline = NOW + WINDOW + 1;
+    assertEqual(feedStaleDeadline(rows, NOW), deadline, 'deadline is boundary + 1ms');
+    assertEqual(feedSourceBadge(rows, deadline - 1, 'light').label, 'LIVE', 'exact boundary remains live');
+    assertEqual(feedSourceBadge(rows, deadline, 'light').label, 'STALE', 'first later millisecond is stale');
+    assertEqual(feedStaleDeadline(rows, deadline), null, 'past deadlines are not re-armed');
   });
 });

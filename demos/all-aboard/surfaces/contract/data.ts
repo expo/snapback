@@ -8,11 +8,13 @@
 // pure-by-args for the live data. The store.mjs seam and its poll pump are
 // gone: server push drives the bindings, and the bindings drive the derives.
 //
-// Device location is the one remaining piece of module state: it is a device
-// capability (navigator.geolocation), not transport glue, so it lives here as
-// explicit device glue behind `setDeviceLocation`. Location-reading helpers
-// keep the ticking `nowMs` cache-buster so the 1s clock re-derives them (the
-// clock is UI — countdowns tick — not transport).
+// Host-owned inputs are arguments throughout this module. Scheme, safe area,
+// geolocation, and provider lifecycle enter the .contract through declared
+// `host` bindings (Exact LLP 0292 / Snapback LLP 0052 D1), and pure helpers
+// have no hidden host reads. Application preferences live behind the named
+// stores in `preferences.ts`; the only retained handle here is the transport
+// used by the route `resource`, while async result, expiry, and generation
+// state stay in Contract.
 
 import {
   PATTERNS,
@@ -38,61 +40,18 @@ import {
   stationPhotoCredit as modelStationPhotoCredit,
 } from '../../snapback/shared/model.mjs';
 import { STATION_ART_SCENES } from '../../snapback/shared/station-art.gen.mjs';
-const DEFAULT_LOCATION = { lat: 37.3894, lng: -122.0819 }; // Mountain View fallback
-
-// --- LLP 0052 Phase 0 update-economy experiment -----------------------------
-//
-// ENG-24189 measures the shipped mitigations as a 2x2 matrix rather than
-// comparing only the two endpoints. The default is the shipped `current`
-// behavior. A test/run may select `pre`, `clock-only`, `palette-only`, or
-// `current` through `?updateEconomy=<variant>` before the Contract root mounts.
-// This seam is intentionally demo-local and disappears with the completed
-// D1-D4 migration; it is not an application API.
-
-export type UpdateEconomyExperiment = 'pre' | 'clock-only' | 'palette-only' | 'current';
-
-let updateEconomyExperiment: UpdateEconomyExperiment = 'current';
-
-export function configureUpdateEconomyExperiment(value?: string | null): UpdateEconomyExperiment {
-  let requested = value;
-  if (requested == null) {
-    try {
-      requested = new URL(globalThis.location?.href ?? '').searchParams.get('updateEconomy');
-    } catch {
-      requested = null;
-    }
-  }
-  updateEconomyExperiment =
-    requested === 'pre' || requested === 'clock-only' || requested === 'palette-only'
-      ? requested
-      : 'current';
-  return updateEconomyExperiment;
-}
-
-export function updateEconomyExperimentSnapshot(): {
-  variant: UpdateEconomyExperiment;
-  clockQuantized: boolean;
-  paletteSingleton: boolean;
-} {
-  return {
-    variant: updateEconomyExperiment,
-    clockQuantized:
-      updateEconomyExperiment === 'clock-only' || updateEconomyExperiment === 'current',
-    paletteSingleton:
-      updateEconomyExperiment === 'palette-only' || updateEconomyExperiment === 'current',
-  };
-}
-
-export function updateEconomyTick(nowMs: number): number {
-  const { clockQuantized } = updateEconomyExperimentSnapshot();
-  return clockQuantized ? nowMs - nowMs % 5000 : nowMs;
-}
-
-// --- Device location (device-capability glue, set by main.ts) -----------------
+const DEFAULT_LOCATION = Object.freeze({ lat: 37.3894, lng: -122.0819 }); // Mountain View fallback
 
 type LatLng = { lat: number; lng: number };
 type RouteMode = 'walk' | 'bike';
 type RouteStation = { id?: string; lat: number; lng: number };
+export type HostLocation = {
+  status: 'pending' | 'available' | 'denied' | 'unavailable';
+  coords: { latitude: number; longitude: number } | null;
+  source?: string;
+  message?: string | null;
+};
+export type BackendProjection = { status: 'connecting' | 'connected' | 'offline' };
 type RouteEstimateArgs = {
   fromLat: number;
   fromLng: number;
@@ -110,57 +69,11 @@ type RouteEstimateResult = {
 };
 
 const ROUTE_CACHE_TTL_MS = 5 * 60 * 1000;
-let deviceLocation: LatLng | null = null;
-let deviceLocationSource = 'default'; // 'device' | 'default' | 'denied' | 'unavailable'
-
-// --- Maps-app preference (device-capability glue, like location) ---------------
-//
-// ENG-23795: which maps app the directions affordances open. The value lives
-// here (not contract state) because the web glue both writes it (the Settings
-// press cycles it, persisted to localStorage) and reads it (to build the URL a
-// tap opens); the .contract renders it through `mapsAppLabel(nowMs)` so the 1s
-// clock re-derives the label after a cycle. On native hosts without the glue
-// the label stays on the platform default — a declared gap, not a fake toggle.
-
-export type MapsApp = 'default' | 'apple' | 'google';
-const MAPS_APPS: MapsApp[] = ['default', 'apple', 'google'];
-let mapsApp: MapsApp = 'default';
-
-export type EtaMode = 'auto' | 'walk' | 'bike';
-let etaModePreference: EtaMode = 'auto';
-
-export function preferredEtaMode(fallback?: string | null, _tick?: number): EtaMode {
-  if (etaModePreference !== 'auto') return etaModePreference;
-  return fallback === 'walk' || fallback === 'bike' ? fallback : 'auto';
-}
-
-export function setEtaModePreference(next: string | null): void {
-  etaModePreference = next === 'walk' || next === 'bike' ? next : 'auto';
-}
-
-export function getMapsApp(): MapsApp {
-  return mapsApp;
-}
-
-export function setMapsApp(next: string | null): void {
-  mapsApp = MAPS_APPS.includes(next as MapsApp) ? (next as MapsApp) : 'default';
-}
-
-export function cycleMapsApp(): MapsApp {
-  mapsApp = MAPS_APPS[(MAPS_APPS.indexOf(mapsApp) + 1) % MAPS_APPS.length];
-  return mapsApp;
-}
-
-export function mapsAppLabel(_tick?: number): string {
-  if (mapsApp === 'apple') return 'Apple Maps';
-  if (mapsApp === 'google') return 'Google Maps';
-  return 'Platform default';
-}
 
 // City-level postal addresses for the copy-address action. The model has no
 // street addresses; a "<name> Caltrain Station, <city>, CA" string is
 // unambiguous for every maps app without inventing house numbers.
-const STATION_CITIES: Record<string, string> = {
+const STATION_CITIES: Readonly<Record<string, string>> = Object.freeze({
   'san-francisco': 'San Francisco',
   'twenty-second-st': 'San Francisco',
   'bayshore': 'San Francisco',
@@ -182,7 +95,7 @@ const STATION_CITIES: Record<string, string> = {
   'lawrence': 'Sunnyvale',
   'santa-clara': 'Santa Clara',
   'san-jose': 'San Jose',
-};
+});
 
 export function stationAddress(stationId: string): string {
   const station = getStationById(stationId);
@@ -204,45 +117,14 @@ export function directionsUrl(stationId: string, app: 'apple' | 'google', mode: 
   }
   return `https://maps.apple.com/?daddr=${dest}&dirflg=${mode === 'bike' ? 'c' : 'w'}`;
 }
-let routeEstimateInvoker: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null = null;
-const routeCache = new Map<string, { estimate: RouteEstimateResult; storedAt: number }>();
-const routeInFlight = new Set<string>();
+// A transport handle may be shared by resources, but no async result or TTL
+// state may escape the Contract `resource` that owns it (LLP 0052 D1/D2).
+let routeEstimateTransport: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null = null;
 
-export function setDeviceLocation(location: LatLng | null, source?: string): void {
-  deviceLocation = location ?? null;
-  deviceLocationSource = source ?? (location ? 'device' : 'default');
-}
-
-export function setRouteEstimateInvoker(invoker: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null): void {
-  routeEstimateInvoker = invoker;
-  routeCache.clear();
-  routeInFlight.clear();
-}
-
-// --- Appearance (device-capability glue, like location) ------------------------
-//
-// Dark mode. The scheme is module state written by the web glue (main.ts:
-// prefers-color-scheme media query + change listener, with a ?appearance=
-// URL override for tests and debugging) and read by themePalette, which the
-// .contract derives off the ticking clock — so an OS appearance flip restyles
-// the board within a second, no reload. The Caltrain-red header and the NEXT
-// TRAIN pill deliberately keep their brand red + white in both schemes; the
-// board surfaces, text, and accents swap. On native hosts without the glue
-// the app stays light — a declared gap (ENG-24056 territory), not a bug.
-
-export type ColorScheme = 'light' | 'dark';
-let colorScheme: ColorScheme = 'light';
-
-export function setColorScheme(next: string | null): void {
-  colorScheme = next === 'dark' ? 'dark' : 'light';
-}
-
-export function getColorScheme(): ColorScheme {
-  return colorScheme;
-}
-
-function isDark(): boolean {
-  return colorScheme === 'dark';
+export function setRouteEstimateTransport(
+  transport: ((args: RouteEstimateArgs) => Promise<RouteEstimateResult>) | null,
+): void {
+  routeEstimateTransport = transport;
 }
 
 // Every layout color the .contract uses, as one derive-friendly token object.
@@ -251,28 +133,13 @@ function isDark(): boolean {
 // a lifted Caltrain red for text accents — pure #C8102E fails contrast as
 // text on the dark board).
 //
-// @ref LLP 0052#motivation — interim update-economy mitigation: reference-
-// stable derive results; D3/D4 (value-based dirtiness, derive memoization)
-// are the framework-side closure.
-// IDENTITY MATTERS: the two palettes are module singletons, not fresh
-// objects per call. A fresh-but-value-equal result re-fires every reader
-// through reference-based signal propagation, and per host (the corrected
-// LLP 0052 mechanism; Diary 0008 erratum 2026-07-11): on plain web the DOM
-// mirror's element gate is props-REFERENCE based (dom-mirror.ts "same props
-// reference means nothing to apply", ENG-23260), so the mirror re-applied
-// themed elements on the main thread every tick; on native, element props
-// are value-diffed before encoding — the tick cost there was the re-fired
-// text bindings' same-text ops (updateTextContent has no equality check),
-// not element re-applies. Stable identity per scheme stops the THEME-DRIVEN
-// share of both at the source — a tick that changes no color advances no
-// palette-reader version; clock-fed bindings that don't read the palette
-// still re-fire until the LLP 0052 framework work lands.
+// The palettes remain module singletons. Scheme itself is a declared host
+// value, so identity changes exactly when that host input changes.
 const LIGHT_PALETTE = buildLightPalette();
 const DARK_PALETTE = buildDarkPalette();
 
-export function themePalette(_tick?: number) {
-  const palette = isDark() ? DARK_PALETTE : LIGHT_PALETTE;
-  return updateEconomyExperimentSnapshot().paletteSingleton ? palette : { ...palette };
+export function themePalette(scheme: string) {
+  return scheme === 'dark' ? DARK_PALETTE : LIGHT_PALETTE;
 }
 
 function buildLightPalette() {
@@ -337,71 +204,11 @@ function buildDarkPalette() {
   };
 }
 
-// --- Safe area (device-capability glue, like location and appearance) ---------
-//
-// The app draws its own full-bleed chrome (absolute sticky header/footer), so
-// it must consume the device safe area itself: the red header extends under
-// the iOS status bar / notch with its content pushed down, and the footer
-// keeps its controls above the home indicator. The native Exact host
-// publishes the real insets as `globalThis.exact.safeAreaInsets` (the
-// renderer-level safe-area system never engages for this surface: the
-// contract native startup does not register the window-management
-// __exactSafeAreaRegionsChanged hook, so window-state stays zero). Reading
-// the host global live on each derive — off the ticking clock, like every
-// other device-glue helper here — adopts inset changes (rotation, dynamic
-// island) within a second. On web the browser owns the safe area and the
-// host global is absent, so everything stays zero; setSafeAreaInsets is the
-// explicit override seam for tests and any host without the global.
-
-export type SafeAreaInsetsValue = { top: number; right: number; bottom: number; left: number };
-let safeAreaOverride: SafeAreaInsetsValue | null = null;
-
-export function setSafeAreaInsets(next: Partial<SafeAreaInsetsValue> | null): void {
-  safeAreaOverride = next
-    ? {
-        top: clampInset(next.top),
-        right: clampInset(next.right),
-        bottom: clampInset(next.bottom),
-        left: clampInset(next.left),
-      }
-    : null;
-}
-
-function clampInset(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
-}
-
-export function safeAreaInsets(_tick?: number): SafeAreaInsetsValue {
-  if (safeAreaOverride) return safeAreaOverride;
-  const host = (globalThis as { exact?: { safeAreaInsets?: Partial<SafeAreaInsetsValue> } })
-    .exact?.safeAreaInsets;
-  return {
-    top: clampInset(host?.top),
-    right: clampInset(host?.right),
-    bottom: clampInset(host?.bottom),
-    left: clampInset(host?.left),
-  };
-}
-
-// --- Backend attach state (board-first startup, ENG-23727) --------------------
-//
-// The board mounts before the backend attaches, so the surface needs an
-// honest, non-blocking answer to "is this live yet?". main.ts writes the
-// phase here (transport glue, like device location); the ticking nowMs clock
-// re-derives the note, so the board reflects a phase change within a second.
-
-type BackendState = 'connecting' | 'connected' | 'offline';
-let backendState: BackendState = 'connecting';
-
-export function setBackendState(next: BackendState): void {
-  backendState = next;
-}
-
 // The small status affordance shown with the schedule board while the live
 // bindings are still pending; empty once the backend is attached (the live
 // arms own freshness from then on).
-export function backendStatusNote(_tick?: number): string {
-  switch (backendState) {
+export function backendStatusNote(backend: BackendProjection): string {
+  switch (backend.status) {
     case 'connected': return '';
     case 'offline': return 'Offline — showing scheduled departures';
     default: return 'Connecting for live updates…';
@@ -416,23 +223,29 @@ export function emptyDelayRows(): DelayRow[] {
 
 // --- Location + station selection --------------------------------------------
 
-export function getUserLocation(_tick?: number) {
-  return deviceLocation ?? DEFAULT_LOCATION;
+export function getUserLocation(location: HostLocation): LatLng {
+  if (location.status === 'available' && location.coords) {
+    return { lat: location.coords.latitude, lng: location.coords.longitude };
+  }
+  return DEFAULT_LOCATION;
 }
 
-export function locationSource(_tick?: number): string {
-  return deviceLocationSource;
+export function locationSource(location: HostLocation): string {
+  if (location.status === 'available') return 'device';
+  if (location.status === 'denied') return 'denied';
+  if (location.status === 'unavailable') return 'unavailable';
+  return 'default';
 }
 
 // A friendly signal of whether the nearest station came from the device or a
 // fallback — so a denied/dismissed permission prompt is legible, not silent.
 // Shown in Settings only; the home board communicates location state through
 // the footer icon color alone (locationIndicatorColor). The denied line says
-// what to do about it: once the user re-allows access (the Settings press
-// re-prompts; a site-settings flip fires the permission change event main.ts
-// listens for), the board adopts the real location without a reload.
-export function locationHint(_tick?: number): string {
-  switch (deviceLocationSource) {
+// what to do about it: the Settings press explicitly requests a fresh fix,
+// while Exact's shared host subscription publishes permission and position
+// changes; the board adopts the real location without a reload.
+export function locationHint(location: HostLocation): string {
+  switch (locationSource(location)) {
     case 'device': return '📍 Using your location';
     case 'denied': return 'Location blocked — allow location for this site, then tap here';
     case 'unavailable': return 'Location unavailable — showing a default stop';
@@ -444,9 +257,59 @@ export function locationHint(_tick?: number): string {
 // on the real device location and gray on any fallback. The icon is the ONLY
 // home-board location signal — the old hint-text line under the board is
 // gone; the full explanation (and the retry affordance) lives in Settings.
-export function locationIndicatorColor(_tick?: number): string {
-  if (deviceLocationSource === 'device') return '#0A84FF';
-  return isDark() ? '#8A93A0' : '#9CA3AF';
+export function locationIndicatorColor(location: HostLocation, scheme: string): string {
+  if (locationSource(location) === 'device') return '#0A84FF';
+  return scheme === 'dark' ? '#8A93A0' : '#9CA3AF';
+}
+
+export function requestGeolocationRefresh(): void {
+  void import('@exact/contract/runtime/host-bindings').then(({ publishHostTransaction }) => {
+    const api = globalThis.navigator?.geolocation;
+    if (!api) {
+      publishHostTransaction({
+        geolocation: { status: 'unavailable', source: 'host', message: 'geolocation is unavailable' },
+      });
+      return;
+    }
+    api.getCurrentPosition(
+      (position) => {
+        publishHostTransaction({
+          geolocation: {
+            status: 'available',
+            coords: {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              altitude: position.coords.altitude,
+              altitudeAccuracy: position.coords.altitudeAccuracy,
+              heading: position.coords.heading,
+              speed: position.coords.speed,
+            },
+            source: 'device',
+          },
+        });
+      },
+      (error) => {
+        publishHostTransaction({
+          geolocation: error.code === 1
+            ? { status: 'denied', source: 'permission', message: error.message }
+            : { status: 'unavailable', source: 'host', message: error.message },
+        });
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
+    );
+  });
+}
+
+export function openClipperLink(): void {
+  if (typeof globalThis.open !== 'function') return;
+  const ua = globalThis.navigator?.userAgent ?? '';
+  const url = /iPhone|iPad|iPod/.test(ua)
+    ? 'https://apps.apple.com/us/app/clipper-card/id1481471559'
+    : /Android/.test(ua)
+      ? 'https://play.google.com/store/apps/details?id=com.cubic.ctp.app'
+      : 'https://www.clippercard.com/';
+  globalThis.open(url, '_blank', 'noopener');
 }
 
 // --- Sticky-footer icons -------------------------------------------------------
@@ -467,10 +330,10 @@ export function locationIconSvg(color: string): string {
   return strokeIconSvg(color, '<polygon points="3 11 22 2 13 21 11 13 3 11"/>');
 }
 
-// Ticket icon for the Clipper affordance (get / refill a Clipper card). The
-// press is web glue in main.ts — device-aware: the Clipper app store listing
-// on iOS/Android, clippercard.com elsewhere. Like the other footer icons it
-// takes its stroke color from the theme (theme.secondary).
+// Ticket icon for the Clipper affordance (get / refill a Clipper card). Its
+// named capability opens the device-aware app-store listing on iOS/Android
+// and clippercard.com elsewhere. Like the other footer icons it takes its
+// stroke color from the theme (theme.secondary).
 export function ticketIconSvg(color: string): string {
   return strokeIconSvg(color, '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/>');
 }
@@ -483,16 +346,16 @@ export function settingsIconSvg(color: string): string {
   return strokeIconSvg(color, '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>');
 }
 
-export function getSelectedStation(stationId: string | null, _tick?: number) {
-  return modelSelectedStation(stationId, getUserLocation());
+export function getSelectedStation(stationId: string | null, location: HostLocation) {
+  return modelSelectedStation(stationId, getUserLocation(location));
 }
 
 export function getStations() {
   return modelStations();
 }
 
-export function searchStations(query: string, _tick?: number) {
-  return modelSearch(query, getUserLocation());
+export function searchStations(query: string, location: HostLocation) {
+  return modelSearch(query, getUserLocation(location));
 }
 
 export function adjacentStationId(stationId: string, delta: number): string {
@@ -513,6 +376,10 @@ export function stationPhotoCredit(stationId: string): string {
 // scene count — so the whole app flips to the next scene at midnight UTC and
 // the choice stays deterministic (no per-render randomness to break tests).
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function nextUtcDayDeadline(nowMs: number): number {
+  return (Math.floor(nowMs / DAY_MS) + 1) * DAY_MS;
+}
 
 export function stationArt(stationId: string, nowMs: number): string {
   const scenes = (STATION_ART_SCENES as Record<string, string[]>)[stationId] ?? [];
@@ -599,6 +466,46 @@ function liveDeparturesFor(stationId: string, direction: string, nowMs: number, 
     .sort((a, b) => Number(a.predictedDepartureMs) - Number(b.predictedDepartureMs))
     .slice(0, limit)
     .map(departureFromLiveRow);
+}
+
+// The board's dataflow wakes only when one of its visible-domain rows can
+// expire. Home observes both directions for the selected station (the footer
+// shows the opposite direction); the station picker observes its matching
+// stations in the active direction. Countdown presentation is separately
+// terminal-temporal and does not wake these derives.
+export function nextDepartureExpiry(
+  screen: string,
+  selectedStationId: string,
+  stations: Array<{ id: string }>,
+  direction: string,
+  nowMs: number,
+  delayRows: DelayRow[],
+  departureRows: LiveDepartureRow[],
+  feedRows: FeedRow[],
+): number | null {
+  const stationIds = screen === 'stations'
+    ? stations.map((station) => station.id)
+    : [selectedStationId];
+  const directions = screen === 'home' ? ['north', 'south'] : [direction];
+  let earliest = Number.POSITIVE_INFINITY;
+  for (const stationId of stationIds) {
+    for (const candidateDirection of directions) {
+      const rows = isLiveFeed(feedRows)
+        ? liveDeparturesFor(stationId, candidateDirection, nowMs, departureRows, 96)
+        : modelUpcomingDepartures(
+            stationId,
+            candidateDirection,
+            nowMs,
+            delaysFrom(delayRows),
+            96,
+          );
+      for (const row of rows) {
+        const deadline = Number(row.predictedDepartureMs) + DEPARTED_GRACE_MS;
+        if (deadline > nowMs && deadline < earliest) earliest = deadline;
+      }
+    }
+  }
+  return Number.isFinite(earliest) ? earliest : null;
 }
 
 export function getDirectionBoard(
@@ -691,6 +598,7 @@ export function terminalHint(
   delayRows: DelayRow[],
   departureRows: LiveDepartureRow[],
   feedRows: FeedRow[],
+  timezoneGeneration: number,
 ): string {
   const board = getDirectionBoard(stationId, direction, nowMs, 1, delayRows, departureRows, feedRows);
   const primary = board?.primary;
@@ -698,7 +606,7 @@ export function terminalHint(
   const run = getTrainRun(primary.id, nowMs, delayRows, departureRows);
   const last = run?.stops?.[run.stops.length - 1];
   if (!last) return '';
-  return `… ${last.station.name} ${modelFormatClockTime(last.predictedTimeMs)}`;
+  return `… ${last.station.name} ${formatClockTime(last.predictedTimeMs, timezoneGeneration)}`;
 }
 
 // On-time / late marker for a departure (or a trip; both carry delaySeconds).
@@ -711,9 +619,9 @@ export function delayLabel(dep: { delaySeconds?: number } | null): string {
 // Scheme-aware on-time/late hues: dark ink-ish hues on the white board
 // (ENG-23719 — the light tints failed contrast there), lifted variants on
 // the dark board where the deep hues disappear.
-export function delayColor(dep: { delaySeconds?: number } | null): string {
+export function delayColor(dep: { delaySeconds?: number } | null, scheme: string): string {
   const late = (dep?.delaySeconds ?? 0) >= 45;
-  if (isDark()) return late ? '#FBBF24' : '#34D399';
+  if (scheme === 'dark') return late ? '#FBBF24' : '#34D399';
   return late ? '#B45309' : '#047857';
 }
 
@@ -869,7 +777,14 @@ export function getTrainRun(runId: string, nowMs: number, delayRows: DelayRow[],
 // stops. The card answers "when does it leave here" and "when does it get
 // where it's going"; the full stop list is one tap away on the trip detail.
 // Fewer than four stops from boarding need no ellipsis: everything fits.
-export function heroStops(runId: string, stationId: string, nowMs: number, delayRows: DelayRow[], departureRows: LiveDepartureRow[]) {
+export function heroStops(
+  runId: string,
+  stationId: string,
+  nowMs: number,
+  delayRows: DelayRow[],
+  departureRows: LiveDepartureRow[],
+  timezoneGeneration: number,
+) {
   const trip = getTrainRun(runId, nowMs, delayRows, departureRows);
   if (!trip) return [];
   const boardingIndex = trip.stops.findIndex((stop: { station: { id: string } }) => stop.station.id === stationId);
@@ -880,7 +795,7 @@ export function heroStops(runId: string, stationId: string, nowMs: number, delay
     id: stop.station.id,
     gap: false,
     name: stop.station.shortName,
-    time: stopClockLabel(stop),
+    time: stopClockLabel(stop, timezoneGeneration),
     isBoarding: stop.station.id === stationId,
   });
   const rest = stops.slice(1);
@@ -907,16 +822,32 @@ export function boardingCall(
   if (!stop) return null;
   return {
     departed: Number(stop.predictedTimeMs) < nowMs - DEPARTED_GRACE_MS,
-    minutes: modelFormatCountdown(stop.predictedTimeMs, nowMs),
     name: stop.station.shortName,
-    time: stopClockLabel(stop),
+    predictedTimeMs: stop.predictedTimeMs,
+    estimated: stop.estimated === true,
   };
+}
+
+export function boardingCallDeadline(
+  trip: { stops?: Array<{ station: { id: string }; predictedTimeMs: number }> } | null,
+  stationId: string,
+): number | null {
+  const stop = trip?.stops?.find((candidate) => candidate.station.id === stationId);
+  return stop ? Number(stop.predictedTimeMs) + DEPARTED_GRACE_MS + 1 : null;
 }
 
 // The served stops from the boarding station onward — the hero chips'
 // predecessor, kept for the live-run reconstruction checks
 // (trip-detail-live.mjs) that assert per-stop estimated markers.
-export function upcomingStops(runId: string, stationId: string, nowMs: number, limit: number, delayRows: DelayRow[], departureRows: LiveDepartureRow[]) {
+export function upcomingStops(
+  runId: string,
+  stationId: string,
+  nowMs: number,
+  limit: number,
+  delayRows: DelayRow[],
+  departureRows: LiveDepartureRow[],
+  timezoneGeneration = 0,
+) {
   const trip = getTrainRun(runId, nowMs, delayRows, departureRows);
   if (!trip) return [];
   const boardingIndex = trip.stops.findIndex((stop: { station: { id: string } }) => stop.station.id === stationId);
@@ -924,7 +855,7 @@ export function upcomingStops(runId: string, stationId: string, nowMs: number, l
   return trip.stops.slice(from, from + (limit || 6)).map((stop: { station: { id: string; shortName: string }; predictedTimeMs: number; estimated?: boolean }) => ({
     id: stop.station.id,
     name: stop.station.shortName,
-    time: stopClockLabel(stop),
+    time: stopClockLabel(stop, timezoneGeneration),
     isBoarding: stop.station.id === stationId,
   }));
 }
@@ -932,28 +863,39 @@ export function upcomingStops(runId: string, stationId: string, nowMs: number, l
 // Clock label for a stop row: real times (model schedule or live 511 rows)
 // render plain; times interpolated from the pattern for stations the live feed
 // did not cover are marked approximate.
-export function stopClockLabel(stop: { predictedTimeMs: number; estimated?: boolean }): string {
-  return `${stop.estimated ? '~' : ''}${modelFormatClockTime(stop.predictedTimeMs)}`;
+export function stopClockLabel(
+  stop: { predictedTimeMs: number; estimated?: boolean },
+  timezoneGeneration: number,
+): string {
+  return `${stop.estimated ? '~' : ''}${formatClockTime(stop.predictedTimeMs, timezoneGeneration)}`;
 }
 
 // --- Formatting ---------------------------------------------------------------
 
-export function formatClockTime(timestampMs: number): string {
+export function formatClockTime(timestampMs: number, timezoneGeneration: number): string {
+  if (!Number.isFinite(timezoneGeneration)) return '';
   return modelFormatClockTime(timestampMs);
 }
 
-export function formatCountdownMinutes(targetMs: number, nowMs: number): number {
-  return modelFormatCountdown(targetMs, nowMs);
+export function countdownTemporal(targetMs: number, nowMs: number): {
+  value: number;
+  nextChangeAt: number | null;
+} {
+  const value = modelFormatCountdown(targetMs, nowMs);
+  return {
+    value,
+    nextChangeAt: value > 0 ? targetMs - (value - 1) * 60_000 : null,
+  };
 }
 
 export function serviceColor(service: string): string {
   return modelServiceColor(service);
 }
 
-export function serviceTint(service: string): string {
+export function serviceTint(service: string, scheme: string): string {
   // ~13% alpha pill background on light; a touch stronger on the dark board
   // where 13% of a mid hue vanishes into the surface.
-  return `${modelServiceColor(service)}${isDark() ? '30' : '22'}`;
+  return `${modelServiceColor(service)}${scheme === 'dark' ? '30' : '22'}`;
 }
 
 // --- Walk / bike (haversine over the seed coordinates) ------------------------
@@ -964,9 +906,13 @@ export function serviceTint(service: string): string {
 
 const AUTO_BIKE_OVER_WALK_MINUTES = 18;
 
-export function effectiveEtaMode(station: RouteStation, mode: string, _tick?: number): RouteMode {
+export function effectiveEtaMode(
+  station: RouteStation,
+  mode: string,
+  hostLocation: HostLocation,
+): RouteMode {
   if (mode === 'walk' || mode === 'bike') return mode;
-  const walkMinutes = estimateWalkMinutes(getUserLocation(), station);
+  const walkMinutes = estimateWalkMinutes(getUserLocation(hostLocation), station);
   return walkMinutes > AUTO_BIKE_OVER_WALK_MINUTES ? 'bike' : 'walk';
 }
 
@@ -979,15 +925,17 @@ export function etaModeLabel(mode: string): string {
 // The accessible label on the header directions affordance. It doubles as the
 // web glue's channel for the resolved travel mode (the glue builds the maps
 // URL from it), so the wording must keep the literal words walking/biking.
-export function directionsLabel(station: RouteStation, mode: string, _tick?: number): string {
-  return effectiveEtaMode(station, mode) === 'bike' ? 'Get biking directions' : 'Get walking directions';
+export function directionsLabel(station: RouteStation, mode: string, location: HostLocation): string {
+  return effectiveEtaMode(station, mode, location) === 'bike'
+    ? 'Get biking directions'
+    : 'Get walking directions';
 }
 
 function normalizedRouteMode(mode: string): RouteMode {
   return mode === 'bike' ? 'bike' : 'walk';
 }
 
-function routeCacheKey(location: LatLng, station: RouteStation, mode: RouteMode): string {
+function routeEstimateKey(location: LatLng, station: RouteStation, mode: RouteMode): string {
   const stationKey = station.id ?? `${station.lat.toFixed(5)},${station.lng.toFixed(5)}`;
   return `${mode}:${location.lat.toFixed(4)},${location.lng.toFixed(4)}:${stationKey}`;
 }
@@ -998,41 +946,75 @@ function fallbackRouteEstimate(station: RouteStation, mode: RouteMode, location:
   return { mode, minutes, distanceMiles: miles, source: 'haversine' };
 }
 
-function cachedRouteEstimate(station: RouteStation, modeInput: string, location: LatLng): RouteEstimateResult {
-  const mode = normalizedRouteMode(modeInput);
-  const key = routeCacheKey(location, station, mode);
-  const now = Date.now();
-  const cached = routeCache.get(key);
-  const maxAge = cached?.estimate.cacheTtlMs ?? ROUTE_CACHE_TTL_MS;
-  if (cached && now - cached.storedAt < maxAge) return cached.estimate;
+export type RouteEstimateResourceValue = {
+  key: string;
+  estimate: RouteEstimateResult;
+  requestedAt: number;
+};
 
-  if (routeEstimateInvoker && !routeInFlight.has(key)) {
-    routeInFlight.add(key);
-    routeEstimateInvoker({
-      fromLat: location.lat,
-      fromLng: location.lng,
-      toLat: station.lat,
-      toLng: station.lng,
-      mode,
-    }).then((estimate) => {
-      if (estimate && typeof estimate === 'object') {
-        routeCache.set(key, { estimate, storedAt: Date.now() });
-      }
-    }).catch(() => {
-      // The server action already has a fallback path. If the transport itself
-      // fails, keep rendering the deterministic local estimate.
-    }).finally(() => {
-      routeInFlight.delete(key);
-    });
-  }
-
-  return fallbackRouteEstimate(station, mode, location);
+// The route action and the Contract resource share one explicit five-minute
+// cadence. A response-specific TTL used to be copied into an `expiresAt`
+// field that no reactive consumer read; keeping the deadline here makes the
+// actual wake policy visible and prevents that inert cache metadata from
+// masquerading as scheduling authority.
+export function routeEstimateRefreshDeadline(nowMs: number): number {
+  return nowMs + ROUTE_CACHE_TTL_MS;
 }
 
-export function walkBikeSummary(station: RouteStation, mode: string, _tick?: number): string {
-  const location = getUserLocation();
-  const effective = effectiveEtaMode(station, mode);
-  const estimate = cachedRouteEstimate(station, effective, location);
+export async function loadRouteEstimate(
+  station: RouteStation,
+  modeInput: string,
+  hostLocation: HostLocation,
+  backend: BackendProjection,
+  requestedAt: number,
+): Promise<RouteEstimateResourceValue> {
+  const location = getUserLocation(hostLocation);
+  const mode = effectiveEtaMode(station, modeInput, hostLocation);
+  const key = routeEstimateKey(location, station, mode);
+  const fallback = fallbackRouteEstimate(station, mode, location);
+  let estimate = fallback;
+  if (backend.status === 'connected' && routeEstimateTransport) {
+    try {
+      const routed = await routeEstimateTransport({
+        fromLat: location.lat,
+        fromLng: location.lng,
+        toLat: station.lat,
+        toLng: station.lng,
+        mode,
+      });
+      if (routed && typeof routed === 'object') estimate = routed;
+    } catch {
+      // Transport failure keeps the deterministic local estimate. The next
+      // resource deadline retries through Contract's one clock authority.
+    }
+  }
+  return { key, estimate, requestedAt };
+}
+
+function estimateForRouteResource(
+  station: RouteStation,
+  mode: string,
+  hostLocation: HostLocation,
+  resource: RouteEstimateResourceValue | null | undefined,
+): { effective: RouteMode; estimate: RouteEstimateResult } {
+  const location = getUserLocation(hostLocation);
+  const effective = effectiveEtaMode(station, mode, hostLocation);
+  const key = routeEstimateKey(location, station, effective);
+  const estimate = resource?.key === key
+    ? resource.estimate
+    : fallbackRouteEstimate(station, effective, location);
+  return { effective, estimate };
+}
+
+export function walkBikeSummary(
+  station: RouteStation,
+  mode: string,
+  hostLocation: HostLocation,
+  resource: RouteEstimateResourceValue | null | undefined,
+): string {
+  const selected = estimateForRouteResource(station, mode, hostLocation, resource);
+  const effective = selected.effective;
+  const estimate = selected.estimate;
   const minutes = Math.max(1, Math.round(Number(estimate.minutes) || 1));
   const miles = Number(estimate.distanceMiles) || 0;
   const label = effective === 'bike' ? 'bike' : 'walk';
@@ -1044,16 +1026,25 @@ export function walkBikeSummary(station: RouteStation, mode: string, _tick?: num
 
 // The header directions line: mode glyph + summary + an explicit directions
 // symbol, one tap/press affordance (ENG-23795).
-export function walkBikeLine(station: RouteStation, mode: string, _tick?: number): string {
-  const glyph = effectiveEtaMode(station, mode) === 'bike' ? '🚴' : '🚶';
-  return `${glyph} ${walkBikeSummary(station, mode)} ⬈`;
+export function walkBikeLine(
+  station: RouteStation,
+  mode: string,
+  location: HostLocation,
+  resource: RouteEstimateResourceValue | null | undefined,
+): string {
+  const glyph = effectiveEtaMode(station, mode, location) === 'bike' ? '🚴' : '🚶';
+  return `${glyph} ${walkBikeSummary(station, mode, location, resource)} ⬈`;
 }
 
 // Compact ETA for the stations-list rows: the mode's minutes plus distance
 // (the full summary is too wide there).
-export function distanceLabel(station: RouteStation, mode: string, _tick?: number): string {
-  const location = getUserLocation();
-  const estimate = fallbackRouteEstimate(station, effectiveEtaMode(station, mode), location);
+export function distanceLabel(station: RouteStation, mode: string, hostLocation: HostLocation): string {
+  const location = getUserLocation(hostLocation);
+  const estimate = fallbackRouteEstimate(
+    station,
+    effectiveEtaMode(station, mode, hostLocation),
+    location,
+  );
   const minutes = Math.max(1, Math.round(Number(estimate.minutes) || 1));
   const miles = Number(estimate.distanceMiles) || 0;
   return `${minutes} min · ${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
@@ -1061,15 +1052,30 @@ export function distanceLabel(station: RouteStation, mode: string, _tick?: numbe
 
 // --- Freshness marker (feedState rows from the live query binding) ------------
 
-export function feedFreshness(nowMs: number, feedRows: Array<{ fetchedAt?: number }>): string {
+export function feedFreshnessTemporal(
+  feedRows: Array<{ fetchedAt?: number }>,
+  backend: BackendProjection,
+  nowMs: number,
+): { value: string; nextChangeAt: number | null } {
   const feed = feedRows?.[0] ?? null;
   // Board-first startup (ENG-23727): before the backend has attached, the
   // board shows deterministic schedule times — say so, instead of implying a
   // feed is on its way that may never arrive.
-  if (!feed || !feed.fetchedAt) return backendState === 'connected' ? 'Waiting for feed…' : 'Scheduled times';
+  if (!feed || !feed.fetchedAt) {
+    return {
+      value: backend.status === 'connected' ? 'Waiting for feed…' : 'Scheduled times',
+      nextChangeAt: null,
+    };
+  }
   const ageSeconds = Math.max(0, Math.floor((nowMs - feed.fetchedAt) / 1000));
-  if (ageSeconds < 60) return 'Updated a few seconds ago';
-  return `Updated ${Math.max(1, Math.floor(ageSeconds / 60))}m ago`;
+  if (ageSeconds < 60) {
+    return { value: 'Updated a few seconds ago', nextChangeAt: feed.fetchedAt + 60_000 };
+  }
+  const ageMinutes = Math.max(1, Math.floor(ageSeconds / 60));
+  return {
+    value: `Updated ${ageMinutes}m ago`,
+    nextChangeAt: feed.fetchedAt + (ageMinutes + 1) * 60_000,
+  };
 }
 
 // --- Data-source badge (live 511 feed vs the recorded demo feed) ---------------
@@ -1107,7 +1113,8 @@ const DEFAULT_STALE_AFTER_MS = 390_000;
 // (the ENG-23642 honesty requirement).
 export function feedSourceBadge(
   feedRows: Array<{ lastSource?: string; fetchedAt?: number; staleAfterMs?: number }>,
-  nowMs?: number,
+  nowMs: number,
+  scheme: string,
 ): {
   live: boolean;
   label: string;
@@ -1117,7 +1124,7 @@ export function feedSourceBadge(
   dot: string;
 } {
   const feed = feedRows?.[0] ?? null;
-  const dark = isDark();
+  const dark = scheme === 'dark';
   const grayDot = dark ? '#6B7280' : '#9CA3AF';
   // No feed row yet (board-first startup, before the live bindings deliver):
   // the board is on the deterministic schedule — its own honest category,
@@ -1135,13 +1142,29 @@ export function feedSourceBadge(
   }
   const fetchedAt = Number(feed?.fetchedAt) || 0;
   const staleAfterMs = Number(feed?.staleAfterMs) > 0 ? Number(feed?.staleAfterMs) : DEFAULT_STALE_AFTER_MS;
-  const fresh = typeof nowMs !== 'number' || fetchedAt <= 0 || nowMs - fetchedAt <= staleAfterMs;
+  const fresh = fetchedAt <= 0 || nowMs - fetchedAt <= staleAfterMs;
   if (fresh) {
     const green = dark ? '#34D399' : '#047857';
     return { live: true, label: 'LIVE', color: green, tint: `${green}12`, border: `${green}36`, dot: '#059669' };
   }
   const red = dark ? '#F87171' : '#B91C1C';
   return { live: false, label: 'STALE', color: red, tint: `${red}12`, border: `${red}36`, dot: grayDot };
+}
+
+// Inclusive freshness flips at the first representable millisecond after the
+// threshold. Passing this to invalidateAt pins the exact D2 boundary.
+export function feedStaleDeadline(
+  feedRows: Array<{ lastSource?: string; fetchedAt?: number; staleAfterMs?: number }>,
+  nowMs: number,
+): number | null {
+  const feed = feedRows?.[0] ?? null;
+  if (!feed || (feed.lastSource ?? '') !== LIVE_FEED_SOURCE) return null;
+  const fetchedAt = Number(feed.fetchedAt) || 0;
+  if (fetchedAt <= 0) return null;
+  const configured = Number(feed.staleAfterMs);
+  const staleAfterMs = configured > 0 ? configured : DEFAULT_STALE_AFTER_MS;
+  const deadline = fetchedAt + staleAfterMs + 1;
+  return deadline > nowMs ? deadline : null;
 }
 
 // --- Position indicator (for the train detail continuum) ----------------------

@@ -1,11 +1,11 @@
 # LLP 0052: Contract update economy and reactive host state
 
 **Type:** RFC
-**Status:** Review
+**Status:** Implemented
 **Systems:** Contract/Exact, Developer experience, Demo apps
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-07-11
-**Revised:** 2026-07-11 (ENG-24189 Phase 0 web baseline recorded — four-arm
+**Revised:** 2026-07-11 (implemented under ENG-24188: Exact shipped the D1–D5 semantics and conformance/profiler gates; All Aboard deleted its universal ticker and hidden host-state/cache-buster seams, migrated to host/deadline/temporal/resource/memo primitives, and added a final mounted-surface report; macOS-native equality evidence is complete while the physical-iPhone performance trace remains an explicit follow-up); 2026-07-11 (ENG-24189 Phase 0 web baseline recorded — four-arm
 20.25 s matrix over the real All Aboard surface; D3/D2/D5 numeric gates fixed
 from the raw counters; physical-iPhone trace remains explicitly open); 2026-07-11 (round-4 final pass, per the fourth Claude and GPT-5
 reviews under `llp/reviews/0052-*` — both SATISFIED, no blocking or major
@@ -104,7 +104,7 @@ true fan-out. What that cascade costs depends on the host:
 The original draft claimed reference-based dirtiness "on every host"; the
 round-1 review falsified that for native element props against the pinned
 renderer (blocking finding, `llp/reviews/0052-*.gpt-5.md`). The layered
-proposal survives with corrected scopes — and native's existing value-diffed
+design survived with corrected scopes and is now implemented — and native's existing value-diffed
 element path is *evidence for* the approach: the renderer already believes in
 value dirtiness at the protocol boundary; it just stops short of the web
 mirror and raw text.
@@ -113,7 +113,7 @@ The demo mitigated in userland (clock quantization exploiting the signal
 layer's `Object.is` skip; palette singletons restoring reference stability),
 but every mitigation is a convention the next app must rediscover.
 
-This RFC proposes five framework changes, ordered by leverage:
+The implementation delivered five framework changes, ordered by leverage:
 
 1. **Reactive host/device state** — a first-class binding for
    device-capability values (color scheme, safe-area insets, geolocation,
@@ -129,8 +129,8 @@ This RFC proposes five framework changes, ordered by leverage:
 4. **Derive memoization semantics** — opt-in `memo` with explicit
    comparators, and document that a derive's return identity is part of its
    contract under reference-based propagation.
-5. **Update-economy instrumentation** — Phase 0 counters that measure the
-   cascade (the baseline this RFC currently lacks), then a dev-mode profiler
+5. **Update-economy instrumentation** — Phase 0 counters measured the
+   cascade, followed by a dev-mode profiler
    with provenance-joined attribution so the next app is nudged before a
    human feels the jank.
 
@@ -334,10 +334,9 @@ comment — 0293 is the slides diary that motivated the capability, 0292 owns
 it). D1 generalizes that seam into a declared binding surface. It does **not** hang off the backend capability
 manifest (`capability.manifest.json` is `artifactKind: capabilityManifest` —
 Snapback target capabilities like cron and live subscriptions, the wrong
-artifact); whether host bindings negotiate through the per-root capability
-bag or a new host-binding declaration is an open question below, but a
-missing capability must be a *declared* gap (the LLP 0029 posture), not
-silently-stale module state.
+artifact). The implementation chose declared component `host` bindings backed
+by the per-root capability/hydration machinery; a missing async capability
+resolves through its typed arm, never silently stale module state.
 
 **Not everything in the inventory is a host binding.** The classification
 drives the scope:
@@ -378,8 +377,8 @@ in the pinned runtime): host-binding publications are serialized with action
 commits — a
 publication arriving while an action's batch is active is **staged and
 applied when that batch exits**, in arrival order; publications never
-interleave inside an action's batch (whether staged publications join that
-exit's flush or open a following commit is an open question below). Also
+interleave inside an action's batch, and the staged writes join that exit's
+flush. Also
 **new work**, not an assumed
 property: values that change together across capabilities (a rotation
 changing insets *and* viewport) must land in one batch — a root-scoped
@@ -632,7 +631,7 @@ cannot see equal-but-attempted updates. The profiler is real work, phased:
   per-node recompute/effect churn (`reactiveChurn` and per-node meta in
   `signals.ts`) — Phase 0 wires those to the host-boundary counters. The
   native layout/thread trace is the M half.
-  This produces the measured baseline this RFC currently lacks (the draft's
+  This produced the measured baseline the draft lacked (the draft's
   "638 nodes re-applied, 96.7% value-equal" was illustrative, not measured),
   confirms the per-host mechanism split empirically, and answers the
   kernel-thread question with a trace instead of an assertion.
@@ -697,10 +696,33 @@ an explicit dependency. So: **this RFC is the Snapback-side evidence and
 consumer requirements**; the normative designs land as Exact LLPs (the
 host-capability line, including the kernel-fed native viewport wiring, is
 already Exact LLP 0292) with this document and
-Diary 0008 as the motivating record. Accepting this RFC means agreeing to the
-requirements, the classification, and the gap-closure plan — not claiming the
-implementation here. Each D-item's Exact counterpart gets linked from the
-G15 register entry as it is filed.
+Diary 0008 as the motivating record. Implementation keeps that ownership
+boundary: Exact owns the language/runtime/renderer semantics, while this RFC,
+LLP 0029 G15, and All Aboard own the consumer requirements and evidence.
+
+### Implementation receipt
+
+ENG-24188 landed the normative implementation in Exact and the consumer
+migration in All Aboard. Final source revisions and the coherent package
+version are recorded in `demos/all-aboard/exact-source.json` and the final
+measurement artifact rather than duplicated as mutable prose here.
+
+| Item | Exact implementation | All Aboard proof |
+|---|---|---|
+| D1 | Exact LLP 0292 plus LLP 0330's host-binding mapping: typed scheme, safe-area, geolocation, and `appGlue`; canonical field delivery, transactions, staged publication, shared/refcounted physical subscriptions, and hydration/lifecycle coverage | `host` declarations replace ambient module reads; every scheme/location/backend reader is exercised under a frozen clock; persisted maps/ETA values use two ordinary scalar app-store signals, and route results use `resource` |
+| D2 | Exact LLP 0330 §10: one injectable deadline queue, `now(granularity)`, `invalidateAt`, timezone generation, resume/hydration semantics, and terminal `temporal` text | the universal ticker is deleted; board expiry, feed staleness, art rollover, trip sampling, boarding, countdown, and freshness each declare their cadence/deadline; a scripted production deadline changes terminal text with zero app-dataflow recomputes |
+| D3 | Exact LLP 0330 §9: DOM-observable state equality and compare-before-assign raw-text equality, including changed-text and unhide coverage | equal raw text records one attempted/equal/skipped update and zero protocol work; the macOS-native recheck records zero redundant protocol ops, bytes, and layout requests |
+| D4 | Exact LLP 0330 §2.1: opt-in `memo`, comparator form, and bottom-up keyed `memoRows`, with fail-closed domain validation | the two board composites use `memoRows("id")`; conformance proves value-equal outer identity and one-row change sharing |
+| D5 | transitive purity/hidden-read diagnostics; reactive and renderer churn counters; causal commit profiler with terminal/upstream attribution, bounded retention, warning thresholds, public inspector access, and production Vite/Hermes removal gates | the lazy probe and `update-economy.mjs` join the real mounted surface to the profiler, verify every D1 reader, compare reporter control/enabled p95, gate attribution, and assert an idle window has zero periodic app-dataflow waves |
+
+Durable evidence lives in:
+
+- `demos/all-aboard/measurements/update-economy.phase0.md` and
+  `update-economy.web.raw.json` (the four-arm baseline);
+- `demos/all-aboard/measurements/2026-07-11-eng-24189-native/` (macOS-native
+  D3/protocol evidence and the honest physical-device attempt receipt);
+- `demos/all-aboard/measurements/update-economy.final.web.json` and
+  `update-economy.final.md` (the migrated mounted-surface gates).
 
 **Compatibility and rollback.** Nothing here changes semantics for existing
 apps by default: D1/D2 are additive grammar; D4 `memo` is opt-in; D5 is
@@ -730,10 +752,12 @@ updates.
 
 ## Acceptance gates
 
-The ENG-24189 web baseline and raw counters live in
-`demos/all-aboard/measurements/`. The physical-iPhone/thread trace remains open,
-so the hardware-independent count gates below are fixed while native timing is
-not yet claimed.
+The ENG-24189 baseline, macOS-native protocol evidence, and the final migrated
+web report live in `demos/all-aboard/measurements/`. The gates below are now
+implemented and checked in Exact plus the mounted All Aboard surface. The later
+physical-iPhone attempt reached build/install/runtime connection but the device
+locked before a clean rendered run, so no physical-device frame or stage-timing
+claim is made.
 
 - **D3**: a commit in which every element's DOM-observable snapshot, style
   leaf, and text string is value-equal — with unchanged topology and child
@@ -797,53 +821,32 @@ not yet claimed.
 - Owning renderer internals in Snapback (LLP 0021's boundary; see Ownership).
 - Prescribing exact syntax — the notation above is illustrative; the
   ownership boundaries (host owns time and device state; render boundary owns
-  value equality) are the proposal.
+  value equality) are the durable contract.
 
-## Open questions
+## Residual follow-ups (non-blocking)
 
-- **Comparator domain (D3/D4):** the exact value domain and equality relation
-  the framework can promise across styles, arrays, nested records, event
-  props, and mutable values — and per-prop opt-out shape.
-- **D1 negotiation surface:** per-root capability bag (the `viewport`/
-  hydration path) vs. a declared host-binding manifest — and how an
-  unimplementing host resolves: declared default vs. a distinct
-  `unavailable` arm like the async `stale` sugar. (This repo's LLP 0005
-  leaves the capability-artifact split open; that question and this one
-  should resolve together.)
-- **D1 initial-value timing:** which bindings are synchronous-at-first-
-  evaluation on which hosts, and whether the async-interim state is
-  observable to derives (it should be, as a typed arm, never as a flicker).
-- **D1 frame coalescing:** whether multiple *distinct* host events inside
-  one frame ever need coalescing into one commit (not promised here; a
-  Phase 0 measurement question).
-- **D1 multi-root sensor options:** how roots with incompatible sensor
-  options (geolocation accuracy, interval) negotiate the one shared
-  physical watch — widest-demand merge, per-option watches, or a declared
-  error.
-- **D1 staging drain point:** whether a publication staged behind an active
-  action batch joins that batch's exit flush or opens a following commit —
-  and the ordering fixture that pins whichever is chosen.
-- **D4 outer-record granularity:** whether the changed-row guarantee stays
-  limited to keyed row bindings (outer-field observers re-fire on any row
-  change, D3-bounded) or outer records grow field-level signals.
-- **D2 shape:** deadline-returning temporal binding vs. host-interpolated
-  text vs. node kinds — and how the deadline queue treats near-coincident
-  deadlines (same-frame coalescing window). Wall-vs-subscription alignment
-  is resolved: deadlines are target-relative; periodic policies are sugar.
-- **Kernel-side confirmation:** Phase 0 must verify by trace where native op
-  apply and remeasure time actually goes; the pinned sources end at the
-  encoder.
-- **D5 columns:** report recompute count and re-fire count separately from
-  host-op count, so allocation churn (a D4 memo hit that discarded a fresh
-  object) stays visible.
-- **Exact LLP mapping:** which Exact LLP numbers own the normative designs
-  for D1/D2/D3, and what conformance suite (the LLP 0034 posture: named
-  checks, per-host) gates them.
+The implementation resolved the comparator domain, host declaration and
+initial-value model, action/publication ordering, deadline-returning temporal
+shape, keyed-row scope, profiler columns/attribution, and Exact LLP ownership.
+Three adjacent questions intentionally remain outside this RFC's closure:
+
+- **Physical-device stage attribution:** the macOS-native counters and protocol
+  tap are quantitative, but the attempted physical-iPhone run stopped when the
+  device locked. A later unlocked-device trace with native signposts should
+  locate protocol parse, text measure, layout, and presenter apply time; no
+  percentage is inferred here. Tracked as ENG-24221.
+- **Future sensor-option negotiation:** geolocation v0 admits only
+  `{ mode: "whenAvailable" }`, so one shared watch has no incompatible options
+  to merge. If accuracy/interval options enter the language, their multi-root
+  negotiation needs a new semantic decision rather than an implicit widening.
+- **Declarative safe-area layout:** D1 closes the inset value binding, not LLP
+  0029 G14's remaining "surface bleeds, content insets" notation.
 
 ## Status
 
-Review — moved from Draft by the author on 2026-07-11 after the four-round
-loop below concluded with both reviewer families satisfied.
+Implemented — the four-round design review concluded with both reviewer
+families satisfied, and ENG-24188 subsequently landed D1–D5 plus the All
+Aboard migration and conformance evidence.
 Written from the All Aboard scroll-jank investigation
 ([Diary 0008](../diaries/0008-all-aboard.diary.md), 2026-07-10/11 entries).
 Reviewed 2026-07-11 under the LLP-process review loop, four times. Round 1
@@ -889,14 +892,10 @@ purity-conformance check's transitive scope and defaulted arm; "every
 affected reader" in the D1 gate; the location seam's value-side readers and
 `safeAreaInsets` scoped into the audit) were applied the same day as the
 final author's-discretion pass, which both reviews stated needs no further
-cross-family round. The document is ready for the author's status decision.
-Implementation is tracked as ENG-24188 (umbrella) with one child ticket per
-sequencing stage (ENG-24189 Phase 0, ENG-24191 conformance checks + D4 docs,
-ENG-24193 D3 text-skip, ENG-24194 D2 signal-level, ENG-24199 D1 bindings,
-ENG-24200 D3 mirror, ENG-24202 D2 presentation, ENG-24205 D4 memo,
-ENG-24207 D5 profiler).
-The userland
-mitigations are live in `demos/all-aboard/surfaces/contract/`; this RFC is
-the framework-side closure that would let them (and the six-seam device-glue
-inventory) be deleted. Registered as G15 in
-[LLP 0029](./0029-all-aboard-gap-closure.plan.md).
+cross-family round. ENG-24188 and its stage children (ENG-24189, ENG-24191,
+ENG-24193, ENG-24194, ENG-24199, ENG-24200, ENG-24202, ENG-24205, and
+ENG-24207) then delivered the implementation receipt above. All Aboard's
+quantized universal ticker, palette-as-propagation workaround, ambient host
+module reads, independent route cache, and clock cache-busters are deleted.
+G15 and G9 are closed in [LLP 0029](./0029-all-aboard-gap-closure.plan.md);
+G14 retains only its declarative layout half.

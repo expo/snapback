@@ -6,9 +6,10 @@
 // generated liveTrainStatus/liveDepartures/feedState descriptors — server push
 // over the shared live socket (LLP 0034 D1; Exact LLP 0284 §5.3), no
 // hand-written pump, no store. The view derives from pure helpers in ./data.ts,
-// passing the bound rows as arguments. A 1s `every` ticker advances nowMs —
-// quantized to 5s buckets, so only every fifth tick actually re-renders —
-// and countdowns tick (UI clock, not transport). The delays region carries a
+// passing bound rows and declared host values as arguments. Exact's single
+// temporal authority schedules target-relative logic deadlines and terminal
+// countdown/freshness bindings; an idle home board has no periodic app-dataflow
+// wave. The delays region carries a
 // `stale rows` arm (Exact LLP 0284 §2.2 connection sugar): on a missed
 // freshness budget the board keeps rendering last-known delays under a visible
 // reconnecting note.
@@ -43,12 +44,10 @@
 // take data plus root actions as ordinary callback props.
 //
 // THEME: the board respects the OS appearance. Every board-surface color
-// comes from `derive theme = themePalette(nowMs)` (data.ts) — light is the
+// comes from `host scheme = colorScheme()` plus `themePalette(scheme)` — light is the
 // ENG-23719 palette (Caltrain red #C8102E on white; ink #1A1F27; secondary
 // #57606C; warm hairline #E7E2DB), dark is the same relationships on a warm
-// near-black board with a lifted red accent. The scheme itself is device
-// glue (main.ts follows prefers-color-scheme; ?appearance= overrides), so a
-// flip restyles within one tick. The ONLY intentional literals left in this
+// near-black board with a lifted red accent. The ONLY intentional literals left in this
 // file are the brand surfaces that do not change with the scheme: the
 // Caltrain-red headers / NEXT TRAIN pill and their white-on-red text.
 
@@ -73,7 +72,6 @@ use ticketIconSvg from "./data.ts"
 use refreshIconSvg from "./data.ts"
 use settingsIconSvg from "./data.ts"
 use themePalette from "./data.ts"
-use safeAreaInsets from "./data.ts"
 use activeDirection from "./data.ts"
 use oppositeDirection from "./data.ts"
 use directionTitle from "./data.ts"
@@ -88,26 +86,37 @@ use boardingCall from "./data.ts"
 use heroStops from "./data.ts"
 use stopClockLabel from "./data.ts"
 use formatClockTime from "./data.ts"
-use formatCountdownMinutes from "./data.ts"
+use countdownTemporal from "./data.ts"
 use serviceColor from "./data.ts"
 use serviceTint from "./data.ts"
 use etaModeLabel from "./data.ts"
-use preferredEtaMode from "./data.ts"
-use setEtaModePreference from "./data.ts"
+use nextEtaMode from "./preferences.ts"
+use loadEtaModePreference from "./preferences.ts"
+use persistEtaModePreference from "./preferences.ts"
 use walkBikeLine from "./data.ts"
+use loadRouteEstimate from "./data.ts"
+use routeEstimateRefreshDeadline from "./data.ts"
 use directionsLabel from "./data.ts"
 use stationAddress from "./data.ts"
-use mapsAppLabel from "./data.ts"
+use loadMapsAppPreference from "./preferences.ts"
+use persistMapsAppPreference from "./preferences.ts"
+use nextMapsApp from "./preferences.ts"
+use mapsAppLabel from "./preferences.ts"
 use distanceLabel from "./data.ts"
-use feedFreshness from "./data.ts"
+use feedFreshnessTemporal from "./data.ts"
 use feedProblem from "./data.ts"
 use feedSourceBadge from "./data.ts"
+use feedStaleDeadline from "./data.ts"
 use backendStatusNote from "./data.ts"
 use emptyDelayRows from "./data.ts"
+use nextDepartureExpiry from "./data.ts"
+use nextUtcDayDeadline from "./data.ts"
+use boardingCallDeadline from "./data.ts"
 use positionFraction from "./data.ts"
 use positionLabel from "./data.ts"
 use fractionPercent from "./data.ts"
-use updateEconomyTick from "./data.ts"
+use requestGeolocationRefresh from "./data.ts"
+use openClipperLink from "./data.ts"
 
 component AllAboard
   props
@@ -116,67 +125,65 @@ component AllAboard
     initialEtaMode: string = "auto"
     routeTripId: string = null
 
-  state nowMs = now()
+  // @ref LLP 0052#d1--reactive-host-state-host-bindings — host inputs publish through typed, value-canonical reactive bindings instead of a clock cache-buster.
+  host scheme = colorScheme()
+  host insets = safeAreaInsets()
+  host location = geolocation({ mode: "whenAvailable" })
+  host backend = appGlue("backend", { default: { status: "connecting" } })
+
   state stationId = initialStationId
   state directionOverride = null
   state query = ""
   state heroOffset = 0
-  state etaMode = preferredEtaMode(initialEtaMode, now())
   state directionsOpen = false
 
   query delayRows = liveTrainStatus({})
   query departureRows = liveDepartures({})
   query feedRows = feedState({})
 
-  derive station = getSelectedStation(stationId, nowMs)
-  derive art = stationArt(station.id, nowMs)
-  derive locHint = locationHint(nowMs)
-  derive locColor = locationIndicatorColor(nowMs)
-  derive theme = themePalette(nowMs)
-  // Device safe area (notch / home indicator), read live off the ticking
-  // clock like every other device-glue derive. The app owns its full-bleed
-  // chrome, so the chrome heights grow by the insets: the red surfaces
-  // extend under the status bar while their CONTENT stays inside the safe
-  // area, and the footer keeps its controls above the home indicator.
-  derive insets = safeAreaInsets(nowMs)
+  derive station = getSelectedStation(stationId, location)
+  derive matches = searchStations(query, location)
+  // @ref LLP 0052#d2--time-as-a-host-concern — logic wakes at authored deadlines, never on a universal periodic ticker.
+  derive boardNow = invalidateAt(nextDepartureExpiry(screen, station.id, matches, activeDir, now(), delayRows, departureRows, feedRows))
+  derive artNow = invalidateAt(nextUtcDayDeadline(now()))
+  derive feedNow = invalidateAt(feedStaleDeadline(feedRows, now()))
+  derive art = stationArt(station.id, artNow)
+  derive locHint = locationHint(location)
+  derive locColor = locationIndicatorColor(location, scheme)
+  derive theme = themePalette(scheme)
+  // Router-preserved roots share the reactive application preference stores;
+  // storage remains only a best-effort durable mirror.
+  derive etaMode = loadEtaModePreference(initialEtaMode)
+  derive mapsApp = loadMapsAppPreference()
   derive headerHeight = 106 + insets.top
   derive footerHeight = 64 + insets.bottom
   derive barHeight = 64 + insets.top
   derive activeDir = activeDirection(directionOverride, station)
   derive oppositeDir = oppositeDirection(activeDir)
-  derive board = boardTrains(station.id, activeDir, nowMs, heroOffset, delayRows, departureRows, feedRows)
-  derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, nowMs, 1, delayRows, departureRows, feedRows)
+  // @ref LLP 0052#d4--derive-memoization-semantics — keyed sharing preserves equal row and outer-record identity.
+  derive board = boardTrains(station.id, activeDir, boardNow, heroOffset, delayRows, departureRows, feedRows) memoRows("id")
+  derive oppositeBoard = getDirectionBoard(station.id, oppositeDir, boardNow, 1, delayRows, departureRows, feedRows) memoRows("id")
   derive prevStationId = adjacentStationId(station.id, -1)
   derive nextStationId = adjacentStationId(station.id, 1)
-  derive prevStation = getSelectedStation(prevStationId, nowMs)
-  derive nextStation = getSelectedStation(nextStationId, nowMs)
-  derive prevArt = stationArt(prevStationId, nowMs)
-  derive nextArt = stationArt(nextStationId, nowMs)
-  derive walkBike = walkBikeLine(station, etaMode, nowMs)
-  derive dirLabel = directionsLabel(station, etaMode, nowMs)
-  derive freshness = feedFreshness(nowMs, feedRows)
+  derive prevStation = getSelectedStation(prevStationId, location)
+  derive nextStation = getSelectedStation(nextStationId, location)
+  derive prevArt = stationArt(prevStationId, artNow)
+  derive nextArt = stationArt(nextStationId, artNow)
+  resource routeEstimate = loadRouteEstimate(station, etaMode, location, backend, invalidateAt(routeEstimateRefreshDeadline(now())))
+  derive walkBike = walkBikeLine(station, etaMode, location, routeEstimate.value)
+  derive dirLabel = directionsLabel(station, etaMode, location)
   derive feedIssue = feedProblem(feedRows)
-  derive feedSource = feedSourceBadge(feedRows, nowMs)
-  derive bootNote = backendStatusNote(nowMs)
-  derive matches = searchStations(query, nowMs)
-  derive trip = routeTripId ? getTrainRun(routeTripId, nowMs, delayRows, departureRows) : null
-  derive tripCall = trip ? boardingCall(trip, station.id, nowMs) : null
+  derive feedSource = feedSourceBadge(feedRows, feedNow, scheme)
+  derive bootNote = backendStatusNote(backend)
+  // Trip position is the one genuinely sampled client-time function. It is
+  // active only on the trip route; departure state has its own exact deadline.
+  derive tripSampleNow = screen == "trip" ? now("5s") : now()
+  derive trip = routeTripId ? getTrainRun(routeTripId, tripSampleNow, delayRows, departureRows) : null
+  derive tripNow = invalidateAt(boardingCallDeadline(trip, station.id))
+  derive tripCall = trip ? boardingCall(trip, station.id, tripNow) : null
 
   mutation refresh = applyFeedTick
 
-  // @ref LLP 0052#motivation — interim update-economy mitigation: the
-  // quantized clock treats tick FREQUENCY; the framework-side closure
-  // (host bindings, time primitive, value-based dirtiness) deletes it.
-  // The clock is quantized to 5s buckets: every visible time in the app is
-  // minute-precision (countdowns, clock labels, freshness), so re-rendering
-  // each second bought nothing — and the full-tree derive+render pass every
-  // tick is exactly the periodic main-thread stall that made scrolling feel
-  // janky once the board grew to the whole rest of the day. The runtime
-  // equality-skips same-value state writes (signals.ts Object.is), so 4 of
-  // 5 ticks are free; presses that need an immediate re-derive
-  // (requestLocation/cycleMaps/openClipper) still stamp the precise clock.
-  action tick writes nowMs
-    nowMs = updateEconomyTick(now())
   action goToStation(id) writes stationId, query, heroOffset
     stationId = id
     query = ""
@@ -190,25 +197,18 @@ component AllAboard
   action trainFirst writes heroOffset
     heroOffset = 0
   // Auto resolves per station (>18-min walk resolves to bike) and remains
-  // reachable from the explicit Settings modes.
-  action toggleEtaMode writes etaMode
-    etaMode = etaMode == "auto" ? "bike" : etaMode == "bike" ? "walk" : "auto"
-    setEtaModePreference(etaMode)
-    setSearch({ station: station.id, eta: etaMode })
-  // The real geolocation re-request is web-surface glue (main.ts intercepts
-  // the location presses, ENG-22795); the action re-stamps the clock so the
-  // hint re-derives immediately once the glue updates the device location.
-  action requestLocation writes nowMs
-    nowMs = now()
-  // The maps-app cycle is the same shape (ENG-23795): the glue owns the
-  // preference (persisted web-side); this press just re-stamps the clock so
-  // mapsAppLabel re-derives.
-  action cycleMaps writes nowMs
-    nowMs = now()
-  // Clipper (get / refill a card): opening the device-appropriate link is
-  // web glue over this press (main.ts), same seam as maps and geolocation.
-  action openClipper writes nowMs
-    nowMs = now()
+  // reachable from the explicit Settings modes. Persistence is a named
+  // capability so a router-owned presentation remount cannot lose the choice.
+  action toggleEtaMode
+    let next = nextEtaMode(etaMode)
+    persistEtaModePreference(next)
+    setSearch({ station: station.id, eta: next })
+  action requestLocation
+    requestGeolocationRefresh()
+  action cycleMaps
+    persistMapsAppPreference(nextMapsApp(mapsApp))
+  action openClipper
+    openClipperLink()
   action openDirections writes directionsOpen
     directionsOpen = true
   action closeDirections writes directionsOpen
@@ -236,9 +236,6 @@ component AllAboard
   key "s" -> openStations fallback="change-station"
   key "g" -> openSettings fallback="open-settings"
 
-  task ticker mount
-    every(1000, tick)
-
   contract
     has button "Change station"
     when screen == "home" then has button "Flip direction"
@@ -253,7 +250,7 @@ component AllAboard
 
         when screen == "home"
           column position="absolute" top=0 left=0 right=0 bottom=0 background=theme.bg testId="station-screen"
-            StationHeader(station=station, art=art, prevStation=prevStation, prevArt=prevArt, nextStation=nextStation, nextArt=nextArt, prevStationId=prevStationId, nextStationId=nextStationId, walkBike=walkBike, dirLabel=dirLabel, topInset=insets.top, headerHeight=headerHeight, goToStation=goToStation, openStations=openStations, openDirections=openDirections)
+            StationHeader(station=station, art=art, prevStation=prevStation, prevArt=prevArt, nextStation=nextStation, nextArt=nextArt, prevStationId=prevStationId, nextStationId=nextStationId, walkBike=walkBike, dirLabel=dirLabel, mapsApp=mapsApp, topInset=insets.top, headerHeight=headerHeight, goToStation=goToStation, openStations=openStations, openDirections=openDirections)
 
             scroll position="absolute" top=headerHeight left=0 right=0 bottom=footerHeight background=theme.bg testId="board-content"
               column gap=10 padding=18 paddingTop=14 paddingBottom=24 maxWidth=620 alignSelf="center" width="100%"
@@ -272,28 +269,28 @@ component AllAboard
                         row justify="center" width="100%"
                           row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background=theme.noteBg borderWidth=1 borderColor=theme.noteBorder
                             text bootNote size=11 weight=700 color=theme.noteText testId="delays-loading"
-                      DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, board=board, feedIssue=feedIssue, theme=theme, delayRows=emptyDelayRows(), departureRows=departureRows, openTrip=openTrip, selectTrain=selectTrain, trainFirst=trainFirst)
+                      DirectionBoard(stationId=station.id, logicNow=boardNow, activeDir=activeDir, board=board, feedIssue=feedIssue, theme=theme, delayRows=emptyDelayRows(), departureRows=departureRows, openTrip=openTrip, selectTrain=selectTrain, trainFirst=trainFirst)
                   stale rows
                     column gap=8 width="100%"
                       row justify="center" width="100%"
                         row radius=999 paddingLeft=12 paddingRight=12 paddingTop=5 paddingBottom=5 background=theme.warnBg borderWidth=1 borderColor=theme.warnBorder
                           text "Reconnecting — showing last-known delays" size=11 weight=700 color=theme.warnText testId="delays-stale"
-                      DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, board=board, feedIssue=feedIssue, theme=theme, delayRows=rows, departureRows=departureRows, openTrip=openTrip, selectTrain=selectTrain, trainFirst=trainFirst)
+                      DirectionBoard(stationId=station.id, logicNow=boardNow, activeDir=activeDir, board=board, feedIssue=feedIssue, theme=theme, delayRows=rows, departureRows=departureRows, openTrip=openTrip, selectTrain=selectTrain, trainFirst=trainFirst)
                   ready rows
-                    DirectionBoard(stationId=station.id, nowMs=nowMs, activeDir=activeDir, board=board, feedIssue=feedIssue, theme=theme, delayRows=rows, departureRows=departureRows, openTrip=openTrip, selectTrain=selectTrain, trainFirst=trainFirst)
+                    DirectionBoard(stationId=station.id, logicNow=boardNow, activeDir=activeDir, board=board, feedIssue=feedIssue, theme=theme, delayRows=rows, departureRows=departureRows, openTrip=openTrip, selectTrain=selectTrain, trainFirst=trainFirst)
 
-            StickyFooter(feedSource=feedSource, freshness=freshness, oppositeDir=oppositeDir, oppositeBoard=oppositeBoard, nowMs=nowMs, locColor=locColor, theme=theme, footerHeight=footerHeight, bottomInset=insets.bottom, toggleDirection=toggleDirection, requestLocation=requestLocation, openClipper=openClipper, doRefresh=doRefresh, openSettings=openSettings)
+            StickyFooter(feedSource=feedSource, feedRows=feedRows, backend=backend, oppositeDir=oppositeDir, oppositeBoard=oppositeBoard, locColor=locColor, theme=theme, footerHeight=footerHeight, bottomInset=insets.bottom, toggleDirection=toggleDirection, requestLocation=requestLocation, openClipper=openClipper, doRefresh=doRefresh, openSettings=openSettings)
 
             when directionsOpen
               DirectionsSheet(station=station, theme=theme, bottomInset=insets.bottom, closeDirections=closeDirections)
         else
           when screen == "stations"
-            StationsPicker(query=query, matches=matches, nowMs=nowMs, currentStationId=station.id, etaMode=etaMode, activeDir=activeDir, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, delayRows=delayRows, departureRows=departureRows, feedRows=feedRows, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
+            StationsPicker(query=query, matches=matches, logicNow=boardNow, location=location, currentStationId=station.id, etaMode=etaMode, activeDir=activeDir, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, delayRows=delayRows, departureRows=departureRows, feedRows=feedRows, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
           else
             when screen == "settings"
-              SettingsScreen(nowMs=nowMs, etaMode=etaMode, locHint=locHint, feedSource=feedSource, freshness=freshness, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, toggleEtaMode=toggleEtaMode, requestLocation=requestLocation, cycleMaps=cycleMaps, goHome=goHome)
+              SettingsScreen(etaMode=etaMode, mapsApp=mapsApp, locHint=locHint, feedSource=feedSource, feedRows=feedRows, backend=backend, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, toggleEtaMode=toggleEtaMode, requestLocation=requestLocation, cycleMaps=cycleMaps, goHome=goHome)
             else
-              TripDetail(trip=trip, tripCall=tripCall, nowMs=nowMs, stationId=station.id, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, goHome=goHome)
+              TripDetail(trip=trip, tripCall=tripCall, stationId=station.id, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, goHome=goHome)
 
 // One header identity block — art scene beside the CALTRAIN wordmark, station
 // name, and a sub line. Used for the offscreen prev/next pager cells; the
@@ -334,6 +331,7 @@ component StationHeader
     nextStationId: string
     walkBike: string
     dirLabel: string
+    mapsApp: string
     topInset: number
     headerHeight: number
     goToStation: action(id: string)
@@ -367,7 +365,7 @@ component StationHeader
                       text station.name size=23 weight=800 lineHeight=26 color="#ffffff" testId="station-name" headingLevel=1
                   // Long-press delivery is framework-owned on web. The click
                   // side-effect bridge still opens the preferred maps app.
-                  button press=openDirections longpress=openDirections label=dirLabel testId=`station-directions-${station.id}` background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
+                  button press=openDirections longpress=openDirections label=`${dirLabel}; preferred app ${mapsAppLabel(mapsApp)}` testId=`station-directions-${station.id}` background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
                     text `Zone ${station.zone} · ${walkBike}` size=12 color="#ffffffcc" testId="walk-bike"
               button press=goToStation(nextStationId) label="Next station" testId="next-station" width=40 height="100%" background="transparent" borderWidth=0 justify="center" align="center" opacity=nextStationId == station.id ? 0.25 : 1
                 text "›" size=30 weight=700 color="#ffffff"
@@ -385,7 +383,7 @@ component HeroCard
   props
     dep: object
     stationId: string
-    nowMs: number
+    logicNow: number
     theme: object
     delayRows: object[]
     departureRows: object[]
@@ -393,18 +391,18 @@ component HeroCard
 
   view
     column gap=8 radius=20 padding=16 background=theme.heroBg borderWidth=1.5 borderColor=theme.heroBorder width="100%" align="flex-start"
-      row align="flex-end" gap=8 width="100%"
-        text `${formatCountdownMinutes(dep.predictedDepartureMs, nowMs)}` size=72 weight=800 lineHeight=68 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.ink testId=`${idPrefix}-minutes`
+      row align="flex-end" gap=8 width="100%" testId=`${idPrefix}-countdown-${dep.predictedDepartureMs}`
+        text temporal(() => countdownTemporal(dep.predictedDepartureMs, now())) size=72 weight=800 lineHeight=68 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.ink testId=`${idPrefix}-minutes`
         text "min" size=16 weight=600 color=theme.secondary paddingBottom=8
         spacer
         column gap=5 align="flex-end" paddingBottom=4
-          row radius=999 paddingLeft=11 paddingRight=11 paddingTop=4 paddingBottom=4 background=serviceTint(dep.service)
+          row radius=999 paddingLeft=11 paddingRight=11 paddingTop=4 paddingBottom=4 background=serviceTint(dep.service, theme.scheme) testId=`${idPrefix}-service-pill`
             text dep.service size=12 weight=700 color=serviceColor(dep.service) testId=`${idPrefix}-service`
-          text `${formatClockTime(dep.predictedDepartureMs)} · #${dep.trainNumber}` size=12 family="ui-monospace, Menlo, monospace" color=theme.secondary testId=`${idPrefix}-meta`
-          text delayLabel(dep) size=12 weight=700 color=delayColor(dep)
+          text `${formatClockTime(dep.predictedDepartureMs, timezoneGeneration())} · #${dep.trainNumber}` size=12 family="ui-monospace, Menlo, monospace" color=theme.secondary testId=`${idPrefix}-meta`
+          text delayLabel(dep) size=12 weight=700 color=delayColor(dep, theme.scheme) testId=`${idPrefix}-delay`
       text `to ${dep.headsign}` size=15 weight=600 color=theme.body
       row gap=6 wrap="wrap" align="center" width="100%"
-        each stop in heroStops(dep.id, stationId, nowMs, delayRows, departureRows) key=stop.id
+        each stop in heroStops(dep.id, stationId, logicNow, delayRows, departureRows, timezoneGeneration()) key=stop.id
           when stop.gap
             text "…" size=13 weight=700 color=theme.muted testId=`${idPrefix}-stop-gap`
           else
@@ -424,7 +422,7 @@ component HeroCard
 component DirectionBoard
   props
     stationId: string
-    nowMs: number
+    logicNow: number
     activeDir: string
     board: object
     feedIssue: string
@@ -457,11 +455,11 @@ component DirectionBoard
                 button press=selectTrain(d.offset) label=`Show earlier train ${d.trainNumber}` testId=d.testId background="transparent" borderWidth=0 padding=0 width="100%"
                   row justify="space-between" align="center" radius=12 paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%" opacity=0.85
                     row gap=7 align="center"
-                      text `${formatCountdownMinutes(d.predictedDepartureMs, nowMs)}` size=13 weight=800 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.secondary width=30 textAlign="right"
+                      text temporal(() => countdownTemporal(d.predictedDepartureMs, now())) size=13 weight=800 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.secondary width=30 textAlign="right"
                       text "min" size=10 color=theme.muted
-                      row radius=999 paddingLeft=7 paddingRight=7 paddingTop=1 paddingBottom=1 background=serviceTint(d.service)
+                      row radius=999 paddingLeft=7 paddingRight=7 paddingTop=1 paddingBottom=1 background=serviceTint(d.service, theme.scheme)
                         text d.service size=9 weight=700 color=serviceColor(d.service)
-                    text `${formatClockTime(d.predictedDepartureMs)} · #${d.trainNumber}` size=11 family="ui-monospace, Menlo, monospace" color=theme.muted
+                    text `${formatClockTime(d.predictedDepartureMs, timezoneGeneration())} · #${d.trainNumber}` size=11 family="ui-monospace, Menlo, monospace" color=theme.muted
 
           // The selected train: a framework-owned clipped 3-cell pager.
           column width="100%" overflow="hidden" position="relative"
@@ -469,14 +467,14 @@ component DirectionBoard
               when board.heroPrev
                 cell side="prev"
                   column width="100%" testId="hero-cell-prev"
-                    HeroCard(dep=board.heroPrev, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero-prev")
+                    HeroCard(dep=board.heroPrev, stationId=stationId, logicNow=logicNow, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero-prev")
               cell side="current"
                 button press=openTrip(board.hero.id) label="Open selected train" testId="hero-departure" background="transparent" borderWidth=0 padding=0 width="100%"
-                  HeroCard(dep=board.hero, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero")
+                  HeroCard(dep=board.hero, stationId=stationId, logicNow=logicNow, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero")
               when board.heroNext
                 cell side="next"
                   column width="100%" testId="hero-cell-next"
-                    HeroCard(dep=board.heroNext, stationId=stationId, nowMs=nowMs, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero-next")
+                    HeroCard(dep=board.heroNext, stationId=stationId, logicNow=logicNow, theme=theme, delayRows=delayRows, departureRows=departureRows, idPrefix="hero-next")
 
           // Every remaining train for the rest of the day — pressing selects
           // (pages to) that train; the selected card is the affordance for
@@ -488,11 +486,11 @@ component DirectionBoard
               button press=selectTrain(d.offset) label=`Show train ${d.trainNumber}` testId=d.testId background="transparent" borderWidth=0 padding=0 width="100%" opacity=d.fade
                 row justify="space-between" align="center" radius=14 paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 background=theme.card borderWidth=1 borderColor=theme.hairline width="100%"
                   row gap=8 align="center"
-                    text `${formatCountdownMinutes(d.predictedDepartureMs, nowMs)}` size=17 weight=800 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.ink width=36 textAlign="right"
+                    text temporal(() => countdownTemporal(d.predictedDepartureMs, now())) size=17 weight=800 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.ink width=36 textAlign="right"
                     text "min" size=11 color=theme.muted
-                    row radius=999 paddingLeft=8 paddingRight=8 paddingTop=2 paddingBottom=2 background=serviceTint(d.service)
+                    row radius=999 paddingLeft=8 paddingRight=8 paddingTop=2 paddingBottom=2 background=serviceTint(d.service, theme.scheme)
                       text d.service size=10 weight=700 color=serviceColor(d.service)
-                  text `${formatClockTime(d.predictedDepartureMs)} · #${d.trainNumber} · ${shortHeadsign(d)}` size=12 family="ui-monospace, Menlo, monospace" color=theme.secondary
+                  text `${formatClockTime(d.predictedDepartureMs, timezoneGeneration())} · #${d.trainNumber} · ${shortHeadsign(d)}` size=12 family="ui-monospace, Menlo, monospace" color=theme.secondary
       else
         column radius=16 padding=18 background=theme.soft borderWidth=1 borderColor=theme.hairline
           text "No more trains today in this direction." size=14 color=theme.secondary testId="no-trains"
@@ -509,10 +507,10 @@ component DirectionBoard
 component StickyFooter
   props
     feedSource: object
-    freshness: string
+    feedRows: object[]
+    backend: object
     oppositeDir: string
     oppositeBoard: object
-    nowMs: number
     locColor: string
     theme: object
     footerHeight: number
@@ -534,7 +532,7 @@ component StickyFooter
           column gap=1 align="flex-start"
             when feedSource.live == false
               text feedSource.label size=9 weight=800 letterSpacing=1 color=feedSource.color testId="data-source"
-            text freshness size=10 color=theme.muted testId="freshness"
+            text temporal(() => feedFreshnessTemporal(feedRows, backend, now())) size=10 color=theme.muted testId="freshness"
         // The direction switch also carries the opposite direction's own
         // next-train countdown — the board's teaser row is gone, so this is
         // where "when is the other way?" lives now. Deliberately gray, not
@@ -546,7 +544,9 @@ component StickyFooter
             row gap=5 align="center"
               text directionTitle(oppositeDir) size=14 weight=800 color=theme.secondary testId="switch-direction-name"
               when oppositeBoard.primary
-                text `${formatCountdownMinutes(oppositeBoard.primary.predictedDepartureMs, nowMs)} min` size=11 weight=600 fontVariant="tabular-nums" color=theme.muted testId="switch-direction-time"
+                row gap=2 align="center" testId="switch-direction-time"
+                  text temporal(() => countdownTemporal(oppositeBoard.primary.predictedDepartureMs, now())) size=11 weight=600 fontVariant="tabular-nums" color=theme.muted
+                  text " min" size=11 weight=600 color=theme.muted
         row gap=8 align="center"
           button press=openClipper label="Get or refill your Clipper card" testId="clipper" width=36 height=36 radius=18 background=theme.iconBtn borderWidth=0 justify="center" align="center"
             image svgSource=ticketIconSvg(theme.secondary) alt="" width=17 height=17
@@ -599,7 +599,8 @@ component StationsPicker
   props
     query: string
     matches: object[]
-    nowMs: number
+    logicNow: number
+    location: object
     currentStationId: string
     etaMode: string
     activeDir: string
@@ -630,19 +631,20 @@ component StationsPicker
                 row justify="space-between" align="center" gap=12 paddingTop=11 paddingBottom=11 paddingLeft=12 paddingRight=12 radius=12 background=s.id == currentStationId ? theme.accentFaintBg : "transparent" borderWidth=1 borderColor=s.id == currentStationId ? theme.accentSoftBorder : "transparent" width="100%"
                   column gap=2 align="flex-start"
                     text s.name size=15 weight=s.id == currentStationId ? 700 : 600 color=theme.ink
-                    text `Zone ${s.zone} ${terminalHint(s.id, activeDir, nowMs, delayRows, departureRows, feedRows)}` size=11.5 color=theme.muted testId=`terminal-hint-${s.id}`
-                  text distanceLabel(s, etaMode, nowMs) size=12 family="ui-monospace, Menlo, monospace" color=theme.secondary
+                    text `Zone ${s.zone} ${terminalHint(s.id, activeDir, logicNow, delayRows, departureRows, feedRows, timezoneGeneration())}` size=11.5 color=theme.muted testId=`terminal-hint-${s.id}`
+                  text distanceLabel(s, etaMode, location) size=12 family="ui-monospace, Menlo, monospace" color=theme.secondary
 
 // The settings sheet (ENG-23719/ENG-23795): travel-time mode, default maps
 // app, location, and what the app is showing — reachable from the footer
 // gear, no bottom tabs.
 component SettingsScreen
   props
-    nowMs: number
     etaMode: string
+    mapsApp: string
     locHint: string
     feedSource: object
-    freshness: string
+    feedRows: object[]
+    backend: object
     theme: object
     topInset: number
     barHeight: number
@@ -674,7 +676,7 @@ component SettingsScreen
                 text "Default maps app" size=14 weight=700 color=theme.ink
                 text "Used when opening directions to a station" size=11.5 color=theme.muted
               button press=cycleMaps label="Choose maps app" testId="maps-app" paddingTop=5 paddingBottom=5 paddingLeft=12 paddingRight=12 radius=999 background=theme.accentFaintBg borderWidth=1 borderColor=theme.accentFaintBorder
-                text mapsAppLabel(nowMs) size=12 weight=700 color=theme.accent
+                text mapsAppLabel(mapsApp) size=12 weight=700 color=theme.accent
           column gap=8 radius=16 padding=14 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%"
             text "Location" size=14 weight=700 color=theme.ink
             button press=requestLocation label="Use my location" testId="settings-location" background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
@@ -684,7 +686,7 @@ component SettingsScreen
             row gap=7 align="center"
               row radius=999 paddingLeft=8 paddingRight=8 paddingTop=3 paddingBottom=3 background=feedSource.tint borderWidth=1 borderColor=feedSource.border
                 text feedSource.label size=10 weight=800 letterSpacing=1 color=feedSource.color
-              text freshness size=12 color=theme.muted
+              text temporal(() => feedFreshnessTemporal(feedRows, backend, now())) size=12 color=theme.muted
             text "Live departures come from the 511.org SIRI StopMonitoring feed; when the live feed is unavailable the board falls back to a recorded demo schedule and says so." size=11.5 color=theme.secondary lineHeight=16
           column gap=4 radius=16 padding=14 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%"
             text "About" size=14 weight=700 color=theme.ink
@@ -698,7 +700,6 @@ component TripDetail
   props
     trip: object
     tripCall: object
-    nowMs: number
     stationId: string
     theme: object
     topInset: number
@@ -719,7 +720,7 @@ component TripDetail
               column gap=3
                 row gap=10 align="center"
                   text `Train ${trip.trainNumber}` size=28 weight=800 color=theme.ink headingLevel=1
-                  row radius=999 paddingLeft=11 paddingRight=11 paddingTop=4 paddingBottom=4 background=serviceTint(trip.service)
+                  row radius=999 paddingLeft=11 paddingRight=11 paddingTop=4 paddingBottom=4 background=serviceTint(trip.service, theme.scheme)
                     text trip.service size=12 weight=700 color=serviceColor(trip.service) testId="trip-service"
                 text `${trip.origin.name} → ${trip.destination.name}` size=14 color=theme.secondary
                 text `${trip.durationMinutes} min · ${trip.stopCount} stops · ${delayLabel(trip)}` size=12 color=theme.muted
@@ -729,15 +730,15 @@ component TripDetail
               // station has passed, an honest one-line "departed" note.
               when tripCall
                 when tripCall.departed
-                  text `Departed ${tripCall.name} · ${tripCall.time}` size=12 weight=600 color=theme.muted testId="trip-countdown-departed"
+                  text `Departed ${tripCall.name} · ${stopClockLabel(tripCall, timezoneGeneration())}` size=12 weight=600 color=theme.muted testId="trip-countdown-departed"
                 else
                   row gap=8 align="flex-end" radius=16 padding=14 background=theme.heroBg borderWidth=1.5 borderColor=theme.heroBorder width="100%"
-                    text `${tripCall.minutes}` size=40 weight=800 lineHeight=38 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.ink testId="trip-countdown"
+                    text temporal(() => countdownTemporal(tripCall.predictedTimeMs, now())) size=40 weight=800 lineHeight=38 family="ui-monospace, Menlo, monospace" fontVariant="tabular-nums" color=theme.ink testId="trip-countdown"
                     text "min" size=13 weight=600 color=theme.secondary paddingBottom=3
                     spacer
                     column gap=1 align="flex-end" paddingBottom=2
                       text `until it reaches ${tripCall.name}` size=12 weight=600 color=theme.body
-                      text tripCall.time size=11 family="ui-monospace, Menlo, monospace" color=theme.muted
+                      text stopClockLabel(tripCall, timezoneGeneration()) size=11 family="ui-monospace, Menlo, monospace" color=theme.muted
               // The live corridor-position indicator, labeled so the bar
               // reads as progress, not decoration (ENG-23795).
               column gap=8 radius=16 padding=14 background=theme.soft borderWidth=1 borderColor=theme.hairline
@@ -749,7 +750,7 @@ component TripDetail
               column gap=0 radius=16 padding=8 background=theme.card borderWidth=1 borderColor=theme.hairline
                 each stop in trip.stops key=stop.station.id
                   row gap=12 align="center" paddingTop=7 paddingBottom=7 paddingLeft=10 paddingRight=10 radius=10 background=stop.station.id == stationId ? theme.accentFaintBg : "transparent"
-                    text stopClockLabel(stop) size=13 family="ui-monospace, Menlo, monospace" color=theme.secondary width=56
+                    text stopClockLabel(stop, timezoneGeneration()) size=13 family="ui-monospace, Menlo, monospace" color=theme.secondary width=56
                     column width=8 height=8 radius=4 background=stop.station.id == stationId ? theme.accent : theme.dotIdle
                     text stop.station.name size=14 weight=stop.station.id == stationId ? 700 : 400 color=stop.station.id == stationId ? theme.accent : theme.body
           else

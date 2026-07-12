@@ -2,8 +2,10 @@
 
 Answers one question before you touch anything: **when is the next train, north and
 south, from the station I'm closest to?** Built on Snapback (backend + cron +
-action-egress seam) with a Contract/Exact surface that renders on web today and is
-native macOS/iOS-ready from the same `app.contract`.
+action-egress seam) with a Contract/Exact surface that renders from the same
+`app.contract` on web, macOS, and the iOS Simulator. A physical-iPhone run has
+additionally verified build, signing, install, and UIKit/Hermes runtime
+connection; its unlocked rendered/performance trace remains ENG-24221.
 
 See [LLP 0027](../../llp/0027-all-aboard-caltrain-demo.plan.md) for the design and
 [Diary 0008](../../diaries/0008-all-aboard.diary.md) for the build experience.
@@ -80,6 +82,9 @@ TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/cron.mjs       # d
 node demos/all-aboard/tests/acceptance/egress.mjs                            # opt-in fetch seam
 TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/real-data.mjs  # mocked 511 + directions product actions
 node demos/all-aboard/tests/acceptance/browser.mjs                           # Contract surface (needs bun + `bun install` in surfaces/contract + Chrome)
+bun test demos/all-aboard/tests/acceptance/update-economy-helpers.test.ts    # migration/conformance helpers
+EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/exact \
+  node demos/all-aboard/tests/acceptance/update-economy.mjs                  # mounted D1–D5 report (20s default)
 ```
 
 The egress probe fixture is generated with the seam enabled:
@@ -179,8 +184,9 @@ Snapback-backed board, the native Motion pager committed a station change after
 trackpad follow/settle, and root-scoped Escape dismissed the Settings router
 presentation.
 
-For pre-publication integration, set `EXACT_ALL_ABOARD_SOURCE_ROOT` to the Exact
-checkout pinned by `exact-source.json`, then run the native source acceptance:
+For commit-pinned source verification, set `EXACT_ALL_ABOARD_SOURCE_ROOT` to
+the Exact checkout pinned by `exact-source.json`, then run the native source
+acceptance:
 
 ```sh
 EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/exact \
@@ -189,12 +195,30 @@ EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/exact \
 
 That gate builds both static envelopes from the pinned Exact sources and checks
 their manifests/startup payloads. Set `EXACT_ALL_ABOARD_BUILD_HOSTS=1` on macOS
-to add clean macOS and iOS Simulator host builds. ENG-24185 tracks publishing
-the package set and advancing the normal registry-only pin.
+to add clean macOS and iOS Simulator host builds. The physical-device receipt
+under `measurements/2026-07-11-eng-24189-native/` records the narrower verified
+scope without inferring a rendered or performance result from a locked device.
+
+## Update-economy evidence (LLP 0052)
+
+All Aboard now consumes Exact's reactive host bindings, deadline/temporal
+primitives, value-equal host-operation skips, keyed derive memoization, and
+lazy update-economy profiler. Its old universal ticker and ambient host-state
+cache-busters are gone. The mounted acceptance runner independently flips the
+D1 host inputs under a frozen clock, drives a D2 terminal deadline, checks D3
+equal-text suppression and D4 structural sharing, and runs D5 control/reporter
+trials while recording app-dataflow, host-work, attribution, frame, and
+overhead gates.
+
+The committed 20-second receipt is
+`measurements/update-economy.final.web.json`, with a readable checksum-linked
+summary beside it in `measurements/update-economy.final.md`. Phase 0 web and
+macOS-native evidence remains next to that final report so the before/after
+economy is reproducible. Use `--output /path/to/report.json` for an uncommitted
+local run.
 
 ## Capability gaps (declared, not faked)
 
-Browser live-push in the Contract adapter (a store bridge stands in), a per-host
-egress allowlist, exact GTFS trip
+Native URL opening/clipboard, a per-host egress allowlist, exact GTFS trip
 matching, notifications, offline cache, Postgres, Cloudflare. See
 `demo.snapback.json` → `capabilityGaps` / `notClaiming`.

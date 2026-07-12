@@ -26,6 +26,10 @@
 
 import * as contractRuntime from '@exact/contract/runtime';
 import { reset } from '@exact/contract/runtime';
+import {
+  publishHostState,
+  publishHostTransaction,
+} from '@exact/contract/runtime/host-bindings';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createRenderFirstSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
@@ -39,48 +43,24 @@ import {
   resetSnapbackContractLinks,
 } from '../../snapback/generated/contract/runtime-links';
 import { installDirections } from './directions';
-import {
-  configureUpdateEconomyExperiment,
-  setBackendState,
-  setColorScheme,
-  setDeviceLocation,
-  setRouteEstimateInvoker,
-  updateEconomyExperimentSnapshot,
-} from './data';
+import { setRouteEstimateTransport } from './data';
 import { mountAllAboardRouter, type AllAboardRouterHandle } from './router';
 import { installTrainSelectionTransition } from './transitions';
 
 let routerHandle: AllAboardRouterHandle | null = null;
 let disposeDirections: (() => void) | null = null;
 let disposeRefreshAction: (() => void) | null = null;
-let disposeLocationRequest: (() => void) | null = null;
-let disposeClipperLink: (() => void) | null = null;
 let disposeColorScheme: (() => void) | null = null;
 let disposeTrainSelectionTransition: (() => void) | null = null;
 
-configureUpdateEconomyExperiment();
+type BackendStatus = 'connecting' | 'connected' | 'offline';
+let hostBindingsMounted = false;
+let pendingBackendStatus: BackendStatus = 'connecting';
 
-interface UpdateEconomyRendererApi {
-  getReport(): unknown;
-  reset(): void;
-  configure(flags: Record<string, boolean>): unknown;
-}
-
-function updateEconomyDiagnostics() {
-  const renderer = () =>
-    (globalThis as { __exactUpdateEconomy?: UpdateEconomyRendererApi })
-      .__exactUpdateEconomy;
-  return {
-    ...updateEconomyExperimentSnapshot(),
-    sample: (sinceWave?: number) => ({
-      reactive: contractRuntime.reactiveChurn(
-        sinceWave === undefined ? {} : { sinceWave },
-      ),
-      renderer: renderer()?.getReport() ?? null,
-    }),
-    resetRenderer: () => renderer()?.reset(),
-    configureRenderer: (flags: Record<string, boolean>) => renderer()?.configure(flags),
-  };
+function projectBackendStatus(status: BackendStatus): void {
+  // @ref LLP 0052#d1--reactive-host-state-host-bindings — project provider lifecycle through the declared appGlue binding, with canonical equality at publication.
+  pendingBackendStatus = status;
+  if (hostBindingsMounted) publishHostState('backend', { status });
 }
 
 // Startup timing (ENG-23727 acceptance): all values are ms since timeOrigin
@@ -104,6 +84,19 @@ const timing: {
   backendConnectedMs: null,
   liveDataAppliedMs: null,
 };
+let resolveFirstBoardPaint!: () => void;
+const firstBoardPaintReady = new Promise<void>((resolvePaint) => {
+  resolveFirstBoardPaint = resolvePaint;
+});
+let firstBoardPaintResolved = false;
+
+function markFirstBoardPaint(at: number): void {
+  if (firstBoardPaintResolved) return;
+  firstBoardPaintResolved = true;
+  timing.firstBoardPaintMs = at;
+  logTiming('first board paint', at);
+  resolveFirstBoardPaint();
+}
 
 const logTiming = (label: string, at: number | null) => {
   console.log(`[all-aboard] ${label} at ${at === null ? '?' : Math.round(at)}ms`);
@@ -139,8 +132,9 @@ function snapbackBaseUrl(): string {
 // The Exact dev server serves its own generated HTML shell (index.html is not
 // consulted), so the web-host page chrome lives here: the viewport height
 // chain the full-bleed stack needs, the dark backdrop, and text-selection
-// scoping. Pager touch-action is framework-owned (Exact LLP 0336 P1). This is surface glue in the same sense as
-// the geolocation and boot-status wiring.
+// scoping. Pager touch-action is framework-owned (Exact LLP 0336 P1). This is
+// surface chrome beside the independently declared host bindings and
+// boot-status projection.
 function installWebChrome(): void {
   if (typeof document === 'undefined' || document.getElementById('all-aboard-web-css')) return;
   document.title = 'All Aboard — Caltrain';
@@ -149,14 +143,16 @@ function installWebChrome(): void {
   style.textContent = `
     html, body, #exact-root { height: 100%; margin: 0; }
     body { background: #ffffff; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; }
+    @media (prefers-color-scheme: dark) { body:not([data-aa-scheme]) { background: #14171C; } }
     body[data-aa-scheme="dark"] { background: #14171C; }
+    body[data-aa-scheme="light"] { background: #ffffff; }
     #exact-root { -webkit-user-select: none; user-select: none; }
     #exact-root input, #exact-root textarea { -webkit-user-select: text; user-select: text; }
     [data-testid="settings-location"] { cursor: pointer; }
     /* The directions affordance long-presses into the sheet (ENG-23795):
        keep the browser's own touch callout/selection off it. */
     [data-testid^="station-directions-"] { cursor: pointer; -webkit-touch-callout: none; }
-    /* Tap-to-select morph (gestures.ts onCaptureClick): quick, not showy. */
+    /* Tap-to-select morph (transitions.ts): quick, not showy. */
     ::view-transition-group(*) { animation-duration: 170ms; }
     ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 170ms; }
     input::placeholder { color: rgba(26, 31, 39, 0.4); }
@@ -169,42 +165,54 @@ function installWebChrome(): void {
   document.head.appendChild(style);
 }
 
-// Dark mode (device-capability glue, same seam as geolocation): follow the
-// OS prefers-color-scheme, adopt flips live via the media-query change
-// listener, and honor a ?appearance=dark|light URL override — the override
-// is what lets tests and screenshots pin a scheme without OS emulation. The
-// applied scheme lands in data.ts module state (themePalette re-derives on
-// the 1s clock) and on <body data-aa-scheme> for the page backdrop.
-// window.__aaSetColorScheme is the same entry point exposed for acceptance
-// checks, which cannot synthesize a real media-query flip.
-function installColorScheme(): () => void {
-  const apply = (scheme: string) => {
-    setColorScheme(scheme);
+// Dark mode follows the declared Contract host channel. Exact owns the one
+// physical matchMedia subscription; the page backdrop follows the same OS
+// query in CSS, which does not create a second JS host-state driver. The URL
+// and acceptance override is installed on Exact's documented host bridge
+// before the Contract root mounts, then published explicitly when changed.
+type ExactColorSchemeBridge = { colorScheme?: 'light' | 'dark' } & Record<string, unknown>;
+
+function setColorSchemeBridge(scheme: 'light' | 'dark'): void {
+  const globals = globalThis as { exact?: ExactColorSchemeBridge };
+  const bridge = globals.exact && typeof globals.exact === 'object' ? globals.exact : {};
+  bridge.colorScheme = scheme;
+  globals.exact = bridge;
+}
+
+function colorSchemeOverrideFromUrl(): 'light' | 'dark' | null {
+  try {
+    const value = new URL(window.location.href).searchParams.get('appearance');
+    return value === 'dark' || value === 'light' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function prepareColorSchemeOverride(): void {
+  const override = colorSchemeOverrideFromUrl();
+  if (!override) return;
+  setColorSchemeBridge(override);
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.dataset.aaScheme = override;
+  }
+}
+
+// window.__aaSetColorScheme is an acceptance/debug entry point because page
+// JavaScript cannot synthesize a real OS media-query change.
+function installColorSchemeControl(): () => void {
+  const globals = globalThis as { __aaSetColorScheme?: (scheme: string) => void };
+  const apply = (value: string) => {
+    const scheme = value === 'dark' ? 'dark' : 'light';
+    setColorSchemeBridge(scheme);
+    publishHostTransaction({ colorScheme: scheme });
     if (typeof document !== 'undefined' && document.body) {
-      document.body.dataset.aaScheme = scheme === 'dark' ? 'dark' : 'light';
+      document.body.dataset.aaScheme = scheme;
     }
   };
-  (globalThis as { __aaSetColorScheme?: (scheme: string) => void }).__aaSetColorScheme = apply;
-
-  let override: string | null = null;
-  try {
-    override = new URL(window.location.href).searchParams.get('appearance');
-  } catch {
-    /* no usable location (non-browser host) */
-  }
-  if (override === 'dark' || override === 'light') {
-    apply(override);
-    return () => {};
-  }
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    apply('light');
-    return () => {};
-  }
-  const query = window.matchMedia('(prefers-color-scheme: dark)');
-  apply(query.matches ? 'dark' : 'light');
-  const onChange = (event: MediaQueryListEvent) => apply(event.matches ? 'dark' : 'light');
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
+  globals.__aaSetColorScheme = apply;
+  return () => {
+    if (globals.__aaSetColorScheme === apply) delete globals.__aaSetColorScheme;
+  };
 }
 
 // The only visible startup chrome is a hard-failure notice (ENG-23727):
@@ -221,93 +229,6 @@ function showBootError(message: string): void {
   }
   el.textContent = message;
   el.dataset.state = 'error';
-}
-
-// A press-driven retry asks for a fresh fix (maximumAge 0): the user is
-// explicitly saying "locate me now", so a stale cached position won't do.
-// Boot keeps the 60s cache for a fast first paint.
-function requestDeviceLocation(fresh = false): void {
-  if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    setDeviceLocation(null, 'unavailable');
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(
-    (pos) => setDeviceLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 'device'),
-    (err) => setDeviceLocation(null, err.code === 1 ? 'denied' : 'unavailable'),
-    { enableHighAccuracy: true, maximumAge: fresh ? 0 : 60_000, timeout: 10_000 },
-  );
-}
-
-// ENG-22795: one fire-and-forget getCurrentPosition at boot could be
-// auto-denied without the user ever seeing a prompt (Chrome's quiet prompt UI;
-// a per-origin block inherited from an earlier dev server on this port), and
-// the hint dead-ended there. Ask permission-state-first: skip the doomed call
-// when access is hard-blocked, request when the browser can still prompt, and
-// adopt the real location whenever access is granted — including a later
-// site-settings flip, via the permission change event, with no reload.
-async function watchLocation(): Promise<void> {
-  if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    setDeviceLocation(null, 'unavailable');
-    return;
-  }
-  try {
-    const permission = await navigator.permissions.query({ name: 'geolocation' });
-    permission.addEventListener('change', () => {
-      if (permission.state === 'granted') requestDeviceLocation();
-      else setDeviceLocation(null, permission.state === 'denied' ? 'denied' : 'default');
-    });
-    if (permission.state === 'denied') {
-      setDeviceLocation(null, 'denied');
-      return;
-    }
-  } catch {
-    // No Permissions API (older Safari): fall through and just ask.
-  }
-  requestDeviceLocation();
-}
-
-// A location press — the footer indicator icon or the Settings location line
-// — re-runs the geolocation request from a user gesture (the .contract's
-// press is intercepted here the same way the refresh button is: geolocation
-// is web-surface glue, not contract state).
-function installLocationRequest(rootEl: HTMLElement): () => void {
-  const listener = (event: MouseEvent) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    if (!target.closest('[data-testid="settings-location"], [data-testid="location-indicator"]')) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    requestDeviceLocation(true);
-  };
-  rootEl.addEventListener('click', listener, true);
-  return () => rootEl.removeEventListener('click', listener, true);
-}
-
-// The footer Clipper press opens the right place to get or refill a card —
-// device-aware: the Clipper app's store listing on iOS/Android, the Clipper
-// website everywhere else. Opening URLs is a platform capability, so this is
-// web glue over the declared press (same seam as maps/geolocation); the
-// native hosts need their own URL affordance (see the LLP 0029 G1 ticket).
-function clipperUrl(): string {
-  const ua = typeof navigator !== 'undefined' ? navigator.userAgent ?? '' : '';
-  if (/iPhone|iPad|iPod/.test(ua)) return 'https://apps.apple.com/us/app/clipper-card/id1481471559';
-  if (/Android/.test(ua)) return 'https://play.google.com/store/apps/details?id=com.cubic.ctp.app';
-  return 'https://www.clippercard.com/';
-}
-
-function installClipperLink(rootEl: HTMLElement): () => void {
-  const listener = (event: MouseEvent) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    if (!target.closest('[data-testid="clipper"]')) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    window.open(clipperUrl(), '_blank', 'noopener');
-  };
-  rootEl.addEventListener('click', listener, true);
-  return () => rootEl.removeEventListener('click', listener, true);
 }
 
 function installRefreshAction(rootEl: HTMLElement, client: SnapbackClient): () => void {
@@ -331,34 +252,34 @@ function installRefreshAction(rootEl: HTMLElement, client: SnapbackClient): () =
 // already typesets the schedule-data board on this frame.
 async function mountBoard(client: SnapbackClient): Promise<void> {
   installWebChrome();
+  prepareColorSchemeOverride();
   if (webHostReady) {
     const { installContractWebHost } = await webHostReady;
     installContractWebHost();
   }
   routerHandle = await mountAllAboardRouter();
+  hostBindingsMounted = true;
+  projectBackendStatus(pendingBackendStatus);
   if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame((frameMs) => {
-      timing.firstBoardPaintMs = frameMs;
-      logTiming('first board paint', frameMs);
-    });
+    requestAnimationFrame(markFirstBoardPaint);
   } else {
-    timing.firstBoardPaintMs = typeof performance !== 'undefined' ? performance.now() : 0;
+    markFirstBoardPaint(typeof performance !== 'undefined' ? performance.now() : 0);
   }
 
   const rootEl = typeof document !== 'undefined' ? document.getElementById('exact-root') : null;
   if (rootEl) {
     disposeDirections = installDirections(rootEl);
     disposeRefreshAction = installRefreshAction(rootEl, client);
-    disposeLocationRequest = installLocationRequest(rootEl);
-    disposeClipperLink = installClipperLink(rootEl);
-    disposeColorScheme = installColorScheme();
+    disposeColorScheme = installColorSchemeControl();
     disposeTrainSelectionTransition = installTrainSelectionTransition(rootEl);
   }
-  void watchLocation();
+  // `ready` cannot report a backend connection ahead of the useful board
+  // paint merely because a loopback backend resolves in the same turn.
+  await firstBoardPaintReady;
 }
 
 const client = new SnapbackClient(snapbackBaseUrl());
-setRouteEstimateInvoker(async (args) => {
+setRouteEstimateTransport(async (args) => {
   const run = await client.action('routeEstimate', { args });
   if (!run?.ok) {
     const message = run?.diagnostic?.message ?? 'routeEstimate action failed';
@@ -388,6 +309,9 @@ const renderFirst = createRenderFirstSnapbackContractSurface({
   functionManifest: functionsManifest,
   liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
   connect: async () => {
+    // Render-first means backend work itself starts after the useful board
+    // paint—not merely that `ready` records its timestamp later.
+    await firstBoardPaintReady;
     await client.health();
     const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
     provisioned = [
@@ -397,7 +321,7 @@ const renderFirst = createRenderFirstSnapbackContractSurface({
     ].filter((action): action is string => action !== null);
   },
   onRetry: (error, { attempt, delayMs }) => {
-    setBackendState('offline');
+    projectBackendStatus('offline');
     console.warn(`[all-aboard] backend connect failed (attempt ${attempt + 1}); retrying in ${delayMs}ms`, error);
   },
 });
@@ -410,11 +334,12 @@ renderFirst.onFirstDelivery(() => {
 const ready = (async () => {
   await mountBoard(client);
   const surface = await renderFirst.attached;
-  setBackendState('connected');
+  projectBackendStatus('connected');
   timing.backendConnectedMs = performance.now();
   logTiming('backend connected', timing.backendConnectedMs);
   return { provisioned, surface };
 })().catch((error) => {
+  projectBackendStatus('offline');
   const message = error instanceof Error ? error.message : String(error);
   showBootError(`Boot failed: ${message}`);
   console.error(error);
@@ -427,7 +352,6 @@ const ready = (async () => {
 (globalThis as { allAboard?: unknown }).allAboard = {
   ready,
   startupTiming: timing,
-  updateEconomy: updateEconomyDiagnostics(),
 };
 void ready.then(({ surface, provisioned }) => {
   (globalThis as { allAboard?: unknown }).allAboard = {
@@ -437,27 +361,23 @@ void ready.then(({ surface, provisioned }) => {
     connections: () => surface.connections(),
     provisioned,
     startupTiming: timing,
-    updateEconomy: updateEconomyDiagnostics(),
   };
 }).catch(() => { /* boot failure already surfaced via showBootError */ });
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     if (disposeRefreshAction) disposeRefreshAction();
+    hostBindingsMounted = false;
     routerHandle?.dispose();
     if (disposeDirections) disposeDirections();
-    if (disposeLocationRequest) disposeLocationRequest();
-    if (disposeClipperLink) disposeClipperLink();
     if (disposeColorScheme) disposeColorScheme();
     if (disposeTrainSelectionTransition) disposeTrainSelectionTransition();
     disposeRefreshAction = null;
     routerHandle = null;
     disposeDirections = null;
-    disposeLocationRequest = null;
-    disposeClipperLink = null;
     disposeColorScheme = null;
     disposeTrainSelectionTransition = null;
-    setRouteEstimateInvoker(null);
+    setRouteEstimateTransport(null);
     renderFirst.dispose();
     resetSnapbackContractLinks();
     reset();

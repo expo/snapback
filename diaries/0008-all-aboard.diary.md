@@ -1,10 +1,10 @@
 # Diary 0008: All Aboard — Caltrain next-train
 
 **Demo:** All Aboard (`demos/all-aboard/`)
-**Surfaces:** headless (required), cron (required), egress (required), Contract/Exact web (required), native macOS/iOS (expected-missing)
+**Surfaces:** headless (required), cron (required), egress (required), Contract/Exact web (required), native macOS implemented; iOS envelope/build/install/runtime connection verified, physical render/performance trace pending
 **Author:** Claude
 **Date:** 2026-06-30
-**Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0015, LLP 0016, LLP 0004, LLP 0008, LLP 0013, LLP 0020, Diary 0004, Diary 0007
+**Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0015, LLP 0016, LLP 0004, LLP 0008, LLP 0013, LLP 0020, LLP 0052, Diary 0004, Diary 0007
 
 ## 2026-06-30 — Building All Aboard end to end
 
@@ -1884,3 +1884,73 @@ protocol tap are the quantitative evidence; a later native signpost trace should
 answer the stage-attribution question cleanly. The named physical iPhone was
 offline, so this evidence is macOS-native only and says so explicitly in the
 durable report under `demos/all-aboard/measurements/`.
+
+## 2026-07-11 (sixth entry) — the app-level jank workaround becomes framework semantics (LLP 0052 / ENG-24188)
+
+This pass deleted the workaround that started the investigation. All Aboard no
+longer owns a universal ticker, quantized clock state, `nowMs` cache-busters, or
+ambient module reads for scheme, safe area, location, and backend lifecycle.
+The root declares typed `host` bindings; logic uses target-relative
+`invalidateAt` deadlines or a deliberately granular `now("5s")`; countdown and
+freshness leaves use terminal `temporal` bindings; route estimates are a
+Contract `resource` with an authored expiry; and the two board composites opt
+into keyed `memoRows("id")`. Exact's DOM and raw-text equality gates make a
+redundant render host-quiet even where an app has not opted into memoization.
+
+What felt good in Exact was the explicitness. A location or scheme reader now
+names the host value in its arguments, a clock reader names its cadence, and a
+resource owns its result and TTL instead of laundering them through a module
+cache. One clock authority and one host-publication path made deterministic
+tests much easier than coordinating timers, media queries, permission events,
+and cache invalidations independently. The profiler's terminal-binding plus
+upstream-cause attribution also turned "the tree did work" into a reviewable
+receipt rather than a hunch.
+
+The hardest app bug was instructive. Router remounts exposed that ETA and maps
+preferences are ordinary shared application state: they should not become
+`appGlue`, but per-root Contract state lost session continuity when storage was
+denied. Two separate realm-lifetime scalar signals behind snapshot-readable
+stores fixed that without coupling the preferences or broadening host state.
+The first implementation then revealed a Contract boundary mistake:
+`StationHeader` used `mapsApp` without declaring/passing the prop, so its root
+derive was correctly `google` while the accessible label stayed at the
+platform default. The mounted browser test, not a helper unit test, found the
+stale presentation. A second test now keeps one ETA press coherent across the
+visible label, durable value, and router query.
+
+Snapback itself stayed pleasantly boring during the framework migration. The
+generated live bindings, action→mutation refresh path, cron demand activation,
+and render-first adapter did not need new engine behavior. The friction was
+cross-repository productization: the demo needs a coherent Exact closure rather
+than five independently drifting packages, a commit-pinned source lane while
+that closure is under review, and then a registry-only cold install proving the
+published graph. That release bookkeeping is real work and should remain a
+first-class gate instead of an undocumented sibling-checkout assumption.
+
+Compared with React plus Convex or Supabase, the backend subscription story is
+similar once generated bindings exist, but the UI economy has a different
+shape. In React I would expect effects for media queries/geolocation, an
+external-store subscription for preferences, timer hooks for countdowns and
+expiry, and `useMemo`/memoized selectors whose identity conventions are local
+knowledge. Contract now declares host, time, resource, and memo semantics in
+the program, and Exact can enforce and profile them across web and native. The
+tradeoff is stricter boundary work: capability descriptors, pure-helper
+arguments, and child props must be precise, while ordinary TypeScript/React
+would allow more ambient shortcuts.
+
+Verification before the final measurement was broad: browser 33/33; the
+app-specific migration suite 4/4 with 52 assertions; headless 12/12; cron 7/7;
+adapter live-push 2/2; badge/deadline 6/6; trip detail 8/8; and a source-pinned
+production build emitted web plus ready macOS/iOS Hermes envelopes. The clean
+20-second D1–D5 report is committed as
+`demos/all-aboard/measurements/update-economy.final.web.json` with a readable
+receipt beside it.
+
+One limitation stays separate from the result. The initially observed gzipped
+511 fixture failure was independently fixed under ENG-24219 and the restored
+real-data lane is part of the final verification. A later paired physical
+iPhone attempt built, signed, installed, created the UIKit/Hermes
+runtime, and connected the target, but the device locked before a clean
+rendered launch. No screenshot, rendered-tree, frame, D1–D5 counter, or native
+stage-attribution claim is inferred from that partial receipt; ENG-24221 owns
+the unlocked-device follow-up.

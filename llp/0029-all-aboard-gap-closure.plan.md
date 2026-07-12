@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Contract/Exact, Realtime, Cron, Action egress, Code execution security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-11 (G1/G8 closed by Exact LLP 0336 P2 / ENG-24168: shared Contract pager bindings now run through native Motion on macOS/iOS, router presentations own dismissal, `gestures.ts` is deleted, and All Aboard was built and exercised in both native hosts; G15 added: the update-economy family — reactive host state, a time primitive, value-based dirtiness — surfaced by the scroll-jank investigation and designed in LLP 0052); 2026-07-11 (LLP 0052 review round, same day: G15's mechanism corrected — native element props are already value-diffed before encoding, so the native hole is raw-text re-emits, not reference-based element dirtiness; G15 added to the gap table and sequencing; G9's evidence refreshed off the deleted `store.mjs`; the cache-buster inventory corrected to six seams); 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
+**Revised:** 2026-07-11 (G9 and G15 closed by the LLP 0052 / ENG-24188 implementation: typed shared geolocation and safe-area host bindings, deadline-driven time, value-equal render skips, keyed derive memoization, and update-economy conformance/profiling; G14's binding half closed while its declarative full-bleed layout half remains open); 2026-07-11 (G1/G8 closed by Exact LLP 0336 P2 / ENG-24168: shared Contract pager bindings now run through native Motion on macOS/iOS, router presentations own dismissal, `gestures.ts` is deleted, and All Aboard was built and exercised in both native hosts; G15 added: the update-economy family — reactive host state, a time primitive, value-based dirtiness — surfaced by the scroll-jank investigation and designed in LLP 0052); 2026-07-11 (LLP 0052 review round, same day: G15's mechanism corrected — native element props are already value-diffed before encoding, so the native hole is raw-text re-emits, not reference-based element dirtiness; G15 added to the gap table and sequencing; G9's evidence refreshed off the deleted `store.mjs`; the cache-buster inventory corrected to six seams); 2026-07-11 (G14 added: safe-area insets have no Contract primitive — the iPhone run drew chrome under the notch/home indicator; interim userland device-glue fix shipped with ENG-24169); 2026-07-08 (G5 corrected: live 511 now writes `liveDepartures` with real predicted departure times and the surface does not invent demo trains under a live source with zero station-mappable visits); 2026-07-03 (G2 closed via the re-landed LLP 0032 P5 (ENG-22680) — adapter-owned live push + multi-query mode, store.mjs deleted, DK-10 decided, cron→Contract proof `contract-live.mjs`; G6's body reconciled to its 2026-07-01 S5.D8 closure. Same day, G5/G12 closed for the local-demo slice: `refreshFeed` now fetches 511 SIRI StopMonitoring through action egress when configured, `routeEstimate` proxies OpenRouteService/HeiGIT directions for station-card walk/bike ETAs, and both keep deterministic fallbacks; exact GTFS trip identity remains a non-claim. Earlier 2026-07-02, G4 closed: the LLP 0036 v1 slice shipped — declared entries + `uses` grants, file store, rotating redacted handles, gated config ops, setup wizard; All Aboard and the egress fixture migrated off `SNAPBACK_ACTION_SECRETS`, now a deprecated one-time import. Earlier same day, G4's closing design drafted as LLP 0036; earlier 2026-07-01, G1: interim web-glue swipe layer shipped with the redesign pass — the Contract primitive remains the closure)
 **Related:** LLP 0027, LLP 0028, LLP 0009, LLP 0008, LLP 0020, LLP 0015, LLP 0016, LLP 0004, LLP 0013, LLP 0032, LLP 0034, LLP 0036, LLP 0052, Diary 0008
 
 ## Summary
@@ -20,12 +20,11 @@ subsystem/LLP.
 
 It exists because a demo's value under
 [LLP 0016](./0016-diary-driven-change-program.plan.md) is partly in the gaps it
-*surfaces*. All Aboard surfaced more than it closed. Two of these gaps
-(gesture primitives, browser live-push) are the difference between "a Contract
-surface that renders Snapback data" and "the product surface LLP 0020 wants"; two
-more (per-host egress allowlist, secrets rotation) are the difference between an
-egress *seam* and an egress *subsystem*. None of them were in scope for the demo,
-and none should block the next demo — but they should be legible and numbered.
+*surfaces*. All Aboard initially surfaced more than it closed. The shared pager,
+browser live-push, geolocation binding, secrets system, and update-economy family
+have since closed through this register; remaining gaps such as the per-host
+egress allowlist, offline cache, notifications, and declarative safe-area layout
+stay legible and numbered rather than being mistaken for demo polish.
 
 This Plan **does not** redesign the owning subsystems; each gap names the LLP that
 owns its contract. It proposes closure work and sequencing, not new semantics.
@@ -55,13 +54,13 @@ product-impact for a real transit app, not demo-impact.
 | G6 | Cron run duration always 0; start/finish collapse — **closed 2026-07-01** (LLP 0032 S5.D8) | Low | S | LLP 0028 |
 | G7 | Stale-read / demand catch-up trigger unbuilt | Medium | M | LLP 0028 |
 | G8 | Native macOS/iOS surface — **closed 2026-07-11** (ENG-24168) | Medium | M | Exact host / LLP 0015 |
-| G9 | No Contract geolocation binding (surface glue instead) | Medium | M | LLP 0020 |
+| G9 | Contract geolocation binding — **closed 2026-07-11** (LLP 0052 D1 / Exact LLP 0292) | Medium | M | LLP 0020 / Exact LLP 0292 |
 | G10 | Notifications ("leave now") not built | Low | L | Notifications (v1 named) |
 | G11 | No offline schedule cache (Online-class only) | Low | M | LLP 0008 |
 | G12 | Walk/bike is haversine, not real routing | Low | M | LLP 0027 |
 | G13 | Timezone/DST simplification (client local + fixed offset) | Low | S | LLP 0027 |
-| G14 | Safe-area insets have no Contract primitive (userland device glue) | Medium | M | Exact / Contract layout |
-| G15 | Update economy: clock-as-invalidation convention, no time primitive, value-equality holes (web-mirror elements, raw text) | High | M–L | LLP 0052 / Exact |
+| G14 | Safe-area binding — **binding half closed 2026-07-11**; declarative full-bleed/content-inset layout remains open | Medium | M | Exact / Contract layout |
+| G15 | Update economy — **closed 2026-07-11** (LLP 0052 / ENG-24188) | High | M–L | LLP 0052 / Exact |
 
 ### G1 — Shared pager gestures closed 2026-07-11 (Exact LLP 0336 P1/P2)
 
@@ -289,27 +288,28 @@ ordinary npm-registry pin after publication.
 **Residual.** Publishing the Exact package set and moving the registry-only path
 off 0.1.2 is ENG-24185. Native geolocation remains G9; it was never part of G8.
 
-### G9 — No Contract geolocation binding
+### G9 — Contract geolocation binding closed 2026-07-11
 
-**What & evidence (refreshed 2026-07-11).** There is no Contract geolocation
-capability; All Aboard wires `navigator.geolocation` in `main.ts` (and the native
-shim in `native.ts`) and pushes coordinates into `data.ts` module state via
-`setDeviceLocation`, re-read by derives only because the ticking clock forces
-recomputation. (The `store.mjs` path this entry originally cited was deleted with
-the G2 closure.) A default-station fallback covers denial. Exact's own Caltrain
-twin skips geolocation entirely. Native would need the `@exact/exact-location`
-module instead.
+**Closed.** Exact LLP 0292 / LLP 0052 D1 now gives Contract a typed
+`host location = geolocation(...)` binding with `pending`, `available`, `denied`,
+and `unavailable` arms. Web and native hosts feed the same per-root value facade
+from one shared, refcounted physical subscription; scalar equality and
+transaction delivery prevent fresh-but-equal coordinates from invalidating the
+tree. All Aboard passes the declared location value into every reader, and its
+Settings retry invokes an explicit capability instead of stamping a clock.
 
-**Impact.** Geolocation "binds" through hand-written, web-only surface glue; the
-native surface would need a *different* path, so the one-`.contract` story has a
-platform seam here.
+**Evidence.** The update-economy host-reader matrix flips location under a frozen
+clock and checks station selection, search ordering, hint/color, walk/bike,
+distance, directions, and the route resource. The browser suite grants a real
+headless geolocation fix, observes the nearest-station change and blue indicator,
+then restores the unavailable fallback. Exact's lifecycle suite proves one
+physical watcher across roots and correct teardown.
 
-**Closing it.** A Contract geolocation capability (like the Facet theme capability)
-that resolves to `navigator.geolocation` on web and the location module on native,
-exposing `coords` + permission state to the view uniformly, with a declared fallback.
-Then the surface drops the `main.ts` geolocation glue.
+The deterministic Mountain View fallback remains product policy for denied or
+unavailable hosts; it is no longer an invalidation workaround.
 
-**Effort.** M. **Owner.** [LLP 0020](./0020-core-authoring-surface.plan.md).
+**Effort.** M. **Owner.** [LLP 0020](./0020-core-authoring-surface.plan.md) /
+Exact LLP 0292.
 
 ### G10 — Notifications ("leave now") not built
 
@@ -371,7 +371,7 @@ the test clock accordingly. Small and self-contained.
 
 **Effort.** S. **Owner.** [LLP 0027](./0027-all-aboard-caltrain-demo.plan.md).
 
-### G14 — Safe-area insets have no Contract primitive
+### G14 — Safe-area binding closed; declarative layout half remains open
 
 **What & evidence (2026-07-11, ENG-24169).** Contract has no `safeArea`
 attribute and no inset value an app can bind (`pinToSafeArea` in the runtime's
@@ -384,21 +384,18 @@ host publishes real insets into `globalThis.exact.safeAreaInsets`, where they
 sat unread; on the first iPhone run the red header drew under the status bar
 and the footer ran into the home-indicator corners.
 
-**Interim (shipped with ENG-24169).** The same userland device-glue seam as
-geolocation/appearance: `data.ts` `safeAreaInsets(nowMs)` reads the host
-global live off the ticking clock (with `setSafeAreaInsets` as an explicit
-override), and the `.contract` derives chrome heights (`106 + insets.top`,
-`64 + insets.bottom`) threaded to the header/footer/scroll/sub-screens as
-number props. Correct behavior, wrong ownership — every full-bleed Contract
-app would have to re-implement this.
+**Binding half closed (LLP 0052 D1).** `host insets = safeAreaInsets()` now
+delivers a stable typed facade from the web/native host adapter. Equal inset
+records do not propagate; correlated host values can publish transactionally;
+root ownership and lifecycle teardown follow Exact LLP 0292. All Aboard deleted
+the `safeAreaInsets(nowMs)` module read and the ticking invalidation seam.
 
-**Closing it.** Either wire window-state into the contract native startup so
-the renderer's declarative system engages (and grow a Contract `safeArea=`
-attribute over it, letting apps opt chrome nodes in/out per edge), or expose
-the insets as a first-class Contract binding. Note the renderer default
-(container padding on root children) is the wrong shape for apps that draw
-their own full-bleed chrome — the attribute must support the "surface bleeds,
-content insets" split before the userland glue can be deleted.
+**Layout half still open.** The app still computes chrome heights
+(`106 + insets.top`, `64 + insets.bottom`) and threads edge numbers into its
+presentational components. Exact's renderer default container padding is the
+wrong shape for full-bleed chrome. Closure still needs a declarative Contract
+layout primitive supporting "surface bleeds, content insets" per edge; the
+value-binding work does not pretend to have delivered that notation.
 
 **Effort.** M (runtime wiring + notation). **Owner.** Exact / Contract layout;
 All Aboard is the first consumer.
@@ -422,26 +419,32 @@ are already value-diffed before encoding, but raw text is not — every
 re-fired text binding re-emits its string (and the kernel remeasures per text
 set), so the UI thread applied a same-text op batch every tick.
 
-**Interim (shipped 2026-07-10/11).** Clock quantization (`now() - now() %
-5000`, exploiting the signal layer's Object.is write-skip) plus reference-
-stable palette singletons. Conventions, not fixes — each must be known and
-re-applied per app, per derive.
+**Closed (LLP 0052 / ENG-24188).** Exact delivered the five-part framework
+closure and All Aboard migrated onto it:
 
-**Closing it.** [LLP 0052](./0052-contract-update-economy-and-host-state.rfc.md)
-owns the design: reactive `host` bindings built on the signal-backed
-capability seam (subsumes G9 and the binding half of G14),
-deadline-driven time (`now(granularity)` as periodic-deadline sugar,
-`invalidateAt(deadline)` for target-relative logic, host-scheduled time
-presentation), value-completion at
-the render boundary (DOM-mirror element state; same-text skip on all hosts),
-opt-in derive memoization, and phased update-economy instrumentation
-(baseline counters first, then a provenance-joined profiler). The normative
-implementations are Exact-owned (LLP 0021's boundary); LLP 0052 records the
-requirements and evidence.
+- D1: typed scheme, safe-area, geolocation, and app-glue host bindings with
+  equality canonicalization, transactions, and shared/refcounted host
+  subscriptions. Persisted preferences remain ordinary signal-backed app
+  stores; route estimates are a Contract resource.
+- D2: one injectable clock authority drives `now(granularity)`,
+  `invalidateAt(deadline)`, and terminal `temporal` bindings. The universal
+  ticker and independent route-cache clock are gone.
+- D3: DOM-observable equality and same-text equality suppress redundant web,
+  native protocol, and layout work while changed/unhidden text still emits.
+- D4: opt-in `memo` and keyed `memoRows` preserve value-equal outer and row
+  references without changing default identity semantics.
+- D5: transitive purity checks, churn/host-op counters, a causal profiler with
+  terminal/upstream attribution, warning thresholds, production-DCE gates, and
+  the mounted All Aboard conformance matrix make the economy inspectable.
 
-**Effort.** M–L across five items (LLP 0052 sequences them; Phase 0
-instrumentation and the cache-buster lint are S and first). **Owner.** LLP 0052 / Exact runtime; All Aboard is the first
-consumer. Tracked as ENG-24188 (umbrella) with per-stage children.
+The final report under `demos/all-aboard/measurements/` is the durable web
+receipt; the macOS-native D3 report records zero redundant protocol ops. A later
+physical-device attempt proved build/install/runtime connection only because
+the device locked before a clean launch, so no iPhone frame or stage-attribution
+claim is smuggled into this closure.
+
+**Effort.** M–L across five items. **Owner.** LLP 0052 / Exact runtime; All
+Aboard is the first consumer. Tracked by ENG-24188 and its stage children.
 
 ## Proposed sequencing
 
@@ -449,21 +452,20 @@ Ordered by unblocking value, not severity alone:
 
 1. **Quick correctness wins (S):** G6 (cron duration), G13 (timezone). Isolated,
    low-risk, improve honesty immediately.
-2. **The product-surface pair (M):** G2 (adapter live-push + multi-boundary) then
-   G9 (geolocation capability). Together these retire the biggest chunk of
-   demo-local glue and make the *next* realtime Contract demo cheaper — the
-   LLP 0016 test of whether a demo retired glue.
+2. **The product-surface pair (M) — completed:** G2 (adapter live-push +
+   multi-boundary) then G9 (geolocation binding) retired the largest chunk of
+   demo-local glue and made the next realtime Contract demo cheaper.
 3. **The egress subsystem (M):** G3 (per-host allowlist) + G4 (secrets rotation),
    which then unblock G5 (live feed) and G12 (routing). Sequence G3→G4→G5/G12.
 4. **Cron completeness (M):** G7 (demand catch-up trigger), rounding out the
    read-through story LLP 0028 specifies.
 5. **Reach surfaces & features (M–L):** G8 (native run), G11 (offline cache),
    G1 (gestures), G10 (notifications) — larger, each its own effort, none blocking.
-6. **Update economy & host bindings (S first, then M–L):** G15 per LLP 0052's
-   sequencing — Phase 0 instrumentation and the derive-parameter lint land
-   first (S), then the raw-text skip, `now(granularity)`, and `host` bindings
-   (which subsume G9 and G14's binding half). G14's layout half ("surface
-   bleeds, content insets") stays with Exact/Contract layout.
+6. **Update economy & host bindings (S first, then M–L) — completed:** G15
+   followed LLP 0052's measured sequence through conformance, render equality,
+   time, host bindings, memoization, and profiling. It closed G9 and G14's
+   binding half. G14's layout half ("surface bleeds, content insets") stays
+   with Exact/Contract layout.
 
 No single item is required for the next demo. G1 and G10 are genuinely large
 (new Exact/Notifications capabilities) and should be scheduled as their own work,
@@ -489,11 +491,6 @@ not smuggled into a demo.
 - **Allowlist location (G3):** declared in the demo manifest, in the function
   manifest per action, or in a runtime policy file
   ([LLP 0009](./0009-code-execution-security.rfc.md))?
-- **Gesture scope (G1):** minimum viable is directional swipe; is fling/pinch worth
-  bundling, or does that over-scope the first cut?
-- **Native acceptance (G8):** can the native structured-tree assertion reuse the web
-  browser harness shape, or does it need a distinct CDP-equivalent for the kernel
-  host?
 
 ## Status
 
