@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 import {
+  createMemorySnapbackClientStore,
   createSnapbackContractSurface,
   createSnapbackSystemContractSurface,
 } from './index.mjs';
@@ -217,6 +218,139 @@ async function waitFor(assertion, timeoutMs = 1_000) {
   disposeSource();
   surface.dispose();
   assert(overlayDisposed >= 1);
+}
+
+{
+  // A derived mutation takes ONE JSON snapshot for its overlay, replay
+  // ledger, durable queue, and transport. Effectful raw objects must never be
+  // observed again after that boundary (ENG-24350 review follow-up).
+  const manifest = {
+    ...baseManifest({
+      listTodos: {
+        name: 'listTodos',
+        mode: 'live',
+        defaultLive: true,
+        reads: ['todos'],
+      },
+    }),
+    capabilities: { derivedOptimisticOverlays: true, offlineReplay: true },
+    mutations: {
+      canonicalCreate: {
+        optimistic: true,
+        plan: {
+          steps: [
+            { Let: { bind_as: 'saved', expr: { Arg: 'payload' } } },
+            {
+              Insert: {
+                table: 'todos',
+                values: {
+                  payload: { Binding: 'saved' },
+                  runtimeToken: 'RuntimeId',
+                },
+                bind_id_as: 'rowId',
+              },
+            },
+          ],
+          return_value: { Expr: 'RuntimeId' },
+        },
+      },
+    },
+  };
+  const store = createMemorySnapbackClientStore();
+  const requests = [];
+  let settleMutation;
+  const client = {
+    async query() {
+      return { version: 1, rows: [] };
+    },
+    async liveQuery() {
+      return { version: 0, rows: [], connection: 'live', dispose() {} };
+    },
+    mutate(_name, request) {
+      requests.push(request);
+      return new Promise((resolve) => { settleMutation = resolve; });
+    },
+  };
+  const surface = await createSnapbackContractSurface({
+    runtime: mockRuntime(),
+    client,
+    clientStore: store,
+    userId: 'json-boundary-user',
+    manifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    artifactIndex: { appId: 'json-boundary-app' },
+    schemaManifest: {
+      schemaHash: manifest.schemaHash,
+      targetProfile: 'local-dev-sqlite-ibex',
+    },
+    retainedIdentity: {
+      databaseId: 'json-boundary-db',
+      versionStreamId: 'json-boundary-stream',
+    },
+  });
+
+  let proxyGets = 0;
+  const effectfulProxy = new Proxy({ score: Infinity }, {
+    get(target, key, receiver) {
+      proxyGets += 1;
+      return Reflect.get(target, key, receiver);
+    },
+  });
+  const task = surface.links.canonicalCreate({ payload: effectfulProxy });
+  await waitFor(() => assert.equal(requests.length, 1));
+
+  const request = requests[0];
+  assert.equal(proxyGets, 0, 'raw Proxy getters are not used by prediction or transport');
+  assert.equal(request.args.payload.score, null, 'transport receives the canonical non-finite value');
+  assert.equal(Object.getPrototypeOf(request.args.payload), null, 'transport receives the copied JSON record');
+  assert.equal(request.ctxLedger.ids.length, 3, 'implicit id, value RuntimeId, and return RuntimeId are captured');
+  const optimisticRow = surface.provider.boundary.query('todos')[0];
+  assert.equal(optimisticRow._id, request.ctxLedger.ids[0]);
+  assert.equal(optimisticRow.runtimeToken, request.ctxLedger.ids[1]);
+  assert.equal(optimisticRow.payload.score, null);
+  assert.equal(JSON.stringify(request.args), '{"payload":{"score":null}}');
+  assert.equal(proxyGets, 0, 'serializing the request cannot revisit the raw Proxy');
+
+  const queued = await store.pendingMutations();
+  assert.equal(queued.length, 1);
+  assert.deepEqual(queued[0].ctxLedger.ids, request.ctxLedger.ids, 'durable queue reuses the same ledger');
+  assert.equal(queued[0].args.payload.score, null, 'durable queue reuses the canonical args');
+
+  settleMutation({ version: 1, changed_count: 1, result: null });
+  await task;
+
+  let getterCalls = 0;
+  const accessor = Object.defineProperty({}, 'score', {
+    enumerable: true,
+    get() {
+      getterCalls += 1;
+      return 1;
+    },
+  });
+  await assert.rejects(
+    surface.links.canonicalCreate({ payload: accessor }),
+    (error) => error?.code === 'SNAPBACK_EXPR_TYPE',
+  );
+  assert.equal(getterCalls, 0, 'accessor args reject without executing the getter');
+
+  let toJSONCalls = 0;
+  await assert.rejects(
+    surface.links.canonicalCreate({
+      payload: {
+        score: 1,
+        toJSON() {
+          toJSONCalls += 1;
+          return { score: 2 };
+        },
+      },
+    }),
+    (error) => error?.code === 'SNAPBACK_EXPR_TYPE',
+  );
+  assert.equal(toJSONCalls, 0, 'toJSON args reject without executing user code');
+  assert.equal(requests.length, 1, 'rejected effectful values never reach transport');
+  assert.equal((await store.pendingMutations()).length, 0, 'rejected values never create a partial ledger');
+  surface.dispose();
 }
 
 {

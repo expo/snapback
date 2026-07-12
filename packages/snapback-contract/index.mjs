@@ -44,7 +44,7 @@ export {
   SNAPBACK_CLIENT_STORE_VERSION,
 } from './client-store.mjs';
 
-import { deriveOptimisticReducers } from './derived-overlay.mjs';
+import { canonicalizeJsonValue, deriveOptimisticReducers } from './derived-overlay.mjs';
 import {
   createClientMutationId,
   retainedQueryKey,
@@ -765,6 +765,19 @@ export async function createSnapbackContractSurface({
       links[name] = (args) => {
         assertActive();
         const reducer = activeReducer;
+        // A derived plan runs against serde_json::Value on the server. Take
+        // one canonical snapshot and reuse it for the prediction, durable
+        // queue, and transport; evaluating raw args and serializing them again
+        // would let getters/toJSON/proxies disagree and could underfill the
+        // RuntimeId ledger if prediction aborted before the server invocation.
+        let mutationArgs = args;
+        if (derivedReducers[name]) {
+          try {
+            mutationArgs = canonicalizeJsonValue(args ?? {});
+          } catch (error) {
+            return track(Promise.reject(error));
+          }
+        }
         let optimisticOp = null;
         if (typeof reducer === 'function') {
           const mutationId = createClientMutationId(`cm_${name}`);
@@ -784,7 +797,7 @@ export async function createSnapbackContractSurface({
             mutationId,
             reducer,
             ledgerReducer: derivedReducers[name],
-            args,
+            args: mutationArgs,
             optimisticId: `optimistic_${++optimisticSeq}`,
             baseVersion: maxServerRowVersion(lastServerRows),
             ctxLedger: derivedReducers[name]
@@ -804,15 +817,15 @@ export async function createSnapbackContractSurface({
             // the shared IR evaluator once to capture every RuntimeId/implicit
             // row-id answer for the durable replay ledger.
             if (derivedReducers[name] && reducer !== derivedReducers[name]) {
-              derivedReducers[name](rows, args, ledgerCtx);
+              derivedReducers[name](rows, mutationArgs, ledgerCtx);
             }
-            return reducer(rows, args, {
+            return reducer(rows, mutationArgs, {
               ...ledgerCtx,
               runtimeId: reducer === derivedReducers[name] ? runtimeId : null,
             });
           });
         }
-        return track(persistMutation(name, args, optimisticOp));
+        return track(persistMutation(name, mutationArgs, optimisticOp));
       };
     }
 

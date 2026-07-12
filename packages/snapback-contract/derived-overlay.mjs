@@ -68,7 +68,7 @@ const numberValue = (value) => {
 // overlay is honest; a row containing a value the server can never see is not.
 const OMIT_JSON_FIELD = Object.freeze({});
 
-const canonicalJsonValue = (
+export const canonicalizeJsonValue = (
   value,
   { container = 'top', seen = new WeakSet(), depth = 0, path = '$' } = {},
 ) => {
@@ -110,7 +110,7 @@ const canonicalJsonValue = (
         } else if (!hasOwn(descriptor, 'value')) {
           fail('SNAPBACK_EXPR_TYPE', `JSON array slot ${path}[${index}] must be a data property`);
         } else {
-          output[index] = canonicalJsonValue(descriptor.value, {
+          output[index] = canonicalizeJsonValue(descriptor.value, {
             container: 'array', seen, depth: depth + 1, path: `${path}[${index}]`,
           });
         }
@@ -128,7 +128,7 @@ const canonicalJsonValue = (
       if (!descriptor || !hasOwn(descriptor, 'value')) {
         fail('SNAPBACK_EXPR_TYPE', `JSON field ${path}.${key} must be a data property`);
       }
-      const field = canonicalJsonValue(descriptor.value, {
+      const field = canonicalizeJsonValue(descriptor.value, {
         container: 'object', seen, depth: depth + 1, path: `${path}.${key}`,
       });
       if (field !== OMIT_JSON_FIELD) output[key] = field;
@@ -365,7 +365,7 @@ export const evalValueExpr = (expr, env, depth = 0) => {
   if (depth > MAX_EXPR_DEPTH) {
     fail('SNAPBACK_PLAN_BOUNDS', `expression depth exceeds the declared bound (${MAX_EXPR_DEPTH})`);
   }
-  if (expr === 'Args') return canonicalJsonValue(env.args ?? {});
+  if (expr === 'Args') return canonicalizeJsonValue(env.args ?? {});
   if (expr === 'AuthUserId') {
     if (typeof env.authUserId !== 'string') {
       fail('SNAPBACK_AUTH_USER_MISSING', 'handler requested auth.user_id but no user was supplied');
@@ -374,7 +374,7 @@ export const evalValueExpr = (expr, env, depth = 0) => {
   }
   if (expr === 'RuntimeId') {
     if (typeof env.runtimeId !== 'function') fail('SNAPBACK_EXPR_UNANALYZABLE', 'RuntimeId is not available');
-    return canonicalJsonValue(env.runtimeId());
+    return canonicalizeJsonValue(env.runtimeId());
   }
   if (expr === 'RuntimeNow') {
     if (typeof env.nowMs !== 'number' || !Number.isFinite(env.nowMs)) {
@@ -388,21 +388,21 @@ export const evalValueExpr = (expr, env, depth = 0) => {
   if (hasOwn(expr, 'Arg')) {
     const value = lookupPath(env.args ?? {}, expr.Arg);
     if (value === undefined) fail('SNAPBACK_ARG_MISSING', `handler arg ${expr.Arg} was not provided`);
-    return canonicalJsonValue(value);
+    return canonicalizeJsonValue(value);
   }
   if (hasOwn(expr, 'Binding')) {
     const bindings = env.bindings ?? new Map();
     if (!bindings.has(expr.Binding)) {
       fail('SNAPBACK_BINDING_MISSING', `handler binding ${expr.Binding} was not available`);
     }
-    return canonicalJsonValue(bindings.get(expr.Binding));
+    return canonicalizeJsonValue(bindings.get(expr.Binding));
   }
   if (hasOwn(expr, 'Literal')) {
-    return canonicalJsonValue(expr.Literal);
+    return canonicalizeJsonValue(expr.Literal);
   }
   if (hasOwn(expr, 'Field')) {
     const base = evalValueExpr(expr.Field.base, env, depth + 1);
-    return canonicalJsonValue(fieldAccess(base, expr.Field.key));
+    return canonicalizeJsonValue(fieldAccess(base, expr.Field.key));
   }
   if (hasOwn(expr, 'Binary')) {
     const left = evalValueExpr(expr.Binary.left, env, depth + 1);
