@@ -896,6 +896,7 @@ export class SnapbackClient {
           const code = error?.diagnostic?.code;
           if (
             transport !== 'stream' ||
+            error?.status !== 409 ||
             !LIVE_SUBSCRIBE_READINESS_RETRY_CODES.has(code) ||
             readinessRetries >= LIVE_SUBSCRIBE_READINESS_RETRIES
           ) {

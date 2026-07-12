@@ -849,7 +849,8 @@ fast POST can reach the coordinator before the upgrade handler records the
 session and receive `SNAPBACK_CONNECTION_SOCKET_REQUIRED`, even though the
 socket opens a moment later.
 
-The reconciliation is deliberately diagnostic-specific. Only
+The reconciliation is deliberately status-and-diagnostic-specific. Only a
+`409` response carrying
 `SNAPBACK_CONNECTION_SOCKET_REQUIRED` and
 `SNAPBACK_CONNECTION_SESSION_REPLACED` may trigger a retry: both coordinator
 paths return before a subscription row is persisted. The kit then proves the

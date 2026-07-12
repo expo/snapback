@@ -85,9 +85,10 @@ const waitFor = async (predicate, label, timeoutMs = 1_000) => {
   }
   throw new Error(`timed out waiting for ${label}`);
 };
-const diagnosticError = (code, message = code) => {
+const diagnosticError = (code, message = code, status = 409) => {
   const error = new Error(`${code}: ${message}`);
   error.diagnostic = { code, message };
+  if (status !== null) error.status = status;
   return error;
 };
 const nextSentPing = async (ws, previousCount = 0) => {
@@ -459,6 +460,36 @@ try {
     );
     assertEqual(subscribeCalls, 1, 'readiness failure never replays the refused HTTP subscribe');
     return { code: error.diagnostic.code, subscribeCalls };
+  });
+
+  await suite.check('readiness codes without the exact pre-persistence 409 are never retried', async () => {
+    const outcomes = [];
+    for (const status of [null, 400, 500]) {
+      globalThis.WebSocket = FakeWebSocket;
+      globalThis.fetch = grantFetch(`conn_session_status_${status ?? 'missing'}`);
+      const db = new SnapbackClient('http://stub');
+      let subscribeCalls = 0;
+      db.subscribeLive = async () => {
+        subscribeCalls += 1;
+        throw diagnosticError(
+          'SNAPBACK_CONNECTION_SOCKET_REQUIRED',
+          'same code from a non-authoritative response',
+          status,
+        );
+      };
+      const error = await assertThrows(
+        () => db.liveQuery('listTodos', {
+          connectionId: `conn_session_status_${status ?? 'missing'}`,
+          transport: 'stream',
+          stream: { freshnessBudgetMs: 100 },
+        }),
+        'SNAPBACK_CONNECTION_SOCKET_REQUIRED',
+        'same-code response must surface without replay',
+      );
+      assertEqual(subscribeCalls, 1, `status ${status ?? 'missing'} must not retry`);
+      outcomes.push({ status: error.status ?? null, subscribeCalls });
+    }
+    return outcomes;
   });
 
   await suite.check('ambiguous failure after readiness is surfaced without an unsafe retry', async () => {
