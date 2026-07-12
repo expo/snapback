@@ -913,8 +913,16 @@ export class Coordinator {
       return this.testingGated(request, () => this.withJsonObject(request, async (payload) => {
         const job = this.alarmJobs().find((entry) => entry.name === String(payload.job || 'warmPoll'));
         if (!job) return json(404, { ok: false, code: 'SNAPBACK_CRON_JOB_UNKNOWN' });
+        // ENG-24365 test seam: cron functions are deploy-time declarations,
+        // so the exhaustive function-kind matrix needs a testing-only way to
+        // substitute the action target while retaining the real cron runner.
+        // The enclosing testingGated boundary makes this unavailable on a
+        // production deployment.
+        const selectedJob = typeof payload.actionOverride === 'string'
+          ? { ...job, action: payload.actionOverride }
+          : job;
         const trigger = payload.trigger === 'scheduled' ? 'scheduled' : 'manual';
-        const outcome = await this.runCronJob(job, trigger, Date.now());
+        const outcome = await this.runCronJob(selectedJob, trigger, Date.now());
         return json(200, { ok: true, ...outcome });
       }, { allowEmpty: true }));
     }
@@ -3304,8 +3312,21 @@ export class Coordinator {
 
   async subscribe(ws, connectionId, parsed, socketSessionId = null) {
     const fn = this.functionByName(parsed.name);
-    if (!fn || fn.kind !== 'LiveQuery') {
+    if (!fn) {
       ws.send(JSON.stringify({ type: 'error', code: 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY', name: parsed.name }));
+      return;
+    }
+    // @ref LLP 0040#whole-codebase-review-hardening-2026-07-12-eng-24341eng-24369--eng-24387eng-24388 —
+    // every invocation boundary reports the same stable diagnostic for a
+    // known function whose declared kind is incompatible with the route.
+    if (fn.kind !== 'LiveQuery') {
+      ws.send(JSON.stringify({
+        type: 'error',
+        code: 'SNAPBACK_FUNCTION_KIND_MISMATCH',
+        message: `${parsed.name} is declared ${fn.kind}, not live query`,
+        details: { function: parsed.name, declaredKind: fn.kind, requestedMode: 'live-query' },
+        name: parsed.name,
+      }));
       return;
     }
     const argsJson = canonicalJson(parsed.args || {});

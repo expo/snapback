@@ -233,6 +233,13 @@ function rollbackConfigs(result) {
 }
 
 try {
+  const allAboardConfigs = [
+    'wrangler.all-aboard.handler.jsonc',
+    'wrangler.all-aboard.jsonc',
+    'wrangler.all-aboard.action-handler.jsonc',
+  ];
+  const allAboardExisting = allAboardConfigs.join(',');
+
   const existing = run('all-existing');
   assert.equal(existing.status, 0, existing.output);
   assert.deepEqual(deployConfigs(existing, true), []);
@@ -270,6 +277,37 @@ try {
   assert.equal(bothMissing.status, 0, bothMissing.output);
   assert.equal(deployConfigs(bothMissing, true).length, 2);
   assert.deepEqual(deletedConfigs(bothMissing), []);
+
+  // All Aboard has three mutually bound Workers, so its mixed-state space is
+  // eight cases rather than the notes fixture's four. Prove each subset
+  // independently: only the confirmed-missing configs may receive a stripped
+  // bootstrap, while every Worker still receives its ordinary full deploy.
+  // This matrix is deliberately mechanical so adding a fourth Worker cannot
+  // leave an implied-but-untested mixed state (ENG-24364).
+  for (let mask = 0; mask < (1 << allAboardConfigs.length); mask += 1) {
+    const present = allAboardConfigs.filter((_config, index) => (mask & (1 << index)) !== 0);
+    const missing = allAboardConfigs.filter((_config, index) => (mask & (1 << index)) === 0);
+    const permutation = run(`all-aboard-permutation-${mask.toString(2).padStart(3, '0')}`, {
+      SNAPBACK_CF_APP: 'all-aboard',
+      MOCK_EXISTING: present.join(','),
+    });
+    assert.equal(permutation.status, 0, permutation.output);
+    assert.deepEqual(
+      deployConfigs(permutation, true).map((config) => config.replace(/^\.bootstrap\.\d+\./, '')),
+      missing,
+      `All Aboard mask ${mask.toString(2).padStart(3, '0')} bootstrapped something other than its confirmed-missing Workers`,
+    );
+    assert.deepEqual(
+      deployConfigs(permutation, false),
+      [
+        'wrangler.all-aboard.handler.jsonc',
+        'wrangler.all-aboard.action-handler.jsonc',
+        'wrangler.all-aboard.jsonc',
+      ],
+      `All Aboard mask ${mask.toString(2).padStart(3, '0')} skipped or reordered a full deploy`,
+    );
+    assert.deepEqual(deletedConfigs(permutation), [], 'a successful mixed-state deploy must not clean up a Worker');
+  }
 
   const ambiguous = run('ambiguous', { MOCK_AMBIGUOUS: 'wrangler.handler.jsonc' });
   assert.notEqual(ambiguous.status, 0);
@@ -327,11 +365,6 @@ try {
   assert.match(staleHealth.output, /DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED/);
   assert.deepEqual(new Set(deletedConfigs(staleHealth)), new Set(['wrangler.handler.jsonc', 'wrangler.jsonc']));
 
-  const allAboardExisting = [
-    'wrangler.all-aboard.handler.jsonc',
-    'wrangler.all-aboard.action-handler.jsonc',
-    'wrangler.all-aboard.jsonc',
-  ].join(',');
   const allAboardBase = { SNAPBACK_CF_APP: 'all-aboard', MOCK_EXISTING: allAboardExisting, MOCK_FAIL_AFTER_ACTIVATE: '1' };
   const existingHandlerFailure = run('existing-handler-activated-failure', {
     ...allAboardBase,
@@ -362,18 +395,47 @@ try {
     'wrangler.all-aboard.jsonc',
   ]);
 
-  const allAboardBootstrapFailure = run('all-aboard-bootstrap-activated-failure', {
-    SNAPBACK_CF_APP: 'all-aboard',
-    MOCK_EXISTING: '',
-    MOCK_FAIL_DEPLOY_MATCH: 'action-handler.jsonc',
-    MOCK_FAIL_AFTER_ACTIVATE: '1',
-  });
-  assert.notEqual(allAboardBootstrapFailure.status, 0);
-  assert.deepEqual(deletedConfigs(allAboardBootstrapFailure), [
+  // A Wrangler failure can arrive after the remote activation. Inject that
+  // ambiguity at every stripped-bootstrap and ordinary full-deploy stage.
+  // Because all three Workers began confirmed missing, cleanup must restore
+  // the complete absent state in reverse dependency order every time.
+  const allAboardMissingCleanupOrder = [
     'wrangler.all-aboard.action-handler.jsonc',
     'wrangler.all-aboard.jsonc',
     'wrangler.all-aboard.handler.jsonc',
-  ]);
+  ];
+  for (const [stage, config, expectedCleanup] of [
+    ['handler', 'wrangler.all-aboard.handler.jsonc', ['wrangler.all-aboard.handler.jsonc']],
+    ['gateway', 'wrangler.all-aboard.jsonc', ['wrangler.all-aboard.jsonc', 'wrangler.all-aboard.handler.jsonc']],
+    ['action-handler', 'wrangler.all-aboard.action-handler.jsonc', allAboardMissingCleanupOrder],
+  ]) {
+    const failure = run(`all-aboard-bootstrap-${stage}-activated-failure`, {
+      SNAPBACK_CF_APP: 'all-aboard',
+      MOCK_EXISTING: '',
+      MOCK_FAIL_DEPLOY_MATCH: config,
+      MOCK_FAIL_AFTER_ACTIVATE: '1',
+    });
+    assert.notEqual(failure.status, 0);
+    assert.deepEqual(deletedConfigs(failure), expectedCleanup, `${stage} bootstrap failure did not restore absence`);
+  }
+  for (const [stage, config] of [
+    ['handler', 'wrangler.all-aboard.handler.jsonc'],
+    ['action-handler', 'wrangler.all-aboard.action-handler.jsonc'],
+    ['gateway', 'wrangler.all-aboard.jsonc'],
+  ]) {
+    const failure = run(`all-aboard-full-${stage}-activated-failure`, {
+      SNAPBACK_CF_APP: 'all-aboard',
+      MOCK_EXISTING: '',
+      MOCK_FAIL_DEPLOY_EXACT: config,
+      MOCK_FAIL_AFTER_ACTIVATE: '1',
+    });
+    assert.notEqual(failure.status, 0);
+    assert.deepEqual(
+      deletedConfigs(failure),
+      allAboardMissingCleanupOrder,
+      `${stage} full-deploy failure did not restore every bootstrapped Worker to absent`,
+    );
+  }
 
   const rollbackAttestationFailure = run('rollback-attestation-failure', {
     ...allAboardBase,

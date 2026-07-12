@@ -989,8 +989,12 @@ globalThis.__snapbackHandlers = {
   async probeNestedTimeout(ctx) {
     return await ctx.runMutation('applyFeedTick', { trigger: 'nested-timeout-probe', source: 'recorded' });
   },
-  async probeWrongNestedKind(ctx) {
-    return await ctx.runMutation('stationsQuery', {});
+  async probeWrongNestedKind(ctx, args) {
+    // Testing-only cross-product seam (ENG-24365): exercise the real
+    // action.runMutation host boundary against every declared function kind,
+    // including one valid Mutation target. Production cannot invoke this
+    // function because its manifest entry is testingOnly.
+    return await ctx.runMutation((args && args.target) || 'stationsQuery', (args && args.targetArgs) || {});
   },
   async probeSecretsMutation(ctx) {
     return { secretsType: typeof ctx.secrets };

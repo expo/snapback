@@ -59,6 +59,11 @@ try {
   // stripped, and per-action admission limits cap public abuse.
   const hiddenProbe = await jsonFetch(base, '/action/probeSlowFetch', { args: { url: 'http://127.0.0.1:1/' } });
   assert.equal(hiddenProbe.body.diagnostic?.code, 'SNAPBACK_ACTION_UNKNOWN');
+  const hiddenCronOverride = await jsonFetch(base, '/__test/run-cron', {
+    job: 'warmPoll',
+    actionOverride: 'stationsQuery',
+  });
+  assert.equal(hiddenCronOverride.status, 404, 'the cron actionOverride seam must not exist without SNAPBACK_TESTING=1');
   const refresh1 = await client.action('refreshFeed', { args: { pollBudgetMs: 0, feedUrl: 'http://127.0.0.1:1/' } });
   const refresh2 = await client.action('refreshFeed', { args: { pollBudgetMs: 0, feedUrl: 'http://127.0.0.1:1/' } });
   assert.equal(refresh1.ok, true);

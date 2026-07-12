@@ -1,5 +1,6 @@
 // ENG-24342 / ENG-24365 / ENG-24368: portable schema enforcement, exact
 // function-kind routing, and bounded/fatal JSON decoding on every body route.
+import assert from 'node:assert/strict';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 
 function code(body) {
@@ -101,4 +102,217 @@ try {
   console.log('cloudflare protocol-hardening acceptance: schema, kind, JSON, UTF-8, and streaming-size gates passed');
 } finally {
   await proof.dispose();
+}
+
+// ENG-24365's compatibility rule spans more than the representative notes
+// cases above. All Aboard declares Query, LiveQuery, Mutation, and Action, so
+// use one named function of each kind to exhaust every public/proof protocol
+// boundary plus the cron and action.runMutation internal boundaries.
+const kindProof = await startProof({ app: 'all-aboard', port: 0 });
+try {
+  const post = async (path, body, headers = {}) => {
+    const response = await kindProof.raw(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, body: await response.json() };
+  };
+  const get = async (path) => {
+    const response = await kindProof.raw(path);
+    return { status: response.status, body: await response.json() };
+  };
+  const functionsByKind = [
+    { kind: 'Query', name: 'stationsQuery', args: {} },
+    { kind: 'LiveQuery', name: 'feedState', args: {} },
+    { kind: 'Mutation', name: 'resetFeed', args: {} },
+    { kind: 'Action', name: 'routeEstimate', args: {} },
+  ];
+  // Put LiveQuery last so its valid subscription cannot interleave a pushed
+  // update with the three mismatch frames that precede it.
+  const subscriptionOrder = [
+    ...functionsByKind.filter((entry) => entry.kind !== 'LiveQuery'),
+    functionsByKind.find((entry) => entry.kind === 'LiveQuery'),
+  ];
+  const httpBoundaries = [
+    {
+      name: 'proof query',
+      accepts: new Set(['Query', 'LiveQuery']),
+      invoke: (entry) => post('/query', { name: entry.name, args: entry.args }),
+    },
+    {
+      name: 'proof mutation',
+      accepts: new Set(['Mutation']),
+      invoke: (entry) => post('/mutation', { name: entry.name, args: entry.args }),
+    },
+    {
+      name: 'kit query',
+      accepts: new Set(['Query', 'LiveQuery']),
+      invoke: (entry) => post(`/query/${entry.name}`, { args: entry.args }),
+    },
+    {
+      name: 'kit mutation',
+      accepts: new Set(['Mutation']),
+      invoke: (entry) => post(`/mutation/${entry.name}`, { args: entry.args }),
+    },
+    {
+      name: 'kit action',
+      accepts: new Set(['Action']),
+      invoke: (entry) => post(`/action/${entry.name}`, { args: entry.args }),
+    },
+  ];
+
+  for (const boundary of httpBoundaries) {
+    for (const entry of functionsByKind) {
+      const versionBefore = (await kindProof.health()).version;
+      const attempt = await boundary.invoke(entry);
+      if (boundary.accepts.has(entry.kind)) {
+        assert.equal(attempt.status, 200, `${boundary.name} rejected compatible ${entry.kind}: ${JSON.stringify(attempt.body)}`);
+        assert.notEqual(code(attempt.body), 'SNAPBACK_FUNCTION_KIND_MISMATCH');
+      } else {
+        assert.equal(attempt.status, 400, `${boundary.name} did not classify ${entry.kind} mismatch as 400`);
+        assert.equal(code(attempt.body), 'SNAPBACK_FUNCTION_KIND_MISMATCH', `${boundary.name} accepted ${entry.kind}`);
+        assert.equal((await kindProof.health()).version, versionBefore, `${boundary.name} invoked mismatched ${entry.kind}`);
+      }
+    }
+  }
+
+  // The testing action route exercises the proof protocol's direct action
+  // boundary. It intentionally answers a test envelope at HTTP 200, but its
+  // compatibility verdict must be the same stable diagnostic.
+  for (const entry of functionsByKind) {
+    const versionBefore = (await kindProof.health()).version;
+    const attempt = await post('/__test/action', { name: entry.name, args: entry.args });
+    assert.equal(attempt.status, 200);
+    if (entry.kind === 'Action') {
+      assert.equal(attempt.body.ok, true, `proof action rejected Action: ${JSON.stringify(attempt.body)}`);
+    } else {
+      assert.equal(attempt.body.ok, false);
+      assert.equal(code(attempt.body), 'SNAPBACK_FUNCTION_KIND_MISMATCH', `proof action accepted ${entry.kind}`);
+      assert.equal((await kindProof.health()).version, versionBefore, `proof action invoked mismatched ${entry.kind}`);
+    }
+  }
+
+  const proofSocket = await kindProof.openLiveSocket();
+  try {
+    for (const entry of subscriptionOrder.filter((candidate) => candidate.kind !== 'LiveQuery')) {
+      proofSocket.send({ type: 'subscribe', name: entry.name, args: entry.args });
+      const frame = await proofSocket.waitFor('error');
+      assert.equal(frame.code, 'SNAPBACK_FUNCTION_KIND_MISMATCH', `proof live accepted ${entry.kind}`);
+    }
+    proofSocket.send({ type: 'subscribe', name: 'missingKindMatrixFunction', args: {} });
+    assert.equal(
+      (await proofSocket.waitFor('error')).code,
+      'SNAPBACK_LIVE_NOT_A_LIVE_QUERY',
+      'proof live must keep unknown-function diagnosis distinct from known wrong-kind functions',
+    );
+    const stateBeforeValidProofLive = await post('/__test/connection-state', {});
+    assert.equal(stateBeforeValidProofLive.body.subscriptions.length, 0, 'proof live mismatches persisted subscriptions');
+    const liveQuery = functionsByKind.find((entry) => entry.kind === 'LiveQuery');
+    proofSocket.send({ type: 'subscribe', name: liveQuery.name, args: liveQuery.args });
+    assert.equal((await proofSocket.waitFor('snapshot')).function, liveQuery.name);
+  } finally {
+    proofSocket.close();
+  }
+
+  const opened = await post('/connection/open', { connectionId: 'kind-cross-product-all-aboard' });
+  assert.equal(opened.status, 200, JSON.stringify(opened.body));
+  const kitUpgrade = await kindProof.raw(`/live/${opened.body.connectionId}/stream`, {
+    headers: {
+      upgrade: 'websocket',
+      'x-snapback-connection-token': opened.body.connectionToken,
+    },
+  });
+  assert.ok(kitUpgrade.webSocket, 'kit live cross-product could not establish its authenticated socket');
+  const kitSocket = kitUpgrade.webSocket;
+  kitSocket.accept();
+  try {
+    for (const entry of subscriptionOrder.filter((candidate) => candidate.kind !== 'LiveQuery')) {
+      const attempt = await post(
+        `/live/${entry.name}/subscribe`,
+        {
+          connection_id: opened.body.connectionId,
+          input: { args: entry.args },
+        },
+        { 'x-snapback-connection-token': opened.body.connectionToken },
+      );
+      assert.equal(attempt.status, 400, `kit live did not classify ${entry.kind} mismatch as 400`);
+      assert.equal(code(attempt.body), 'SNAPBACK_FUNCTION_KIND_MISMATCH', `kit live accepted ${entry.kind}`);
+    }
+    const missing = await post(
+      '/live/missingKindMatrixFunction/subscribe',
+      { connection_id: opened.body.connectionId, input: { args: {} } },
+      { 'x-snapback-connection-token': opened.body.connectionToken },
+    );
+    assert.equal(code(missing.body), 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY');
+    const liveQuery = functionsByKind.find((entry) => entry.kind === 'LiveQuery');
+    const compatible = await post(
+      `/live/${liveQuery.name}/subscribe`,
+      { connection_id: opened.body.connectionId, input: { args: liveQuery.args } },
+      { 'x-snapback-connection-token': opened.body.connectionToken },
+    );
+    assert.equal(compatible.status, 200, `kit live rejected LiveQuery: ${JSON.stringify(compatible.body)}`);
+    assert.ok(compatible.body.snapshot);
+  } finally {
+    kitSocket.close();
+  }
+
+  // The override is a test-route seam, not a request field on the real
+  // operator endpoint. Supplying the same spelling to /cron/run must still
+  // execute the manifest-declared refreshFeed Action rather than the caller's
+  // Query target.
+  const publicCronOverride = await post(
+    '/cron/run',
+    { job: 'warmPoll', actionOverride: 'stationsQuery' },
+    { 'x-snapback-admin-token': ADMIN_TOKEN },
+  );
+  assert.equal(publicCronOverride.status, 200, JSON.stringify(publicCronOverride.body));
+  assert.equal(publicCronOverride.body.outcome, 'ok', 'ordinary cron entry point consumed testing-only actionOverride');
+
+  // Cron targets are manifest-owned rather than caller-selected. The
+  // testing-gated actionOverride retains the real manual cron runner while
+  // substituting each function kind; failed kind checks must invoke no app
+  // function and must remain visible in the cron ledger.
+  for (const entry of functionsByKind) {
+    const versionBefore = (await kindProof.health()).version;
+    const attempt = await post('/__test/run-cron', {
+      job: 'warmPoll',
+      trigger: 'manual',
+      actionOverride: entry.name,
+    });
+    assert.equal(attempt.status, 200, JSON.stringify(attempt.body));
+    const status = await get('/cron/status');
+    const job = status.body.jobs.find((candidate) => candidate.name === 'warmPoll');
+    assert.equal(job.lastRun.runId, attempt.body.runId);
+    assert.equal((await kindProof.health()).version, versionBefore, 'kind-probe cron target changed app data');
+    if (entry.kind === 'Action') {
+      assert.equal(attempt.body.outcome, 'ok', JSON.stringify(attempt.body));
+      assert.equal(job.lastRun.error, '');
+    } else {
+      assert.equal(attempt.body.outcome, 'failed', `cron accepted ${entry.kind}`);
+      assert.match(job.lastRun.error, /^SNAPBACK_FUNCTION_KIND_MISMATCH:/, `cron hid ${entry.kind} mismatch`);
+    }
+  }
+
+  // An Action may commit only through a Mutation. The test-only wrapper
+  // calls the real ctx.runMutation host operation with every target kind.
+  for (const entry of functionsByKind) {
+    const versionBefore = (await kindProof.health()).version;
+    const attempt = await post('/__test/action', {
+      name: 'probeWrongNestedKind',
+      args: { target: entry.name, targetArgs: entry.args },
+    });
+    assert.equal(attempt.status, 200);
+    if (entry.kind === 'Mutation') {
+      assert.equal(attempt.body.ok, true, `nested action rejected Mutation: ${JSON.stringify(attempt.body)}`);
+    } else {
+      assert.equal(attempt.body.ok, false, `nested action accepted ${entry.kind}`);
+      assert.equal(code(attempt.body), 'SNAPBACK_FUNCTION_KIND_MISMATCH', `nested action hid ${entry.kind} mismatch`);
+      assert.equal((await kindProof.health()).version, versionBefore, `nested action invoked mismatched ${entry.kind}`);
+    }
+  }
+
+  console.log('cloudflare function-kind acceptance: 40 proof/kit/live/cron/nested cross-product cases passed');
+} finally {
+  await kindProof.dispose();
 }
