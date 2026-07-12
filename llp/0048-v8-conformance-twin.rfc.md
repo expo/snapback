@@ -9,7 +9,9 @@
 forgiving-base64 padding validation, the complete UTF-8 label table with exact
 ASCII-whitespace/Web-IDL conversion, and streaming UTF-8 decoder state;
 ENG-24339: adversarial twin coverage pins sealed invoke/settle globals,
-accessor and wrapper interception, and raw host-call denial); 2026-07-07
+accessor and wrapper interception, and raw host-call denial; whole-review
+integration: canonical evidence no longer embeds an absolute developer
+worktree path); 2026-07-07
 (post-review author pass: internal manifest profile id
 pinned as `local-conformance-sqlite-workerd-v8`, `nodejs_compat` refusal test
 added to acceptance, and the two author decisions given proposed defaults
@@ -479,6 +481,15 @@ Miniflare). Three corpus cases pin the ENG-23582 divergence class directly
 coordinator now passes a `settlementTimeoutMs` to the handler server —
 previously a never-settling handler wedged the isolate's invocation chain on
 the deployed path. `npm run cf:twin` regenerates the committed report.
+
+## Reproducible conformance evidence (2026-07-12)
+
+The committed conformance report records the workerd release id as executable
+provenance. When the binary is the repository's dev dependency, its locator is
+the stable repo-relative `node_modules/.bin/workerd`, not the absolute path of
+the checkout that generated the report. An explicitly selected external
+binary may retain its external locator for diagnostic evidence, but the
+canonical in-repo artifact must regenerate byte-for-byte across worktrees.
 
 ## Status
 

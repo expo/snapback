@@ -107,7 +107,7 @@
     "vmLifecycle": "fresh-process-per-invocation",
     "runtimeFacts": {
       "workerdVersion": "workerd 2026-07-07",
-      "workerdBinary": "/Users/ccheever/projects/snapback/node_modules/.bin/workerd",
+      "workerdBinary": "node_modules/.bin/workerd",
       "compatibilityDate": "2026-07-01",
       "compatibilityFlags": [],
       "killDomain": "process-per-invocation",
@@ -1688,6 +1688,23 @@
                   "leadingPaddingRejected": true,
                   "truncatedPaddingRejected": true
                 },
+                "labels": {
+                  "utf8Hyphen": true,
+                  "utf8Compact": true,
+                  "unicode11Hyphen": true,
+                  "unicode11Compact": true,
+                  "unicode20Compact": true,
+                  "xUnicode20Compact": true,
+                  "asciiWhitespace": true,
+                  "aliasAsciiWhitespace": true,
+                  "internalSpaceRejected": true,
+                  "verticalTabRejected": true,
+                  "nonBreakingSpaceRejected": true,
+                  "nonUtf8Rejected": true,
+                  "symbolTypeError": true,
+                  "constructorIsWrapped": true,
+                  "constructorEscapeRejected": true
+                },
                 "streaming": {
                   "twoByte": [
                     "",
@@ -1765,6 +1782,23 @@
                   "triplePaddingRejected": true,
                   "leadingPaddingRejected": true,
                   "truncatedPaddingRejected": true
+                },
+                "labels": {
+                  "utf8Hyphen": true,
+                  "utf8Compact": true,
+                  "unicode11Hyphen": true,
+                  "unicode11Compact": true,
+                  "unicode20Compact": true,
+                  "xUnicode20Compact": true,
+                  "asciiWhitespace": true,
+                  "aliasAsciiWhitespace": true,
+                  "internalSpaceRejected": true,
+                  "verticalTabRejected": true,
+                  "nonBreakingSpaceRejected": true,
+                  "nonUtf8Rejected": true,
+                  "symbolTypeError": true,
+                  "constructorIsWrapped": true,
+                  "constructorEscapeRejected": true
                 },
                 "streaming": {
                   "twoByte": [
@@ -1845,6 +1879,23 @@
                   "triplePaddingRejected": true,
                   "leadingPaddingRejected": true,
                   "truncatedPaddingRejected": true
+                },
+                "labels": {
+                  "utf8Hyphen": true,
+                  "utf8Compact": true,
+                  "unicode11Hyphen": true,
+                  "unicode11Compact": true,
+                  "unicode20Compact": true,
+                  "xUnicode20Compact": true,
+                  "asciiWhitespace": true,
+                  "aliasAsciiWhitespace": true,
+                  "internalSpaceRejected": true,
+                  "verticalTabRejected": true,
+                  "nonBreakingSpaceRejected": true,
+                  "nonUtf8Rejected": true,
+                  "symbolTypeError": true,
+                  "constructorIsWrapped": true,
+                  "constructorEscapeRejected": true
                 },
                 "streaming": {
                   "twoByte": [

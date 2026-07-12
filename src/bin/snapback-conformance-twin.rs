@@ -685,6 +685,28 @@ fn run_cloudflare_leg(cases: &[Case]) -> Result<HashMap<String, Value>, String> 
         .collect())
 }
 
+/// Keep the committed conformance report reproducible when workerd comes from
+/// this checkout. The release id remains the executable provenance; an
+/// absolute path inside a developer worktree is not a portable runtime fact.
+// @ref LLP 0048#reproducible-conformance-evidence-2026-07-12 — canonical reports use a stable repo-relative tool locator.
+fn workerd_report_locator(workerd_bin: &Path) -> String {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let portable = |path: &Path| {
+        path.components()
+            .map(|component| component.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/")
+    };
+
+    if let Ok(relative) = workerd_bin.strip_prefix(repo_root) {
+        return portable(relative);
+    }
+    if workerd_bin.is_relative() {
+        return portable(workerd_bin);
+    }
+    workerd_bin.display().to_string()
+}
+
 fn main() {
     let arguments: Vec<String> = std::env::args().collect();
     let out_path = arguments
@@ -823,7 +845,7 @@ fn main() {
 
     let runtime_facts = json!({
         "workerdVersion": workerd_version(&workerd_bin),
-        "workerdBinary": workerd_bin.display().to_string(),
+        "workerdBinary": workerd_report_locator(&workerd_bin),
         "compatibilityDate": compat.compatibility_date,
         "compatibilityFlags": compat.compatibility_flags,
         "killDomain": "process-per-invocation",
@@ -875,4 +897,18 @@ fn main() {
         println!("{rendered}");
     }
     std::process::exit(if total_violations == 0 { 0 } else { 1 });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::workerd_report_locator;
+    use std::path::Path;
+
+    #[test]
+    fn repo_local_workerd_locator_is_stable_across_worktrees() {
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let locator = workerd_report_locator(&repo_root.join("node_modules/.bin/workerd"));
+        assert_eq!(locator, "node_modules/.bin/workerd");
+        assert!(!locator.contains(&repo_root.display().to_string()));
+    }
 }
