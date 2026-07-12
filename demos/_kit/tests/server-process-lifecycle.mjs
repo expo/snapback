@@ -3,12 +3,13 @@
 // suite; a tiny child speaks the same ready + /health identity handshake.
 
 import { strict as assert } from 'node:assert';
+import { EventEmitter } from 'node:events';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { __startServerForTests } from '../server-process.mjs';
+import { __startServerForTests, stopChild } from '../server-process.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'server-process-lifecycle-'));
 const fixture = join(scratch, 'fixture-server.cjs');
@@ -20,11 +21,13 @@ const EXPECTED = {
 
 writeFileSync(fixture, String.raw`
 const { randomUUID } = require('node:crypto');
+const { spawn } = require('node:child_process');
 const { writeFileSync, renameSync } = require('node:fs');
 const { createServer } = require('node:http');
 const readyFile = process.argv[2];
 const expected = JSON.parse(process.env.FIXTURE_EXPECTED);
 const nonce = randomUUID();
+let resistantDescendant = null;
 const server = createServer((req, res) => {
   if (req.url !== '/health') { res.statusCode = 404; res.end('not found'); return; }
   res.setHeader('content-type', 'application/json');
@@ -32,9 +35,10 @@ const server = createServer((req, res) => {
     ok: true,
     target: 'local-dev-sqlite-ibex',
     binary: { ...expected, buildProfile: 'debug', startupNonce: nonce },
+    resistantDescendantPid: resistantDescendant?.pid ?? null,
   }));
 });
-server.listen(0, '127.0.0.1', () => {
+const listen = () => server.listen(0, '127.0.0.1', () => {
   const port = server.address().port;
   const tmp = readyFile + '.tmp';
   writeFileSync(tmp, JSON.stringify({
@@ -46,6 +50,17 @@ server.listen(0, '127.0.0.1', () => {
   }));
   renameSync(tmp, readyFile);
 });
+if (process.env.FIXTURE_RESISTANT_DESCENDANT === '1') {
+  resistantDescendant = spawn(process.execPath, ['-e', [
+    'process.on("SIGTERM", () => {});',
+    'process.send("ready");',
+    'setInterval(() => {}, 1000);',
+  ].join(' ')], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+  resistantDescendant.once('message', listen);
+  resistantDescendant.once('error', (error) => { throw error; });
+} else {
+  listen();
+}
 const stop = () => server.close(() => process.exit(0));
 process.on('SIGTERM', stop);
 process.on('SIGINT', stop);
@@ -67,6 +82,26 @@ function listen(handler) {
     const server = createServer(handler);
     server.listen(0, '127.0.0.1', () => resolve(server));
   });
+}
+
+function assertPidGone(pid, message) {
+  let alive = true;
+  try {
+    process.kill(pid, 0);
+  } catch (error) {
+    if (error.code === 'ESRCH') alive = false;
+    else throw error;
+  }
+  assert.equal(alive, false, message);
+}
+
+function fakeChild(pid) {
+  const child = new EventEmitter();
+  child.pid = pid;
+  child.exitCode = null;
+  child.signalCode = null;
+  child.kill = () => false;
+  return child;
 }
 
 const previousToken = process.env.SNAPBACK_ADMIN_TOKEN;
@@ -122,6 +157,135 @@ try {
     __startServerForTests({ port: 4499, cwd: scratch, startupTimeoutMs: 2_000 }, deps)));
   running.push(...parallel);
   assert.equal(new Set(parallel.map((server) => server.baseUrl)).size, parallel.length);
+
+  if (process.platform !== 'win32') {
+    const resistant = await __startServerForTests(
+      { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
+      {
+        ...deps,
+        launchSpec: ({ readyFile, cwd, env }) => ({
+          command: process.execPath,
+          args: [fixture, readyFile],
+          cwd,
+          env: {
+            ...env,
+            FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+            FIXTURE_RESISTANT_DESCENDANT: '1',
+          },
+        }),
+        stopOptions: {
+          graceMs: 25,
+          processGroupTimeoutMs: 1_000,
+          leaderCloseTimeoutMs: 1_000,
+        },
+      },
+    );
+    running.push(resistant);
+    const health = await fetch(`${resistant.baseUrl}/health`).then((response) => response.json());
+    const descendantPid = health.resistantDescendantPid;
+    assert(Number.isInteger(descendantPid), `fixture did not publish descendant pid: ${JSON.stringify(health)}`);
+    process.kill(descendantPid, 0);
+
+    await resistant.stop();
+    running.splice(running.indexOf(resistant), 1);
+    // No post-stop grace sleep: the awaited stop itself must include the
+    // bounded ESRCH proof for the TERM-resistant descendant's process group.
+    assertPidGone(descendantPid, 'awaited stop leaves no TERM-resistant descendant');
+  }
+
+  // Fake Windows completion: leader close alone must not resolve stop(). The
+  // taskkill /T subprocess close with code zero is the tree-completion proof.
+  const windowsChild = fakeChild(43101);
+  let windowsKiller = null;
+  const windowsCalls = [];
+  const windowsStop = stopChild(windowsChild, {
+    platform: 'win32',
+    graceMs: 100,
+    taskkillTimeoutMs: 1_000,
+    leaderCloseTimeoutMs: 100,
+    spawnImpl: (command, args) => {
+      assert.equal(command, 'taskkill');
+      windowsCalls.push(args);
+      windowsKiller = new EventEmitter();
+      windowsKiller.kill = () => true;
+      return windowsKiller;
+    },
+  });
+  let windowsSettled = false;
+  void windowsStop.finally(() => { windowsSettled = true; });
+  windowsChild.exitCode = 0;
+  windowsChild.emit('close', 0, null);
+  await Promise.resolve();
+  assert.equal(windowsSettled, false, 'leader close cannot outrun pending taskkill /T');
+  windowsKiller.emit('close', 0, null);
+  await windowsStop;
+  assert.equal(windowsSettled, true);
+  assert.deepEqual(windowsCalls, [['/pid', '43101', '/t']]);
+
+  // A nonzero TERM taskkill is awaited and triggers the bounded /F recovery;
+  // a nonzero recovery is surfaced rather than being hidden by leader close.
+  const failedWindowsChild = fakeChild(43102);
+  const failedWindowsKillers = [];
+  const failedWindowsCalls = [];
+  let resolveHardSpawn;
+  const hardSpawned = new Promise((resolveSpawn) => { resolveHardSpawn = resolveSpawn; });
+  const failedWindowsStop = stopChild(failedWindowsChild, {
+    platform: 'win32',
+    graceMs: 100,
+    taskkillTimeoutMs: 1_000,
+    leaderCloseTimeoutMs: 100,
+    spawnImpl: (_command, args) => {
+      failedWindowsCalls.push(args);
+      const killer = new EventEmitter();
+      killer.kill = () => true;
+      failedWindowsKillers.push(killer);
+      if (args.includes('/f')) resolveHardSpawn(killer);
+      return killer;
+    },
+  });
+  let failedWindowsSettled = false;
+  void failedWindowsStop.catch(() => {}).finally(() => { failedWindowsSettled = true; });
+  failedWindowsChild.exitCode = 1;
+  failedWindowsChild.emit('close', 1, null);
+  await Promise.resolve();
+  assert.equal(failedWindowsSettled, false, 'leader failure cannot outrun pending taskkill /T');
+  failedWindowsKillers[0].emit('close', 5, null);
+  const failedHardKiller = await hardSpawned;
+  assert.equal(failedWindowsSettled, false, 'failed TERM taskkill waits for /T /F recovery');
+  failedHardKiller.emit('close', 9, null);
+  await assert.rejects(failedWindowsStop, /TERM cleanup: taskkill exited 5.*KILL cleanup: taskkill exited 9/);
+  assert.equal(failedWindowsSettled, true);
+  assert.deepEqual(failedWindowsCalls, [
+    ['/pid', '43102', '/t'],
+    ['/pid', '43102', '/t', '/f'],
+  ]);
+
+  const spawnErrorChild = fakeChild(43103);
+  const spawnErrorKillers = [];
+  let resolveSpawnErrorHard;
+  const spawnErrorHard = new Promise((resolveSpawn) => { resolveSpawnErrorHard = resolveSpawn; });
+  const spawnErrorStop = stopChild(spawnErrorChild, {
+    platform: 'win32',
+    graceMs: 100,
+    taskkillTimeoutMs: 1_000,
+    leaderCloseTimeoutMs: 100,
+    spawnImpl: (_command, args) => {
+      const killer = new EventEmitter();
+      killer.kill = () => true;
+      spawnErrorKillers.push(killer);
+      if (args.includes('/f')) resolveSpawnErrorHard(killer);
+      return killer;
+    },
+  });
+  spawnErrorChild.exitCode = 1;
+  spawnErrorChild.emit('close', 1, null);
+  spawnErrorKillers[0].emit('error', new Error('taskkill unavailable'));
+  const spawnErrorHardKiller = await spawnErrorHard;
+  spawnErrorHardKiller.emit('error', new Error('taskkill unavailable'));
+  await assert.rejects(
+    spawnErrorStop,
+    /TERM cleanup: taskkill spawn failed: taskkill unavailable.*KILL cleanup: taskkill spawn failed: taskkill unavailable/,
+  );
 
   const stopping = running.splice(0).map((server) => server.stop());
   await Promise.all(stopping);

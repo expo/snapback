@@ -193,7 +193,10 @@ exits before readiness cannot be mistaken for the child just spawned. The
 launcher returns its admin credential as explicit client options rather than
 mutating the parent environment, and teardown signals the whole child process
 group with a bounded TERM-to-KILL sequence whose listener is installed before
-the exit-state check. `[decided — ENG-24378]`
+the exit-state check. Teardown reports success only after the leader's close
+and the platform tree proof both complete: bounded process-group `ESRCH` on
+POSIX, or an awaited zero-status `taskkill /T` close on Windows. `[decided —
+ENG-24378]`
 
 The no-argument local server should also be collision-tolerant for ordinary
 development: try a stable Snapback local port range beginning at the canonical

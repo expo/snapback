@@ -33,6 +33,11 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 
 import {
+  attestProcessGroupExit,
+  signalProcessTree,
+} from '../../scripts/lib/process-tree.mjs';
+
+import {
   readCheckoutBinaryIdentity,
   readCommittedBundleHash,
   verifyApiProvenance,
@@ -155,6 +160,11 @@ async function startServerWithDeps({
     rmSync(readyDir, { recursive: true, force: true });
     throw new Error(`snapback server spawn failed: ${error.message}`);
   }
+  // Install this before inspecting exit state or waiting for readiness. The
+  // close event is stronger than exit: it proves the leader's stdio handles
+  // have drained, and retaining it here prevents stop() from missing an early
+  // close that happens before teardown begins.
+  trackLeaderClose(child);
   let log = '';
   let spawnError = null;
   const appendLog = (chunk) => {
@@ -182,13 +192,17 @@ async function startServerWithDeps({
         const verified = await verifySpawnedReady(ready, { expectedIdentity, fetchImpl });
         if (verified.ok) {
           const baseUrl = ready.serverUrl.replace(/\/$/, '');
+          let stopPromise = null;
           return serverHandle({
             baseUrl,
             adminToken,
             reused: false,
             startupNonce: ready.startupNonce,
-            stop: async () => {
-              try { await stopChild(child); } finally { cleanup(); }
+            stop: () => {
+              if (!stopPromise) {
+                stopPromise = stopChild(child, deps.stopOptions).finally(cleanup);
+              }
+              return stopPromise;
             },
           });
         }
@@ -200,8 +214,17 @@ async function startServerWithDeps({
     }
     throw new Error(`snapback server did not publish verified readiness within ${startupTimeoutMs}ms:\n${log}`);
   } catch (error) {
-    await stopChild(child);
-    cleanup();
+    try {
+      await stopChild(child, deps.stopOptions);
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        `${error.message}; spawned server cleanup failed: ${cleanupError.message}`,
+        { cause: error },
+      );
+    } finally {
+      cleanup();
+    }
     throw error;
   }
 }
@@ -382,56 +405,139 @@ async function verifySpawnedReady(ready, { expectedIdentity, fetchImpl }) {
   return { ok: true };
 }
 
-function signalProcessTree(child, signal) {
-  if (!child?.pid) return;
-  if (process.platform === 'win32') {
-    const args = ['/pid', String(child.pid), '/t'];
-    if (signal === 'SIGKILL') args.push('/f');
-    const killer = spawn('taskkill', args, { stdio: 'ignore', windowsHide: true });
-    killer.once('error', () => {
-      if (child.exitCode === null) child.kill(signal);
+const leaderCloseTrackers = new WeakMap();
+
+function trackLeaderClose(child) {
+  const existing = leaderCloseTrackers.get(child);
+  if (existing) return existing;
+
+  let resolveClosed;
+  const tracker = {
+    closed: false,
+    detail: null,
+    promise: new Promise((resolveClose) => { resolveClosed = resolveClose; }),
+  };
+  if (typeof child?.once !== 'function') {
+    tracker.closed = true;
+    tracker.detail = { code: child?.exitCode ?? null, signal: child?.signalCode ?? null };
+    resolveClosed(tracker.detail);
+  } else {
+    child.once('close', (code, signal) => {
+      tracker.closed = true;
+      tracker.detail = { code, signal };
+      resolveClosed(tracker.detail);
     });
-    return;
   }
-  try {
-    process.kill(-child.pid, signal);
-  } catch {
-    if (child.exitCode === null) child.kill(signal);
-  }
+  leaderCloseTrackers.set(child, tracker);
+  return tracker;
 }
 
-export function stopChild(child, { graceMs = 3_000 } = {}) {
-  return new Promise((resolve) => {
-    if (!child?.pid) {
-      resolve();
-      return;
-    }
-    let settled = false;
-    let killTimer = null;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (killTimer) clearTimeout(killTimer);
-      // Cargo may exit before a TERM-resistant binary or helper. One final
-      // group kill makes teardown about the whole spawned tree, not its leader.
-      signalProcessTree(child, 'SIGKILL');
-      child.off('exit', finish);
-      resolve();
-    };
-    // Register before checking state: an exit between these two operations is
-    // observed by the listener, closing the former stopChild race.
-    child.once('exit', finish);
-    if (child.exitCode !== null || child.signalCode !== null) {
-      finish();
-      return;
-    }
-    signalProcessTree(child, 'SIGTERM');
-    killTimer = setTimeout(() => {
-      signalProcessTree(child, 'SIGKILL');
-      finish();
-    }, graceMs);
-    killTimer.unref?.();
+async function waitForLeaderClose(tracker, timeoutMs) {
+  if (tracker.closed) return { ok: true, detail: tracker.detail };
+  let timer = null;
+  const result = await Promise.race([
+    tracker.promise.then((detail) => ({ ok: true, detail })),
+    new Promise((resolveClose) => {
+      // Keep this timer referenced: stop() must not disappear with a still
+      // unresolved cleanup promise after the leader process handle closes.
+      timer = setTimeout(() => resolveClose({
+        ok: false,
+        error: `leader close was not observed within ${timeoutMs}ms`,
+      }), timeoutMs);
+    }),
+  ]);
+  if (timer) clearTimeout(timer);
+  return result;
+}
+
+function cleanupFailure(child, { term, graceful = null, kill = null, leader = null }) {
+  const failures = [];
+  if (term && !term.ok) failures.push(`TERM cleanup: ${term.error ?? 'not attested'}`);
+  if (graceful && !graceful.ok) failures.push(`graceful exit: ${graceful.error ?? 'not attested'}`);
+  if (kill && !kill.ok) failures.push(`KILL cleanup: ${kill.error ?? 'not attested'}`);
+  if (leader && !leader.ok) failures.push(leader.error ?? 'leader close not attested');
+  if (failures.length === 0) failures.push('unknown cleanup failure');
+  const error = new Error(
+    `snapback server process-tree cleanup not attested for pid ${child?.pid ?? '<unknown>'}: ` +
+      failures.join('; '),
+  );
+  error.code = 'SNAPBACK_PROCESS_TREE_CLEANUP_FAILED';
+  error.cleanup = { term, graceful, kill, leader };
+  return error;
+}
+
+export async function stopChild(child, {
+  graceMs = 3_000,
+  platform = process.platform,
+  spawnImpl = spawn,
+  processKill = process.kill,
+  taskkillTimeoutMs = Math.max(graceMs, 2_000),
+  processGroupTimeoutMs = Math.max(graceMs, 2_000),
+  processGroupPollMs = 10,
+  leaderCloseTimeoutMs = platform === 'win32' ? taskkillTimeoutMs : processGroupTimeoutMs,
+  signalTree = signalProcessTree,
+} = {}) {
+  if (!child?.pid) return;
+
+  const closeTracker = trackLeaderClose(child);
+  const signalOptions = {
+    spawnImpl,
+    platform,
+    taskkillTimeoutMs,
+    processGroupTimeoutMs,
+    processGroupPollMs,
+    processKill,
+  };
+  const gracefulDeadline = Date.now() + Math.max(0, graceMs);
+  const term = await signalTree(child, 'SIGTERM', {
+    ...signalOptions,
+    // The TERM tree primitive is part of the grace window, not a separate
+    // unbounded prelude to it. The hard leg keeps its own cleanup timeout.
+    ...(platform === 'win32'
+      ? { taskkillTimeoutMs: Math.max(1, Math.min(taskkillTimeoutMs, graceMs)) }
+      : {}),
   });
+  const gracefulRemainingMs = () => Math.max(0, gracefulDeadline - Date.now());
+
+  if (platform === 'win32') {
+    if (term.ok) {
+      const leader = await waitForLeaderClose(closeTracker, gracefulRemainingMs());
+      if (leader.ok) return;
+    }
+
+    // A nonzero/spawn-failed TERM taskkill is not completion evidence. The
+    // hard leg gets one bounded recovery attempt, but stop() still cannot
+    // resolve until /T /F itself closes successfully and the leader closes.
+    const kill = await signalTree(child, 'SIGKILL', signalOptions);
+    const leader = await waitForLeaderClose(closeTracker, leaderCloseTimeoutMs);
+    if (kill.ok && leader.ok) return;
+    throw cleanupFailure(child, { term, kill, leader });
+  }
+
+  if (term.ok) {
+    const gracefulGroup = term.exitAttested
+      ? term
+      : attestProcessGroupExit(child.pid, {
+          processKill,
+          timeoutMs: gracefulRemainingMs(),
+          pollMs: processGroupPollMs,
+        });
+    const [graceful, leader] = await Promise.all([
+      gracefulGroup,
+      waitForLeaderClose(closeTracker, gracefulRemainingMs()),
+    ]);
+    if (graceful.ok && leader.ok) {
+      return;
+    }
+  }
+
+  // TERM delivery and leader exit are not tree-exit evidence: a descendant may
+  // ignore TERM or outlive Cargo. SIGKILL is successful only after signal-0
+  // observes ESRCH for the detached group, then the leader close is observed.
+  const kill = await signalTree(child, 'SIGKILL', signalOptions);
+  const leader = await waitForLeaderClose(closeTracker, leaderCloseTimeoutMs);
+  if (kill.ok && leader.ok) return;
+  throw cleanupFailure(child, { term, kill, leader });
 }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
