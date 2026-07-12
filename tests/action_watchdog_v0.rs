@@ -115,6 +115,12 @@ globalThis.__snapbackHandlers = {
     return { ok: true };
   },
 
+  async heldProbe(ctx, args) {
+    const url = ctx.secrets.get(args.entry).expose();
+    await fetch(url);
+    return { ok: true };
+  },
+
   async hungProbe(ctx) {
     // The config-verify stand-in for a hung probe fetch (ENG-23493): longer
     // than the watchdog, shorter than the test's patience.
@@ -195,10 +201,12 @@ fn watchdog_functions() -> FunctionManifest {
             ibex("readAction", FunctionKind::Action),
             ibex("cronAction", FunctionKind::Action),
             ibex("quickProbe", FunctionKind::Action),
+            ibex("heldProbe", FunctionKind::Action),
             ibex("hungProbe", FunctionKind::Action),
         ],
         config: vec![
             config_entry("quickKey", "quickProbe"),
+            config_entry("heldKey", "heldProbe"),
             config_entry("hungKey", "hungProbe"),
         ],
         ..FunctionManifest::default()
@@ -792,15 +800,23 @@ async fn detached_action_ctx_db_stays_denied() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_verify_probe_runs_detached_under_the_watchdog() {
     let _serial = serial_action_test().await;
-    set_watchdog_env();
+    // Separate the mutex proof from the timeout proof. A held native fetch is
+    // a structural concurrency witness, so give it a deliberately wide
+    // watchdog and release it explicitly after the concurrent mutation.
+    set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
     let app = watchdog_app();
+    let (held_url, held_started, release_held, held_server) = held_http_response().await;
 
-    for entry in ["quickKey", "hungKey"] {
+    for (entry, value) in [
+        ("quickKey", "k1".to_owned()),
+        ("heldKey", held_url),
+        ("hungKey", "k1".to_owned()),
+    ] {
         let set = app
             .clone()
             .oneshot(post_json(
                 "/_snapback/api/config/set",
-                json!({ "entry": entry, "value": "k1" }),
+                json!({ "entry": entry, "value": value }),
             ))
             .await
             .expect("config set response");
@@ -823,27 +839,29 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
     );
     assert_eq!(quick_body["verified"]["ok"], true, "{quick_body}");
 
-    // Kick off a verify whose probe outlives the watchdog.
-    let verify_started = Instant::now();
-    let verify = {
+    // Hold a probe in native fetch and wait for its explicit rendezvous before
+    // issuing the mutation. This proves the probe is active without relying
+    // on a scheduler-sensitive sleep or millisecond threshold.
+    let held_verify = {
         let app = app.clone();
         tokio::spawn(async move {
             let response = app
                 .oneshot(post_json(
                     "/_snapback/api/config/verify",
-                    json!({ "entry": "hungKey" }),
+                    json!({ "entry": "heldKey" }),
                 ))
                 .await
-                .expect("hung verify response");
-            (body_json(response).await, Instant::now())
+                .expect("held verify response");
+            body_json(response).await
         })
     };
-
-    tokio::time::sleep(Duration::from_millis(150)).await;
+    tokio::time::timeout(Duration::from_secs(2), held_started)
+        .await
+        .expect("held probe reaches native fetch")
+        .expect("held probe fetch-start signal");
 
     // Mid-probe, a mutation must not queue behind the probe run: the probe
     // holds no instance lock while it occupies its VM thread.
-    let mutation_started = Instant::now();
     let mutation = tokio::time::timeout(
         Duration::from_secs(2),
         app.clone().oneshot(post_json(
@@ -852,23 +870,45 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
         )),
     )
     .await
-    .expect("mutation must not stall behind the hung probe")
+    .expect("mutation must not stall behind the held probe")
     .expect("mutation response");
-    let mutation_elapsed = mutation_started.elapsed();
     let mutation_body = body_json(mutation).await;
     assert!(
         mutation_body.get("version").is_some(),
         "mid-probe mutation must commit: {mutation_body}"
     );
     assert!(
-        mutation_elapsed < Duration::from_millis(450),
-        "the mutation must not queue behind the hung probe ({mutation_elapsed:?})"
+        !held_verify.is_finished(),
+        "the mutation must commit while the held probe is still active"
+    );
+    release_held.send(()).expect("release held config probe");
+    let held_body = tokio::time::timeout(Duration::from_secs(2), held_verify)
+        .await
+        .expect("released held probe settles")
+        .expect("held verify task");
+    held_server.await.expect("held config-probe server");
+    assert_eq!(
+        held_body["ok"], true,
+        "released held probe must verify successfully: {held_body}"
     );
 
-    // The caller gets the watchdog outcome at ~WATCHDOG_MS, not at probe end,
-    // recorded as a failed verification rather than an HTTP error.
-    let (verify_body, verify_finished) = verify.await.expect("verify task");
-    let verify_elapsed = verify_finished - verify_started;
+    // Independently prove the config route's watchdog outcome. The timeout is
+    // read per detached invocation, and the serial guard makes this posture
+    // switch safe after the held probe has fully settled.
+    set_watchdog_env();
+    let verify_started = Instant::now();
+    let verify = tokio::time::timeout(
+        Duration::from_secs(3),
+        app.clone().oneshot(post_json(
+            "/_snapback/api/config/verify",
+            json!({ "entry": "hungKey" }),
+        )),
+    )
+    .await
+    .expect("hung verify must answer under the watchdog")
+    .expect("hung verify response");
+    let verify_elapsed = verify_started.elapsed();
+    let verify_body = body_json(verify).await;
     assert_eq!(
         verify_body["ok"], false,
         "timed-out probe must record failure: {verify_body}"
@@ -886,7 +926,7 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
         "verify must answer at ~{WATCHDOG_MS}ms, not at probe end ({verify_elapsed:?})"
     );
 
-    // Both outcomes landed in verification state through the finish window.
+    // All three outcomes landed in verification state through the finish window.
     let status = app
         .clone()
         .oneshot(
@@ -905,6 +945,7 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
             .map(|e| e["verified"]["ok"].clone())
     };
     assert_eq!(verified_ok("quickKey"), Some(json!(true)), "{status_body}");
+    assert_eq!(verified_ok("heldKey"), Some(json!(true)), "{status_body}");
     assert_eq!(verified_ok("hungKey"), Some(json!(false)), "{status_body}");
 }
 
