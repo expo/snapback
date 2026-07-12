@@ -15,11 +15,12 @@
 // Exits non-zero (writing nothing) if any error diagnostic is produced.
 
 import { createHash } from 'node:crypto';
-import { fork } from 'node:child_process';
+import { fork, spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, renameSync, realpathSync } from 'node:fs';
 import { join, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, isConfigDef, isCronDef, isEphemeralCollectionDef, isFunctionDef } from './define.mjs';
+import { build as esbuild } from 'esbuild';
+import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS } from './define.mjs';
 import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '../snapback-contract/capabilities.mjs';
 import {
   generatedByHeader,
@@ -291,12 +292,12 @@ export async function generateInProcess(backendDir) {
   const functionsPath = join(backendDir, 'functions.mjs');
   const seedPath = join(backendDir, 'seed.json');
   const handlerSourceCache = new Map();
-  const schemaSource = readRequiredSource(schemaPath, diagnostics, {
+  readRequiredSource(schemaPath, diagnostics, {
     code: 'SCHEMA_SOURCE_MISSING',
     subsystem: 'schema',
     message: `schema source ${schemaPath} could not be read`,
   });
-  const functionsSource = readRequiredSource(functionsPath, diagnostics, {
+  readRequiredSource(functionsPath, diagnostics, {
     code: 'FUNCTION_SOURCE_MISSING',
     subsystem: 'function',
     message: `functions source ${functionsPath} could not be read`,
@@ -305,14 +306,26 @@ export async function generateInProcess(backendDir) {
     return { ok: false, diagnostics };
   }
 
-  const schemaGraph = discoverLocalModuleGraph([schemaPath], backendDir, diagnostics, 'schema');
-  const functionsGraph = discoverLocalModuleGraph([functionsPath], backendDir, diagnostics, 'function');
+  // @ref LLP 0010#generated-artifacts — the AST resolver defines the complete
+  // hashed graph; evaluation happens only from those bundled bytes, never by
+  // letting Node's ambient loader discover a second, unaccounted-for graph.
+  // @ref LLP 0009#capability-model — static analysis is defense in depth. The
+  // actual boundary is a capability-empty evaluator process plus a VM context
+  // with string/Wasm code generation and nondeterministic globals disabled.
+  const schemaBuild = await buildDefinitionBundle(schemaPath, backendDir, diagnostics, 'schema', 'schema');
+  const functionsBuild = await buildDefinitionBundle(functionsPath, backendDir, diagnostics, 'function', 'functions');
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
 
-  const schemaModule = await import(moduleUrlWithSourceHash(schemaPath, schemaSource));
-  const functionsModule = await import(moduleUrlWithSourceHash(functionsPath, functionsSource));
+  const evaluated = await evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics);
+  if (!evaluated || diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+  const schemaGraph = schemaBuild.graph;
+  const functionsGraph = functionsBuild.graph;
+  const schemaModule = { default: evaluated.schema };
+  const functionsModule = evaluated.functions;
 
   const schemaDef = schemaModule.default;
   if (!schemaDef || !schemaDef.__schema) {
@@ -390,15 +403,15 @@ export async function generateInProcess(backendDir) {
   const isKnownField = (t, f) => SYSTEM_FIELDS.includes(f) || fieldNames(t).has(f);
 
   for (const [name, def] of Object.entries(functionsModule)) {
-    if (isCronDef(def)) {
+    if (isIsolatedDefinition(def, 'cron')) {
       cronDefs.push({ exportName: name, def });
       continue;
     }
-    if (isConfigDef(def)) {
+    if (isIsolatedDefinition(def, 'config')) {
       configDefs.push({ exportName: name, def });
       continue;
     }
-    if (!isFunctionDef(def)) continue;
+    if (!isIsolatedDefinition(def, 'function')) continue;
     // Function export names flow unescaped into emitted declarations
     // (`export function ${name}(`), pascal-cased type names, unquoted
     // interface members, and contract module file paths (`${name}.query.ts`);
@@ -744,11 +757,21 @@ export async function generateInProcess(backendDir) {
   }
   const schemaGraphInputs = moduleGraphIdentity(schemaGraph, backendDir);
   const functionsGraphInputs = moduleGraphIdentity(functionsGraph, backendDir);
+  // Path/source pairs prove which bytes were admitted. Canonical isolated
+  // values prove what those bytes meant under the current AST transformer and
+  // evaluator. Binding both closes the case where a toolchain semantic change
+  // emits different definitions from identical source under an old hash.
+  const schemaEvaluation = stableJson(schemaDef);
+  const functionsEvaluation = stableJson(functionsModule);
   const inputs = [
     'schema-graph',
     ...schemaGraphInputs,
+    'schema-isolated-evaluation',
+    schemaEvaluation,
     'functions-graph',
     ...functionsGraphInputs,
+    'functions-isolated-evaluation',
+    functionsEvaluation,
     ...(seedSource === null ? [] : [seedSource]),
     ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
     contractCapabilitiesSource,
@@ -756,8 +779,8 @@ export async function generateInProcess(backendDir) {
     ...handlerInputs,
   ];
   const inputsHash = sha256(inputs.join('\0'));
-  const schemaContentHash = sha256(schemaGraphInputs.join('\0'));
-  const bundleContentHash = sha256([...functionsGraphInputs, ...handlerInputs].join('\0'));
+  const schemaContentHash = sha256([...schemaGraphInputs, 'schema-isolated-evaluation', schemaEvaluation].join('\0'));
+  const bundleContentHash = sha256([...functionsGraphInputs, 'functions-isolated-evaluation', functionsEvaluation, ...handlerInputs].join('\0'));
 
   const generatedAt = generatedAtMillis();
   const appIdentity = demoMetadata.identity;
@@ -972,7 +995,7 @@ function buildEphemeralCollections(ephemeralDef, err) {
       err('EPHEMERAL_INVALID_IDENTIFIER', 'ephemeral', `invalid ephemeral collection identifier ${name}`, { collection: name });
       continue;
     }
-    if (!isEphemeralCollectionDef(def)) {
+    if (!isIsolatedDefinition(def, 'ephemeral-collection')) {
       err('EPHEMERAL_INVALID_COLLECTION', 'ephemeral', `${name} must be ephemeral.collection(...)`, { collection: name });
       continue;
     }
@@ -2430,155 +2453,375 @@ function codegenWorkerFailure(error) {
   };
 }
 
-// Discover the complete permitted module graph before evaluation. Codegen
-// definitions intentionally allow deterministic relative/file imports only;
-// package/bare resolution is environment-dependent and dynamic import cannot
-// be proven complete, so both fail closed with structured diagnostics.
-function discoverLocalModuleGraph(entryPaths, backendDir, diagnostics, subsystem) {
+const DEFINITION_EVALUATION_TIMEOUT_MS = 5_000;
+const DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS = 15_000;
+const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+
+// A second process is intentional even though generate() already uses a
+// worker. The generation worker needs filesystem and output authority; this
+// evaluator gets none. `--permission` denies filesystem, network, child,
+// worker, addon, and inspector capabilities, while the VM removes the host
+// objects that could request them in the first place. The permission boundary
+// is the backstop if a future V8/VM escape is discovered.
+const ISOLATED_DEFINITION_EVALUATOR = String.raw`
+import vm from 'node:vm';
+
+const chunks = [];
+for await (const chunk of process.stdin) chunks.push(chunk);
+
+function fail(message) {
+  process.stdout.write(JSON.stringify({ ok: false, error: { message } }));
+  process.exit(0);
+}
+
+if (typeof process.permission?.has !== 'function') {
+  fail('Node permission isolation is unavailable');
+}
+for (const capability of ['fs.read', 'fs.write', 'net', 'child', 'worker', 'addons', 'inspector']) {
+  if (process.permission.has(capability)) fail('isolated evaluator unexpectedly has ' + capability);
+}
+
+try {
+  const request = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  const values = Object.create(null);
+  for (const item of request.items) {
+    const sandbox = Object.create(null);
+    const context = vm.createContext(sandbox, {
+      name: 'snapback-codegen-' + item.label,
+      codeGeneration: { strings: false, wasm: false },
+    });
+    vm.runInContext(
+      "(() => {\n" +
+        "const denied = (name) => () => { throw new Error('[snapback-codegen] ambient ' + name + ' is unavailable'); };\n" +
+        "Object.defineProperty(Math, 'random', { value: denied('Math.random'), writable: false, configurable: false });\n" +
+        "Object.defineProperty(globalThis, 'Date', { value: undefined, writable: false, configurable: false });\n" +
+        "Object.defineProperty(globalThis, 'Intl', { value: undefined, writable: false, configurable: false });\n" +
+      "})()",
+      context,
+      { timeout: ${DEFINITION_EVALUATION_TIMEOUT_MS} },
+    );
+    vm.runInContext(item.bundle, context, {
+      timeout: ${DEFINITION_EVALUATION_TIMEOUT_MS},
+      displayErrors: false,
+      filename: 'snapback-codegen-' + item.label + '.bundle.js',
+    });
+    const serialized = sandbox[item.resultKey];
+    if (typeof serialized !== 'string') throw new Error(item.label + ' did not publish a serialized definition');
+    values[item.label] = JSON.parse(serialized);
+  }
+  process.stdout.write(JSON.stringify({ ok: true, values }));
+} catch (error) {
+  process.stdout.write(JSON.stringify({
+    ok: false,
+    error: {
+      name: error instanceof Error ? error.name : null,
+      message: error instanceof Error ? error.message : String(error),
+    },
+  }));
+}
+`;
+
+async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsystem, kind) {
   const graph = new Map();
-  const visit = (candidate, importedFrom = null) => {
+  const resultKey = `__snapback_definition_${kind}_${sha256(entryPath).slice(0, 16)}`;
+  const facadeNamespace = `snapback-definition-${kind}`;
+  const facadePath = `${facadeNamespace}:entry`;
+  const definePath = join(packageDir(), 'define.mjs');
+
+  const problem = (code, text, detail = {}) => ({
+    text,
+    detail: { snapbackCode: code, ...detail },
+  });
+
+  const addGraphFile = (candidate, importedFrom = null) => {
     let path;
     try {
       path = realpathSync(candidate);
     } catch (error) {
-      diagnostics.push({
-        code: 'CODEGEN_IMPORT_UNRESOLVED',
-        severity: 'error',
-        subsystem,
-        message: `could not resolve local module ${candidate}: ${error.message}`,
-        path: candidate,
-        importedFrom,
-      });
-      return;
+      return { error: problem('CODEGEN_IMPORT_UNRESOLVED', `could not resolve local module ${candidate}: ${error.message}`, { path: candidate, importedFrom }) };
     }
-    if (graph.has(path)) return;
+    if (graph.has(path)) return { path, source: graph.get(path).source };
     const label = moduleIdentityLabel(path, backendDir);
     if (!label) {
-      diagnostics.push({
-        code: 'CODEGEN_IMPORT_OUTSIDE_IDENTITY_ROOT',
-        severity: 'error',
-        subsystem,
-        message: `local module ${path} is outside the app, repository, and a package install; its identity would not be reproducible`,
-        path,
-        importedFrom,
-      });
-      return;
+      return { error: problem('CODEGEN_IMPORT_OUTSIDE_IDENTITY_ROOT', `local module ${path} is outside the app, repository, and a package install; its identity would not be reproducible`, { path, importedFrom }) };
     }
     let source;
     try {
       source = readFileSync(path, 'utf8');
     } catch (error) {
-      diagnostics.push({
-        code: 'CODEGEN_IMPORT_UNREADABLE',
-        severity: 'error',
-        subsystem,
-        message: `could not read local module ${path}: ${error.message}`,
-        path,
-        importedFrom,
-      });
-      return;
-    }
-    const moduleFormat = graphModuleFormat(path);
-    if (moduleFormat.commonJs) {
-      diagnostics.push({
-        code: 'CODEGEN_COMMONJS_MODULE_UNHASHABLE',
-        severity: 'error',
-        subsystem,
-        message: `${label} is a CommonJS module${moduleFormat.packageJson ? ` under ${moduleFormat.packageJson}` : ''}; codegen cannot prove its transitive loader graph`,
-        path,
-        importedFrom,
-      });
-      return;
-    }
-    const commonJsLoader = commonJsLoaderToken(source);
-    if (commonJsLoader) {
-      diagnostics.push({
-        code: 'CODEGEN_COMMONJS_LOADER_UNHASHABLE',
-        severity: 'error',
-        subsystem,
-        message: `${label} uses ${commonJsLoader}; codegen cannot prove the dependency graph behind CommonJS loaders`,
-        path,
-        importedFrom,
-      });
-      return;
-    }
-    const ambientAccess = unhashableAmbientAccess(source);
-    if (ambientAccess) {
-      diagnostics.push({
-        code: 'CODEGEN_AMBIENT_ACCESS_UNHASHABLE',
-        severity: 'error',
-        subsystem,
-        message: `${label} accesses ${ambientAccess}; codegen identity cannot account for host globals or their computed capabilities`,
-        path,
-        importedFrom,
-      });
-      return;
+      return { error: problem('CODEGEN_IMPORT_UNREADABLE', `could not read local module ${path}: ${error.message}`, { path, importedFrom }) };
     }
     graph.set(path, { path, label, source });
-    if (/\.json$/i.test(path)) return;
-    // A .js/.ts module's ESM interpretation comes from its nearest package
-    // scope. Hash that manifest as part of the graph so changing `type` (or
-    // replacing the package identity) can never leave a successful stale
-    // artifact behind.
-    if (moduleFormat.packageJson) visit(moduleFormat.packageJson, path);
-    const imports = staticModuleImports(source, path, diagnostics, subsystem);
-    for (const specifier of imports) {
-      if (specifier.startsWith('node:')) {
-        diagnostics.push({
-          code: 'CODEGEN_AMBIENT_IMPORT_UNHASHABLE',
-          severity: 'error',
-          subsystem,
-          message: `${label} imports ${specifier}; codegen cannot hash data read through host builtin capabilities`,
-          path,
-          specifier,
-        });
-        continue;
-      }
-      if (!isLocalModuleSpecifier(specifier)) {
-        diagnostics.push({
-          code: 'CODEGEN_AMBIGUOUS_IMPORT',
-          severity: 'error',
-          subsystem,
-          message: `${label} imports bare specifier ${JSON.stringify(specifier)}; use a deterministic relative or file URL`,
-          path,
-          specifier,
-        });
-        continue;
-      }
-      if (/[?#]/.test(specifier)) {
-        diagnostics.push({
-          code: 'CODEGEN_AMBIGUOUS_IMPORT',
-          severity: 'error',
-          subsystem,
-          message: `${label} imports ${JSON.stringify(specifier)} with a query/hash identity that codegen does not support`,
-          path,
-          specifier,
-        });
-        continue;
-      }
-      let dependency;
-      try {
-        dependency = specifier.startsWith('file:')
-          ? fileURLToPath(specifier)
-          : isAbsolute(specifier)
-            ? specifier
-            : fileURLToPath(new URL(specifier, pathToFileURL(path)));
-      } catch (error) {
-        diagnostics.push({
-          code: 'CODEGEN_AMBIGUOUS_IMPORT',
-          severity: 'error',
-          subsystem,
-          message: `${label} has invalid local import ${JSON.stringify(specifier)}: ${error.message}`,
-          path,
-          specifier,
-        });
-        continue;
-      }
-      visit(dependency, path);
-    }
+    return { path, source };
   };
-  for (const entry of entryPaths) visit(entry);
-  return graph;
+
+  const facade = definitionFacadeSource(entryPath, definePath, resultKey, kind);
+  try {
+    const result = await esbuild({
+      absWorkingDir: REPO_ROOT,
+      entryPoints: [facadePath],
+      bundle: true,
+      format: 'iife',
+      platform: 'neutral',
+      target: ['es2022'],
+      treeShaking: false,
+      write: false,
+      logLevel: 'silent',
+      legalComments: 'none',
+      logOverride: { 'empty-import-meta': 'error' },
+      banner: {
+        js: [
+          'const __snapbackApply = Reflect.apply;',
+          'const __snapbackObjectKeys = Object.keys;',
+          'const __snapbackObjectCreate = Object.create;',
+          'const __snapbackArrayIsArray = Array.isArray;',
+          'const __snapbackSet = Set;',
+          'const __snapbackSetHas = Set.prototype.has;',
+          'const __snapbackSetAdd = Set.prototype.add;',
+          'const __snapbackSetDelete = Set.prototype.delete;',
+          'const __snapbackJsonStringify = JSON.stringify;',
+        ].join('\n'),
+      },
+      plugins: [{
+        name: 'snapback-definition-graph',
+        setup(build) {
+          build.onResolve({ filter: /^snapback-definition-(?:schema|functions):entry$/ }, (args) => ({
+            path: args.path,
+            namespace: facadeNamespace,
+          }));
+          build.onLoad({ filter: /.*/, namespace: facadeNamespace }, () => ({
+            contents: facade,
+            loader: 'js',
+            resolveDir: dirname(entryPath),
+          }));
+          build.onResolve({ filter: /.*/ }, (args) => {
+            if (args.kind === 'dynamic-import') {
+              return { errors: [problem('CODEGEN_DYNAMIC_IMPORT_UNHASHABLE', `${args.importer || entryPath} uses dynamic import(); codegen cannot prove a complete dependency graph`, { path: args.importer || entryPath, specifier: args.path })] };
+            }
+            if (args.kind === 'require-call' || args.kind === 'require-resolve') {
+              return { errors: [problem('CODEGEN_COMMONJS_LOADER_UNHASHABLE', `${args.importer || entryPath} uses ${args.kind === 'require-resolve' ? 'require.resolve()' : 'require()'}; codegen cannot prove the dependency graph behind CommonJS loaders`, { path: args.importer || entryPath, specifier: args.path })] };
+            }
+            if (args.path.startsWith('node:')) {
+              return { errors: [problem('CODEGEN_AMBIENT_IMPORT_UNHASHABLE', `${args.importer || entryPath} imports ${args.path}; codegen definitions receive no host builtin capabilities`, { path: args.importer || entryPath, specifier: args.path })] };
+            }
+            if (!isLocalModuleSpecifier(args.path)) {
+              return { errors: [problem('CODEGEN_AMBIGUOUS_IMPORT', `${args.importer || entryPath} imports bare specifier ${JSON.stringify(args.path)}; use a deterministic relative or file URL`, { path: args.importer || entryPath, specifier: args.path })] };
+            }
+            if (/[?#]/.test(args.path)) {
+              return { errors: [problem('CODEGEN_AMBIGUOUS_IMPORT', `${args.importer || entryPath} imports ${JSON.stringify(args.path)} with a query/hash identity that codegen does not support`, { path: args.importer || entryPath, specifier: args.path })] };
+            }
+            let candidate;
+            try {
+              candidate = args.path.startsWith('file:')
+                ? fileURLToPath(args.path)
+                : isAbsolute(args.path)
+                  ? args.path
+                  : resolve(args.resolveDir || dirname(args.importer), args.path);
+            } catch (error) {
+              return { errors: [problem('CODEGEN_AMBIGUOUS_IMPORT', `${args.importer || entryPath} has invalid local import ${JSON.stringify(args.path)}: ${error.message}`, { path: args.importer || entryPath, specifier: args.path })] };
+            }
+            const loaded = addGraphFile(candidate, args.importer || null);
+            if (loaded.error) return { errors: [loaded.error] };
+            return { path: loaded.path, namespace: 'file' };
+          });
+          build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
+            const loaded = addGraphFile(args.path);
+            if (loaded.error) return { errors: [loaded.error] };
+            if (!/\.(?:mjs|mts|cjs|cts|js|ts|json)$/i.test(loaded.path)) {
+              return { errors: [problem('CODEGEN_IMPORT_UNSUPPORTED', `${loaded.path} is not a supported JavaScript, TypeScript, or JSON definition dependency`, { path: loaded.path })] };
+            }
+            const moduleFormat = graphModuleFormat(loaded.path);
+            if (moduleFormat.commonJs) {
+              return { errors: [problem('CODEGEN_COMMONJS_MODULE_UNHASHABLE', `${moduleIdentityLabel(loaded.path, backendDir)} is a CommonJS module${moduleFormat.packageJson ? ` under ${moduleFormat.packageJson}` : ''}; codegen cannot prove its transitive loader graph`, { path: loaded.path })] };
+            }
+            if (moduleFormat.packageJson) {
+              const manifest = addGraphFile(moduleFormat.packageJson, loaded.path);
+              if (manifest.error) return { errors: [manifest.error] };
+            }
+            return {
+              contents: loaded.source,
+              loader: definitionLoader(loaded.path),
+              resolveDir: dirname(loaded.path),
+            };
+          });
+        },
+      }],
+    });
+    const output = result.outputFiles?.[0]?.text;
+    if (typeof output !== 'string') throw new Error('esbuild did not return the in-memory definition bundle');
+    return { graph, bundle: output, resultKey };
+  } catch (error) {
+    const failures = Array.isArray(error?.errors) && error.errors.length > 0 ? error.errors : [error];
+    for (const failure of failures) {
+      const detail = failure?.detail && typeof failure.detail === 'object' ? failure.detail : {};
+      const code = detail.snapbackCode
+        ?? (failure?.text?.includes('Top-level await') && failure?.location?.lineText?.includes('import(')
+          ? 'CODEGEN_DYNAMIC_IMPORT_UNHASHABLE'
+          : 'CODEGEN_MODULE_PARSE_FAILED');
+      diagnostics.push({
+        code,
+        severity: 'error',
+        subsystem,
+        message: failure?.text ?? failure?.message ?? String(failure),
+        ...(detail.path ? { path: detail.path } : {}),
+        ...(detail.importedFrom ? { importedFrom: detail.importedFrom } : {}),
+        ...(detail.specifier ? { specifier: detail.specifier } : {}),
+        ...(failure?.location ? {
+          path: failure.location.file || detail.path,
+          line: failure.location.line,
+          column: failure.location.column + 1,
+        } : {}),
+      });
+    }
+    return null;
+  }
+}
+
+function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
+  const entry = JSON.stringify(entryPath);
+  const define = JSON.stringify(definePath);
+  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isFunctionDef } from ${define};`;
+  const normalization = String.raw`
+function __snapbackDefinitionKind(value) {
+  if (isFunctionDef(value)) return 'function';
+  if (isCronDef(value)) return 'cron';
+  if (isConfigDef(value)) return 'config';
+  if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';
+  return null;
+}
+function __snapbackNormalize(value, stack = new __snapbackSet()) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number') return value;
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object') throw new Error('definition values must be JSON-serializable data');
+  if (__snapbackApply(__snapbackSetHas, stack, [value])) throw new Error('definition values must not contain cycles');
+  __snapbackApply(__snapbackSetAdd, stack, [value]);
+  let output;
+  if (__snapbackArrayIsArray(value)) {
+    output = [];
+    for (let index = 0; index < value.length; index += 1) output[index] = __snapbackNormalize(value[index], stack);
+  } else {
+    output = __snapbackObjectCreate(null);
+    for (const key of __snapbackObjectKeys(value)) output[key] = __snapbackNormalize(value[key], stack);
+    const definitionKind = __snapbackDefinitionKind(value);
+    if (definitionKind !== null) output.__snapbackDefinitionKind = definitionKind;
+  }
+  __snapbackApply(__snapbackSetDelete, stack, [value]);
+  return output;
+}
+`;
+  if (kind === 'schema') {
+    return `${imports}\nimport schema from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(schema));\n`;
+  }
+  return `${imports}\nimport * as definitions from ${entry};\n${normalization}\nconst output = __snapbackObjectCreate(null);\nfor (const name of __snapbackObjectKeys(definitions)) {\n  if (__snapbackDefinitionKind(definitions[name]) !== null) output[name] = __snapbackNormalize(definitions[name]);\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(output);\n`;
+}
+
+function definitionLoader(path) {
+  if (/\.json$/i.test(path)) return 'json';
+  if (/\.(?:ts|mts)$/i.test(path)) return 'ts';
+  return 'js';
+}
+
+function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics) {
+  const permissionFlag = process.allowedNodeEnvironmentFlags.has('--permission')
+    ? '--permission'
+    : process.allowedNodeEnvironmentFlags.has('--experimental-permission')
+      ? '--experimental-permission'
+      : null;
+  if (permissionFlag === null) {
+    diagnostics.push({
+      code: 'CODEGEN_ISOLATED_EVALUATOR_FAILED',
+      severity: 'error',
+      subsystem: 'codegen',
+      message: 'this Node version does not provide the permission isolation required to evaluate definition modules',
+    });
+    return Promise.resolve(null);
+  }
+  return new Promise((resolveResult) => {
+    const child = spawn(process.execPath, [permissionFlag, '--input-type=module', '--eval', ISOLATED_DEFINITION_EVALUATOR], {
+      cwd: REPO_ROOT,
+      env: {},
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolveResult(result);
+    };
+    const fail = (message, extra = {}) => {
+      if (settled) return;
+      diagnostics.push({
+        code: 'CODEGEN_ISOLATED_EVALUATOR_FAILED',
+        severity: 'error',
+        subsystem: 'codegen',
+        message,
+        ...extra,
+      });
+      finish(null);
+    };
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      fail(`isolated definition evaluation exceeded ${DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS} ms`);
+    }, DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS);
+    child.once('error', (error) => fail(`could not start the isolated definition evaluator: ${error.message}`, { error: error.message }));
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+      if (Buffer.byteLength(stdout) > DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES) {
+        child.kill('SIGKILL');
+        fail('isolated definition evaluator output exceeded the 16 MiB protocol limit');
+      }
+    });
+    child.stderr.on('data', (chunk) => {
+      if (Buffer.byteLength(stderr) <= 1024 * 1024) stderr += chunk;
+    });
+    child.once('close', (code, signal) => {
+      if (settled) return;
+      if (code !== 0) {
+        fail(`isolated definition evaluator exited unsuccessfully (code ${code}, signal ${signal})${stderr.trim() ? `: ${stderr.trim()}` : ''}`);
+        return;
+      }
+      let response;
+      try {
+        response = JSON.parse(stdout);
+      } catch (error) {
+        fail(`isolated definition evaluator returned invalid JSON: ${error.message}`);
+        return;
+      }
+      if (!response?.ok) {
+        diagnostics.push({
+          code: 'CODEGEN_MODULE_EVALUATION_FAILED',
+          severity: 'error',
+          subsystem: 'codegen',
+          message: response?.error?.message ?? 'isolated definition evaluation failed',
+          ...(response?.error?.name ? { errorName: response.error.name } : {}),
+        });
+        finish(null);
+        return;
+      }
+      if (!response.values || typeof response.values.schema !== 'object' || response.values.schema === null || typeof response.values.functions !== 'object' || response.values.functions === null) {
+        fail('isolated definition evaluator returned an invalid result shape');
+        return;
+      }
+      finish({ schema: response.values.schema, functions: response.values.functions });
+    });
+    child.stdin.on('error', (error) => fail(`could not send definition bundles to the isolated evaluator: ${error.message}`));
+    child.stdin.end(JSON.stringify({
+      items: [
+        { label: 'schema', bundle: schemaBuild.bundle, resultKey: schemaBuild.resultKey },
+        { label: 'functions', bundle: functionsBuild.bundle, resultKey: functionsBuild.resultKey },
+      ],
+    }));
+  });
+}
+
+function isIsolatedDefinition(value, expectedKind) {
+  return Boolean(value && typeof value === 'object' && value.__snapbackDefinitionKind === expectedKind);
 }
 
 function graphModuleFormat(path) {
@@ -2601,28 +2844,17 @@ function graphModuleFormat(path) {
 function nearestPackageJson(path) {
   let directory = dirname(path);
   for (;;) {
+    // Node package scopes never inherit across a node_modules boundary. A
+    // manifest-less dependency is therefore CommonJS even when the consuming
+    // app has `type: module`; walking through this directory would classify
+    // the bytes differently from Node and leave computed CJS loads unhashed.
+    if (directory.split(sep).at(-1) === 'node_modules') return null;
     const candidate = join(directory, 'package.json');
     if (existsSync(candidate)) return candidate;
     const parent = dirname(directory);
     if (parent === directory) return null;
     directory = parent;
   }
-}
-
-function commonJsLoaderToken(source) {
-  const searchable = maskCommentsAndStrings(source);
-  for (const token of ['createRequire', 'getBuiltinModule', 'require']) {
-    if (new RegExp(`\\b${token}\\b`).test(searchable)) return `${token}()`;
-  }
-  return null;
-}
-
-function unhashableAmbientAccess(source) {
-  const searchable = maskCommentsAndStrings(source);
-  for (const token of ['process', 'globalThis', 'global', 'Bun', 'Deno']) {
-    if (new RegExp(`\\b${token}\\b`).test(searchable)) return token;
-  }
-  return null;
 }
 
 function moduleGraphIdentity(graph, backendDir) {
@@ -2659,123 +2891,6 @@ function isLocalModuleSpecifier(specifier) {
     || specifier.startsWith('../')
     || specifier.startsWith('file:')
     || isAbsolute(specifier);
-}
-
-function staticModuleImports(source, path, diagnostics, subsystem) {
-  const searchable = maskCommentsAndStrings(source);
-  const imports = [];
-  const keyword = /\b(import|export)\b/g;
-  for (let match = keyword.exec(searchable); match; match = keyword.exec(searchable)) {
-    const kind = match[1];
-    let cursor = skipWhitespaceAndComments(source, match.index + kind.length);
-    if (kind === 'import') {
-      if (source[cursor] === '.') continue; // import.meta
-      if (source[cursor] === '(') {
-        diagnostics.push({
-          code: 'CODEGEN_DYNAMIC_IMPORT_UNHASHABLE',
-          severity: 'error',
-          subsystem,
-          message: `${path} uses dynamic import(); codegen cannot prove a complete dependency graph`,
-          path,
-          ...sourcePosition(source, match.index),
-        });
-        continue;
-      }
-      if (source[cursor] === "'" || source[cursor] === '"') {
-        const specifier = readStaticModuleString(source, cursor, path, diagnostics, subsystem);
-        if (specifier !== null) imports.push(specifier);
-        continue;
-      }
-      const from = findFromToken(searchable, cursor);
-      if (from === -1) continue;
-      cursor = skipWhitespaceAndComments(source, from + 'from'.length);
-      const specifier = readStaticModuleString(source, cursor, path, diagnostics, subsystem);
-      if (specifier !== null) imports.push(specifier);
-      continue;
-    }
-
-    // Only export {...} from / export * from forms carry a module edge.
-    if (source[cursor] !== '{' && source[cursor] !== '*') continue;
-    const from = findFromToken(searchable, cursor);
-    if (from === -1) continue;
-    cursor = skipWhitespaceAndComments(source, from + 'from'.length);
-    const specifier = readStaticModuleString(source, cursor, path, diagnostics, subsystem);
-    if (specifier !== null) imports.push(specifier);
-  }
-  return imports;
-}
-
-function findFromToken(searchable, start) {
-  const statementEnd = searchable.indexOf(';', start);
-  const fromPattern = /\bfrom\b/g;
-  fromPattern.lastIndex = start;
-  const match = fromPattern.exec(searchable);
-  if (!match || (statementEnd !== -1 && match.index > statementEnd)) return -1;
-  return match.index;
-}
-
-function skipWhitespaceAndComments(source, start) {
-  let cursor = start;
-  for (;;) {
-    while (/\s/.test(source[cursor] ?? '')) cursor += 1;
-    if (source[cursor] === '/' && source[cursor + 1] === '/') {
-      cursor = source.indexOf('\n', cursor + 2);
-      if (cursor === -1) return source.length;
-      continue;
-    }
-    if (source[cursor] === '/' && source[cursor + 1] === '*') {
-      const end = source.indexOf('*/', cursor + 2);
-      return end === -1 ? source.length : skipWhitespaceAndComments(source, end + 2);
-    }
-    return cursor;
-  }
-}
-
-function readStaticModuleString(source, start, path, diagnostics, subsystem) {
-  const quote = source[start];
-  if (quote !== "'" && quote !== '"') {
-    diagnostics.push({
-      code: 'CODEGEN_AMBIGUOUS_IMPORT',
-      severity: 'error',
-      subsystem,
-      message: `${path} has a non-literal static module specifier`,
-      path,
-      ...sourcePosition(source, start),
-    });
-    return null;
-  }
-  let value = '';
-  for (let cursor = start + 1; cursor < source.length; cursor += 1) {
-    const char = source[cursor];
-    if (char === quote) return value;
-    if (char === '\\' || char === '\n' || char === '\r') {
-      diagnostics.push({
-        code: 'CODEGEN_AMBIGUOUS_IMPORT',
-        severity: 'error',
-        subsystem,
-        message: `${path} has an escaped or unterminated module specifier; spell the deterministic path literally`,
-        path,
-        ...sourcePosition(source, start),
-      });
-      return null;
-    }
-    value += char;
-  }
-  diagnostics.push({
-    code: 'CODEGEN_AMBIGUOUS_IMPORT',
-    severity: 'error',
-    subsystem,
-    message: `${path} has an unterminated module specifier`,
-    path,
-    ...sourcePosition(source, start),
-  });
-  return null;
-}
-
-function moduleUrlWithSourceHash(path, source) {
-  const url = pathToFileURL(path);
-  url.searchParams.set('snapback_codegen', sha256(source).slice(0, 16));
-  return url.href;
 }
 
 function validateContractModuleFilenames(modules, err) {

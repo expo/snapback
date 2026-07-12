@@ -1,7 +1,7 @@
 {
   "appId": "all-aboard",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:402eec30c0703da7",
+  "bundleHash": "sha256:0ac7d0e03c1ccb69",
   "config": [
     {
       "acquisition": {
@@ -573,7 +573,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "ad6ece380c60f83baffe44a26c997d2fbae8b85600896eb57cd5f58c56189629",
+  "inputsHash": "e3165ed6d9d13f31ab7e172bdf09dde3360a392b28520f1ce79accabfae5653c",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

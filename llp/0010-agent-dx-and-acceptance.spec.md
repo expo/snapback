@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; ENG-24351 follow-up: CommonJS modules and loader escape hatches fail closed because their transitive dependency graph cannot be proven; earlier ENG-24351: generated identity covers the complete permitted static local import graph and programmatic generation evaluates it in a fresh process, while dynamic and ambiguous imports fail closed). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
+**Revised:** 2026-07-12 (ENG-24351 isolation follow-up: an AST-resolved exact graph is evaluated as bundled bytes in a capability-empty, permission-denied child VM; computed ambient access and nondeterministic globals are unavailable by construction, node_modules package scopes stop at their boundary, and canonical evaluated values join artifact identity; ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; earlier ENG-24351: CommonJS/dynamic/ambiguous graphs fail closed and generated identity covers every permitted transitive input). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024
 
 ## Summary
@@ -288,19 +288,28 @@ build before the app ran (`[confirmed - Valet diaries, 2026-06-25]`); adopt that
 the freshness signal behind "what generated artifacts changed."
 
 The freshness boundary is the complete permitted static local module graph, not
-only the entry files. Identity includes deterministic path/source pairs for every
-transitive schema and function dependency; programmatic regeneration evaluates a
-fresh graph so the host's ESM cache cannot reuse an older helper. Dynamic imports,
-bare environment-dependent resolution, and query/hash-qualified local specifiers
-are rejected when codegen cannot prove and hash the edge. CommonJS modules and
-loader escape hatches (`require`, `createRequire`, and `getBuiltinModule`) are
-rejected for the same reason: their computed or package-scoped graph is not the
-static ESM graph used for identity. All `node:*` imports and host-global roots
-(`process`, `globalThis`, `global`, `Bun`, `Deno`) fail closed too; otherwise
-pure ESM could derive definitions from an unhashed file, environment value, or
-indirect builtin loader. A `.js` or
-`.ts` dependency is accepted only when its nearest `package.json` declares
-`type: module`; that governing manifest itself joins the hash. CommonJS-scoped
+only the entry files. An AST resolver admits literal relative/file edges only and
+bundles exactly that graph; dynamic imports, CommonJS loaders, bare resolution,
+`node:*` capabilities, query/hash-qualified specifiers, and `import.meta` fail
+closed. Identity includes deterministic path/source pairs for every transitive
+schema and function dependency **plus the canonical serialized schema/function
+values produced by isolated evaluation**. Thus an evaluator/toolchain semantic
+change cannot publish different definitions under the same content hash.
+
+Definition evaluation is a capability boundary, not a token blacklist. The
+bundled bytes run in a second Node process launched with no filesystem, network,
+child-process, worker, addon, or inspector permissions, inside a fresh VM context
+with no host objects and with string/Wasm code generation disabled. `process`,
+computed `globalThis` access, `getBuiltinModule`, `Function`/`eval` constructor
+paths, and equivalents therefore cannot recover unhashed input; a harmless local
+binding named `process` remains legal. Wall clock, locale/timezone, and randomness
+are also unavailable (`Date`, `Intl`, `Math.random`) so identical source cannot
+derive different definitions from ambient nondeterminism.
+
+A `.js` or `.ts` dependency is accepted only when its nearest package scope
+declares `type: module`; that governing manifest itself joins the hash. Package
+scope lookup stops at every `node_modules` boundary, matching Node: a manifestless
+installed package cannot inherit the consuming app's module type. CommonJS-scoped
 or package-ambiguous files fail closed. Handler modules remain a
 closed single-file runtime profile: imports are rejected before emission, so their
 complete permitted graph is the declared handler source itself.

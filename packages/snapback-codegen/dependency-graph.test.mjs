@@ -145,7 +145,8 @@ export const listRows = defineQuery({ table: helper.selectedTable, args: {} });
 }
 
 // createRequire can hide both local and bare dependency resolution behind an
-// alias. The token is rejected regardless of the requested specifier.
+// alias. Its node:module capability edge is rejected by the AST resolver
+// regardless of the requested specifier.
 for (const required of ['./selected-table.cjs', 'environment-package']) {
   const dir = makeBackend();
   writeFileSync(join(dir, 'functions.mjs'), `
@@ -160,7 +161,7 @@ export const listRows = defineQuery({ table: selectedTable, args: {} });
   const rejected = await generate(dir);
   assert.equal(rejected.ok, false);
   assert(
-    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_COMMONJS_LOADER_UNHASHABLE'),
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_AMBIENT_IMPORT_UNHASHABLE'),
     JSON.stringify(rejected.diagnostics),
   );
   assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
@@ -235,6 +236,42 @@ export const listRows = defineQuery({ table: selectedTable, args: {} });
   );
 }
 
+// Package scope lookup stops at node_modules. Without that boundary this
+// manifest-less package inherited the app's `type: module`, while Node loaded
+// it as CommonJS; its computed module['require'] leaf could then change emitted
+// semantics without joining the graph hash. Both hidden-leaf values are now
+// refused and the last proven output (including its hashes) remains byte-for-byte.
+{
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module' }));
+  const helperDir = join(dir, 'node_modules', 'manifestless-helper');
+  mkdirSync(helperDir, { recursive: true });
+  writeFileSync(join(helperDir, 'index.js'), "module.exports = module['require']('./selected-table.cjs');\n");
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { defineQuery } from '${defineUrl}';
+import helper from './node_modules/manifestless-helper/index.js';
+export const listRows = defineQuery({ table: helper.selectedTable, args: {} });
+`);
+
+  for (const selectedTable of ['todos', 'notes']) {
+    writeFileSync(join(helperDir, 'selected-table.cjs'), `module.exports = { selectedTable: ${JSON.stringify(selectedTable)} };\n`);
+    const rejected = await generate(dir);
+    assert.equal(rejected.ok, false);
+    assert(
+      rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_COMMONJS_MODULE_UNHASHABLE'),
+      JSON.stringify(rejected.diagnostics),
+    );
+    assert.equal(
+      readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+      before,
+      'a hidden CommonJS leaf must not change output while absent from identity',
+    );
+  }
+}
+
 // Even computed access cannot hide a loader when the ESM source imports the
 // node:module capability that makes it possible.
 {
@@ -285,29 +322,110 @@ export const listRows = defineQuery({ table: selectedTable, args: {} });
   }
 }
 
-// Computed property names do not evade the ambient-capability boundary: the
-// host-global root itself is rejected before it can recover a builtin loader.
-for (const source of [
-  `
+// Computed property names do not evade the ambient-capability boundary. These
+// are deliberately not token-blacklisted: they reach the isolated evaluator,
+// where no process capability exists (and its OS permission set denies reads
+// even if a future VM escape recovered the evaluator's process object).
+for (const escapeSource of [
+  (secretPath) => `
 const fs = process['get' + 'BuiltinModule']('node:fs');
-export const selectedTable = fs.readFileSync(new URL('./selected-table.txt', import.meta.url), 'utf8').trim();
+export const selectedTable = fs.readFileSync(${JSON.stringify(secretPath)}, 'utf8').trim();
 `,
-  `
+  (secretPath) => `
 const hostProcess = globalThis['pro' + 'cess'];
 const fs = hostProcess['get' + 'BuiltinModule']('node:fs');
-export const selectedTable = fs.readFileSync(new URL('./selected-table.txt', import.meta.url), 'utf8').trim();
+export const selectedTable = fs.readFileSync(${JSON.stringify(secretPath)}, 'utf8').trim();
 `,
 ]) {
   const dir = makeBackend();
-  writeFileSync(join(dir, 'selected-table.txt'), 'notes\n');
+  const secretPath = join(dir, 'selected-table.txt');
+  writeFileSync(secretPath, 'notes\n');
+  writeFileSync(join(dir, 'function-helper.mjs'), escapeSource(secretPath));
+  const rejected = await generate(dir);
+  assert.equal(rejected.ok, false);
+  assert(
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_MODULE_EVALUATION_FAILED'),
+    JSON.stringify(rejected.diagnostics),
+  );
+  assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
+}
+
+// Dynamic Function-family constructors and reflective global access are not a
+// blacklist problem. Each source is admitted by the AST graph, then fails in a
+// code-generation-disabled, capability-empty VM. Changing the unhashed file
+// under the exact same source cannot change the last published semantics/hash.
+for (const escapeSource of [
+  (secretPath) => `
+const host = Function('return process')();
+export const selectedTable = host.getBuiltinModule('node:fs').readFileSync(${JSON.stringify(secretPath)}, 'utf8').trim();
+`,
+  (secretPath) => `
+const HostFunction = ({}).constructor['constr' + 'uctor'];
+const host = HostFunction('return process')();
+export const selectedTable = host.getBuiltinModule('node:fs').readFileSync(${JSON.stringify(secretPath)}, 'utf8').trim();
+`,
+  (secretPath) => `
+const AsyncFunction = (async () => {}).constructor;
+const host = AsyncFunction('return process')();
+export const selectedTable = host.getBuiltinModule('node:fs').readFileSync(${JSON.stringify(secretPath)}, 'utf8').trim();
+`,
+  (secretPath) => `
+const host = (0, eval)('process');
+export const selectedTable = host.getBuiltinModule('node:fs').readFileSync(${JSON.stringify(secretPath)}, 'utf8').trim();
+`,
+  (secretPath) => `
+const host = Reflect.get(globalThis, 'pro' + 'cess');
+export const selectedTable = host.getBuiltinModule('node:fs').readFileSync(${JSON.stringify(secretPath)}, 'utf8').trim();
+`,
+]) {
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
+  const secretPath = join(dir, 'unhashed-selected-table.txt');
+  writeFileSync(join(dir, 'function-helper.mjs'), escapeSource(secretPath));
+  for (const selectedTable of ['todos', 'notes']) {
+    writeFileSync(secretPath, `${selectedTable}\n`);
+    const rejected = await generate(dir);
+    assert.equal(rejected.ok, false);
+    assert(
+      rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_MODULE_EVALUATION_FAILED'),
+      JSON.stringify(rejected.diagnostics),
+    );
+    assert.equal(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'), before);
+  }
+}
+
+// Ambient nondeterminism is denied too: identical sources cannot derive a
+// definition from wall time, randomness, or the host locale/timezone.
+for (const source of [
+  "export const selectedTable = Date.now() % 2 ? 'todos' : 'notes';\n",
+  "export const selectedTable = Math.random() < 0.5 ? 'todos' : 'notes';\n",
+  "export const selectedTable = new Intl.DateTimeFormat().resolvedOptions().timeZone === 'UTC' ? 'todos' : 'notes';\n",
+]) {
+  const dir = makeBackend();
   writeFileSync(join(dir, 'function-helper.mjs'), source);
   const rejected = await generate(dir);
   assert.equal(rejected.ok, false);
   assert(
-    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_AMBIENT_ACCESS_UNHASHABLE'),
+    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_MODULE_EVALUATION_FAILED'),
     JSON.stringify(rejected.diagnostics),
   );
   assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
+}
+
+// Harmless lexical/global names are allowed: isolation, not a token blacklist,
+// is the authority boundary.
+{
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'function-helper.mjs'), `
+const process = 'ordinary-local-binding';
+globalThis.__definitionScratch = process;
+export const selectedTable = globalThis.__definitionScratch === 'ordinary-local-binding' ? 'notes' : 'todos';
+`);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.equal(manifests(dir).functions.functions[0].runtime.HostPlan.Query.table, 'notes');
 }
 
 // Bare ESM dependencies remain environment-dependent and must fail before

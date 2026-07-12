@@ -483,19 +483,19 @@ export function defineConfig(entries) {
 // ---------------------------------------------------------------------------
 
 export function isFunctionDef(value) {
-  return Boolean(value && value[FN]);
+  return !!(value && value[FN]);
 }
 
 export function isCronDef(value) {
-  return Boolean(value && value[CRON]);
+  return !!(value && value[CRON]);
 }
 
 export function isConfigDef(value) {
-  return Boolean(value && value[CONFIG]);
+  return !!(value && value[CONFIG]);
 }
 
 export function isEphemeralCollectionDef(value) {
-  return Boolean(value && value[EPHEMERAL_COLLECTION]);
+  return !!(value && value[EPHEMERAL_COLLECTION]);
 }
 
 export function assert(cond, message) {

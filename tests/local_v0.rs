@@ -2030,12 +2030,12 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
         // Re-pinned after the ENG-24373 validator/index hardening changed the
         // generated schema semantics; the regen-and-diff gate proves this is
         // the reproducible value from the committed source.
-        Some("sha256:657f0c80fa834170")
+        Some("sha256:427a34d935ffaae3")
     );
     assert!(schema.inputs_hash.is_some());
     let schema_value = serde_json::to_value(&schema).expect("schema roundtrip");
     assert_eq!(schema_value["artifactKind"], "schemaManifest");
-    assert_eq!(schema_value["schemaHash"], "sha256:657f0c80fa834170");
+    assert_eq!(schema_value["schemaHash"], "sha256:427a34d935ffaae3");
 
     let functions: FunctionManifest = serde_json::from_str(include_str!(
         "../demos/todo/snapback/generated/functions.manifest.json"
@@ -2053,7 +2053,7 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
         // todo demo handler rejected empty titles, for the LLP 0032 P3
         // declared listTodos result validator, the P1 define.mjs move, and
         // the LLP 0036 `uses`/`config` additions.
-        Some("sha256:2659fd5ca4f22009")
+        Some("sha256:60f7a6c5bdbb4f65")
     );
 
     let list = functions

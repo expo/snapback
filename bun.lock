@@ -17,6 +17,12 @@
     },
     "packages/snapback-codegen": {
       "name": "@snapback/codegen",
+      "dependencies": {
+        "esbuild": "^0.28.1",
+      },
+      "engines": {
+        "node": ">=20.0.0",
+      },
     },
     "packages/snapback-contract": {
       "name": "@snapback/contract",
