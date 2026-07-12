@@ -312,12 +312,18 @@ export async function generate(backendDir) {
         err('SCHEMA_DUPLICATE_FIELD', 'schema', `duplicate field ${name}.${fieldName}`, { table: name, field: fieldName });
       }
       seenFields.add(fieldName);
+      validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
+        err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
+      });
       fields.push({ name: fieldName, field_type: val.fieldType, optional: val.optional });
     }
 
     const indexes = [];
     const seenIndexes = new Set();
     for (const index of table.indexes) {
+      if (!IDENT.test(index.name) || index.name.startsWith('_snapback')) {
+        err('SCHEMA_INVALID_IDENTIFIER', 'schema', `invalid index identifier ${name}.${index.name}`, { table: name, index: index.name });
+      }
       if (seenIndexes.has(index.name)) {
         err('SCHEMA_DUPLICATE_INDEX', 'schema', `duplicate index ${name}.${index.name}`, { table: name, index: index.name });
       }
@@ -374,11 +380,17 @@ export async function generate(backendDir) {
         err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: invalid arg identifier ${argName}`, { function: name, arg: argName });
         continue;
       }
+      validateAuthoringValidator(argVal, `${name} arg ${argName}`, (message) => {
+        err('FUNCTION_INVALID_VALIDATOR', 'function', message, { function: name, arg: argName });
+      });
       checkObjectValidatorFieldIdents(argVal, `arg ${argName}`, (fieldName, where) => {
         err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: ${where} has invalid field identifier ${fieldName}`, { function: name, arg: argName, field: fieldName });
       });
     }
     if (def.result) {
+      validateAuthoringValidator(def.result, `${name} result`, (message) => {
+        err('FUNCTION_INVALID_VALIDATOR', 'function', message, { function: name });
+      });
       checkObjectValidatorFieldIdents(def.result, 'result', (fieldName, where) => {
         err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: ${where} has invalid field identifier ${fieldName}`, { function: name, field: fieldName });
       });
@@ -578,7 +590,7 @@ export async function generate(backendDir) {
         } else if (kind === 'DeleteWhere') {
           writes.add(t);
           for (const filter of body.filter) {
-            if (!fieldNames(t).has(filter.field) && !filter.field.startsWith('_')) {
+            if (!fieldNames(t).has(filter.field) && !SYSTEM_FIELDS.includes(filter.field)) {
               err('QUERY_UNKNOWN_FIELD', 'function', `${name}: deleteWhere filters unknown field ${t}.${filter.field}`, { function: name, table: t, field: filter.field });
             }
             checkExpr(filter.value, `deleteWhere ${filter.field}`);
@@ -936,10 +948,16 @@ function buildEphemeralCollections(ephemeralDef, err) {
         err('EPHEMERAL_INVALID_SCOPE_FIELD', 'ephemeral', `${name} has invalid scope field ${field}`, { collection: name, field });
         continue;
       }
+      validateAuthoringValidator(def.scope?.[field], `${name} scope ${field}`, (message) => {
+        err('EPHEMERAL_INVALID_VALIDATOR', 'ephemeral', message, { collection: name, field });
+      });
       checkObjectValidatorFieldIdents(def.scope?.[field], `scope field ${field}`, (fieldName, where) => {
         err('EPHEMERAL_INVALID_SCOPE_FIELD', 'ephemeral', `${name} ${where} has invalid field identifier ${fieldName}`, { collection: name, field: fieldName });
       });
     }
+    validateAuthoringValidator(def.value, `${name} value`, (message) => {
+      err('EPHEMERAL_INVALID_VALIDATOR', 'ephemeral', message, { collection: name });
+    });
     // The value validator's nested v.object field names reach the emitted
     // scope/value TS types (typeForValidator) unescaped, same as scope fields.
     checkObjectValidatorFieldIdents(def.value, 'value', (fieldName, where) => {
@@ -956,11 +974,29 @@ function buildEphemeralCollections(ephemeralDef, err) {
       }
     }
 
-    if (!Number.isInteger(def.ttlMs) || def.ttlMs <= 0) {
+    if (!isPositiveSafeInteger(def.ttlMs)) {
       err('EPHEMERAL_MISSING_TTL', 'ephemeral', `${name} needs a positive ttlMs`, { collection: name });
     }
-    if (def.maxTtlMs < def.ttlMs) {
+    if (!isPositiveSafeInteger(def.maxTtlMs)) {
+      err('EPHEMERAL_INVALID_BUDGET', 'ephemeral', `${name} maxTtlMs must be a positive integer`, { collection: name, field: 'maxTtlMs', value: def.maxTtlMs });
+    } else if (def.maxTtlMs < def.ttlMs) {
       err('EPHEMERAL_INVALID_TTL', 'ephemeral', `${name} maxTtlMs is below ttlMs`, { collection: name, ttlMs: def.ttlMs, maxTtlMs: def.maxTtlMs });
+    }
+    for (const [field, value, maximum] of [
+      ['maxValueBytes', def.maxValueBytes, 4_096],
+      ['hardMaxValueBytes', def.hardMaxValueBytes, 4_096],
+      ['sustainedHz', def.publishRate?.sustainedHz, 0xffff_ffff],
+      ['burst', def.publishRate?.burst, 0xffff_ffff],
+      ['dispatchMs', def.delivery?.dispatchMs, Number.MAX_SAFE_INTEGER],
+      ['maxPendingEphemeralKeys', def.maxPendingEphemeralKeys, Number.MAX_SAFE_INTEGER],
+    ]) {
+      if (!isPositiveSafeInteger(value) || value > maximum) {
+        err('EPHEMERAL_INVALID_BUDGET', 'ephemeral', `${name} ${field} must be a positive integer${maximum < Number.MAX_SAFE_INTEGER ? ` no greater than ${maximum}` : ''}`, {
+          collection: name,
+          field,
+          value: Number.isFinite(value) ? value : String(value),
+        });
+      }
     }
     if (def.maxValueBytes > def.hardMaxValueBytes || def.maxValueBytes > 4_096) {
       err('EPHEMERAL_VALUE_BUDGET_TOO_LARGE', 'ephemeral', `${name} maxValueBytes exceeds the local hard cap`, {
@@ -1470,6 +1506,52 @@ function checkObjectValidatorFieldIdents(val, where, report) {
     }
     checkObjectValidatorFieldIdents(field, `${where}.${fieldName}`, report);
   }
+}
+
+// One recursive gate for every authoring position that accepts a validator:
+// schema fields, function args/results, and ephemeral scope/value shapes.
+// Builders catch ordinary mistakes early, but definition objects are mutable
+// JavaScript; codegen must re-establish the closed vocabulary before emitting.
+function validateAuthoringValidator(val, where, report, seen = new Set()) {
+  if (!val || typeof val !== 'object' || val.__validator !== true) {
+    report(`${where} must be a Snapback validator (v.string(), v.object(), ...)`);
+    return false;
+  }
+  if (seen.has(val)) {
+    report(`${where} contains a cyclic validator shape`);
+    return false;
+  }
+  const primitives = new Map([
+    ['string', new Set(['String'])],
+    ['boolean', new Set(['Boolean'])],
+    ['number', new Set(['Integer', 'Real'])],
+    ['unknown', new Set(['Json'])],
+    ['object', new Set(['Json'])],
+  ]);
+  if (!primitives.get(val.primitive)?.has(val.fieldType)) {
+    report(`${where} has unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}`);
+    return false;
+  }
+  if (typeof val.optional !== 'boolean') {
+    report(`${where} validator optional must be boolean`);
+    return false;
+  }
+  if (val.primitive !== 'object') return true;
+  if (!val.fields || typeof val.fields !== 'object' || Array.isArray(val.fields)) {
+    report(`${where} object validator must have a fields object`);
+    return false;
+  }
+  seen.add(val);
+  let valid = true;
+  for (const [name, field] of Object.entries(val.fields)) {
+    if (!validateAuthoringValidator(field, `${where}.${name}`, report, seen)) valid = false;
+  }
+  seen.delete(val);
+  return valid;
+}
+
+function isPositiveSafeInteger(value) {
+  return Number.isSafeInteger(value) && value > 0;
 }
 
 function argDescriptors(args) {
