@@ -1,0 +1,119 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { generate } from './index.mjs';
+
+const packageRoot = dirname(fileURLToPath(import.meta.url));
+const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
+const codegenPath = join(packageRoot, 'index.mjs');
+const dirs = [];
+
+function makeBackend() {
+  const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-graph-'));
+  dirs.push(dir);
+  writeFileSync(join(dir, 'schema.mjs'), `
+import { defineSchema, defineTable } from '${defineUrl}';
+import { titleValidator } from './schema-helper.mjs';
+export default defineSchema({
+  todos: defineTable({ title: titleValidator }).sync(),
+  notes: defineTable({ title: titleValidator }).sync(),
+});
+`);
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { defineQuery } from '${defineUrl}';
+import { selectedTable } from './function-helper.mjs';
+export const listRows = defineQuery({ table: selectedTable, args: {} });
+`);
+  writeFileSync(join(dir, 'schema-helper.mjs'), `
+import { v } from '${defineUrl}';
+export const titleValidator = v.string();
+`);
+  writeFileSync(join(dir, 'function-helper.mjs'), "export const selectedTable = 'todos';\n");
+  return dir;
+}
+
+function manifests(dir) {
+  return {
+    schema: JSON.parse(readFileSync(join(dir, 'generated', 'schema.manifest.json'), 'utf8')),
+    functions: JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8')),
+  };
+}
+
+// Same-process regeneration: neither entry source changes, only transitive
+// helpers. Every affected identity and emitted semantic must change.
+{
+  const dir = makeBackend();
+  const first = await generate(dir);
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  const before = manifests(dir);
+
+  writeFileSync(join(dir, 'schema-helper.mjs'), `
+import { v } from '${defineUrl}';
+export const titleValidator = v.boolean();
+`);
+  writeFileSync(join(dir, 'function-helper.mjs'), "export const selectedTable = 'notes';\n");
+  const second = await generate(dir);
+  assert.equal(second.ok, true, JSON.stringify(second.diagnostics));
+  const after = manifests(dir);
+
+  assert.notEqual(second.inputsHash, first.inputsHash);
+  assert.notEqual(after.schema.schemaHash, before.schema.schemaHash);
+  assert.notEqual(after.functions.bundleHash, before.functions.bundleHash);
+  assert.equal(after.schema.tables[0].fields[0].field_type, 'Boolean');
+  assert.equal(after.functions.functions[0].runtime.HostPlan.Query.table, 'notes');
+}
+
+// Across-process regeneration follows the same graph identity contract.
+{
+  const dir = makeBackend();
+  const run = () => spawnSync(process.execPath, [codegenPath, dir], {
+    cwd: packageRoot,
+    encoding: 'utf8',
+  });
+  const firstRun = run();
+  assert.equal(firstRun.status, 0, firstRun.stderr);
+  const before = manifests(dir);
+  writeFileSync(join(dir, 'function-helper.mjs'), "export const selectedTable = 'notes';\n");
+  const secondRun = run();
+  assert.equal(secondRun.status, 0, secondRun.stderr);
+  const after = manifests(dir);
+  assert.notEqual(after.functions.inputsHash, before.functions.inputsHash);
+  assert.notEqual(after.functions.bundleHash, before.functions.bundleHash);
+  assert.equal(after.functions.functions[0].runtime.HostPlan.Query.table, 'notes');
+}
+
+// Dynamic and query/hash-qualified local imports are unprovable graph edges;
+// fail before evaluation and preserve existing generated output.
+for (const [source, expectedCode] of [
+  [`
+const helperPath = './schema-helper.mjs';
+const helper = await import(helperPath);
+export default helper.default;
+`, 'CODEGEN_DYNAMIC_IMPORT_UNHASHABLE'],
+  [`
+import schema from './schema-helper.mjs?stale=1';
+export default schema;
+`, 'CODEGEN_AMBIGUOUS_IMPORT'],
+]) {
+  const dir = makeBackend();
+  writeFileSync(join(dir, 'schema.mjs'), source);
+  writeFileSync(join(dir, 'schema-helper.mjs'), `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ todos: defineTable({ title: v.string() }) });
+`);
+  mkdirSync(join(dir, 'generated'));
+  writeFileSync(join(dir, 'generated', 'sentinel.txt'), 'keep\n');
+  const result = await generate(dir);
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some((diagnostic) => diagnostic.code === expectedCode), JSON.stringify(result.diagnostics));
+  assert.equal(readFileSync(join(dir, 'generated', 'sentinel.txt'), 'utf8'), 'keep\n');
+  assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);
+}
+
+for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+
+console.log('dependency-graph.test.mjs: all cases passed');
