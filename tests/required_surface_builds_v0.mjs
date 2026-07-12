@@ -15,7 +15,10 @@ import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 
 import {
+  classifyRequiredWebSurface,
+  collectRequiredWebSurfaces,
   ensureRegistryInstall,
+  requiredSurfaceStructuralErrors,
   runBoundedProcess,
   signalProcessTree,
   verifyInstalledExactContract,
@@ -48,6 +51,60 @@ function surface(name, installedVersion = '1.2.3') {
 }
 
 try {
+  assert.deepEqual(
+    collectRequiredWebSurfaces()
+      .map(({ demoId, surfaceName }) => `${demoId}/${surfaceName}`),
+    ['all-aboard/contract', 'cursors-web/contract'],
+    'the manifest-derived required web inventory is explicit and non-vacuous',
+  );
+
+  const missingDemoDir = join(scratch, 'missing-package-demos', 'fixture');
+  mkdirSync(missingDemoDir, { recursive: true });
+  writeFileSync(join(missingDemoDir, 'demo.snapback.json'), JSON.stringify({
+    surfaces: {
+      contract: { requirement: 'required', buildTargets: ['web'], devServer: 'bun run dev' },
+    },
+  }));
+  const [missingPackage] = collectRequiredWebSurfaces({
+    demosDir: join(scratch, 'missing-package-demos'),
+  }).map(classifyRequiredWebSurface);
+  assert.equal(missingPackage?.demoId, 'fixture');
+  assert.equal(missingPackage?.surfaceName, 'contract');
+  assert.equal(missingPackage?.hasPackage, false, 'a missing package stays in the required inventory');
+  assert.match(
+    requiredSurfaceStructuralErrors(missingPackage)[0],
+    /^fixture\/contract:/,
+    'structural failures identify the required surface',
+  );
+
+  const missingLockDir = join(scratch, 'missing-lock-demos', 'fixture', 'surfaces', 'contract');
+  mkdirSync(missingLockDir, { recursive: true });
+  writeFileSync(join(scratch, 'missing-lock-demos', 'fixture', 'demo.snapback.json'), JSON.stringify({
+    surfaces: {
+      contract: { requirement: 'required', buildTargets: ['web'], devServer: 'bun run dev' },
+    },
+  }));
+  writeFileSync(join(missingLockDir, 'package.json'), JSON.stringify({ scripts: { build: 'vite build' } }));
+  const [missingLock] = collectRequiredWebSurfaces({
+    demosDir: join(scratch, 'missing-lock-demos'),
+  }).map(classifyRequiredWebSurface);
+  assert.deepEqual(
+    requiredSurfaceStructuralErrors(missingLock),
+    ['fixture/contract: no committed bun.lock; registry Exact consumption is not reproducibly pinned'],
+    'list-mode structural validation includes lockfile failures by surface id',
+  );
+
+  const unclassifiedDemoDir = join(scratch, 'unclassified-demos', 'fixture');
+  mkdirSync(unclassifiedDemoDir, { recursive: true });
+  writeFileSync(join(unclassifiedDemoDir, 'demo.snapback.json'), JSON.stringify({
+    surfaces: { headless: { requirement: 'required', runner: 'node test.mjs' } },
+  }));
+  assert.throws(
+    () => collectRequiredWebSurfaces({ demosDir: join(scratch, 'unclassified-demos') }),
+    /every required surface must declare `buildTargets`/,
+    'required surface classification is mandatory even for non-web runners',
+  );
+
   const valid = surface('valid');
   assert.equal(verifyInstalledExactContract(valid.surfaceDir).ok, true, 'valid lock-installed package passes');
 

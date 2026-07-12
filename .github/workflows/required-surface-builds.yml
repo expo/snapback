@@ -25,6 +25,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # Agents push to main in bursts; only the newest commit's proof matters.
 concurrency:
   group: required-surface-builds-${{ github.ref }}
@@ -34,13 +37,20 @@ jobs:
   required-surface-builds:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
 
       # Build-only gate: no engine, no submodules, no Hermes — just the web
       # production builds of every required surface. Registry surfaces install

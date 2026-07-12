@@ -46,6 +46,9 @@ run ./ref-check --verbose
 run python3 tests/ref_check_v0.py
 run node tests/demo_setup_v0.mjs
 run node tests/allowlist_install_v0.mjs
+run node tests/ci_workflows_v0.mjs
+run node tests/cargo_target_headroom_v0.mjs
+run node scripts/check-package-test-inventory.mjs
 # LLP 0032 P7: the bring-up doctor's green path (read-only; red paths are
 # proven by hand in fresh worktrees).
 run scripts/ibex-doctor
@@ -65,6 +68,7 @@ run node demos/_kit/tests/server-process-lifecycle.mjs
 # stamp every subsequent Snapback Cargo unit with the checkout identity that
 # acceptance will verify.
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
+run node scripts/check-toolchain-authority.mjs
 stamp_snapback_build_identity
 run cargo clippy --all-targets -- -D warnings
 # ENG-24383: the vendored Ibex runtime is part of Snapback's executable
@@ -78,24 +82,25 @@ run cargo test
 # archiver crash at peak disk usage. Preserve dependency artifacts when that
 # leaves at least 8 GiB for the native archive and link; otherwise clean the
 # whole test profile. Keep local developer caches intact.
-if [ "${CI:-}" = "true" ]; then
+case "${CI:-}" in
+true|TRUE|True|1|yes|YES|on|ON)
     run cargo clean --profile test -p snapback
-    if ! available_kib="$(df -Pk "$ROOT" | awk 'NR == 2 { print $4 }')"; then
-        available_kib=""
+    if ! cleanup_decision="$(node scripts/cargo-target-headroom.mjs --cleanup-decision)"; then
+        cleanup_decision="unknown"
     fi
-    case "$available_kib" in
-        ''|*[!0-9]*)
+    case "$cleanup_decision" in
+        clean)
+            run cargo clean --profile test
+            ;;
+        preserve)
+            ;;
+        *)
             printf '[snapback-verify] unable to measure CI disk headroom; cleaning the test profile\n'
             run cargo clean --profile test
             ;;
-        *)
-            printf '[snapback-verify] CI Cargo headroom after workspace cleanup: %s KiB\n' "$available_kib"
-            if [ "$available_kib" -lt 8388608 ]; then
-                run cargo clean --profile test
-            fi
-            ;;
     esac
-fi
+    ;;
+esac
 # cargo test builds test harnesses, not the normal server executable. Build it
 # visibly and outside the 60 s runtime-ready deadline; startServer's cargo run
 # sees the same identity stamp and measures startup rather than a cold link.
@@ -119,25 +124,11 @@ run node demos/_kit/tests/regression-mixed-transport.mjs
 run node demos/_kit/tests/regression-multiplexed-lanes.mjs
 run node demos/_kit/tests/regression-midflight-resync.mjs
 run node demos/_kit/tests/live-delta-e2e.mjs
-run node packages/snapback-contract/index.test.mjs
-run node packages/snapback-contract/build-preset.test.mjs
-run node packages/snapback-contract/exact-package.test.mjs
-run node packages/snapback-contract/exact-conformance.test.mjs
-# The adapter's optimistic-overlay regression suite plus the derived-overlay
-# mirror (Exact LLP 0329 E-B gate): derived overlays must pass the same
-# duplicate-reapply / reconcile-failure scenarios as hand reducers, and the
-# JS overlay evaluator replays the data-tier corpus so it cannot drift from
-# the Rust evaluator.
-run node packages/snapback-contract/optimistic-duplicate-reapply.test.mjs
-run node packages/snapback-contract/mutation-reconcile-failure.test.mjs
-run node packages/snapback-contract/multi-live-poll-reconcile.test.mjs
-run node packages/snapback-contract/derived-overlay.test.mjs
-run node packages/snapback-contract/derived-overlay-duplicate-reapply.test.mjs
-run node packages/snapback-contract/derived-overlay-reconcile-failure.test.mjs
-run node packages/snapback-codegen/identifier-validation.test.mjs
-# LLP 0051 D5: the data-tier corpus is builder-authored and regen-and-diff
-# gated; the Rust runner executes the committed cases inside `cargo test`.
-run node packages/snapback-codegen/data-tier-corpus.test.mjs
+# Package-owned test commands are the inventory authority. The preceding
+# inventory gate proves every maintained test file is declared, so this cannot
+# silently regress to a hand-picked subset (ENG-24502).
+run bun run --cwd packages/snapback-contract test
+run bun run --cwd packages/snapback-codegen test
 # LLP 0040/0049: run the explicit inventory of every non-remote Cloudflare
 # regression. The runner pins suite IDs, the expected check count, completion
 # evidence, and a classification for every file so coverage cannot disappear
@@ -146,6 +137,13 @@ run node cloudflare/test/local-suite.mjs
 
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then
+        # Every acceptance caller resolves Exact only from its own lock-owned
+        # surface tree. A clean canonical runner must install each one instead
+        # of inheriting another demo's successful install (ENG-24502).
+        run bun install --frozen-lockfile --cwd demos/todo/surfaces/contract
+        run bun install --frozen-lockfile --cwd demos/todo-v2/surfaces/contract
+        run bun install --frozen-lockfile --cwd demos/graffiti/surfaces/contract
+        run bun install --frozen-lockfile --cwd demos/all-aboard/surfaces/contract
         run bun demos/todo/tests/acceptance/contract.mjs
         run bun demos/todo-v2/tests/acceptance/contract.mjs
         run bun demos/graffiti/tests/acceptance/contract.mjs
@@ -154,7 +152,7 @@ if [ "$VERIFY_EXACT" != "0" ]; then
         run bun demos/_kit/tests/regression-ephemeral-wiring.mjs
         run bun demos/_kit/tests/regression-multilive-scoped.mjs
         run bun install --frozen-lockfile --cwd admin-ui
-        run bash -lc 'cd admin-ui && ./build.sh && npm test'
+        run bash -lc 'cd admin-ui && ./build.sh && bun run test'
     elif [ "$VERIFY_EXACT" = "1" ]; then
         printf '[snapback-verify] error: SNAPBACK_VERIFY_EXACT=1 but bun or installed Exact packages are unavailable\n' >&2
         exit 1

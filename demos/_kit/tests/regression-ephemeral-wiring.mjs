@@ -389,7 +389,13 @@ try {
       // ENG-22757 provenance gate, a squatter on 4436 moves the first spawn
       // to an isolated port, and `db` (bound to server.baseUrl) must find the
       // restarted server at that same origin.
-      server = await startServer({ port: Number(new URL(server.baseUrl).port), db: ':memory:', cwd: repoRoot });
+      server = await startServer({
+        port: Number(new URL(server.baseUrl).port),
+        db: ':memory:',
+        cwd: repoRoot,
+        env: { SNAPBACK_ADMIN_TOKEN: server.adminToken },
+        bindPortExactly: true,
+      });
       await db.loadSchema(schemaManifest);
       await db.loadFunctions(functionsManifest);
 

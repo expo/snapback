@@ -619,7 +619,10 @@ fn cloudflare_leg_toolchain() -> Result<(PathBuf, PathBuf), String> {
         return Err(format!("missing runner {}", script.display()));
     }
     if !manifest_dir.join("node_modules/miniflare").is_dir() {
-        return Err("the miniflare dev dependency is not installed (npm install)".to_owned());
+        return Err(
+            "the miniflare dev dependency is not installed (bun install --frozen-lockfile)"
+                .to_owned(),
+        );
     }
     Ok((script, manifest_dir.to_path_buf()))
 }
@@ -718,7 +721,7 @@ fn main() {
     let Some(workerd_bin) = detect_workerd_binary() else {
         eprintln!(
             "SNAPBACK_CAPABILITY_WORKERD_MISSING: the conformance twin needs the workerd \
-             dev dependency (npm install) or SNAPBACK_WORKERD_BIN"
+             dev dependency (bun install --frozen-lockfile) or SNAPBACK_WORKERD_BIN"
         );
         std::process::exit(2);
     };

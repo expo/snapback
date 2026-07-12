@@ -232,23 +232,49 @@ priority and specifically exercises the LLP 0021 Contract/Exact hardening slice;
 see [`diaries/0004-todo-v2.diary.md`](./diaries/0004-todo-v2.diary.md).
 
 ```sh
+bun install --frozen-lockfile                         # root JS toolchain (packageManager pin)
 node packages/snapback-codegen/index.mjs demos/todo/snapback   # generate manifests from source
 node demos/todo/tests/acceptance/headless.mjs     # required surface (node)
 bun  demos/todo/tests/acceptance/contract.mjs     # Contract/Exact surface (installed packages or local override)
 ```
 
-For the local proof lane that CI runs without requiring Exact, use:
+The canonical CI proof requires the full Contract/Exact and admin checks. For a
+deliberately core-only local iteration, use:
 
 ```sh
 SNAPBACK_VERIFY_EXACT=0 scripts/verify-local-proof
 ```
 
-With each target surface's committed Exact package lock installed by the required-surface gate
-and `bun` available, omit `SNAPBACK_VERIFY_EXACT=0` to also run the
-Contract/admin checks. `SNAPBACK_EXACT_ROOT` remains a local-development
+The default local proof runs the Contract/admin checks when each target
+surface's committed Exact package lock has been installed by the
+required-surface gate. CI sets `SNAPBACK_VERIFY_EXACT=1`, so unavailable Exact
+dependencies fail instead of skipping. `SNAPBACK_EXACT_ROOT` remains a local-development
 override, not the default build path. Acceptance probes only the package tree
 owned by the surface under test; an install in another demo or `admin-ui` never
 turns a missing target green.
+
+The repository root has one JavaScript dependency authority: the exact Bun
+version in `package.json` plus `bun.lock`. Root `npm install` is rejected; npm
+locks under self-contained demo subprojects remain independent where declared.
+
+To upgrade the root Bun authority, first install/select the intended exact Bun
+release and verify it with `bun --version`. Change the `packageManager` value in
+`package.json`, run `bun install` with that same binary to regenerate `bun.lock`,
+then run:
+
+```sh
+bun install --frozen-lockfile
+node scripts/check-toolchain-authority.mjs
+scripts/verify-local-proof
+```
+
+Rust upgrades are coordinated with the linked runtime rather than floated in
+Snapback alone. First land the exact channel in Ibex's `rust-toolchain.toml`,
+update Snapback's `vendor/ibex` submodule to that Ibex commit, and set the root
+`rust-toolchain.toml` to the identical channel. Then run
+`scripts/bootstrap-ibex-runtime`, `node scripts/check-toolchain-authority.mjs`,
+and the canonical local proof. The authority check intentionally fails if the
+root and vendored pins differ or if the active compiler does not match them.
 
 ## Design docs (LLP)
 

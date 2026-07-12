@@ -14,10 +14,11 @@
 // package-version bump.
 //
 // Surface set is DERIVED from the demo manifests (demos/*/demo.snapback.json),
-// not a second hand-maintained list: a web surface is gated iff its manifest
-// entry is `requirement: "required"` AND a buildable `surfaces/<name>/` dir
-// with a package.json exists. A required web surface with no `build` script is
-// a FAILURE (the original cursors-web bug), never a skip.
+// not from whichever package.json files happen to survive in the checkout: a
+// web surface is gated iff its manifest entry is `requirement: "required"`
+// and declares `buildTargets: ["web"]`. Missing directories, manifests,
+// lockfiles, and build scripts are failures by surface id, never discovery
+// filters (ENG-24497).
 //
 // ENG-22564 removes the old checkout mode completely: no exact.pin.json, no
 // SNAPBACK_EXACT_ROOT, and no sibling source tree used as a native-asset bridge.
@@ -48,13 +49,13 @@ function fail(msg) {
 }
 
 // Collect the gated surfaces from the demo manifests (single source of truth).
-function collectRequiredWebSurfaces() {
+export function collectRequiredWebSurfaces({ demosDir = DEMOS_DIR } = {}) {
   const surfaces = [];
-  const demoIds = existsSync(DEMOS_DIR)
-    ? readdirSync(DEMOS_DIR).filter((name) => statSync(join(DEMOS_DIR, name)).isDirectory())
+  const demoIds = existsSync(demosDir)
+    ? readdirSync(demosDir).filter((name) => statSync(join(demosDir, name)).isDirectory())
     : [];
   for (const demoId of demoIds.sort()) {
-    const manifestPath = join(DEMOS_DIR, demoId, 'demo.snapback.json');
+    const manifestPath = join(demosDir, demoId, 'demo.snapback.json');
     if (!existsSync(manifestPath)) continue;
     let manifest;
     try {
@@ -64,27 +65,54 @@ function collectRequiredWebSurfaces() {
     }
     for (const [surfaceName, entry] of Object.entries(manifest.surfaces ?? {})) {
       if (!entry || entry.requirement !== 'required') continue;
-      const surfaceDir = join(DEMOS_DIR, demoId, 'surfaces', surfaceName);
+      if (!Array.isArray(entry.buildTargets)) {
+        throw new Error(
+          `${demoId}/${surfaceName}: every required surface must declare ` +
+          '`buildTargets` (`["web"]` for production-built web surfaces, `[]` otherwise)',
+        );
+      }
+      if (!entry.buildTargets?.includes('web')) continue;
+      const surfaceDir = join(demosDir, demoId, 'surfaces', surfaceName);
       const pkgPath = join(surfaceDir, 'package.json');
-      // Only buildable web surfaces have a surfaces/<name>/package.json; the
-      // node-runner "surfaces" (headless/cron/egress/real-data) do not, so they
-      // are naturally excluded.
-      if (!existsSync(pkgPath)) continue;
       surfaces.push({ demoId, surfaceName, surfaceDir, pkgPath });
     }
   }
   return surfaces;
 }
 
-function classify(surface) {
-  const pkg = JSON.parse(readFileSync(surface.pkgPath, 'utf8'));
-  const hasBuild = Boolean(pkg.scripts?.build);
+export function classifyRequiredWebSurface(surface) {
+  const hasDirectory = existsSync(surface.surfaceDir);
+  const hasPackage = existsSync(surface.pkgPath);
+  let pkg = null;
+  let packageError = null;
+  if (hasPackage) {
+    try {
+      pkg = JSON.parse(readFileSync(surface.pkgPath, 'utf8'));
+    } catch (error) {
+      packageError = error.message;
+    }
+  }
   return {
     ...surface,
-    hasBuild,
+    hasDirectory,
+    hasPackage,
+    packageError,
+    hasBuild: Boolean(pkg?.scripts?.build),
     hasLock: existsSync(join(surface.surfaceDir, 'bun.lock')),
     hasLegacyPin: existsSync(join(surface.surfaceDir, 'exact.pin.json')),
   };
+}
+
+export function requiredSurfaceStructuralErrors(surface) {
+  const id = `${surface.demoId}/${surface.surfaceName}`;
+  return [
+    !surface.hasDirectory && `${id}: required web surface directory is missing`,
+    !surface.hasPackage && `${id}: required web surface package.json is missing`,
+    surface.packageError && `${id}: package.json is invalid JSON: ${surface.packageError}`,
+    !surface.hasBuild && `${id}: required web surface package.json declares no \`build\` script`,
+    surface.hasLegacyPin && `${id}: legacy exact.pin.json survives; registry packages + bun.lock are required`,
+    !surface.hasLock && `${id}: no committed bun.lock; registry Exact consumption is not reproducibly pinned`,
+  ].filter(Boolean);
 }
 
 function distHasArtifact(surfaceDir) {
@@ -434,14 +462,27 @@ export async function ensureRegistryInstall(surface, {
 }
 
 async function main() {
-  const surfaces = collectRequiredWebSurfaces().map(classify);
+  const surfaces = collectRequiredWebSurfaces().map(classifyRequiredWebSurface);
   if (surfaces.length === 0) {
     fail('no required web surfaces found — the manifest-derivation is broken (expected all-aboard + cursors-web)');
   }
 
   log(`required web surfaces (from demos/*/demo.snapback.json):`);
   for (const s of surfaces) {
-    log(`  - ${s.demoId}/${s.surfaceName} [registry]${s.hasBuild ? '' : ' (NO build script)'}`);
+    const defects = [
+      !s.hasDirectory && 'NO surface directory',
+      !s.hasPackage && 'NO package.json',
+      s.packageError && 'INVALID package.json',
+      !s.hasBuild && 'NO build script',
+      s.hasLegacyPin && 'LEGACY exact.pin.json',
+      !s.hasLock && 'NO bun.lock',
+    ].filter(Boolean);
+    log(`  - ${s.demoId}/${s.surfaceName} [registry]${defects.length ? ` (${defects.join(', ')})` : ''}`);
+  }
+
+  for (const surface of surfaces) {
+    const [error] = requiredSurfaceStructuralErrors(surface);
+    if (error) fail(error);
   }
   if (LIST_ONLY) return;
 
@@ -450,17 +491,6 @@ async function main() {
     const id = `${surface.demoId}/${surface.surfaceName}`;
     process.stdout.write(`\n[required-surface-builds] == ${id} (registry) ==\n`);
 
-    // The original bug: a required web surface with no build script at all.
-    if (!surface.hasBuild) {
-      fail(`${id} is a required web surface but its package.json declares no \`build\` script — it can never be production-built (the ENG-22543 root cause). Add a build script.`);
-    }
-
-    if (surface.hasLegacyPin) {
-      fail(`${id}: legacy exact.pin.json survives; ENG-22564 requires registry packages + bun.lock only`);
-    }
-    if (!surface.hasLock) {
-      fail(`${id}: no committed bun.lock; registry Exact consumption is not reproducibly pinned`);
-    }
     const install = await ensureRegistryInstall(surface);
     if (!install.ok) fail(`${id}: ${install.reason}`);
 

@@ -44,6 +44,7 @@
   "surfaces": {
     "headless": {
       "requirement": "required",
+      "buildTargets": [],
       "runner": "node demos/todo/tests/acceptance/headless.mjs",
       "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server"
     },

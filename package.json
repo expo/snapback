@@ -2,12 +2,15 @@
   "name": "snapback-monorepo",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.3.12",
   "description": "Snapback workspace root (LLP 0032 P6). Product JS packages live under packages/*; demos and admin-ui manage and lock their own Exact package dependencies deliberately, not through the workspace.",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
+    "preinstall": "node scripts/require-bun-package-manager.mjs",
     "check:artifacts": "scripts/check-generated-artifacts",
+    "check:package-tests": "node scripts/check-package-test-inventory.mjs",
     "check:types": "scripts/check-generated-types",
     "check:surfaces": "scripts/check-demo-surfaces",
     "verify": "scripts/verify-local-proof",
@@ -21,6 +24,7 @@
     "ajv": "^8.20.0",
     "esbuild": "^0.28.1",
     "miniflare": "^4.20260701.0",
+    "typescript": "5.9.3",
     "workerd": "^1.20260707.1",
     "wrangler": "^4.107.0"
   }

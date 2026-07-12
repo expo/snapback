@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-09 (ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-12 (ENG-24504/ENG-24505/ENG-24507: one exact root Bun authority and lock-installed TypeScript, with Bun as the sole root lock; earlier 2026-07-09 ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
 `reviews/0041-packaged-dev-loop.claude.md`: runtime-distribution design
 section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
@@ -161,6 +161,13 @@ That is the standing policy: demos consume a recorded package version (or a
 pinned vendored/tarball snapshot when registry publication is impossible),
 never sibling checkout HEAD. Local unpublished Exact work uses uncommitted
 tarball/link overrides and restores the committed registry lock before landing.
+
+The repository root likewise has one dependency authority: the exact
+`packageManager` Bun version plus `bun.lock`. Root npm/yarn/pnpm installs fail
+closed rather than creating a second graph. TypeScript and other proof tools are
+resolved from that lock; they are never fetched ad hoc during a gate. Demo
+subprojects may retain their own declared package-manager locks because they are
+outside the root workspace and exercise independent consumer setups.
 
 ## Non-goals
 

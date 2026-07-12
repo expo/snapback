@@ -47,24 +47,29 @@
   "surfaces": {
     "headless": {
       "requirement": "required",
+      "buildTargets": [],
       "runner": "TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/headless.mjs"
     },
     "cron": {
       "requirement": "required",
+      "buildTargets": [],
       "runner": "TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/cron.mjs"
     },
     "egress": {
       "requirement": "required",
+      "buildTargets": [],
       "runner": "node demos/all-aboard/tests/acceptance/egress.mjs",
       "note": "Phase 3 egress seam; requires codegen of the probe fixture with SNAPBACK_OUTBOUND_ACTIONS=1."
     },
     "real-data": {
       "requirement": "required",
+      "buildTargets": [],
       "runner": "TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/real-data.mjs",
       "note": "Product action path against local 511 StopMonitoring + OpenRouteService mocks; requires SNAPBACK_OUTBOUND_ACTIONS=1 at runtime."
     },
     "contract": {
       "requirement": "required",
+      "buildTargets": ["web"],
       "runner": "node demos/all-aboard/tests/acceptance/browser.mjs",
       "devServer": "bun run --cwd demos/all-aboard/surfaces/contract dev (Exact from the npm registry: @exact/* alias deps -> @ccheever/exact-*, ENG-22480; surfaces/contract/bun.lock is the pin — it replaced exact.pin.json; one-time `bun install --cwd demos/all-aboard/surfaces/contract`)",
       "build": "bun run --cwd demos/all-aboard/surfaces/contract build (vite build via the installed exactContractWeb preset -> surfaces/contract/dist/web/; configured to emit __exact/native/mac-appkit-hermes and __exact/native/ios-uikit-hermes)",
@@ -85,6 +90,7 @@
     },
     "update-economy": {
       "requirement": "required",
+      "buildTargets": [],
       "runner": "EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/pinned/exact node demos/all-aboard/tests/acceptance/update-economy.mjs",
       "helperRunner": "EXACT_ALL_ABOARD_SOURCE_ROOT=/path/to/pinned/exact bun test demos/all-aboard/tests/acceptance/update-economy-helpers.test.ts",
       "evidence": "demos/all-aboard/measurements/update-economy.final.web.json + update-economy.final.md",

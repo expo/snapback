@@ -55,6 +55,11 @@ export async function startServer({
   // may still be reused if its /health server-binary identity matches this
   // checkout's clean build (ENG-22798). Default stays refuse-when-unverifiable.
   binaryProvenance = null,
+  // Test-only restart seam: atomically ask the child to bind this exact port.
+  // Readiness still requires the unique nonce, so an intervening squatter is
+  // rejected by the child's bind failure rather than adopted. Ordinary starts
+  // keep port zero and the OS-assigned isolation policy.
+  bindPortExactly = false,
   startupTimeoutMs = 60_000,
 } = {}) {
   return startServerWithDeps({
@@ -64,6 +69,7 @@ export async function startServer({
     env,
     provenance,
     binaryProvenance,
+    bindPortExactly,
     startupTimeoutMs,
   }, {});
 }
@@ -83,17 +89,21 @@ async function startServerWithDeps({
   env = {},
   provenance = null,
   binaryProvenance = null,
+  bindPortExactly = false,
   startupTimeoutMs = 60_000,
 } = {}, deps = {}) {
+  if (bindPortExactly && (!Number.isInteger(port) || port < 1 || port > 65_535)) {
+    throw new TypeError('bindPortExactly requires an explicit TCP port from 1 through 65535');
+  }
   const fetchImpl = deps.fetchImpl ?? fetch;
   const requestedBaseUrl = `http://127.0.0.1:${port}`;
-  const occupied = port !== 0 && await isPortOccupied(port);
+  const occupied = !bindPortExactly && port !== 0 && await isPortOccupied(port);
 
   // A requested port is a reuse candidate, never an unsafe spawn target. A
   // healthy matching Snapback process may be reused. Every other listener is
   // named before we ask the OS for an isolated port; cargo is never launched
   // into an occupied address (ENG-24378).
-  if (occupied && await isHealthy(requestedBaseUrl, fetchImpl)) {
+  if (!bindPortExactly && occupied && await isHealthy(requestedBaseUrl, fetchImpl)) {
     const verdict = await reuseVerdict(requestedBaseUrl, {
       provenance,
       binaryProvenance,
@@ -113,7 +123,7 @@ async function startServerWithDeps({
       `PROVENANCE MISMATCH: a server answers /health on :${port} but ${verdict.reason}. ` +
         'NOT reusing it — the new server will use an OS-assigned isolated port (ENG-22757/ENG-24378).',
     );
-  } else if (occupied) {
+  } else if (!bindPortExactly && occupied) {
     console.error(
       `PORT OCCUPIED: a non-Snapback or unhealthy listener owns 127.0.0.1:${port}. ` +
         'NOT spawning into it — the new server will use an OS-assigned isolated port (ENG-24378).',
@@ -127,10 +137,19 @@ async function startServerWithDeps({
   const expectedIdentity = deps.expectedIdentity ?? readCheckoutBinaryIdentity(cwd);
   const readyDir = mkdtempSync(join(tmpdir(), 'snapback-server-'));
   const readyFile = join(readyDir, 'ready.json');
-  // Port zero makes the listener bind itself atomically. The unique ready-file
-  // returns the chosen port and process nonce, eliminating the probe-then-bind
-  // race when helpers start in parallel.
-  const args = ['run', '--quiet', '--', '--port', '0', '--ready-file', readyFile];
+  // Ordinary starts use port zero so the listener binds itself atomically. An
+  // explicit restart bind also goes directly to the OS without a preflight
+  // probe. In both modes the unique ready-file returns the bound port and
+  // process nonce, eliminating adoption and probe-then-bind races.
+  const args = [
+    'run',
+    '--quiet',
+    '--',
+    '--port',
+    bindPortExactly ? String(port) : '0',
+    '--ready-file',
+    readyFile,
+  ];
   if (db === ':memory:') args.push('--memory');
   else args.push('--db', db);
 
@@ -189,7 +208,11 @@ async function startServerWithDeps({
       }
       const ready = readReadyDescriptor(readyFile);
       if (ready) {
-        const verified = await verifySpawnedReady(ready, { expectedIdentity, fetchImpl });
+        const verified = await verifySpawnedReady(ready, {
+          expectedIdentity,
+          fetchImpl,
+          expectedPort: bindPortExactly ? port : null,
+        });
         if (verified.ok) {
           const baseUrl = ready.serverUrl.replace(/\/$/, '');
           let stopPromise = null;
@@ -344,7 +367,14 @@ function readReadyDescriptor(path) {
   return ready;
 }
 
-async function verifySpawnedReady(ready, { expectedIdentity, fetchImpl }) {
+async function verifySpawnedReady(ready, { expectedIdentity, fetchImpl, expectedPort = null }) {
+  if (expectedPort !== null && ready.port !== expectedPort) {
+    return {
+      ok: false,
+      retry: false,
+      reason: `ready file published port ${ready.port}, not requested exact port ${expectedPort}`,
+    };
+  }
   let response;
   try {
     response = await fetchImpl(`${ready.serverUrl}/health`, { signal: AbortSignal.timeout(750) });

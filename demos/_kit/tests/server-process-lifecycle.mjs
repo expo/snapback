@@ -25,6 +25,7 @@ const { spawn } = require('node:child_process');
 const { writeFileSync, renameSync } = require('node:fs');
 const { createServer } = require('node:http');
 const readyFile = process.argv[2];
+const bindPort = Number(process.argv[3] || 0);
 const expected = JSON.parse(process.env.FIXTURE_EXPECTED);
 const nonce = randomUUID();
 let resistantDescendant = null;
@@ -38,7 +39,7 @@ const server = createServer((req, res) => {
     resistantDescendantPid: resistantDescendant?.pid ?? null,
   }));
 });
-const listen = () => server.listen(0, '127.0.0.1', () => {
+const listen = () => server.listen(bindPort, '127.0.0.1', () => {
   const port = server.address().port;
   const tmp = readyFile + '.tmp';
   writeFileSync(tmp, JSON.stringify({
@@ -69,9 +70,9 @@ process.on('SIGINT', stop);
 const deps = {
   expectedIdentity: EXPECTED,
   preflight: () => ({}),
-  launchSpec: ({ readyFile, cwd, env }) => ({
+  launchSpec: ({ args, readyFile, cwd, env }) => ({
     command: process.execPath,
-    args: [fixture, readyFile],
+    args: [fixture, readyFile, args[args.indexOf('--port') + 1]],
     cwd,
     env: { ...env, FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
   }),
@@ -119,6 +120,44 @@ try {
   assert.equal(first.clientOptions.adminToken, first.adminToken);
   assert.equal(process.env.SNAPBACK_ADMIN_TOKEN, undefined, 'startup does not contaminate global credentials');
 
+  const restartPort = Number(new URL(first.baseUrl).port);
+  await first.stop();
+  running.splice(running.indexOf(first), 1);
+  const exactRestart = await __startServerForTests({
+    port: restartPort,
+    bindPortExactly: true,
+    cwd: scratch,
+    startupTimeoutMs: 2_000,
+  }, deps);
+  running.push(exactRestart);
+  assert.equal(
+    Number(new URL(exactRestart.baseUrl).port),
+    restartPort,
+    'explicit restart seam binds the released origin exactly',
+  );
+
+  const releasedPortServer = await listen((_req, res) => res.end('temporary'));
+  const releasedPort = releasedPortServer.address().port;
+  await new Promise((resolve) => releasedPortServer.close(resolve));
+  await assert.rejects(
+    __startServerForTests({
+      port: releasedPort,
+      bindPortExactly: true,
+      cwd: scratch,
+      startupTimeoutMs: 2_000,
+    }, {
+      ...deps,
+      launchSpec: ({ readyFile, cwd, env }) => ({
+        command: process.execPath,
+        args: [fixture, readyFile, '0'],
+        cwd,
+        env: { ...env, FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+      }),
+    }),
+    /published port \d+, not requested exact port/,
+    'exact restart rejects a nonce-valid child that silently binds a different port',
+  );
+
   const squatter = await listen((_req, res) => {
     res.statusCode = 503;
     res.end('not snapback');
@@ -131,6 +170,16 @@ try {
   }, deps);
   running.push(isolated);
   assert.notEqual(Number(new URL(isolated.baseUrl).port), squatterPort, 'unhealthy occupant is never adopted');
+  await assert.rejects(
+    __startServerForTests({
+      port: squatterPort,
+      bindPortExactly: true,
+      cwd: scratch,
+      startupTimeoutMs: 2_000,
+    }, deps),
+    /exited before verified readiness|EADDRINUSE/,
+    'exact restart bind neither adopts an occupant nor falls back to another origin',
+  );
   await new Promise((resolve) => squatter.close(resolve));
 
   await assert.rejects(

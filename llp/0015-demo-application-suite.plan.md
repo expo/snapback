@@ -120,6 +120,15 @@ committed, generated on demand, or snapshotted for tests is still an LLP 0010
 open question; the demo manifest should make the chosen behavior explicit per
 demo.
 
+A required surface declares `buildTargets` in its demo-manifest entry:
+`["web"]` for production-built browser surfaces and `[]` for runner-only
+surfaces. The production-build gate derives identity from that fact
+before inspecting the filesystem, so a missing surface directory or
+`package.json` remains an identified failure rather than disappearing from the
+inventory. The canonical test pins the expected required-web IDs/count; adding
+or removing one is an explicit review event. `[confirmed — Charlie Cheever /
+Codex, 2026-07-12, ENG-24497]`
+
 ## Surface Classes
 
 ### Headless
@@ -375,6 +384,10 @@ A skip is valid only when all of the following are true:
 
 A required surface that is missing its toolchain, version, or capability is a
 failure, not a skip.
+
+Required-web discovery follows the manifest's `buildTargets`, not existing
+package files. Missing directories, `package.json`, locks, or build scripts fail
+with the demo/surface id.
 
 The production-build gate does not treat an existing `node_modules` directory
 as evidence of that capability. For every required registry-backed surface it

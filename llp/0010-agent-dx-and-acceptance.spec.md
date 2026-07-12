@@ -68,6 +68,13 @@ these operations:
 - explain query plans, index usage, permission decisions, and capability gaps;
 - run the acceptance suite.
 
+Test helpers normally bind port zero and accept readiness only from their unique
+nonce. A restart proof that must preserve one client origin may explicitly ask
+the child to bind the released port; it never reuses an occupant, and the OS
+bind plus nonce-attested ready file remain the authorities. This keeps
+same-origin reconnect coverage without restoring a probe-then-bind adoption
+race. `[confirmed — Charlie Cheever / Codex, 2026-07-12, ENG-24502]`
+
 The concrete v0 operation ids, CLI verbs, HTTP projection, control-plane MCP
 tools, and generated app-data MCP catalog are pinned in
 [LLP 0024](./0024-agent-operating-surface.spec.md). Any surface exposing these
@@ -673,6 +680,21 @@ that prove its contract. Before implementation PRs merge, CI should run:
 - unit tests for generated manifests and diagnostics;
 - local acceptance tests for the affected subsystem;
 - the todo acceptance app once the local core exists.
+
+The canonical proof is an inventory, not a sample. Package-owned test commands
+must name every maintained package test, the Cloudflare local corpus must have
+an explicit non-vacuous suite manifest, and required web surfaces must declare
+their build target in the demo manifest independently of filesystem artifacts.
+CI requires the Contract/Exact and admin behavior lanes; missing dependencies
+are failures there, never automatic skips.
+
+Proof inputs are repository facts: an exact root Bun authority and single Bun
+lock, an exact Rust toolchain coordinated with vendored Ibex, lock-installed
+exact TypeScript, and immutable full-SHA GitHub Actions. Checkout credentials
+must be removed before repository code executes and workflow permissions stay
+explicitly read-only. Resource guards query Cargo's effective target directory
+rather than assuming it shares the repository filesystem. `[confirmed —
+Charlie Cheever / Codex, 2026-07-12, ENG-24497/ENG-24502–ENG-24508]`
 
 When a behavior is not yet implemented, the capability report should say so and
 the tests should assert the reported gap rather than silently skipping it.

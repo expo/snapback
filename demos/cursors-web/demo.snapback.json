@@ -37,6 +37,7 @@
   "surfaces": {
     "contract": {
       "requirement": "required",
+      "buildTargets": ["web"],
       "runner": "node demos/cursors-web/tests/acceptance/contract-browser.mjs",
       "devServer": "bun install --cwd demos/cursors-web/surfaces/contract (once), then SNAPBACK_CURSORS_API=http://127.0.0.1:4425 bun run --cwd demos/cursors-web/surfaces/contract dev (Exact consumed from registry aliases; bun.lock is the pin)",
       "toolchain": "node>=24, cargo, bun, published Exact packages at the committed lock, local Google Chrome with Chrome DevTools Protocol",

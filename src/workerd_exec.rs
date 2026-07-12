@@ -145,7 +145,7 @@ pub fn workerd_missing_error() -> SnapbackError {
         "SNAPBACK_CAPABILITY_WORKERD_MISSING",
         "runtime",
         "the workerd-v8 handler backend needs the workerd binary (npm dev dependency); \
-         run `npm install` at the repo root or set SNAPBACK_WORKERD_BIN",
+         run `bun install --frozen-lockfile` at the repo root or set SNAPBACK_WORKERD_BIN",
     )
 }
 

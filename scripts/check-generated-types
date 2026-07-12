@@ -1,17 +1,37 @@
 #!/usr/bin/env bash
 # LLP 0032 P3(b): tsc --noEmit over every generated api.d.ts plus the typed
 # consumer fixture, so emitted-invalid-TypeScript (the S5.D2 class) cannot
-# land. Runs standalone (pinned typescript via npx) until the P6 workspace
-# owns toolchain deps.
+# land. TypeScript is an exact root workspace dependency so this gate never
+# consults the registry or an ambient npm cache while proving committed output.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-TSC=(npx --yes --package typescript@5.9 tsc)
+EXPECTED_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).devDependencies.typescript")"
+if ! [[ "$EXPECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf '[check-generated-types] error: root TypeScript must be an exact version, found %q\n' "$EXPECTED_VERSION" >&2
+    exit 1
+fi
 
-"${TSC[@]}" \
+# The override is a regression-test seam for the fail-closed missing-install
+# path. It can only narrow this proof to another already-installed tree; the
+# gate never invokes a package runner or registry fallback.
+NODE_MODULES="${SNAPBACK_TYPESCRIPT_NODE_MODULES:-$ROOT/node_modules}"
+TSC="$NODE_MODULES/.bin/tsc"
+TYPESCRIPT_MANIFEST="$NODE_MODULES/typescript/package.json"
+if [ ! -x "$TSC" ] || [ ! -f "$TYPESCRIPT_MANIFEST" ]; then
+    printf '[check-generated-types] error: locked TypeScript %s is not installed; run `bun install --frozen-lockfile`\n' "$EXPECTED_VERSION" >&2
+    exit 1
+fi
+ACTUAL_VERSION="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).version" "$TYPESCRIPT_MANIFEST")"
+if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
+    printf '[check-generated-types] error: installed TypeScript %s does not match package.json %s; run `bun install --frozen-lockfile`\n' "$ACTUAL_VERSION" "$EXPECTED_VERSION" >&2
+    exit 1
+fi
+
+"$TSC" \
     --noEmit \
     --strict \
     --target es2022 \

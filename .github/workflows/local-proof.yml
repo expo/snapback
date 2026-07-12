@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 # Agents push to main in bursts; only the newest commit's proof matters, so
 # cancel superseded runs instead of paying for each.
 concurrency:
@@ -15,19 +18,25 @@ jobs:
   local-proof:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
+          persist-credentials: false
           # vendor/ibex is a private-repo submodule; the default GITHUB_TOKEN
           # only reads this repository. Fine-grained PAT, Contents: read on
           # ccheever/snapback + ccheever/ibex.
           token: ${{ secrets.SUBMODULE_TOKEN }}
 
-      - uses: actions/setup-node@v6
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
 
       # The canonical proof regenerates committed artifacts and exercises the
       # Cloudflare twin, both of which import root lockfile dependencies. A
@@ -40,7 +49,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
 
       - name: Cache Hermes Linux build
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/exact/hermes-linux
@@ -54,7 +63,7 @@ jobs:
       # full dependency tree (and the ibex-runtime C++ glue) on a 2-core
       # runner — the dominant per-run cost.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       # ENG-24383: verify-local-proof denies both vulnerabilities and
       # unmaintained runtime dependencies. Pin the auditing tool so the gate's
@@ -64,5 +73,5 @@ jobs:
 
       - name: Verify Snapback local proof
         env:
-          SNAPBACK_VERIFY_EXACT: "0"
+          SNAPBACK_VERIFY_EXACT: "1"
         run: scripts/verify-local-proof
