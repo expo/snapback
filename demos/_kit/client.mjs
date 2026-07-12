@@ -779,6 +779,7 @@ export class SnapbackClient {
     // only after the prior path has committed its subscription id.
     let freshSubscribeTail = Promise.resolve();
     let freshSubscribePending = 0;
+    const freshSubscribeQueueGenerations = new WeakMap();
 
     const handle = {
       subscriptionId: null,
@@ -848,6 +849,15 @@ export class SnapbackClient {
       const error = new Error(`${code}: Snapback live query subscribe was cancelled because the handle was ${state}.`);
       error.code = code;
       error.diagnostic = { code, message: error.message.slice(code.length + 2) };
+      return error;
+    };
+
+    const subscribeQueueInvalidatedError = () => {
+      const code = 'SNAPBACK_LIVE_QUERY_SUBSCRIBE_QUEUE_INVALIDATED';
+      const message = 'queued fresh subscribe was invalidated by the preceding attempt failure';
+      const error = new Error(`${code}: ${message}`);
+      error.code = code;
+      error.diagnostic = { code, message };
       return error;
     };
 
@@ -1011,8 +1021,36 @@ export class SnapbackClient {
 
     const subscribeFresh = () => {
       const lifecycle = currentSubscribeLifecycle();
+      const queueGeneration = freshSubscribeQueueGenerations.get(lifecycle.signal) ?? 0;
       freshSubscribePending += 1;
-      const queued = freshSubscribeTail.then(() => subscribeFreshExclusive(lifecycle));
+      const attempted = freshSubscribeTail.then(() => {
+        // A same-lifecycle predecessor may have failed ambiguously after this
+        // work was queued. Do not let the tail's neutralized rejection release
+        // a sibling POST that captured the same old `supersedes` value. A new
+        // lifecycle has a new signal and is intentionally not poisoned.
+        if (
+          queueGeneration !== (freshSubscribeQueueGenerations.get(lifecycle.signal) ?? 0)
+        ) {
+          throw subscribeQueueInvalidatedError();
+        }
+        return subscribeFreshExclusive(lifecycle);
+      });
+      const queued = attempted.then(
+        (value) => value,
+        (error) => {
+          if (
+            error?.code !== 'SNAPBACK_LIVE_QUERY_SUBSCRIBE_QUEUE_INVALIDATED' &&
+            queueGeneration === (freshSubscribeQueueGenerations.get(lifecycle.signal) ?? 0)
+          ) {
+            // Advance this lifecycle before releasing the FIFO tail. Its
+            // already-queued work is rejected before the first POST; later
+            // explicit recovery (or a new lifecycle) captures a fresh
+            // generation and can proceed.
+            freshSubscribeQueueGenerations.set(lifecycle.signal, queueGeneration + 1);
+          }
+          throw error;
+        },
+      );
       // Keep the mutex usable after rejection, while attaching a rejection
       // handler immediately so a cancelled queued attempt is never unhandled.
       freshSubscribeTail = queued.then(() => undefined, () => undefined);
@@ -1122,6 +1160,9 @@ export class SnapbackClient {
           attemptReason = pendingResubscribeReason;
         }
       } catch (error) {
+        if (error?.code === 'SNAPBACK_LIVE_QUERY_SUBSCRIBE_QUEUE_INVALIDATED') {
+          return false;
+        }
         if (!disposed && !paused) {
           if (onConnectionChange) {
             deliverIsolated(onConnectionChange, connection, { previous: connection, error });

@@ -877,7 +877,10 @@ and fallback fresh-subscribe work is serialized per handle, with lifecycle
 validity checked before every POST and after every await. Each operation
 captures `supersedes` only after acquiring that queue, so concurrent lifecycle
 demands form one explicit predecessor chain instead of sibling subscriptions;
-a late HTTP success after pause/dispose is retired immediately.
+a late HTTP success after pause/dispose is retired immediately. If an attempt
+fails, its queue generation advances before the FIFO tail is released, so
+already-queued same-lifecycle work is cancelled before its first POST instead
+of replaying an ambiguous predecessor with the same `supersedes` value.
 
 The deterministic kit regression checks initial and pause/resume reconciliation,
 send failure, no-pong replacement, stale-generation pong rejection, exact retry

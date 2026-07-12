@@ -742,20 +742,65 @@ try {
     );
     const resumeSocket = await nextSocket(beforeResume);
     alpha.pause();
+    // Queue the new lifecycle synchronously, before the cancelled resume's
+    // rejection microtask can poison its own same-lifecycle queue generation.
+    const alphaNextLifecycle = alpha.resume();
     resumeSocket.dispatch('open', {});
     const ping = await nextSentPing(resumeSocket);
     acknowledgePing(resumeSocket, ping);
-    await betaResume;
+    await Promise.all([alphaNextLifecycle, betaResume]);
     const { error: alphaError } = await alphaOutcome;
     assertEqual(alphaError?.code, 'SNAPBACK_LIVE_QUERY_PAUSED_DURING_SUBSCRIBE', 'paused caller settles with its lifecycle diagnostic');
-    assertEqual(attempts.get('alpha'), 2, 'paused caller never replays its refused POST');
+    assertEqual(attempts.get('alpha'), 3, 'paused caller never replays, while its new lifecycle establishes');
     assertEqual(attempts.get('beta'), 3, 'remaining caller retries after shared readiness');
     assertEqual(resumeSocket.sent.length, 1, 'remaining caller keeps the single shared probe alive');
-    await alpha.resume();
-    assertEqual(attempts.get('alpha'), 3, 'a later lifecycle can resume cleanly after cancellation');
     alpha.dispose();
     beta.dispose();
     return { attempts: Object.fromEntries(attempts), probes: resumeSocket.sent.length };
+  });
+
+  await suite.check('a late old-lifecycle HTTP result cannot poison an immediate resume', async () => {
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    let resolveOldLifecycle;
+    const unsubscribed = [];
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      if (subscribeCalls === 1) {
+        return { subscription_id: 'sub_lifecycle_initial', snapshot: { version: 1, rows: [] } };
+      }
+      if (subscribeCalls === 2) {
+        return new Promise((resolve) => {
+          resolveOldLifecycle = () => resolve({
+            subscription_id: 'sub_lifecycle_late',
+            snapshot: { version: 2, rows: [] },
+          });
+        });
+      }
+      return { subscription_id: 'sub_lifecycle_resumed', snapshot: { version: 3, rows: [] } };
+    };
+    db.unsubscribeLive = async (_name, { subscriptionId }) => {
+      unsubscribed.push(subscriptionId);
+      return { removed: true };
+    };
+    const handle = await db.liveQuery('listTodos', {
+      connectionId: 'conn_late_old_lifecycle',
+      transport: 'poll',
+    });
+    const consumers = db.__laneConsumers.get('conn_late_old_lifecycle');
+    for (const consumer of [...consumers.durable]) consumer({ kind: 'resync_required' });
+    await waitFor(() => subscribeCalls === 2, 'old-lifecycle resubscribe in flight');
+
+    handle.pause();
+    const resumed = handle.resume();
+    resolveOldLifecycle();
+    await resumed;
+    await sleep(20);
+    assertEqual(subscribeCalls, 3, 'the queued new lifecycle reaches its POST exactly once');
+    assertEqual(handle.subscriptionId, 'sub_lifecycle_resumed', 'new lifecycle owns the resumed subscription');
+    assert(unsubscribed.includes('sub_lifecycle_late'), 'late old-lifecycle success is explicitly retired');
+    handle.dispose();
+    return { subscribeCalls, unsubscribed };
   });
 
   await suite.check('dispose during readiness releases last demand and cannot persist afterward', async () => {
@@ -982,6 +1027,11 @@ try {
     assert(error.message.includes('resume retry failed'), `unexpected resume failure: ${error.message}`);
     const drainsAtFailure = drainCalls;
     await sleep(30);
+    assertEqual(
+      subscribeCalls,
+      3,
+      'an ambiguous resume failure poisons the already-queued reconnect before its POST',
+    );
     assertEqual(drainCalls, drainsAtFailure, 'paused failure state runs no fallback drain interval');
     assertEqual(handle.connection, 'disconnected', 'failed resume returns the handle to disconnected');
     assertEqual(db.__liveStreamManagers.size, 0, 'failed resume releases the manager and queued reconnect work');
