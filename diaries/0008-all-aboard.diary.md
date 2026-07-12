@@ -2087,3 +2087,22 @@ require the explicit commit timestamp and reject commit/paint inversion. This
 keeps the React control and Contract paved road honest under the same
 commit → paint → backend ordering instead of comparing differently optimistic
 clocks.
+
+## 2026-07-12 (eleventh entry) — calibrate the shared-runner paint gate
+
+The first integrated GitHub cold-clone proof passed at 2102 ms from HTML
+response to useful board paint, only 98 ms inside the 2200 ms local/dev budget.
+An unrelated follow-up that changed only `local-proof.yml` then measured
+2507 ms and failed. Its decomposition made the source of variance visible:
+1666 ms before the entry body, 667 ms from entry to useful-board commit, and
+173 ms across the commit-to-paint witness. The board still beat backend attach
+by 211 ms, and all other 33 browser checks passed.
+
+That is a shared two-core runner calibration problem, not evidence that the
+product regressed between the two commits. The cold-clone workflow now sets an
+explicit 3800 ms ceiling: approximately 1.5 times the observed 2507 ms CI
+maximum, following the same headroom rule used for the default. The local and
+ordinary acceptance ceiling stays 2200 ms, and the clock-real 2600 ms static
+evaluation regression remains red under that default. This keeps the hosted
+clean-clone lane stable without weakening the tighter development signal or
+hiding whether paint still precedes backend work.
