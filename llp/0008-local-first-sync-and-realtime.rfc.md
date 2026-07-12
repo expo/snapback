@@ -5,7 +5,7 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (§Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
+**Revised:** 2026-07-12 (ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013
 
 ## Summary
@@ -418,6 +418,21 @@ What the decision pins:
   store-agnostic interface, and a second store (or the in-memory fallback)
   exercises the seam in the same change — the conformance habit that kept
   the ephemeral backend honest (LLP 0026 Phase 1).
+- **Durable state never becomes empty success by parse fallback.** Once bytes
+  exist, corrupt JSON, a future format version, and an unsupported legacy
+  version are typed invalid-state diagnostics. The implementation preserves
+  the exact bytes in place and refuses ordinary reads and writes until an
+  explicit migration or caller-authorized reset. A downgrade therefore cannot
+  load a future queue as empty and overwrite the only copy.
+- **Serialization covers independently constructed same-origin clients.** The
+  monotonic outbox sequence and retained-query compare/write are transactions,
+  not instance-local promise ordering. The localStorage implementation takes
+  one exclusive Web Lock per storage key around every load/modify/save and
+  records a durable generation on writes; context loss releases the platform
+  lock for takeover. If Web Locks are unavailable, this adapter reports
+  `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` and fails closed rather than using a
+  timeout lease or last-writer-wins storage. Native/SQLite implementations keep
+  the existing single-connection mutex and transaction requirement.
 
 Revisit trigger: if parity-class offline execution (local handler replay)
 ever requires query capabilities the interface cannot express without

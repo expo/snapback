@@ -106,6 +106,23 @@ const retainedSurfaceIdentity = {
   retainedIdentity: { databaseId: 'offline-test-db', versionStreamId: 'offline-test-stream-1' },
 };
 
+// Deterministic same-origin Web Locks stand-in. Operations for one lock name
+// are FIFO, and a rejected/crashed holder releases the queue for its successor.
+function createTestLockManager() {
+  const tails = new Map();
+  return {
+    request(name, _options, operation) {
+      const prior = tails.get(name) ?? Promise.resolve();
+      const result = prior.then(operation, operation);
+      const tail = result.then(() => undefined, () => undefined);
+      tails.set(name, tail);
+      return result.finally(() => {
+        if (tails.get(name) === tail) tails.delete(name);
+      });
+    },
+  };
+}
+
 function makeClient() {
   const state = {
     online: true,
@@ -271,7 +288,12 @@ const fakeStorage = {
   getItem(key) { return storageBytes.get(key) ?? null; },
   setItem(key, value) { storageBytes.set(key, value); },
 };
-const durableA = createLocalStorageSnapbackClientStore({ storage: fakeStorage, key: 'test' });
+const durableLocks = createTestLockManager();
+const durableA = createLocalStorageSnapbackClientStore({
+  storage: fakeStorage,
+  key: 'test',
+  lockManager: durableLocks,
+});
 await durableA.scopeToAuth('auth:stable');
 await durableA.scopeToArtifacts({ schemaHash: 'schema:a', inputsHash: 'inputs:a' });
 await durableA.putRetainedQuery('todos:{}', {
@@ -299,7 +321,11 @@ await durableA.enqueueMutation({
   schemaHash: 'schema:a',
   inputsHash: 'inputs:a',
 });
-const durableB = createLocalStorageSnapbackClientStore({ storage: fakeStorage, key: 'test' });
+const durableB = createLocalStorageSnapbackClientStore({
+  storage: fakeStorage,
+  key: 'test',
+  lockManager: durableLocks,
+});
 assert.deepEqual(
   (await durableB.getRetainedQuery('todos:{}', {
     authFingerprint: 'auth:stable',
@@ -322,6 +348,116 @@ assert.equal('ctxLedger' in tombstone, false, 'artifact quarantine must redact o
 assert.equal(JSON.stringify(tombstone).includes('old-payload'), false);
 assert.equal(JSON.stringify(await durableB.failedMutations()).includes('old-failed-payload'), false);
 assert.equal(await durableB.getRetainedQuery('todos:{}', { authFingerprint: 'auth:stable' }), null);
+
+// Existing but uninterpretable bytes are never normalized into an empty
+// healthy queue. Every ordinary operation fails with a stable diagnostic and
+// leaves the exact bytes in place; only the explicit clear() recovery replaces
+// them. Both future-version and downgrade-version stores fail closed.
+for (const invalid of [
+  {
+    label: 'corrupt JSON',
+    raw: '{not-json',
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'future version',
+    raw: JSON.stringify({ version: 999, pending: [{ id: 'must-survive' }] }),
+    code: 'SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED',
+    direction: 'future',
+  },
+  {
+    label: 'downgrade version',
+    raw: JSON.stringify({ version: 0, retained: { secret: true } }),
+    code: 'SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED',
+    direction: 'legacy',
+  },
+]) {
+  const bytes = new Map([['invalid', invalid.raw]]);
+  const storage = {
+    getItem(key) { return bytes.get(key) ?? null; },
+    setItem(key, value) { bytes.set(key, value); },
+  };
+  const store = createLocalStorageSnapbackClientStore({
+    storage,
+    key: 'invalid',
+    lockManager: createTestLockManager(),
+  });
+  await assert.rejects(store.snapshot(), (error) => {
+    assert.equal(error.code, invalid.code, invalid.label);
+    assert.equal(error.diagnostic?.code, invalid.code, invalid.label);
+    if (invalid.direction) {
+      assert.equal(error.diagnostic?.details?.direction, invalid.direction, invalid.label);
+    }
+    return true;
+  });
+  await assert.rejects(store.enqueueMutation({ function: 'must-not-overwrite' }), {
+    code: invalid.code,
+  });
+  assert.equal(bytes.get('invalid'), invalid.raw, `${invalid.label}: preserve exact original bytes`);
+  await store.clear();
+  const recovered = await store.snapshot();
+  assert.equal(recovered.version, 1, `${invalid.label}: explicit reset recovers`);
+  assert.deepEqual(recovered.pending, [], `${invalid.label}: reset is visibly empty`);
+}
+
+assert.throws(
+  () => createLocalStorageSnapbackClientStore({ storage: fakeStorage, lockManager: null }),
+  { code: 'SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE' },
+  'localStorage must fail closed when cross-context serialization is unavailable',
+);
+
+// Two independently constructed tab/context stores enqueue concurrently under
+// one same-origin lock name. Both records survive with one durable monotonic
+// sequence; the pre-fix load/modify/save race lost one and reused sequence 1.
+const sharedBytes = new Map();
+let failNextSharedWrite = false;
+const sharedStorage = {
+  getItem(key) { return sharedBytes.get(key) ?? null; },
+  setItem(key, value) {
+    if (failNextSharedWrite) {
+      failNextSharedWrite = false;
+      throw new Error('simulated context crash during durable write');
+    }
+    sharedBytes.set(key, value);
+  },
+};
+const sharedLocks = createTestLockManager();
+const tabA = createLocalStorageSnapbackClientStore({
+  storage: sharedStorage,
+  key: 'tabs',
+  lockManager: sharedLocks,
+});
+const tabB = createLocalStorageSnapbackClientStore({
+  storage: sharedStorage,
+  key: 'tabs',
+  lockManager: sharedLocks,
+});
+const [queuedA, queuedB] = await Promise.all([
+  tabA.enqueueMutation({ function: 'fromTabA' }),
+  tabB.enqueueMutation({ function: 'fromTabB' }),
+]);
+assert.deepEqual([queuedA.sequence, queuedB.sequence], [1, 2]);
+assert.notEqual(queuedA.id, queuedB.id);
+assert.deepEqual(
+  (await tabA.pendingMutations()).map((entry) => entry.function),
+  ['fromTabA', 'fromTabB'],
+);
+const afterConcurrentEnqueue = await tabB.snapshot();
+assert.equal(afterConcurrentEnqueue.nextSequence, 3);
+assert.equal(afterConcurrentEnqueue.generation, 2, 'each committed transaction advances durable generation');
+
+// A holder that dies while writing does not leave a lease wedged. Web Locks
+// releases it; the next context takes over from the last committed generation.
+failNextSharedWrite = true;
+await assert.rejects(tabA.enqueueMutation({ function: 'crashedTab' }), /simulated context crash/);
+const afterCrash = await tabB.enqueueMutation({ function: 'takeoverTab' });
+assert.equal(afterCrash.sequence, 3);
+assert.equal((await tabB.snapshot()).generation, 3, 'failed write did not consume a durable generation');
+assert.deepEqual(
+  (await tabA.pendingMutations()).map((entry) => entry.function),
+  ['fromTabA', 'fromTabB', 'takeoverTab'],
+);
 
 // A durable enqueue failure must roll back the already-rendered optimistic
 // row and fail before contacting the server. Otherwise every later server-row

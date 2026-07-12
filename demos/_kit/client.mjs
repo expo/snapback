@@ -730,6 +730,7 @@ export class SnapbackClient {
 
     let connection = 'connecting';
     let disposed = false;
+    let disposing = false;
     let paused = false;
     let resubscribing = false;
     let fallbackTimer = null;
@@ -819,7 +820,7 @@ export class SnapbackClient {
         ...extra,
       };
       client.recordReceipt(receipt);
-      onSubscriptionEvent?.(receipt);
+      if (onSubscriptionEvent) deliverIsolated(onSubscriptionEvent, receipt);
     };
 
     const emitEstablishedOnce = () => {
@@ -834,8 +835,8 @@ export class SnapbackClient {
 
     const bestEffortUnsubscribeLive = (subscriptionId) => {
       if (!subscriptionId) return;
-      void client
-        .unsubscribeLive(name, { subscriptionId, connectionId, userId })
+      void Promise.resolve()
+        .then(() => client.unsubscribeLive(name, { subscriptionId, connectionId, userId }))
         .catch(() => {
           // Best-effort: the subscription may already be gone (disconnect,
           // supersession) or the server unreachable — the reaper covers it.
@@ -1420,26 +1421,47 @@ export class SnapbackClient {
     };
 
     handle.dispose = () => {
-      if (disposed) return;
-      emitEstablishedOnce(); // receipt ordering: established before disposed
-      emitEvent('disposed');
+      if (disposed || disposing) return;
+      disposing = true;
       const staleSubscriptionId = handle.subscriptionId;
-      disposed = true;
-      invalidateSubscribeLifecycle('disposed');
-      stopFallback();
-      clearResubscribeRetry();
-      if (establishTimer) {
-        clearTimeout(establishTimer);
-        establishTimer = null;
+      let firstCleanupError = null;
+      const attempt = (cleanup) => {
+        try {
+          cleanup();
+        } catch (error) {
+          firstCleanupError ??= error;
+        }
+      };
+      try {
+        // Receipt ordering remains established-before-disposed. Observer
+        // delivery is isolated, and the `disposing` guard makes a callback
+        // that re-enters dispose idempotent instead of recursively tearing
+        // down the same handle.
+        attempt(() => emitEstablishedOnce());
+        attempt(() => emitEvent('disposed'));
+      } finally {
+        // @ref LLP 0034#109-observational-callbacks-and-failed-optimistic-work-cannot-own-lifecycle-2026-07-12
+        //   — app observation never owns transport/resource lifetime. Attempt
+        //   every cleanup even if an internal teardown step itself fails.
+        disposed = true;
+        attempt(() => invalidateSubscribeLifecycle('disposed'));
+        attempt(stopFallback);
+        attempt(clearResubscribeRetry);
+        if (establishTimer) {
+          clearTimeout(establishTimer);
+          establishTimer = null;
+        }
+        attempt(unregisterDurable);
+        attempt(() => detachStream?.());
+        detachStream = null;
+        attempt(() => setConnection('disconnected'));
+        // Best-effort server-side disposal (ENG-22478 review fix F): without
+        // this, unmounting a handle while the connection lives leaves the
+        // §10.1 zombie fanning out until connection teardown.
+        bestEffortUnsubscribeLive(staleSubscriptionId);
+        disposing = false;
       }
-      unregisterDurable();
-      detachStream?.();
-      detachStream = null;
-      setConnection('disconnected');
-      // Best-effort server-side disposal (ENG-22478 review fix F): without
-      // this, unmounting a handle while the connection lives leaves the
-      // §10.1 zombie fanning out until connection teardown.
-      bestEffortUnsubscribeLive(staleSubscriptionId);
+      if (firstCleanupError) throw firstCleanupError;
     };
 
     await establish();

@@ -195,4 +195,82 @@ const milkRows = (surface) =>
   surface.dispose();
 }
 
+// --- a synchronous optimistic reducer failure is a rejected mutation task,
+// --- not a permanently registered overlay. Later authoritative live rows
+// --- must publish without re-running the failed reducer (ENG-24495).
+{
+  const seed = [{ _id: 'todo_1', title: 'before', completed: false, userId: 'u1', _version: 1 }];
+  const liveManifest = {
+    ...makeManifest(),
+    queries: {
+      listTodos: {
+        name: 'listTodos',
+        mode: 'live',
+        defaultLive: true,
+      },
+    },
+  };
+  let onUpdate = null;
+  let mutateCalls = 0;
+  let reducerCalls = 0;
+  let disposed = false;
+  const client = {
+    async liveQuery(_name, options) {
+      onUpdate = options.onUpdate;
+      return {
+        rows: [...seed],
+        version: 1,
+        connection: 'live',
+        dispose() { disposed = true; },
+      };
+    },
+    async mutate() {
+      mutateCalls += 1;
+    },
+  };
+  const surface = await createSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: liveManifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    optimisticReducers: {
+      createTodo(rows) {
+        reducerCalls += 1;
+        rows.push({ _id: 'mutated_before_throw', title: 'phantom' });
+        throw new Error('app reducer exploded');
+      },
+    },
+  });
+
+  // Merely calling the link no longer throws synchronously. It returns the
+  // same tracked-promise shape as every other mutation failure.
+  const failedTask = surface.links.createTodo({ title: 'never delivered' });
+  assert.equal(typeof failedTask?.then, 'function');
+  await assert.rejects(failedTask, (error) => {
+    assert.equal(error.code, 'SNAPBACK_CONTRACT_OPTIMISTIC_REDUCER_FAILED');
+    assert.equal(error.diagnostic?.details?.mutation, 'createTodo');
+    assert.equal(error.cause?.message, 'app reducer exploded');
+    return true;
+  });
+  assert.equal(mutateCalls, 0, 'transport never starts after local prediction failure');
+  assert.equal(reducerCalls, 1);
+  assert.equal(surface.pendingCount(), 0);
+  assert.deepEqual(surface.boundary.current('todos'), seed, 'authoritative rows restored');
+  assert.equal(
+    surface.diagnostics.filter(
+      (diagnostic) => diagnostic.code === 'SNAPBACK_CONTRACT_OPTIMISTIC_REDUCER_FAILED',
+    ).length,
+    1,
+  );
+
+  const after = [{ _id: 'todo_2', title: 'server truth', completed: false, userId: 'u1', _version: 2 }];
+  onUpdate(after, { version: 2, kind: 'live_replace' });
+  assert.equal(reducerCalls, 1, 'later live delivery never re-runs the retired reducer');
+  assert.deepEqual(surface.boundary.current('todos'), after);
+  surface.dispose();
+  assert.equal(disposed, true);
+}
+
 console.log('optimistic-duplicate-reapply.test.mjs: all assertions passed');

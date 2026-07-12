@@ -804,26 +804,59 @@ export async function createSnapbackContractSurface({
               ? { version: 1, ids: ledgerIds, now: nowMs }
               : null,
           };
-          inFlightOptimistic.add(optimisticOp);
-          boundary.write(boundaryKey, (rows) => {
-            const ledgerCtx = {
-              userId,
-              optimisticId: optimisticOp.optimisticId,
-              baseVersion: optimisticOp.baseVersion,
-              nowMs,
-              runtimeId,
-            };
-            // When an app reducer overrides the derived prediction, still run
-            // the shared IR evaluator once to capture every RuntimeId/implicit
-            // row-id answer for the durable replay ledger.
-            if (derivedReducers[name] && reducer !== derivedReducers[name]) {
-              derivedReducers[name](rows, mutationArgs, ledgerCtx);
-            }
-            return reducer(rows, mutationArgs, {
-              ...ledgerCtx,
-              runtimeId: reducer === derivedReducers[name] ? runtimeId : null,
+          let rollbackRows = lastServerRows;
+          try {
+            // Reducers are app code and may mutate their input before throwing.
+            // Keep an isolated JSON-domain copy of server truth so rollback is
+            // real even for an impure failed reducer.
+            rollbackRows = JSON.parse(JSON.stringify(canonicalizeJsonValue(lastServerRows)));
+            inFlightOptimistic.add(optimisticOp);
+            boundary.write(boundaryKey, (rows) => {
+              const ledgerCtx = {
+                userId,
+                optimisticId: optimisticOp.optimisticId,
+                baseVersion: optimisticOp.baseVersion,
+                nowMs,
+                runtimeId,
+              };
+              // When an app reducer overrides the derived prediction, still run
+              // the shared IR evaluator once to capture every RuntimeId/implicit
+              // row-id answer for the durable replay ledger.
+              if (derivedReducers[name] && reducer !== derivedReducers[name]) {
+                derivedReducers[name](rows, mutationArgs, ledgerCtx);
+              }
+              return reducer(rows, mutationArgs, {
+                ...ledgerCtx,
+                runtimeId: reducer === derivedReducers[name] ? runtimeId : null,
+              });
             });
-          });
+          } catch (cause) {
+            // @ref LLP 0034#109-observational-callbacks-and-failed-optimistic-work-cannot-own-lifecycle-2026-07-12
+            // A synchronous reducer/derived-evaluator failure occurs before
+            // queue persistence or transport. Retire the op immediately so
+            // no later authoritative update can re-run it and poison the
+            // boundary indefinitely, then publish server truth again.
+            inFlightOptimistic.delete(optimisticOp);
+            const message = cause instanceof Error ? cause.message : String(cause);
+            const diagnostic = publishDiagnostic(
+              'SNAPBACK_CONTRACT_OPTIMISTIC_REDUCER_FAILED',
+              `Optimistic reducer for ${name} failed before mutation delivery: ${message}`,
+              { mutation: name, overlayClass: mutationOverlayClass[name] },
+            );
+            const error = new Error(diagnostic.message);
+            error.code = diagnostic.code;
+            error.diagnostic = diagnostic;
+            error.cause = cause;
+            lastServerRows = rollbackRows;
+            try {
+              writeServerRows(rollbackRows, lastServerVersion);
+            } catch (rollbackCause) {
+              diagnostic.details.rollbackFailure = rollbackCause instanceof Error
+                ? rollbackCause.message
+                : String(rollbackCause);
+            }
+            return track(Promise.reject(error));
+          }
         }
         return track(persistMutation(name, mutationArgs, optimisticOp));
       };

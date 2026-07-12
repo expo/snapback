@@ -53,6 +53,7 @@ const newOrigin = () => {
 const freshState = () => ({
   version: SNAPBACK_CLIENT_STORE_VERSION,
   origin: newOrigin(),
+  generation: 0,
   authFingerprint: null,
   artifactScope: null,
   nextSequence: 1,
@@ -61,15 +62,74 @@ const freshState = () => ({
   failed: [],
 });
 
+function clientStoreStateError(code, message, details = {}) {
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = {
+    code,
+    message,
+    details,
+  };
+  return error;
+}
+
+function assertStateField(condition, field) {
+  if (!condition) {
+    throw clientStoreStateError(
+      'SNAPBACK_CLIENT_STORE_CORRUPT',
+      `persisted client-store field ${field} has an invalid shape`,
+      { field },
+    );
+  }
+}
+
 const normalizeState = (state) => {
-  if (!state || state.version !== SNAPBACK_CLIENT_STORE_VERSION) return freshState();
-  state.origin ||= newOrigin();
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    throw clientStoreStateError(
+      'SNAPBACK_CLIENT_STORE_CORRUPT',
+      'persisted client-store state is not an object',
+    );
+  }
+  if (state.version !== SNAPBACK_CLIENT_STORE_VERSION) {
+    const storedVersion = state.version ?? null;
+    throw clientStoreStateError(
+      'SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED',
+      `persisted client-store version ${JSON.stringify(storedVersion)} is not supported by version ${SNAPBACK_CLIENT_STORE_VERSION}`,
+      {
+        storedVersion,
+        supportedVersion: SNAPBACK_CLIENT_STORE_VERSION,
+        direction: typeof storedVersion === 'number'
+          ? storedVersion > SNAPBACK_CLIENT_STORE_VERSION ? 'future' : 'legacy'
+          : 'unknown',
+      },
+    );
+  }
+  state.origin ??= newOrigin();
+  state.generation ??= 0;
   state.authFingerprint ??= null;
   state.artifactScope ??= null;
-  state.nextSequence ||= 1;
-  state.retained ||= {};
-  state.pending ||= [];
-  state.failed ||= [];
+  state.nextSequence ??= 1;
+  state.retained ??= {};
+  state.pending ??= [];
+  state.failed ??= [];
+  assertStateField(typeof state.origin === 'string' && state.origin.length > 0, 'origin');
+  assertStateField(Number.isSafeInteger(state.generation) && state.generation >= 0, 'generation');
+  assertStateField(
+    state.authFingerprint === null || typeof state.authFingerprint === 'string',
+    'authFingerprint',
+  );
+  assertStateField(
+    state.artifactScope === null
+      || (typeof state.artifactScope === 'object' && !Array.isArray(state.artifactScope)),
+    'artifactScope',
+  );
+  assertStateField(Number.isSafeInteger(state.nextSequence) && state.nextSequence >= 1, 'nextSequence');
+  assertStateField(
+    typeof state.retained === 'object' && state.retained !== null && !Array.isArray(state.retained),
+    'retained',
+  );
+  assertStateField(Array.isArray(state.pending), 'pending');
+  assertStateField(Array.isArray(state.failed), 'failed');
   return state;
 };
 
@@ -97,26 +157,29 @@ function staleStoreScopeError(operation) {
   return error;
 }
 
-function createStore({ read, write }) {
+function createStore({ read, write, withExclusive = (operation) => operation() }) {
   const load = () => normalizeState(read());
   const save = (state) => {
+    state.generation += 1;
     write(state);
     return state;
   };
+  const transact = (operation) => withExclusive(() => operation(load(), save));
   return {
     version: SNAPBACK_CLIENT_STORE_VERSION,
 
     async scopeToAuth(authFingerprint) {
-      const state = load();
-      if (state.authFingerprint !== null && state.authFingerprint !== authFingerprint) {
-        // LLP 0043/0039: a user switch wipes retained rows and queued writes
-        // before the new authority can observe or replay them.
-        state.retained = {};
-        state.pending = [];
-        state.failed = [];
-      }
-      state.authFingerprint = authFingerprint;
-      save(state);
+      return transact((state, commit) => {
+        if (state.authFingerprint !== null && state.authFingerprint !== authFingerprint) {
+          // LLP 0043/0039: a user switch wipes retained rows and queued writes
+          // before the new authority can observe or replay them.
+          state.retained = {};
+          state.pending = [];
+          state.failed = [];
+        }
+        state.authFingerprint = authFingerprint;
+        commit(state);
+      });
     },
 
     async scopeToArtifacts({
@@ -127,92 +190,97 @@ function createStore({ read, write }) {
       databaseId = null,
       versionStreamId = null,
     } = {}) {
-      const state = load();
-      const nextScope = {
-        schemaHash,
-        inputsHash,
-        targetProfileId,
-        appId,
-        databaseId,
-        versionStreamId,
-      };
-      const changed = state.artifactScope !== null
-        && stableJson(state.artifactScope) !== stableJson(nextScope);
-      const unknownLegacyState = state.artifactScope === null
-        && (state.pending.length > 0 || Object.keys(state.retained).length > 0);
-      if (changed || unknownLegacyState) {
-        state.retained = {};
-        // Failed records can contain the original args. An artifact boundary
-        // is also a privacy boundary: discard old failures, then retain only
-        // redacted tombstones for writes this transition quarantines.
-        state.failed = [];
-        for (const entry of state.pending) {
-          state.failed.push({
-            id: entry.id,
-            function: entry.function,
-            sequence: entry.sequence,
-            authFingerprint: entry.authFingerprint,
-            schemaHash: entry.schemaHash,
-            inputsHash: entry.inputsHash,
-            status: 'failed',
-            diagnostic: {
-              code: 'SNAPBACK_CLIENT_ARTIFACT_STALE',
-              message: 'queued mutation belongs to another schema/artifact revision',
-              previous: state.artifactScope,
-              current: nextScope,
-            },
-          });
+      return transact((state, commit) => {
+        const nextScope = {
+          schemaHash,
+          inputsHash,
+          targetProfileId,
+          appId,
+          databaseId,
+          versionStreamId,
+        };
+        const changed = state.artifactScope !== null
+          && stableJson(state.artifactScope) !== stableJson(nextScope);
+        const unknownLegacyState = state.artifactScope === null
+          && (state.pending.length > 0 || Object.keys(state.retained).length > 0);
+        if (changed || unknownLegacyState) {
+          state.retained = {};
+          // Failed records can contain the original args. An artifact boundary
+          // is also a privacy boundary: discard old failures, then retain only
+          // redacted tombstones for writes this transition quarantines.
+          state.failed = [];
+          for (const entry of state.pending) {
+            state.failed.push({
+              id: entry.id,
+              function: entry.function,
+              sequence: entry.sequence,
+              authFingerprint: entry.authFingerprint,
+              schemaHash: entry.schemaHash,
+              inputsHash: entry.inputsHash,
+              status: 'failed',
+              diagnostic: {
+                code: 'SNAPBACK_CLIENT_ARTIFACT_STALE',
+                message: 'queued mutation belongs to another schema/artifact revision',
+                previous: state.artifactScope,
+                current: nextScope,
+              },
+            });
+          }
+          state.pending = [];
         }
-        state.pending = [];
-      }
-      state.artifactScope = nextScope;
-      save(state);
+        state.artifactScope = nextScope;
+        commit(state);
+      });
     },
 
     async getRetainedQuery(key, expected = {}) {
-      const state = load();
-      const record = state.retained[key];
-      if (!record || !recordMatchesArtifacts(record, expected)) return null;
-      return clone({ ...record, stale: true });
+      return transact((state) => {
+        const record = state.retained[key];
+        if (!record || !recordMatchesArtifacts(record, expected)) return null;
+        return clone({ ...record, stale: true });
+      });
     },
 
     async putRetainedQuery(key, record) {
-      const state = load();
-      if (!recordMatchesCurrentScope(state, record)) {
-        throw staleStoreScopeError('retained query write');
-      }
-      const current = state.retained[key];
-      if (
-        current
-        && current.versionStreamId === record.versionStreamId
-        && current.cursor?.stream === record.cursor?.stream
-        && Number.isFinite(current.version)
-        && Number.isFinite(record.version)
-        && current.version > record.version
-      ) {
-        return clone(current);
-      }
-      state.retained[key] = clone({ ...record, stale: false });
-      save(state);
-      return clone(state.retained[key]);
+      return transact((state, commit) => {
+        if (!recordMatchesCurrentScope(state, record)) {
+          throw staleStoreScopeError('retained query write');
+        }
+        const current = state.retained[key];
+        if (
+          current
+          && current.versionStreamId === record.versionStreamId
+          && current.cursor?.stream === record.cursor?.stream
+          && Number.isFinite(current.version)
+          && Number.isFinite(record.version)
+          && current.version > record.version
+        ) {
+          return clone(current);
+        }
+        state.retained[key] = clone({ ...record, stale: false });
+        commit(state);
+        return clone(state.retained[key]);
+      });
     },
 
     async enqueueMutation(record) {
-      const state = load();
-      if (!recordMatchesCurrentScope(state, record)) {
-        throw staleStoreScopeError('queued mutation write');
-      }
-      const sequence = Number.isSafeInteger(record.sequence)
-        ? record.sequence
-        : state.nextSequence++;
-      const id = record.id ?? `cm_${state.origin}_${sequence}`;
-      const existing = state.pending.find((entry) => entry.id === id);
-      if (existing) return clone(existing);
-      const queued = clone({ ...record, id, sequence, status: 'pending' });
-      state.pending.push(queued);
-      state.pending.sort((left, right) => left.sequence - right.sequence);
-      save(state);
-      return clone(queued);
+      return transact((state, commit) => {
+        if (!recordMatchesCurrentScope(state, record)) {
+          throw staleStoreScopeError('queued mutation write');
+        }
+        const sequence = Number.isSafeInteger(record.sequence)
+          ? record.sequence
+          : state.nextSequence;
+        const id = record.id ?? `cm_${state.origin}_${sequence}`;
+        const existing = state.pending.find((entry) => entry.id === id);
+        if (existing) return clone(existing);
+        state.nextSequence = Math.max(state.nextSequence, sequence + 1);
+        const queued = clone({ ...record, id, sequence, status: 'pending' });
+        state.pending.push(queued);
+        state.pending.sort((left, right) => left.sequence - right.sequence);
+        commit(state);
+        return clone(queued);
+      });
     },
 
     async pendingMutations({
@@ -224,8 +292,7 @@ function createStore({ read, write }) {
       databaseId = null,
       versionStreamId = null,
     } = {}) {
-      const state = load();
-      return clone(state.pending
+      return transact((state) => clone(state.pending
         .filter((entry) => recordMatchesArtifacts(entry, {
           authFingerprint,
           schemaHash,
@@ -235,30 +302,33 @@ function createStore({ read, write }) {
           databaseId,
           versionStreamId,
         }))
-        .sort((left, right) => left.sequence - right.sequence));
+        .sort((left, right) => left.sequence - right.sequence)));
     },
 
     async settleMutation(id, { status, output = null, diagnostic = null } = {}) {
-      const state = load();
-      const index = state.pending.findIndex((entry) => entry.id === id);
-      if (index < 0) return null;
-      const [entry] = state.pending.splice(index, 1);
-      const settled = clone({ ...entry, status, output, diagnostic });
-      if (status === 'failed') state.failed.push(settled);
-      save(state);
-      return settled;
+      return transact((state, commit) => {
+        const index = state.pending.findIndex((entry) => entry.id === id);
+        if (index < 0) return null;
+        const [entry] = state.pending.splice(index, 1);
+        const settled = clone({ ...entry, status, output, diagnostic });
+        if (status === 'failed') state.failed.push(settled);
+        commit(state);
+        return settled;
+      });
     },
 
     async failedMutations() {
-      return clone(load().failed);
+      return transact((state) => clone(state.failed));
     },
 
     async snapshot() {
-      return clone(load());
+      return transact((state) => clone(state));
     },
 
     async clear() {
-      save(freshState());
+      // Explicit reset is the sole operation allowed to replace bytes that
+      // the current implementation cannot parse or migrate.
+      return withExclusive(() => save(freshState()));
     },
   };
 }
@@ -268,6 +338,14 @@ function createStore({ read, write }) {
  * store to model an app reload without sharing a live adapter instance.
  */
 export function createMemorySnapbackClientStore({ state = freshState() } = {}) {
+  if (
+    state
+    && typeof state === 'object'
+    && !Array.isArray(state)
+    && Object.keys(state).length === 0
+  ) {
+    Object.assign(state, freshState());
+  }
   let current = normalizeState(state);
   return createStore({
     read: () => current,
@@ -284,25 +362,46 @@ export function createMemorySnapbackClientStore({ state = freshState() } = {}) {
   });
 }
 
-/** Small web implementation; callers may inject a Storage-compatible object. */
+/** Web implementation; callers may inject Storage/Web-Locks-compatible test doubles. */
 export function createLocalStorageSnapbackClientStore({
   storage = globalThis.localStorage,
   key = 'snapback.client-store.v1',
+  lockManager = globalThis.navigator?.locks,
 } = {}) {
   if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
     throw new Error('createLocalStorageSnapbackClientStore requires a Storage-compatible object.');
   }
+  if (!lockManager || typeof lockManager.request !== 'function') {
+    throw clientStoreStateError(
+      'SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE',
+      'the localStorage client store requires the Web Locks API for cross-context serialization',
+      { key },
+    );
+  }
+  const lockName = `snapback:client-store:${key}`;
   return createStore({
     read: () => {
       const raw = storage.getItem(key);
-      if (!raw) return freshState();
+      if (raw === null) return freshState();
       try {
         return JSON.parse(raw);
       } catch {
-        return freshState();
+        throw clientStoreStateError(
+          'SNAPBACK_CLIENT_STORE_CORRUPT',
+          'persisted client-store bytes are not valid JSON; original bytes were left untouched',
+          { key, byteLength: new TextEncoder().encode(raw).length },
+        );
       }
     },
     write: (state) => storage.setItem(key, JSON.stringify(state)),
+    // @ref LLP 0008#local-store — all web durable-store access is serialized
+    //   through a same-origin correctness mutex; Web Locks release on context
+    //   loss, so another tab can take over without a timing-based lease.
+    withExclusive: (operation) => lockManager.request(
+      lockName,
+      { mode: 'exclusive' },
+      operation,
+    ),
   });
 }
 

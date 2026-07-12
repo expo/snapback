@@ -25,6 +25,8 @@
 //         (Exact 0284 §5 item 6, provider half)
 //   §6.8  codegen migration cross-check (old/new manifest fields agree; a
 //         deliberately broken binding fails)
+//   §10.9 throwing subscription observers cannot reject establishment or
+//         interrupt reentrant disposal cleanup
 //
 // @ref LLP 0034#6-d5--conformance-and-the-first-proof-re-grounded
 // See Exact LLP 0284 §2.2 (connection axis), §5.2 (provider conformance) —
@@ -138,6 +140,62 @@ try {
     assert(update.version >= response.snapshot.version, `delta version ${update.version} regressed below snapshot ${response.snapshot.version}`);
     assertEqual(update.rows.length, 4, 'delta reflects the post-snapshot mutation');
     return { subscriptionId: response.subscription_id, snapshotVersion: response.snapshot.version, deltaVersion: update.version };
+  });
+
+  await suite.check('throwing lifecycle observers cannot strand subscription cleanup (ENG-24494)', async () => {
+    await db.reset();
+    await db.seed(seed);
+    const events = [];
+    let handle = null;
+    let activeConsumers = 0;
+    let unsubscribeCalls = 0;
+    let unsubscribeTask = null;
+    const originalRegister = db.registerDurableConsumer;
+    const originalUnsubscribe = db.unsubscribeLive;
+    db.registerDurableConsumer = (...args) => {
+      activeConsumers += 1;
+      const unregister = originalRegister.call(db, ...args);
+      return () => {
+        activeConsumers -= 1;
+        unregister();
+      };
+    };
+    db.unsubscribeLive = (...args) => {
+      unsubscribeCalls += 1;
+      unsubscribeTask = originalUnsubscribe.call(db, ...args);
+      return unsubscribeTask;
+    };
+    try {
+      handle = await db.liveQuery('listTodos', {
+        connectionId: 'throwing_subscription_observer',
+        userId: ADA,
+        transport: 'poll',
+        onSubscriptionEvent(receipt) {
+          events.push(receipt.event);
+          // Disposal delivery is allowed to re-enter app lifecycle code. The
+          // handle must treat this as the same idempotent disposal, then keep
+          // cleaning up after the observer throws.
+          if (receipt.event === 'disposed') handle?.dispose();
+          throw new Error(`observer rejected ${receipt.event}`);
+        },
+      });
+      assertEqual(events[0], 'established', 'throwing established observer did not reject liveQuery');
+      assertEqual(activeConsumers, 1, 'durable consumer attached');
+      handle.dispose();
+      await Promise.resolve(); // best-effort unsubscribe is dispatched in a microtask
+      assertEqual(events.at(-1), 'disposed', 'disposed observer ran once');
+      assertEqual(events.filter((event) => event === 'disposed').length, 1, 'reentrant disposal is idempotent');
+      assertEqual(activeConsumers, 0, 'durable consumer unregistered despite observer failure');
+      assertEqual(handle.connection, 'disconnected', 'handle reached terminal state');
+      assertEqual(unsubscribeCalls, 1, 'server unsubscribe dispatched despite observer failure');
+      assert(unsubscribeTask, 'unsubscribe task captured');
+      await unsubscribeTask;
+      return { events, unsubscribeCalls, activeConsumers };
+    } finally {
+      db.registerDurableConsumer = originalRegister;
+      db.unsubscribeLive = originalUnsubscribe;
+      handle?.dispose();
+    }
   });
 
   await suite.check('stream-delivered durable update: no polling (LLP 0034 §6.2)', async () => {

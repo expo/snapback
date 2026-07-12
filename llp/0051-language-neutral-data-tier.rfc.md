@@ -5,7 +5,7 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
+**Revised:** 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
 the connection re-open bearer is request-only and structurally absent from
 responses, receipts, and retained state. Earlier: 2026-07-09 — ENG-23965 ships Increment 5's retained-query store,
@@ -1005,6 +1005,15 @@ disciplines.
    reducers — the override path stays first-class). Only fully IR-derivable,
    single-query, store-configured surfaces claim `Parity`; every other adapter
    surface continues to report `Online`.
+   *Hardened 2026-07-12 (ENG-24493–ENG-24496).* Version-1 state now carries an
+   additive durable generation. Corrupt/future/legacy bytes remain untouched
+   behind typed diagnostics until explicit reset or migration. The web
+   localStorage implementation serializes every transaction across tabs with
+   one same-origin Web Lock per key and fails closed when that platform
+   capability is missing; crash release provides takeover without lease
+   timing. Optimistic reducer/ledger failures are removed before queue or wire
+   work and cannot poison later live rows, while subscription observers are
+   isolated from establishment and teardown.
 6. **WASM runtime (D3):** `WasmModule` variant + content-addressed
    artifact storage + wasmtime executor locally (with the density/fuel
    measurement gate); CF deploy-time binding proof after; TS toolchain
