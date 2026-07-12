@@ -157,6 +157,13 @@ async function main() {
   await runAcceptance(suite, async () => {
     await ensureApi();
     await ensureVite();
+    await suite.check('dev shell leaves native discovery to content negotiation', async () => {
+      const html = await (await fetch(`${viteUrl}/`)).text();
+      return {
+        ok: !html.includes('rel="exact:platform-manifest"') && !html.includes("rel='exact:platform-manifest'"),
+        detail: 'static platform-manifest discovery must only be injected by production builds',
+      };
+    });
     const chrome = await launchChrome();
     cleanups.push(() => chrome.stop());
     cdp = await connectCdp(chrome.ws);

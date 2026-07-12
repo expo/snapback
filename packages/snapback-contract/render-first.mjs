@@ -25,7 +25,12 @@
 // links queue behind the attach and then call through. Ephemeral map links
 // mirror the query shape (silent handle until attach; publishes queue).
 
-import { createSnapbackContractSurface, validateSnapbackContractArtifacts } from './index.mjs';
+// Keep the namespace object live across the intentional index -> render-first
+// -> index cycle. Ibex's ESM-to-CJS fallback snapshots named imports while a
+// cyclic dependency is still initializing; the namespace object is the stable
+// partial-exports object and receives these functions before callers construct
+// a render-first surface.
+import * as snapbackContract from './index.mjs';
 
 export function createDeferredContractLinks({ queries = [], mutations = [], ephemerals = [] } = {}) {
   let realLinks = null;
@@ -160,7 +165,7 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
   // construction, but it must NOT throw here: the render-first guarantee is
   // that the app always gets mountable links (the bundled-data board paints
   // even over a broken backend pairing). The defect rejects `attached`.
-  const diagnostics = validateSnapbackContractArtifacts({
+  const diagnostics = snapbackContract.validateSnapbackContractArtifacts({
     manifest,
     artifactIndex: surfaceOptions.artifactIndex ?? null,
     schemaManifest: surfaceOptions.schemaManifest ?? null,
@@ -215,7 +220,7 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
       if (disposed) return;
       try {
         if (connect) await connect({ client: surfaceOptions.client, attempt });
-        const surface = await createSnapbackContractSurface({
+        const surface = await snapbackContract.createSnapbackContractSurface({
           manifest,
           ...surfaceOptions,
           // `runtime` may arrive as the module namespace or a promise of one

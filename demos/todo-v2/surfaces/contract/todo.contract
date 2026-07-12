@@ -69,7 +69,7 @@ component TodoApp
           text "Todo v2" size=24 weight=800 color="#1c1d21"
           text "Snapback + Contract priority demo" size=13 color="#5f636c"
         row gap=10 align="center"
-          input label="New todo" value=draft change=setDraft testId="todo-input" flex=1 paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 radius=8 borderWidth=1 borderColor="#e4e4e9" background="#ffffff" color="#1c1d21" size=14
+          input label="New todo" value=draft change=setDraft submit=submit testId="todo-input" flex=1 paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 radius=8 borderWidth=1 borderColor="#e4e4e9" background="#ffffff" color="#1c1d21" size=14
           button press=submit testId="todo-add" paddingTop=10 paddingBottom=10 paddingLeft=20 paddingRight=20 radius=8 background="#5e6ad2" opacity=canSubmit ? 1 : 0.45 disabled=!canSubmit
             text "Add" size=14 weight=600 color="#ffffff"
         row gap=8 align="center"
