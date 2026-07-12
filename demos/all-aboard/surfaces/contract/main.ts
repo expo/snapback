@@ -64,9 +64,11 @@ function projectBackendStatus(status: BackendStatus): void {
   if (hostBindingsMounted) publishHostState('backend', { status });
 }
 
-// Startup timing (ENG-23727 acceptance): all values are ms since timeOrigin
-// (performance.now() epoch) so the acceptance suite can compare them. The
-// board paint must never wait on the backend milestones.
+// Startup timing (ENG-23727 / ENG-24386 acceptance): all values are ms since
+// timeOrigin (performance.now() epoch) so the acceptance suite can compare
+// them. `htmlReceivedMs` is the budget origin because static dependencies
+// evaluate before this module body can record `scriptStartMs`; the latter is a
+// secondary diagnostic only. Board paint must never wait on backend milestones.
 const timing: {
   htmlReceivedMs: number | null;
   scriptStartMs: number;

@@ -37,6 +37,7 @@ import {
   verifyApiProvenance,
   verifyViteProvenance,
 } from '../../../_kit/provenance.mjs';
+import { assertFirstBoardPaintBudget } from './startup-timing.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -72,11 +73,12 @@ const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSig
 // runAcceptance, so it never reaches the guard.
 const EXPECTED_CHECKS = 34;
 
-// ENG-23727 warm-start bar: first useful board paint within this budget of
-// the surface script starting to execute (module fetch latency is Vite's,
-// not the app's; the property under test is that paint never waits on the
-// backend). Overridable for slow CI hosts.
-const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 100);
+// ENG-24386 follow-up: the budget begins when the HTML response completes, so
+// static dependency fetch/evaluation cannot hide before the entry body records
+// scriptStartMs. The 750ms dev-server bar is the pre-fix observed 495ms worst
+// case plus ~50% host-load headroom; production remains materially faster.
+// Overridable for deliberately slower CI hosts.
+const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 750);
 
 const suite = createSuite('all-aboard browser (Phase 1)', { expectedChecks: EXPECTED_CHECKS });
 const cleanups = [];
@@ -200,15 +202,16 @@ async function main() {
       if (timing.firstBoardPaintMs > timing.backendConnectedMs) {
         throw new Error(`board paint waited for the backend: ${JSON.stringify(timing)}`);
       }
-      const codeToBoardMs = timing.firstBoardPaintMs - timing.scriptStartMs;
-      if (!(codeToBoardMs < PAINT_BUDGET_MS)) {
-        throw new Error(`first useful paint ${Math.round(codeToBoardMs)}ms after script start (budget ${PAINT_BUDGET_MS}ms): ${JSON.stringify(timing)}`);
-      }
+      const { responseToBoardMs, codeToBoardMs } = assertFirstBoardPaintBudget(timing, PAINT_BUDGET_MS);
       const bootChromeVisible = await page.eval(
         `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
       );
       if (bootChromeVisible) throw new Error('boot-status chrome is visible on the happy path');
-      return { ...timing, codeToBoardMs: Math.round(codeToBoardMs) };
+      return {
+        ...timing,
+        responseToBoardMs: Math.round(responseToBoardMs),
+        codeToBoardMs: Math.round(codeToBoardMs),
+      };
     });
 
     await suite.check('renders the board; geolocation fallback selects the nearest station', async () => {

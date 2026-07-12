@@ -47,6 +47,7 @@ import {
   verifyApiProvenance,
   verifyViteProvenance,
 } from '../../../_kit/provenance.mjs';
+import { assertFirstBoardPaintBudget } from './startup-timing.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -70,10 +71,10 @@ let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
 // runAcceptance, ENG-22486).
 const EXPECTED_CHECKS = 18;
 
-// ENG-23727 warm-start bar, mirrored from the Contract arm's suite: first
-// useful board paint within this budget of the surface script starting to
-// execute, and never gated on the backend. Overridable for slow CI hosts.
-const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 100);
+// Mirrored from the Contract arm: include static dependency work between the
+// HTML response and entry-body execution. The script-start delta remains a
+// secondary diagnostic only. Overridable for deliberately slower CI hosts.
+const PAINT_BUDGET_MS = Number(process.env.ALL_ABOARD_PAINT_BUDGET_MS ?? 750);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const urlOk = async (url) => { try { return (await fetch(url, { signal: AbortSignal.timeout(800) })).ok; } catch { return false; } };
@@ -180,15 +181,16 @@ async function main() {
       if (timing.firstBoardPaintMs > timing.backendConnectedMs) {
         throw new Error(`board paint waited for the backend: ${JSON.stringify(timing)}`);
       }
-      const codeToBoardMs = timing.firstBoardPaintMs - timing.scriptStartMs;
-      if (!(codeToBoardMs < PAINT_BUDGET_MS)) {
-        throw new Error(`first useful paint ${Math.round(codeToBoardMs)}ms after script start (budget ${PAINT_BUDGET_MS}ms): ${JSON.stringify(timing)}`);
-      }
+      const { responseToBoardMs, codeToBoardMs } = assertFirstBoardPaintBudget(timing, PAINT_BUDGET_MS);
       const bootChromeVisible = await page.eval(
         `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
       );
       if (bootChromeVisible) throw new Error('boot-status chrome is visible on the happy path');
-      return { ...timing, codeToBoardMs: Math.round(codeToBoardMs) };
+      return {
+        ...timing,
+        responseToBoardMs: Math.round(responseToBoardMs),
+        codeToBoardMs: Math.round(codeToBoardMs),
+      };
     });
 
     await suite.check('renders the board; geolocation fallback selects the nearest station', async () => {

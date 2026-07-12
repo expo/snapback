@@ -2042,3 +2042,24 @@ hide the same shift inside bundler chunking, while a Convex/Supabase backend
 would not change this client-side cost; the useful difference here was the
 hard acceptance witness, not the framework choice. The cold-clone rerun after
 the full ENG-24338–ENG-24388 integration remains the landing gate.
+
+## 2026-07-12 (tenth entry) — make the paint witness honest end to end
+
+Review found that the ninth entry's 68 ms result was true but incomplete.
+Static ESM dependencies load and evaluate before `main.ts` can record
+`scriptStartMs`, so moving the renderer from a dynamic import to a static one
+moved most of the cost before the stopwatch. The user still waits for that
+work. The acceptance oracle now starts at the navigation response boundary;
+the script-start delta remains in the result only as a diagnostic. Its 750 ms
+dev-server budget takes the previously observed 495 ms worst case and adds
+roughly 50% host-load headroom instead of pretending Vite's cold transform
+work is free.
+
+A clock-real regression imports a renderer stand-in whose top-level evaluation
+waits 900 ms. It demonstrates the old metric's failure mode directly: the
+entry-body delta stays below 100 ms, while the response-to-board oracle sees
+the full delay and rejects it. This made the proof more like what a user of a
+React/Convex or React/Supabase app would care about—time from receiving the app
+to useful UI—not time from an implementation-chosen point inside its module
+graph. The static import can still be the right optimization; it simply no
+longer gets performance credit by moving work across the measurement boundary.
