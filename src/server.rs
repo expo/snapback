@@ -331,14 +331,23 @@ async fn run_detached_ibex_action(
                         app_generation,
                         app_generation_fence,
                     };
-                    runtime.invoke_ibex_action(
+                    let result = runtime.invoke_ibex_action(
                         &module,
                         input,
                         metadata,
                         &mut host,
                         grants,
                         Some(execution_deadline),
-                    )
+                    );
+                    // @ref LLP 0028#execution-the-action-class — an action may
+                    // await native fetch/timer work and return without making
+                    // another Snapback host call. Linearize successful
+                    // completion against the same staging generation so a
+                    // reload/reset during that await cannot escape as success.
+                    result.and_then(|value| {
+                        host.validate_live("action.complete")?;
+                        Ok(value)
+                    })
                 };
                 // Runtime/host/worker guards are gone before publishing the
                 // result, so a returned timeout proves no CPU worker leaked.

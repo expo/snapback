@@ -470,7 +470,8 @@ pub(crate) struct DetachedIbexAction {
     pub grants: Value,
     pub runtime: RuntimeManager,
     /// Generation of the code/schema/reset boundary that authorized this
-    /// action. Every later host call must still observe this exact generation.
+    /// action. Every later host call and final successful completion must still
+    /// observe this exact generation.
     pub app_generation: u64,
     pub app_generation_fence: Arc<AtomicU64>,
 }

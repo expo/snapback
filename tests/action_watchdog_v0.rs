@@ -23,6 +23,9 @@ use snapback::manifest::{
     SchemaManifest, TableManifest,
 };
 use std::time::{Duration, Instant};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio::sync::oneshot;
 use tower::ServiceExt;
 
 /// One shared watchdog budget for the whole binary (ms).
@@ -34,15 +37,18 @@ async fn serial_action_test() -> tokio::sync::MutexGuard<'static, ()> {
 }
 
 fn set_watchdog_env() {
-    // SAFETY: every test in this binary writes the same value before starting
+    // SAFETY: every test in this binary writes the same values before starting
     // its server, so concurrent setters race only to store identical bytes.
     unsafe { std::env::set_var("SNAPBACK_ACTION_TIMEOUT_MS", WATCHDOG_MS.to_string()) };
+    // All tests in this binary set the same process-global host posture before
+    // constructing a runtime. The generation regression uses a real native
+    // fetch pause so it can prove a host-call-free completion fence.
+    unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
 }
 
-/// A hung outbound fetch cannot be simulated without egress, so the "action
-/// occupying its VM thread" stand-in is the same busy loop the L6/L7 tests
-/// use. The watchdog and the mutex are indifferent to *why* the thread is
-/// stuck.
+/// Most watchdog cases use the same deterministic busy-loop stand-in as L6/L7;
+/// the generation regression below separately uses a held native fetch. The
+/// watchdog and the mutex are indifferent to *why* the VM thread is occupied.
 const WATCHDOG_HANDLER_SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
   async listTodos(ctx) {
@@ -67,6 +73,11 @@ globalThis.__snapbackHandlers = {
     const start = Date.now();
     while (Date.now() - start < args.busyMs) {}
     return await ctx.runMutation('createTodo', { title: 'late write' });
+  },
+
+  async pausedSuccessAction(_ctx, args) {
+    await fetch(args.url);
+    return { done: true };
   },
 
   async hungMutation(ctx) {
@@ -167,6 +178,7 @@ fn watchdog_functions() -> FunctionManifest {
             ibex("hungMutation", FunctionKind::Mutation),
             ibex("busyAction", FunctionKind::Action),
             ibex("lateWriteAction", FunctionKind::Action),
+            ibex("pausedSuccessAction", FunctionKind::Action),
             ibex("nestedHungAction", FunctionKind::Action),
             ibex("readAction", FunctionKind::Action),
             ibex("cronAction", FunctionKind::Action),
@@ -203,7 +215,7 @@ fn watchdog_functions() -> FunctionManifest {
     manifest
 }
 
-fn watchdog_app() -> axum::Router {
+fn watchdog_state_and_app() -> (snapback::server::SharedSnapback, axum::Router) {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback
         .apply_schema(watchdog_schema())
@@ -213,7 +225,13 @@ fn watchdog_app() -> axum::Router {
         diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
             || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
     }));
-    snapback::server::app(AppState::detached(snapback))
+    let app_state = AppState::detached(snapback);
+    let state = app_state.snapback.clone();
+    (state, snapback::server::app(app_state))
+}
+
+fn watchdog_app() -> axum::Router {
+    watchdog_state_and_app().1
 }
 
 fn post_json(uri: &str, body: Value) -> Request<Body> {
@@ -234,6 +252,122 @@ async fn body_json(response: axum::response::Response) -> Value {
 
 fn handler_body(args: Value) -> Value {
     json!({ "args": args, "auth": { "user_id": "user_1" } })
+}
+
+async fn held_http_response() -> (
+    String,
+    oneshot::Receiver<()>,
+    oneshot::Sender<()>,
+    tokio::task::JoinHandle<()>,
+) {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind held response server");
+    let address = listener.local_addr().expect("held response address");
+    let (started_tx, started_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let task = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.expect("accept action fetch");
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 1024];
+        while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+            let read = socket.read(&mut chunk).await.expect("read action fetch");
+            assert!(read > 0, "action fetch closed before request headers");
+            request.extend_from_slice(&chunk[..read]);
+            assert!(
+                request.len() < 64 * 1024,
+                "action fetch headers are bounded"
+            );
+        }
+        let _ = started_tx.send(());
+        let _ = release_rx.await;
+        socket
+            .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok")
+            .await
+            .expect("release action fetch");
+        socket.shutdown().await.expect("close action fetch");
+    });
+    (
+        format!("http://{address}/pause"),
+        started_rx,
+        release_tx,
+        task,
+    )
+}
+
+fn start_paused_action(app: axum::Router, url: String) -> tokio::task::JoinHandle<Value> {
+    tokio::spawn(async move {
+        let response = app
+            .oneshot(post_json(
+                "/action/pausedSuccessAction",
+                handler_body(json!({ "url": url })),
+            ))
+            .await
+            .expect("paused action response");
+        body_json(response).await
+    })
+}
+
+/// A detached action can cross an app generation without another ctx host op:
+/// native fetch/timer work settles inside Ibex. Completion itself is therefore
+/// a generation fence, not merely every host call along the way.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn paused_host_call_free_action_rejects_reload_and_reset_drift() {
+    let _serial = serial_action_test().await;
+    set_watchdog_env();
+    let (state, app) = watchdog_state_and_app();
+
+    let (reload_url, reload_started, release_reload, reload_server) = held_http_response().await;
+    let reload_action = start_paused_action(app.clone(), reload_url);
+    tokio::time::timeout(Duration::from_secs(2), reload_started)
+        .await
+        .expect("action reaches native fetch before reload")
+        .expect("reload fetch-start signal");
+    let diagnostics = state.lock().await.load_functions(watchdog_functions());
+    assert!(diagnostics.iter().all(|diagnostic| {
+        diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
+            || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
+    }));
+    release_reload.send(()).expect("release reload fetch");
+    let reload_body = tokio::time::timeout(Duration::from_secs(2), reload_action)
+        .await
+        .expect("reloaded action settles")
+        .expect("reload action task");
+    reload_server.await.expect("reload fetch server");
+    assert_eq!(
+        reload_body["ok"], false,
+        "stale action must fail: {reload_body}"
+    );
+    assert_eq!(
+        reload_body["diagnostic"]["code"], "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "host-call-free completion must observe function reload: {reload_body}"
+    );
+
+    let (reset_url, reset_started, release_reset, reset_server) = held_http_response().await;
+    let reset_action = start_paused_action(app, reset_url);
+    tokio::time::timeout(Duration::from_secs(2), reset_started)
+        .await
+        .expect("action reaches native fetch before reset")
+        .expect("reset fetch-start signal");
+    state
+        .lock()
+        .await
+        .reset()
+        .expect("reset while action is paused");
+    release_reset.send(()).expect("release reset fetch");
+    let reset_body = tokio::time::timeout(Duration::from_secs(2), reset_action)
+        .await
+        .expect("reset action settles")
+        .expect("reset action task");
+    reset_server.await.expect("reset fetch server");
+    assert_eq!(
+        reset_body["ok"], false,
+        "stale action must fail: {reset_body}"
+    );
+    assert_eq!(
+        reset_body["diagnostic"]["code"], "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "host-call-free completion must observe reset: {reset_body}"
+    );
 }
 
 /// ENG-24340: a mutation invoked by an action executes against a detached

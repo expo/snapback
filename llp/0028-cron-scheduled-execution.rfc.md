@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-12 (ENG-24340 review follow-up: the outer detached action now carries its staging app generation and every later host call, including an in-lock host-plan mutation, rejects schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-12 (ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -420,6 +420,16 @@ The hosted Cloudflare projection likewise treats a non-finite, zero, or
 negative timeout binding as the 30s default and clamps larger values to 15
 minutes; this keeps a u64-like operator value from overflowing the platform
 timer into an immediate or effectively unbounded timeout.
+
+An action paused in native fetch/timer work is not presently interrupted just
+because the app generation advances; wiring that prompt cancellation requires a
+runtime-owned cancellation handle rather than another host-call check. It still
+cannot escape stale success: after the awaited handler settles and before its
+result is published, the detached worker rechecks the staging generation. A
+reload, schema change, or reset during a host-call-free await therefore returns
+`SNAPBACK_ACTION_GENERATION_CONFLICT`; the existing watchdog remains the hard
+upper bound when the native operation never settles.
+
 Cron follows the same structure: a tick *claims* due runs under the lock,
 executes each claim detached (same watchdog), and *finishes* each claim back
 under the lock — the claim-to-finish window now spans the real run duration,
