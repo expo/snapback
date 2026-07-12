@@ -5,7 +5,7 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-12 (ENG-24338/ENG-24346: trusted local token discovery and fail-closed owner-only capability/config file handling; earlier: 2026-07-07 ENG-23629 / LLP 0049 Phase 1: the first
+**Revised:** 2026-07-12 (ENG-24338/ENG-24346: trusted local token discovery and fail-closed owner-only capability/config file handling; ENG-24344/ENG-24362/ENG-24363/ENG-24366: Cloudflare grants use immutable invocation-scoped opaque capability ids, full config status requires admin auth, pooled secrets enter through stdin with member-state attestation, and reversible encoded secret forms are scrubbed at host fetch; earlier: 2026-07-07 ENG-23629 / LLP 0049 Phase 1: the first
 `deploy-time-binding` backend landed on the Cloudflare proof target —
 descriptor-only action grants (values never enter the handler isolate),
 profile-scoped fail-closed `expose()`/`asBearer()` with
@@ -88,23 +88,27 @@ flow drivable end-to-end by an agent through MCP instead of a browser.
 > class, and acquisition levels L1+ are not built;
 > CLI/MCP projections await the LLP 0024 surface (LLP 0032 P6).
 >
-> **Cloudflare `deploy-time-binding` backend as-built (2026-07-07,
-> ENG-23629 / LLP 0049 Phase 1):** the first hosted backend class landed on
+> **Cloudflare `deploy-time-binding` backend as-built (2026-07-07, hardened
+> 2026-07-12 under ENG-24344/24362/24363/24366):** the first hosted backend class landed on
 > the LLP 0040/0049 proof target (`cloudflare/src/coordinator.js`). Values
 > live in gateway-Worker secret bindings under mechanical app-scoped names
 > (`SNAPBACK_SECRET_ALL_ABOARD_CALTRAIN_FEED`), one JSON-array secret per
 > pooled entry with the rotation cursor durable coordinator-side and applied
 > modulo the current member count. Grants are **descriptor-only**: the
 > handler invocation payload carries entry names, set/missing state, member
-> count, and cursor — never values (`descriptorsOnly` grants in the
+> count, and fresh invocation-scoped opaque capability ids — never values or
+> a forgeable name/cursor descriptor (`descriptorsOnly` grants in the
 > single-sourced ctx bootstrap) — and `expose()`/`asBearer()` **fail closed**
 > with `SNAPBACK_CONFIG_EXPOSE_UNSUPPORTED` on this profile; values unwrap
 > only at the coordinator's host-fetch boundary (LLP 0049 §Action Egress,
-> Phase 2). `config.set` is the guided controller flow
+> Phase 2). Handles are immutable, and the host resolves ids only through the
+> current function's private capability map. `config.set` is the guided controller flow
 > (`cloudflare/config-set.mjs`): one `wrangler secret bulk` activation
 > carrying the changed entries plus the bumped `SNAPBACK_CONFIG_GENERATION`
-> secret-binding stamp, with `applied` **attested** by observing
-> `/config/status` report generation ≥ staged (D7); an entry write with no
+> secret-binding stamp. Secret material enters as one validated JSON object on
+> stdin, never argv; full `/config/status` requires the admin token. `applied`
+> is **attested** by observing both generation ≥ staged and every requested
+> declaration's set/member-count state (D7); an entry write with no
 > generation-bearing activation stays `pending` — asserted by
 > `cloudflare/test/acceptance.secrets.mjs` (16 checks), which also pins
 > reset-preserves-secrets, action-only grants, and no-key-material-on-any-

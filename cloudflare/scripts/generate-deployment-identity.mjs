@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// @ref LLP 0040#whole-codebase-review-hardening-2026-07-12-eng-24341eng-24369--eng-24387eng-24388 —
+// persistent state identity follows the bytes and compatibility inputs that
+// actually build the deployed Workers.
 // Generate the identities persisted beside Cloudflare Durable Object state.
 // esbuild's metafile discovers the exact transitive JS/JSON inputs compiled
 // into gateway and handler Workers; normalized Wrangler configs add aliases,

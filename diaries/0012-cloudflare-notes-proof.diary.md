@@ -289,3 +289,64 @@ explicit demand count, activation state, alarm state, and last-run ledger made
 the application half clearer than a generic usage chart. A managed dashboard
 would have made the first glance easier; it would not by itself have supplied
 the false-zero controls or shown why this particular application reached zero.
+
+## 2026-07-12 — Whole-codebase hardening: the proof becomes hostile-input-safe
+
+Reviewing the entire repository instead of following the happy-path checklist
+changed the character of this proof. The original seams were architecturally
+good — one Durable Object owns versions, handlers have only `ctx`, action writes
+flow through mutations, sockets hibernate — but several host obligations were
+still comments rather than enforced boundaries. A public caller could race the
+compiled seed, test actions were dispatchable, schema values were trusted, a
+timed-out action could commit later, and a cron crash could strand or repeat a
+claimed run. Those are exactly the bugs a managed backend quietly owns for an
+application author.
+
+What felt good was how much of the repair stayed local to the host. One
+manifest-backed write validator now covers inserts, patches, and seed rows;
+declared indexes became real SQLite expression indexes; one streaming JSON
+decoder now covers every body route; one host abandonment flag fences both
+future calls and the final nested commit. All Aboard's application logic did
+not need a second defensive layer. The generated schema and function manifests
+were useful authorities rather than documentation after the fact.
+
+The cron fix was the hardest and most instructive. A lease fixes
+crash-after-claim, but not crash-after-mutation-commit/before-claim-finish. The
+stable scheduler key now reaches each nested mutation sequence, and the replay
+result row is inserted in the same SQLite transaction as app rows, version, and
+journal. Recovery may fetch twice — honest at-least-once egress — but it cannot
+commit the same durable step twice. Fault tests stop after claim, during the
+action, and after commit before finish, then drive the same slot to a terminal
+fourth attempt with identical rows/version. That is much stronger evidence than
+calling the alarm twice after a successful run.
+
+Secrets had a similar “almost a capability” lesson. A descriptor containing a
+name and cursor was redacted but forgeable. Replacing it with an immutable,
+invocation-scoped opaque id and a coordinator-private map made `uses` an actual
+authority boundary. The adversarial echo server also forced the scrub to cover
+Unicode normalization, URL/form and double encoding, JSON escaping, redirects,
+and fetch errors; the safer result is to never return the substituted URL at
+all. Config writes now enter over stdin, validate against authenticated status,
+and attest member state as well as a generation number.
+
+Cloudflare deployment work remained the least ergonomic part. Circular service
+bindings require a bootstrap protocol, Worker secrets persist independently of
+the shell environment, and a code change now correctly makes existing state
+stale because deployment identity is derived from esbuild's real transitive
+inputs plus normalized Wrangler compatibility config. A mocked deploy harness
+was worth building: it exercised all existing/missing permutations, ambiguous
+API failures, every partial stage, stale health, token preservation, rotation,
+and removal without touching an account. The script now refuses to call an
+unknown remote state “disabled” and never strips a healthy Worker merely
+because a different component is missing.
+
+Compared with React plus Convex or Supabase, Snapback still asks for more
+runtime and deployment engineering at this stage. Convex would provide schema
+validation, index materialization, action cancellation semantics, retries, and
+secret operations as platform behavior. The payoff here is explicit portable
+semantics: the same function-kind, protected-field, version, and action rules
+are visible and testable across the local and Cloudflare targets, and the
+capability gaps remain inspectable instead of becoming vendor defaults. Exact
+and Contract were largely quiet in this pass; the generated Contract client
+kept exercising the real route/socket surface, while the work was almost
+entirely Snapback host correctness and Cloudflare operator ergonomics.

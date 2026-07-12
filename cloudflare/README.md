@@ -15,12 +15,17 @@ WebSocket Hibernation. This is a **proof, not a product** — see
 | `src/host-ops.js` | The JS `ctx` host-op table (the analogue of the Rust `handle_host_call`). |
 | `src/handler-worker.js` | The stripped V8 handler isolate — the single-sourced LLP 0048 harness with the app bundle compiled in. |
 | `generated/capability.manifest.cloudflare-do-sqlite-v8.json` | The target capability manifest (emitted by `cargo run --bin snapback-cf-manifest`). |
+| `generated/deployment-identity.*.json` | Source-derived state identity: esbuild transitive inputs plus normalized Wrangler/compat config. Regenerate with `node cloudflare/scripts/generate-deployment-identity.mjs`. |
 | `wrangler.jsonc` / `wrangler.handler.jsonc` | Deploy configs (compat pins single-sourced from `packages/snapback-harness/compat.json`). |
 
 ## Run the local acceptance suite (no Cloudflare account)
 
 ```
-node cloudflare/test/acceptance.mjs     # full behavioral checklist under Miniflare (41 checks as of 2026-07-08; the report prints its own count)
+node cloudflare/test/acceptance.mjs     # notes behavioral checklist under Miniflare (the report prints its own count)
+node cloudflare/test/acceptance.all-aboard.mjs
+node cloudflare/test/acceptance.security-hardening.mjs
+node cloudflare/test/acceptance.protocol-hardening.mjs
+node cloudflare/test/acceptance.cron-recovery.mjs
 node cloudflare/test/measure.mjs        # latency measurements with fixtures
 ```
 
@@ -40,6 +45,21 @@ export SNAPBACK_ADMIN_TOKEN=...        # gates /reset + /evict on the deploy
 ./cloudflare/deploy.sh
 SNAPBACK_PROOF_URL=https://snapback-notes-proof.<subdomain>.workers.dev \
   node cloudflare/test/acceptance.remote.mjs
+```
+
+`deploy.sh` never interprets an absent `SNAPBACK_ADMIN_TOKEN` as proof that the
+remote secret is absent: it attests and reports `ABSENT`, `PRESENT and
+preserved`, or `UNKNOWN`. Set `SNAPBACK_ADMIN_TOKEN_REMOVE=1` for explicit,
+attested removal. Mixed-state bootstrap deploys stripped configs only for
+Workers confirmed missing; authentication/network ambiguity fails closed.
+
+For All Aboard config, send the secret pool object over stdin (never argv) and
+authenticate the admin-read attestation:
+
+```
+SNAPBACK_ADMIN_TOKEN=... node cloudflare/config-set.mjs \
+  --url https://snapback-all-aboard-proof.<subdomain>.workers.dev \
+  --entries-stdin < /secure/path/to/secret-pools.json
 ```
 
 The remote runner holds a connected-hibernating idle window

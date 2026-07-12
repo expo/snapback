@@ -5,7 +5,15 @@
 **Systems:** Demo apps, Cloudflare, Deployment, Runtime, Security, Cron, Data gateway, Realtime, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-11 (ninth pass, ENG-23840 / ENG-23841 / ENG-23626:
+**Revised:** 2026-07-12 (tenth pass, ENG-24341–ENG-24369 / ENG-24387–ENG-24388:
+the whole-codebase review hardened compiled-seed provisioning, manifest-backed
+storage/index enforcement, action abandonment and admission, invocation-scoped
+secret capabilities and encoded redaction, recoverable cron leases with
+commit-coupled mutation replay, socket-session ownership, atomic subscription
+migration/reset, source-derived deployment identity, authenticated config
+status and stdin-only config writes, and mixed-state-safe deploy bootstrap;
+focused Miniflare and mocked-deploy regressions pin every corrected boundary);
+2026-07-11 (ninth pass, ENG-23840 / ENG-23841 / ENG-23626:
 operational closeout — a valid Cloudflare account credential was restored and
 the rotated admin credential was persisted in OS-backed secure storage before
 upload to both proof gateways; the deliberate All Aboard no-subscriber run then
@@ -283,15 +291,19 @@ Secret values live on the coordinator/gateway side, not the handler side —
 and under this plan's egress decision (§Action Egress: host-mediated fetch)
 that is literal, not aspirational. The handler invocation payload for an
 action carries **redacted handle descriptors only**: entry names, grant facts
-from the function's declared `uses`, set/missing state, and the rotation
-cursor for pooled entries. The coordinator resolves a descriptor to the actual
-value from the active Cloudflare secret bindings only at its own fetch
+from the function's declared `uses`, set/missing state, member count, and fresh
+invocation-scoped opaque capability ids. The immutable handle itself exposes
+only its opaque id — never a forgeable entry name or rotation cursor — and the
+coordinator resolves it through the active invocation's private capability map
+to the actual value from Cloudflare secret bindings only at its own fetch
 boundary, when the action passes the handle to the host fetch operation. The
 local runtime's values-in-`secretsJson` shape does not port to this profile;
 if the scoped-handler-fetch fallback is ever taken instead, values do enter
 the isolate and the manifest must say so (§Action Egress).
 
-Queries and mutations continue to receive no `ctx.secrets`. A function that asks
+Capability ids expire with the invocation and cannot be replayed into another
+action, including one granted a different entry. Queries and mutations continue
+to receive no `ctx.secrets`. A function that asks
 for an undeclared entry fails with `SNAPBACK_CONFIG_UNDECLARED`; a declared but
 unset entry fails with `SNAPBACK_CONFIG_MISSING`. Status and diagnostics report
 names, set/missing state, verification state, and grant relationships only.
@@ -319,12 +331,16 @@ the first implementation:
   activation. The generation is not sensitive; the secret store is just the
   only write path with the right activation-and-persistence semantics.
 
-The Cloudflare `config.status` projection reports that generation plus the
+The admin-token-gated Cloudflare `config.status` projection reports that generation plus the
 declaration hash — and the platform version/deployment identifier when
 available, which costs nothing and makes operator diagnosis concrete. The
 writer computes `pending` (it staged generation N), and attests `applied`
-by observing the runtime report generation ≥ N — exactly the 0036 contract,
-with the generation ride-along as the Cloudflare-specific carrier. All of
+by observing the runtime report generation ≥ N **and** each requested
+declaration's set/member-count state — exactly the 0036 contract, with the
+generation ride-along as the Cloudflare-specific carrier. The guided writer
+accepts one JSON object from stdin, refuses secret-bearing argv, validates every
+name and nonempty string-array pool against authenticated status, and sends the
+bulk payload directly to Wrangler. All of
 this lands on the gateway/coordinator Worker only; the handler Worker's
 deploy carries no app secret bindings and no generation stamp.
 
@@ -403,7 +419,11 @@ Cloudflare action path therefore mirrors the local ENG-23324 pattern
 fetch outside it, and reacquire per host call and per mutation commit. Action
 runs carry wall-clock watchdog parity with the local target
 (`SNAPBACK_ACTION_TIMEOUT`-equivalent; LLP 0047's `action_wall_clock_timeout:
-Enforced`).
+Enforced`). The watchdog flips host-owned abandonment before answering: every
+later host call is rejected, and a nested mutation rechecks abandonment at its
+final synchronous commit boundary inside the coordinator mutex. Production
+hides testing-only actions, strips testing budget/destination overrides, and
+enforces a bounded per-action public admission rate.
 
 Action commits still flow through mutations. `refreshFeed`'s live success
 path commits through `applyLiveFeedSnapshot`, which stamps
@@ -460,12 +480,18 @@ The staging:
    the alarm; losing the last subscriber cancels it. This proves
    action → mutation → live push with zero idle wakeups.
 2. **Hardened durable runner stage:** the coordinator claims due runs in
-   durable cron state, executes the action once per claimed slot, records the
-   ledger, and early-outs cheaply on wakeups with no work. Delivery is
+   durable cron state with an expiring ownership lease, executes the action,
+   records a terminal outcome, and early-outs cheaply on wakeups with no work.
+   A live lease is not completion; an expired nonterminal claim is acquired by
+   a new attempt. Delivery is
    at-least-once with the stable idempotency key `(jobName, scheduledAt)`
    (LLP 0028 §Scheduler state) — required here because DO-alarm auto-retry
-   re-runs the *whole* action, so a duplicate wakeup must not double-fetch or
-   double-commit a tick. Any alarm use follows LLP 0014's
+   re-runs the *whole* action. Each scheduled action's stable key and nested
+   mutation sequence therefore reach the mutation commit: the mutation result
+   ledger row is written in the same SQLite transaction as app rows/version,
+   and a recovery attempt replays that result instead of committing twice.
+   At-least-once egress may repeat, but durable app commits do not. Terminal
+   claims and their replay rows are pruned together. Any alarm use follows LLP 0014's
    one-alarm-per-object dispatcher rule, which LLP 0040 carried into this
    target shape.
 
@@ -571,9 +597,10 @@ Exit evidence:
   the generation carried by the `SNAPBACK_CONFIG_GENERATION` stamp, plus the
   platform version/deployment identifier when available
   (§Config And Secrets), so the writer can attest `applied` per LLP 0036 D7.
-- Construct action-only grant *descriptors* in the coordinator from Worker
-  bindings and declared `uses` — names, grant facts, pool cursors; never
-  values (§Config And Secrets).
+- Construct action-only grant entries in the coordinator from Worker bindings
+  and declared `uses` — set/member facts plus fresh invocation-scoped opaque
+  capability ids; never values or a forgeable name/cursor handle. Resolve ids
+  only through the active invocation's private map (§Config And Secrets).
 - Keep queries and mutations secret-free.
 
 Exit evidence:
@@ -582,7 +609,9 @@ Exit evidence:
   handle and a missing configured value produces `SNAPBACK_CONFIG_MISSING`.
 - The handler invocation payload for a granted action contains no secret
   value — descriptors only, asserted by test, not by convention.
-- A `config.set` walk-through reaches `applied` via the generation stamp: the
+- Authenticated config status refuses public reconnaissance, and a `config.set`
+  walk-through accepts secret pools only over stdin and reaches `applied` via
+  the generation stamp plus requested declaration member state: the
   guided flow reports `pending` with the staged generation, the
   generation-bearing activation lands with or after every entry write, and
   status attests the new generation after activation. An entry write with no

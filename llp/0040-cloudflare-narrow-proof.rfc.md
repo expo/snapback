@@ -5,7 +5,11 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-11 (ENG-23840 / ENG-23841 operational closeout: the
+**Revised:** 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388:
+whole-codebase review hardening closes hosted provisioning, schema/index,
+action/cron, secret, realtime-session, request-decoding, reset/migration,
+deployment-identity, config-operations, bootstrap, and cache-hygiene gaps; see
+§Whole-codebase review hardening); 2026-07-11 (ENG-23840 / ENG-23841 operational closeout: the
 Cloudflare account token is active with Workers and analytics access, one
 safely persisted admin token passed both proof gateways, and a deliberate
 All Aboard no-subscriber run produced five zero-demand observations plus a
@@ -562,7 +566,8 @@ gaps; all are fixed and regression-pinned by the Miniflare acceptance suite:
   manifest-derived allowlist (plus identifier gate) before reaching SQL
   identifier position; field names are identifier-gated in `fieldExpr`;
   every value rides a bind parameter. Unknown tables fail with
-  `SNAPBACK_HANDLER_HOST_CALL_INVALID`.
+  `SNAPBACK_UNKNOWN_TABLE`; manifest-declared fields and indexes are enforced
+  with dedicated unknown-field/index diagnostics.
 - **Envelope taxonomy** (ENG-23586): the coordinator decodes handler
   envelopes through the shared `packages/snapback-harness/envelope.mjs`,
   which mirrors `handler_envelope_code` in `src/runtime.rs`, and fails
@@ -580,6 +585,53 @@ gaps; all are fixed and regression-pinned by the Miniflare acceptance suite:
   bytes. Gateway and coordinator classify platform exceptions through one
   shared boundary, while unrelated handler failures still fail as handler
   failures.
+
+## Whole-codebase review hardening (2026-07-12, ENG-24341–ENG-24369 / ENG-24387–ENG-24388)
+
+The second review treated the proof as a hosted system rather than only a
+demonstration path. The resulting contracts are now executable regressions:
+
+- `/app/ensure` never consumes caller seed bytes. Production initialization
+  requires the compiled client-manifest identity and always applies the
+  compiled seed; an adversarial clean-object race cannot pre-seed or block the
+  legitimate initializer.
+- Inserts, patches, seeds, and derived writes share manifest validation for
+  required/type/unknown/protected-system-field rules. Declared expression
+  indexes are materialized and `withIndex` is validated; internal subscription
+  selection is indexed and fan-out queries only affected functions.
+- Every JSON body streams through one bounded, fatal-UTF-8 object parser. The
+  gateway no longer buffers an unbounded body first, and syntax, media type,
+  empty body, shape, UTF-8, and size failures return stable 4xx diagnostics
+  without invoking handlers.
+- Action timeouts own an abandonment flag that fences every later host call and
+  the final nested-mutation commit. Testing actions and override arguments are
+  absent from the production dispatch surface, public actions have bounded
+  admission, and function kind is checked at every route/nested boundary.
+- Secret handles carry immutable invocation-scoped opaque ids. Host fetch
+  resolves only the current action's private capability map, never returns a
+  substituted URL, bounds upstream bodies, and scrubs raw, normalized,
+  URL/form-encoded (including double encoding), and JSON-escaped forms.
+- Cron claims distinguish terminal results from live leases. Expired claims
+  recover, and scheduled nested-mutation results are recorded atomically with
+  the app commit under the stable claim key, closing the
+  commit-before-claim-finish double-commit window. The strict-next nominal math
+  is pinned at exact boundaries and after long downtime.
+- Subscription schema migration is versioned and transactional, so current
+  wakes do no rewrite. Kit sockets have durable session ids: only the newest
+  overlapping socket receives frames, and closing an obsolete socket cannot
+  delete its replacement's subscriptions. Query-string WebSocket credentials
+  are refused; subprotocol and explicit-header transport remain.
+- Reset validates first and clears rows/version/journal/runtime metadata/seed
+  in one transaction. That commit is the response linearization point;
+  recoverable post-commit alarm cleanup cannot produce a false rollback 500.
+- Deployment identities come from esbuild's transitive gateway/handler input
+  graph plus normalized Wrangler compatibility/binding configs. The generated
+  identity gate therefore changes with Cloudflare-only handler, schema, host
+  contract, or compatibility edits. Mixed-state bootstrap touches only
+  confirmed-missing Workers, cleans partial bootstrap artifacts, requires a
+  final binding/health proof, and reports admin-secret state as verified
+  absent, preserved present, or unknown. Wrangler caches are ignored and
+  rejected by the compatibility/hygiene gate.
 
 ## Status
 

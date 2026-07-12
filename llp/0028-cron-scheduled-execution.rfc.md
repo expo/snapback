@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-12 (ENG-24340: nested Ibex mutations execute against an isolated read view outside the instance mutex, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-12 (ENG-24340: nested Ibex mutations execute against an isolated read view outside the instance mutex, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24348/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -307,6 +307,19 @@ across attempts. The action context should expose an explicit
 run-now controls it includes the trigger/requested-at identity when the run should
 not dedupe against the scheduled slot. `runId` and `attempt` remain observability
 fields only.
+
+**Cloudflare as built (ENG-24348, 2026-07-12).** A claim is terminal only in
+`done`/`failed`; `claimed` carries an ownership lease and attempt. A live lease
+keeps the nominal slot in place, while an expired lease can be acquired by a
+recovery attempt. The stable slot key also scopes a nested-mutation sequence.
+Each mutation's result row is inserted in the same Durable Object SQLite
+transaction as app rows, version, and journal. A retry may repeat egress, but
+when it reaches an already-committed mutation sequence it receives the prior
+result rather than committing again — including when a fresh fetch derived
+different arguments. Terminal claims and replay rows share the retention
+window. Ordinary public/manual actions do not allocate replay rows. Fault
+evidence covers interruption immediately after claim, during action execution,
+and after mutation commit but before claim finish.
 
 The source manifest remains the definition of what jobs exist. When a job is
 renamed, removed, disabled, or its schedule changes, the runtime should reconcile

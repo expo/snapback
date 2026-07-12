@@ -248,6 +248,8 @@ export class Coordinator {
          count INTEGER NOT NULL
       )`
     );
+    // @ref LLP 0028#scheduler-state-and-run-ledger — stable scheduled
+    // idempotency reaches each nested mutation's commit transaction.
     // Stable results for nested mutations issued by retryable scheduled
     // actions. The row is inserted in the SAME transaction as the mutation
     // commit, closing the crash-after-commit/before-cron-finish gap: a retry
@@ -907,6 +909,8 @@ export class Coordinator {
   // descriptor handles from this (descriptorsOnly), and the local
   // values-in-secretsJson shape never ports to this profile.
   buildActionGrants(fn, { advance = true } = {}) {
+    // @ref LLP 0036#runtime-exposure-d5-d8 — grants are invocation-scoped
+    // opaque capabilities, not forgeable config-entry descriptors.
     const uses = Array.isArray(fn.uses) ? fn.uses : [];
     const entries = {};
     const capabilities = new Map();
@@ -2040,6 +2044,8 @@ export class Coordinator {
   // (the honest "this profile cannot provision what you posted"), and the
   // seed half seeds only when every seed target table is empty.
   kitEnsureApp(payload) {
+    // @ref LLP 0034#5 —
+    // production provisioning is identity-gated and host-owned.
     const posted = payload || {};
     const schemaState = !posted.schema
       ? 'skipped-absent'
@@ -2233,6 +2239,8 @@ export class Coordinator {
   // `snapback.v1` — a browser fails the connection when it offered
   // subprotocols and the server echoed none.
   acceptKitSocket(request, connectionId, url) {
+    // @ref LLP 0031#connection-capability-grants — browser bearer transport
+    // is the subprotocol; URL credentials are outside the grant contract.
     if (request.headers.get('upgrade') !== 'websocket') {
       return kitError(426, 'SNAPBACK_UPGRADE_REQUIRED', 'expected websocket upgrade');
     }
