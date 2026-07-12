@@ -1,11 +1,9 @@
 // Capability-probed Exact resolver.
 //
-// @ref LLP 0015#exact-dependency-policy — resolve Exact through an explicit,
-//   capability-probed resolver (env, untracked local config, sibling checkout,
-//   optional submodule, published packages) in that order. This is
-//   capability-based resolution, not directory-based: a stale peer checkout that
-//   lacks the required capability must report a structured gap, not be treated as
-//   valid just because the directory exists.
+// @ref LLP 0041#demo-dependency-policy — ordinary verification resolves the
+// committed package install; unpublished checkout use requires an explicit env
+// or untracked local-config override and never happens merely because a sibling
+// directory exists.
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -19,46 +17,54 @@ const DEVTOOLS = 'packages/exact-devtools/src';
 // valueChannels).
 const BASELINE_CAPABILITIES = ['contractCompiler', 'runtime', 'dataBinding'];
 
-export function resolveExact({ repoRoot, requiredCapabilities = [] } = {}) {
+export function resolveExact({ repoRoot, requiredCapabilities = [], logger = console.error } = {}) {
   const root = repoRoot ?? process.cwd();
   // A required capability the probe table does not know stays in `missing`
   // and fails the candidate loudly here, instead of failing deep inside a
   // compile against an old checkout.
   const required = [...new Set([...BASELINE_CAPABILITIES, ...requiredCapabilities])];
-  const candidates = [];
+  const overrides = [];
 
   if (process.env.SNAPBACK_EXACT_ROOT) {
-    candidates.push({ kind: 'environment', path: process.env.SNAPBACK_EXACT_ROOT });
+    overrides.push({ kind: 'environment', path: process.env.SNAPBACK_EXACT_ROOT });
   }
   const localConfig = join(root, '.snapback', 'local.json');
   if (existsSync(localConfig)) {
     try {
       const cfg = JSON.parse(readFileSync(localConfig, 'utf8'));
-      if (cfg.exactRoot) candidates.push({ kind: 'local-config', path: cfg.exactRoot });
-    } catch { /* ignore malformed config */ }
+      if (cfg.exactRoot) overrides.push({ kind: 'local-config', path: cfg.exactRoot });
+    } catch (error) {
+      overrides.push({ kind: 'local-config', path: null, configError: error.message });
+    }
   }
-  candidates.push({ kind: 'sibling-checkout', path: join(root, '..', 'exact') });
-  candidates.push({ kind: 'submodule', path: join(root, 'vendor', 'exact') });
 
-  for (const candidate of candidates) {
+  for (const candidate of overrides) {
     if (!candidate.path || !existsSync(candidate.path)) continue;
     const caps = probeCapabilities(candidate.path);
     const missing = required.filter((name) => caps[name] !== true);
     if (missing.length === 0) {
-      return {
+      const selected = {
         sourceKind: candidate.kind,
         path: candidate.path,
         commit: gitCommit(candidate.path),
         capabilities: caps,
         diagnostics: [],
       };
+      logger?.(`[snapback-exact] selected explicit ${selected.sourceKind} checkout ${selected.path} (commit ${selected.commit ?? 'unknown'})`);
+      return selected;
     }
     // Present but incompatible — record why, keep probing.
     candidate.caps = caps;
     candidate.missing = missing;
   }
 
-  // LLP 0015's final resolver rung: published packages. Each Contract app
+  // An explicit override is fail-closed: a typo or incompatible checkout must
+  // not silently fall through to a different locked implementation.
+  if (overrides.length > 0) {
+    return missingResult({ root, required, overrides, packageCandidates: [], explicit: true });
+  }
+
+  // LLP 0041's default resolver rung: published packages. Each Contract app
   // owns its package install deliberately, so discover installed surface/admin
   // roots instead of making the Snapback workspace root a hidden dependency.
   const packageCandidates = installedPackageCandidates(root);
@@ -66,7 +72,7 @@ export function resolveExact({ repoRoot, requiredCapabilities = [] } = {}) {
     const caps = probePackageCapabilities(candidate.packageRoot, candidate.installRoot);
     const missing = required.filter((name) => caps[name] !== true);
     if (missing.length === 0) {
-      return {
+      const selected = {
         sourceKind: 'package',
         path: candidate.installRoot,
         packageRoot: candidate.packageRoot,
@@ -75,12 +81,18 @@ export function resolveExact({ repoRoot, requiredCapabilities = [] } = {}) {
         capabilities: caps,
         diagnostics: [],
       };
+      logger?.(`[snapback-exact] selected locked package ${selected.version ?? 'unknown'} at ${selected.path}`);
+      return selected;
     }
     candidate.caps = caps;
     candidate.missing = missing;
   }
 
-  const probed = candidates
+  return missingResult({ root, required, overrides, packageCandidates, explicit: false });
+}
+
+function missingResult({ root, required, overrides, packageCandidates, explicit }) {
+  const probed = overrides
     .filter((c) => c.path && existsSync(c.path))
     .map((c) => `${c.kind}@${c.path} (missing: ${(c.missing ?? []).join(', ')}; caps: ${JSON.stringify(c.caps ?? {})})`);
   const packageProbed = packageCandidates.map(
@@ -98,18 +110,22 @@ export function resolveExact({ repoRoot, requiredCapabilities = [] } = {}) {
         severity: 'warning',
         subsystem: 'contract-integration',
         message:
-          `No Exact checkout or installed package set with the required capabilities (${required.join(', ')}) was found.`,
+          explicit
+            ? `The explicit Exact checkout does not provide the required capabilities (${required.join(', ')}).`
+            : `No locked Exact package set with the required capabilities (${required.join(', ')}) was found.`,
         details: {
           target_surface: 'Contract/Exact',
           requiredCapabilities: required,
           searched: [
-            ...candidates.map((c) => `${c.kind}:${c.path}`),
+            ...overrides.map((c) => `${c.kind}:${c.path ?? `<invalid config: ${c.configError}>`}`),
             ...packageInstallRoots(root).map((path) => `package:${path}`),
           ],
           probed: [...probed, ...packageProbed],
         },
         suggestedFix:
-          'Run bun install --frozen-lockfile in a Contract surface, or set SNAPBACK_EXACT_ROOT / .snapback/local.json for local Exact development.',
+          explicit
+            ? 'Fix or remove the explicit SNAPBACK_EXACT_ROOT / .snapback/local.json override.'
+            : 'Run bun install --frozen-lockfile in a Contract surface, or set SNAPBACK_EXACT_ROOT / .snapback/local.json for local Exact development.',
       },
     ],
   };

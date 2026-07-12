@@ -5,7 +5,7 @@
 **Systems:** Demo apps, Reference apps, Contract/Exact, Client integration, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-03 (demo ladder: collaborative graffiti/whiteboard added as the rung between kanban and card game, reconciling the numbered ladder with LLP 0010/0016 per LLP 0016 R6; earlier same day, ENG-22219: the collaborative graffiti wall landed as `demos/graffiti/` — shipped-so-far record updated; earlier: 2026-07-01 LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
+**Revised:** 2026-07-12 (ENG-24374: lock-installed Exact packages are the default; checkouts require an explicit override, and import-time failures never fall through). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard added as the rung between kanban and card game, reconciling the numbered ladder with LLP 0010/0016 per LLP 0016 R6; earlier same day, ENG-22219: the collaborative graffiti wall landed as `demos/graffiti/` — shipped-so-far record updated; earlier: 2026-07-01 LLP 0032 R3: ladder reconciled with LLP 0010 — task tracker restored — and the shipped-so-far record added; updated LLP 0027 summary for All Aboard's read-through/minute-refresh backend)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0010, LLP 0012, LLP 0013, LLP 0025, LLP 0027, LLP 0034, Exact 0160, Exact 0158, Exact 0200, Exact 0216, Exact 0263, Exact 0265
 
 ## Summary
@@ -27,9 +27,9 @@ The graceful answer to the Exact repository problem is: do not make the Snapback
 core repo silently depend on a local `../exact` checkout, and do not require an
 Exact git submodule for ordinary Snapback development. Treat Exact as an
 optional external toolchain capability. The Contract/Exact demo surface should
-resolve Exact through an explicit, capability-probed resolver: environment
-variable, untracked local config, sibling checkout, optional submodule, or
-published packages. Missing Exact support is a structured capability gap, not a
+resolve Exact through a capability-probed resolver: lock-installed published
+packages by default, or an explicit environment/untracked-local-config checkout
+override for unpublished development. Missing Exact support is a structured capability gap, not a
 mysterious build failure.
 
 ## Scope
@@ -205,25 +205,25 @@ Exact installed. Contract/Exact demos are optional capabilities in ordinary
 Snapback development and required capabilities only in the Contract integration
 lane.
 
-The resolver for Exact should probe in this order:
+The resolver for Exact probes in this order (updated by LLP 0041's packaged
+demo policy and ENG-24374):
 
 1. `SNAPBACK_EXACT_ROOT`, an explicit path supplied by the developer, agent, or
    CI job.
 2. An untracked local config file under `.snapback/`, for example
    `.snapback/local.json`.
-3. A sibling checkout at `../exact`, matching the relative links already used by
-   this LLP corpus.
-4. An optional `vendor/exact` submodule, if the project later chooses to add one
-   for hermetic CI or release snapshots.
-5. Published Exact packages, once the required Contract compiler, runtime,
-   agent API, and data-binding packages are available that way.
+3. The lock-installed published packages owned by the demo/admin surface.
+
+Sibling `../exact` and `vendor/exact` directories are never implicit
+candidates. An unpublished checkout participates only through steps 1–2, so
+its selection is deliberate and visible rather than dependent on filesystem
+accident.
 
 The resolver must not commit absolute local paths, and it must not treat a path
 as valid just because it exists. It should probe capabilities and report a
 structured result:
 
-- source kind: environment, local config, sibling checkout, submodule, package,
-  or missing;
+- source kind: environment, local config, package, or missing;
 - resolved path or package ids;
 - git commit or package versions when available;
 - Contract compiler availability;
@@ -251,15 +251,16 @@ Warnings are allowed only for explicitly optional capabilities.
 
 ### Peer Checkout Versus Submodule
 
-The preferred local-development mode is a peer checkout plus
-`SNAPBACK_EXACT_ROOT` or the default `../exact` discovery. That keeps Snapback
-usable as its own repository and avoids making every core change pay the cost of
-Exact's moving toolchain.
+The default development and verification mode is the surface's lock-installed
+package set. Unpublished Exact development opts into a checkout with
+`SNAPBACK_EXACT_ROOT` or `.snapback/local.json`; a neighboring directory alone
+never changes which code a gate executes. This keeps Snapback independently
+usable without making results depend on a developer's filesystem layout.
 
 An optional Exact submodule is acceptable only if a specific need appears:
 hermetic CI, release snapshots, or a reproducible external demo. If added, it
-should be one resolver input, not the only supported path, and ordinary core
-tests should still pass when it is uninitialized.
+must still be selected explicitly, and ordinary core tests should pass when it
+is uninitialized.
 
 CI should have two lanes:
 

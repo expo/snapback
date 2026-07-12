@@ -29,10 +29,28 @@ export async function importExactContractConformance({ exactRoot = null } = {}) 
   return importExactContractExport('./conformance', { exactRoot });
 }
 
-export async function importExactContractExport(subpath, { exactRoot = null } = {}) {
+export async function importExactContractExport(subpath, {
+  exactRoot = null,
+  resolveSpecifier = (specifier) => import.meta.resolve(specifier),
+} = {}) {
   const specifier = exactContractSpecifier(subpath);
+  // An explicit checkout is an override, not a fallback after arbitrary
+  // installed-package execution. Resolve it directly and propagate every
+  // import-time failure from the selected module.
+  if (exactRoot) {
+    const resolved = resolveExactContractExport(subpath, { exactRoot });
+    if (!resolved) throw packageResolutionError(specifier, exactRoot, null);
+    ensureSourceCheckoutSpecifierHook(resolved);
+    return import(pathToFileURL(resolved.path).href);
+  }
+
+  let resolvedSpecifier;
   try {
-    return await import(specifier);
+    // Resolve and execute are intentionally separate: only failure to resolve
+    // the optional package permits fallback. Once a package resolves, syntax,
+    // dependency, and initialization errors belong to that package and must
+    // surface unchanged.
+    resolvedSpecifier = resolveSpecifier(specifier);
   } catch (error) {
     const resolved = resolveExactContractExport(subpath, { exactRoot });
     if (!resolved) {
@@ -41,6 +59,7 @@ export async function importExactContractExport(subpath, { exactRoot = null } = 
     ensureSourceCheckoutSpecifierHook(resolved);
     return import(pathToFileURL(resolved.path).href);
   }
+  return import(resolvedSpecifier);
 }
 
 // Exact source checkouts ship TS-ESM sources whose relative specifiers use the
@@ -165,10 +184,7 @@ export function resolveExactContractExport(subpath, { exactRoot = null } = {}) {
 }
 
 function resolveExactContractPackageRoot({ exactRoot }) {
-  const roots = [
-    process.cwd(),
-    exactRoot,
-  ].filter(Boolean);
+  const roots = exactRoot ? [exactRoot] : [process.cwd()];
 
   for (const root of roots) {
     const installed = join(root, 'node_modules', '@exact', 'contract');

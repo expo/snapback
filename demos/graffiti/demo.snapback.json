@@ -55,7 +55,7 @@
       "platforms": ["web"],
       "exact": {
         "requiredCapabilities": ["contractCompiler", "runtime", "dataBinding", "ephemeralBinding", "valueChannels"],
-        "resolver": "demos/_kit/exact-resolver.mjs (SNAPBACK_EXACT_ROOT | .snapback/local.json | ../exact | vendor/exact | installed packages; probes every listed requiredCapability, not just the baseline)",
+        "resolver": "demos/_kit/exact-resolver.mjs (installed locked packages by default; SNAPBACK_EXACT_ROOT or .snapback/local.json is an explicit checkout override; probes every listed requiredCapability)",
         "mismatchPolicy": "skip-with-diagnostic-when-missing; run-and-fail-on-error-when-present",
         "toolchain": "bun (to load Exact package exports from an install or local checkout)"
       }

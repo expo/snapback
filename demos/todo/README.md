@@ -69,9 +69,9 @@ The surface uses the `exactContractWeb` paved-road preset from published Exact
 packages. `surfaces/contract/package.json` keeps imports at `@exact/*` through
 the `@ccheever/exact-*` aliases, and the committed `bun.lock` is the reproducible
 pin. Run `bun install --cwd demos/todo/surfaces/contract` once before the
-browser/build commands. Acceptance resolution still honors
-`SNAPBACK_EXACT_ROOT`, `.snapback/local.json`, `../exact`, and `vendor/exact`
-for local Exact development before falling back to an installed package set.
+browser/build commands. Acceptance resolves that installed package set by
+default; `SNAPBACK_EXACT_ROOT` or `.snapback/local.json` explicitly selects a
+checkout for unpublished Exact development.
 
 The acceptance runners start an in-memory Snapback server on a dedicated port
 (reusing one if already healthy) and tear it down on exit.
