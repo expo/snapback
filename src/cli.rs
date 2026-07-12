@@ -220,9 +220,18 @@ fn read_trusted_json_file(path: &Path) -> anyhow::Result<Value> {
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
 }
 
-fn resolve_target_url(target: &TargetArgs) -> anyhow::Result<String> {
+#[derive(Debug, Eq, PartialEq)]
+struct ResolvedHttpTarget {
+    server_url: String,
+    minted_token: Option<String>,
+}
+
+fn resolve_http_target(target: &TargetArgs) -> anyhow::Result<ResolvedHttpTarget> {
     if let Some(url) = &target.url {
-        return Ok(url.trim_end_matches('/').to_owned());
+        return Ok(ResolvedHttpTarget {
+            server_url: url.trim_end_matches('/').to_owned(),
+            minted_token: None,
+        });
     }
     if let Some(path) = &target.ready_file {
         let value = read_trusted_json_file(path)?;
@@ -233,7 +242,11 @@ fn resolve_target_url(target: &TargetArgs) -> anyhow::Result<String> {
                 problems.join("; ")
             )
         })?;
-        return Ok(descriptor.server_url.trim_end_matches('/').to_owned());
+        let minted_token = discover_minted_token(path, &descriptor);
+        return Ok(ResolvedHttpTarget {
+            server_url: descriptor.server_url.trim_end_matches('/').to_owned(),
+            minted_token,
+        });
     }
     anyhow::bail!("no target: pass --url or --ready-file")
 }
@@ -249,14 +262,18 @@ fn host_op_via_http(target: &TargetArgs, request: Value) -> anyhow::Result<()> {
 }
 
 fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
-    let url = resolve_target_url(target)?;
+    // Resolve the URL and optional local capability from one validated
+    // descriptor snapshot. Reading the path once for the URL and again for the
+    // token would let a rename between reads combine an attacker's URL with a
+    // trusted descriptor's token handoff (ENG-24338).
+    let resolved = resolve_http_target(target)?;
     let token = target
         .token
         .clone()
         .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
         .filter(|token| !token.is_empty())
-        .or_else(|| discover_minted_token(target));
-    let mut http = ureq::post(&format!("{url}/_snapback/api/host-ops"));
+        .or(resolved.minted_token);
+    let mut http = ureq::post(&format!("{}/_snapback/api/host-ops", resolved.server_url));
     if let Some(token) = token.filter(|token| !token.is_empty()) {
         http = http.set("x-snapback-admin-token", &token);
     }
@@ -281,14 +298,8 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
 /// files as this user is what makes the CLI local admin (LLP 0036 D3).
 /// Discovery failing just means the request goes out tokenless and surfaces
 /// the server's structured refusal.
-fn discover_minted_token(target: &TargetArgs) -> Option<String> {
-    if target.url.is_some() {
-        return None;
-    }
-    let ready_file = target.ready_file.as_ref()?;
-    let descriptor =
-        HostReadyDescriptor::validate(&read_trusted_json_file(ready_file).ok()?).ok()?;
-    let declared = PathBuf::from(descriptor.admin_token_file?);
+fn discover_minted_token(ready_file: &Path, descriptor: &HostReadyDescriptor) -> Option<String> {
+    let declared = PathBuf::from(descriptor.admin_token_file.as_deref()?);
     let expected = crate::admin::admin_token_sibling(ready_file);
     if declared != expected {
         return None;
@@ -666,9 +677,9 @@ fn write_ready_file_atomic(path: &Path, content: &str) -> anyhow::Result<()> {
     let tmp_name = format!(".{file_name}.tmp-{}", Uuid::now_v7().simple());
     let tmp_path = path.with_file_name(tmp_name);
     let write_result = (|| -> anyhow::Result<()> {
-        std::fs::write(&tmp_path, content).with_context(|| {
+        crate::secure_file::write_owner_only(&tmp_path, content.as_bytes()).with_context(|| {
             format!(
-                "failed to write temporary ready file {}",
+                "failed to write owner-only temporary ready file {}",
                 tmp_path.display()
             )
         })?;
@@ -782,7 +793,8 @@ fn describe_ports(ports: &[u16]) -> String {
 mod tests {
     use super::{
         Args, Cli, HostCommand, TargetArgs, bind_first_available, bind_listener, parse_run_args,
-        prepare_database_path, reject_misdirected_serve_flags, write_ready_file_atomic,
+        prepare_database_path, reject_misdirected_serve_flags, resolve_http_target,
+        write_ready_file_atomic,
     };
     use clap::Parser;
     use serde_json::json;
@@ -943,6 +955,51 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn ready_file_is_owner_only_even_under_zero_umask() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        const CHILD_ENV: &str = "SNAPBACK_TEST_READY_FILE_ZERO_UMASK_CHILD";
+        if std::env::var_os(CHILD_ENV).is_none() {
+            // umask is process-global. Re-run only this test in a subprocess so
+            // the adversarial setting cannot weaken files created by parallel
+            // tests in this binary.
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "cli::tests::ready_file_is_owner_only_even_under_zero_umask",
+                    "--nocapture",
+                ])
+                .env(CHILD_ENV, "1")
+                .output()
+                .expect("run isolated zero-umask readiness test");
+            assert!(
+                output.status.success(),
+                "zero-umask readiness child failed\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+
+        // SAFETY: this is the isolated child process described above.
+        let previous = unsafe { libc::umask(0) };
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("ready.json");
+        let result = write_ready_file_atomic(&path, "{\"ready\":true}\n");
+        let mode = result
+            .as_ref()
+            .ok()
+            .and_then(|()| std::fs::metadata(&path).ok())
+            .map(|metadata| metadata.permissions().mode() & 0o777);
+        // SAFETY: restore the child's process-global mask before asserting.
+        unsafe { libc::umask(previous) };
+
+        result.expect("publish readiness descriptor under zero umask");
+        assert_eq!(mode, Some(0o600));
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn ordinary_manifest_reads_do_not_change_shared_source_permissions() {
         use std::os::unix::fs::PermissionsExt as _;
 
@@ -970,11 +1027,9 @@ mod tests {
             token: None,
         };
 
-        assert_eq!(
-            super::discover_minted_token(&target),
-            None,
-            "a network target has no local path-discovery channel"
-        );
+        let resolved = resolve_http_target(&target).expect("resolve remote target");
+        assert_eq!(resolved.minted_token, None);
+        assert_eq!(resolved.server_url, "http://127.0.0.1:4400");
     }
 
     #[test]
@@ -992,7 +1047,12 @@ mod tests {
             ready_file: Some(ready),
             token: None,
         };
-        assert_eq!(super::discover_minted_token(&mixed), None);
+        assert_eq!(
+            resolve_http_target(&mixed)
+                .expect("explicit URL wins in directly-constructed args")
+                .minted_token,
+            None
+        );
 
         let parse = Cli::try_parse_from([
             "snapback",
@@ -1025,13 +1085,49 @@ mod tests {
         let mut descriptor = stop_descriptor(Some("nonce"));
         descriptor.admin_token_file = Some(arbitrary.display().to_string());
         std::fs::write(&ready, serde_json::to_vec(&descriptor).unwrap()).unwrap();
-        assert_eq!(super::discover_minted_token(&target), None);
+        assert_eq!(resolve_http_target(&target).unwrap().minted_token, None);
 
         descriptor.admin_token_file = Some(sibling.display().to_string());
         std::fs::write(&ready, serde_json::to_vec(&descriptor).unwrap()).unwrap();
         assert_eq!(
-            super::discover_minted_token(&target).as_deref(),
+            resolve_http_target(&target)
+                .unwrap()
+                .minted_token
+                .as_deref(),
             Some("sbat_expected")
+        );
+    }
+
+    #[test]
+    fn ready_descriptor_swap_cannot_mix_an_attacker_url_with_a_trusted_token() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("ready.json");
+        let sibling = crate::admin::admin_token_sibling(&ready);
+        std::fs::write(&sibling, b"sbat_must_not_be_exfiltrated\n").unwrap();
+
+        let target = TargetArgs {
+            url: None,
+            ready_file: Some(ready.clone()),
+            token: None,
+        };
+        let mut attacker = stop_descriptor(Some("attacker"));
+        attacker.server_url = "http://attacker.invalid".to_owned();
+        attacker.target.server_url = Some(attacker.server_url.clone());
+        attacker.admin_token_file = None;
+        std::fs::write(&ready, serde_json::to_vec(&attacker).unwrap()).unwrap();
+
+        // Resolve the complete request authority from the attacker snapshot.
+        // Swapping in a trusted descriptor afterwards must not trigger a
+        // second descriptor read that adds its local capability to that URL.
+        let resolved = resolve_http_target(&target).unwrap();
+        let mut trusted = stop_descriptor(Some("trusted"));
+        trusted.admin_token_file = Some(sibling.display().to_string());
+        std::fs::write(&ready, serde_json::to_vec(&trusted).unwrap()).unwrap();
+
+        assert_eq!(resolved.server_url, "http://attacker.invalid");
+        assert_eq!(
+            resolved.minted_token, None,
+            "a later trusted descriptor must not donate its token to the already-resolved attacker URL"
         );
     }
 
