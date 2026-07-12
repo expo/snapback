@@ -587,6 +587,34 @@ export class SnapbackClient {
     const waiters = [];
     let streamError = null;
     let wsRef = null;
+    const removeWaiter = (waiter) => {
+      const index = waiters.indexOf(waiter);
+      if (index !== -1) waiters.splice(index, 1);
+    };
+    const waitForUpdate = (timeoutMs) => new Promise((resolve, reject) => {
+      const waiter = {
+        active: true,
+        timer: null,
+        resolve(value) {
+          if (!waiter.active) return;
+          waiter.active = false;
+          clearTimeout(waiter.timer);
+          resolve(value);
+        },
+        reject(error) {
+          if (!waiter.active) return;
+          waiter.active = false;
+          clearTimeout(waiter.timer);
+          reject(error);
+        },
+      };
+      waiters.push(waiter);
+      waiter.timer = setTimeout(() => {
+        if (!waiter.active) return;
+        removeWaiter(waiter);
+        waiter.reject(new Error(`timed out waiting for Snapback live stream update on ${connectionId}`));
+      }, timeoutMs);
+    });
     const fail = (error) => {
       streamError ??= error; // first failure wins; a later close never masks it
       while (waiters.length > 0) waiters.shift().reject(streamError);
@@ -617,12 +645,19 @@ export class SnapbackClient {
     });
     wsPromise.catch((error) => fail(error));
 
+    const ready = wsPromise.then((ws) => new Promise((resolve, reject) => {
+      if (ws.readyState === 1) return resolve(undefined); // already OPEN
+      ws.addEventListener('open', resolve, { once: true });
+      ws.addEventListener('error', () => reject(new Error('Snapback live stream failed to open')), { once: true });
+      ws.addEventListener('close', () => reject(new Error('Snapback live stream closed before opening')), { once: true });
+    }));
+    // `ready` is optional for callers that only consume nextUpdate(); keep its
+    // rejection observable to awaiters without turning an ignored close into
+    // a process-level unhandled rejection.
+    ready.catch(() => {});
+
     return {
-      ready: wsPromise.then((ws) => new Promise((resolve, reject) => {
-        if (ws.readyState === 1) return resolve(undefined); // already OPEN
-        ws.addEventListener('open', resolve, { once: true });
-        ws.addEventListener('error', () => reject(new Error('Snapback live stream failed to open')), { once: true });
-      })),
+      ready,
       close: () => wsPromise.then((ws) => ws.close(), () => {}),
       sendJson: (message) => {
         if (!wsRef) throw new Error('Snapback live stream is not open yet (await ready first)');
@@ -631,11 +666,7 @@ export class SnapbackClient {
       nextUpdate: (timeoutMs = 2_000) => {
         if (queue.length > 0) return Promise.resolve(queue.shift());
         if (streamError) return Promise.reject(streamError);
-        return withTimeout(
-          new Promise((resolve, reject) => waiters.push({ resolve, reject })),
-          timeoutMs,
-          `timed out waiting for Snapback live stream update on ${connectionId}`,
-        );
+        return waitForUpdate(timeoutMs);
       },
     };
   }

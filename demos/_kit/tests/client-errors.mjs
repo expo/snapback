@@ -231,6 +231,58 @@ try {
     return { message: later.message };
   });
 
+  await suite.check('eng_24372: a timed-out reader does not consume the next frame', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_timeout_frame');
+    const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_timeout_frame');
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    await stream.ready;
+    const timedOut = await assertThrows(() => stream.nextUpdate(1), undefined, 'first reader should time out');
+    assert(timedOut.message.includes('timed out'), `expected timeout, got ${timedOut.message}`);
+    ws.dispatch('message', { data: JSON.stringify({ sequence: 1 }) });
+    const update = await stream.nextUpdate(50);
+    assertEqual(update.sequence, 1, 'frame after timeout remains available to the next reader');
+    ws.close();
+    return { sequence: update.sequence };
+  });
+
+  await suite.check('eng_24372: one timed-out waiter does not starve later waiters', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_multiple_waiters');
+    const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_multiple_waiters');
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    await stream.ready;
+    const first = stream.nextUpdate(1);
+    const second = stream.nextUpdate(100);
+    await assertThrows(() => first, undefined, 'first waiter should time out');
+    ws.dispatch('message', { data: JSON.stringify({ sequence: 2 }) });
+    assertEqual((await second).sequence, 2, 'second live waiter receives the frame');
+    ws.close();
+    return { delivered: true };
+  });
+
+  await suite.check('eng_24372: close-before-open rejects readiness and pending reads', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_close_before_open');
+    const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_close_before_open');
+    const ws = await nextSocket(before);
+    const pendingRead = stream.nextUpdate(1_000);
+    ws.dispatch('close', {});
+    const readyError = await assertThrows(() => stream.ready, undefined, 'readiness should reject on close');
+    const readError = await assertThrows(() => pendingRead, undefined, 'pending read should reject on close');
+    assert(readyError.message.includes('closed before opening'), `unexpected ready error: ${readyError.message}`);
+    assert(readError.message.includes('closed'), `unexpected read error: ${readError.message}`);
+    return { ready: readyError.message, read: readError.message };
+  });
+
   await suite.check('eng_23391: a throwing consumer never discards the rest of a destructively drained batch', async () => {
     // The failure scenario from the issue: a fallback drain carrying
     // [update-for-A, an ephemeral envelope, update-for-B, resync_required]
