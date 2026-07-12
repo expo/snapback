@@ -209,6 +209,29 @@ const makeRuntime = () => {
   handle.dispose();
 }
 
+// --- retry hooks are observational: throwing cannot strand attachment ---
+{
+  const client = makeClient({ failures: 1 });
+  let hooks = 0;
+  const handle = createRenderFirstSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha'],
+    retryBaseDelayMs: 1,
+    connect: async () => client.health(),
+    onRetry: () => {
+      hooks += 1;
+      throw new Error('app telemetry failed');
+    },
+  });
+  await handle.attached;
+  assert.equal(hooks, 1);
+  assert.equal(client.state.healthCalls, 2, 'attachment continues after throwing retry hook');
+  handle.dispose();
+}
+
 // --- a structured contract diagnostic is a build defect: no retry, attached rejects ---
 {
   const client = makeClient();
@@ -271,6 +294,27 @@ const makeRuntime = () => {
   );
 }
 
+// --- dispose during active backoff settles the timer and stops retrying ---
+{
+  const client = makeClient({ failures: 100 });
+  const handle = createRenderFirstSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha'],
+    retryBaseDelayMs: 10_000,
+    retryMaxDelayMs: 10_000,
+    connect: async () => client.health(),
+  });
+  await until(() => client.state.healthCalls === 1, 'first failed connect enters backoff');
+  handle.dispose();
+  const error = await handle.attached.catch((caught) => caught);
+  assert.equal(error.code, 'SNAPBACK_CONTRACT_SURFACE_DISPOSED');
+  await tick();
+  assert.equal(client.state.healthCalls, 1, 'cancelled backoff never retries');
+}
+
 // --- runtime accepted as a promise (dynamic import shape) ---
 {
   const client = makeClient();
@@ -286,7 +330,7 @@ const makeRuntime = () => {
   handle.dispose();
 }
 
-// --- low-level deferred links: attach is idempotent; dispose drops waiters ---
+// --- low-level deferred links: attach is idempotent; dispose settles waiters ---
 {
   const deferred = createDeferredContractLinks({ queries: ['q'], mutations: ['m'], ephemerals: ['presence'] });
   assert.equal(deferred.attached, false);
@@ -312,6 +356,46 @@ const makeRuntime = () => {
   await until(() => cells.length > 0, 'ephemeral cell forwarded after attach');
   assert.deepEqual(cells[0], { status: 'ready', entries: [] });
   assert.equal(await deferred.links.m({}), 'ran');
+  deferred.dispose();
+}
+
+
+// --- queued writes reject on disposal; silent subscriptions release waiters ---
+{
+  const deferred = createDeferredContractLinks({ queries: ['q'], mutations: ['m'], ephemerals: ['presence'] });
+  const mutation = deferred.links.m({ value: 1 });
+  const publish = deferred.links.presencePublish({ value: 1 });
+  const querySubscription = deferred.links.q({}).subscribe(() => {});
+  const ephemeralSubscription = deferred.links.presence({}).subscribe(() => {});
+  deferred.dispose();
+  for (const operation of [mutation, publish]) {
+    const error = await operation.catch((caught) => caught);
+    assert.equal(error.code, 'SNAPBACK_CONTRACT_SURFACE_DISPOSED');
+  }
+  assert.throws(() => deferred.links.q({}), (error) => error.code === 'SNAPBACK_CONTRACT_SURFACE_DISPOSED');
+  await tick(); // subscription-owned waiter rejections are handled internally
+  querySubscription.dispose();
+  ephemeralSubscription.dispose();
+}
+
+// --- a throwing first-delivery observer cannot starve the query observer ---
+{
+  const deferred = createDeferredContractLinks({ queries: ['q'] });
+  const deliveries = [];
+  deferred.onFirstDelivery(() => {
+    throw new Error('app first-delivery hook failed');
+  });
+  deferred.links.q({}).subscribe((rows) => deliveries.push(rows));
+  deferred.attach({
+    q: () => ({
+      subscribe(observer) {
+        observer([{ id: 1 }]);
+        return { dispose() {} };
+      },
+    }),
+  });
+  await until(() => deliveries.length === 1, 'delivery after throwing first-delivery hook');
+  assert.deepEqual(deliveries[0], [{ id: 1 }]);
   deferred.dispose();
 }
 

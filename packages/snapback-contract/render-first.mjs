@@ -32,6 +32,12 @@
 // a render-first surface.
 import * as snapbackContract from './index.mjs';
 
+const disposedError = () => {
+  const error = new Error('Render-first Snapback Contract surface was disposed before attach.');
+  error.code = 'SNAPBACK_CONTRACT_SURFACE_DISPOSED';
+  return error;
+};
+
 export function createDeferredContractLinks({ queries = [], mutations = [], ephemerals = [] } = {}) {
   let realLinks = null;
   let disposed = false;
@@ -39,18 +45,32 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
   const firstDeliveryCallbacks = new Set();
   const waiters = [];
 
-  const whenReal = () =>
-    realLinks ? Promise.resolve(realLinks) : new Promise((resolve) => waiters.push(resolve));
+  const whenReal = () => {
+    if (disposed) return Promise.reject(disposedError());
+    if (realLinks) return Promise.resolve(realLinks);
+    return new Promise((resolve, reject) => waiters.push({ resolve, reject }));
+  };
+
+  const assertActive = () => {
+    if (disposed) throw disposedError();
+  };
 
   const markDelivered = () => {
     if (delivered) return;
     delivered = true;
-    for (const callback of [...firstDeliveryCallbacks]) callback();
+    for (const callback of [...firstDeliveryCallbacks]) {
+      try {
+        callback();
+      } catch {
+        // App callbacks cannot interrupt delivery or corrupt lifecycle state.
+      }
+    }
   };
 
   const links = {};
   for (const name of queries) {
     links[name] = (args = {}) => {
+      assertActive();
       // Post-attach reads go straight to the real link: late binds behave
       // exactly as if the deferred layer had never existed.
       if (realLinks) return realLinks[name](args);
@@ -71,7 +91,7 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
               markDelivered();
               notify(rows);
             });
-          });
+          }).catch(() => {});
           return {
             get current() {
               return lastRows;
@@ -90,6 +110,7 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
     // Ephemeral maps hold 'pending' the same way queries do: the handle stays
     // silent until attach, then subscribes through and forwards cells.
     links[name] = (args = {}) => {
+      assertActive();
       if (realLinks) return realLinks[name](args);
       return {
         __exactContractEphemeral: true,
@@ -101,7 +122,7 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
           void whenReal().then((real) => {
             if (subscriptionDisposed || disposed) return;
             inner = real[name](args).subscribe(observer);
-          });
+          }).catch(() => {});
           return {
             dispose() {
               subscriptionDisposed = true;
@@ -128,15 +149,24 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
     attach(real) {
       if (realLinks || disposed) return;
       realLinks = real;
-      for (const waiter of waiters.splice(0)) waiter(real);
+      for (const waiter of waiters.splice(0)) waiter.resolve(real);
     },
     onFirstDelivery(callback) {
+      if (disposed) return;
       firstDeliveryCallbacks.add(callback);
-      if (delivered) callback();
+      if (delivered) {
+        try {
+          callback();
+        } catch {
+          // Same isolation rule as the first-delivery fan-out above.
+        }
+      }
     },
     dispose() {
+      if (disposed) return;
       disposed = true;
-      waiters.length = 0;
+      const error = disposedError();
+      for (const waiter of waiters.splice(0)) waiter.reject(error);
       firstDeliveryCallbacks.clear();
     },
   };
@@ -188,6 +218,7 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
   let disposed = false;
   let realSurface = null;
   let retryTimer = null;
+  let cancelRetrySleep = null;
   let resolveAttached;
   let rejectAttached;
   const attached = new Promise((resolve, reject) => {
@@ -203,10 +234,19 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
   // stay alive through it.
   const sleep = (ms) =>
     new Promise((resolve) => {
-      retryTimer = setTimeout(() => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (retryTimer) clearTimeout(retryTimer);
         retryTimer = null;
+        cancelRetrySleep = null;
         resolve();
+      };
+      retryTimer = setTimeout(() => {
+        finish();
       }, ms);
+      cancelRetrySleep = finish;
     });
 
   void (async () => {
@@ -245,7 +285,13 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
           return;
         }
         const delayMs = Math.min(retryMaxDelayMs, retryBaseDelayMs * 2 ** Math.min(attempt, 4));
-        onRetry?.(error, { attempt, delayMs });
+        if (onRetry) {
+          try {
+            onRetry(error, { attempt, delayMs });
+          } catch {
+            // Retry hooks are observational; they cannot terminate attachment.
+          }
+        }
         await sleep(delayMs);
       }
     }
@@ -258,15 +304,13 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
     diagnostics,
     onFirstDelivery: (callback) => deferred.onFirstDelivery(callback),
     dispose: () => {
+      if (disposed) return;
       disposed = true;
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-        retryTimer = null;
-      }
+      cancelRetrySleep?.();
       deferred.dispose();
       realSurface?.dispose();
       realSurface = null;
-      rejectAttached(new Error('Render-first Snapback Contract surface was disposed before attach.'));
+      rejectAttached(disposedError());
     },
   };
 }
