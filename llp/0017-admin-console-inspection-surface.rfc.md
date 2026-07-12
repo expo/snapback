@@ -492,7 +492,10 @@ Local defaults:
   `admin.tokenFile` is an operator fact, not a token-discovery instruction
   (ENG-24338). Existing capability files are opened without following links,
   must be regular and owned by the service identity, and are repaired to 0600
-  before reuse (ENG-24346). Non-loopback binds do
+  before reuse. Hosts without an implemented owner/ACL validation backend
+  fail closed for persistent minted-token I/O; on Windows today an operator
+  must supply `SNAPBACK_ADMIN_TOKEN` until the ACL backend lands (ENG-24346).
+  Non-loopback binds do
   not mint: admin there stays disabled until an operator sets an explicit
   token. Embedded in-process routers (`server::router`,
   `AppState::detached`) keep the loopback-open default — they are not

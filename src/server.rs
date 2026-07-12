@@ -2848,8 +2848,7 @@ mod tests {
             status_for_diagnostic_code("SNAPBACK_UNKNOWN_TABLE"),
             StatusCode::NOT_FOUND
         );
-        // An unrecognized (client-authoring) error still defaults to 400, so
-        // the new 5xx class never widens by accident.
+        // A deliberately classified client-authoring error remains 400.
         assert_eq!(
             status_for_diagnostic_code("SNAPBACK_CONFIG_ENTRY_INVALID"),
             StatusCode::BAD_REQUEST

@@ -56,18 +56,11 @@ fn repair_owner_only(file: &File) -> io::Result<()> {
 }
 
 #[cfg(not(unix))]
-fn open_existing(path: &Path, writable: bool) -> io::Result<File> {
-    let metadata = std::fs::symlink_metadata(path)?;
-    if metadata.file_type().is_symlink() || !metadata.file_type().is_file() {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "secret path is not a regular non-link file",
-        ));
-    }
-    std::fs::OpenOptions::new()
-        .read(true)
-        .write(writable)
-        .open(path)
+fn open_existing(_path: &Path, _writable: bool) -> io::Result<File> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "owner-only capability-file ACL validation is not implemented on this host; refusing persistent secret I/O",
+    ))
 }
 
 /// Read an existing capability file after validating its inode and repairing
@@ -110,15 +103,11 @@ fn create_new_owner_only(path: &Path) -> io::Result<File> {
 }
 
 #[cfg(not(unix))]
-fn create_new_owner_only(path: &Path) -> io::Result<File> {
-    // Windows uses the creating user's inherited ACL. We additionally refuse
-    // reparse/symlink paths when reopening. A future explicit ACL backend can
-    // tighten this without changing callers.
-    std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create_new(true)
-        .open(path)
+fn create_new_owner_only(_path: &Path) -> io::Result<File> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "owner-only capability-file ACL creation is not implemented on this host; refusing persistent secret I/O",
+    ))
 }
 
 #[cfg(test)]
@@ -154,5 +143,35 @@ mod tests {
         assert!(read_owner_only(&link).is_err());
         assert!(write_owner_only(&link, b"replacement").is_err());
         assert_eq!(std::fs::read(target).unwrap(), b"do-not-touch");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn accepts_safe_existing_file_and_refuses_non_regular_paths() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let safe = dir.path().join("safe");
+        std::fs::write(&safe, b"value").unwrap();
+        std::fs::set_permissions(&safe, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(read_owner_only(&safe).unwrap(), b"value");
+        assert_eq!(
+            std::fs::metadata(&safe).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        assert!(read_owner_only(dir.path()).is_err());
+        assert!(write_owner_only(dir.path(), b"nope").is_err());
+    }
+
+    #[cfg(not(unix))]
+    #[test]
+    fn unsupported_acl_hosts_fail_closed() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("secret");
+        assert_eq!(
+            write_owner_only(&path, b"secret").unwrap_err().kind(),
+            io::ErrorKind::Unsupported
+        );
     }
 }

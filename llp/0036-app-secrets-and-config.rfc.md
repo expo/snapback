@@ -292,7 +292,10 @@ happened.
 state); file mode 0600; owned by the store seam, never read by app code.
 Existing files are opened no-follow, must be regular and owned by the effective
 service identity, and are repaired to owner-only mode before any value is read;
-atomic replacement applies the same checks to temporary files (ENG-24346)
+the config store's atomic replacement writes its same-directory temporary file
+through the same owner-only helper before rename. Hosts without an implemented
+owner/ACL validation backend fail closed for persistent store I/O; Windows is
+in that state today rather than relying on an unknown inherited ACL (ENG-24346)
 directly.
 
 Alternatives considered:
