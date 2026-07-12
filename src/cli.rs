@@ -1033,6 +1033,131 @@ mod tests {
     }
 
     #[test]
+    fn adversarial_remote_server_cannot_make_cli_transmit_a_local_file() {
+        const CHILD_ENV: &str = "SNAPBACK_TEST_REMOTE_TOKEN_EXFIL_CHILD";
+        if std::env::var_os(CHILD_ENV).is_none() {
+            // The ambient token is process-global. Isolate this network-boundary
+            // regression so it proves the no-explicit-token path even when a
+            // developer running the suite has SNAPBACK_ADMIN_TOKEN configured.
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "cli::tests::adversarial_remote_server_cannot_make_cli_transmit_a_local_file",
+                    "--nocapture",
+                ])
+                .env(CHILD_ENV, "1")
+                .env_remove("SNAPBACK_ADMIN_TOKEN")
+                .output()
+                .expect("run isolated remote-token exfiltration test");
+            assert!(
+                output.status.success(),
+                "remote-token exfiltration child failed\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+
+        use std::io::{Read as _, Write as _};
+        use std::net::TcpListener as StdTcpListener;
+        use std::time::Duration;
+
+        fn read_request(stream: &mut std::net::TcpStream) -> String {
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut bytes = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            loop {
+                let count = stream.read(&mut chunk).expect("read attacker request");
+                if count == 0 {
+                    break;
+                }
+                bytes.extend_from_slice(&chunk[..count]);
+                let Some(header_end) = bytes.windows(4).position(|part| part == b"\r\n\r\n") else {
+                    assert!(
+                        bytes.len() < 64 * 1024,
+                        "request headers are unexpectedly large"
+                    );
+                    continue;
+                };
+                let header_len = header_end + 4;
+                let headers = String::from_utf8_lossy(&bytes[..header_len]);
+                let content_len = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (name, value) = line.split_once(':')?;
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().ok())
+                            .flatten()
+                    })
+                    .unwrap_or(0);
+                if bytes.len() >= header_len + content_len {
+                    break;
+                }
+            }
+            String::from_utf8_lossy(&bytes).into_owned()
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let chosen_path = dir.path().join("chosen-local-file");
+        let chosen_contents = "chosen-local-file-contents-must-not-cross-network";
+        std::fs::write(&chosen_path, chosen_contents).unwrap();
+
+        let listener = StdTcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let malicious_path = chosen_path.display().to_string();
+        let attacker = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().expect("accept CLI request");
+                let request = read_request(&mut stream);
+                let offered_path = request.starts_with("GET /_snapback/api/inspect ");
+                let body = if offered_path {
+                    serde_json::json!({"admin": {"tokenFile": malicious_path}}).to_string()
+                } else {
+                    serde_json::json!({"ok": true}).to_string()
+                };
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                )
+                .expect("answer CLI request");
+                requests.push(request);
+                if !offered_path {
+                    break;
+                }
+            }
+            requests
+        });
+
+        let target = TargetArgs {
+            url: Some(format!("http://{address}")),
+            ready_file: None,
+            token: None,
+        };
+        let envelope = super::post_host_op(&target, json!({"operation": "app.inspect"}))
+            .expect("host operation reaches adversarial server");
+        assert_eq!(envelope["ok"], json!(true));
+
+        let requests = attacker.join().expect("attacker server joins");
+        assert_eq!(
+            requests.len(),
+            1,
+            "a remote URL must be contacted only for the requested host operation"
+        );
+        assert!(requests[0].starts_with("POST /_snapback/api/host-ops "));
+        assert!(
+            !requests
+                .iter()
+                .any(|request| request.contains(chosen_contents)),
+            "the attacker-chosen local file contents crossed the network"
+        );
+    }
+
+    #[test]
     fn mixed_url_and_ready_file_never_sends_the_local_ready_token() {
         let dir = tempfile::tempdir().unwrap();
         let ready = dir.path().join("ready.json");
