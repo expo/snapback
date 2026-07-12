@@ -385,6 +385,40 @@ const makeRuntime = () => {
   ephemeralSubscription.dispose();
 }
 
+// --- individual offline unmounts cancel their own pending attach work ---
+{
+  const deferred = createDeferredContractLinks({ queries: ['q'], ephemerals: ['presence'] });
+  let realSubscriptions = 0;
+  for (let index = 0; index < 1_000; index += 1) {
+    const querySubscription = deferred.links.q({ index }).subscribe(() => {});
+    const ephemeralSubscription = deferred.links.presence({ index }).subscribe(() => {});
+    assert.equal(deferred.pendingAttachCount, 2, 'only this mounted pair may await attachment');
+    querySubscription.dispose();
+    ephemeralSubscription.dispose();
+    assert.equal(deferred.pendingAttachCount, 0, 'unmount must remove and settle both pending waiters');
+  }
+  await tick();
+  assert.equal(deferred.pendingAttachCount, 0, 'settled cancellation microtasks retain no waiters');
+
+  deferred.attach({
+    q: () => ({
+      subscribe() {
+        realSubscriptions += 1;
+        return { current: [], dispose() {} };
+      },
+    }),
+    presence: () => ({
+      subscribe() {
+        realSubscriptions += 1;
+        return { dispose() {} };
+      },
+    }),
+  });
+  await tick();
+  assert.equal(realSubscriptions, 0, 'cancelled mounts must not reappear when the backend attaches');
+  deferred.dispose();
+}
+
 // --- a throwing first-delivery observer cannot starve the query observer ---
 {
   const deferred = createDeferredContractLinks({ queries: ['q'] });

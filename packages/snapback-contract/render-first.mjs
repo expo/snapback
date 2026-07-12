@@ -43,13 +43,45 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
   let disposed = false;
   let delivered = false;
   const firstDeliveryCallbacks = new Set();
-  const waiters = [];
+  const waiters = new Set();
 
-  const whenReal = () => {
-    if (disposed) return Promise.reject(disposedError());
-    if (realLinks) return Promise.resolve(realLinks);
-    return new Promise((resolve, reject) => waiters.push({ resolve, reject }));
+  const waitForReal = () => {
+    if (disposed) return { promise: Promise.reject(disposedError()), cancel() {} };
+    if (realLinks) return { promise: Promise.resolve(realLinks), cancel() {} };
+    let active = true;
+    let resolvePromise;
+    let rejectPromise;
+    const promise = new Promise((resolve, reject) => {
+      resolvePromise = resolve;
+      rejectPromise = reject;
+    });
+    const waiter = {
+      resolve(value) {
+        if (!active) return;
+        active = false;
+        resolvePromise(value);
+      },
+      reject(error) {
+        if (!active) return;
+        active = false;
+        rejectPromise(error);
+      },
+    };
+    waiters.add(waiter);
+    return {
+      promise,
+      cancel() {
+        if (!active) return;
+        waiters.delete(waiter);
+        // Settle the private promise so cancellation leaves neither a retained
+        // waiter nor a forever-pending chain. Subscription callbacks treat
+        // null as the cancelled sentinel and never expose it to the runtime.
+        waiter.resolve(null);
+      },
+    };
   };
+
+  const whenReal = () => waitForReal().promise;
 
   const assertActive = () => {
     if (disposed) throw disposedError();
@@ -83,8 +115,9 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
         subscribe(notify) {
           let subscriptionDisposed = false;
           let inner = null;
-          void whenReal().then((real) => {
-            if (subscriptionDisposed || disposed) return;
+          const pending = waitForReal();
+          void pending.promise.then((real) => {
+            if (!real || subscriptionDisposed || disposed) return;
             const handle = real[name](args);
             inner = handle.subscribe((rows) => {
               lastRows = rows;
@@ -98,6 +131,7 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
             },
             dispose() {
               subscriptionDisposed = true;
+              pending.cancel();
               inner?.dispose();
               inner = null;
             },
@@ -119,13 +153,15 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
         subscribe(observer) {
           let subscriptionDisposed = false;
           let inner = null;
-          void whenReal().then((real) => {
-            if (subscriptionDisposed || disposed) return;
+          const pending = waitForReal();
+          void pending.promise.then((real) => {
+            if (!real || subscriptionDisposed || disposed) return;
             inner = real[name](args).subscribe(observer);
           }).catch(() => {});
           return {
             dispose() {
               subscriptionDisposed = true;
+              pending.cancel();
               inner?.dispose();
               inner = null;
             },
@@ -150,10 +186,15 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
     get attached() {
       return realLinks !== null && !disposed;
     },
+    get pendingAttachCount() {
+      return waiters.size;
+    },
     attach(real) {
       if (realLinks || disposed) return;
       realLinks = real;
-      for (const waiter of waiters.splice(0)) waiter.resolve(real);
+      const pending = [...waiters];
+      waiters.clear();
+      for (const waiter of pending) waiter.resolve(real);
     },
     onFirstDelivery(callback) {
       if (disposed) return;
@@ -170,7 +211,9 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
       if (disposed) return;
       disposed = true;
       const error = disposedError();
-      for (const waiter of waiters.splice(0)) waiter.reject(error);
+      const pending = [...waiters];
+      waiters.clear();
+      for (const waiter of pending) waiter.reject(error);
       firstDeliveryCallbacks.clear();
     },
   };
