@@ -5,7 +5,7 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388:
+**Revised:** 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
 whole-codebase review hardening closes hosted provisioning, schema/index,
 action/cron, secret, realtime-session, request-decoding, reset/migration,
 deployment-identity, config-operations, bootstrap, and cache-hygiene gaps; see
@@ -625,13 +625,20 @@ demonstration path. The resulting contracts are now executable regressions:
   scheduled/manual completions also generation-check reset before recreating
   any finish/last-run/nominal state.
 - Subscription schema migration is versioned and transactional, so current
-  wakes do no rewrite. Kit sockets have durable session ids: only the newest
-  overlapping socket receives frames, and closing an obsolete socket cannot
-  delete its replacement's subscriptions. HTTP subscribe requires a current
-  socket, every row/message/demand check is session-bound, and old socketless
-  migration rows are reaped. Hosted grants use route-safe bounded ids, a hard
-  durable cap, and an idle lease. Query-string WebSocket credentials are
-  refused; subprotocol and explicit-header transport remain.
+  wakes do no rewrite, and legacy rows are bounds-checked before any migration
+  copy. Kit sockets have durable session ids: only the newest overlapping
+  socket receives frames, and reconnect proactively closes obsolete physical
+  sockets without letting close lag soften the per-connection or global cap.
+  An over-limit hibernation registry inherited from an older deployment is
+  closed in full and produces a recoverable structured refusal until drained.
+  HTTP subscribe requires a current socket, every row/message/demand check is
+  session-bound, and old socketless migration rows are reaped. Subscription
+  row count, per-connection rows, canonical argument bytes, legacy proof
+  sockets, per-grant sockets, and total sockets all have exact advertised hard
+  ceilings; persistence rechecks admission at its transaction boundary.
+  Hosted grants use route-safe bounded ids, a hard durable cap, and an idle
+  lease. Query-string WebSocket credentials are refused; subprotocol and
+  explicit-header transport remain.
 - Reset validates first and clears rows/version/journal/runtime metadata/seed
   in one transaction. That commit is the response linearization point;
   recoverable post-commit alarm cleanup cannot produce a false rollback 500.
@@ -648,7 +655,14 @@ demonstration path. The resulting contracts are now executable regressions:
   cutover. Admin secret writes are activations, so the final binding/health
   proof runs after them; admin state is reported only as verified absent,
   verified/preserved present, or unknown. Wrangler caches are ignored and
-  rejected by the compatibility/hygiene gate.
+  rejected by the compatibility/hygiene gate. `/health` carries Cloudflare's
+  platform-issued Worker version id. The controller parses the exact `Current
+  Version ID` from each gateway deploy and waits for that id—not merely any
+  changed id—to own 100% traffic before probing it. Legacy secret commands do
+  not return an authoritative version id, so a real secret mutation is followed
+  by one final gateway deploy whose reported id is activated and probed. An
+  older or concurrently deployed healthy full-binding version cannot commit
+  the deploy.
 
 ## Status
 

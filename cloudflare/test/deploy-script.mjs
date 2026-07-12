@@ -37,7 +37,9 @@ const canonical = config.replace(/^\\.bootstrap\\.\\d+\\./, '');
 const statePath = process.env.MOCK_STATE;
 let state = fs.existsSync(statePath)
   ? JSON.parse(fs.readFileSync(statePath, 'utf8'))
-  : { active: {}, sequence: 0, healthCalls: 0, initialized: false };
+  : { active: {}, previous: {}, pending: {}, sequence: 0, healthCalls: 0, initialized: false };
+state.previous ||= {};
+state.pending ||= {};
 if (!state.initialized) {
   for (const item of (process.env.MOCK_EXISTING || '').split(',').filter(Boolean)) {
     state.active[item] = [{ version_id: 'old-' + item.replace(/[^A-Za-z0-9]/g, '-'), percentage: 100 }];
@@ -49,8 +51,10 @@ if (!state.initialized) {
 const save = () => fs.writeFileSync(statePath, JSON.stringify(state));
 const activate = (target) => {
   state.sequence += 1;
-  state.active[target] = [{ version_id: 'new-' + state.sequence + '-' + target.replace(/[^A-Za-z0-9]/g, '-'), percentage: 100 }];
+  const next = [{ version_id: 'new-' + state.sequence + '-' + target.replace(/[^A-Za-z0-9]/g, '-'), percentage: 100 }];
+  state.pending[target] = { versions: next, remaining: Number(process.env.MOCK_CONTROL_LAG_CALLS || 0) };
   save();
+  return next[0].version_id;
 };
 if (args[0] !== 'wrangler') process.exit(90);
 if (args[1] === 'deployments' && args[2] === 'list') {
@@ -63,6 +67,26 @@ if (args[1] === 'deployments' && args[2] === 'list') {
     console.log('[]');
     process.exit(0);
   }
+  const pending = state.pending[config];
+  if (pending) {
+    const isGateway = config === 'wrangler.jsonc' || config === 'wrangler.all-aboard.jsonc';
+    if (isGateway && process.env.MOCK_FOREIGN_GATEWAY_AFTER_DEPLOY === '1' && !state.foreignInjected) {
+      state.sequence += 1;
+      if (state.active[config]) state.previous[config] = state.active[config];
+      state.active[config] = [{ version_id: 'foreign-' + state.sequence + '-' + config.replace(/[^A-Za-z0-9]/g, '-'), percentage: 100 }];
+      delete state.pending[config];
+      state.foreignInjected = true;
+      save();
+    } else if (pending.remaining > 0) {
+      pending.remaining -= 1;
+      save();
+    } else {
+      if (state.active[config]) state.previous[config] = state.active[config];
+      state.active[config] = pending.versions;
+      delete state.pending[config];
+      save();
+    }
+  }
   if (state.active[config]) {
     console.log(JSON.stringify([{ created_on: '2026-07-12T00:00:00.000Z', versions: state.active[config] }]));
     process.exit(0);
@@ -74,7 +98,8 @@ if (args[1] === 'deploy') {
   const match = process.env.MOCK_FAIL_DEPLOY_MATCH || '';
   const exact = process.env.MOCK_FAIL_DEPLOY_EXACT || '';
   const failing = (match && config.includes(match)) || (exact && config === exact);
-  if (!failing || process.env.MOCK_FAIL_AFTER_ACTIVATE === '1') activate(canonical);
+  let versionId = '';
+  if (!failing || process.env.MOCK_FAIL_AFTER_ACTIVATE === '1') versionId = activate(canonical);
   if (failing) {
     state.failureSeen = true;
     save();
@@ -82,6 +107,7 @@ if (args[1] === 'deploy') {
     process.exit(7);
   }
   console.log('https://snapback-notes-proof.test.workers.dev');
+  if (process.env.MOCK_OMIT_VERSION_ID !== '1') console.log('Current Version ID: ' + versionId);
   process.exit(0);
 }
 if (args[1] === 'versions' && args[2] === 'deploy') {
@@ -92,11 +118,13 @@ if (args[1] === 'versions' && args[2] === 'deploy') {
     const at = spec.lastIndexOf('@');
     return { version_id: spec.slice(0, at), percentage: Number(spec.slice(at + 1)) };
   });
+  delete state.pending[config];
   save();
   process.exit(0);
 }
 if (args[1] === 'delete') {
   delete state.active[config];
+  delete state.pending[config];
   save();
   process.exit(0);
 }
@@ -131,13 +159,19 @@ const state = JSON.parse(fs.readFileSync(process.env.MOCK_STATE, 'utf8'));
 state.healthCalls += 1;
 fs.writeFileSync(process.env.MOCK_STATE, JSON.stringify(state));
 const failAfter = Number(process.env.MOCK_HEALTH_FAIL_AFTER_CALL || 0);
+const wrongAfter = Number(process.env.MOCK_HEALTH_WRONG_VERSION_AFTER_CALL || 0);
 const actionHandler = process.env.SNAPBACK_CF_APP === 'all-aboard';
+const gatewayConfig = actionHandler ? 'wrangler.all-aboard.jsonc' : 'wrangler.jsonc';
+const activeVersion = state.active[gatewayConfig]?.[0]?.version_id || null;
+const previousVersion = state.previous?.[gatewayConfig]?.[0]?.version_id || 'stale-healthy-version';
+const wrongVersion = process.env.MOCK_HEALTH_WRONG_VERSION === '1' || (wrongAfter > 0 && state.healthCalls >= wrongAfter);
+const workerVersion = { id: wrongVersion ? previousVersion : activeVersion, tag: '', timestamp: '2026-07-12T00:00:00.000Z' };
 if (process.env.MOCK_HEALTH_FAIL === '1' || (failAfter > 0 && state.healthCalls >= failAfter)) {
-  console.log(JSON.stringify({ ok: true, bindings: { handler: false, actionHandler: false } }));
+  console.log(JSON.stringify({ ok: true, bindings: { handler: false, actionHandler: false }, workerVersion }));
 } else if (process.env.MOCK_HEALTH_STALE === '1') {
-  console.log(JSON.stringify({ ok: false, code: 'SNAPBACK_STALE_CLOUDFLARE_INPUTS_HASH', bindings: { handler: true, actionHandler } }));
+  console.log(JSON.stringify({ ok: false, code: 'SNAPBACK_STALE_CLOUDFLARE_INPUTS_HASH', bindings: { handler: true, actionHandler }, workerVersion }));
 } else {
-  console.log(JSON.stringify({ ok: true, bindings: { handler: true, actionHandler } }));
+  console.log(JSON.stringify({ ok: true, bindings: { handler: true, actionHandler }, workerVersion }));
 }
 `;
 fs.writeFileSync(path.join(bin, 'npx'), npxFake, { mode: 0o755 });
@@ -158,6 +192,8 @@ function run(name, extra = {}) {
     SNAPBACK_DEPLOY_PROBE_URL: 'https://proof.invalid',
     SNAPBACK_DEPLOY_PROBE_ATTEMPTS: '1',
     SNAPBACK_DEPLOY_PROBE_DELAY_SECONDS: '0',
+    SNAPBACK_DEPLOY_CONTROL_ATTEMPTS: '4',
+    SNAPBACK_DEPLOY_CONTROL_DELAY_SECONDS: '0',
     MOCK_LOG: log,
     MOCK_STATE: state,
     MOCK_COMPAT_MARKER: marker,
@@ -202,6 +238,22 @@ try {
   assert.deepEqual(deployConfigs(existing, true), []);
   assert.match(existing.output, /remote state: verified ABSENT/);
   assert.equal(existing.compatChecked, true, 'deploy must always run the compat preflight');
+
+  const controlLag = run('control-plane-lag', { MOCK_CONTROL_LAG_CALLS: '1' });
+  assert.equal(controlLag.status, 0, controlLag.output);
+  assert.match(controlLag.output, /control-plane 1\/4: gateway deploy has not exposed exact gateway version/);
+
+  const concurrentForeignVersion = run('concurrent-foreign-version', {
+    MOCK_FOREIGN_GATEWAY_AFTER_DEPLOY: '1',
+  });
+  assert.notEqual(concurrentForeignVersion.status, 0);
+  assert.match(concurrentForeignVersion.output, /could not attest exact gateway version/);
+  assert.deepEqual(rollbackConfigs(concurrentForeignVersion), ['wrangler.handler.jsonc', 'wrangler.jsonc']);
+
+  const missingVersionId = run('missing-version-id', { MOCK_OMIT_VERSION_ID: '1' });
+  assert.notEqual(missingVersionId.status, 0);
+  assert.match(missingVersionId.output, /did not report exactly one Current Version ID/);
+  assert.deepEqual(rollbackConfigs(missingVersionId), ['wrangler.handler.jsonc', 'wrangler.jsonc']);
 
   const onlyHandlerMissing = run('handler-missing', { MOCK_EXISTING: 'wrangler.jsonc' });
   assert.equal(onlyHandlerMissing.status, 0, onlyHandlerMissing.output);
@@ -264,6 +316,11 @@ try {
   const healthFailure = run('health-failure', { MOCK_EXISTING: '', MOCK_HEALTH_FAIL: '1' });
   assert.notEqual(healthFailure.status, 0);
   assert.deepEqual(new Set(deletedConfigs(healthFailure)), new Set(['wrangler.handler.jsonc', 'wrangler.jsonc']));
+
+  const oldHealthyVersion = run('old-healthy-version', { MOCK_HEALTH_WRONG_VERSION: '1' });
+  assert.notEqual(oldHealthyVersion.status, 0);
+  assert.match(oldHealthyVersion.output, /not serving expected full-bindings version/);
+  assert.deepEqual(rollbackConfigs(oldHealthyVersion), ['wrangler.handler.jsonc', 'wrangler.jsonc']);
 
   const staleHealth = run('stale-health', { MOCK_EXISTING: '', MOCK_HEALTH_STALE: '1' });
   assert.notEqual(staleHealth.status, 0);
@@ -338,10 +395,17 @@ try {
   assert.equal(removed.status, 0, removed.output);
   assert.match(removed.output, /verified SNAPBACK_ADMIN_TOKEN absent/);
   assert.ok(removed.calls.some((args) => args[1] === 'secret' && args[2] === 'delete'));
+  assert.equal(deployConfigs(removed, false).filter((config) => config === 'wrangler.jsonc').length, 2);
+
+  const noOpRemoved = run('token-remove-no-op', { SNAPBACK_ADMIN_TOKEN_REMOVE: '1' });
+  assert.equal(noOpRemoved.status, 0, noOpRemoved.output);
+  assert.ok(!noOpRemoved.calls.some((args) => args[1] === 'secret' && args[2] === 'delete'));
+  assert.equal(deployConfigs(noOpRemoved, false).filter((config) => config === 'wrangler.jsonc').length, 1);
 
   const rotated = run('token-rotated', { SNAPBACK_ADMIN_TOKEN: 'never-log-this-secret' });
   assert.equal(rotated.status, 0, rotated.output);
   assert.ok(rotated.calls.some((args) => args[1] === 'secret' && args[2] === 'put'));
+  assert.equal(deployConfigs(rotated, false).filter((config) => config === 'wrangler.jsonc').length, 2);
   assert.doesNotMatch(JSON.stringify(rotated.calls) + rotated.output, /never-log-this-secret/);
 
   const secretActivatedFailure = run('secret-activated-failure', {
@@ -358,6 +422,15 @@ try {
   assert.notEqual(finalHealthFailure.status, 0);
   assert.match(finalHealthFailure.output, /DEPLOY FAILED FINAL VERIFICATION/);
   assert.deepEqual(rollbackConfigs(finalHealthFailure), ['wrangler.handler.jsonc', 'wrangler.jsonc']);
+
+  const finalOldHealthy = run('final-old-healthy-after-secret', {
+    SNAPBACK_ADMIN_TOKEN: 'never-log-this-secret',
+    MOCK_CONTROL_LAG_CALLS: '1',
+    MOCK_HEALTH_WRONG_VERSION_AFTER_CALL: '2',
+  });
+  assert.notEqual(finalOldHealthy.status, 0);
+  assert.match(finalOldHealthy.output, /DEPLOY FAILED FINAL VERIFICATION/);
+  assert.deepEqual(rollbackConfigs(finalOldHealthy), ['wrangler.handler.jsonc', 'wrangler.jsonc']);
 
   console.log('cloudflare deploy-script acceptance: mixed bootstrap, rollback, and admin-secret states passed');
 } finally {

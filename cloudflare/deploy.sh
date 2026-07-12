@@ -73,6 +73,7 @@ existing_version_specs=()
 changed_existing=()
 bootstrap_temp_files=()
 deploy_verified=0
+EXPECTED_GATEWAY_VERSION_ID=""
 
 array_contains() {
   local needle="$1" item
@@ -110,6 +111,62 @@ active_version_specs_from_json() {
     if (Math.abs(total - 100) > 0.0001) process.exit(2);
     process.stdout.write(specs.join(' '));
   " "$1"
+}
+
+active_single_version_id_from_json() {
+  node -e "
+    const rows = JSON.parse(process.argv[1]);
+    if (!Array.isArray(rows) || rows.length === 0) process.exit(2);
+    const latest = rows[rows.length - 1];
+    if (!latest || !Array.isArray(latest.versions) || latest.versions.length !== 1) process.exit(2);
+    const active = latest.versions[0];
+    if (!active || typeof active.version_id !== 'string' || active.version_id.length === 0) process.exit(2);
+    if (Math.abs(Number(active.percentage) - 100) > 0.0001) process.exit(2);
+    process.stdout.write(active.version_id);
+  " "$1"
+}
+
+deployed_version_id_from_log() {
+  local log="$1"
+  node -e "
+    const fs = require('node:fs');
+    const text = fs.readFileSync(process.argv[1], 'utf8').replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '');
+    const matches = [...text.matchAll(/(?:^|\n)\s*Current Version ID:\s*([^\s]+)\s*(?:\n|$)/g)];
+    if (matches.length !== 1 || !matches[0][1]) process.exit(2);
+    process.stdout.write(matches[0][1]);
+  " "$log"
+}
+
+wait_for_gateway_activation() {
+  local phase="$1" expected_version_id="$2" attempts delay deployments version_id
+  attempts="${SNAPBACK_DEPLOY_CONTROL_ATTEMPTS:-8}"
+  delay="${SNAPBACK_DEPLOY_CONTROL_DELAY_SECONDS:-5}"
+  for ((i = 1; i <= attempts; i++)); do
+    if deployments="$(npx wrangler deployments list --config "$gateway_config" --json 2>/dev/null)" &&
+      version_id="$(active_single_version_id_from_json "$deployments" 2>/dev/null)" &&
+      [[ "$version_id" == "$expected_version_id" ]]; then
+      EXPECTED_GATEWAY_VERSION_ID="$expected_version_id"
+      echo "==> $phase activated gateway version $EXPECTED_GATEWAY_VERSION_ID"
+      return 0
+    fi
+    echo "    control-plane $i/$attempts: $phase has not exposed exact gateway version $expected_version_id at 100% yet"
+    sleep "$delay"
+  done
+  echo "!!> could not attest exact gateway version $expected_version_id after $phase" >&2
+  return 1
+}
+
+deploy_gateway_version() {
+  local phase="$1" log version_id
+  log="$(mktemp)"
+  bootstrap_temp_files+=("$log")
+  npx wrangler deploy --config "$gateway_config" 2>&1 | tee "$log"
+  if ! version_id="$(deployed_version_id_from_log "$log" 2>/dev/null)"; then
+    echo "!!> $phase did not report exactly one Current Version ID; refusing to infer activation" >&2
+    return 1
+  fi
+  LAST_GATEWAY_DEPLOY_LOG="$log"
+  wait_for_gateway_activation "$phase" "$version_id"
 }
 
 mark_existing_attempted() {
@@ -282,9 +339,8 @@ fi
 
 echo "==> deploying gateway + coordinator ($gateway_worker)"
 mark_existing_attempted "$gateway_config"
-gateway_deploy_log="$(mktemp)"
-bootstrap_temp_files+=("$gateway_deploy_log")
-npx wrangler deploy --config "$gateway_config" | tee "$gateway_deploy_log"
+deploy_gateway_version "gateway deploy"
+gateway_deploy_log="$LAST_GATEWAY_DEPLOY_LOG"
 
 # Post-deploy probe (ENG-23732): assert the LIVE gateway version carries the
 # HANDLER service binding. /health reports `bindings` since this change; the
@@ -308,11 +364,12 @@ probe_gateway_bindings() {
       if (!b || !b.bindings) process.exit(1);
       if (b.bindings.handler !== true) process.exit(1);
       if (needAction && b.bindings.actionHandler !== true) process.exit(1);
-    " "$body" "$([[ "$app" == "all-aboard" ]] && echo 1 || echo 0)" 2>/dev/null; then
+      if (!b.workerVersion || b.workerVersion.id !== process.argv[3]) process.exit(1);
+    " "$body" "$([[ "$app" == "all-aboard" ]] && echo 1 || echo 0)" "$EXPECTED_GATEWAY_VERSION_ID" 2>/dev/null; then
       PROBED_HEALTH_BODY="$body"
       return 0
     fi
-    echo "    probe $i/$attempts: gateway not serving the full-bindings version yet"
+    echo "    probe $i/$attempts: gateway not serving expected full-bindings version $EXPECTED_GATEWAY_VERSION_ID yet"
     sleep "$delay"
   done
   return 1
@@ -332,7 +389,7 @@ else
   else
     echo "!!> live gateway is NOT serving the HANDLER binding (bootstrap/stale version"
     echo "    active) — running one corrective gateway redeploy"
-    npx wrangler deploy --config "$gateway_config"
+    deploy_gateway_version "corrective gateway deploy"
     if probe_gateway_bindings "$probe_url" "$probe_attempts" "$probe_delay"; then
       echo "==> corrective redeploy fixed it: gateway now serves the full-bindings version"
     else
@@ -362,12 +419,14 @@ fi
 # The destructive admin endpoints (/reset, /evict) are token-gated and fail
 # closed when no token is configured (ENG-23587). Set the secret from the
 # environment so the acceptance/measurement suites can drive them.
+gateway_secret_mutated=0
 if [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" && "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "1" ]]; then
   echo "SNAPBACK_ADMIN_TOKEN and SNAPBACK_ADMIN_TOKEN_REMOVE=1 are mutually exclusive" >&2
   exit 2
 elif [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" ]]; then
   echo "==> setting SNAPBACK_ADMIN_TOKEN secret on $gateway_worker"
   printf '%s' "$SNAPBACK_ADMIN_TOKEN" | npx wrangler secret put SNAPBACK_ADMIN_TOKEN --config "$gateway_config"
+  gateway_secret_mutated=1
   current_secrets="$(npx wrangler secret list --format json --config "$gateway_config")"
   if node -e "
     const rows = JSON.parse(process.argv[1]);
@@ -386,6 +445,7 @@ elif [[ "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "1" ]]; then
     process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 0 : 1);
   " "$current_secrets"; then
     printf 'y\n' | npx wrangler secret delete SNAPBACK_ADMIN_TOKEN --config "$gateway_config"
+    gateway_secret_mutated=1
   fi
   remaining_secrets="$(npx wrangler secret list --format json --config "$gateway_config")"
   if node -e "
@@ -417,10 +477,18 @@ else
   rm -f "$secret_list_log"
 fi
 
-# Worker secret put/delete is itself a new gateway Version activation. The
-# pre-secret health proof therefore cannot attest the final deployment. Repeat
-# both the binding and full health proof after the last possible activation;
-# only this point disarms rollback/cleanup.
+# Wrangler's legacy secret commands do not report the Version ID they create.
+# After a real secret mutation, make one ordinary gateway deploy: Wrangler does
+# report that deploy's exact Version ID, and Worker secrets persist into it.
+# This gives the final health proof a specific activation to attest instead of
+# accepting any version that merely differs from an earlier snapshot.
+if [[ "$gateway_secret_mutated" -eq 1 ]]; then
+  echo "==> deploying an exactly identifiable final gateway version after admin-secret mutation"
+  deploy_gateway_version "post-secret gateway deploy"
+fi
+
+# Repeat both the binding and full health proof after the last possible
+# activation; only this point disarms rollback/cleanup.
 echo "==> re-probing final gateway version after admin-secret state settled"
 if ! probe_gateway_bindings "$probe_url" "$probe_attempts" "$probe_delay"; then
   echo "!!> DEPLOY FAILED FINAL VERIFICATION: final gateway version is missing required service bindings" >&2

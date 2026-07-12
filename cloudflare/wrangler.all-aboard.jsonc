@@ -10,6 +10,10 @@
   "main": "src/gateway.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": [],
+  // /health exposes this platform-issued id so deploy.sh can prove it reached
+  // the exact activation it just created, including the final deploy after a
+  // secret mutation.
+  "version_metadata": { "binding": "SNAPBACK_VERSION_METADATA" },
   // The LLP 0049 deploy-time app selector: this deploy compiles in the
   // All Aboard bundle.
   "alias": { "snapback-app": "./app/all-aboard.app.js" },

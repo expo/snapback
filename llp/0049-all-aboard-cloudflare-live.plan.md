@@ -279,10 +279,16 @@ cutover. A worker confirmed missing before bootstrap is tracked before each
 Wrangler attempt (local failure can follow remote activation), re-probed during
 cleanup, deleted only when confirmed present, and re-probed absent afterward;
 new dependents are removed action-handler → gateway → handler. Ambiguous state
-or unprovable rollback is a critical failed-closed result. Because secret
-put/delete creates another gateway version, bindings and full `/health` are
-probed again after the final admin-secret operation; only that proof commits a
-successful deploy.
+or unprovable rollback is a critical failed-closed result. Each gateway config
+carries Cloudflare's version-metadata binding. Wrangler gateway deploy output
+provides an exact `Current Version ID`; the controller requires that same id at
+100% in the control plane and in live `/health`, so a concurrent operator's
+different healthy version cannot be mistaken for this transaction. Legacy
+secret put/delete output has no authoritative version id, so any real secret
+mutation is followed by a final ordinary gateway deploy (secrets persist) and
+that deploy's exact reported id is activated and probed. A no-op removal needs
+no extra activation. Only the final exact-version binding/full-health proof
+commits a successful deploy.
 
 ### Config And Secrets
 

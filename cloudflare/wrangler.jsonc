@@ -9,6 +9,9 @@
   "main": "src/gateway.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": [],
+  // /health exposes this platform-issued id so deploy.sh can prove it reached
+  // the exact activation it just created, not an older healthy edge version.
+  "version_metadata": { "binding": "SNAPBACK_VERSION_METADATA" },
   // The LLP 0049 deploy-time app selector: each deploy config resolves the
   // 'snapback-app' module to exactly one checked-in bundle. This config is
   // the notes fixture — LLP 0040's pinned regression surface.
