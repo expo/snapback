@@ -2,3 +2,4 @@
 /.snapback/
 node_modules/
 .agent-local-secrets.md
+/cloudflare/.wrangler/
