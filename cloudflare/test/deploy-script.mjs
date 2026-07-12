@@ -193,7 +193,14 @@ if (process.env.MOCK_HEALTH_FAIL === '1' || (failAfter > 0 && state.healthCalls 
 `;
 fs.writeFileSync(wranglerBin, wranglerFake, { mode: 0o755 });
 fs.writeFileSync(path.join(bin, 'curl'), curlFake, { mode: 0o755 });
-fs.writeFileSync(path.join(bin, 'bun'), '#!/usr/bin/env bash\\nexit 0\\n', { mode: 0o755 });
+const bunBin = path.join(bin, 'bun');
+const bunFake = '#!/usr/bin/env bash\nexit 0\n';
+fs.writeFileSync(bunBin, bunFake, { mode: 0o755 });
+assert.equal(
+  fs.readFileSync(bunBin, 'utf8'),
+  bunFake,
+  'the executable fixture must contain real line feeds, not literal \\n text',
+);
 
 function run(name, extra = {}) {
   const caseRoot = path.join(temp, name);
