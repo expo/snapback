@@ -5,8 +5,18 @@
 // Pure mock client/runtime; runs under plain node (no server, no Exact).
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { createRenderFirstSnapbackContractSurface, createDeferredContractLinks } from './index.mjs';
+
+// Exact's Hermes fallback lowers this intentional barrel cycle to CommonJS.
+// Named imports snapshot the still-partial exports object during startup;
+// the namespace import remains live as the core adapter finishes initializing.
+{
+  const source = readFileSync(new URL('./render-first.mjs', import.meta.url), 'utf8');
+  assert.match(source, /import \* as snapbackContract from '\.\/index\.mjs';/);
+  assert.doesNotMatch(source, /import \{[^}]*createSnapbackContractSurface[^}]*\} from '\.\/index\.mjs';/s);
+}
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const until = async (predicate, label, timeoutMs = 2_000) => {
