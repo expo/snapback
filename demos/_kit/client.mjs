@@ -92,6 +92,16 @@ export const LIVE_SOCKET_KINDS = Object.freeze({
   // ignored (the schema gate lists it as acknowledged-unhandled).
   DURABLE_BYTES: 'durable_bytes',
 });
+// These hosted subscribe refusals are explicitly pre-persistence: the
+// coordinator returns before inserting/replacing a subscription row. They are
+// therefore the ONLY subscribe failures the kit may replay after proving a
+// current socket session. Network errors, timeouts, 5xx responses, and every
+// other diagnostic remain ambiguous and are never retried here.
+const LIVE_SUBSCRIBE_READINESS_RETRY_CODES = new Set([
+  'SNAPBACK_CONNECTION_SOCKET_REQUIRED',
+  'SNAPBACK_CONNECTION_SESSION_REPLACED',
+]);
+const LIVE_SUBSCRIBE_READINESS_RETRIES = 2;
 
 export class SnapbackClient {
   constructor(baseUrl, {
@@ -867,9 +877,43 @@ export class SnapbackClient {
       // This handle's OWN previous subscription (reconnect/resync/resume
       // paths) is explicitly superseded; the first establish has none.
       const supersedes = handle.subscriptionId ?? null;
-      const epochAtStart = socketLossEpoch;
-      const demandEpochAtStart = resubscribeDemandEpoch;
-      const sub = await client.subscribeLive(name, { connectionId, args, userId, correlation, supersedes });
+      let attempt = null;
+      let readinessRetries = 0;
+      for (;;) {
+        const epochAtStart = socketLossEpoch;
+        const demandEpochAtStart = resubscribeDemandEpoch;
+        try {
+          const sub = await client.subscribeLive(name, {
+            connectionId,
+            args,
+            userId,
+            correlation,
+            supersedes,
+          });
+          attempt = { sub, epochAtStart, demandEpochAtStart };
+          break;
+        } catch (error) {
+          const code = error?.diagnostic?.code;
+          if (
+            transport !== 'stream' ||
+            !LIVE_SUBSCRIBE_READINESS_RETRY_CODES.has(code) ||
+            readinessRetries >= LIVE_SUBSCRIBE_READINESS_RETRIES
+          ) {
+            throw error;
+          }
+          readinessRetries += 1;
+          const manager = client.liveStreamManager(connectionId, streamOptions);
+          // A SOCKET_REQUIRED response commonly means the optimistic HTTP
+          // subscribe beat the socket upgrade. SESSION_REPLACED means the
+          // socket changed while the snapshot was loading. Both responses
+          // are effect-free by server contract, so wait for a correlated
+          // ping/pong on the current generation and retry only then. If a
+          // generation had already been proven ready, revalidate it (or let
+          // its loss move the wait to the replacement generation).
+          await manager.waitUntilReady({ revalidate: manager.isReady() });
+        }
+      }
+      const { sub, epochAtStart, demandEpochAtStart } = attempt;
       if (disposed || paused) {
         // The dispose/pause may have raced this fresh subscribe. The caller no
         // longer owns the server registration, so tear down the late result
@@ -1284,6 +1328,13 @@ class LiveStreamManager {
     this.heartbeatTimer = null;
     this.lastActivityMs = Date.now();
     this.requestSeq = 0;
+    // Socket-session readiness is generation-scoped. A correlated ping/pong
+    // proves that the server is processing frames on the same generation the
+    // client will pair with its HTTP subscribe; a stale socket's pong cannot
+    // satisfy a later generation because #dispatch ignores non-current ws.
+    this.socketGeneration = 0;
+    this.readyGeneration = 0;
+    this.readinessPromise = null;
     // True while the ENG-23442 grant handshake for a connect is in flight
     // (there is no this.ws yet, so #ensureSocket needs its own latch).
     this.connectPending = false;
@@ -1319,6 +1370,113 @@ class LiveStreamManager {
 
   isOpen() {
     return this.open;
+  }
+
+  isReady() {
+    return this.open && this.readyGeneration === this.socketGeneration;
+  }
+
+  /// Prove the CURRENT socket generation through a correlated ping/pong.
+  /// Raw WebSocket `open` is not a sufficient cross-target witness: a local
+  /// upgrade callback may still be registering its delivery task. Hosted
+  /// subscribe recovery waits here only after an explicit, pre-persistence
+  /// session diagnostic; generic HTTP outcomes are never replayed.
+  ///
+  /// @ref LLP 0034#23-connection-axis-mapping-kit-derived-policy-over-d0-signals
+  waitUntilReady({ timeoutMs = this.freshnessBudgetMs, revalidate = false } = {}) {
+    if (this.closed) {
+      return Promise.reject(liveStreamReadinessError(
+        'SNAPBACK_LIVE_STREAM_CLOSED',
+        `Snapback live stream for ${this.connectionId} is closed`,
+      ));
+    }
+    if (!revalidate && this.isReady()) return Promise.resolve(this.socketGeneration);
+    if (this.readinessPromise) return this.readinessPromise;
+    if (revalidate) this.readyGeneration = 0;
+
+    const pending = new Promise((resolve, reject) => {
+      let settled = false;
+      let probing = false;
+      let offState = () => {};
+      const finish = (outcome, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        offState();
+        outcome(value);
+      };
+      const deadline = Date.now() + timeoutMs;
+      const probe = () => {
+        if (settled || probing || !this.open) return;
+        const generation = this.socketGeneration;
+        if (this.readyGeneration === generation) {
+          finish(resolve, generation);
+          return;
+        }
+        probing = true;
+        const remainingMs = Math.max(1, deadline - Date.now());
+        const probeTimeoutMs = Math.min(this.heartbeatIntervalMs, remainingMs);
+        this.request({ type: 'ping' }, probeTimeoutMs).then(
+          (frame) => {
+            probing = false;
+            if (settled) return;
+            if (!this.open || this.socketGeneration !== generation) {
+              probe();
+              return;
+            }
+            if (frame?.kind !== LIVE_SOCKET_KINDS.PONG) {
+              this.debugCloseSocket();
+              return;
+            }
+            this.readyGeneration = generation;
+            finish(resolve, generation);
+          },
+          () => {
+            probing = false;
+            if (settled) return;
+            // A raw-open socket that cannot answer the readiness ping is not
+            // usable authority. Force the ordinary loss/reconnect path; the
+            // same bounded wait continues on the replacement generation.
+            if (this.open && this.socketGeneration === generation) {
+              this.debugCloseSocket();
+            }
+          },
+        );
+      };
+      const timer = setTimeout(() => {
+        finish(
+          reject,
+          liveStreamReadinessError(
+            'SNAPBACK_LIVE_STREAM_READINESS_TIMEOUT',
+            `Snapback live stream for ${this.connectionId} did not become ready within ${timeoutMs}ms`,
+          ),
+        );
+      }, timeoutMs);
+      offState = this.onState((state) => {
+        if (state === 'open') {
+          probe();
+        } else if (state === 'closed') {
+          finish(
+            reject,
+            liveStreamReadinessError(
+              'SNAPBACK_LIVE_STREAM_CLOSED',
+              `Snapback live stream for ${this.connectionId} closed before it became ready`,
+            ),
+          );
+        }
+      });
+      // A custom WebSocket can open synchronously from #ensureSocket inside
+      // onState(). In that case probe() may settle before onState returned its
+      // disposer; remove the now-installed listener explicitly.
+      if (settled) offState();
+      probe();
+    });
+    this.readinessPromise = pending;
+    const clear = () => {
+      if (this.readinessPromise === pending) this.readinessPromise = null;
+    };
+    pending.then(clear, clear);
+    return pending;
   }
 
   #emitState(state, detail = {}) {
@@ -1382,6 +1540,7 @@ class LiveStreamManager {
       this.#scheduleReconnect();
       return;
     }
+    this.socketGeneration += 1;
     this.ws = ws;
 
     // Connect budget: a dangling upgrade (a proxy that swallows it, a dead
@@ -1619,6 +1778,13 @@ function deliverIsolated(consumer, payload) {
   } catch {
     // Consumer errors are the consumer's problem, not the delivery's.
   }
+}
+
+function liveStreamReadinessError(code, message) {
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = { code, message };
+  return error;
 }
 
 function resyncReason(serverReason) {

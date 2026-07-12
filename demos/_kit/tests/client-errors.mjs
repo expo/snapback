@@ -22,6 +22,7 @@ class FakeWebSocket {
   constructor(url) {
     this.url = url;
     this.listeners = new Map();
+    this.sent = [];
     FakeWebSocket.instances.push(this);
   }
   addEventListener(type, handler, options) {
@@ -34,7 +35,9 @@ class FakeWebSocket {
     this.listeners.set(type, list.filter((entry) => !entry.once));
     for (const entry of list) entry.handler(event);
   }
-  send() {}
+  send(message) {
+    this.sent.push(message);
+  }
   close() {
     this.dispatch('close', {});
   }
@@ -81,6 +84,21 @@ const waitFor = async (predicate, label, timeoutMs = 1_000) => {
     await sleep(10);
   }
   throw new Error(`timed out waiting for ${label}`);
+};
+const diagnosticError = (code, message = code) => {
+  const error = new Error(`${code}: ${message}`);
+  error.diagnostic = { code, message };
+  return error;
+};
+const nextSentPing = async (ws, previousCount = 0) => {
+  await waitFor(() => ws.sent.length > previousCount, 'readiness ping');
+  const parsed = ws.sent.slice(previousCount).map((message) => JSON.parse(message));
+  const ping = parsed.find((message) => message.type === 'ping');
+  assert(ping, `expected a readiness ping, got ${JSON.stringify(parsed)}`);
+  return ping;
+};
+const acknowledgePing = (ws, ping) => {
+  ws.dispatch('message', { data: JSON.stringify({ kind: 'pong', requestId: ping.requestId }) });
 };
 const encodedValue = (value) => [...new TextEncoder().encode(JSON.stringify(value))];
 const overlayRoom = { collection: 'presence', routing_key: '4:room=1:a' };
@@ -350,6 +368,190 @@ try {
     return { ready: readyError.message, read: readError.message };
   });
 
+  await suite.check('socket/session subscribe refusals retry only after generation-scoped readiness', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_session_ready');
+    const db = new SnapbackClient('http://stub');
+    const events = [];
+    let subscribeCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      events.push(`subscribe:${subscribeCalls}`);
+      if (subscribeCalls === 1) {
+        throw diagnosticError(
+          'SNAPBACK_CONNECTION_SOCKET_REQUIRED',
+          'a current authenticated WebSocket session is required before subscribing',
+        );
+      }
+      if (subscribeCalls === 3) {
+        throw diagnosticError(
+          'SNAPBACK_CONNECTION_SESSION_REPLACED',
+          'the WebSocket session was replaced while the subscription snapshot was loading',
+        );
+      }
+      return {
+        subscription_id: `sub_${subscribeCalls}`,
+        snapshot: { version: subscribeCalls, rows: [] },
+      };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+
+    const beforeInitial = FakeWebSocket.instances.length;
+    const establishing = db.liveQuery('listTodos', {
+      connectionId: 'conn_session_ready',
+      transport: 'stream',
+      stream: { freshnessBudgetMs: 1_000 },
+    });
+    const firstSocket = await nextSocket(beforeInitial);
+    await waitFor(() => subscribeCalls === 1, 'the optimistic initial subscribe');
+    assertEqual(subscribeCalls, 1, 'the socket-required response does not replay while the socket is connecting');
+    firstSocket.dispatch('open', {});
+    const firstPing = await nextSentPing(firstSocket);
+    await sleep(10);
+    assertEqual(subscribeCalls, 1, 'raw WebSocket open alone does not release the safe retry');
+    events.push('socket:1:ready');
+    acknowledgePing(firstSocket, firstPing);
+    const handle = await establishing;
+    assertEqual(subscribeCalls, 2, 'initial subscribe retries exactly once after the readiness pong');
+
+    handle.pause();
+    const beforeResume = FakeWebSocket.instances.length;
+    const resuming = handle.resume();
+    const secondSocket = await nextSocket(beforeResume);
+    await waitFor(() => subscribeCalls === 3, 'the optimistic resume subscribe');
+    secondSocket.dispatch('open', {});
+    const secondPing = await nextSentPing(secondSocket);
+    await sleep(10);
+    assertEqual(subscribeCalls, 3, 'session-replaced resume waits for a fresh readiness proof before replay');
+    events.push('socket:2:ready');
+    acknowledgePing(secondSocket, secondPing);
+    await resuming;
+    assertEqual(subscribeCalls, 4, 'resume retries exactly once after current-session readiness');
+    assertEqual(
+      events.join(','),
+      'subscribe:1,socket:1:ready,subscribe:2,subscribe:3,socket:2:ready,subscribe:4',
+      'each effect-free refusal is followed by readiness and one successful retry',
+    );
+    handle.dispose();
+    return { subscribeCalls, events };
+  });
+
+  await suite.check('stream readiness timeout sends no retry after the effect-free refusal', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_session_timeout');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+    };
+    const before = FakeWebSocket.instances.length;
+    const establishing = db.liveQuery('listTodos', {
+      connectionId: 'conn_session_timeout',
+      transport: 'stream',
+      stream: { freshnessBudgetMs: 20, reconnectBaseDelayMs: 1_000, reconnectMaxDelayMs: 1_000 },
+    });
+    await nextSocket(before); // deliberately never opened
+    const error = await assertThrows(
+      () => establishing,
+      'SNAPBACK_LIVE_STREAM_READINESS_TIMEOUT',
+      'a stream lifecycle without a current socket must fail at readiness',
+    );
+    assertEqual(subscribeCalls, 1, 'readiness failure never replays the refused HTTP subscribe');
+    return { code: error.diagnostic.code, subscribeCalls };
+  });
+
+  await suite.check('ambiguous failure after readiness is surfaced without an unsafe retry', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_session_no_retry');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      if (subscribeCalls === 1) {
+        throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+      }
+      throw new Error('ambiguous subscribe transport failure');
+    };
+    const before = FakeWebSocket.instances.length;
+    const establishing = db.liveQuery('listTodos', {
+      connectionId: 'conn_session_no_retry',
+      transport: 'stream',
+      stream: { freshnessBudgetMs: 1_000 },
+    });
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    acknowledgePing(ws, await nextSentPing(ws));
+    const error = await assertThrows(() => establishing, undefined, 'subscribe failure must surface');
+    await sleep(20);
+    assertEqual(subscribeCalls, 2, 'only the effect-free refusal was retried; the ambiguous failure was not');
+    return { message: error.message, subscribeCalls };
+  });
+
+  await suite.check('successful socketless subscribe preserves local HTTP poll fallback', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_local_poll_fallback');
+    const db = new SnapbackClient('http://stub');
+    let subscribeCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeCalls += 1;
+      return { subscription_id: 'sub_local', snapshot: { version: 1, rows: [{ _id: 'local' }] } };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+    db.drainConnection = async () => ({ durable: [], ephemeral: [] });
+    const before = FakeWebSocket.instances.length;
+    const handle = await db.liveQuery('listTodos', {
+      connectionId: 'conn_local_poll_fallback',
+      transport: 'stream',
+      pollCadenceMs: 10,
+      stream: { freshnessBudgetMs: 1_000, reconnectBaseDelayMs: 1_000, reconnectMaxDelayMs: 1_000 },
+    });
+    const ws = await nextSocket(before); // deliberately never reaches open
+    assertEqual(subscribeCalls, 1, 'local socketless subscribe establishes without waiting for WebSocket');
+    assertEqual(handle.rows[0]._id, 'local', 'authoritative snapshot is available immediately');
+    ws.dispatch('close', {});
+    await waitFor(() => handle.connection === 'polling', 'HTTP poll fallback after blocked socket');
+    handle.dispose();
+    return { subscribeCalls, connection: handle.connection };
+  });
+
+  await suite.check('parallel stream subscribes share one readiness probe and retry independently', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_parallel_ready');
+    const db = new SnapbackClient('http://stub');
+    const attempts = new Map();
+    db.subscribeLive = async (name) => {
+      const count = (attempts.get(name) ?? 0) + 1;
+      attempts.set(name, count);
+      if (count === 1) throw diagnosticError('SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+      return { subscription_id: `sub_${name}`, snapshot: { version: 1, rows: [] } };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+    const before = FakeWebSocket.instances.length;
+    const handlesPromise = Promise.all(['alpha', 'beta', 'gamma'].map((name) => db.liveQuery(name, {
+      connectionId: 'conn_parallel_ready',
+      transport: 'stream',
+      stream: { freshnessBudgetMs: 1_000 },
+    })));
+    const ws = await nextSocket(before);
+    await waitFor(
+      () => [...attempts.values()].reduce((sum, count) => sum + count, 0) === 3,
+      'three optimistic subscribes',
+    );
+    ws.dispatch('open', {});
+    const ping = await nextSentPing(ws);
+    await sleep(10);
+    assertEqual(ws.sent.length, 1, 'parallel waits share one correlated readiness probe');
+    acknowledgePing(ws, ping);
+    const handles = await handlesPromise;
+    assert(
+      [...attempts.values()].every((count) => count === 2),
+      `each query should retry once: ${JSON.stringify([...attempts])}`,
+    );
+    handles.forEach((handle) => handle.dispose());
+    return { sockets: FakeWebSocket.instances.length - before, attempts: Object.fromEntries(attempts) };
+  });
+
   await suite.check('eng_23391: a throwing consumer never discards the rest of a destructively drained batch', async () => {
     // The failure scenario from the issue: a fallback drain carrying
     // [update-for-A, an ephemeral envelope, update-for-B, resync_required]
@@ -504,15 +706,17 @@ try {
       return { durable: [], ephemeral: [] };
     };
 
-    const handle = await db.liveQuery('listTodos', {
+    const before = FakeWebSocket.instances.length;
+    const establishing = db.liveQuery('listTodos', {
       connectionId: 'fallback_heals_conn',
       transport: 'stream',
       pollCadenceMs: 20,
       stream: { heartbeatIntervalMs: 5_000, freshnessBudgetMs: 20_000, reconnectBaseDelayMs: 20_000, reconnectMaxDelayMs: 20_000 },
       onConnectionChange: (next) => transitions.push(next),
     });
-    const ws = FakeWebSocket.instances.at(-1);
+    const ws = await nextSocket(before);
     ws.dispatch('open', {});
+    const handle = await establishing;
     await waitFor(() => handle.connection === 'live', 'initial live');
     ws.dispatch('close', {});
     await waitFor(() => handle.connection === 'stale', 'stale after failed fallback drain');
