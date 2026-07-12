@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
+import { validateWriteValues } from '../src/host-ops.js';
 
 function code(body) {
   return body?.code || body?.diagnostic?.code;
@@ -29,6 +30,38 @@ for (const operation of ['insert', 'patch']) {
 assert.ok(seedCases.length > 0, 'shared structural corpus must include compiled-seed rejection');
 assert.ok(structuralCases.some((entry) => entry.operation === 'derivedInsert'));
 assert.ok(structuralCases.some((entry) => entry.operation === 'derivedPatch'));
+
+// LLP 0051 keeps `__proto__` as an ordinary legal declared key. Prove the
+// Cloud normalizer neither invokes Object.prototype's setter nor drops it,
+// and pin required-null parity for JSON fields (the generic JSON serializer
+// otherwise considers null serializable).
+const edgeTable = {
+  name: 'edgeRecords',
+  fields: [
+    { name: 'payload', type: 'json', optional: false },
+    { name: '__proto__', type: 'json', optional: true },
+  ],
+};
+const edgeSchema = new Map([[edgeTable.name, edgeTable]]);
+for (const insert of [true, false]) {
+  const values = JSON.parse(insert
+    ? '{"payload":{"valid":true},"__proto__":{"polluted":true}}'
+    : '{"__proto__":{"polluted":true}}');
+  const accepted = validateWriteValues(edgeSchema, edgeTable.name, values, { insert });
+  assert.equal(accepted.ok, true, JSON.stringify(accepted));
+  assert.equal(Object.getPrototypeOf(accepted.values), null, 'normalized writes use a null prototype');
+  assert.equal(Object.hasOwn(accepted.values, '__proto__'), true, '__proto__ remains an own data field');
+  assert.deepEqual(accepted.values.__proto__, { polluted: true });
+  assert.equal({}.polluted, undefined, 'declared __proto__ data must not mutate Object.prototype');
+
+  const requiredNull = validateWriteValues(
+    edgeSchema,
+    edgeTable.name,
+    { payload: null },
+    { insert },
+  );
+  assert.equal(requiredNull.code, 'SNAPBACK_FIELD_TYPE_MISMATCH');
+}
 
 const proof = await startProof({ app: 'notes', port: 0 });
 try {

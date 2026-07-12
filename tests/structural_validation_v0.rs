@@ -86,6 +86,30 @@ fn schema(corpus: &Corpus) -> SchemaManifest {
     }
 }
 
+fn edge_schema() -> SchemaManifest {
+    SchemaManifest {
+        schema_hash: Some("structural-validation-edge-v1".to_owned()),
+        tables: vec![TableManifest {
+            name: "edgeRecords".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "payload".to_owned(),
+                    field_type: FieldType::Json,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "__proto__".to_owned(),
+                    field_type: FieldType::Json,
+                    optional: true,
+                },
+            ],
+            indexes: vec![],
+            syncable: true,
+        }],
+        ..SchemaManifest::default()
+    }
+}
+
 fn input(args: Value) -> HandlerInput {
     HandlerInput {
         args,
@@ -327,4 +351,87 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
             case.name
         );
     }
+}
+
+#[test]
+fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
+    let mut db = LocalDatabase::memory().expect("memory database");
+    db.apply_schema(edge_schema()).expect("apply edge schema");
+    let valid = json!({
+        "_id": "edge-existing",
+        "payload": { "valid": true },
+        "__proto__": { "polluted": true }
+    });
+    db.seed(snapback::manifest::SeedData {
+        tables: BTreeMap::from([(
+            "edgeRecords".to_owned(),
+            vec![valid.as_object().expect("valid edge row").clone()],
+        )]),
+    })
+    .expect("prototype-named declared field seeds as ordinary data");
+    let stored = db
+        .get("edgeRecords", "edge-existing")
+        .expect("read edge row")
+        .expect("edge row exists");
+    assert_eq!(stored["__proto__"], json!({ "polluted": true }));
+
+    for id in ["edge-existing", "edge-missing"] {
+        let before = db.current_version().expect("version before invalid patch");
+        let error = db
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Patch {
+                        table: "edgeRecords".to_owned(),
+                        id: ValueExpr::Literal(Value::String(id.to_owned())),
+                        values: BTreeMap::from([(
+                            "payload".to_owned(),
+                            ValueExpr::Literal(Value::Null),
+                        )]),
+                    }],
+                    return_value: None,
+                },
+                &input(json!({})),
+            )
+            .expect_err("required JSON null is invalid independent of row existence");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
+        assert_eq!(db.current_version().unwrap(), before);
+    }
+
+    let insert_error = db
+        .execute_mutation(
+            &MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "edgeRecords".to_owned(),
+                    values: BTreeMap::from([(
+                        "payload".to_owned(),
+                        ValueExpr::Literal(Value::Null),
+                    )]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            },
+            &input(json!({})),
+        )
+        .expect_err("required JSON null insert must fail");
+    assert_eq!(insert_error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
+
+    let mut seed_db = LocalDatabase::memory().expect("seed memory database");
+    seed_db
+        .apply_schema(edge_schema())
+        .expect("apply seed edge schema");
+    let invalid_seed = json!({ "_id": "edge-invalid", "payload": null });
+    let seed_error = seed_db
+        .seed(snapback::manifest::SeedData {
+            tables: BTreeMap::from([(
+                "edgeRecords".to_owned(),
+                vec![
+                    invalid_seed
+                        .as_object()
+                        .expect("invalid edge seed object")
+                        .clone(),
+                ],
+            )]),
+        })
+        .expect_err("required JSON null seed must fail");
+    assert_eq!(seed_error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
 }

@@ -40,6 +40,24 @@
       "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
     },
     {
+      "name": "insert-unknown-precedes-wrong-type",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "text": 42, "surprise": true },
+      "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
+      "name": "insert-protected-precedes-wrong-type",
+      "operation": "insert",
+      "values": { "_createdAt": 1, "boardId": "validation-board", "text": 42 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
+    },
+    {
+      "name": "insert-unknown-precedes-missing-required",
+      "operation": "insert",
+      "values": { "boardId": "validation-board", "surprise": true },
+      "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
       "name": "insert-protected-id",
       "operation": "insert",
       "values": { "boardId": "validation-board", "text": "valid", "_id": "caller-id" },
@@ -80,6 +98,18 @@
       "operation": "patch",
       "values": { "surprise": true },
       "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
+      "name": "patch-unknown-precedes-wrong-type",
+      "operation": "patch",
+      "values": { "text": 42, "surprise": true },
+      "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
+      "name": "patch-protected-precedes-wrong-type",
+      "operation": "patch",
+      "values": { "_createdAt": 1, "text": 42 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
     },
     {
       "name": "patch-protected-id",
@@ -146,6 +176,18 @@
       "operation": "seed",
       "values": { "_id": "bad-seed", "boardId": "validation-board", "text": "valid", "surprise": true },
       "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
+      "name": "seed-unknown-precedes-wrong-type",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "boardId": "validation-board", "text": 42, "surprise": true },
+      "expectedCode": "SNAPBACK_UNKNOWN_FIELD"
+    },
+    {
+      "name": "seed-protected-precedes-wrong-type",
+      "operation": "seed",
+      "values": { "_id": "bad-seed", "_createdAt": 1, "boardId": "validation-board", "text": 42 },
+      "expectedCode": "SNAPBACK_SYSTEM_FIELD_WRITE"
     },
     {
       "name": "seed-protected-version",

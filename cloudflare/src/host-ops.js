@@ -37,7 +37,14 @@ function writeFailure(code, message, details = null) {
 }
 
 function validateFieldValue(table, field, value) {
-  if (value === null && field.optional) return null;
+  if (value === null) {
+    if (field.optional) return null;
+    return writeFailure(
+      'SNAPBACK_FIELD_TYPE_MISMATCH',
+      `expected ${fieldType(field) || 'declared'} value for ${table.name}.${field.name}`,
+      { table: table.name, field: field.name, expected: fieldType(field) || null }
+    );
+  }
   const type = fieldType(field);
   let valid = false;
   if (type === 'string') valid = typeof value === 'string';
@@ -73,7 +80,11 @@ export function validateWriteValues(schemaTables, tableName, values, { insert = 
     return writeFailure('SNAPBACK_HANDLER_HOST_CALL_INVALID', `ctx.db write values for ${tableName} must be an object`);
   }
   const fields = new Map((table.fields || []).map((field) => [field.name, field]));
-  for (const key of Object.keys(values)) {
+  const orderedKeys = Object.keys(values).sort();
+  // Match the local BTreeMap boundary: inserts reject protected/unknown keys
+  // before checking required/value constraints, while patches validate each
+  // sorted key completely before moving to the next key.
+  for (const key of orderedKeys) {
     if (SYSTEM_FIELDS.has(key)) {
       return writeFailure('SNAPBACK_SYSTEM_FIELD_WRITE', `${key} is managed by Snapback`, { table: table.name, field: key });
     }
@@ -81,16 +92,26 @@ export function validateWriteValues(schemaTables, tableName, values, { insert = 
     if (!field) {
       return writeFailure('SNAPBACK_UNKNOWN_FIELD', `unknown field ${table.name}.${key}`, { table: table.name, field: key });
     }
-    const invalid = validateFieldValue(table, field, values[key]);
-    if (invalid) return invalid;
+    if (!insert) {
+      const invalid = validateFieldValue(table, field, values[key]);
+      if (invalid) return invalid;
+    }
   }
-  const normalized = {};
+  const normalized = Object.create(null);
+  const defineNormalized = (key, value) => Object.defineProperty(normalized, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
   if (insert) {
     for (const field of table.fields || []) {
       if (Object.prototype.hasOwnProperty.call(values, field.name)) {
-        normalized[field.name] = values[field.name];
+        const invalid = validateFieldValue(table, field, values[field.name]);
+        if (invalid) return invalid;
+        defineNormalized(field.name, values[field.name]);
       } else if (field.optional) {
-        normalized[field.name] = null;
+        defineNormalized(field.name, null);
       } else {
         return writeFailure(
           'SNAPBACK_FIELD_MISSING',
@@ -100,7 +121,7 @@ export function validateWriteValues(schemaTables, tableName, values, { insert = 
       }
     }
   } else {
-    Object.assign(normalized, values);
+    for (const key of orderedKeys) defineNormalized(key, values[key]);
   }
   return { ok: true, values: normalized };
 }
