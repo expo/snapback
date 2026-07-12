@@ -207,6 +207,12 @@ fn parse_run_args(args: Option<String>) -> anyhow::Result<Value> {
 }
 
 fn read_json_file(path: &Path) -> anyhow::Result<Value> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("failed to read {}", path.display()))?;
+    serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
+}
+
+fn read_trusted_json_file(path: &Path) -> anyhow::Result<Value> {
     let raw = crate::secure_file::read_owner_only(path)
         .with_context(|| format!("failed to read trusted local file {}", path.display()))?;
     let raw = String::from_utf8(raw)
@@ -219,7 +225,7 @@ fn resolve_target_url(target: &TargetArgs) -> anyhow::Result<String> {
         return Ok(url.trim_end_matches('/').to_owned());
     }
     if let Some(path) = &target.ready_file {
-        let value = read_json_file(path)?;
+        let value = read_trusted_json_file(path)?;
         let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
             anyhow::anyhow!(
                 "{} is not a valid readiness descriptor: {}",
@@ -277,7 +283,8 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
 /// the server's structured refusal.
 fn discover_minted_token(target: &TargetArgs) -> Option<String> {
     let ready_file = target.ready_file.as_ref()?;
-    let descriptor = HostReadyDescriptor::validate(&read_json_file(ready_file).ok()?).ok()?;
+    let descriptor =
+        HostReadyDescriptor::validate(&read_trusted_json_file(ready_file).ok()?).ok()?;
     let declared = PathBuf::from(descriptor.admin_token_file?);
     let expected = crate::admin::admin_token_sibling(ready_file);
     if declared != expected {
@@ -302,7 +309,7 @@ fn print_envelope(envelope: &Value) -> bool {
 /// synthesized host.stop envelope (the CLI owns this operation — a server
 /// cannot stop itself over its own HTTP surface).
 fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
-    let value = read_json_file(ready_file)?;
+    let value = read_trusted_json_file(ready_file)?;
     let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
         anyhow::anyhow!(
             "{} is not a valid readiness descriptor: {}",
@@ -932,6 +939,24 @@ mod tests {
             .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp-"))
             .count();
         assert_eq!(leftovers, 0, "temporary ready files should be cleaned up");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ordinary_manifest_reads_do_not_change_shared_source_permissions() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let manifest = dir.path().join("schema.manifest.json");
+        std::fs::write(&manifest, b"{\"schemaVersion\":\"snapback.dev/v1\"}").unwrap();
+        std::fs::set_permissions(&manifest, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        assert!(super::read_json_file(&manifest).is_ok());
+        assert_eq!(
+            std::fs::metadata(manifest).unwrap().permissions().mode() & 0o777,
+            0o644,
+            "ordinary CLI inputs are data, not local capability files"
+        );
     }
 
     #[test]
