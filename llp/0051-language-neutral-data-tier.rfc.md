@@ -5,7 +5,7 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-12 (ENG-24298 closes two remaining non-JS HTTP seams with
+**Revised:** 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics and paired D5 cases; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
 the connection re-open bearer is request-only and structurally absent from
 responses, receipts, and retained state. Earlier: 2026-07-09 — ENG-23965 ships Increment 5's retained-query store,
@@ -505,6 +505,21 @@ this IR, and the Contract compiler (if 0329's option fires) is a
 *producer* that must compile to corpus-conformant semantics; Snapback
 owns the IR node set and its meaning (§Relationship).
 
+The v1 portable value model is explicit rather than inherited from either
+host language (ENG-24350):
+
+- objects are JSON records with own data properties only; record construction
+  uses a null prototype so `__proto__` remains an ordinary legal key;
+- array field keys use Rust's unsigned decimal spelling, including a leading
+  `+`; a miss still yields null;
+- strings order lexicographically by Unicode scalar value, never UTF-16 code
+  units;
+- `trim` uses the fixed Unicode White_Space table (U+0085 included, the
+  ECMAScript legacy U+FEFF excluded);
+- numeric concat is ECMAScript `Number::toString` (including the 1e-6/1e21
+  notation boundaries), and any non-finite arithmetic result normalizes to
+  JSON null before it can enter a return value or row.
+
 ### D3. WASM handler artifacts: one set of bytes, every tier
 
 `FunctionRuntime` gains a third variant:
@@ -663,7 +678,11 @@ already ships the executor-swap harness. D5 joins them:
 - **Status honesty:** ENG-23964 publishes the data-tier profile and corpus as
   commit-addressed, hash-verified artifacts with Rust/JS consumers and drift
   gates. New engines still have to pass that corpus; a partial evaluator never
-  widens its capability claim.
+  widens its capability claim. ENG-24350 adds paired host/derived-overlay
+  fixtures for own-field reads, `__proto__` records, `+0` array access,
+  scalar string order, the trim table, number-format boundaries, and
+  non-finite arithmetic; these are v1 corrections to the already-declared
+  portable semantics, not a new expression form.
 
 ### D6. Clients by class: Online fallback, Parity by construction
 

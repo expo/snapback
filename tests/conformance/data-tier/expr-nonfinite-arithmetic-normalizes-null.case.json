@@ -1,0 +1,79 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "expr-nonfinite-arithmetic-normalizes-null",
+  "notes": "Division and modulo by zero normalize non-finite doubles to JSON null before the result can enter an optimistic or committed row.",
+  "schema": {
+    "tables": [
+      {
+        "name": "rows",
+        "fields": [
+          {
+            "name": "value",
+            "field_type": "Json",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "Insert": {
+          "table": "rows",
+          "values": {
+            "value": {
+              "Record": {
+                "fields": {
+                  "quotient": {
+                    "Binary": {
+                      "op": "Div",
+                      "left": {
+                        "Literal": 1
+                      },
+                      "right": {
+                        "Literal": 0
+                      }
+                    }
+                  },
+                  "remainder": {
+                    "Binary": {
+                      "op": "Mod",
+                      "left": {
+                        "Literal": 1
+                      },
+                      "right": {
+                        "Literal": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "bind_id_as": null
+        }
+      }
+    ],
+    "return_value": "ChangedCount"
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "result": 1,
+    "changedCount": 1,
+    "rows": {
+      "rows": [
+        {
+          "value": {
+            "quotient": null,
+            "remainder": null
+          }
+        }
+      ]
+    }
+  }
+}

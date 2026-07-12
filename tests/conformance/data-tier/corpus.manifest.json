@@ -160,6 +160,78 @@
       "minimumProfileVersion": 1
     },
     {
+      "name": "expr-own-property-field-access",
+      "path": "expr-own-property-field-access.case.json",
+      "sha256": "sha256:94be6a81451f2c0098c0d42d69d25a32c2583758b25cbb4741f32d14888bbf5f",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "reject-inherited-strict-arg",
+      "path": "reject-inherited-strict-arg.case.json",
+      "sha256": "sha256:c9bd840037a9d7b595386e5e08744cff418a21eb917a930dcfcd8dd41302aae6",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-record-proto-key",
+      "path": "expr-record-proto-key.case.json",
+      "sha256": "sha256:dcd3c66155ba1c5a0c8bbe25bc81231109a47d2547e12070070610f1e4189b6a",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-array-plus-zero-index",
+      "path": "expr-array-plus-zero-index.case.json",
+      "sha256": "sha256:3bdde69870a4ecc5a578b691838d2b7d1e44b06bfebf2f28b12cabd80883c370",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-unicode-scalar-order",
+      "path": "expr-unicode-scalar-order.case.json",
+      "sha256": "sha256:92850cfa381737d0c32d80ac97d36a893817c2cd963e220498a22703a4bec1de",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-portable-trim-whitespace",
+      "path": "expr-portable-trim-whitespace.case.json",
+      "sha256": "sha256:a28b6d3e6d65a35bf60e034b692a0ecb13e71d37afbc5bfeb0794c57ed0f18b8",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-number-concat-boundaries",
+      "path": "expr-number-concat-boundaries.case.json",
+      "sha256": "sha256:ccd6f23dbfa3132332b930c2a5c66c55807ea8b94e832946f7c3cb965e7e451e",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "expr-nonfinite-arithmetic-normalizes-null",
+      "path": "expr-nonfinite-arithmetic-normalizes-null.case.json",
+      "sha256": "sha256:9e8f226f69576bc28af42fd5839a66a6744fb3a8ed931db2ac95d5a6e7d2c7d5",
+      "requiredCapabilities": [
+        "irEvaluator"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
       "name": "get-else-error",
       "path": "get-else-error.case.json",
       "sha256": "sha256:445a97bea5bc81cd69c625d38f3cd5c056c5b1b7f28448ea976bcbefda522bec",

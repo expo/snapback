@@ -49,6 +49,34 @@ const fail = (code, message) => {
 
 // --- Value model (mirrors src/value_expr.rs) --------------------------------
 
+const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
+
+// JSON has no NaN or infinities. Arithmetic that crosses that boundary is
+// normalized before it can enter an optimistic row, matching serde_json.
+const numberValue = (value) => {
+  if (!Number.isFinite(value)) return null;
+  return Object.is(value, -0) ? 0 : value;
+};
+
+const portableTrim = (value) => value.replace(
+  /^[\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+|[\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+$/g,
+  '',
+);
+
+const compareUnicodeScalars = (left, right) => {
+  let leftIndex = 0;
+  let rightIndex = 0;
+  while (leftIndex < left.length && rightIndex < right.length) {
+    const leftPoint = left.codePointAt(leftIndex);
+    const rightPoint = right.codePointAt(rightIndex);
+    if (leftPoint !== rightPoint) return leftPoint < rightPoint ? -1 : 1;
+    leftIndex += leftPoint > 0xFFFF ? 2 : 1;
+    rightIndex += rightPoint > 0xFFFF ? 2 : 1;
+  }
+  if (leftIndex === left.length && rightIndex === right.length) return 0;
+  return leftIndex === left.length ? -1 : 1;
+};
+
 export const truthy = (value) => {
   if (value === null || value === undefined) return false;
   if (typeof value === 'boolean') return value;
@@ -57,7 +85,9 @@ export const truthy = (value) => {
   return true; // objects and arrays
 };
 
-const asNumber = (value) => (typeof value === 'number' ? value : null);
+const asNumber = (value) => (
+  typeof value === 'number' && Number.isFinite(value) ? value : null
+);
 
 export const valuesEqual = (left, right) => {
   const a = asNumber(left);
@@ -79,7 +109,7 @@ const deepEqual = (left, right) => {
     const leftKeys = Object.keys(left);
     const rightKeys = Object.keys(right);
     if (leftKeys.length !== rightKeys.length) return false;
-    return leftKeys.every((key) => key in right && deepEqual(left[key], right[key]));
+    return leftKeys.every((key) => hasOwn(right, key) && deepEqual(left[key], right[key]));
   }
   return false;
 };
@@ -88,12 +118,12 @@ const deepEqual = (left, right) => {
 /// string; any miss is null (never a type error).
 const fieldAccess = (base, key) => {
   if (Array.isArray(base)) {
-    const index = /^\d+$/.test(key) ? Number(key) : null;
+    const index = /^\+?\d+$/.test(key) ? Number(key) : null;
     const item = index === null ? undefined : base[index];
     return item === undefined ? null : item;
   }
   if (base !== null && typeof base === 'object') {
-    const value = base[key];
+    const value = hasOwn(base, key) ? base[key] : undefined;
     return value === undefined ? null : value;
   }
   return null;
@@ -111,7 +141,7 @@ const lookupPath = (value, path) => {
   let current = value;
   for (const part of path.split('.')) {
     if (current === null || typeof current !== 'object' || Array.isArray(current)) return undefined;
-    current = current[part];
+    current = hasOwn(current, part) ? current[part] : undefined;
     if (current === undefined) return undefined;
   }
   return current;
@@ -140,7 +170,7 @@ const evalCall = (func, args) => {
       const value = args[0];
       if (value === null) return null;
       if (typeof value !== 'string') return fail('SNAPBACK_EXPR_TYPE', `${func} expects a string`);
-      return func === 'trim' ? value.trim() : value.toLowerCase();
+      return func === 'trim' ? portableTrim(value) : value.toLowerCase();
     }
     case 'abs':
     case 'round':
@@ -150,10 +180,10 @@ const evalCall = (func, args) => {
       const value = args[0];
       if (value === null) return null;
       if (typeof value !== 'number') return fail('SNAPBACK_EXPR_TYPE', `${func} expects a number`);
-      if (func === 'abs') return Math.abs(value);
-      if (func === 'round') return Math.floor(value + 0.5); // JS Math.round parity
-      if (func === 'floor') return Math.floor(value);
-      return Math.ceil(value);
+      if (func === 'abs') return numberValue(Math.abs(value));
+      if (func === 'round') return numberValue(Math.floor(value + 0.5)); // JS Math.round parity
+      if (func === 'floor') return numberValue(Math.floor(value));
+      return numberValue(Math.ceil(value));
     }
     case 'min':
     case 'max': {
@@ -164,7 +194,7 @@ const evalCall = (func, args) => {
         if (typeof value !== 'number') return fail('SNAPBACK_EXPR_TYPE', `${func} expects numbers`);
         if (best === null || ((func === 'min') === (value < best))) best = value;
       }
-      return best;
+      return numberValue(best);
     }
     default:
       return fail(
@@ -198,10 +228,11 @@ const evalBinary = (op, left, right) => {
     case 'Gte': {
       if (left === null || right === null) return null;
       if (typeof left === 'string' && typeof right === 'string') {
-        if (op === 'Lt') return left < right;
-        if (op === 'Lte') return left <= right;
-        if (op === 'Gt') return left > right;
-        return left >= right;
+        const ordering = compareUnicodeScalars(left, right);
+        if (op === 'Lt') return ordering < 0;
+        if (op === 'Lte') return ordering <= 0;
+        if (op === 'Gt') return ordering > 0;
+        return ordering >= 0;
       }
       if (typeof left !== 'number' || typeof right !== 'number') {
         return fail('SNAPBACK_EXPR_TYPE', 'ordering comparison expects two numbers or two strings');
@@ -224,15 +255,15 @@ const numericBinary = (op, left, right) => {
   }
   switch (op) {
     case 'Add':
-      return left + right;
+      return numberValue(left + right);
     case 'Sub':
-      return left - right;
+      return numberValue(left - right);
     case 'Mul':
-      return left * right;
+      return numberValue(left * right);
     case 'Div':
-      return left / right;
+      return numberValue(left / right);
     case 'Mod':
-      return left % right; // JS remainder (dividend sign)
+      return numberValue(left % right); // JS remainder (dividend sign)
     default:
       return fail('SNAPBACK_EXPR_TYPE', `unsupported numeric op ${op}`);
   }
@@ -260,56 +291,60 @@ export const evalValueExpr = (expr, env, depth = 0) => {
     return env.runtimeId();
   }
   if (expr === 'RuntimeNow') {
-    if (typeof env.nowMs !== 'number') fail('SNAPBACK_EXPR_UNANALYZABLE', 'RuntimeNow is not available');
-    return env.nowMs;
+    if (typeof env.nowMs !== 'number' || !Number.isFinite(env.nowMs)) {
+      fail('SNAPBACK_EXPR_UNANALYZABLE', 'RuntimeNow is not available');
+    }
+    return numberValue(env.nowMs);
   }
   if (expr === null || typeof expr !== 'object') {
     fail('SNAPBACK_EXPR_TYPE', `malformed expression ${JSON.stringify(expr)}`);
   }
-  if ('Arg' in expr) {
+  if (hasOwn(expr, 'Arg')) {
     const value = lookupPath(env.args ?? {}, expr.Arg);
     if (value === undefined) fail('SNAPBACK_ARG_MISSING', `handler arg ${expr.Arg} was not provided`);
     return value;
   }
-  if ('Binding' in expr) {
+  if (hasOwn(expr, 'Binding')) {
     const bindings = env.bindings ?? new Map();
     if (!bindings.has(expr.Binding)) {
       fail('SNAPBACK_BINDING_MISSING', `handler binding ${expr.Binding} was not available`);
     }
     return bindings.get(expr.Binding);
   }
-  if ('Literal' in expr) return expr.Literal;
-  if ('Field' in expr) {
+  if (hasOwn(expr, 'Literal')) {
+    return typeof expr.Literal === 'number' ? numberValue(expr.Literal) : expr.Literal;
+  }
+  if (hasOwn(expr, 'Field')) {
     const base = evalValueExpr(expr.Field.base, env, depth + 1);
     return fieldAccess(base, expr.Field.key);
   }
-  if ('Binary' in expr) {
+  if (hasOwn(expr, 'Binary')) {
     const left = evalValueExpr(expr.Binary.left, env, depth + 1);
     const right = evalValueExpr(expr.Binary.right, env, depth + 1);
     return evalBinary(expr.Binary.op, left, right);
   }
-  if ('Unary' in expr) {
+  if (hasOwn(expr, 'Unary')) {
     const value = evalValueExpr(expr.Unary.expr, env, depth + 1);
     if (expr.Unary.op === 'Not') return !truthy(value);
     if (value === null) return null;
     if (typeof value !== 'number') fail('SNAPBACK_EXPR_TYPE', 'Neg expects a number');
-    return -value;
+    return numberValue(-value);
   }
-  if ('If' in expr) {
+  if (hasOwn(expr, 'If')) {
     const cond = evalValueExpr(expr.If.cond, env, depth + 1);
     return truthy(cond)
       ? evalValueExpr(expr.If.then, env, depth + 1)
       : evalValueExpr(expr.If.else, env, depth + 1);
   }
-  if ('Concat' in expr) {
+  if (hasOwn(expr, 'Concat')) {
     return expr.Concat.map((part) => stringifyForConcat(evalValueExpr(part, env, depth + 1))).join('');
   }
-  if ('Call' in expr) {
+  if (hasOwn(expr, 'Call')) {
     const args = expr.Call.args.map((arg) => evalValueExpr(arg, env, depth + 1));
     return evalCall(expr.Call.func, args);
   }
-  if ('Record' in expr) {
-    const output = {};
+  if (hasOwn(expr, 'Record')) {
+    const output = Object.create(null);
     for (const [key, fieldExpr] of Object.entries(expr.Record.fields)) {
       output[key] = evalValueExpr(fieldExpr, env, depth + 1);
     }
@@ -446,7 +481,7 @@ export const deriveOptimisticReducer = ({ name, plan, table, onError = null }) =
       let out = [...(rows ?? [])];
 
       const evalValues = (values, itemEnv = env) => {
-        const row = {};
+        const row = Object.create(null);
         for (const [field, expr] of Object.entries(values)) {
           row[field] = evalValueExpr(expr, itemEnv);
         }

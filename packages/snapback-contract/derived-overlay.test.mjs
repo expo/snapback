@@ -97,6 +97,28 @@ for (const testCase of cases) {
   });
 
   if (testCase.expect?.error) {
+    // Expression-only rejection cases are the paired D5 evaluator contract:
+    // require the same typed code, not merely the same no-row side effect.
+    const returnExpr = testCase.plan?.return_value?.Expr;
+    if ((testCase.plan?.steps ?? []).length === 0 && returnExpr) {
+      let thrown = null;
+      try {
+        evalValueExpr(returnExpr, {
+          args: testCase.args ?? {},
+          authUserId: testCase.authUserId ?? null,
+          bindings: new Map(),
+          nowMs: Date.now(),
+          runtimeId: () => 'expr_replay_id',
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      assert.equal(
+        thrown?.code,
+        testCase.expect.error.code,
+        `${testCase.name}: expression rejection code matches`,
+      );
+    }
     // Server rejects: the overlay must predict NOTHING — rows unchanged is
     // the invariant. The abort diagnostic is best-effort: rejections living
     // outside the overlay's step scope (e.g. an over-bound return_value
@@ -147,6 +169,16 @@ assert.ok(replayed >= 15, `replayed ${replayed} accepted cases (>= 15 expected)`
 assert.ok(abortReplayed >= 9, `replayed ${abortReplayed} rejection cases (>= 9 expected)`);
 
 // --- overlay-specific units ---------------------------------------------------
+
+// Record construction is a JSON-data operation, not ordinary JS assignment:
+// the legal key __proto__ must be an own field on a null-prototype record.
+{
+  const expr = JSON.parse('{"Record":{"fields":{"__proto__":{"Literal":"own-data"}}}}');
+  const value = evalValueExpr(expr, { args: {}, bindings: new Map() });
+  assert.equal(Object.getPrototypeOf(value), null);
+  assert.equal(Object.prototype.hasOwnProperty.call(value, '__proto__'), true);
+  assert.equal(value.__proto__, 'own-data');
+}
 
 const todoPlan = {
   steps: [

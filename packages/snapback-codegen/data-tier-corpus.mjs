@@ -491,6 +491,81 @@ export function buildCorpusCases() {
     { intFloat: true, strNum: false, deepObj: true, ne: true },
   );
 
+  exprCase(
+    'expr-own-property-field-access',
+    'JSON field access sees own properties only; Object.prototype names such as toString are absent and null-propagate.',
+    record({ inherited: field(lit({}), 'toString') }),
+    { inherited: null },
+  );
+
+  pushCase({
+    name: 'reject-inherited-strict-arg',
+    notes: 'Strict Arg lookup also sees own JSON properties only; Object.prototype.toString is missing, not an inherited argument value.',
+    schema: EXPR_SCHEMA,
+    plan: serialize({ steps: [], return_value: returnExpr(arg('toString')) }),
+    args: {},
+    authUserId: null,
+    expect: { error: { code: 'SNAPBACK_ARG_MISSING' } },
+  });
+
+  // Computed-property syntax creates the legal JSON key as data; record()
+  // must preserve it in its own null-prototype field map.
+  const protoExpected = { ['__proto__']: 'own-data' };
+  exprCase(
+    'expr-record-proto-key',
+    'Record construction preserves the legal JSON key __proto__ as an own field and never mutates an object prototype.',
+    record({ ['__proto__']: lit('own-data') }),
+    protoExpected,
+  );
+
+  exprCase(
+    'expr-array-plus-zero-index',
+    'Array field access accepts the Rust decimal usize spelling +0 as index zero.',
+    field(lit(['zero']), '+0'),
+    'zero',
+  );
+
+  exprCase(
+    'expr-unicode-scalar-order',
+    'String ordering compares Unicode scalar values, not UTF-16 code units (U+1F600 sorts after U+E000).',
+    record({ supplementaryAfterBmp: gte(lit('😀'), lit('\uE000')) }),
+    { supplementaryAfterBmp: true },
+  );
+
+  exprCase(
+    'expr-portable-trim-whitespace',
+    'trim uses the pinned Unicode White_Space set: strips U+0085 and preserves the ECMAScript-only legacy U+FEFF.',
+    call('trim', lit('\u0085x\uFEFF')),
+    'x\uFEFF',
+  );
+
+  exprCase(
+    'expr-number-concat-boundaries',
+    'Numeric concat is ECMAScript Number::toString at the 1e20/1e21/1e-7 notation boundaries, with no saturating integer cast.',
+    concat(lit(1e20), '|', lit(1e21), '|', lit(1e-7)),
+    '100000000000000000000|1e+21|1e-7',
+  );
+
+  pushCase({
+    name: 'expr-nonfinite-arithmetic-normalizes-null',
+    notes: 'Division and modulo by zero normalize non-finite doubles to JSON null before the result can enter an optimistic or committed row.',
+    schema: EXPR_SCHEMA,
+    plan: serialize(defineMutation({
+      args: {},
+      plan: insert('rows', {
+        value: record({ quotient: div(lit(1), lit(0)), remainder: mod(lit(1), lit(0)) }),
+      }),
+      returns: returnChangedCount(),
+    }).plan),
+    args: {},
+    authUserId: null,
+    expect: {
+      result: 1,
+      changedCount: 1,
+      rows: { rows: [{ value: { quotient: null, remainder: null } }] },
+    },
+  });
+
   // ---- Step semantics pins ----
   pushCase({
     name: 'get-else-error',

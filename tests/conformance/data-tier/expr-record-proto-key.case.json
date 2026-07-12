@@ -1,0 +1,44 @@
+{
+  "corpus": "snapback-data-tier",
+  "corpusVersion": 1,
+  "name": "expr-record-proto-key",
+  "notes": "Record construction preserves the legal JSON key __proto__ as an own field and never mutates an object prototype.",
+  "schema": {
+    "tables": [
+      {
+        "name": "rows",
+        "fields": [
+          {
+            "name": "value",
+            "field_type": "Json",
+            "optional": true
+          }
+        ],
+        "indexes": [],
+        "syncable": false
+      }
+    ]
+  },
+  "plan": {
+    "steps": [],
+    "return_value": {
+      "Expr": {
+        "Record": {
+          "fields": {
+            "__proto__": {
+              "Literal": "own-data"
+            }
+          }
+        }
+      }
+    }
+  },
+  "args": {},
+  "authUserId": null,
+  "expect": {
+    "result": {
+      "__proto__": "own-data"
+    },
+    "changedCount": 0
+  }
+}

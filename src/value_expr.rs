@@ -17,6 +17,11 @@
 //!   0, NaN, and "" are falsy; objects and arrays are truthy).
 //! - Numbers evaluate in f64; integral finite results within the safe range
 //!   serialize as JSON integers (JS `JSON.stringify` parity).
+//! - Strings order by Unicode scalar value, trim uses the explicit Unicode
+//!   White_Space set (including U+0085, excluding U+FEFF), and numeric concat
+//!   uses ECMAScript Number::toString.
+//! - Non-finite arithmetic results normalize to JSON null before they can
+//!   enter a return value or row.
 //! - `Eq`/`Ne` are deep value equality with cross-representation numeric
 //!   comparison; NaN is not equal to NaN.
 //!
@@ -236,7 +241,9 @@ fn eval_binary(op: BinaryOp, left: Value, right: Value) -> ExprResult {
                 return Ok(Value::Null);
             }
             if let (Value::String(a), Value::String(b)) = (&left, &right) {
-                let ordering = a.cmp(b);
+                // Unicode-scalar order is portable across UTF-8 (Rust) and
+                // UTF-16 (JS); native JS string comparison is code-unit order.
+                let ordering = a.chars().cmp(b.chars());
                 return Ok(Value::Bool(match op {
                     BinaryOp::Lt => ordering.is_lt(),
                     BinaryOp::Lte => ordering.is_le(),
@@ -317,7 +324,7 @@ fn eval_call(func: &str, mut args: Vec<Value>) -> ExprResult {
             match &args[0] {
                 Value::Null => Ok(Value::Null),
                 Value::String(s) => Ok(Value::String(if func == "trim" {
-                    s.trim().to_owned()
+                    portable_trim(s)
                 } else {
                     s.to_lowercase()
                 })),
@@ -400,7 +407,9 @@ pub fn as_number(value: &Value) -> Option<f64> {
 /// `JSON.stringify(2)` parity so cross-engine corpus outputs match exactly.
 pub fn number_value(number: f64) -> Value {
     const SAFE: f64 = 9_007_199_254_740_992.0; // 2^53
-    if number.is_finite() && number.fract() == 0.0 && number.abs() <= SAFE {
+    if !number.is_finite() {
+        Value::Null
+    } else if number.fract() == 0.0 && number.abs() <= SAFE {
         json!(number as i64)
     } else {
         json!(number)
@@ -423,16 +432,41 @@ fn stringify_for_concat(value: &Value) -> Result<String, ExprError> {
         Value::Number(_) => {
             let number =
                 as_number(value).ok_or_else(|| ExprError::type_error("unrepresentable number"))?;
-            if number.is_finite() && number.fract() == 0.0 && number.abs() < 1e21 {
-                Ok(format!("{}", number as i64))
-            } else {
-                Ok(format!("{number}"))
+            if !number.is_finite() {
+                return Err(ExprError::type_error("unrepresentable number"));
             }
+            // ryu-js implements ECMAScript Number::toString, including the
+            // 1e-6/1e21 notation boundaries without lossy integer casts.
+            Ok(ryu_js::Buffer::new().format(number).to_owned())
         }
         Value::Array(_) | Value::Object(_) => Err(ExprError::type_error(
             "string templates cannot interpolate arrays or objects",
         )),
     }
+}
+
+/// The profile pins one whitespace table instead of inheriting either Rust's
+/// or ECMAScript's evolving trim set. This is Unicode White_Space: U+0085 is
+/// included and the ECMAScript-only legacy U+FEFF is deliberately excluded.
+fn portable_trim(value: &str) -> String {
+    value
+        .trim_matches(|ch| {
+            matches!(
+                ch,
+                '\u{0009}'..='\u{000D}'
+                    | '\u{0020}'
+                    | '\u{0085}'
+                    | '\u{00A0}'
+                    | '\u{1680}'
+                    | '\u{2000}'..='\u{200A}'
+                    | '\u{2028}'
+                    | '\u{2029}'
+                    | '\u{202F}'
+                    | '\u{205F}'
+                    | '\u{3000}'
+            )
+        })
+        .to_owned()
 }
 
 pub fn lookup_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {

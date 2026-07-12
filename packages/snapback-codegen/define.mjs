@@ -246,7 +246,9 @@ export const coalesce = (...exprs) => call('coalesce', ...exprs);
 /** Closed record constructor — the computed-summary return shape. */
 export const record = (fields) => {
   assert(fields && typeof fields === 'object' && !Array.isArray(fields), 'record() expects a fields object');
-  const out = {};
+  // JSON records have own data properties only. A normal object would route
+  // the legal key "__proto__" through Object.prototype's legacy setter.
+  const out = Object.create(null);
   for (const [key, value] of Object.entries(fields)) out[key] = expectExpr(value, `record().${key}`);
   return { __expr: true, Record: { fields: out } };
 };
