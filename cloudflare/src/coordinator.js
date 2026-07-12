@@ -936,6 +936,14 @@ export class Coordinator {
         return json(200, { claims, mutationResults });
       });
     }
+    // @ref LLP 0028#scheduler-state-and-run-ledger — deterministic test
+    // evidence must cross the durable nominal-state and DO-alarm seam, not
+    // stop at the pure next-slot arithmetic helper.
+    if (path === '/__test/cron-nominal-reconciliation') {
+      return this.testingGated(request, () =>
+        this.withJsonObject(request, (payload) => this.cronNominalReconciliationForTest(payload))
+      );
+    }
     if (path === '/__test/expire-cron-claims') {
       return this.testingGated(request, () => {
         this.sql.exec("UPDATE _snapback_cron_claims SET lease_expires_at_ms = 0 WHERE state = 'claimed'");
@@ -1806,7 +1814,7 @@ export class Coordinator {
 
   // The one-alarm-per-object dispatcher's arming half: the object alarm is
   // min(next nominal) over armed jobs, or absent when none is armed.
-  async recomputeAlarm() {
+  async recomputeAlarm(nowMs = Date.now()) {
     let next = null;
     for (const job of this.alarmJobs()) {
       const state = this.readCronState(job.name);
@@ -1818,7 +1826,7 @@ export class Coordinator {
         'SELECT state, lease_expires_at_ms FROM _snapback_cron_claims WHERE idempotency_key = ?',
         key
       )) {
-        if (String(claim.state) === 'claimed' && Number(claim.lease_expires_at_ms || 0) > Date.now()) {
+        if (String(claim.state) === 'claimed' && Number(claim.lease_expires_at_ms || 0) > nowMs) {
           wakeAt = Number(claim.lease_expires_at_ms);
         }
       }
@@ -1826,8 +1834,11 @@ export class Coordinator {
     }
     if (next === null) {
       await this.ctx.storage.deleteAlarm();
+      return null;
     } else {
-      await this.ctx.storage.setAlarm(Math.max(next, Date.now() + 1));
+      const alarmAtMs = Math.max(next, nowMs + 1);
+      await this.ctx.storage.setAlarm(alarmAtMs);
+      return alarmAtMs;
     }
   }
 
@@ -2057,9 +2068,58 @@ export class Coordinator {
 
   // Advance to the next FUTURE nominal slot: one catch-up run per recovery,
   // never a stampede of missed ticks (LLP 0028).
-  advanceNominal(job, fromNominalMs, intervalMs) {
-    const next = nextNominalAfter(fromNominalMs, intervalMs, Date.now());
+  advanceNominal(job, fromNominalMs, intervalMs, nowMs = Date.now()) {
+    const next = nextNominalAfter(fromNominalMs, intervalMs, nowMs);
     this.writeCronState(job.name, { next_nominal_at_ms: next });
+    return next;
+  }
+
+  async cronNominalReconciliationForTest(payload) {
+    const job = this.alarmJobs()[0];
+    if (!job) {
+      return json(404, { ok: false, code: 'SNAPBACK_TEST_CRON_JOB_MISSING' });
+    }
+    const previousNominalMs = payload.previousNominalMs;
+    const intervalMs = payload.intervalMs;
+    const nowMs = payload.nowMs;
+    if (
+      !Number.isSafeInteger(previousNominalMs) ||
+      previousNominalMs < 0 ||
+      !Number.isSafeInteger(intervalMs) ||
+      intervalMs <= 0 ||
+      !Number.isSafeInteger(nowMs) ||
+      nowMs < 0
+    ) {
+      return json(400, {
+        ok: false,
+        code: 'SNAPBACK_TEST_CRON_NOMINAL_INVALID',
+        message: 'previousNominalMs, intervalMs, and nowMs must be non-negative safe integers; intervalMs must be positive',
+      });
+    }
+
+    this.writeCronState(job.name, { armed: 1, next_nominal_at_ms: previousNominalMs });
+    const nextNominalAtMs = this.advanceNominal(job, previousNominalMs, intervalMs, nowMs);
+    if (!Number.isSafeInteger(nextNominalAtMs)) {
+      return json(400, {
+        ok: false,
+        code: 'SNAPBACK_TEST_CRON_NOMINAL_INVALID',
+        message: 'the resulting nominal time must be a safe integer',
+      });
+    }
+    const scheduledAlarmAtMs = await this.recomputeAlarm(nowMs);
+    const persisted = this.readCronState(job.name);
+    const storedAlarmAtMs = await this.ctx.storage.getAlarm();
+    return json(200, {
+      ok: true,
+      job: job.name,
+      previousNominalMs,
+      intervalMs,
+      nowMs,
+      nextNominalAtMs,
+      persistedNextNominalAtMs: Number(persisted.next_nominal_at_ms),
+      scheduledAlarmAtMs,
+      storedAlarmAtMs,
+    });
   }
 
   // GET /cron/status — the ledger fields the local target exposes: last run
