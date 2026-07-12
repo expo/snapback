@@ -283,6 +283,57 @@ try {
     return { delivered: true };
   });
 
+  await suite.check('eng_24372: a same-turn timeout/frame race delivers exactly once', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_timeout_frame_race');
+    const scheduled = [];
+    const cancelled = new Set();
+    const clock = {
+      setTimeout(callback) {
+        const id = scheduled.length;
+        scheduled.push(callback);
+        return id;
+      },
+      clearTimeout(id) {
+        cancelled.add(id);
+      },
+    };
+    const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_timeout_frame_race', clock);
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    await stream.ready;
+
+    // Frame wins: force the stale timeout callback in the same turn even
+    // though delivery cancelled it. The active latch must make it a no-op,
+    // and the next read must receive only the next frame (no duplicate).
+    const frameWins = stream.nextUpdate(1);
+    const frameWinsTimer = scheduled.at(-1);
+    ws.dispatch('message', { data: JSON.stringify({ sequence: 1 }) });
+    await Promise.resolve(); // let the async message decoder claim the waiter
+    frameWinsTimer();
+    assertEqual((await frameWins).sequence, 1, 'frame winner receives the raced frame');
+    const next = stream.nextUpdate(1);
+    ws.dispatch('message', { data: JSON.stringify({ sequence: 2 }) });
+    assertEqual((await next).sequence, 2, 'stale timeout did not duplicate the first frame');
+
+    // Timeout wins: run the deadline callback, then deliver the frame in the
+    // same turn. Removal from the waiter queue must leave the frame queued for
+    // exactly one later reader.
+    const timeoutWins = stream.nextUpdate(1);
+    const timeoutWinsTimer = scheduled.at(-1);
+    timeoutWinsTimer();
+    ws.dispatch('message', { data: JSON.stringify({ sequence: 3 }) });
+    await Promise.resolve(); // let the decoded frame enter the empty queue
+    const timeoutError = await assertThrows(() => timeoutWins, undefined, 'timeout winner rejects');
+    assert(timeoutError.message.includes('timed out'), `expected timeout, got ${timeoutError.message}`);
+    assertEqual((await stream.nextUpdate(1)).sequence, 3, 'raced frame remains queued exactly once');
+    assert(cancelled.size >= 2, 'settled readers cancel their scheduled callbacks');
+    ws.close();
+    return { frameWon: 1, timeoutWon: 1 };
+  });
+
   await suite.check('eng_24372: close-before-open rejects readiness and pending reads', async () => {
     globalThis.WebSocket = FakeWebSocket;
     globalThis.fetch = grantFetch('conn_close_before_open');

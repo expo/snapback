@@ -582,7 +582,10 @@ export class SnapbackClient {
     return (await this.drainConnection(connectionId)).durable;
   }
 
-  openLiveStream(connectionId) {
+  openLiveStream(connectionId, {
+    setTimeout: scheduleTimeout = globalThis.setTimeout,
+    clearTimeout: cancelTimeout = globalThis.clearTimeout,
+  } = {}) {
     const queue = [];
     const waiters = [];
     let streamError = null;
@@ -598,18 +601,18 @@ export class SnapbackClient {
         resolve(value) {
           if (!waiter.active) return;
           waiter.active = false;
-          clearTimeout(waiter.timer);
+          cancelTimeout(waiter.timer);
           resolve(value);
         },
         reject(error) {
           if (!waiter.active) return;
           waiter.active = false;
-          clearTimeout(waiter.timer);
+          cancelTimeout(waiter.timer);
           reject(error);
         },
       };
       waiters.push(waiter);
-      waiter.timer = setTimeout(() => {
+      waiter.timer = scheduleTimeout(() => {
         if (!waiter.active) return;
         removeWaiter(waiter);
         waiter.reject(new Error(`timed out waiting for Snapback live stream update on ${connectionId}`));
