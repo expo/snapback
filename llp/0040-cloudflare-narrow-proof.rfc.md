@@ -5,11 +5,20 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-08 (ENG-23640: the decisive real-Cloudflare evidence is
+**Revised:** 2026-07-11 (ENG-23840 / ENG-23841 operational closeout: the
+Cloudflare account token is active with Workers and analytics access, one
+safely persisted admin token passed both proof gateways, and a deliberate
+All Aboard no-subscriber run produced five zero-demand observations plus a
+settled pure two-hour interval whose Adaptive analytics contained no rows and
+summarized to observed-zero request and execution estimates; detailed evidence,
+sampling limits, and telemetry caveats are
+recorded in LLP 0050. ENG-23849's deployed platform-limit confirmation remains
+unrun); 2026-07-08 (ENG-23640: the decisive real-Cloudflare evidence is
 recorded — first real deploy + run of the notes pair, 11/11; a genuine
 platform eviction observed via the new `/health` `objectBoot` marker and
-survived by the still-connected hibernating subscriber; per-script billing
-zeros over both idle windows; §As-built gains §Real-Cloudflare evidence, the
+survived by the still-connected hibernating subscriber; per-script
+observed-zero estimates over both idle windows; §As-built gains
+§Real-Cloudflare evidence, the
 remote runner gains the `/evict` + platform-eviction legs and a real
 analytics billing read via the new `billing-windows.mjs`; §Status narrows the
 accepted-proof gap to the percentile benchmark report, max-subscribers, and
@@ -56,7 +65,7 @@ Earlier same day: cross-family review revisions, ratified by Charlie — see
 `reviews/0040-cloudflare-narrow-proof.claude.md`: Profile A decided with a
 revisit trigger, 0014 validation requirements restored, hibernation and cost
 measurements added, V8-handler requirement pinned; initial same day)
-**Related:** LLP 0000, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0018, LLP 0028, LLP 0032, LLP 0035, LLP 0038, LLP 0046, LLP 0047, LLP 0048, LLP 0049
+**Related:** LLP 0000, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0018, LLP 0028, LLP 0032, LLP 0035, LLP 0038, LLP 0046, LLP 0047, LLP 0048, LLP 0049, LLP 0050
 
 ## Summary
 
@@ -337,8 +346,8 @@ accepted LLP 0040 cannot be produced by the non-hibernating branch.
   shows handlers cannot reach `fetch`/env/bindings nor direct Durable Object
   storage handles or module-global host objects without a granted capability —
   handlers touch the host only through the generated async `ctx` surface.
-- Server-held sockets use the WebSocket Hibernation API, and the
-  connected-idle window accrues no duration charges on the billing counters.
+- Server-held sockets use the WebSocket Hibernation API, and settled analytics
+  over the connected-idle window observes a zero Worker-duration estimate.
 - After the object's in-memory state is discarded — real eviction on
   Cloudflare, or a forced in-place reinitialization in the CI surrogate — a
   committed mutation still reaches the still-connected subscriber:
@@ -379,7 +388,7 @@ accepted LLP 0040 cannot be produced by the non-hibernating branch.
 The proof is built, passes its full behavioral checklist under the local
 Miniflare surrogate, and — as of 2026-07-08 (ENG-23640) — has produced the
 decisive real-Cloudflare evidence: a genuine platform eviction observed and
-survived mid-subscription, and billing-surface zeros over both idle windows
+survived mid-subscription, and billing-surface observed-zero estimates over both idle windows
 (see §Real-Cloudflare evidence below). What landed in `cloudflare/`:
 
 - **Worker + Durable Object target.** A gateway Worker (`src/gateway.js`)
@@ -443,16 +452,18 @@ blocker ended with ENG-23632's refreshed token). Runner:
   rehydration from persisted rows on a *real* eviction, not the surrogate.
   The forced `/evict` leg also passed on the same deployment
   (`post-eviction commit reaches the still-connected subscriber`).
-- **Connected-hibernating idle bills zero.** Settled per-script analytics
+- **Connected-hibernating idle settles to an observed-zero estimate.** Settled per-script analytics
   over the pure interior of the idle window (22:47:30–22:55:30Z):
-  `snapback-notes-proof` + `snapback-notes-handler` show **0 Worker
-  requests, 0 GB-s duration, 0 Durable Object requests**. (The adjacent
+  `snapback-notes-proof` + `snapback-notes-handler` returned no rows, summarized
+  as **0 estimated Worker requests, 0 estimated Worker execution GB-s, and 0
+  estimated Durable Object requests**. (The adjacent
   window correctly shows the run's own setup/wake traffic — 8 requests,
-  3.82 GB-s — so the zeros are settled data, not attribution lag.)
-- **No-connection idle bills zero.** After the run closed its socket the
+  3.82 GB-s — so the observed zeros are settled data, not attribution lag.)
+- **No-connection idle settles to an observed-zero estimate.** After the run closed its socket the
   deployment sat untouched; settled per-script analytics over
-  22:57:00–23:55:00Z (58 min) show **0 requests, 0 GB-s, 0 DO requests**
-  on both scripts.
+  22:57:00–23:55:00Z (58 min) returned no rows for either script, summarized
+  as **0 estimated requests, 0 estimated Worker execution GB-s, and 0 estimated
+  Durable Object requests**.
 - **Cold start / first request: 53 ms** (client-measured `GET /health`,
   us-west client, first request of the run against a freshly deployed
   gateway; single sample, method per §Measurements).
@@ -463,6 +474,39 @@ blocker ended with ENG-23632's refreshed token). Runner:
   per-script Workers/DO-invocation datasets above are the notes-proof
   evidence; the account-wide activeTime is reported in the diary for
   completeness, not attributed to the notes deployment.
+
+#### Operational residue closeout (2026-07-11–12, ENG-23840 / ENG-23841)
+
+Separate from this RFC's accepted-proof checklist, the two operational
+residues it tracked are now closed. ENG-23840 restored the Cloudflare account
+credential path: the replacement account token authenticated with Workers and
+analytics access, and one safely persisted admin token passed the admin gates
+on both deployed proof gateways. No credential path or value is part of the
+evidence record.
+
+ENG-23841 then ran All Aboard's deliberate no-subscriber window. Five status
+observations from `2026-07-11T23:32:13Z` through `23:32:44Z` all reported
+zero demand; the final observation defines the disarm boundary. The
+post-window observation at `2026-07-12T01:39:47Z` reported
+`inactive:no-demand`, demand `0`,
+`nextRun: null`, and `lastRun: null`. The controls read at
+`2026-07-12T02:28:06Z` and the final quiet re-read at
+`2026-07-12T02:43:38Z` over the pure interval
+`2026-07-11T23:37:44Z`–`2026-07-12T01:37:44Z` returned `errors: []` and empty
+raw Workers, Durable Object request, periodic, and storage arrays. The reader
+summarized the script-attributed request datasets to **0 estimated Worker
+requests, 0 estimated Worker execution GB-s, and 0 estimated Durable Object requests**;
+the account-wide periodic query observed 0 µs active time. Non-zero controls on
+both sides and coverage of all three All Aboard scripts across the
+script-attributed dataset union distinguish sparse zero-row reporting from a
+broken query. Cloudflare Adaptive datasets may be sampled, so empty quiet rows
+without a sample interval are an observed-zero estimate, not an absolute event
+or invoice guarantee. Datasets without script identity remain account-wide,
+and storage had no positive control. The full method, controls, sampling limit,
+and storage caveat are recorded in
+[LLP 0050](./0050-cloudflare-proof-remote-benchmarks.research.md)
+§All Aboard no-subscriber idle evidence and the machine-readable artifact is
+`cloudflare/generated/measurements.remote.idle.2026-07-12.json`.
 
 **Remaining against the accepted-proof checklist:** none measured — the
 percentile benchmark report, maximum-practical-subscribers, and DO
@@ -483,8 +527,9 @@ Both proof and kit protocols return structured `SNAPBACK_VALUE_TOO_LARGE`
 (non-retryable) or `SNAPBACK_OVERLOADED` (retryable with backoff) results.
 The Miniflare regression is 50/50, including a 32-way bounded burst with
 unique gap-free commit versions; that is not a real-platform limit proof.
-Redeploy and remote burst/oversize confirmation remain blocked on ENG-23840's
-credential repair.
+ENG-23840 restored the credential path on 2026-07-11–12. Redeploy and remote
+burst/oversize confirmation remain unrun under ENG-23849; they are no longer
+blocked on credentials.
 
 ## Review hardening (2026-07-07, ENG-23574–ENG-23593)
 
@@ -545,12 +590,12 @@ ENG-23713 → [LLP 0050](./0050-cloudflare-proof-remote-benchmarks.research.md))
 The behavioral proof is complete under the Miniflare regression surface, the
 decisive real-Cloudflare evidence is recorded in §Real-Cloudflare evidence
 (genuine platform eviction observed and survived with the Hibernation API in
-use; per-script billing zeros over both idle windows), and the measurement
+use; per-script observed-zero estimates over both idle windows), and the measurement
 checklist is now fully populated. **Every §Acceptance bullet has recorded
 evidence; moving this document to Accepted is the author's ratification
-call.** Known residue tracked outside the checklist: ENG-23840 (dead
-credential path blocks any future admin-gated or analytics-bearing rerun),
-ENG-23841 (deliberate All Aboard no-subscriber window — an LLP 0028/0049
-claim, not part of this proof's acceptance), and ENG-23849 (the two
-diagnostics gaps noted in §As-built are locally regression-pinned; remote
-confirmation awaits ENG-23840).
+call.** Residue tracked outside the checklist is reconciled as of 2026-07-12:
+ENG-23840 restored the account/API and safely persisted admin credential paths;
+ENG-23841 completed the deliberate All Aboard no-subscriber window with direct
+idle-to-zero evidence (an LLP 0028/0049 claim, not part of this proof's
+acceptance); and ENG-23849's two diagnostics gaps remain locally
+regression-pinned while their deployed burst/oversize confirmation is unrun.

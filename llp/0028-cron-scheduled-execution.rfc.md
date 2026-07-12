@@ -5,7 +5,15 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-08 (ENG-23640: §Scale-to-zero tension — the dynamic-alarm
+**Revised:** 2026-07-11 (ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
+the operational credential path was restored, five zero-demand observations
+established the reset/disarm boundary, and a settled two-hour pure window
+produced an observed-zero estimate for Worker requests, Worker execution GB-s,
+and Durable Object requests with clean bracketing controls; this closes the
+direct idle→zero evidence residue without changing the accepted
+demand-armed-alarm design);
+2026-07-08 (ENG-23640: §Scale-to-zero tension — the dynamic-alarm
 row gains its first measured real-Cloudflare evidence: per-script analytics
 over the deployed All Aboard separate the demand-armed warm-poll hours from
 the quiet hours on the billing surface, and the overnight window is shown to
@@ -26,7 +34,7 @@ decision table's DO-alarm row. The minute Cron Trigger + demand check remains
 the named fallback, taken only with its idle invocation rate measured and
 declared in the capability manifest. The All Aboard source cadence comments
 were corrected in the same change); 2026-07-07 (ENG-23417: §Scheduler state: validation-rejected jobs hold no runtime state — a redeploy that fails validation drops the job's previously-earned state in `reconcile`, manual run-now refuses rejected jobs with `SNAPBACK_CRON_JOB_INVALID`, and `claim_due_runs` claims only from schedule-hash-matching state; closes the loophole where a stale nominal made a rejected job execute, or with an invalid expression re-execute every tick); 2026-07-07 (ENG-23324: §Execution: the action class gains the as-built detached-execution note — server-triggered Ibex actions are staged under the global mutex but run off it on a watchdogged thread with per-host-call lock reacquisition; cron ticks claim under the lock, execute detached, and finish under the lock; `action_wall_clock_timeout` reports Enforced); 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027, LLP 0040, LLP 0049
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027, LLP 0040, LLP 0049, LLP 0050
 
 ## Summary
 
@@ -643,10 +651,46 @@ are two Cloudflare-compatible versions:
   shape — 6k+ outbound WebSocket messages overnight show at least one
   subscriber stayed connected the whole time, so the alarm stayed armed *by
   design* (demand-gating held the poll up because demand existed). The
-  no-connection idle→zero evidence therefore comes from the alarm-free notes
-  deployment (LLP 0040 §As-built); a controlled no-subscriber window on All
-  Aboard itself remains to be scheduled deliberately, since the deployed demo
-  has had continuous watchers/agents since launch.
+  no-connection idle→zero evidence therefore came from the alarm-free notes
+  deployment (LLP 0040 §As-built). At that time, a controlled no-subscriber
+  window on All Aboard itself still needed to be scheduled deliberately because
+  the deployed demo had continuous watchers/agents since launch.
+
+  *Controlled All Aboard closeout (2026-07-11/12, ENG-23840 / ENG-23841 /
+  ENG-23626):* the credential path was restored and the deployed app was
+  reset. Five status observations at `2026-07-11T23:32:13Z`, `23:32:18Z`,
+  `23:32:23Z`, `23:32:33Z`, and `23:32:44Z` all reported zero demand; the final
+  observation is the official reset/disarm boundary. The pure measurement
+  interval was `2026-07-11T23:37:44Z`–`2026-07-12T01:37:44Z`; a post-window probe at
+  `2026-07-12T01:39:47Z` still reported `inactive:no-demand`, `demand: 0`,
+  `nextRun: null`, and `lastRun: null`. Once ingestion had settled, the controls
+  read at `2026-07-12T02:28:06Z` and the final quiet re-read at
+  `2026-07-12T02:43:38Z` returned `errors: []`; the raw
+  `workersInvocations`, `durableObjectInvocations`, `durableObjectPeriodic`,
+  and `durableObjectStorage` rows were all empty. The request datasets were
+  summarized as **0 estimated Worker requests / 0 estimated Worker execution GB-s / 0
+  estimated Durable Object requests**; the account-wide periodic query was
+  summarized as 0 µs of Durable Object active time. Empty sparse analytics
+  rows support this observed-zero estimate because non-empty
+  bracketing controls proved the account, filters, and ingestion path: the
+  pre-window control reported 11 Worker requests, 0.240013125 GB-s, and 2,675
+  estimated Durable Object requests; the post-window control reported 3 Worker
+  requests, 0.2347815 GB-s, and 245 estimated Durable Object requests; across the
+  script-attributed dataset union those controls included
+  all three expected All Aboard identities: gateway, handler, and action
+  handler. Worker controls covered only the gateway; the all-three-script claim
+  comes from the union with the Durable Object request controls. Cloudflare's
+  Adaptive datasets may be sampled, and empty quiet arrays provide no sample
+  interval or confidence data, so this does not assert absolute event absence
+  or an invoice guarantee. `durableObjectPeriodic` and
+  `durableObjectStorage` have no script identity and remain account-wide; the
+  storage dataset also had no positive control, so its empty array is telemetry
+  absence, not evidence that durable bytes disappeared. The
+  [machine-readable closeout artifact](../cloudflare/generated/measurements.remote.idle.2026-07-12.json)
+  preserves the status observations, window boundaries, raw dataset rows,
+  summary, and controls. This is the direct deployed All Aboard idle→zero
+  evidence the earlier watched window could not provide; the historical
+  demand-armed observations above remain valid.
 
 So "it never idles" holds only for an un-gated frequent poll. Cadence is a product
 decision with a cost consequence, and demand-gating plus read-through catch-up is

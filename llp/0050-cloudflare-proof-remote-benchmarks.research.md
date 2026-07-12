@@ -5,7 +5,12 @@
 **Systems:** Deployment, Runtime, Storage, Realtime, Performance, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-09
-**Revised:** 2026-07-09 (ENG-23849 local platform-limit hardening)
+**Revised:** 2026-07-11 (ENG-23840 restored the Cloudflare account/admin
+credential paths; ENG-23841 recorded direct All Aboard no-subscriber
+idle-to-zero evidence as a settled observed-zero estimate with non-zero
+controls and an explicit Adaptive-sampling limit;
+ENG-23849's deployed platform-limit confirmation remains unrun); 2026-07-09
+(ENG-23849 local platform-limit hardening)
 **Related:** LLP 0014, LLP 0028, LLP 0035, LLP 0040, LLP 0048, LLP 0049
 
 ## Summary
@@ -193,9 +198,10 @@ Local evidence: `node cloudflare/test/acceptance.mjs` passes **50/50**. Its
 retryable admission overload; deterministic proof/kit saturation seams pin
 both envelope shapes. Per LLP 0040's evidence split, Miniflare cannot prove
 the real service-binding depth behavior. A deployed 32/64-way burst plus
-1 MB/2.5 MB value rerun is still required after ENG-23840 restores deploy and
-admin credentials; until then the old remote distributions above remain the
-only real-platform observation.
+1 MB/2.5 MB value rerun is still required. ENG-23840 restored deploy and
+admin credentials on 2026-07-11–12, so the ENG-23849 remote confirmation is
+now unrun residue rather than credential-blocked; the old remote
+distributions above remain the only real-platform observation.
 
 ## Credential caveat (2026-07-09)
 
@@ -209,11 +215,82 @@ as ENG-23841 (this session observed `demand: 4` — the deployment was watched
 throughout, the same "watched app is never idle" condition diary 0012
 recorded).
 
+That paragraph remains a dated fact about the 2026-07-09 benchmark run. It is
+not the current operator state: ENG-23840 restored an active Cloudflare
+account token with Workers and account-analytics access on 2026-07-11–12, and
+one safely persisted admin token passed the admin gates on both deployed proof
+gateways. The credential value and its persistence path are intentionally not
+part of this report.
+
+## All Aboard no-subscriber idle evidence (2026-07-11–12)
+
+ENG-23841 supplies the direct All Aboard evidence that the 2026-07-09 caveat
+left open. The
+[machine-readable record](../cloudflare/generated/measurements.remote.idle.2026-07-12.json)
+pins the deployed Worker version IDs, reset and liveness witnesses, raw rows,
+sampling probe, and non-secret collection templates; the source commit was not
+retained by the deployed-version listing and is explicitly unknown. Recompute
+its timing, totals, controls, and caveats with
+`node cloudflare/test/validate-idle-measurement.mjs`.
+
+- **Demand was absent at every retained observation.** Five status observations from
+  `2026-07-11T23:32:13Z` through `23:32:44Z` all reported zero demand; the
+  final observation defines the disarm boundary. The post-window observation
+  at `2026-07-12T01:39:47Z` reported
+  `inactive:no-demand`, demand `0`, `nextRun: null`, and `lastRun: null`.
+- **The pure idle interval settled to an observed-zero estimate.** The controls
+  read at `2026-07-12T02:28:06Z` and the final quiet re-read at
+  `2026-07-12T02:43:38Z`, comfortably after the interval ended, covered
+  `2026-07-11T23:37:44Z`–`2026-07-12T01:37:44Z` and returned `errors: []`.
+  Its raw `workersInvocations`, `durableObjectInvocations`,
+  `durableObjectPeriodic`, and `durableObjectStorage` arrays were all empty.
+  The request-dataset summaries were **0 estimated Worker requests, 0 estimated Worker
+  execution GB-s, and 0 estimated Durable Object requests**; the account-wide
+  periodic query observed 0 µs of Durable Object active time.
+- **Controls prove the read path.** The pre-window control recorded **11
+  Worker requests, 0.240013125 GB-s, and 2,675 estimated Durable Object requests**;
+  the post-window control recorded **3 Worker requests, 0.2347815 GB-s, and
+  245 estimated Durable Object requests** in Cloudflare's
+  `durableObjectsInvocationsAdaptiveGroups` dataset. Across the
+  script-attributed dataset union, the
+  controls represent all three deployed All Aboard scripts: gateway, handler,
+  and action handler. Worker rows covered the gateway; the Durable Object
+  request rows supplied the other script identities.
+
+Cloudflare's analytics datasets are sparse: a settled zero-usage interval can
+be represented by no rows, not rows whose sums are explicit zeroes. The empty
+quiet arrays therefore become evidence only together with `errors: []`, the
+non-zero controls on both sides, the post-window scheduler state, and all-three-
+script coverage across the appropriate dataset union. The two request datasets
+are Adaptive: [Cloudflare documents that Adaptive GraphQL nodes may use
+adaptive sampling](https://developers.cloudflare.com/analytics/graphql-api/sampling/).
+The quiet interval emitted no rows and therefore no `sampleInterval` or
+confidence value; it supports a controlled observed-zero estimate, not an
+absolute assertion that no event occurred or an invoice guarantee. A
+supplemental control probe retained `avg.sampleInterval`: Worker rows were 1,
+handler/action-handler Durable Object rows were 1, and gateway Durable Object
+rows were approximately 1.73 before and 1.61 after the window.
+
+Worker and Durable Object request rows carry script identity.
+`durableObjectsPeriodicGroups`
+and `durableObjectsStorageGroups` do not, so those arrays are account-wide;
+their emptiness is account-wide silence for the interval, not attribution to
+one script. The periodic array supports the account-wide observed 0 µs active
+time. Storage had no positive row before, during, or after the interval, so its
+empty array is telemetry absence only — it does **not** establish zero stored
+bytes, zero storage usage, or deletion of the deployment's durable data. This
+is direct evidence for LLP 0049's demand-armed All Aboard
+shape and closes ENG-23841; it does not broaden LLP 0040's notes-proof
+acceptance claim.
+
 ## Status
 
-Draft (initial numbers and ENG-23849 local hardening 2026-07-09). This report
+Draft (initial numbers and ENG-23849 local hardening 2026-07-09; ENG-23840
+credential restoration and ENG-23841 All Aboard idle evidence 2026-07-11–12).
+This report
 closes the percentile benchmark, max-practical-subscribers, and
 contention/overload items that LLP 0040 §Status listed as separating the proof
 from acceptance; whether the proof is now **Accepted** is the author's
 ratification call on LLP 0040 itself. The structured-limit fix is locally
-verified but not yet redeployed; remote confirmation is blocked on ENG-23840.
+verified but its ENG-23849 remote confirmation remains unrun; ENG-23840 has
+removed the credential blocker.

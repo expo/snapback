@@ -5,7 +5,17 @@
 **Systems:** Demo apps, Cloudflare, Deployment, Runtime, Security, Cron, Data gateway, Realtime, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-08 (eighth pass: live 511 success now writes
+**Revised:** 2026-07-11 (ninth pass, ENG-23840 / ENG-23841 / ENG-23626:
+operational closeout — a valid Cloudflare account credential was restored and
+the rotated admin credential was persisted in OS-backed secure storage before
+upload to both proof gateways; the deliberate All Aboard no-subscriber run then
+had zero-demand, inactive/disarmed observations bracketing a settled two-hour
+pure window whose Adaptive analytics observed no rows and summarized to
+zero-estimate Worker requests / Worker execution GB-s / Durable Object requests, with
+non-empty controls bracketing the sparse result. Phase 4's
+credential blocker, checklist, and follow-up disposition now reflect the
+completed proof; status remains Implemented); 2026-07-08 (eighth pass: live
+511 success now writes
 `liveDepartures` and the deployed proof asserts future rows directly, closing
 the false-live-board failure where a live source could still render demo
 clock-face trains in the middle of the night; remote acceptance is now 21/21.
@@ -87,7 +97,7 @@ parity, cron idempotency, one-alarm dispatcher, and admin-gated manual runs
 carried into the phases; LLP 0028 grace-window and LLP 0047 exfiltration
 citations corrected. Decisions taken in revision are proposals pending
 Charlie's ratification; initial draft earlier same day)
-**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0015, LLP 0018, LLP 0027, LLP 0028, LLP 0029, LLP 0031, LLP 0036, LLP 0040, LLP 0047, LLP 0048, Diary 0008, Diary 0012, https://511.org/open-data/transit, https://openrouteservice.org
+**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0015, LLP 0018, LLP 0027, LLP 0028, LLP 0029, LLP 0031, LLP 0036, LLP 0040, LLP 0047, LLP 0048, LLP 0050, Diary 0008, Diary 0012, https://511.org/open-data/transit, https://openrouteservice.org
 
 ## Summary
 
@@ -199,7 +209,7 @@ Out of scope:
   fallback data, but any surface that shows demo data must say so. The live-data
   claim requires configured keys and evidence from the live path.
 
-## Current Starting Point
+## Starting Point (2026-07-07)
 
 Local All Aboard already declares the required configuration:
 
@@ -219,7 +229,7 @@ riding the URL query string and the directions key riding an `Authorization`
 header — and the browser surface invokes both actions through the generated
 `client.action` transport.
 
-The Cloudflare proof currently has:
+At plan authoring, the Cloudflare proof had:
 
 - one checked-in notes app bundle, not All Aboard;
 - a gateway Worker plus coordinator Durable Object;
@@ -512,10 +522,10 @@ The remote acceptance suite walks the same chain the native hosts walk — root
 HTML → discovery link → platform manifest → macOS/iOS envelopes → startup
 sources — and asserts the agent-endpoint 404 shape.
 
-The surface also needs an action transport. The generated client invokes
-actions as `client.action('refreshFeed', …)` and
-`client.action('routeEstimate', …)`; the proof's gateway exposes `/query`,
-`/mutation`, and `/live/stream` today, but no action route. Phase 2 adds the
+At plan authoring, the surface also needed an action transport. The generated
+client invokes actions as `client.action('refreshFeed', …)` and
+`client.action('routeEstimate', …)`; the proof's gateway then exposed `/query`,
+`/mutation`, and `/live/stream`, but no action route. Phase 2 added the
 action leg alongside egress so browser-originated action calls ride the same
 generated bindings as everything else.
 
@@ -525,12 +535,12 @@ generated bindings as everything else.
 
 - **Decision (ratified 2026-07-07, ENG-23627): keep the notes bundle and add a
   deploy-time app selector** that builds either notes or All Aboard. The notes
-  proof's Miniflare acceptance is LLP 0040's pinned regression surface, and
-  0040's own real-Cloudflare acceptance is still open — replacing the bundle
-  outright would orphan that evidence. There is no selector today: the app
-  bundle is hardcoded in the coordinator, the handler Worker, the gateway
-  object name, and both wrangler configs, so the selector is real (small)
-  work, not a flag flip.
+  proof's Miniflare acceptance is LLP 0040's pinned regression surface. At
+  ratification, 0040's own real-Cloudflare acceptance was still open, so
+  replacing the bundle outright would have orphaned that evidence. There was
+  no selector at plan authoring: the app bundle was hardcoded in the
+  coordinator, the handler Worker, the gateway object name, and both wrangler
+  configs, so the selector was real (small) work, not a flag flip.
 - Port the All Aboard schema, seed, queries, mutations, and live query subset
   needed by the Contract surface.
 - Preserve the V8 ambient-denial tests.
@@ -655,11 +665,17 @@ Exit evidence:
 
 ### Phase 4: Real Cloudflare acceptance and measurements
 
-**Standing prerequisite:** this phase — and LLP 0040's still-open decisive
-evidence — is blocked on a valid Cloudflare API token for the repo owner's
-account. Nothing else in this plan unblocks it; Phases 0–3 proceed on the
-Miniflare regression surface, but no live-data claim is earned until this
-phase runs.
+**Historical prerequisite — satisfied:** at drafting time this phase, and
+LLP 0040's then-open decisive evidence, was blocked on a valid Cloudflare API
+credential for the repo owner's account. That prerequisite was first satisfied
+for the 2026-07-07 implementation run. A later credential revocation and an
+unpersisted admin-token rotation blocked only operational reruns, tracked as
+ENG-23840; they did not undo the construction evidence. On 2026-07-11 the
+account credential was restored and a newly rotated admin credential was
+persisted safely before upload to both proof gateways, reopening both admin-gated and analytics
+paths. The deliberate run below closes the remaining proof residue. Phases
+0–3 retain their Miniflare regression surface, and the live-data claim remains
+grounded in real Cloudflare evidence rather than that surface alone.
 
 - Deploy handler, gateway (carrying the static web bundle), Durable Object
   migration, and secrets to a real Cloudflare account (plus the Cron Trigger
@@ -682,10 +698,56 @@ Exit evidence:
   `cron` as blanket gaps for the All Aboard Cloudflare profile; any remaining
   partial limits are named.
 
+#### Phase 4 operational closeout evidence
+
+The ENG-23840 credential repair exposed no value or credential location in the
+repository: the account credential was restored, and the rotated admin
+credential was persisted in OS-backed secure storage before it was applied to
+both proof gateways. That restored the operator path needed for ENG-23841.
+
+The deployed All Aboard fixture was reset, then five status observations at
+`2026-07-11T23:32:13Z`, `23:32:18Z`, `23:32:23Z`, `23:32:33Z`, and
+`23:32:44Z` all reported zero demand. The final observation is the official
+reset/disarm boundary. The pure no-subscriber interval ran from
+`2026-07-11T23:37:44Z` through `2026-07-12T01:37:44Z`; a post-window probe at
+`2026-07-12T01:39:47Z` still reported `inactive:no-demand`, `demand: 0`,
+`nextRun: null`, and `lastRun: null`. No subscriber-driven re-arm or scheduled
+run was observed or recorded.
+
+After analytics ingestion had settled, the controls read at
+`2026-07-12T02:28:06Z` and the final quiet re-read at
+`2026-07-12T02:43:38Z` returned `errors: []`. The raw
+`workersInvocations`, `durableObjectInvocations`, `durableObjectPeriodic`, and
+`durableObjectStorage` rows were all empty. The request datasets summarized to
+**0 estimated Worker requests / 0 estimated Worker execution GB-s / 0 estimated Durable
+Object requests** for the quiet interval, while the account-wide periodic query
+observed 0 µs active time. Sparse absence supports this observed-zero estimate
+because non-empty controls bracketed it: the
+pre-window control reported 11 Worker requests, 0.240013125 GB-s, and 2,675
+estimated Durable Object requests; the post-window control reported 3 Worker
+requests, 0.2347815 GB-s, and 245 estimated Durable Object requests; across the
+script-attributed dataset union those controls included
+all three expected All Aboard identities: gateway, handler, and action handler.
+Worker controls covered the gateway; Durable Object request controls supplied
+the three-script coverage across that union. Cloudflare's Adaptive datasets may
+be sampled, and the empty quiet rows carry no sample interval or confidence
+data, so this is not an absolute event-absence or invoice guarantee. The
+`durableObjectPeriodic` and `durableObjectStorage` datasets have no script
+identity and remain account-wide; storage also had no positive control, so its
+empty array is telemetry absence, not evidence that durable bytes disappeared.
+Together the controls establish the correct account/filter and a settled
+ingestion path for the observed-zero estimate. The
+[machine-readable closeout artifact](../cloudflare/generated/measurements.remote.idle.2026-07-12.json)
+preserves the status observations, window boundaries, raw dataset rows,
+summary, and controls. This closes ENG-23841 and the proof residue in
+ENG-23626; it complements, rather than rewrites, the earlier watched-window
+observation where demand correctly kept the alarm armed (LLP 0028
+§Scale-to-zero tension; LLP 0050 §All Aboard no-subscriber idle evidence).
+
 ## Acceptance Checklist
 
-The implementation is not complete until an agent can run or inspect evidence
-for each item:
+The implementation completed against this checklist. An agent can run or
+inspect evidence for each item:
 
 - **App deployed:** the Cloudflare target serves All Aboard, not the notes proof.
 - **Secrets configured:** `caltrainFeed` and `directions` can be set through
@@ -717,18 +779,24 @@ for each item:
 - **Idle wakeups are honest:** the alarm shape shows zero warm-poll wakeups
   with no subscribers, or the declared Cron Trigger fallback's idle invocation
   rate is measured and named in the manifest — never silently folded into the
-  no-connection-idle claim.
+  no-connection-idle claim. The accepted alarm shape's direct deployed proof
+  is recorded in §Phase 4 operational closeout evidence.
 - **Hibernation preserved:** sockets are accepted with WebSocket Hibernation, and
   subscription state survives object wake/rehydration.
 - **No silent product claim:** recorded/fallback data remains visibly labeled;
   live data is labeled live only after a real external snapshot commits.
-- **Remote evidence captured:** at least one real Cloudflare run proves the path,
-  not only Miniflare.
+- **Remote evidence captured:** real Cloudflare runs prove the live path and
+  record the controlled two-hour no-subscriber settled-analytics observation;
+  the claim does not rest on Miniflare.
 - **Native static discovery works for macOS and iOS:** the served HTML carries
   the `exact:platform-manifest` discovery link, the manifest → envelope →
   startup chain loads for both targets with native content types, and
   `/__exact/*` misses answer JSON 404 rather than the SPA HTML fallback
   (ENG-23643; covered by the remote acceptance suite's discovery-chain checks).
+
+As of the 2026-07-12 operational closeout, no checklist residue remains:
+ENG-23840 restored the operator path, ENG-23841 supplied the direct idle→zero
+window, and ENG-23626 can close without changing this Plan's Implemented status.
 
 ## Capability Manifest Changes
 
@@ -814,29 +882,21 @@ strikethrough entry records its resolution.
    named fallback and makes the CORS posture explicit scope — see §Realtime
    And Browser Surface.
 
-## Likely Follow-ups
+## Follow-up disposition
 
-- Update [LLP 0040](./0040-cloudflare-narrow-proof.rfc.md) when the app
-  selector lands (Phase 0's decision) so the notes proof's role as the pinned
-  regression fixture is recorded there.
-- Update [LLP 0036](./0036-app-secrets-and-config.rfc.md) when the first
-  `deploy-time-binding` backend lands, especially if the pool encoding or the
-  `SNAPBACK_CONFIG_GENERATION` attestation carrier differs from this Plan —
-  and fold in the placement-slot host-boundary unwrap and the profile-scoped
-  fail-closed `.expose()`, which close the "asBearer() is expose() sugar" gap
-  0036 names today.
-- Update [LLP 0028](./0028-cron-scheduled-execution.rfc.md) with the
-  last-subscriber linger-window requirement if this implementation wants one
-  (§Warm Polling — 0028 does not define it today), and with the real-Cloudflare
-  alarm-vs-trigger evidence once Phase 4 produces it. If Charlie ratifies the
-  §Warm Polling supersession, correct 0028's "minute static wakeup … is the
-  default All Aboard shape" wording and the
-  `demos/all-aboard/snapback/functions.mjs` cadence comments (minute Cron
-  Trigger, `jitter: false` rationale) in the same change, so no conflicting
-  normative text survives.
-- Update [LLP 0047](./0047-hosted-execution-limits.rfc.md) with the
-  granted-secret exfiltration honesty statement if the scoped-handler-fetch
-  fallback is ever taken (§Action Egress; the rule lives in LLP 0036 §Runtime
-  exposure today).
-- Add or update a diary under `diaries/` when the All Aboard Cloudflare demo is
-  built, per the project diary rules.
+- **Completed:** [LLP 0040](./0040-cloudflare-narrow-proof.rfc.md) records the
+  app selector and the notes proof's role as the pinned regression fixture.
+- **Completed:** [LLP 0036](./0036-app-secrets-and-config.rfc.md) records the
+  Cloudflare `deploy-time-binding` backend, JSON-array pool encoding,
+  generation attestation, placement-slot host-boundary unwrap, and
+  profile-scoped fail-closed `.expose()` behavior.
+- **Completed:** [LLP 0028](./0028-cron-scheduled-execution.rfc.md) records the
+  ratified demand-armed-alarm supersession, corrected 180-second cadence, and
+  both the earlier demand-armed observation and this Phase 4 direct
+  no-subscriber idle→zero evidence. No linger window was introduced, so that
+  conditional requirement never fired.
+- **Not triggered:** [LLP 0047](./0047-hosted-execution-limits.rfc.md) needs the
+  granted-secret exfiltration rider only if the scoped-handler-fetch fallback
+  is taken; this implementation retained host-mediated fetch.
+- **Completed:** Diary 0008 and Diary 0012 carry the All Aboard build,
+  deployment, measurement, and operational-closeout experience.

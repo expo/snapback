@@ -1,0 +1,722 @@
+{
+  "artifactKind": "cloudflareAllAboardIdleMeasurement",
+  "artifactVersion": 1,
+  "surface": "real-cloudflare",
+  "target": {
+    "app": "all-aboard",
+    "profile": "cloudflare-do-sqlite-v8",
+    "origin": "https://snapback-all-aboard-proof.ccheever-0f6.workers.dev",
+    "scripts": [
+      "snapback-all-aboard-proof",
+      "snapback-all-aboard-handler",
+      "snapback-all-aboard-action-handler"
+    ],
+    "deployedVersions": [
+      {
+        "script": "snapback-all-aboard-proof",
+        "versionNumber": 42,
+        "versionId": "617c12f2-8a9d-41ea-87c7-c895e1883453",
+        "createdAtISO": "2026-07-11T23:30:49.48034Z",
+        "source": "wrangler",
+        "triggeredBy": "secret",
+        "sourceCommit": null
+      },
+      {
+        "script": "snapback-all-aboard-handler",
+        "versionNumber": 23,
+        "versionId": "517dd88a-27e7-491d-9c8a-4c1134305225",
+        "createdAtISO": "2026-07-09T01:29:23.937301Z",
+        "source": "wrangler",
+        "triggeredBy": "version_upload",
+        "sourceCommit": null
+      },
+      {
+        "script": "snapback-all-aboard-action-handler",
+        "versionNumber": 23,
+        "versionId": "e63d9cb1-6915-4c4a-bc27-f71cdbd8d882",
+        "createdAtISO": "2026-07-09T01:29:27.396383Z",
+        "source": "wrangler",
+        "triggeredBy": "version_upload",
+        "sourceCommit": null
+      }
+    ],
+    "versionListing": {
+      "readAtISO": "2026-07-12T03:01:19Z",
+      "reader": "wrangler versions list --json",
+      "wranglerVersion": "4.110.0",
+      "commandTemplates": [
+        "CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<account-token> npx wrangler@4.110.0 versions list --config cloudflare/wrangler.all-aboard.jsonc --json",
+        "CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<account-token> npx wrangler@4.110.0 versions list --config cloudflare/wrangler.all-aboard.handler.jsonc --json",
+        "CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<account-token> npx wrangler@4.110.0 versions list --config cloudflare/wrangler.all-aboard.action-handler.jsonc --json"
+      ]
+    },
+    "sourceCommitLimitation": "The deployed version listing did not retain a source commit, so no commit hash is inferred here."
+  },
+  "related": [
+    "ENG-23626",
+    "ENG-23840",
+    "ENG-23841",
+    "LLP 0000",
+    "LLP 0028",
+    "LLP 0040",
+    "LLP 0049",
+    "LLP 0050",
+    "Diary 0012"
+  ],
+  "claim": "In one deliberate no-subscriber window bracketed by disarmed, zero-demand status observations, the settled Cloudflare GraphQL Analytics API observed no rows: 0 estimated Worker requests, 0 estimated Worker execution GB-s, 0 estimated Durable Object requests, and 0 microseconds of account-wide Durable Object active time.",
+  "method": {
+    "statusSurface": "public GET /cron/status",
+    "jobName": "warmPoll",
+    "analyticsReader": "cloudflare/test/billing-windows.mjs",
+    "analyticsSource": "Cloudflare GraphQL Analytics API",
+    "analyticsDatasets": [
+      "workersInvocationsAdaptive",
+      "durableObjectsInvocationsAdaptiveGroups",
+      "durableObjectsPeriodicGroups",
+      "durableObjectsStorageGroups"
+    ],
+    "windowFiltersAreInclusive": true,
+    "quietWindowDurationSeconds": 7200,
+    "quietWindowFencing": "The pure quiet window begins five minutes after the final zero-demand observation and ends before the first post-window probe.",
+    "controlReadAtISO": "2026-07-12T02:28:06Z",
+    "finalQuietReadAtISO": "2026-07-12T02:43:38Z",
+    "settledReadErrors": [],
+    "collectionCommandTemplates": [
+      "curl -fsS <origin>/cron/status",
+      "curl -fsS -X POST -H 'x-snapback-admin-token: <admin-token>' -H 'content-type: application/json' --data '{}' <origin>/reset",
+      "CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<account-token> node cloudflare/test/billing-windows.mjs --scripts snapback-all-aboard-proof,snapback-all-aboard-handler,snapback-all-aboard-action-handler --start <start-iso> --end <end-iso>",
+      "CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<account-token> node cloudflare/test/billing-windows.mjs --scripts snapback-all-aboard-proof,snapback-all-aboard-handler,snapback-all-aboard-action-handler --start <start-iso> --end <end-iso> --hourly"
+    ],
+    "sampling": {
+      "cloudflareDocumentation": "https://developers.cloudflare.com/analytics/graphql-api/sampling/",
+      "adaptiveDatasetRule": "Cloudflare documents that GraphQL nodes whose names end in Adaptive may use adaptive sampling. Low-volume queries are normally unsampled, but the client cannot control the sample rate.",
+      "quietWindowLimitation": "The Adaptive datasets returned no quiet-window rows, so that interval has no sampleInterval or confidence field to report. The result is an observed zero estimate, not an absolute invoice-grade assertion that no event occurred.",
+      "sampleIntervalProbe": {
+        "readAtISO": "2026-07-12T02:45:05Z",
+        "reader": {
+          "endpoint": "https://api.cloudflare.com/client/v4/graphql",
+          "method": "POST",
+          "authorization": "Bearer <account-token>",
+          "queryTemplate": "query ($accountTag: string!, $start: Time!, $end: Time!, $scripts: [string!]) { viewer { accounts(filter: { accountTag: $accountTag }) { workersInvocationsAdaptive(limit: 1000, filter: { scriptName_in: $scripts, datetime_geq: $start, datetime_leq: $end }) { avg { sampleInterval } dimensions { scriptName } } durableObjectsInvocationsAdaptiveGroups(limit: 1000, filter: { scriptName_in: $scripts, datetime_geq: $start, datetime_leq: $end }) { avg { sampleInterval } dimensions { scriptName } } } } }",
+          "variablesTemplate": {
+            "accountTag": "<account-id>",
+            "scripts": [
+              "snapback-all-aboard-proof",
+              "snapback-all-aboard-handler",
+              "snapback-all-aboard-action-handler"
+            ],
+            "start": "<window-start-iso>",
+            "end": "<window-end-iso>"
+          }
+        },
+        "metric": "avg.sampleInterval",
+        "preControl": {
+          "window": {
+            "start": "2026-07-11T23:17:44Z",
+            "end": "2026-07-11T23:32:43Z"
+          },
+          "workersInvocationsAdaptive": [
+            {
+              "scriptName": "snapback-all-aboard-proof",
+              "sampleInterval": 1
+            }
+          ],
+          "durableObjectsInvocationsAdaptiveGroups": [
+            {
+              "scriptName": "snapback-all-aboard-action-handler",
+              "sampleInterval": 1
+            },
+            {
+              "scriptName": "snapback-all-aboard-proof",
+              "sampleInterval": 1.7346805736636246
+            },
+            {
+              "scriptName": "snapback-all-aboard-handler",
+              "sampleInterval": 1
+            }
+          ]
+        },
+        "quiet": {
+          "window": {
+            "start": "2026-07-11T23:37:44Z",
+            "end": "2026-07-12T01:37:44Z"
+          },
+          "workersInvocationsAdaptive": [],
+          "durableObjectsInvocationsAdaptiveGroups": []
+        },
+        "postControl": {
+          "window": {
+            "start": "2026-07-12T01:39:47Z",
+            "end": "2026-07-12T01:40:30Z"
+          },
+          "workersInvocationsAdaptive": [
+            {
+              "scriptName": "snapback-all-aboard-proof",
+              "sampleInterval": 1
+            }
+          ],
+          "durableObjectsInvocationsAdaptiveGroups": [
+            {
+              "scriptName": "snapback-all-aboard-action-handler",
+              "sampleInterval": 1
+            },
+            {
+              "scriptName": "snapback-all-aboard-proof",
+              "sampleInterval": 1.6066666666666667
+            },
+            {
+              "scriptName": "snapback-all-aboard-handler",
+              "sampleInterval": 1
+            }
+          ]
+        }
+      }
+    }
+  },
+  "statusEvidence": {
+    "reset": {
+      "result": {
+        "reset": true,
+        "seeded": true
+      },
+      "exactTimestampRetained": false,
+      "timing": "The reset completed before the first retained zero-demand observation at 2026-07-11T23:32:13Z."
+    },
+    "zeroDemandObservations": [
+      {
+        "observedAtISO": "2026-07-11T23:32:13Z",
+        "activation": {
+          "state": "inactive:no-demand",
+          "demand": 0
+        },
+        "nextRun": null,
+        "lastRun": null
+      },
+      {
+        "observedAtISO": "2026-07-11T23:32:18Z",
+        "activation": {
+          "state": "inactive:no-demand",
+          "demand": 0
+        },
+        "nextRun": null,
+        "lastRun": null
+      },
+      {
+        "observedAtISO": "2026-07-11T23:32:23Z",
+        "activation": {
+          "state": "inactive:no-demand",
+          "demand": 0
+        },
+        "nextRun": null,
+        "lastRun": null
+      },
+      {
+        "observedAtISO": "2026-07-11T23:32:33Z",
+        "activation": {
+          "state": "inactive:no-demand",
+          "demand": 0
+        },
+        "nextRun": null,
+        "lastRun": null
+      },
+      {
+        "observedAtISO": "2026-07-11T23:32:44Z",
+        "activation": {
+          "state": "inactive:no-demand",
+          "demand": 0
+        },
+        "nextRun": null,
+        "lastRun": null
+      }
+    ],
+    "disarmBoundaryAtISO": "2026-07-11T23:32:44Z",
+    "postWindowObservation": {
+      "observedAtISO": "2026-07-12T01:39:47Z",
+      "activation": {
+        "state": "inactive:no-demand",
+        "demand": 0
+      },
+      "nextRun": null,
+      "lastRun": null
+    }
+  },
+  "publicLivenessWitness": {
+    "startedAtISO": "2026-07-12T01:39:52.978Z",
+    "finishedAtISO": "2026-07-12T01:39:54.330Z",
+    "queryOk": true,
+    "stationCount": 21,
+    "refreshOk": true,
+    "refreshResultSource": "511-siri-stop-monitoring",
+    "commitVersion": null,
+    "feedStateLastSource": null,
+    "provenanceLimitation": "The witness retained the action result source but not a post-action feed-state source or commit version.",
+    "interpretation": "The deployed public surface remained healthy after the quiet window: stationsQuery returned 21 rows and refreshFeed succeeded with the 511 SIRI source. The absent quiet-window analytics rows were not caused by a dead deployment."
+  },
+  "billingEvidence": {
+    "preControl": {
+      "purpose": "Prove that the same analytics queries return nonzero attributed rows immediately before disarm.",
+      "window": {
+        "start": "2026-07-11T23:17:44Z",
+        "end": "2026-07-11T23:32:43Z",
+        "scripts": [
+          "snapback-all-aboard-proof",
+          "snapback-all-aboard-handler",
+          "snapback-all-aboard-action-handler"
+        ]
+      },
+      "aggregate": {
+        "datasets": {
+          "workersInvocations": [
+            {
+              "sum": {
+                "duration": 0.240013125,
+                "errors": 0,
+                "requests": 11,
+                "wallTime": 1920105
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-proof"
+              }
+            }
+          ],
+          "durableObjectInvocations": [
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 5,
+                "responseBodySize": 1270,
+                "wallTime": 11394417
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-action-handler"
+              }
+            },
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 2660,
+                "responseBodySize": 2132093,
+                "wallTime": 56038496
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-proof"
+              }
+            },
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 10,
+                "responseBodySize": 2315,
+                "wallTime": 9452174
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-handler"
+              }
+            }
+          ],
+          "durableObjectPeriodic": [
+            {
+              "sum": {
+                "activeTime": 16695160,
+                "cpuTime": 1432989,
+                "subrequests": 20,
+                "inboundWebsocketMsgCount": 0,
+                "outboundWebsocketMsgCount": 0,
+                "storageReadUnits": 0,
+                "storageWriteUnits": 0,
+                "storageDeletes": 0,
+                "exceededCpuErrors": 0,
+                "exceededMemoryErrors": 0,
+                "fatalInternalErrors": 0
+              }
+            }
+          ],
+          "durableObjectStorage": []
+        },
+        "errors": [],
+        "summary": {
+          "workerRequests": 11,
+          "workerDurationGbS": 0.240013125,
+          "durableObjectRequests": 2675,
+          "durableObjectActiveTimeUs": 16695160,
+          "durableObjectCpuTimeUs": 1432989,
+          "websocketMessagesIn": 0,
+          "websocketMessagesOut": 0,
+          "storageReadUnits": 0,
+          "storageWriteUnits": 0,
+          "maxStoredBytes": 0,
+          "datasetErrors": []
+        }
+      },
+      "hourly": {
+        "datasets": {
+          "workersInvocations": [
+            {
+              "sum": {
+                "duration": 0.240013125,
+                "errors": 0,
+                "requests": 11,
+                "wallTime": 1920105
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-proof",
+                "datetimeHour": "2026-07-11T23:00:00Z"
+              }
+            }
+          ],
+          "durableObjectInvocations": [
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 5,
+                "responseBodySize": 1270,
+                "wallTime": 11394417
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-action-handler",
+                "datetimeHour": "2026-07-11T23:00:00Z"
+              }
+            },
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 2660,
+                "responseBodySize": 2132093,
+                "wallTime": 56038496
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-proof",
+                "datetimeHour": "2026-07-11T23:00:00Z"
+              }
+            },
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 10,
+                "responseBodySize": 2315,
+                "wallTime": 9452174
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-handler",
+                "datetimeHour": "2026-07-11T23:00:00Z"
+              }
+            }
+          ],
+          "durableObjectPeriodic": [
+            {
+              "sum": {
+                "activeTime": 16695160,
+                "cpuTime": 1432989,
+                "subrequests": 20,
+                "inboundWebsocketMsgCount": 0,
+                "outboundWebsocketMsgCount": 0,
+                "storageReadUnits": 0,
+                "storageWriteUnits": 0,
+                "storageDeletes": 0,
+                "exceededCpuErrors": 0,
+                "exceededMemoryErrors": 0,
+                "fatalInternalErrors": 0
+              },
+              "dimensions": {
+                "datetimeHour": "2026-07-11T23:00:00Z"
+              }
+            }
+          ],
+          "durableObjectStorage": []
+        },
+        "errors": [],
+        "summary": {
+          "workerRequests": 11,
+          "workerDurationGbS": 0.240013125,
+          "durableObjectRequests": 2675,
+          "durableObjectActiveTimeUs": 16695160,
+          "durableObjectCpuTimeUs": 1432989,
+          "websocketMessagesIn": 0,
+          "websocketMessagesOut": 0,
+          "storageReadUnits": 0,
+          "storageWriteUnits": 0,
+          "maxStoredBytes": 0,
+          "datasetErrors": []
+        }
+      }
+    },
+    "quiet": {
+      "purpose": "Measure the untouched interior after a five-minute post-disarm guard and before the retained post-window zero-demand observation.",
+      "window": {
+        "start": "2026-07-11T23:37:44Z",
+        "end": "2026-07-12T01:37:44Z",
+        "scripts": [
+          "snapback-all-aboard-proof",
+          "snapback-all-aboard-handler",
+          "snapback-all-aboard-action-handler"
+        ]
+      },
+      "aggregate": {
+        "datasets": {
+          "workersInvocations": [],
+          "durableObjectInvocations": [],
+          "durableObjectPeriodic": [],
+          "durableObjectStorage": []
+        },
+        "errors": [],
+        "summary": {
+          "workerRequests": 0,
+          "workerDurationGbS": 0,
+          "durableObjectRequests": 0,
+          "durableObjectActiveTimeUs": 0,
+          "durableObjectCpuTimeUs": 0,
+          "websocketMessagesIn": 0,
+          "websocketMessagesOut": 0,
+          "storageReadUnits": 0,
+          "storageWriteUnits": 0,
+          "maxStoredBytes": 0,
+          "datasetErrors": []
+        }
+      },
+      "hourly": {
+        "datasets": {
+          "workersInvocations": [],
+          "durableObjectInvocations": [],
+          "durableObjectPeriodic": [],
+          "durableObjectStorage": []
+        },
+        "errors": [],
+        "summary": {
+          "workerRequests": 0,
+          "workerDurationGbS": 0,
+          "durableObjectRequests": 0,
+          "durableObjectActiveTimeUs": 0,
+          "durableObjectCpuTimeUs": 0,
+          "websocketMessagesIn": 0,
+          "websocketMessagesOut": 0,
+          "storageReadUnits": 0,
+          "storageWriteUnits": 0,
+          "maxStoredBytes": 0,
+          "datasetErrors": []
+        }
+      }
+    },
+    "postControl": {
+      "purpose": "Prove that the deployment remained live and the same analytics queries returned nonzero attributed rows after the quiet window.",
+      "window": {
+        "start": "2026-07-12T01:39:47Z",
+        "end": "2026-07-12T01:40:30Z",
+        "scripts": [
+          "snapback-all-aboard-proof",
+          "snapback-all-aboard-handler",
+          "snapback-all-aboard-action-handler"
+        ]
+      },
+      "aggregate": {
+        "datasets": {
+          "workersInvocations": [
+            {
+              "sum": {
+                "duration": 0.2347815,
+                "errors": 0,
+                "requests": 3,
+                "wallTime": 1878252
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-proof"
+              }
+            }
+          ],
+          "durableObjectInvocations": [
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 1,
+                "responseBodySize": 254,
+                "wallTime": 1080794
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-action-handler"
+              }
+            },
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 241,
+                "responseBodySize": 282138,
+                "wallTime": 5642873
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-proof"
+              }
+            },
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 3,
+                "responseBodySize": 8655,
+                "wallTime": 934282
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-handler"
+              }
+            }
+          ],
+          "durableObjectPeriodic": [
+            {
+              "sum": {
+                "activeTime": 1827429,
+                "cpuTime": 81268,
+                "subrequests": 5,
+                "inboundWebsocketMsgCount": 0,
+                "outboundWebsocketMsgCount": 0,
+                "storageReadUnits": 0,
+                "storageWriteUnits": 0,
+                "storageDeletes": 0,
+                "exceededCpuErrors": 0,
+                "exceededMemoryErrors": 0,
+                "fatalInternalErrors": 0
+              }
+            }
+          ],
+          "durableObjectStorage": []
+        },
+        "errors": [],
+        "summary": {
+          "workerRequests": 3,
+          "workerDurationGbS": 0.2347815,
+          "durableObjectRequests": 245,
+          "durableObjectActiveTimeUs": 1827429,
+          "durableObjectCpuTimeUs": 81268,
+          "websocketMessagesIn": 0,
+          "websocketMessagesOut": 0,
+          "storageReadUnits": 0,
+          "storageWriteUnits": 0,
+          "maxStoredBytes": 0,
+          "datasetErrors": []
+        }
+      },
+      "hourly": {
+        "datasets": {
+          "workersInvocations": [
+            {
+              "sum": {
+                "duration": 0.2347815,
+                "errors": 0,
+                "requests": 3,
+                "wallTime": 1878252
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-proof",
+                "datetimeHour": "2026-07-12T01:00:00Z"
+              }
+            }
+          ],
+          "durableObjectInvocations": [
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 1,
+                "responseBodySize": 254,
+                "wallTime": 1080794
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-action-handler",
+                "datetimeHour": "2026-07-12T01:00:00Z"
+              }
+            },
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 241,
+                "responseBodySize": 282138,
+                "wallTime": 5642873
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-proof",
+                "datetimeHour": "2026-07-12T01:00:00Z"
+              }
+            },
+            {
+              "sum": {
+                "errors": 0,
+                "requests": 3,
+                "responseBodySize": 8655,
+                "wallTime": 934282
+              },
+              "dimensions": {
+                "scriptName": "snapback-all-aboard-handler",
+                "datetimeHour": "2026-07-12T01:00:00Z"
+              }
+            }
+          ],
+          "durableObjectPeriodic": [
+            {
+              "sum": {
+                "activeTime": 1827429,
+                "cpuTime": 81268,
+                "subrequests": 5,
+                "inboundWebsocketMsgCount": 0,
+                "outboundWebsocketMsgCount": 0,
+                "storageReadUnits": 0,
+                "storageWriteUnits": 0,
+                "storageDeletes": 0,
+                "exceededCpuErrors": 0,
+                "exceededMemoryErrors": 0,
+                "fatalInternalErrors": 0
+              },
+              "dimensions": {
+                "datetimeHour": "2026-07-12T01:00:00Z"
+              }
+            }
+          ],
+          "durableObjectStorage": []
+        },
+        "errors": [],
+        "summary": {
+          "workerRequests": 3,
+          "workerDurationGbS": 0.2347815,
+          "durableObjectRequests": 245,
+          "durableObjectActiveTimeUs": 1827429,
+          "durableObjectCpuTimeUs": 81268,
+          "websocketMessagesIn": 0,
+          "websocketMessagesOut": 0,
+          "storageReadUnits": 0,
+          "storageWriteUnits": 0,
+          "maxStoredBytes": 0,
+          "datasetErrors": []
+        }
+      }
+    }
+  },
+  "controls": [
+    "Five consecutive status observations established zero demand, inactive activation, no next alarm, and no last run before the quiet-window guard began.",
+    "The pre-control returned nonzero Worker and Durable Object request estimates through the same analytics reader.",
+    "The post-control returned nonzero request estimates after the quiet window and includes a successful 511-backed public witness.",
+    "Both aggregate and hourly forms of every dataset were read after an additional settlement interval; all reads completed with errors [].",
+    "The quiet window excludes the five-minute post-disarm guard and ends before the first post-window probe.",
+    "Worker controls covered the gateway; Durable Object request controls covered all three deployed scripts across the script-attributed dataset union. Storage returned no rows before, during, or after the quiet window and therefore has no positive control."
+  ],
+  "interpretation": {
+    "result": "idle-to-zero-observed-by-settled-analytics",
+    "derivedQuietTotals": {
+      "estimatedWorkerRequests": 0,
+      "estimatedWorkerExecutionGbS": 0,
+      "estimatedDurableObjectRequests": 0,
+      "observedAccountWideDurableObjectActiveTimeUs": 0
+    },
+    "emptyRowRule": "The quiet interval is reported as an observed zero estimate because the adjacent controls returned nonzero rows through the same settled aggregate and hourly queries, every dataset reported errors [], the retained pre/post application status observations were explicitly disarmed, and the post-window public witness proved the deployment remained live.",
+    "adaptiveSamplingCaveat": "workersInvocationsAdaptive and durableObjectsInvocationsAdaptiveGroups may use Cloudflare adaptive sampling. Their quiet-window result contained no rows and thus no sampleInterval or confidence information. The record therefore does not claim an absolute absence of every event or an invoice guarantee.",
+    "positiveControlScope": "Worker controls emitted estimates only for the gateway. Durable Object request controls emitted estimates for the gateway, handler, and action handler. Coverage of all three identities is across the two script-attributed datasets as a union, not within each dataset.",
+    "accountWideCaveat": "durableObjectsPeriodicGroups and durableObjectsStorageGroups expose no script identity on this GraphQL surface. Their raw rows are account-wide context and are not attributed to All Aboard. The deployment-specific observation rests on workersInvocationsAdaptive and durableObjectsInvocationsAdaptiveGroups, which include scriptName dimensions. The empty periodic result supports only the account-wide observation of 0 microseconds active time in this interval.",
+    "storageTelemetryCaveat": "durableObjectsStorageGroups returned no row in the pre-control, quiet, or post-control windows, so there is no positive storage control. maxStoredBytes is the reader's numeric summary of an empty array; it is telemetry absence, not evidence of zero stored bytes, zero storage usage, or deletion of persisted application data.",
+    "scope": "This is one controlled real-service observation of the deployed All Aboard proof over the exact window above, not a universal cost guarantee for every Cloudflare account, plan, or future Snapback workload."
+  },
+  "validation": {
+    "validator": "cloudflare/test/validate-idle-measurement.mjs",
+    "command": "node cloudflare/test/validate-idle-measurement.mjs cloudflare/generated/measurements.remote.idle.2026-07-12.json && ./ref-check --verbose",
+    "checks": [
+      "JSON parses",
+      "raw rows reconcile to summaries",
+      "aggregate and hourly summaries agree",
+      "the quiet window is exactly 7200 elapsed seconds",
+      "all dataset error arrays are empty",
+      "repository LLP references and metadata validate"
+    ]
+  }
+}

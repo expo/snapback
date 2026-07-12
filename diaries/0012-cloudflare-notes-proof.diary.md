@@ -2,11 +2,13 @@
 
 **Demo:** Notes-on-Cloudflare narrow proof (`cloudflare/`) — one syncable
 table, one V8 mutation, one live subscription on a Worker + Durable Object
-**Surfaces:** Miniflare acceptance (required, passing); real-Cloudflare
-runner (first real run 2026-07-08, 11/11 — see the ENG-23640 entry)
-**Author:** Claude
+**Surfaces:** Miniflare acceptance (required, passing); real-Cloudflare notes
+runner (first real run 2026-07-08, 11/11 — see the ENG-23640 entry); All Aboard
+live-data proof and deliberate no-subscriber idle window (ENG-23840/ENG-23841)
+**Author:** Claude / Codex
 **Date:** 2026-07-07
-**Related:** LLP 0009, LLP 0014, LLP 0040, LLP 0047, LLP 0048, Diary 0006
+**Related:** LLP 0009, LLP 0014, LLP 0028, LLP 0040, LLP 0047, LLP 0048,
+LLP 0049, LLP 0050, Diary 0006, Diary 0008, ENG-23626, ENG-23840, ENG-23841
 
 ## 2026-07-07 — Building LLP 0048 (twin) and LLP 0040 (Cloudflare proof)
 
@@ -138,7 +140,7 @@ scheduled-wakeup). Those need hours of controlled idle time; the structural
 facts stand in honestly — zero armed alarms and an empty ledger while idle —
 and the counters remain the open LLP 0040 §Measurements item.
 
-## 2026-07-08 — The decisive evidence lands: real eviction, billing zeros (ENG-23640)
+## 2026-07-08 — The decisive evidence lands: real eviction, observed billing zeros (ENG-23640)
 
 The one command that was blocked is blocked no more. Deployed the notes pair
 for real (`SNAPBACK_CF_APP=notes deploy.sh`, bootstrap pass and all, admin
@@ -157,14 +159,15 @@ The story of the run:
   rows, proven against a *real* eviction — the thing Miniflare structurally
   cannot do. The forced `/evict` leg passed too, minutes earlier, on the
   same deployment.
-- **The billing surface agrees with the hibernation story.** Settled
+- **The analytics surface agrees with the hibernation story.** Settled
   per-script GraphQL analytics (new `billing-windows.mjs`; the datasets each
   have their own filter quirks, documented in the file): the pure interior
-  of the connected-idle window reads **0 Worker requests / 0 GB-s / 0 DO
-  requests** for both notes scripts, and a 58-minute no-connection window
-  after the run reads the same zeros. The adjacent setup/wake window shows
+  of the connected-idle window returned no rows for either notes script,
+  summarized as **0 estimated Worker requests / 0 estimated Worker execution
+  GB-s / 0 estimated DO requests**; a 58-minute no-connection window after the
+  run had the same observed-zero estimate. The adjacent setup/wake window shows
   the run's own traffic (8 requests, 3.8 GB-s), which is what makes the
-  zeros credible as data rather than lag. Cold start of the run: 53 ms to
+  observed zeros credible as data rather than lag. Cold start of the run: 53 ms to
   first `/health`.
 - **All Aboard taught the opposite lesson, honestly.** Its overnight
   "idle" was never idle: 6k+ outbound WebSocket pushes overnight means a
@@ -222,3 +225,67 @@ run felt like:
   boards instead of `/reset`; the deliberate All Aboard no-subscriber window
   stayed blocked twice over (ENG-23840 credentials, ENG-23841 the window
   itself — demand read 4 all session; the app was watched the entire time).
+
+## 2026-07-11–12 — The watched app finally goes idle (ENG-23840/ENG-23841)
+
+Closing the All Aboard proof was operational work, not another implementation
+phase. A human had to mint an account-scoped Cloudflare token with analytics
+read access. Before uploading the separately rotated Snapback admin token, I
+persisted it in the operator's secret store; that reverses the two earlier
+write-only rotations that left the deployed secret usable but the operator
+unable to authenticate later. No credential value or private store locator is
+part of the repository evidence.
+
+The credential repair had two platform-shaped wrinkles. Token validity was not
+captured by one universal check: the account-scoped analytics query was the
+meaningful authorization proof, while the user-oriented verification surface
+did not model the account-vs-user permission boundary the same way. And secret
+upload success did not mean every edge location recognized the new admin token
+immediately; bounded retries across propagation turned the first transient
+authorization failures into a clean admin-gated request without weakening the
+gate.
+Both are small things, but both are exactly the sort of human-gated residue
+that makes a finished implementation look unfinished operationally.
+
+Once credentials worked, Snapback's own inspection surface made the decisive
+window pleasantly legible. Five zero-demand observations at 2026-07-11
+23:32:13Z, :18Z, :23Z, :33Z, and :44Z showed `inactive:no-demand`, demand
+zero, no next run, and no last run; the final :44Z observation defines the
+official disarm boundary. The fenced 7,200-second pure window was
+23:37:44Z–01:37:44Z. A post-window status read at 01:39:47Z was still inactive
+with no demand or scheduled work, and a public witness at
+01:39:52.978Z–01:39:54.330Z returned 21 stations with refresh source
+`511-siri-stop-monitoring`. The deployment was alive; the retained evidence
+showed no work during the measured interval.
+
+The analytics result is the missing app-specific proof: controls were read at
+02:28:06Z and the final quiet interval was re-read at 02:43:38Z. Both the
+aggregate and hourly Cloudflare reads returned empty arrays
+for Worker invocations, Durable Object invocations, periodic activity, and
+storage during the pure quiet window. The request datasets summarized to **0
+estimated Worker requests / 0 estimated Worker execution GB-s / 0 estimated DO
+requests**, while the account-wide periodic query observed 0 µs active time.
+Empty rows alone are not evidence, so the run bracketed them
+with controls through the same queries. The 15-minute pre-window control found
+11 gateway requests, 0.240013125 GB-s, and 2,675 estimated Durable Object requests;
+the post-window witness found 3 gateway requests, 0.2347815 GB-s, and 245
+estimated Durable Object requests. Those nonzero adjacent rows, the hourly
+equivalents, the settlement delay, the
+inspectable zero-demand state, and the live 511 witness together rule out the
+easy false-zero explanations. The raw record is
+[`measurements.remote.idle.2026-07-12.json`](../cloudflare/generated/measurements.remote.idle.2026-07-12.json).
+Cloudflare's periodic and storage datasets have no per-script dimension, so
+they remain account-wide context; storage had no positive control and its empty
+array is telemetry absence. The two script-attributed request datasets are the
+deployment-specific evidence for All Aboard. Because those datasets are
+Adaptive and the empty quiet rows expose no sample interval, the result is a
+controlled observed-zero estimate, not an absolute invoice guarantee.
+
+Compared with a managed backend such as Convex or Supabase, this was more
+operator work than opening one billing dashboard: the relevant Cloudflare
+counters live across GraphQL datasets with different dimensions and settle
+asynchronously. The upside is unusually auditable raw evidence, and Snapback's
+explicit demand count, activation state, alarm state, and last-run ledger made
+the application half clearer than a generic usage chart. A managed dashboard
+would have made the first glance easier; it would not by itself have supplied
+the false-zero controls or shown why this particular application reached zero.
