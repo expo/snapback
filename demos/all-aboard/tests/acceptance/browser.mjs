@@ -194,15 +194,19 @@ async function main() {
         const d = Date.now() + 5000;
         for (;;) {
           const t = window.allAboard?.startupTiming;
-          if (t && t.firstBoardPaintMs !== null && t.backendConnectedMs !== null) return t;
+          if (t && t.usefulBoardCommittedMs !== null && t.firstBoardPaintMs !== null && t.backendConnectedMs !== null) return t;
           if (Date.now() > d) return t ?? null;
           await new Promise(r => setTimeout(r, 50));
         }
       })()`);
+      if (typeof timing?.usefulBoardCommittedMs !== 'number') throw new Error(`usefulBoardCommittedMs not recorded: ${JSON.stringify(timing)}`);
       if (typeof timing?.firstBoardPaintMs !== 'number') throw new Error(`firstBoardPaintMs not recorded: ${JSON.stringify(timing)}`);
       if (typeof timing?.backendConnectedMs !== 'number') throw new Error(`backendConnectedMs not recorded: ${JSON.stringify(timing)}`);
       if (timing.firstBoardPaintMs > timing.backendConnectedMs) {
         throw new Error(`board paint waited for the backend: ${JSON.stringify(timing)}`);
+      }
+      if (timing.firstBoardPaintMs < timing.usefulBoardCommittedMs) {
+        throw new Error(`paint timestamp preceded the useful-board commit: ${JSON.stringify(timing)}`);
       }
       const { responseToBoardMs, codeToBoardMs } = assertFirstBoardPaintBudget(timing, PAINT_BUDGET_MS);
       const bootChromeVisible = await page.eval(

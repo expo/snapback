@@ -7,7 +7,7 @@
 // conflating the app proof with arbitrary server/network latency.
 
 export function assertFirstBoardPaintBudget(timing, budgetMs) {
-  for (const field of ['htmlReceivedMs', 'scriptStartMs', 'firstBoardPaintMs']) {
+  for (const field of ['htmlReceivedMs', 'scriptStartMs', 'usefulBoardCommittedMs', 'firstBoardPaintMs']) {
     if (typeof timing?.[field] !== 'number' || !Number.isFinite(timing[field])) {
       throw new Error(`${field} not recorded: ${JSON.stringify(timing)}`);
     }
@@ -18,6 +18,9 @@ export function assertFirstBoardPaintBudget(timing, budgetMs) {
 
   const responseToBoardMs = timing.firstBoardPaintMs - timing.htmlReceivedMs;
   const codeToBoardMs = timing.firstBoardPaintMs - timing.scriptStartMs;
+  if (timing.firstBoardPaintMs < timing.usefulBoardCommittedMs) {
+    throw new Error(`first useful paint preceded the useful-board commit: ${JSON.stringify(timing)}`);
+  }
   if (!(responseToBoardMs >= 0 && responseToBoardMs < budgetMs)) {
     throw new Error(
       `first useful paint ${Math.round(responseToBoardMs)}ms after HTML response ` +

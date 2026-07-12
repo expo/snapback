@@ -72,6 +72,7 @@ function projectBackendStatus(status: BackendStatus): void {
 const timing: {
   htmlReceivedMs: number | null;
   scriptStartMs: number;
+  usefulBoardCommittedMs: number | null;
   firstBoardPaintMs: number | null;
   backendConnectedMs: number | null;
   liveDataAppliedMs: number | null;
@@ -83,6 +84,7 @@ const timing: {
     return nav ? nav.responseEnd : null;
   })(),
   scriptStartMs: typeof performance !== 'undefined' ? performance.now() : 0,
+  usefulBoardCommittedMs: null,
   firstBoardPaintMs: null,
   backendConnectedMs: null,
   liveDataAppliedMs: null,
@@ -92,6 +94,7 @@ const firstBoardPaintReady = new Promise<void>((resolvePaint) => {
   resolveFirstBoardPaint = resolvePaint;
 });
 let firstBoardPaintResolved = false;
+let usefulBoardCommitObserved = false;
 
 function markFirstBoardPaint(at: number): void {
   if (firstBoardPaintResolved) return;
@@ -99,6 +102,25 @@ function markFirstBoardPaint(at: number): void {
   timing.firstBoardPaintMs = at;
   logTiming('first board paint', at);
   resolveFirstBoardPaint();
+}
+
+function markUsefulBoardCommitted(): void {
+  if (usefulBoardCommitObserved) return;
+  usefulBoardCommitObserved = true;
+  timing.usefulBoardCommittedMs = typeof performance !== 'undefined' ? performance.now() : 0;
+  logTiming('useful board committed', timing.usefulBoardCommittedMs);
+
+  const markAfterPaint = () => {
+    markFirstBoardPaint(typeof performance !== 'undefined' ? performance.now() : 0);
+  };
+  if (typeof requestAnimationFrame === 'function') {
+    // rAF callbacks run before their frame's paint. The second callback has a
+    // complete rendering opportunity between it and this committed board, so
+    // releasing backend work here preserves commit -> paint -> connect.
+    requestAnimationFrame(() => requestAnimationFrame(markAfterPaint));
+  } else {
+    markAfterPaint();
+  }
 }
 
 const logTiming = (label: string, at: number | null) => {
@@ -254,13 +276,12 @@ async function mountBoard(client: SnapbackClient): Promise<void> {
   prepareColorSchemeOverride();
   installContractWebHost();
   routerHandle = await mountAllAboardRouter();
+  // mountContractRouterAdapter resolves only after the initial Contract tree
+  // is mounted into the web host. Treat that as the useful-board commit
+  // witness, then cross a real paint opportunity before releasing connect.
+  markUsefulBoardCommitted();
   hostBindingsMounted = true;
   projectBackendStatus(pendingBackendStatus);
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(markFirstBoardPaint);
-  } else {
-    markFirstBoardPaint(typeof performance !== 'undefined' ? performance.now() : 0);
-  }
 
   const rootEl = typeof document !== 'undefined' ? document.getElementById('exact-root') : null;
   if (rootEl) {

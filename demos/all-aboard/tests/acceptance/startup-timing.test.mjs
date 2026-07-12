@@ -9,7 +9,7 @@ import { assertFirstBoardPaintBudget } from './startup-timing.mjs';
 
 assert.deepEqual(
   assertFirstBoardPaintBudget(
-    { htmlReceivedMs: 10, scriptStartMs: 20, firstBoardPaintMs: 30 },
+    { htmlReceivedMs: 10, scriptStartMs: 20, usefulBoardCommittedMs: 25, firstBoardPaintMs: 30 },
     50,
   ),
   { responseToBoardMs: 20, codeToBoardMs: 10 },
@@ -17,6 +17,14 @@ assert.deepEqual(
 );
 
 const dir = mkdtempSync(join(tmpdir(), 'snapback-startup-timing-'));
+assert.throws(
+  () => assertFirstBoardPaintBudget(
+    { htmlReceivedMs: 10, scriptStartMs: 20, usefulBoardCommittedMs: 31, firstBoardPaintMs: 30 },
+    50,
+  ),
+  /preceded the useful-board commit/,
+  'a pre-commit frame timestamp must never count as useful paint',
+);
 try {
   // Model the exact blind spot from ENG-24386: a statically imported renderer
   // spends meaningful time in module evaluation before the entry body can set
@@ -39,6 +47,7 @@ export const firstBoardPaintMs = performance.now();
   const timing = {
     htmlReceivedMs,
     scriptStartMs: entry.scriptStartMs,
+    usefulBoardCommittedMs: entry.firstBoardPaintMs,
     firstBoardPaintMs: entry.firstBoardPaintMs,
   };
   const codeToBoardMs = timing.firstBoardPaintMs - timing.scriptStartMs;

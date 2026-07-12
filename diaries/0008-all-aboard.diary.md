@@ -2075,3 +2075,15 @@ health/provision/live attachment until that boundary resolves. The acceptance
 timing includes the commit timestamp and asserts commit → frame → backend
 order, so an empty or merely scheduled React
 root can no longer satisfy the board-first claim.
+
+Final batch review found that the Contract arm still used the older,
+single-`requestAnimationFrame` witness. Because an rAF callback runs before
+its frame is painted, that path could release `client.health()` in a microtask
+before the rendering step and call the timestamp a paint. Contract now records
+the successful router mount as its useful-board commit, crosses two animation
+frames (leaving a complete rendering opportunity between them), and only then
+releases backend attachment. The shared timing oracle and both browser arms
+require the explicit commit timestamp and reject commit/paint inversion. This
+keeps the React control and Contract paved road honest under the same
+commit → paint → backend ordering instead of comparing differently optimistic
+clocks.
