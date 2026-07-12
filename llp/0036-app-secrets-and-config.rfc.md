@@ -677,6 +677,17 @@ envelope, every transport):
 hosted targets, where "can this apply now, and with whose credentials?" is
 exactly what an agent must know before acting.
 
+**Cloudflare controller as built (ENG-24499 / ENG-24501, 2026-07-12).** The
+guided writer fails before reading secret stdin unless the Wrangler package
+installed under the repository root matches the exact version in the committed
+Cloudflare pin and root lock; no installer or ambient executable participates.
+One overall deadline bounds the authenticated initial status request, the
+Wrangler child, retry sleeps, and every attestation request. A timed-out initial
+read reports `SNAPBACK_CONFIG_STATUS_UNKNOWN` with no write attempted. A killed
+child or unattested activation reports `SNAPBACK_CONFIG_APPLY_PENDING` and
+directs the operator to inspect status before retrying, because remote
+activation may have preceded the local timeout.
+
 CLI verbs `snapback config status|plan|set|unset|verify` (value via `--stdin`
 or prompt, never argv, which leaks into shell history and process lists);
 control-plane MCP tools `snapback_config_*` mapping 1:1. These projections

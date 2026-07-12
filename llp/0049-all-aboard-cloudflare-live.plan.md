@@ -364,6 +364,17 @@ bulk payload directly to Wrangler. All of
 this lands on the gateway/coordinator Worker only; the handler Worker's
 deploy carries no app secret bindings and no generation stamp.
 
+**Operator-controller hardening (ENG-24499 / ENG-24501, 2026-07-12).** Both
+the deployment transaction and guided config writer now fail closed unless
+the repository-local installed Wrangler matches the exact committed
+Cloudflare version pin and root lock. They invoke its JS entry directly; no
+`npx` installer or ambient executable can share secret stdin or change the
+controller mid-transaction. Config's initial status request, Wrangler child,
+retry sleeps, and attestation requests consume one overall deadline. Before a
+write, expiry is `SNAPBACK_CONFIG_STATUS_UNKNOWN`; after a child starts, expiry
+is `SNAPBACK_CONFIG_APPLY_PENDING`, because activation may be remote even when
+the bounded local child is killed.
+
 Pool rotation state is coordinator-local durable metadata, and the pooled
 value encoding is decided (OQ1, 2026-07-07): **one JSON-array Worker secret
 binding per pooled entry**. The user-facing contract stays "pooled entry
@@ -699,6 +710,9 @@ Exit evidence:
   `(jobName, scheduledAt)`, at-least-once, one-alarm-per-object dispatcher.
 - Record the cron ledger fields the local target exposes: last run, next run,
   trigger, outcome, duration/failure where available.
+- Terminal claim state, last-run summary, nominal advance, and terminal-history
+  pruning commit in one Durable Object SQLite transaction. The post-terminal
+  fault seam must roll all of them back together (ENG-24500).
 
 Exit evidence:
 

@@ -11,7 +11,7 @@
     "check:types": "scripts/check-generated-types",
     "check:surfaces": "scripts/check-demo-surfaces",
     "verify": "scripts/verify-local-proof",
-    "cf:accept": "node cloudflare/test/acceptance.mjs",
+    "cf:accept": "node cloudflare/test/local-suite.mjs",
     "cf:index-scaling": "node cloudflare/test/index-scaling.mjs",
     "cf:measure": "node cloudflare/test/measure.mjs",
     "cf:compat": "scripts/cf-check-compat",

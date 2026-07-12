@@ -664,6 +664,25 @@ demonstration path. The resulting contracts are now executable regressions:
   older or concurrently deployed healthy full-binding version cannot commit
   the deploy.
 
+## Fresh-review proof hardening (2026-07-12, ENG-24498–ENG-24501)
+
+- The canonical local proof now invokes one manifest-driven Cloudflare runner.
+  It pins 18 suite ids and completion checks and explicitly classifies every
+  Cloudflare test file; remote evidence, measurement-only scripts, helpers, and
+  the conformance child protocol remain named outside the non-remote gate.
+- Deploy and guided config mutation resolve only the exact Wrangler version
+  named by the committed Cloudflare pin and `bun.lock`, installed under this
+  repository. The preflight runs before any remote mutation or secret stdin;
+  `npx` and ambient executables are absent from those paths.
+- Config status reads and the Wrangler child share one overall deadline.
+  Never-responding HTTP and a hung child produce stable unknown/pending
+  diagnostics with recovery guidance rather than exceeding the advertised
+  timeout.
+- Cloudflare cron completion terminalizes the claim, writes the last-run
+  summary, advances the nominal, and prunes terminal history in one Durable
+  Object SQLite transaction. A new post-terminal fault proves rollback and
+  recovery without a duplicate app commit or missing summary.
+
 ## Status
 
 Draft (as-built sections landed 2026-07-07; review-hardening batch

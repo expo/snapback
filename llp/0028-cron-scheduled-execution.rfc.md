@@ -328,6 +328,14 @@ completion cannot recreate scheduler state that reset erased. Fault evidence
 covers interruption immediately after claim, during
 action execution, and after mutation commit but before claim finish.
 
+**Atomic completion follow-up (ENG-24500, 2026-07-12).** Completion is one
+`transactionSync`: terminal claim state, last-run summary, strict-next nominal
+advance, and terminal-history pruning are indivisible. A fault injected
+immediately after the terminal update rolls that update back, leaving the
+leased claim recoverable; the next attempt replays committed nested mutations
+and writes exactly one observable completion. The prior three-boundary fault
+suite now also pins this post-terminal statement boundary.
+
 The source manifest remains the definition of what jobs exist. When a job is
 renamed, removed, disabled, or its schedule changes, the runtime should reconcile
 state explicitly and report any orphaned history or migrated next-run state in

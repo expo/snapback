@@ -36,6 +36,15 @@ case "$app" in
     ;;
 esac
 
+# @ref LLP 0049#config-and-secrets — production mutations must be performed by the exact Wrangler resolved by
+# the committed root lock. Never let npx install or select a tool while a
+# deployment transaction (or secret stdin) is in flight.
+locked_wrangler_bin="$(node locked-wrangler.mjs --print-bin)"
+wrangler() {
+  node "$locked_wrangler_bin" "$@"
+}
+echo "==> verified repo-local locked Wrangler ($(node locked-wrangler.mjs --verify))"
+
 if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
   echo "CLOUDFLARE_API_TOKEN is not set. Export a Workers+DO-scoped token first." >&2
   exit 2
@@ -142,7 +151,7 @@ wait_for_gateway_activation() {
   attempts="${SNAPBACK_DEPLOY_CONTROL_ATTEMPTS:-8}"
   delay="${SNAPBACK_DEPLOY_CONTROL_DELAY_SECONDS:-5}"
   for ((i = 1; i <= attempts; i++)); do
-    if deployments="$(npx wrangler deployments list --config "$gateway_config" --json 2>/dev/null)" &&
+    if deployments="$(wrangler deployments list --config "$gateway_config" --json 2>/dev/null)" &&
       version_id="$(active_single_version_id_from_json "$deployments" 2>/dev/null)" &&
       [[ "$version_id" == "$expected_version_id" ]]; then
       EXPECTED_GATEWAY_VERSION_ID="$expected_version_id"
@@ -160,7 +169,7 @@ deploy_gateway_version() {
   local phase="$1" log version_id
   log="$(mktemp)"
   bootstrap_temp_files+=("$log")
-  npx wrangler deploy --config "$gateway_config" 2>&1 | tee "$log"
+  wrangler deploy --config "$gateway_config" 2>&1 | tee "$log"
   if ! version_id="$(deployed_version_id_from_log "$log" 2>/dev/null)"; then
     echo "!!> $phase did not report exactly one Current Version ID; refusing to infer activation" >&2
     return 1
@@ -185,8 +194,8 @@ restore_existing_worker() {
   echo "    restoring $config to $specs" >&2
   # Even a nonzero local exit can follow remote activation. The subsequent
   # deployment snapshot, not the CLI status alone, is the restoration proof.
-  npx wrangler versions deploy "${version_args[@]}" --config "$config" --yes >/dev/null 2>&1 || true
-  current_json="$(npx wrangler deployments list --config "$config" --json 2>/dev/null)" || return 1
+  wrangler versions deploy "${version_args[@]}" --config "$config" --yes >/dev/null 2>&1 || true
+  current_json="$(wrangler deployments list --config "$config" --json 2>/dev/null)" || return 1
   current_specs="$(active_version_specs_from_json "$current_json" 2>/dev/null)" || return 1
   [[ "$current_specs" == "$specs" ]]
 }
@@ -195,7 +204,7 @@ restore_missing_worker() {
   local config="$1" status
   if worker_probe "$config"; then
     # A failed local Wrangler process may still have activated remotely.
-    npx wrangler delete --config "$config" --force >/dev/null 2>&1 || true
+    wrangler delete --config "$config" --force >/dev/null 2>&1 || true
     if worker_probe "$config"; then
       return 1
     else
@@ -269,7 +278,7 @@ trap cleanup_deploy EXIT
 worker_probe() {
   local config="$1" output specs
   WORKER_ACTIVE_SPECS=""
-  if output="$(npx wrangler deployments list --config "$config" --json 2>&1)"; then
+  if output="$(wrangler deployments list --config "$config" --json 2>&1)"; then
     if ! specs="$(active_version_specs_from_json "$output" 2>/dev/null)"; then
       echo "!!> $config exists, but its active deployment could not be snapshotted; refusing mutation" >&2
       return 2
@@ -318,7 +327,7 @@ if [[ "${#bootstrap_missing[@]}" -gt 0 ]]; then
       fs.writeFileSync('$stripped', JSON.stringify(cfg, null, 2));
     "
     bootstrap_attempted+=("$config")
-    npx wrangler deploy --config "$stripped"
+    wrangler deploy --config "$stripped"
     rm -f "$stripped"
   done
 else
@@ -327,14 +336,14 @@ fi
 
 echo "==> deploying handler isolate ($handler_worker)"
 mark_existing_attempted "$handler_config"
-npx wrangler deploy --config "$handler_config"
+wrangler deploy --config "$handler_config"
 
 if [[ "$app" == "all-aboard" ]]; then
   # The separate action-handler isolate (LLP 0049 Phase 2): slow action
   # fetches must not queue transactional invocations behind them.
   echo "==> deploying action handler isolate (snapback-all-aboard-action-handler)"
   mark_existing_attempted "wrangler.all-aboard.action-handler.jsonc"
-  npx wrangler deploy --config wrangler.all-aboard.action-handler.jsonc
+  wrangler deploy --config wrangler.all-aboard.action-handler.jsonc
 fi
 
 echo "==> deploying gateway + coordinator ($gateway_worker)"
@@ -396,7 +405,7 @@ else
       echo "!!> DEPLOY FAILED VERIFICATION: $probe_url/health still reports the HANDLER"
       echo "    binding missing. Every query against this deployment will answer"
       echo "    SNAPBACK_HANDLER_FAILED. Manual remedy:"
-      echo "    npx wrangler deploy --config $gateway_config"
+      echo "    node $locked_wrangler_bin deploy --config $gateway_config"
       exit 1
     fi
   fi
@@ -425,9 +434,9 @@ if [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" && "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "
   exit 2
 elif [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" ]]; then
   echo "==> setting SNAPBACK_ADMIN_TOKEN secret on $gateway_worker"
-  printf '%s' "$SNAPBACK_ADMIN_TOKEN" | npx wrangler secret put SNAPBACK_ADMIN_TOKEN --config "$gateway_config"
+  printf '%s' "$SNAPBACK_ADMIN_TOKEN" | wrangler secret put SNAPBACK_ADMIN_TOKEN --config "$gateway_config"
   gateway_secret_mutated=1
-  current_secrets="$(npx wrangler secret list --format json --config "$gateway_config")"
+  current_secrets="$(wrangler secret list --format json --config "$gateway_config")"
   if node -e "
     const rows = JSON.parse(process.argv[1]);
     process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 0 : 1);
@@ -439,15 +448,15 @@ elif [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" ]]; then
   fi
 elif [[ "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "1" ]]; then
   echo "==> explicitly removing SNAPBACK_ADMIN_TOKEN from $gateway_worker"
-  current_secrets="$(npx wrangler secret list --format json --config "$gateway_config")"
+  current_secrets="$(wrangler secret list --format json --config "$gateway_config")"
   if node -e "
     const rows = JSON.parse(process.argv[1]);
     process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 0 : 1);
   " "$current_secrets"; then
-    printf 'y\n' | npx wrangler secret delete SNAPBACK_ADMIN_TOKEN --config "$gateway_config"
+    printf 'y\n' | wrangler secret delete SNAPBACK_ADMIN_TOKEN --config "$gateway_config"
     gateway_secret_mutated=1
   fi
-  remaining_secrets="$(npx wrangler secret list --format json --config "$gateway_config")"
+  remaining_secrets="$(wrangler secret list --format json --config "$gateway_config")"
   if node -e "
     const rows = JSON.parse(process.argv[1]);
     process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 1 : 0);
@@ -461,7 +470,7 @@ else
   echo "==> this run did not set, rotate, or remove SNAPBACK_ADMIN_TOKEN"
   secret_list_log="$(mktemp)"
   bootstrap_temp_files+=("$secret_list_log")
-  if current_secrets="$(npx wrangler secret list --format json --config "$gateway_config" 2>"$secret_list_log")"; then
+  if current_secrets="$(wrangler secret list --format json --config "$gateway_config" 2>"$secret_list_log")"; then
     if node -e "
       const rows = JSON.parse(process.argv[1]);
       process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 0 : 1);

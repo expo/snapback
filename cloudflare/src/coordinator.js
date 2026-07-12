@@ -109,6 +109,8 @@ export class Coordinator {
     this.testCronStopAfterClaimRemaining = env.SNAPBACK_TEST_CRON_STOP_AFTER_CLAIM === '1' ? 1 : 0;
     this.testCronInterruptDuringActionRemaining = env.SNAPBACK_TEST_CRON_INTERRUPT_DURING_ACTION === '1' ? 1 : 0;
     this.testCronStopBeforeFinishRemaining = env.SNAPBACK_TEST_CRON_STOP_BEFORE_FINISH === '1' ? 1 : 0;
+    this.testCronStopAfterTerminalUpdateRemaining =
+      env.SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE === '1' ? 1 : 0;
     this.testSocketLimitOverrides = null;
     this.initializeSchema();
     // Hibernated sockets survive Worker deployments. Reconcile pre-cap state
@@ -922,7 +924,10 @@ export class Coordinator {
           ? { ...job, action: payload.actionOverride }
           : job;
         const trigger = payload.trigger === 'scheduled' ? 'scheduled' : 'manual';
-        const outcome = await this.runCronJob(selectedJob, trigger, Date.now());
+        const scheduledAtMs = Number.isSafeInteger(payload.scheduledAtMs) && payload.scheduledAtMs >= 0
+          ? payload.scheduledAtMs
+          : Date.now();
+        const outcome = await this.runCronJob(selectedJob, trigger, scheduledAtMs);
         return json(200, { ok: true, ...outcome });
       }, { allowEmpty: true }));
     }
@@ -933,7 +938,8 @@ export class Coordinator {
         for (const record of this.sql.exec('SELECT COUNT(*) AS count FROM _snapback_action_mutation_results')) {
           mutationResults = Number(record.count);
         }
-        return json(200, { claims, mutationResults });
+        const cronState = [...this.sql.exec('SELECT * FROM _snapback_cron_state ORDER BY job_name')];
+        return json(200, { claims, mutationResults, cronState });
       });
     }
     // @ref LLP 0028#scheduler-state-and-run-ledger — deterministic test
@@ -1943,27 +1949,102 @@ export class Coordinator {
       return { duplicate: false, interruptedBeforeFinish: true, runId, outcome, idempotencyKey: key };
     }
     const finishedAt = Date.now();
-    this.sql.exec(
-      `UPDATE _snapback_cron_claims SET state = ?, lease_expires_at_ms = NULL
-       WHERE idempotency_key = ? AND run_id = ?`,
-      outcome === 'ok' ? 'done' : 'failed',
+    const completion = this.commitCronCompletion({
+      job,
+      trigger,
+      scheduledAtMs,
+      idempotencyKey,
       key,
-      runId
-    );
-    this.writeCronState(job.name, {
-      last_run_id: runId,
-      last_scheduled_at_ms: scheduledAtMs,
-      last_trigger: trigger,
-      last_outcome: outcome,
-      last_duration_ms: finishedAt - startedAt,
-      last_error: errorText,
-      last_finished_at_ms: finishedAt,
+      runId,
+      interval,
+      outcome,
+      errorText,
+      startedAt,
+      finishedAt,
     });
-    if (!idempotencyKey) {
-      this.advanceNominal(job, scheduledAtMs, interval);
+    if (completion.interruptedAfterTerminalUpdate) {
+      return {
+        duplicate: false,
+        interruptedAfterTerminalUpdate: true,
+        runId,
+        outcome,
+        idempotencyKey: key,
+      };
     }
-    this.pruneCronClaims(finishedAt);
+    if (!completion.committed) {
+      return {
+        duplicate: false,
+        supersededClaim: true,
+        runId,
+        outcome: 'superseded',
+        idempotencyKey: key,
+      };
+    }
     return { duplicate: false, runId, outcome, idempotencyKey: key };
+  }
+
+  // @ref LLP 0028#scheduler-state-and-run-ledger — a terminal claim is
+  // observable completion only together with its run summary and next
+  // nominal. A crash at any statement boundary must roll back all three.
+  commitCronCompletion({
+    job,
+    trigger,
+    scheduledAtMs,
+    idempotencyKey,
+    key,
+    runId,
+    interval,
+    outcome,
+    errorText,
+    startedAt,
+    finishedAt,
+  }) {
+    let committed = false;
+    let interruptedAfterTerminalUpdate = false;
+    try {
+      this.ctx.storage.transactionSync(() => {
+        const claim = [...this.sql.exec(
+          'SELECT state, run_id FROM _snapback_cron_claims WHERE idempotency_key = ?',
+          key,
+        )][0];
+        if (!claim || String(claim.state) !== 'claimed' || String(claim.run_id) !== runId) return;
+
+        this.sql.exec(
+          `UPDATE _snapback_cron_claims SET state = ?, lease_expires_at_ms = NULL
+           WHERE idempotency_key = ? AND run_id = ?`,
+          outcome === 'ok' ? 'done' : 'failed',
+          key,
+          runId,
+        );
+        if (
+          this.env.SNAPBACK_TESTING === '1' &&
+          this.testCronStopAfterTerminalUpdateRemaining > 0
+        ) {
+          this.testCronStopAfterTerminalUpdateRemaining -= 1;
+          const fault = new Error('injected interruption after terminal claim update');
+          fault.code = 'SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE';
+          throw fault;
+        }
+        this.writeCronState(job.name, {
+          last_run_id: runId,
+          last_scheduled_at_ms: scheduledAtMs,
+          last_trigger: trigger,
+          last_outcome: outcome,
+          last_duration_ms: finishedAt - startedAt,
+          last_error: errorText,
+          last_finished_at_ms: finishedAt,
+        });
+        if (!idempotencyKey) {
+          this.advanceNominal(job, scheduledAtMs, interval, finishedAt);
+        }
+        this.pruneCronClaims(finishedAt);
+        committed = true;
+      });
+    } catch (error) {
+      if (error?.code !== 'SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE') throw error;
+      interruptedAfterTerminalUpdate = true;
+    }
+    return { committed, interruptedAfterTerminalUpdate };
   }
 
   async runManualCronJob(job, scheduledAtMs) {

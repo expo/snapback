@@ -21,11 +21,7 @@ WebSocket Hibernation. This is a **proof, not a product** — see
 ## Run the local acceptance suite (no Cloudflare account)
 
 ```
-node cloudflare/test/acceptance.mjs     # notes behavioral checklist under Miniflare (the report prints its own count)
-node cloudflare/test/acceptance.all-aboard.mjs
-node cloudflare/test/acceptance.security-hardening.mjs
-node cloudflare/test/acceptance.protocol-hardening.mjs
-node cloudflare/test/acceptance.cron-recovery.mjs
+node cloudflare/test/local-suite.mjs    # all 18 explicitly inventoried non-remote gates
 node cloudflare/test/measure.mjs        # latency measurements with fixtures
 ```
 
@@ -39,6 +35,7 @@ start, placement — is deploy-only; Miniflare cannot produce it. With a
 Workers + Durable Objects-scoped API token:
 
 ```
+bun install --frozen-lockfile           # installs the exact committed Wrangler
 export CLOUDFLARE_API_TOKEN=...        # do NOT commit this
 export CLOUDFLARE_ACCOUNT_ID=...
 export SNAPBACK_ADMIN_TOKEN=...        # gates /reset + /evict on the deploy
@@ -46,6 +43,10 @@ export SNAPBACK_ADMIN_TOKEN=...        # gates /reset + /evict on the deploy
 SNAPBACK_PROOF_URL=https://snapback-notes-proof.<subdomain>.workers.dev \
   node cloudflare/test/acceptance.remote.mjs
 ```
+
+Both deploy and config-set fail before remote mutation or secret stdin unless
+the repository-local Wrangler matches `cloudflare/wrangler.lock.json` and the
+root `bun.lock`; they never auto-install through `npx`.
 
 `deploy.sh` never interprets an absent `SNAPBACK_ADMIN_TOKEN` as proof that the
 remote secret is absent: it attests and reports `ABSENT`, `PRESENT and

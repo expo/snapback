@@ -138,12 +138,11 @@ run node packages/snapback-codegen/identifier-validation.test.mjs
 # LLP 0051 D5: the data-tier corpus is builder-authored and regen-and-diff
 # gated; the Rust runner executes the committed cases inside `cargo test`.
 run node packages/snapback-codegen/data-tier-corpus.test.mjs
-# ENG-24369: pin missed-tick coalescing at the pure boundary and through the
-# production durable-state / Durable Object alarm reconciliation seam.
-run node cloudflare/test/cron-utils.mjs
-# ENG-24361: keep declared-index and internal fan-out selection scaling tied
-# to exact production SQL with deterministic work counts, not wall time.
-run node cloudflare/test/index-scaling.mjs
+# LLP 0040/0049: run the explicit inventory of every non-remote Cloudflare
+# regression. The runner pins suite IDs, the expected check count, completion
+# evidence, and a classification for every file so coverage cannot disappear
+# through a rename or an unreferenced standalone script.
+run node cloudflare/test/local-suite.mjs
 
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then

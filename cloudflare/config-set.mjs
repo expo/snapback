@@ -12,6 +12,7 @@
 //
 // Flags: --config <wrangler config>   (default wrangler.all-aboard.jsonc)
 //        --app <app name>             (default all-aboard)
+//        --timeout-ms <milliseconds>  (one overall deadline, default 60000)
 //        --dry-run                    (print the payload shape and exit —
 //                                      values are never printed)
 //
@@ -32,8 +33,36 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { resolveLockedWrangler } from './locked-wrangler.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_OPERATION_TIMEOUT_MS = 60_000;
+const MAX_OPERATION_TIMEOUT_MS = 15 * 60_000;
+
+export class ConfigDeadlineError extends Error {
+  constructor(message = 'the configuration operation deadline elapsed') {
+    super(message);
+    this.name = 'ConfigDeadlineError';
+    this.code = 'SNAPBACK_CONFIG_DEADLINE_EXCEEDED';
+  }
+}
+
+export class ConfigPendingError extends Error {
+  constructor(code, message) {
+    super(`${code}: ${message}`);
+    this.name = 'ConfigPendingError';
+    this.code = code;
+  }
+}
+
+function remainingMs(deadlineMs) {
+  if (!Number.isSafeInteger(deadlineMs)) {
+    throw new ConfigDeadlineError('the configuration operation has no valid deadline');
+  }
+  const remaining = Math.floor(deadlineMs - Date.now());
+  if (remaining <= 0) throw new ConfigDeadlineError();
+  return remaining;
+}
 
 export function bindingNameFor(appName, entryName) {
   const upper = (value) =>
@@ -58,15 +87,40 @@ export function buildBulkPayload(appName, entries, stagedGeneration) {
   return payload;
 }
 
-export async function readStatus(baseUrl, { adminToken = process.env.SNAPBACK_ADMIN_TOKEN } = {}) {
+export async function readStatus(
+  baseUrl,
+  {
+    adminToken = process.env.SNAPBACK_ADMIN_TOKEN,
+    deadlineMs = null,
+    fetchImpl = globalThis.fetch,
+  } = {},
+) {
   const headers = typeof adminToken === 'string' && adminToken.length > 0
     ? { 'x-snapback-admin-token': adminToken }
     : {};
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/config/status`, { headers });
+  const signal = deadlineMs === null
+    ? undefined
+    : AbortSignal.timeout(Math.max(1, remainingMs(deadlineMs)));
+  let response;
+  try {
+    response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/config/status`, { headers, signal });
+  } catch (error) {
+    if (signal?.aborted || error?.name === 'AbortError' || error?.name === 'TimeoutError') {
+      throw new ConfigDeadlineError('timed out waiting for /config/status');
+    }
+    throw error;
+  }
   if (!response.ok) {
     throw new Error(`GET /config/status failed: HTTP ${response.status}`);
   }
-  return response.json();
+  try {
+    return await response.json();
+  } catch (error) {
+    if (signal?.aborted || error?.name === 'AbortError' || error?.name === 'TimeoutError') {
+      throw new ConfigDeadlineError('timed out reading /config/status');
+    }
+    throw error;
+  }
 }
 
 // Attest `applied` by observing the runtime report generation >= staged —
@@ -75,11 +129,24 @@ export async function readStatus(baseUrl, { adminToken = process.env.SNAPBACK_AD
 export async function attestApplied(
   baseUrl,
   stagedGeneration,
-  { timeoutMs = 60_000, intervalMs = 2_000, adminToken = process.env.SNAPBACK_ADMIN_TOKEN, expectedEntries = {} } = {}
+  {
+    timeoutMs = DEFAULT_OPERATION_TIMEOUT_MS,
+    deadlineMs = null,
+    intervalMs = 2_000,
+    adminToken = process.env.SNAPBACK_ADMIN_TOKEN,
+    expectedEntries = {},
+    fetchImpl = globalThis.fetch,
+  } = {},
 ) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = deadlineMs ?? Date.now() + timeoutMs;
   for (;;) {
-    const status = await readStatus(baseUrl, { adminToken });
+    let status;
+    try {
+      status = await readStatus(baseUrl, { adminToken, deadlineMs: deadline, fetchImpl });
+    } catch (error) {
+      if (error instanceof ConfigDeadlineError) return 'pending';
+      throw error;
+    }
     const declarations = new Map((status.declarations || []).map((entry) => [entry.name, entry]));
     const entriesMatch = Object.entries(expectedEntries).every(([name, members]) => {
       const declaration = declarations.get(name);
@@ -88,8 +155,32 @@ export async function attestApplied(
     });
     if (Number(status.generation) >= stagedGeneration && entriesMatch) return 'applied';
     if (Date.now() >= deadline) return 'pending';
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(0, deadline - Date.now()))));
   }
+}
+
+export function runWranglerBulk(
+  wrangler,
+  payload,
+  config,
+  { deadlineMs, spawnSyncImpl = spawnSync } = {},
+) {
+  const timeout = remainingMs(deadlineMs);
+  const result = spawnSyncImpl(
+    wrangler.command,
+    [...wrangler.args, 'secret', 'bulk', '--config', config],
+    {
+      cwd: here,
+      input: JSON.stringify(payload),
+      stdio: ['pipe', 'inherit', 'inherit'],
+      timeout,
+      killSignal: 'SIGKILL',
+    },
+  );
+  if (result.error?.code === 'ETIMEDOUT') return 'timeout';
+  if (result.error) throw result.error;
+  if (result.status !== 0) return 'failed';
+  return 'activated';
 }
 
 export function validateRequestedEntries(status, input) {
@@ -110,18 +201,29 @@ export function validateRequestedEntries(status, input) {
 }
 
 export function parseArgs(argv) {
-  const args = { config: 'wrangler.all-aboard.jsonc', app: 'all-aboard', url: null, dryRun: false, entriesStdin: false };
+  const args = {
+    config: 'wrangler.all-aboard.jsonc',
+    app: 'all-aboard',
+    url: null,
+    dryRun: false,
+    entriesStdin: false,
+    timeoutMs: DEFAULT_OPERATION_TIMEOUT_MS,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--url') args.url = argv[++i];
     else if (arg === '--config') args.config = argv[++i];
     else if (arg === '--app') args.app = argv[++i];
+    else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++i]);
     else if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--entries-stdin') args.entriesStdin = true;
     else if (arg === '--entry') throw new Error('--entry is refused because it exposes secret values in process argv; use --entries-stdin');
     else {
       throw new Error(`unknown argument ${arg}`);
     }
+  }
+  if (!Number.isSafeInteger(args.timeoutMs) || args.timeoutMs <= 0 || args.timeoutMs > MAX_OPERATION_TIMEOUT_MS) {
+    throw new Error(`--timeout-ms must be a positive integer no greater than ${MAX_OPERATION_TIMEOUT_MS}`);
   }
   return args;
 }
@@ -130,10 +232,26 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.url) throw new Error('--url <deployed gateway origin> is required (attestation reads /config/status)');
   if (!args.entriesStdin) throw new Error('--entries-stdin is required; secret values are read from stdin, never argv');
+  // Resolve and version-check the committed local dependency before reading
+  // secret stdin or contacting any mutation surface.
+  const wrangler = resolveLockedWrangler();
+  console.log(`config.set: verified repo-local locked Wrangler ${wrangler.version}`);
   const adminToken = process.env.SNAPBACK_ADMIN_TOKEN;
   if (!adminToken) throw new Error('SNAPBACK_ADMIN_TOKEN is required to read the protected config status surface');
+  const deadlineMs = Date.now() + args.timeoutMs;
 
-  const status = await readStatus(args.url, { adminToken });
+  let status;
+  try {
+    status = await readStatus(args.url, { adminToken, deadlineMs });
+  } catch (error) {
+    if (error instanceof ConfigDeadlineError) {
+      throw new ConfigPendingError(
+        'SNAPBACK_CONFIG_STATUS_UNKNOWN',
+        'the initial authenticated status read timed out before any write; no mutation was attempted. Re-check /config/status and retry',
+      );
+    }
+    throw error;
+  }
   let input;
   try {
     input = JSON.parse(fs.readFileSync(0, 'utf8'));
@@ -151,25 +269,41 @@ async function main() {
     return;
   }
 
-  const result = spawnSync('npx', ['wrangler', 'secret', 'bulk', '--config', args.config], {
-    cwd: here,
-    input: JSON.stringify(payload),
-    stdio: ['pipe', 'inherit', 'inherit'],
-  });
-  if (result.status !== 0) {
-    throw new Error(`wrangler secret bulk failed (exit ${result.status}); state stays pending`);
+  let bulkOutcome;
+  try {
+    bulkOutcome = runWranglerBulk(wrangler, payload, args.config, { deadlineMs });
+  } catch (error) {
+    if (error instanceof ConfigDeadlineError) {
+      throw new ConfigPendingError(
+        'SNAPBACK_CONFIG_STATUS_UNKNOWN',
+        'the overall deadline elapsed before Wrangler started; no write was attempted. Re-check /config/status and retry',
+      );
+    }
+    throw error;
+  }
+  if (bulkOutcome !== 'activated') {
+    const reason = bulkOutcome === 'timeout'
+      ? `exceeded the overall ${args.timeoutMs}ms deadline and was killed`
+      : 'exited without local confirmation';
+    throw new ConfigPendingError(
+      'SNAPBACK_CONFIG_APPLY_PENDING',
+      `the locked Wrangler child ${reason}; remote activation is unknown. Re-check /config/status before retrying`,
+    );
   }
 
   console.log('config.set: bulk write activated; attesting via /config/status …');
-  const outcome = await attestApplied(args.url, staged, { adminToken, expectedEntries: input });
+  const outcome = await attestApplied(args.url, staged, {
+    adminToken,
+    expectedEntries: input,
+    deadlineMs,
+  });
   if (outcome === 'applied') {
     console.log(`config.set: APPLIED — runtime attests generation >= ${staged}`);
   } else {
-    console.log(
-      `config.set: still PENDING — the runtime has not attested generation ${staged}; ` +
-        're-check /config/status, or re-run once the activation propagates'
+    throw new ConfigPendingError(
+      'SNAPBACK_CONFIG_APPLY_PENDING',
+      `the runtime has not attested generation ${staged} within the overall ${args.timeoutMs}ms deadline; re-check /config/status before retrying`,
     );
-    process.exitCode = 3;
   }
 }
 
@@ -177,6 +311,6 @@ const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fil
 if (invokedDirectly) {
   main().catch((error) => {
     console.error(String(error.message || error));
-    process.exit(1);
+    process.exit(error instanceof ConfigPendingError ? 3 : 1);
   });
 }

@@ -1,6 +1,7 @@
-// ENG-24348: recover a scheduled slot after interruption at all three
-// durability boundaries, including commit-before-claim-finish, without a
-// second durable commit.
+// ENG-24348 / ENG-24500: recover a scheduled slot after interruption at all
+// four durability boundaries, including commit-before-claim-finish and the
+// statement immediately after terminal claim update, without a second
+// durable commit or a missing run summary.
 import http from 'node:http';
 import fs from 'node:fs';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
@@ -29,6 +30,7 @@ const proof = await startProof({
     SNAPBACK_TEST_CRON_STOP_AFTER_CLAIM: '1',
     SNAPBACK_TEST_CRON_INTERRUPT_DURING_ACTION: '1',
     SNAPBACK_TEST_CRON_STOP_BEFORE_FINISH: '1',
+    SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE: '1',
   },
 });
 
@@ -109,12 +111,44 @@ try {
     throw new Error(`retention pruned active claim replay authority: ${JSON.stringify(state)}`);
   }
 
-  // Retry 4 replays those recorded mutation results and finishes the claim;
-  // it may repeat at-least-once egress, but must never commit app state twice.
+  // Retry 4 replays those recorded mutation results and reaches terminal
+  // claim update, then faults at the exact old split-write boundary. The
+  // enclosing transaction must roll the terminal state back together with
+  // the absent run summary and nominal advance.
+  state = await retry();
+  const afterTerminalFault = await client.query('feedState', {});
+  const statusAfterTerminalFault = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  if (
+    state.claims[0]?.state !== 'claimed' ||
+    Number(state.claims[0]?.attempt) !== 4 ||
+    statusAfterTerminalFault.lastRun !== null
+  ) {
+    throw new Error(
+      `post-terminal fault did not roll back claim + run summary atomically: ${JSON.stringify({ state, statusAfterTerminalFault })}`,
+    );
+  }
+  if (
+    afterTerminalFault.version !== committedVersion ||
+    JSON.stringify(afterTerminalFault.rows) !== JSON.stringify(committed.rows)
+  ) {
+    throw new Error(`post-terminal fault double-committed: ${JSON.stringify({ committed, afterTerminalFault })}`);
+  }
+
+  // Retry 5 finishes all scheduler bookkeeping in one transaction. It may
+  // repeat at-least-once egress, but the app state is unchanged and exactly
+  // one observable last-run summary exists for the one terminal claim.
   state = await retry();
   const finished = await client.query('feedState', {});
-  if (state.claims[0]?.state !== 'done' || Number(state.claims[0]?.attempt) !== 4) {
+  const finishedStatus = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  if (state.claims[0]?.state !== 'done' || Number(state.claims[0]?.attempt) !== 5) {
     throw new Error(`recovered claim did not become terminal: ${JSON.stringify(state)}`);
+  }
+  if (
+    !finishedStatus.lastRun ||
+    finishedStatus.lastRun.runId !== String(state.claims[0].run_id) ||
+    finishedStatus.lastRun.outcome !== 'ok'
+  ) {
+    throw new Error(`terminal claim does not have exactly one matching run summary: ${JSON.stringify({ state, finishedStatus })}`);
   }
   if (finished.version !== committedVersion || JSON.stringify(finished.rows) !== JSON.stringify(committed.rows)) {
     throw new Error(`post-commit recovery double-committed: ${JSON.stringify({ committed, finished })}`);
@@ -134,6 +168,83 @@ try {
 } finally {
   await proof.dispose();
   server.close();
+}
+
+// Focused ENG-24500 proof: one action mutation commits exactly once, the
+// injected post-terminal fault leaves no partial run summary/nominal, and the
+// retry publishes one terminal claim + one matching summary atomically.
+const atomicFinish = await startProof({
+  app: 'all-aboard',
+  port: 0,
+  bindings: { SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE: '1' },
+});
+try {
+  const base = await atomicFinish.url();
+  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const postJson = async (path, body = {}) => {
+    const response = await fetch(`${base}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return response.json();
+  };
+  await client.ensureApp({ seed });
+  const before = await client.query('feedState', {});
+  const scheduledAtMs = Date.now();
+  const first = await postJson('/__test/run-cron', {
+    job: 'warmPoll',
+    trigger: 'scheduled',
+    scheduledAtMs,
+    actionOverride: 'probeNestedTimeout',
+  });
+  const afterFirst = await client.query('feedState', {});
+  let recovery = await postJson('/__test/cron-claims');
+  const statusAfterFault = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  if (
+    first.interruptedAfterTerminalUpdate !== true ||
+    afterFirst.version !== before.version + 1 ||
+    recovery.claims.length !== 1 ||
+    recovery.claims[0].state !== 'claimed' ||
+    recovery.mutationResults !== 1 ||
+    recovery.cronState.length !== 0 ||
+    statusAfterFault.lastRun !== null
+  ) {
+    throw new Error(
+      `post-terminal transaction fault leaked partial completion: ${JSON.stringify({ before, first, afterFirst, recovery, statusAfterFault })}`,
+    );
+  }
+
+  await postJson('/__test/expire-cron-claims');
+  const second = await postJson('/__test/run-cron', {
+    job: 'warmPoll',
+    trigger: 'scheduled',
+    scheduledAtMs,
+    actionOverride: 'probeNestedTimeout',
+  });
+  const afterRetry = await client.query('feedState', {});
+  recovery = await postJson('/__test/cron-claims');
+  const statusAfterRetry = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  const stored = recovery.cronState[0];
+  if (
+    second.outcome !== 'ok' ||
+    afterRetry.version !== afterFirst.version ||
+    recovery.claims.length !== 1 ||
+    recovery.claims[0].state !== 'done' ||
+    Number(recovery.claims[0].attempt) !== 2 ||
+    recovery.mutationResults !== 1 ||
+    recovery.cronState.length !== 1 ||
+    String(stored.last_run_id) !== second.runId ||
+    Number(stored.next_nominal_at_ms) <= scheduledAtMs ||
+    statusAfterRetry.lastRun?.runId !== second.runId
+  ) {
+    throw new Error(
+      `atomic retry did not preserve one commit + one run record: ${JSON.stringify({ second, afterFirst, afterRetry, recovery, statusAfterRetry })}`,
+    );
+  }
+  console.log('cloudflare cron atomic-finish acceptance: one app commit and one run record survive post-terminal fault');
+} finally {
+  await atomicFinish.dispose();
 }
 
 // A scheduler attempt finishing after app.reset must not recreate the claim,

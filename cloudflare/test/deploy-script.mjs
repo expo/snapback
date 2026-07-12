@@ -1,6 +1,7 @@
-// ENG-24364 / ENG-24388: exercise deploy.sh without touching Cloudflare.
-// PATH-local npx/curl fakes model every existing/missing permutation,
-// ambiguous probes, partial failures, and admin-secret state transitions.
+// ENG-24364 / ENG-24388 / ENG-24499: exercise deploy.sh without touching
+// Cloudflare. A repo-local pinned Wrangler and PATH-local curl fake model every
+// existing/missing permutation, ambiguous probe, partial failure, and
+// admin-secret state transition.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -18,6 +19,8 @@ fs.mkdirSync(cloudflareRoot, { recursive: true });
 fs.mkdirSync(path.join(fixtureRepo, 'scripts'), { recursive: true });
 fs.mkdirSync(path.join(fixtureRepo, 'demos/all-aboard/surfaces/contract'), { recursive: true });
 fs.copyFileSync(path.join(sourceCloudflareRoot, 'deploy.sh'), path.join(cloudflareRoot, 'deploy.sh'));
+fs.copyFileSync(path.join(sourceCloudflareRoot, 'locked-wrangler.mjs'), path.join(cloudflareRoot, 'locked-wrangler.mjs'));
+fs.copyFileSync(path.join(sourceCloudflareRoot, 'wrangler.lock.json'), path.join(cloudflareRoot, 'wrangler.lock.json'));
 for (const name of fs.readdirSync(sourceCloudflareRoot)) {
   if (/^wrangler.*\.jsonc$/.test(name)) fs.copyFileSync(path.join(sourceCloudflareRoot, name), path.join(cloudflareRoot, name));
 }
@@ -27,7 +30,17 @@ fs.writeFileSync(
   { mode: 0o755 }
 );
 
-const npxFake = `#!/usr/bin/env node
+const wranglerRoot = path.join(fixtureRepo, 'node_modules', 'wrangler');
+const wranglerBin = path.join(wranglerRoot, 'bin', 'wrangler.js');
+const wranglerPackage = path.join(wranglerRoot, 'package.json');
+fs.mkdirSync(path.dirname(wranglerBin), { recursive: true });
+fs.writeFileSync(path.join(fixtureRepo, 'bun.lock'), '{"packages":{"wrangler":["wrangler@4.108.0"]}}\n');
+fs.writeFileSync(
+  wranglerPackage,
+  '{"version":"4.108.0","bin":{"wrangler":"bin/wrangler.js"}}\n',
+);
+
+const wranglerFake = `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
 fs.appendFileSync(process.env.MOCK_LOG, JSON.stringify(args) + '\\n');
@@ -56,8 +69,7 @@ const activate = (target) => {
   save();
   return next[0].version_id;
 };
-if (args[0] !== 'wrangler') process.exit(90);
-if (args[1] === 'deployments' && args[2] === 'list') {
+if (args[0] === 'deployments' && args[1] === 'list') {
   const ambiguousAfter = state.failureSeen && (process.env.MOCK_AMBIGUOUS_AFTER_FAILURE || '').split(',').includes(config);
   if ((process.env.MOCK_AMBIGUOUS || '').split(',').includes(config) || ambiguousAfter) {
     console.error('authentication failed while contacting api.cloudflare.com');
@@ -94,7 +106,7 @@ if (args[1] === 'deployments' && args[2] === 'list') {
   console.error('Worker not found (code 10090)');
   process.exit(1);
 }
-if (args[1] === 'deploy') {
+if (args[0] === 'deploy') {
   const match = process.env.MOCK_FAIL_DEPLOY_MATCH || '';
   const exact = process.env.MOCK_FAIL_DEPLOY_EXACT || '';
   const failing = (match && config.includes(match)) || (exact && config === exact);
@@ -110,10 +122,10 @@ if (args[1] === 'deploy') {
   if (process.env.MOCK_OMIT_VERSION_ID !== '1') console.log('Current Version ID: ' + versionId);
   process.exit(0);
 }
-if (args[1] === 'versions' && args[2] === 'deploy') {
+if (args[0] === 'versions' && args[1] === 'deploy') {
   if ((process.env.MOCK_FAIL_ROLLBACK_CONFIG || '').split(',').includes(config)) process.exit(9);
   const end = args.indexOf('--config');
-  const specs = args.slice(3, end).filter((item) => item.includes('@'));
+  const specs = args.slice(2, end).filter((item) => item.includes('@'));
   state.active[config] = specs.map((spec) => {
     const at = spec.lastIndexOf('@');
     return { version_id: spec.slice(0, at), percentage: Number(spec.slice(at + 1)) };
@@ -122,13 +134,13 @@ if (args[1] === 'versions' && args[2] === 'deploy') {
   save();
   process.exit(0);
 }
-if (args[1] === 'delete') {
+if (args[0] === 'delete') {
   delete state.active[config];
   delete state.pending[config];
   save();
   process.exit(0);
 }
-if (args[1] === 'secret' && args[2] === 'list') {
+if (args[0] === 'secret' && args[1] === 'list') {
   if (process.env.MOCK_SECRET_LIST_FAIL === '1') {
     console.error('injected secret-list failure');
     process.exit(8);
@@ -136,21 +148,21 @@ if (args[1] === 'secret' && args[2] === 'list') {
   console.log(JSON.stringify(state.secretPresent ? [{ name: 'SNAPBACK_ADMIN_TOKEN', type: 'secret_text' }] : []));
   process.exit(0);
 }
-if (args[1] === 'secret' && args[2] === 'put') {
+if (args[0] === 'secret' && args[1] === 'put') {
   fs.readFileSync(0);
   state.secretPresent = true;
   activate(canonical);
   if (process.env.MOCK_FAIL_SECRET_AFTER_ACTIVATE === '1') process.exit(7);
   process.exit(0);
 }
-if (args[1] === 'secret' && args[2] === 'delete') {
+if (args[0] === 'secret' && args[1] === 'delete') {
   fs.readFileSync(0);
   state.secretPresent = false;
   activate(canonical);
   if (process.env.MOCK_FAIL_SECRET_AFTER_ACTIVATE === '1') process.exit(7);
   process.exit(0);
 }
-console.error('unexpected mock npx call', args);
+console.error('unexpected mock Wrangler call', args);
 process.exit(91);
 `;
 const curlFake = `#!/usr/bin/env node
@@ -174,7 +186,7 @@ if (process.env.MOCK_HEALTH_FAIL === '1' || (failAfter > 0 && state.healthCalls 
   console.log(JSON.stringify({ ok: true, bindings: { handler: true, actionHandler }, workerVersion }));
 }
 `;
-fs.writeFileSync(path.join(bin, 'npx'), npxFake, { mode: 0o755 });
+fs.writeFileSync(wranglerBin, wranglerFake, { mode: 0o755 });
 fs.writeFileSync(path.join(bin, 'curl'), curlFake, { mode: 0o755 });
 fs.writeFileSync(path.join(bin, 'bun'), '#!/usr/bin/env bash\\nexit 0\\n', { mode: 0o755 });
 
@@ -215,24 +227,44 @@ function run(name, extra = {}) {
 
 function deployConfigs(result, bootstrap) {
   return result.calls
-    .filter((args) => args[1] === 'deploy')
+    .filter((args) => args[0] === 'deploy')
     .map((args) => args[args.indexOf('--config') + 1])
     .filter((config) => config.includes('.bootstrap.') === bootstrap);
 }
 
 function deletedConfigs(result) {
   return result.calls
-    .filter((args) => args[1] === 'delete')
+    .filter((args) => args[0] === 'delete')
     .map((args) => args[args.indexOf('--config') + 1]);
 }
 
 function rollbackConfigs(result) {
   return result.calls
-    .filter((args) => args[1] === 'versions' && args[2] === 'deploy')
+    .filter((args) => args[0] === 'versions' && args[1] === 'deploy')
     .map((args) => args[args.indexOf('--config') + 1]);
 }
 
 try {
+  // The deployment must fail before compatibility checks or any remote call
+  // when the local locked tool is absent or has the wrong version.
+  const savedWrangler = fs.readFileSync(wranglerBin);
+  fs.rmSync(wranglerBin);
+  const missingWrangler = run('missing-locked-wrangler');
+  assert.notEqual(missingWrangler.status, 0);
+  assert.match(missingWrangler.output, /SNAPBACK_WRANGLER_PRECHECK_FAILED/);
+  assert.deepEqual(missingWrangler.calls, []);
+  assert.equal(missingWrangler.compatChecked, false);
+  fs.writeFileSync(wranglerBin, savedWrangler, { mode: 0o755 });
+
+  const savedPackage = fs.readFileSync(wranglerPackage, 'utf8');
+  fs.writeFileSync(wranglerPackage, '{"version":"4.109.0","bin":{"wrangler":"bin/wrangler.js"}}\n');
+  const wrongWrangler = run('wrong-locked-wrangler');
+  assert.notEqual(wrongWrangler.status, 0);
+  assert.match(wrongWrangler.output, /installed Wrangler 4\.109\.0 does not match pinned 4\.108\.0/);
+  assert.deepEqual(wrongWrangler.calls, []);
+  assert.equal(wrongWrangler.compatChecked, false);
+  fs.writeFileSync(wranglerPackage, savedPackage);
+
   const allAboardConfigs = [
     'wrangler.all-aboard.handler.jsonc',
     'wrangler.all-aboard.jsonc',
@@ -456,17 +488,17 @@ try {
   const removed = run('token-removed', { MOCK_SECRET_STATE: 'present', SNAPBACK_ADMIN_TOKEN_REMOVE: '1' });
   assert.equal(removed.status, 0, removed.output);
   assert.match(removed.output, /verified SNAPBACK_ADMIN_TOKEN absent/);
-  assert.ok(removed.calls.some((args) => args[1] === 'secret' && args[2] === 'delete'));
+  assert.ok(removed.calls.some((args) => args[0] === 'secret' && args[1] === 'delete'));
   assert.equal(deployConfigs(removed, false).filter((config) => config === 'wrangler.jsonc').length, 2);
 
   const noOpRemoved = run('token-remove-no-op', { SNAPBACK_ADMIN_TOKEN_REMOVE: '1' });
   assert.equal(noOpRemoved.status, 0, noOpRemoved.output);
-  assert.ok(!noOpRemoved.calls.some((args) => args[1] === 'secret' && args[2] === 'delete'));
+  assert.ok(!noOpRemoved.calls.some((args) => args[0] === 'secret' && args[1] === 'delete'));
   assert.equal(deployConfigs(noOpRemoved, false).filter((config) => config === 'wrangler.jsonc').length, 1);
 
   const rotated = run('token-rotated', { SNAPBACK_ADMIN_TOKEN: 'never-log-this-secret' });
   assert.equal(rotated.status, 0, rotated.output);
-  assert.ok(rotated.calls.some((args) => args[1] === 'secret' && args[2] === 'put'));
+  assert.ok(rotated.calls.some((args) => args[0] === 'secret' && args[1] === 'put'));
   assert.equal(deployConfigs(rotated, false).filter((config) => config === 'wrangler.jsonc').length, 2);
   assert.doesNotMatch(JSON.stringify(rotated.calls) + rotated.output, /never-log-this-secret/);
 

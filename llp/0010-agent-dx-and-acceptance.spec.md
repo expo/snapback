@@ -677,6 +677,14 @@ that prove its contract. Before implementation PRs merge, CI should run:
 When a behavior is not yet implemented, the capability report should say so and
 the tests should assert the reported gap rather than silently skipping it.
 
+**Cloudflare inventory as built (ENG-24498, 2026-07-12).**
+`cloudflare/test/local-suite-manifest.mjs` is the canonical non-remote
+inventory. Its runner asserts the exact suite ids and 18-check total, verifies
+per-suite completion evidence, and classifies every other test file as remote,
+helper, benchmark, or child protocol. A new file is therefore a failing
+inventory change until its gate or explicit non-gate role is declared; deleting
+or renaming a gate cannot reduce the proof silently.
+
 The portability and cross-engine story should be backed by a **machine-readable
 conformance corpus** expressed as product artifacts (`schema`, `functions`, portable
 seed) rather than implementation-internal tests. Adopt the contract Valet designed
