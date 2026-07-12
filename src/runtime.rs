@@ -81,6 +81,10 @@ pub struct IbexQueryRun {
 /// rejects action-mode `db.query`/`db.get`, so the JS context shim is defense
 /// in depth rather than the capability boundary.
 pub trait IbexActionHost {
+    /// Validate that this action invocation still has host-call authority.
+    /// Detached hosts use this on every operation to bind the whole action,
+    /// not only a nested mutation commit, to its staging app generation.
+    fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()>;
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput>;
 }
 
@@ -671,6 +675,12 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
+        if self.mode == IbexInvocationMode::Action {
+            self.action_host
+                .as_deref_mut()
+                .ok_or_else(action_host_missing)?
+                .validate_host_call(op)?;
+        }
         match op {
             "db.query" => {
                 if self.mode == IbexInvocationMode::Action {
@@ -2151,19 +2161,42 @@ fn is_executable(path: &Path) -> bool {
 mod action_db_boundary_tests {
     use super::{IbexActionHost, IbexHostContext};
     use crate::cron::{CronRunMetadata, CronRunTrigger};
-    use crate::diagnostic::SnapbackResult;
+    use crate::diagnostic::{SnapbackError, SnapbackResult};
     use crate::manifest::{HandlerInput, MutationOutput};
     use serde_json::json;
 
     struct MutationOnlyHost;
+    struct StaleGenerationHost;
 
     impl IbexActionHost for MutationOnlyHost {
+        fn validate_host_call(&mut self, _op: &str) -> SnapbackResult<()> {
+            Ok(())
+        }
+
         fn run_mutation(
             &mut self,
             _name: &str,
             _input: HandlerInput,
         ) -> SnapbackResult<MutationOutput> {
             panic!("an action db-read denial must not reach its mutation-only host")
+        }
+    }
+
+    impl IbexActionHost for StaleGenerationHost {
+        fn validate_host_call(&mut self, _op: &str) -> SnapbackResult<()> {
+            Err(SnapbackError::error(
+                "SNAPBACK_ACTION_GENERATION_CONFLICT",
+                "runtime",
+                "test generation drift",
+            ))
+        }
+
+        fn run_mutation(
+            &mut self,
+            _name: &str,
+            _input: HandlerInput,
+        ) -> SnapbackResult<MutationOutput> {
+            panic!("generation denial must precede action host dispatch")
         }
     }
 
@@ -2200,6 +2233,24 @@ mod action_db_boundary_tests {
                 .handle_host_call(op, args)
                 .expect_err("action db reads must fail at the host boundary");
             assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_WRITE_IN_QUERY");
+        }
+    }
+
+    #[test]
+    fn action_generation_guard_precedes_every_host_operation() {
+        let mut host = StaleGenerationHost;
+        let mut context = IbexHostContext::new_action(
+            HandlerInput::default(),
+            metadata(),
+            &mut host,
+            json!(null),
+        );
+
+        for op in ["runtime.now", "runtime.id", "action.metadata"] {
+            let error = context
+                .handle_host_call(op, json!({}))
+                .expect_err("stale outer action cannot retain non-mutation host power");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_GENERATION_CONFLICT");
         }
     }
 }

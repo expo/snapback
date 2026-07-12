@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-12 (ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24348/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-12 (ENG-24340 review follow-up: the outer detached action now carries its staging app generation and every later host call, including an in-lock host-plan mutation, rejects schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24348/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -385,9 +385,11 @@ host-side before dispatch; actions reach durable state only through
 `ctx.runMutation`. An Ibex `ctx.runMutation` handler executes outside the
 mutex against a pinned WAL read view (or
 an owned SQLite snapshot for an in-memory instance), buffering its writes and
-captured reads. The function, schema, and app generation are captured together
-at staging; execution uses that exact schema, and commit rejects any intervening
-schema/code/reset generation. Only commit-time validation, the SQLite commit, permission
+captured reads. The outer action's function, schema authority, and app generation
+are captured together at staging; every later host call rechecks that generation,
+including an in-lock host-plan mutation. Nested Ibex execution uses its exact
+staging-time schema, and commit rejects any intervening schema/code/reset
+generation. Only commit-time validation, the SQLite commit, permission
 epoch advancement, and realtime fan-out reacquire the mutex. A hung outbound
 fetch or nested mutation handler therefore stalls only its own action. The run
 is bounded by a coarse wall-clock watchdog

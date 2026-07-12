@@ -469,6 +469,10 @@ pub(crate) struct DetachedIbexAction {
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
     pub runtime: RuntimeManager,
+    /// Generation of the code/schema/reset boundary that authorized this
+    /// action. Every later host call must still observe this exact generation.
+    pub app_generation: u64,
+    pub app_generation_fence: Arc<AtomicU64>,
 }
 
 pub(crate) enum StagedNestedMutation {
@@ -895,6 +899,7 @@ pub struct LocalSnapback {
     // boundary changes. Detached nested mutations bind this value at staging
     // and must still match at commit (ENG-24340).
     app_generation: u64,
+    app_generation_fence: Arc<AtomicU64>,
 }
 
 #[derive(Clone, Debug)]
@@ -937,6 +942,12 @@ struct LocalIbexActionHost<'a> {
 }
 
 impl IbexActionHost for LocalIbexActionHost<'_> {
+    fn validate_host_call(&mut self, _op: &str) -> SnapbackResult<()> {
+        // In-process action invocation retains the instance borrow for the
+        // whole run, so no schema/function/reset drift can interleave.
+        Ok(())
+    }
+
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
         // @ref LLP 0028#execution-the-action-class — actions commit durable
         // writes by invoking ordinary mutations, preserving the commit/fan-out path.
@@ -963,7 +974,7 @@ impl LocalSnapback {
         let ephemeral_collections = manifest.ephemeral_collections.clone();
         let diagnostics = self.db.apply_schema(manifest)?;
         self.ephemeral.replace_collections(ephemeral_collections);
-        self.app_generation = next_app_generation();
+        self.advance_app_generation();
         self.refresh_read_manifests();
         self.record_diagnostics(diagnostics.clone());
         Ok(diagnostics)
@@ -978,7 +989,7 @@ impl LocalSnapback {
 
         self.functions = manifest;
         self.functions_loaded = true;
-        self.app_generation = next_app_generation();
+        self.advance_app_generation();
         // New code means new warm-VM setup state; content keying already
         // prevents stale reuse, clearing also frees the old VMs' memory.
         self.warm_vms.clear();
@@ -1011,7 +1022,7 @@ impl LocalSnapback {
 
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.db.reset()?;
-        self.app_generation = next_app_generation();
+        self.advance_app_generation();
         self.warm_vms.clear();
         // ENG-23333: capture the live subscriptions being dropped so their
         // clients can be told. Clearing the map alone leaves every connected
@@ -1079,6 +1090,17 @@ impl LocalSnapback {
         self.refresh_cron_active();
         self.persist_cron_state()?;
         Ok(())
+    }
+
+    pub(crate) fn app_generation(&self) -> u64 {
+        self.app_generation
+    }
+
+    fn advance_app_generation(&mut self) {
+        let generation = next_app_generation();
+        self.app_generation = generation;
+        self.app_generation_fence
+            .store(generation, Ordering::SeqCst);
     }
 
     /// ENG-22527: the ensure-everything mount-lifecycle operation. Inspects
@@ -2112,6 +2134,8 @@ impl LocalSnapback {
                     // declaration, at staging time, under the lock.
                     grants: self.config_grants(definition),
                     runtime: self.runtime.clone(),
+                    app_generation: self.app_generation,
+                    app_generation_fence: self.app_generation_fence.clone(),
                 }))
             }
             _ => StagedAction::InLock,
@@ -3083,6 +3107,7 @@ impl LocalSnapback {
             capabilities: runtime.capabilities().clone(),
         })));
 
+        let app_generation = next_app_generation();
         Ok(Self {
             db,
             functions: FunctionManifest::default(),
@@ -3102,7 +3127,8 @@ impl LocalSnapback {
             connections_last_seen: ConnectionActivity::default(),
             reaped_connections: 0,
             warm_vms: Arc::new(crate::warm_vm::WarmVmPool::from_env()),
-            app_generation: next_app_generation(),
+            app_generation,
+            app_generation_fence: Arc::new(AtomicU64::new(app_generation)),
             read_manifests,
             read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
             receipts: ReceiptLog::default(),

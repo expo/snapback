@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -148,18 +148,35 @@ struct DetachedActionHost {
     abandoned: Arc<AtomicBool>,
     commit_gate: Arc<StdMutex<()>>,
     deadline: Instant,
+    app_generation: u64,
+    app_generation_fence: Arc<AtomicU64>,
 }
 
 impl DetachedActionHost {
+    fn validate_live(&self, op: &str) -> SnapbackResult<()> {
+        if self.abandoned.load(Ordering::SeqCst) {
+            return Err(action_abandoned(op));
+        }
+        let current_generation = self.app_generation_fence.load(Ordering::SeqCst);
+        if current_generation != self.app_generation {
+            return Err(action_generation_conflict(
+                op,
+                self.app_generation,
+                current_generation,
+            ));
+        }
+        Ok(())
+    }
+
     fn lock_live(&self, op: &str) -> SnapbackResult<tokio::sync::OwnedMutexGuard<LocalSnapback>> {
         let guard = self.state.clone().blocking_lock_owned();
-        if self.abandoned.load(Ordering::SeqCst) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ACTION_TIMEOUT",
-                "runtime",
-                format!(
-                    "ctx.{op} rejected: the action exceeded its wall-clock watchdog and was abandoned"
-                ),
+        self.validate_live(op)?;
+        let current_generation = guard.app_generation();
+        if current_generation != self.app_generation {
+            return Err(action_generation_conflict(
+                op,
+                self.app_generation,
+                current_generation,
             ));
         }
         Ok(guard)
@@ -167,6 +184,13 @@ impl DetachedActionHost {
 }
 
 impl IbexActionHost for DetachedActionHost {
+    fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
+        // This atomic generation fence keeps ordinary runtime/id/log calls off
+        // the global instance mutex. A mutation rechecks while holding that
+        // mutex, and detached mutation commit retains its own generation bind.
+        self.validate_live(op)
+    }
+
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
         let mut snapback = self.lock_live("runMutation")?;
         match snapback.stage_nested_mutation(name, &input)? {
@@ -230,6 +254,22 @@ fn action_abandoned(op: &str) -> SnapbackError {
     )
 }
 
+fn action_generation_conflict(op: &str, staged: u64, current: u64) -> SnapbackError {
+    // @ref LLP 0028#execution-the-action-class — the outer detached action and
+    // every host call retain the staging-time code/schema/reset authority.
+    SnapbackError::error(
+        "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "runtime",
+        format!(
+            "ctx.{op} rejected: app code, schema, or state reset changed while the action was running"
+        ),
+    )
+    .with_details(json!({
+        "stagedAppGeneration": staged,
+        "currentAppGeneration": current,
+    }))
+}
+
 /// Run a staged Ibex action on a detached thread under a wall-clock watchdog.
 ///
 /// The action holds no instance lock while it runs; nested Ibex handlers also
@@ -280,12 +320,16 @@ async fn run_detached_ibex_action(
                         module,
                         grants,
                         runtime,
+                        app_generation,
+                        app_generation_fence,
                     } = *action;
                     let mut host = DetachedActionHost {
                         state,
                         abandoned,
                         commit_gate,
                         deadline: execution_deadline,
+                        app_generation,
+                        app_generation_fence,
                     };
                     runtime.invoke_ibex_action(
                         &module,
@@ -2862,6 +2906,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         }
         "SNAPBACK_UNKNOWN_CRON_JOB" | "SNAPBACK_UNKNOWN_SUBSCRIPTION" => StatusCode::NOT_FOUND,
         "SNAPBACK_MUTATION_CONFLICT"
+        | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -3019,10 +3064,20 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, parse_action_watchdog_timeout,
-        status_for_diagnostic_code,
+        ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, DetachedActionHost, SharedSnapback,
+        parse_action_watchdog_timeout, status_for_diagnostic_code,
     };
+    use crate::local::{LocalSnapback, StagedAction};
+    use crate::manifest::{
+        FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
+        HandlerPlan, IbexModule, MutationPlan, SchemaManifest,
+    };
+    use crate::runtime::IbexActionHost;
     use axum::http::StatusCode;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::{Arc, Mutex as StdMutex};
+    use std::time::{Duration, Instant};
+    use tokio::sync::Mutex;
 
     #[test]
     fn action_watchdog_timeout_clamps_untrusted_environment_values() {
@@ -3045,6 +3100,121 @@ mod tests {
         );
     }
 
+    fn generation_test_manifest() -> FunctionManifest {
+        FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "heldAction",
+                    FunctionKind::Action,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async heldAction() { return null; } };"
+                            .to_owned(),
+                        export: "heldAction".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "hostPlanWrite",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    })),
+                ),
+            ],
+            ..FunctionManifest::default()
+        }
+    }
+
+    fn stage_held_action(state: &SharedSnapback) -> Box<crate::local::DetachedIbexAction> {
+        let mut snapback = state.try_lock().expect("test owns instance lock");
+        match snapback
+            .stage_action_invocation("heldAction")
+            .expect("stage detached action")
+        {
+            StagedAction::Detached(action) => action,
+            StagedAction::InLock => panic!("Ibex action must detach"),
+        }
+    }
+
+    fn held_action_host(
+        state: SharedSnapback,
+        action: &crate::local::DetachedIbexAction,
+    ) -> DetachedActionHost {
+        DetachedActionHost {
+            state,
+            abandoned: Arc::new(AtomicBool::new(false)),
+            commit_gate: Arc::new(StdMutex::new(())),
+            deadline: Instant::now() + Duration::from_secs(5),
+            app_generation: action.app_generation,
+            app_generation_fence: action.app_generation_fence.clone(),
+        }
+    }
+
+    /// ENG-24340 review follow-up: holding an outer detached action across an
+    /// app reload/reset cannot let that old action use any later host power.
+    /// The host-plan leg is important: it executes under the instance lock and
+    /// therefore bypassed the detached-Ibex mutation's commit-time binding.
+    #[test]
+    fn detached_action_rejects_every_host_call_after_reload_or_reset() {
+        let mut snapback = LocalSnapback::memory().expect("memory instance");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+
+        let staged_before_reload = stage_held_action(&state);
+        state
+            .try_lock()
+            .expect("test owns instance lock")
+            .load_functions(generation_test_manifest());
+        let mut stale_after_reload = held_action_host(state.clone(), &staged_before_reload);
+        let runtime_error = stale_after_reload
+            .validate_host_call("runtime.id")
+            .expect_err("ordinary action host calls reject function reload drift");
+        assert_eq!(
+            runtime_error.diagnostic.code,
+            "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        );
+        let host_plan_error = stale_after_reload
+            .run_mutation("hostPlanWrite", HandlerInput::default())
+            .expect_err("host-plan mutation rejects outer action generation drift");
+        assert_eq!(
+            host_plan_error.diagnostic.code,
+            "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        );
+
+        let staged_before_reset = stage_held_action(&state);
+        state
+            .try_lock()
+            .expect("test owns instance lock")
+            .reset()
+            .expect("reset app state");
+        let mut stale_after_reset = held_action_host(state.clone(), &staged_before_reset);
+        let reset_error = stale_after_reset
+            .validate_host_call("runtime.now")
+            .expect_err("ordinary action host calls reject reset drift");
+        assert_eq!(
+            reset_error.diagnostic.code,
+            "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        );
+
+        let staged_before_schema = stage_held_action(&state);
+        state
+            .try_lock()
+            .expect("test owns instance lock")
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("held-action-schema-reload".to_owned()),
+                ..SchemaManifest::default()
+            })
+            .expect("reload schema");
+        let mut stale_after_schema = held_action_host(state, &staged_before_schema);
+        let schema_error = stale_after_schema
+            .validate_host_call("action.metadata")
+            .expect_err("ordinary action host calls reject schema drift");
+        assert_eq!(
+            schema_error.diagnostic.code,
+            "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        );
+    }
+
     /// LLP 0032 S5.D10 / ENG-24357 — internal/storage faults and new unknown
     /// codes are 5xx; only deliberately classified client errors are 4xx.
     #[test]
@@ -3059,6 +3229,10 @@ mod tests {
         );
         assert_eq!(
             status_for_diagnostic_code("SNAPBACK_MUTATION_CONFLICT"),
+            StatusCode::CONFLICT
+        );
+        assert_eq!(
+            status_for_diagnostic_code("SNAPBACK_ACTION_GENERATION_CONFLICT"),
             StatusCode::CONFLICT
         );
         assert_eq!(
