@@ -100,6 +100,12 @@ const runtime = {
   },
 };
 
+const retainedSurfaceIdentity = {
+  artifactIndex: { appId: 'offline-test-app' },
+  schemaManifest: { schemaHash: manifest.schemaHash, targetProfile: 'local-dev-sqlite-ibex' },
+  retainedIdentity: { databaseId: 'offline-test-db', versionStreamId: 'offline-test-stream-1' },
+};
+
 function makeClient() {
   const state = {
     online: true,
@@ -187,6 +193,7 @@ const makeSurface = (store) => createSnapbackContractSurface({
   manifest,
   queryName: 'listTodos',
   boundaryKey: 'todos',
+  ...retainedSurfaceIdentity,
 });
 
 // Online boot publishes an authorized retained snapshot.
@@ -335,6 +342,7 @@ const enqueueFailureSurface = await createSnapbackContractSurface({
   manifest,
   queryName: 'listTodos',
   boundaryKey: 'todos',
+  ...retainedSurfaceIdentity,
 });
 await assert.rejects(
   enqueueFailureSurface.links.createTodo({ title: 'must roll back' }),

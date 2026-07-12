@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+**Revised:** 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
 slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
 client mutation settlement, full-resync-before-replay, and replay tests; broader
 conflict/delta-resume work remains as scoped below. Earlier: cross-family review
@@ -89,6 +89,16 @@ watermark) — this RFC is their first real client consumer. Two invalidation
 cases are first-class: a schema/artifact change and an `app.reset` that
 happened while the client was offline both force resnapshot; retained state
 from before either event is never presented as current.
+
+The shipped store persists the complete identity tuple (`appId`, `databaseId`,
+`targetProfileId`, `versionStreamId`) beside the opaque cursor and refuses a
+record that does not match every known dimension. A target or reset-stream
+transition clears retained rows and quarantines queued writes before reads.
+Writes are serialized per adapter/query key, and the reference stores also
+compare-and-set within a stream by version, so an older asynchronous completion
+cannot overwrite a newer authoritative snapshot. A surface without all four
+identity facts does not earn offline replay/retention; it reports
+`SNAPBACK_RETAINED_IDENTITY_INCOMPLETE` and stays Online.
 
 ### Milestone 2: queued mutation replay
 
@@ -182,9 +192,10 @@ fingerprint is checked before replay and a mismatch surfaces
 ## Status
 
 Draft, with the first closed-IR single-query M1/M2 slice implemented by
-ENG-23965. Shipped evidence covers retained stale boot, reload persistence,
+ENG-23965, hardened by ENG-24376. Shipped evidence covers retained stale boot, reload persistence,
 ordered create/toggle/delete replay, lost-response exactly-once settlement,
-auth wipe/mismatch, artifact quarantine, exact ledger consumption, and
+auth wipe/mismatch, artifact/target/reset-stream quarantine, reverse-completion
+write ordering, exact ledger consumption, and
 authoritative convergence. The broader acceptance rows (richer conflict UI and
 the explicitly later delta-resume-with-pending milestone) remain future work;
 they do not widen the shipped Parity predicate.

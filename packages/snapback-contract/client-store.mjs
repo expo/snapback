@@ -73,11 +73,17 @@ const normalizeState = (state) => {
   return state;
 };
 
+// @ref LLP 0012#versioning — retained versions are meaningful only inside
+//   the full app/database/target stream identity; never compare a bare number.
 const recordMatchesArtifacts = (record, expected = {}) => (
   (!expected.authFingerprint || record.authFingerprint === expected.authFingerprint)
   && (!expected.schemaHash || record.schemaHash === expected.schemaHash)
   && (!expected.inputsHash || record.inputsHash === expected.inputsHash)
   && (!expected.targetProfileId || record.targetProfileId === expected.targetProfileId)
+  && (!expected.appId || record.appId === expected.appId)
+  && (!expected.databaseId || record.databaseId === expected.databaseId)
+  && (!expected.versionStreamId || record.versionStreamId === expected.versionStreamId)
+  && (!expected.versionStreamId || record.cursor?.stream === expected.versionStreamId)
 );
 
 function createStore({ read, write }) {
@@ -102,9 +108,23 @@ function createStore({ read, write }) {
       save(state);
     },
 
-    async scopeToArtifacts({ schemaHash = null, inputsHash = null } = {}) {
+    async scopeToArtifacts({
+      schemaHash = null,
+      inputsHash = null,
+      targetProfileId = null,
+      appId = null,
+      databaseId = null,
+      versionStreamId = null,
+    } = {}) {
       const state = load();
-      const nextScope = { schemaHash, inputsHash };
+      const nextScope = {
+        schemaHash,
+        inputsHash,
+        targetProfileId,
+        appId,
+        databaseId,
+        versionStreamId,
+      };
       const changed = state.artifactScope !== null
         && stableJson(state.artifactScope) !== stableJson(nextScope);
       const unknownLegacyQueue = state.artifactScope === null && state.pending.length > 0;
@@ -146,8 +166,20 @@ function createStore({ read, write }) {
 
     async putRetainedQuery(key, record) {
       const state = load();
+      const current = state.retained[key];
+      if (
+        current
+        && current.versionStreamId === record.versionStreamId
+        && current.cursor?.stream === record.cursor?.stream
+        && Number.isFinite(current.version)
+        && Number.isFinite(record.version)
+        && current.version > record.version
+      ) {
+        return clone(current);
+      }
       state.retained[key] = clone({ ...record, stale: false });
       save(state);
+      return clone(state.retained[key]);
     },
 
     async enqueueMutation(record) {
@@ -169,12 +201,22 @@ function createStore({ read, write }) {
       authFingerprint = null,
       schemaHash = null,
       inputsHash = null,
+      targetProfileId = null,
+      appId = null,
+      databaseId = null,
+      versionStreamId = null,
     } = {}) {
       const state = load();
       return clone(state.pending
-        .filter((entry) => !authFingerprint || entry.authFingerprint === authFingerprint)
-        .filter((entry) => !schemaHash || entry.schemaHash === schemaHash)
-        .filter((entry) => !inputsHash || entry.inputsHash === inputsHash)
+        .filter((entry) => recordMatchesArtifacts(entry, {
+          authFingerprint,
+          schemaHash,
+          inputsHash,
+          targetProfileId,
+          appId,
+          databaseId,
+          versionStreamId,
+        }))
         .sort((left, right) => left.sequence - right.sequence));
     },
 

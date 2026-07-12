@@ -162,6 +162,10 @@ export async function createSnapbackContractSurface({
   // mutations. Configure memory in tests, localStorage/IndexedDB on web, and
   // SQLite on native. Omit it for the pre-offline Online-class behavior.
   clientStore = null,
+  // LLP 0012's opaque retained cursor is (versionStreamId, version), scoped
+  // by app/database and target. Generated artifacts supply app/target where
+  // possible; callers may provide the database/reset-stream facts explicitly.
+  retainedIdentity = null,
   // Single-query mode binds one named manifest query to one boundary key.
   // Both are app facts with no product default (LLP 0032 P5 removed the
   // todo-demo defaults this generic package used to ship); multi-query
@@ -311,24 +315,63 @@ export async function createSnapbackContractSurface({
     });
     const everyMutationReplayable = mutationNames.length > 0
       && mutationNames.every((name) => typeof derivedReducers[name] === 'function');
-    const offlineReplayEnabled = Boolean(
+    const storeIdentity = {
+      appId: retainedIdentity?.appId
+        ?? artifactIndex?.appId
+        ?? schemaManifest?.appId
+        ?? functionManifest?.appId
+        ?? manifest?.appId
+        ?? null,
+      databaseId: retainedIdentity?.databaseId
+        ?? client?.databaseId
+        ?? client?.baseUrl
+        ?? null,
+      targetProfileId: retainedIdentity?.targetProfileId
+        ?? schemaManifest?.targetProfileId
+        ?? schemaManifest?.targetProfile
+        ?? manifest?.targetProfileId
+        ?? null,
+      versionStreamId: retainedIdentity?.versionStreamId
+        ?? client?.versionStreamId
+        ?? retainedIdentity?.databaseId
+        ?? client?.databaseId
+        ?? client?.baseUrl
+        ?? null,
+    };
+    const retainedIdentityComplete = Object.values(storeIdentity)
+      .every((value) => typeof value === 'string' && value.length > 0);
+    const offlineReplayEligible = Boolean(
       clientStore
       && descriptorIsLive
       && everyMutationReplayable
-      && manifest?.capabilities?.offlineReplay === true,
+      && manifest?.capabilities?.offlineReplay === true
     );
+    const offlineReplayEnabled = offlineReplayEligible && retainedIdentityComplete;
+    if (offlineReplayEligible && !retainedIdentityComplete) {
+      const diagnostic = publishDiagnostic(
+        'SNAPBACK_RETAINED_IDENTITY_INCOMPLETE',
+        'Offline retention requires appId, databaseId, targetProfileId, and versionStreamId; retained rows and queued writes are disabled.',
+        { identity: storeIdentity },
+      );
+      diagnostic.severity = 'warning';
+    }
     const storeAuthFingerprint = snapbackAuthFingerprint(userId ?? null);
     const storeQueryKey = retainedQueryKey(queryName, queryArgs);
     const storeExpectation = {
       authFingerprint: storeAuthFingerprint,
       schemaHash: schemaManifest?.schemaHash ?? manifest?.schemaHash ?? null,
       inputsHash: manifest?.inputsHash ?? null,
+      ...storeIdentity,
     };
     if (clientStore) {
       await clientStore.scopeToAuth(storeAuthFingerprint);
       await clientStore.scopeToArtifacts({
         schemaHash: storeExpectation.schemaHash,
         inputsHash: storeExpectation.inputsHash,
+        targetProfileId: storeExpectation.targetProfileId,
+        appId: storeExpectation.appId,
+        databaseId: storeExpectation.databaseId,
+        versionStreamId: storeExpectation.versionStreamId,
       });
     }
     let durablePendingCount = 0;
@@ -336,9 +379,7 @@ export async function createSnapbackContractSurface({
     let lastServerVersion = 0;
     const restoredPending = offlineReplayEnabled
       ? await clientStore.pendingMutations({
-          authFingerprint: storeAuthFingerprint,
-          schemaHash: storeExpectation.schemaHash,
-          inputsHash: storeExpectation.inputsHash,
+          ...storeExpectation,
         })
       : [];
     durablePendingCount = restoredPending.length;
@@ -421,22 +462,28 @@ export async function createSnapbackContractSurface({
       return out;
     };
 
+    let retainedWriteTail = Promise.resolve();
     const retainRows = (rows, version = maxServerRowVersion(rows)) => {
-      if (!offlineReplayEnabled) return;
-      void clientStore.putRetainedQuery(storeQueryKey, {
+      if (!offlineReplayEnabled) return retainedWriteTail;
+      const record = {
         rows,
         version,
-        cursor: { stream: queryName, version },
-        authFingerprint: storeAuthFingerprint,
-        schemaHash: storeExpectation.schemaHash,
-        inputsHash: storeExpectation.inputsHash,
-      }).catch((error) => {
-        publishDiagnostic(
-          'SNAPBACK_CLIENT_STORE_WRITE_FAILED',
-          error instanceof Error ? error.message : String(error),
-          { query: queryName },
-        );
-      });
+        cursor: { stream: storeExpectation.versionStreamId, version },
+        ...storeExpectation,
+      };
+      // Serialize per surface/query key. A slower older persistence call can
+      // never finish after and overwrite a newer version; the store also
+      // compare-and-sets by (stream, version) for cross-instance races.
+      retainedWriteTail = retainedWriteTail
+        .then(() => clientStore.putRetainedQuery(storeQueryKey, record))
+        .catch((error) => {
+          publishDiagnostic(
+            'SNAPBACK_CLIENT_STORE_WRITE_FAILED',
+            error instanceof Error ? error.message : String(error),
+            { query: queryName },
+          );
+        });
+      return retainedWriteTail;
     };
 
     const writeServerRows = (rows, version = maxServerRowVersion(rows)) => {
@@ -588,6 +635,14 @@ export async function createSnapbackContractSurface({
             baseVersion: optimisticOp.baseVersion,
             schemaHash: storeExpectation.schemaHash,
             inputsHash: storeExpectation.inputsHash,
+            targetProfileId: storeExpectation.targetProfileId,
+            appId: storeExpectation.appId,
+            databaseId: storeExpectation.databaseId,
+            versionStreamId: storeExpectation.versionStreamId,
+            cursor: {
+              stream: storeExpectation.versionStreamId,
+              version: optimisticOp.baseVersion,
+            },
           });
           durablePendingCount += 1;
         }
@@ -854,9 +909,7 @@ export async function createSnapbackContractSurface({
       );
 
       const queued = await clientStore.pendingMutations({
-        authFingerprint: storeAuthFingerprint,
-        schemaHash: storeExpectation.schemaHash,
-        inputsHash: storeExpectation.inputsHash,
+        ...storeExpectation,
       });
       let replayed = 0;
       let failed = 0;
@@ -935,7 +988,7 @@ export async function createSnapbackContractSurface({
         return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
       },
       flush: async () => {
-        await Promise.all([...pending]);
+        await Promise.all([...pending, retainedWriteTail]);
       },
       dispose: () => {
         disposed = true;
