@@ -424,6 +424,96 @@ for (const invalid of [
     direction: undefined,
   },
   {
+    label: 'future nested replay ledger',
+    raw: JSON.stringify({
+      ...additiveV1,
+      nextSequence: 2,
+      pending: [{
+        id: 'pending-1',
+        function: 'createTodo',
+        sequence: 1,
+        status: 'pending',
+        ctxLedger: { version: 2, ids: [], now: 1 },
+      }],
+    }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'overbound replay ledger',
+    raw: JSON.stringify({
+      ...additiveV1,
+      nextSequence: 2,
+      pending: [{
+        id: 'pending-1',
+        function: 'createTodo',
+        sequence: 1,
+        status: 'pending',
+        ctxLedger: { version: 1, ids: Array.from({ length: 1025 }, (_, index) => `id-${index}`), now: 1 },
+      }],
+    }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'invalid retained cursor',
+    raw: JSON.stringify({
+      ...additiveV1,
+      retained: { q: { rows: [], cursor: { stream: 17, version: 'bad' } } },
+    }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'regressed sequence watermark',
+    raw: JSON.stringify({
+      ...additiveV1,
+      origin: 'origin',
+      nextSequence: 1,
+      pending: [{
+        id: 'cm_origin_1',
+        function: 'old',
+        sequence: 1,
+        status: 'pending',
+      }],
+    }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'duplicate mutation identity',
+    raw: JSON.stringify({
+      ...additiveV1,
+      nextSequence: 3,
+      pending: [{ id: 'duplicate', function: 'one', sequence: 1, status: 'pending' }],
+      failed: [{ id: 'duplicate', function: 'two', sequence: 2, status: 'failed' }],
+    }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'duplicate mutation sequence',
+    raw: JSON.stringify({
+      ...additiveV1,
+      nextSequence: 2,
+      pending: [{ id: 'one', function: 'one', sequence: 1, status: 'pending' }],
+      failed: [{ id: 'two', function: 'two', sequence: 1, status: 'failed' }],
+    }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
+    label: 'generated mutation id disagrees with sequence',
+    raw: JSON.stringify({
+      ...additiveV1,
+      origin: 'origin',
+      nextSequence: 3,
+      pending: [{ id: 'cm_origin_2', function: 'one', sequence: 1, status: 'pending' }],
+    }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+  },
+  {
     label: 'future version',
     raw: JSON.stringify({ version: 999, pending: [{ id: 'must-survive' }] }),
     code: 'SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED',
@@ -434,6 +524,13 @@ for (const invalid of [
     raw: JSON.stringify({ version: 0, retained: { secret: true } }),
     code: 'SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED',
     direction: 'legacy',
+  },
+  {
+    label: 'non-numeric version is redacted corruption',
+    raw: JSON.stringify({ version: { secret: 'must-not-leak' }, pending: [{ secret: 'also-private' }] }),
+    code: 'SNAPBACK_CLIENT_STORE_CORRUPT',
+    direction: undefined,
+    redacted: true,
   },
 ]) {
   const bytes = new Map([['invalid', invalid.raw]]);
@@ -452,6 +549,13 @@ for (const invalid of [
     if (invalid.direction) {
       assert.equal(error.diagnostic?.details?.direction, invalid.direction, invalid.label);
     }
+    if (invalid.redacted) {
+      assert.equal(
+        JSON.stringify(error.diagnostic).includes('must-not-leak'),
+        false,
+        `${invalid.label}: diagnostic must not copy persisted values`,
+      );
+    }
     return true;
   });
   await assert.rejects(store.enqueueMutation({ function: 'must-not-overwrite' }), {
@@ -463,6 +567,30 @@ for (const invalid of [
   assert.equal(recovered.version, 1, `${invalid.label}: explicit reset recovers`);
   assert.deepEqual(recovered.pending, [], `${invalid.label}: reset is visibly empty`);
 }
+
+// A caller can also hand the adapter an invalid new nested record. Validate a
+// detached candidate before commit so that rejection leaves the shared memory
+// reference just as intact as localStorage's prior bytes.
+const rejectedWriteState = {};
+const rejectedWriteStore = createMemorySnapbackClientStore({ state: rejectedWriteState });
+await assert.rejects(
+  rejectedWriteStore.enqueueMutation({
+    function: 'futureLedger',
+    ctxLedger: { version: 2, ids: [], now: 1 },
+  }),
+  { code: 'SNAPBACK_CLIENT_STORE_CORRUPT' },
+);
+await assert.rejects(
+  rejectedWriteStore.putRetainedQuery('bad', {
+    rows: [],
+    cursor: { stream: 17, version: 'bad' },
+  }),
+  { code: 'SNAPBACK_CLIENT_STORE_CORRUPT' },
+);
+assert.deepEqual((await rejectedWriteStore.snapshot()).pending, []);
+assert.deepEqual((await rejectedWriteStore.snapshot()).retained, {});
+assert.deepEqual(rejectedWriteState.pending, [], 'rejected transaction preserves caller state');
+assert.deepEqual(rejectedWriteState.retained, {}, 'rejected retained write preserves caller state');
 
 assert.throws(
   () => createLocalStorageSnapbackClientStore({ storage: fakeStorage, lockManager: null }),

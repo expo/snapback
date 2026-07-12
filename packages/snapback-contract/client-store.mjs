@@ -7,6 +7,8 @@
 
 export const SNAPBACK_CLIENT_STORE_VERSION = 1;
 export const MAX_OFFLINE_LEDGER_IDS = 1024;
+const SNAPBACK_CTX_LEDGER_VERSION = 1;
+const REPLAY_OPAQUE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 
@@ -85,6 +87,15 @@ function assertStateField(condition, field) {
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
+function assertCursor(cursor, path) {
+  assertStateField(isRecord(cursor), path);
+  assertStateField(typeof cursor.stream === 'string' && cursor.stream.length > 0, `${path}.stream`);
+  assertStateField(
+    Number.isSafeInteger(cursor.version) && cursor.version >= 0,
+    `${path}.version`,
+  );
+}
+
 function assertMutationRecord(entry, path, expectedStatus) {
   assertStateField(isRecord(entry), path);
   assertStateField(typeof entry.id === 'string' && entry.id.length > 0, `${path}.id`);
@@ -95,17 +106,36 @@ function assertMutationRecord(entry, path, expectedStatus) {
   );
   assertStateField(entry.status === expectedStatus, `${path}.status`);
   if (entry.cursor !== undefined && entry.cursor !== null) {
-    assertStateField(isRecord(entry.cursor), `${path}.cursor`);
+    assertCursor(entry.cursor, `${path}.cursor`);
+    if (entry.versionStreamId !== undefined && entry.versionStreamId !== null) {
+      assertStateField(
+        typeof entry.versionStreamId === 'string'
+          && entry.versionStreamId.length > 0
+          && entry.versionStreamId === entry.cursor.stream,
+        `${path}.versionStreamId`,
+      );
+    }
+    if (entry.baseVersion !== undefined && entry.baseVersion !== null) {
+      assertStateField(
+        Number.isSafeInteger(entry.baseVersion)
+          && entry.baseVersion >= 0
+          && entry.baseVersion === entry.cursor.version,
+        `${path}.baseVersion`,
+      );
+    }
   }
   if (entry.ctxLedger !== undefined && entry.ctxLedger !== null) {
     assertStateField(isRecord(entry.ctxLedger), `${path}.ctxLedger`);
     assertStateField(
-      Number.isSafeInteger(entry.ctxLedger.version) && entry.ctxLedger.version >= 1,
+      entry.ctxLedger.version === SNAPBACK_CTX_LEDGER_VERSION,
       `${path}.ctxLedger.version`,
     );
     assertStateField(
       Array.isArray(entry.ctxLedger.ids)
-        && entry.ctxLedger.ids.every((id) => typeof id === 'string'),
+        && entry.ctxLedger.ids.length <= MAX_OFFLINE_LEDGER_IDS
+        && entry.ctxLedger.ids.every((id) => (
+          typeof id === 'string' && REPLAY_OPAQUE_ID_PATTERN.test(id)
+        )),
       `${path}.ctxLedger.ids`,
     );
     assertStateField(
@@ -123,16 +153,21 @@ const normalizeState = (state) => {
     );
   }
   if (state.version !== SNAPBACK_CLIENT_STORE_VERSION) {
-    const storedVersion = state.version ?? null;
+    if (!Number.isSafeInteger(state.version) || state.version < 0) {
+      throw clientStoreStateError(
+        'SNAPBACK_CLIENT_STORE_CORRUPT',
+        'persisted client-store field version has an invalid shape',
+        { field: 'version', type: Array.isArray(state.version) ? 'array' : typeof state.version },
+      );
+    }
+    const storedVersion = state.version;
     throw clientStoreStateError(
       'SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED',
-      `persisted client-store version ${JSON.stringify(storedVersion)} is not supported by version ${SNAPBACK_CLIENT_STORE_VERSION}`,
+      `persisted client-store version ${storedVersion} is not supported by version ${SNAPBACK_CLIENT_STORE_VERSION}`,
       {
         storedVersion,
         supportedVersion: SNAPBACK_CLIENT_STORE_VERSION,
-        direction: typeof storedVersion === 'number'
-          ? storedVersion > SNAPBACK_CLIENT_STORE_VERSION ? 'future' : 'legacy'
-          : 'unknown',
+        direction: storedVersion > SNAPBACK_CLIENT_STORE_VERSION ? 'future' : 'legacy',
       },
     );
   }
@@ -166,15 +201,51 @@ const normalizeState = (state) => {
     assertStateField(isRecord(record), path);
     assertStateField(Array.isArray(record.rows), `${path}.rows`);
     if (record.cursor !== undefined && record.cursor !== null) {
-      assertStateField(isRecord(record.cursor), `${path}.cursor`);
+      assertCursor(record.cursor, `${path}.cursor`);
+      if (record.versionStreamId !== undefined && record.versionStreamId !== null) {
+        assertStateField(
+          typeof record.versionStreamId === 'string'
+            && record.versionStreamId.length > 0
+            && record.versionStreamId === record.cursor.stream,
+          `${path}.versionStreamId`,
+        );
+      }
+      if (record.version !== undefined && record.version !== null) {
+        assertStateField(
+          Number.isSafeInteger(record.version)
+            && record.version >= 0
+            && record.version === record.cursor.version,
+          `${path}.version`,
+        );
+      }
     }
   });
+  const seenIds = new Set();
+  const seenSequences = new Set();
+  let highestSequence = 0;
+  const assertMutationIdentity = (entry, path) => {
+    assertStateField(!seenIds.has(entry.id), `${path}.id`);
+    assertStateField(!seenSequences.has(entry.sequence), `${path}.sequence`);
+    seenIds.add(entry.id);
+    seenSequences.add(entry.sequence);
+    highestSequence = Math.max(highestSequence, entry.sequence);
+
+    const generatedPrefix = `cm_${state.origin}_`;
+    if (entry.id.startsWith(generatedPrefix)) {
+      assertStateField(entry.id === `${generatedPrefix}${entry.sequence}`, `${path}.id`);
+    }
+  };
   state.pending.forEach((entry, index) => {
-    assertMutationRecord(entry, `pending.${index}`, 'pending');
+    const path = `pending.${index}`;
+    assertMutationRecord(entry, path, 'pending');
+    assertMutationIdentity(entry, path);
   });
   state.failed.forEach((entry, index) => {
-    assertMutationRecord(entry, `failed.${index}`, 'failed');
+    const path = `failed.${index}`;
+    assertMutationRecord(entry, path, 'failed');
+    assertMutationIdentity(entry, path);
   });
+  assertStateField(state.nextSequence > highestSequence, 'nextSequence');
   return state;
 };
 
@@ -205,9 +276,14 @@ function staleStoreScopeError(operation) {
 function createStore({ read, write, withExclusive = (operation) => operation() }) {
   const load = () => normalizeState(read());
   const save = (state) => {
-    state.generation += 1;
-    write(state);
-    return state;
+    // Validate a detached candidate before replacing durable bytes. Besides
+    // preserving corrupt/future input, this keeps failed writes from
+    // poisoning the in-memory reference adapter.
+    const next = clone(state);
+    next.generation += 1;
+    normalizeState(next);
+    write(next);
+    return next;
   };
   const transact = (operation) => withExclusive(() => operation(load(), save));
   return {
@@ -393,7 +469,9 @@ export function createMemorySnapbackClientStore({ state = freshState() } = {}) {
   }
   let current = normalizeState(state);
   return createStore({
-    read: () => current,
+    // Match localStorage's parse-on-read isolation: a failed transaction may
+    // never mutate the caller-owned durable state before validation/commit.
+    read: () => clone(current),
     write: (next) => {
       current = next;
       // Preserve caller identity so a second store constructed with the same
