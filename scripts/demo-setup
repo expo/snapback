@@ -1,44 +1,91 @@
 #!/usr/bin/env node
 // Server-side demo provisioning (LLP 0032 S4/P6): load the generated
-// artifacts, reset deterministically, and seed — the destructive path that
-// must never run from a browser page load (pages boot by blast radius per
-// LLP 0034 D4: conditional provision + seed-if-empty only).
+// artifacts and perform one deterministic reset, optionally carrying the
+// declared seed. The destructive path must never run from a browser mount.
 //
-// Usage: node scripts/demo-setup <todo|todo-v2|all-aboard|cursors-web> [--url http://127.0.0.1:4287]
-//
-// The same setup is available from the product CLI against a running server:
-//   snapback load --url <url> --schema <generated/schema.manifest.json> --functions <generated/functions.manifest.json>
-//   snapback reset --url <url> --seed <seed.json>
+// Usage: node scripts/demo-setup <demo-id> [--url http://127.0.0.1:4287]
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = join(here, '..');
+const defaultRepoRoot = join(here, '..');
 
-const demo = process.argv[2];
-const urlFlag = process.argv.indexOf('--url');
-const baseUrl = urlFlag > -1 ? process.argv[urlFlag + 1] : 'http://127.0.0.1:4287';
-
-const DEMOS = ['todo', 'todo-v2', 'all-aboard', 'cursors-web'];
-if (!DEMOS.includes(demo)) {
-  console.error(`usage: node scripts/demo-setup <${DEMOS.join('|')}> [--url http://127.0.0.1:4287]`);
-  process.exit(2);
+export function discoverDemoSetups(repoRoot = defaultRepoRoot) {
+  const demosRoot = join(repoRoot, 'demos');
+  const discovered = new Map();
+  for (const directory of readdirSync(demosRoot, { withFileTypes: true })) {
+    if (!directory.isDirectory() || directory.name.startsWith('_')) continue;
+    const root = join(demosRoot, directory.name);
+    const metadataPath = join(root, 'demo.snapback.json');
+    if (!existsSync(metadataPath)) continue;
+    const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+    if (typeof metadata.id !== 'string' || metadata.id.length === 0) {
+      throw new Error(`${metadataPath} must declare a nonempty id`);
+    }
+    if (discovered.has(metadata.id)) {
+      throw new Error(`duplicate demo id ${metadata.id} in ${metadataPath}`);
+    }
+    const backendDir = join(root, 'snapback');
+    const generatedDir = join(backendDir, 'generated');
+    const seedPath = metadata.seed?.file ? join(root, metadata.seed.file) : null;
+    if (seedPath && !existsSync(seedPath)) {
+      throw new Error(`${metadataPath} declares missing seed file ${metadata.seed.file}`);
+    }
+    discovered.set(metadata.id, {
+      id: metadata.id,
+      metadataPath,
+      generatedDir,
+      seedPath,
+    });
+  }
+  return discovered;
 }
 
-const backendDir = join(repoRoot, 'demos', demo, 'snapback');
-const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'utf8'));
+export async function provisionDemo({
+  demo,
+  baseUrl = 'http://127.0.0.1:4287',
+  repoRoot = defaultRepoRoot,
+  client = null,
+} = {}) {
+  const demos = discoverDemoSetups(repoRoot);
+  const setup = demos.get(demo);
+  if (!setup) {
+    const supported = [...demos.keys()].sort();
+    throw new Error(`unknown demo ${JSON.stringify(demo)}; expected one of: ${supported.join(', ')}`);
+  }
+  const readGenerated = (name) => JSON.parse(readFileSync(join(setup.generatedDir, name), 'utf8'));
+  if (!client) {
+    const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
+    client = new SnapbackClient(baseUrl);
+  }
+  const seed = setup.seedPath ? JSON.parse(readFileSync(setup.seedPath, 'utf8')) : undefined;
 
-const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
-const client = new SnapbackClient(baseUrl);
-
-await client.health();
-await client.loadSchema(gen('schema.manifest.json'));
-await client.loadFunctions(gen('functions.manifest.json'));
-await client.reset();
-const seedPath = join(backendDir, 'seed.json');
-if (existsSync(seedPath)) {
-  await client.seed(JSON.parse(readFileSync(seedPath, 'utf8')));
+  await client.health();
+  await client.loadSchema(readGenerated('schema.manifest.json'));
+  await client.loadFunctions(readGenerated('functions.manifest.json'));
+  // app.reset already owns reset-with-optional-seed atomically. Calling seed()
+  // after reset() would perform a second destructive reset and duplicate every
+  // lifecycle notification.
+  await client.reset(seed);
+  return { ...setup, seeded: seed !== undefined };
 }
-console.log(`[demo-setup] ${demo} provisioned at ${baseUrl} (schema + functions + reset${existsSync(seedPath) ? ' + seed' : ''})`);
+
+async function main(argv = process.argv.slice(2)) {
+  const demo = argv[0];
+  const urlFlag = argv.indexOf('--url');
+  if (urlFlag !== -1 && !argv[urlFlag + 1]) {
+    throw new Error('--url requires an absolute Snapback server URL');
+  }
+  const baseUrl = urlFlag === -1 ? 'http://127.0.0.1:4287' : argv[urlFlag + 1];
+  const result = await provisionDemo({ demo, baseUrl });
+  console.log(`[demo-setup] ${result.id} provisioned at ${baseUrl} (schema + functions + one reset${result.seeded ? ' with seed' : ''})`);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`[demo-setup] ${error.message}`);
+    process.exitCode = 2;
+  });
+}

@@ -40,6 +40,10 @@
     ],
     "stalenessPolicy": "committed; regenerate seed then codegen after editing shared/model.mjs"
   },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json"
+  },
   "surfaces": {
     "headless": {
       "requirement": "required",
