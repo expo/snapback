@@ -343,9 +343,20 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
 
     async scopeToAuth(authFingerprint) {
       return transact((state, commit) => {
-        if (state.authFingerprint !== null && state.authFingerprint !== authFingerprint) {
+        const changed = state.authFingerprint !== null
+          && state.authFingerprint !== authFingerprint;
+        const unknownLegacyState = state.authFingerprint === null
+          && authFingerprint !== null
+          && (
+            state.pending.length > 0
+            || state.failed.length > 0
+            || Object.keys(state.retained).length > 0
+          );
+        if (changed || unknownLegacyState) {
           // LLP 0043/0039: a user switch wipes retained rows and queued writes
-          // before the new authority can observe or replay them.
+          // before the new authority can observe or replay them. Establishing
+          // the first known authority is also a boundary for unscoped legacy
+          // records; they cannot be attributed after the fact.
           state.retained = {};
           state.pending = [];
           state.failed = [];
@@ -375,7 +386,11 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         const changed = state.artifactScope !== null
           && stableJson(state.artifactScope) !== stableJson(nextScope);
         const unknownLegacyState = state.artifactScope === null
-          && (state.pending.length > 0 || Object.keys(state.retained).length > 0);
+          && (
+            state.pending.length > 0
+            || state.failed.length > 0
+            || Object.keys(state.retained).length > 0
+          );
         if (changed || unknownLegacyState) {
           state.retained = {};
           // Failed records can contain the original args. An artifact boundary

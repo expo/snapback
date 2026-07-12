@@ -280,6 +280,60 @@ await authStore.scopeToAuth('auth:b');
 assert.equal(await authStore.getRetainedQuery('q', { authFingerprint: 'auth:b' }), null);
 assert.deepEqual(await authStore.pendingMutations(), []);
 
+// The first known auth/artifact scope cannot retroactively claim unscoped v1
+// bytes. Clear every privacy-bearing collection, including failed-only legacy
+// state, before the new authority or artifact revision can inspect it.
+const legacyUnscopedState = {
+  version: 1,
+  origin: 'legacy-unscoped',
+  generation: 0,
+  authFingerprint: null,
+  artifactScope: null,
+  nextSequence: 3,
+  retained: { q: { rows: [{ secret: 'retained' }] } },
+  pending: [{
+    id: 'pending-legacy',
+    function: 'pendingLegacy',
+    sequence: 1,
+    status: 'pending',
+    args: { secret: 'pending' },
+  }],
+  failed: [{
+    id: 'failed-legacy',
+    function: 'failedLegacy',
+    sequence: 2,
+    status: 'failed',
+    args: { secret: 'failed' },
+  }],
+};
+const legacyUnscopedStore = createMemorySnapbackClientStore({ state: legacyUnscopedState });
+await legacyUnscopedStore.scopeToAuth('auth:new');
+assert.deepEqual((await legacyUnscopedStore.snapshot()).retained, {});
+assert.deepEqual(await legacyUnscopedStore.pendingMutations(), []);
+assert.deepEqual(await legacyUnscopedStore.failedMutations(), []);
+
+const failedOnlyArtifactState = {
+  version: 1,
+  origin: 'legacy-failed-only',
+  generation: 0,
+  authFingerprint: 'auth:stable',
+  artifactScope: null,
+  nextSequence: 2,
+  retained: {},
+  pending: [],
+  failed: [{
+    id: 'failed-only',
+    function: 'failedOnly',
+    sequence: 1,
+    status: 'failed',
+    authFingerprint: 'auth:stable',
+    args: { secret: 'failed-only' },
+  }],
+};
+const failedOnlyArtifactStore = createMemorySnapbackClientStore({ state: failedOnlyArtifactState });
+await failedOnlyArtifactStore.scopeToArtifacts({ schemaHash: 'schema:new' });
+assert.deepEqual(await failedOnlyArtifactStore.failedMutations(), []);
+
 // The actual localStorage adapter round-trips through serialized bytes: a new
 // adapter object sees retained rows + queue, and an artifact revision
 // quarantines (typed failed) rather than replaying the old mutation.
