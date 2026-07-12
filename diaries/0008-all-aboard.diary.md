@@ -2013,3 +2013,32 @@ candidate built/signed/installed/connected, but no locked-device attempt is
 promoted into frame or native-stage evidence. ENG-24221 owns that last hardware
 measurement without holding the cross-platform semantics or package release
 open.
+
+## 2026-07-12 (ninth entry) — restore the board-first paint budget (ENG-24386)
+
+The cold-clone lane exposed a real regression in the board-first promise after
+the Exact 0.1.4/router work: the board still beat the backend, but it took
+283–495 ms after the surface module started against the existing 100 ms bar.
+Local reproduction measured 314 ms. The backend was innocent. `main.ts`
+started `@exact/renderer/web-host` as a dynamic import and awaited it before
+mounting the router; the larger current package graph made that post-start
+module fetch part of the critical path.
+
+Making the web host a static dependency restored the intended startup shape:
+the browser loads the required rendering runtime with the entry graph, then
+surface execution installs it synchronously and mounts the board. A fresh
+unique-port acceptance run passed 34/34 with code-to-board at 68 ms and backend
+attach at 213 ms after script start. The fix keeps both product constraints —
+useful schedule data inside 100 ms and live attachment behind it — without
+loosening the threshold or adding placeholder HTML that would fork the
+Contract-rendered UI.
+
+What felt good was how small the correction was once the timing facts were
+split correctly: Exact's explicit renderer entry and Snapback's existing
+startup instrumentation made the critical-path dependency visible. What felt
+surprising was that an import originally introduced to overlap work became a
+serialization point as the dependency graph evolved. A plain React app might
+hide the same shift inside bundler chunking, while a Convex/Supabase backend
+would not change this client-side cost; the useful difference here was the
+hard acceptance witness, not the framework choice. The cold-clone rerun after
+the full ENG-24338–ENG-24388 integration remains the landing gate.

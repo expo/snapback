@@ -30,6 +30,7 @@ import {
   publishHostState,
   publishHostTransaction,
 } from '@exact/contract/runtime/host-bindings';
+import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createRenderFirstSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
@@ -101,10 +102,6 @@ function markFirstBoardPaint(at: number): void {
 const logTiming = (label: string, at: number | null) => {
   console.log(`[all-aboard] ${label} at ${at === null ? '?' : Math.round(at)}ms`);
 };
-
-// Kick off the web-host module fetch at module evaluation so awaiting it in
-// mountBoard overlaps with everything else instead of serializing.
-const webHostReady = typeof document !== 'undefined' ? import('@exact/renderer/web-host') : null;
 
 // Build-time API origin injected by vite.config.ts `define`.
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
@@ -253,10 +250,7 @@ function installRefreshAction(rootEl: HTMLElement, client: SnapbackClient): () =
 async function mountBoard(client: SnapbackClient): Promise<void> {
   installWebChrome();
   prepareColorSchemeOverride();
-  if (webHostReady) {
-    const { installContractWebHost } = await webHostReady;
-    installContractWebHost();
-  }
+  installContractWebHost();
   routerHandle = await mountAllAboardRouter();
   hostBindingsMounted = true;
   projectBackendStatus(pendingBackendStatus);
