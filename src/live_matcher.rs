@@ -400,17 +400,20 @@ fn query_boundary(plan: &QueryPlan, rows: &[Value]) -> Option<Value> {
 }
 
 pub(crate) fn sort_key(plan: &QueryPlan, row: &Value) -> Option<Value> {
-    let mut values = Vec::with_capacity(plan.order.len());
+    let mut values = Vec::with_capacity(plan.order.len() + 1);
     for order in &plan.order {
         values.push(row.get(&order.field)?.clone());
     }
+    // @ref LLP 0007#queries — every explicit order ends with the portable,
+    // ascending `_id` tie-break, including captured top-N boundary keys.
+    values.push(Value::String(row.get("_id")?.as_str()?.to_owned()));
     Some(Value::Array(values))
 }
 
 pub(crate) fn compare_sort_keys(plan: &QueryPlan, left: &Value, right: &Value) -> Option<Ordering> {
     let left = left.as_array()?;
     let right = right.as_array()?;
-    if left.len() != plan.order.len() || right.len() != plan.order.len() {
+    if left.len() != plan.order.len() + 1 || right.len() != plan.order.len() + 1 {
         return None;
     }
     for ((left_value, right_value), order) in left.iter().zip(right.iter()).zip(plan.order.iter()) {
@@ -434,7 +437,7 @@ pub(crate) fn compare_sort_keys(plan: &QueryPlan, left: &Value, right: &Value) -
             return Some(ordering);
         }
     }
-    Some(Ordering::Equal)
+    Some(left.last()?.as_str()?.cmp(right.last()?.as_str()?))
 }
 
 // Delegates to the shared profile evaluator (LLP 0051 D2's analyzability
@@ -991,16 +994,91 @@ mod delta_tests {
                 indexed_by: None,
             };
             assert_eq!(
-                compare_sort_keys(&plan, &json!([null]), &json!([1])),
+                compare_sort_keys(&plan, &json!([null, "a"]), &json!([1, "b"])),
                 Some(Ordering::Greater),
                 "NULL must sort after a present value for {direction:?}"
             );
             assert_eq!(
-                compare_sort_keys(&plan, &json!([1]), &json!([null])),
+                compare_sort_keys(&plan, &json!([1, "a"]), &json!([null, "b"])),
                 Some(Ordering::Less),
                 "a present value must sort before NULL for {direction:?}"
             );
+            assert_eq!(
+                compare_sort_keys(&plan, &json!([1, "a"]), &json!([1, "b"])),
+                Some(Ordering::Less),
+                "_id is the final ascending tie-break for {direction:?}"
+            );
         }
+    }
+
+    #[test]
+    fn limited_query_boundaries_include_id_and_use_it_for_membership() {
+        let plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: Vec::new(),
+            order: vec![OrderExpr {
+                field: "rank".to_owned(),
+                direction: OrderDirection::Asc,
+            }],
+            limit: Some(2),
+            indexed_by: None,
+        };
+        let rows = [
+            json!({ "_id": "a", "rank": 1 }),
+            json!({ "_id": "b", "rank": 1 }),
+        ];
+        let boundary = query_boundary(&plan, &rows).expect("limited boundary");
+        assert_eq!(boundary["first"], json!([1, "a"]));
+        assert_eq!(boundary["last"], json!([1, "b"]));
+
+        let dependency = CapturedReadDependency {
+            kind: CapturedReadKind::Query,
+            table: Some("todos".to_owned()),
+            id: None,
+            version: Some(1),
+            predicate: None,
+            rows: vec!["a".to_owned(), "b".to_owned()],
+            field: None,
+            value: None,
+            order: None,
+            limit: Some(2),
+            result_count: Some(2),
+            boundary: Some(boundary),
+        };
+        let after = ChangedRow {
+            table: "todos".to_owned(),
+            id: "c".to_owned(),
+            op: ChangeOp::Insert,
+            row: Some(json!({ "_id": "c", "rank": 1 })),
+            changed_fields: Vec::new(),
+        };
+        assert_eq!(
+            matching_limited_row_may_affect_query(
+                &plan,
+                Some(&dependency),
+                &after,
+                after.row.as_ref().expect("after row"),
+            ),
+            Some(false),
+            "a same-rank id after the captured boundary cannot enter top N",
+        );
+        let before = ChangedRow {
+            table: "todos".to_owned(),
+            id: "aa".to_owned(),
+            op: ChangeOp::Insert,
+            row: Some(json!({ "_id": "aa", "rank": 1 })),
+            changed_fields: Vec::new(),
+        };
+        assert_eq!(
+            matching_limited_row_may_affect_query(
+                &plan,
+                Some(&dependency),
+                &before,
+                before.row.as_ref().expect("before row"),
+            ),
+            Some(true),
+            "a same-rank id before the captured boundary can enter top N",
+        );
     }
 
     /// v1 profile expressions in filter values evaluate through the shared
