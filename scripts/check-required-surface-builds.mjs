@@ -24,14 +24,16 @@
 // A missing lockfile or surviving pin file is a hard failure.
 
 import { spawn } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEMOS_DIR = join(ROOT, 'demos');
 const BUILD_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_BUILD_TIMEOUT_MS ?? 300_000);
+const INSTALL_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_INSTALL_TIMEOUT_MS ?? 180_000);
 const LIST_ONLY = process.argv.includes('--list');
+const OUTPUT_TAIL_BYTES = 128 * 1024;
 
 function log(msg) {
   process.stdout.write(`[required-surface-builds] ${msg}\n`);
@@ -99,56 +101,198 @@ function distHasArtifact(surfaceDir) {
   return false;
 }
 
-function runBuild(surface, env) {
-  return new Promise((resolveBuild) => {
-    log(`$ bun run --cwd ${surface.surfaceDir.replace(ROOT + '/', '')} build`);
+function appendTail(current, chunk) {
+  const next = current + chunk.toString();
+  return next.length <= OUTPUT_TAIL_BYTES ? next : next.slice(-OUTPUT_TAIL_BYTES);
+}
+
+function signalProcessTree(child, signal, spawnImpl = spawn) {
+  if (!child?.pid) return;
+  if (process.platform === 'win32') {
+    // Windows has no negative-pid process groups. taskkill /T is the native
+    // tree primitive; /F is reserved for the hard-kill leg.
+    const args = ['/pid', String(child.pid), '/t'];
+    if (signal === 'SIGKILL') args.push('/f');
+    const killer = spawnImpl('taskkill', args, { stdio: 'ignore', windowsHide: true });
+    killer.on('error', () => {
+      if (child.exitCode === null) child.kill(signal);
+    });
+    return;
+  }
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    if (child.exitCode === null) child.kill(signal);
+  }
+}
+
+/** Run a gate subprocess with bounded output and TERM -> KILL tree cleanup. */
+export function runBoundedProcess(command, args, {
+  cwd = ROOT,
+  env = process.env,
+  timeoutMs,
+  killGraceMs = 2_000,
+  inheritOutput = true,
+  spawnImpl = spawn,
+} = {}) {
+  return new Promise((resolveRun) => {
+    let output = '';
     let timedOut = false;
-    const child = spawn('bun', ['run', '--cwd', surface.surfaceDir, 'build'], {
-      cwd: ROOT,
-      env: { ...process.env, ...env },
-      stdio: 'inherit',
-    });
-    // A DNF must fail CI, not park it (ENG-22441): kill the build past the
-    // watchdog and report a timeout.
-    const timer = setTimeout(() => {
+    let settled = false;
+    let killTimer = null;
+    let child;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdog);
+      if (killTimer) clearTimeout(killTimer);
+      resolveRun({ ...result, output });
+    };
+
+    try {
+      child = spawnImpl(command, args, {
+        cwd,
+        env,
+        detached: process.platform !== 'win32',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+      });
+    } catch (error) {
+      resolveRun({ ok: false, reason: `spawn failed: ${error.message}`, output });
+      return;
+    }
+
+    const onData = (stream) => (chunk) => {
+      output = appendTail(output, chunk);
+      if (inheritOutput) stream.write(chunk);
+    };
+    child.stdout?.on('data', onData(process.stdout));
+    child.stderr?.on('data', onData(process.stderr));
+
+    const watchdog = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGKILL');
-    }, BUILD_TIMEOUT_MS);
-    child.on('error', (err) => {
-      clearTimeout(timer);
-      resolveBuild({ ok: false, reason: `failed to spawn bun: ${err.message}` });
-    });
-    child.on('exit', (code, signal) => {
-      clearTimeout(timer);
+      signalProcessTree(child, 'SIGTERM', spawnImpl);
+      killTimer = setTimeout(() => signalProcessTree(child, 'SIGKILL', spawnImpl), killGraceMs);
+      killTimer.unref?.();
+    }, timeoutMs);
+    watchdog.unref?.();
+
+    child.once('error', (error) => finish({ ok: false, reason: `spawn failed: ${error.message}` }));
+    child.once('exit', (code, signal) => {
       if (timedOut) {
-        resolveBuild({ ok: false, reason: `build DNF: exceeded ${BUILD_TIMEOUT_MS}ms watchdog` });
+        // The process-group leader may honor TERM before a descendant does.
+        // Kill the group once more before clearing the grace timer so no
+        // detached package-manager worker survives a seemingly clean exit.
+        signalProcessTree(child, 'SIGKILL', spawnImpl);
+        finish({ ok: false, timedOut: true, reason: `exceeded ${timeoutMs}ms watchdog; process tree terminated` });
       } else if (code === 0) {
-        resolveBuild({ ok: true });
+        finish({ ok: true });
       } else {
-        resolveBuild({ ok: false, reason: `build exited ${code ?? signal}` });
+        finish({ ok: false, reason: `exited ${code ?? signal}` });
       }
     });
   });
 }
 
-async function ensureRegistryInstall(surface) {
-  if (existsSync(join(surface.surfaceDir, 'node_modules/@exact/contract/package.json'))) {
-    return { ok: true };
+function expectedExactIdentity(surfaceDir) {
+  const packageJson = JSON.parse(readFileSync(join(surfaceDir, 'package.json'), 'utf8'));
+  const spec = packageJson.dependencies?.['@exact/contract'];
+  const match = typeof spec === 'string' ? /^npm:(.+)@([^@]+)$/.exec(spec) : null;
+  if (!match) {
+    return { ok: false, reason: 'package.json must pin @exact/contract as npm:<published-name>@<exact-version>' };
   }
-  log(`$ bun install --frozen-lockfile --cwd ${surface.surfaceDir.replace(ROOT + '/', '')}`);
-  const result = await new Promise((resolveInstall) => {
-    const child = spawn('bun', ['install', '--frozen-lockfile', '--cwd', surface.surfaceDir], {
-      cwd: ROOT,
-      stdio: 'inherit',
-    });
-    child.on('error', (err) => resolveInstall({ ok: false, reason: `bun install spawn failed: ${err.message}` }));
-    child.on('exit', (code) => resolveInstall(code === 0 ? { ok: true } : { ok: false, reason: `bun install exited ${code}` }));
+  const [, name, version] = match;
+  const lockText = readFileSync(join(surfaceDir, 'bun.lock'), 'utf8');
+  const workspacePin = `${JSON.stringify('@exact/contract')}: ${JSON.stringify(spec)}`;
+  const packagePin = `${JSON.stringify('@exact/contract')}: [${JSON.stringify(`${name}@${version}`)}`;
+  if (!lockText.includes(workspacePin) || !lockText.includes(packagePin)) {
+    return { ok: false, reason: `bun.lock does not pin @exact/contract to ${name}@${version}` };
+  }
+  return { ok: true, name, version };
+}
+
+/** Verify that @exact/contract is the ordinary lock-pinned registry package. */
+export function verifyInstalledExactContract(surfaceDir, {
+  allowLinked = process.env.SNAPBACK_ALLOW_LINKED_EXACT === '1',
+} = {}) {
+  let expected;
+  try {
+    expected = expectedExactIdentity(surfaceDir);
+  } catch (error) {
+    return { ok: false, reason: `cannot read package/lock identity: ${error.message}` };
+  }
+  if (!expected.ok) return expected;
+
+  const nodeModules = join(surfaceDir, 'node_modules');
+  const packageRoot = join(nodeModules, '@exact', 'contract');
+  const manifestPath = join(packageRoot, 'package.json');
+  if (!existsSync(manifestPath)) {
+    return { ok: false, reason: '@exact/contract missing from surface node_modules after frozen install' };
+  }
+  try {
+    const linked = lstatSync(packageRoot).isSymbolicLink();
+    const modulesReal = realpathSync(nodeModules);
+    const packageReal = realpathSync(packageRoot);
+    const outside = packageReal !== modulesReal && !packageReal.startsWith(`${modulesReal}${sep}`);
+    if ((linked || outside) && !allowLinked) {
+      return {
+        ok: false,
+        reason:
+          `@exact/contract resolves to an unexpected linked source (${packageReal}); ` +
+          'set SNAPBACK_ALLOW_LINKED_EXACT=1 only for an explicit local-development override',
+      };
+    }
+    const installed = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    if (installed.name !== expected.name || installed.version !== expected.version) {
+      return {
+        ok: false,
+        reason:
+          `stale @exact/contract install: expected ${expected.name}@${expected.version} from bun.lock, ` +
+          `found ${installed.name ?? '<unnamed>'}@${installed.version ?? '<unversioned>'}`,
+      };
+    }
+    return { ok: true, identity: `${installed.name}@${installed.version}`, linked: linked || outside };
+  } catch (error) {
+    return { ok: false, reason: `cannot attest installed @exact/contract: ${error.message}` };
+  }
+}
+
+async function runBuild(surface, env) {
+  log(`$ bun run --cwd ${surface.surfaceDir.replace(ROOT + '/', '')} build`);
+  const result = await runBoundedProcess('bun', ['run', '--cwd', surface.surfaceDir, 'build'], {
+    cwd: ROOT,
+    env: { ...process.env, ...env },
+    timeoutMs: BUILD_TIMEOUT_MS,
   });
-  if (!result.ok) return result;
-  if (!existsSync(join(surface.surfaceDir, 'node_modules/@exact/contract/package.json'))) {
-    return { ok: false, reason: '@exact/contract missing from surface node_modules after install' };
+  if (!result.ok && result.timedOut) result.reason = `build DNF: ${result.reason}`;
+  return result;
+}
+
+export async function ensureRegistryInstall(surface, {
+  runInstall = () => runBoundedProcess(
+    'bun',
+    ['install', '--frozen-lockfile', '--cwd', surface.surfaceDir],
+    { cwd: ROOT, timeoutMs: INSTALL_TIMEOUT_MS },
+  ),
+} = {}) {
+  // Do not let a frozen install bless or mutate an implicit checkout link.
+  const before = verifyInstalledExactContract(surface.surfaceDir);
+  if (!before.ok && /unexpected linked source/.test(before.reason)) return before;
+
+  // Always run the frozen install. An existing directory is not evidence that
+  // it corresponds to the current lockfile; Bun's frozen resolution is the
+  // authoritative cache validation/repair step.
+  log(`$ bun install --frozen-lockfile --cwd ${surface.surfaceDir.replace(ROOT + '/', '')}`);
+  const result = await runInstall();
+  if (!result.ok) {
+    const diagnostics = result.output?.trim();
+    return {
+      ...result,
+      reason: `frozen install failed: ${result.reason}${diagnostics ? `\noutput tail:\n${diagnostics}` : ''}`,
+    };
   }
-  return { ok: true };
+  return verifyInstalledExactContract(surface.surfaceDir);
 }
 
 async function main() {
@@ -201,4 +345,7 @@ async function main() {
   log('REQUIRED-SURFACE-BUILDS PASS');
 }
 
-main().catch((err) => fail(err?.stack ?? String(err)));
+const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : null;
+if (invokedPath === import.meta.url) {
+  main().catch((err) => fail(err?.stack ?? String(err)));
+}
