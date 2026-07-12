@@ -72,7 +72,7 @@ export const listThings = defineLiveQuery({
       functions: `
 import { defineJsMutation, v } from '../../_kit/define.mjs';
 export const saveThing = defineJsMutation({
-  source: './handlers.mjs',
+  source: 'handlers.mjs',
   exportName: 'saveThing',
   writes: ['things'],
   args: { title: v.string() },
@@ -197,7 +197,7 @@ export const listThings = defineQuery({ table: 'things' });
       functions: `
 import { defineJsQuery, v } from '../../_kit/define.mjs';
 export const listThings = defineJsQuery({
-  source: './handlers.mjs',
+  source: 'handlers.mjs',
   exportName: 'listThings',
   reads: ['things'],
   result: v.object({ title: v.string() }),
@@ -214,7 +214,7 @@ export const listThings = defineJsQuery({
       functions: `
 import { defineJsQuery, v } from '../../_kit/define.mjs';
 export const listThings = defineJsQuery({
-  source: './handlers.mjs',
+  source: 'handlers.mjs',
   exportName: 'listThings',
   reads: ['things'],
   result: v.object({ title: v.string() }),
