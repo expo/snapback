@@ -9,11 +9,11 @@
     },
     {
       "name": "TextDecoder",
-      "semantics": "WHATWG utf-8 decode; default utf-8 label only in slice 1"
+      "semantics": "WHATWG utf-8 decode, including streaming state, incomplete-sequence flush, fatal recovery, and per-stream BOM handling; default utf-8 label only in slice 1"
     },
     {
       "name": "atob",
-      "semantics": "WHATWG base64 decode to binary string; throws on non-base64 input"
+      "semantics": "WHATWG forgiving-base64 decode to binary string; ignores ASCII whitespace and accepts omitted canonical padding, but rejects misplaced, short, or extra padding and other non-base64 input"
     },
     {
       "name": "btoa",

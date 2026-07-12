@@ -148,6 +148,7 @@ fn functions() -> FunctionManifest {
             define("probeMember", FunctionKind::Query),
             define("allowlistSlice", FunctionKind::Query),
             define("atobRejectsGarbage", FunctionKind::Query),
+            define("encodingBoundaryFidelity", FunctionKind::Query),
             define("detachedHostCallRejection", FunctionKind::Mutation),
             define("detachedHostCallSuccess", FunctionKind::Mutation),
             define("probeDateConstructor", FunctionKind::Query),
@@ -612,6 +613,50 @@ fn decoder_fidelity_agrees_on_both_engines_and_with_the_spec() {
         assert_eq!(
             output.rows[0], expected,
             "{backend:?}: TextDecoder fidelity diverged from the WHATWG-expected values"
+        );
+    }
+}
+
+/// ENG-24375: forgiving-base64 padding validation and streaming UTF-8 state
+/// are handler-visible allowlist semantics, so both engines must match the
+/// native/WHATWG expected values rather than merely agree with each other.
+#[test]
+fn encoding_boundaries_agree_on_both_engines_and_with_the_spec() {
+    require_workerd!();
+    let snapback = configured();
+    let expected = json!({
+        "base64": {
+            "canonical": "a",
+            "missingPadding": "a",
+            "whitespace": "a",
+            "splitPaddingWhitespace": "a",
+            "fullQuantum": "abcd",
+            "allPaddingRejected": true,
+            "shortPaddingRejected": true,
+            "extraPaddingRejected": true,
+            "triplePaddingRejected": true,
+            "leadingPaddingRejected": true,
+            "truncatedPaddingRejected": true
+        },
+        "streaming": {
+            "twoByte": ["", "¢", ""],
+            "threeByte": ["", "", "€", ""],
+            "fourByte": ["", "", "", "😀", ""],
+            "fatalFourByte": ["", "", "", "😀", ""],
+            "flush": ["", "�", "A"],
+            "fatalFlush": { "first": "", "threw": true, "reuse": "A" },
+            "fatalInvalid": { "first": "", "threw": true, "reuse": "B" },
+            "bomReuse": { "first": "", "second": "", "complete": "A", "reuse": "B" }
+        }
+    });
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let output = with_forced_backend(backend, || {
+            snapback.invoke_query("encodingBoundaryFidelity", input(json!({})))
+        })
+        .unwrap_or_else(|error| panic!("{backend:?} encodingBoundaryFidelity failed: {error}"));
+        assert_eq!(
+            output.rows[0], expected,
+            "{backend:?}: base64/streaming decoder semantics diverged"
         );
     }
 }

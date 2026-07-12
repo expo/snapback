@@ -236,6 +236,16 @@ fn corpus() -> Vec<Case> {
             seed: None,
         },
         Case {
+            name: "allowlist-encoding-boundary-fidelity",
+            handler: "encodingBoundaryFidelity",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
+        },
+        Case {
             name: "deterministic-date-constructor",
             handler: "probeDateConstructor",
             kind: FunctionKind::Query,

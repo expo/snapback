@@ -99,13 +99,11 @@
     g.TextEncoder = TextEncoderPolyfill;
   }
   if (typeof g.TextDecoder !== "function") {
-    // WHATWG-faithful UTF-8 decode (ENG-23593): honors any ArrayBufferView's
+    // WHATWG-faithful UTF-8 decode (ENG-23593 / ENG-24375): honors any ArrayBufferView's
     // byteOffset/byteLength window, emits U+FFFD per the maximal-subpart rule
-    // on invalid or truncated sequences (or throws when `fatal`), and strips
-    // a leading BOM unless `ignoreBOM`. The previous hand decoder viewed the
-    // WHOLE backing buffer for non-Uint8Array views and produced garbage on
-    // invalid input — silent divergence from the native decoder the workerd
-    // leg runs.
+    // on invalid or flushed-truncated sequences (or throws when `fatal`),
+    // carries incomplete 2/3/4-byte sequences across `{stream:true}` calls,
+    // and strips one leading BOM per decode stream unless `ignoreBOM`.
     var toDecodeBytes = function (input) {
       if (input === undefined) return new Uint8Array(0);
       if (input instanceof Uint8Array) return input;
@@ -119,6 +117,7 @@
       }
       throw new TypeError("TextDecoder.decode requires an ArrayBuffer or ArrayBufferView");
     };
+    var decoderStates = new WeakMap();
     var TextDecoderPolyfill = function TextDecoder(label, options) {
       if (!(this instanceof TextDecoderPolyfill)) {
         throw new TypeError("Constructor TextDecoder requires 'new'");
@@ -130,67 +129,37 @@
       this.encoding = "utf-8";
       this.fatal = !!(options && options.fatal);
       this.ignoreBOM = !!(options && options.ignoreBOM);
+      decoderStates.set(this, { pending: [], streaming: false, bomSeen: false });
     };
-    TextDecoderPolyfill.prototype.decode = function (input) {
-      var bytes = toDecodeBytes(input);
+    TextDecoderPolyfill.prototype.decode = function (input, options) {
+      var state = decoderStates.get(this);
+      if (!state) throw new TypeError("TextDecoder.decode called on an incompatible receiver");
+      var stream = !!(options && options.stream);
+      if (!state.streaming) {
+        state.pending = [];
+        state.bomSeen = false;
+      }
+      var inputBytes = toDecodeBytes(input);
+      var bytes = inputBytes;
+      if (state.pending.length) {
+        bytes = new Uint8Array(state.pending.length + inputBytes.length);
+        for (var p = 0; p < state.pending.length; p++) bytes[p] = state.pending[p];
+        bytes.set(inputBytes, state.pending.length);
+      }
+      state.pending = [];
       var fatal = this.fatal;
+      var ignoreBOM = this.ignoreBOM;
       var out = "";
       var i = 0;
-      if (!this.ignoreBOM && bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-        i = 3;
-      }
-      var fail = function () {
-        if (fatal) {
-          throw new TypeError("TextDecoder.decode: the encoded data was not valid utf-8");
-        }
-        out += "\uFFFD";
+      var reset = function () {
+        state.pending = [];
+        state.streaming = false;
+        state.bomSeen = false;
       };
-      while (i < bytes.length) {
-        var byte1 = bytes[i];
-        if (byte1 <= 0x7f) {
-          out += String.fromCharCode(byte1);
-          i++;
-          continue;
-        }
-        var needed, codePoint, lower, upper;
-        if (byte1 >= 0xc2 && byte1 <= 0xdf) {
-          needed = 1; codePoint = byte1 & 0x1f; lower = 0x80; upper = 0xbf;
-        } else if (byte1 >= 0xe0 && byte1 <= 0xef) {
-          needed = 2; codePoint = byte1 & 0x0f;
-          lower = byte1 === 0xe0 ? 0xa0 : 0x80;
-          upper = byte1 === 0xed ? 0x9f : 0xbf;
-        } else if (byte1 >= 0xf0 && byte1 <= 0xf4) {
-          needed = 3; codePoint = byte1 & 0x07;
-          lower = byte1 === 0xf0 ? 0x90 : 0x80;
-          upper = byte1 === 0xf4 ? 0x8f : 0xbf;
-        } else {
-          // 0x80–0xC1 and 0xF5–0xFF can never start a sequence.
-          fail();
-          i++;
-          continue;
-        }
-        i++;
-        var ok = true;
-        for (var k = 0; k < needed; k++) {
-          if (i >= bytes.length) {
-            ok = false;
-            break;
-          }
-          var cont = bytes[i];
-          var lo = k === 0 ? lower : 0x80;
-          var hi = k === 0 ? upper : 0xbf;
-          if (cont < lo || cont > hi) {
-            // Maximal subpart: the offending byte is NOT consumed; decoding
-            // restarts at it.
-            ok = false;
-            break;
-          }
-          codePoint = (codePoint << 6) | (cont & 0x3f);
-          i++;
-        }
-        if (!ok) {
-          fail();
-          continue;
+      var emit = function (codePoint) {
+        if (!state.bomSeen) {
+          state.bomSeen = true;
+          if (!ignoreBOM && codePoint === 0xfeff) return;
         }
         if (codePoint > 0xffff) {
           codePoint -= 0x10000;
@@ -199,6 +168,81 @@
         } else {
           out += String.fromCharCode(codePoint);
         }
+      };
+      var fail = function () {
+        if (fatal) {
+          throw new TypeError("TextDecoder.decode: the encoded data was not valid utf-8");
+        }
+        emit(0xfffd);
+      };
+      try {
+        while (i < bytes.length) {
+          var sequenceStart = i;
+          var byte1 = bytes[i];
+          if (byte1 <= 0x7f) {
+            emit(byte1);
+            i++;
+            continue;
+          }
+          var needed, codePoint, lower, upper;
+          if (byte1 >= 0xc2 && byte1 <= 0xdf) {
+            needed = 1; codePoint = byte1 & 0x1f; lower = 0x80; upper = 0xbf;
+          } else if (byte1 >= 0xe0 && byte1 <= 0xef) {
+            needed = 2; codePoint = byte1 & 0x0f;
+            lower = byte1 === 0xe0 ? 0xa0 : 0x80;
+            upper = byte1 === 0xed ? 0x9f : 0xbf;
+          } else if (byte1 >= 0xf0 && byte1 <= 0xf4) {
+            needed = 3; codePoint = byte1 & 0x07;
+            lower = byte1 === 0xf0 ? 0x90 : 0x80;
+            upper = byte1 === 0xf4 ? 0x8f : 0xbf;
+          } else {
+            // 0x80–0xC1 and 0xF5–0xFF can never start a sequence.
+            fail();
+            i++;
+            continue;
+          }
+          i++;
+          var ok = true;
+          var incomplete = false;
+          for (var k = 0; k < needed; k++) {
+            if (i >= bytes.length) {
+              ok = false;
+              incomplete = true;
+              break;
+            }
+            var cont = bytes[i];
+            var lo = k === 0 ? lower : 0x80;
+            var hi = k === 0 ? upper : 0xbf;
+            if (cont < lo || cont > hi) {
+              // Maximal subpart: the offending byte is NOT consumed; decoding
+              // restarts at it.
+              ok = false;
+              break;
+            }
+            codePoint = (codePoint << 6) | (cont & 0x3f);
+            i++;
+          }
+          if (!ok) {
+            if (incomplete && stream) {
+              for (var pendingIndex = sequenceStart; pendingIndex < bytes.length; pendingIndex++) {
+                state.pending.push(bytes[pendingIndex]);
+              }
+              i = bytes.length;
+              break;
+            }
+            fail();
+            continue;
+          }
+          emit(codePoint);
+        }
+      } catch (error) {
+        reset();
+        throw error;
+      }
+      if (stream) {
+        state.streaming = true;
+      } else {
+        reset();
       }
       return out;
     };
@@ -261,25 +305,25 @@
     };
   } else {
     g.atob = function (input) {
+      // WHATWG forgiving-base64 decode: whitespace is removed first; only
+      // canonical trailing padding on a multiple-of-four input is discarded.
+      // Arbitrary extra padding ("====", "YQ===", "YQ=") stays invalid.
       var text = String(input).replace(/[\t\n\f\r ]+/g, "");
-      if (text.length % 4 === 1 || /[^A-Za-z0-9+/=]/.test(text.replace(/=+$/, "")) || /=[^=]/.test(text)) {
+      if (text.length % 4 === 0) {
+        if (/==$/.test(text)) text = text.slice(0, -2);
+        else if (/=$/.test(text)) text = text.slice(0, -1);
+      }
+      if (text.length % 4 === 1 || /[^A-Za-z0-9+/]/.test(text)) {
         throw snapbackError(
           "SNAPBACK_HANDLER_INVALID_CHARACTER",
           "atob: the string to be decoded is not correctly encoded"
         );
       }
-      text = text.replace(/=+$/, "");
       var out = "";
       var buffer = 0;
       var bits = 0;
       for (var i = 0; i < text.length; i++) {
         var value = B64_ALPHABET.indexOf(text.charAt(i));
-        if (value < 0) {
-          throw snapbackError(
-            "SNAPBACK_HANDLER_INVALID_CHARACTER",
-            "atob: the string to be decoded is not correctly encoded"
-          );
-        }
         buffer = (buffer << 6) | value;
         bits += 6;
         if (bits >= 8) {

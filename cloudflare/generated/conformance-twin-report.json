@@ -4,12 +4,12 @@
   "generatedBy": "snapback-conformance-twin",
   "gate": "green",
   "summary": {
-    "total": 24,
-    "convergent": 20,
-    "declaredEngineFacts": 4,
+    "total": 25,
+    "convergent": 23,
+    "declaredEngineFacts": 2,
     "contractViolations": 0,
     "cloudflareJs": {
-      "convergent": 23,
+      "convergent": 24,
       "declaredEngineFacts": 1,
       "contractViolations": 0
     }
@@ -29,8 +29,8 @@
     "ephemeralWebSocketPublish": true,
     "ephemeralLocalRoomAuthority": true,
     "ephemeralHostedAdapter": false,
-    "offlineRetention": false,
-    "optimisticReplay": false,
+    "offlineRetention": true,
+    "optimisticReplay": true,
     "mutationIsolationMode": "handler-captured-read-set-validation",
     "authImpersonation": true,
     "permissionDiagnostics": false,
@@ -93,7 +93,6 @@
       }
     ],
     "capabilityGaps": [
-      "offline_mutation_replay",
       "postgres",
       "cloudflare",
       "hosted_untrusted_code",
@@ -108,7 +107,7 @@
     "vmLifecycle": "fresh-process-per-invocation",
     "runtimeFacts": {
       "workerdVersion": "workerd 2026-07-07",
-      "workerdBinary": "/Users/ccheever/projects/snapback-eng-23605/node_modules/.bin/workerd",
+      "workerdBinary": "/Users/ccheever/projects/snapback/node_modules/.bin/workerd",
       "compatibilityDate": "2026-07-01",
       "compatibilityFlags": [],
       "killDomain": "process-per-invocation",
@@ -1665,10 +1664,251 @@
       }
     },
     {
+      "name": "allowlist-encoding-boundary-fidelity",
+      "handler": "encodingBoundaryFidelity",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "base64": {
+                  "canonical": "a",
+                  "missingPadding": "a",
+                  "whitespace": "a",
+                  "splitPaddingWhitespace": "a",
+                  "fullQuantum": "abcd",
+                  "allPaddingRejected": true,
+                  "shortPaddingRejected": true,
+                  "extraPaddingRejected": true,
+                  "triplePaddingRejected": true,
+                  "leadingPaddingRejected": true,
+                  "truncatedPaddingRejected": true
+                },
+                "streaming": {
+                  "twoByte": [
+                    "",
+                    "¢",
+                    ""
+                  ],
+                  "threeByte": [
+                    "",
+                    "",
+                    "€",
+                    ""
+                  ],
+                  "fourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "fatalFourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "flush": [
+                    "",
+                    "�",
+                    "A"
+                  ],
+                  "fatalFlush": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "A"
+                  },
+                  "fatalInvalid": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "B"
+                  },
+                  "bomReuse": {
+                    "first": "",
+                    "second": "",
+                    "complete": "A",
+                    "reuse": "B"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "base64": {
+                  "canonical": "a",
+                  "missingPadding": "a",
+                  "whitespace": "a",
+                  "splitPaddingWhitespace": "a",
+                  "fullQuantum": "abcd",
+                  "allPaddingRejected": true,
+                  "shortPaddingRejected": true,
+                  "extraPaddingRejected": true,
+                  "triplePaddingRejected": true,
+                  "leadingPaddingRejected": true,
+                  "truncatedPaddingRejected": true
+                },
+                "streaming": {
+                  "twoByte": [
+                    "",
+                    "¢",
+                    ""
+                  ],
+                  "threeByte": [
+                    "",
+                    "",
+                    "€",
+                    ""
+                  ],
+                  "fourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "fatalFourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "flush": [
+                    "",
+                    "�",
+                    "A"
+                  ],
+                  "fatalFlush": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "A"
+                  },
+                  "fatalInvalid": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "B"
+                  },
+                  "bomReuse": {
+                    "first": "",
+                    "second": "",
+                    "complete": "A",
+                    "reuse": "B"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "base64": {
+                  "canonical": "a",
+                  "missingPadding": "a",
+                  "whitespace": "a",
+                  "splitPaddingWhitespace": "a",
+                  "fullQuantum": "abcd",
+                  "allPaddingRejected": true,
+                  "shortPaddingRejected": true,
+                  "extraPaddingRejected": true,
+                  "triplePaddingRejected": true,
+                  "leadingPaddingRejected": true,
+                  "truncatedPaddingRejected": true
+                },
+                "streaming": {
+                  "twoByte": [
+                    "",
+                    "¢",
+                    ""
+                  ],
+                  "threeByte": [
+                    "",
+                    "",
+                    "€",
+                    ""
+                  ],
+                  "fourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "fatalFourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "flush": [
+                    "",
+                    "�",
+                    "A"
+                  ],
+                  "fatalFlush": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "A"
+                  },
+                  "fatalInvalid": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "B"
+                  },
+                  "bomReuse": {
+                    "first": "",
+                    "second": "",
+                    "complete": "A",
+                    "reuse": "B"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
       "name": "deterministic-date-constructor",
       "handler": "probeDateConstructor",
-      "class": "declared_engine_fact",
-      "notes": "the zero-arg Date constructor (like Date.now/Math.random) is denied by the V8                  strip but reachable (codegen-banned only) on Ibex in v1 — the same declared                  engine fact, extended to the constructor path (ENG-23588)",
+      "class": "convergent",
+      "notes": null,
       "ibex": {
         "outcome": {
           "ok": true,
@@ -1677,8 +1917,8 @@
             "rows": [
               {
                 "explicit": true,
-                "zeroArgReachable": true,
-                "callReachable": true
+                "zeroArgReachable": false,
+                "callReachable": false
               }
             ]
           }
@@ -1898,8 +2138,8 @@
     {
       "name": "deterministic-members-date-now",
       "handler": "probeDateNow",
-      "class": "declared_engine_fact",
-      "notes": "Date.now/Math.random are denied by the V8 strip but reachable (codegen-banned only) on Ibex in v1 — declared engine fact pinned by the twin gate tests",
+      "class": "convergent",
+      "notes": null,
       "ibex": {
         "outcome": {
           "ok": true,
@@ -1907,7 +2147,7 @@
             "version": 0,
             "rows": [
               {
-                "reachable": true
+                "reachable": false
               }
             ]
           }

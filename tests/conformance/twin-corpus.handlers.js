@@ -83,6 +83,91 @@ globalThis.__snapbackHandlers = {
       return [{ threw: true, coded: message.indexOf('SNAPBACK_HANDLER_INVALID_CHARACTER') === 0 }];
     }
   },
+  async encodingBoundaryFidelity(ctx) {
+    function invalidBase64(input) {
+      try {
+        atob(input);
+        return false;
+      } catch (error) {
+        var message = String(error && error.message || error);
+        return message.indexOf('SNAPBACK_HANDLER_INVALID_CHARACTER') === 0;
+      }
+    }
+    function splitDecode(bytes, options) {
+      var decoder = new TextDecoder('utf-8', options || {});
+      var output = [];
+      for (var i = 0; i < bytes.length; i++) {
+        output.push(decoder.decode(new Uint8Array([bytes[i]]), { stream: true }));
+      }
+      output.push(decoder.decode());
+      return output;
+    }
+
+    var flushDecoder = new TextDecoder();
+    var flush = [
+      flushDecoder.decode(new Uint8Array([0xE2]), { stream: true }),
+      flushDecoder.decode(),
+      flushDecoder.decode(new Uint8Array([0x41]))
+    ];
+
+    var fatalFlushDecoder = new TextDecoder('utf-8', { fatal: true });
+    var fatalFlushFirst = fatalFlushDecoder.decode(new Uint8Array([0xE2]), { stream: true });
+    var fatalFlushThrew = false;
+    try { fatalFlushDecoder.decode(); } catch (_) { fatalFlushThrew = true; }
+    var fatalFlushReuse = fatalFlushDecoder.decode(new Uint8Array([0x41]));
+
+    var fatalInvalidDecoder = new TextDecoder('utf-8', { fatal: true });
+    var fatalInvalidFirst = fatalInvalidDecoder.decode(new Uint8Array([0xE2]), { stream: true });
+    var fatalInvalidThrew = false;
+    try {
+      fatalInvalidDecoder.decode(new Uint8Array([0x41]), { stream: true });
+    } catch (_) {
+      fatalInvalidThrew = true;
+    }
+    var fatalInvalidReuse = fatalInvalidDecoder.decode(new Uint8Array([0x42]));
+
+    var bomDecoder = new TextDecoder();
+    var bomReuse = {
+      first: bomDecoder.decode(new Uint8Array([0xEF]), { stream: true }),
+      second: bomDecoder.decode(new Uint8Array([0xBB]), { stream: true }),
+      complete: bomDecoder.decode(new Uint8Array([0xBF, 0x41])),
+      reuse: bomDecoder.decode(new Uint8Array([0xEF, 0xBB, 0xBF, 0x42]))
+    };
+
+    return [{
+      base64: {
+        canonical: atob('YQ=='),
+        missingPadding: atob('YQ'),
+        whitespace: atob(' Y Q = = '),
+        splitPaddingWhitespace: atob('YQ= ='),
+        fullQuantum: atob('YWJjZA=='),
+        allPaddingRejected: invalidBase64('===='),
+        shortPaddingRejected: invalidBase64('YQ='),
+        extraPaddingRejected: invalidBase64('YQ==='),
+        triplePaddingRejected: invalidBase64('A==='),
+        leadingPaddingRejected: invalidBase64('=YQ='),
+        truncatedPaddingRejected: invalidBase64('YWJjZA=')
+      },
+      streaming: {
+        twoByte: splitDecode([0xC2, 0xA2]),
+        threeByte: splitDecode([0xE2, 0x82, 0xAC]),
+        fourByte: splitDecode([0xF0, 0x9F, 0x98, 0x80]),
+        fatalFourByte: splitDecode([0xF0, 0x9F, 0x98, 0x80], { fatal: true }),
+        flush: flush,
+        fatalFlush: {
+          first: fatalFlushFirst,
+          threw: fatalFlushThrew,
+          reuse: fatalFlushReuse
+        },
+        fatalInvalid: {
+          first: fatalInvalidFirst,
+          threw: fatalInvalidThrew,
+          reuse: fatalInvalidReuse
+        },
+        bomReuse: bomReuse
+      }
+    }];
+  },
   async writeInQuery(ctx) {
     await ctx.db.insert('items', { label: 'nope', rank: 0 });
     return [];

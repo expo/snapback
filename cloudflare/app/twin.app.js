@@ -85,6 +85,11 @@ export const functions = [
     tables: ['items'],
   },
   { name: 'decoderFidelity', kind: 'Query', export: 'decoderFidelity' },
+  {
+    name: 'encodingBoundaryFidelity',
+    kind: 'Query',
+    export: 'encodingBoundaryFidelity',
+  },
   { name: 'probeDateConstructor', kind: 'Query', export: 'probeDateConstructor' },
   { name: 'queueMicrotaskInterleave', kind: 'Query', export: 'queueMicrotaskInterleave' },
   { name: 'probeFetch', kind: 'Query', export: 'probeFetch' },

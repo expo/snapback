@@ -5,9 +5,11 @@
 **Systems:** Runtime, Security, Testing, Developer experience, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24339: adversarial twin coverage now pins sealed
-invoke/settle globals, accessor and wrapper interception, and raw host-call
-denial); 2026-07-07 (post-review author pass: internal manifest profile id
+**Revised:** 2026-07-12 (ENG-24375: encoding boundary coverage now pins
+forgiving-base64 padding validation and streaming UTF-8 decoder state;
+ENG-24339: adversarial twin coverage pins sealed invoke/settle globals,
+accessor and wrapper interception, and raw host-call denial); 2026-07-07
+(post-review author pass: internal manifest profile id
 pinned as `local-conformance-sqlite-workerd-v8`, `nodejs_compat` refusal test
 added to acceptance, and the two author decisions given proposed defaults
 pending Charlie's nod — first allowlist slice (encoding/URL/base64/console)
@@ -439,6 +441,13 @@ all are fixed and gated by the twin suites and the conformance corpus:
   `queueMicrotask` entry is re-worded as a declared engine fact (fine-grained
   interleave with promise reactions differs on the vendored polyfill), with
   a `queue-microtask-interleave` corpus case recording the divergence.
+- **Encoding boundaries** (ENG-24375): the Ibex `atob` fallback implements
+  forgiving-base64's exact whitespace and padding validation, and its
+  `TextDecoder` carries incomplete 2/3/4-byte UTF-8 sequences across streaming
+  calls, flushes or fatally rejects incomplete input, resets after a fatal
+  decode, and applies BOM handling per stream. The
+  `allowlist-encoding-boundary-fidelity` case pins those results on Ibex,
+  local workerd, and the deployed Cloudflare-JS host-op leg.
 - **Egress posture** (ENG-23581): the data-driven denial applies to queries
   and mutations only; egress-enabled actions restore the pre-0048 surface
   (deny exactly `process`/`require`/`WebSocket`), so the lazily-installed
