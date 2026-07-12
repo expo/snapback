@@ -348,7 +348,7 @@ export class SnapbackClient {
   reset(seed) { return this.#adminReq('POST', '/_snapback/api/app/reset', seed ? { seed } : {}); }
   seed(seed) { return this.#adminReq('POST', '/_snapback/api/app/reset', { seed }); }
   // Forced scheduler tick — an AdminWrite like the other /_snapback/api/*
-  // system calls, so it must ride #req for the admin token and fail loudly on
+  // system calls, so it must ride #adminReq for the admin token and fail loudly on
   // a non-2xx instead of a raw fetch silently swallowing a 401 (ENG-23706).
   cronTick() { return this.#adminReq('POST', '/_snapback/api/cron/tick', {}); }
 

@@ -145,15 +145,31 @@ try {
     };
     const db = new SnapbackClient('http://stub', { adminToken: 'sbat_secret' });
     const invalid = [
-      '.', '..', '../_snapback/api/app/reset', '%2e%2e', 'x/y', 'x%2fy',
-      'x\\y', 'x?admin=1', 'x#fragment', '',
+      '.', '..', '../_snapback/api/app/reset', '%2e', '%2e%2e', 'x/y', 'x%2fy',
+      'x%2Fy', 'x\\y', 'x%5cy', 'x?admin=1', 'x#fragment', '',
     ];
-    for (const name of invalid) {
-      const error = await assertThrows(() => db.query(name), undefined, `expected ${JSON.stringify(name)} to be rejected`);
-      assert(error instanceof TypeError, `expected TypeError for ${JSON.stringify(name)}`);
+    const operations = {
+      query: (name) => db.query(name),
+      mutation: (name) => db.mutate(name),
+      action: (name) => db.action(name),
+      liveSubscribe: (name) => db.subscribeLive(name, { connectionId: 'conn_route_test' }),
+      liveUnsubscribe: (name) => db.unsubscribeLive(name, {
+        connectionId: 'conn_route_test',
+        subscriptionId: 'sub_route_test',
+      }),
+    };
+    for (const [operation, invoke] of Object.entries(operations)) {
+      for (const name of invalid) {
+        const error = await assertThrows(
+          () => invoke(name),
+          undefined,
+          `expected ${operation} ${JSON.stringify(name)} to be rejected`,
+        );
+        assert(error instanceof TypeError, `expected TypeError for ${operation} ${JSON.stringify(name)}`);
+      }
     }
     assertEqual(calls, 0, 'invalid names never reach fetch');
-    return { rejected: invalid.length };
+    return { operations: Object.keys(operations).length, rejected: invalid.length * Object.keys(operations).length };
   });
 
   await suite.check('eng_24345: admin credentials are scoped to system calls', async () => {
