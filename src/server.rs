@@ -7632,8 +7632,9 @@ globalThis.__snapbackHandlers = {
                             RoutePolicy::Public
                                 | RoutePolicy::AppAuth
                                 | RoutePolicy::ConnectionAuth
+                                | RoutePolicy::SessionAuth
                         ),
-                        "app-data route carries an admin policy: {}",
+                        "app-data route carries a system-admin policy: {}",
                         route.path
                     );
                 }
