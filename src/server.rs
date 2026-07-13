@@ -11041,7 +11041,7 @@ mod tests {
         }
     }
 
-    /// @ref LLP 0056#projection-ownership-and-read-model — registered required
+    /// @ref LLP 0056#projected-session — registered required
     /// session routes resolve their bearer through the process projection and
     /// publish the terminating logout response through its committed outcome.
     #[tokio::test]
