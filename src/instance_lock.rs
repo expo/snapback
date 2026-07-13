@@ -139,7 +139,7 @@ pub fn lock_path_for_database(db_path: &Path) -> anyhow::Result<PathBuf> {
         .unwrap_or_else(|| PathBuf::from(lock_name)))
 }
 
-fn target_reservation_path_for_database(db_path: &Path) -> anyhow::Result<PathBuf> {
+pub(crate) fn target_reservation_path_for_database(db_path: &Path) -> anyhow::Result<PathBuf> {
     let instance = db_path.parent().ok_or_else(|| {
         anyhow!(
             "restore database path has no instance directory: {}",
@@ -188,6 +188,102 @@ pub(crate) struct TargetInstanceReservation {
     lock_file: File,
     lock_name: OsString,
     lock_identity: (u64, u64),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FileIdentity {
+    device: u64,
+    inode: u64,
+}
+
+impl FileIdentity {
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn from_file(file: &File) -> io::Result<Self> {
+        use std::os::unix::fs::MetadataExt as _;
+
+        let metadata = file.metadata()?;
+        Ok(Self {
+            device: metadata.dev(),
+            inode: metadata.ino(),
+        })
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn from_stat(stat: &libc::stat) -> Self {
+        Self {
+            device: stat.st_dev as u64,
+            inode: stat.st_ino,
+        }
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    fn matches_stat(self, stat: &libc::stat) -> bool {
+        self == Self::from_stat(stat)
+    }
+}
+
+/// Holds the outer restore/start reservation and the exact instance directory
+/// inode from path preparation until the inside-instance lock and database are
+/// opened. Keeping the descriptor live prevents an inode-number reuse from
+/// making a removed-and-recreated target look like the prepared directory.
+pub(crate) struct StartupTargetReservation {
+    reservation: TargetInstanceReservation,
+    target_directory: File,
+    target_identity: FileIdentity,
+}
+
+impl std::fmt::Debug for StartupTargetReservation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("StartupTargetReservation")
+            .field("reservation", &self.reservation)
+            .field("target_identity", &self.target_identity)
+            .finish_non_exhaustive()
+    }
+}
+
+impl StartupTargetReservation {
+    pub(crate) fn acquire(db_path: impl AsRef<Path>) -> anyhow::Result<Self> {
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        {
+            let reservation = TargetInstanceReservation::acquire(db_path)?;
+            let (target_directory, target_identity) =
+                reservation.open_or_create_instance_directory_for_startup()?;
+            let target = Self {
+                reservation,
+                target_directory,
+                target_identity,
+            };
+            target.ensure_valid()?;
+            Ok(target)
+        }
+        #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+        {
+            let _ = db_path;
+            Err(anyhow!(
+                "descriptor-pinned startup target reservations are unsupported on this host"
+            ))
+        }
+    }
+
+    pub(crate) fn ensure_valid(&self) -> anyhow::Result<()> {
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        {
+            let descriptor_identity = FileIdentity::from_file(&self.target_directory)?;
+            anyhow::ensure!(
+                descriptor_identity == self.target_identity,
+                "prepared target-instance descriptor identity changed"
+            );
+            self.reservation
+                .ensure_target_identity(self.target_identity)
+        }
+        #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+        {
+            Err(anyhow!(
+                "descriptor-pinned startup target reservations are unsupported on this host"
+            ))
+        }
+    }
 }
 
 #[cfg(any(target_vendor = "apple", target_os = "linux"))]
@@ -432,39 +528,61 @@ impl TargetInstanceReservation {
         Ok(())
     }
 
-    pub(crate) fn lock_path(&self) -> PathBuf {
-        self.parent_path.join(&self.lock_name)
-    }
-
-    /// Create the absent instance for ordinary startup while holding the same
-    /// reservation a restore would need. The inner database lock is acquired
-    /// before the caller releases this guard.
-    pub(crate) fn create_instance_directory_for_startup(&self) -> anyhow::Result<()> {
+    /// Pin an existing instance or create and pin an absent instance for
+    /// ordinary startup while holding the same reservation a restore needs.
+    /// The returned descriptor and identity remain live through the inner
+    /// database-lock handoff.
+    fn open_or_create_instance_directory_for_startup(
+        &self,
+    ) -> anyhow::Result<(File, FileIdentity)> {
         #[cfg(any(target_vendor = "apple", target_os = "linux"))]
         {
-            use std::os::fd::AsRawFd as _;
+            use std::os::fd::{AsRawFd as _, FromRawFd as _};
             use std::os::unix::ffi::OsStrExt as _;
 
-            self.ensure_target_absent()?;
+            self.ensure_valid()?;
             let name = std::ffi::CString::new(self.target_name.as_bytes())
                 .map_err(|_| anyhow!("target instance name contains NUL"))?;
-            if unsafe { libc::mkdirat(self.parent.as_raw_fd(), name.as_ptr(), 0o777) } != 0 {
-                return Err(io::Error::last_os_error())
-                    .context("failed to create reserved target instance directory");
+            let open = || unsafe {
+                libc::openat(
+                    self.parent.as_raw_fd(),
+                    name.as_ptr(),
+                    libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                    0,
+                )
+            };
+            let mut created = false;
+            let mut fd = open();
+            if fd < 0 && io::Error::last_os_error().kind() == io::ErrorKind::NotFound {
+                if unsafe { libc::mkdirat(self.parent.as_raw_fd(), name.as_ptr(), 0o777) } != 0 {
+                    return Err(io::Error::last_os_error())
+                        .context("failed to create reserved target instance directory");
+                }
+                created = true;
+                fd = open();
             }
-            let result = (|| -> anyhow::Result<()> {
-                self.parent.sync_all()?;
+            if fd < 0 {
+                return Err(io::Error::last_os_error())
+                    .context("failed to pin reserved target instance directory");
+            }
+            let directory = unsafe { File::from_raw_fd(fd) };
+            let identity = FileIdentity::from_file(&directory)?;
+            let result = (|| -> anyhow::Result<(File, FileIdentity)> {
+                if created {
+                    self.parent.sync_all()?;
+                }
                 self.ensure_valid()?;
-                let stat = self
-                    .stat_at(&self.target_name)?
-                    .ok_or_else(|| anyhow!("created target instance disappeared"))?;
-                anyhow::ensure!(
-                    stat.st_mode & libc::S_IFMT == libc::S_IFDIR,
-                    "reserved target instance is not a directory"
-                );
-                Ok(())
+                self.ensure_target_identity(identity)?;
+                Ok((directory, identity))
             })();
-            if result.is_err() {
+            if result.is_err()
+                && created
+                && self
+                    .stat_at(&self.target_name)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|stat| identity.matches_stat(&stat))
+            {
                 unsafe {
                     libc::unlinkat(self.parent.as_raw_fd(), name.as_ptr(), libc::AT_REMOVEDIR);
                 }
@@ -481,7 +599,30 @@ impl TargetInstanceReservation {
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-    pub(crate) fn create_staging_directory(&self, name: &OsStr) -> io::Result<(File, PathBuf)> {
+    fn ensure_target_identity(&self, expected: FileIdentity) -> anyhow::Result<()> {
+        self.ensure_valid()?;
+        let stat = self
+            .stat_at(&self.target_name)?
+            .ok_or_else(|| anyhow!("prepared target instance disappeared"))?;
+        anyhow::ensure!(
+            stat.st_mode & libc::S_IFMT == libc::S_IFDIR && expected.matches_stat(&stat),
+            "prepared target instance identity changed"
+        );
+        Ok(())
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    fn ensure_target_identity(&self, _expected: FileIdentity) -> anyhow::Result<()> {
+        Err(anyhow!(
+            "descriptor-relative target validation is unsupported on this host"
+        ))
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn create_staging_directory(
+        &self,
+        name: &OsStr,
+    ) -> io::Result<(File, PathBuf, FileIdentity)> {
         use std::os::fd::{AsRawFd as _, FromRawFd as _};
         use std::os::unix::ffi::OsStrExt as _;
         use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
@@ -509,6 +650,7 @@ impl TargetInstanceReservation {
             return Err(error);
         }
         let directory = unsafe { File::from_raw_fd(fd) };
+        let identity = FileIdentity::from_file(&directory)?;
         let result = (|| -> io::Result<()> {
             directory.set_permissions(std::fs::Permissions::from_mode(0o700))?;
             let metadata = directory.metadata()?;
@@ -524,17 +666,27 @@ impl TargetInstanceReservation {
             self.ensure_valid().map_err(io::Error::other)
         })();
         if let Err(error) = result {
-            unsafe {
-                libc::unlinkat(self.parent.as_raw_fd(), name_c.as_ptr(), libc::AT_REMOVEDIR);
+            if self
+                .stat_at(name)
+                .ok()
+                .flatten()
+                .is_some_and(|stat| identity.matches_stat(&stat))
+            {
+                unsafe {
+                    libc::unlinkat(self.parent.as_raw_fd(), name_c.as_ptr(), libc::AT_REMOVEDIR);
+                }
+                let _ = self.parent.sync_all();
             }
-            let _ = self.parent.sync_all();
             return Err(error);
         }
-        Ok((directory, self.parent_path.join(name)))
+        Ok((directory, self.parent_path.join(name), identity))
     }
 
     #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
-    pub(crate) fn create_staging_directory(&self, _name: &OsStr) -> io::Result<(File, PathBuf)> {
+    pub(crate) fn create_staging_directory(
+        &self,
+        _name: &OsStr,
+    ) -> io::Result<(File, PathBuf, FileIdentity)> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "descriptor-relative restore staging is unsupported on this host",
@@ -542,13 +694,42 @@ impl TargetInstanceReservation {
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-    pub(crate) fn rename_staging_directory(&self, name: &OsStr) -> io::Result<()> {
+    pub(crate) fn rename_staging_directory(
+        &self,
+        name: &OsStr,
+        expected: FileIdentity,
+    ) -> io::Result<()> {
         self.ensure_valid().map_err(io::Error::other)?;
+        self.ensure_entry_identity(name, expected, libc::S_IFDIR)?;
         crate::secure_file::rename_no_replace_in_directory(&self.parent, name, &self.target_name)
     }
 
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn ensure_published_directory_identity(
+        &self,
+        expected: FileIdentity,
+    ) -> io::Result<()> {
+        self.ensure_valid().map_err(io::Error::other)?;
+        self.ensure_entry_identity(&self.target_name, expected, libc::S_IFDIR)
+    }
+
     #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
-    pub(crate) fn rename_staging_directory(&self, _name: &OsStr) -> io::Result<()> {
+    pub(crate) fn rename_staging_directory(
+        &self,
+        _name: &OsStr,
+        _expected: FileIdentity,
+    ) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "descriptor-relative restore publication is unsupported on this host",
+        ))
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    pub(crate) fn ensure_published_directory_identity(
+        &self,
+        _expected: FileIdentity,
+    ) -> io::Result<()> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "descriptor-relative restore publication is unsupported on this host",
@@ -569,15 +750,31 @@ impl TargetInstanceReservation {
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-    pub(crate) fn remove_staging_directory(&self, name: &OsStr) -> io::Result<()> {
+    pub(crate) fn remove_staging_directory(
+        &self,
+        name: &OsStr,
+        expected: FileIdentity,
+    ) -> io::Result<()> {
         use std::os::fd::AsRawFd as _;
         use std::os::unix::ffi::OsStrExt as _;
 
-        let name = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
+        let name_c = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
             io::Error::new(io::ErrorKind::InvalidInput, "staging name contains NUL")
         })?;
+        match self.stat_at(name)? {
+            None => return Ok(()),
+            Some(stat)
+                if stat.st_mode & libc::S_IFMT == libc::S_IFDIR && expected.matches_stat(&stat) => {
+            }
+            Some(_) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "staging directory entry identity changed; refusing cleanup",
+                ));
+            }
+        }
         let result =
-            unsafe { libc::unlinkat(self.parent.as_raw_fd(), name.as_ptr(), libc::AT_REMOVEDIR) };
+            unsafe { libc::unlinkat(self.parent.as_raw_fd(), name_c.as_ptr(), libc::AT_REMOVEDIR) };
         if result == 0 {
             let _ = self.parent.sync_all();
             Ok(())
@@ -592,7 +789,11 @@ impl TargetInstanceReservation {
     }
 
     #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
-    pub(crate) fn remove_staging_directory(&self, _name: &OsStr) -> io::Result<()> {
+    pub(crate) fn remove_staging_directory(
+        &self,
+        _name: &OsStr,
+        _expected: FileIdentity,
+    ) -> io::Result<()> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "descriptor-relative restore cleanup is unsupported on this host",
@@ -659,6 +860,28 @@ impl TargetInstanceReservation {
         } else {
             Err(error)
         }
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    fn ensure_entry_identity(
+        &self,
+        name: &OsStr,
+        expected: FileIdentity,
+        expected_kind: libc::mode_t,
+    ) -> io::Result<()> {
+        let stat = self.stat_at(name)?.ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "reserved directory entry disappeared",
+            )
+        })?;
+        if stat.st_mode & libc::S_IFMT != expected_kind || !expected.matches_stat(&stat) {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "reserved directory entry identity changed",
+            ));
+        }
+        Ok(())
     }
 }
 

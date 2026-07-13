@@ -72,6 +72,15 @@ fn validate_open_file_strict(file: &File) -> io::Result<()> {
     Ok(())
 }
 
+/// Validate an already-open auth-sensitive file descriptor without reopening
+/// a mutable pathname. Descriptor-relative staging/publication uses this after
+/// `openat` so type, owner, exact mode, link count, and extended ACL policy are
+/// all checked on the inode that will be published.
+#[cfg(unix)]
+pub(crate) fn validate_strict_owner_only_descriptor(file: &File) -> io::Result<()> {
+    validate_open_file_strict(file)
+}
+
 // @ref LLP 0054#keyring-protocol — strict auth files fail closed on ACL-bearing inodes, and unsupported descriptor-level ACL validation never exposes bytes.
 #[cfg(target_os = "macos")]
 fn validate_no_extended_acl(file: &File) -> io::Result<()> {

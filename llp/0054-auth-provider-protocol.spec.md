@@ -5,7 +5,7 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
+**Revised:** 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053
 
 ## Summary
@@ -1057,11 +1057,19 @@ server runs is explicitly not a Snapback backup.
 
 `snapback auth restore --from <backup> --db <new-directory>/<database-name>`
 requires the target instance directory itself to be nonexistent. It runs
-offline under the target instance lock, validates both hashes and the closed
-format, stages the database, keyring sibling, and an owner-only closed
-`restore-declaration.json` in a sibling temporary directory, fsyncs them, and
-publishes the complete directory by one same-filesystem rename. It never claims
-to atomically replace two independent files in an existing instance directory.
+offline under a persistent sibling target-instance reservation shared by every
+supported file-backed startup. Startup creates only a missing outer parent
+before taking that reservation, then keeps both it and the exact opened target
+directory inode through the inside-instance lock and database-open handoff.
+Restore validates both hashes and the closed format, stages the database,
+keyring sibling, and an owner-only closed `restore-declaration.json` in a
+sibling temporary directory, fsyncs them, and publishes the complete directory
+by one same-filesystem rename. Immediately before and after that rename it
+revalidates the exact staging-directory inode, complete member set, and every
+strict owner-only child inode through pinned descriptors. Failure cleanup
+unlinks only identities created by this restore; a substituted child or
+directory is left untouched and the operation fails closed. It never claims to
+atomically replace two independent files in an existing instance directory.
 Replacing an old instance means restoring to a new directory, preserving or
 moving the stopped old directory, and then selecting the restored `--db` path.
 Cross-filesystem publication is refused.

@@ -4,7 +4,7 @@ use crate::admin_secret_read::{
     sign_secret_read_mint,
 };
 use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
-use crate::instance_lock::{DatabaseInstanceLock, TargetInstanceReservation};
+use crate::instance_lock::{DatabaseInstanceLock, StartupTargetReservation};
 use crate::local::LocalSnapback;
 use crate::manifest::SNAPBACK_SCHEMA_VERSION;
 use crate::server;
@@ -956,9 +956,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         let (path, reservation) = prepare_database_path_for_startup(&args.db)?;
         (Some(path), reservation)
     };
-    let startup_reservation_path = startup_target_reservation
-        .as_ref()
-        .map(TargetInstanceReservation::lock_path);
     // Reject lexical/canonical nesting before ReadyFileTarget creates a
     // missing parent. Otherwise a ready path beneath `app.sqlite3-wal/` (or a
     // lock/config/token sibling) could first occupy a managed file path with a
@@ -980,12 +977,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         prepared_database_path.as_deref(),
         args.ready_file.as_deref(),
     )?;
-    if let Some(path) = &startup_reservation_path {
-        provisional_paths.push(ManagedPath {
-            label: "target-instance reservation",
-            path: path.clone(),
-        });
-    }
     if let Some(path) = provisional_ready_temp {
         provisional_paths.push(ManagedPath {
             label: "ready-file temporary artifact",
@@ -1026,12 +1017,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .transpose()?;
     let mut managed_paths =
         managed_startup_paths(prepared_database_path.as_deref(), ready_path.as_deref())?;
-    if let Some(path) = startup_reservation_path {
-        managed_paths.push(ManagedPath {
-            label: "target-instance reservation",
-            path,
-        });
-    }
     if let Some(path) = &ready_temp_path {
         managed_paths.push(ManagedPath {
             label: "ready-file temporary artifact",
@@ -1053,8 +1038,24 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         Some(db_path) => {
             // @ref LLP 0003#decision — one local server process owns the SQLite
             // database and process-local runtime state for this app instance.
+            if let Some(reservation) = &startup_target_reservation {
+                reservation
+                    .ensure_valid()
+                    .context("database target changed after startup path validation")?;
+            }
             let lock = DatabaseInstanceLock::acquire(db_path)?;
-            match LocalSnapback::open(db_path) {
+            if let Some(reservation) = &startup_target_reservation {
+                reservation
+                    .ensure_valid()
+                    .context("database target changed while acquiring its inner lock")?;
+            }
+            let opened = LocalSnapback::open(db_path);
+            if let Some(reservation) = &startup_target_reservation {
+                reservation
+                    .ensure_valid()
+                    .context("database target changed while opening the database")?;
+            }
+            match opened {
                 Ok(snapback) => {
                     // The ordinary inside-instance lock is now authoritative;
                     // releasing the outer reservation cannot let restore win,
@@ -1651,6 +1652,11 @@ fn managed_startup_paths(
         paths.push(ManagedPath {
             label: "database lock",
             path: crate::instance_lock::lock_path_for_database(database)?,
+        });
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        paths.push(ManagedPath {
+            label: "target-instance reservation",
+            path: crate::instance_lock::target_reservation_path_for_database(database)?,
         });
         paths.push(ManagedPath {
             label: "config store",
@@ -2658,6 +2664,7 @@ fn write_ready_file_atomic_protected(
     target.write_atomic_protected(content, protected_paths, tmp_path)
 }
 
+#[cfg(any(test, not(any(target_vendor = "apple", target_os = "linux"))))]
 fn prepare_database_path(path: &Path) -> anyhow::Result<PathBuf> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
@@ -2668,13 +2675,34 @@ fn prepare_database_path(path: &Path) -> anyhow::Result<PathBuf> {
     resolve_database_path(path)
 }
 
-/// When startup is about to create the exact instance directory a restore
-/// would require absent, acquire their shared outer reservation first. Hosts
-/// without descriptor-relative restore publication retain legacy startup;
-/// restore itself is unavailable there, so no cross-operation race exists.
+#[cfg(test)]
+type StartupTargetReservationHook = Box<dyn FnOnce(&Path)>;
+
+#[cfg(test)]
+thread_local! {
+    static BEFORE_STARTUP_TARGET_RESERVATION: std::cell::RefCell<Option<StartupTargetReservationHook>> = const { std::cell::RefCell::new(None) };
+}
+
+fn before_startup_target_reservation(database: &Path) {
+    #[cfg(test)]
+    BEFORE_STARTUP_TARGET_RESERVATION.with(|slot| {
+        if let Some(operation) = slot.borrow_mut().take() {
+            operation(database);
+        }
+    });
+    #[cfg(not(test))]
+    let _ = database;
+}
+
+/// Every supported file-backed startup takes the same outer instance-name
+/// reservation as restore. Only the outer parent is created before acquisition;
+/// the target instance is opened or created descriptor-relatively and remains
+/// pinned until the inside-instance lock and database have been opened. Hosts
+/// without descriptor-relative restore publication retain legacy startup.
+#[allow(clippy::needless_return)] // Each cfg branch is a complete platform implementation.
 fn prepare_database_path_for_startup(
     path: &Path,
-) -> anyhow::Result<(PathBuf, Option<TargetInstanceReservation>)> {
+) -> anyhow::Result<(PathBuf, Option<StartupTargetReservation>)> {
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
     {
         let absolute = if path.is_absolute() {
@@ -2691,28 +2719,60 @@ fn prepare_database_path_for_startup(
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
             .context("database path must include an instance directory")?;
-        let instance_missing = match std::fs::symlink_metadata(instance) {
-            Err(error) if error.kind() == ErrorKind::NotFound => true,
-            Ok(_) => false,
-            Err(error) => return Err(error).context("failed to inspect database instance path"),
-        };
+        let instance_name = instance
+            .file_name()
+            .filter(|name| *name != "." && *name != "..")
+            .context("database instance path must have a name")?;
         let outer_parent = instance
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."));
-        if instance_missing && std::fs::metadata(outer_parent).is_ok_and(|entry| entry.is_dir()) {
-            let instance_name = instance
-                .file_name()
-                .filter(|name| *name != "." && *name != "..")
-                .context("database instance path must have a name")?;
-            let canonical_parent = std::fs::canonicalize(outer_parent)?;
-            let database = canonical_parent.join(instance_name).join(database_name);
-            let reservation = TargetInstanceReservation::acquire(&database)
-                .context("database target could not be reserved before startup creation")?;
-            reservation.create_instance_directory_for_startup()?;
-            return Ok((database, Some(reservation)));
-        }
+        std::fs::create_dir_all(outer_parent).with_context(|| {
+            format!(
+                "failed to create database outer directory {}",
+                outer_parent.display()
+            )
+        })?;
+        let canonical_parent = std::fs::canonicalize(outer_parent).with_context(|| {
+            format!(
+                "failed to resolve database outer directory {}",
+                outer_parent.display()
+            )
+        })?;
+        // Preserve canonical alias behavior for existing database and instance
+        // symlinks. A genuinely absent instance instead stays expressed as one
+        // child of the canonical outer parent so only the reservation may
+        // create it.
+        let database = match std::fs::canonicalize(&absolute) {
+            Ok(database) => database,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                match std::fs::canonicalize(instance) {
+                    Ok(instance) => instance.join(&database_name),
+                    Err(error) if error.kind() == ErrorKind::NotFound => {
+                        canonical_parent.join(instance_name).join(&database_name)
+                    }
+                    Err(error) => {
+                        return Err(error).with_context(|| {
+                            format!(
+                                "failed to resolve database instance directory {}",
+                                instance.display()
+                            )
+                        });
+                    }
+                }
+            }
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!("failed to resolve database path {}", absolute.display())
+                });
+            }
+        };
+        before_startup_target_reservation(&database);
+        let reservation = StartupTargetReservation::acquire(&database)
+            .context("database target could not be reserved and pinned before startup")?;
+        return Ok((database, Some(reservation)));
     }
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
     Ok((prepare_database_path(path)?, None))
 }
 
@@ -2848,14 +2908,15 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, AuthCommand, Cli, HostCommand, ManagedPath, ReadyFileTarget, ResolvedHttpTarget,
-        TargetArgs, TargetInstanceReservation, bind_first_available, bind_listener,
+        Args, AuthCommand, BEFORE_STARTUP_TARGET_RESERVATION, Cli, HostCommand, ManagedPath,
+        ReadyFileTarget, ResolvedHttpTarget, TargetArgs, bind_first_available, bind_listener,
         managed_startup_paths, mint_secret_read_via_http, parse_run_args,
         path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
         reject_misdirected_serve_flags, resolve_http_target, validate_path_disjointness,
         validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
+    use crate::instance_lock::TargetInstanceReservation;
     use clap::Parser;
     use serde_json::json;
     use std::io::{Read as _, Write as _};
@@ -4505,6 +4566,112 @@ mod tests {
         assert!(restore_after_start.ensure_target_absent().is_err());
     }
 
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn startup_with_missing_outer_parents_creates_only_then_reserves_the_outer_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir
+            .path()
+            .join("missing")
+            .join("outer")
+            .join("instance")
+            .join("snapback.db");
+
+        let (resolved, reservation) = prepare_database_path_for_startup(&db_path).unwrap();
+        let reservation = reservation.expect("supported startup always holds a reservation");
+        reservation.ensure_valid().unwrap();
+        let expected = std::fs::canonicalize(db_path.parent().unwrap().parent().unwrap())
+            .unwrap()
+            .join("instance/snapback.db");
+        assert_eq!(resolved, expected);
+        assert!(db_path.parent().unwrap().is_dir());
+        assert!(
+            crate::instance_lock::target_reservation_path_for_database(&resolved)
+                .unwrap()
+                .is_file()
+        );
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn existing_instance_restart_is_reserved_and_protects_the_persistent_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let instance = dir.path().join("existing-instance");
+        std::fs::create_dir(&instance).unwrap();
+        let db_path = instance.join("snapback.db");
+        std::fs::write(&db_path, b"").unwrap();
+
+        let (resolved, reservation) = prepare_database_path_for_startup(&db_path).unwrap();
+        let reservation = reservation.expect("existing instances also retain the reservation");
+        reservation.ensure_valid().unwrap();
+        let lock_path =
+            crate::instance_lock::target_reservation_path_for_database(&resolved).unwrap();
+        assert!(lock_path.is_file());
+        let error = validate_path_disjointness(
+            &managed_startup_paths(Some(&resolved), Some(&lock_path)).unwrap(),
+        )
+        .expect_err("a ready file may not overwrite the persistent reservation record");
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_READY_FILE_PATH_COLLISION")
+        );
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn startup_target_replacement_invalidates_the_inner_lock_handoff() {
+        let dir = tempfile::tempdir().unwrap();
+        let instance = dir.path().join("replaceable-instance");
+        std::fs::create_dir(&instance).unwrap();
+        let db_path = instance.join("snapback.db");
+        let (_resolved, reservation) = prepare_database_path_for_startup(&db_path).unwrap();
+        let reservation = reservation.unwrap();
+        let moved = dir.path().join("prepared-instance-moved");
+
+        std::fs::rename(&instance, &moved).unwrap();
+        std::fs::create_dir(&instance).unwrap();
+        std::fs::write(instance.join("foreign-sentinel"), b"survive").unwrap();
+
+        let error = reservation
+            .ensure_valid()
+            .expect_err("the pathname must still name the pinned target inode");
+        assert!(error.to_string().contains("identity changed"));
+        drop(reservation);
+        assert_eq!(
+            std::fs::read(instance.join("foreign-sentinel")).unwrap(),
+            b"survive"
+        );
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn startup_probe_remove_race_still_contends_on_the_restore_reservation() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        let dir = tempfile::tempdir().unwrap();
+        let instance = dir.path().join("initially-existing");
+        std::fs::create_dir(&instance).unwrap();
+        let db_path = instance.join("snapback.db");
+        let competing = Rc::new(RefCell::new(None));
+        let competing_for_hook = Rc::clone(&competing);
+        let instance_for_hook = instance.clone();
+        BEFORE_STARTUP_TARGET_RESERVATION.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move |resolved| {
+                std::fs::remove_dir(&instance_for_hook).unwrap();
+                *competing_for_hook.borrow_mut() =
+                    Some(TargetInstanceReservation::acquire(resolved).unwrap());
+            }));
+        });
+
+        let error = prepare_database_path_for_startup(&db_path)
+            .expect_err("startup may not fall back to unreserved create_dir_all");
+        assert!(error.to_string().contains("could not be reserved"));
+        assert!(!instance.exists());
+        assert!(competing.borrow().is_some());
+    }
+
     #[cfg(unix)]
     #[test]
     fn existing_database_symlink_resolves_to_target() {
@@ -4517,5 +4684,31 @@ mod tests {
         let resolved = super::resolve_database_path(&link_db).unwrap();
 
         assert_eq!(resolved, std::fs::canonicalize(&real_db).unwrap());
+    }
+
+    #[cfg(all(unix, any(target_vendor = "apple", target_os = "linux")))]
+    #[test]
+    fn startup_reservation_follows_existing_instance_and_database_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let real_instance = dir.path().join("real-instance");
+        let instance_alias = dir.path().join("instance-alias");
+        std::fs::create_dir(&real_instance).unwrap();
+        std::os::unix::fs::symlink(&real_instance, &instance_alias).unwrap();
+        let real_db = real_instance.join("real.sqlite3");
+        let database_alias = real_instance.join("alias.sqlite3");
+        std::fs::write(&real_db, b"").unwrap();
+        std::os::unix::fs::symlink(&real_db, &database_alias).unwrap();
+
+        let requested = instance_alias.join("alias.sqlite3");
+        let (resolved, reservation) = prepare_database_path_for_startup(&requested).unwrap();
+        let reservation = reservation.expect("canonical instance remains reserved");
+
+        assert_eq!(resolved, std::fs::canonicalize(&real_db).unwrap());
+        reservation.ensure_valid().unwrap();
+        assert!(
+            crate::instance_lock::target_reservation_path_for_database(&resolved)
+                .unwrap()
+                .is_file()
+        );
     }
 }
