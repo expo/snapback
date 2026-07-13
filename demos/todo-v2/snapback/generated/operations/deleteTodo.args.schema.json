@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/todo-v2/deleteTodo.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "todo-v2:deleteTodo arguments",
+  "type": "object"
+}

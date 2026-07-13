@@ -1,0 +1,18 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/all-aboard/applyFeedTick.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "lastError": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "trigger": {
+      "type": "string"
+    }
+  },
+  "title": "all-aboard:applyFeedTick arguments",
+  "type": "object"
+}

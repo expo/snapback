@@ -9,6 +9,8 @@
     "api.mjs",
     "api.d.ts",
     "package.json",
+    "operations/egressProbe.args.schema.json",
+    "operations/queryProbe.args.schema.json",
     "contract/runtime-links.ts",
     "contract/queryProbe.query.ts",
     "contract/queryProbe.query.contract-meta.ts"

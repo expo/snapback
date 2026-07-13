@@ -1172,6 +1172,7 @@ export async function generateInProcess(backendDir) {
   const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
   const apiTypes = renderApiTypes(functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
+  const operationSchemas = renderOperationSchemas(appId, functionManifest.functions, functionsModule);
   validateContractModuleFilenames(contractModules, err);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -1187,10 +1188,12 @@ export async function generateInProcess(backendDir) {
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
       './capabilities': './capability.manifest.json',
+      './operations/*': './operations/*',
       './contract/*': './contract/*',
     },
   };
   const contractArtifactFiles = contractModules.map((module) => `contract/${module.file}`);
+  const operationArtifactFiles = operationSchemas.map((schema) => `operations/${schema.file}`);
   const artifactIndex = {
     artifactKind: 'artifactIndex',
     schemaVersion: SCHEMA_VERSION,
@@ -1199,7 +1202,7 @@ export async function generateInProcess(backendDir) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...operationArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -1217,6 +1220,7 @@ export async function generateInProcess(backendDir) {
       contractManifest,
       apiModule,
       apiTypes,
+      operationSchemas,
       contractModules,
       packageJson,
       artifactIndex,
@@ -1970,6 +1974,54 @@ function validatorDescriptor(val) {
   }
   if (val?.optional) descriptor.optional = true;
   return descriptor;
+}
+
+// Operation argument schemas are a client/publication artifact, not a second
+// function definition. They are projected from the exact validator objects
+// that also feed generated API types, so consumers never have to re-author an
+// app function's request shape (ENG-24556).
+function renderOperationSchemas(appId, functions, functionsModule) {
+  return functions.map((fn) => ({
+    file: `${fn.name}.args.schema.json`,
+    value: {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      $id: `https://schemas.snapback.dev/apps/${encodeURIComponent(appId)}/${encodeURIComponent(fn.name)}.args.schema.json`,
+      title: `${appId}:${fn.name} arguments`,
+      type: 'object',
+      additionalProperties: false,
+      ...jsonSchemaObjectProperties(functionsModule[fn.name]?.args ?? {}),
+    },
+  }));
+}
+
+function jsonSchemaObjectProperties(fields) {
+  const properties = dict();
+  const required = [];
+  for (const [name, validator] of Object.entries(fields)) {
+    properties[name] = jsonSchemaForValidator(validator);
+    if (!validator?.optional) required.push(name);
+  }
+  return {
+    properties,
+    ...(required.length > 0 ? { required } : {}),
+  };
+}
+
+function jsonSchemaForValidator(validator) {
+  if (!validator || validator.primitive === 'unknown') return {};
+  if (validator.primitive === 'object') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      ...jsonSchemaObjectProperties(validator.fields ?? {}),
+    };
+  }
+  if (validator.primitive === 'string') return { type: 'string' };
+  if (validator.primitive === 'boolean') return { type: 'boolean' };
+  if (validator.primitive === 'number') {
+    return { type: validator.fieldType === 'Integer' ? 'integer' : 'number' };
+  }
+  return {};
 }
 
 // JS-handler query results are typed only when declared (LLP 0032 P3): a
@@ -3597,19 +3649,25 @@ function writeGeneratedOutput(outDir, {
   contractManifest,
   apiModule,
   apiTypes,
+  operationSchemas,
   contractModules,
   packageJson,
   artifactIndex,
 }) {
   const contractOutDir = join(outDir, 'contract');
+  const operationsOutDir = join(outDir, 'operations');
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(contractOutDir, { recursive: true });
+  mkdirSync(operationsOutDir, { recursive: true });
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
+  for (const schema of operationSchemas) {
+    writeFileSync(join(operationsOutDir, schema.file), stableJson(schema.value) + '\n');
+  }
   for (const module of contractModules) {
     writeFileSync(join(contractOutDir, module.file), module.source);
   }
