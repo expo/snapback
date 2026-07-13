@@ -561,6 +561,91 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
     Ok(())
 }
 
+/// Static HostPlan action validation. Actions use the same closed expression
+/// IR and artifact budget as mutations; direct manifests must not bypass the
+/// codegen checks and install work that is unbounded or can only fail after it
+/// starts invoking mutations.
+pub fn validate_action_plan(plan: &crate::manifest::ActionPlan) -> Result<(), SnapbackError> {
+    use crate::manifest::{ActionReturnValue, ActionStep};
+
+    let bounds_error = |message: String| {
+        SnapbackError::error("SNAPBACK_PLAN_BOUNDS", "runtime", message).with_details(json!({
+            "profileVersion": DATA_TIER_PROFILE_VERSION,
+            "maxSteps": MAX_PLAN_STEPS,
+            "maxExprDepth": MAX_EXPR_DEPTH,
+            "maxSerializedBytes": MAX_PLAN_SERIALIZED_BYTES,
+        }))
+    };
+    if plan.steps.len() > MAX_PLAN_STEPS {
+        return Err(bounds_error(format!(
+            "action plan has {} steps; the declared bound is {MAX_PLAN_STEPS}",
+            plan.steps.len()
+        )));
+    }
+    let serialized = serde_json::to_vec(plan).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_PLAN_INVALID",
+            "runtime",
+            format!("action plan failed to serialize: {error}"),
+        )
+    })?;
+    if serialized.len() > MAX_PLAN_SERIALIZED_BYTES {
+        return Err(bounds_error(format!(
+            "action plan serializes to {} bytes; the declared bound is {MAX_PLAN_SERIALIZED_BYTES}",
+            serialized.len()
+        )));
+    }
+
+    let mut bindings = std::collections::BTreeSet::new();
+    for step in &plan.steps {
+        let ActionStep::RunMutation {
+            args,
+            bind_result_as,
+            ..
+        } = step;
+        for expr in args.values() {
+            validate_value_expr(expr)?;
+        }
+        if let Some(binding) = bind_result_as {
+            if !valid_binding_identifier(binding) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PLAN_INVALID",
+                    "runtime",
+                    format!("invalid action result binding {binding:?}"),
+                )
+                .with_details(json!({ "binding": binding, "reason": "invalidIdentifier" })));
+            }
+            if !bindings.insert(binding.clone()) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PLAN_INVALID",
+                    "runtime",
+                    format!("action result binding {binding:?} is declared more than once"),
+                )
+                .with_details(json!({ "binding": binding, "reason": "duplicate" })));
+            }
+        }
+    }
+    if let Some(ActionReturnValue::Binding(binding)) = &plan.return_value
+        && !bindings.contains(binding)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BINDING_MISSING",
+            "runtime",
+            format!("action return binding {binding:?} is not declared by a prior step"),
+        )
+        .with_details(json!({ "binding": binding })));
+    }
+    Ok(())
+}
+
+fn valid_binding_identifier(value: &str) -> bool {
+    let mut chars = value.chars();
+    chars
+        .next()
+        .is_some_and(|first| first == '_' || first.is_ascii_alphabetic())
+        && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+}
+
 fn validate_expr(expr: &ValueExpr, depth: usize) -> Result<(), SnapbackError> {
     if depth > MAX_EXPR_DEPTH {
         return Err(SnapbackError::error(
@@ -615,6 +700,14 @@ fn validate_expr(expr: &ValueExpr, depth: usize) -> Result<(), SnapbackError> {
             Ok(())
         }
     }
+}
+
+/// Validate one expression tree against the same depth bound and pinned
+/// function library used by mutation-plan preflight. Query plans carry the
+/// same `ValueExpr` wire type, so accepting a query artifact without this
+/// pass would defer malformed or unbounded expressions until invocation.
+pub(crate) fn validate_value_expr(expr: &ValueExpr) -> Result<(), SnapbackError> {
+    validate_expr(expr, 0)
 }
 
 #[cfg(test)]

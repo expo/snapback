@@ -1609,6 +1609,33 @@ fn reset_and_seed_are_deterministic_handler_bypass_paths() {
 }
 
 #[test]
+fn reset_clears_removed_physical_tables_before_they_can_be_readded() {
+    let mut db = LocalDatabase::memory().expect("memory database");
+    db.apply_schema(todo_schema()).expect("initial schema");
+    insert_schema_test_row(
+        &mut db,
+        "removed-before-reset",
+        json!({
+            "title": "must not resurrect",
+            "completed": false,
+            "userId": "u"
+        }),
+    );
+    db.apply_schema(SchemaManifest::default())
+        .expect("logical table removal preserves its physical table");
+    db.reset()
+        .expect("reset clears current and removed physical user tables");
+    db.apply_schema(todo_schema()).expect("re-add table schema");
+    assert_eq!(
+        db.scan_table("todos", 10, 0)
+            .expect("scan re-added table")
+            .total,
+        0,
+        "removed-table rows must not resurrect after reset and re-add"
+    );
+}
+
+#[test]
 fn rejected_reset_seed_preserves_database_generation_and_subscriptions() {
     let mut snapback = configured_snapback();
     snapback
@@ -3817,6 +3844,166 @@ fn whole_manifest_rejects_cumulative_in_budget_before_atomic_install() {
 }
 
 #[test]
+fn whole_manifest_rejects_invalid_query_expressions_before_atomic_install() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(todo_functions());
+
+    let mut over_depth = ValueExpr::Literal(json!(true));
+    for _ in 0..=snapback::value_expr::MAX_EXPR_DEPTH {
+        over_depth = ValueExpr::Field {
+            base: Box::new(over_depth),
+            key: "nested".to_owned(),
+        };
+    }
+    let cases = [
+        (
+            ValueExpr::Call {
+                func: "notPinned".to_owned(),
+                args: Vec::new(),
+            },
+            "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION",
+        ),
+        (over_depth, "SNAPBACK_PLAN_BOUNDS"),
+    ];
+    for (index, (expression, expected_code)) in cases.into_iter().enumerate() {
+        let name = format!("invalidQueryExpression{index}");
+        let mut invalid = FunctionManifest::default();
+        invalid.functions.push(FunctionDefinition::new(
+            &name,
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "todos".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "title".to_owned(),
+                    op: FilterOp::Eq,
+                    value: expression,
+                }],
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        ));
+        let diagnostics = snapback.load_functions(invalid);
+        assert_eq!(diagnostics[0].code, expected_code);
+        assert!(snapback.function_definition(&name).is_none());
+        snapback
+            .invoke_query("listTodos", input(json!({}), "user_1"))
+            .expect("invalid query artifact must preserve the prior generation");
+    }
+}
+
+#[test]
+fn whole_manifest_rejects_unbounded_or_invalid_actions_before_atomic_install() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(todo_functions());
+
+    let step = |args, bind_result_as| ActionStep::RunMutation {
+        name: "createTodo".to_owned(),
+        args,
+        bind_result_as,
+    };
+    let ordinary = || step(BTreeMap::new(), None);
+    let mut over_depth = ValueExpr::Literal(json!(true));
+    for _ in 0..=snapback::value_expr::MAX_EXPR_DEPTH {
+        over_depth = ValueExpr::Field {
+            base: Box::new(over_depth),
+            key: "nested".to_owned(),
+        };
+    }
+    let cases = vec![
+        (
+            ActionPlan {
+                steps: vec![ordinary(); snapback::value_expr::MAX_PLAN_STEPS + 1],
+                return_value: None,
+            },
+            "SNAPBACK_PLAN_BOUNDS",
+        ),
+        (
+            ActionPlan {
+                steps: vec![step(
+                    BTreeMap::from([(
+                        "title".to_owned(),
+                        ValueExpr::Literal(json!(
+                            "x".repeat(snapback::value_expr::MAX_PLAN_SERIALIZED_BYTES)
+                        )),
+                    )]),
+                    None,
+                )],
+                return_value: None,
+            },
+            "SNAPBACK_PLAN_BOUNDS",
+        ),
+        (
+            ActionPlan {
+                steps: vec![step(
+                    BTreeMap::from([(
+                        "title".to_owned(),
+                        ValueExpr::Call {
+                            func: "notPinned".to_owned(),
+                            args: Vec::new(),
+                        },
+                    )]),
+                    None,
+                )],
+                return_value: None,
+            },
+            "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION",
+        ),
+        (
+            ActionPlan {
+                steps: vec![step(
+                    BTreeMap::from([("title".to_owned(), over_depth)]),
+                    None,
+                )],
+                return_value: None,
+            },
+            "SNAPBACK_PLAN_BOUNDS",
+        ),
+        (
+            ActionPlan {
+                steps: vec![step(BTreeMap::new(), Some("not valid".to_owned()))],
+                return_value: None,
+            },
+            "SNAPBACK_PLAN_INVALID",
+        ),
+        (
+            ActionPlan {
+                steps: vec![
+                    step(BTreeMap::new(), Some("duplicate".to_owned())),
+                    step(BTreeMap::new(), Some("duplicate".to_owned())),
+                ],
+                return_value: None,
+            },
+            "SNAPBACK_PLAN_INVALID",
+        ),
+        (
+            ActionPlan {
+                steps: vec![ordinary()],
+                return_value: Some(ActionReturnValue::Binding("missing".to_owned())),
+            },
+            "SNAPBACK_BINDING_MISSING",
+        ),
+    ];
+    for (index, (plan, expected_code)) in cases.into_iter().enumerate() {
+        let name = format!("invalidActionPlan{index}");
+        let mut invalid = todo_functions();
+        invalid.functions.push(FunctionDefinition::new(
+            &name,
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(plan)),
+        ));
+        let diagnostics = snapback.load_functions(invalid);
+        assert_eq!(diagnostics[0].code, expected_code, "case {index}");
+        assert!(snapback.function_definition(&name).is_none());
+        snapback
+            .invoke_query("listTodos", input(json!({}), "user_1"))
+            .expect("invalid action artifact must preserve the prior generation");
+    }
+}
+
+#[test]
 fn query_filter_bind_budget_counts_every_filter_operand() {
     let mut db = LocalDatabase::memory().expect("memory db");
     db.apply_schema(todo_schema()).expect("schema");
@@ -4940,6 +5127,79 @@ fn required_field_tightening_with_nulls_rolls_back_manifest_and_rows() {
     assert_eq!(
         db.get("todos", "null-rank").unwrap().unwrap()["title"],
         json!("preserved")
+    );
+}
+
+#[test]
+fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("required-removal.db");
+    let required = rank_required(todo_schema());
+    let mut db = LocalDatabase::open(&path).expect("open db");
+    db.apply_schema(todo_schema()).expect("optional schema");
+    insert_schema_test_row(
+        &mut db,
+        "preserved",
+        json!({
+            "title": "preserved",
+            "completed": false,
+            "rank": 7,
+            "userId": "u"
+        }),
+    );
+    db.apply_schema(required.clone())
+        .expect("tighten populated non-null field");
+    assert!(physical_column_not_null(&path, "todos", "rank"));
+
+    let mut removed = required.clone();
+    removed.tables[0]
+        .fields
+        .retain(|field| field.name != "rank");
+    let removal = db
+        .apply_schema(removed)
+        .expect_err("additive migration cannot hide a preserved NOT NULL column");
+    assert_eq!(
+        removal.diagnostic.code,
+        "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
+    );
+    assert_eq!(removal.diagnostic.details["requestedChange"], "remove");
+
+    let mut optional = required.clone();
+    optional.tables[0]
+        .fields
+        .iter_mut()
+        .find(|field| field.name == "rank")
+        .expect("rank")
+        .optional = true;
+    let loosening = db
+        .apply_schema(optional)
+        .expect_err("logical optional cannot contradict physical NOT NULL");
+    assert_eq!(
+        loosening.diagnostic.code,
+        "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
+    );
+    assert_eq!(
+        loosening.diagnostic.details["requestedChange"],
+        "makeOptional"
+    );
+
+    assert!(
+        !db.schema().tables[0]
+            .field("rank")
+            .expect("prior rank declaration")
+            .optional
+    );
+    assert!(physical_column_not_null(&path, "todos", "rank"));
+    assert_eq!(db.get("todos", "preserved").unwrap().unwrap()["rank"], 7);
+    insert_schema_test_row(
+        &mut db,
+        "after-rejection",
+        json!({
+            "title": "old schema still writable",
+            "completed": false,
+            "rank": 8,
+            "userId": "u"
+        }),
     );
 }
 

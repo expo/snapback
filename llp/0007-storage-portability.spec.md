@@ -5,7 +5,7 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Revised:** 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032
 
 ## Summary
@@ -287,6 +287,14 @@ First-slice requirements:
 - offset-style `skip(n)` is a small-data convenience and should warn on
   production-marked unbounded queries.
 
+The complete generated function manifest is an admission boundary, not a bag
+of invocation-time assertions. Before replacing a known-good generation, every
+query filter expression and HostPlan action argument must pass the same closed
+`ValueExpr` depth and pinned-function checks as mutation plans. HostPlan actions
+also share the plan step/serialized-byte bounds and must declare valid, unique
+result bindings before returning one. A rejection preserves the prior function
+generation atomically.
+
 Queries that cannot be pushed down portably must report a diagnostic. Silent
 fallback to full table scans is not acceptable for production-marked queries.
 Valet validates both the rule and the failure mode: it translated a filter to SQL
@@ -415,7 +423,9 @@ The first local schema applier may be conservative:
 - create missing tables;
 - add missing nullable or defaulted fields;
 - create declared indexes;
-- preserve removed fields instead of dropping data;
+- preserve removed optional fields instead of dropping data;
+- reject removing a required field or making it optional while its preserved
+  physical column remains `NOT NULL`;
 - reject type changes that require rewriting existing rows;
 - reject unsafe uniqueness changes unless the data already satisfies them.
 
@@ -426,6 +436,15 @@ check, and the physical SQLite column must become `NOT NULL` in the same schema
 transaction (using a validated table rebuild where SQLite cannot alter the
 constraint directly). Any null/backfill conflict rejects without advancing the
 stored manifest or partially rebuilding the table.
+
+Required-to-optional and required-field removal are not safe additive changes:
+the rollback-preserving physical column remains `NOT NULL`, so accepting the
+weaker manifest would make a generated insert that omits the field fail in
+SQLite. Both changes reject before DDL or manifest replacement until an
+explicit portable drop/backfill migration exists. Removing a whole table may
+leave its physical table dormant for rollback, but an app reset clears every
+physical user table — including dormant removed tables — in the same reset
+transaction, so remove → reset → re-add cannot resurrect old rows.
 
 This conservative applier is validated by Valet, which shipped almost exactly this
 behavior in production: add-column-only, no `ALTER COLUMN`, no down-migrations,

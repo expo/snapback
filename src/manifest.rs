@@ -381,8 +381,10 @@ impl FunctionManifest {
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
-                (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(_)))
-                | (_, FunctionRuntime::IbexModule(_)) => {}
+                (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
+                    crate::value_expr::validate_action_plan(plan)?
+                }
+                (_, FunctionRuntime::IbexModule(_)) => {}
                 _ => {
                     return Err(SnapbackError::error(
                         "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH",
@@ -492,6 +494,8 @@ impl FunctionManifest {
 }
 
 pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
+    // @ref LLP 0007#query-semantics — every direct artifact must enter the
+    // same bounded portable expression profile before it can be installed.
     if let Some(limit) = plan.limit
         && limit > QUERY_MAX_LIMIT
     {
@@ -504,6 +508,7 @@ pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
     let mut literal_in_items = 0_usize;
     let mut known_filter_bindings = 0_usize;
     for filter in &plan.filters {
+        crate::value_expr::validate_value_expr(&filter.value)?;
         let added_bindings = if filter.op == FilterOp::In {
             if let ValueExpr::Literal(value) = &filter.value {
                 let Some(items) = value.as_array() else {

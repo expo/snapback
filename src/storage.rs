@@ -32,6 +32,20 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
+#[cfg(test)]
+pub(crate) fn inject_reset_commit_failure_for_test() {
+    BEFORE_RESET_COMMIT_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "reset hook must be one-shot");
+        *slot.borrow_mut() = Some(Box::new(|| {
+            Err(SnapbackError::error(
+                "SNAPBACK_ACTION_TIMEOUT",
+                "storage",
+                "injected reset commit-boundary failure",
+            ))
+        }));
+    });
+}
+
 const META_SCHEMA_MANIFEST: &str = "schema_manifest";
 const META_CRON_STATE: &str = "cron_state";
 // @ref LLP 0032 L3 — the monotonic replay floor: the highest change version
@@ -39,6 +53,10 @@ const META_CRON_STATE: &str = "cron_state";
 // below it, a change may be gone, so the client must resnapshot.
 const META_RETENTION_FLOOR: &str = "retention_floor";
 const META_CLIENT_MUTATION_GC_TOTAL: &str = "client_mutation_gc_total";
+const META_CLIENT_MUTATION_RECORDS: &str = "client_mutation_records";
+const META_CLIENT_MUTATION_BYTES: &str = "client_mutation_bytes";
+const META_CLIENT_MUTATION_COUNTERS_VERSION: &str = "client_mutation_counters_version";
+const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 2;
 /// A hard availability bound, deliberately equal to the existing journal
 /// version budget. We refuse a new durable identity instead of evicting an
 /// unacknowledged result and risking duplicate execution after response loss.
@@ -49,6 +67,42 @@ pub const CLIENT_MUTATION_MAX_RECORDS: u64 = 10_000;
 pub const CLIENT_MUTATION_MAX_RESULT_BYTES: u64 =
     crate::value_expr::MAX_PLAN_SERIALIZED_BYTES as u64;
 pub const CLIENT_MUTATION_MAX_BYTES: u64 = 1_024 * CLIENT_MUTATION_MAX_RESULT_BYTES;
+/// One auth context cannot monopolize the global exactly-once ledger. This is
+/// deliberately smaller than the global record cap while still allowing a
+/// large disconnected queue for one principal.
+pub const CLIENT_MUTATION_MAX_RECORDS_PER_AUTH: u64 = 1_024;
+/// Per-auth retained results are capped at 128 maximum-sized outputs (8 MiB).
+pub const CLIENT_MUTATION_MAX_BYTES_PER_AUTH: u64 = 128 * CLIENT_MUTATION_MAX_RESULT_BYTES;
+
+#[derive(Clone, Copy)]
+struct ClientMutationRetentionLimits {
+    records: u64,
+    bytes: u64,
+    records_per_auth: u64,
+    bytes_per_auth: u64,
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Small deterministic limits let unit tests exercise N+1 admission
+    /// without constructing a 10,000-row / 64-MiB ledger. The override is
+    /// thread-local so parallel tests and production behavior are unchanged.
+    static CLIENT_MUTATION_TEST_LIMITS: std::cell::Cell<Option<ClientMutationRetentionLimits>> =
+        const { std::cell::Cell::new(None) };
+}
+
+fn client_mutation_retention_limits() -> ClientMutationRetentionLimits {
+    #[cfg(test)]
+    if let Some(limits) = CLIENT_MUTATION_TEST_LIMITS.with(std::cell::Cell::get) {
+        return limits;
+    }
+    ClientMutationRetentionLimits {
+        records: CLIENT_MUTATION_MAX_RECORDS,
+        bytes: CLIENT_MUTATION_MAX_BYTES,
+        records_per_auth: CLIENT_MUTATION_MAX_RECORDS_PER_AUTH,
+        bytes_per_auth: CLIENT_MUTATION_MAX_BYTES_PER_AUTH,
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -342,30 +396,11 @@ impl LocalDatabase {
     }
 
     pub fn client_mutation_retention_info(&self) -> SnapbackResult<ClientMutationRetentionInfo> {
-        let (records, bytes): (i64, i64) = self.conn.query_row(
-            "SELECT COUNT(*), COALESCE(SUM(
-                 length(CAST(client_mutation_id AS BLOB)) +
-                 length(CAST(function AS BLOB)) +
-                 length(CAST(auth_fingerprint AS BLOB)) +
-                 length(CAST(input_fingerprint AS BLOB)) +
-                 length(CAST(output_json AS BLOB))
-             ), 0) FROM _snapback_client_mutations",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
-        let gc_total = self
-            .conn
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![META_CLIENT_MUTATION_GC_TOTAL],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0);
+        let (records, bytes) = client_mutation_retention_counters(&self.conn)?;
+        let gc_total = optional_meta_u64(&self.conn, META_CLIENT_MUTATION_GC_TOTAL)?.unwrap_or(0);
         Ok(ClientMutationRetentionInfo {
-            records: records as u64,
-            bytes: bytes as u64,
+            records,
+            bytes,
             gc_total,
             max_records: CLIENT_MUTATION_MAX_RECORDS,
             max_bytes: CLIENT_MUTATION_MAX_BYTES,
@@ -404,22 +439,143 @@ impl LocalDatabase {
             return Ok(0);
         }
         let tx = self.conn.transaction()?;
+        let (retained_records, retained_bytes) = client_mutation_retention_counters(&tx)?;
+        let (auth_records, auth_bytes) =
+            client_mutation_auth_retention_counters(&tx, auth_fingerprint)?;
         let mut deleted = 0_u64;
+        let mut deleted_bytes = 0_u64;
         for id in unique {
-            deleted += tx.execute(
+            let row_bytes = tx
+                .query_row(
+                    "SELECT
+                       length(CAST(client_mutation_id AS BLOB)) +
+                       length(CAST(function AS BLOB)) +
+                       length(CAST(auth_fingerprint AS BLOB)) +
+                       length(CAST(input_fingerprint AS BLOB)) +
+                       length(CAST(output_json AS BLOB))
+                     FROM _snapback_client_mutations
+                     WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2",
+                    params![id, auth_fingerprint],
+                    |row| row.get::<_, u64>(0),
+                )
+                .optional()?;
+            let Some(row_bytes) = row_bytes else {
+                continue;
+            };
+            let removed = tx.execute(
                 "DELETE FROM _snapback_client_mutations
                  WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2",
                 params![id, auth_fingerprint],
             )? as u64;
+            deleted = deleted.saturating_add(removed);
+            if removed > 0 {
+                deleted_bytes = deleted_bytes.checked_add(row_bytes).ok_or_else(|| {
+                    invalid_client_mutation_retention_state(
+                        "acknowledged client-mutation byte count overflowed",
+                    )
+                })?;
+            }
         }
         if deleted > 0 {
-            tx.execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
-                 ON CONFLICT(key) DO UPDATE SET value =
-                   CAST(CAST(value AS INTEGER) + excluded.value AS TEXT)",
-                params![META_CLIENT_MUTATION_GC_TOTAL, deleted.to_string()],
+            let records = retained_records.checked_sub(deleted).ok_or_else(|| {
+                invalid_client_mutation_retention_state(
+                    "acknowledgement would underflow the retained record counter",
+                )
+            })?;
+            let bytes = retained_bytes.checked_sub(deleted_bytes).ok_or_else(|| {
+                invalid_client_mutation_retention_state(
+                    "acknowledgement would underflow the retained byte counter",
+                )
+            })?;
+            save_meta_u64(&tx, META_CLIENT_MUTATION_RECORDS, records)?;
+            save_meta_u64(&tx, META_CLIENT_MUTATION_BYTES, bytes)?;
+            let auth_records = auth_records.checked_sub(deleted).ok_or_else(|| {
+                invalid_client_mutation_retention_state(
+                    "acknowledgement would underflow the auth record counter",
+                )
+            })?;
+            let auth_bytes = auth_bytes.checked_sub(deleted_bytes).ok_or_else(|| {
+                invalid_client_mutation_retention_state(
+                    "acknowledgement would underflow the auth byte counter",
+                )
+            })?;
+            save_client_mutation_auth_retention_counters(
+                &tx,
+                auth_fingerprint,
+                auth_records,
+                auth_bytes,
             )?;
+            let gc_total = optional_meta_u64(&tx, META_CLIENT_MUTATION_GC_TOTAL)?
+                .unwrap_or(0)
+                .checked_add(deleted)
+                .ok_or_else(|| {
+                    invalid_client_mutation_retention_state(
+                        "client-mutation acknowledgement total overflowed",
+                    )
+                })?;
+            save_meta_u64(&tx, META_CLIENT_MUTATION_GC_TOTAL, gc_total)?;
         }
+        tx.commit()?;
+        Ok(deleted)
+    }
+
+    /// Administrative recovery for a client that can no longer send durable
+    /// acknowledgements. Purging deliberately gives up exactly-once replay for
+    /// the removed settlements, so callers must gate it as an admin write.
+    /// Ledger rows plus global/per-auth counters change in one transaction.
+    pub fn purge_client_mutation_settlements(
+        &mut self,
+        auth_fingerprint: Option<&str>,
+    ) -> SnapbackResult<u64> {
+        let tx = self.conn.transaction()?;
+        let (retained_records, retained_bytes) = client_mutation_retention_counters(&tx)?;
+        let deleted = match auth_fingerprint {
+            Some(auth_fingerprint) => {
+                let (auth_records, auth_bytes) =
+                    client_mutation_auth_retention_counters(&tx, auth_fingerprint)?;
+                let deleted = tx.execute(
+                    "DELETE FROM _snapback_client_mutations WHERE auth_fingerprint = ?1",
+                    params![auth_fingerprint],
+                )? as u64;
+                if deleted != auth_records {
+                    return Err(invalid_client_mutation_retention_state(
+                        "auth purge row count did not match its retention counter",
+                    ));
+                }
+                save_meta_u64(
+                    &tx,
+                    META_CLIENT_MUTATION_RECORDS,
+                    retained_records.checked_sub(auth_records).ok_or_else(|| {
+                        invalid_client_mutation_retention_state(
+                            "auth purge would underflow the global record counter",
+                        )
+                    })?,
+                )?;
+                save_meta_u64(
+                    &tx,
+                    META_CLIENT_MUTATION_BYTES,
+                    retained_bytes.checked_sub(auth_bytes).ok_or_else(|| {
+                        invalid_client_mutation_retention_state(
+                            "auth purge would underflow the global byte counter",
+                        )
+                    })?,
+                )?;
+                save_client_mutation_auth_retention_counters(&tx, auth_fingerprint, 0, 0)?;
+                deleted
+            }
+            None => {
+                let deleted = tx.execute("DELETE FROM _snapback_client_mutations", [])? as u64;
+                if deleted != retained_records {
+                    return Err(invalid_client_mutation_retention_state(
+                        "global purge row count did not match its retention counter",
+                    ));
+                }
+                tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
+                save_meta_u64(&tx, META_CLIENT_MUTATION_RECORDS, 0)?;
+                save_meta_u64(&tx, META_CLIENT_MUTATION_BYTES, 0)?;
+                deleted
+            }
+        };
         tx.commit()?;
         Ok(deleted)
     }
@@ -667,15 +823,25 @@ impl LocalDatabase {
     ) -> SnapbackResult<Option<MutationOutput>> {
         let schema = self.schema.clone();
         let tx = self.conn.transaction()?;
-        for table in &schema.tables {
-            tx.execute(&format!("DELETE FROM {}", quote_ident(&table.name)?), [])?;
+        // Schema evolution preserves removed physical tables for rollback.
+        // Reset is a stronger, app-wide destruction boundary: clear every
+        // physical user table, including one absent from the current manifest,
+        // so removing → resetting → re-adding a table cannot resurrect data.
+        // @ref LLP 0007#schema-evolution — dormant rollback tables are still
+        // inside the app-wide reset boundary.
+        for table in physical_user_tables(&tx)? {
+            tx.execute(&format!("DELETE FROM {}", quote_ident(&table)?), [])?;
         }
         tx.execute("DELETE FROM _snapback_changes", [])?;
         tx.execute("DELETE FROM _snapback_client_mutations", [])?;
+        tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
         tx.execute(
-            "DELETE FROM _snapback_meta WHERE key IN (?1, ?2)",
-            params![META_RETENTION_FLOOR, META_CLIENT_MUTATION_GC_TOTAL],
+            "DELETE FROM _snapback_meta WHERE key = ?1",
+            params![META_RETENTION_FLOOR],
         )?;
+        save_meta_u64(&tx, META_CLIENT_MUTATION_RECORDS, 0)?;
+        save_meta_u64(&tx, META_CLIENT_MUTATION_BYTES, 0)?;
+        save_meta_u64(&tx, META_CLIENT_MUTATION_GC_TOTAL, 0)?;
         // Remove the previous runtime ledger in the same durable boundary.
         // The post-commit runtime pass persists the new clean state; if that
         // secondary write fails, restart observes no stale pre-reset claims.
@@ -1696,6 +1862,11 @@ impl LocalDatabase {
               settled_at_ms INTEGER NOT NULL,
               settled_version INTEGER NOT NULL DEFAULT 0
             );
+            CREATE TABLE IF NOT EXISTS _snapback_client_mutation_auth_retention (
+              auth_fingerprint TEXT PRIMARY KEY,
+              records INTEGER NOT NULL CHECK(records >= 0),
+              bytes INTEGER NOT NULL CHECK(bytes >= 0)
+            );
             ",
         )?;
         // Older databases predate settlement-version metadata. SQLite cannot
@@ -1720,6 +1891,55 @@ impl LocalDatabase {
              ON _snapback_client_mutations(settled_version, settled_at_ms)",
             [],
         )?;
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS _snapback_client_mutations_by_auth
+             ON _snapback_client_mutations(auth_fingerprint)",
+            [],
+        )?;
+        self.ensure_client_mutation_retention_counters()?;
+        Ok(())
+    }
+
+    /// Install the O(1) retention-accounting metadata for old databases.
+    /// Existing ledgers are scanned once only when either counter is absent or
+    /// malformed; every later settlement and acknowledgement maintains both
+    /// values in the same transaction as its ledger-row change.
+    ///
+    /// @ref LLP 0043#milestone-2-queued-mutation-replay — refusal limits and
+    /// acknowledgement-driven GC must preserve exactly-once settlements.
+    fn ensure_client_mutation_retention_counters(&mut self) -> SnapbackResult<()> {
+        let tx = self.conn.transaction()?;
+        let version = optional_meta_u64_lenient(&tx, META_CLIENT_MUTATION_COUNTERS_VERSION)?;
+        let records = optional_meta_u64_lenient(&tx, META_CLIENT_MUTATION_RECORDS)?;
+        let bytes = optional_meta_u64_lenient(&tx, META_CLIENT_MUTATION_BYTES)?;
+        if version != Some(CLIENT_MUTATION_COUNTERS_VERSION) || records.is_none() || bytes.is_none()
+        {
+            let (records, bytes) = scan_client_mutation_retention_totals(&tx)?;
+            save_meta_u64(&tx, META_CLIENT_MUTATION_RECORDS, records)?;
+            save_meta_u64(&tx, META_CLIENT_MUTATION_BYTES, bytes)?;
+            tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
+            tx.execute(
+                "INSERT INTO _snapback_client_mutation_auth_retention(
+                   auth_fingerprint, records, bytes
+                 )
+                 SELECT auth_fingerprint, COUNT(*), SUM(
+                   length(CAST(client_mutation_id AS BLOB)) +
+                   length(CAST(function AS BLOB)) +
+                   length(CAST(auth_fingerprint AS BLOB)) +
+                   length(CAST(input_fingerprint AS BLOB)) +
+                   length(CAST(output_json AS BLOB))
+                 )
+                 FROM _snapback_client_mutations
+                 GROUP BY auth_fingerprint",
+                [],
+            )?;
+            save_meta_u64(
+                &tx,
+                META_CLIENT_MUTATION_COUNTERS_VERSION,
+                CLIENT_MUTATION_COUNTERS_VERSION,
+            )?;
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -2166,6 +2386,43 @@ fn reject_unsafe_required_field_changes(
     current: &SchemaManifest,
     next: &SchemaManifest,
 ) -> SnapbackResult<()> {
+    // The additive migrator intentionally preserves removed physical columns.
+    // A required column therefore cannot disappear from a still-declared
+    // table, or become optional, without leaving a hidden `NOT NULL` constraint
+    // that makes otherwise-valid future inserts fail. Refuse that logical
+    // weakening until the schema language has an explicit drop/backfill
+    // migration. A whole removed table remains dormant and is checked against
+    // its surviving physical columns if it is later reintroduced.
+    //
+    // @ref LLP 0007#schema-evolution — conservative evolution must preserve
+    // rollback data without accepting a manifest the physical schema cannot
+    // implement.
+    for current_table in &current.tables {
+        let Some(next_table) = next.table(&current_table.name) else {
+            continue;
+        };
+        for previous in current_table.fields.iter().filter(|field| !field.optional) {
+            let requested_change = match next_table.field(&previous.name) {
+                None => Some("remove"),
+                Some(field) if field.optional => Some("makeOptional"),
+                Some(_) => None,
+            };
+            if let Some(requested_change) = requested_change {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
+                    "schema",
+                    format!(
+                        "required field {}.{} cannot be removed or made optional while its preserved SQLite column is NOT NULL; explicit drop/backfill migrations are not supported",
+                        current_table.name, previous.name
+                    ),
+                )
+                .with_detail("table", current_table.name.clone())
+                .with_detail("field", previous.name.clone())
+                .with_detail("requestedChange", requested_change));
+            }
+        }
+    }
+
     for table in &next.tables {
         let Some(current_table) = current.table(&table.name) else {
             continue;
@@ -2262,6 +2519,22 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
     )?;
 
     let existing = physical_columns(tx, &table.name)?;
+    for column in existing.values() {
+        if !is_system_field(&column.name) && table.field(&column.name).is_none() && column.not_null
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
+                "schema",
+                format!(
+                    "table {} cannot omit preserved required field {}; its SQLite column is still NOT NULL",
+                    table.name, column.name
+                ),
+            )
+            .with_detail("table", table.name.clone())
+            .with_detail("field", column.name.clone())
+            .with_detail("requestedChange", "remove"));
+        }
+    }
     for field in &table.fields {
         match existing.get(&field.name) {
             None => {
@@ -2535,6 +2808,20 @@ struct PhysicalColumn {
     not_null: bool,
     default_sql: Option<String>,
     primary_key: i64,
+}
+
+fn physical_user_tables(conn: &Connection) -> SnapbackResult<Vec<String>> {
+    let mut statement = conn.prepare(
+        "SELECT name
+         FROM sqlite_schema
+         WHERE type = 'table'
+           AND name NOT GLOB '_snapback_*'
+           AND name NOT GLOB 'sqlite_*'
+         ORDER BY name",
+    )?;
+    Ok(statement
+        .query_map([], |row| row.get(0))?
+        .collect::<Result<Vec<_>, _>>()?)
 }
 
 fn physical_columns(
@@ -3756,6 +4043,127 @@ fn canonical_json(value: Value) -> Value {
     }
 }
 
+/// The logical retained-byte definition is stable and deliberately excludes
+/// SQLite row/index overhead. It is the sum of the five replay-identity/result
+/// payloads whose contents the server must keep for exactly-once replay.
+fn scan_client_mutation_retention_totals(conn: &Connection) -> SnapbackResult<(u64, u64)> {
+    let (records, bytes): (u64, u64) = conn.query_row(
+        "SELECT COUNT(*), COALESCE(SUM(
+           length(CAST(client_mutation_id AS BLOB)) +
+           length(CAST(function AS BLOB)) +
+           length(CAST(auth_fingerprint AS BLOB)) +
+           length(CAST(input_fingerprint AS BLOB)) +
+           length(CAST(output_json AS BLOB))
+         ), 0) FROM _snapback_client_mutations",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    Ok((records, bytes))
+}
+
+fn invalid_client_mutation_retention_state(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
+        "storage",
+        message,
+    )
+}
+
+fn meta_text(conn: &Connection, key: &str) -> SnapbackResult<Option<String>> {
+    Ok(conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key = ?1",
+            params![key],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+/// Startup migration helper: a missing or malformed pre-counter value asks
+/// the caller to rebuild from the ledger once. Runtime accounting uses the
+/// strict helper below and never treats an invalid counter as zero.
+fn optional_meta_u64_lenient(conn: &Connection, key: &str) -> SnapbackResult<Option<u64>> {
+    Ok(meta_text(conn, key)?.and_then(|value| value.parse().ok()))
+}
+
+fn optional_meta_u64(conn: &Connection, key: &str) -> SnapbackResult<Option<u64>> {
+    meta_text(conn, key)?
+        .map(|value| {
+            value.parse::<u64>().map_err(|_| {
+                invalid_client_mutation_retention_state(format!(
+                    "retention metadata {key} is not an unsigned integer"
+                ))
+            })
+        })
+        .transpose()
+}
+
+fn client_mutation_retention_counters(conn: &Connection) -> SnapbackResult<(u64, u64)> {
+    let records = optional_meta_u64(conn, META_CLIENT_MUTATION_RECORDS)?.ok_or_else(|| {
+        invalid_client_mutation_retention_state("retained record counter is missing")
+    })?;
+    let bytes = optional_meta_u64(conn, META_CLIENT_MUTATION_BYTES)?.ok_or_else(|| {
+        invalid_client_mutation_retention_state("retained byte counter is missing")
+    })?;
+    Ok((records, bytes))
+}
+
+fn client_mutation_auth_retention_counters(
+    conn: &Connection,
+    auth_fingerprint: &str,
+) -> SnapbackResult<(u64, u64)> {
+    Ok(conn
+        .query_row(
+            "SELECT records, bytes
+             FROM _snapback_client_mutation_auth_retention
+             WHERE auth_fingerprint = ?1",
+            params![auth_fingerprint],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?
+        .unwrap_or((0, 0)))
+}
+
+fn save_client_mutation_auth_retention_counters(
+    conn: &Connection,
+    auth_fingerprint: &str,
+    records: u64,
+    bytes: u64,
+) -> SnapbackResult<()> {
+    if records == 0 {
+        if bytes != 0 {
+            return Err(invalid_client_mutation_retention_state(
+                "zero retained auth records had a nonzero byte counter",
+            ));
+        }
+        conn.execute(
+            "DELETE FROM _snapback_client_mutation_auth_retention
+             WHERE auth_fingerprint = ?1",
+            params![auth_fingerprint],
+        )?;
+    } else {
+        conn.execute(
+            "INSERT INTO _snapback_client_mutation_auth_retention(
+               auth_fingerprint, records, bytes
+             ) VALUES(?1, ?2, ?3)
+             ON CONFLICT(auth_fingerprint) DO UPDATE SET
+               records = excluded.records,
+               bytes = excluded.bytes",
+            params![auth_fingerprint, records, bytes],
+        )?;
+    }
+    Ok(())
+}
+
+fn save_meta_u64(conn: &Connection, key: &str, value: u64) -> SnapbackResult<()> {
+    conn.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, value.to_string()],
+    )?;
+    Ok(())
+}
+
 fn record_client_mutation_result(
     tx: &Transaction<'_>,
     identity: &ClientMutationIdentity,
@@ -3784,25 +4192,29 @@ fn record_client_mutation_result(
             "maxBytes": CLIENT_MUTATION_MAX_RESULT_BYTES,
         })));
     }
-    let (retained, retained_bytes): (i64, i64) = tx.query_row(
-        "SELECT COUNT(*), COALESCE(SUM(
-           length(CAST(client_mutation_id AS BLOB)) +
-           length(CAST(function AS BLOB)) +
-           length(CAST(auth_fingerprint AS BLOB)) +
-           length(CAST(input_fingerprint AS BLOB)) +
-           length(CAST(output_json AS BLOB))
-         ), 0) FROM _snapback_client_mutations",
-        [],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    )?;
+    let (retained, retained_bytes) = client_mutation_retention_counters(tx)?;
+    let (auth_retained, auth_retained_bytes) =
+        client_mutation_auth_retention_counters(tx, &identity.auth_fingerprint)?;
     let new_bytes = identity.id.len() as u64
         + identity.function.len() as u64
         + identity.auth_fingerprint.len() as u64
         + identity.input_fingerprint.len() as u64
         + output_bytes;
-    if retained as u64 >= CLIENT_MUTATION_MAX_RECORDS
-        || (retained_bytes as u64).saturating_add(new_bytes) > CLIENT_MUTATION_MAX_BYTES
+    let limits = client_mutation_retention_limits();
+    let admitted_bytes = retained_bytes.checked_add(new_bytes);
+    let auth_admitted_bytes = auth_retained_bytes.checked_add(new_bytes);
+    if retained >= limits.records
+        || admitted_bytes.is_none_or(|bytes| bytes > limits.bytes)
+        || auth_retained >= limits.records_per_auth
+        || auth_admitted_bytes.is_none_or(|bytes| bytes > limits.bytes_per_auth)
     {
+        let scope = if auth_retained >= limits.records_per_auth
+            || auth_admitted_bytes.is_none_or(|bytes| bytes > limits.bytes_per_auth)
+        {
+            "auth"
+        } else {
+            "global"
+        };
         return Err(SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL",
             "sync",
@@ -3810,10 +4222,15 @@ fn record_client_mutation_result(
         )
         .with_details(json!({
             "records": retained,
-            "maxRecords": CLIENT_MUTATION_MAX_RECORDS,
+            "maxRecords": limits.records,
             "bytes": retained_bytes,
             "incomingBytes": new_bytes,
-            "maxBytes": CLIENT_MUTATION_MAX_BYTES,
+            "maxBytes": limits.bytes,
+            "authRecords": auth_retained,
+            "maxAuthRecords": limits.records_per_auth,
+            "authBytes": auth_retained_bytes,
+            "maxAuthBytes": limits.bytes_per_auth,
+            "scope": scope,
         })));
     }
     tx.execute(
@@ -3830,6 +4247,18 @@ fn record_client_mutation_result(
             timestamp_to_sql_millis(now_millis())?,
             version_to_sql_integer(output.version)?,
         ],
+    )?;
+    save_meta_u64(tx, META_CLIENT_MUTATION_RECORDS, retained + 1)?;
+    save_meta_u64(
+        tx,
+        META_CLIENT_MUTATION_BYTES,
+        admitted_bytes.expect("checked by retention admission"),
+    )?;
+    save_client_mutation_auth_retention_counters(
+        tx,
+        &identity.auth_fingerprint,
+        auth_retained + 1,
+        auth_admitted_bytes.expect("checked by per-auth retention admission"),
     )?;
     Ok(())
 }
@@ -3955,6 +4384,37 @@ mod guarded_commit_tests {
         assert_eq!(db.scan_table("items", 10, 0).expect("scan").total, 0);
     }
 
+    struct TestRetentionLimits(Option<ClientMutationRetentionLimits>);
+
+    impl TestRetentionLimits {
+        fn install(records: u64, bytes: u64) -> Self {
+            Self::install_all(records, bytes, u64::MAX, u64::MAX)
+        }
+
+        fn install_all(
+            records: u64,
+            bytes: u64,
+            records_per_auth: u64,
+            bytes_per_auth: u64,
+        ) -> Self {
+            let previous = CLIENT_MUTATION_TEST_LIMITS.with(|slot| {
+                slot.replace(Some(ClientMutationRetentionLimits {
+                    records,
+                    bytes,
+                    records_per_auth,
+                    bytes_per_auth,
+                }))
+            });
+            Self(previous)
+        }
+    }
+
+    impl Drop for TestRetentionLimits {
+        fn drop(&mut self) {
+            CLIENT_MUTATION_TEST_LIMITS.with(|slot| slot.set(self.0));
+        }
+    }
+
     fn seed_data(id: &str, title: &str) -> SeedData {
         SeedData {
             tables: BTreeMap::from([(
@@ -4054,6 +4514,226 @@ mod guarded_commit_tests {
     }
 
     #[test]
+    fn retention_record_n_plus_one_refuses_without_losing_replay_or_writes() {
+        let _limits = TestRetentionLimits::install(2, u64::MAX);
+        let mut db = database();
+        let input = HandlerInput::default();
+        let first = ClientMutationIdentity::new("cm_record_limit_1", "hostPlan", &input);
+        let second = ClientMutationIdentity::new("cm_record_limit_2", "hostPlan", &input);
+        for identity in [&first, &second] {
+            db.execute_mutation_plan_with_lifecycle(
+                &insert_plan(),
+                &input,
+                true,
+                Some(identity),
+                &|| Ok(()),
+                || Ok(()),
+            )
+            .expect("settlement below the fixture limit");
+        }
+        let retained = db.client_mutation_retention_info().unwrap();
+        assert_eq!(retained.records, 2);
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 4);
+        assert_eq!(db.current_version().unwrap(), 2);
+
+        let refused = ClientMutationIdentity::new("cm_record_limit_3", "hostPlan", &input);
+        let error = match db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input,
+            true,
+            Some(&refused),
+            &|| Ok(()),
+            || Ok(()),
+        ) {
+            Ok(_) => panic!("record N+1 must fail closed"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        );
+        assert_eq!(db.client_mutation_retention_info().unwrap(), retained);
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 4);
+        assert_eq!(db.current_version().unwrap(), 2);
+        assert!(db.client_mutation_result(&first).unwrap().is_some());
+        assert_eq!(db.client_mutation_result(&refused).unwrap(), None);
+    }
+
+    #[test]
+    fn retention_byte_n_plus_one_refuses_without_losing_replay_or_writes() {
+        let mut db = database();
+        let input = HandlerInput::default();
+        let first = ClientMutationIdentity::new("cm_byte_limit_1", "hostPlan", &input);
+        db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input,
+            true,
+            Some(&first),
+            &|| Ok(()),
+            || Ok(()),
+        )
+        .expect("first settlement");
+        let retained = db.client_mutation_retention_info().unwrap();
+        let _limits = TestRetentionLimits::install(10, retained.bytes);
+
+        let refused = ClientMutationIdentity::new("cm_byte_limit_2", "hostPlan", &input);
+        let error = match db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input,
+            true,
+            Some(&refused),
+            &|| Ok(()),
+            || Ok(()),
+        ) {
+            Ok(_) => panic!("byte N+1 must fail closed"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        );
+        assert_eq!(db.client_mutation_retention_info().unwrap(), retained);
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 2);
+        assert_eq!(db.current_version().unwrap(), 1);
+        assert!(db.client_mutation_result(&first).unwrap().is_some());
+        assert_eq!(db.client_mutation_result(&refused).unwrap(), None);
+    }
+
+    #[test]
+    fn per_auth_record_limit_preserves_capacity_for_another_principal() {
+        let _limits = TestRetentionLimits::install_all(10, u64::MAX, 2, u64::MAX);
+        let mut db = database();
+        let input_a = HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: Some("auth-a".to_owned()),
+                ..crate::manifest::AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let input_b = HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: Some("auth-b".to_owned()),
+                ..crate::manifest::AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        for suffix in ["1", "2"] {
+            let identity =
+                ClientMutationIdentity::new(format!("cm_auth_a_{suffix}"), "hostPlan", &input_a);
+            db.execute_mutation_plan_with_lifecycle(
+                &insert_plan(),
+                &input_a,
+                true,
+                Some(&identity),
+                &|| Ok(()),
+                || Ok(()),
+            )
+            .expect("same auth below cap");
+        }
+        let refused = ClientMutationIdentity::new("cm_auth_a_3", "hostPlan", &input_a);
+        let error = match db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input_a,
+            true,
+            Some(&refused),
+            &|| Ok(()),
+            || Ok(()),
+        ) {
+            Ok(_) => panic!("per-auth record N+1 must fail closed"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        );
+        assert_eq!(error.diagnostic.details["scope"], "auth");
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 4);
+
+        let other = ClientMutationIdentity::new("cm_auth_b_1", "hostPlan", &input_b);
+        db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input_b,
+            true,
+            Some(&other),
+            &|| Ok(()),
+            || Ok(()),
+        )
+        .expect("another auth retains independent capacity");
+        assert_eq!(db.client_mutation_retention_info().unwrap().records, 3);
+        assert_eq!(
+            client_mutation_auth_retention_counters(&db.conn, &refused.auth_fingerprint)
+                .unwrap()
+                .0,
+            2
+        );
+        assert_eq!(
+            client_mutation_auth_retention_counters(&db.conn, &other.auth_fingerprint)
+                .unwrap()
+                .0,
+            1
+        );
+    }
+
+    #[test]
+    fn per_auth_byte_limit_preserves_capacity_for_another_principal() {
+        let mut db = database();
+        let input_a = HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: Some("bytes-a".to_owned()),
+                ..crate::manifest::AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let input_b = HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: Some("bytes-b".to_owned()),
+                ..crate::manifest::AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let first = ClientMutationIdentity::new("cm_auth_bytes_a_1", "hostPlan", &input_a);
+        db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input_a,
+            true,
+            Some(&first),
+            &|| Ok(()),
+            || Ok(()),
+        )
+        .expect("first auth settlement");
+        let (_, auth_bytes) =
+            client_mutation_auth_retention_counters(&db.conn, &first.auth_fingerprint).unwrap();
+        let _limits = TestRetentionLimits::install_all(10, u64::MAX, 10, auth_bytes);
+
+        let refused = ClientMutationIdentity::new("cm_auth_bytes_a_2", "hostPlan", &input_a);
+        let error = match db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input_a,
+            true,
+            Some(&refused),
+            &|| Ok(()),
+            || Ok(()),
+        ) {
+            Ok(_) => panic!("per-auth byte N+1 must fail closed"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.details["scope"], "auth");
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 2);
+
+        let other = ClientMutationIdentity::new("cm_auth_bytes_b_1", "hostPlan", &input_b);
+        db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input_b,
+            true,
+            Some(&other),
+            &|| Ok(()),
+            || Ok(()),
+        )
+        .expect("another auth has an independent byte budget");
+        assert_eq!(db.client_mutation_retention_info().unwrap().records, 2);
+    }
+
+    #[test]
     fn explicit_authenticated_acknowledgement_reclaims_settlement_and_tracks_gc() {
         let mut db = database();
         let input = HandlerInput::default();
@@ -4088,6 +4768,113 @@ mod guarded_commit_tests {
         let reclaimed = db.client_mutation_retention_info().unwrap();
         assert_eq!(reclaimed.records, 0);
         assert_eq!(reclaimed.gc_total, 1);
+    }
+
+    #[test]
+    fn retention_counters_backfill_reopen_and_ack_transactionally() {
+        let (_dir, path, mut db) = file_database();
+        let input = HandlerInput::default();
+        let identity = ClientMutationIdentity::new("cm_counter_reopen", "hostPlan", &input);
+        db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input,
+            true,
+            Some(&identity),
+            &|| Ok(()),
+            || Ok(()),
+        )
+        .expect("settle mutation");
+        let before = db.client_mutation_retention_info().unwrap();
+        assert_eq!(before.records, 1);
+        assert!(before.bytes > 0);
+
+        // Simulate a database created before the counters existed. Reopen is
+        // the only path that scans the retained ledger and installs them.
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_meta WHERE key IN (?1, ?2)",
+                params![META_CLIENT_MUTATION_RECORDS, META_CLIENT_MUTATION_BYTES],
+            )
+            .unwrap();
+        drop(db);
+        let mut reopened = LocalDatabase::open(&path).expect("reopen and backfill counters");
+        assert_eq!(reopened.client_mutation_retention_info().unwrap(), before);
+
+        assert_eq!(
+            reopened
+                .acknowledge_client_mutations(
+                    &identity.auth_fingerprint,
+                    std::slice::from_ref(&identity.id),
+                )
+                .unwrap(),
+            1
+        );
+        let after_ack = reopened.client_mutation_retention_info().unwrap();
+        assert_eq!(after_ack.records, 0);
+        assert_eq!(after_ack.bytes, 0);
+        assert_eq!(after_ack.gc_total, 1);
+        drop(reopened);
+
+        let reopened = LocalDatabase::open(&path).expect("reopen acknowledged counters");
+        assert_eq!(
+            reopened.client_mutation_retention_info().unwrap(),
+            after_ack
+        );
+    }
+
+    #[test]
+    fn admin_recovery_purge_updates_global_and_auth_counters_atomically() {
+        let mut db = database();
+        let make_input = |user: &str| HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: Some(user.to_owned()),
+                ..crate::manifest::AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let input_a = make_input("purge-a");
+        let input_b = make_input("purge-b");
+        let identities = [
+            ClientMutationIdentity::new("cm_purge_a_1", "hostPlan", &input_a),
+            ClientMutationIdentity::new("cm_purge_a_2", "hostPlan", &input_a),
+            ClientMutationIdentity::new("cm_purge_b_1", "hostPlan", &input_b),
+        ];
+        for (identity, input) in [
+            (&identities[0], &input_a),
+            (&identities[1], &input_a),
+            (&identities[2], &input_b),
+        ] {
+            db.execute_mutation_plan_with_lifecycle(
+                &insert_plan(),
+                input,
+                true,
+                Some(identity),
+                &|| Ok(()),
+                || Ok(()),
+            )
+            .expect("settle purge fixture");
+        }
+        assert_eq!(db.client_mutation_retention_info().unwrap().records, 3);
+        assert_eq!(
+            db.purge_client_mutation_settlements(Some(&identities[0].auth_fingerprint))
+                .unwrap(),
+            2
+        );
+        let after_auth = db.client_mutation_retention_info().unwrap();
+        assert_eq!(after_auth.records, 1);
+        assert_eq!(after_auth.gc_total, 0, "admin purge is not client ACK GC");
+        assert_eq!(
+            client_mutation_auth_retention_counters(&db.conn, &identities[0].auth_fingerprint)
+                .unwrap(),
+            (0, 0)
+        );
+        assert!(db.client_mutation_result(&identities[0]).unwrap().is_none());
+        assert!(db.client_mutation_result(&identities[2]).unwrap().is_some());
+
+        assert_eq!(db.purge_client_mutation_settlements(None).unwrap(), 1);
+        let empty = db.client_mutation_retention_info().unwrap();
+        assert_eq!((empty.records, empty.bytes), (0, 0));
+        assert!(db.client_mutation_result(&identities[2]).unwrap().is_none());
     }
 
     struct CommitVisibilityGuard {

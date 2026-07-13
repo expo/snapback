@@ -4825,13 +4825,14 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        BEFORE_MUTATION_POSTCOMMIT_HOOK, DetachedIbexMutation, DetachedMutationRead, LocalSnapback,
-        StagedNestedMutation,
+        BEFORE_MUTATION_POSTCOMMIT_HOOK, DetachedIbexMutation, DetachedMutationRead,
+        LiveSubscribeInput, LocalSnapback, StagedNestedMutation,
     };
     use crate::manifest::{
         CtxAnswerLedger, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
         FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationPlan,
-        MutationStep, ReturnValue, SchemaManifest, TableManifest, ValueExpr, ctx_ledger_version,
+        MutationStep, QueryPlan, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
+        ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::storage::BufferedWrite;
@@ -4938,6 +4939,61 @@ globalThis.__snapbackHandlers = {
             .expect("apply guarded schema");
         snapback.load_functions(guarded_functions());
         snapback
+    }
+
+    #[test]
+    fn reset_commit_failure_preserves_runtime_generation_and_live_subscription() {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(reload_schema("reset-failure-schema", false))
+            .expect("apply schema");
+        let mut functions = guarded_functions();
+        functions.functions.push(FunctionDefinition::new(
+            "listItems",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        ));
+        snapback.load_functions(functions);
+        snapback
+            .invoke_mutation("hostInsert", HandlerInput::default())
+            .expect("seed row");
+        let subscription = snapback
+            .subscribe_live(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "reset-failure-client".to_owned(),
+                    input: HandlerInput::default(),
+                    supersedes: None,
+                },
+            )
+            .expect("subscribe");
+        let generation = snapback.app_generation();
+
+        crate::storage::inject_reset_commit_failure_for_test();
+        let error = snapback
+            .reset()
+            .expect_err("commit-boundary failure rejects reset");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_eq!(snapback.app_generation(), generation);
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&subscription.subscription_id)
+        );
+        assert_eq!(
+            snapback
+                .invoke_query("listItems", HandlerInput::default())
+                .expect("prior generation remains usable")
+                .rows
+                .len(),
+            1
+        );
     }
 
     fn cancelled() -> crate::diagnostic::SnapbackError {

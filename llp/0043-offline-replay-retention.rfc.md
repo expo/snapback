@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+**Revised:** 2026-07-13 (retention admission uses transactionally maintained global and per-auth record/byte counters, one-time legacy backfill, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
 slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
 client mutation settlement, full-resync-before-replay, and replay tests; broader
 conflict/delta-resume work remains as scoped below. Earlier: cross-family review
@@ -143,10 +143,23 @@ auth-bound, so one principal cannot delete another's replay result.
 
 Exactly-once wins over opportunistic eviction. A retained result is capped at
 65,536 serialized bytes; the ledger is capped at 10,000 records and 67,108,864
-logical result bytes. At a cap the server refuses a new identity rather than
-evicting an unacknowledged result. Gated storage inspection reports current
-record/byte gauges, the caps, and cumulative acknowledged-GC count; the public
-inspection projection omits these operational retention facts.
+logical result bytes. One auth fingerprint is separately capped at 1,024
+records and 8,388,608 logical result bytes, so a caller that withholds
+acknowledgements cannot consume every other principal's global replay capacity.
+At any cap the server refuses a new identity rather than evicting an
+unacknowledged result.
+
+Admission reads transactionally maintained global and per-auth record/byte
+counters, never a ledger-wide `COUNT`/`SUM` on the settlement path. Insert,
+authenticated acknowledgement, and counter changes share one SQLite
+transaction; an existing pre-counter database performs one grouped backfill on
+open. Gated storage inspection reports current global record/byte gauges, the
+caps, and cumulative acknowledged-GC count; the public inspection projection
+omits these operational retention facts. An explicitly admin-gated recovery
+operation may purge all settlements or one auth fingerprint when the original
+client can no longer acknowledge them. That operator action intentionally gives
+up exactly-once replay for the purged identities and is not counted as client
+acknowledgement GC.
 
 ### Conflict posture
 
