@@ -98,6 +98,17 @@ pub enum LiveDeltaOpKind {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum LiveSocketServerFrame {
+    /// Terminal authority loss for the exact socket/grant generation. The
+    /// frame intentionally carries no authority identifier; a client applies
+    /// it only to the capture that owns this socket and then treats close code
+    /// 4401 as terminal rather than reconnectable.
+    ///
+    /// @ref LLP 0056#typed-terminal-auth-error — terminal live closure is a
+    ///   closed, identifier-free wire event.
+    AuthError {
+        code: LiveAuthErrorCode,
+        reason: LiveAuthErrorReason,
+    },
     /// Answer to a client `ping` (LLP 0034 D1 liveness probe).
     Pong {
         #[serde(rename = "requestId")]
@@ -130,6 +141,30 @@ pub enum LiveSocketServerFrame {
     /// happen — durable payloads are serialized JSON — but the lane must
     /// never drop a message silently).
     DurableBytes { payload: Vec<u8> },
+}
+
+/// Closed terminal classes understood by item-5 clients. Later invalidation
+/// dispositions must revise the schema instead of smuggling new strings into
+/// this family.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+pub enum LiveAuthErrorCode {
+    #[serde(rename = "SNAPBACK_AUTH_SESSION_EXPIRED")]
+    SessionExpired,
+    #[serde(rename = "SNAPBACK_AUTH_STREAM_RESET")]
+    StreamReset,
+    #[serde(rename = "SNAPBACK_AUTH_MODE_PENDING")]
+    ModePending,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LiveAuthErrorReason {
+    Expired,
+    Revoked,
+    Reset,
+    Restore,
+    Downgrade,
+    ModeTransition,
 }
 
 /// A message a client sends on the live WebSocket. Tagged with `type` (not
@@ -366,6 +401,19 @@ mod tests {
 
     #[test]
     fn socket_server_frame_wire_shapes_are_preserved() {
+        let terminal = LiveSocketServerFrame::AuthError {
+            code: LiveAuthErrorCode::SessionExpired,
+            reason: LiveAuthErrorReason::Expired,
+        };
+        assert_eq!(
+            serde_json::to_value(&terminal).unwrap(),
+            json!({
+                "kind": "auth_error",
+                "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
+                "reason": "expired",
+            })
+        );
+
         let pong = LiveSocketServerFrame::Pong {
             request_id: Some("r1".into()),
             server_time_ms: 123,

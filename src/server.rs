@@ -3752,6 +3752,84 @@ fn session_online_protocol_refusal(
     None
 }
 
+fn live_function_name<'a>(spec: RouteSpec, path: &'a str) -> Option<&'a str> {
+    let suffix = match spec.path {
+        "/live/{name}/subscribe" => "/subscribe",
+        "/live/{name}/resume" => "/resume",
+        "/live/{name}/unsubscribe" => "/unsubscribe",
+        _ => return None,
+    };
+    let name = path.strip_prefix("/live/")?.strip_suffix(suffix)?;
+    (!name.is_empty() && !name.contains('/')).then_some(name)
+}
+
+/// Item 5 deliberately enables finite session work before LLP 0053's
+/// invalidation protocol lands. The exception is narrow: only a manifest-
+/// proved authority-independent durable live function, or an unprotected
+/// ephemeral room, may cross the live gate in that interval.
+///
+/// @ref LLP 0055#live-and-replay-admission-before-later-items — refuse
+///   auth-scoped live before query/materialization until invalidation exists.
+async fn session_live_protocol_refusal(
+    spec: RouteSpec,
+    runtime: &AppState,
+    headers: &HeaderMap,
+    path: &str,
+    body: Option<&Value>,
+) -> Option<SnapbackError> {
+    if runtime.auth_mode_state().active != crate::manifest::AuthMode::Sessions {
+        return None;
+    }
+
+    let auth_scoped = if let Some(function) = live_function_name(spec, path) {
+        let function = function.to_owned();
+        !with_snapback(&runtime.snapback, move |snapback| {
+            snapback.function_is_authority_independent(&function)
+        })
+        .await
+    } else if spec.path == "/ephemeral/subscribe" {
+        body.and_then(Value::as_object)
+            .and_then(|body| body.get("collection"))
+            .and_then(Value::as_str)
+            .and_then(|collection| {
+                runtime
+                    .ephemeral
+                    .subscription_requires_permission(collection)
+            })
+            .unwrap_or(false)
+    } else {
+        false
+    };
+    if !auth_scoped {
+        return None;
+    }
+
+    if !runtime.auth_program_readiness().authorization_invalidation {
+        return Some(
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "auth-scoped live work is unavailable until authorization invalidation is ready",
+            )
+            .with_details(json!({ "capability": "authScopedLive" })),
+        );
+    }
+    if AuthClientProtocolOffers::from_headers(headers).auth_invalidation != Some(AUTH_PROTOCOL_V1) {
+        return Some(
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                "auth",
+                "auth-scoped live work requires the exact authorization-invalidation protocol",
+            )
+            .with_details(json!({
+                "capability": "authScopedLive",
+                "minimumAuthInvalidationProtocol": AUTH_PROTOCOL_V1,
+            })),
+        );
+    }
+    None
+}
+
 fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
     match spec.path {
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
@@ -4495,6 +4573,22 @@ async fn enforce_registered_route_policy(
         return finish_registered_response(
             effective,
             ApiError::from(protocol_error).into_response(),
+            route_admission.as_ref(),
+            None,
+        );
+    }
+    if let Some(error) = session_live_protocol_refusal(
+        spec,
+        &runtime,
+        request.headers(),
+        request.uri().path(),
+        policy_body.as_ref(),
+    )
+    .await
+    {
+        return finish_registered_response(
+            effective,
+            ApiError::from(error).into_response(),
             route_admission.as_ref(),
             None,
         );
@@ -9713,7 +9807,7 @@ mod tests {
         AuthInput, AuthMode, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
         CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FunctionDefinition,
         FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
-        MutationAcknowledgementRequest, MutationPlan, ReturnValue, SchemaManifest,
+        MutationAcknowledgementRequest, MutationPlan, QueryPlan, ReturnValue, SchemaManifest,
     };
     use crate::runtime::IbexActionHost;
     use crate::storage::ClientMutationIdentity;
@@ -9721,7 +9815,7 @@ mod tests {
     use axum::Json;
     use axum::body::{Body, Bytes, to_bytes};
     use axum::extract::{Extension, State};
-    use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
+    use axum::http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header};
     use futures_util::StreamExt as _;
     use serde_json::{Value, json};
     use std::collections::BTreeSet;
@@ -10459,6 +10553,84 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(supported.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn item5_live_gate_preserves_only_manifest_proved_independent_exception() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let item5 = AuthProgramReadiness::new(true, true, true, true, false, false, false);
+        let state = state
+            .with_auth_runtime_facts(settled_sessions_state(), item5)
+            .expect("install item-5 sessions fixture");
+        let mut independent = FunctionDefinition::new(
+            "publicFeed",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        );
+        independent.authority_independent = true;
+        let scoped = FunctionDefinition::new(
+            "privateFeed",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        );
+        super::with_snapback(&state.snapback, move |snapback| {
+            let diagnostics = snapback.load_functions(FunctionManifest {
+                functions: vec![independent, scoped],
+                ..FunctionManifest::default()
+            });
+            assert!(
+                diagnostics.iter().all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+                "live-gate manifest must load: {diagnostics:?}"
+            );
+        })
+        .await;
+        let spec = super::app_data_route_registrations()
+            .into_iter()
+            .find(|route| route.spec.path == "/live/{name}/subscribe")
+            .expect("registered live subscribe")
+            .spec;
+        let headers = HeaderMap::from_iter([(
+            HeaderName::from_static("x-snapback-auth-client-protocol"),
+            HeaderValue::from_static("1"),
+        )]);
+
+        assert!(
+            super::session_live_protocol_refusal(
+                spec,
+                &state,
+                &headers,
+                "/live/publicFeed/subscribe",
+                None,
+            )
+            .await
+            .is_none()
+        );
+        let refusal = super::session_live_protocol_refusal(
+            spec,
+            &state,
+            &headers,
+            "/live/privateFeed/subscribe",
+            None,
+        )
+        .await
+        .expect("auth-scoped live must fail before item 6");
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
+        );
     }
 
     #[tokio::test]

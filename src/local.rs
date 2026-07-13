@@ -1414,6 +1414,10 @@ impl EphemeralApi {
         self.store.delivery_notifier()
     }
 
+    pub(crate) fn subscription_requires_permission(&self, collection: &str) -> Option<bool> {
+        self.store.subscription_requires_permission(collection)
+    }
+
     #[cfg(test)]
     pub(crate) fn enqueue_durable_for_test(&self, connection_id: &str, payload: Vec<u8>) {
         self.store
@@ -5175,6 +5179,12 @@ impl LocalSnapback {
                 format!("unknown function {name}"),
             )
         })
+    }
+
+    pub(crate) fn function_is_authority_independent(&self, name: &str) -> bool {
+        self.functions
+            .function(name)
+            .is_some_and(|function| function.authority_independent)
     }
 
     /// A handle to the lock-free read lane. Cloneable; shares the manifest

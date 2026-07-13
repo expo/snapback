@@ -24,6 +24,7 @@ pub(crate) const SESSION_PROJECTION_FORMAT_VERSION: u32 = 1;
 pub(crate) const AUTHORIZATION_STREAM_META_KEY: &str = "auth_stream_incarnation_v1";
 const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
+pub(crate) const TERMINAL_CLOSE_GRACE: Duration = Duration::from_millis(5_000);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct AuthorizationStreamIncarnation(String);
@@ -304,8 +305,13 @@ pub(crate) struct ProjectedSessionAuthority {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ExpiredSession {
+    pub authorization_stream_incarnation: String,
     pub session_id: String,
     pub generation: u64,
+    /// Absolute monotonic close deadline. For an ordinary expiry this is the
+    /// projected deadline plus five seconds; when a forward wall-clock jump
+    /// newly proves expiry, observation time starts that same fixed budget.
+    pub close_by: Instant,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -835,15 +841,33 @@ impl SessionProjection {
             .filter(|key| {
                 epoch_now_ms >= key.epoch_deadline_ms || monotonic_now >= key.monotonic_deadline
             })
-            .map(|key| (key.session_id.clone(), key.generation))
+            .map(|key| {
+                let wall_jump_observation =
+                    epoch_now_ms >= key.epoch_deadline_ms && monotonic_now < key.monotonic_deadline;
+                let close_origin = if wall_jump_observation {
+                    monotonic_now
+                } else {
+                    key.monotonic_deadline
+                };
+                (
+                    key.session_id.clone(),
+                    key.generation,
+                    close_origin.checked_add(TERMINAL_CLOSE_GRACE),
+                )
+            })
             .collect();
         let mut expired = Vec::with_capacity(due.len());
-        for (session_id, generation) in due {
+        for (session_id, generation, close_by) in due {
+            let close_by = close_by.ok_or_else(|| {
+                projection_unavailable("terminal close deadline overflowed monotonic time")
+            })?;
             let ticket = self.begin_expiry(&session_id, generation, epoch_now_ms, monotonic_now)?;
             self.finalize_expiry(&ticket, &session_id, epoch_now_ms, monotonic_now)?;
             expired.push(ExpiredSession {
+                authorization_stream_incarnation: self.incarnation.as_str().to_owned(),
                 session_id,
                 generation,
+                close_by,
             });
         }
         Ok(expired)
@@ -2417,8 +2441,10 @@ mod tests {
         assert_eq!(
             expired,
             vec![ExpiredSession {
+                authorization_stream_incarnation: incarnation.as_str().to_owned(),
                 session_id: session_id.clone(),
                 generation: 1,
+                close_by: monotonic_now + Duration::from_millis(50) + TERMINAL_CLOSE_GRACE,
             }]
         );
         assert!(

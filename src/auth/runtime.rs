@@ -19,6 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 use super::coordinator::AuthCoordinator;
@@ -28,8 +29,10 @@ use super::provider::{
     AuthGcPass, AuthProvider, AuthProviderProfile, AuthProviderReadiness, ProviderError,
     ProviderResult,
 };
-use super::session_projection::{AuthorizationStreamRecord, ProjectionSource, SessionProjection};
-use crate::diagnostic::{Diagnostic, SnapbackResult};
+use super::session_projection::{
+    AuthorizationStreamRecord, ExpiredSession, ProjectionSource, SessionProjection,
+};
+use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
 use crate::server::SharedSnapback;
 use crate::storage::auth::AuthCatalogState;
@@ -44,6 +47,55 @@ pub enum AuthProviderHealth {
     Dormant,
     Available,
     Unavailable,
+}
+
+/// Infallible, clone-shared bridge from projection expiry to server terminal
+/// propagation. Expiry has already become authoritative when this callback
+/// runs, so making the callback fallible would create an unretryable state in
+/// which the one-shot `ExpiredSession` output was discarded.
+#[derive(Clone)]
+pub(crate) struct AuthExpiryTerminalSink {
+    consume: Arc<dyn Fn(Vec<ExpiredSession>) + Send + Sync>,
+}
+
+impl AuthExpiryTerminalSink {
+    pub(crate) fn new(consume: impl Fn(Vec<ExpiredSession>) + Send + Sync + 'static) -> Self {
+        Self {
+            consume: Arc::new(consume),
+        }
+    }
+
+    fn consume(&self, expired: Vec<ExpiredSession>) {
+        (self.consume)(expired);
+    }
+
+    #[cfg(test)]
+    fn noop() -> Self {
+        Self::new(drop)
+    }
+}
+
+pub(crate) struct AuthExpiryWorker {
+    handle: JoinHandle<SnapbackResult<()>>,
+}
+
+impl AuthExpiryWorker {
+    /// Resolve only when the process-critical worker stops. Callers race this
+    /// against the listener and fail the process closed on either an explicit
+    /// projection error or a task panic/cancellation.
+    pub(crate) async fn stopped(&mut self) -> SnapbackResult<()> {
+        (&mut self.handle).await.map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "the process-local session expiry worker stopped unexpectedly",
+            )
+        })?
+    }
+
+    pub(crate) fn abort(&self) {
+        self.handle.abort();
+    }
 }
 
 /// The one provider assembled for a serve process, plus the catalog posture
@@ -208,6 +260,7 @@ pub(crate) async fn run_periodic_gc_pass(
     state: &SharedSnapback,
     provider: Arc<AuthProvider>,
     coordinator: Arc<AuthCoordinator>,
+    terminal_sink: &AuthExpiryTerminalSink,
 ) -> ProviderResult<AuthGcPass> {
     let maintenance = provider.exclusive_maintenance().await;
     let now_ms = provider.now_ms();
@@ -215,9 +268,10 @@ pub(crate) async fn run_periodic_gc_pass(
     // terminalization. A projection failure aborts this pass before SQLite.
     // @ref LLP 0056#operation-specific-publication — the projection owns live
     // expiry authority; GC only reclaims rows after that authority is closed.
-    coordinator
+    let expired = coordinator
         .expire_due(now_ms, provider.monotonic_now())
         .map_err(ProviderError::from)?;
+    terminal_sink.consume(expired);
     crate::server::with_snapback(state, move |snapback| {
         maintenance.run_gc_pass(snapback.auth_database_mut(), now_ms)
     })
@@ -232,6 +286,7 @@ pub(crate) fn spawn_auth_gc_worker(
     state: SharedSnapback,
     runtime: AuthRuntime,
     coordinator: Arc<AuthCoordinator>,
+    terminal_sink: AuthExpiryTerminalSink,
     initial_delay: Duration,
 ) -> Option<JoinHandle<()>> {
     if !runtime.catalog_ready {
@@ -241,11 +296,17 @@ pub(crate) fn spawn_auth_gc_worker(
         let mut delay = initial_delay;
         loop {
             tokio::time::sleep(delay).await;
-            delay =
-                match run_periodic_gc_pass(&state, runtime.provider(), coordinator.clone()).await {
-                    Ok(pass) => pass.next_delay(),
-                    Err(_) => AUTH_GC_INTERVAL,
-                };
+            delay = match run_periodic_gc_pass(
+                &state,
+                runtime.provider(),
+                coordinator.clone(),
+                &terminal_sink,
+            )
+            .await
+            {
+                Ok(pass) => pass.next_delay(),
+                Err(_) => AUTH_GC_INTERVAL,
+            };
         }
     }))
 }
@@ -253,20 +314,30 @@ pub(crate) fn spawn_auth_gc_worker(
 /// Process-local expiry authority. The delay is capped by the projection at
 /// one second; each wake samples both clocks and permanently terminalizes due
 /// generations before later GC may delete their durable rows.
-pub(crate) fn spawn_auth_expiry_worker(
+pub(crate) async fn spawn_auth_expiry_worker(
     coordinator: Arc<AuthCoordinator>,
     provider: Arc<AuthProvider>,
-) -> JoinHandle<()> {
-    tokio::spawn(async move {
+    terminal_sink: AuthExpiryTerminalSink,
+) -> SnapbackResult<AuthExpiryWorker> {
+    let (ready, running) = oneshot::channel();
+    let handle = tokio::spawn(async move {
+        let _ = ready.send(());
         loop {
             let monotonic_now = provider.monotonic_now();
-            let delay = coordinator
-                .expiry_scan_delay(monotonic_now)
-                .unwrap_or(Duration::from_millis(1_000));
+            let delay = coordinator.expiry_scan_delay(monotonic_now)?;
             tokio::time::sleep(delay).await;
-            let _ = coordinator.expire_due(provider.now_ms(), provider.monotonic_now());
+            let expired = coordinator.expire_due(provider.now_ms(), provider.monotonic_now())?;
+            terminal_sink.consume(expired);
         }
-    })
+    });
+    running.await.map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "the process-local session expiry worker failed before becoming ready",
+        )
+    })?;
+    Ok(AuthExpiryWorker { handle })
 }
 
 fn provider_unavailable_diagnostic() -> Diagnostic {
@@ -301,8 +372,8 @@ mod tests {
     use crate::local::LocalSnapback;
     use crate::storage::auth::AUTH_GC_BATCH;
     use rusqlite::params;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::{Arc, Mutex as StdMutex};
     use std::time::Instant;
     use tokio::sync::Mutex;
 
@@ -603,6 +674,7 @@ mod tests {
             state.clone(),
             runtime.clone(),
             coordinator,
+            AuthExpiryTerminalSink::noop(),
             startup_pass.next_delay(),
         )
         .expect("ready catalog starts auth GC worker");
@@ -710,10 +782,15 @@ mod tests {
 
         let gc_state = state.clone();
         let gc_provider = provider.clone();
-        let gc =
-            tokio::spawn(
-                async move { run_periodic_gc_pass(&gc_state, gc_provider, coordinator).await },
-            );
+        let gc = tokio::spawn(async move {
+            run_periodic_gc_pass(
+                &gc_state,
+                gc_provider,
+                coordinator,
+                &AuthExpiryTerminalSink::noop(),
+            )
+            .await
+        });
         tokio::task::yield_now().await;
 
         let admission = tokio::time::timeout(Duration::from_millis(50), provider.admit()).await;
@@ -805,10 +882,20 @@ mod tests {
 
         let state = Arc::new(Mutex::new(snapback));
         clock.set(1_101);
-        let pass = run_periodic_gc_pass(&state, provider.clone(), coordinator.clone())
+        let terminalized = Arc::new(StdMutex::new(Vec::new()));
+        let terminalized_for_sink = Arc::clone(&terminalized);
+        let sink = AuthExpiryTerminalSink::new(move |expired| {
+            terminalized_for_sink.lock().unwrap().extend(expired);
+        });
+        let pass = run_periodic_gc_pass(&state, provider.clone(), coordinator.clone(), &sink)
             .await
             .unwrap();
         assert_eq!(pass.sessions_deleted, 1);
+        let terminalized = terminalized.lock().unwrap();
+        assert_eq!(terminalized.len(), 1);
+        assert_eq!(terminalized[0].session_id, session_id);
+        assert_eq!(terminalized[0].generation, 1);
+        drop(terminalized);
         assert_eq!(
             coordinator
                 .resolve_required_bearer(&bearer_text, provider.now_ms(), provider.monotonic_now(),)

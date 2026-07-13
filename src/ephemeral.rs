@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::live_wire::{LiveAuthErrorCode, LiveAuthErrorReason};
 
 /// Recover from lock poisoning the way the rest of the codebase does: room and
 /// queue state is small and self-consistent per critical section, so a
@@ -40,7 +41,26 @@ fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
 /// room/outbox lock, so a reconnect landing mid-teardown keeps its state.
 struct DeliveryNotifierState {
     next_generation: Option<u64>,
-    waiters: HashMap<String, (u64, Arc<Notify>)>,
+    waiters: HashMap<String, DeliveryRegistration>,
+}
+
+#[derive(Clone, Debug)]
+struct DeliveryRegistration {
+    generation: u64,
+    grant_id: Option<Arc<str>>,
+    notify: Arc<Notify>,
+    terminal: Option<DeliveryTerminalEvent>,
+}
+
+/// Internal terminal event retained beside the exact socket registration.
+/// `grant_id` stays in the registration rather than the public frame, so an
+/// invalidation for a predecessor can never close a replacement that reused
+/// the readable connection id.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct DeliveryTerminalEvent {
+    pub(crate) code: LiveAuthErrorCode,
+    pub(crate) reason: LiveAuthErrorReason,
+    pub(crate) close_by: std::time::Instant,
 }
 
 impl Default for DeliveryNotifierState {
@@ -62,6 +82,25 @@ impl DeliveryNotifier {
     /// registration's generation and the waker; a later `register` for the
     /// same connection replaces the waker and supersedes the generation.
     pub fn register(&self, connection_id: &str) -> SnapbackResult<(u64, Arc<Notify>)> {
+        self.register_inner(connection_id, None)
+    }
+
+    /// Register a socket against the opaque grant that authorized its
+    /// upgrade. Terminal propagation compares both identities; the readable
+    /// connection id alone is deliberately insufficient.
+    pub(crate) fn register_bound(
+        &self,
+        connection_id: &str,
+        grant_id: impl Into<Arc<str>>,
+    ) -> SnapbackResult<(u64, Arc<Notify>)> {
+        self.register_inner(connection_id, Some(grant_id.into()))
+    }
+
+    fn register_inner(
+        &self,
+        connection_id: &str,
+        grant_id: Option<Arc<str>>,
+    ) -> SnapbackResult<(u64, Arc<Notify>)> {
         let mut state = lock(&self.state);
         let generation = state.next_generation.ok_or_else(|| {
             SnapbackError::error(
@@ -72,9 +111,15 @@ impl DeliveryNotifier {
         })?;
         state.next_generation = generation.checked_add(1);
         let notify = Arc::new(Notify::new());
-        state
-            .waiters
-            .insert(connection_id.to_owned(), (generation, notify.clone()));
+        state.waiters.insert(
+            connection_id.to_owned(),
+            DeliveryRegistration {
+                generation,
+                grant_id,
+                notify: notify.clone(),
+                terminal: None,
+            },
+        );
         Ok((generation, notify))
     }
 
@@ -85,7 +130,7 @@ impl DeliveryNotifier {
     pub fn unregister(&self, connection_id: &str, generation: u64) -> bool {
         let mut state = lock(&self.state);
         match state.waiters.get(connection_id) {
-            Some((current, _)) if *current == generation => {
+            Some(current) if current.generation == generation => {
                 state.waiters.remove(connection_id);
                 true
             }
@@ -100,8 +145,57 @@ impl DeliveryNotifier {
     pub fn is_current(&self, connection_id: &str, generation: u64) -> bool {
         matches!(
             lock(&self.state).waiters.get(connection_id),
-            Some((current, _)) if *current == generation
+            Some(current) if current.generation == generation
         )
+    }
+
+    /// Whether ordinary effects may still drain to this exact registration.
+    /// Terminal ownership remains current for guarded teardown, but ordinary
+    /// bytes stop at the same notifier cut that installs the auth error.
+    pub(crate) fn is_deliverable(&self, connection_id: &str, generation: u64) -> bool {
+        matches!(
+            lock(&self.state).waiters.get(connection_id),
+            Some(current) if current.generation == generation && current.terminal.is_none()
+        )
+    }
+
+    /// Install a terminal event only for the exact bound grant. A later
+    /// registration on the same readable id has a different grant id and is
+    /// untouched. The wake happens after the event is visible under the same
+    /// mutex, so the stream cannot observe a wake without its terminal data.
+    pub(crate) fn terminalize_bound(
+        &self,
+        connection_id: &str,
+        grant_id: &str,
+        event: DeliveryTerminalEvent,
+    ) -> bool {
+        let notify = {
+            let mut state = lock(&self.state);
+            let Some(registration) = state.waiters.get_mut(connection_id) else {
+                return false;
+            };
+            if registration.grant_id.as_deref() != Some(grant_id) {
+                return false;
+            }
+            if registration.terminal.is_none() {
+                registration.terminal = Some(event);
+            }
+            Arc::clone(&registration.notify)
+        };
+        notify.notify_one();
+        true
+    }
+
+    pub(crate) fn terminal_if_current(
+        &self,
+        connection_id: &str,
+        generation: u64,
+    ) -> Option<DeliveryTerminalEvent> {
+        let state = lock(&self.state);
+        let registration = state.waiters.get(connection_id)?;
+        (registration.generation == generation)
+            .then(|| registration.terminal)
+            .flatten()
     }
 
     /// Run one synchronous act only while `generation` owns the connection.
@@ -118,7 +212,7 @@ impl DeliveryNotifier {
         let state_guard = lock(&self.state);
         let current = matches!(
             state_guard.waiters.get(connection_id),
-            Some((current, _)) if *current == generation
+            Some(current) if current.generation == generation && current.terminal.is_none()
         );
         let output = current.then(act);
         drop(state_guard);
@@ -145,8 +239,8 @@ impl DeliveryNotifier {
     }
 
     fn wake(&self, connection_id: &str) {
-        if let Some((_, notify)) = lock(&self.state).waiters.get(connection_id) {
-            notify.notify_one();
+        if let Some(registration) = lock(&self.state).waiters.get(connection_id) {
+            registration.notify.notify_one();
         }
     }
 
@@ -156,8 +250,8 @@ impl DeliveryNotifier {
         }
         let state = lock(&self.state);
         for connection_id in connection_ids {
-            if let Some((_, notify)) = state.waiters.get(connection_id) {
-                notify.notify_one();
+            if let Some(registration) = state.waiters.get(connection_id) {
+                registration.notify.notify_one();
             }
         }
     }
@@ -1485,6 +1579,15 @@ impl LocalEphemeralBackend {
     /// The notifier the delivery task registers with (L8).
     pub fn delivery_notifier(&self) -> Arc<DeliveryNotifier> {
         self.shared.delivery.clone()
+    }
+
+    pub(crate) fn subscription_requires_permission(&self, collection: &str) -> Option<bool> {
+        self.collection_if_loaded(collection).map(|definition| {
+            matches!(
+                definition.subscribe,
+                AccessPolicy::RequireRoomPermission { .. }
+            )
+        })
     }
 
     pub fn register_collection(
@@ -3768,6 +3871,50 @@ mod tests {
         assert!(!notifier.is_current("other", new_generation));
         assert!(notifier.unregister("conn", new_generation));
         assert!(!notifier.is_current("conn", new_generation));
+    }
+
+    #[tokio::test]
+    async fn terminal_event_matches_grant_and_blocks_ordinary_delivery() {
+        let notifier = DeliveryNotifier::default();
+        let (generation, waker) = notifier.register_bound("conn", "grant-a").unwrap();
+        let event = DeliveryTerminalEvent {
+            code: LiveAuthErrorCode::SessionExpired,
+            reason: LiveAuthErrorReason::Expired,
+            close_by: std::time::Instant::now() + std::time::Duration::from_secs(5),
+        };
+
+        assert!(!notifier.terminalize_bound("conn", "grant-b", event));
+        assert!(notifier.is_deliverable("conn", generation));
+        assert!(notifier.terminalize_bound("conn", "grant-a", event));
+        tokio::time::timeout(std::time::Duration::from_secs(1), waker.notified())
+            .await
+            .expect("terminal installation wakes the exact socket");
+        assert_eq!(
+            notifier.terminal_if_current("conn", generation),
+            Some(event)
+        );
+        assert!(
+            notifier.is_current("conn", generation),
+            "terminal owner remains current for generation-guarded teardown"
+        );
+        assert!(!notifier.is_deliverable("conn", generation));
+    }
+
+    #[test]
+    fn delayed_terminal_event_cannot_close_replacement_grant() {
+        let notifier = DeliveryNotifier::default();
+        let (old_generation, _) = notifier.register_bound("conn", "grant-a").unwrap();
+        let (new_generation, _) = notifier.register_bound("conn", "grant-b").unwrap();
+        let event = DeliveryTerminalEvent {
+            code: LiveAuthErrorCode::StreamReset,
+            reason: LiveAuthErrorReason::Reset,
+            close_by: std::time::Instant::now() + std::time::Duration::from_secs(5),
+        };
+
+        assert!(!notifier.terminalize_bound("conn", "grant-a", event));
+        assert_eq!(notifier.terminal_if_current("conn", old_generation), None);
+        assert_eq!(notifier.terminal_if_current("conn", new_generation), None);
+        assert!(notifier.is_deliverable("conn", new_generation));
     }
 
     #[test]
