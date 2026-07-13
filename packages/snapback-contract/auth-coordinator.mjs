@@ -757,7 +757,7 @@ export class AuthCoordinator {
     });
   }
 
-  registerParticipant(participant) {
+  registerParticipant(participant, { before = null } = {}) {
     this.#assertUsable();
     if (!participant || typeof participant !== 'object') throw new TypeError('participant must be an object');
     const entry = {
@@ -766,7 +766,11 @@ export class AuthCoordinator {
       removed: false,
       active: Promise.resolve(),
     };
-    this.#participants.push(entry);
+    const beforeIndex = before === null
+      ? -1
+      : this.#participants.findIndex((candidate) => candidate.participant === before);
+    if (beforeIndex === -1) this.#participants.push(entry);
+    else this.#participants.splice(beforeIndex, 0, entry);
     if (this.#publicationPaused) {
       // Registration while blank/clearing must not briefly expose predecessor
       // state. Synchronous phases run before registration returns; awaited
@@ -917,9 +921,10 @@ export class AuthCoordinator {
     this.#activeBarrier.phase = method;
     const completed = new Set();
     for (;;) {
-      const entry = [...this.#participants]
+      const ordered = reverse ? [...this.#participants].reverse() : [...this.#participants];
+      const entry = ordered
         .filter((candidate) => !candidate.removed && !completed.has(candidate))
-        .sort((a, b) => reverse ? b.order - a.order : a.order - b.order)[0];
+        [0];
       if (!entry) break;
       completed.add(entry);
       if (entry.removed) continue;

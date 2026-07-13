@@ -106,6 +106,17 @@ const coordinator = new AuthCoordinator({
   hintStorage: null,
 });
 const db = new SnapbackClient('http://stub', { authCoordinator: coordinator });
+const surfaceResumeWitnesses = [];
+const unregisterSurfaceProbe = db.registerAuthBarrierParticipant({
+  name: 'test-contract-surface',
+  async quiesce() {},
+  blank() {},
+  clearMemory() {},
+  async commitDurable() {},
+  async resume() {
+    surfaceResumeWitnesses.push(calls.at(-1)?.path ?? null);
+  },
+});
 
 let bearerAuthority = new Map([
   ['bearer-a', sessionA],
@@ -167,6 +178,7 @@ try {
   assert.equal(coordinator.capture().authorityEpoch, 1);
   assert.equal(coordinator.settledView().bearer, 'bearer-a');
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/exchange', '/auth/session']);
+  assert.equal(surfaceResumeWitnesses.at(-1), '/auth/session');
 
   calls = [];
   const authenticated = await db.query('list', { userId: 'forged' });
@@ -249,6 +261,7 @@ try {
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/session', '/auth/logout', '/auth/session']);
 } finally {
   globalThis.fetch = originalFetch;
+  await unregisterSurfaceProbe();
   await db.closeAuth();
   await coordinator.close();
 }

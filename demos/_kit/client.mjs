@@ -288,7 +288,7 @@ export class SnapbackClient {
     this.__rawLiveStreams = new Set();
     this.__authTransportGeneration = 0;
     this.__authSessionCapture = null;
-    this.__authParticipantUnregister = authCoordinator?.registerParticipant?.({
+    this.__authTransportParticipant = {
       name: 'snapback-kit-transport',
       quiesce: async () => {
         this.__authTransportGeneration = safeNextCounter(
@@ -313,7 +313,10 @@ export class SnapbackClient {
       resume: async (context) => {
         await this.#resumeAuthTransport(context.capture);
       },
-    }) ?? null;
+    };
+    this.__authParticipantUnregister = authCoordinator?.registerParticipant?.(
+      this.__authTransportParticipant,
+    ) ?? null;
   }
 
   /// Resolve the current server/mode/authority projection. A successful value
@@ -365,6 +368,16 @@ export class SnapbackClient {
 
   authorityCaptureFor(value) {
     return value?.[AUTHORITY_CAPTURE] ?? null;
+  }
+
+  registerAuthBarrierParticipant(participant) {
+    if (!this.authCoordinator) return async () => {};
+    // Insert stores/surfaces before the transport. The barrier's reverse
+    // resume order then brings the handshake/grant transport up first, while
+    // quiesce/blank still run deterministically in the declared list order.
+    return this.authCoordinator.registerParticipant(participant, {
+      before: this.__authTransportParticipant,
+    });
   }
 
   #authOfferHeaders(includeAll = false, bearerOverride = undefined) {
