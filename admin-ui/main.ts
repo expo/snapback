@@ -11,7 +11,10 @@ import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { AdminClient } from '../packages/snapback-admin-client/index.mjs';
 import { createAdminSurface } from './admin-boundary.mjs';
-import { renderAdminTokenPrompt } from './auth-prompt.mjs';
+import {
+  renderAdminTokenPrompt,
+  renderSessionCredentialsPrompt,
+} from './auth-prompt.mjs';
 import { renderFatal } from './fatal.mjs';
 import app from './app.contract';
 import {
@@ -54,24 +57,62 @@ async function start(): Promise<void> {
     await boot(client);
   } catch (error) {
     console.error(error);
-    if (
-      typeof document !== 'undefined' &&
-      error &&
-      typeof error === 'object' &&
-      'status' in error &&
-      error.status === 401
-    ) {
-      renderAdminTokenPrompt(document, {
-        message: error instanceof Error ? error.message : String(error),
-        onSubmit: async (token: string) => {
-          await client.setToken(token);
-          await boot(client);
-        },
-      });
-      return;
-    }
+    if (renderCredentialRecovery(client, error)) return;
     showFatal(error instanceof Error ? error.message : String(error));
   }
+}
+
+function renderCredentialRecovery(client: AdminClient, failure: unknown): boolean {
+  if (typeof document === 'undefined' || !isUnauthorized(failure)) return false;
+  const message = failure instanceof Error ? failure.message : String(failure);
+  const diagnostic = failure && typeof failure === 'object' && 'diagnostic' in failure
+    ? failure.diagnostic
+    : null;
+  const code = diagnostic && typeof diagnostic === 'object' && 'code' in diagnostic
+    ? diagnostic.code
+    : '';
+
+  if (code === 'SNAPBACK_ADMIN_SECRET_READ_REQUIRED') {
+    return renderSessionCredentialsPrompt(document, {
+      message,
+      onSubmit: async ({
+        adminToken,
+        secretReadLease,
+      }: {
+        adminToken: string;
+        secretReadLease: string;
+      }) => {
+        await client.setToken(adminToken);
+        client.setSecretReadLease(secretReadLease);
+        try {
+          await boot(client);
+        } catch (next) {
+          if (!renderCredentialRecovery(client, next)) throw next;
+        }
+      },
+    });
+  }
+
+  return renderAdminTokenPrompt(document, {
+    message,
+    onSubmit: async (token: string) => {
+      await client.setToken(token);
+      try {
+        await boot(client);
+      } catch (next) {
+        if (!renderCredentialRecovery(client, next)) throw next;
+      }
+    },
+  });
+}
+
+function isUnauthorized(failure: unknown): boolean {
+  return !!(
+    failure &&
+    typeof failure === 'object' &&
+    'status' in failure &&
+    failure.status === 401
+  );
 }
 
 start().catch((error) => {

@@ -20,6 +20,10 @@ export class AdminClient {
     // callers use setToken(), which immediately exchanges the master for a
     // short-lived console credential before anything is persisted.
     this.masterToken = token ?? '';
+    // Secret-read leases are operator-minted, process/reset bounded, and
+    // intentionally memory-only. They are never restored from browser
+    // storage and are attached only to response-bearing inspection calls.
+    this.secretReadLease = '';
     const stored = this.masterToken ? null : storedConsoleCredential();
     this.consoleCredential = stored?.credential ?? '';
     this.consoleExpiresAtMs = stored?.expiresAtMs ?? 0;
@@ -56,12 +60,26 @@ export class AdminClient {
     });
   }
 
-  async #req(method, path, body, explicitHeaders = {}, includeCredential = true) {
+  setSecretReadLease(lease) {
+    this.secretReadLease = String(lease ?? '').trim();
+  }
+
+  async #req(
+    method,
+    path,
+    body,
+    explicitHeaders = {},
+    includeCredential = true,
+    includeSecretRead = false,
+  ) {
     const headers = { ...explicitHeaders };
     if (includeCredential && this.masterToken) {
       headers['x-snapback-admin-token'] = this.masterToken;
     } else if (includeCredential && this.#activeConsoleCredential()) {
       headers['x-snapback-console-credential'] = this.consoleCredential;
+    }
+    if (includeSecretRead && this.secretReadLease) {
+      headers['x-snapback-secret-read-lease'] = this.secretReadLease;
     }
     if (body !== undefined) headers['content-type'] = 'application/json';
     const res = await fetch(this.baseUrl + path, {
@@ -129,15 +147,29 @@ export class AdminClient {
   }
 
   inspect() {
-    return this.#req('GET', '/inspect');
+    return this.#req('GET', '/inspect', undefined, {}, true, true);
   }
 
   scanTable(table, limit = 50, offset = 0) {
-    return this.#req('GET', `/data/${encodeURIComponent(table)}?limit=${limit}&offset=${offset}`);
+    return this.#req(
+      'GET',
+      `/data/${encodeURIComponent(table)}?limit=${limit}&offset=${offset}`,
+      undefined,
+      {},
+      true,
+      true,
+    );
   }
 
   runFunction(name, input) {
-    return this.#req('POST', `/functions/${encodeURIComponent(name)}/run`, input);
+    return this.#req(
+      'POST',
+      `/functions/${encodeURIComponent(name)}/run`,
+      input,
+      {},
+      true,
+      true,
+    );
   }
 
   tickCron() {

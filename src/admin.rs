@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
+use std::fmt;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -230,9 +231,23 @@ const MAX_CONSOLE_CREDENTIALS: usize = 256;
 ///
 /// @ref LLP 0017#security-defaults — the browser persists a narrowly-scoped,
 /// short-lived console capability instead of the master admin credential.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct ConsoleCredentialRegistry {
     entries: Arc<StdMutex<HashMap<[u8; 32], Instant>>>,
+}
+
+impl fmt::Debug for ConsoleCredentialRegistry {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let active_entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(|lock| lock.into_inner())
+            .len();
+        formatter
+            .debug_struct("ConsoleCredentialRegistry")
+            .field("active_entries", &active_entries)
+            .finish()
+    }
 }
 
 impl ConsoleCredentialRegistry {
@@ -274,16 +289,26 @@ fn console_credential_digest(credential: &str) -> [u8; 32] {
     Sha256::digest(credential.as_bytes()).into()
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ConsoleCredentialResponse {
     credential: String,
     expires_at_ms: u64,
 }
 
+impl fmt::Debug for ConsoleCredentialResponse {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ConsoleCredentialResponse")
+            .field("credential", &"[REDACTED]")
+            .field("expires_at_ms", &self.expires_at_ms)
+            .finish()
+    }
+}
+
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
 /// socket it is served on) and the admin authorization configuration.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ServerContext {
     pub host: String,
     pub port: u16,
@@ -311,6 +336,28 @@ pub struct ServerContext {
     /// @ref LLP 0017#serving-model — serve a built `admin/dist` snapshot when
     /// present; the admin UI has a single Contract/Exact implementation.
     pub admin_dist: Option<PathBuf>,
+}
+
+impl fmt::Debug for ServerContext {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ServerContext")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("loopback", &self.loopback)
+            .field("profile", &self.profile)
+            .field("pid", &self.pid)
+            .field("started_at_ms", &self.started_at_ms)
+            .field("admin_token_configured", &self.admin_token.is_some())
+            .field("admin_token_minted", &self.admin_token_minted)
+            .field(
+                "admin_token_file_configured",
+                &self.admin_token_file.is_some(),
+            )
+            .field("console_credentials", &self.console_credentials)
+            .field("admin_dist_configured", &self.admin_dist.is_some())
+            .finish()
+    }
 }
 
 impl ServerContext {
@@ -373,7 +420,7 @@ fn env_admin_token() -> Option<String> {
 }
 
 /// The admin token the serve path settled on, and how it was obtained.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ResolvedAdminToken {
     pub token: String,
     /// False only when the token came from `SNAPBACK_ADMIN_TOKEN`.
@@ -383,6 +430,18 @@ pub struct ResolvedAdminToken {
     pub fresh: bool,
     /// The 0600 file the minted token persists in, when there is one.
     pub file: Option<PathBuf>,
+}
+
+impl fmt::Debug for ResolvedAdminToken {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ResolvedAdminToken")
+            .field("token", &"[REDACTED]")
+            .field("minted", &self.minted)
+            .field("fresh", &self.fresh)
+            .field("file_configured", &self.file.is_some())
+            .finish()
+    }
 }
 
 /// Mint a local admin capability token: 122 bits of CSPRNG randomness.
@@ -971,21 +1030,35 @@ pub(crate) fn authorize(
     headers: &HeaderMap,
     write: bool,
 ) -> Result<(), ApiError> {
+    authorize_for_mode(ctx, headers, write, PolicyAuthMode::Dev)
+}
+
+/// Resolve ordinary administrator authority with mode-aware carrier rules.
+/// `Authorization` remains a v0-dev compatibility spelling only. In sessions
+/// it is reserved for the session bearer resolver, so admin authority must use
+/// its explicit header (or the distinct derived console header).
+pub(crate) fn authorize_for_mode(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    write: bool,
+    mode: PolicyAuthMode,
+) -> Result<(), ApiError> {
     if ctx
         .console_credentials
         .allows(provided_console_credential(headers))
     {
         return Ok(());
     }
-    authorize_admin_access(ctx, headers, write)
+    authorize_admin_access(ctx, headers, write, mode)
 }
 
 fn authorize_admin_access(
     ctx: &ServerContext,
     headers: &HeaderMap,
     write: bool,
+    mode: PolicyAuthMode,
 ) -> Result<(), ApiError> {
-    let provided = provided_token(headers);
+    let provided = provided_token(headers, mode == PolicyAuthMode::Dev);
     match evaluate_access(
         ctx.loopback,
         ctx.admin_token.as_deref(),
@@ -1014,7 +1087,7 @@ fn authorize_admin_access(
 /// instances always have a configured or auto-minted token; embedded tokenless
 /// routers do not need a browser credential and cannot mint one.
 fn authorize_master(ctx: &ServerContext, headers: &HeaderMap) -> Result<(), ApiError> {
-    let provided = provided_token(headers);
+    let provided = provided_token(headers, true);
     match (ctx.admin_token.as_deref(), provided.as_deref()) {
         (Some(configured), Some(candidate)) if token_eq(configured, candidate) => Ok(()),
         (None, _) if !ctx.loopback => Err(SnapbackError::error(
@@ -1040,7 +1113,7 @@ fn provided_console_credential(headers: &HeaderMap) -> Option<&str> {
         .filter(|credential| !credential.is_empty())
 }
 
-fn provided_token(headers: &HeaderMap) -> Option<String> {
+fn provided_token(headers: &HeaderMap, allow_authorization: bool) -> Option<String> {
     if let Some(token) = headers
         .get("x-snapback-admin-token")
         .and_then(|value| value.to_str().ok())
@@ -1049,6 +1122,7 @@ fn provided_token(headers: &HeaderMap) -> Option<String> {
     {
         return Some(token.to_owned());
     }
+    allow_authorization.then(|| ())?;
     headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
@@ -1986,15 +2060,56 @@ mod tests {
     }
 
     #[test]
-    fn bearer_and_custom_header_tokens_are_both_accepted() {
+    fn authorization_bearer_is_dev_only_and_custom_header_is_explicit() {
         let mut headers = HeaderMap::new();
         headers.insert("x-snapback-admin-token", "from-custom".parse().unwrap());
-        assert_eq!(provided_token(&headers).as_deref(), Some("from-custom"));
+        assert_eq!(
+            provided_token(&headers, false).as_deref(),
+            Some("from-custom")
+        );
 
         let mut headers = HeaderMap::new();
         headers.insert(header::AUTHORIZATION, "Bearer from-bearer".parse().unwrap());
-        assert_eq!(provided_token(&headers).as_deref(), Some("from-bearer"));
+        assert_eq!(
+            provided_token(&headers, true).as_deref(),
+            Some("from-bearer")
+        );
+        assert_eq!(provided_token(&headers, false), None);
 
-        assert_eq!(provided_token(&HeaderMap::new()), None);
+        assert_eq!(provided_token(&HeaderMap::new(), true), None);
+    }
+
+    #[test]
+    fn credential_bearing_debug_surfaces_are_redacted() {
+        let registry = ConsoleCredentialRegistry::default();
+        let response = registry.mint();
+        let derived = response.credential.clone();
+        let mut context = ServerContext::detached();
+        context.admin_token = Some("MASTER_DEBUG_SENTINEL".to_owned());
+        context.console_credentials = registry.clone();
+        let resolved = ResolvedAdminToken {
+            token: "RESOLVED_MASTER_DEBUG_SENTINEL".to_owned(),
+            minted: true,
+            fresh: true,
+            file: Some(PathBuf::from("/secret/admin-token")),
+        };
+
+        for rendered in [
+            format!("{registry:?}"),
+            format!("{response:?}"),
+            format!("{context:?}"),
+            format!("{resolved:?}"),
+        ] {
+            assert!(!rendered.contains(&derived), "{rendered}");
+            assert!(!rendered.contains("MASTER_DEBUG_SENTINEL"), "{rendered}");
+            assert!(
+                !rendered.contains("RESOLVED_MASTER_DEBUG_SENTINEL"),
+                "{rendered}"
+            );
+        }
+        assert_eq!(
+            format!("{registry:?}"),
+            "ConsoleCredentialRegistry { active_entries: 1 }"
+        );
     }
 }

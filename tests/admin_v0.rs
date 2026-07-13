@@ -760,9 +760,10 @@ async fn console_credential_cannot_satisfy_sessions_secret_read() {
         )
         .await
         .unwrap();
-    assert_ne!(
-        secret_read.status(),
-        StatusCode::OK,
+    assert_eq!(secret_read.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        json(secret_read).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
         "ordinary console capability must not satisfy AdminSecretRead"
     );
 }

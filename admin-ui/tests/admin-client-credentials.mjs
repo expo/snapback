@@ -9,6 +9,7 @@ import { AdminClient } from '../../packages/snapback-admin-client/index.mjs';
 
 const MASTER = 'master-admin-credential-SENTINEL';
 const DERIVED = 'sbcc_derived-console-SENTINEL';
+const SECRET_READ = 'sbrl_memory-only-secret-read-SENTINEL';
 const storage = new Map([['snapback_admin_token', MASTER]]);
 const storageWrites = [];
 globalThis.localStorage = {
@@ -94,17 +95,36 @@ assert.equal(
   'ordinary browser requests use only the derived carrier',
 );
 
+client.setSecretReadLease(SECRET_READ);
+await client.scanTable('privateRows');
+assert.equal(
+  requests[2].options.headers['x-snapback-secret-read-lease'],
+  SECRET_READ,
+  'secret-bearing inspection may use the operator-minted in-memory lease',
+);
+assert.equal(
+  [...storage.entries(), ...storageWrites, ...sessionWrites, ...indexedDbCalls]
+    .some((entry) => JSON.stringify(entry).includes(SECRET_READ)),
+  false,
+  'the secret-read lease never enters a persistence adapter',
+);
+
 const reloaded = new AdminClient('http://snapback.test/_snapback/api');
 await reloaded.configStatus();
 assert.equal(
-  requests[2].options.headers['x-snapback-console-credential'],
+  requests[3].options.headers['x-snapback-console-credential'],
   DERIVED,
   'a reload restores the derived credential',
+);
+assert.equal(
+  requests[3].options.headers['x-snapback-secret-read-lease'],
+  undefined,
+  'a reload never restores an operator secret-read lease',
 );
 
 const headless = new AdminClient('http://snapback.test/_snapback/api', { token: MASTER });
 await headless.inspect();
-assert.equal(requests[3].options.headers['x-snapback-admin-token'], MASTER);
+assert.equal(requests[4].options.headers['x-snapback-admin-token'], MASTER);
 assert.equal(
   storage.get('snapback_console_credential_v1'),
   persisted,
@@ -118,7 +138,7 @@ storage.set('snapback_console_credential_v1', JSON.stringify({
 const expired = new AdminClient('http://snapback.test/_snapback/api');
 await expired.inspect();
 assert.equal(
-  requests[4].options.headers['x-snapback-console-credential'],
+  requests[5].options.headers['x-snapback-console-credential'],
   undefined,
   'expired derived credentials are deleted instead of replayed',
 );

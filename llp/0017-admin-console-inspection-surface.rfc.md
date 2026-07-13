@@ -507,7 +507,12 @@ Local defaults:
   `x-snapback-console-credential`; the master never enters `localStorage`,
   `sessionStorage`, or IndexedDB. A derived console credential satisfies only
   ordinary `AdminRead`/`AdminWrite`: it cannot renew itself, satisfy
-  `AdminSecretRead`, or mint/use impersonation authority. The console retries
+  `AdminSecretRead`, or mint/use impersonation authority. Operator tooling may
+  hand the shared client a derived `AdminSecretRead` lease for an explicit
+  inspection session, but the client retains it only in the current JavaScript
+  object, sends it only on secret-bearing inspect/scan/runner calls, and never
+  writes or restores it through `localStorage`, `sessionStorage`, IndexedDB, or
+  another persistence adapter. The console retries
   boot without ever placing server error text into HTML
   (ENG-24560/ENG-24568/ENG-24595);
 - when the server binds a non-loopback host such as `0.0.0.0`, the admin console

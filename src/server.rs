@@ -2493,7 +2493,12 @@ async fn enforce_registered_route_policy(
                 }
             }
             HttpOperationSelection::UnknownHost(operation) => {
-                match crate::admin::authorize(&runtime.server, request.headers(), true) {
+                match crate::admin::authorize_for_mode(
+                    &runtime.server,
+                    request.headers(),
+                    true,
+                    runtime.policy_auth_mode,
+                ) {
                     Ok(()) => Err(SnapbackError::error(
                         "SNAPBACK_HOST_OP_UNKNOWN",
                         "host-ops",
@@ -2506,9 +2511,12 @@ async fn enforce_registered_route_policy(
             // A malformed/partial operation body is still authenticated at
             // the strongest possible branch before the typed extractor emits
             // its shape diagnostic.
-            HttpOperationSelection::Indeterminate => {
-                crate::admin::authorize(&runtime.server, request.headers(), true)
-            }
+            HttpOperationSelection::Indeterminate => crate::admin::authorize_for_mode(
+                &runtime.server,
+                request.headers(),
+                true,
+                runtime.policy_auth_mode,
+            ),
         }
     } else {
         Ok(())
@@ -2542,12 +2550,18 @@ async fn enforce_registered_route_policy(
         operation_authorization
     } else {
         match effective.path_policy {
-            RoutePolicy::AdminRead => {
-                crate::admin::authorize(&runtime.server, request.headers(), false)
-            }
-            RoutePolicy::AdminWrite => {
-                crate::admin::authorize(&runtime.server, request.headers(), true)
-            }
+            RoutePolicy::AdminRead => crate::admin::authorize_for_mode(
+                &runtime.server,
+                request.headers(),
+                false,
+                runtime.policy_auth_mode,
+            ),
+            RoutePolicy::AdminWrite => crate::admin::authorize_for_mode(
+                &runtime.server,
+                request.headers(),
+                true,
+                runtime.policy_auth_mode,
+            ),
             RoutePolicy::AdminSecretRead => {
                 authorize_secret_read(&runtime.secret_reads, request.headers())
             }
@@ -3135,8 +3149,8 @@ pub(crate) fn authorize_operation_spec(
         .into());
     }
     match effective.path_policy {
-        RoutePolicy::AdminRead => crate::admin::authorize(ctx, headers, false),
-        RoutePolicy::AdminWrite => crate::admin::authorize(ctx, headers, true),
+        RoutePolicy::AdminRead => crate::admin::authorize_for_mode(ctx, headers, false, mode),
+        RoutePolicy::AdminWrite => crate::admin::authorize_for_mode(ctx, headers, true, mode),
         RoutePolicy::AdminSecretRead | RoutePolicy::SessionAuth => Err(SnapbackError::error(
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
             "auth",
