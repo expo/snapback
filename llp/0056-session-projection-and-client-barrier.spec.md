@@ -1,0 +1,1642 @@
+# LLP 0056: Session projection and client authority barrier protocol
+
+**Type:** Spec
+**Status:** Draft
+**Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-07-13
+**Revised:** 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0054, LLP 0055
+
+## Summary
+
+This Spec makes landing item 5 of
+[LLP 0039](./0039-auth-vertical-slice.rfc.md) executable. It pins the local
+single-process `SessionProjection`, the exact two-phase revocation and token
+rotation protocol, connection-bound authority, generation-fenced publication,
+the durable authorization-stream incarnation, and the client
+`AuthCoordinator` barrier shared by the Snapback kit and Contract.
+
+LLP 0039 remains **Draft / FROZEN**. This document does not amend, repair, or
+reinterpret it. Where 0039 pins an outcome, 0039 wins. This document chooses the
+record shapes, indexes, tickets, lock ordering, crash choreography, wire errors,
+and client compare-and-commit mechanics that 0039 deliberately delegates in
+`LLP 0039#protocol-obligations-deferred-to-implementation`.
+
+The existing corpus already covers the topic at design altitude: LLP 0011 owns
+the parent auth model, LLP 0039 owns the program and landing order, LLP 0043
+owns the two-axis offline policy, LLP 0052 owns Contract's host-state boundary,
+LLP 0054 owns durable provider/session state, and LLP 0055 owns staged mode and
+the bootstrap handshake. A companion Spec is nevertheless required because
+none of those documents defines item 5's executable crash and interleaving
+protocol, and both 0039 and 0053 are frozen.
+
+The item has six load-bearing claims:
+
+1. A connection grant is authority, not merely a random token. It is bound to
+   one anonymous authorization stream or to one exact session generation, and
+   every act validates that binding atomically with publication.
+2. A durable session mutation becomes unavailable in memory before its commit
+   can become visible. Commit finalizes the exact operation ticket; rollback
+   removes only that ticket. Concurrent operations cannot unmark one another.
+3. No response, durable outbox entry, live frame, ephemeral effect, or Contract
+   callback may become externally observable across an authority transition
+   without a final fence check.
+4. Reset and declared restore generate a new durable authorization-stream
+   incarnation in the same database transaction as the destructive change.
+   Ordinary restart preserves it.
+5. The browser has one `AuthCoordinator` custody owner per app. Every async
+   completion compares its captured authority epoch before it can expose data,
+   mutate durable state, reconnect, or clear the current authority.
+6. Item 5 makes online finite session requests available, but it does not yet
+   admit auth-scoped live queries, retained reads, or queued replay. Those
+   remain gated by later landing items.
+
+## Provenance and source boundary
+
+- **[confirmed — Charlie Cheever, 2026-07-13, LLP 0039 frozen author
+  direction]** The required outcomes, landing position, activation boundary,
+  transition table, and acceptance races come from LLP 0039 and the ENG-24603
+  program assignment.
+- **[observed — Snapback commit `d172fd1`, 2026-07-13]** The current
+  `ConnectionRegistry` in `src/server.rs` binds only token/use state;
+  `DeliveryNotifier` in `src/ephemeral.rs` already generation-guards waiter
+  replacement; `OutboundQueue` entries carry no auth fence; provider commits
+  in `src/auth/provider.rs` can return revocation outcomes that callers do not
+  project; `demos/_kit/client.mjs` caches grants and reconnects without a typed
+  terminal auth frame; `packages/snapback-contract/client-store.mjs` format 2
+  has a write generation and user fingerprint but no authority epoch; and
+  `packages/snapback-contract/index.mjs` has no shared transition barrier.
+- **[inferred — implementation mechanism pending author ratification]** Exact
+  ticket encodings, leaf-fence layout, leased outbox drain, custody record,
+  fallback lease timings, and diagnostic allocation below are the author's
+  proposed implementation choices. They preserve 0039's required outcomes but
+  remain Draft until ratified by implementation and review evidence.
+
+No statement tagged `observed` claims that item 5 already exists. The commit is
+the baseline whose gaps this Spec closes.
+
+## Scope and ownership
+
+This Spec owns:
+
+- the process-local `SessionProjection`, its indexes, startup rebuild, expiry
+  worker, mutation tickets, and projection failure posture;
+- begin/commit/finalize and begin/rollback/compare-unmark choreography for
+  revocation, cap eviction, refresh-family alarm, logout, and bearer rotation,
+  plus expiry's deadline-finalized terminal ticket;
+- the durable authorization-stream incarnation and reset/restore coupling;
+- anonymous and session `BoundGrantAuthority`, grant reuse, invalidation, and
+  exact act-time validation;
+- authority fences on finite responses, durable and ephemeral outboxes, live
+  sockets, callbacks, and other externally observable effects;
+- the typed live `auth_error` and five-second closure bound;
+- the client custody record, `AuthCoordinator`, cross-context ownership,
+  transition barrier, and bounded-lease fallback;
+- client-store authority-epoch CAS, item-5 delete/strand behavior, and Contract
+  barrier participation;
+- item 5's revision of the bootstrap handshake and readiness facts; and
+- executable acceptance and model-checking obligations for these protocols.
+
+This Spec consumes without re-owning:
+
+- LLP 0031's route and operation policies;
+- LLP 0054's provider DTOs, credential hashing, durable session rows,
+  supersession grace, cap, refresh-family alarm, reset, and restore primitives;
+- LLP 0055's shared invocation gate, staged mode, four protocol headers, and
+  readiness object;
+- LLP 0053's future invalidation declarations and later-item dispositions; and
+- LLP 0043's independent `retainedReads` and `queuedReplay` policy axes.
+
+This Spec does not enable hosted or multi-replica sessions. Distributed
+projection coherence, a hosted coordinator, trusted-proxy/TLS posture, and the
+client-page XSS contract remain separately owned. It also does not implement
+the item-6 protected-query oracle, the item-7 public authority descriptor or
+authorized lease, or item-8 retained/offline invalidation.
+
+## Normative vocabulary and constants
+
+`MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative. Durable and wire
+timestamps are Unix epoch milliseconds within LLP 0007's safe integer range;
+in-process deadlines additionally use a monotonic clock. Closed DTOs reject
+duplicate keys and unknown fields.
+
+| Name | Exact v1 value |
+| --- | --- |
+| Session projection format | `1` |
+| Authorization-stream record format | `1` |
+| Authorization-stream metadata key | `auth_stream_incarnation_v1` |
+| Client custody format | `1` |
+| Contract client-store format | `3` |
+| Bootstrap auth client protocol | `1` |
+| Projection startup id | a fresh canonical UUIDv7 per process |
+| Revocation ticket | `<projectionStartupId>:<nonzero-u64>` |
+| Expiry scan maximum sleep | `1000` monotonic milliseconds |
+| Terminal live closure deadline | `5000` monotonic milliseconds |
+| Session-authority connection-open budget | `60` attempts per rolling `60000` monotonic milliseconds |
+| Anonymous/malformed connection-open prebudget | `240` attempts per rolling `60000` monotonic milliseconds per incarnation |
+| Canonical-unknown connection-open budget | `240` attempts per rolling `60000` monotonic milliseconds per incarnation |
+| Web-lock name | `snapback-auth-custody:<canonical-app-id>` |
+| Browser custody database / version | `snapback-auth-custody` / `1` |
+| Browser custody stores / key | `custody`, `leases` / canonical app id |
+| Broadcast channel | `snapback-auth-custody:<app-id-hash>` |
+| localStorage wakeup hint | `snapback:auth-custody-hint:<app-id-hash>` |
+| Fallback custody lease | `5000` epoch milliseconds |
+| Fallback lease renewal | `1000` monotonic milliseconds |
+| Superseded-custody wait | `2000` monotonic milliseconds |
+| Terminal WebSocket close code | `4401` |
+| Terminal WebSocket close reason | `auth_error` |
+
+`projectionStartupId` is distinct from LLP 0055's opaque
+`serverStartupNonce`; this Spec neither defines nor re-encodes that handshake
+value. The ticket counter begins at one and is never reused in a process.
+Counter overflow fails the affected mutation closed with
+`SNAPBACK_AUTH_PROJECTION_UNAVAILABLE`; it never wraps.
+
+The constants are protocol constants, not casual configuration. A format,
+identifier, record-shape, or fence-semantics change requires a version change.
+Operational timing changes require updated liveness evidence and may not weaken
+the five-second terminal closure bound.
+
+## Server authority model
+
+### Durable authorization stream
+
+The global Snapback metadata table contains exactly one closed record. Its
+durable location is `_snapback_meta.key = 'auth_stream_incarnation_v1'`; its
+`value` is the compact UTF-8 JSON encoding of:
+
+```ts
+type AuthorizationStreamV1 = {
+  formatVersion: 1
+  incarnation: CanonicalUuidV7
+}
+```
+
+The exact value bytes are
+`{"formatVersion":1,"incarnation":"<canonical-uuid-v7>"}` with the placeholder
+replaced, fields in that order, no whitespace, and no trailing newline.
+Duplicate/unknown fields and non-canonical UUID spellings are rejected.
+`LocalSnapback` owns reads and writes through the global SQLite write lane. The
+value is not an `_auth_*` catalog row, not keyring state, and not writable
+through provider or app-table APIs.
+
+The record is created in an explicit startup migration transaction before an
+auth-capable server binds any app-data listener, in both dev and sessions mode.
+The read-only item-4 stage-time collision inspection does not create it or any
+other metadata. Sessions mode additionally requires a complete session
+projection. Dev mode preserves the same incarnation through an ordinary
+restart, but reset rotates it exactly as sessions mode does, so item 7 can later
+key its dev authority instance without making restart look like reset. Absence
+in a pre-item-5 database means there is no continuity to preserve: startup
+creates a fresh incarnation, and clients that previously observed no matching
+incarnation clear their privacy-bearing state. Malformed, duplicate, or
+unknown-version records fail startup with
+`SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT`. Dev mode does not silently repair a
+malformed durable record.
+
+An ordinary process restart reads and preserves the exact incarnation. An app
+reset, logical import, or declared physical restore generates a new UUIDv7 and
+writes it in the same SQLite transaction that establishes the destructive
+state. Publication happens only after commit. Copying a database by an
+undeclared external mechanism has no continuity guarantee.
+
+### Projected session
+
+`SessionProjection` is the one-process authorization authority around LLP
+0054's durable catalog. It contains no plaintext bearer, verification code,
+email address, or admin credential.
+
+```rust
+struct SessionProjection {
+    format_version: 1,
+    incarnation: AuthorizationStreamIncarnation,
+    by_session: HashMap<SessionId, ProjectedSession>,
+    token_index: HashMap<Sha256Digest, ProjectedToken>,
+    deadline_index: BTreeSet<DeadlineKey>,
+    ticket_index: HashMap<MutationTicket, TicketOwner>,
+    next_ticket: NonZeroU64,
+    stream_fence: Arc<StreamFence>,
+}
+
+struct ProjectedSession {
+    session_id: SessionId,
+    user_id: UserId,
+    provider: ProviderId,
+    generation: u64,
+    expires_at_ms: i64,
+    absolute_expires_at_ms: i64,
+    state: ProjectedSessionState,
+    pending: BTreeMap<MutationTicket, PendingMutation>,
+    fence: Arc<SessionFence>,
+}
+
+enum ProjectedSessionState {
+    Current,
+    Revoked { reason: RevocationReason },
+    Expired,
+    Uncertain,
+}
+
+enum ProjectedToken {
+    Current { session_id: SessionId },
+    Superseded { session_id: SessionId, superseded_at_ms: i64 },
+}
+
+struct DeadlineKey {
+    monotonic_deadline: Instant,
+    epoch_deadline_ms: i64,
+    session_id: SessionId,
+    generation: u64,
+}
+```
+
+The implementation MAY use equivalent Rust layouts, but the indexes and
+invariants are normative:
+
+- `by_session` has at most one canonical entry per durable session id.
+- A live session has exactly one `Current` token digest. Superseded token
+  tombstones remain distinguishable through LLP 0054's grace/absolute horizon
+  and can trigger a family alarm, but never mint a new connection grant.
+- `deadline_index` has exactly one entry matching each current session's
+  generation and effective in-memory deadline.
+- Every pending map member has exactly one matching `ticket_index` entry, and
+  no ticket names more than one session or stream mutation.
+- A session fence is blocked whenever its pending map is non-empty or its state
+  is not `Current`. Removing one ticket cannot clear a sibling ticket.
+- The durable row is the recovery authority; the projection is the act-time
+  authority while the process runs.
+
+### Startup rebuild and deadline derivation
+
+Sessions-mode startup obtains one read snapshot of the authorization-stream
+record, session rows, token rows/tombstones, identities needed for provider and
+user binding, and reset/restore markers. It validates all ids, generations,
+timestamps, referential links, and current-token uniqueness. It builds a
+detached projection, checks every invariant, then publishes the complete object
+before accepting HTTP, WebSocket, cron, admin, or host-operation traffic.
+
+A partial projection is never reachable. Corrupt or internally contradictory
+rows fail startup with `SNAPBACK_AUTH_PROJECTION_CORRUPT`; startup does not pick
+a winner, mint a token, or delete evidence.
+
+V1 rebuild is pre-bind only; there is no hot replacement that could leave an
+existing grant holding a retired `Arc<SessionFence>`. An in-process uncertain
+session remains blocked until controlled restart/rebuild or operator recovery,
+while unrelated sessions continue. Reset uses the existing shared
+`StreamFence` arc, atomically changes its incarnation at finalize, and then
+invalidates all predecessor grants, so no retired stream fence can validate.
+
+At rebuild, the process samples `(epochNow, monotonicNow)` and calculates:
+
+```text
+remaining = max(0, durableExpiresAt - epochNow)
+monotonicDeadline = monotonicNow + remaining
+```
+
+An authorization check requires both `epochNow < expiresAt` and
+`monotonicNow < monotonicDeadline`. The expiry worker sleeps at most 1000
+monotonic milliseconds so a forward wall-clock jump is noticed. Backward
+wall-clock movement cannot extend a monotonic deadline. A restart reconstructs
+from the coalesced durable expiry and therefore may under-extend an in-memory
+sliding use, but may never extend it beyond what the prior process authorized.
+
+The worker uses `(sessionId, generation)` compare semantics when consuming a
+deadline entry. A stale deadline from rotation, extension, revocation, or id
+reuse cannot expire a newer generation.
+
+## Two-phase mutation protocol
+
+### Tickets and leaf fences
+
+`MutationTicket` identifies one attempted state transition, not merely a
+generation. `SessionFence` is a small leaf mutex shared by the projection,
+connection grants, and effect publishers. Its logical state is:
+
+```rust
+struct SessionFenceState {
+    generation: u64,
+    deadline: DeadlinePair,
+    terminal: Option<RevocationReason>,
+    pending_tickets: BTreeSet<MutationTicket>,
+}
+```
+
+An act is admissible only when its expected generation matches, both deadlines
+are live, `terminal` is absent, and `pending_tickets` is empty. The separate
+leaf fence lets an act validate and publish without holding the projection
+topology mutex or a SQLite/provider lock.
+
+### Plan, begin, commit, finalize
+
+Every provider operation that can revoke, expire, supersede, evict, or reset
+authority is split into these phases:
+
+1. **Plan.** Under a read transaction or the provider's `LocalSnapback` access,
+   validate the credential and derive an immutable plan containing exact row
+   ids, expected generations/digests, intended successor state, and outcome.
+   Release every database/provider guard.
+2. **Begin.** Under the projection topology lock, verify that the projected
+   state still matches the plan, allocate a unique ticket, insert it into both
+   indexes, and insert it into the leaf fence. The leaf becomes blocked before
+   the topology lock is released. A mismatch restarts planning; it does not
+   weaken the projection. An existing pending ticket does not prevent a second
+   revocation-class begin against the same still-matching durable generation;
+   the pending set represents that overlap explicitly.
+3. **Commit.** With no projection or leaf lock held, run one validated SQLite
+   transaction whose `WHERE` clauses compare every planned generation and
+   token digest. Zero or unexpected affected rows roll the transaction back.
+4. **Finalize.** After a known successful commit, use the exact ticket to
+   publish the committed generation/state/token/deadline changes, remove only
+   that ticket from both indexes, and leave the leaf blocked if any sibling
+   ticket remains. Release locks before downstream cleanup.
+5. **Propagate.** Invalidate reverse-indexed grants, purge terminal effects,
+   wake generation-matched waiters with a terminal event, and return the
+   already-committed outcome. No caller may discard this phase.
+
+All inputs whose rejection can be known before `Begin`—route policy, body
+shape, credential encoding, required authority, cap candidate, and plan
+preconditions—are checked before the marker can complete. No validation that
+could turn a successful durable commit into an ordinary request error occurs
+after commit.
+
+### Rollback and ambiguous commit
+
+After a known rollback, `compare_unmark(ticket, expectedOwner)` removes the
+exact ticket membership if the leaf/projection still attribute it to that
+operation, even if a sibling has since advanced the session generation. The
+comparison is ticket ownership, not equality with a saved whole-session
+snapshot. Any reversible token overlay is removed only if that overlay is still
+owned by the same ticket. The operation never restores a saved session snapshot
+or removes a sibling marker. The resulting leaf is available only if no pending
+ticket remains and no committed terminal state has appeared.
+
+If commit outcome is ambiguous because SQLite reports an I/O outcome whose
+commit status cannot be known, the operation rereads the exact durable rows in
+a fresh transaction:
+
+- exact planned predecessor state means rollback and exact compare-unmark;
+- exact intended successor state means finalize;
+- a different valid state means reconcile the ticket against that newer state
+  without reverting it; and
+- contradictory, unreadable, or still-ambiguous state leaves the session
+  `Uncertain` and blocked, emits `SNAPBACK_AUTH_REVOCATION_UNCERTAIN`, and
+  requires projection rebuild or operator recovery.
+
+Failing open is forbidden. An uncertain marker may temporarily deny one
+session; it may not stop unrelated sessions or hold a global writer.
+
+### Concurrent same-generation revocations
+
+Two revocations A and B may plan against generation `g`. Both may acquire
+distinct tickets. The first durable compare that wins advances or terminally
+marks the row. The second transaction observes zero matching rows, rereads, and
+reconciles as already terminal or replans only if its semantic operation still
+applies. A's finalize removes A; B's rollback removes B. At no point can either
+operation unmark the other's pending work or return a session to `Current`.
+
+Generation orders durable authority. Ticket identity orders in-flight
+operations. Neither substitutes for the other.
+
+### Operation-specific publication
+
+- **Logout, cap eviction, and refresh-family alarm:** `Begin` blocks the exact
+  session generation. Commit records LLP 0054's revocation and token outcome.
+  Finalize installs the terminal state and generation and then invalidates every
+  grant/effect for the predecessor generation.
+- **Expiry:** observation of either authoritative deadline installs
+  `Expired` through a unique ticket that is allocated, finalized, and removed
+  under the topology/fence update; sibling pending tickets remain. Time cannot
+  roll back into a live session. It immediately starts terminal close. Durable
+  `expires_at_ms` already proves the state, so expiry does not invent a
+  generation bump or require a write to become authoritative. Any later
+  GC/bookkeeping write is detached, and restart derives the same terminal
+  result from durable expiry.
+- **Bearer rotation:** `Begin` adds a `TokenSupersede { predecessorDigest }`
+  pending overlay owned by its ticket; token resolution treats that predecessor
+  as unavailable even though the base token index still says current. The
+  successor digest is not visible in the projection. Commit atomically writes
+  the successor and predecessor tombstone. Finalize changes the token index
+  from predecessor-current to predecessor-superseded/successor-current.
+  Rollback restores predecessor availability by exact overlay/ticket removal
+  only if no sibling terminal state won. The session generation remains LLP
+  0054's durable value unless that owning protocol advances it.
+- **Sliding-use extension:** a positive use may commit a coalesced durable
+  extension without a precommit unavailability marker because failure leaves a
+  shorter safe deadline. It publishes a later deadline only after commit and
+  only if `(sessionId, generation)` still matches. In-memory extensions that do
+  not cross LLP 0054's coalescing threshold remain bounded by the absolute
+  expiry and disappear on restart. The no-write path updates
+  `deadline_index` and the leaf together under topology-then-session lock after
+  the qualifying act. The coalesced-write path releases all projection locks,
+  commits the exact-generation durable extension, then publishes both indexes
+  under the same order. A race may lose an extension but cannot revive or
+  over-extend a session.
+- **Session issuance and cap eviction:** the plan names the exact eviction
+  candidate and expected generation. Eviction uses its own ticket. After the
+  transaction commits both eviction and issuance, finalize publishes the
+  revoked predecessor and new session/current token before returning the new
+  bearer. An inability to publish leaves the new session unavailable and is
+  reconciled from durable state; it never returns an unprojected credential.
+- **Reset and declared restore:** use the stream-level variant described below;
+  individual session tickets are not acquired serially.
+
+Provider APIs that currently return a committed `SessionRevocation` MUST be
+rewired so their only public success path includes propagation. A route,
+refresh handler, alarm, or cap path cannot acknowledge success after durable
+commit while discarding projection finalization.
+
+The exact sliding-use callers remain LLP 0054's: a successfully authenticated
+app-data request, a current-bearer connection open, and generation-valid
+live-socket liveness extend the session. An ordinary request accepted with a
+superseded token inside its ten-second grace is also an authenticated use.
+`POST /auth/refresh` alone never extends expiry. Live liveness is recorded from
+the socket's existing authenticated heartbeat/activity cadence only after the
+grant and leaf fence validate; merely retaining an unresponsive socket object
+is not use.
+
+## Locking and linearization
+
+### Prohibited overlap
+
+The following rules are unconditional:
+
+- Never hold the projection topology mutex, stream fence, session fence,
+  connection-registry mutex, room mutex, or notifier mutex while holding
+  `LocalSnapback`, the provider/catalog mutex, a SQLite writer, or a SQLite
+  transaction.
+- The narrow existing post-commit live fan-out may take its per-connection
+  outbox enqueue mutex while `with_snapback` still holds the global write guard.
+  That enqueue may only copy an already-prepared effect stamp and bytes; it may
+  not consult projection/stream/session state, drain, send, await, or call back
+  into any earlier lock. No outbox lock is held during SQLite transaction work.
+- Never hold a synchronous mutex across `.await`, network I/O, email delivery,
+  filesystem I/O, or client callback execution.
+- Never invoke app/Contract code while any server or coordinator lock is held.
+- The projection topology lock is not a substitute for the global database
+  writer and is never acquired underneath it.
+
+### Allowed order
+
+When topology construction requires nesting, the only order is:
+
+```text
+projection topology -> stream fence -> session fence
+```
+
+That nesting is released before touching the connection registry, an outbox,
+a room, or a notifier. An ordinary act instead uses this sequence:
+
+```text
+connection registry (clone binding snapshot/leaf handle, release)
+-> stream fence
+-> optional session fence
+-> one leaf direct-publication/drain/room operation
+-> release
+```
+
+The connection registry never holds its mutex while validating a leaf fence.
+The only network-facing object that may nest beneath stream/session fences is a
+bounded in-memory writer handoff. Its `try_commit(buffer)` is synchronous,
+nonblocking, and performs no socket I/O; a connection-writer task flushes an
+accepted item only after every auth lock is released. A full/closed handoff
+accepts nothing and returns immediate backpressure.
+
+Finalization is sequenced, not nested:
+
+```text
+projection/fence finalize and release
+-> connection reverse-index invalidation and release
+-> outbox/room purge and release
+-> generation-matched notifier terminal wake and release
+```
+
+No later stage calls back into an earlier stage while holding its lock. The
+existing notifier generation remains part of the compare key so teardown of an
+old socket cannot unregister or close its replacement. Terminal purge may
+remove still-uncommitted outbox/room work, but it cannot retract a buffer already
+accepted by a writer handoff before `Begin`; that buffer is honestly in flight.
+
+The server supplies lock-rank assertions in test/dev builds. The L9
+concurrency suite must show that a stalled revocation transaction for session A
+does not delay an unrelated finite request or publication for session B beyond
+normal scheduler noise.
+
+## Connection-bound authority
+
+### Grant shape
+
+The connection registry stores one of these internal bindings whose identity
+fields are immutable:
+
+```ts
+type BoundGrantAuthorityV1 =
+  | {
+      kind: "anonymous"
+      authorizationStreamIncarnation: CanonicalUuidV7
+    }
+  | {
+      kind: "session"
+      authorizationStreamIncarnation: CanonicalUuidV7
+      sessionId: CanonicalUuidV7
+      userId: CanonicalUuidV7
+      provider: ProviderId
+      generation: SafePositiveInteger
+      deadlineMs: SafeIntegerTimestamp
+    }
+```
+
+The Rust session variant additionally holds an `Arc<SessionFence>`; that handle
+is not serialized or exposed. `deadlineMs` is a mutable cached validity lease
+updated from that fence after a qualifying use; it is not grant identity. The
+grant contains neither bearer digest, plaintext bearer, email address,
+`authority_instance_id`, nor admin/impersonation capability.
+
+Grant opening resolves a presented bearer through `SessionProjection`. Only a
+current token with an available, unexpired session can mint a session grant. A
+superseded token remains attributable for LLP 0054's tiered request/refresh and
+family-alarm rules but never mints or renews a grant during its grace interval.
+This narrow grant rule does not change LLP 0054's ordinary finite-request rule:
+a superseded family token is honored inside its inclusive ten-second grace,
+fails `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED` outside grace, and cannot be used to
+refresh a delegated connection capability.
+
+### Reuse and mismatch
+
+The existing `previousToken` optimization is idempotent only when its stored
+binding and the newly resolved authority have exact equality over variant,
+incarnation, session id, user id, provider, and generation. The mutable
+deadline is refreshed from the current leaf and is excluded from identity
+equality. An exact match returns the same grant and updates normal use/LRU
+state.
+
+Anonymous-to-session, session-to-anonymous, a different session, user,
+provider, generation, or incarnation is a mismatch. It returns
+`SNAPBACK_CONNECTION_AUTHORITY_MISMATCH`, invalidates the predecessor grant,
+and never silently rebinds or mints a replacement from that request. The client
+must complete its authority transition and open a fresh connection.
+
+The existing registry capacity, unused/used LRU, idle lease, and redacted-debug
+behavior remain required. Item 5 adds a process-local connection-open throttle
+with three closed bucket kinds:
+
+```ts
+type LocalOpenBucketV1 =
+  | { kind: "session"; incarnation: CanonicalUuidV7; sessionId: SessionId; generation: SafePositiveInteger }
+  | { kind: "anonymous-or-malformed"; incarnation: CanonicalUuidV7 }
+  | { kind: "canonical-unknown"; incarnation: CanonicalUuidV7 }
+```
+
+Every `POST /connection/open` attempt counts, including rejected and
+exact-`previousToken` attempts. Ordering is exact:
+
+1. bounded request-shape and bearer-syntax parsing occurs without provider or
+   SQLite access;
+2. an absent bearer or malformed presented bearer consumes the
+   anonymous/malformed prebudget before any authority lookup;
+3. a canonical bearer is SHA-256-indexed only in `SessionProjection`—connection
+   open MUST NOT fall through to provider/database resolution;
+4. a current or attributable superseded bearer consumes its exact session
+   generation bucket; and
+5. an unknown canonical digest consumes the canonical-unknown bucket.
+
+The invalid buckets are separate from session buckets, so a hostile anonymous
+local page cannot consume every current session's open allowance. Malformed and
+unknown credentials retain LLP 0054's same public invalid-credential response;
+throttling returns only HTTP 429 `SNAPBACK_AUTH_THROTTLED`, with no bucket kind,
+token classification, session fact, or identifier. A superseded token may map
+to its known session bucket for accounting while still being refused a grant.
+
+Under the registry lock, each bounded deque drops timestamps at least 60000
+monotonic milliseconds old, rejects when its length already equals its exact
+limit with a rounded-up `Retry-After`, or appends the attempt. Thus attempts
+1–60 for one session and 1–240 for either coarse bucket enter normal admission;
+the next attempt inside the window is throttled. Empty session buckets are
+removed after the window; reset replaces both coarse buckets with the successor
+incarnation.
+
+This is the exact local-target meaning of per-source: one resolved authority,
+or one of two fail-closed process-wide invalid/anonymous sources. Canonical
+unknown lookup is bounded in-memory work; canonical-token spray remains a named
+local hostile-page CPU residual rather than permission to consult SQLite. The
+baseline has no peer identity and this Spec does not pretend loopback
+`peer_addr` is a deployer source behind a proxy. IP/trusted-proxy and distributed
+throttling remain ENG-24607's hosted deployment-security obligation.
+
+A reverse index from `(incarnation, sessionId, generation)` to grant ids
+supports bounded invalidation. Anonymous grants are indexed by incarnation for
+reset/restore.
+
+The registry and delegated grant tokens remain process-memory-only; ordinary
+restart invalidates them even though it preserves session and stream
+incarnation. Clients reopen from current bearer custody after the fresh
+handshake.
+
+### Act-time validation
+
+Possession of a random grant token is necessary but insufficient. A
+connection-token act first clones its binding snapshot and leaf handle under
+the registry mutex and releases it. A direct finite bearer request instead
+carries the projection-resolved `PreparedAuthority` and leaf handles from the
+shared LLP 0055 invocation gate; it does not invent a connection grant. Both
+paths then:
+
+1. validate matching stream incarnation under `StreamFence`;
+2. for a session, validate exact generation, availability, and deadline under
+   `SessionFence`; and
+3. perform the synchronous in-memory leaf act or transfer its complete buffer
+   into a bounded writer handoff while the relevant fence remains locked.
+
+The leaf operation must be small and nonblocking. A direct finite response or
+effect is computed before it in an unpublished buffer. A queued live delta may
+already have been computed and enqueued under the global write guard; for that
+path the leaf operation is drain/send, never enqueue. This removes the old
+check-then-act delivery window without putting app execution beneath an auth
+lock.
+
+## Fenced effects and live closure
+
+### Effect stamp
+
+Every authority-sensitive queued or delayed effect carries this internal
+stamp:
+
+```ts
+type EffectFenceV1 = {
+  authorizationStreamIncarnation: CanonicalUuidV7
+  connectionGrantId: OpaqueGrantId | null
+  authority:
+    | { kind: "anonymous" }
+    | {
+        kind: "session"
+        sessionId: CanonicalUuidV7
+        generation: SafePositiveInteger
+      }
+}
+```
+
+`connectionGrantId` is an internal identifier, not the reusable wire token. It
+is null only for a direct finite bearer request; queued, live, outbox,
+ephemeral, and room effects require a non-null bound grant. Finite-response
+buffers, durable outbox entries, live result frames, ephemeral effects, room
+receipts, and delayed callback envelopes use the stamp. LLP 0055's live-owner
+predicate stores the same bound owner at subscribe time.
+
+Direct app/database work produces an unpublished buffer.
+`FencedPublication::commit` performs the final stream/session validation and
+consumes that buffer into a synchronous finite-response handoff, bounded
+connection-writer queue, direct in-memory ephemeral/room act, or
+callback-visible slot while the leaf fence is held. This nonblocking ownership
+transfer is the publication linearization cut. Socket/HTTP flushing happens
+later with no auth lock held. If validation or `try_commit` fails, the buffer is
+not published and the caller receives the matching auth/backpressure outcome. A
+revocation marker that begins after a successful transfer sees the effect as
+already in flight and need not retract it; a marker that begins before the
+transfer prevents publication.
+
+Queued live deltas are different by design. Production/enqueue is allowed
+inside `with_snapback`'s global write guard and therefore MUST NOT acquire any
+projection or leaf fence. It copies the producing `PreparedAuthority`/stored
+live-owner incarnation, grant id, session id, and generation into
+`EffectFenceV1`. Enqueue is not an authorization effect boundary; the atomic
+boundary is the later drain/send.
+
+An auth operation that intentionally terminates its own authority needs one
+narrow completion rule. Successful finalization may mint a one-shot internal
+`CommittedAuthOutcome { ticket, incarnation, responseClass }` for only the
+fixed, no-store provider response already selected before begin: logout `204`,
+family-alarm `202`, or a typed provider auth error. Its publisher validates the
+stream incarnation and exact finalized ticket outcome, then consumes it into
+the same nonblocking response handoff. It cannot carry app rows, invoke a
+function, enqueue an effect, open a connection, or authorize follow-on work.
+Thus logout may acknowledge its committed result after making its old leaf
+terminal without treating that leaf as current; an ordinary stale app response
+has no such carrier and remains fenced.
+
+### Durable and ephemeral outboxes
+
+`OutboundQueue` replaces destructive all-at-once drain with a leased batch:
+
+1. select a bounded batch without removing it and attach a unique drain lease;
+2. group only entries carrying the exact current effect fence;
+3. under the final stream/session fence, synchronously `try_commit` each exact
+   frame/batch into its bounded connection-writer queue;
+4. acknowledge/remove only entries whose ownership was accepted by that queue;
+   network flush is asynchronous and outside the fence; and
+5. retain/release an entry when the writer queue is full or a pending marker
+   blocks it, or purge it when the authority is terminal/superseded.
+
+An entry with an old incarnation, grant, session, or generation never drains
+under a successor authority. Queue cleanup compares the full fence and cannot
+delete a successor entry because it shares a connection id. Ephemeral lanes
+use the same fence but may drop rather than retain an unsent item according to
+their existing delivery semantics.
+
+No projection lookup or authority revalidation occurs at enqueue. A mutation
+that races revocation may still compute, serialize, and enqueue an old-generation
+delta under the global write guard. This protocol promises non-delivery, not
+non-computation: the drain sees the stamp and refuses it once the marker or
+successor generation is visible. A delta transferred to the writer queue before
+the marker is in flight and may flush afterward; terminal close may prevent that
+flush but does not claim to retract it. The projection-to-`EphemeralApi` drain
+wiring is therefore an explicit readiness prerequisite.
+
+### Typed terminal auth error
+
+The live server adds this closed server frame:
+
+```ts
+type LiveAuthErrorFrameV1 = {
+  kind: "auth_error"
+  code:
+    | "SNAPBACK_AUTH_SESSION_EXPIRED"
+    | "SNAPBACK_AUTH_STREAM_RESET"
+    | "SNAPBACK_AUTH_MODE_PENDING"
+  reason:
+    | "expired"
+    | "revoked"
+    | "reset"
+    | "restore"
+    | "downgrade"
+    | "mode_transition"
+}
+```
+
+The frame contains no session id, user id, address, provider subject, token,
+grant, or generation. Item 7 retains ownership of the public generation-bearing
+authority descriptor. A pending mutation ticket blocks new validation but is
+not itself a terminal event; a rollback emits no terminal frame. After durable
+revocation/reset commit is finalized, or after the expiry deadline is
+authoritatively observed, the terminal event wins the notifier-generation
+compare, synchronously offers this frame to the bounded writer handoff, stops
+ordinary drain, releases every lock, and schedules close with code `4401` and
+reason `auth_error`. It never awaits the socket while holding the notifier or
+session fence. Its hard `closeBy` is
+commit/finalize time plus 5000 ms for revocation/reset, the projected monotonic
+expiry plus 5000 ms for an ordinary expiry, or forward-wall-jump observation
+plus 5000 ms when the epoch clock newly proves expiry. Expiry-worker scheduling
+latency consumes this budget; it does not add a second five-second wait. Failure
+to send the frame does not postpone close.
+
+The kit classifies this frame or close code as terminal for its captured
+authority, suppresses generic reconnect, and invokes coordinator
+`compareAndClear(capture, reason)`. A delayed terminal frame for A cannot clear
+or close B because both the socket-generation guard and captured authority
+epoch must match. If the frame is lost, the next handshake/grant/request still
+converges through the projection and incarnation checks.
+
+## Reset, restore, and stream publication
+
+Reset and any future live logical import use a unique stream mutation ticket
+rather than walking per-session markers:
+
+1. fully authorize and validate the operation, then generate the successor
+   incarnation;
+2. under projection topology plus stream fence, install the stream ticket and
+   block every new act; release both locks;
+3. in the same `LocalSnapback` global-writer transaction that deletes/replaces
+   app and auth state, insert the successor `_snapback_meta` value after any
+   broad metadata delete and before commit;
+4. after known commit, install an empty detached session projection behind the
+   still-blocked stream fence with the successor incarnation (logical import
+   may carry identity rows but never imports sessions);
+5. under topology plus the shared stream fence, atomically install the
+   successor incarnation and remove the exact stream ticket; only then
+   invalidate every predecessor grant/effect, issue terminal wakes, and allow
+   successor opens; and
+6. after known rollback, exact compare-unmark the stream ticket and retain the
+   predecessor incarnation.
+
+Declared physical restore is pre-bind and follows LLP 0054's validated
+declaration path. Before any database mutation, startup validates the strict
+`restore-declaration.json`, its owner-only file identity, the exact
+`--restored-from-backup <declarationId>` argument, and the canonical UUIDv7.
+There is no listener, published projection, or grant registry at this point;
+the pre-bind gate is the stream block.
+
+One auth transaction then reads
+`_snapback_meta['auth_restore_declaration_id']`. If it already equals the
+validated id, the declaration is idempotent: it does not revoke again, delete
+new challenges, or regenerate the incarnation. Otherwise, the same transaction
+revokes all still-live restored sessions, deletes every verification challenge,
+writes a freshly generated `auth_stream_incarnation_v1`, and writes the
+declaration id as its final statement. That commit is the declared restore cut.
+Only after it succeeds may startup remove the declaration file, build/publish
+the revoked-session projection under the new incarnation, and bind. A validation
+failure or transaction rollback preserves the predecessor durable value and
+never publishes a generated incarnation.
+
+An ambiguous commit is reconciled by reading the durable incarnation and the
+operation's durable marker. If neither exact predecessor nor exact successor
+state can be proven, all authority stays blocked and startup/operator recovery
+is required. A new incarnation is never published before durable commit and an
+old incarnation is never accepted after successor publication.
+
+This protocol is the item-5 wiring from `app.reset` through
+`ConnectionRegistry`. Direct reset helpers, tests, restore entry points, and
+admin aliases all call the same coordinator; no destructive path updates app
+tables without updating the incarnation.
+
+## Client custody and `AuthCoordinator`
+
+### Authority identity and captures
+
+Each JavaScript/native execution context returns exactly one local
+`AuthCoordinator` for each canonical Snapback app id and storage partition.
+Those coordinators share one durable custody record and serialize through one
+cross-context owner, so they form one logical authority state without pretending
+one tab can directly enumerate or await another tab's objects. The coordinator
+owns bearer custody, authority transitions, connection lifecycle, and exposure
+barriers. Contract, the kit, live transport, and durable client store are local
+participants; none keeps an independent notion of current auth.
+
+```ts
+type ClientAuthorityV1 =
+  | {
+      kind: "anonymous"
+      authMode: "dev" | "sessions"
+      authorizationStreamIncarnation: CanonicalUuidV7
+    }
+  | {
+      kind: "session"
+      authMode: "sessions"
+      authorizationStreamIncarnation: CanonicalUuidV7
+      sessionId: CanonicalUuidV7
+      userId: CanonicalUuidV7
+    }
+
+type AuthorityCaptureV1 = {
+  authorityEpoch: SafeNonnegativeInteger
+  custodyRevision: SafePositiveInteger
+  authorityKey: CanonicalAuthorityKey
+}
+```
+
+`CanonicalAuthorityKey` is `sha256:` plus 64 lowercase hex digits over the UTF-8
+bytes `snapback.auth-authority.v1\n` followed by compact JSON with fields in
+this exact order: `{appId,kind,authMode,authorizationStreamIncarnation}` for
+anonymous, and
+`{appId,kind,authMode,authorizationStreamIncarnation,sessionId,userId}` for
+session. The JSON uses the already-canonical string spellings and no whitespace
+or trailing newline. This digest is not a bearer and is safe only as a local
+comparison key. Client authority deliberately contains neither provider nor
+session generation because LLP 0055's item-5 handshake exposes neither and item
+7 owns the public generation-bearing authority descriptor. Server grants still
+bind both fields internally. The bearer remains private coordinator custody.
+Rotating a bearer for the same exact authority updates custody revision but
+does not advance authority epoch or invalidate healthy connection grants.
+Anonymous to session, session to anonymous, a different session/user, an auth
+mode change, or an authorization-stream incarnation change is an authority
+transition and does advance the epoch. Including mode prevents anonymous dev
+state authorized by client assertions from being relabeled anonymous sessions
+state merely because reset did not rotate the incarnation.
+
+Every request, grant open, socket, subscription, ephemeral send, Contract
+execution, async callback, optimistic layer, client-store write, and durable
+completion captures authority before beginning. It may expose or commit only
+through `isCurrent` or `compareAndCommit` after its final await. A success,
+failure, timeout, abort, and terminal auth error are equally fenced. In
+particular, delayed failure A cannot clear B and delayed success A cannot write
+under B.
+
+Authority freshness compares `authorityEpoch` and `authorityKey`.
+`custodyRevision` is additionally captured so credential-changing operations
+can perform a no-lost-update CAS, but an ordinary app-state completion remains
+current across a same-authority bearer rotation. Rotation, refresh scheduling,
+and custody replacement compare all three fields. This distinction is
+load-bearing: treating any custody revision as a new authority would tear down
+healthy connections on rotation; ignoring revision for bearer writes would let
+a late tab overwrite a successor credential.
+
+### Durable custody record
+
+The coordinator's closed durable record is:
+
+```ts
+type AuthCustodyV1 = {
+  formatVersion: 1
+  appId: CanonicalAppId
+  authorityEpoch: SafeNonnegativeInteger
+  revision: SafePositiveInteger
+  phase: "settled" | "clearing"
+  authority: ClientAuthorityV1 | null
+  pendingAuthority: ClientAuthorityV1 | null
+  bearer: string | null
+  pendingBearer: string | null
+  refreshAfterMs: SafeIntegerTimestamp | null
+}
+```
+
+In `settled`, `authority` is non-null and is the only readable authority;
+`pendingAuthority` and `pendingBearer` are null. Anonymous settled custody has
+a null bearer and null refresh time; a settled session has a non-null bearer
+and bounded refresh time. In `clearing`, current authority and bearer are null,
+the record is non-readable to app participants, and pending fields plus
+`refreshAfterMs` describe only the successor being installed. No broadcast
+contains either bearer field.
+
+A fresh store is created only after a successful anonymous bootstrap handshake,
+at `authorityEpoch: 0` and `revision: 1`. Every custody record replacement,
+including clearing, settling, and bearer rotation, increments revision by
+exactly one. Every authority transition increments epoch by exactly one at the
+clearing write and keeps that epoch through settle. Neither counter wraps; an
+exhausted revision is custody corruption requiring replacement, and an
+exhausted epoch uses the dedicated diagnostic below.
+
+The record is keyed by canonical app id in IndexedDB database
+`snapback-auth-custody`, version 1, object store `custody`; fallback lease rows
+use object store `leases` in the same database so one transaction can compare
+both. Native clients use an equivalently transactional credential store. A
+localStorage mirror at the constants-table key MAY contain only
+`{formatVersion, appId, authorityEpoch, revision, phase}` as a wakeup hint; it
+is not custody authority. Malformed shapes, unsafe integers, app mismatch, a
+bearer in an anonymous record, inconsistent phase fields, or a revision/epoch
+regression produce `SNAPBACK_AUTH_CUSTODY_CORRUPT` and a blank, fail-closed
+surface until explicit clear/recovery.
+
+This storage is coordination, not an XSS defense. A script executing in the app
+origin can read or invoke the same custody path and may exfiltrate a bearer.
+That residual is the separately owned client-page XSS contract; item 5 does not
+claim that IndexedDB makes an extractable bearer safe from app-origin code.
+The baseline kit at `d172fd1` keeps only a caller-supplied bearer in process
+memory; durable plaintext bearer custody is therefore an intentional item-5
+behavior change required for cross-tab refresh recovery, not a description of
+existing posture. It is allowed only for this local-target slice. ENG-24607's
+client-page XSS contract must explicitly ratify this at-rest/browser choice or
+replace it before hosted auth can be enabled.
+
+An epoch advances by exactly one. Attempting to advance the maximum safe
+integer fails closed with `SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED` and requires
+new storage custody rather than wrapping or losing comparison identity.
+
+### Coordinator interface
+
+The normative semantic API is:
+
+```ts
+interface AuthCoordinator {
+  capture(): AuthorityCaptureV1
+  isCurrent(capture: AuthorityCaptureV1): boolean
+
+  compareAndCommit<T>(
+    capture: AuthorityCaptureV1,
+    commit: (current: SettledCustodyView) => T,
+  ): Promise<{ committed: true; value: T } | { committed: false }>
+
+  compareAndClear(
+    capture: AuthorityCaptureV1,
+    reason: AuthClearReason,
+  ): Promise<{ cleared: boolean }>
+
+  transition(
+    expected: AuthorityCaptureV1,
+    successor: AuthorityInput,
+    reason: AuthorityTransitionReason,
+  ): Promise<AuthorityCaptureV1>
+
+  registerParticipant(participant: AuthBarrierParticipant): Unregister
+}
+```
+
+`capture` succeeds only in `settled`. During `clearing`, new participant work is
+paused and app reads remain blank. `isCurrent` compares epoch and authority key
+as a fast in-memory hint; it does not authorize a durable write.
+`compareAndCommit` reacquires cross-context custody, reloads the durable settled
+record, compares epoch and authority key, and invokes a synchronous,
+non-reentrant `commit` before releasing ownership. `commit` cannot await, call
+user code, or start another coordinator operation. The coordinator has an
+internal `compareAndRotateBearer` operation that additionally compares custody
+revision and is the only path that may replace a bearer or refresh schedule.
+
+`compareAndClear` first performs the same epoch-and-authority-key comparison. A
+stale capture returns `{cleared:false}` without blanking, disconnecting,
+deleting, or broadcasting. A capture whose only difference is a newer
+same-authority custody revision remains current, because revocation of that
+session also revokes the rotated bearer. A current capture runs a transition to
+anonymous. A terminal auth error therefore has no wider power than the
+socket/request that observed it.
+
+`transition` throws local `SNAPBACK_CLIENT_AUTHORITY_STALE` when E names a
+different current authority. If the durable record is already settled at the
+exact requested successor, it returns that capture idempotently; no other
+mismatch is silently adopted.
+
+### Cross-context ownership
+
+The preferred browser mutex is the Web Locks API with the exact lock name in
+the constants table. After acquiring it, a caller always reloads durable
+custody; an in-memory capture alone cannot justify a write. `BroadcastChannel`
+messages are wakeups, not state:
+
+```ts
+type AuthCustodyBroadcastV1 = {
+  formatVersion: 1
+  appIdHash: string
+  authorityEpoch: SafeNonnegativeInteger
+  revision: SafePositiveInteger
+  phase: "clearing" | "settled"
+}
+```
+
+`appIdHash` is 64 lowercase hex digits of SHA-256 over
+`snapback.auth-app.v1\n<canonical-app-id>` and selects the channel/hint names in
+the constants table. It is routing metadata, not authority.
+
+Receivers ignore wrong-app, malformed, duplicate, or older messages, then
+reload custody under ownership. Reordering or loss is harmless because every
+foreground operation and connection attempt also reloads/compares durable
+custody. Each context also performs this check on `pageshow`, transition to
+visible, focus, and before publishing a Contract boundary. A context suspended
+during a transition cannot run callbacks; on resumption it blanks before it can
+commit or expose work under the predecessor capture.
+
+The transition owner does not wait for acknowledgements from unknown, crashed,
+or suspended contexts. The durable clearing epoch makes every predecessor
+compare/expected-epoch write stale immediately. An active peer receiving the
+broadcast runs its own local quiesce/blank barrier; a peer that missed it or was
+suspended runs that barrier on its mandatory lifecycle/publication check before
+its first resumed exposure. This is fail-closed commit/exposure fencing, not a
+claim of globally simultaneous DOM blanking.
+
+Where Web Locks is unavailable, the storage adapter must provide an atomic
+compare-and-swap lease in the same transactional domain as custody:
+
+```ts
+type AuthCustodyLeaseV1 = {
+  holderNonce: Base64Url128
+  fencingToken: SafePositiveInteger
+  expiresAtMs: SafeIntegerTimestamp
+}
+```
+
+Acquisition increments `fencingToken`, selects a fresh CSPRNG holder nonce, and
+sets a five-second expiry in one IndexedDB/native transaction. The holder
+renews every one second. Every custody write validates holder, fencing token,
+and unexpired lease in the same transaction as the write. A paused former
+holder can never overwrite a newer holder. After lease loss it aborts and
+reloads. A contender may replace a lease when its epoch expiry has passed or
+when it has observed the exact unchanged `(holderNonce, fencingToken, lease
+record)` for five local monotonic seconds; replacement is a CAS against those
+exact bytes and allocates the next fencing token. A renewal changes the observed
+lease record and restarts that wait. Thus wall-clock rollback cannot wedge
+custody indefinitely, while a paused old holder is still fenced after a
+monotonic takeover. Fencing-token exhaustion fails closed as custody-lock
+unavailability rather than wrapping.
+
+If neither Web Locks nor a transactional CAS adapter exists, sessions-mode
+custody fails closed with `SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE`.
+localStorage test-and-set, `storage` events, tab-election timestamps, and
+unfenced timeout stealing are not acceptable fallbacks.
+
+### Disposition interface
+
+Item 5 introduces the closed coordinator interface type required by LLP 0039:
+
+```ts
+type AuthDispositionV1 = "retain" | "quarantine" | "delete"
+```
+
+Its severity order is `retain < quarantine < delete`; combining dispositions
+selects the maximum. The type exists now so item 6 can add producers without
+replacing the barrier API. At item 5, the only invalidation disposition ever
+produced or executed is `delete`, and it is produced for every session-authority
+loss. Item 5 has no permission-change quarantine machinery and no producer may
+request `retain` or `quarantine` yet. Ordinary custody switches that are not
+authority-loss invalidations still follow the explicit transition table below.
+
+### Transition barrier
+
+For expected settled capture E and successor authority S, `transition` performs
+these ordered phases while retaining exclusive cross-context ownership from
+the initial reload through settled publication or a recorded clearing failure.
+Its awaited participant set is the owner's local registered set, not every tab.
+The fallback owner renews its fenced lease while awaiting those participants;
+loss of ownership aborts immediately and permits a successor to recover:
+
+1. Reload custody and compare E's epoch and authority key. A different
+   authority returns a stale result or reloads the already-settled successor;
+   it never repeats effects against that authority. A newer revision of the
+   same authority is adopted as the exact CAS predecessor.
+2. Durable CAS that exact loaded revision to `clearing` at
+   `E.authorityEpoch + 1`, with current authority/bearer removed and S in the
+   pending fields. Increment revision. This is the authority-transition
+   linearization point.
+3. Broadcast the secret-free `clearing` wakeup. Every receiving context
+   immediately stops starting app-visible work; a context that misses it must
+   observe durable custody at its next publication/lifecycle gate.
+4. Call every locally registered participant's `quiesce`: abort finite
+   requests, stop reconnect, detach live/ephemeral callbacks, and wait for
+   currently executing local compare-and-commit sections to finish. Delayed
+   underlying operations may complete later but retain E and cannot commit.
+5. Call `blank` on every local app-data boundary before performing deletion.
+   This switches visibility to an explicit empty/loading projection without yet
+   erasing backing objects; no retained row, optimistic overlay, pending
+   mutation, receipt, cached grant, or old live result remains visible.
+6. Call `clearMemory` after visibility is blank. This distinct phase erases the
+   old optimistic state, queues, grants, socket generations, ephemeral receipts,
+   and callback registrations.
+7. Call `commitDurable(expectedEpoch, nextEpoch, disposition)` for each durable
+   participant. All use expected-epoch CAS. Failure leaves custody in
+   `clearing`, surfaces blank, and retries/recovery continue; no participant may
+   expose a partly cleared successor.
+8. Durable CAS custody from the exact clearing revision to `settled` at the
+   same next epoch, move pending authority/bearer into current fields, clear
+   pending fields, and increment revision.
+9. Broadcast `settled`, reload the owner context's settled record, call local
+   `resume`, obtain a fresh LLP 0055 handshake and connection grant, then
+   resubscribe only permitted surfaces. Receiving/resuming peer contexts reload
+   independently. A context's exposure resumes only after its own mandatory
+   participants report readiness.
+
+Local participant registration during `clearing` joins in a paused and blank
+state and participates in the remaining phases; it cannot observe pending
+custody. Unregistration waits for an executing local barrier method to finish.
+Barrier calls have deterministic registration order and reverse-order resume,
+and a participant exception is classified as a transition failure rather than
+skipped.
+
+The custody transition behavior at item 5 is:
+
+| From | To | Retained reads | Queued writes/receipts | Connection |
+| --- | --- | --- | --- | --- |
+| anonymous | authenticated | hide until a fresh authenticated snapshot; item 5 admits no retained private rows | strand predecessor | fresh |
+| authenticated A | different user B | delete | delete | fresh |
+| authenticated A | same user, different session | no principal-data wipe; blank online/session-dependent results and fresh-snapshot them | strand predecessor | fresh |
+| authenticated | anonymous | delete | delete | fresh anonymous |
+| dev | sessions | delete legacy retained privacy bytes | strand predecessor queue; never send automatically | fresh sessions grant |
+| sessions | dev downgrade | delete | delete | fresh dev connection |
+| any incarnation | different incarnation | delete | delete | fresh |
+
+The same-user/new-session row is not an excuse to expose stale session-dependent
+results: boundaries blank and refetch, while the principal-scoped durable data
+collection is not wiped. At item 5 `retainedReads:false`, so a conforming
+sessions store has no admitted retained private rows and preservation is a
+no-op. Item 8 may make that preservation observable only through LLP 0053's
+declaration and lease protocol; it may not weaken the blank/fresh-snapshot or
+queue-stranding rules.
+
+On bearer supersession for the same exact session authority, the coordinator
+does not transition epochs. It waits up to 2000 monotonic milliseconds for a
+newer settled custody revision, woken by broadcast and backed by durable reload.
+If a current successor bearer appears, it retries the failed operation once.
+If no successor exists, it invokes LLP 0054's family-alarm path and calls
+`POST /auth/family-alarm` with the suspect bearer before compare-and-clearing the
+still-current capture. Failure or loss of the alarm retains LLP 0054's named
+stolen-successor residual; it does not justify clearing first. The coordinator
+does not log out simply because another tab rotated first.
+
+Refresh always acquires ownership and reloads current settled custody
+immediately before sending `POST /auth/refresh`. A successful successor is
+written through the revision-comparing `compareAndRotateBearer` before it is
+returned to any caller or used on a request. `SNAPBACK_AUTH_REFRESH_SUPERSEDED`
+uses the same bounded wait/reload and never clears a healthy family. Refresh
+alone records no sliding use.
+
+On boot, every participant begins blank. The coordinator acquires ownership,
+loads settled custody, performs LLP 0055's handshake using the exact current
+bearer if present, and compares the returned stream incarnation and session
+projection, active mode, and app-data availability before opening a grant or
+resuming Contract. A valid same authority settles without advancing epoch.
+Pending/unavailable mode remains blank. Missing/invalid custody, a rejected
+session, an auth-mode change, or an incarnation mismatch runs the corresponding
+transition barrier. A fresh store establishes anonymous custody only from the
+server's current handshake; it does not invent an incarnation offline.
+
+## Durable client store protocol
+
+### Format 3 and authority tags
+
+`packages/snapback-contract/client-store.mjs` advances from format 2 to format
+3. Its existing top-level `generation` remains the monotonic store-write
+revision; it MUST NOT be repurposed as auth authority. The store adds a distinct
+`authorityEpoch` matching settled custody.
+
+Every privacy-bearing record in retained rows, pending writes, failed writes,
+stranded writes, acknowledgements, mutation receipts, and any implementation
+index carries its producing `authorityEpoch` and canonical authority key. A
+record without both tags is unreadable in sessions mode.
+
+All operations have expected-epoch semantics:
+
+- reads accept an expected epoch/key and suppress records with any mismatch;
+- retained put/delete, enqueue, settle, fail, retry, acknowledge, receipt
+  creation, and compaction compare the expected epoch before mutation;
+- stale durable mutations return `SNAPBACK_CLIENT_STORE_AUTHORITY_STALE` and
+  make no change; and
+- a transition atomically compares the predecessor epoch, advances to exactly
+  the coordinator's next epoch, deletes or strands predecessor collections per
+  the table, and installs no successor data.
+
+Stranded is not replayable or part of ordinary app reads. A separate explicit
+discard-or-re-record view may expose a stranded payload only when the recorded
+transition was anonymous-to-authenticated or the predecessor and successor
+have the same server-resolved `userId`, and only under a current-epoch
+coordinator check. Different-user, logout, and incarnation transitions delete
+the queue instead. Re-record means user-confirmed creation of a new online
+mutation under the current capture; it never retags or sends the predecessor
+record. Item 5's `queuedReplay:false` forbids every automatic send.
+
+Transactional IndexedDB/SQLite adapters publish their current namespace pointer
+with the same expected-epoch CAS as collection changes. A non-transactional
+localStorage adapter MUST NOT emulate CAS with read-then-`setItem` or keep a
+mutable localStorage current pointer. It instead uses immutable
+generation-segmented namespaces keyed by `(appIdHash, authorityEpoch,
+authorityKey)`. Every writer selects only its captured namespace; the sole
+current pointer is the settled transactional custody record. A late old writer
+can therefore add bytes only to an unreachable old namespace. Transition makes
+the predecessor unreachable by settling the next custody epoch, and later GC
+may delete its keys. A reader derives the namespace from current custody and
+never scans/falls back to another epoch. It is forbidden to delete sequentially
+while leaving the old namespace readable or to retag an old segment as current.
+
+Migration from format 2 validates the old shape but does not reinterpret its
+`generation` or client-asserted `authFingerprint` as an authority epoch. On a
+dev-to-sessions transition it deletes retained rows and privacy caches, moves
+pending/failed queue records into a dedicated `legacyV2Stranded` namespace that
+is never replayable or retagged current, and creates format 3 at the current
+settled epoch. A legacy record that the exact v2 shape proves was anonymous may
+be discarded or explicitly re-recorded through the current coordinator check;
+a record carrying a client-asserted fingerprint is delete-only because that
+fingerprint is not server provenance. Non-private static metadata survives only
+when explicitly allowlisted by the migration. In dev mode migration may defer
+this conversion until a sessions transition. An older client rejects format 3
+rather than downgrading or rewriting it.
+
+### Independent item-5 availability axes
+
+Store APIs represent `retainedReads` and `queuedReplay` separately. Neither is
+inferred from the other, from a matching user id, from being online, or from a
+session existing. At item 5 the session capability is exactly:
+
+```json
+{
+  "onlineRequestResponse": true,
+  "authScopedLive": false,
+  "retainedReads": false,
+  "queuedReplay": false
+}
+```
+
+Accordingly the item-5 implementation deletes retained material on session
+loss, principal change, and incarnation change, and either strands or deletes
+old queued work as the transition table specifies. Same-user/new-session does
+not wipe principal-scoped data, although no such retained data is admitted yet.
+It implements the epoch/disposition interface now so later items can safely add
+producers; it does not manufacture those outcomes early.
+
+## Contract and kit barrier participation
+
+### Participant contract
+
+The coordinator participant interface has these semantics:
+
+```ts
+interface AuthBarrierParticipant {
+  name: string
+  quiesce(ctx: BarrierContext): Promise<void>
+  blank(ctx: BarrierContext): void
+  clearMemory(ctx: BarrierContext): void
+  commitDurable(ctx: BarrierContext): Promise<void>
+  resume(ctx: SettledBarrierContext): Promise<void>
+}
+```
+
+`blank` and `clearMemory` are synchronous and cannot call app code.
+`commitDurable` must use the exact expected/next epoch supplied by the
+coordinator. `resume` receives no bearer directly; it asks coordinator custody
+through a narrow request/grant API.
+
+Mandatory participants are:
+
+- the Snapback HTTP/connection/live transport, which aborts finite requests,
+  disables reconnect, closes old sockets, clears grants and waiter
+  generations, and performs a fresh handshake/grant on resume;
+- each Contract surface, which detaches live and ephemeral callbacks, blanks
+  query boundaries, removes last rows, optimistic overlays, pending callback
+  state, receipts, and connection state, commits the store transition, then
+  reconstructs and resubscribes under the successor; and
+- each durable Contract store, registered once per physical app partition, so
+  duplicate surfaces cannot race the epoch CAS.
+
+Exact/Contract host callbacks, mutation completion, retained write chains,
+optimistic settle/rollback, subscription result/error, ephemeral acknowledgement,
+and reconnect completion each carry the capture from their initiating work.
+Before changing boundary or durable state they call coordinator
+`compareAndCommit`. A delayed completion under A may free its private temporary
+buffer, but it cannot alter B, reapply A's optimistic layer, clear B's error,
+or publish an A result.
+
+The kit no longer treats `setBearerToken` as a local token swap. It requests a
+coordinator rotation or transition. Clearing a bearer, receiving a terminal
+auth error, changing app/incarnation, or replacing the session follows the
+barrier. Direct cache invalidation remains an implementation detail inside the
+registered transport participant.
+
+### Exposure invariant
+
+Within each running context, every Contract boundary publication is in exactly
+one state after its mandatory custody gate:
+
+```text
+Settled(E): all visible records and callbacks are tagged E
+BlankClearing(E+1): no privacy-bearing record/callback is visible
+```
+
+There is no mixed publication state. `blank` precedes that context's first
+destructive durable step; `resume` follows the final settled custody write and
+all of that context's mandatory participant commits. Rendering code may observe
+an explicit auth-loading/blank state but never publish predecessor data labeled
+as successor data. A suspended context is governed by the resume gate above,
+not by a false instantaneous-global-blank claim.
+
+## Handshake and readiness
+
+### Bootstrap response revision
+
+LLP 0055's closed `GET /auth/session` success body gains the required field:
+
+```ts
+authorizationStreamIncarnation: CanonicalUuidV7
+```
+
+The response's session projection and this incarnation are captured from one
+prepared authority. A sessions-mode success without the field, an invalid UUID,
+or a value different from settled client custody is a protocol error and
+triggers a blank coordinator transition/reload. Anonymous responses carry the
+same current incarnation. Dev mode thereby claims only authorization-stream
+continuity across ordinary restart, not session-credential continuity or a
+user-bearing authority.
+
+The existing four protocol headers remain mandatory. Item 5 does not increment
+the auth client protocol because protocol 1 was reserved by LLP 0055 for this
+client sequence; it completes that sequence. The server still returns
+`SNAPBACK_AUTH_CLIENT_PROTOCOL_REQUIRED` before auth resolution for a missing or
+unsupported header.
+
+### Readiness facts
+
+Item 5 changes exactly these LLP 0055 runtime facts from false to true when and
+only when their named implementation and executable probes are installed:
+
+```json
+{
+  "connectionBinding": true,
+  "twoPhaseRevocation": true,
+  "authCoordinator": true
+}
+```
+
+- `connectionBinding` requires exact grant binding, current-bearer admission,
+  act-time leaf validation, reverse invalidation, and stamped effect drains.
+- `twoPhaseRevocation` requires projection rebuild, all provider call-site
+  rewiring, exact-ticket begin/finalize/compare-unmark, expiry worker, reset and
+  restore incarnation coupling, and five-second terminal closure.
+- `authCoordinator` requires durable custody, cross-context mutex or fenced
+  lease, all mandatory participants, client-store format 3, and delayed-race
+  acceptance in at least two contexts.
+
+No manifest field, environment variable, dev flag, or mocked readiness object
+may assert one early. `sessionActivationReady` remains derived as LLP 0055
+defines and becomes true only when every item-1-through-item-5 prerequisite is
+true. A projection that has not completed rebuild or a terminal worker that is
+not running prevents sessions-mode listener bind rather than merely clearing a
+readiness bit after traffic starts.
+
+With the full derived readiness true, item 5 admits authenticated and anonymous
+online finite request/response through the shared invocation gate. It continues
+to reject auth-scoped live subscriptions, retained reads, and queued replay with
+their existing capability diagnostics. `authorityIndependent` live behavior
+remains only the conservative LLP 0055 exception; item 5 does not broaden it.
+
+## Diagnostics and safe exposure
+
+Diagnostics are stable machine-readable codes following LLP 0012. Public
+responses remain generic where a distinction would expose session existence or
+operator state; logs attach redacted structured context and never bearer,
+digest, address, code, or custody secrets.
+
+| Code | Boundary and status | Meaning / required action |
+| --- | --- | --- |
+| `SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT` | startup / no bind | Missing, invalid-version, or malformed durable stream after migration rules; operator recovery. |
+| `SNAPBACK_AUTH_PROJECTION_CORRUPT` | startup / no bind | Durable rows cannot form one valid projection; preserve evidence. |
+| `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` | request `503` | Projection/ticket allocation is unavailable; no effect committed. |
+| `SNAPBACK_AUTH_REVOCATION_UNCERTAIN` | affected request `503`; affected session blocked | Ambiguous commit cannot be reconciled; rebuild/operator recovery. |
+| `SNAPBACK_AUTH_STREAM_RESET` | live frame / terminal close | The bound authorization-stream incarnation is no longer current; no reset/restore internals exposed beyond the safe frame reason. |
+| `SNAPBACK_CONNECTION_AUTHORITY_MISMATCH` | grant open `401` | `previousToken` is bound to a different authority; client barrier then fresh open. |
+| `SNAPBACK_AUTH_THROTTLED` | grant open `429` | The applicable local open bucket is exhausted; safe rounded-up `Retry-After`, no bucket/session detail. |
+| `SNAPBACK_CLIENT_AUTHORITY_STALE` | local typed stale result | Async completion capture is not current; discard without clearing successor. |
+| `SNAPBACK_CLIENT_STORE_AUTHORITY_STALE` | local typed stale result | Store expected-epoch CAS failed; reload custody/store. |
+| `SNAPBACK_AUTH_CUSTODY_CORRUPT` | local fail-closed blank state | Durable custody shape or monotonicity invalid; explicit recovery. |
+| `SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE` | local sessions refusal | No safe Web Lock or transactional fenced lease. |
+| `SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED` | local fail-closed blank state | Epoch cannot advance without wrap; replace custody store. |
+
+The existing `SNAPBACK_AUTH_SESSION_EXPIRED` (covering both expired and
+revoked sessions), provider-family alarm, mode, and protocol
+diagnostics retain their owning definitions. On public finite routes,
+projection lookup still follows LLP 0054's uniform invalid-credential posture;
+it does not reveal whether a token is current, superseded, revoked, or absent.
+
+## Executable acceptance
+
+Every acceptance below is required before its readiness fact can be true.
+Tests use deterministic schedulers/failpoints where an interleaving is named;
+wall-clock sleeps are not proof of ordering.
+
+### Projection and mutation model
+
+1. A property/state-machine test generates issue, use, rotate, logout, expire,
+   cap eviction, family alarm, reset, restore, restart, commit failure, and
+   ambiguous-commit events. After every step, durable rows, projection indexes,
+   ticket indexes, fences, grants, and effect stamps satisfy their invariants.
+2. Two revocations plan the same `(session, generation)`. Pause A after begin,
+   begin B, commit/finalize one, roll back/reconcile the other in both orders.
+   Neither compare-unmark makes the committed session current or removes the
+   sibling ticket.
+3. Inject an ambiguous result before and after SQLite commit. Exact durable
+   predecessor unmarks, exact successor finalizes, and contradictory state
+   stays blocked with `SNAPBACK_AUTH_REVOCATION_UNCERTAIN`.
+4. Pause rotation after begin: the predecessor cannot mint a grant and the
+   successor is unknown. Rollback restores only the predecessor; commit makes
+   exactly the successor current and preserves the superseded alarm path.
+5. Race cap issuance with use/logout/another issue. The exact candidate CAS
+   either commits eviction plus fully projected successor or returns no bearer.
+6. Restart after an uncoalesced in-memory sliding extension. Rebuilt expiry is
+   no later than durable expiry. Exercise forward/backward wall-clock jumps and
+   stale deadline entries with a fake dual clock.
+7. Corrupt each index source independently: duplicate current token, dangling
+   identity, invalid generation/timestamp, malformed incarnation, and
+   contradictory reset marker. Startup refuses before listener bind with the
+   correct stable code and performs no repair.
+8. Hold session A's database commit at a failpoint. Session B completes an L9
+   finite request and fenced publication without waiting for A's transaction or
+   projection ticket.
+9. Authenticated finite use, current-bearer connection open, grace-window
+   ordinary use, and live-socket liveness each extend the in-memory deadline and
+   coalesce durable writes. Refresh-only and an unresponsive retained socket do
+   not. Restart never recovers an uncommitted extension.
+
+### Grants, effects, and closure
+
+1. An anonymous grant cannot be reused after incarnation change. A session
+   grant cannot be reused for anonymous, another session/user/provider, or a
+   newer generation. Exact reuse refreshes only the mutable deadline. A grant
+   for connection A cannot address, resume, unsubscribe, or drain connection B,
+   including when both are anonymous or otherwise share authority. Ordinary
+   process restart invalidates every grant while preserving the stream
+   incarnation and durable sessions.
+2. A current bearer mints a grant. A superseded bearer within grace does not
+   mint one, while an ordinary finite request with that same bearer is honored
+   under LLP 0054. Outside grace it produces credential-superseded recovery;
+   missing successor custody calls the family alarm before clear. Revoked,
+   expired, malformed, and random bearers have indistinguishable public posture.
+3. Exercise the 16,384-entry cap, unused/used LRU, idle expiry, source throttle,
+   and reverse index under concurrent opens/invalidation. Eviction cannot
+   reassign a token or leave an indexed ghost. With a fake monotonic clock,
+   attempts 1–60 for one session and 1–240 for anonymous/malformed and
+   canonical-unknown buckets reach ordinary admission, the next is
+   `SNAPBACK_AUTH_THROTTLED`, and the exact 60000-ms boundary reopens. An
+   invalid-bucket flood does not consume a current session's budget; no
+   prebudget rejection calls provider or SQLite; malformed and unknown public
+   failures reveal no bucket/session distinction.
+4. Produce and enqueue a live delta while holding the global write guard and
+   assert that enqueue takes no projection/stream/session lock. Begin
+   revocation before drain: the stamped delta is not delivered. A drain/send
+   transferred into the bounded writer queue before begin may flush as in
+   flight and is not claimed retractable. No socket await holds a leaf fence,
+   and no old generation/incarnation payload transfers after successor
+   publication.
+5. Begin a marker then roll it back while an outbox batch is leased. Entries are
+   retained and later drain under the still-current exact fence. Terminal
+   finalize purges them. A stale cleanup cannot purge successor entries.
+6. For finite responses, live results, durable outbox, ephemeral effects, room
+   receipts, and callback envelopes, independently pause between computation
+   and commit and prove the final fence rejects old authority.
+7. With a fake monotonic clock, expiry/revocation/reset produces at most one
+   notifier-generation-matched `auth_error`, stops ordinary drain/reconnect,
+   and closes by 5000 ms even when the writer handoff/socket cannot accept the
+   frame. Old-socket teardown cannot close or unregister a replacement. A
+   pending ticket that rolls back produces no terminal frame or close.
+8. Reset and declared restore each change incarnation in the same durable
+   transaction, invalidate all old anonymous/session grants and queues, and
+   survive crash at every phase. Restore declaration validation failure causes
+   no mutation; retry of an already-recorded declaration id does not regenerate
+   again. Ordinary restart preserves incarnation.
+9. Logout and revoking refresh-family outcomes publish only their exact fixed
+   provider response through a one-shot committed-outcome carrier after
+   finalize. The carrier cannot publish planted app bytes, be reused, or survive
+   an incarnation change; an ordinary old-authority response remains denied.
+
+### Coordinator and two-context races
+
+1. Run two tabs A and B against one durable custody store. Delay A's successful
+   response, error, terminal auth frame, live callback, optimistic settle,
+   client-store write, grant open, and reconnect in separate tests. Transition
+   to B, release the delay, and prove each A completion has no visible or
+   durable effect on B.
+2. A delayed terminal `auth_error` for A calls `compareAndClear(A)` after B is
+   settled. It returns false without blanking B, closing B's socket, deleting
+   B's store, or broadcasting a new epoch.
+3. Kill a Web-Lock owner before clearing, during every participant phase, and
+   before settled publication. A successor owner reloads the durable phase,
+   resumes idempotently, and never exposes partial data.
+4. Repeat using the fallback lease. Pause an expired holder, let a new holder
+   acquire a larger fencing token and settle, then release the old holder. Every
+   old write fails the same-transaction lease check.
+5. Duplicate, reorder, delay, and drop clearing/settled broadcasts. Receivers
+   converge by durable reload, never consume a bearer from a message, and never
+   regress epoch or revision.
+6. Rotate a bearer in A. B observes supersession, reloads the newer custody
+   revision within the bounded wait, retries once, and retains the same epoch.
+   Existing app completions and connection grants remain current. Withhold the
+   successor and prove family alarm plus compare-and-clear occurs only if the
+   original epoch/authority key remains current.
+7. Register and unregister Contract surfaces during clearing. A new surface is
+   blank/paused and cannot expose pending custody; unregistration cannot skip an
+   executing durable phase.
+8. Crash or throw each participant phase. Custody remains `clearing`, all
+   owner-local boundaries remain blank, stale peer commits fail the durable
+   epoch, idempotent recovery continues from durable state, and no successor
+   becomes visible before every mandatory durable CAS.
+9. Suspend peer B before A transitions. A does not wait for or claim to blank B
+   globally; durable epoch CAS immediately rejects B's delayed writes. On
+   resume, B reloads and blanks before its first callback, render publication,
+   reconnect, or app operation.
+
+### Client store and Contract boundaries
+
+1. Migrate representative and adversarial format-2 stores. No privacy record is
+   retagged as a format-3 successor. Older readers reject format 3.
+2. For every store operation, race transition between expected-epoch read and
+   commit. CAS rejects the stale mutation and reads suppress mismatched tags.
+   Repeat for generation-segmented fallback namespaces.
+3. Transition anonymous to auth, A to different-user B, A to same-user/new
+   session, auth to anonymous, and incarnation to successor. Verify the exact
+   delete/strand table, same-user principal data is not wiped, different-user
+   queues are deleted, and retained/replay admission remains false.
+4. Observe Contract boundaries on every barrier step. They become blank before
+   the first delete, contain no optimistic/last-row/receipt/grant residue while
+   clearing, and expose only successor-tagged results after settled resume.
+5. Delay old live, ephemeral, mutation, retained-write, optimistic rollback,
+   and error callbacks. None may change the successor boundary or durable
+   store. A fresh handshake, grant, and resubscribe of each permitted surface
+   occurs exactly once per successful local transition.
+6. On a localStorage segmented adapter, release an old writer after successor
+   custody settles. It writes only its old namespace; current reads do not scan
+   or expose it, and no mutable localStorage pointer can select it.
+7. The item-5 producer matrix emits `delete` for every session-authority loss
+   and never emits `retain` or `quarantine`; unsupported injected values fail
+   rather than bypassing the barrier.
+
+### Handshake and activation
+
+1. The bootstrap response contains a canonical durable incarnation captured
+   with its authority. Missing, malformed, stale, or cross-app values fail
+   before a grant or callback can become visible.
+2. The complete item-1-through-item-5 readiness matrix is generated and tested.
+   Each omitted module/wiring/worker keeps its owning fact false and therefore
+   keeps `sessionActivationReady` false. No override can force it true.
+3. With readiness true, online finite anonymous/authenticated requests work.
+   Auth-scoped live, retained reads, and queued replay remain refused; the
+   conservative authority-independent live exception is unchanged.
+4. Dev-to-sessions and sessions-to-dev tests prove that no predecessor grant,
+   session data, client epoch, outbox entry, or Contract callback crosses the
+   mode transition while ordinary incarnation continuity is preserved. Reset
+   separately proves that no old incarnation crosses its rotating transition.
+
+## Implementation handoff
+
+The implementation should land in dependency order without splitting a safety
+invariant across an externally enableable commit:
+
+1. add authorization-stream storage/migration and detached projection rebuild;
+2. add leaf fences, tickets, mutation planning, and rewire every LLP 0054
+   revocation/rotation/reset/restore call site;
+3. extend connection bindings, reverse indexes, publication stamps, leased
+   drain, notifier terminal events, and typed live errors;
+4. add custody storage, coordinator ownership/transition recovery, client-store
+   format 3, and mandatory kit/Contract participants;
+5. revise the closed handshake DTO, install real readiness probes, and run the
+   full interleaving and activation matrix; and
+6. run `./ref-check --verbose` and add non-mechanical `@ref LLP 0056#...`
+   annotations at each non-obvious ticket, lock-order, fence, custody, and
+   epoch-CAS implementation boundary.
+
+Intermediate commits may compile and test, but sessions activation stays
+unavailable until all six stages and acceptance obligations are present. A
+compatibility shim may read old state only as explicitly specified above; it
+cannot emulate readiness or bypass a fence.
+
+## Open decisions and status
+
+There is no open decision that blocks ENG-24603 implementation. The following
+choices are deliberately non-blocking and may be revised by a later accepted
+Spec without weakening this one:
+
+- whether a future browser implementation adds a `SharedWorker` fast path;
+- the internal batching size for leased outbox drains;
+- garbage-collection cadence for unreachable client-store epoch segments; and
+- later LLP 0053 disposition outcomes once item 8 admits retained reads.
+
+This document remains **Draft** while its inferred mechanisms await author
+ratification and executable implementation evidence. It does not make LLP 0039
+or LLP 0053 unfrozen and it does not accept itself on the author's behalf.
