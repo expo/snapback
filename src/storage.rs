@@ -21,7 +21,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 // The item-3 provider integration consumes these crate-private seams after this
@@ -898,35 +898,34 @@ impl LocalDatabase {
         &mut self,
         seed: Option<SeedData>,
     ) -> SnapbackResult<Option<MutationOutput>> {
-        let successor = crate::auth::session_projection::AuthorizationStreamIncarnation::fresh();
-        self.reset_and_seed_with_authorization_stream(seed, &successor)
-    }
+        use crate::auth::coordinator::AuthCoordinator;
+        use crate::auth::session_projection::{
+            AuthorizationStreamRecord, ProjectionSource, SessionProjection,
+        };
 
-    /// Destructive reset primitive for the item-5 coordinator. The successor
-    /// is generated and premarked before this database lane is entered; this
-    /// transaction may only commit those exact planned bytes.
-    ///
-    /// @ref LLP 0056#reset-restore-and-stream-publication — the stream ticket
-    /// binds the same successor written by the destructive transaction.
-    pub(crate) fn reset_and_seed_with_authorization_stream(
-        &mut self,
-        seed: Option<SeedData>,
-        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-    ) -> SnapbackResult<Option<MutationOutput>> {
-        let schema = self.schema.clone();
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let seeded = reset_and_seed_transaction(&tx, &schema, seed, successor)?;
-        #[cfg(test)]
-        BEFORE_RESET_COMMIT_HOOK.with(|slot| {
-            if let Some(hook) = slot.borrow_mut().take() {
-                hook()?;
-            }
-            Ok::<(), SnapbackError>(())
-        })?;
-        tx.commit()?;
-        Ok(seeded)
+        let incarnation = self.ensure_authorization_stream_incarnation()?;
+        // A standalone database owns no published session projection or grant
+        // registry. Coordinate only its durable stream so reset remains the
+        // recovery path even when the auth rows being deleted are corrupt.
+        // Server-owned reset uses the installed full coordinator instead.
+        let source = ProjectionSource {
+            authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
+                .encode_bytes()?,
+            restore_declaration_id: None,
+            users: Vec::new(),
+            identities: Vec::new(),
+            sessions: Vec::new(),
+            superseded_tokens: Vec::new(),
+        };
+        let projection =
+            SessionProjection::rebuild_with_fresh_startup_id(source, now_millis(), Instant::now())?;
+        let coordinator = AuthCoordinator::new(projection)?;
+        let carrier = coordinator.premark_stream_reset()?;
+        let predecessor = carrier.predecessor().clone();
+        let successor = carrier.successor().clone();
+        let attempt =
+            self.attempt_reset_and_seed_with_authorization_stream(seed, &predecessor, &successor);
+        coordinator.finish_stream_reset(carrier, attempt)
     }
 
     /// Coordinated destructive reset with explicit commit certainty. A unique

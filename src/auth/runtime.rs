@@ -815,7 +815,7 @@ mod tests {
                 .unwrap_err()
                 .diagnostic
                 .code,
-            "SNAPBACK_AUTH_REQUIRED"
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
         );
     }
 

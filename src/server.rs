@@ -3,7 +3,10 @@ use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
 use crate::auth::admission::{AdmissionLease, AuthAdmissionController, ModeCommitFailure};
-use crate::auth::coordinator::{AuthCoordinator, IssuanceFinish, RevocationFinish, RotationFinish};
+use crate::auth::coordinator::{
+    AuthCoordinator, CommittedAuthOutcome, CommittedAuthResponseClass, IssuanceFinish,
+    RevocationFinish, RotationFinish,
+};
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
     AuthSessionResponse,
@@ -2910,7 +2913,7 @@ async fn prepare_registered_route_authority(
             .into());
         }
     }
-    let resolved = match active_mode {
+    let (resolved, fenced_publication) = match active_mode {
         crate::manifest::AuthMode::Dev => {
             if source == InvocationSource::BootstrapHandshake
                 && headers.contains_key(header::AUTHORIZATION)
@@ -2927,55 +2930,65 @@ async fn prepare_registered_route_authority(
                 InvocationSource::HostOperationFunctionRun
                     | InvocationSource::HostOperationMutationDryRun
             ) {
-                dev_host_operation_authority(handler_value)
+                (dev_host_operation_authority(handler_value), None)
             } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
                 || source == InvocationSource::DirectAdminRunner
             {
-                dev_body_authority(handler_value)
+                (dev_body_authority(handler_value), None)
             } else {
-                ResolvedAppAuthority::Anonymous
+                (ResolvedAppAuthority::Anonymous, None)
             }
         }
         crate::manifest::AuthMode::Sessions => {
+            let coordinator = installed_auth_coordinator(runtime)?;
             if matches!(
                 source,
                 InvocationSource::DirectAdminRunner
                     | InvocationSource::HostOperationFunctionRun
                     | InvocationSource::HostOperationMutationDryRun
             ) {
-                ResolvedAppAuthority::AdminBypass {
-                    reason: "administrative application invocation".to_owned(),
-                }
-            } else if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
-                && headers.contains_key(header::AUTHORIZATION)
+                (
+                    ResolvedAppAuthority::AdminBypass {
+                        reason: "administrative application invocation".to_owned(),
+                    },
+                    Some(
+                        coordinator
+                            .prepare_anonymous_publication()
+                            .map_err(ApiError::from)?,
+                    ),
+                )
+            } else if matches!(
+                effective.credential_resolution,
+                CredentialResolution::OptionalSessionBearer
+                    | CredentialResolution::RequiredSessionBearer
+            ) && (effective.credential_resolution
+                == CredentialResolution::RequiredSessionBearer
+                || headers.contains_key(header::AUTHORIZATION))
             {
                 // Invalid and duplicate Authorization values remain
-                // presented-invalid credentials; they never fall through to
-                // anonymous authority.
+                // presented-invalid credentials. Finite request resolution is
+                // projection-only and never falls through to provider/SQLite.
                 let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
                 let provider = installed_auth_provider(runtime)?;
-                let provider_admission = provider.admit().await;
-                let route_admission = admission.clone();
                 let now_ms = provider.now_ms();
-                let session = with_snapback(&runtime.snapback, move |snapback| {
-                    let _effect = route_admission
-                        .effect_guard("bootstrap session resolution")
-                        .map_err(ProviderError::from)?;
-                    provider_admission.resolve_session(
-                        snapback.auth_database_mut(),
-                        bearer.as_str(),
-                        now_ms,
-                    )
-                })
-                .await
-                .map_err(map_provider_error)?;
-                ResolvedAppAuthority::from_session(session)
+                let prepared = coordinator
+                    .resolve_required_bearer(&bearer, now_ms, provider.monotonic_now())
+                    .map_err(ApiError::from)?;
+                let (resolved, publication) = prepared.into_parts();
+                (resolved, Some(publication))
             } else {
-                ResolvedAppAuthority::Anonymous
+                (
+                    ResolvedAppAuthority::Anonymous,
+                    Some(
+                        coordinator
+                            .prepare_anonymous_publication()
+                            .map_err(ApiError::from)?,
+                    ),
+                )
             }
         }
     };
-    InvocationGate::prepare_admitted_authority(
+    let authority = InvocationGate::prepare_admitted_authority(
         source,
         active_mode,
         runtime.server.profile,
@@ -2983,8 +2996,58 @@ async fn prepare_registered_route_authority(
         &wire,
         resolved,
     )
-    .map(Some)
-    .map_err(ApiError::from)
+    .map_err(ApiError::from)?;
+    Ok(Some(match fenced_publication {
+        Some(publication) => authority.with_fenced_publication(publication),
+        None => authority,
+    }))
+}
+
+async fn record_successful_finite_session_use(
+    runtime: &AppState,
+    authority: &PreparedAuthority,
+) -> Result<(), ApiError> {
+    let ResolvedAppAuthority::Session {
+        session_id,
+        generation,
+        ..
+    } = authority.resolved()
+    else {
+        return Ok(());
+    };
+    let provider = installed_auth_provider(runtime)?;
+    let coordinator = installed_auth_coordinator(runtime)?;
+    let provider_admission = provider.admit().await;
+    let session_id = session_id.clone();
+    let expected_generation = *generation;
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let outcome = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority
+            .effect_guard("authenticated-use expiry transaction")
+            .map_err(ProviderError::from)?;
+        provider_admission.record_authenticated_use(
+            snapback.auth_database_mut(),
+            &session_id,
+            expected_generation,
+            now_ms,
+        )
+    })
+    .await
+    .map_err(map_provider_error)?;
+    coordinator
+        .finalize_authenticated_use(
+            match authority.resolved() {
+                ResolvedAppAuthority::Session { session_id, .. } => session_id,
+                _ => unreachable!("checked session authority"),
+            },
+            expected_generation,
+            outcome,
+            now_ms,
+            provider.monotonic_now(),
+        )
+        .map_err(ApiError::from)?;
+    Ok(())
 }
 
 fn deferred_secret_read_scope(
@@ -3017,6 +3080,7 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
             spec.path,
             "/_snapback/api/functions/{name}/run"
                 | "/_snapback/api/host-ops"
+                | "/_snapback/api/app/reset"
                 | "/_snapback/api/auth/mailbox"
                 | "/_snapback/api/admin-secret-read/mint"
         )
@@ -3051,9 +3115,69 @@ fn finish_registered_response(
 ) -> Response {
     let mut response = if let Some(admission) = admission {
         match admission.effect_guard("HTTP response publication") {
-            Ok(publication) => {
-                let response = apply_registered_response_controls(effective, response);
-                drop(publication);
+            Ok(mode_publication) => {
+                let controlled = apply_registered_response_controls(effective, response);
+                let committed_outcome = controlled
+                    .extensions()
+                    .get::<CommittedAuthOutcome>()
+                    .cloned();
+                let published = match committed_outcome {
+                    Some(outcome) => {
+                        let response_class = match controlled.status() {
+                            StatusCode::NO_CONTENT => {
+                                Some(CommittedAuthResponseClass::LogoutNoContent)
+                            }
+                            StatusCode::ACCEPTED => {
+                                Some(CommittedAuthResponseClass::FamilyAlarmAccepted)
+                            }
+                            _ => None,
+                        };
+                        match response_class {
+                            Some(response_class) => outcome.try_publish(
+                                response_class,
+                                now_millis(),
+                                Instant::now(),
+                                || Ok(controlled),
+                            ),
+                            None => Err(SnapbackError::error(
+                                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                                "auth",
+                                "committed auth outcome was attached to an unsupported response",
+                            )),
+                        }
+                    }
+                    None => match authority {
+                        Some(authority) => {
+                            authority
+                                .try_publish_fenced(now_millis(), Instant::now(), || Ok(controlled))
+                        }
+                        None => Ok(Some(controlled)),
+                    },
+                };
+                let response = match published {
+                    Ok(Some(response)) => response,
+                    Ok(None) => {
+                        let error = match authority.map(PreparedAuthority::resolved) {
+                            Some(ResolvedAppAuthority::Session { .. }) => {
+                                provider_session_expired().into_snapback_error()
+                            }
+                            _ => SnapbackError::error(
+                                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                                "auth",
+                                "the authorization stream changed before response publication",
+                            ),
+                        };
+                        apply_registered_response_controls(
+                            effective,
+                            ApiError::from(error).into_response(),
+                        )
+                    }
+                    Err(error) => apply_registered_response_controls(
+                        effective,
+                        ApiError::from(error).into_response(),
+                    ),
+                };
+                drop(mode_publication);
                 response
             }
             Err(error) => {
@@ -3419,12 +3543,10 @@ async fn enforce_registered_route_policy(
             RoutePolicy::AdminSecretRead => {
                 authorize_secret_read(&runtime.secret_reads, request.headers())
             }
-            RoutePolicy::SessionAuth => Err(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "session policy cannot become active before staged auth-mode enforcement lands",
-            )
-            .into()),
+            // The projection-backed credential resolver below is the
+            // SessionAuth enforcement point. No admin/public policy may
+            // substitute for its required bearer.
+            RoutePolicy::SessionAuth => Ok(()),
             RoutePolicy::Public | RoutePolicy::AppAuth | RoutePolicy::ConnectionAuth => Ok(()),
         }
     };
@@ -3583,9 +3705,24 @@ async fn enforce_registered_route_policy(
     } else {
         request.extensions_mut().insert(effective);
     }
+    let mut response = next.run(request).await;
+    if response.status().is_success()
+        && matches!(
+            invocation_source,
+            Some(
+                InvocationSource::HttpQuery
+                    | InvocationSource::HttpMutation
+                    | InvocationSource::HttpAction
+            )
+        )
+        && let Some(authority) = prepared_authority.as_ref()
+        && let Err(error) = record_successful_finite_session_use(&runtime, authority).await
+    {
+        response = error.into_response();
+    }
     finish_registered_response(
         response_policy,
-        next.run(request).await,
+        response,
         route_admission.as_ref(),
         prepared_authority.as_ref(),
     )
@@ -3644,8 +3781,13 @@ async fn auth_session(
     }
     let offers = AuthClientProtocolOffers::from_headers(&headers);
     let state = runtime.auth_mode_state();
-    let projection = match authority {
-        Some(Extension(authority)) => authority.projection().clone(),
+    let (projection, captured_incarnation) = match authority {
+        Some(Extension(authority)) => (
+            authority.projection().clone(),
+            authority
+                .authorization_stream_incarnation()
+                .map(str::to_owned),
+        ),
         None => {
             // A closed admission epoch is the handshake's diagnostic-only
             // path. Resolve a presented bearer against the still-active
@@ -3667,20 +3809,21 @@ async fn auth_session(
                     if headers.contains_key(header::AUTHORIZATION) {
                         let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
                         let provider = installed_auth_provider(&runtime)?;
-                        let admission = provider.admit().await;
-                        let now_ms = provider.now_ms();
-                        let session = with_snapback(&runtime.snapback, move |snapback| {
-                            admission.resolve_session(snapback.auth_database_mut(), &bearer, now_ms)
-                        })
-                        .await
-                        .map_err(map_provider_error)?;
-                        ResolvedAppAuthority::from_session(session)
+                        installed_auth_coordinator(&runtime)?
+                            .resolve_required_bearer(
+                                &bearer,
+                                provider.now_ms(),
+                                provider.monotonic_now(),
+                            )
+                            .map_err(ApiError::from)?
+                            .into_parts()
+                            .0
                     } else {
                         ResolvedAppAuthority::Anonymous
                     }
                 }
             };
-            HandlerAuthProjection::from_authority(&resolved)
+            (HandlerAuthProjection::from_authority(&resolved), None)
         }
     };
     let provider_ready = runtime.auth_catalog_ready
@@ -3692,9 +3835,12 @@ async fn auth_session(
         AuthSessionFacts {
             server_startup_nonce: runtime.server_startup_nonce().to_owned(),
             transition_generation: state.transition_generation,
-            authorization_stream_incarnation: installed_auth_coordinator(&runtime)?
-                .authorization_stream_incarnation()
-                .map_err(ApiError::from)?,
+            authorization_stream_incarnation: match captured_incarnation {
+                Some(incarnation) => incarnation,
+                None => installed_auth_coordinator(&runtime)?
+                    .authorization_stream_incarnation()
+                    .map_err(ApiError::from)?,
+            },
             active_mode: state.active,
             desired_mode: state.desired,
             mode_state: state.mode_state,
@@ -4091,7 +4237,8 @@ async fn auth_refresh(
                     .finish_revocation(carrier, attempt)
                     .map_err(ApiError::from)?
                 {
-                    RevocationFinish::Committed(_) | RevocationFinish::AlreadyTerminal { .. } => {
+                    RevocationFinish::Committed { .. }
+                    | RevocationFinish::AlreadyTerminal { .. } => {
                         return Err(map_provider_error(provider_session_expired()));
                     }
                     RevocationFinish::PredecessorChanged => continue,
@@ -4113,7 +4260,7 @@ async fn auth_logout(
     Extension(route_admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<Response, ApiError> {
     let provider = installed_auth_provider(&runtime)?;
     let coordinator = installed_auth_coordinator(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
@@ -4159,8 +4306,13 @@ async fn auth_logout(
             .finish_revocation(carrier, attempt)
             .map_err(ApiError::from)?
         {
-            RevocationFinish::Committed(_) | RevocationFinish::AlreadyTerminal { .. } => {
-                return Ok(StatusCode::NO_CONTENT);
+            RevocationFinish::Committed { outcome, .. } => {
+                let mut response = StatusCode::NO_CONTENT.into_response();
+                response.extensions_mut().insert(outcome);
+                return Ok(response);
+            }
+            RevocationFinish::AlreadyTerminal { .. } => {
+                return Err(map_provider_error(provider_session_expired()));
             }
             RevocationFinish::PredecessorChanged => continue,
         }
@@ -4179,13 +4331,14 @@ async fn auth_family_alarm(
     Extension(route_admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
-) -> Result<(StatusCode, Json<FamilyAlarmResponse>), ApiError> {
+) -> Result<Response, ApiError> {
     let provider = installed_auth_provider(&runtime)?;
     let coordinator = installed_auth_coordinator(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let bearer = SecretInput::new(auth_bearer(&headers).unwrap_or_default().to_owned());
     let mut publish_not_before = provider.monotonic_now();
     let mut accepted = false;
+    let mut committed_outcome = None;
     for _ in 0..crate::auth::provider::AUTH_MAX_COLLISION_ATTEMPTS {
         let admission = provider.admit().await;
         let plan_bearer = bearer.as_str().to_owned();
@@ -4276,7 +4429,12 @@ async fn auth_family_alarm(
                     .finish_revocation(carrier, attempt)
                     .map_err(ApiError::from)?
                 {
-                    RevocationFinish::Committed(_) | RevocationFinish::AlreadyTerminal { .. } => {
+                    RevocationFinish::Committed { outcome, .. } => {
+                        committed_outcome = Some(outcome);
+                        accepted = true;
+                        break;
+                    }
+                    RevocationFinish::AlreadyTerminal { .. } => {
                         accepted = true;
                         break;
                     }
@@ -4289,7 +4447,11 @@ async fn auth_family_alarm(
         return Err(auth_provider_unavailable());
     }
     tokio::time::sleep_until(tokio::time::Instant::from_std(publish_not_before)).await;
-    Ok((StatusCode::ACCEPTED, Json(FamilyAlarmResponse::default())))
+    let mut response = (StatusCode::ACCEPTED, Json(FamilyAlarmResponse::default())).into_response();
+    if let Some(outcome) = committed_outcome {
+        response.extensions_mut().insert(outcome);
+    }
+    Ok(response)
 }
 
 /// Exact capture-mailbox projection. The handler requires the middleware-
@@ -6562,7 +6724,11 @@ async fn coordinated_app_reset(
         snapback.attempt_reset_with_seed_and_authorization_stream(seed, &predecessor, &successor)
     })
     .await;
-    let seeded = coordinator.finish_stream_reset(carrier, attempt)?;
+    let committed = coordinator.finish_stream_reset(carrier, attempt)?;
+    let seeded = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.publish_coordinated_reset(committed)
+    })
+    .await;
     runtime.connections.clear_after_committed_reset();
     runtime.secret_reads.clear_after_committed_reset();
     maintenance.clear_mailbox_after_committed_reset();
@@ -8195,7 +8361,10 @@ mod tests {
         AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
         SCHEMA_V1_PREFIX,
     };
-    use crate::auth::provider::{AuthProvider, AuthProviderProfile};
+    use crate::auth::provider::{
+        AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_USE_COALESCE_MS, AuthClock, AuthProvider,
+        AuthProviderProfile,
+    };
     use crate::cron::CronRunOutcome;
     use crate::local::{LocalSnapback, StagedAction};
     use crate::manifest::{
@@ -8222,6 +8391,41 @@ mod tests {
     use tokio::net::TcpListener;
     use tokio::sync::{Mutex, Semaphore};
     use tower::ServiceExt as _;
+
+    struct ManualServerAuthClock {
+        base_epoch_ms: u64,
+        epoch_ms: AtomicU64,
+        monotonic_origin: Instant,
+    }
+
+    impl ManualServerAuthClock {
+        fn new(epoch_ms: u64) -> Self {
+            Self {
+                base_epoch_ms: epoch_ms,
+                epoch_ms: AtomicU64::new(epoch_ms),
+                monotonic_origin: Instant::now(),
+            }
+        }
+
+        fn set(&self, epoch_ms: u64) {
+            self.epoch_ms.store(epoch_ms, Ordering::SeqCst);
+        }
+
+        fn monotonic_at(&self, epoch_ms: u64) -> Instant {
+            self.monotonic_origin
+                + Duration::from_millis(epoch_ms.saturating_sub(self.base_epoch_ms))
+        }
+    }
+
+    impl AuthClock for ManualServerAuthClock {
+        fn epoch_ms(&self) -> u64 {
+            self.epoch_ms.load(Ordering::SeqCst)
+        }
+
+        fn monotonic_now(&self) -> Instant {
+            self.monotonic_at(self.epoch_ms())
+        }
+    }
 
     fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
         let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
@@ -8649,10 +8853,16 @@ mod tests {
                     .header("x-snapback-auth-invalidation-protocol", "99")
                     .body(Body::empty())
                     .unwrap(),
-            )
-            .await
-            .unwrap();
+        )
+        .await
+        .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        let captured_incarnation = response
+            .extensions()
+            .get::<PreparedAuthority>()
+            .and_then(PreparedAuthority::authorization_stream_incarnation)
+            .expect("handshake authority carries its exact stream incarnation")
+            .to_owned();
         let body = response_json(response).await;
         assert_eq!(body["activeMode"], "sessions");
         assert_eq!(body["transitionGeneration"], 7);
@@ -8662,6 +8872,10 @@ mod tests {
         assert_eq!(body["authority"]["userId"], credential["session"]["userId"]);
         assert_eq!(body["authority"]["sessionId"], credential["session"]["id"]);
         assert_eq!(body["authority"]["isAuthenticated"], true);
+        assert_eq!(
+            body["authorizationStreamIncarnation"],
+            captured_incarnation
+        );
         assert_eq!(
             body["availability"]["onlineRequestResponse"]["reason"],
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
@@ -9772,17 +9986,15 @@ mod tests {
             "SNAPBACK_AUTH_REQUEST_INVALID"
         );
 
-        assert_eq!(
-            super::auth_logout(
-                State(state.clone()),
-                test_route_admission(&state),
-                auth_provider_headers(Some(&current_token)),
-                Ok(Bytes::from_static(br#"{}"#)),
-            )
-            .await
-            .expect("logout current bearer"),
-            StatusCode::NO_CONTENT
-        );
+        let logout = super::auth_logout(
+            State(state.clone()),
+            test_route_admission(&state),
+            auth_provider_headers(Some(&current_token)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect("logout current bearer");
+        assert_eq!(logout.status(), StatusCode::NO_CONTENT);
         let repeated = super::auth_logout(
             State(state.clone()),
             test_route_admission(&state),
@@ -9808,7 +10020,7 @@ mod tests {
 
         for bearer in [None, Some("malformed"), Some(unknown.as_str())] {
             let started = Instant::now();
-            let (status, response) = super::auth_family_alarm(
+            let response = super::auth_family_alarm(
                 State(state.clone()),
                 test_route_admission(&state),
                 auth_provider_headers(bearer),
@@ -9816,13 +10028,13 @@ mod tests {
             )
             .await
             .expect("opaque alarm response");
-            assert_eq!(status, StatusCode::ACCEPTED);
-            assert!(response.0.accepted);
+            assert_eq!(response.status(), StatusCode::ACCEPTED);
+            assert_eq!(response_json(response).await["accepted"], true);
             assert!(started.elapsed() >= Duration::from_millis(20));
         }
 
         // A current bearer is an opaque no-op and remains refreshable.
-        let (status, response) = super::auth_family_alarm(
+        let response = super::auth_family_alarm(
             State(state.clone()),
             test_route_admission(&state),
             auth_provider_headers(Some(&predecessor)),
@@ -9830,7 +10042,8 @@ mod tests {
         )
         .await
         .expect("current alarm response");
-        assert_eq!((status, response.0.accepted), (StatusCode::ACCEPTED, true));
+        assert_eq!(response.status(), StatusCode::ACCEPTED);
+        assert_eq!(response_json(response).await["accepted"], true);
         let rotated = super::auth_refresh(
             State(state.clone()),
             test_route_admission(&state),
@@ -9846,7 +10059,7 @@ mod tests {
         // unchanged, but the successor's family is revoked before publish.
         for _ in 0..2 {
             let started = Instant::now();
-            let (status, response) = super::auth_family_alarm(
+            let response = super::auth_family_alarm(
                 State(state.clone()),
                 test_route_admission(&state),
                 auth_provider_headers(Some(&predecessor)),
@@ -9854,7 +10067,8 @@ mod tests {
             )
             .await
             .expect("tombstone/already-revoked alarm response");
-            assert_eq!((status, response.0.accepted), (StatusCode::ACCEPTED, true));
+            assert_eq!(response.status(), StatusCode::ACCEPTED);
+            assert_eq!(response_json(response).await["accepted"], true);
             assert!(started.elapsed() >= Duration::from_millis(20));
         }
         let revoked = super::auth_logout(
@@ -9911,28 +10125,113 @@ mod tests {
         }
     }
 
+    /// @ref LLP 0056#projection-ownership-and-read-model — registered required
+    /// session routes resolve their bearer through the process projection and
+    /// publish the terminating logout response through its committed outcome.
     #[tokio::test]
-    async fn registered_session_auth_routes_remain_item_four_fenced() {
-        let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
-        for uri in ["/auth/refresh", "/auth/logout"] {
-            let response = router
-                .clone()
-                .oneshot(auth_http_request(
-                    "POST",
-                    uri,
-                    br#"{}"#.to_vec(),
-                    true,
-                    None,
-                    None,
-                ))
-                .await
-                .expect("registered SessionAuth route");
-            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-            assert_eq!(
-                response_json(response).await["diagnostic"]["code"],
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
-            );
-        }
+    async fn registered_session_auth_routes_resolve_projection_and_publish_logout() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let credential = mint_test_credential(&state, "registered-session@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let router = app(state);
+
+        let missing = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                true,
+                None,
+                None,
+            ))
+            .await
+            .expect("missing registered bearer response");
+        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(missing).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_REQUIRED"
+        );
+
+        let mut logout =
+            auth_http_request("POST", "/auth/logout", br#"{}"#.to_vec(), true, None, None);
+        logout.headers_mut().insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {bearer}")).unwrap(),
+        );
+        let response = router
+            .clone()
+            .oneshot(logout)
+            .await
+            .expect("projection-resolved logout response");
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+    }
+
+    /// @ref LLP 0056#operation-specific-publication — a successful finite app
+    /// request records authenticated use under the same prepared authority and
+    /// publishes the later deadline only after the durable outcome is known.
+    #[tokio::test]
+    async fn successful_finite_session_use_extends_the_projection_deadline() {
+        let start_ms = 1_700_000_000_000;
+        let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+        let mut snapback = LocalSnapback::memory().expect("manual-clock auth fixture");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            start_ms,
+            &OsRandom,
+        )
+        .expect("activate manual-clock auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                Arc::new(OsRandom),
+                clock.clone(),
+            )
+            .expect("construct manual-clock auth provider"),
+        );
+        let state = AppState::from_snapback(snapback, ServerContext::detached())
+            .with_policy_auth_mode(PolicyAuthMode::Sessions)
+            .with_auth_provider(provider);
+        let credential = mint_test_credential(&state, "sliding-use@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let coordinator = state.auth_coordinator.clone().unwrap();
+
+        let use_at_ms = start_ms + AUTH_SESSION_USE_COALESCE_MS;
+        clock.set(use_at_ms);
+        let prepared = coordinator
+            .resolve_required_bearer(&bearer, use_at_ms, clock.monotonic_now())
+            .expect("resolve current bearer before finite use");
+        let (resolved, publication) = prepared.into_parts();
+        let authority = InvocationGate::prepare_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            resolved,
+        )
+        .expect("prepare finite request authority")
+        .with_fenced_publication(publication);
+        super::record_successful_finite_session_use(&state, &authority)
+            .await
+            .expect("record successful finite session use");
+
+        let after_original_deadline = start_ms + AUTH_SESSION_SLIDING_WINDOW_MS + 1;
+        coordinator
+            .resolve_required_bearer(
+                &bearer,
+                after_original_deadline,
+                clock.monotonic_at(after_original_deadline),
+            )
+            .expect("sliding use moved the projected deadline past its original value");
     }
 
     /// @ref LLP 0054#host-operation-dtos — mint projects the exact credential as a
@@ -10758,8 +11057,6 @@ mod tests {
         "SNAPBACK_APP_GENERATION_EXHAUSTED",
         "SNAPBACK_AUTH_CATALOG_CORRUPT",
         "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED",
-        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
-        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
         "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
         "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
         "SNAPBACK_AUTH_MODE_PENDING",
@@ -10805,10 +11102,6 @@ mod tests {
         // deliberately not a request-path 4xx; if it ever crosses ApiError,
         // the fail-safe HTTP projection remains 500.
         "SNAPBACK_AUTH_BACKUP_INVALID",
-        "SNAPBACK_AUTH_MODE_DOWNGRADE",
-        "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
-        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
-        "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED",
         "SNAPBACK_AUTH_TRANSPORT_INSECURE",
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_TEMPDIR",

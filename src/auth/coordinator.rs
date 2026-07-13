@@ -22,7 +22,7 @@ use super::session_projection::{
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
 use std::collections::BTreeSet;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 pub(crate) struct AuthCoordinator {
@@ -135,10 +135,64 @@ impl std::fmt::Debug for PremarkedRotation {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CommittedAuthResponseClass {
+    LogoutNoContent,
+    FamilyAlarmAccepted,
+    ProviderAuthError,
+    InternalOnly,
+}
+
+#[derive(Debug)]
+struct CommittedAuthOutcomeState {
+    publication: FencedPublication,
+    ticket: MutationTicket,
+    response_class: CommittedAuthResponseClass,
+}
+
+/// Cloneable only so it can cross `http::Extensions`; every clone shares one
+/// mutex-protected capability and exactly one caller can consume it.
+#[derive(Clone, Debug)]
+pub(crate) struct CommittedAuthOutcome {
+    state: Arc<Mutex<Option<CommittedAuthOutcomeState>>>,
+}
+
+impl CommittedAuthOutcome {
+    pub(crate) fn try_publish<T>(
+        self,
+        response_class: CommittedAuthResponseClass,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+        publish: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<Option<T>> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| projection_unavailable())?
+            .take()
+            .ok_or_else(projection_unavailable)?;
+        if state.response_class != response_class {
+            return Err(projection_unavailable());
+        }
+        // `ticket` is an unforgeable proof minted only after exact finalize.
+        // Keep it alive through the guarded handoff so the capability binds
+        // both the finalized mutation and its fixed response class.
+        let _finalized_ticket = state.ticket;
+        state
+            .publication
+            .try_publish(epoch_now_ms, monotonic_now, publish)
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum RevocationFinish {
-    Committed(SessionRevocation),
-    AlreadyTerminal { generation: u64 },
+    Committed {
+        revocation: SessionRevocation,
+        outcome: CommittedAuthOutcome,
+    },
+    AlreadyTerminal {
+        generation: u64,
+    },
     PredecessorChanged,
 }
 
@@ -395,7 +449,25 @@ impl AuthCoordinator {
                     );
                     return Err(projection_unavailable());
                 }
-                Ok(RevocationFinish::Committed(revocation))
+                let response_class = match carrier.plan.reason() {
+                    RevocationReason::Logout => CommittedAuthResponseClass::LogoutNoContent,
+                    RevocationReason::FamilyAlarm => {
+                        CommittedAuthResponseClass::FamilyAlarmAccepted
+                    }
+                    RevocationReason::RefreshReuse => CommittedAuthResponseClass::ProviderAuthError,
+                    _ => CommittedAuthResponseClass::InternalOnly,
+                };
+                let outcome = CommittedAuthOutcome {
+                    state: Arc::new(Mutex::new(Some(CommittedAuthOutcomeState {
+                        publication: topology.projection.anonymous_publication_fence(),
+                        ticket: carrier.ticket.clone(),
+                        response_class,
+                    }))),
+                };
+                Ok(RevocationFinish::Committed {
+                    revocation,
+                    outcome,
+                })
             }
         }
     }
@@ -561,9 +633,9 @@ impl AuthCoordinator {
                     }
                     authority
                 }
-                ProjectedTokenResolution::Unavailable | ProjectedTokenResolution::Unknown => {
-                    return Err(auth_required());
-                }
+                ProjectedTokenResolution::Terminal => return Err(session_expired()),
+                ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
+                ProjectedTokenResolution::Unknown => return Err(auth_required()),
             };
         if topology
             .rebuild_required_sessions
@@ -584,6 +656,17 @@ impl AuthCoordinator {
             },
             publication,
         })
+    }
+
+    /// Bind an anonymous finite publication to the current authorization
+    /// stream. Reset/restore can therefore fence an already-computed public
+    /// response at the same final handoff used for session responses.
+    pub(crate) fn prepare_anonymous_publication(&self) -> SnapbackResult<FencedPublication> {
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        Ok(topology.projection.anonymous_publication_fence())
     }
 
     /// Publish the later deadline only after the provider's durable result is
@@ -815,6 +898,14 @@ fn credential_superseded() -> SnapbackError {
     )
 }
 
+fn session_expired() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_SESSION_EXPIRED",
+        "auth",
+        "authentication session is expired or revoked",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1018,7 +1109,7 @@ mod tests {
                 .coordinator
                 .finish_revocation(winner, committed(&fixture))
                 .unwrap();
-            assert!(matches!(outcome, RevocationFinish::Committed(_)));
+            assert!(matches!(outcome, RevocationFinish::Committed { .. }));
             let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
             assert_eq!(
                 fixture
@@ -1036,10 +1127,109 @@ mod tests {
                     .unwrap_err()
                     .diagnostic
                     .code,
-                "SNAPBACK_AUTH_REQUIRED"
+                "SNAPBACK_AUTH_SESSION_EXPIRED"
             );
             fixture.coordinator.check_invariants().unwrap();
         }
+    }
+
+    #[test]
+    fn committed_outcome_is_one_shot_and_response_class_bound() {
+        let logout_fixture = fixture();
+        let carrier = logout_fixture
+            .coordinator
+            .premark_revocation(plan(&logout_fixture, RevocationReason::Logout))
+            .unwrap();
+        let RevocationFinish::Committed { outcome, .. } = logout_fixture
+            .coordinator
+            .finish_revocation(carrier, committed(&logout_fixture))
+            .unwrap()
+        else {
+            panic!("logout revocation committed");
+        };
+        let duplicate = outcome.clone();
+        assert_eq!(
+            duplicate
+                .try_publish(
+                    CommittedAuthResponseClass::LogoutNoContent,
+                    200,
+                    logout_fixture.monotonic_start,
+                    || Ok("published"),
+                )
+                .unwrap(),
+            Some("published")
+        );
+        assert_eq!(
+            outcome
+                .try_publish(
+                    CommittedAuthResponseClass::LogoutNoContent,
+                    200,
+                    logout_fixture.monotonic_start,
+                    || Ok("duplicate"),
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+
+        let family_fixture = fixture();
+        let carrier = family_fixture
+            .coordinator
+            .premark_revocation(plan(&family_fixture, RevocationReason::FamilyAlarm))
+            .unwrap();
+        let RevocationFinish::Committed { outcome, .. } = family_fixture
+            .coordinator
+            .finish_revocation(carrier, committed(&family_fixture))
+            .unwrap()
+        else {
+            panic!("family-alarm revocation committed");
+        };
+        assert_eq!(
+            outcome
+                .try_publish(
+                    CommittedAuthResponseClass::LogoutNoContent,
+                    200,
+                    family_fixture.monotonic_start,
+                    || Ok(()),
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn committed_outcome_does_not_survive_stream_incarnation_change() {
+        let fixture = fixture();
+        let carrier = fixture
+            .coordinator
+            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .unwrap();
+        let RevocationFinish::Committed { outcome, .. } = fixture
+            .coordinator
+            .finish_revocation(carrier, committed(&fixture))
+            .unwrap()
+        else {
+            panic!("logout revocation committed");
+        };
+        let reset = fixture.coordinator.premark_stream_reset().unwrap();
+        fixture
+            .coordinator
+            .finish_stream_reset(reset, AuthTransactionAttempt::Committed(()))
+            .unwrap();
+        assert_eq!(
+            outcome
+                .try_publish(
+                    CommittedAuthResponseClass::LogoutNoContent,
+                    200,
+                    fixture.monotonic_start,
+                    || Ok("stale"),
+                )
+                .unwrap(),
+            None
+        );
     }
 
     #[test]

@@ -567,6 +567,7 @@ pub struct PreparedAuthority {
     projection: HandlerAuthProjection,
     audit: AuthorityAuditFact,
     availability: OperationAvailability,
+    publication: Option<crate::auth::session_projection::FencedPublication>,
 }
 
 /// Bearer-free authority retained by a durable live subscription. It carries
@@ -622,6 +623,35 @@ impl PreparedAuthority {
 
     pub(crate) fn canonical_auth_input(&self) -> AuthInput {
         self.resolved.legacy_input()
+    }
+
+    pub(crate) fn with_fenced_publication(
+        mut self,
+        publication: crate::auth::session_projection::FencedPublication,
+    ) -> Self {
+        self.publication = Some(publication);
+        self
+    }
+
+    /// Consume a fully computed finite effect at the exact stream/session
+    /// fence. Dev-mode authority has no session projection and publishes
+    /// directly; Sessions authority always installs a fence in middleware.
+    pub(crate) fn try_publish_fenced<T>(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: std::time::Instant,
+        publish: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<Option<T>> {
+        match &self.publication {
+            Some(publication) => publication.try_publish(epoch_now_ms, monotonic_now, publish),
+            None => publish().map(Some),
+        }
+    }
+
+    pub(crate) fn authorization_stream_incarnation(&self) -> Option<&str> {
+        self.publication
+            .as_ref()
+            .map(|publication| publication.authorization_stream_incarnation())
     }
 
     pub(crate) fn retain_live_owner(&self) -> SnapbackResult<RetainedLiveAuthority> {
@@ -865,6 +895,7 @@ impl InvocationGate {
             projection,
             audit,
             availability: OperationAvailability::Available,
+            publication: None,
         })
     }
 

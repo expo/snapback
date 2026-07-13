@@ -328,6 +328,7 @@ pub(crate) enum ProjectedTokenResolution {
         authority: ProjectedSessionAuthority,
         superseded_at_ms: u64,
     },
+    Terminal,
     Unavailable,
     Unknown,
 }
@@ -340,6 +341,12 @@ enum ProjectedToken {
     Superseded {
         session_id: String,
         superseded_at_ms: u64,
+    },
+    Terminal {
+        session_id: String,
+    },
+    Unavailable {
+        session_id: String,
     },
 }
 
@@ -440,6 +447,10 @@ struct SessionPublicationFence {
 }
 
 impl FencedPublication {
+    pub(crate) fn authorization_stream_incarnation(&self) -> &str {
+        self.expected_incarnation.as_str()
+    }
+
     /// Consume one prepared buffer into its synchronous handoff only if the
     /// exact authority is still live at the linearization cut.
     ///
@@ -640,6 +651,19 @@ impl SessionProjection {
                 }
                 Some(digest)
             } else {
+                if token_index
+                    .insert(
+                        digest,
+                        ProjectedToken::Terminal {
+                            session_id: row.id.clone(),
+                        },
+                    )
+                    .is_some()
+                {
+                    return Err(projection_corrupt(
+                        "duplicate projected terminal-token digest",
+                    ));
+                }
                 None
             };
             let session_id = row.id;
@@ -672,17 +696,19 @@ impl SessionProjection {
             let superseded_at_ms =
                 validate_timestamp_i64(row.superseded_at_ms, "token supersession")?;
             let digest = TokenDigest::from_slice(&row.token_hash)?;
-            if !all_digests.insert(digest)
-                || token_index
-                    .insert(
-                        digest,
-                        ProjectedToken::Superseded {
-                            session_id: row.session_id,
-                            superseded_at_ms,
-                        },
-                    )
-                    .is_some()
-            {
+            let token = match by_session.get(&row.session_id) {
+                Some(session) if session.state == ProjectedSessionState::Current => {
+                    ProjectedToken::Superseded {
+                        session_id: row.session_id,
+                        superseded_at_ms,
+                    }
+                }
+                Some(_) => ProjectedToken::Terminal {
+                    session_id: row.session_id,
+                },
+                None => unreachable!("checked projected superseded-token owner"),
+            };
+            if !all_digests.insert(digest) || token_index.insert(digest, token).is_some() {
                 return Err(projection_corrupt("duplicate projected token digest"));
             }
         }
@@ -828,6 +854,12 @@ impl SessionProjection {
                 session_id,
                 superseded_at_ms,
             }) => (session_id, Some(*superseded_at_ms)),
+            Some(ProjectedToken::Terminal { .. }) => {
+                return Ok(ProjectedTokenResolution::Terminal);
+            }
+            Some(ProjectedToken::Unavailable { .. }) => {
+                return Ok(ProjectedTokenResolution::Unavailable);
+            }
             None => return Ok(ProjectedTokenResolution::Unknown),
         };
         let Some(session) = self.by_session.get(session_id) else {
@@ -837,13 +869,17 @@ impl SessionProjection {
         };
         let session_fence = session.fence.lock()?;
         if session.state != ProjectedSessionState::Current
-            || !SessionFence::admits_locked(
-                &session_fence,
-                session.generation,
-                epoch_now_ms,
-                monotonic_now,
-            )
+            || !session_fence.deadline.live_at(epoch_now_ms, monotonic_now)
+            || session_fence.terminal.is_some()
         {
+            return Ok(ProjectedTokenResolution::Terminal);
+        }
+        if !SessionFence::admits_locked(
+            &session_fence,
+            session.generation,
+            epoch_now_ms,
+            monotonic_now,
+        ) {
             return Ok(ProjectedTokenResolution::Unavailable);
         }
         let authority = ProjectedSessionAuthority {
@@ -958,7 +994,12 @@ impl SessionProjection {
             ));
         }
         if let Some(current_token) = current_token {
-            self.token_index.remove(&current_token);
+            self.token_index.insert(
+                current_token,
+                ProjectedToken::Unavailable {
+                    session_id: session_id.to_owned(),
+                },
+            );
         }
         self.deadline_index.remove(&deadline_key);
         let session = self.by_session.get_mut(session_id).expect("checked above");
@@ -1365,7 +1406,12 @@ impl SessionProjection {
                 "revocation leaf does not match the projected predecessor",
             ));
         }
-        self.token_index.remove(&current_token);
+        self.token_index.insert(
+            current_token,
+            ProjectedToken::Terminal {
+                session_id: session_id.to_owned(),
+            },
+        );
         self.deadline_index.remove(&deadline_key);
         let session = self.by_session.get_mut(session_id).expect("checked above");
         session.generation = committed_generation;
@@ -1426,7 +1472,12 @@ impl SessionProjection {
                 "expiry ticket or due deadline is absent from its leaf",
             ));
         }
-        self.token_index.remove(&current_token);
+        self.token_index.insert(
+            current_token,
+            ProjectedToken::Terminal {
+                session_id: session_id.to_owned(),
+            },
+        );
         self.deadline_index.remove(&deadline_key);
         let session = self.by_session.get_mut(session_id).expect("checked above");
         session.state = ProjectedSessionState::Expired;
@@ -1715,6 +1766,28 @@ impl SessionProjection {
                     if !self.by_session.contains_key(session_id) {
                         return Err(projection_corrupt(
                             "superseded token has a dangling session",
+                        ));
+                    }
+                }
+                ProjectedToken::Terminal { session_id } => {
+                    let Some(session) = self.by_session.get(session_id) else {
+                        return Err(projection_corrupt("terminal token has a dangling session"));
+                    };
+                    if session.state == ProjectedSessionState::Current {
+                        return Err(projection_corrupt(
+                            "terminal token points at a current session",
+                        ));
+                    }
+                }
+                ProjectedToken::Unavailable { session_id } => {
+                    let Some(session) = self.by_session.get(session_id) else {
+                        return Err(projection_corrupt(
+                            "unavailable token has a dangling session",
+                        ));
+                    };
+                    if session.state != ProjectedSessionState::Uncertain {
+                        return Err(projection_corrupt(
+                            "unavailable token points at a certain session",
                         ));
                     }
                 }
@@ -2033,6 +2106,49 @@ mod tests {
                 .unwrap()
         );
         projection.check_invariants().unwrap();
+    }
+
+    #[test]
+    fn restart_retains_terminal_classification_for_current_and_superseded_tokens() {
+        let monotonic_now = Instant::now();
+        for terminal_source in [
+            {
+                let mut source = source();
+                source.sessions[0].generation = 2;
+                source.sessions[0].revoked_at_ms = Some(99);
+                source
+            },
+            {
+                let mut source = source();
+                source.sessions[0].expires_at_ms = EPOCH_NOW_MS as i64;
+                source
+            },
+        ] {
+            let projection = rebuild_at(terminal_source, monotonic_now);
+            for digest in [[11; 32], [10; 32]] {
+                assert_eq!(
+                    projection
+                        .resolve_token(
+                            &TokenDigest::from_slice(&digest).unwrap(),
+                            EPOCH_NOW_MS,
+                            monotonic_now,
+                        )
+                        .unwrap(),
+                    ProjectedTokenResolution::Terminal
+                );
+            }
+            assert_eq!(
+                projection
+                    .resolve_token(
+                        &TokenDigest::from_slice(&[99; 32]).unwrap(),
+                        EPOCH_NOW_MS,
+                        monotonic_now,
+                    )
+                    .unwrap(),
+                ProjectedTokenResolution::Unknown
+            );
+            projection.check_invariants().unwrap();
+        }
     }
 
     #[test]

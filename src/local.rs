@@ -1599,6 +1599,17 @@ pub struct LocalSnapback {
     secret_read_reset_generation: Arc<AtomicU64>,
 }
 
+/// Durable half of a coordinator-owned destructive reset. These process-local
+/// generation changes remain unpublished until the authorization stream has
+/// finalized its exact successor.
+#[derive(Debug)]
+pub(crate) struct CoordinatedResetCommit {
+    seeded: Option<MutationOutput>,
+    app_generation: u64,
+    secret_read_generation: u64,
+    next_secret_read_generation: u64,
+}
+
 #[derive(Clone, Debug)]
 struct LiveSubscription {
     id: String,
@@ -1982,7 +1993,7 @@ impl LocalSnapback {
         seed: Option<SeedData>,
         predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
         successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-    ) -> crate::storage::auth::AuthTransactionAttempt<Option<MutationOutput>> {
+    ) -> crate::storage::auth::AuthTransactionAttempt<CoordinatedResetCommit> {
         use crate::storage::auth::AuthTransactionAttempt;
 
         let app_generation = match next_app_generation() {
@@ -2000,18 +2011,32 @@ impl LocalSnapback {
             .attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
         {
             AuthTransactionAttempt::Committed(seeded) => {
-                self.finish_committed_reset(
+                AuthTransactionAttempt::Committed(CoordinatedResetCommit {
+                    seeded,
                     app_generation,
                     secret_read_generation,
                     next_secret_read_generation,
-                );
-                AuthTransactionAttempt::Committed(seeded)
+                })
             }
             AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
             AuthTransactionAttempt::CommitUncertain(error) => {
                 AuthTransactionAttempt::CommitUncertain(error)
             }
         }
+    }
+
+    /// Publish reset-owned process state only after the coordinator has made
+    /// the durable authorization-stream successor current.
+    pub(crate) fn publish_coordinated_reset(
+        &mut self,
+        committed: CoordinatedResetCommit,
+    ) -> Option<MutationOutput> {
+        self.finish_committed_reset(
+            committed.app_generation,
+            committed.secret_read_generation,
+            committed.next_secret_read_generation,
+        );
+        committed.seeded
     }
 
     fn finish_committed_reset(
