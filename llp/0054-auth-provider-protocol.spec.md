@@ -5,7 +5,7 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (initial ENG-24596 implementation protocol for LLP 0039 landing item 3)
+**Revised:** 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051
 
 ## Summary
@@ -506,8 +506,11 @@ from reordering. The flow is:
 1. Canonicalize and validate the address.
 2. Revalidate/rotate the keyring and generate challenge id, code, and digest.
 3. Reserve one mailbox slot. A reservation counts against the 1,024 cap;
-   capacity refusal is `SNAPBACK_AUTH_THROTTLED` and mutates nothing. Any
-   pre-commit refusal releases the reservation.
+   capacity refusal is `SNAPBACK_AUTH_THROTTLED` and mutates neither the auth
+   catalog nor mailbox. A due key rotation already durably published by step 2
+   is an independent maintenance effect and is not rolled back merely because
+   later request admission refuses. Any pre-commit refusal releases the
+   reservation.
 4. In one `IMMEDIATE` transaction, count retained rows for the rolling global
    and per-address half-open windows `(now - window, now]`. At either limit,
    roll back and return `SNAPBACK_AUTH_THROTTLED`. A request exactly one full
@@ -849,6 +852,10 @@ count, copied explicit-index count, manifest-updated boolean, and
 | `GET /_snapback/api/auth/mailbox` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | `CredentialSecret` |
 | host-op `auth.mintSession` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | `CredentialSecret` |
 | host-op `auth.rescueCollidingTable` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | operator metadata |
+
+`public typed, no-store` is a distinct response-sensitivity classification.
+It is neither a cacheable `PublicProjection` nor mislabeled operator metadata;
+the central response-control layer applies `Cache-Control: no-store` to it.
 
 `ChallengeProof` and `FamilyAlarmBearer` are closed
 `CredentialResolution` cases; they do not overload `None`, `AdminCredential`,

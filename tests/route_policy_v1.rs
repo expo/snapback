@@ -141,6 +141,11 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/"),
         ("GET", "/health"),
         ("GET", "/inspect"),
+        ("POST", "/auth/request-code"),
+        ("POST", "/auth/exchange"),
+        ("POST", "/auth/refresh"),
+        ("POST", "/auth/logout"),
+        ("POST", "/auth/family-alarm"),
         ("POST", "/query/{name}"),
         ("POST", "/client-mutations/acknowledge"),
         ("POST", "/mutation/{name}"),
@@ -231,6 +236,92 @@ async fn registry_and_router_have_black_box_path_method_parity() {
                 );
             }
         }
+    }
+}
+
+/// LLP 0054#routes-operations-and-dtos — the five provider paths have closed
+/// independent carrier/response classifications, and active dev mode refuses
+/// them before inspecting bearer or body shape.
+#[tokio::test]
+async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store() {
+    let registry = route_registry();
+    let provider = registry
+        .iter()
+        .filter(|route| route.path.starts_with("/auth/"))
+        .map(|route| (route.path, *route))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(provider.len(), 5);
+
+    let request_code = provider["/auth/request-code"];
+    assert_eq!(request_code.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        request_code.credential_resolution,
+        CredentialResolution::None
+    );
+    assert_eq!(
+        request_code.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
+
+    let exchange = provider["/auth/exchange"];
+    assert_eq!(exchange.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        exchange.credential_resolution,
+        CredentialResolution::ChallengeProof
+    );
+    assert_eq!(
+        exchange.response_sensitivity,
+        ResponseSensitivity::CredentialSecret
+    );
+
+    for path in ["/auth/refresh", "/auth/logout"] {
+        let route = provider[path];
+        assert_eq!(route.path_policy, RoutePolicy::SessionAuth);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::RequiredSessionBearer
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::ResolvedCaller
+        );
+    }
+
+    let alarm = provider["/auth/family-alarm"];
+    assert_eq!(alarm.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        alarm.credential_resolution,
+        CredentialResolution::FamilyAlarmBearer
+    );
+    assert_eq!(
+        alarm.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
+
+    let router = app(AppState::detached(
+        LocalSnapback::memory().expect("in-memory auth route fixture"),
+    ));
+    for path in provider.keys() {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(*path)
+                    .header("content-type", "application/json")
+                    .header(header::AUTHORIZATION, "Bearer planted-dev-oracle")
+                    .body(Body::from(r#"{"auth":{"userId":"planted"}}"#))
+                    .unwrap(),
+            )
+            .await
+            .expect("probe dev-mode provider route");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "no-store, private",
+            "{path}"
+        );
+        assert_eq!(diagnostic_code(response).await, "SNAPBACK_AUTH_MODE_DEV");
     }
 }
 

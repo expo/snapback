@@ -1376,6 +1376,11 @@ pub enum RoutePolicy {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CredentialResolution {
     None,
+    /// A closed email-code challenge body proves authority only to exchange
+    /// that challenge for a fresh credential; it is never a caller identity.
+    ChallengeProof,
+    /// A bearer accepted only by the opaque revoke-only family alarm.
+    FamilyAlarmBearer,
     LegacyBodyAuth,
     ConnectionGrantHeader,
     ConnectionGrantHeaderOrWebSocketSubprotocol,
@@ -1431,6 +1436,11 @@ pub enum EffectPolicy {
 pub enum ResponseSensitivity {
     StaticPublic,
     PublicProjection,
+    /// A public typed response whose contents must never be cached. This is
+    /// distinct from operator/application data: request-code and family-alarm
+    /// reveal no protected row, but caching either protocol response is still
+    /// invalid.
+    PublicNoStore,
     ApplicationData,
     ConnectionSecret,
     OperatorMetadata,
@@ -1701,7 +1711,10 @@ impl RouteSpec {
         let valid_base_carrier = match self.path_policy {
             RoutePolicy::Public => matches!(
                 self.credential_resolution,
-                CredentialResolution::None | CredentialResolution::OperationSpecific
+                CredentialResolution::None
+                    | CredentialResolution::ChallengeProof
+                    | CredentialResolution::FamilyAlarmBearer
+                    | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => {
                 self.credential_resolution == CredentialResolution::LegacyBodyAuth
@@ -1753,6 +1766,24 @@ impl RouteSpec {
             && self.effect_policy != EffectPolicy::OperationSpecific
         {
             return fail("operation-specific credentials require an operation-specific gate");
+        }
+        if self.credential_resolution == CredentialResolution::ChallengeProof
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::CredentialSecret)
+        {
+            return fail(
+                "challenge proof must be public, install no caller, and return only a credential-secret response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::FamilyAlarmBearer
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::PublicNoStore)
+        {
+            return fail(
+                "family-alarm bearer must be public, install no caller, and return an opaque no-store response",
+            );
         }
         if self.effect_policy == EffectPolicy::ImpersonationCapability
             && self.path_policy != RoutePolicy::AdminWrite
@@ -1835,6 +1866,8 @@ impl RouteSpec {
             RoutePolicy::Public => matches!(
                 sessions.credential_resolution,
                 CredentialResolution::None
+                    | CredentialResolution::ChallengeProof
+                    | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::OptionalSessionBearer
                     | CredentialResolution::OperationSpecific
             ),
@@ -2011,6 +2044,74 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             public_route("GET", "/inspect", ResponseSensitivity::PublicProjection),
             get(inspect),
+        ),
+        // @ref LLP 0054#routes-operations-and-dtos — provider routes carry
+        // closed, independently enforced credential and response axes. Item 3
+        // installs their state machines; item 4 supplies persisted activation.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/request-code",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::None,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            post(auth_provider_pending),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/exchange",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::ChallengeProof,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_provider_pending),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/refresh",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_provider_pending),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/logout",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_provider_pending),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/family-alarm",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::FamilyAlarmBearer,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            post(auth_provider_pending),
         ),
         RegisteredRoute::new(app_auth_route("POST", "/query/{name}"), post(invoke_query)),
         RegisteredRoute::new(
@@ -2513,6 +2614,24 @@ async fn enforce_registered_route_policy(
         request.extensions_mut().insert(effective);
         return apply_registered_response_controls(effective, next.run(request).await);
     }
+    // Provider paths are intentionally absent in active dev mode. Perform
+    // this refusal before credential or body handling so a disabled provider
+    // cannot become an oracle for bearer/body shape. `/auth/session`, added by
+    // item 4, is the sole bootstrap-handshake exception.
+    if runtime.policy_auth_mode == PolicyAuthMode::Dev
+        && spec.path.starts_with("/auth/")
+        && spec.path != "/auth/session"
+    {
+        return apply_registered_response_controls(
+            effective,
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_DEV",
+                "auth",
+                "the session provider is unavailable while auth mode is dev",
+            ))
+            .into_response(),
+        );
+    }
     if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
         && request.headers().contains_key(header::AUTHORIZATION)
     {
@@ -2819,6 +2938,19 @@ async fn enforce_registered_route_policy(
         request.extensions_mut().insert(effective);
     }
     apply_registered_response_controls(response_policy, next.run(request).await)
+}
+
+/// Temporary consume-side fence. Item 3 replaces each registration with its
+/// concrete provider handler in the same landing; keeping a stable handler
+/// during composition lets the registry and dev-mode refusal land and test
+/// independently of the storage/crypto worktrees.
+async fn auth_provider_pending() -> Result<Json<Value>, ApiError> {
+    Err(SnapbackError::error(
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        "auth",
+        "the auth provider catalog is not active",
+    )
+    .into())
 }
 
 pub(crate) fn router_from_registrations(
@@ -5714,7 +5846,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
             StatusCode::NOT_FOUND
         }
-        "SNAPBACK_UNKNOWN_CRON_JOB" | "SNAPBACK_UNKNOWN_SUBSCRIPTION" => StatusCode::NOT_FOUND,
+        "SNAPBACK_UNKNOWN_CRON_JOB"
+        | "SNAPBACK_UNKNOWN_SUBSCRIPTION"
+        | "SNAPBACK_AUTH_MODE_DEV"
+        | "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_MUTATION_CONFLICT"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_CONFIG_VERIFY_STALE"
@@ -5722,6 +5857,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
+        "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
         // (forbidden) from "needs the configured token" (unauthorized).
         "SNAPBACK_ADMIN_DISABLED"
@@ -5734,14 +5870,21 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH"
         | "SNAPBACK_LIVE_RESUME_OWNERSHIP"
         | "SNAPBACK_CONNECTION_TOKEN_INVALID"
+        | "SNAPBACK_AUTH_CODE_LOCKED"
+        | "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
-        | "SNAPBACK_CONNECTION_TOKEN_REQUIRED" => StatusCode::UNAUTHORIZED,
+        | "SNAPBACK_CONNECTION_TOKEN_REQUIRED"
+        | "SNAPBACK_AUTH_REQUIRED"
+        | "SNAPBACK_AUTH_SESSION_EXPIRED"
+        | "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED"
+        | "SNAPBACK_AUTH_CODE_INVALID" => StatusCode::UNAUTHORIZED,
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED"
         | "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED"
+        | "SNAPBACK_AUTH_THROTTLED"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
         | "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
@@ -5768,6 +5911,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CAPABILITY_WORKERD_MISSING"
         | "SNAPBACK_AUTH_MODE_PENDING"
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -5780,6 +5924,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP"
         | "SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID"
         | "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED"
+        | "SNAPBACK_AUTH_REQUEST_INVALID"
+        | "SNAPBACK_AUTH_RESCUE_INVALID"
+        | "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED"
         | "SNAPBACK_AUTH_STALE_RESULT"
         | "SNAPBACK_AUTH_USER_MISSING"
         | "SNAPBACK_BINDING_MISSING"
@@ -6276,6 +6423,9 @@ mod tests {
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
+        "SNAPBACK_AUTH_REQUEST_INVALID",
+        "SNAPBACK_AUTH_RESCUE_INVALID",
+        "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED",
         "SNAPBACK_AUTH_STALE_RESULT",
         "SNAPBACK_AUTH_USER_MISSING",
         "SNAPBACK_BINDING_MISSING",
@@ -6400,6 +6550,10 @@ mod tests {
     const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
         "SNAPBACK_ADMIN_TOKEN_REQUIRED",
+        "SNAPBACK_AUTH_CODE_INVALID",
+        "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED",
+        "SNAPBACK_AUTH_REQUIRED",
+        "SNAPBACK_AUTH_SESSION_EXPIRED",
         "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
     ];
 
@@ -6412,12 +6566,16 @@ mod tests {
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH",
         "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED",
+        "SNAPBACK_AUTH_CODE_LOCKED",
+        "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
         "SNAPBACK_CONNECTION_TOKEN_INVALID",
         "SNAPBACK_LIVE_RESUME_OWNERSHIP",
         "SNAPBACK_PROFILE_FORBIDS",
     ];
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
+        "SNAPBACK_AUTH_MODE_DEV",
         "SNAPBACK_UNKNOWN_CRON_JOB",
         "SNAPBACK_UNKNOWN_FIELD",
         "SNAPBACK_UNKNOWN_FUNCTION",
@@ -6427,6 +6585,7 @@ mod tests {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
         "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
         "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
         "SNAPBACK_CONFIG_VERIFY_STALE",
@@ -6448,6 +6607,7 @@ mod tests {
         "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
+        "SNAPBACK_AUTH_THROTTLED",
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED",
         "SNAPBACK_EPHEMERAL_RATE_LIMITED",
         "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
@@ -6463,6 +6623,7 @@ mod tests {
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
         "SNAPBACK_AUTH_MODE_PENDING",
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING",
