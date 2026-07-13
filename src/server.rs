@@ -7,7 +7,8 @@ use crate::auth::handshake::{
     AuthSessionResponse,
 };
 use crate::auth::invocation::{
-    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
+    HandlerAuthProjection, InvocationGate, InvocationSource, PreparedAuthority,
+    ResolvedAppAuthority, WireAuthorityFields,
 };
 use crate::auth::provider::{AuthProvider, AuthProviderReadiness, ProviderError};
 use crate::auth::wire::{
@@ -2750,7 +2751,6 @@ fn session_online_protocol_refusal(
 
 fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
     match spec.path {
-        "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
@@ -2765,8 +2765,25 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/ephemeral/publish" => Some(InvocationSource::EphemeralPublish),
         "/ephemeral/subscribe" => Some(InvocationSource::EphemeralSubscribe),
         "/ephemeral/delete" => Some(InvocationSource::EphemeralDelete),
+        "/_snapback/api/functions/{name}/run" => Some(InvocationSource::DirectAdminRunner),
         _ => None,
     }
+}
+
+fn selected_invocation_source(
+    spec: RouteSpec,
+    operation: Option<OperationSpec>,
+) -> Option<InvocationSource> {
+    registered_invocation_source(spec).or_else(|| {
+        let operation = operation?.operation;
+        if operation.starts_with("host_ops.function.run.") {
+            Some(InvocationSource::HostOperationFunctionRun)
+        } else if operation.starts_with("host_ops.function.explain") {
+            Some(InvocationSource::HostOperationMutationDryRun)
+        } else {
+            None
+        }
+    })
 }
 
 fn invocation_authority_value(source: InvocationSource, body: Option<&Value>) -> Option<&Value> {
@@ -2810,6 +2827,20 @@ fn dev_body_authority(value: Option<&Value>) -> ResolvedAppAuthority {
     ResolvedAppAuthority::dev_from_auth(&auth)
 }
 
+fn dev_host_operation_authority(value: Option<&Value>) -> ResolvedAppAuthority {
+    value
+        .and_then(Value::as_object)
+        .and_then(|object| object.get("userId").or_else(|| object.get("user_id")))
+        .and_then(Value::as_str)
+        .map_or(ResolvedAppAuthority::Anonymous, |user_id| {
+            ResolvedAppAuthority::DevImpersonation {
+                user_id: user_id.to_owned(),
+                roles: Vec::new(),
+                local_dev_only: true,
+            }
+        })
+}
+
 fn queued_replay_requested(source: InvocationSource, body: Option<&Value>) -> bool {
     match source {
         InvocationSource::StandaloneAcknowledgement => true,
@@ -2824,13 +2855,13 @@ fn queued_replay_requested(source: InvocationSource, body: Option<&Value>) -> bo
 }
 
 async fn prepare_registered_route_authority(
-    spec: RouteSpec,
+    source: Option<InvocationSource>,
     effective: EffectiveRoutePolicy,
     runtime: &AppState,
     headers: &HeaderMap,
     body: Option<&Value>,
 ) -> Result<Option<PreparedAuthority>, ApiError> {
-    let Some(source) = registered_invocation_source(spec) else {
+    let Some(source) = source else {
         return Ok(None);
     };
     let handler_value = invocation_authority_value(source, body);
@@ -2863,14 +2894,31 @@ async fn prepare_registered_route_authority(
                 )
                 .into());
             }
-            if effective.invocation_authority == InvocationAuthority::ClientAsserted {
+            if matches!(
+                source,
+                InvocationSource::HostOperationFunctionRun
+                    | InvocationSource::HostOperationMutationDryRun
+            ) {
+                dev_host_operation_authority(handler_value)
+            } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
+                || source == InvocationSource::DirectAdminRunner
+            {
                 dev_body_authority(handler_value)
             } else {
                 ResolvedAppAuthority::Anonymous
             }
         }
         crate::manifest::AuthMode::Sessions => {
-            if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
+            if matches!(
+                source,
+                InvocationSource::DirectAdminRunner
+                    | InvocationSource::HostOperationFunctionRun
+                    | InvocationSource::HostOperationMutationDryRun
+            ) {
+                ResolvedAppAuthority::AdminBypass {
+                    reason: "administrative application invocation".to_owned(),
+                }
+            } else if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
                 && headers.contains_key(header::AUTHORIZATION)
             {
                 // Invalid and duplicate Authorization values remain
@@ -3284,9 +3332,11 @@ async fn enforce_registered_route_policy(
             return apply_registered_response_controls(response_policy, error.into_response());
         }
     }
+    let invocation_source =
+        selected_invocation_source(spec, selected_operation.map(|(operation, _)| operation));
     let prepared_authority = match prepare_registered_route_authority(
-        spec,
-        effective,
+        invocation_source,
+        selected_policy,
         &runtime,
         request.headers(),
         policy_body.as_ref(),
@@ -3353,7 +3403,6 @@ fn installed_auth_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiE
 /// response authority and never includes bearer or provider internals.
 async fn auth_session(
     State(runtime): State<AppState>,
-    Extension(authority): Extension<PreparedAuthority>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -3363,8 +3412,37 @@ async fn auth_session(
         return Err(auth_request_invalid());
     }
     let offers = AuthClientProtocolOffers::from_headers(&headers);
-    let projection = authority.projection();
     let state = runtime.auth_mode_state();
+    let resolved = match state.active {
+        crate::manifest::AuthMode::Dev => {
+            if headers.contains_key(header::AUTHORIZATION) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_REQUIRED",
+                    "auth",
+                    "session credentials are unavailable while auth mode is dev",
+                )
+                .into());
+            }
+            ResolvedAppAuthority::Anonymous
+        }
+        crate::manifest::AuthMode::Sessions => {
+            if headers.contains_key(header::AUTHORIZATION) {
+                let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
+                let provider = installed_auth_provider(&runtime)?;
+                let admission = provider.admit().await;
+                let now_ms = provider.now_ms();
+                let session = with_snapback(&runtime.snapback, move |snapback| {
+                    admission.resolve_session(snapback.auth_database_mut(), &bearer, now_ms)
+                })
+                .await
+                .map_err(map_provider_error)?;
+                ResolvedAppAuthority::from_session(session)
+            } else {
+                ResolvedAppAuthority::Anonymous
+            }
+        }
+    };
+    let projection = HandlerAuthProjection::from_authority(&resolved);
     let provider_ready = runtime.auth_catalog_ready
         && runtime
             .auth_provider

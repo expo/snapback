@@ -11,15 +11,13 @@ use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintBridge, SecretReadOperator,
     SecretReadScope, VerifiedSecretReadMint,
 };
-use crate::auth::invocation::{
-    InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
-};
+use crate::auth::invocation::PreparedAuthority;
 use crate::auth::mode::{AuthModeStateRecord, AuthProgramReadiness};
 use crate::auth::provider::AuthProvider;
 use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
 use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
-use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
+use crate::manifest::{FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{
     ApiError, ConnectionRegistry, EffectPolicy, HealthResponse, InvocationAuthority,
@@ -2003,6 +2001,7 @@ async fn admin_run_function(
     State(ctx): State<Arc<ServerContext>>,
     State(policy_mode): State<PolicyAuthMode>,
     State(secret_reads): State<SecretReadLeaseRegistry>,
+    Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     Path(name): Path<String>,
     Json(mut input): Json<HandlerInput>,
@@ -2033,26 +2032,6 @@ async fn admin_run_function(
                 function_kind.as_ref(),
                 policy_mode,
                 &secret_reads,
-            )?;
-            let resolved = if policy_mode == PolicyAuthMode::Sessions {
-                ResolvedAppAuthority::AdminBypass {
-                    reason: "direct admin function runner".to_owned(),
-                }
-            } else {
-                ResolvedAppAuthority::dev_from_auth(&input.auth)
-            };
-            let authority = InvocationGate::prepare_authority(
-                InvocationSource::DirectAdminRunner,
-                if policy_mode == PolicyAuthMode::Sessions {
-                    AuthMode::Sessions
-                } else {
-                    AuthMode::Dev
-                },
-                ctx.profile,
-                0,
-                0,
-                &WireAuthorityFields::default(),
-                resolved,
             )?;
             if policy_mode == PolicyAuthMode::Sessions
                 && matches!(
