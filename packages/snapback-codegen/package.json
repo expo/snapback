@@ -15,6 +15,6 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "test": "node identifier-validation.test.mjs && node authoring-validation.test.mjs && node dependency-graph.test.mjs && node contract-binding-reads.test.mjs && node receipt-capability.test.mjs && node data-tier-corpus.test.mjs"
+    "test": "node identifier-validation.test.mjs && node authoring-validation.test.mjs && node dependency-graph.test.mjs && node contract-binding-reads.test.mjs && node receipt-capability.test.mjs && node operation-schemas.test.mjs && node data-tier-corpus.test.mjs"
   }
 }

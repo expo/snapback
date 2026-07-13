@@ -9,6 +9,8 @@
     "api.mjs",
     "api.d.ts",
     "package.json",
+    "operations/listCells.args.schema.json",
+    "operations/paintCell.args.schema.json",
     "contract/runtime-links.ts",
     "contract/boardCursors.ephemeral.ts",
     "contract/boardCursors.ephemeral.contract-meta.ts",

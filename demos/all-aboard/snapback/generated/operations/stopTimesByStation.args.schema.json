@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/all-aboard/stopTimesByStation.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "stationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "stationId"
+  ],
+  "title": "all-aboard:stopTimesByStation arguments",
+  "type": "object"
+}

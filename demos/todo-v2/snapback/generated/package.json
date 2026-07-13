@@ -7,6 +7,7 @@
     "./capabilities": "./capability.manifest.json",
     "./contract/*": "./contract/*",
     "./functions": "./functions.manifest.json",
+    "./operations/*": "./operations/*",
     "./schema": "./schema.manifest.json"
   },
   "type": "module"
