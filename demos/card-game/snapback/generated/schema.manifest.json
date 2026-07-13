@@ -1,0 +1,82 @@
+{
+  "app": {
+    "description": "A finite authenticated hand query plus one queued ready signal, used to prove principal/data and authority-instance/queue scoping without claiming revocation-safe live delivery.",
+    "name": "Hidden-card auth slice"
+  },
+  "appId": "card-game",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "c55c1c490c1e4089ba727d8a9cd617583aad18b22f4671e9109751481114769c",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:6feca94173fa36b1",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "gameId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "position",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "card",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "gameId"
+          ],
+          "name": "by_owner_game"
+        }
+      ],
+      "name": "hands",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "gameId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "ready",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "gameId"
+          ],
+          "name": "by_game"
+        }
+      ],
+      "name": "readySignals",
+      "syncable": false
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

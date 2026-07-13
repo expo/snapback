@@ -377,7 +377,10 @@ function assertMutationRecord(entry, path, expectedStatus) {
 }
 
 function assertMatchesCurrentScope(record, path, state, { queued = false } = {}) {
-  if (queued && state.authorityEpoch !== null) {
+  const modernScope = queued
+    ? state.authorityDescriptor !== null
+    : state.principalScope !== null;
+  if (queued && !modernScope && state.authorityEpoch !== null) {
     assertStateField(record.authorityEpoch === state.authorityEpoch, `${path}.authorityEpoch`);
     assertStateField(record.authorityKey === state.authorityKey, `${path}.authorityKey`);
   }
@@ -394,7 +397,7 @@ function assertMatchesCurrentScope(record, path, state, { queued = false } = {})
       `${path}.principalScope`,
     );
   }
-  if (state.authFingerprint) {
+  if (!modernScope && state.authFingerprint) {
     assertStateField(record.authFingerprint === state.authFingerprint, `${path}.authFingerprint`);
   }
   if (!state.artifactScope) return;
@@ -721,7 +724,7 @@ const recordMatchesArtifacts = (record, expected = {}) => (
 );
 
 const recordMatchesCurrentRetainedScope = (state, record) => recordMatchesArtifacts(record, {
-  authFingerprint: state.authFingerprint,
+  ...(state.principalScope === null ? { authFingerprint: state.authFingerprint } : {}),
   ...(state.artifactScope ?? {}),
 }) && (
   state.principalScope === null
@@ -729,14 +732,69 @@ const recordMatchesCurrentRetainedScope = (state, record) => recordMatchesArtifa
 );
 
 const recordMatchesCurrentQueueScope = (state, record) => recordMatchesArtifacts(record, {
-  authorityEpoch: state.authorityEpoch,
-  authorityKey: state.authorityKey,
-  authFingerprint: state.authFingerprint,
+  ...(state.authorityDescriptor === null
+    ? {
+        authorityEpoch: state.authorityEpoch,
+        authorityKey: state.authorityKey,
+        authFingerprint: state.authFingerprint,
+      }
+    : {}),
   ...(state.artifactScope ?? {}),
 }) && (
   state.authorityDescriptor === null
   || record.authorityDescriptor?.authorityInstanceId
     === state.authorityDescriptor.authorityInstanceId
+);
+
+const artifactExpectation = ({
+  schemaHash = null,
+  inputsHash = null,
+  targetProfileId = null,
+  appId = null,
+  databaseId = null,
+  versionStreamId = null,
+} = {}) => ({
+  schemaHash,
+  inputsHash,
+  targetProfileId,
+  appId,
+  databaseId,
+  versionStreamId,
+});
+
+const recordMatchesExpectedRetainedScope = (state, record, expected = {}) => (
+  recordMatchesArtifacts(record, {
+    ...artifactExpectation(expected),
+    ...(state.principalScope === null
+      ? {
+          authorityEpoch: expected.authorityEpoch,
+          authorityKey: expected.authorityKey,
+          authFingerprint: expected.authFingerprint,
+        }
+      : {}),
+  })
+  && (
+    state.principalScope === null
+    || stableJson(record.principalScope) === stableJson(state.principalScope)
+  )
+);
+
+const recordMatchesExpectedQueueScope = (state, record, expected = {}) => (
+  recordMatchesArtifacts(record, {
+    ...artifactExpectation(expected),
+    ...(state.authorityDescriptor === null
+      ? {
+          authorityEpoch: expected.authorityEpoch,
+          authorityKey: expected.authorityKey,
+          authFingerprint: expected.authFingerprint,
+        }
+      : {}),
+  })
+  && (
+    state.authorityDescriptor === null
+    || record.authorityDescriptor?.authorityInstanceId
+      === state.authorityDescriptor.authorityInstanceId
+  )
 );
 
 function staleStoreScopeError(operation) {
@@ -888,9 +946,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
   return {
     version: SNAPBACK_CLIENT_STORE_VERSION,
 
-    // @ref LLP 0056#format-3-and-authority-tags — the coordinator epoch/key,
-    //   never the old write generation or caller fingerprint, owns privacy
-    //   records and every expected-epoch mutation.
+    // @ref LLP 0056#format-3-and-authority-tags — the coordinator epoch/key
+    //   owns the expected-authority CAS around store mutations.
     async bindAuthority({ authorityEpoch, authorityKey, authMode = 'sessions' }) {
       if (!Number.isSafeInteger(authorityEpoch) || authorityEpoch < 0) {
         throw new TypeError('bindAuthority requires a safe nonnegative authorityEpoch');
@@ -1077,6 +1134,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       });
     },
 
+    // @ref LLP 0043#auth-posture — principal/data and authority-instance/queue
+    //   are independent axes in the composed format-5 store.
     /// Install the two independent format-5 axes from one authenticated
     /// handshake. Principal identity owns retained rows; the opaque authority
     /// instance owns queued mutations. `queryAuthorization` is reserved and
@@ -1235,6 +1294,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     async scopeToAuth(authFingerprint, expected = {}) {
       return transact((state, commit) => {
         assertExpectedAuthority(state, expected, 'auth scope change');
+        const modernAxesBound = state.principalScope !== null
+          || state.authorityDescriptor !== null;
         const changed = state.authFingerprint !== null
           && state.authFingerprint !== authFingerprint;
         const unknownLegacyState = state.authFingerprint === null
@@ -1244,7 +1305,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             || state.failed.length > 0
             || Object.keys(state.retained).length > 0
           );
-        if (changed || unknownLegacyState) {
+        if (!modernAxesBound && (changed || unknownLegacyState)) {
           // LLP 0043/0039: a user switch wipes retained rows and queued writes
           // before the new authority can observe or replay them. Establishing
           // the first known authority is also a boundary for unscoped legacy
@@ -1327,7 +1388,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       return transact((state) => {
         if (!expectedAuthorityMatchesState(state, expected)) return null;
         const record = state.retained[key];
-        if (!record || !recordMatchesArtifacts(record, expected)) return null;
+        if (!record || !recordMatchesExpectedRetainedScope(state, record, expected)) return null;
         return clone({ ...record, stale: true });
       });
     },
@@ -1435,7 +1496,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         assertExpectedQueue(state, options, 'mutation replay');
         assertQueueRunnable(state, 'mutation replay');
         return clone(state.pending
-        .filter((entry) => recordMatchesArtifacts(entry, {
+        .filter((entry) => recordMatchesExpectedQueueScope(state, entry, {
           authorityEpoch,
           authorityKey,
           authFingerprint,
@@ -1465,7 +1526,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         const index = state.pending.findIndex((entry) => entry.id === id);
         if (index < 0) return null;
         const [entry] = state.pending.splice(index, 1);
-        if (!recordMatchesArtifacts(entry, { authorityEpoch, authorityKey })) {
+        if (!recordMatchesExpectedQueueScope(state, entry, { authorityEpoch, authorityKey })) {
           throw staleStoreAuthorityError('mutation settlement');
         }
         const settled = clone({ ...entry, status, output, diagnostic });
@@ -1522,7 +1583,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         if (!expectedAuthorityMatchesState(state, expected)) return [];
         assertExpectedQueue(state, expected, 'failed mutation read');
         assertQueueRunnable(state, 'failed mutation read');
-        return clone(state.failed.filter((entry) => recordMatchesArtifacts(entry, expected)));
+        return clone(state.failed.filter((entry) => (
+          recordMatchesExpectedQueueScope(state, entry, expected)
+        )));
       });
     },
 

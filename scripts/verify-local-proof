@@ -112,6 +112,7 @@ run node demos/all-aboard/tests/acceptance/startup-timing.test.mjs
 run node demos/_kit/tests/auth-handshake.mjs
 run node demos/_kit/tests/auth-coordinator-client.mjs
 run node demos/_kit/tests/auth-invalidation-client.mjs
+run node demos/card-game/tests/acceptance/authority-scope.mjs
 run node demos/_kit/tests/client-errors.mjs
 run node demos/_kit/tests/live-wire-schema.mjs
 run node demos/_kit/tests/provenance-unit.mjs

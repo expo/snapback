@@ -1,0 +1,42 @@
+{
+  "appId": "card-game",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "contract/runtime-links.ts",
+    "contract/myHand.query.ts",
+    "contract/myHand.query.contract-meta.ts",
+    "contract/signalReady.mutation.ts",
+    "contract/signalReady.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:1717737b3e29b2a5",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "card-game:myHand",
+      "kind": "Query",
+      "name": "myHand"
+    },
+    {
+      "id": "card-game:signalReady",
+      "kind": "Mutation",
+      "name": "signalReady"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "c55c1c490c1e4089ba727d8a9cd617583aad18b22f4671e9109751481114769c",
+  "schemaHash": "sha256:6feca94173fa36b1",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "hands",
+    "readySignals"
+  ]
+}

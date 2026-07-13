@@ -5,7 +5,7 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
+**Revised:** 2026-07-13 (ENG-24605 corrects D1's authority boundary: handler identity is always the current server-prepared credential projection, never a replay-ledger answer; queued mutations carry a dedicated opaque authority descriptor checked before first or duplicate settlement, and the descriptor remains outside the ledger). 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
 the connection re-open bearer is request-only and structurally absent from
 responses, receipts, and retained state. Earlier: 2026-07-09 — ENG-23965 ships Increment 5's retained-query store,
@@ -240,26 +240,29 @@ adds the record/replay channel the surface lacks:
 - **Record mode** (default, today's behavior): `runtime.id` and
   `runtime.now` answer live (UUIDv7; frozen invocation clock) and the
   host appends each answer to an ordered **ctx-answer ledger** for the
-  invocation: `{ ids: [...], now, principal }`. This is a productionized
+  invocation: `{ version, ids: [...], now }`. Authority is deliberately
+  absent. This is a productionized
   sibling of the host-call trace the twin already captures
   (`HostCallTraceEntry`) — same seam, durable purpose.
 - **Replay mode**: the ledger is supplied with the invocation
   (`HandlerInput` gains an optional field, additive) and `runtime.id`/
   `runtime.now` consume it in order. Consuming past the end is a typed
   divergence error, mirroring LLP 0043's drop-and-mark-failed posture.
-- **The principal is part of the ledger.** `ctx.auth` is captured at
-  first execution and re-supplied on replay, never re-read — aligning
-  with LLP 0043's auth-context fingerprint retention and closing the
-  replay-under-changed-authority hole by construction. Concretely: the
-  ledger's auth entry is the *resolved* auth context (LLP 0039's
-  `AuthContext` shape, not just a principal string) plus LLP 0043's
-  fingerprint; a fingerprint mismatch at replay surfaces the
-  `SNAPBACK_AUTH_STALE_RESULT`-class diagnostic LLP 0043 already
-  specifies rather than replaying under new authority. (Authorization
-  *decisions* still re-evaluate server-side at commit; what freezes is
-  the identity the handler observed.)
-- **Reads are never ledgered.** The ledger pins *answers* (`ids`, `now`,
-  the auth context); `ctx.db` reads always re-evaluate against the
+- **The principal is not a ledger answer.** Every first delivery resolves a
+  live credential and runs the shared invocation gate before the ledger can
+  affect execution. The handler observes that server-prepared authority
+  projection. A queued mutation separately carries the opaque
+  `MutationRequest.authorityDescriptor`; after credential preparation, the
+  server compares its authority-instance id with the prepared authority and
+  refuses absent, malformed, unknown-version, or different-instance values
+  before settlement lookup or effects. Duplicate settlement repeats the same
+  ordering and also compares the authority instance persisted beside the
+  result. Only a valid credential under a different still-valid authority can
+  reach `SNAPBACK_AUTH_STALE_RESULT`; invalid or revoked credentials keep their
+  credential diagnostic precedence. The descriptor grants no authority and is
+  never copied into `ctxLedger`.
+- **Reads are never ledgered.** The ledger pins *answers* (`ids`, `now`);
+  `ctx.db` reads always re-evaluate against the
   executing tier's current view. This one rule is what makes the word
   "replay" mean three compatible things: LLP 0043 queue replay reads
   fresh server state (rebase semantics — the server may legitimately
@@ -289,7 +292,8 @@ adds the record/replay channel the surface lacks:
   | --- | --- | --- |
   | `ids` (`generatedIds`) | yes | recorded |
   | `now` | yes | recorded |
-  | auth context + fingerprint | no | yes — checked at replay |
+  | auth context / credential | no — not a ledger field | prepared anew by the server gate |
+  | authority descriptor | yes — dedicated mutation-envelope field | authority-instance id retained beside settlement |
   | trace / diagnostic material | no | yes |
 
   D1 gives that design its server-side and (future) client-side
@@ -662,7 +666,8 @@ already ships the executor-swap harness. D5 joins them:
   executable pin for D2's semantics. Rejection classes are enumerated,
   not implied: malformed plan, unsupported expression form, plan over
   declared bounds (steps/depth/fan-out/size), ledger exhaustion and
-  overrun, auth-fingerprint mismatch, stale artifact hash.
+  overrun, authority-descriptor mismatch outside the ledger, stale artifact
+  hash.
 - **Everything is version-pinned together.** The IR profile, the ledger
   format, and the corpus carry one shared data-tier version (DK-7
   schema-versioning discipline); a case declares the version it pins,

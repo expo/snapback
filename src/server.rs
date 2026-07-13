@@ -13015,10 +13015,25 @@ mod tests {
                 .cloned()
                 .collect::<BTreeSet<_>>(),
             BTreeSet::from([
+                "authorityDescriptor".to_owned(),
                 "refreshAfter".to_owned(),
                 "session".to_owned(),
                 "token".to_owned(),
                 "tokenType".to_owned(),
+            ])
+        );
+        assert_eq!(refreshed["authorityDescriptor"]["descriptorVersion"], 1);
+        assert_eq!(
+            refreshed["authorityDescriptor"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "authorityInstanceId".to_owned(),
+                "descriptorVersion".to_owned(),
+                "sessionGeneration".to_owned(),
             ])
         );
         assert_eq!(refreshed["tokenType"], "Bearer");
@@ -13381,10 +13396,28 @@ mod tests {
                 .cloned()
                 .collect::<BTreeSet<_>>(),
             BTreeSet::from([
+                "authorityDescriptor".to_owned(),
                 "refreshAfter".to_owned(),
                 "session".to_owned(),
                 "token".to_owned(),
                 "tokenType".to_owned(),
+            ])
+        );
+        assert_eq!(
+            response["data"]["authorityDescriptor"]["descriptorVersion"],
+            1
+        );
+        assert_eq!(
+            response["data"]["authorityDescriptor"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "authorityInstanceId".to_owned(),
+                "descriptorVersion".to_owned(),
+                "sessionGeneration".to_owned(),
             ])
         );
         assert_eq!(response["data"]["tokenType"], "Bearer");

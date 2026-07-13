@@ -303,6 +303,7 @@ async fn current_mutation_id_cannot_be_acknowledged_by_its_own_request() {
     let request = |acknowledged_client_mutation_ids| MutationRequest {
         input: create_input(USER),
         client_mutation_id: Some(mutation_id.clone()),
+        authority_descriptor: None,
         acknowledged_client_mutation_ids,
     };
 
@@ -354,6 +355,7 @@ async fn standalone_ack_reclaims_a_final_result_and_is_auth_bound() {
     let request = MutationRequest {
         input: create_input(USER),
         client_mutation_id: Some(mutation_id.clone()),
+        authority_descriptor: None,
         acknowledged_client_mutation_ids: Vec::new(),
     };
     let first = app
@@ -434,11 +436,13 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
     let user_request = MutationRequest {
         input: create_input(USER),
         client_mutation_id: Some(user_id.clone()),
+        authority_descriptor: None,
         acknowledged_client_mutation_ids: Vec::new(),
     };
     let other_request = MutationRequest {
         input: create_input("another_user"),
         client_mutation_id: Some(other_id),
+        authority_descriptor: None,
         acknowledged_client_mutation_ids: Vec::new(),
     };
     let first_user = response_json(

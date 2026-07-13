@@ -4549,9 +4549,9 @@ fn validate_client_mutation_identity(identity: &ClientMutationIdentity) -> Snapb
             .is_some_and(|parsed| parsed.to_string() != identity.authority_instance_id)
     {
         return Err(SnapbackError::error(
-            "SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID",
-            "auth",
-            "client mutation authority instance must be a canonical UUIDv7",
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
+            "sync",
+            "retained client mutation authority instance must be a canonical UUIDv7",
         ));
     }
     Ok(())

@@ -1,0 +1,123 @@
+{
+  "appId": "card-game",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:1717737b3e29b2a5",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "myHand",
+      "exportedName": "myHand",
+      "id": "card-game:myHand",
+      "kind": "Query",
+      "name": "myHand",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "hands",
+        "tables": [
+          "hands"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "gameId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "gameId"
+                }
+              }
+            ],
+            "indexed_by": "by_owner_game",
+            "limit": null,
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "position"
+              }
+            ],
+            "table": "hands"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "signalReady",
+      "exportedName": "signalReady",
+      "id": "card-game:signalReady",
+      "kind": "Mutation",
+      "name": "signalReady",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "signalId"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "signalId",
+                  "table": "readySignals",
+                  "values": {
+                    "gameId": {
+                      "Arg": "gameId"
+                    },
+                    "ready": {
+                      "Arg": "ready"
+                    },
+                    "userId": "AuthUserId"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "readySignals",
+        "tables": [
+          "readySignals"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "c55c1c490c1e4089ba727d8a9cd617583aad18b22f4671e9109751481114769c",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

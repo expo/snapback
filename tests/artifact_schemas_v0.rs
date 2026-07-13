@@ -35,11 +35,11 @@ use snapback::local::{
     PublicInspect,
 };
 use snapback::manifest::{
-    AuthInput, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest,
-    ConfigEntryDefinition, CronJobDefinition, CronSchedule, FunctionManifest, HandlerInput,
-    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationPlan, MutationRequest,
-    REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
-    SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
+    CapabilityManifest, ConfigEntryDefinition, CronJobDefinition, CronSchedule, FunctionManifest,
+    HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationPlan,
+    MutationRequest, REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION,
+    SchemaManifest, SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use snapback::runtime::{
     CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
@@ -138,6 +138,11 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
     let base = serde_json::to_value(MutationRequest {
         input: HandlerInput::default(),
         client_mutation_id: Some("cm_valid".to_owned()),
+        authority_descriptor: Some(AuthorityDescriptor {
+            descriptor_version: 1,
+            authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
+            session_generation: 1,
+        }),
         acknowledged_client_mutation_ids: Vec::new(),
     })
     .unwrap();
@@ -271,6 +276,11 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
                 "tokenType": "Bearer",
                 "token": "sbs_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.190a55ad",
                 "refreshAfter": 7,
+                "authorityDescriptor": {
+                    "descriptorVersion": 1,
+                    "authorityInstanceId": "019b0000-0000-7000-8000-000000000003",
+                    "sessionGeneration": 1
+                },
                 "session": {
                     "id": "019b0000-0000-7000-8000-000000000001",
                     "userId": "019b0000-0000-7000-8000-000000000002",
@@ -1055,6 +1065,11 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(MutationRequest {
             input: input.clone(),
             client_mutation_id: Some("cm_schema_roundtrip".to_owned()),
+            authority_descriptor: Some(AuthorityDescriptor {
+                descriptor_version: 1,
+                authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
+                session_generation: 1,
+            }),
             acknowledged_client_mutation_ids: vec!["cm_acknowledged".to_owned()],
         })
         .unwrap(),
@@ -1126,13 +1141,14 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     );
 }
 
-const GENERATED_BACKENDS: [&str; 6] = [
+const GENERATED_BACKENDS: [&str; 7] = [
     "demos/todo/snapback/generated",
     "demos/todo-v2/snapback/generated",
     "demos/all-aboard/snapback/generated",
     "demos/all-aboard/tests/egress-probe/generated",
     "demos/cursors-web/snapback/generated",
     "demos/graffiti/snapback/generated",
+    "demos/card-game/snapback/generated",
 ];
 
 /// Demo-artifact gate: every committed generated demo manifest validates against

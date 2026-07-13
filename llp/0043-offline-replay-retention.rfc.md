@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+**Revised:** 2026-07-13 (ENG-24605 composition: server-issued authority descriptors bind queued work independently from principal-owned retained rows; composed store format 5 resolves item 6/item 7's independent format-4 allocation, migrates both predecessor shapes fail-closed, preserves rows across a same-principal new session while stranding its queue, and reserves but does not implement `queryAuthorization`). 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
 slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
 client mutation settlement, full-resync-before-replay, and replay tests; broader
 conflict/delta-resume work remains as scoped below. Earlier: cross-family review
@@ -63,8 +63,9 @@ DK-9's stored contract rather than re-enumerating it:
 - retained authorized result rows per query identity and args;
 - opaque `(stream, version)` cursors (LLP 0007's shape — never bare version
   numbers);
-- the **authorization epochs** under which results were authorized
-  ([LLP 0039](./0039-auth-vertical-slice.rfc.md)), alongside the auth context;
+- two independent auth axes: a server-proven principal scope owns retained
+  rows, while a server-issued opaque authority-instance descriptor owns queued
+  mutations ([LLP 0039](./0039-auth-vertical-slice.rfc.md));
 - target profile/capability facts and the schema/artifact hash the results
   were generated against;
 - the pending-mutation queue, ordered by a client-local monotonic sequence
@@ -109,6 +110,8 @@ When offline, a client may enqueue mutation calls with:
   `{generatedIds, now}`;
 - the optimistic read baseline;
 - auth context fingerprint;
+- the dedicated server-issued authority descriptor captured at enqueue (never
+  a ctx-answer-ledger member and never credential material);
 - the client-local sequence number;
 - local optimistic patch metadata. Absent local handler execution, the
   optimistic overlay is computed from what the client *can* know: host-plan
@@ -119,7 +122,10 @@ When offline, a client may enqueue mutation calls with:
 On reconnect the client follows 0008 §Mutation Replay, which is load-bearing
 and client-driven: the client first completes a full resync and waits for the
 local replica to reach current, **then** replays each pending mutation in
-sequence order against fresh server state under current authority. (Replaying
+sequence order against fresh server state. It sends the descriptor stored with
+that record, never a newly observed descriptor. The server first resolves the
+request credential and prepares the invocation authority, then compares the
+descriptor before settlement lookup or effects. (Replaying
 against an incompletely synced state produces wrong results — 0008's words.)
 Two companion rules from 0008 apply verbatim:
 
@@ -134,7 +140,8 @@ Success returns authoritative rows and versions. Conflict or denial returns
 not a generic error — and the client rolls back or rebases the local
 optimistic overlay.
 
-The server retains a settled `clientMutationId` until that same auth identity
+The server retains a settled `clientMutationId`, its auth fingerprint, and its
+opaque authority-instance id until that same auth identity
 returns it either in a later mutation's `acknowledgedClientMutationIds` list or
 through `POST /client-mutations/acknowledge`. The standalone path ensures a
 one-shot client's final result is reclaimable without waiting for another app
@@ -181,29 +188,53 @@ the failed mutation and authoritative state, not pretend convergence happened.
 
 ### Auth posture
 
-Retained data is scoped to the auth context that received it. A user switch
-wipes or quarantines prior retained data — including the pending-mutation
-queue — before the new user sees the app (0039/0011's wipe rule). Queued
-mutations must not replay under a different user silently; the auth context
-fingerprint is checked before replay and a mismatch surfaces
-`SNAPBACK_AUTH_STALE_RESULT`-class diagnostics rather than replaying. Client
-store format v2 fingerprints the tagged, length-delimited
-`(principal, session_id, user_id)` tuple with SHA-256. A v1 client store retains
-only the old 64-bit FNV alias, not the canonical tuple, so even an apparent
-alias match cannot prove which authority owns it. Upgrade validates the old
-shape and then clears retained rows, pending/failed mutations, ctx ledgers, and
-ACKs before establishing the v2 scope; it never rebinds them to a caller's SHA
-identity. Server-retained FNV settlements are likewise never rebound. Replay
-therefore fails closed with
-`SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED`. A current client may still
-delete a legacy settlement through standalone or piggyback ACK only if it has a
-separately trusted opaque id; the server checks both the current SHA fingerprint
-and its computed deletion-only legacy alias. The built-in v1 store upgrade does
-not treat its ambiguous ACKs as that proof. An administrator may instead use
-the explicit purge recovery route, knowingly giving up exactly-once replay for
-those ids. Old ctx ledgers do not acquire new authority from a legacy alias. An
-older bundle sees store version 2 and fails closed instead of interpreting the
-new auth-tagged ACK records as bare ids.
+Store format 5 has two axes because “who may see these rows?” and “which
+credential instance created this outbox entry?” are different questions:
+
+- **Principal/data axis.** `(authMode, authorizationStreamIncarnation,
+  userId)` owns retained rows. A replacement session for the same user in the
+  same durable stream may keep those rows; another user, logout to anonymous,
+  auth-mode change, or stream-incarnation change deletes them. This physical
+  namespace does not by itself make retained reads available: the closed
+  `queryAuthorization` namespace is reserved as `{}` until the item-8
+  invalidation/lease protocol defines when a retained result may be shown.
+- **Authority-instance/queue axis.** The handshake and every credential
+  response carry `{ descriptorVersion, authorityInstanceId,
+  sessionGeneration }`. The instance id is opaque, stable across refresh, and
+  changes with the session authority; dev authority uses the durable stream
+  incarnation. Generation is an observability fact, not an equality axis after
+  credentials resolve. A different authority instance strands pending/failed
+  work as visible, explicitly discardable, and never replayable. It is never
+  silently retagged to the successor.
+
+The older client-derived auth fingerprint may remain attached to format-5
+records solely for settlement-ACK compatibility. Once a modern axis is bound,
+that fingerprint cannot delete, preserve, expose, or replay data and therefore
+cannot become a hidden third ownership axis.
+
+The server owns error precedence. Invalid, expired, revoked, or superseded
+credentials fail during credential preparation. Only a valid credential whose
+prepared authority differs from the queued descriptor reaches
+`SNAPBACK_AUTH_STALE_RESULT`; absent, malformed, and unknown-version
+descriptors use the same non-retryable class. First delivery and duplicate
+settlement share that check. Possessing a descriptor never authenticates a
+caller, and neither `ctxLedger` nor handler input can override it.
+
+Format 3 had coordinator epoch/key tags but no server-issued queue-authority
+proof. Upgrade validates its complete shape, deletes retained rows, and moves
+pending/failed records to `legacyV3Stranded` with `replayable: false`. It does
+not infer a descriptor from an auth fingerprint or caller claim. The earlier
+v1/FNV and v2 migration rules remain deletion/quarantine-only; server-retained
+legacy rows remain acknowledgeable or admin-purgeable but never rebound.
+
+Item 6 and item 7 independently used format number 4 before ordered
+composition exposed the collision. Format 5 accepts exactly the validated
+predecessor shape it can identify. An item-6 shape has the invalidation queue
+generation but no server-issued authority descriptor, so pending/failed work
+moves to `legacyV4Stranded` and is never replayable. An item-7 shape has the
+descriptor/principal axes but no invalidation queue generation, so it gains a
+fresh independent queue generation while preserving descriptor-bound work.
+Neither migration infers one authority axis from the other.
 
 ## Non-goals
 
@@ -234,6 +265,9 @@ new auth-tagged ACK records as bare ids.
   resnapshot (`resume_requires_resnapshot` exercised end to end).
 - A user switch prevents the new user from seeing the prior user's retained
   rows or replaying the prior user's queued mutations.
+- A same-user new session preserves principal-owned rows but strands the old
+  authority instance's queued mutations; refresh of the same opaque instance
+  preserves both.
 - A non-retainable query reports a capability diagnostic rather than silently
   acting local-first.
 
@@ -248,10 +282,13 @@ new auth-tagged ACK records as bare ids.
 ## Status
 
 Draft, with the first closed-IR single-query M1/M2 slice implemented by
-ENG-23965, hardened by ENG-24376. Shipped evidence covers retained stale boot, reload persistence,
+ENG-23965, hardened by ENG-24376, and the format-5 authority split implemented
+by ENG-24605. Shipped evidence covers retained stale boot, reload persistence,
 ordered create/toggle/delete replay, lost-response exactly-once settlement,
 auth wipe/mismatch, artifact/target/reset-stream quarantine, reverse-completion
 write ordering, exact ledger consumption, and
-authoritative convergence. The broader acceptance rows (richer conflict UI and
+authoritative convergence, format-3 quarantine, refresh stability,
+same-principal/new-session row preservation with queue stranding, and
+different-principal deletion. The broader acceptance rows (richer conflict UI and
 the explicitly later delta-resume-with-pending milestone) remain future work;
 they do not widen the shipped Parity predicate.

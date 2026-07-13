@@ -1,0 +1,138 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:1717737b3e29b2a5",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": true,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": true,
+    "optimisticMutations": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "c55c1c490c1e4089ba727d8a9cd617583aad18b22f4671e9109751481114769c",
+  "manifestVersion": 2,
+  "mutations": {
+    "signalReady": {
+      "argOrder": [
+        "gameId",
+        "ready"
+      ],
+      "args": {
+        "gameId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "ready": {
+          "name": "boolean",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "readySignals"
+      ],
+      "name": "signalReady",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "signalId"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "signalId",
+              "table": "readySignals",
+              "values": {
+                "gameId": {
+                  "Arg": "gameId"
+                },
+                "ready": {
+                  "Arg": "ready"
+                },
+                "userId": "AuthUserId"
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "readySignals"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "myHand": {
+      "argOrder": [
+        "gameId"
+      ],
+      "args": {
+        "gameId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": false,
+      "ephemeral": false,
+      "initialSnapshot": false,
+      "livePush": false,
+      "localRunnable": false,
+      "mode": "snapshot",
+      "name": "myHand",
+      "reads": [
+        "hands"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "card": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "gameId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "position": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "none"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:6feca94173fa36b1",
+  "schemaVersion": "snapback.v0"
+}

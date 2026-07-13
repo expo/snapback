@@ -1,0 +1,62 @@
+{
+  "id": "card-game",
+  "title": "Hidden-card auth slice",
+  "description": "A finite authenticated hand query plus one queued ready signal, used to prove principal/data and authority-instance/queue scoping without claiming revocation-safe live delivery.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Auth", "API", "Storage", "Sync", "Contract/Exact"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "host-plan",
+    "mutationReadSetValidation": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/card-game/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json",
+    "rows": { "hands": 4, "readySignals": 0 },
+    "users": ["user_ada", "user_grace"]
+  },
+  "surfaces": {
+    "finiteAuthProof": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/card-game/tests/acceptance/authority-scope.mjs",
+      "toolchain": "node>=22"
+    }
+  },
+  "acceptanceChecks": {
+    "finiteAuthProof": [
+      "myHand is authenticated and filters ownerId by server-projected AuthUserId",
+      "Ada and Grace seed hands are disjoint",
+      "refresh generation preserves queued work for the same opaque authority instance",
+      "same-user new session retains rows and strands queued work",
+      "principal switch removes the previous user's retained hidden rows"
+    ]
+  },
+  "capabilityGaps": [
+    "auth-scoped live invalidation (item 6)",
+    "authorized retained-query leases (item 8)",
+    "hosted deployment and client-page security contracts (item 9)",
+    "complete game rules and UI"
+  ],
+  "notClaiming": [
+    "revocation-safe live hidden-state delivery",
+    "offline availability of hidden hands",
+    "a complete card game"
+  ]
+}

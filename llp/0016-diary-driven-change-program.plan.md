@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Client integration, API, Runtime, Sync, Realtime, Security, Auth, Contract/Exact, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-03 (demo ladder: collaborative graffiti/whiteboard rung added between kanban and card game with its capability-mapping row — shipped as `demos/graffiti/` (ENG-22219, Diary 0006); reconciled with LLP 0010/0015 per R6. Earlier: 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted); 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
+**Revised:** 2026-07-13 (ENG-24605 adds `demos/card-game` as a finite authenticated-query and authority-store proof only; the full authorization-aware partial-sync rung remains gated on items 6/8 and is not claimed). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard rung added between kanban and card game with its capability-mapping row — shipped as `demos/graffiti/` (ENG-22219, Diary 0006); reconciled with LLP 0010/0015 per R6. Earlier: 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted); 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, LLP 0024, Diary 0001, Diary 0006, Exact 0263, Exact 0265
 
 ## Summary
@@ -210,6 +210,11 @@ Treat authorized sync as a gating workstream (row X in the sequencing table)
 that must land with, or before, the Phase 4 matcher, because the matcher must
 be auth-aware regardless.
 
+ENG-24605 adds a narrower `demos/card-game` foothold: one finite authenticated
+`myHand` query plus client-store principal/authority-axis tests. It proves
+neither subscription invalidation nor authorization of retained offline rows;
+those unavailable surfaces preserve this section's gate.
+
 ### `ContractDataManifest` has no specification yet
 
 The Summary, the Pain-to-change Map, and Phases 1 and 3 all refer to a
@@ -381,7 +386,7 @@ exist before it can claim success:
 | messaging | push transport; reconnect; retained query state | Phase 4 |
 | kanban | multi-row mutations; dependency-matched live queries; typed Contract rows | Phases 4 + 5 |
 | collaborative graffiti/whiteboard (shipped — `demos/graffiti/`) | generated ephemeral API; client overlay; WebSocket publish path; fan-out and durable-lane separation measurement | LLP 0013 + LLP 0024 + Phase 4 |
-| card game | authorization-aware partial sync; different authorized views | Authorized sync (LLP 0011) + Phase 4 — not yet sequenced |
+| card game (finite foothold shipped; full rung gated) | finite hidden-state query + two-axis store now; authorization-aware partial sync still required | ENG-24605 for finite proof; authorized sync items 6/8 + Phase 4 for the full rung |
 | task tracker | index-first query; cursor pagination over a larger local dataset | LLP 0007 query/index contract + a future pagination slice |
 | party (Partiful-style) | multi-table Contract composition; component-local queries | Phase 5 |
 | asset slice | upload metadata and processed-media state | assets capability — a current capability gap and a Non-Goal until a demo genuinely needs it |

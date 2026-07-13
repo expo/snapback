@@ -1,0 +1,11 @@
+{
+  "tables": {
+    "hands": [
+      { "_id": "hand_ada_1", "gameId": "game_1", "ownerId": "user_ada", "position": 1, "card": "ace-spades" },
+      { "_id": "hand_ada_2", "gameId": "game_1", "ownerId": "user_ada", "position": 2, "card": "queen-hearts" },
+      { "_id": "hand_grace_1", "gameId": "game_1", "ownerId": "user_grace", "position": 1, "card": "king-clubs" },
+      { "_id": "hand_grace_2", "gameId": "game_1", "ownerId": "user_grace", "position": 2, "card": "ten-diamonds" }
+    ],
+    "readySignals": []
+  }
+}
