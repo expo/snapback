@@ -19,6 +19,19 @@ const AUTH_MODES = new Set(['dev', 'sessions']);
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 
+function hasExactKeys(value, expected) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const actual = Reflect.ownKeys(value);
+  return actual.length === expected.length
+    && actual.every((key) => typeof key === 'string' && expected.includes(key));
+}
+
+function assertExactKeys(value, expected, path) {
+  if (!hasExactKeys(value, expected)) {
+    throw corrupt(`${path} has missing or unknown fields`, { field: path });
+  }
+}
+
 function coordinatorError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
   error.code = code;
@@ -141,6 +154,11 @@ export function normalizeClientAuthority(authority) {
     });
   }
   if (kind === 'anonymous') {
+    assertExactKeys(authority, [
+      'kind',
+      'authMode',
+      'authorizationStreamIncarnation',
+    ], 'authority');
     return {
       kind,
       authMode: authority.authMode,
@@ -150,6 +168,13 @@ export function normalizeClientAuthority(authority) {
   if (authority.authMode !== 'sessions') {
     throw corrupt('session authority requires sessions mode', { field: 'authority.authMode' });
   }
+  assertExactKeys(authority, [
+    'kind',
+    'authMode',
+    'authorizationStreamIncarnation',
+    'sessionId',
+    'userId',
+  ], 'authority');
   for (const field of ['sessionId', 'userId']) {
     if (!UUID_V7.test(authority[field] ?? '')) {
       throw corrupt(`session authority ${field} is not a canonical UUIDv7`, { field: `authority.${field}` });
@@ -190,8 +215,8 @@ export function authAppIdHash(appId) {
 }
 
 function validateRefreshTime(value, field = 'refreshAfterMs') {
-  if (value !== null && !Number.isSafeInteger(value)) {
-    throw corrupt(`custody field ${field} is not a safe integer timestamp or null`, { field });
+  if (value !== null && (!Number.isSafeInteger(value) || value < 0)) {
+    throw corrupt(`custody field ${field} is not a safe nonnegative integer timestamp or null`, { field });
   }
 }
 
@@ -199,6 +224,18 @@ export function validateAuthCustody(record, expectedAppId = null) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) {
     throw corrupt('durable custody is not an object');
   }
+  assertExactKeys(record, [
+    'formatVersion',
+    'appId',
+    'authorityEpoch',
+    'revision',
+    'phase',
+    'authority',
+    'pendingAuthority',
+    'bearer',
+    'pendingBearer',
+    'refreshAfterMs',
+  ], 'custody');
   if (record.formatVersion !== SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION) {
     throw corrupt('durable custody format version is unsupported', {
       storedVersion: record.formatVersion ?? null,
@@ -232,6 +269,11 @@ export function validateAuthCustody(record, expectedAppId = null) {
       throw corrupt('session settled custody requires a bearer and refresh time');
     }
   } else {
+    if (record.authorityEpoch < 1) {
+      throw corrupt('clearing custody must advance to a positive authority epoch', {
+        field: 'authorityEpoch',
+      });
+    }
     if (authority !== null || record.bearer !== null || pendingAuthority === null) {
       throw corrupt('clearing custody has inconsistent current or pending fields');
     }
@@ -340,9 +382,11 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
       lock.tail = new Promise((resolve) => { release = resolve; });
       await prior;
       const owner = createSerialOwner(
-        () => state.custody[canonicalId] ?? null,
+        () => Object.hasOwn(state.custody, canonicalId) ? state.custody[canonicalId] : null,
         (expectedRevision, next) => {
-          const current = state.custody[canonicalId] ?? null;
+          const current = Object.hasOwn(state.custody, canonicalId)
+            ? state.custody[canonicalId]
+            : null;
           const actualRevision = current?.revision ?? null;
           if (actualRevision !== expectedRevision) {
             throw coordinatorError(
@@ -366,7 +410,12 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
           } else if (validated.revision !== 1 || validated.authorityEpoch !== 0) {
             throw corrupt('fresh custody must begin at epoch 0 and revision 1');
           }
-          state.custody[canonicalId] = clone(validated);
+          Object.defineProperty(state.custody, canonicalId, {
+            configurable: true,
+            enumerable: true,
+            writable: true,
+            value: clone(validated),
+          });
           return validated;
         },
       );
@@ -378,7 +427,8 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
       }
     },
     snapshot(appId) {
-      return clone(state.custody[canonicalAppId(appId)] ?? null);
+      const canonicalId = canonicalAppId(appId);
+      return clone(Object.hasOwn(state.custody, canonicalId) ? state.custody[canonicalId] : null);
     },
   };
 }
@@ -666,7 +716,11 @@ export class AuthCoordinator {
     for (;;) {
       try {
         await this.synchronize();
-      } catch {
+      } catch (error) {
+        if (
+          error?.code === 'SNAPBACK_AUTH_CUSTODY_CORRUPT'
+          || error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'
+        ) throw error;
         // A peer may still own a clearing transition; retry until the bounded
         // monotonic deadline and let the caller choose the family-alarm path.
       }
@@ -855,7 +909,7 @@ export class AuthCoordinator {
       throw coordinatorError(
         'SNAPBACK_AUTH_TRANSITION_FAILED',
         'authority transition barrier did not settle',
-        { phase: this.#activeBarrier?.phase ?? 'unknown', causeCode: error?.code ?? null, cause: error?.message ?? String(error) },
+        { phase: this.#activeBarrier?.phase ?? 'unknown', causeCode: error?.code ?? null },
       );
     } finally {
       this.#activeBarrier = null;
@@ -975,6 +1029,13 @@ export class AuthCoordinator {
   #receiveWakeup(message) {
     if (
       !message
+      || !hasExactKeys(message, [
+        'formatVersion',
+        'appIdHash',
+        'authorityEpoch',
+        'revision',
+        'phase',
+      ])
       || message.formatVersion !== SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION
       || message.appIdHash !== this.#appIdHash
       || !Number.isSafeInteger(message.authorityEpoch)

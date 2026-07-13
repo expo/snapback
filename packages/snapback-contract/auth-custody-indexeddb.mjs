@@ -63,6 +63,16 @@ function validateLease(lease) {
   if (!lease || typeof lease !== 'object' || Array.isArray(lease)) {
     throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE', 'custody lease has an invalid shape');
   }
+  const keys = Reflect.ownKeys(lease);
+  if (
+    keys.length !== 3
+    || !keys.every((key) => (
+      typeof key === 'string'
+      && ['holderNonce', 'fencingToken', 'expiresAtMs'].includes(key)
+    ))
+  ) {
+    throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE', 'custody lease has unknown or missing fields');
+  }
   if (typeof lease.holderNonce !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(lease.holderNonce)) {
     throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE', 'custody lease nonce is invalid');
   }
@@ -132,6 +142,12 @@ function validateReplacement(previous, next, appId) {
 function openCustodyDatabase(indexedDB, name) {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(name, AUTH_CUSTODY_DATABASE_VERSION);
+    let settled = false;
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains('custody')) db.createObjectStore('custody');
@@ -139,21 +155,26 @@ function openCustodyDatabase(indexedDB, name) {
     };
     request.onsuccess = () => {
       const db = request.result;
+      if (settled) {
+        db.close();
+        return;
+      }
       if (!db.objectStoreNames.contains('custody') || !db.objectStoreNames.contains('leases')) {
         db.close();
-        reject(storageError(
+        fail(storageError(
           'SNAPBACK_AUTH_CUSTODY_CORRUPT',
           'custody database is missing a required object store',
         ));
         return;
       }
+      settled = true;
       resolve(db);
     };
-    request.onerror = () => reject(request.error ?? storageError(
+    request.onerror = () => fail(request.error ?? storageError(
       'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
       'could not open the custody database',
     ));
-    request.onblocked = () => reject(storageError(
+    request.onblocked = () => fail(storageError(
       'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
       'custody database upgrade is blocked by another context',
     ));

@@ -120,6 +120,52 @@ const hintStorage = {
     () => validateAuthCustody({ ...valid, revision: Number.MAX_SAFE_INTEGER + 1 }, APP),
     { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
   );
+  assert.throws(
+    () => validateAuthCustody({ ...valid, unknown: true }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+  );
+  assert.throws(
+    () => validateAuthCustody({
+      ...valid,
+      authority: { ...anonymous(), unknown: true },
+    }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+  );
+  assert.throws(
+    () => validateAuthCustody({
+      ...valid,
+      authority: session(),
+      bearer: 'secret',
+      refreshAfterMs: -1,
+    }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+  );
+  assert.throws(
+    () => validateAuthCustody({
+      ...valid,
+      phase: 'clearing',
+      authority: null,
+      pendingAuthority: anonymous(),
+    }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+  );
+}
+
+// Memory adapters cannot confuse a canonical app id with an object prototype
+// setter or inherited property.
+{
+  const state = { custody: {} };
+  const protoCoordinator = new AuthCoordinator({
+    appId: '__proto__',
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await protoCoordinator.establishAnonymous(anonymous());
+  assert.equal(Object.hasOwn(state.custody, '__proto__'), true);
+  assert.equal(Object.getPrototypeOf(state.custody), Object.prototype);
+  assert.equal(state.custody.__proto__.appId, '__proto__');
+  await protoCoordinator.close();
 }
 
 const shared = { custody: {} };
@@ -143,6 +189,22 @@ assert.deepEqual(anonymousCapture, {
   custodyRevision: 1,
   authorityKey: canonicalAuthorityKey(APP, anonymous()),
 });
+
+// Broadcast bytes are a closed, secret-free wakeup protocol. A valid-looking
+// clearing message with any extra field cannot synchronously pause publication.
+for (const channels of hub.channels.values()) {
+  for (const channel of channels) {
+    channel.onmessage?.({ data: {
+      formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+      appIdHash: authAppIdHash(APP),
+      authorityEpoch: 1,
+      revision: 2,
+      phase: 'clearing',
+      bearer: 'must-be-rejected',
+    } });
+  }
+}
+assert.deepEqual(coordinator.capture(), anonymousCapture);
 
 // All participant phases are deterministic; visibility blanks before durable
 // deletion, and resume runs in reverse registration order only after settle.
