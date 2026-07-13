@@ -238,8 +238,11 @@ correctness, and sharded locks match the codebase's existing style
   delete tombstones so delayed upserts cannot resurrect removed state.
 - **Definition-generation barrier.** Definition replacement and reset take the
   lifecycle write side; publish/delete/subscribe/unsubscribe take the read side.
-  Once a replacement returns, no operation admitted against the retired
-  definition generation can recreate its rooms or entries.
+  Single-collection registration follows the same rule: adding a new name is
+  setup-only, an identical definition is idempotent, and changing an existing
+  name retires rooms and queues exactly like whole-manifest replacement. Once a
+  replacement returns, no operation admitted against the retired definition
+  generation can recreate its rooms or entries.
 - **Room lifecycle and epochs.** Rooms are created on demand and pruned when
   they hold no entries and no subscribers, via a retire-and-retry protocol
   (`retired` is set while holding map and room; operations that acquired a

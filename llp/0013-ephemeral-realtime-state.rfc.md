@@ -155,7 +155,10 @@ Common key modes should include:
 - **custom key:** allowed when generated validation and auth can prove the
   publisher may write that key. Until that key-specific authorization exists,
   the local baseline treats an arbitrary custom key as connection-owned: only
-  the connection that created it may replace or delete it (ENG-24353).
+  the connection that created it may replace or delete it (ENG-24353). One
+  connection may own several custom keys in a room; removing one key must keep
+  the connection→room ownership edge until its final key is gone, so disconnect
+  still reclaims every remaining entry.
 
 Connection-owned should be the default for cursor-like state because it avoids
 two tabs overwriting each other and gives the server a simple cleanup rule.

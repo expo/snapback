@@ -1065,6 +1065,12 @@ impl EventCounters {
 type SharedRoom = Arc<StdMutex<RoomState>>;
 type SharedOutbox = Arc<StdMutex<OutboundQueue>>;
 
+#[cfg(test)]
+struct DefinitionSwapTestHook {
+    reached: std::sync::mpsc::SyncSender<()>,
+    release: std::sync::mpsc::Receiver<()>,
+}
+
 /// The shared state behind the backend handle. All synchronization is
 /// internal: a read-mostly collections registry, a small global routing map
 /// whose values are per-room locks, per-connection outbox locks, a
@@ -1084,6 +1090,8 @@ struct EphemeralShared {
     /// room retirement, lane cleanup, and resync enqueue. A new-generation
     /// publish therefore cannot be erased by an old-generation wipe.
     lifecycle: RwLock<()>,
+    #[cfg(test)]
+    definition_swap_hook: StdMutex<Option<DefinitionSwapTestHook>>,
     collections: RwLock<BTreeMap<String, EphemeralCollection>>,
     rooms: StdMutex<BTreeMap<RoomId, SharedRoom>>,
     outboxes: StdMutex<BTreeMap<ConnectionId, SharedOutbox>>,
@@ -1145,6 +1153,8 @@ impl LocalEphemeralBackend {
         Self {
             shared: Arc::new(EphemeralShared {
                 lifecycle: RwLock::new(()),
+                #[cfg(test)]
+                definition_swap_hook: StdMutex::new(None),
                 collections: RwLock::new(BTreeMap::new()),
                 rooms: StdMutex::new(BTreeMap::new()),
                 outboxes: StdMutex::new(BTreeMap::new()),
@@ -1174,11 +1184,34 @@ impl LocalEphemeralBackend {
             .lifecycle
             .write()
             .unwrap_or_else(PoisonError::into_inner);
-        self.shared
-            .collections
-            .write()
-            .unwrap_or_else(PoisonError::into_inner)
-            .insert(collection.name.clone(), collection);
+        let replaced = {
+            let mut collections = self
+                .shared
+                .collections
+                .write()
+                .unwrap_or_else(PoisonError::into_inner);
+            match collections.get(&collection.name) {
+                Some(current) if current == &collection => return Ok(()),
+                Some(_) => {
+                    collections.insert(collection.name.clone(), collection);
+                    true
+                }
+                None => {
+                    collections.insert(collection.name.clone(), collection);
+                    false
+                }
+            }
+        };
+        if replaced {
+            #[cfg(test)]
+            self.pause_after_definition_swap_for_test();
+            // `register_collection` is public for embedded/setup consumers.
+            // A changed existing definition is the same generation boundary
+            // as a whole-manifest replacement; it may not overwrite live room
+            // semantics while retaining old epochs, queues, or rate buckets.
+            self.wipe_rooms_signaling_resync(ResyncReason::EpochChanged);
+            lock(&self.shared.rate_buckets).clear();
+        }
         Ok(())
     }
 
@@ -1215,6 +1248,9 @@ impl LocalEphemeralBackend {
             *current = next;
         }
 
+        #[cfg(test)]
+        self.pause_after_definition_swap_for_test();
+
         // A destructive replacement retires room epochs under live
         // connections: tell each registered subscriber to resubscribe instead
         // of going silent. `EpochChanged` is the ratified reason for this
@@ -1223,6 +1259,19 @@ impl LocalEphemeralBackend {
         self.wipe_rooms_signaling_resync(ResyncReason::EpochChanged);
         lock(&self.shared.rate_buckets).clear();
         Ok(())
+    }
+
+    #[cfg(test)]
+    fn pause_after_definition_swap_for_test(&self) {
+        let hook = lock(&self.shared.definition_swap_hook).take();
+        if let Some(hook) = hook {
+            hook.reached
+                .send(())
+                .expect("definition-swap test observer remains alive");
+            hook.release
+                .recv()
+                .expect("definition-swap test releases replacement");
+        }
     }
 
     pub fn ensure_collections(
@@ -2486,7 +2535,17 @@ fn remove_entry_locked(
     let record = room.entries.remove(key)?;
     room.value_bytes = room.value_bytes.saturating_sub(record.serialized_bytes);
     forget_expiry_locked(room, record.expires_at_ms);
-    room.owner_connections.remove(&record.owner);
+    // Custom-key collections can hold several entries owned by the same
+    // connection. Keep the owner membership until its final key leaves the
+    // room, or disconnect can lose the reverse-index edge and strand the
+    // remaining entries until TTL expiry.
+    if !room
+        .entries
+        .values()
+        .any(|remaining| remaining.owner == record.owner)
+    {
+        room.owner_connections.remove(&record.owner);
+    }
     let entry_version = room.allocate_version();
     Some(EphemeralMessage::Remove {
         room: room_id.clone(),
@@ -3158,6 +3217,58 @@ mod tests {
                 .unwrap_err()
                 .code,
             EphemeralErrorCode::Unauthorized
+        );
+    }
+
+    #[test]
+    fn deleting_one_custom_key_keeps_disconnect_ownership_for_the_rest() {
+        let backend = LocalEphemeralBackend::new();
+        let mut custom = collection();
+        custom.name = "customPresence".to_owned();
+        custom.key_mode = KeyMode::Custom;
+        backend.register_collection(custom).unwrap();
+        let scope = scope();
+        let publish = |key: &str| PublishRequest {
+            collection: "customPresence".to_owned(),
+            scope: scope.clone(),
+            connection_id: "publisher".to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: Some(key.to_owned()),
+            value: key.as_bytes().to_vec(),
+            ttl_ms: None,
+            auth: auth_for(&scope),
+        };
+        backend.publish(publish("first"), 1_000).unwrap();
+        backend.publish(publish("second"), 1_001).unwrap();
+
+        backend
+            .delete(
+                DeleteRequest {
+                    collection: "customPresence".to_owned(),
+                    scope: scope.clone(),
+                    connection_id: "publisher".to_owned(),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: Some("first".to_owned()),
+                    auth: auth_for(&scope),
+                },
+                1_002,
+            )
+            .unwrap();
+        assert_eq!(backend.diagnostics().entry_count, 1);
+        assert!(
+            lock(&backend.shared.connection_rooms)
+                .get("publisher")
+                .is_some_and(|rooms| !rooms.is_empty()),
+            "the remaining custom key must keep the disconnect reverse-index edge"
+        );
+
+        backend.disconnect("publisher", 1_003);
+        assert_eq!(
+            backend.diagnostics().entry_count,
+            0,
+            "disconnect must reclaim the owner's final custom key"
         );
     }
 
@@ -4657,6 +4768,109 @@ mod tests {
             })
         ));
         assert_eq!(backend.diagnostics().resync_required, 1);
+    }
+
+    #[test]
+    fn changed_single_registration_holds_generation_barrier_through_wipe() {
+        let backend = LocalEphemeralBackend::new();
+        let collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
+        backend.register_collection(collection.clone()).unwrap();
+        let subscribe = SubscribeRequest {
+            collection: "boardCursors".to_owned(),
+            scope: Scope::from_pairs([("boardId", "board-1")]),
+            connection_id: "observer".to_owned(),
+            auth: AuthContext::default(),
+        };
+        let first = backend.subscribe(subscribe.clone(), 1_000).unwrap();
+        let EphemeralMessage::Snapshot {
+            scope_epoch: first_epoch,
+            ..
+        } = first
+        else {
+            panic!("expected initial snapshot");
+        };
+        backend.drain_outbox("observer");
+
+        let (reached_tx, reached_rx) = std::sync::mpsc::sync_channel(0);
+        let (release_tx, release_rx) = std::sync::mpsc::sync_channel(0);
+        *lock(&backend.shared.definition_swap_hook) = Some(DefinitionSwapTestHook {
+            reached: reached_tx,
+            release: release_rx,
+        });
+
+        let changer_backend = backend.clone();
+        let mut changed = collection;
+        changed.default_ttl_ms = 9_000;
+        let changer = std::thread::spawn(move || {
+            changer_backend.register_collection(changed).unwrap();
+        });
+        reached_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .expect("replacement reached the post-swap boundary");
+        assert!(
+            backend.shared.lifecycle.try_read().is_err(),
+            "the definition write guard must span room retirement and resync enqueue"
+        );
+
+        // Start new-generation work while replacement is paused after making
+        // the definition visible. It must wait for the old rooms/lanes to be
+        // retired, then its fresh subscription and delta must survive.
+        let worker_backend = backend.clone();
+        let worker_started = Arc::new(std::sync::Barrier::new(2));
+        let worker_barrier = worker_started.clone();
+        let worker = std::thread::spawn(move || {
+            worker_barrier.wait();
+            let snapshot = worker_backend.subscribe(subscribe, 2_000).unwrap();
+            worker_backend
+                .publish(
+                    PublishRequest {
+                        collection: "boardCursors".to_owned(),
+                        scope: Scope::from_pairs([("boardId", "board-1")]),
+                        connection_id: "publisher".to_owned(),
+                        session_id: None,
+                        user_id: None,
+                        custom_key: None,
+                        value: b"new-generation".to_vec(),
+                        ttl_ms: None,
+                        auth: AuthContext::default(),
+                    },
+                    2_001,
+                )
+                .unwrap();
+            snapshot
+        });
+        worker_started.wait();
+        release_tx.send(()).unwrap();
+        changer.join().unwrap();
+        let snapshot = worker.join().unwrap();
+        let EphemeralMessage::Snapshot {
+            scope_epoch: next_epoch,
+            ..
+        } = snapshot
+        else {
+            panic!("expected replacement snapshot");
+        };
+        assert!(next_epoch > first_epoch);
+
+        let messages = backend.drain_outbox("observer");
+        assert!(matches!(
+            messages.first(),
+            Some(RealtimeEnvelope::Ephemeral(
+                EphemeralMessage::ResyncRequired {
+                    scope_epoch,
+                    reason: ResyncReason::EpochChanged,
+                    ..
+                }
+            )) if *scope_epoch == first_epoch
+        ));
+        assert!(
+            messages.iter().any(|message| matches!(
+                message,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { entry, .. })
+                    if entry.scope_epoch == next_epoch && entry.value == b"new-generation"
+            )),
+            "new-generation deltas must be enqueued after, never wiped by, the replacement boundary: {messages:?}"
+        );
     }
 
     /// LLP 0013 §Room store model / LLP 0026 Phase 2 — snapshot and
