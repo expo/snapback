@@ -21,7 +21,7 @@ use uuid::Uuid;
 pub(crate) const AUTH_CATALOG_VERSION: &str = "1";
 pub(crate) const AUTH_GC_BATCH: usize = 512;
 const META_AUTH_CATALOG_VERSION: &str = "auth_catalog_version";
-const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declaration_id";
+pub(super) const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declaration_id";
 #[cfg(test)]
 const AUTH_ACTIVATION_STEPS: usize = AUTH_TABLES.len() + AUTH_INDEXES.len() + 1;
 
@@ -531,6 +531,13 @@ impl LocalDatabase {
             let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
             restore_transaction_step_completed(1)?;
 
+            // @ref LLP 0056#reset-restore-and-stream-publication — a first
+            // application rotates authorization authority in this same
+            // destructive transaction; an idempotent declaration returns
+            // above without rotating again.
+            super::auth_stream::rotate_authorization_stream_incarnation_in(tx)?;
+            restore_transaction_step_completed(2)?;
+
             // @ref LLP 0054#restore — the declaration id is written last in
             // the same transaction as revocation and challenge destruction.
             tx.execute(
@@ -538,7 +545,7 @@ impl LocalDatabase {
                  ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 params![META_AUTH_RESTORE_DECLARATION_ID, declaration_id],
             )?;
-            restore_transaction_step_completed(2)?;
+            restore_transaction_step_completed(3)?;
             Ok(AuthRestoreResult::Applied {
                 sessions_revoked,
                 challenges_deleted,
@@ -1401,7 +1408,7 @@ mod tests {
 
     #[test]
     fn declared_restore_failure_at_every_boundary_rolls_back_all_effects() {
-        for step in 0..=2 {
+        for step in 0..=3 {
             let mut db = catalog_database();
             db.with_auth_transaction(|tx| {
                 tx.execute(
@@ -1469,6 +1476,16 @@ mod tests {
                 .optional()
                 .expect("restore marker query");
             assert_eq!(marker, None);
+            let stream: Option<String> = db
+                .conn
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key = ?1",
+                    params![crate::auth::session_projection::AUTHORIZATION_STREAM_META_KEY],
+                    |row| row.get(0),
+                )
+                .optional()
+                .expect("authorization-stream query");
+            assert_eq!(stream, None);
         }
     }
 

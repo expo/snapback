@@ -455,6 +455,7 @@ mod tests {
         let keyring = AuthKeyringStore::file_for_database(&database_path);
         let random = CountingRandom::default();
         activate_catalog(&mut database, &keyring, 0, &random).unwrap();
+        let predecessor_incarnation = database.ensure_authorization_stream_incarnation().unwrap();
         insert_restore_fixture(&mut database, "session-1", 1);
 
         let mailbox = CaptureMailbox::new();
@@ -491,6 +492,8 @@ mod tests {
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "TEST_AUTH_LIFECYCLE_FAILURE");
         assert!(declaration_path.exists());
+        let committed_incarnation = database.authorization_stream_incarnation().unwrap();
+        assert_ne!(committed_incarnation, predecessor_incarnation);
 
         let retry = apply_declared_restore(
             &mut database,
@@ -501,6 +504,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(retry, DeclaredRestoreOutcome::AlreadyApplied);
+        assert_eq!(
+            database.authorization_stream_incarnation().unwrap(),
+            committed_incarnation
+        );
         assert!(!declaration_path.exists());
         assert!(mailbox.peek_address(&challenge).is_none());
         assert_session(&database, "session-1", 2, Some(100));
@@ -521,6 +528,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(replay, DeclaredRestoreOutcome::AlreadyApplied);
+        assert_eq!(
+            database.authorization_stream_incarnation().unwrap(),
+            committed_incarnation
+        );
         assert_session(&database, "session-2", 1, None);
         assert_eq!(challenge_count(&database), 1);
     }

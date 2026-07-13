@@ -18,4 +18,6 @@ pub(crate) mod recovery;
 #[allow(dead_code)] // Wired by the collision-recovery/operator composition lane.
 pub(crate) mod rescue;
 pub mod runtime;
+#[allow(dead_code)] // Published by the ENG-24603 coordinator integration lane.
+pub(crate) mod session_projection;
 pub mod wire;

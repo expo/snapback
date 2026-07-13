@@ -35,6 +35,10 @@ pub(crate) mod auth_rescue;
 #[path = "storage/auth_mode.rs"]
 pub(crate) mod auth_mode;
 
+#[allow(dead_code)] // Called by the ENG-24603 pre-bind/coordinator integration lane.
+#[path = "storage/auth_stream.rs"]
+pub(crate) mod auth_stream;
+
 #[cfg(test)]
 type ResetCommitHook = Box<dyn FnOnce() -> SnapbackResult<()>>;
 
@@ -872,6 +876,11 @@ impl LocalDatabase {
             "DELETE FROM _snapback_meta WHERE key = ?1",
             params![META_CRON_STATE],
         )?;
+        // @ref LLP 0056#reset-restore-and-stream-publication — reset changes
+        // authorization authority in the same commit as app/auth destruction.
+        // Publication to the shared stream fence occurs only after this
+        // transaction commits in the item-5 coordinator.
+        auth_stream::rotate_authorization_stream_incarnation_in(&tx)?;
         tx.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
 
         let seeded = match seed {
@@ -4487,6 +4496,9 @@ mod guarded_commit_tests {
     fn reset_seed_rolls_back_insert_and_precommit_failures() {
         let mut db = database();
         db.seed(seed_data("old", "old data")).expect("initial seed");
+        let predecessor_incarnation = db
+            .ensure_authorization_stream_incarnation()
+            .expect("initialize authorization stream");
 
         let duplicate_seed = SeedData {
             tables: BTreeMap::from([(
@@ -4511,6 +4523,10 @@ mod guarded_commit_tests {
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
         assert_eq!(db.current_version().unwrap(), 1);
+        assert_eq!(
+            db.authorization_stream_incarnation().unwrap(),
+            predecessor_incarnation
+        );
 
         BEFORE_RESET_COMMIT_HOOK.with(|slot| {
             *slot.borrow_mut() = Some(Box::new(|| {
@@ -4529,6 +4545,17 @@ mod guarded_commit_tests {
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
         assert_eq!(db.current_version().unwrap(), 1);
+        assert_eq!(
+            db.authorization_stream_incarnation().unwrap(),
+            predecessor_incarnation
+        );
+
+        db.reset_and_seed(Some(seed_data("new", "new data")))
+            .expect("successful reset");
+        assert_ne!(
+            db.authorization_stream_incarnation().unwrap(),
+            predecessor_incarnation
+        );
     }
 
     #[test]
