@@ -813,6 +813,32 @@ impl AuthProvider {
         self.clock.monotonic_now()
     }
 
+    /// Authenticate one already-durably-reserved invalidation boot issuer
+    /// while the active protocol key remains under the keyring lock.
+    ///
+    /// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — listener
+    /// bind is refused unless the reserved issuer can be authenticated with a
+    /// stable protocol key.
+    pub(crate) fn authenticate_invalidation_boot_issuer(
+        &self,
+        issuer_id: crate::auth::invalidation::IssuerId,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> ProviderResult<crate::auth::invalidation::AuthenticatedBootIssuer> {
+        self.keyring
+            .with_active_key(self.now_ms(), self.random.as_ref(), |key_id, key| {
+                crate::auth::invalidation::IssuerAuthenticator::new(
+                    key_id.as_str(),
+                    *key.expose_secret(),
+                )
+                .and_then(|authenticator| {
+                    authenticator.authenticate(issuer_id, target_profile_id, app_id)
+                })
+            })
+            .map_err(|_| provider_unavailable())?
+            .map_err(|_| provider_unavailable())
+    }
+
     /// Closed, non-secret health fact. Session-digest resolution deliberately
     /// does not consult this state and remains usable when provider issuance is
     /// unavailable.

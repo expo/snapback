@@ -664,6 +664,9 @@ pub struct AppState {
     /// Whether startup observed an exact ReadyV1 catalog. Keyring readiness is
     /// intentionally revalidated on every health projection.
     pub(crate) auth_catalog_ready: bool,
+    /// Authenticated boot identity installed before listener bind. Its absence
+    /// keeps session-mode auth-scoped live admission fail-closed.
+    pub(crate) auth_invalidation: Option<crate::auth::invalidation::LiveInvalidationIssuer>,
     /// One-shot test seam for a failure after durable mode commit but before
     /// the clone-shared request projection is installed.
     #[cfg(test)]
@@ -720,6 +723,7 @@ impl AppState {
                 auth_provider: None,
                 auth_coordinator: None,
                 auth_catalog_ready: false,
+                auth_invalidation: None,
                 #[cfg(test)]
                 fail_auth_mode_publication: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             },
@@ -964,6 +968,14 @@ impl AppState {
         self.auth_provider = Some(runtime.provider());
         self.auth_coordinator = Some(coordinator);
         self.auth_catalog_ready = runtime.catalog_ready();
+        self
+    }
+
+    pub(crate) fn with_auth_invalidation(
+        mut self,
+        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+    ) -> Self {
+        self.auth_invalidation = Some(issuer);
         self
     }
 

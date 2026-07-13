@@ -1522,7 +1522,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 
     // Item 5 makes sessions activatable only after this process has all three
     // projection/custody mechanisms. Later item-6/7/8 facts remain false.
-    let auth_program_readiness = crate::auth::mode::AuthProgramReadiness::new(
+    let mut auth_program_readiness = crate::auth::mode::AuthProgramReadiness::new(
         secret_read_process_prerequisites,
         true,
         true,
@@ -1560,6 +1560,39 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // @ref LLP 0056#startup-rebuild-and-deadline-derivation — pre-bind publication is all-or-nothing.
     let auth_coordinator = auth_runtime.build_coordinator(&mut snapback)?;
 
+    // A sessions deployment cannot publish an app-data listener until its
+    // boot-local invalidation namespace has both a committed durable sequence
+    // and an authenticated descriptor. A failed MAC/keyring lookup burns the
+    // reserved sequence and aborts startup.
+    // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — reserve and authenticate the never-reused boot issuer before app-data bind.
+    let auth_invalidation = if auth_mode_state.active == crate::manifest::AuthMode::Sessions {
+        let (app_id, target_profile_id) = {
+            let schema = snapback.auth_database_mut().schema();
+            (
+                schema.app_id.clone(),
+                schema.target_profile.clone().unwrap_or_else(|| {
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+                }),
+            )
+        };
+        let (issuer, authorization, version_stream) = auth_runtime
+            .reserve_invalidation_boot_issuer(&mut snapback, &target_profile_id, &app_id)
+            .map_err(|error| anyhow::Error::new(error.into_snapback_error()))?;
+        snapback.install_auth_invalidation(issuer.clone(), authorization, version_stream)?;
+        auth_program_readiness = crate::auth::mode::AuthProgramReadiness::new(
+            secret_read_process_prerequisites,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+        );
+        Some(issuer)
+    } else {
+        None
+    };
+
     let read_lane = snapback.read_lane();
     let ephemeral = snapback.ephemeral_api();
     let missing_config = snapback.required_missing_config();
@@ -1576,6 +1609,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .with_auth_runtime_facts(auth_mode_state.clone(), auth_program_readiness.clone())
         .map_err(anyhow::Error::new)?
         .with_auth_runtime(&auth_runtime, auth_coordinator.clone());
+    let app_state = match auth_invalidation {
+        Some(issuer) => app_state.with_auth_invalidation(issuer),
+        None => app_state,
+    };
     let app_state = match secret_read_proof_root {
         Some(root) => app_state.with_secret_read_mint_bridge(SecretReadMintBridge::new(
             secret_read_operator,

@@ -41,6 +41,9 @@ pub(crate) mod auth_mode;
 #[path = "storage/authorization.rs"]
 pub(crate) mod authorization;
 
+#[path = "storage/auth_invalidation.rs"]
+pub(crate) mod auth_invalidation;
+
 #[allow(dead_code)] // Called by the ENG-24603 pre-bind/coordinator integration lane.
 #[path = "storage/auth_stream.rs"]
 pub(crate) mod auth_stream;
@@ -403,6 +406,8 @@ fn reset_and_seed_transaction(
     tx.execute("DELETE FROM _snapback_changes", [])?;
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
+    auth_invalidation::clear_retry_episodes_in(tx)?;
+    auth_invalidation::rotate_data_version_stream_in(tx)?;
     tx.execute(
         "DELETE FROM _snapback_meta WHERE key = ?1",
         params![META_RETENTION_FLOOR],
@@ -2071,6 +2076,22 @@ impl LocalDatabase {
               auth_fingerprint TEXT PRIMARY KEY,
               records INTEGER NOT NULL CHECK(records >= 0),
               bytes INTEGER NOT NULL CHECK(bytes >= 0)
+            );
+            -- @ref LLP 0053#invalidation-is-an-obligation-not-a-message —
+            -- retry episodes are durable auth-control state, never outbox
+            -- messages or process-local timer records.
+            CREATE TABLE IF NOT EXISTS _snapback_auth_retry_episodes (
+              authority_subject TEXT NOT NULL,
+              client_store_id TEXT NOT NULL,
+              query_key TEXT NOT NULL,
+              episode_json TEXT NOT NULL,
+              PRIMARY KEY(authority_subject, client_store_id, query_key)
+            );
+            CREATE TABLE IF NOT EXISTS _snapback_auth_retry_counters (
+              authority_subject TEXT NOT NULL,
+              client_store_id TEXT NOT NULL,
+              records INTEGER NOT NULL CHECK(records >= 0),
+              PRIMARY KEY(authority_subject, client_store_id)
             );
             ",
         )?;

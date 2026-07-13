@@ -19,6 +19,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use uuid::Uuid;
 
 pub const AUTH_INVALIDATION_PROTOCOL_VERSION: u32 = 1;
@@ -139,6 +141,78 @@ pub struct AuthenticatedBootIssuer {
     pub issuer_id: IssuerId,
     pub key_id: String,
     pub mac: String,
+}
+
+/// One process's authenticated live-scope identity and non-wrapping local
+/// reservations. The durable boot sequence makes restarting these atomics at
+/// one safe; every published full ScopeId still differs across boots.
+#[derive(Clone)]
+pub struct LiveInvalidationIssuer {
+    authenticated: AuthenticatedBootIssuer,
+    next_connection_generation: Arc<AtomicU64>,
+    next_scope_sequence: Arc<AtomicU64>,
+}
+
+impl std::fmt::Debug for LiveInvalidationIssuer {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("LiveInvalidationIssuer")
+            .field("issuer_id", &self.authenticated.issuer_id)
+            .field("key_id", &"[REDACTED]")
+            .finish_non_exhaustive()
+    }
+}
+
+impl LiveInvalidationIssuer {
+    pub fn new(authenticated: AuthenticatedBootIssuer) -> SnapbackResult<Self> {
+        authenticated.issuer_id.validate()?;
+        validate_opaque(&authenticated.key_id, "authenticatedIssuer.keyId")?;
+        let mac = URL_SAFE_NO_PAD
+            .decode(&authenticated.mac)
+            .map_err(|_| corrupt("authenticated issuer MAC is not canonical base64url"))?;
+        if mac.len() != 32 || URL_SAFE_NO_PAD.encode(mac) != authenticated.mac {
+            return Err(corrupt(
+                "authenticated issuer MAC is not a canonical SHA-256 value",
+            ));
+        }
+        Ok(Self {
+            authenticated,
+            next_connection_generation: Arc::new(AtomicU64::new(1)),
+            next_scope_sequence: Arc::new(AtomicU64::new(1)),
+        })
+    }
+
+    pub fn authenticated(&self) -> &AuthenticatedBootIssuer {
+        &self.authenticated
+    }
+
+    pub fn reserve_connection_generation(&self) -> SnapbackResult<u64> {
+        reserve_atomic_counter(
+            &self.next_connection_generation,
+            "SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED",
+            "authorization invalidation connection generation exhausted",
+        )
+    }
+
+    pub fn reserve_scope_sequence(&self) -> SnapbackResult<u64> {
+        reserve_atomic_counter(
+            &self.next_scope_sequence,
+            "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED",
+            "authorization invalidation scope sequence exhausted",
+        )
+    }
+}
+
+fn reserve_atomic_counter(
+    counter: &AtomicU64,
+    code: &'static str,
+    message: &'static str,
+) -> SnapbackResult<u64> {
+    counter
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
+            (current <= MAX_PROTOCOL_COUNTER).then(|| current.saturating_add(1))
+        })
+        .map_err(|_| invalidation_error(code, message))
 }
 
 /// Stable protocol-key signer for bootstrap issuer expectations.
@@ -853,6 +927,25 @@ impl RetryEpisodeRegistry {
         &self.episodes
     }
 
+    pub(crate) fn clock_high_water_ms(&self) -> u64 {
+        self.clock_high_water_ms
+    }
+
+    pub(crate) fn from_persisted(
+        episodes: BTreeMap<RetryEpisodeKey, RetryEpisode>,
+        clock_high_water_ms: u64,
+    ) -> SnapbackResult<Self> {
+        validate_counter(clock_high_water_ms, "retry.clockHighWaterMs", false)?;
+        for (key, episode) in &episodes {
+            key.validate()?;
+            episode.validate_persisted(key, clock_high_water_ms)?;
+        }
+        Ok(Self {
+            episodes,
+            clock_high_water_ms,
+        })
+    }
+
     pub fn reserve(
         &mut self,
         key: RetryEpisodeKey,
@@ -864,7 +957,14 @@ impl RetryEpisodeRegistry {
         witness_floor.validate()?;
         validate_counter(now_ms, "retry.nowMs", false)?;
         if now_ms < self.clock_high_water_ms {
-            if let Some(existing) = self.episodes.get(&key) {
+            if let Some(existing) = self.episodes.get_mut(&key) {
+                existing.attempts_reserved = AUTH_ERROR_ATTEMPTS_TOTAL;
+                existing.first_failure_at_ms.get_or_insert(
+                    existing
+                        .first_attempt_reserved_at_ms
+                        .min(existing.last_reservation_at_ms),
+                );
+                existing.deadline_ms = Some(self.clock_high_water_ms);
                 return Ok(RetryReservation::Exhausted(existing.clone()));
             }
             return Err(invalidation_error(
@@ -878,6 +978,19 @@ impl RetryEpisodeRegistry {
             existing.witness_floor = merge_witness(&existing.witness_floor, &witness_floor)?;
             if kind == RetryReservationKind::Initial {
                 return Ok(RetryReservation::Attached(existing.clone()));
+            }
+            // A prior reservation with no recorded outcome is the crash case.
+            // Its reservation time becomes the conservative failure origin;
+            // restart can shorten but never extend the retry window.
+            if existing.first_failure_at_ms.is_none() {
+                let origin = existing
+                    .first_attempt_reserved_at_ms
+                    .min(existing.last_reservation_at_ms);
+                existing.first_failure_at_ms = Some(origin);
+                existing.deadline_ms = origin
+                    .checked_add(AUTH_ERROR_RETRY_WINDOW_MS)
+                    .filter(|value| *value <= MAX_PROTOCOL_COUNTER)
+                    .or(Some(origin));
             }
             if existing.attempts_reserved >= AUTH_ERROR_ATTEMPTS_TOTAL
                 || existing
@@ -918,7 +1031,20 @@ impl RetryEpisodeRegistry {
             .episodes
             .get_mut(key)
             .ok_or_else(|| corrupt("retry failure has no reserved episode"))?;
-        let failure_origin = now_ms.max(episode.last_reservation_at_ms);
+        if now_ms < self.clock_high_water_ms {
+            episode.attempts_reserved = AUTH_ERROR_ATTEMPTS_TOTAL;
+            episode.first_failure_at_ms.get_or_insert(
+                episode
+                    .first_attempt_reserved_at_ms
+                    .min(episode.last_reservation_at_ms),
+            );
+            episode.deadline_ms = Some(self.clock_high_water_ms);
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_CLOCK_ROLLBACK",
+                "authorization retry clock moved behind its durable high-water",
+            ));
+        }
+        let failure_origin = now_ms;
         if episode.first_failure_at_ms.is_none() {
             episode.first_failure_at_ms = Some(failure_origin);
             episode.deadline_ms = failure_origin
@@ -954,6 +1080,12 @@ impl RetryEpisodeRegistry {
         let manual_retry_id = manual_retry_id.into();
         validate_opaque(&manual_retry_id, "manualRetryId")?;
         validate_counter(now_ms, "manualRetry.nowMs", false)?;
+        if now_ms < self.clock_high_water_ms {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_CLOCK_ROLLBACK",
+                "authorization retry clock moved behind its durable high-water",
+            ));
+        }
         let episode = self
             .episodes
             .get_mut(key)
@@ -988,6 +1120,57 @@ impl RetryEpisodeRegistry {
                 "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY",
                 "authorization retry episode storage is at its fail-closed capacity",
             ));
+        }
+        Ok(())
+    }
+}
+
+impl RetryEpisode {
+    fn validate_persisted(
+        &self,
+        expected_key: &RetryEpisodeKey,
+        clock_high_water_ms: u64,
+    ) -> SnapbackResult<()> {
+        if &self.key != expected_key {
+            return Err(corrupt("retry episode key does not match its storage key"));
+        }
+        validate_opaque(&self.episode_id, "retry.episodeId")?;
+        self.witness_floor.validate()?;
+        validate_counter(
+            self.first_attempt_reserved_at_ms,
+            "retry.firstAttemptReservedAtMs",
+            false,
+        )?;
+        validate_counter(
+            self.last_reservation_at_ms,
+            "retry.lastReservationAtMs",
+            false,
+        )?;
+        if self.attempts_reserved == 0 || self.attempts_reserved > AUTH_ERROR_ATTEMPTS_TOTAL {
+            return Err(corrupt("retry attemptsReserved is outside 1..=3"));
+        }
+        if self.last_reservation_at_ms < self.first_attempt_reserved_at_ms
+            || self.last_reservation_at_ms > clock_high_water_ms
+        {
+            return Err(corrupt("retry reservation times are not monotone"));
+        }
+        match (self.first_failure_at_ms, self.deadline_ms) {
+            (None, None) => {}
+            (Some(failure), Some(deadline)) => {
+                validate_counter(failure, "retry.firstFailureAtMs", false)?;
+                validate_counter(deadline, "retry.deadlineMs", false)?;
+                let maximum = failure
+                    .checked_add(AUTH_ERROR_RETRY_WINDOW_MS)
+                    .filter(|value| *value <= MAX_PROTOCOL_COUNTER)
+                    .unwrap_or(failure);
+                if deadline > maximum {
+                    return Err(corrupt("retry deadline extends beyond the fixed window"));
+                }
+            }
+            _ => return Err(corrupt("retry failure and deadline must appear together")),
+        }
+        if let Some(manual_retry_id) = &self.manual_retry_id {
+            validate_opaque(manual_retry_id, "retry.manualRetryId")?;
         }
         Ok(())
     }

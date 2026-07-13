@@ -581,6 +581,8 @@ impl LocalDatabase {
             let successor =
                 crate::auth::session_projection::AuthorizationStreamIncarnation::fresh();
             super::auth_stream::rotate_authorization_stream_incarnation_in(tx, &successor)?;
+            super::auth_invalidation::clear_retry_episodes_in(tx)?;
+            super::auth_invalidation::rotate_data_version_stream_in(tx)?;
             restore_transaction_step_completed(2)?;
 
             // @ref LLP 0054#restore — the declaration id is written last in

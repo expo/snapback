@@ -1,6 +1,9 @@
 use crate::admin::ServerProfile;
 use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{AdmissionController, ModeCommitFailure, ModeTransitionGuard};
+use crate::auth::invalidation::{
+    LiveInvalidationIssuer, ObligationExpectation, ObligationRegistry,
+};
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
     RetainedLiveAuthority, WireAuthorityFields,
@@ -1601,6 +1604,16 @@ pub struct LocalSnapback {
     // @ref LLP 0039#protocol-obligations-deferred-to-implementation — derived
     // secret-read authority is reset-bounded independently of code reloads.
     secret_read_reset_generation: Arc<AtomicU64>,
+    /// Installed only after a durable boot reservation and protocol-key
+    /// authentication complete. Session-mode auth-scoped live admission is
+    /// unavailable while this is absent.
+    auth_invalidation: Option<LocalInvalidationState>,
+}
+
+struct LocalInvalidationState {
+    issuer: LiveInvalidationIssuer,
+    obligations: ObligationRegistry,
+    version_stream: String,
 }
 
 /// Durable half of a coordinator-owned destructive reset. These process-local
@@ -1813,6 +1826,31 @@ impl LocalSnapback {
         while self.preflighted_artifact_pairs.len() > 2 {
             self.preflighted_artifact_pairs.pop_front();
         }
+    }
+
+    pub(crate) fn install_auth_invalidation(
+        &mut self,
+        issuer: LiveInvalidationIssuer,
+        authorization: crate::storage::AuthorizationVersion,
+        version_stream: String,
+    ) -> SnapbackResult<()> {
+        let obligations = ObligationRegistry::new(ObligationExpectation {
+            authorization,
+            version_stream: Some(version_stream.clone()),
+            issuer_id: Some(issuer.authenticated().issuer_id.clone()),
+        })?;
+        self.auth_invalidation = Some(LocalInvalidationState {
+            issuer,
+            obligations,
+            version_stream,
+        });
+        Ok(())
+    }
+
+    pub(crate) fn auth_invalidation_issuer(&self) -> Option<LiveInvalidationIssuer> {
+        self.auth_invalidation
+            .as_ref()
+            .map(|state| state.issuer.clone())
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
@@ -5169,6 +5207,7 @@ impl LocalSnapback {
             app_generation,
             app_generation_fence: Arc::new(AtomicU64::new(app_generation)),
             secret_read_reset_generation: Arc::new(AtomicU64::new(1)),
+            auth_invalidation: None,
             read_manifests,
             read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
             receipts: ReceiptLog::default(),
