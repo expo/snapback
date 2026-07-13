@@ -8,6 +8,7 @@ pub(crate) mod backup;
 pub(crate) mod coordinator;
 pub mod crypto;
 pub mod handshake;
+pub mod invalidation;
 #[allow(dead_code)] // Server composition consumes crate-private prepared authority.
 pub(crate) mod invocation;
 pub mod keyring;
