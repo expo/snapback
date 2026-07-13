@@ -2026,7 +2026,7 @@ impl std::fmt::Debug for ConnectionTokenQuery {
 /// adopted (non-prod only).
 async fn open_connection(
     State(runtime): State<AppState>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(prepared): Extension<PreparedConnectionOpenAuthority>,
     Extension(admission): Extension<AdmissionLease>,
     headers: HeaderMap,
@@ -2037,16 +2037,20 @@ async fn open_connection(
         .map(|body| (body.connection_id, body.previous_token))
         .unwrap_or_default();
     let allow_suggested = runtime.server.profile.allows_provisioning();
-    let _effect = admission.effect_guard("connection grant publication")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    Ok(Json(runtime.connections.open_prepared(
-        suggested,
-        previous_token.as_deref(),
-        allow_suggested,
-        prepared,
-        epoch_now_ms,
-        monotonic_now,
-    )?))
+    let grant = {
+        let _effect = admission.effect_guard("connection grant publication")?;
+        runtime.connections.open_prepared(
+            suggested,
+            previous_token.as_deref(),
+            allow_suggested,
+            prepared,
+            epoch_now_ms,
+            monotonic_now,
+        )?
+    };
+    record_successful_finite_session_use(&runtime, &authority).await?;
+    Ok(Json(grant))
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -3844,15 +3848,6 @@ fn finish_registered_response(
     admission: Option<&AdmissionLease>,
     authority: Option<&PreparedAuthority>,
 ) -> Response {
-    let response = if let Some(authority) = authority {
-        match authority.try_fenced_publication(now_millis(), Instant::now(), || Ok(response)) {
-            Ok(Some(response)) => response,
-            Ok(None) => ApiError::from(stale_prepared_authority(authority)).into_response(),
-            Err(error) => ApiError::from(error).into_response(),
-        }
-    } else {
-        response
-    };
     let mut response = if let Some(admission) = admission {
         match admission.effect_guard("HTTP response publication") {
             Ok(mode_publication) => {
@@ -3897,11 +3892,9 @@ fn finish_registered_response(
                 let response = match published {
                     Ok(Some(response)) => response,
                     Ok(None) => {
-                        let error = match authority.map(PreparedAuthority::resolved) {
-                            Some(ResolvedAppAuthority::Session { .. }) => {
-                                provider_session_expired().into_snapback_error()
-                            }
-                            _ => SnapbackError::error(
+                        let error = match authority {
+                            Some(authority) => stale_prepared_authority(authority),
+                            None => SnapbackError::error(
                                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                                 "auth",
                                 "the authorization stream changed before response publication",
@@ -3940,7 +3933,6 @@ fn finish_registered_response(
         let body = Body::new(RetainedAdmissionBody {
             inner: body,
             _admission: admission.clone(),
-            _authority: authority.cloned(),
         });
         Response::from_parts(parts, body)
     } else {
@@ -3954,7 +3946,6 @@ fn finish_registered_response(
 struct RetainedAdmissionBody {
     inner: Body,
     _admission: AdmissionLease,
-    _authority: Option<PreparedAuthority>,
 }
 
 impl HttpBody for RetainedAdmissionBody {
@@ -3972,17 +3963,11 @@ impl HttpBody for RetainedAdmissionBody {
         else {
             return std::task::Poll::Ready(None);
         };
-        let frame = match this._authority.as_ref() {
-            Some(authority) => {
-                match authority.try_fenced_publication(now_millis(), Instant::now(), || {
-                    Ok(std::pin::Pin::new(&mut this.inner).poll_frame(context))
-                }) {
-                    Ok(Some(frame)) => frame,
-                    Ok(None) | Err(_) => std::task::Poll::Ready(None),
-                }
-            }
-            None => std::pin::Pin::new(&mut this.inner).poll_frame(context),
-        };
+        // Authority was validated exactly once when the complete response was
+        // transferred into this body. Network flushing happens later without
+        // rechecking the leaf; only the mode-admission root remains live per
+        // frame so a retired mode cannot keep producing bytes.
+        let frame = std::pin::Pin::new(&mut this.inner).poll_frame(context);
         drop(publication);
         frame
     }
