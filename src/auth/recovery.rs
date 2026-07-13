@@ -115,26 +115,13 @@ pub(crate) fn validate_impersonation_registry(
     Ok(())
 }
 
-/// Resolve the recovery bind target without opening a socket. The caller then
-/// binds the returned concrete address, so DNS cannot change a validated
-/// loopback name into a non-loopback listener between check and bind.
-pub(crate) async fn resolve_loopback_host(host: &str) -> SnapbackResult<IpAddr> {
-    if let Ok(address) = host.parse::<IpAddr>() {
-        return address.is_loopback().then_some(address).ok_or_else(|| {
-            recovery_unavailable("auth collision recovery is restricted to a loopback bind")
-        });
-    }
-    let addresses = tokio::net::lookup_host((host, 0))
-        .await
-        .map_err(|_| recovery_unavailable("auth collision recovery bind name did not resolve"))?
-        .map(|address| address.ip())
-        .collect::<Vec<_>>();
-    if addresses.is_empty() || addresses.iter().any(|address| !address.is_loopback()) {
-        return Err(recovery_unavailable(
-            "auth collision recovery bind name did not resolve exclusively to loopback",
-        ));
-    }
-    Ok(addresses[0])
+/// Validate the concrete address startup already resolved and will bind.
+/// Resolving once in the CLI prevents a DNS answer change from splitting the
+/// recovery profile check from the actual listener address.
+pub(crate) fn validate_loopback_bind_ip(address: IpAddr) -> SnapbackResult<()> {
+    address.is_loopback().then_some(()).ok_or_else(|| {
+        recovery_unavailable("auth collision recovery is restricted to a loopback bind")
+    })
 }
 
 /// This check is intentionally callable before listener creation. Runtime
@@ -1106,8 +1093,8 @@ mod tests {
             )
             .is_ok()
         );
-        assert!(resolve_loopback_host("0.0.0.0").await.is_err());
-        assert!(resolve_loopback_host("127.0.0.1").await.is_ok());
+        assert!(validate_loopback_bind_ip("0.0.0.0".parse().unwrap()).is_err());
+        assert!(validate_loopback_bind_ip("127.0.0.1".parse().unwrap()).is_ok());
     }
 
     #[test]

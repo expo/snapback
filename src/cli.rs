@@ -1043,6 +1043,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                     }
                     return run_auth_collision_recovery(
                         &args,
+                        bind_ip,
                         db_path.clone(),
                         lock,
                         ready_target,
@@ -1387,6 +1388,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 #[allow(clippy::too_many_arguments)]
 async fn run_auth_collision_recovery(
     args: &Args,
+    bind_ip: IpAddr,
     database_path: PathBuf,
     mut database_lock: DatabaseInstanceLock,
     mut ready_target: Option<ReadyFileTarget>,
@@ -1395,7 +1397,7 @@ async fn run_auth_collision_recovery(
     impersonation_capability_file: Option<PathBuf>,
     impersonation_temp_path: Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    let bind_ip = crate::auth::recovery::resolve_loopback_host(&args.host).await?;
+    crate::auth::recovery::validate_loopback_bind_ip(bind_ip)?;
     let mut server_context = ServerContext::new(bind_ip.to_string(), 0, true);
 
     // Profiles that can never expose recovery fail before token minting or any
