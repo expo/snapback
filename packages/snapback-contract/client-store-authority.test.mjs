@@ -76,6 +76,7 @@ const expectCode = async (code, operation) => {
 const store = createMemorySnapbackClientStore();
 await store.bindAuthority({ authorityEpoch: 0, authorityKey: key0, authMode: 'sessions' });
 const authority0 = { authorityEpoch: 0, authorityKey: key0 };
+const queue0 = await store.captureMutationQueue(authority0);
 
 await expectCode(
   'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE',
@@ -94,13 +95,19 @@ const queued = await store.enqueueMutation({
   function: 'write',
   authFingerprint: 'auth:anonymous',
   ...authority0,
+  ...queue0,
 });
 await expectCode(
   'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE',
   () => store.settleMutation(queued.id, { status: 'confirmed' }),
 );
-assert.equal((await store.pendingMutations(authority0)).length, 1);
-await store.settleMutation(queued.id, { status: 'confirmed', output: 1, ...authority0 });
+assert.equal((await store.pendingMutations({ ...authority0, ...queue0 })).length, 1);
+await store.settleMutation(queued.id, {
+  status: 'confirmed',
+  output: 1,
+  ...authority0,
+  ...queue0,
+});
 assert.deepEqual(await store.pendingMutationAcknowledgements(10, 'auth:anonymous'), []);
 assert.deepEqual(
   await store.pendingMutationAcknowledgements(10, 'auth:anonymous', authority0),
@@ -158,4 +165,3 @@ assert.deepEqual(
 }
 
 console.log('client-store authority conformance: ok');
-

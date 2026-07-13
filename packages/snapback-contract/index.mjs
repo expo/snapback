@@ -573,9 +573,16 @@ export async function createSnapbackContractSurface({
     let durablePendingCount = 0;
     let retainedOffline = false;
     let lastServerVersion = 0;
+    const initialMutationQueueCapture = offlineReplayEnabled
+      ? await clientStore.captureMutationQueue({
+          authorityEpoch: storeExpectation.authorityEpoch,
+          authorityKey: storeExpectation.authorityKey,
+        })
+      : {};
     const restoredPending = offlineReplayEnabled
       ? await clientStore.pendingMutations({
           ...storeExpectation,
+          ...initialMutationQueueCapture,
         })
       : [];
     durablePendingCount = restoredPending.length;
@@ -668,6 +675,9 @@ export async function createSnapbackContractSurface({
     const authorityExpectation = (capture = authorityCapture) => capture
       ? { authorityEpoch: capture.authorityEpoch, authorityKey: capture.authorityKey }
       : {};
+    const captureMutationQueue = (capture = authorityCapture) => (
+      clientStore.captureMutationQueue(authorityExpectation(capture))
+    );
     const operationCapture = () => {
       if (!coordinator) return null;
       if (barrierPaused) throw staleContractAuthorityError();
@@ -979,6 +989,7 @@ export async function createSnapbackContractSurface({
       capture = operationCapture(),
     ) => {
       let queued = null;
+      let mutationQueueCapture = null;
       let mutationCommitted = false;
       let mutationOutput = null;
       let mutationDeliveryStarted = false;
@@ -987,6 +998,7 @@ export async function createSnapbackContractSurface({
         if (offlineReplayEnabled && optimisticOp?.ctxLedger) {
           const expectation = expectationForCapture(capture);
           await preflightDurable(capture);
+          mutationQueueCapture = await captureMutationQueue(capture);
           queued = await clientStore.enqueueMutation({
             id: optimisticOp.mutationId,
             function: name,
@@ -1004,6 +1016,7 @@ export async function createSnapbackContractSurface({
             versionStreamId: expectation.versionStreamId,
             authorityEpoch: expectation.authorityEpoch,
             authorityKey: expectation.authorityKey,
+            ...mutationQueueCapture,
             cursor: {
               stream: expectation.versionStreamId,
               version: optimisticOp.baseVersion,
@@ -1015,6 +1028,12 @@ export async function createSnapbackContractSurface({
           sentAcknowledgements = await clientStore.pendingMutationAcknowledgements(
             MAX_OFFLINE_LEDGER_IDS,
             storeAuthFingerprint,
+            authorityExpectation(capture),
+          );
+        }
+        if (queued) {
+          await clientStore.assertMutationQueueCapture(
+            mutationQueueCapture,
             authorityExpectation(capture),
           );
         }
@@ -1042,6 +1061,7 @@ export async function createSnapbackContractSurface({
             output,
             authorityEpoch: resultCapture?.authorityEpoch ?? null,
             authorityKey: resultCapture?.authorityKey ?? null,
+            ...mutationQueueCapture,
           });
           await commitCurrent(resultCapture, () => {
             durablePendingCount = Math.max(0, durablePendingCount - 1);
@@ -1114,6 +1134,7 @@ export async function createSnapbackContractSurface({
             diagnostic: error?.diagnostic ?? { message: error instanceof Error ? error.message : String(error) },
             authorityEpoch: errorCapture?.authorityEpoch ?? null,
             authorityKey: errorCapture?.authorityKey ?? null,
+            ...mutationQueueCapture,
           });
           await commitCurrent(errorCapture, () => {
             durablePendingCount = Math.max(0, durablePendingCount - 1);
@@ -1523,8 +1544,10 @@ export async function createSnapbackContractSurface({
       if (resynced === null) throw staleContractAuthorityError();
       retainedOffline = false;
 
+      const replayQueueCapture = await captureMutationQueue(resyncCapture);
       const queued = await clientStore.pendingMutations({
         ...expectationForCapture(resyncCapture),
+        ...replayQueueCapture,
       });
       let replayed = 0;
       let failed = 0;
@@ -1535,6 +1558,10 @@ export async function createSnapbackContractSurface({
           authorityExpectation(resyncCapture),
         );
         try {
+          await clientStore.assertMutationQueueCapture(
+            replayQueueCapture,
+            authorityExpectation(resyncCapture),
+          );
           const output = await client.mutate(record.function, {
             args: record.args,
             userId: activeUserId,
@@ -1553,6 +1580,7 @@ export async function createSnapbackContractSurface({
             output,
             authorityEpoch: resultCapture?.authorityEpoch ?? null,
             authorityKey: resultCapture?.authorityKey ?? null,
+            ...replayQueueCapture,
           });
           await commitCurrent(resultCapture, () => {
             durablePendingCount = Math.max(0, durablePendingCount - 1);
@@ -1580,6 +1608,7 @@ export async function createSnapbackContractSurface({
             diagnostic: error?.diagnostic ?? { message: error instanceof Error ? error.message : String(error) },
             authorityEpoch: errorCapture?.authorityEpoch ?? null,
             authorityKey: errorCapture?.authorityKey ?? null,
+            ...replayQueueCapture,
           });
           await commitCurrent(errorCapture, () => {
             durablePendingCount = Math.max(0, durablePendingCount - 1);

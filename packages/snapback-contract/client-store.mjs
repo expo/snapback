@@ -5,7 +5,17 @@
 // SQLite/OPFS implementations can preserve the same records without changing
 // replay semantics (DK-9).
 
-export const SNAPBACK_CLIENT_STORE_VERSION = 3;
+import {
+  effectiveDisposition,
+  mergeResyncObligation,
+  nextInvalidationGeneration,
+  resolutionSatisfies,
+  scopeKey,
+  validateResolutionTicket,
+  validateResyncObligation,
+} from './auth-invalidation.mjs';
+
+export const SNAPBACK_CLIENT_STORE_VERSION = 4;
 export const MAX_OFFLINE_LEDGER_IDS = 1024;
 const SNAPBACK_CTX_LEDGER_VERSION = 1;
 const REPLAY_OPAQUE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
@@ -152,6 +162,11 @@ const freshState = () => ({
   generation: 0,
   authorityEpoch: null,
   authorityKey: null,
+  queueAuthorization: {
+    authorityGeneration: 0,
+    queueGeneration: 0,
+    pendingByScope: {},
+  },
   authFingerprint: null,
   artifactScope: null,
   nextSequence: 1,
@@ -185,6 +200,42 @@ function assertStateField(condition, field) {
 }
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+function assertQueueAuthorizationState(queue, path, authorityEpoch) {
+  assertStateField(isRecord(queue), path);
+  assertStateField(
+    Object.keys(queue).sort().join(',')
+      === 'authorityGeneration,pendingByScope,queueGeneration',
+    path,
+  );
+  assertStateField(
+    Number.isSafeInteger(queue.authorityGeneration) && queue.authorityGeneration >= 0,
+    `${path}.authorityGeneration`,
+  );
+  assertStateField(
+    Number.isSafeInteger(queue.queueGeneration) && queue.queueGeneration >= 0,
+    `${path}.queueGeneration`,
+  );
+  assertStateField(isRecord(queue.pendingByScope), `${path}.pendingByScope`);
+  if (authorityEpoch !== null) {
+    assertStateField(
+      queue.authorityGeneration === authorityEpoch,
+      `${path}.authorityGeneration`,
+    );
+  }
+  for (const [key, value] of Object.entries(queue.pendingByScope)) {
+    try {
+      const obligation = validateResyncObligation(value, `${path}.pendingByScope`);
+      assertStateField(scopeKey(obligation.scopeId) === key, `${path}.pendingByScope`);
+      assertStateField(
+        obligation.maxDisposition === 'quarantine' || obligation.maxDisposition === 'delete',
+        `${path}.pendingByScope`,
+      );
+    } catch {
+      assertStateField(false, `${path}.pendingByScope`);
+    }
+  }
+}
 
 function assertOptionalRecordIdentity(record, path) {
   for (const field of RECORD_IDENTITY_FIELDS) {
@@ -305,7 +356,8 @@ const normalizeState = (state) => {
   }
   const legacyV1 = state.version === 1;
   const legacyV2 = state.version === 2;
-  if (legacyV1 || legacyV2) {
+  const legacyV3 = state.version === 3;
+  if (legacyV1 || legacyV2 || legacyV3) {
     // v2 changed acknowledgements from ambiguous bare ids to auth-tagged
     // records and replaces the collision-prone FNV scope with SHA-256. A v1
     // store retained only the 64-bit alias, not the canonical auth tuple, so
@@ -342,6 +394,16 @@ const normalizeState = (state) => {
   // dev until a server-proven coordinator transition explicitly binds it.
   if (!Object.hasOwn(state, 'authorityEpoch')) state.authorityEpoch = null;
   if (!Object.hasOwn(state, 'authorityKey')) state.authorityKey = null;
+  if (!Object.hasOwn(state, 'queueAuthorization')) {
+    if (!legacyV1 && !legacyV2 && !legacyV3) {
+      assertStateField(false, 'queueAuthorization');
+    }
+    state.queueAuthorization = {
+      authorityGeneration: state.authorityEpoch ?? 0,
+      queueGeneration: 0,
+      pendingByScope: {},
+    };
+  }
   if (!Object.hasOwn(state, 'stranded')) state.stranded = [];
   if (!Object.hasOwn(state, 'legacyV2Stranded')) state.legacyV2Stranded = [];
   // Early v1 stores persisted acknowledgement ids as bare strings. Attribute
@@ -368,6 +430,11 @@ const normalizeState = (state) => {
   assertStateField(
     (state.authorityEpoch === null) === (state.authorityKey === null),
     'authorityEpoch/authorityKey',
+  );
+  assertQueueAuthorizationState(
+    state.queueAuthorization,
+    'queueAuthorization',
+    state.authorityEpoch,
   );
   assertStateField(
     state.authFingerprint === null || typeof state.authFingerprint === 'string',
@@ -563,6 +630,99 @@ function recordAuthority(state) {
     : { authorityEpoch: state.authorityEpoch, authorityKey: state.authorityKey };
 }
 
+function staleMutationQueueError(operation) {
+  return clientStoreStateError(
+    'SNAPBACK_CLIENT_QUEUE_GENERATION_STALE',
+    `${operation} captured a stale mutation-queue generation`,
+    { operation },
+  );
+}
+
+function suspendedMutationQueueError(operation, state) {
+  return clientStoreStateError(
+    'SNAPBACK_CLIENT_QUEUE_SUSPENDED',
+    `authorization invalidation suspended ${operation}`,
+    {
+      operation,
+      pendingScopeCount: Object.keys(state.queueAuthorization.pendingByScope).length,
+      effectiveDisposition: effectiveDisposition(state.queueAuthorization.pendingByScope),
+    },
+  );
+}
+
+function queueCapture(state) {
+  return {
+    authorityGeneration: state.queueAuthorization.authorityGeneration,
+    queueGeneration: state.queueAuthorization.queueGeneration,
+  };
+}
+
+function expectedQueueMatchesState(state, expected = {}) {
+  const hasAuthority = Object.hasOwn(expected, 'authorityGeneration');
+  const hasQueue = Object.hasOwn(expected, 'queueGeneration');
+  if (state.authorityEpoch === null && !hasAuthority && !hasQueue) return true;
+  return hasAuthority
+    && hasQueue
+    && expected.authorityGeneration === state.queueAuthorization.authorityGeneration
+    && expected.queueGeneration === state.queueAuthorization.queueGeneration;
+}
+
+function assertExpectedQueue(state, expected, operation) {
+  if (!expectedQueueMatchesState(state, expected)) {
+    throw staleMutationQueueError(operation);
+  }
+}
+
+function assertQueueRunnable(state, operation) {
+  if (Object.keys(state.queueAuthorization.pendingByScope).length > 0) {
+    throw suspendedMutationQueueError(operation, state);
+  }
+}
+
+function advanceQueueGeneration(state, authorityGeneration = null) {
+  state.queueAuthorization.queueGeneration = nextInvalidationGeneration(
+    state.queueAuthorization.queueGeneration,
+    'queueGeneration',
+  );
+  if (authorityGeneration !== null) {
+    state.queueAuthorization.authorityGeneration = authorityGeneration;
+  }
+}
+
+function redactedStrandedMutation(entry, state, reason, disposition) {
+  return {
+    id: entry.id,
+    function: entry.function,
+    sequence: entry.sequence,
+    authorityEpoch: entry.authorityEpoch ?? state.authorityEpoch,
+    authorityKey: entry.authorityKey ?? state.authorityKey,
+    strandedAtEpoch: state.queueAuthorization.authorityGeneration,
+    strandedAtQueueGeneration: state.queueAuthorization.queueGeneration,
+    disposition,
+    reason,
+    replayable: false,
+    discardOnly: true,
+  };
+}
+
+function strandCurrentQueue(state, reason, disposition = 'delete') {
+  state.stranded.push(...[...state.pending, ...state.failed].map((entry) => (
+    redactedStrandedMutation(entry, state, reason, disposition)
+  )));
+  state.pending = [];
+  state.failed = [];
+}
+
+function expectationForObligation(obligation) {
+  return {
+    authorization: obligation.witness.authorization,
+    versionStream: obligation.witness.data?.versionStream ?? null,
+    issuerId: obligation.scopeId.kind === 'clientQuery'
+      ? null
+      : obligation.scopeId.issuerId,
+  };
+}
+
 function createStore({ read, write, withExclusive = (operation) => operation() }) {
   const load = () => normalizeState(read());
   const save = (state) => {
@@ -621,6 +781,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         state.authFingerprint = null;
         state.authorityEpoch = authorityEpoch;
         state.authorityKey = authorityKey;
+        state.queueAuthorization.pendingByScope = {};
+        advanceQueueGeneration(state, authorityEpoch);
         commit(state);
         return clone({ authorityEpoch, authorityKey });
       });
@@ -656,13 +818,10 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         if (state.authorityEpoch !== expectedEpoch) {
           throw staleStoreAuthorityError('authority transition');
         }
+        advanceQueueGeneration(state, nextEpoch);
+        state.queueAuthorization.pendingByScope = {};
         if (strandQueued) {
-          state.stranded.push(...[...state.pending, ...state.failed].map((entry) => ({
-            ...clone(entry),
-            strandedAtEpoch: nextEpoch,
-            disposition,
-            replayable: false,
-          })));
+          strandCurrentQueue(state, 'authority_transition', disposition);
         }
         // Item 5 admits no retained private reads or queued replay. Even a
         // same-user/new-session transition blanks and requires a fresh online
@@ -686,6 +845,123 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       }));
     },
 
+    // @ref LLP 0053#dispositions-with-producers-and-meanings — pending
+    //   mutations use a queue generation independent of every query fence.
+    //   A caller must capture this tuple before every queue act.
+    async captureMutationQueue(expected = {}) {
+      return transact((state) => {
+        assertExpectedAuthority(state, expected, 'mutation queue capture');
+        const pendingScopeCount = Object.keys(
+          state.queueAuthorization.pendingByScope,
+        ).length;
+        return clone({
+          ...queueCapture(state),
+          suspended: pendingScopeCount > 0,
+          pendingScopeCount,
+          effectiveDisposition: effectiveDisposition(
+            state.queueAuthorization.pendingByScope,
+          ),
+        });
+      });
+    },
+
+    async assertMutationQueueCapture(capture, expected = {}) {
+      return transact((state) => {
+        assertExpectedAuthority(state, expected, 'mutation queue preflight');
+        assertExpectedQueue(state, capture, 'mutation queue preflight');
+        assertQueueRunnable(state, 'mutation queue execution');
+        return clone(queueCapture(state));
+      });
+    },
+
+    async applyMutationQueueObligation(obligationValue, expected = {}) {
+      const obligation = validateResyncObligation(obligationValue);
+      if (obligation.scopeId.kind === 'connection') {
+        throw clientStoreStateError(
+          'SNAPBACK_CLIENT_QUEUE_SCOPE_UNSUPPORTED',
+          'a connection projection root must be expanded into query-sized children',
+        );
+      }
+      if (obligation.maxDisposition === 'retain') {
+        throw clientStoreStateError(
+          'SNAPBACK_CLIENT_QUEUE_ROOT_UNNECESSARY',
+          'retain does not create a mutation-queue suspension root',
+        );
+      }
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'mutation queue obligation');
+        assertExpectedQueue(state, expected, 'mutation queue obligation');
+        const key = scopeKey(obligation.scopeId);
+        const merged = mergeResyncObligation(
+          state.queueAuthorization.pendingByScope[key] ?? null,
+          obligation,
+          expectationForObligation(obligation),
+        );
+        if (merged.status !== 'accepted') {
+          return clone({
+            status: merged.status,
+            ...queueCapture(state),
+            suspended: true,
+            pendingScopeCount: Object.keys(
+              state.queueAuthorization.pendingByScope,
+            ).length,
+          });
+        }
+
+        state.queueAuthorization.pendingByScope[key] = clone(merged.obligation);
+        advanceQueueGeneration(state);
+        if (merged.obligation.maxDisposition === 'delete') {
+          strandCurrentQueue(state, 'authorization_invalidation', 'delete');
+        }
+        commit(state);
+        return clone({
+          status: 'accepted',
+          ...queueCapture(state),
+          suspended: true,
+          pendingScopeCount: Object.keys(
+            state.queueAuthorization.pendingByScope,
+          ).length,
+          effectiveDisposition: effectiveDisposition(
+            state.queueAuthorization.pendingByScope,
+          ),
+        });
+      });
+    },
+
+    async resolveMutationQueueObligation(resolutionValue, expected = {}) {
+      const resolution = validateResolutionTicket(resolutionValue);
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'mutation queue resolution');
+        assertExpectedQueue(state, expected, 'mutation queue resolution');
+        const key = scopeKey(resolution.scopeId);
+        const obligation = state.queueAuthorization.pendingByScope[key];
+        if (!obligation || !resolutionSatisfies(obligation, resolution)) {
+          throw clientStoreStateError(
+            'SNAPBACK_CLIENT_QUEUE_RESOLUTION_STALE',
+            'resolution does not satisfy the current exact mutation-queue root',
+          );
+        }
+        delete state.queueAuthorization.pendingByScope[key];
+        advanceQueueGeneration(state);
+        if (resolution.kind === 'terminalDelete' || resolution.maxDisposition === 'delete') {
+          strandCurrentQueue(state, 'authorization_denied', 'delete');
+        }
+        commit(state);
+        const pendingScopeCount = Object.keys(
+          state.queueAuthorization.pendingByScope,
+        ).length;
+        return clone({
+          ackToken: resolution.ackToken,
+          ...queueCapture(state),
+          suspended: pendingScopeCount > 0,
+          pendingScopeCount,
+          effectiveDisposition: effectiveDisposition(
+            state.queueAuthorization.pendingByScope,
+          ),
+        });
+      });
+    },
+
     async strandedMutations(expected = {}) {
       return transact((state) => {
         assertExpectedAuthority(state, expected, 'stranded mutation read');
@@ -696,6 +972,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     async discardStranded(expected = {}) {
       return transact((state, commit) => {
         assertExpectedAuthority(state, expected, 'stranded mutation discard');
+        assertExpectedQueue(state, expected, 'stranded mutation discard');
         state.stranded = [];
         commit(state);
       });
@@ -719,6 +996,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           // the first known authority is also a boundary for unscoped legacy
           // records; they cannot be attributed after the fact.
           state.retained = {};
+          advanceQueueGeneration(state);
           state.pending = [];
           state.failed = [];
           // Acknowledgements are opaque settlement ids, not retained app
@@ -763,6 +1041,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           // is also a privacy boundary: discard old failures, then retain only
           // redacted tombstones for writes this transition quarantines.
           state.failed = [];
+          advanceQueueGeneration(state);
           for (const entry of state.pending) {
             state.failed.push({
               id: entry.id,
@@ -825,6 +1104,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     async enqueueMutation(record) {
       return transact((state, commit) => {
         assertExpectedAuthority(state, record, 'queued mutation write');
+        assertExpectedQueue(state, record, 'queued mutation write');
+        assertQueueRunnable(state, 'mutation enqueue');
         if (!recordMatchesCurrentScope(state, record)) {
           throw staleStoreScopeError('queued mutation write');
         }
@@ -858,7 +1139,11 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           );
         }
         state.nextSequence = Math.max(state.nextSequence, sequence + 1);
-        const queued = clone({ ...record, id, sequence, status: 'pending' });
+        const capturedRecord = clone(record);
+        delete capturedRecord.suspended;
+        delete capturedRecord.pendingScopeCount;
+        delete capturedRecord.effectiveDisposition;
+        const queued = clone({ ...capturedRecord, id, sequence, status: 'pending' });
         state.pending.push(queued);
         state.pending.sort((left, right) => left.sequence - right.sequence);
         commit(state);
@@ -866,7 +1151,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       });
     },
 
-    async pendingMutations({
+    async pendingMutations(options = {}) {
+      const {
       authorityEpoch = null,
       authorityKey = null,
       authFingerprint = null,
@@ -876,10 +1162,12 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       appId = null,
       databaseId = null,
       versionStreamId = null,
-    } = {}) {
+      } = options;
       return transact((state) => {
         const expected = { authorityEpoch, authorityKey };
         if (!expectedAuthorityMatchesState(state, expected)) return [];
+        assertExpectedQueue(state, options, 'mutation replay');
+        assertQueueRunnable(state, 'mutation replay');
         return clone(state.pending
         .filter((entry) => recordMatchesArtifacts(entry, {
           authorityEpoch,
@@ -896,15 +1184,18 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       });
     },
 
-    async settleMutation(id, {
-      status,
-      output = null,
-      diagnostic = null,
-      authorityEpoch = null,
-      authorityKey = null,
-    } = {}) {
+    async settleMutation(id, options = {}) {
+      const {
+        status,
+        output = null,
+        diagnostic = null,
+        authorityEpoch = null,
+        authorityKey = null,
+      } = options;
       return transact((state, commit) => {
         assertExpectedAuthority(state, { authorityEpoch, authorityKey }, 'mutation settlement');
+        assertExpectedQueue(state, options, 'mutation settlement');
+        assertQueueRunnable(state, 'mutation settlement');
         const index = state.pending.findIndex((entry) => entry.id === id);
         if (index < 0) return null;
         const [entry] = state.pending.splice(index, 1);
@@ -963,6 +1254,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     async failedMutations(expected = {}) {
       return transact((state) => {
         if (!expectedAuthorityMatchesState(state, expected)) return [];
+        assertExpectedQueue(state, expected, 'failed mutation read');
+        assertQueueRunnable(state, 'failed mutation read');
         return clone(state.failed.filter((entry) => recordMatchesArtifacts(entry, expected)));
       });
     },
@@ -1059,7 +1352,7 @@ export function createSnapbackClientStoreAuthParticipant(store, {
   strandQueued = () => false,
 } = {}) {
   if (!store || typeof store.transitionAuthority !== 'function') {
-    throw new TypeError('client-store auth participant requires a format-3 store');
+    throw new TypeError('client-store auth participant requires a format-4 store');
   }
   return Object.freeze({
     name,

@@ -930,6 +930,11 @@ for (const invalid of [
 const opaqueIdState = {
   ...additiveV1,
   version: SNAPBACK_CLIENT_STORE_VERSION,
+  queueAuthorization: {
+    authorityGeneration: 0,
+    queueGeneration: 0,
+    pendingByScope: {},
+  },
   origin: 'origin',
   nextSequence: 2,
   pending: [{
@@ -945,6 +950,11 @@ assert.equal((await createMemorySnapbackClientStore({ state: opaqueIdState }).sn
 const generatedCollisionState = {
   ...additiveV1,
   version: SNAPBACK_CLIENT_STORE_VERSION,
+  queueAuthorization: {
+    authorityGeneration: 0,
+    queueGeneration: 0,
+    pendingByScope: {},
+  },
   origin: 'origin',
   nextSequence: 2,
   pending: [{
