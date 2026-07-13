@@ -5,6 +5,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
+use snapback::auth::mode::{FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX};
 use snapback::local::{EnsureAppInput, EnsureAppRequest, LocalSnapback};
 use snapback::manifest::{FunctionManifest, SchemaManifest};
 use snapback::server::{
@@ -74,6 +75,25 @@ fn attest_pair(version: &str, schema_hash: &str, bundle_hash: &str) -> Value {
             "appId": "ensure-app",
             "bundleHash": bundle_hash,
             "inputsHash": "sha256:ensure-inputs",
+        }
+    })
+}
+
+fn valid_sessions_attest_pair() -> Value {
+    json!({
+        "schema": {
+            "artifactKind": "schemaManifest",
+            "schemaVersion": "snapback.v1",
+            "appId": "ensure-app",
+            "schemaHash": format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64)),
+            "inputsHash": format!("{INPUTS_V1_PREFIX}{}", "2".repeat(64)),
+        },
+        "functions": {
+            "artifactKind": "functionManifest",
+            "schemaVersion": "snapback.v1",
+            "appId": "ensure-app",
+            "bundleHash": format!("{FUNCTION_V1_PREFIX}{}", "3".repeat(64)),
+            "inputsHash": format!("{INPUTS_V1_PREFIX}{}", "2".repeat(64)),
         }
     })
 }
@@ -271,7 +291,7 @@ async fn requested_active_desired_posture_blocks_public_branches_but_keeps_recov
 }
 
 #[tokio::test]
-async fn public_sessions_attest_is_compare_only_and_rejects_smuggled_effects() {
+async fn public_sessions_attest_requires_exact_durable_sessions_posture_and_rejects_smuggled_effects() {
     let mut snapback = LocalSnapback::memory().expect("attest ensure instance");
     let (schema, functions) = manifests();
     snapback
@@ -297,17 +317,18 @@ async fn public_sessions_attest_is_compare_only_and_rejects_smuggled_effects() {
             json!({
                 "intent": "attest",
                 "requestedMode": "sessions",
-                "pair": attest_pair("snapback.v1", "v1-schema", "v1-bundle"),
+                "pair": valid_sessions_attest_pair(),
             }),
             None,
         ))
         .await
         .expect("public sessions attest");
-    assert_eq!(compared.status(), StatusCode::OK);
+    assert_eq!(compared.status(), StatusCode::SERVICE_UNAVAILABLE);
     let compared = response_json(compared).await;
-    assert_eq!(compared["intent"], "attest");
-    assert_eq!(compared["matched"], false);
-    assert_eq!(compared["active"]["schemaVersion"], "snapback.v0");
+    assert_eq!(
+        compared["diagnostic"]["code"],
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+    );
     assert_eq!(fingerprint(&shared).await, before);
 
     let smuggled = router
