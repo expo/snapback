@@ -1,4 +1,4 @@
-use crate::admin::{AppState, ServerContext};
+use crate::admin::{AppState, ServerContext, ServerProfile};
 use crate::admin_secret_read::{
     SecretReadMintBridge, SecretReadMintSpec, SecretReadScope, secret_read_root_sibling,
     sign_secret_read_mint,
@@ -13,6 +13,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 use std::ffi::OsString;
 use std::io::ErrorKind;
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -939,6 +940,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         !(args.memory && args.restored_from_backup.is_some()),
         "SNAPBACK_AUTH_BACKUP_INVALID: in-memory startup cannot consume a restore declaration"
     );
+    // Resolve once, before auth composition, and bind the exact same address.
+    // This keeps profile/capture posture identical for numeric hosts and DNS
+    // aliases without opening a listener early.
+    let bind_ip = resolve_bind_ip(&args.host).await?;
     let prepared_database_path = if args.memory {
         None
     } else {
@@ -1025,6 +1030,19 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
     };
 
+    // Assemble exactly one provider before listener bind. This is inspection,
+    // not activation: an uninitialized catalog remains dormant and no keyring
+    // is minted; a marked catalog validates only its existing sibling.
+    // @ref LLP 0054#activation-ordering — startup never activates the auth catalog or replaces a lost ReadyV1 keyring.
+    let startup_profile = ServerProfile::for_bind_ip(bind_ip);
+    let auth_runtime = crate::auth::runtime::AuthRuntime::inspect(
+        &mut snapback,
+        database_path.as_deref(),
+        crate::auth::runtime::provider_profile(startup_profile),
+    )?;
+    let auth_startup_diagnostics = auth_runtime.startup_diagnostics();
+    snapback.record_startup_diagnostics(&auth_startup_diagnostics);
+
     // A restored directory is quarantined until the exact declaration emitted
     // by `auth restore` is consumed. This runs under the instance lock and
     // before listener bind, so no request can observe backed-up sessions.
@@ -1044,9 +1062,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         };
         match args.restored_from_backup.as_deref() {
             Some(declaration_id) => {
+                let maintenance = auth_runtime.provider().exclusive_maintenance().await;
                 crate::auth::lifecycle::apply_declared_restore(
                     snapback.auth_database_mut(),
-                    &crate::auth::mailbox::CaptureMailbox::new(),
+                    maintenance.mailbox(),
                     &declaration_path,
                     declaration_id,
                     SystemTime::now()
@@ -1066,12 +1085,21 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
     }
 
+    // ReadyV1 runs one bounded pass before bind. Missing/corrupt keyrings are
+    // the already-reported unavailable provider posture: durable expiry still
+    // ran before the keyring failure, and the server must remain bindable.
+    if let Err(error) = auth_runtime.run_startup_gc(&mut snapback).await
+        && auth_runtime.health() != crate::auth::runtime::AuthProviderHealth::Unavailable
+    {
+        return Err(anyhow::Error::new(error.into_snapback_error()));
+    }
+
     let read_lane = snapback.read_lane();
     let ephemeral = snapback.ephemeral_api();
     let missing_config = snapback.required_missing_config();
     let loaded_app_id = snapback.loaded_app_id();
     let state = Arc::new(Mutex::new(snapback));
-    let listener = bind_listener(&args.host, args.port).await?;
+    let listener = bind_listener(&bind_ip.to_string(), args.port).await?;
     let local_addr = listener.local_addr()?;
 
     // @ref LLP 0017#serving-model — capture the bound address so the admin API
@@ -1079,6 +1107,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let loopback = local_addr.ip().is_loopback();
     let mut server_context =
         ServerContext::new(local_addr.ip().to_string(), local_addr.port(), loopback);
+    debug_assert_eq!(server_context.profile, startup_profile);
     // @ref LLP 0017#security-defaults — a served loopback instance is never
     // tokenless (ENG-23443): with the reflected localhost CORS, tokenless
     // writes would be drivable by any local web page. Without
@@ -1149,8 +1178,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     let cron_scheduler = server::spawn_cron_scheduler(state.clone());
     let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral.clone());
+    let auth_maintenance_worker =
+        crate::auth::runtime::spawn_auth_gc_worker(state.clone(), auth_runtime.clone());
     let (app_state, secret_read_operator) =
         AppState::new_with_secret_read_operator(state, read_lane, ephemeral, server_context);
+    let app_state = app_state.with_auth_runtime(&auth_runtime);
     let app_state = match secret_read_proof_root {
         Some(root) => app_state.with_secret_read_mint_bridge(SecretReadMintBridge::new(
             secret_read_operator,
@@ -1235,7 +1267,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                 .as_ref()
                 .map(|path| path.display().to_string()),
             impersonation_capability_file: impersonation_capability_file_display.clone(),
-            diagnostics: Vec::new(),
+            diagnostics: auth_startup_diagnostics.clone(),
         };
         target
             .write_atomic_protected(
@@ -1298,6 +1330,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .await;
     cron_scheduler.abort();
     maintenance_worker.abort();
+    if let Some(worker) = auth_maintenance_worker {
+        worker.abort();
+    }
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
@@ -1370,6 +1405,10 @@ fn managed_startup_paths(
         paths.push(ManagedPath {
             label: "admin token",
             path: crate::admin::admin_token_sibling(database),
+        });
+        paths.push(ManagedPath {
+            label: "auth keyring",
+            path: crate::auth::keyring::AuthKeyringStore::keyring_path(database),
         });
         for (label, suffix) in [
             ("SQLite WAL", "-wal"),
@@ -2449,6 +2488,18 @@ async fn bind_listener(host: &str, port: Option<u16>) -> anyhow::Result<TcpListe
     // multiple Snapback instances by scanning the default dev range; explicit
     // `--port` remains a pinned automation contract.
     bind_first_available(host, DEFAULT_PORT_RANGE_START..=DEFAULT_PORT_RANGE_END).await
+}
+
+async fn resolve_bind_ip(host: &str) -> anyhow::Result<IpAddr> {
+    if let Ok(address) = host.parse::<IpAddr>() {
+        return Ok(address);
+    }
+    tokio::net::lookup_host((host, 0))
+        .await
+        .with_context(|| format!("failed to resolve bind host {host}"))?
+        .next()
+        .map(|address| address.ip())
+        .with_context(|| format!("bind host {host} resolved to no addresses"))
 }
 
 async fn bind_first_available<I>(host: &str, ports: I) -> anyhow::Result<TcpListener>

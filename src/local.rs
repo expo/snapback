@@ -1591,6 +1591,13 @@ impl LocalSnapback {
         diagnostics
     }
 
+    /// Retain serve-time diagnostics in the same bounded ring as runtime
+    /// diagnostics. The caller supplies already-redacted closed facts; this
+    /// seam deliberately accepts no path or keyring error carrier.
+    pub(crate) fn record_startup_diagnostics(&mut self, diagnostics: &[Diagnostic]) {
+        self.record_diagnostics(diagnostics.to_vec());
+    }
+
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.reset_with_seed(None).map(|_| ())
     }

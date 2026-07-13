@@ -1,0 +1,555 @@
+//! Serve-time composition for the auth provider.
+//!
+//! This module deliberately inspects, but never activates, the protected
+//! catalog. Item 4 owns staged activation; ordinary startup only assembles one
+//! provider, reports its closed readiness fact, and coordinates lifecycle work
+//! ahead of the outer app-instance lock.
+//!
+//! @ref LLP 0054#activation-ordering — ordinary startup never creates a
+//! catalog or replaces a missing keyring for an already-marked catalog.
+//! @ref LLP 0054#garbage-collection — ReadyV1 runs bounded startup and
+//! 30-second maintenance passes; an uninitialized catalog stays dormant.
+//! @ref LLP 0054#concurrency-locks-and-linearization — exclusive auth
+//! maintenance is acquired before the outer app-instance/database lock.
+//! @ref LLP 0054#security-and-redaction — readiness exposes one closed public
+//! fact and a redacted diagnostic, never keyring details.
+
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
+
+use serde::{Deserialize, Serialize};
+use tokio::task::JoinHandle;
+
+use super::keyring::AuthKeyringStore;
+use super::lifecycle::AUTH_GC_INTERVAL;
+use super::provider::{
+    AuthGcPass, AuthProvider, AuthProviderProfile, AuthProviderReadiness, ProviderError,
+    ProviderResult,
+};
+use crate::diagnostic::{Diagnostic, SnapbackResult};
+use crate::local::LocalSnapback;
+use crate::server::SharedSnapback;
+use crate::storage::auth::AuthCatalogState;
+
+/// Closed, public provider posture. `Dormant` means the catalog is
+/// uninitialized; it is not an availability failure and startup must not turn
+/// it into one by touching the keyring.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthProviderHealth {
+    #[default]
+    Dormant,
+    Available,
+    Unavailable,
+}
+
+/// The one provider assembled for a serve process, plus the catalog posture
+/// that controls maintenance and public readiness.
+#[derive(Clone)]
+pub(crate) struct AuthRuntime {
+    provider: Arc<AuthProvider>,
+    catalog_ready: bool,
+    startup_diagnostic: Option<Diagnostic>,
+}
+
+impl std::fmt::Debug for AuthRuntime {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("AuthRuntime")
+            .field("health", &self.health())
+            .field("catalog_ready", &self.catalog_ready)
+            .field(
+                "startup_diagnostic",
+                &self.startup_diagnostic.as_ref().map(|value| &value.code),
+            )
+            .finish_non_exhaustive()
+    }
+}
+
+impl AuthRuntime {
+    /// Assemble one provider and inspect the catalog without mutating either
+    /// catalog or keyring. A marked catalog validates only the existing ring;
+    /// an uninitialized catalog does not even perform that read.
+    pub(crate) fn inspect(
+        snapback: &mut LocalSnapback,
+        database_path: Option<&Path>,
+        profile: AuthProviderProfile,
+    ) -> SnapbackResult<Self> {
+        let keyring = Arc::new(match database_path {
+            Some(path) => AuthKeyringStore::file_for_database(path),
+            None => AuthKeyringStore::in_memory(),
+        });
+        let provider = Arc::new(
+            AuthProvider::new(profile, keyring).map_err(ProviderError::into_snapback_error)?,
+        );
+        let catalog = match snapback.auth_database_mut().inspect_auth_catalog() {
+            Ok(catalog) => catalog,
+            // A foreign dormant table is deliberately recoverable through the
+            // ordinary dev/test rescue host-op. It is not an auth-owned
+            // catalog and must not make otherwise-valid startup fatal.
+            Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_TABLE_COLLISION" => {
+                AuthCatalogState::Uninitialized
+            }
+            Err(error) => return Err(error),
+        };
+        let startup_diagnostic = match catalog {
+            AuthCatalogState::Uninitialized => None,
+            AuthCatalogState::ReadyV1 => match provider.readiness() {
+                AuthProviderReadiness::Available => None,
+                AuthProviderReadiness::Unavailable => Some(provider_unavailable_diagnostic()),
+            },
+        };
+        Ok(Self {
+            provider,
+            catalog_ready: catalog == AuthCatalogState::ReadyV1,
+            startup_diagnostic,
+        })
+    }
+
+    pub(crate) fn provider(&self) -> Arc<AuthProvider> {
+        self.provider.clone()
+    }
+
+    pub(crate) fn health(&self) -> AuthProviderHealth {
+        if !self.catalog_ready {
+            return AuthProviderHealth::Dormant;
+        }
+        match self.provider.readiness() {
+            AuthProviderReadiness::Available => AuthProviderHealth::Available,
+            AuthProviderReadiness::Unavailable => AuthProviderHealth::Unavailable,
+        }
+    }
+
+    pub(crate) fn catalog_ready(&self) -> bool {
+        self.catalog_ready
+    }
+
+    #[cfg(test)]
+    pub(crate) fn startup_diagnostic(&self) -> Option<&Diagnostic> {
+        self.startup_diagnostic.as_ref()
+    }
+
+    pub(crate) fn startup_diagnostics(&self) -> Vec<Diagnostic> {
+        self.startup_diagnostic.iter().cloned().collect()
+    }
+
+    /// Run the pre-bind pass against the still-locally-owned instance. The
+    /// missing/corrupt-keyring case may return unavailable after durable GC;
+    /// startup treats that as the already-reported provider readiness fact.
+    pub(crate) async fn run_startup_gc(
+        &self,
+        snapback: &mut LocalSnapback,
+    ) -> ProviderResult<Option<AuthGcPass>> {
+        if !self.catalog_ready {
+            return Ok(None);
+        }
+        let maintenance = self.provider.exclusive_maintenance().await;
+        let now_ms = self.provider.now_ms();
+        maintenance
+            .run_gc_pass(snapback.auth_database_mut(), now_ms)
+            .map(Some)
+    }
+}
+
+/// One periodic pass with the protocol lock order made structural: exclusive
+/// maintenance is held before `with_snapback` can acquire the outer mutex.
+pub(crate) async fn run_periodic_gc_pass(
+    state: &SharedSnapback,
+    provider: Arc<AuthProvider>,
+) -> ProviderResult<AuthGcPass> {
+    let maintenance = provider.exclusive_maintenance().await;
+    let now_ms = provider.now_ms();
+    crate::server::with_snapback(state, move |snapback| {
+        maintenance.run_gc_pass(snapback.auth_database_mut(), now_ms)
+    })
+    .await
+}
+
+/// ReadyV1 only: wait 30 seconds after startup, then run forever. A full
+/// bounded batch retries immediately; any unavailable pass waits for the next
+/// normal interval so a missing keyring cannot create a busy loop.
+pub(crate) fn spawn_auth_gc_worker(
+    state: SharedSnapback,
+    runtime: AuthRuntime,
+) -> Option<JoinHandle<()>> {
+    if !runtime.catalog_ready {
+        return None;
+    }
+    Some(tokio::spawn(async move {
+        let mut delay = AUTH_GC_INTERVAL;
+        loop {
+            tokio::time::sleep(delay).await;
+            delay = match run_periodic_gc_pass(&state, runtime.provider()).await {
+                Ok(pass) if pass.immediate_retry => Duration::ZERO,
+                Ok(_) | Err(_) => AUTH_GC_INTERVAL,
+            };
+        }
+    }))
+}
+
+fn provider_unavailable_diagnostic() -> Diagnostic {
+    Diagnostic::error(
+        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        "auth",
+        "email-code auth provider is unavailable",
+    )
+}
+
+/// Profile conversion stays explicit so production capture cannot be enabled
+/// by a lossy boolean or a default branch.
+pub(crate) fn provider_profile(profile: crate::admin::ServerProfile) -> AuthProviderProfile {
+    match profile {
+        crate::admin::ServerProfile::Dev => AuthProviderProfile::Dev,
+        crate::admin::ServerProfile::Test => AuthProviderProfile::Test,
+        crate::admin::ServerProfile::Demo => AuthProviderProfile::Demo,
+        crate::admin::ServerProfile::Prod => AuthProviderProfile::Prod,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::auth::backup::create_backup;
+    use crate::auth::crypto::{OsRandom, SessionBearer};
+    use crate::auth::keyring::AUTH_KEY_ROTATION_AGE_MS;
+    use crate::auth::lifecycle::{
+        RestoreDeclaration, activate_catalog, apply_declared_restore, restore_declaration_path,
+    };
+    use crate::local::LocalSnapback;
+    use rusqlite::params;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    fn activate_file_catalog(
+        database_path: &Path,
+        now_ms: u64,
+    ) -> (LocalSnapback, Arc<AuthKeyringStore>) {
+        let mut snapback = LocalSnapback::open(database_path).expect("open auth fixture");
+        let keyring = Arc::new(AuthKeyringStore::file_for_database(database_path));
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            now_ms,
+            &OsRandom,
+        )
+        .expect("activate auth fixture");
+        (snapback, keyring)
+    }
+
+    #[tokio::test]
+    async fn uninitialized_catalog_stays_dormant_without_minting_a_keyring_or_gc() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let mut snapback = LocalSnapback::open(&database_path).unwrap();
+        let keyring_path = AuthKeyringStore::keyring_path(&database_path);
+
+        let runtime = AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database_path),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+
+        assert_eq!(runtime.health(), AuthProviderHealth::Dormant);
+        assert!(!runtime.catalog_ready());
+        assert!(runtime.startup_diagnostic().is_none());
+        assert!(!keyring_path.exists());
+        assert_eq!(runtime.run_startup_gc(&mut snapback).await.unwrap(), None);
+        assert!(!keyring_path.exists());
+    }
+
+    #[tokio::test]
+    async fn dormant_foreign_auth_table_remains_servable_for_rescue() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let connection = rusqlite::Connection::open(&database_path).unwrap();
+        connection
+            .execute_batch("CREATE TABLE _auth_foreign_row(id TEXT PRIMARY KEY)")
+            .unwrap();
+        drop(connection);
+        let mut snapback = LocalSnapback::open(&database_path).unwrap();
+
+        let runtime = AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database_path),
+            AuthProviderProfile::Test,
+        )
+        .expect("a dormant table collision must leave the rescue route reachable");
+
+        assert_eq!(runtime.health(), AuthProviderHealth::Dormant);
+        assert!(!runtime.catalog_ready());
+        assert!(!AuthKeyringStore::keyring_path(&database_path).exists());
+    }
+
+    #[tokio::test]
+    async fn ready_health_revalidates_keyring_deletion_and_repair() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
+        let keyring_path = AuthKeyringStore::keyring_path(&database_path);
+        let retained_bytes = std::fs::read(&keyring_path).unwrap();
+        let runtime = AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database_path),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        assert_eq!(runtime.health(), AuthProviderHealth::Available);
+
+        std::fs::remove_file(&keyring_path).unwrap();
+        assert_eq!(runtime.health(), AuthProviderHealth::Unavailable);
+        crate::secure_file::write_new_owner_only(&keyring_path, &retained_bytes).unwrap();
+        assert_eq!(runtime.health(), AuthProviderHealth::Available);
+        assert!(
+            runtime.startup_diagnostic().is_none(),
+            "the boot diagnostic is emitted once from boot readiness, not synthesized dynamically"
+        );
+    }
+
+    #[tokio::test]
+    async fn marked_catalog_with_missing_keyring_is_redacted_and_keeps_session_resolution() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
+        let bearer = SessionBearer::generate(&OsRandom).unwrap();
+        let bearer_text = bearer.expose_secret().to_owned();
+        let token_hash = bearer.token_hash();
+        snapback
+            .auth_database_mut()
+            .with_auth_transaction(|transaction| {
+                transaction.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES('user-1', 1000)",
+                    [],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, provider, subject, verified_at_ms
+                     ) VALUES('identity-1', 'user-1', 'email-code', 'user@example.com', 1000)",
+                    [],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash,
+                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                       absolute_expires_at_ms, revoked_at_ms
+                     ) VALUES(
+                       'session-1', 'user-1', 'identity-1', 'authority-1', ?1,
+                       1, 1000, 1000, 9000000000000000, 9000000000000000, NULL
+                     )",
+                    params![token_hash.as_bytes().as_slice()],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        let keyring_path = AuthKeyringStore::keyring_path(&database_path);
+        std::fs::remove_file(&keyring_path).unwrap();
+
+        let runtime = AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database_path),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        assert_eq!(runtime.health(), AuthProviderHealth::Unavailable);
+        assert!(runtime.catalog_ready());
+        let diagnostic = runtime.startup_diagnostic().unwrap();
+        assert_eq!(diagnostic.code, "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE");
+        let serialized = serde_json::to_string(diagnostic).unwrap();
+        assert!(!serialized.contains("keyring"));
+        assert!(!serialized.contains(database_path.to_string_lossy().as_ref()));
+        assert_eq!(
+            serde_json::to_value(runtime.health()).unwrap(),
+            serde_json::json!("unavailable")
+        );
+        snapback.record_startup_diagnostics(&runtime.startup_diagnostics());
+        let retained = snapback.inspect().unwrap().recent_diagnostics;
+        assert_eq!(
+            retained
+                .iter()
+                .filter(|entry| entry.code == "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE")
+                .count(),
+            1,
+            "startup retains exactly one redacted unavailable diagnostic"
+        );
+        assert!(
+            !keyring_path.exists(),
+            "startup must not remint the lost ring"
+        );
+
+        let admission = runtime.provider().admit().await;
+        let resolved = admission
+            .resolve_session(snapback.auth_database_mut(), &bearer_text, 2_000)
+            .expect("session digest resolution is keyring-independent");
+        assert_eq!(resolved.session_id, "session-1");
+        assert!(!keyring_path.exists());
+    }
+
+    #[tokio::test]
+    async fn startup_gc_waits_for_exclusive_maintenance_before_touching_storage() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
+        let runtime = AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database_path),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let provider = runtime.provider();
+        let admission = provider.admit().await;
+        let mut startup_gc = Box::pin(runtime.run_startup_gc(&mut snapback));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), &mut startup_gc)
+                .await
+                .is_err(),
+            "startup GC must wait for exclusive maintenance"
+        );
+        drop(admission);
+        startup_gc.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn declared_restore_clears_the_composed_provider_mailbox_under_maintenance() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
+        let runtime = AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database_path),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let provider = runtime.provider();
+        let admission = provider
+            .admit_email("restore-mailbox@example.com")
+            .await
+            .unwrap();
+        let challenge = admission
+            .request_code(snapback.auth_database_mut(), provider.now_ms())
+            .unwrap()
+            .challenge_id;
+        drop(admission);
+
+        let declaration = RestoreDeclaration::fresh();
+        let declaration_path = restore_declaration_path(&database_path).unwrap();
+        crate::secure_file::write_new_owner_only(
+            &declaration_path,
+            &declaration.to_bytes().unwrap(),
+        )
+        .unwrap();
+        let maintenance = provider.exclusive_maintenance().await;
+        apply_declared_restore(
+            snapback.auth_database_mut(),
+            maintenance.mailbox(),
+            &declaration_path,
+            declaration.declaration_id(),
+            provider.now_ms(),
+        )
+        .unwrap();
+        drop(maintenance);
+
+        assert_eq!(
+            provider
+                .mailbox_entry(&challenge)
+                .await
+                .unwrap_err()
+                .diagnostic()
+                .code,
+            "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND"
+        );
+    }
+
+    #[tokio::test]
+    async fn periodic_gc_takes_maintenance_before_waiting_for_the_outer_mutex() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            1_000,
+            &OsRandom,
+        )
+        .unwrap();
+        let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
+        let state = Arc::new(Mutex::new(snapback));
+        let outer = state.clone().lock_owned().await;
+
+        let gc_state = state.clone();
+        let gc_provider = provider.clone();
+        let gc = tokio::spawn(async move { run_periodic_gc_pass(&gc_state, gc_provider).await });
+        tokio::task::yield_now().await;
+
+        let admission = tokio::time::timeout(Duration::from_millis(50), provider.admit()).await;
+        assert!(
+            admission.is_err(),
+            "GC must hold exclusive maintenance while it waits for the outer lock"
+        );
+        drop(outer);
+        gc.await.unwrap().unwrap();
+        tokio::time::timeout(Duration::from_secs(1), provider.admit())
+            .await
+            .expect("shared admission resumes after GC");
+    }
+
+    #[tokio::test]
+    async fn backup_quiescence_blocks_provider_write_and_key_rotation() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let (snapback, keyring) = activate_file_catalog(&database_path, 0);
+        let provider =
+            Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring.clone()).unwrap());
+        let state = Arc::new(Mutex::new(snapback));
+        let maintenance = provider.exclusive_maintenance().await;
+
+        let writer_state = state.clone();
+        let writer_provider = provider.clone();
+        let mut writer = tokio::spawn(async move {
+            let admission = writer_provider
+                .admit_email("backup-race@example.com")
+                .await
+                .unwrap();
+            let now_ms = AUTH_KEY_ROTATION_AGE_MS + 1;
+            crate::server::with_snapback(&writer_state, move |snapback| {
+                admission.request_code(snapback.auth_database_mut(), now_ms)
+            })
+            .await
+        });
+        tokio::task::yield_now().await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), &mut writer)
+                .await
+                .is_err(),
+            "provider write must not cross exclusive backup maintenance"
+        );
+
+        let output = directory.path().join("auth-backup");
+        let (maintenance, backup) = crate::server::with_snapback(&state, move |snapback| {
+            let result = create_backup(
+                snapback.auth_database_mut(),
+                maintenance.keyring(),
+                &output,
+                2_000,
+                &OsRandom,
+            );
+            (maintenance, result)
+        })
+        .await;
+        backup.unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), &mut writer)
+                .await
+                .is_err(),
+            "backup keeps the quiescence gate through publication"
+        );
+        assert_eq!(keyring.load_existing().unwrap().key_count, 1);
+
+        drop(maintenance);
+        writer.await.unwrap().unwrap();
+        assert_eq!(
+            keyring.load_existing().unwrap().key_count,
+            2,
+            "the due key rotation occurs only after backup releases maintenance"
+        );
+    }
+}

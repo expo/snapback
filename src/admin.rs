@@ -12,6 +12,7 @@ use crate::admin_secret_read::{
     SecretReadScope, VerifiedSecretReadMint,
 };
 use crate::auth::provider::AuthProvider;
+use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
 use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
@@ -117,6 +118,13 @@ impl ServerProfile {
 
     pub fn allows_provisioning(self) -> bool {
         !matches!(self, Self::Prod)
+    }
+
+    /// Resolve the profile from the concrete address startup will bind. The
+    /// CLI resolves hostnames once before auth composition and binds this same
+    /// address, so aliases cannot produce a pre-bind/post-bind policy split.
+    pub(crate) fn for_bind_ip(address: std::net::IpAddr) -> Self {
+        env_profile(address.is_loopback())
     }
 }
 
@@ -612,6 +620,9 @@ pub struct AppState {
     /// the staged-mode composition lane; embeddings and tests may install an
     /// already-activated provider through the builder below.
     pub(crate) auth_provider: Option<Arc<AuthProvider>>,
+    /// Whether startup observed an exact ReadyV1 catalog. Keyring readiness is
+    /// intentionally revalidated on every health projection.
+    pub(crate) auth_catalog_ready: bool,
 }
 
 impl AppState {
@@ -647,6 +658,7 @@ impl AppState {
                 secret_read_mint: None,
                 impersonation_capabilities: None,
                 auth_provider: None,
+                auth_catalog_ready: false,
             },
             operator,
         )
@@ -671,7 +683,35 @@ impl AppState {
     /// posture or performing catalog activation.
     pub fn with_auth_provider(mut self, provider: Arc<AuthProvider>) -> Self {
         self.auth_provider = Some(provider);
+        self.auth_catalog_ready = true;
         self
+    }
+
+    /// Install the exact provider instance and readiness posture assembled
+    /// before listener bind. Catalog activation is intentionally not part of
+    /// this builder.
+    pub(crate) fn with_auth_runtime(mut self, runtime: &AuthRuntime) -> Self {
+        self.auth_provider = Some(runtime.provider());
+        self.auth_catalog_ready = runtime.catalog_ready();
+        self
+    }
+
+    pub fn auth_provider_health(&self) -> AuthProviderHealth {
+        if !self.auth_catalog_ready {
+            return AuthProviderHealth::Dormant;
+        }
+        match self
+            .auth_provider
+            .as_ref()
+            .map(|provider| provider.readiness())
+        {
+            Some(crate::auth::provider::AuthProviderReadiness::Available) => {
+                AuthProviderHealth::Available
+            }
+            Some(crate::auth::provider::AuthProviderReadiness::Unavailable) | None => {
+                AuthProviderHealth::Unavailable
+            }
+        }
     }
 
     /// Select an auth-policy mode for an embedded runtime. Production callers
@@ -771,6 +811,12 @@ impl FromRef<AppState> for PolicyAuthPosture {
 impl FromRef<AppState> for SecretReadLeaseRegistry {
     fn from_ref(state: &AppState) -> Self {
         state.secret_reads.clone()
+    }
+}
+
+impl FromRef<AppState> for AuthProviderHealth {
+    fn from_ref(state: &AppState) -> Self {
+        state.auth_provider_health()
     }
 }
 
@@ -1583,6 +1629,7 @@ fn diagnostic_response(status: StatusCode, error: SnapbackError) -> Response {
 async fn admin_health(
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
+    State(auth_provider): State<AuthProviderHealth>,
     headers: HeaderMap,
 ) -> Result<Json<HealthResponse>, ApiError> {
     authorize(&ctx, &headers, false)?;
@@ -1593,6 +1640,7 @@ async fn admin_health(
         sqlite_version: inspect.storage.version,
         ibex_available: inspect.runtime.ibex_cli.available
             || inspect.runtime.ibex_ctx_db_host_bridge == CapabilityState::Available,
+        auth_provider,
         binary: crate::identity::binary_identity(),
     }))
 }

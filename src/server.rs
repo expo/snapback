@@ -1287,6 +1287,10 @@ pub struct HealthResponse {
     pub target: String,
     pub sqlite_version: u64,
     pub ibex_available: bool,
+    /// Closed auth-provider readiness. Missing/corrupt keyring details never
+    /// cross the public health boundary.
+    #[serde(rename = "authProvider", default)]
+    pub auth_provider: crate::auth::runtime::AuthProviderHealth,
     /// Server-binary identity (ENG-22798): build/git provenance + a per-process
     /// startup nonce, so an externally started — possibly unprovisioned or
     /// schema-only — server is provenance-verifiable before any app bundle loads.
@@ -4708,6 +4712,7 @@ fn loopback_origin(origin: Option<&HeaderValue>) -> Option<HeaderValue> {
 async fn health(
     State(state): State<SharedSnapback>,
     State(read): State<crate::local::ReadLane>,
+    State(auth_provider): State<crate::auth::runtime::AuthProviderHealth>,
 ) -> Result<Json<HealthResponse>, ApiError> {
     let (version, capabilities) = if read.available() {
         let health = with_read_lane(&read, |lane| lane.health()).await?;
@@ -4722,6 +4727,7 @@ async fn health(
         sqlite_version: version,
         ibex_available: capabilities.ibex_cli.available
             || capabilities.ibex_ctx_db_host_bridge == CapabilityState::Available,
+        auth_provider,
         binary: crate::identity::binary_identity(),
     }))
 }
@@ -4970,7 +4976,7 @@ async fn config_verify(
 /// projection — HTTP is always 200 once an envelope exists; `ok` and
 /// `diagnostics[]` carry the outcome (LLP 0024 §Result Envelope).
 async fn host_ops_handler(
-    State(state): State<SharedSnapback>,
+    State(runtime): State<AppState>,
     State(ctx): State<Arc<ServerContext>>,
     State(policy_mode): State<PolicyAuthMode>,
     State(secret_reads): State<SecretReadLeaseRegistry>,
@@ -4978,10 +4984,39 @@ async fn host_ops_handler(
     headers: HeaderMap,
     Json(mut request): Json<crate::host_ops::HostOpsRequest>,
 ) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
+    let state = runtime.snapback.clone();
     let server_url = Some(format!("http://{}:{}", ctx.host, ctx.port));
     let profile = ctx.profile;
     let requested_operation = request.operation.clone();
     let requested_function = request.function.clone();
+    let reset_preauthorized = requested_operation == "app.reset";
+    if reset_preauthorized {
+        // `app.reset` has no function-dependent policy. Run its complete
+        // handler backstop before waiting for exclusive maintenance so an
+        // unauthorized request cannot stall admitted provider work.
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            request.user_id.is_some(),
+            policy_mode,
+            &secret_reads,
+            impersonation.as_ref().map(|Extension(verified)| verified),
+        )?;
+    }
+    // Reset is the one host-op branch that crosses the auth lifecycle
+    // boundary. Take exclusive maintenance before the outer app mutex; clear
+    // capture plaintext only after the returned envelope proves commit.
+    // @ref LLP 0054#concurrency-locks-and-linearization — reset takes exclusive auth maintenance before the app/database writer.
+    let reset_maintenance = if requested_operation == "app.reset" {
+        match runtime.auth_provider.clone() {
+            Some(provider) => Some(provider.exclusive_maintenance().await),
+            None => None,
+        }
+    } else {
+        None
+    };
     let secret_reads_for_gate = secret_reads.clone();
     let gate_headers = headers.clone();
     let result = with_snapback(&state, move |snapback| -> Result<_, ApiError> {
@@ -4989,16 +5024,18 @@ async fn host_ops_handler(
             .function
             .as_deref()
             .and_then(|name| snapback.function_kind(name));
-        crate::admin::authorize_host_operation(
-            &ctx,
-            &gate_headers,
-            &request.operation,
-            function_kind.as_ref(),
-            request.user_id.is_some(),
-            policy_mode,
-            &secret_reads_for_gate,
-            impersonation.as_ref().map(|Extension(verified)| verified),
-        )?;
+        if !reset_preauthorized {
+            crate::admin::authorize_host_operation(
+                &ctx,
+                &gate_headers,
+                &request.operation,
+                function_kind.as_ref(),
+                request.user_id.is_some(),
+                policy_mode,
+                &secret_reads_for_gate,
+                impersonation.as_ref().map(|Extension(verified)| verified),
+            )?;
+        }
         if policy_mode == PolicyAuthMode::Sessions {
             let mut scopes = std::collections::BTreeSet::new();
             match request.operation.as_str() {
@@ -5056,6 +5093,12 @@ async fn host_ops_handler(
         Ok(result)
     })
     .await?;
+    if result.ok
+        && requested_operation == "app.reset"
+        && let Some(maintenance) = reset_maintenance.as_ref()
+    {
+        maintenance.clear_mailbox_after_committed_reset();
+    }
     if policy_mode == PolicyAuthMode::Sessions {
         if (result.secret_read_query || requested_operation == "function.explain")
             && (!result.ok || !result.secret_read_provenance_complete)
@@ -5120,7 +5163,7 @@ async fn host_ops_handler(
 ///
 /// @ref LLP 0031#resolved-decisions — D5: seed is an optional argument to `app.reset`, not a fourth route.
 async fn app_reset(
-    State(state): State<SharedSnapback>,
+    State(runtime): State<AppState>,
     State(ctx): State<Arc<ServerContext>>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -5128,7 +5171,20 @@ async fn app_reset(
     crate::admin::authorize_operation(&ctx, &headers, "app.reset", None)?;
     crate::admin::require_operation_profile(&ctx, "app.reset", false)?;
     let seed = parse_optional_json::<AppResetBody>(&headers, body)?.and_then(|body| body.seed);
-    let seeded = with_snapback(&state, move |snapback| snapback.reset_with_seed(seed)).await?;
+    // The maintenance guard is intentionally acquired before `with_snapback`;
+    // a rejected transaction returns through `?` without clearing the mailbox.
+    // @ref LLP 0054#catalog-write-and-lifecycle-rules — app reset commits auth deletion with app data and retains the catalog/keyring.
+    let maintenance = match runtime.auth_provider.clone() {
+        Some(provider) => Some(provider.exclusive_maintenance().await),
+        None => None,
+    };
+    let seeded = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.reset_with_seed(seed)
+    })
+    .await?;
+    if let Some(maintenance) = maintenance.as_ref() {
+        maintenance.clear_mailbox_after_committed_reset();
+    }
     Ok(Json(AppResetResponse { seeded }))
 }
 
@@ -6399,7 +6455,9 @@ mod tests {
     use tokio::sync::{Mutex, Semaphore};
     use tower::ServiceExt as _;
 
-    fn auth_http_fixture(mode: PolicyAuthMode) -> (axum::Router, String) {
+    fn auth_http_fixture_with_provider(
+        mode: PolicyAuthMode,
+    ) -> (axum::Router, String, Arc<AuthProvider>) {
         let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         activate_catalog(
@@ -6428,8 +6486,17 @@ mod tests {
         let state = AppState::from_snapback(snapback, context)
             .with_policy_auth_mode(mode)
             .with_impersonation_capabilities(registry)
-            .with_auth_provider(provider);
-        (app(state), capability.expect("captured capability"))
+            .with_auth_provider(provider.clone());
+        (
+            app(state),
+            capability.expect("captured capability"),
+            provider,
+        )
+    }
+
+    fn auth_http_fixture(mode: PolicyAuthMode) -> (axum::Router, String) {
+        let (router, capability, _) = auth_http_fixture_with_provider(mode);
+        (router, capability)
     }
 
     fn auth_http_request(
@@ -6458,6 +6525,26 @@ mod tests {
             .await
             .expect("read auth HTTP response");
         serde_json::from_slice(&bytes).expect("auth HTTP JSON response")
+    }
+
+    async fn request_captured_challenge(router: &axum::Router, email: &str) -> String {
+        let response = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/auth/request-code",
+                serde_json::to_vec(&serde_json::json!({"email": email})).unwrap(),
+                true,
+                None,
+                None,
+            ))
+            .await
+            .expect("request capture challenge");
+        assert_eq!(response.status(), StatusCode::OK);
+        response_json(response).await["challengeId"]
+            .as_str()
+            .unwrap()
+            .to_owned()
     }
 
     #[test]
@@ -6727,6 +6814,210 @@ mod tests {
             response_json(unknown).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_CODE_INVALID"
         );
+    }
+
+    /// LLP 0054#catalog-write-and-lifecycle-rules — the dedicated reset holds
+    /// exclusive maintenance, clears capture plaintext only after commit, and
+    /// retains both catalog and keyring (proved by issuing again afterward).
+    #[tokio::test]
+    async fn direct_app_reset_clears_mailbox_on_commit_and_preserves_it_on_rejection() {
+        let (router, _, provider) = auth_http_fixture_with_provider(PolicyAuthMode::Sessions);
+        let committed_challenge =
+            request_captured_challenge(&router, "direct-commit@example.com").await;
+        let committed = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/app/reset",
+                b"{}".to_vec(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(committed.status(), StatusCode::OK);
+        assert_eq!(
+            provider
+                .mailbox_entry(&committed_challenge)
+                .await
+                .unwrap_err()
+                .diagnostic()
+                .code,
+            "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND"
+        );
+
+        let rejected_challenge =
+            request_captured_challenge(&router, "direct-reject@example.com").await;
+        let rejected = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/app/reset",
+                serde_json::to_vec(&serde_json::json!({
+                    "seed": {"tables": {"missing_table": [{}]}}
+                }))
+                .unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_ne!(rejected.status(), StatusCode::OK);
+        assert_eq!(
+            provider
+                .mailbox_entry(&rejected_challenge)
+                .await
+                .expect("rejected reset preserves capture plaintext")
+                .challenge_id,
+            rejected_challenge
+        );
+    }
+
+    /// LLP 0054#concurrency-locks-and-linearization — the multiplexed reset
+    /// projection observes the same post-commit mailbox boundary as its direct
+    /// route; a negative host-op envelope is not a committed reset.
+    #[tokio::test]
+    async fn host_ops_app_reset_clears_mailbox_only_for_a_success_envelope() {
+        let (router, _, provider) = auth_http_fixture_with_provider(PolicyAuthMode::Sessions);
+        let committed_challenge =
+            request_captured_challenge(&router, "host-commit@example.com").await;
+        let committed = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&serde_json::json!({"operation": "app.reset"})).unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(committed.status(), StatusCode::OK);
+        assert_eq!(response_json(committed).await["ok"], true);
+        assert_eq!(
+            provider
+                .mailbox_entry(&committed_challenge)
+                .await
+                .unwrap_err()
+                .diagnostic()
+                .code,
+            "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND"
+        );
+
+        let rejected_challenge =
+            request_captured_challenge(&router, "host-reject@example.com").await;
+        let rejected = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&serde_json::json!({
+                    "operation": "app.reset",
+                    "seed": {"tables": {"missing_table": [{}]}}
+                }))
+                .unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(rejected.status(), StatusCode::OK);
+        assert_eq!(response_json(rejected).await["ok"], false);
+        assert_eq!(
+            provider
+                .mailbox_entry(&rejected_challenge)
+                .await
+                .expect("negative host-op envelope preserves capture plaintext")
+                .challenge_id,
+            rejected_challenge
+        );
+    }
+
+    #[tokio::test]
+    async fn rejected_host_ops_reset_does_not_wait_for_exclusive_auth_maintenance() {
+        let (router, _, provider) = auth_http_fixture_with_provider(PolicyAuthMode::Sessions);
+        let admission = provider.admit().await;
+        let response = tokio::time::timeout(
+            Duration::from_millis(100),
+            router.oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&serde_json::json!({"operation": "app.reset"})).unwrap(),
+                true,
+                None,
+                None,
+            )),
+        )
+        .await
+        .expect("authorization rejects without waiting for exclusive maintenance")
+        .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        drop(admission);
+    }
+
+    #[tokio::test]
+    async fn public_health_revalidates_provider_readiness_without_leaking_keyring_details() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("health.sqlite3");
+        let mut snapback = LocalSnapback::open(&database_path).unwrap();
+        let keyring = Arc::new(AuthKeyringStore::file_for_database(&database_path));
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            super::now_millis(),
+            &OsRandom,
+        )
+        .unwrap();
+        let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
+        let keyring_path = AuthKeyringStore::keyring_path(&database_path);
+        let retained = std::fs::read(&keyring_path).unwrap();
+        let router = app(AppState::from_snapback(snapback, ServerContext::detached())
+            .with_auth_provider(provider));
+
+        let available = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response_json(available).await["authProvider"], "available");
+
+        std::fs::remove_file(&keyring_path).unwrap();
+        let unavailable = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let unavailable = response_json(unavailable).await;
+        assert_eq!(unavailable["authProvider"], "unavailable");
+        let serialized = serde_json::to_string(&unavailable).unwrap();
+        assert!(!serialized.contains("keyring"));
+        assert!(!serialized.contains(database_path.to_string_lossy().as_ref()));
+
+        crate::secure_file::write_new_owner_only(&keyring_path, &retained).unwrap();
+        let repaired = router
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response_json(repaired).await["authProvider"], "available");
     }
 
     /// LLP 0054#routes-operations-and-dtos — active dev refusal precedes the
@@ -7307,11 +7598,6 @@ mod tests {
         "SNAPBACK_IBEX_CLI_UNAVAILABLE",
         "SNAPBACK_IBEX_FUNCTIONS_LOADED",
         "SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE",
-        // Provider transaction sentinels are collapsed to a public provider
-        // failure before crossing HTTP. If one ever escapes, retain the
-        // fail-safe 500 class rather than presenting it as caller error.
-        "SNAPBACK_INTERNAL_AUTH_COLLISION",
-        "SNAPBACK_INTERNAL_AUTH_STATE",
         "SNAPBACK_JSON_PARSE_FAILED",
         "SNAPBACK_JSON_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
