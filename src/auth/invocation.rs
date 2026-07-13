@@ -6,6 +6,7 @@
 //! or an operator bypass as identity.
 
 use crate::admin::ServerProfile;
+use crate::auth::admission::{AdmissionEffectGuard, AdmissionLease};
 use crate::auth::provider::ResolvedSession;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
@@ -558,8 +559,7 @@ pub enum OperationAvailability {
 /// Immutable result of mode, policy, wire-field, and credential preparation.
 #[derive(Clone, Debug)]
 pub struct PreparedAuthority {
-    transition_generation: u64,
-    admission_epoch: u64,
+    admission: AdmissionLease,
     active_mode: AuthMode,
     profile: ServerProfile,
     source: InvocationSource,
@@ -575,11 +575,11 @@ impl PreparedAuthority {
     }
 
     pub fn transition_generation(&self) -> u64 {
-        self.transition_generation
+        self.admission.transition_generation()
     }
 
     pub fn admission_epoch(&self) -> u64 {
-        self.admission_epoch
+        self.admission.admission_epoch()
     }
 
     pub fn active_mode(&self) -> AuthMode {
@@ -604,6 +604,18 @@ impl PreparedAuthority {
 
     pub fn availability(&self) -> OperationAvailability {
         self.availability
+    }
+
+    pub fn admission_lease(&self) -> &AdmissionLease {
+        &self.admission
+    }
+
+    pub fn validate_admission(&self, effect: &'static str) -> SnapbackResult<()> {
+        self.admission.validate(effect)
+    }
+
+    pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
+        self.admission.effect_guard(effect)
     }
 
     pub fn inherit_for(&self, source: InvocationSource) -> SnapbackResult<Self> {
@@ -659,6 +671,18 @@ impl PreparedInvocation {
         &self.invocation_id
     }
 
+    pub fn admission_lease(&self) -> &AdmissionLease {
+        self.authority.admission_lease()
+    }
+
+    pub fn validate_admission(&self, effect: &'static str) -> SnapbackResult<()> {
+        self.authority.validate_admission(effect)
+    }
+
+    pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
+        self.authority.effect_guard(effect)
+    }
+
     /// Replace legacy wire authority with the server-derived compatibility
     /// projection used by HostPlan/storage expressions. Runtime JS receives
     /// `HandlerAuthProjection` separately.
@@ -688,6 +712,29 @@ impl InvocationGate {
         wire: &WireAuthorityFields,
         resolved: ResolvedAppAuthority,
     ) -> SnapbackResult<PreparedAuthority> {
+        Self::prepare_admitted_authority(
+            source,
+            active_mode,
+            profile,
+            AdmissionLease::unmanaged(transition_generation, admission_epoch),
+            wire,
+            resolved,
+        )
+    }
+
+    /// Prepare authority under a counted admission lease owned by the app's
+    /// process-local controller. HTTP composition must use this form; the raw
+    /// generation/epoch overload exists only while that lane is being wired.
+    pub fn prepare_admitted_authority(
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        resolved: ResolvedAppAuthority,
+    ) -> SnapbackResult<PreparedAuthority> {
+        admission.validate("invocation preparation")?;
+        admission.require_mode(active_mode)?;
         if active_mode == AuthMode::Sessions
             && let Some(location) = wire.first_present()
         {
@@ -720,8 +767,7 @@ impl InvocationGate {
         };
         let projection = HandlerAuthProjection::from_authority(&resolved);
         Ok(PreparedAuthority {
-            transition_generation,
-            admission_epoch,
+            admission,
             active_mode,
             profile,
             source,
@@ -748,10 +794,27 @@ impl InvocationGate {
         )
     }
 
+    pub fn prepare_admitted_dev_input(
+        source: InvocationSource,
+        profile: ServerProfile,
+        input: &HandlerInput,
+        admission: AdmissionLease,
+    ) -> SnapbackResult<PreparedAuthority> {
+        Self::prepare_admitted_authority(
+            source,
+            AuthMode::Dev,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::dev_from_auth(&input.auth),
+        )
+    }
+
     pub fn prepare_function(
         authority: PreparedAuthority,
         function: &FunctionDefinition,
     ) -> SnapbackResult<PreparedInvocation> {
+        authority.validate_admission("function invocation preparation")?;
         let InvocationTarget::Function(constraint) = authority.source.target() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",

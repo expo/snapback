@@ -1,5 +1,6 @@
 //! Server-owned authentication primitives.
 
+pub mod admission;
 #[allow(dead_code)] // Wired by the auth lifecycle/operator composition lane.
 pub(crate) mod backup;
 pub mod crypto;

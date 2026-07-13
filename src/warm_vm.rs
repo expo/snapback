@@ -14,6 +14,7 @@
 //! @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
 //! the as-built design this file implements: keying, threading, reset, fences.
 
+use crate::auth::admission::{AdmissionLease, CancellationRegistration};
 use crate::diagnostic::SnapbackResult;
 use crate::runtime::{HermesRuntimeOpaque, RuntimeGuard, eval};
 use std::collections::HashMap;
@@ -86,6 +87,10 @@ impl WarmVm {
 
     pub(crate) fn mark_set_up(&mut self) {
         self.set_up = true;
+    }
+
+    pub(crate) fn interrupt_on(&self, admission: &AdmissionLease) -> CancellationRegistration {
+        self.guard.interrupt_on(admission)
     }
 }
 

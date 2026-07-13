@@ -16,7 +16,7 @@ use crate::auth::wire::{
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
     RescueCollidingTableRequest, SecretInput,
 };
-use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
+use crate::cron::{CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
     DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
@@ -25,10 +25,11 @@ use crate::live_wire::{
     LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
-    AppActionStage, ConfigVerifyStage, DetachedMutationRead, EnsureAppExplicitInput,
-    EnsureAppInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
-    FunctionRunResult, InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
-    LocalSnapback, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
+    AdmittedCronClaim, AppActionStage, ConfigVerifyStage, DetachedMutationRead,
+    EnsureAppExplicitInput, EnsureAppInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse,
+    EphemeralApi, FunctionRunResult, InspectState, LiveResumeInput, LiveSubscribeInput,
+    LiveUnsubscribeInput, LocalSnapback, StagedAction, StagedAppAction, StagedConfigVerify,
+    StagedNestedMutation,
 };
 use crate::manifest::{
     AuthInput, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
@@ -841,7 +842,7 @@ async fn dispatch_cron_tick_background(
 /// action, then finish the claim.
 pub(crate) async fn execute_cron_claim_detached(
     state: &SharedSnapback,
-    claim: CronRunClaim,
+    claim: AdmittedCronClaim,
 ) -> SnapbackResult<CronRunRecord> {
     let started_wall_ms = now_millis();
     let input = crate::local::cron_claim_input(&claim);
@@ -849,8 +850,9 @@ pub(crate) async fn execute_cron_claim_detached(
     let action = claim.job.action.clone();
     let staged = {
         let action = action.clone();
+        let admission = claim.admission_lease().clone();
         with_snapback(state, move |snapback| {
-            snapback.stage_action_invocation(&action)
+            snapback.stage_action_invocation_with_admission(&action, admission)
         })
         .await
     };

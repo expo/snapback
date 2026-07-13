@@ -1,4 +1,6 @@
 use crate::admin::ServerProfile;
+use crate::auth::admission::AdmissionLease;
+use crate::auth::admission::{AdmissionController, ModeTransitionGuard};
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
     WireAuthorityFields,
@@ -48,6 +50,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use std::marker::PhantomData;
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -1008,6 +1011,37 @@ pub(crate) enum StagedAction {
     Detached(Box<DetachedIbexAction>),
 }
 
+/// A durable cron claim paired with its process-local finite admission root.
+/// Only the `CronRunClaim` is persisted; the lease lives solely in this
+/// execution carrier and fences handler and finish publication together.
+pub(crate) struct AdmittedCronClaim {
+    claim: CronRunClaim,
+    admission: AdmissionLease,
+}
+
+impl AdmittedCronClaim {
+    pub(crate) fn admission_lease(&self) -> &AdmissionLease {
+        &self.admission
+    }
+}
+
+impl Deref for AdmittedCronClaim {
+    type Target = CronRunClaim;
+
+    fn deref(&self) -> &Self::Target {
+        &self.claim
+    }
+}
+
+impl StagedAction {
+    pub(crate) fn admission_lease(&self) -> &crate::auth::admission::AdmissionLease {
+        match self {
+            Self::InLock(invocation) => invocation.admission_lease(),
+            Self::Detached(action) => action.invocation.admission_lease(),
+        }
+    }
+}
+
 pub(crate) struct DetachedIbexAction {
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
@@ -1114,6 +1148,25 @@ pub(crate) fn action_run_result(
             diagnostic: Some(error.diagnostic),
             ..base
         },
+    }
+}
+
+fn function_run_admission_failure(name: &str, error: SnapbackError) -> FunctionRunResult {
+    FunctionRunResult {
+        ok: false,
+        function: name.to_owned(),
+        kind: None,
+        reads: Vec::new(),
+        writes: Vec::new(),
+        captured_reads: Vec::new(),
+        captured_writes: Vec::new(),
+        admin_bypass: false,
+        elapsed_ms: 0,
+        version: None,
+        changed_count: None,
+        rows: None,
+        result: None,
+        diagnostic: Some(error.diagnostic),
     }
 }
 
@@ -1481,6 +1534,10 @@ pub struct LocalSnapback {
     // per-instance warm VM pool (never process-global: two local app
     // instances must not share loaded code state). Shared with the read lane.
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
+    // @ref LLP 0055#stage-ordering — every finite app-data, cron, nested, and
+    // live-rerun entry holds one process-local admission epoch through its
+    // final commit/publication boundary.
+    admission: AdmissionController,
     // Changes whenever loaded code/schema or the destructive app state
     // boundary changes. Detached nested mutations bind this value at staging
     // and must still match at commit (ENG-24340).
@@ -1538,7 +1595,8 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
     fn validate_host_call(&mut self, _op: &str) -> SnapbackResult<()> {
         // In-process action invocation retains the instance borrow for the
         // whole run, so no schema/function/reset drift can interleave.
-        Ok(())
+        self.authority
+            .validate_admission("action host call or nested entry")
     }
 
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
@@ -1576,6 +1634,43 @@ impl LocalSnapback {
     // @ref LLP 0054#concurrency-locks-and-linearization — provider coordination precedes the outer app/database lock.
     pub(crate) fn auth_database_mut(&mut self) -> &mut LocalDatabase {
         &mut self.db
+    }
+
+    /// Cloneable process-local admission authority for HTTP composition.
+    pub(crate) fn admission_controller(&self) -> AdmissionController {
+        self.admission.clone()
+    }
+
+    /// Compatibility embedding seam: legacy callers may request dev
+    /// authority only through this instance's exact-mode controller. A
+    /// settled Sessions instance rejects the request before app code runs.
+    pub(crate) fn prepare_legacy_dev_authority(
+        &self,
+        source: InvocationSource,
+        profile: ServerProfile,
+        input: &HandlerInput,
+    ) -> SnapbackResult<PreparedAuthority> {
+        InvocationGate::prepare_admitted_dev_input(
+            source,
+            profile,
+            input,
+            self.admission.admit_dev()?,
+        )
+    }
+
+    /// Close app-data/cron/live/nested admission and wait for the finite
+    /// current epoch before a staged-mode transaction takes the write lane.
+    pub(crate) fn begin_auth_mode_transition(&self) -> SnapbackResult<ModeTransitionGuard> {
+        self.admission.begin_transition()
+    }
+
+    /// Pre-bind only: align process admission with the final durable record
+    /// after startup composition may have staged, consumed, or unstaged it.
+    pub(crate) fn synchronize_auth_mode_admission(
+        &self,
+        state: &crate::auth::mode::AuthModeStateRecord,
+    ) -> SnapbackResult<crate::auth::admission::AdmissionSnapshot> {
+        self.admission.synchronize_mode_state(state)
     }
 
     /// Validate one complete cold-start/provisioning pair without changing
@@ -2363,7 +2458,27 @@ impl LocalSnapback {
         input: HandlerInput,
         source: InvocationSource,
     ) -> SnapbackResult<QueryInvocation> {
-        let authority = InvocationGate::prepare_dev_input(source, ServerProfile::Dev, &input)?;
+        self.invoke_query_with_dependencies_from_source_and_admission(
+            name,
+            input,
+            source,
+            self.admission.admit_dev()?,
+        )
+    }
+
+    fn invoke_query_with_dependencies_from_source_and_admission(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        source: InvocationSource,
+        admission: AdmissionLease,
+    ) -> SnapbackResult<QueryInvocation> {
+        let authority = InvocationGate::prepare_admitted_dev_input(
+            source,
+            ServerProfile::Dev,
+            &input,
+            admission,
+        )?;
         self.invoke_query_with_dependencies_prepared(name, input, authority)
     }
 
@@ -2468,7 +2583,14 @@ impl LocalSnapback {
         transport: &str,
         source: InvocationSource,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
-        let authority = InvocationGate::prepare_dev_input(source, ServerProfile::Dev, &input);
+        let authority = self.admission.admit_dev().and_then(|admission| {
+            InvocationGate::prepare_admitted_dev_input(
+                source,
+                ServerProfile::Dev,
+                &input,
+                admission,
+            )
+        });
         match authority {
             Ok(authority) => self.invoke_mutation_recording_with_authority(
                 name,
@@ -2487,6 +2609,7 @@ impl LocalSnapback {
                     correlation,
                     receipt_mutation_id,
                     Err(error),
+                    false,
                 )
             }
         }
@@ -2500,6 +2623,7 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        let admission = authority.admission_lease().clone();
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = client_mutation_id
             .clone()
@@ -2510,7 +2634,24 @@ impl LocalSnapback {
             client_mutation_id,
             authority,
         );
-        self.record_mutation_commit(name, transport, correlation, receipt_mutation_id, result)
+        match admission.effect_guard("mutation receipt publication") {
+            Ok(_publication) => self.record_mutation_commit(
+                name,
+                transport,
+                correlation,
+                receipt_mutation_id,
+                result,
+                true,
+            ),
+            Err(error) => self.record_mutation_commit(
+                name,
+                transport,
+                correlation,
+                receipt_mutation_id,
+                Err(error),
+                false,
+            ),
+        }
     }
 
     fn record_mutation_commit(
@@ -2520,6 +2661,7 @@ impl LocalSnapback {
         correlation: Option<Value>,
         receipt_mutation_id: String,
         result: SnapbackResult<MutationCommit>,
+        retain: bool,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
         // affectedTables from DECLARED writes; a function that declares none
         // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
@@ -2554,7 +2696,9 @@ impl LocalSnapback {
             correlation: correlation.unwrap_or(Value::Null),
             received_at_ms: now_millis(),
         };
-        self.receipts.push_global(receipt.clone().into_value());
+        if retain {
+            self.receipts.push_global(receipt.clone().into_value());
+        }
         (result.map(|commit| commit.output), receipt)
     }
 
@@ -2573,13 +2717,42 @@ impl LocalSnapback {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        prepared.validate_admission("nested host-plan mutation")?;
+        let admission = prepared.admission_lease().clone();
         let input = prepared.canonicalize_input(input);
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = format!("mut_{}", Uuid::now_v7().simple());
-        let result =
-            self.invoke_host_plan_mutation_commit_guarded(name, input, check_live, before_commit);
-        self.record_mutation_commit(name, "local", correlation, receipt_mutation_id, result)
-            .0
+        let result = self.invoke_host_plan_mutation_commit_guarded(
+            name,
+            input,
+            &admission,
+            check_live,
+            before_commit,
+        );
+        match admission.effect_guard("nested mutation receipt publication") {
+            Ok(_publication) => {
+                self.record_mutation_commit(
+                    name,
+                    "local",
+                    correlation,
+                    receipt_mutation_id,
+                    result,
+                    true,
+                )
+                .0
+            }
+            Err(error) => {
+                self.record_mutation_commit(
+                    name,
+                    "local",
+                    correlation,
+                    receipt_mutation_id,
+                    Err(error),
+                    false,
+                )
+                .0
+            }
+        }
     }
 
     /// Receipt retention surface (LLP 0034 §3 / ENG-22478): the bounded rings,
@@ -2600,6 +2773,7 @@ impl LocalSnapback {
         // enforcement precede replay-settlement lookup and every effect.
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
+        let admission = prepared.admission_lease().clone();
         let input = prepared.canonicalize_input(input);
         let identity =
             client_mutation_id.map(|id| ClientMutationIdentity::new(id, name.to_owned(), &input));
@@ -2623,10 +2797,17 @@ impl LocalSnapback {
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         let commit = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => match identity.as_ref() {
-                Some(identity) => self
-                    .db
-                    .execute_mutation_idempotent(plan, &input, identity)?,
-                None => self.db.execute_mutation(plan, &input)?,
+                Some(identity) => {
+                    let _effect = prepared.effect_guard("idempotent mutation transaction")?;
+                    self.db
+                        .execute_mutation_idempotent(plan, &input, identity)?
+                }
+                None => self.db.execute_mutation_guarded(
+                    plan,
+                    &input,
+                    || Ok(()),
+                    || prepared.effect_guard("mutation transaction"),
+                )?,
             },
             FunctionRuntime::IbexModule(module) => self.runtime.invoke_ibex_mutation_prepared(
                 module,
@@ -2645,13 +2826,14 @@ impl LocalSnapback {
             }
         };
 
-        Ok(self.finish_mutation_commit(epoch_scopes, commit))
+        self.finish_mutation_commit(epoch_scopes, commit, &admission)
     }
 
     fn invoke_host_plan_mutation_commit_guarded<G, Check, BeforeCommit>(
         &mut self,
         name: &str,
         input: HandlerInput,
+        admission: &AdmissionLease,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationCommit>
@@ -2659,6 +2841,7 @@ impl LocalSnapback {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        admission.validate("nested host-plan mutation execution")?;
         check_live()?;
         let function = self.function(name)?.clone();
         if function.kind != FunctionKind::Mutation {
@@ -2678,37 +2861,47 @@ impl LocalSnapback {
         };
         let commit = self
             .db
-            .execute_mutation_guarded(plan, &input, check_live, before_commit)?;
-        Ok(self.finish_mutation_commit(epoch_scopes, commit))
+            .execute_mutation_guarded(plan, &input, check_live, || {
+                let admission_guard = admission.effect_guard("nested host-plan transaction")?;
+                let caller_guard = before_commit()?;
+                Ok((admission_guard, caller_guard))
+            })?;
+        self.finish_mutation_commit(epoch_scopes, commit, admission)
     }
 
     fn finish_mutation_commit(
         &mut self,
         epoch_scopes: BTreeSet<String>,
         commit: MutationCommit,
-    ) -> MutationCommit {
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<MutationCommit> {
         #[cfg(test)]
         BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
             if let Some(hook) = slot.borrow_mut().take() {
                 hook();
             }
         });
-        let permission_changes = if commit.output.changed_count > 0 {
-            self.advance_permission_epochs(&epoch_scopes)
-        } else {
-            Vec::new()
+        let permission_changes = {
+            let _effect = admission.effect_guard("permission epoch publication")?;
+            let changes = if commit.output.changed_count > 0 {
+                self.advance_permission_epochs(&epoch_scopes)
+            } else {
+                Vec::new()
+            };
+            if !changes.is_empty() {
+                self.refresh_read_epochs();
+            }
+            changes
         };
-        if !permission_changes.is_empty() {
-            self.refresh_read_epochs();
-        }
         if !permission_changes.is_empty() || !commit.changes.is_empty() {
             self.begin_live_delivery_frame(self.subscriptions.len());
-            let resynced = self.notify_permission_resyncs_in_frame(&permission_changes);
+            let resynced =
+                self.notify_permission_resyncs_in_frame(&permission_changes, admission)?;
             if !commit.changes.is_empty() {
-                self.notify_live_subscriptions_in_frame(&commit.changes, &resynced);
+                self.notify_live_subscriptions_in_frame(&commit.changes, &resynced, admission)?;
             }
         }
-        commit
+        Ok(commit)
     }
 
     pub(crate) fn commit_detached_ibex_mutation_guarded<G, Check, BeforeCommit>(
@@ -2724,6 +2917,8 @@ impl LocalSnapback {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        let admission = binding.invocation.admission_lease().clone();
+        admission.validate("detached nested mutation commit")?;
         check_live()?;
         let input = binding.invocation.canonicalize_input(input);
         let function = self.function(name)?.clone();
@@ -2749,10 +2944,15 @@ impl LocalSnapback {
             },
             None,
             check_live,
-            before_commit,
+            || {
+                let admission_guard =
+                    admission.effect_guard("detached nested mutation transaction")?;
+                let caller_guard = before_commit()?;
+                Ok((admission_guard, caller_guard))
+            },
         )?;
         Ok(self
-            .finish_mutation_commit(binding.epoch_scopes, commit)
+            .finish_mutation_commit(binding.epoch_scopes, commit, &admission)?
             .output)
     }
 
@@ -2773,10 +2973,11 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> SnapbackResult<MutationDryRunOutcome> {
-        let authority = InvocationGate::prepare_dev_input(
+        let authority = InvocationGate::prepare_admitted_dev_input(
             InvocationSource::LocalMutation,
             ServerProfile::Dev,
             &input,
+            self.admission.admit_dev()?,
         )?;
         self.dry_run_mutation_with_authority(name, input, authority)
     }
@@ -3240,12 +3441,17 @@ impl LocalSnapback {
     /// @ref LLP 0017#function-runner-and-code-runner — generated-function runner
     /// over the normal invocation path; not an arbitrary-JavaScript eval.
     pub fn run_function(&mut self, name: &str, input: HandlerInput) -> FunctionRunResult {
-        let authority = InvocationGate::prepare_dev_input(
-            InvocationSource::DirectAdminRunner,
-            ServerProfile::Dev,
-            &input,
-        )
-        .expect("dev direct-runner authority preparation is infallible");
+        let authority = match self.admission.admit_dev().and_then(|admission| {
+            InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::DirectAdminRunner,
+                ServerProfile::Dev,
+                &input,
+                admission,
+            )
+        }) {
+            Ok(authority) => authority,
+            Err(error) => return function_run_admission_failure(name, error),
+        };
         self.run_function_with_authority(name, input, authority)
     }
 
@@ -3401,12 +3607,25 @@ impl LocalSnapback {
     /// for app-triggered egress, not only scheduled cron runs.
     pub fn run_app_action(&mut self, name: &str, input: HandlerInput) -> FunctionRunResult {
         let started = Instant::now();
-        let authority = InvocationGate::prepare_dev_input(
-            InvocationSource::LocalAction,
-            ServerProfile::Dev,
-            &input,
-        )
-        .expect("dev action authority preparation is infallible");
+        let authority = match self.admission.admit_dev().and_then(|admission| {
+            InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LocalAction,
+                ServerProfile::Dev,
+                &input,
+                admission,
+            )
+        }) {
+            Ok(authority) => authority,
+            Err(error) => {
+                return action_run_result(
+                    name,
+                    Vec::new(),
+                    Vec::new(),
+                    elapsed_ms(started),
+                    Err(error),
+                );
+            }
+        };
         let stage = match self.stage_app_action_with_authority(name, authority) {
             StagedAppAction::Done(result) => return *result,
             StagedAppAction::Ready(stage) => stage,
@@ -3519,13 +3738,25 @@ impl LocalSnapback {
     /// unknown functions and non-actions are `SnapbackError`s, exactly as
     /// `invoke_action` would report them (ENG-23324).
     pub(crate) fn stage_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
+        let admission = self.admission.admit()?;
+        self.stage_action_invocation_with_admission(name, admission)
+    }
+
+    pub(crate) fn stage_action_invocation_with_admission(
+        &mut self,
+        name: &str,
+        admission: AdmissionLease,
+    ) -> SnapbackResult<StagedAction> {
         let function = self.function(name)?.clone();
-        let authority = InvocationGate::prepare_authority(
+        admission.validate("cron action staging")?;
+        let active_mode = admission
+            .active_mode()
+            .expect("LocalSnapback admissions are always controller-managed");
+        let authority = InvocationGate::prepare_admitted_authority(
             InvocationSource::Cron,
-            AuthMode::Dev,
+            active_mode,
             ServerProfile::Dev,
-            0,
-            0,
+            admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::System,
         )?;
@@ -4406,17 +4637,63 @@ impl LocalSnapback {
     /// server's detached cron flow uses this as the first lock window; the
     /// claims then execute off the global mutex and land back through
     /// [`Self::finish_cron_claim`] (ENG-23324).
-    pub(crate) fn claim_due_cron_runs(&mut self, now_ms: u64) -> SnapbackResult<Vec<CronRunClaim>> {
+    pub(crate) fn claim_due_cron_runs(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<AdmittedCronClaim>> {
+        // Admission precedes the scheduler mutation and its durable claim
+        // write. If a close races while a multi-job batch is being assembled,
+        // acquisition of any remaining per-claim root fails and the in-memory
+        // scheduler rolls back before persistence.
+        let first_admission = self.admission.admit()?;
         let active_live_functions = self.active_live_functions();
         let before_claim = self.cron.clone();
         let claims = self
             .cron
             .claim_due_runs(&self.functions, &active_live_functions, now_ms);
+        if claims.is_empty() {
+            let effect = match first_admission.effect_guard("cron scheduler state publication") {
+                Ok(effect) => effect,
+                Err(error) => {
+                    self.cron = before_claim;
+                    return Err(error);
+                }
+            };
+            if let Err(error) = self.persist_cron_state() {
+                self.cron = before_claim;
+                return Err(error);
+            }
+            drop(effect);
+            return Ok(Vec::new());
+        }
+        let mut admissions = Vec::with_capacity(claims.len());
+        admissions.push(first_admission);
+        for _ in 1..claims.len() {
+            match self.admission.admit() {
+                Ok(admission) => admissions.push(admission),
+                Err(error) => {
+                    self.cron = before_claim;
+                    return Err(error);
+                }
+            }
+        }
+        let effect = match admissions[0].effect_guard("cron claim publication") {
+            Ok(effect) => effect,
+            Err(error) => {
+                self.cron = before_claim;
+                return Err(error);
+            }
+        };
         if let Err(error) = self.persist_cron_state() {
             self.cron = before_claim;
             return Err(error);
         }
-        Ok(claims)
+        drop(effect);
+        Ok(claims
+            .into_iter()
+            .zip(admissions)
+            .map(|(claim, admission)| AdmittedCronClaim { claim, admission })
+            .collect())
     }
 
     /// Claim (and persist) a manual run of one cron job — the detached-flow
@@ -4425,14 +4702,23 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         now_ms: u64,
-    ) -> SnapbackResult<CronRunClaim> {
+    ) -> SnapbackResult<AdmittedCronClaim> {
+        let admission = self.admission.admit()?;
         let before_claim = self.cron.clone();
         let claim = self.cron.claim_manual_run(&self.functions, name, now_ms)?;
+        let effect = match admission.effect_guard("manual cron claim publication") {
+            Ok(effect) => effect,
+            Err(error) => {
+                self.cron = before_claim;
+                return Err(error);
+            }
+        };
         if let Err(error) = self.persist_cron_state() {
             self.cron = before_claim;
             return Err(error);
         }
-        Ok(claim)
+        drop(effect);
+        Ok(AdmittedCronClaim { claim, admission })
     }
 
     /// Route a cron tick's *machinery* error (claim/persist/finish failure)
@@ -4552,6 +4838,8 @@ impl LocalSnapback {
     fn from_database(db: LocalDatabase) -> SnapbackResult<Self> {
         let runtime = RuntimeManager::detect();
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
+        let auth_mode = db.auth_mode_snapshot()?.state;
+        let admission = AdmissionController::from_mode_state(&auth_mode)?;
         let mut recent_diagnostics = VecDeque::new();
         for diagnostic in runtime.diagnostics() {
             recent_diagnostics.push_back(diagnostic);
@@ -4584,6 +4872,7 @@ impl LocalSnapback {
             connections_last_seen: ConnectionActivity::default(),
             reaped_connections: 0,
             warm_vms: Arc::new(crate::warm_vm::WarmVmPool::from_env()),
+            admission,
             app_generation,
             app_generation_fence: Arc::new(AtomicU64::new(app_generation)),
             secret_read_reset_generation: Arc::new(AtomicU64::new(1)),
@@ -4614,6 +4903,7 @@ impl LocalSnapback {
             epochs: self.read_epochs.clone(),
             pool: self.db.reader_pool(),
             warm_vms: self.warm_vms.clone(),
+            admission: self.admission.clone(),
             secret_read_reset_generation: self.secret_read_reset_generation.clone(),
         }
     }
@@ -4656,18 +4946,21 @@ impl LocalSnapback {
 
     fn execute_cron_claims(
         &mut self,
-        claims: Vec<CronRunClaim>,
+        claims: Vec<AdmittedCronClaim>,
     ) -> SnapbackResult<Vec<CronRunRecord>> {
         let mut records = Vec::new();
         for claim in claims {
             let started_wall_ms = now_millis();
             let function = self.function(&claim.job.action)?.clone();
-            let authority = InvocationGate::prepare_authority(
+            let admission = claim.admission_lease().clone();
+            let active_mode = admission
+                .active_mode()
+                .expect("LocalSnapback admissions are always controller-managed");
+            let authority = InvocationGate::prepare_admitted_authority(
                 InvocationSource::Cron,
-                AuthMode::Dev,
+                active_mode,
                 ServerProfile::Dev,
-                0,
-                0,
+                admission,
                 &WireAuthorityFields::default(),
                 ResolvedAppAuthority::System,
             )?;
@@ -4692,10 +4985,12 @@ impl LocalSnapback {
     /// for Ibex actions that may perform egress (ENG-23324).
     pub(crate) fn finish_cron_claim(
         &mut self,
-        claim: CronRunClaim,
+        claim: AdmittedCronClaim,
         started_wall_ms: u64,
         result: Result<Value, Diagnostic>,
     ) -> SnapbackResult<CronRunRecord> {
+        let admission = claim.admission_lease().clone();
+        let _publication = admission.effect_guard("cron result ledger publication")?;
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D8
         // (semantics LLP 0029 G6): measure real wall-clock around the run so
         // durationMs is not always zero. finished_at stays logically
@@ -4705,7 +5000,7 @@ impl LocalSnapback {
         let result = result.map_err(|diagnostic| self.config.redact_diagnostic(diagnostic));
         let elapsed_ms = now_millis().saturating_sub(started_wall_ms);
         let finished_at_ms = claim.started_at_ms.saturating_add(elapsed_ms);
-        let record = self.cron.finish_run(claim, finished_at_ms, result);
+        let record = self.cron.finish_run(claim.claim, finished_at_ms, result);
         self.persist_cron_state()?;
         if record.outcome == CronRunOutcome::Failed
             && let Some(diagnostic) = &record.diagnostic
@@ -4722,6 +5017,7 @@ impl LocalSnapback {
         metadata: CronRunMetadata,
         prepared: PreparedInvocation,
     ) -> SnapbackResult<Value> {
+        prepared.validate_admission("action execution")?;
         let function = self.function(name)?.clone();
         if prepared.function_id()
             != function
@@ -4768,12 +5064,14 @@ impl LocalSnapback {
                 format!("{name} is not an action"),
             )),
         };
-        result.map_err(|error| {
+        let result = result.map_err(|error| {
             // In-lock actions cannot race config rotation, but scrub at the
             // creation boundary so no public envelope observes raw secret
             // text before a later retention sink gets a chance to redact it.
             invocation_redactor.redact_error(error)
-        })
+        });
+        prepared.validate_admission("action response publication")?;
+        result
     }
 
     fn invoke_action_plan(
@@ -4890,8 +5188,12 @@ impl LocalSnapback {
             return;
         }
 
+        let Ok(admission) = self.admission.admit() else {
+            return;
+        };
+
         self.begin_live_delivery_frame(self.subscriptions.len());
-        self.notify_live_subscriptions_in_frame(changes, &BTreeSet::new());
+        let _ = self.notify_live_subscriptions_in_frame(changes, &BTreeSet::new(), &admission);
     }
 
     fn begin_live_delivery_frame(&mut self, subscriptions: usize) {
@@ -4906,7 +5208,8 @@ impl LocalSnapback {
         &mut self,
         changes: &[ChangedRow],
         already_resynced: &BTreeSet<String>,
-    ) {
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<()> {
         // Cheap affected prefilter over borrowed subscriptions: only the
         // survivors are cloned for the mutable delivery loop below (ENG-23334
         // — the old upfront `values().cloned()` deep-copied every retained
@@ -4967,7 +5270,7 @@ impl LocalSnapback {
 
         for (subscription, delta_plan) in affected {
             if let Some(plan) = &delta_plan {
-                match self.try_live_delta_fanout(&subscription, plan, changes) {
+                match self.try_live_delta_fanout(&subscription, plan, changes, admission)? {
                     Some(DeltaFanout::Delivered) => {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
@@ -4979,21 +5282,32 @@ impl LocalSnapback {
                         continue;
                     }
                     Some(DeltaFanout::Failed(error)) => {
-                        self.fail_subscription_fanout(&subscription, "live_delta_failed", error);
+                        self.fail_subscription_fanout(
+                            &subscription,
+                            "live_delta_failed",
+                            error,
+                            admission,
+                        )?;
                         continue;
                     }
                     None => {}
                 }
             }
 
-            let query = match self.invoke_query_with_dependencies_from_source(
+            let query = match self.invoke_query_with_dependencies_from_source_and_admission(
                 &subscription.function,
                 subscription.input.clone(),
                 InvocationSource::LiveRerun,
+                admission.clone(),
             ) {
                 Ok(query) => query,
                 Err(error) => {
-                    self.fail_subscription_fanout(&subscription, "live_refresh_failed", error);
+                    self.fail_subscription_fanout(
+                        &subscription,
+                        "live_refresh_failed",
+                        error,
+                        admission,
+                    )?;
                     continue;
                 }
             };
@@ -5014,18 +5328,23 @@ impl LocalSnapback {
                             "live query update could not be serialized",
                         )
                         .with_details(json!({ "error": error.to_string() })),
-                    );
+                        admission,
+                    )?;
                     continue;
                 }
             };
-            if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
-                stored.read_dependencies = query.read_dependencies;
+            {
+                let _publication = admission.effect_guard("live replacement publication")?;
+                if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
+                    stored.read_dependencies = query.read_dependencies;
+                }
+                self.ephemeral
+                    .enqueue_durable(subscription.connection_id, payload);
             }
-            self.ephemeral
-                .enqueue_durable(subscription.connection_id, payload);
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
         }
+        Ok(())
     }
 
     /// Try the DK-3 op-log delta fast path for one affected subscription.
@@ -5045,17 +5364,21 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         plan: &QueryPlan,
         changes: &[ChangedRow],
-    ) -> Option<DeltaFanout> {
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<Option<DeltaFanout>> {
         // The subscription must carry a captured Query dependency (its current
         // result membership); a subscription established before this change, or
         // one whose snapshot captured no query dependency, falls back.
-        let query_dep_index = subscription
+        let Some(query_dep_index) = subscription
             .read_dependencies
             .iter()
             .position(|dependency| {
                 dependency.kind == CapturedReadKind::Query
                     && dependency.table.as_deref() == Some(plan.table.as_str())
-            })?;
+            })
+        else {
+            return Ok(None);
+        };
         let prior_ids: BTreeSet<String> = subscription.read_dependencies[query_dep_index]
             .rows
             .iter()
@@ -5064,20 +5387,22 @@ impl LocalSnapback {
 
         let ops = match compute_live_delta(plan, &subscription.input, &prior_ids, changes) {
             LiveDeltaOutcome::Delta(ops) => ops,
-            LiveDeltaOutcome::Replace => return None,
+            LiveDeltaOutcome::Replace => return Ok(None),
         };
         if ops.is_empty() {
             // The matcher flagged the subscription as possibly affected, but no
             // committed row actually enters/leaves/updates its result. Nothing
             // to deliver — no re-query needed either.
-            return Some(DeltaFanout::NoChange);
+            return Ok(Some(DeltaFanout::NoChange));
         }
 
         // The commit version: read once on the write lane (this runs under the
         // global mutex right after commit, so it is exactly the commit's
         // version). If the read fails, fall back to the re-query path, which
         // carries its own version.
-        let version = self.db.current_version().ok()?;
+        let Some(version) = self.db.current_version().ok() else {
+            return Ok(None);
+        };
 
         let wire_ops: Vec<LiveDeltaWireOp> = ops
             .iter()
@@ -5100,14 +5425,14 @@ impl LocalSnapback {
         }) {
             Ok(payload) => payload,
             Err(error) => {
-                return Some(DeltaFanout::Failed(
+                return Ok(Some(DeltaFanout::Failed(
                     SnapbackError::error(
                         "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
                         "realtime",
                         "live query delta could not be serialized",
                     )
                     .with_details(json!({ "error": error.to_string() })),
-                ));
+                )));
             }
         };
 
@@ -5115,37 +5440,42 @@ impl LocalSnapback {
         // captured Query dependency — no re-query. Add/remove change the id
         // set; update leaves membership unchanged. Refresh the dependency's
         // table-change version so the matcher's next affected-check is accurate.
-        let fresh_table_version = self.db.table_change_version(&plan.table).ok();
-        if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
-            && let Some(dependency) = stored.read_dependencies.get_mut(query_dep_index)
         {
-            let mut removes: HashSet<&str> = HashSet::new();
-            let mut adds: Vec<String> = Vec::new();
-            for op in &ops {
-                match op.kind {
-                    LiveDeltaKind::Add => {
-                        adds.push(op.id.clone());
-                    }
-                    LiveDeltaKind::Remove => {
-                        removes.insert(op.id.as_str());
-                    }
-                    LiveDeltaKind::Update => {}
-                }
-            }
-            if !removes.is_empty() {
-                dependency.rows.retain(|id| !removes.contains(id.as_str()));
-            }
-            if !adds.is_empty() {
-                let mut existing: HashSet<String> = dependency.rows.iter().cloned().collect();
-                for id in &adds {
-                    if existing.insert(id.clone()) {
-                        dependency.rows.push(id.clone());
+            let _publication = admission.effect_guard("live delta publication")?;
+            let fresh_table_version = self.db.table_change_version(&plan.table).ok();
+            if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+                && let Some(dependency) = stored.read_dependencies.get_mut(query_dep_index)
+            {
+                let mut removes: HashSet<&str> = HashSet::new();
+                let mut adds: Vec<String> = Vec::new();
+                for op in &ops {
+                    match op.kind {
+                        LiveDeltaKind::Add => {
+                            adds.push(op.id.clone());
+                        }
+                        LiveDeltaKind::Remove => {
+                            removes.insert(op.id.as_str());
+                        }
+                        LiveDeltaKind::Update => {}
                     }
                 }
+                if !removes.is_empty() {
+                    dependency.rows.retain(|id| !removes.contains(id.as_str()));
+                }
+                if !adds.is_empty() {
+                    let mut existing: HashSet<String> = dependency.rows.iter().cloned().collect();
+                    for id in &adds {
+                        if existing.insert(id.clone()) {
+                            dependency.rows.push(id.clone());
+                        }
+                    }
+                }
+                if let Some(fresh) = fresh_table_version {
+                    dependency.version = Some(fresh);
+                }
             }
-            if let Some(fresh) = fresh_table_version {
-                dependency.version = Some(fresh);
-            }
+            self.ephemeral
+                .enqueue_durable(subscription.connection_id.clone(), payload);
         }
 
         // Convergence gate (debug/test only): the delta-maintained member set
@@ -5153,11 +5483,9 @@ impl LocalSnapback {
         // membership drift fails the test that exercises this path. (L4 parity
         // pattern.)
         #[cfg(debug_assertions)]
-        self.debug_assert_delta_membership_converges(subscription, query_dep_index);
+        self.debug_assert_delta_membership_converges(subscription, query_dep_index, admission);
 
-        self.ephemeral
-            .enqueue_durable(subscription.connection_id.clone(), payload);
-        Some(DeltaFanout::Delivered)
+        Ok(Some(DeltaFanout::Delivered))
     }
 
     /// Debug-only: re-run the subscription's query and assert the
@@ -5168,11 +5496,13 @@ impl LocalSnapback {
         &self,
         subscription: &LiveSubscription,
         query_dep_index: usize,
+        admission: &AdmissionLease,
     ) {
-        let Ok(fresh) = self.invoke_query_with_dependencies_from_source(
+        let Ok(fresh) = self.invoke_query_with_dependencies_from_source_and_admission(
             &subscription.function,
             subscription.input.clone(),
             InvocationSource::LiveRerun,
+            admission.clone(),
         ) else {
             return;
         };
@@ -5206,7 +5536,9 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         reason: &str,
         error: SnapbackError,
-    ) {
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<()> {
+        let _publication = admission.effect_guard("live failure/resync publication")?;
         self.live_delivery.total_failed += 1;
         self.live_delivery.last_failed += 1;
         let mut diagnostic = error.diagnostic;
@@ -5227,6 +5559,7 @@ impl LocalSnapback {
             self.ephemeral
                 .enqueue_durable(subscription.connection_id.clone(), payload);
         }
+        Ok(())
     }
 
     fn permission_epoch(&self, scope: &str) -> u64 {
@@ -5256,10 +5589,11 @@ impl LocalSnapback {
     fn notify_permission_resyncs_in_frame(
         &mut self,
         changes: &[(String, u64)],
-    ) -> BTreeSet<String> {
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<BTreeSet<String>> {
         let mut resynced = BTreeSet::new();
         if changes.is_empty() || self.subscriptions.is_empty() {
-            return resynced;
+            return Ok(resynced);
         }
 
         // Same prefilter shape as `notify_live_subscriptions` (ENG-23334):
@@ -5293,17 +5627,21 @@ impl LocalSnapback {
                             "live resync message could not be serialized",
                         )
                         .with_details(json!({ "error": error.to_string() })),
-                    );
+                        admission,
+                    )?;
                     continue;
                 }
             };
-            self.ephemeral
-                .enqueue_durable(subscription.connection_id, payload);
+            {
+                let _publication = admission.effect_guard("permission resync publication")?;
+                self.ephemeral
+                    .enqueue_durable(subscription.connection_id, payload);
+            }
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
             resynced.insert(subscription.id);
         }
-        resynced
+        Ok(resynced)
     }
 
     fn subscription_has_stale_permission(&self, subscription: &LiveSubscription) -> bool {
@@ -5414,6 +5752,7 @@ pub struct ReadLane {
     // (exclusive ownership per checkout), warming extras on miss up to the
     // pool bound.
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
+    admission: AdmissionController,
     secret_read_reset_generation: Arc<AtomicU64>,
 }
 
@@ -5424,6 +5763,10 @@ pub struct ReadHealth {
 }
 
 impl ReadLane {
+    pub(crate) fn admission_controller(&self) -> AdmissionController {
+        self.admission.clone()
+    }
+
     pub(crate) fn secret_read_reset_generation(&self) -> Arc<AtomicU64> {
         self.secret_read_reset_generation.clone()
     }
@@ -5470,7 +5813,12 @@ impl ReadLane {
         input: HandlerInput,
         source: InvocationSource,
     ) -> SnapbackResult<QueryOutput> {
-        let authority = InvocationGate::prepare_dev_input(source, ServerProfile::Dev, &input)?;
+        let authority = InvocationGate::prepare_admitted_dev_input(
+            source,
+            ServerProfile::Dev,
+            &input,
+            self.admission.admit_dev()?,
+        )?;
         self.invoke_query_prepared(name, input, authority)
     }
 
@@ -5708,7 +6056,8 @@ fn execute_query_invocation(
     prepared: &PreparedInvocation,
     warm_vms: Option<&crate::warm_vm::WarmVmPool>,
 ) -> SnapbackResult<QueryInvocation> {
-    match (&function.kind, &function.runtime) {
+    prepared.validate_admission("query execution")?;
+    let invocation = match (&function.kind, &function.runtime) {
         (
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
@@ -5741,7 +6090,9 @@ fn execute_query_invocation(
             "runtime",
             format!("{name} is not a query"),
         )),
-    }
+    }?;
+    prepared.validate_admission("query result")?;
+    Ok(invocation)
 }
 
 fn add_permission_dependencies_with(
@@ -6013,6 +6364,10 @@ mod tests {
     use crate::auth::invocation::{
         InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
     };
+    use crate::auth::mode::{
+        AuthModeStateRecord, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
+        SCHEMA_V1_PREFIX,
+    };
     use crate::manifest::{
         AuthManifest, AuthMode, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp,
         FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
@@ -6159,6 +6514,77 @@ globalThis.__snapbackHandlers = {
   }
 };
 "#;
+
+    fn settled_sessions_state() -> AuthModeStateRecord {
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "app".to_owned(),
+            schema_hash: digest(SCHEMA_V1_PREFIX, 'a'),
+            bundle_hash: digest(FUNCTION_V1_PREFIX, 'b'),
+            inputs_hash: digest(INPUTS_V1_PREFIX, 'c'),
+        };
+        let mut state = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
+        state.transition_generation = 4;
+        state.active = AuthMode::Sessions;
+        state.desired = AuthMode::Sessions;
+        state.sessions_ever_activated = true;
+        state.active_deployment = Some(deployment);
+        state
+            .validate_shape()
+            .expect("valid settled Sessions state");
+        state
+    }
+
+    #[test]
+    fn legacy_local_and_read_lane_apis_reject_settled_sessions_mode() {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .synchronize_auth_mode_admission(&settled_sessions_state())
+            .expect("publish exact Sessions mode");
+
+        let assert_mode_rejection = |error: crate::diagnostic::SnapbackError| {
+            assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+        };
+        assert_mode_rejection(
+            snapback
+                .invoke_query("missing", HandlerInput::default())
+                .unwrap_err(),
+        );
+        assert_mode_rejection(
+            snapback
+                .invoke_mutation("missing", HandlerInput::default())
+                .unwrap_err(),
+        );
+        assert_mode_rejection(
+            snapback
+                .dry_run_mutation("missing", HandlerInput::default())
+                .unwrap_err(),
+        );
+        assert_eq!(
+            snapback
+                .run_function("missing", HandlerInput::default())
+                .diagnostic
+                .expect("runner rejection")
+                .code,
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            snapback
+                .run_app_action("missing", HandlerInput::default())
+                .diagnostic
+                .expect("action rejection")
+                .code,
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_mode_rejection(
+            snapback
+                .read_lane()
+                .invoke_query("missing", HandlerInput::default())
+                .unwrap_err(),
+        );
+    }
 
     fn reload_schema(hash: &str, include_extra: bool) -> SchemaManifest {
         let fields = vec![FieldManifest {

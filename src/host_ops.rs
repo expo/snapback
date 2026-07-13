@@ -11,14 +11,12 @@
 //!   is generated from them (tests/artifact_schemas_v0.rs).
 
 use crate::admin::ServerProfile;
-use crate::auth::invocation::{
-    InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
-};
+use crate::auth::invocation::{InvocationSource, PreparedAuthority};
 use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::local::LocalSnapback;
 use crate::manifest::{
-    AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, HandlerInput,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    CtxAnswerLedger, FunctionKind, FunctionManifest, HandlerInput, SNAPBACK_SCHEMA_VERSION,
+    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use serde::de::{Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
@@ -567,6 +565,64 @@ pub(crate) fn auth_operator_result(
     }
 }
 
+fn host_op_handler_input(request: &HostOpsRequest) -> HandlerInput {
+    HandlerInput {
+        args: request
+            .args
+            .clone()
+            .unwrap_or_else(|| Value::Object(Default::default())),
+        auth: crate::manifest::AuthInput {
+            principal: None,
+            session_id: None,
+            user_id: request.user_id.clone(),
+        },
+        read_set: Vec::new(),
+        correlation: None,
+        ctx_ledger: None,
+    }
+}
+
+fn legacy_host_op_authority(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    profile: ServerProfile,
+) -> Result<Option<PreparedAuthority>, SnapbackError> {
+    let source = match request.operation.as_str() {
+        "function.run" => Some(InvocationSource::HostOperationFunctionRun),
+        "function.explain" if request.kind.as_deref() == Some("mutationDryRun") => {
+            Some(InvocationSource::HostOperationMutationDryRun)
+        }
+        _ => None,
+    };
+    source
+        .map(|source| {
+            snapback.prepare_legacy_dev_authority(source, profile, &host_op_handler_input(request))
+        })
+        .transpose()
+}
+
+fn require_host_op_authority(
+    authority: Option<PreparedAuthority>,
+    expected: InvocationSource,
+) -> Result<PreparedAuthority, SnapbackError> {
+    let authority = authority.ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "host operation requires server-prepared managed authority",
+        )
+    })?;
+    if authority.source() != expected {
+        return Err(SnapbackError::error(
+            "SNAPBACK_INVOCATION_SOURCE_INVALID",
+            "auth",
+            "server-prepared authority source does not match the host operation",
+        ));
+    }
+    authority.validate_admission("host operation dispatch")?;
+    Ok(authority)
+}
+
 /// Execute one served host operation against the local instance and produce
 /// the envelope. The HTTP handler and (through HTTP) the CLI both come here,
 /// so the projections cannot drift.
@@ -591,6 +647,41 @@ pub fn execute_host_op_with_profile(
     request: HostOpsRequest,
     server_url: Option<String>,
     profile: crate::admin::ServerProfile,
+) -> HostOpsResult {
+    let prepared_authority = match legacy_host_op_authority(snapback, &request, profile) {
+        Ok(authority) => authority,
+        Err(error) => {
+            return host_ops_result(
+                snapback,
+                request.request_id.clone().unwrap_or_else(new_request_id),
+                request.operation.clone(),
+                server_url,
+                profile,
+                false,
+                authority_none(),
+                Value::Object(Default::default()),
+                vec![error.diagnostic],
+            );
+        }
+    };
+    execute_host_op_with_profile_and_authority(
+        snapback,
+        request,
+        server_url,
+        profile,
+        prepared_authority,
+    )
+}
+
+/// Execute with authority prepared by server middleware under one managed
+/// admission lease. Only app-executing host operations consume this value;
+/// administrative metadata operations must pass `None`.
+pub fn execute_host_op_with_profile_and_authority(
+    snapback: &mut LocalSnapback,
+    request: HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    prepared_authority: Option<PreparedAuthority>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
     let operation = request.operation.clone();
@@ -746,8 +837,8 @@ pub fn execute_host_op_with_profile(
                 diagnostics,
             )
         }
-        "function.run" => run_function(snapback, &request, envelope),
-        "function.explain" => explain_function(snapback, &request, envelope),
+        "function.run" => run_function(snapback, &request, prepared_authority, envelope),
+        "function.explain" => explain_function(snapback, &request, prepared_authority, envelope),
         "auth.mintSession" | "auth.rescueCollidingTable" => envelope(
             snapback,
             false,
@@ -798,6 +889,7 @@ pub fn execute_host_op_with_profile(
 fn run_function(
     snapback: &mut LocalSnapback,
     request: &HostOpsRequest,
+    prepared_authority: Option<PreparedAuthority>,
     envelope: impl Fn(
         &LocalSnapback,
         bool,
@@ -807,6 +899,21 @@ fn run_function(
     ) -> HostOpsResult,
 ) -> HostOpsResult {
     let authority = authority_dev_user(request.user_id.as_deref());
+    let prepared_authority = match require_host_op_authority(
+        prepared_authority,
+        InvocationSource::HostOperationFunctionRun,
+    ) {
+        Ok(authority) => authority,
+        Err(error) => {
+            return envelope(
+                snapback,
+                false,
+                authority,
+                Value::Object(Default::default()),
+                vec![error.diagnostic],
+            );
+        }
+    };
     let Some(function) = request.function.clone() else {
         return envelope(
             snapback,
@@ -835,30 +942,7 @@ fn run_function(
     };
     let (name, kind) = (definition.name.clone(), definition.kind.clone());
     let declared_reads = snapback.function_declared_read_tables(&name);
-    let input = HandlerInput {
-        args: request
-            .args
-            .clone()
-            .unwrap_or_else(|| Value::Object(Default::default())),
-        auth: crate::manifest::AuthInput {
-            principal: None,
-            session_id: None,
-            user_id: request.user_id.clone(),
-        },
-        read_set: Vec::new(),
-        correlation: None,
-        ctx_ledger: None,
-    };
-    let prepared_authority = InvocationGate::prepare_authority(
-        InvocationSource::HostOperationFunctionRun,
-        AuthMode::Dev,
-        ServerProfile::Dev,
-        0,
-        0,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::dev_from_auth(&input.auth),
-    )
-    .expect("registered dev host-op authority preparation is infallible");
+    let input = host_op_handler_input(request);
     match kind {
         FunctionKind::Query | FunctionKind::LiveQuery => {
             match snapback.invoke_query_with_dependencies_prepared(&name, input, prepared_authority)
@@ -1092,6 +1176,7 @@ fn dry_run_read_wire(dependency: &crate::storage::CapturedReadDependency) -> Dry
 fn explain_function(
     snapback: &mut LocalSnapback,
     request: &HostOpsRequest,
+    prepared_authority: Option<PreparedAuthority>,
     envelope: impl Fn(
         &LocalSnapback,
         bool,
@@ -1142,6 +1227,21 @@ fn explain_function(
             ],
         );
     }
+    let prepared_authority = match require_host_op_authority(
+        prepared_authority,
+        InvocationSource::HostOperationMutationDryRun,
+    ) {
+        Ok(authority) => authority,
+        Err(error) => {
+            return envelope(
+                snapback,
+                false,
+                authority,
+                Value::Object(Default::default()),
+                vec![error.diagnostic],
+            );
+        }
+    };
     let Some(function) = request.function.clone() else {
         return envelope(
             snapback,
@@ -1155,30 +1255,7 @@ fn explain_function(
             )],
         );
     };
-    let input = HandlerInput {
-        args: request
-            .args
-            .clone()
-            .unwrap_or_else(|| Value::Object(Default::default())),
-        auth: crate::manifest::AuthInput {
-            principal: None,
-            session_id: None,
-            user_id: request.user_id.clone(),
-        },
-        read_set: Vec::new(),
-        correlation: None,
-        ctx_ledger: None,
-    };
-    let prepared_authority = InvocationGate::prepare_authority(
-        InvocationSource::HostOperationMutationDryRun,
-        AuthMode::Dev,
-        ServerProfile::Dev,
-        0,
-        0,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::dev_from_auth(&input.auth),
-    )
-    .expect("registered dev host-op authority preparation is infallible");
+    let input = host_op_handler_input(request);
     let declared_secret_reads = snapback.function_declared_read_tables(&function);
     match snapback.dry_run_mutation_with_authority(&function, input, prepared_authority) {
         Ok(outcome) => {
@@ -1296,6 +1373,31 @@ fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn host_op_rejects_managed_authority_from_a_different_source_before_lookup() {
+        let mut snapback = LocalSnapback::memory().expect("memory host-op fixture");
+        let request = HostOpsRequest {
+            operation: "function.run".to_owned(),
+            function: Some("missing".to_owned()),
+            ..HostOpsRequest::default()
+        };
+        let input = host_op_handler_input(&request);
+        let wrong = snapback
+            .prepare_legacy_dev_authority(InvocationSource::LocalQuery, ServerProfile::Dev, &input)
+            .expect("managed but wrong-source authority");
+        let result = execute_host_op_with_profile_and_authority(
+            &mut snapback,
+            request,
+            None,
+            ServerProfile::Dev,
+            Some(wrong),
+        );
+        assert_eq!(
+            result.diagnostics[0].code,
+            "SNAPBACK_INVOCATION_SOURCE_INVALID"
+        );
+    }
 
     #[test]
     fn host_ops_debug_redacts_auth_inputs_and_credential_data() {

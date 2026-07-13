@@ -1,0 +1,1321 @@
+//! Process-local admission epochs for auth-mode transitions.
+//!
+//! A durable auth-mode generation is not sufficient to fence work already in
+//! memory: a timed-out handler can still hold buffered writes or a response.
+//! This module pairs that durable generation with a process-monotonic epoch,
+//! counts each root admission exactly once, and makes every effect acquire the
+//! same mutex used to retire an epoch.
+
+// @ref LLP 0055#stage-ordering — staging closes admission, waits at one exact
+// monotonic deadline, and retires/cancels the old epoch without killing a thread.
+// @ref LLP 0055#gate-algorithm — commit and publication revalidate both the
+// durable transition generation and process-local admission epoch atomically.
+
+use crate::auth::mode::{AppDataAvailability, AuthModeStateRecord, AuthModeStatus};
+use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::manifest::AuthMode;
+use std::collections::BTreeMap;
+use std::fmt;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
+use std::time::{Duration, Instant};
+
+pub const AUTH_MODE_QUIESCENCE_TIMEOUT_MS: u64 = 30_000;
+
+static NEXT_ADMISSION_EPOCH: AtomicU64 = AtomicU64::new(1);
+
+type CancellationHook = Arc<dyn Fn() + Send + Sync + 'static>;
+
+#[derive(Default)]
+struct CancellationState {
+    cancelled: bool,
+    next_hook: u64,
+    hooks: BTreeMap<u64, CancellationHook>,
+}
+
+struct CancellationSignal {
+    state: Mutex<CancellationState>,
+    changed: tokio::sync::Notify,
+}
+
+impl Default for CancellationSignal {
+    fn default() -> Self {
+        Self {
+            state: Mutex::new(CancellationState::default()),
+            changed: tokio::sync::Notify::new(),
+        }
+    }
+}
+
+impl CancellationSignal {
+    fn is_cancelled(&self) -> bool {
+        lock(&self.state).cancelled
+    }
+
+    fn register(self: &Arc<Self>, hook: CancellationHook) -> CancellationRegistration {
+        let mut state = lock(&self.state);
+        if state.cancelled {
+            drop(state);
+            hook();
+            return CancellationRegistration::inactive();
+        }
+        let id = state.next_hook;
+        state.next_hook = state.next_hook.wrapping_add(1);
+        state.hooks.insert(id, hook);
+        CancellationRegistration {
+            signal: Some(self.clone()),
+            id,
+        }
+    }
+
+    fn cancel(&self) {
+        let hooks = {
+            let mut state = lock(&self.state);
+            if state.cancelled {
+                return;
+            }
+            // Mark and detach under the linearization mutex, then invoke
+            // arbitrary callbacks outside it. A callback may safely observe
+            // cancellation or tear down another registration without
+            // re-entering this mutex and deadlocking.
+            state.cancelled = true;
+            std::mem::take(&mut state.hooks)
+        };
+        self.changed.notify_waiters();
+        for hook in hooks.into_values() {
+            hook();
+        }
+    }
+}
+
+/// RAII removal for a cooperative/engine cancellation callback.
+pub struct CancellationRegistration {
+    signal: Option<Arc<CancellationSignal>>,
+    id: u64,
+}
+
+impl CancellationRegistration {
+    fn inactive() -> Self {
+        Self {
+            signal: None,
+            id: 0,
+        }
+    }
+}
+
+impl Drop for CancellationRegistration {
+    fn drop(&mut self) {
+        if let Some(signal) = self.signal.take() {
+            lock(&signal.state).hooks.remove(&self.id);
+        }
+    }
+}
+
+struct EpochState {
+    transition_generation: u64,
+    active_mode: AuthMode,
+    accepting: bool,
+    retired: bool,
+    transition_owned: bool,
+    in_flight: usize,
+    cancellation: Arc<CancellationSignal>,
+}
+
+struct AdmissionState {
+    current_epoch: u64,
+    epochs: BTreeMap<u64, EpochState>,
+}
+
+struct AdmissionInner {
+    state: Mutex<AdmissionState>,
+    drained: Condvar,
+    changed: tokio::sync::Notify,
+}
+
+/// One app instance's process-local admission authority.
+#[derive(Clone)]
+pub struct AdmissionController {
+    inner: Arc<AdmissionInner>,
+}
+
+/// Public semantic name used by server composition.
+pub type AuthAdmissionController = AdmissionController;
+
+impl fmt::Debug for AdmissionController {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let state = lock(&self.inner.state);
+        let current = state
+            .epochs
+            .get(&state.current_epoch)
+            .expect("current admission epoch exists");
+        formatter
+            .debug_struct("AdmissionController")
+            .field("epoch", &state.current_epoch)
+            .field("transition_generation", &current.transition_generation)
+            .field("active_mode", &current.active_mode)
+            .field("accepting", &current.accepting)
+            .field("in_flight", &current.in_flight)
+            .finish()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AdmissionSnapshot {
+    pub transition_generation: u64,
+    pub admission_epoch: u64,
+    pub active_mode: AuthMode,
+    pub accepting: bool,
+    pub in_flight: usize,
+}
+
+impl AdmissionController {
+    /// Construct a dev-mode controller. This compatibility constructor is
+    /// intentionally narrow; production composition should prefer
+    /// [`Self::from_mode_state`] so the epoch binds the exact durable mode.
+    pub fn new(transition_generation: u64, accepting: bool) -> SnapbackResult<Self> {
+        Self::new_for_mode(transition_generation, AuthMode::Dev, accepting)
+    }
+
+    pub fn from_mode_state(mode: &AuthModeStateRecord) -> SnapbackResult<Self> {
+        let accepting = mode.mode_state == AuthModeStatus::Settled
+            && mode.app_data_availability == AppDataAvailability::Available;
+        Self::new_for_mode(mode.transition_generation, mode.active, accepting)
+    }
+
+    fn new_for_mode(
+        transition_generation: u64,
+        active_mode: AuthMode,
+        accepting: bool,
+    ) -> SnapbackResult<Self> {
+        let epoch = next_admission_epoch()?;
+        let mut epochs = BTreeMap::new();
+        epochs.insert(
+            epoch,
+            EpochState {
+                transition_generation,
+                active_mode,
+                accepting,
+                retired: false,
+                transition_owned: false,
+                in_flight: 0,
+                cancellation: Arc::new(CancellationSignal::default()),
+            },
+        );
+        Ok(Self {
+            inner: Arc::new(AdmissionInner {
+                state: Mutex::new(AdmissionState {
+                    current_epoch: epoch,
+                    epochs,
+                }),
+                drained: Condvar::new(),
+                changed: tokio::sync::Notify::new(),
+            }),
+        })
+    }
+
+    pub fn snapshot(&self) -> AdmissionSnapshot {
+        let state = lock(&self.inner.state);
+        snapshot(&state)
+    }
+
+    /// Observation-only alias for handshake and diagnostics paths. It does
+    /// not admit app-data work and therefore cannot accidentally create a root
+    /// while the durable mode is pending or quarantined.
+    pub fn diagnostic_snapshot(&self) -> AdmissionSnapshot {
+        self.snapshot()
+    }
+
+    /// Await an epoch, mode, or open/closed posture change without polling.
+    /// The notification future is registered before observing state, so a
+    /// transition cannot be lost between the check and the await.
+    pub async fn changed(&self, previous: AdmissionSnapshot) -> AdmissionSnapshot {
+        loop {
+            let mut changed = Box::pin(self.inner.changed.notified());
+            changed.as_mut().enable();
+            let observed = self.snapshot();
+            if observed.transition_generation != previous.transition_generation
+                || observed.admission_epoch != previous.admission_epoch
+                || observed.active_mode != previous.active_mode
+                || observed.accepting != previous.accepting
+            {
+                return observed;
+            }
+            changed.await;
+        }
+    }
+
+    /// Pre-bind reconciliation after startup stage/consume/unstage changed the
+    /// durable mode record constructed before server composition. No admitted
+    /// work may exist; synchronization always advances to a fresh process
+    /// epoch and exactly mirrors the final durable generation/availability.
+    pub fn synchronize_mode_state(
+        &self,
+        mode: &AuthModeStateRecord,
+    ) -> SnapbackResult<AdmissionSnapshot> {
+        let accepting = mode.mode_state == AuthModeStatus::Settled
+            && mode.app_data_availability == AppDataAvailability::Available;
+        self.synchronize_generation(mode.transition_generation, mode.active, accepting)
+    }
+
+    fn synchronize_generation(
+        &self,
+        transition_generation: u64,
+        active_mode: AuthMode,
+        accepting: bool,
+    ) -> SnapbackResult<AdmissionSnapshot> {
+        let (epoch, old_generation) = {
+            let mut state = lock(&self.inner.state);
+            let epoch = state.current_epoch;
+            let current = state
+                .epochs
+                .get_mut(&epoch)
+                .expect("current admission epoch exists");
+            if current.in_flight != 0 || current.retired || current.transition_owned {
+                return Err(admission_closed());
+            }
+            if current.transition_generation == transition_generation
+                && current.active_mode == active_mode
+                && current.accepting == accepting
+            {
+                return Ok(snapshot(&state));
+            }
+            current.accepting = false;
+            current.transition_owned = true;
+            self.inner.changed.notify_waiters();
+            (epoch, current.transition_generation)
+        };
+        self.retire_and_reopen(
+            epoch,
+            old_generation,
+            transition_generation,
+            active_mode,
+            accepting,
+        )
+    }
+
+    /// Admit one finite root operation. Cloning the returned lease shares the
+    /// root token and therefore does not inflate the in-flight count.
+    pub fn admit(&self) -> SnapbackResult<AdmissionLease> {
+        let mut state = lock(&self.inner.state);
+        self.admit_locked(&mut state, None)
+    }
+
+    /// Admit a legacy dev-only entry. A settled Sessions epoch is accepting
+    /// for authenticated app traffic, but it can never mint dev authority.
+    pub fn admit_dev(&self) -> SnapbackResult<AdmissionLease> {
+        let mut state = lock(&self.inner.state);
+        self.admit_locked(&mut state, Some(AuthMode::Dev))
+    }
+
+    /// Admit only when the currently published durable mode is the expected
+    /// one. This prevents an authority resolved for one mode from being paired
+    /// with a lease from another.
+    pub fn admit_for_mode(&self, mode: AuthMode) -> SnapbackResult<AdmissionLease> {
+        let mut state = lock(&self.inner.state);
+        self.admit_locked(&mut state, Some(mode))
+    }
+
+    fn admit_locked(
+        &self,
+        state: &mut AdmissionState,
+        required_mode: Option<AuthMode>,
+    ) -> SnapbackResult<AdmissionLease> {
+        let epoch = state.current_epoch;
+        let current = state
+            .epochs
+            .get_mut(&epoch)
+            .expect("current admission epoch exists");
+        if !current.accepting || current.retired {
+            return Err(admission_closed());
+        }
+        if required_mode.is_some_and(|mode| mode != current.active_mode) {
+            return Err(mode_mismatch(
+                required_mode.expect("checked mode"),
+                current.active_mode,
+            ));
+        }
+        current.in_flight = current.in_flight.checked_add(1).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+                "auth",
+                "process admission count overflowed",
+            )
+        })?;
+        Ok(AdmissionLease {
+            token: Arc::new(LeaseToken {
+                controller: Some(self.inner.clone()),
+                transition_generation: current.transition_generation,
+                admission_epoch: epoch,
+                active_mode: Some(current.active_mode),
+                cancellation: current.cancellation.clone(),
+            }),
+        })
+    }
+
+    /// Wait until a transition has published a fresh accepting epoch, then
+    /// acquire one finite root. Socket resume/retry loops use this instead of
+    /// retaining an authority from the suspended epoch.
+    pub fn wait_for_fresh_admission(&self, previous_epoch: u64) -> SnapbackResult<AdmissionLease> {
+        let mut state = lock(&self.inner.state);
+        loop {
+            let current = state
+                .epochs
+                .get(&state.current_epoch)
+                .expect("current admission epoch exists");
+            if state.current_epoch != previous_epoch {
+                return if current.accepting && !current.retired {
+                    self.admit_locked(&mut state, None)
+                } else {
+                    Err(admission_closed())
+                };
+            }
+            state = self
+                .inner
+                .drained
+                .wait(state)
+                .unwrap_or_else(PoisonError::into_inner);
+        }
+    }
+
+    pub async fn wait_for_fresh_admission_async(
+        &self,
+        previous_epoch: u64,
+    ) -> SnapbackResult<AdmissionLease> {
+        loop {
+            let mut changed = Box::pin(self.inner.changed.notified());
+            changed.as_mut().enable();
+            let observed = self.snapshot();
+            if observed.admission_epoch != previous_epoch {
+                return if observed.accepting {
+                    self.admit()
+                } else {
+                    Err(admission_closed())
+                };
+            }
+            changed.await;
+        }
+    }
+
+    /// Wait without polling until any accepting epoch is available and admit
+    /// one finite root. Mode mismatch remains a terminal error rather than
+    /// waiting for an unrelated future deployment.
+    pub async fn admit_or_wait(&self) -> SnapbackResult<AdmissionLease> {
+        loop {
+            let mut changed = Box::pin(self.inner.changed.notified());
+            changed.as_mut().enable();
+            match self.admit() {
+                Ok(lease) => return Ok(lease),
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_MODE_PENDING" => {
+                    changed.await;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
+    pub async fn admit_mode_or_wait(&self, mode: AuthMode) -> SnapbackResult<AdmissionLease> {
+        loop {
+            let mut changed = Box::pin(self.inner.changed.notified());
+            changed.as_mut().enable();
+            match self.admit_for_mode(mode) {
+                Ok(lease) => return Ok(lease),
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_MODE_PENDING" => {
+                    changed.await;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
+    /// Close the current epoch and wait for its finite root leases to drain.
+    /// The public path always uses the exact normative 30,000 ms deadline.
+    pub fn begin_transition(&self) -> SnapbackResult<ModeTransitionGuard> {
+        self.begin_transition_with_suspend_and_timeout(
+            || Ok(()),
+            Duration::from_millis(AUTH_MODE_QUIESCENCE_TIMEOUT_MS),
+        )
+    }
+
+    /// Async server entry: close admission, synchronously suspend existing
+    /// live boundaries, then drain on a blocking worker. The callback must be
+    /// finite and must not wait for an invocation to finish.
+    pub async fn begin_transition_async<S>(
+        &self,
+        suspend_live: S,
+    ) -> SnapbackResult<ModeTransitionGuard>
+    where
+        S: FnOnce() -> SnapbackResult<()> + Send + 'static,
+    {
+        let controller = self.clone();
+        tokio::task::spawn_blocking(move || {
+            controller.begin_transition_with_suspend_and_timeout(
+                suspend_live,
+                Duration::from_millis(AUTH_MODE_QUIESCENCE_TIMEOUT_MS),
+            )
+        })
+        .await
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
+                "auth",
+                "auth-mode admission worker terminated before producing a transition guard",
+            )
+        })?
+    }
+
+    fn begin_transition_with_suspend_and_timeout<S>(
+        &self,
+        suspend_live: S,
+        timeout: Duration,
+    ) -> SnapbackResult<ModeTransitionGuard>
+    where
+        S: FnOnce() -> SnapbackResult<()>,
+    {
+        let mut state = lock(&self.inner.state);
+        let epoch = state.current_epoch;
+        let current = state
+            .epochs
+            .get_mut(&epoch)
+            .expect("current admission epoch exists");
+        if current.retired || current.transition_owned {
+            return Err(admission_closed());
+        }
+        let reopen_on_abort = current.accepting;
+        let active_mode = current.active_mode;
+        current.accepting = false;
+        current.transition_owned = true;
+        let generation = current.transition_generation;
+        self.inner.changed.notify_waiters();
+        drop(state);
+        // The normative quiescence window begins only after admission is
+        // observably closed. Waiting to acquire the gate mutex (for example,
+        // behind a commit effect guard) must not consume the drain budget.
+        let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+                "auth",
+                "auth-mode quiescence deadline cannot be represented",
+            )
+        })?;
+
+        if let Err(error) = suspend_live() {
+            self.retire_and_reopen(epoch, generation, generation, active_mode, reopen_on_abort)?;
+            return Err(error);
+        }
+        let mut state = lock(&self.inner.state);
+
+        loop {
+            let in_flight = state
+                .epochs
+                .get(&epoch)
+                .expect("closing admission epoch exists")
+                .in_flight;
+            if in_flight == 0 {
+                return Ok(ModeTransitionGuard {
+                    controller: self.clone(),
+                    admission_epoch: epoch,
+                    transition_generation: generation,
+                    active_mode,
+                    reopen_on_abort,
+                    finished: false,
+                });
+            }
+
+            let now = Instant::now();
+            if now >= deadline {
+                drop(state);
+                self.retire_and_reopen(
+                    epoch,
+                    generation,
+                    generation,
+                    active_mode,
+                    reopen_on_abort,
+                )?;
+                return Err(quiescence_timeout());
+            }
+            let remaining = deadline.saturating_duration_since(now);
+            let (next, waited) = self
+                .inner
+                .drained
+                .wait_timeout(state, remaining)
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            state = next;
+            if waited.timed_out()
+                && state
+                    .epochs
+                    .get(&epoch)
+                    .is_some_and(|current| current.in_flight > 0)
+            {
+                drop(state);
+                self.retire_and_reopen(
+                    epoch,
+                    generation,
+                    generation,
+                    active_mode,
+                    reopen_on_abort,
+                )?;
+                return Err(quiescence_timeout());
+            }
+        }
+    }
+
+    fn retire_and_reopen(
+        &self,
+        old_epoch: u64,
+        expected_generation: u64,
+        new_generation: u64,
+        new_active_mode: AuthMode,
+        accepting: bool,
+    ) -> SnapbackResult<AdmissionSnapshot> {
+        let new_epoch = next_admission_epoch()?;
+        let cancellation = {
+            let mut state = lock(&self.inner.state);
+            if state.current_epoch != old_epoch {
+                return Err(admission_closed());
+            }
+            let old = state
+                .epochs
+                .get_mut(&old_epoch)
+                .expect("transition admission epoch exists");
+            if old.transition_generation != expected_generation
+                || old.retired
+                || !old.transition_owned
+            {
+                return Err(admission_closed());
+            }
+            old.retired = true;
+            old.accepting = false;
+            old.transition_owned = false;
+            let cancellation = old.cancellation.clone();
+            state.epochs.insert(
+                new_epoch,
+                EpochState {
+                    transition_generation: new_generation,
+                    active_mode: new_active_mode,
+                    accepting,
+                    retired: false,
+                    transition_owned: false,
+                    in_flight: 0,
+                    cancellation: Arc::new(CancellationSignal::default()),
+                },
+            );
+            state.current_epoch = new_epoch;
+            self.inner.drained.notify_all();
+            self.inner.changed.notify_waiters();
+            cancellation
+        };
+        cancellation.cancel();
+        Ok(self.snapshot())
+    }
+}
+
+/// A counted root admission. Its clones share one `LeaseToken`.
+#[derive(Clone)]
+pub struct AdmissionLease {
+    token: Arc<LeaseToken>,
+}
+
+impl fmt::Debug for AdmissionLease {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AdmissionLease")
+            .field("transition_generation", &self.transition_generation())
+            .field("admission_epoch", &self.admission_epoch())
+            .field("cancelled", &self.is_cancelled())
+            .finish()
+    }
+}
+
+struct LeaseToken {
+    controller: Option<Arc<AdmissionInner>>,
+    transition_generation: u64,
+    admission_epoch: u64,
+    active_mode: Option<AuthMode>,
+    cancellation: Arc<CancellationSignal>,
+}
+
+impl Drop for LeaseToken {
+    fn drop(&mut self) {
+        let Some(controller) = &self.controller else {
+            return;
+        };
+        let mut state = lock(&controller.state);
+        let mut remove = false;
+        if let Some(epoch) = state.epochs.get_mut(&self.admission_epoch) {
+            epoch.in_flight = epoch.in_flight.saturating_sub(1);
+            remove = epoch.retired && epoch.in_flight == 0;
+        }
+        if remove && state.current_epoch != self.admission_epoch {
+            state.epochs.remove(&self.admission_epoch);
+        }
+        controller.drained.notify_all();
+    }
+}
+
+impl AdmissionLease {
+    /// Compatibility bridge for call sites the HTTP composition lane has not
+    /// yet moved onto the app's controller. Such a lease carries the exact
+    /// fields but deliberately cannot claim to participate in quiescence.
+    pub(crate) fn unmanaged(transition_generation: u64, admission_epoch: u64) -> Self {
+        Self {
+            token: Arc::new(LeaseToken {
+                controller: None,
+                transition_generation,
+                admission_epoch,
+                active_mode: None,
+                cancellation: Arc::new(CancellationSignal::default()),
+            }),
+        }
+    }
+
+    pub fn transition_generation(&self) -> u64 {
+        self.token.transition_generation
+    }
+
+    pub fn admission_epoch(&self) -> u64 {
+        self.token.admission_epoch
+    }
+
+    /// Exact durable active mode bound to a managed root. Compatibility-only
+    /// unmanaged leases return `None` and must not enter production paths.
+    pub fn active_mode(&self) -> Option<AuthMode> {
+        self.token.active_mode
+    }
+
+    pub fn require_mode(&self, expected: AuthMode) -> SnapbackResult<()> {
+        if let Some(observed) = self.active_mode()
+            && observed != expected
+        {
+            return Err(mode_mismatch(expected, observed));
+        }
+        Ok(())
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.token.cancellation.is_cancelled()
+    }
+
+    /// Complete once retirement cancels this exact admitted epoch. Callers
+    /// can `select!` this against response/socket I/O without polling.
+    pub async fn cancelled(&self) {
+        loop {
+            let mut changed = Box::pin(self.token.cancellation.changed.notified());
+            changed.as_mut().enable();
+            if self.is_cancelled() {
+                return;
+            }
+            changed.await;
+        }
+    }
+
+    pub fn register_cancellation_hook(
+        &self,
+        hook: impl Fn() + Send + Sync + 'static,
+    ) -> CancellationRegistration {
+        self.token.cancellation.register(Arc::new(hook))
+    }
+
+    /// Cooperative check for computation, host-call, and nested-entry seams.
+    pub fn validate(&self, effect: &'static str) -> SnapbackResult<()> {
+        let Some(controller) = &self.token.controller else {
+            return Ok(());
+        };
+        let state = lock(&controller.state);
+        validate_lease(&state, self, effect)
+    }
+
+    /// Atomic effect check. Keep this guard alive across a SQLite commit,
+    /// response send/enqueue, or live publication; epoch retirement uses the
+    /// same mutex and therefore cannot cross that effect's linearization cut.
+    pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
+        let Some(controller) = &self.token.controller else {
+            return Ok(AdmissionEffectGuard { state: None });
+        };
+        let state = lock(&controller.state);
+        validate_lease(&state, self, effect)?;
+        Ok(AdmissionEffectGuard { state: Some(state) })
+    }
+}
+
+/// Guard proving the lease was current at one effect boundary.
+pub struct AdmissionEffectGuard<'a> {
+    #[allow(dead_code)]
+    state: Option<MutexGuard<'a, AdmissionState>>,
+}
+
+impl fmt::Debug for AdmissionEffectGuard<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AdmissionEffectGuard")
+            .field("managed", &self.state.is_some())
+            .finish()
+    }
+}
+
+/// Exclusive post-quiescence token. Admission remains closed until this is
+/// consumed by commit publication or dropped/aborted.
+pub struct ModeTransitionGuard {
+    controller: AdmissionController,
+    admission_epoch: u64,
+    transition_generation: u64,
+    active_mode: AuthMode,
+    reopen_on_abort: bool,
+    finished: bool,
+}
+
+impl fmt::Debug for ModeTransitionGuard {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ModeTransitionGuard")
+            .field("admission_epoch", &self.admission_epoch)
+            .field("transition_generation", &self.transition_generation)
+            .field("active_mode", &self.active_mode)
+            .field("reopen_on_abort", &self.reopen_on_abort)
+            .finish()
+    }
+}
+
+impl ModeTransitionGuard {
+    pub fn transition_generation(&self) -> u64 {
+        self.transition_generation
+    }
+
+    pub fn admission_epoch(&self) -> u64 {
+        self.admission_epoch
+    }
+
+    pub fn active_mode(&self) -> AuthMode {
+        self.active_mode
+    }
+
+    /// Run the state-sensitive preflight while the caller owns its global
+    /// write lane. An error leaves Drop to retire the old epoch and reopen the
+    /// unchanged durable generation under a fresh epoch.
+    pub fn repeat_preflight<T>(
+        &self,
+        preflight: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        self.validate_closed()?;
+        let output = preflight()?;
+        self.validate_closed()?;
+        Ok(output)
+    }
+
+    /// Publish a durable transaction that the caller already committed. The
+    /// new process epoch is installed before app-data admission reopens.
+    pub fn publish_committed_generation(
+        mut self,
+        new_transition_generation: u64,
+        accepting: bool,
+    ) -> SnapbackResult<AdmissionSnapshot> {
+        self.validate_closed()?;
+        let snapshot = self.controller.retire_and_reopen(
+            self.admission_epoch,
+            self.transition_generation,
+            new_transition_generation,
+            self.active_mode,
+            accepting,
+        )?;
+        self.finished = true;
+        Ok(snapshot)
+    }
+
+    /// Publish the exact durable record committed under this guard. This is
+    /// the required path when a consume changes active mode; the compatibility
+    /// generation-only helper above preserves the old mode.
+    pub fn publish_committed_mode_state(
+        mut self,
+        mode: &AuthModeStateRecord,
+    ) -> SnapbackResult<AdmissionSnapshot> {
+        self.validate_closed()?;
+        let accepting = mode.mode_state == AuthModeStatus::Settled
+            && mode.app_data_availability == AppDataAvailability::Available;
+        let snapshot = self.controller.retire_and_reopen(
+            self.admission_epoch,
+            self.transition_generation,
+            mode.transition_generation,
+            mode.active,
+            accepting,
+        )?;
+        self.finished = true;
+        Ok(snapshot)
+    }
+
+    /// Abort before a durable write and reopen the unchanged generation under
+    /// a fresh epoch. Existing live boundaries must be resumed by preparing
+    /// fresh authority after this returns.
+    pub fn abort_and_reopen(mut self) -> SnapbackResult<AdmissionSnapshot> {
+        let snapshot = self.controller.retire_and_reopen(
+            self.admission_epoch,
+            self.transition_generation,
+            self.transition_generation,
+            self.active_mode,
+            self.reopen_on_abort,
+        )?;
+        self.finished = true;
+        Ok(snapshot)
+    }
+
+    fn validate_closed(&self) -> SnapbackResult<()> {
+        let state = lock(&self.controller.inner.state);
+        let Some(epoch) = state.epochs.get(&self.admission_epoch) else {
+            return Err(admission_closed());
+        };
+        if state.current_epoch != self.admission_epoch
+            || epoch.transition_generation != self.transition_generation
+            || epoch.active_mode != self.active_mode
+            || epoch.accepting
+            || epoch.retired
+            || !epoch.transition_owned
+            || epoch.in_flight != 0
+        {
+            return Err(admission_closed());
+        }
+        Ok(())
+    }
+}
+
+impl Drop for ModeTransitionGuard {
+    fn drop(&mut self) {
+        if self.finished {
+            return;
+        }
+        let _ = self.controller.retire_and_reopen(
+            self.admission_epoch,
+            self.transition_generation,
+            self.transition_generation,
+            self.active_mode,
+            self.reopen_on_abort,
+        );
+        self.finished = true;
+    }
+}
+
+fn validate_lease(
+    state: &AdmissionState,
+    lease: &AdmissionLease,
+    effect: &'static str,
+) -> SnapbackResult<()> {
+    let valid = state.current_epoch == lease.admission_epoch()
+        && state
+            .epochs
+            .get(&lease.admission_epoch())
+            .is_some_and(|epoch| {
+                !epoch.retired
+                    && epoch.transition_generation == lease.transition_generation()
+                    && lease
+                        .active_mode()
+                        .is_none_or(|mode| mode == epoch.active_mode)
+                    && !epoch.cancellation.is_cancelled()
+            });
+    if valid {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_AUTH_MODE_PENDING",
+        "auth",
+        format!("{effect} was suppressed because its admission epoch was retired"),
+    ))
+}
+
+fn snapshot(state: &AdmissionState) -> AdmissionSnapshot {
+    let current = state
+        .epochs
+        .get(&state.current_epoch)
+        .expect("current admission epoch exists");
+    AdmissionSnapshot {
+        transition_generation: current.transition_generation,
+        admission_epoch: state.current_epoch,
+        active_mode: current.active_mode,
+        accepting: current.accepting,
+        in_flight: current.in_flight,
+    }
+}
+
+fn next_admission_epoch() -> SnapbackResult<u64> {
+    let epoch = NEXT_ADMISSION_EPOCH.fetch_add(1, Ordering::SeqCst);
+    if epoch == 0 || epoch == u64::MAX {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+            "auth",
+            "process admission epoch overflowed",
+        ));
+    }
+    Ok(epoch)
+}
+
+fn admission_closed() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_MODE_PENDING",
+        "auth",
+        "app-data admission is closed for an auth-mode transition",
+    )
+}
+
+fn mode_mismatch(expected: AuthMode, observed: AuthMode) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        "auth",
+        format!(
+            "{} authority cannot run while the exact active auth mode is {}",
+            expected.as_str(),
+            observed.as_str()
+        ),
+    )
+}
+
+fn quiescence_timeout() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
+        "auth",
+        "auth-mode staging did not quiesce within 30000ms; the old epoch was retired",
+    )
+}
+
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::AuthMode;
+    use std::sync::mpsc;
+    use std::thread;
+
+    #[test]
+    fn cloned_lease_counts_one_finite_root_invocation() {
+        let controller = AdmissionController::new(7, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let clone = lease.clone();
+        assert_eq!(controller.snapshot().in_flight, 1);
+        drop(lease);
+        assert_eq!(controller.snapshot().in_flight, 1);
+        drop(clone);
+        assert_eq!(controller.snapshot().in_flight, 0);
+    }
+
+    #[test]
+    fn paused_invocation_closes_new_admission_then_yields_transition_guard() {
+        let controller = AdmissionController::new(3, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let (started_tx, started_rx) = mpsc::channel();
+        let worker = {
+            let controller = controller.clone();
+            thread::spawn(move || {
+                started_tx.send(()).unwrap();
+                controller.begin_transition().unwrap()
+            })
+        };
+        started_rx.recv().unwrap();
+        while controller.snapshot().accepting {
+            thread::yield_now();
+        }
+        assert_eq!(
+            controller.admit().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+        drop(lease);
+        let guard = worker.join().unwrap();
+        let reopened = guard.publish_committed_generation(4, true).unwrap();
+        assert_eq!(reopened.transition_generation, 4);
+        assert!(reopened.accepting);
+    }
+
+    #[test]
+    fn timeout_retires_cancels_and_reopens_unchanged_generation() {
+        assert_eq!(AUTH_MODE_QUIESCENCE_TIMEOUT_MS, 30_000);
+        let controller = AdmissionController::new(11, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let callback_fired = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let callback = callback_fired.clone();
+        let _registration = lease.register_cancellation_hook(move || {
+            callback.store(true, Ordering::SeqCst);
+        });
+
+        let error = controller
+            .begin_transition_with_suspend_and_timeout(|| Ok(()), Duration::from_millis(10))
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        );
+        assert!(lease.is_cancelled());
+        assert!(callback_fired.load(Ordering::SeqCst));
+        assert_eq!(
+            lease
+                .effect_guard("late transaction")
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+        let reopened = controller.snapshot();
+        assert_eq!(reopened.transition_generation, 11);
+        assert_ne!(reopened.admission_epoch, lease.admission_epoch());
+        assert!(reopened.accepting);
+        assert_eq!(reopened.in_flight, 0);
+        assert_eq!(controller.admit().unwrap().transition_generation(), 11);
+    }
+
+    #[test]
+    fn cancellation_hook_may_reenter_cancellation_observation() {
+        let signal = Arc::new(CancellationSignal::default());
+        let observed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let hook_signal = signal.clone();
+        let hook_observed = observed.clone();
+        let _registration = signal.register(Arc::new(move || {
+            hook_observed.store(hook_signal.is_cancelled(), Ordering::SeqCst);
+        }));
+        signal.cancel();
+        assert!(observed.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn effect_guard_linearizes_publication_before_retirement() {
+        let controller = AdmissionController::new(1, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let permit = lease.effect_guard("response publication").unwrap();
+        let (done_tx, done_rx) = mpsc::channel();
+        let worker = {
+            let controller = controller.clone();
+            thread::spawn(move || {
+                let result = controller.begin_transition_with_suspend_and_timeout(
+                    || Ok(()),
+                    Duration::from_millis(20),
+                );
+                done_tx.send(result.map(|_| ())).unwrap();
+            })
+        };
+        thread::sleep(Duration::from_millis(5));
+        assert!(done_rx.try_recv().is_err());
+        drop(permit);
+        drop(lease);
+        assert!(done_rx.recv().unwrap().is_ok());
+        worker.join().unwrap();
+    }
+
+    #[test]
+    fn preclose_effect_guard_delay_does_not_consume_drain_deadline() {
+        let controller = AdmissionController::new(2, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let effect = lease
+            .effect_guard("commit before transition close")
+            .unwrap();
+        let worker = {
+            let controller = controller.clone();
+            thread::spawn(move || {
+                controller
+                    .begin_transition_with_suspend_and_timeout(|| Ok(()), Duration::from_millis(20))
+            })
+        };
+        thread::sleep(Duration::from_millis(30));
+        let closed_after = Instant::now();
+        drop(effect);
+        let error = worker.join().unwrap().unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        );
+        assert!(
+            closed_after.elapsed() >= Duration::from_millis(15),
+            "mutex wait before close must not spend the drain deadline"
+        );
+        drop(lease);
+    }
+
+    #[test]
+    fn failed_repeated_preflight_reopens_on_guard_drop() {
+        let controller = AdmissionController::new(9, true).unwrap();
+        let guard = controller.begin_transition().unwrap();
+        let error = guard
+            .repeat_preflight(|| -> SnapbackResult<()> {
+                Err(SnapbackError::error("TEST_PREFLIGHT", "test", "refused"))
+            })
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "TEST_PREFLIGHT");
+        drop(guard);
+        let reopened = controller.snapshot();
+        assert_eq!(reopened.transition_generation, 9);
+        assert!(reopened.accepting);
+    }
+
+    #[test]
+    fn pending_restage_can_own_closed_epoch_and_abort_stays_closed() {
+        let controller = AdmissionController::new(12, false).unwrap();
+        let guard = controller.begin_transition().unwrap();
+        assert_eq!(guard.transition_generation(), 12);
+        let old_epoch = guard.admission_epoch();
+        drop(guard);
+        let after = controller.snapshot();
+        assert_eq!(after.transition_generation, 12);
+        assert!(!after.accepting);
+        assert_ne!(after.admission_epoch, old_epoch);
+    }
+
+    #[test]
+    fn prebind_mode_sync_is_idempotent_and_mirrors_availability() {
+        let controller = AdmissionController::new(0, true).unwrap();
+        let settled = AuthModeStateRecord::initial_dev(None);
+        let first = controller.synchronize_mode_state(&settled).unwrap();
+        let second = controller.synchronize_mode_state(&settled).unwrap();
+        assert_eq!(first, second);
+        assert!(second.accepting);
+
+        let mut pending = settled.clone();
+        pending.transition_generation = 1;
+        pending.desired = AuthMode::Sessions;
+        pending.mode_state = AuthModeStatus::PendingRestart;
+        pending.app_data_availability = AppDataAvailability::RefusedPending;
+        let pending_snapshot = controller.synchronize_mode_state(&pending).unwrap();
+        assert_eq!(pending_snapshot.transition_generation, 1);
+        assert!(!pending_snapshot.accepting);
+        assert_eq!(
+            controller.synchronize_mode_state(&pending).unwrap(),
+            pending_snapshot
+        );
+
+        let mut quarantined = pending;
+        quarantined.transition_generation = 2;
+        quarantined.mode_state = AuthModeStatus::Quarantined;
+        let quarantined_snapshot = controller.synchronize_mode_state(&quarantined).unwrap();
+        assert_eq!(quarantined_snapshot.transition_generation, 2);
+        assert!(!quarantined_snapshot.accepting);
+    }
+
+    #[test]
+    fn pending_suspend_failure_preserves_closed_posture() {
+        let controller = AdmissionController::new(5, false).unwrap();
+        let error = controller
+            .begin_transition_with_suspend_and_timeout(
+                || {
+                    Err(SnapbackError::error(
+                        "TEST_SUSPEND",
+                        "test",
+                        "live suspension failed",
+                    ))
+                },
+                Duration::from_millis(10),
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "TEST_SUSPEND");
+        let after = controller.snapshot();
+        assert_eq!(after.transition_generation, 5);
+        assert!(!after.accepting);
+    }
+
+    #[tokio::test]
+    async fn close_then_waiter_registration_observes_abort_reopen_without_polling() {
+        let controller = AdmissionController::new(21, true).unwrap();
+        let guard = controller.begin_transition().unwrap();
+        let closed = controller.diagnostic_snapshot();
+        assert!(!closed.accepting);
+
+        let waiter = {
+            let controller = controller.clone();
+            tokio::spawn(async move { controller.changed(closed).await })
+        };
+        tokio::task::yield_now().await;
+        let reopened = guard.abort_and_reopen().unwrap();
+        let observed = tokio::time::timeout(Duration::from_secs(1), waiter)
+            .await
+            .expect("change waiter must not miss reopen")
+            .unwrap();
+        assert_eq!(observed, reopened);
+        assert!(observed.accepting);
+        assert_ne!(observed.admission_epoch, closed.admission_epoch);
+    }
+
+    #[tokio::test]
+    async fn pending_to_settled_mode_change_wakes_and_binds_exact_mode() {
+        let controller = AdmissionController::new(5, false).unwrap();
+        let pending = controller.diagnostic_snapshot();
+        let waiter = {
+            let controller = controller.clone();
+            tokio::spawn(async move { controller.changed(pending).await })
+        };
+        tokio::task::yield_now().await;
+
+        let mut sessions = AuthModeStateRecord::initial_dev(None);
+        sessions.transition_generation = 6;
+        sessions.active = AuthMode::Sessions;
+        sessions.desired = AuthMode::Sessions;
+        let published = controller.synchronize_mode_state(&sessions).unwrap();
+        let observed = tokio::time::timeout(Duration::from_secs(1), waiter)
+            .await
+            .expect("pending waiter must observe settled publication")
+            .unwrap();
+        assert_eq!(observed, published);
+        assert_eq!(observed.active_mode, AuthMode::Sessions);
+        assert!(observed.accepting);
+        assert_eq!(
+            controller.admit_dev().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            controller
+                .admit_for_mode(AuthMode::Sessions)
+                .unwrap()
+                .active_mode(),
+            Some(AuthMode::Sessions)
+        );
+    }
+
+    #[tokio::test]
+    async fn fresh_wait_returns_terminal_pending_after_new_closed_epoch() {
+        let controller = AdmissionController::new(40, true).unwrap();
+        let previous = controller.snapshot();
+        let guard = controller.begin_transition().unwrap();
+        let mut pending = AuthModeStateRecord::initial_dev(None);
+        pending.transition_generation = 41;
+        pending.desired = AuthMode::Sessions;
+        pending.mode_state = AuthModeStatus::PendingRestart;
+        pending.app_data_availability = AppDataAvailability::RefusedPending;
+        let published = guard.publish_committed_mode_state(&pending).unwrap();
+        assert!(!published.accepting);
+        assert_eq!(
+            controller
+                .wait_for_fresh_admission(previous.admission_epoch)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+        assert_eq!(
+            controller
+                .wait_for_fresh_admission_async(previous.admission_epoch)
+                .await
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
+
+    #[tokio::test]
+    async fn cancellation_future_registers_before_check_and_wakes_on_timeout_retirement() {
+        let controller = AdmissionController::new(31, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let cancellation = {
+            let lease = lease.clone();
+            tokio::spawn(async move { lease.cancelled().await })
+        };
+        tokio::task::yield_now().await;
+        let worker = {
+            let controller = controller.clone();
+            thread::spawn(move || {
+                controller
+                    .begin_transition_with_suspend_and_timeout(|| Ok(()), Duration::from_millis(10))
+            })
+        };
+        tokio::time::timeout(Duration::from_secs(1), cancellation)
+            .await
+            .expect("cancellation waiter must wake")
+            .unwrap();
+        assert_eq!(
+            worker.join().unwrap().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        );
+        assert!(lease.is_cancelled());
+    }
+}

@@ -1,3 +1,4 @@
+use crate::auth::admission::{AdmissionLease, CancellationRegistration};
 #[cfg(test)]
 use crate::auth::invocation::ResolvedAppAuthority;
 use crate::auth::invocation::{HandlerAuthProjection, PreparedInvocation};
@@ -26,8 +27,9 @@ use std::ffi::{CStr, CString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr;
+use std::sync::{Arc, Mutex as StdMutex, PoisonError};
 #[cfg(debug_assertions)]
-use std::sync::{Mutex as StdMutex, OnceLock, mpsc};
+use std::sync::{OnceLock, mpsc};
 use std::time::Instant;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -164,6 +166,7 @@ impl RuntimeManager {
             pool,
             None,
         )?;
+        let _effect = prepared.effect_guard("ibex mutation transaction")?;
         db.commit_buffered_writes_idempotent(
             &input,
             executed.writes,
@@ -190,6 +193,7 @@ impl RuntimeManager {
             DbRead::Live(db),
             input.clone(),
             prepared.projection().clone(),
+            prepared.admission_lease().clone(),
             true,
         )?;
         let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
@@ -211,6 +215,7 @@ impl RuntimeManager {
         let mut invocation = IbexHostContext::new_action_with_projection(
             input,
             prepared.projection().clone(),
+            prepared.admission_lease().clone(),
             run,
             host,
             grants,
@@ -229,13 +234,20 @@ pub(crate) fn execute_ibex_mutation_prepared(
     pool: Option<&WarmVmPool>,
     deadline: Option<Instant>,
 ) -> SnapbackResult<ExecutedIbexMutation> {
-    let mut invocation =
-        IbexHostContext::new_with_projection(db, input, prepared.projection().clone(), true)?;
+    prepared.validate_admission("ibex mutation execution")?;
+    let mut invocation = IbexHostContext::new_with_projection(
+        db,
+        input,
+        prepared.projection().clone(),
+        prepared.admission_lease().clone(),
+        true,
+    )?;
     let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline)?;
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
     let ctx_ledger = invocation.take_ctx_ledger()?;
     let IbexHostContext { writes, reads, .. } = invocation;
+    prepared.validate_admission("ibex mutation completion")?;
     Ok(ExecutedIbexMutation {
         writes,
         reads,
@@ -255,8 +267,14 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     db: DbRead<'_>,
     pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<IbexQueryRun> {
-    let mut invocation =
-        IbexHostContext::new_with_projection(db, input, prepared.projection().clone(), false)?;
+    prepared.validate_admission("ibex query execution")?;
+    let mut invocation = IbexHostContext::new_with_projection(
+        db,
+        input,
+        prepared.projection().clone(),
+        prepared.admission_lease().clone(),
+        false,
+    )?;
     let value = run_ibex_handler_with_context(module, &mut invocation, pool)?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array fails closed.
@@ -267,6 +285,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
             "live query handler must return an array of rows",
         )
     })?;
+    prepared.validate_admission("ibex query completion")?;
     Ok(IbexQueryRun {
         output: QueryOutput {
             rows,
@@ -301,7 +320,28 @@ unsafe extern "C" {
     );
 }
 
-pub(crate) struct RuntimeGuard(*mut HermesRuntimeOpaque);
+pub(crate) struct RuntimeGuard {
+    runtime: *mut HermesRuntimeOpaque,
+    interrupt: Arc<RuntimeInterrupt>,
+}
+
+struct RuntimeInterrupt {
+    runtime: StdMutex<Option<usize>>,
+}
+
+impl RuntimeInterrupt {
+    fn signal(&self) {
+        let runtime = self.runtime.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(runtime) = *runtime {
+            // The vendored Hermes watcher is the same asynchronous engine
+            // interrupt used by action deadlines. One millisecond is the
+            // smallest supported bound; epoch checks still own effect denial.
+            unsafe {
+                ex_hermes_watch_time_limit(runtime as *mut HermesRuntimeOpaque, 1);
+            }
+        }
+    }
+}
 
 /// The process-global Ibex host is a fixed capability *policy* (strict, plus a
 /// coarse `network:fetch` grant when outbound actions are enabled), not
@@ -340,16 +380,26 @@ impl RuntimeGuard {
             ));
         }
         unsafe { ex_hermes_set_host_call(runtime, snapback_host_call) };
-        Ok(Self(runtime))
+        Ok(Self {
+            runtime,
+            interrupt: Arc::new(RuntimeInterrupt {
+                runtime: StdMutex::new(Some(runtime as usize)),
+            }),
+        })
     }
 
     pub(crate) fn ptr(&self) -> *mut HermesRuntimeOpaque {
-        self.0
+        self.runtime
+    }
+
+    pub(crate) fn interrupt_on(&self, admission: &AdmissionLease) -> CancellationRegistration {
+        let interrupt = self.interrupt.clone();
+        admission.register_cancellation_hook(move || interrupt.signal())
     }
 
     fn watch_until(&self, deadline: Instant) -> SnapbackResult<RuntimeTimeLimit<'_>> {
         let timeout_ms = remaining_deadline_ms(deadline)?;
-        let status = unsafe { ex_hermes_watch_time_limit(self.0, timeout_ms) };
+        let status = unsafe { ex_hermes_watch_time_limit(self.runtime, timeout_ms) };
         if status != 0 {
             return Err(SnapbackError::error(
                 "SNAPBACK_ACTION_TIMEOUT_SETUP_FAILED",
@@ -367,13 +417,21 @@ struct RuntimeTimeLimit<'a> {
 
 impl Drop for RuntimeTimeLimit<'_> {
     fn drop(&mut self) {
-        unsafe { ex_hermes_unwatch_time_limit(self.runtime.0) };
+        unsafe { ex_hermes_unwatch_time_limit(self.runtime.runtime) };
     }
 }
 
 impl Drop for RuntimeGuard {
     fn drop(&mut self) {
-        unsafe { ex_hermes_destroy(self.0) };
+        let runtime = self
+            .interrupt
+            .runtime
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        if let Some(runtime) = runtime {
+            unsafe { ex_hermes_destroy(runtime as *mut HermesRuntimeOpaque) };
+        }
     }
 }
 
@@ -451,6 +509,7 @@ pub(crate) struct IbexHostContext<'a> {
     db: Option<DbRead<'a>>,
     input: HandlerInput,
     handler_auth: HandlerAuthProjection,
+    admission: AdmissionLease,
     mode: IbexInvocationMode,
     writes: Vec<BufferedWrite>,
     reads: Vec<CapturedReadDependency>,
@@ -486,6 +545,7 @@ impl<'a> IbexHostContext<'a> {
         db: DbRead<'a>,
         input: HandlerInput,
         handler_auth: HandlerAuthProjection,
+        admission: AdmissionLease,
         writable: bool,
     ) -> SnapbackResult<Self> {
         let replay = validate_replay_ledger(&input)?;
@@ -501,6 +561,7 @@ impl<'a> IbexHostContext<'a> {
             db: Some(db),
             input,
             handler_auth,
+            admission,
             mode: if writable {
                 IbexInvocationMode::Mutation
             } else {
@@ -529,12 +590,20 @@ impl<'a> IbexHostContext<'a> {
         let projection = HandlerAuthProjection::from_authority(
             &ResolvedAppAuthority::dev_from_auth(&input.auth),
         );
-        Self::new_action_with_projection(input, projection, run, host, grants)
+        Self::new_action_with_projection(
+            input,
+            projection,
+            AdmissionLease::unmanaged(0, 0),
+            run,
+            host,
+            grants,
+        )
     }
 
     fn new_action_with_projection(
         input: HandlerInput,
         handler_auth: HandlerAuthProjection,
+        admission: AdmissionLease,
         run: CronRunMetadata,
         host: &'a mut dyn IbexActionHost,
         grants: Value,
@@ -545,6 +614,7 @@ impl<'a> IbexHostContext<'a> {
             db: None,
             input,
             handler_auth,
+            admission,
             mode: IbexInvocationMode::Action,
             writes: Vec::new(),
             reads,
@@ -655,6 +725,7 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
+        self.admission.validate("runtime host call")?;
         if self.mode == IbexInvocationMode::Action {
             self.action_host
                 .as_deref_mut()
@@ -1198,7 +1269,7 @@ fn run_ibex_handler_with_context_until(
         crate::workerd_exec::HandlerBackend::WorkerdV8
     ) && !matches!(invocation.mode, IbexInvocationMode::Action)
     {
-        return match deadline {
+        let output = match deadline {
             Some(deadline) => {
                 let timeout_ms = u64::from(remaining_deadline_ms(deadline)?);
                 crate::workerd_exec::with_wall_clock_timeout_ms(timeout_ms, || {
@@ -1207,6 +1278,10 @@ fn run_ibex_handler_with_context_until(
             }
             None => crate::workerd_exec::run_handler_workerd(module, invocation),
         };
+        invocation
+            .admission
+            .validate("workerd runtime completion")?;
+        return output;
     }
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // scope fences: only queries and mutations take the warm path; actions
@@ -1222,6 +1297,7 @@ fn run_ibex_handler_with_context_until(
     }
 
     let runtime = RuntimeGuard::create()?;
+    let cancellation = runtime.interrupt_on(&invocation.admission);
     let time_limit = deadline
         .map(|deadline| runtime.watch_until(deadline))
         .transpose()?;
@@ -1238,16 +1314,21 @@ fn run_ibex_handler_with_context_until(
         *slot.borrow_mut() = invocation as *mut IbexHostContext<'_> as *mut c_void;
         previous
     });
-    let eval_result = eval(runtime.0, &module.export, &source);
+    let eval_result = eval(runtime.ptr(), &module.export, &source);
     CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
         *slot.borrow_mut() = previous_context;
     });
     // The untrusted eval has returned (success or error); stop the monitor
     // before inspecting fixed runtime bookkeeping or destroying the VM.
     drop(time_limit);
+    drop(cancellation);
+
+    if let Err(cancelled) = invocation.admission.validate("runtime completion") {
+        return Err(cancelled);
+    }
 
     let output = eval_result?;
-    let rejections = inspect_unhandled_rejections(runtime.0)?;
+    let rejections = inspect_unhandled_rejections(runtime.ptr())?;
     if !rejections.is_empty() {
         return Err(unhandled_rejection_error(module, rejections));
     }
@@ -1284,6 +1365,7 @@ fn run_warm_handler_with_context(
     pool: &WarmVmPool,
 ) -> SnapbackResult<Value> {
     let mut vm = pool.checkout(&module.source)?;
+    let cancellation = vm.interrupt_on(&invocation.admission);
     let iife = invocation_iife_source(module, invocation)?;
 
     // S5.D1: same save/restore stack as the fresh path. The reset eval below
@@ -1308,6 +1390,11 @@ fn run_warm_handler_with_context(
     CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
         *slot.borrow_mut() = previous_context;
     });
+    drop(cancellation);
+    if let Err(cancelled) = invocation.admission.validate("warm runtime completion") {
+        drop(vm);
+        return Err(cancelled);
+    }
 
     match eval_result {
         Ok(output) => match inspect_unhandled_rejections(vm.runtime()) {
