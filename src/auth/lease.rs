@@ -14,10 +14,11 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use hmac::{Hmac, Mac as _};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
+use sha2::{Digest as _, Sha256};
 
 use crate::auth::crypto::{AuthKeyId, AuthKeyMaterial};
 use crate::auth::invalidation::IssuerId;
+use crate::auth::mode::DeploymentIdentity;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::AuthorizationVersion;
 
@@ -26,6 +27,7 @@ pub const AUTHORIZED_LEASE_DEFAULT_MS: u64 = 86_400_000;
 pub const AUTHORIZED_LEASE_HARD_MAX_MS: u64 = 86_400_000;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 const LEASE_MAC_DOMAIN: &str = "snapback.authorized-lease.v1";
+const ACTIVATION_HASH_DOMAIN: &str = "snapback.authorized-lease.activation.v1";
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -101,6 +103,26 @@ impl From<AuthorizedLeaseConfig> for AuthorizedLeaseFacts {
             clock_rollback: "delete-before-read".to_owned(),
         }
     }
+}
+
+/// Canonical identity of the exact active schema/function pair.  It is kept
+/// distinct from any one artifact hash: changing schema, bundle, inputs, mode,
+/// or app changes the activation binding.
+pub fn authorized_lease_activation_hash(deployment: &DeploymentIdentity) -> String {
+    let mut hash = Sha256::new();
+    for value in [
+        ACTIVATION_HASH_DOMAIN,
+        deployment.schema_version.as_str(),
+        deployment.auth_mode.as_str(),
+        deployment.app_id.as_str(),
+        deployment.schema_hash.as_str(),
+        deployment.bundle_hash.as_str(),
+        deployment.inputs_hash.as_str(),
+    ] {
+        hash.update((value.len() as u64).to_be_bytes());
+        hash.update(value.as_bytes());
+    }
+    format!("{ACTIVATION_HASH_DOMAIN}:sha256:{:x}", hash.finalize())
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -232,7 +254,7 @@ impl AuthorizedLeaseAuthenticator {
     }
 
     #[cfg(test)]
-    fn from_test_key(key_id: &str, key: [u8; 32]) -> Self {
+    pub(crate) fn from_test_key(key_id: &str, key: [u8; 32]) -> Self {
         Self {
             key_id: AuthKeyId::parse(key_id).expect("test key id"),
             key,

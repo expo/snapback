@@ -44,6 +44,9 @@ pub(crate) mod authorization;
 #[path = "storage/auth_invalidation.rs"]
 pub(crate) mod auth_invalidation;
 
+#[path = "storage/authorized_lease.rs"]
+pub(crate) mod authorized_lease;
+
 #[allow(dead_code)] // Called by the ENG-24603 pre-bind/coordinator integration lane.
 #[path = "storage/auth_stream.rs"]
 pub(crate) mod auth_stream;
@@ -2299,6 +2302,27 @@ impl LocalDatabase {
               records INTEGER NOT NULL CHECK(records >= 0),
               PRIMARY KEY(authority_subject, client_store_id)
             );
+            -- @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
+            -- a request id is consumed only at the same linearization point
+            -- that rechecks data/auth/activation and the server clock.
+            CREATE TABLE IF NOT EXISTS _snapback_authorized_lease_reservations (
+              lease_request_id TEXT PRIMARY KEY,
+              lease_id TEXT NOT NULL UNIQUE,
+              client_store_id TEXT NOT NULL,
+              query_key TEXT NOT NULL,
+              query_instance_id INTEGER NOT NULL CHECK(query_instance_id > 0),
+              principal_id TEXT NOT NULL,
+              authorization_incarnation TEXT NOT NULL,
+              authorization_epoch INTEGER NOT NULL CHECK(authorization_epoch >= 0),
+              version_stream TEXT NOT NULL,
+              snapshot_commit_version INTEGER NOT NULL CHECK(snapshot_commit_version >= 0),
+              activation_hash TEXT NOT NULL,
+              issued_at_server_ms INTEGER NOT NULL CHECK(issued_at_server_ms >= 0),
+              authorized_until_server_ms INTEGER NOT NULL CHECK(authorized_until_server_ms > issued_at_server_ms),
+              lease_json TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS _snapback_authorized_lease_expiry
+              ON _snapback_authorized_lease_reservations(authorized_until_server_ms);
             ",
         )?;
         // Older databases predate settlement-version metadata. SQLite cannot

@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 const BOOT_SEQUENCE_META_KEY: &str = "auth_invalidation_boot_sequence_v1";
 const DATA_VERSION_STREAM_META_KEY: &str = "auth_invalidation_data_version_stream_v1";
-const RETRY_CLOCK_META_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
+pub(super) const AUTH_CLOCK_META_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
 const RETRY_GLOBAL_COUNT_META_KEY: &str = "auth_invalidation_retry_records_v1";
 
 fn corrupt(message: impl Into<String>) -> SnapbackError {
@@ -63,7 +63,7 @@ impl LocalDatabase {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let episodes = load_retry_episodes(&tx)?;
-        let clock_high_water_ms = strict_meta_u64(&tx, RETRY_CLOCK_META_KEY)?.unwrap_or(0);
+        let clock_high_water_ms = strict_meta_u64(&tx, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
         let mut registry = RetryEpisodeRegistry::from_persisted(episodes, clock_high_water_ms)?;
 
         // Repair before invoking the caller so an over-cap/corrupt counter can
@@ -149,7 +149,7 @@ fn replace_retry_episodes(
             ])?;
         }
     }
-    write_meta_u64(tx, RETRY_CLOCK_META_KEY, registry.clock_high_water_ms())?;
+    write_meta_u64(tx, AUTH_CLOCK_META_KEY, registry.clock_high_water_ms())?;
     persist_retry_counters(tx, registry.episodes())?;
     Ok(())
 }
@@ -198,7 +198,7 @@ pub(super) fn rotate_data_version_stream_in(tx: &Transaction<'_>) -> SnapbackRes
     Ok(stream)
 }
 
-fn ensure_data_version_stream_in(tx: &Transaction<'_>) -> SnapbackResult<String> {
+pub(super) fn ensure_data_version_stream_in(tx: &Transaction<'_>) -> SnapbackResult<String> {
     let value: Option<(String, Vec<u8>)> = tx
         .query_row(
             "SELECT typeof(value), CAST(value AS BLOB)
@@ -223,7 +223,7 @@ fn ensure_data_version_stream_in(tx: &Transaction<'_>) -> SnapbackResult<String>
     }
 }
 
-fn strict_meta_u64(tx: &Transaction<'_>, key: &str) -> SnapbackResult<Option<u64>> {
+pub(super) fn strict_meta_u64(tx: &Transaction<'_>, key: &str) -> SnapbackResult<Option<u64>> {
     let value: Option<(String, Vec<u8>)> = tx
         .query_row(
             "SELECT typeof(value), CAST(value AS BLOB)
@@ -254,7 +254,7 @@ fn strict_meta_u64(tx: &Transaction<'_>, key: &str) -> SnapbackResult<Option<u64
     Ok(Some(value))
 }
 
-fn write_meta_u64(tx: &Transaction<'_>, key: &str, value: u64) -> SnapbackResult<()> {
+pub(super) fn write_meta_u64(tx: &Transaction<'_>, key: &str, value: u64) -> SnapbackResult<()> {
     if value > MAX_AUTHORIZATION_EPOCH {
         return Err(corrupt(format!("{key} exceeds the JavaScript-safe range")));
     }
