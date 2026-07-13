@@ -21,12 +21,14 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
 
+use super::coordinator::AuthCoordinator;
 use super::keyring::AuthKeyringStore;
 use super::lifecycle::AUTH_GC_INTERVAL;
 use super::provider::{
     AuthGcPass, AuthProvider, AuthProviderProfile, AuthProviderReadiness, ProviderError,
     ProviderResult,
 };
+use super::session_projection::{AuthorizationStreamRecord, ProjectionSource, SessionProjection};
 use crate::diagnostic::{Diagnostic, SnapbackResult};
 use crate::local::LocalSnapback;
 use crate::server::SharedSnapback;
@@ -148,6 +150,40 @@ impl AuthRuntime {
         self.startup_diagnostic.iter().cloned().collect()
     }
 
+    /// Create/preserve the durable stream record and publish one complete
+    /// detached projection before any listener binds. Dormant dev databases
+    /// have an empty session topology but still participate in reset/restart
+    /// incarnation continuity.
+    ///
+    /// @ref LLP 0056#startup-rebuild-and-deadline-derivation — migration,
+    /// snapshot validation, invariant checking, and publication are pre-bind.
+    pub(crate) fn build_coordinator(
+        &self,
+        snapback: &mut LocalSnapback,
+    ) -> SnapbackResult<Arc<AuthCoordinator>> {
+        let database = snapback.auth_database_mut();
+        let incarnation = database.ensure_authorization_stream_incarnation()?;
+        let source = if self.catalog_ready {
+            database.session_projection_source()?
+        } else {
+            ProjectionSource {
+                authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
+                    .encode_bytes()?,
+                restore_declaration_id: None,
+                users: Vec::new(),
+                identities: Vec::new(),
+                sessions: Vec::new(),
+                superseded_tokens: Vec::new(),
+            }
+        };
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            source,
+            self.provider.now_ms(),
+            self.provider.monotonic_now(),
+        )?;
+        Ok(Arc::new(AuthCoordinator::new(projection)?))
+    }
+
     /// Run the pre-bind pass against the still-locally-owned instance. A
     /// missing/corrupt keyring remains a provider readiness fact while this
     /// returns the committed durable result, including its retry schedule.
@@ -202,6 +238,25 @@ pub(crate) fn spawn_auth_gc_worker(
             };
         }
     }))
+}
+
+/// Process-local expiry authority. The delay is capped by the projection at
+/// one second; each wake samples both clocks and permanently terminalizes due
+/// generations before later GC may delete their durable rows.
+pub(crate) fn spawn_auth_expiry_worker(
+    coordinator: Arc<AuthCoordinator>,
+    provider: Arc<AuthProvider>,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            let monotonic_now = provider.monotonic_now();
+            let delay = coordinator
+                .expiry_scan_delay(monotonic_now)
+                .unwrap_or(Duration::from_millis(1_000));
+            tokio::time::sleep(delay).await;
+            let _ = coordinator.expire_due(provider.now_ms(), provider.monotonic_now());
+        }
+    })
 }
 
 fn provider_unavailable_diagnostic() -> Diagnostic {

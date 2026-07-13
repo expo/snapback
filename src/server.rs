@@ -3,6 +3,7 @@ use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
 use crate::auth::admission::{AdmissionLease, AuthAdmissionController, ModeCommitFailure};
+use crate::auth::coordinator::{AuthCoordinator, IssuanceFinish, RevocationFinish, RotationFinish};
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
     AuthSessionResponse,
@@ -11,7 +12,13 @@ use crate::auth::invocation::{
     HandlerAuthProjection, InvocationGate, InvocationSource, PreparedAuthority,
     ResolvedAppAuthority, WireAuthorityFields,
 };
-use crate::auth::provider::{AuthProvider, AuthProviderReadiness, ProviderError};
+use crate::auth::provider::{
+    AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
+    PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout, PlannedRefresh,
+    PlannedRevocationCommit, ProviderError, auth_required as provider_auth_required,
+    credential_superseded as provider_credential_superseded,
+    refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
+};
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
@@ -37,6 +44,7 @@ use crate::manifest::{
     MutationRequest, SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
+use crate::storage::auth::AuthTransactionAttempt;
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{DefaultBodyLimit, Extension, OriginalUri, Path, Query, State};
@@ -3700,6 +3708,164 @@ async fn auth_session(
     Ok(Json(response))
 }
 
+fn installed_auth_coordinator(runtime: &AppState) -> Result<Arc<AuthCoordinator>, ApiError> {
+    runtime.auth_coordinator.clone().ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        ))
+    })
+}
+
+async fn coordinated_mint_session(
+    runtime: &AppState,
+    provider: &Arc<AuthProvider>,
+    mut admission: AddressAdmission,
+    route_admission: &AdmissionLease,
+) -> Result<CredentialIssue, SnapbackError> {
+    let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        )
+    })?;
+    for _ in 0..crate::auth::provider::AUTH_MAX_COLLISION_ATTEMPTS {
+        let now_ms = provider.now_ms();
+        let (returned_admission, plan) = with_snapback(&runtime.snapback, move |snapback| {
+            let plan = admission.plan_mint_session(snapback.auth_database_mut(), now_ms);
+            (admission, plan)
+        })
+        .await;
+        admission = returned_admission;
+        let plan = plan.map_err(ProviderError::into_snapback_error)?;
+        let carrier = coordinator.premark_issuance(plan)?;
+        let commit_plan = carrier.plan().commit_plan();
+        let effect_admission = route_admission.clone();
+        let (returned_admission, attempt) = with_snapback(&runtime.snapback, move |snapback| {
+            let attempt = match effect_admission.effect_guard("auth mint-session transaction") {
+                Ok(_effect) => {
+                    admission.commit_planned_issuance(snapback.auth_database_mut(), &commit_plan)
+                }
+                Err(error) => AuthTransactionAttempt::RolledBack(error),
+            };
+            (admission, attempt)
+        })
+        .await;
+        admission = returned_admission;
+        match coordinator.finish_issuance(
+            carrier,
+            attempt,
+            provider.now_ms(),
+            provider.monotonic_now(),
+        )? {
+            IssuanceFinish::Committed(issue) => return Ok(issue),
+            IssuanceFinish::CodeInvalid | IssuanceFinish::CodeLocked => {
+                return Err(auth_provider_unavailable_error());
+            }
+            IssuanceFinish::PredecessorChanged => continue,
+        }
+    }
+    Err(auth_provider_unavailable_error())
+}
+
+async fn coordinated_exchange_session(
+    runtime: &AppState,
+    provider: &Arc<AuthProvider>,
+    mut exchange: ExchangeAdmission,
+    code: String,
+    route_admission: &AdmissionLease,
+) -> Result<CredentialIssue, ProviderError> {
+    let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
+        ProviderError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        ))
+    })?;
+    for _ in 0..crate::auth::provider::AUTH_MAX_COLLISION_ATTEMPTS {
+        let plan_code = code.clone();
+        let now_ms = provider.now_ms();
+        let (returned_exchange, planned) = with_snapback(&runtime.snapback, move |snapback| {
+            let planned = exchange.plan_exchange(snapback.auth_database_mut(), &plan_code, now_ms);
+            (exchange, planned)
+        })
+        .await;
+        exchange = returned_exchange;
+        match planned? {
+            PlannedExchange::Reject => {
+                let commit_code = code.clone();
+                let effect_admission = route_admission.clone();
+                let (returned_exchange, outcome) =
+                    with_snapback(&runtime.snapback, move |snapback| {
+                        let outcome = match effect_admission
+                            .effect_guard("auth exchange rejection transaction")
+                        {
+                            Ok(_effect) => exchange.commit_planned_rejection(
+                                snapback.auth_database_mut(),
+                                &commit_code,
+                                now_ms,
+                            ),
+                            Err(error) => Err(ProviderError::from(error)),
+                        };
+                        (exchange, outcome)
+                    })
+                    .await;
+                exchange = returned_exchange;
+                let _ = outcome?;
+                continue;
+            }
+            PlannedExchange::Issue(plan) => {
+                let commit_code = code.clone();
+                let carrier = coordinator
+                    .premark_issuance(plan)
+                    .map_err(ProviderError::from)?;
+                let commit_plan = carrier.plan().commit_plan();
+                let effect_admission = route_admission.clone();
+                let (returned_exchange, attempt) =
+                    with_snapback(&runtime.snapback, move |snapback| {
+                        let attempt = match effect_admission
+                            .effect_guard("auth exchange issuance transaction")
+                        {
+                            Ok(_effect) => exchange.commit_planned_issuance(
+                                snapback.auth_database_mut(),
+                                &commit_plan,
+                                &commit_code,
+                            ),
+                            Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        };
+                        (exchange, attempt)
+                    })
+                    .await;
+                exchange = returned_exchange;
+                match coordinator
+                    .finish_issuance(
+                        carrier,
+                        attempt,
+                        provider.now_ms(),
+                        provider.monotonic_now(),
+                    )
+                    .map_err(ProviderError::from)?
+                {
+                    IssuanceFinish::Committed(issue) => {
+                        exchange.finish_exchange_cleanup();
+                        return Ok(issue);
+                    }
+                    IssuanceFinish::CodeInvalid => {
+                        return Err(crate::auth::provider::code_invalid());
+                    }
+                    IssuanceFinish::CodeLocked => {
+                        return Err(crate::auth::provider::code_locked());
+                    }
+                    IssuanceFinish::PredecessorChanged => continue,
+                }
+            }
+        }
+    }
+    Err(ProviderError::from(auth_provider_unavailable_error()))
+}
+
 /// The provider protocol accepts exactly one `Authorization: Bearer …`
 /// header. Axum's ordinary `HeaderMap::get` would silently select one value
 /// from a duplicate header set, so keep the cardinality check explicit.
@@ -3802,14 +3968,13 @@ async fn auth_exchange(
                 .for_exchange(coordination)
                 .await
                 .map_err(map_provider_error)?;
-            let now_ms = provider.now_ms();
-            let route_admission = route_admission.clone();
-            with_snapback(&runtime.snapback, move |snapback| {
-                let _effect = route_admission
-                    .effect_guard("auth exchange transaction")
-                    .map_err(ProviderError::from)?;
-                exchange.exchange(snapback.auth_database_mut(), code.as_str(), now_ms)
-            })
+            coordinated_exchange_session(
+                &runtime,
+                &provider,
+                exchange,
+                code.as_str().to_owned(),
+                &route_admission,
+            )
             .await
         }
         None => {
@@ -3829,9 +3994,10 @@ async fn auth_exchange(
         }
     }
     .map_err(map_provider_error)?;
-    // Item 5 installs the in-memory connection/session projection that
-    // consumes committed evictions. No such projection exists in this slice.
-    let (response, _committed_revocation) = issue.into_parts();
+    let (response, committed_revocation) = issue.into_parts();
+    // Any cap eviction was finalized together with issuance before the
+    // plaintext response reached this boundary.
+    let _ = committed_revocation;
     Ok(Json(response))
 }
 
@@ -3848,26 +4014,83 @@ async fn auth_refresh(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<CredentialResponse>, ApiError> {
     let provider = installed_auth_provider(&runtime)?;
+    let coordinator = installed_auth_coordinator(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let bearer = SecretInput::new(auth_bearer(&headers).unwrap_or_default().to_owned());
-    let admission = provider.admit().await;
-    let now_ms = provider.now_ms();
-    let issue = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = route_admission
-            .effect_guard("auth refresh transaction")
-            .map_err(ProviderError::from)?;
-        admission.refresh(snapback.auth_database_mut(), bearer.as_str(), now_ms)
-    })
-    .await
-    .map_err(|error| {
-        // Item 5 consumes this after-commit projection fact before exposing
-        // the diagnostic. Keeping the split here prevents a later coordinator
-        // from accidentally losing reuse-triggered family revocation.
-        let (error, _committed_revocation) = error.into_parts();
-        ApiError::from(error)
-    })?;
-    let (response, _committed_revocation) = issue.into_parts();
-    Ok(Json(response))
+    for _ in 0..crate::auth::provider::AUTH_MAX_COLLISION_ATTEMPTS {
+        let admission = provider.admit().await;
+        let plan_bearer = bearer.as_str().to_owned();
+        let now_ms = provider.now_ms();
+        let (admission, planned) = with_snapback(&runtime.snapback, move |snapback| {
+            let planned =
+                admission.plan_refresh(snapback.auth_database_mut(), &plan_bearer, now_ms);
+            (admission, planned)
+        })
+        .await;
+        match planned.map_err(map_provider_error)? {
+            PlannedRefresh::AuthRequired => {
+                return Err(map_provider_error(provider_auth_required()));
+            }
+            PlannedRefresh::SessionExpired => {
+                return Err(map_provider_error(provider_session_expired()));
+            }
+            PlannedRefresh::SupersededInsideGrace => {
+                return Err(map_provider_error(provider_refresh_superseded()));
+            }
+            PlannedRefresh::Rotate(plan) => {
+                let carrier = coordinator.premark_rotation(plan).map_err(ApiError::from)?;
+                let commit_plan = carrier.plan().commit_plan();
+                let effect_admission = route_admission.clone();
+                let attempt = with_snapback(&runtime.snapback, move |snapback| {
+                    match effect_admission.effect_guard("auth refresh rotation transaction") {
+                        Ok(_effect) => admission
+                            .commit_planned_rotation(snapback.auth_database_mut(), &commit_plan),
+                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                    }
+                })
+                .await;
+                match coordinator
+                    .finish_rotation(carrier, attempt)
+                    .map_err(ApiError::from)?
+                {
+                    RotationFinish::Committed(issue) => {
+                        let (response, committed_revocation) = issue.into_parts();
+                        debug_assert!(committed_revocation.is_none());
+                        return Ok(Json(response));
+                    }
+                    RotationFinish::PredecessorChanged => continue,
+                }
+            }
+            PlannedRefresh::ReuseRevoke(plan) => {
+                let carrier = coordinator
+                    .premark_revocation(plan)
+                    .map_err(ApiError::from)?;
+                let commit_plan = carrier.plan().clone();
+                let effect_admission = route_admission.clone();
+                let attempt = with_snapback(&runtime.snapback, move |snapback| {
+                    match effect_admission.effect_guard("auth refresh reuse transaction") {
+                        Ok(_effect) => admission.commit_planned_revocation(
+                            snapback.auth_database_mut(),
+                            &commit_plan,
+                            now_ms,
+                        ),
+                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                    }
+                })
+                .await;
+                match coordinator
+                    .finish_revocation(carrier, attempt)
+                    .map_err(ApiError::from)?
+                {
+                    RevocationFinish::Committed(_) | RevocationFinish::AlreadyTerminal { .. } => {
+                        return Err(map_provider_error(provider_session_expired()));
+                    }
+                    RevocationFinish::PredecessorChanged => continue,
+                }
+            }
+        }
+    }
+    Err(auth_provider_unavailable())
 }
 
 /// Revoke the family addressed by one exact current/in-grace bearer. The
@@ -3883,19 +4106,57 @@ async fn auth_logout(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<StatusCode, ApiError> {
     let provider = installed_auth_provider(&runtime)?;
+    let coordinator = installed_auth_coordinator(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let bearer = SecretInput::new(auth_bearer(&headers).unwrap_or_default().to_owned());
-    let admission = provider.admit().await;
-    let now_ms = provider.now_ms();
-    let _committed_revocation = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = route_admission
-            .effect_guard("auth logout transaction")
-            .map_err(ProviderError::from)?;
-        admission.logout(snapback.auth_database_mut(), bearer.as_str(), now_ms)
-    })
-    .await
-    .map_err(map_provider_error)?;
-    Ok(StatusCode::NO_CONTENT)
+    for _ in 0..crate::auth::provider::AUTH_MAX_COLLISION_ATTEMPTS {
+        let admission = provider.admit().await;
+        let plan_bearer = bearer.as_str().to_owned();
+        let now_ms = provider.now_ms();
+        let (admission, planned) = with_snapback(&runtime.snapback, move |snapback| {
+            let planned = admission.plan_logout(snapback.auth_database_mut(), &plan_bearer, now_ms);
+            (admission, planned)
+        })
+        .await;
+        let plan = match planned.map_err(map_provider_error)? {
+            PlannedLogout::AuthRequired => {
+                return Err(map_provider_error(provider_auth_required()));
+            }
+            PlannedLogout::SessionExpired => {
+                return Err(map_provider_error(provider_session_expired()));
+            }
+            PlannedLogout::CredentialSuperseded => {
+                return Err(map_provider_error(provider_credential_superseded()));
+            }
+            PlannedLogout::Revoke(plan) => plan,
+        };
+        let carrier = coordinator
+            .premark_revocation(plan)
+            .map_err(ApiError::from)?;
+        let commit_plan = carrier.plan().clone();
+        let effect_admission = route_admission.clone();
+        let attempt = with_snapback(&runtime.snapback, move |snapback| {
+            match effect_admission.effect_guard("auth logout transaction") {
+                Ok(_effect) => admission.commit_planned_revocation(
+                    snapback.auth_database_mut(),
+                    &commit_plan,
+                    now_ms,
+                ),
+                Err(error) => AuthTransactionAttempt::RolledBack(error),
+            }
+        })
+        .await;
+        match coordinator
+            .finish_revocation(carrier, attempt)
+            .map_err(ApiError::from)?
+        {
+            RevocationFinish::Committed(_) | RevocationFinish::AlreadyTerminal { .. } => {
+                return Ok(StatusCode::NO_CONTENT);
+            }
+            RevocationFinish::PredecessorChanged => continue,
+        }
+    }
+    Err(auth_provider_unavailable())
 }
 
 /// Opaque revoke-only alarm. Every bearer shape enters the provider's fixed
@@ -3911,21 +4172,115 @@ async fn auth_family_alarm(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<(StatusCode, Json<FamilyAlarmResponse>), ApiError> {
     let provider = installed_auth_provider(&runtime)?;
+    let coordinator = installed_auth_coordinator(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let bearer = SecretInput::new(auth_bearer(&headers).unwrap_or_default().to_owned());
-    let admission = provider.admit().await;
-    let now_ms = provider.now_ms();
-    let outcome = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = route_admission
-            .effect_guard("auth family-alarm transaction")
-            .map_err(ProviderError::from)?;
-        admission.family_alarm(snapback.auth_database_mut(), bearer.as_str(), now_ms)
-    })
-    .await
-    .map_err(map_provider_error)?;
-    let (response, publish_not_before, _committed_revocation) = outcome.into_parts();
+    let mut publish_not_before = provider.monotonic_now();
+    let mut accepted = false;
+    for _ in 0..crate::auth::provider::AUTH_MAX_COLLISION_ATTEMPTS {
+        let admission = provider.admit().await;
+        let plan_bearer = bearer.as_str().to_owned();
+        let now_ms = provider.now_ms();
+        let (admission, planned) = with_snapback(&runtime.snapback, move |snapback| {
+            let planned =
+                admission.plan_family_alarm(snapback.auth_database_mut(), &plan_bearer, now_ms);
+            (admission, planned)
+        })
+        .await;
+        let plan = planned.map_err(map_provider_error)?;
+        publish_not_before = publish_not_before.max(plan.publish_not_before());
+        let revocation = plan.revocation_plan();
+        let commit_plan = plan.clone();
+        match revocation {
+            None => {
+                let effect_admission = route_admission.clone();
+                match with_snapback(&runtime.snapback, move |snapback| {
+                    match effect_admission.effect_guard("auth family-alarm transaction") {
+                        Ok(_effect) => admission.commit_planned_family_alarm(
+                            snapback.auth_database_mut(),
+                            &commit_plan,
+                        ),
+                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                    }
+                })
+                .await
+                {
+                    AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
+                    | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry) => {
+                        accepted = true;
+                        break;
+                    }
+                    AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(_)) => {
+                        return Err(ApiError::from(SnapbackError::error(
+                            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                            "auth",
+                            "dummy family alarm unexpectedly changed authority",
+                        )));
+                    }
+                    AuthTransactionAttempt::RolledBack(error) => {
+                        return Err(ApiError::from(error));
+                    }
+                    AuthTransactionAttempt::CommitUncertain(_) => {
+                        return Err(ApiError::from(SnapbackError::error(
+                            "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+                            "auth",
+                            "family alarm commit could not be reconciled",
+                        )));
+                    }
+                }
+            }
+            Some(revocation) => {
+                let carrier = coordinator
+                    .premark_revocation(revocation)
+                    .map_err(ApiError::from)?;
+                let effect_admission = route_admission.clone();
+                let family_attempt = with_snapback(&runtime.snapback, move |snapback| {
+                    match effect_admission.effect_guard("auth family-alarm revoke transaction") {
+                        Ok(_effect) => admission.commit_planned_family_alarm(
+                            snapback.auth_database_mut(),
+                            &commit_plan,
+                        ),
+                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                    }
+                })
+                .await;
+                let attempt = match family_attempt {
+                    AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(
+                        revocation,
+                    )) => AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
+                        revocation,
+                    )),
+                    AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry)
+                    | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop) => {
+                        AuthTransactionAttempt::Committed(
+                            PlannedRevocationCommit::PredecessorChanged,
+                        )
+                    }
+                    AuthTransactionAttempt::RolledBack(error) => {
+                        AuthTransactionAttempt::RolledBack(error)
+                    }
+                    AuthTransactionAttempt::CommitUncertain(error) => {
+                        AuthTransactionAttempt::CommitUncertain(error)
+                    }
+                };
+                match coordinator
+                    .finish_revocation(carrier, attempt)
+                    .map_err(ApiError::from)?
+                {
+                    RevocationFinish::Committed(_) | RevocationFinish::AlreadyTerminal { .. } => {
+                        accepted = true;
+                        break;
+                    }
+                    RevocationFinish::PredecessorChanged => continue,
+                }
+            }
+        }
+    }
+    if !accepted {
+        return Err(auth_provider_unavailable());
+    }
     tokio::time::sleep_until(tokio::time::Instant::from_std(publish_not_before)).await;
-    Ok((StatusCode::ACCEPTED, Json(response)))
+    Ok((StatusCode::ACCEPTED, Json(FamilyAlarmResponse::default())))
 }
 
 /// Exact capture-mailbox projection. The handler requires the middleware-
@@ -5838,6 +6193,7 @@ async fn execute_auth_host_operation(
     runtime: &AppState,
     headers: &HeaderMap,
     impersonation: Option<&crate::admin_impersonation::VerifiedImpersonationCapability>,
+    route_admission: &AdmissionLease,
     request: crate::host_ops::HostOpsRequest,
     server_url: Option<String>,
 ) -> Result<crate::host_ops::HostOpsResult, ApiError> {
@@ -5901,28 +6257,16 @@ async fn execute_auth_host_operation(
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
                 }
             };
-            let now_ms = provider.now_ms();
-            let profile = runtime.server.profile;
-            let outcome = with_snapback(&runtime.snapback, move |snapback| {
-                let outcome = admission
-                    .mint_session(snapback.auth_database_mut(), now_ms)
-                    .map_err(|error| {
-                        let (error, _committed_revocation) = error.into_parts();
-                        error
-                    })
-                    .and_then(|issue| {
-                        // Item 5 consumes a cap-eviction revocation before the
-                        // plaintext credential is published.
-                        let (credential, _committed_revocation) = issue.into_parts();
-                        serde_json::to_value(credential)
-                            .map_err(|_| auth_provider_unavailable_error())
-                    });
-                crate::host_ops::auth_operator_result(
-                    snapback, &request, server_url, profile, outcome,
-                )
-            })
-            .await;
-            Ok(outcome)
+            let outcome = coordinated_mint_session(runtime, &provider, admission, route_admission)
+                .await
+                .and_then(|issue| {
+                    let (credential, committed_revocation) = issue.into_parts();
+                    // Cap finalization has already completed before plaintext
+                    // reaches this serialization boundary.
+                    let _ = committed_revocation;
+                    serde_json::to_value(credential).map_err(|_| auth_provider_unavailable_error())
+                });
+            Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
         "auth.rescueCollidingTable" => {
             let args = match auth_host_operation_input::<RescueCollidingTableRequest>(&request) {
@@ -5967,6 +6311,7 @@ async fn execute_auth_host_operation(
 
 async fn host_ops_handler(
     State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
     authority: Option<Extension<PreparedAuthority>>,
     impersonation: Option<Extension<crate::admin_impersonation::VerifiedImpersonationCapability>>,
     headers: HeaderMap,
@@ -5990,6 +6335,7 @@ async fn host_ops_handler(
             &runtime,
             &headers,
             impersonation.as_ref().map(|Extension(verified)| verified),
+            &route_admission,
             request,
             server_url,
         )
@@ -7933,12 +8279,10 @@ mod tests {
             .clone()
             .expect("installed auth provider");
         let admission = provider.admit_email(email).await.expect("admit test email");
-        let now_ms = provider.now_ms();
-        let issue = super::with_snapback(&state.snapback, move |snapback| {
-            admission.mint_session(snapback.auth_database_mut(), now_ms)
-        })
-        .await
-        .expect("mint test session");
+        let route_admission = super::test_route_admission(state).0;
+        let issue = super::coordinated_mint_session(state, &provider, admission, &route_admission)
+            .await
+            .expect("mint test session");
         let (credential, _committed_revocation) = issue.into_parts();
         serde_json::to_value(credential).expect("serialize test credential")
     }
@@ -8967,6 +9311,29 @@ mod tests {
         assert_eq!(mailbox["canonicalAddress"], "person@example.com");
         let code = mailbox["code"].as_str().unwrap().to_owned();
 
+        let wrong_code = if code == "000000" { "999999" } else { "000000" };
+        let rejected_exchange = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/auth/exchange",
+                serde_json::to_vec(&serde_json::json!({
+                    "challengeId": challenge_id,
+                    "code": wrong_code,
+                }))
+                .unwrap(),
+                true,
+                None,
+                None,
+            ))
+            .await
+            .expect("reject incorrect verification code");
+        assert_eq!(rejected_exchange.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(rejected_exchange).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CODE_INVALID"
+        );
+
         let exchange = router
             .clone()
             .oneshot(auth_http_request(
@@ -9669,10 +10036,17 @@ mod tests {
             "x-snapback-admin-token",
             HeaderValue::from_static("auth-http-admin"),
         );
-        let missing_effect =
-            super::execute_auth_host_operation(&state, &admin_headers, None, request(), None)
-                .await
-                .expect_err("AdminWrite cannot substitute for impersonation capability");
+        let route_admission = super::test_route_admission(&state).0;
+        let missing_effect = super::execute_auth_host_operation(
+            &state,
+            &admin_headers,
+            None,
+            &route_admission,
+            request(),
+            None,
+        )
+        .await
+        .expect_err("AdminWrite cannot substitute for impersonation capability");
         assert_eq!(
             missing_effect.0.diagnostic.code,
             "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
@@ -9688,6 +10062,7 @@ mod tests {
             &state,
             &HeaderMap::new(),
             Some(&verified),
+            &route_admission,
             request(),
             None,
         )

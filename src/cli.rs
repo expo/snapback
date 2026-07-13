@@ -1507,11 +1507,17 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let secret_read_process_prerequisites =
         ready_target.is_some() && token_configured && secret_read_proof_root.is_some();
 
-    // Item 4 owns the positive registry/gate/staging facts but deliberately
-    // leaves the three item-5 activation facts false. Pending sessions may be
-    // staged and diagnosed; they cannot cross the catalog/poison cut yet.
-    let auth_program_readiness =
-        crate::auth::mode::AuthProgramReadiness::item4(secret_read_process_prerequisites);
+    // Item 5 makes sessions activatable only after this process has all three
+    // projection/custody mechanisms. Later item-6/7/8 facts remain false.
+    let auth_program_readiness = crate::auth::mode::AuthProgramReadiness::new(
+        secret_read_process_prerequisites,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+    );
     let auth_mode_state = compose_auth_mode_startup(
         &args,
         &mut snapback,
@@ -1535,6 +1541,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .map_err(|error| anyhow::Error::new(error.into_snapback_error()))?
         .map(|pass| pass.next_delay())
         .unwrap_or(crate::auth::lifecycle::AUTH_GC_INTERVAL);
+
+    // Rebuild from the exact post-compose, post-restore, post-GC durable state
+    // before ownership moves into SharedSnapback or a listener can serve.
+    // @ref LLP 0056#startup-rebuild-and-deadline-derivation — pre-bind publication is all-or-nothing.
+    let auth_coordinator = auth_runtime.build_coordinator(&mut snapback)?;
 
     let read_lane = snapback.read_lane();
     let ephemeral = snapback.ephemeral_api();
@@ -1560,7 +1571,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let app_state = app_state
         .with_auth_runtime_facts(auth_mode_state.clone(), auth_program_readiness.clone())
         .map_err(anyhow::Error::new)?
-        .with_auth_runtime(&auth_runtime);
+        .with_auth_runtime(&auth_runtime, auth_coordinator.clone());
     let app_state = match secret_read_proof_root {
         Some(root) => app_state.with_secret_read_mint_bridge(SecretReadMintBridge::new(
             secret_read_operator,
@@ -1716,6 +1727,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         auth_runtime.clone(),
         auth_gc_initial_delay,
     );
+    let auth_expiry_worker =
+        crate::auth::runtime::spawn_auth_expiry_worker(auth_coordinator, auth_runtime.provider());
     let server_result = axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await;
@@ -1726,6 +1739,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if let Some(worker) = auth_maintenance_worker {
         worker.abort();
     }
+    auth_expiry_worker.abort();
+    auth_expiry_worker.abort();
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();

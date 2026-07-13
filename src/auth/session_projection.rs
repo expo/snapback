@@ -309,6 +309,19 @@ pub(crate) struct ExpiredSession {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProjectedSessionInsert {
+    pub session_id: String,
+    pub user_id: String,
+    pub provider: String,
+    pub authority_instance_id: String,
+    pub generation: u64,
+    pub token_digest: TokenDigest,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub absolute_expires_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ProjectedTokenResolution {
     Current(ProjectedSessionAuthority),
     Superseded {
@@ -462,6 +475,7 @@ impl FencedPublication {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum TicketOwner {
     Session(String),
+    Issuance(String),
     Stream,
 }
 
@@ -476,6 +490,7 @@ pub(crate) struct SessionProjection {
     token_index: HashMap<TokenDigest, ProjectedToken>,
     deadline_index: BTreeSet<DeadlineKey>,
     ticket_index: HashMap<MutationTicket, TicketOwner>,
+    pending_issuances: BTreeMap<MutationTicket, ProjectedSessionInsert>,
     stream_pending: BTreeMap<MutationTicket, AuthorizationStreamIncarnation>,
     next_ticket: Option<NonZeroU64>,
     stream_fence: Arc<StreamFence>,
@@ -680,6 +695,7 @@ impl SessionProjection {
             token_index,
             deadline_index,
             ticket_index: HashMap::new(),
+            pending_issuances: BTreeMap::new(),
             stream_pending: BTreeMap::new(),
             next_ticket: NonZeroU64::new(1),
             stream_fence: Arc::new(StreamFence::new(incarnation)),
@@ -956,6 +972,157 @@ impl SessionProjection {
         self.ticket_index.remove(ticket);
         fence_state.terminal = Some(RevocationReason::Uncertain);
         fence_state.pending_tickets.remove(ticket);
+        Ok(())
+    }
+
+    /// Reserve the exact new session/token identity before its durable insert.
+    /// This ticket blocks reset but no existing session leaf, so unrelated
+    /// finite acts remain independent while the SQLite transaction runs.
+    pub(crate) fn begin_issuance(
+        &mut self,
+        insert: ProjectedSessionInsert,
+    ) -> SnapbackResult<MutationTicket> {
+        validate_projection_id(&insert.session_id, "issued session")?;
+        validate_projection_id(&insert.user_id, "issued session user")?;
+        validate_projection_id(&insert.authority_instance_id, "issued authority instance")?;
+        validate_timestamp_u64(insert.created_at_ms)?;
+        validate_timestamp_u64(insert.expires_at_ms)?;
+        validate_timestamp_u64(insert.absolute_expires_at_ms)?;
+        if insert.provider.is_empty()
+            || insert.generation == 0
+            || insert.generation > MAX_SAFE_GENERATION
+            || insert.created_at_ms > insert.expires_at_ms
+            || insert.expires_at_ms > insert.absolute_expires_at_ms
+            || self.by_session.contains_key(&insert.session_id)
+            || self.token_index.contains_key(&insert.token_digest)
+            || self.pending_issuances.values().any(|pending| {
+                pending.session_id == insert.session_id
+                    || pending.authority_instance_id == insert.authority_instance_id
+                    || pending.token_digest == insert.token_digest
+            })
+            || self
+                .by_session
+                .values()
+                .any(|session| session.authority_instance_id == insert.authority_instance_id)
+        {
+            return Err(projection_unavailable(
+                "planned session issuance collides with projected authority",
+            ));
+        }
+        let stream_fence = Arc::clone(&self.stream_fence);
+        let stream = stream_fence.lock()?;
+        if !StreamFence::admits_locked(&stream, &self.incarnation) {
+            return Err(projection_unavailable(
+                "the authorization stream is unavailable for issuance",
+            ));
+        }
+        let ticket = self.allocate_ticket()?;
+        self.ticket_index.insert(
+            ticket.clone(),
+            TicketOwner::Issuance(insert.session_id.clone()),
+        );
+        self.pending_issuances.insert(ticket.clone(), insert);
+        Ok(ticket)
+    }
+
+    pub(crate) fn compare_unmark_issuance(
+        &mut self,
+        ticket: &MutationTicket,
+        expected_session_id: &str,
+    ) -> SnapbackResult<bool> {
+        if self.ticket_index.get(ticket)
+            != Some(&TicketOwner::Issuance(expected_session_id.to_owned()))
+        {
+            return Ok(false);
+        }
+        let pending = self.pending_issuances.get(ticket).ok_or_else(|| {
+            projection_unavailable("issuance ticket lacks its exact pending insert")
+        })?;
+        if pending.session_id != expected_session_id {
+            return Err(projection_unavailable(
+                "issuance ticket names a different pending session",
+            ));
+        }
+        self.pending_issuances.remove(ticket);
+        self.ticket_index.remove(ticket);
+        Ok(true)
+    }
+
+    pub(crate) fn finalize_issuance(
+        &mut self,
+        ticket: &MutationTicket,
+        expected_session_id: &str,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<()> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        if self.ticket_index.get(ticket)
+            != Some(&TicketOwner::Issuance(expected_session_id.to_owned()))
+        {
+            return Err(projection_unavailable(
+                "issuance ticket does not own the committed session",
+            ));
+        }
+        let insert =
+            self.pending_issuances.get(ticket).cloned().ok_or_else(|| {
+                projection_unavailable("issuance ticket lacks its committed insert")
+            })?;
+        if insert.session_id != expected_session_id
+            || self.by_session.contains_key(expected_session_id)
+            || self.token_index.contains_key(&insert.token_digest)
+        {
+            return Err(projection_unavailable(
+                "committed issuance no longer matches its projection reservation",
+            ));
+        }
+        let stream = self.stream_fence.lock()?;
+        if !StreamFence::admits_locked(&stream, &self.incarnation) {
+            return Err(projection_unavailable(
+                "authorization stream changed before issuance finalize",
+            ));
+        }
+        let deadline = DeadlinePair::derive(insert.expires_at_ms, epoch_now_ms, monotonic_now)?;
+        if !deadline.live_at(epoch_now_ms, monotonic_now) {
+            return Err(projection_unavailable(
+                "committed issuance expired before projection finalize",
+            ));
+        }
+        let session = ProjectedSession {
+            session_id: insert.session_id.clone(),
+            user_id: insert.user_id,
+            provider: insert.provider,
+            authority_instance_id: insert.authority_instance_id,
+            generation: insert.generation,
+            expires_at_ms: insert.expires_at_ms,
+            absolute_expires_at_ms: insert.absolute_expires_at_ms,
+            deadline,
+            state: ProjectedSessionState::Current,
+            current_token: Some(insert.token_digest),
+            pending: BTreeMap::new(),
+            fence: Arc::new(SessionFence::new(insert.generation, deadline, None)),
+        };
+        let deadline_key = deadline_key_for(&session);
+        if self
+            .token_index
+            .insert(
+                insert.token_digest,
+                ProjectedToken::Current {
+                    session_id: expected_session_id.to_owned(),
+                },
+            )
+            .is_some()
+            || !self.deadline_index.insert(deadline_key)
+            || self
+                .by_session
+                .insert(expected_session_id.to_owned(), session)
+                .is_some()
+        {
+            return Err(projection_unavailable(
+                "committed issuance projection indexes collided",
+            ));
+        }
+        self.pending_issuances.remove(ticket);
+        self.ticket_index.remove(ticket);
         Ok(())
     }
 
@@ -1565,6 +1732,17 @@ impl SessionProjection {
                 ));
             }
         }
+        for (ticket, insert) in &self.pending_issuances {
+            if self.ticket_index.get(ticket)
+                != Some(&TicketOwner::Issuance(insert.session_id.clone()))
+                || self.by_session.contains_key(&insert.session_id)
+                || self.token_index.contains_key(&insert.token_digest)
+            {
+                return Err(projection_corrupt(
+                    "pending issuance lacks an exact collision-free topology owner",
+                ));
+            }
+        }
         for (ticket, owner) in &self.ticket_index {
             match owner {
                 TicketOwner::Session(session_id) => {
@@ -1575,6 +1753,17 @@ impl SessionProjection {
                     {
                         return Err(projection_corrupt(
                             "topology ticket has no exact session member",
+                        ));
+                    }
+                }
+                TicketOwner::Issuance(session_id) => {
+                    if !self
+                        .pending_issuances
+                        .get(ticket)
+                        .is_some_and(|insert| &insert.session_id == session_id)
+                    {
+                        return Err(projection_corrupt(
+                            "issuance topology ticket has no exact pending insert",
                         ));
                     }
                 }

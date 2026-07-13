@@ -653,6 +653,9 @@ pub struct AppState {
     /// the staged-mode composition lane; embeddings and tests may install an
     /// already-activated provider through the builder below.
     pub(crate) auth_provider: Option<Arc<AuthProvider>>,
+    /// Item-5 process authority. Production construction publishes this only
+    /// after the durable stream migration and complete pre-bind rebuild.
+    pub(crate) auth_coordinator: Option<Arc<crate::auth::coordinator::AuthCoordinator>>,
     /// Whether startup observed an exact ReadyV1 catalog. Keyring readiness is
     /// intentionally revalidated on every health projection.
     pub(crate) auth_catalog_ready: bool,
@@ -707,6 +710,7 @@ impl AppState {
                 secret_read_mint: None,
                 impersonation_capabilities: None,
                 auth_provider: None,
+                auth_coordinator: None,
                 auth_catalog_ready: false,
                 #[cfg(test)]
                 fail_auth_mode_publication: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -733,7 +737,32 @@ impl AppState {
     /// Install an already-constructed provider without changing auth-mode
     /// posture or performing catalog activation.
     pub fn with_auth_provider(mut self, provider: Arc<AuthProvider>) -> Self {
+        let coordinator = {
+            let mut snapback = self
+                .snapback
+                .try_lock()
+                .expect("trusted auth-provider builder owns the detached instance");
+            let database = snapback.auth_database_mut();
+            database
+                .ensure_authorization_stream_incarnation()
+                .expect("trusted auth-provider builder creates its stream");
+            let source = database
+                .session_projection_source()
+                .expect("trusted auth-provider builder requires a ready catalog");
+            let projection =
+                crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
+                    source,
+                    provider.now_ms(),
+                    provider.monotonic_now(),
+                )
+                .expect("trusted auth-provider builder publishes a valid projection");
+            Arc::new(
+                crate::auth::coordinator::AuthCoordinator::new(projection)
+                    .expect("trusted auth-provider projection invariants"),
+            )
+        };
         self.auth_provider = Some(provider);
+        self.auth_coordinator = Some(coordinator);
         self.auth_catalog_ready = true;
         self
     }
@@ -887,8 +916,13 @@ impl AppState {
     /// Install the exact provider instance and readiness posture assembled
     /// before listener bind. Catalog activation is intentionally not part of
     /// this builder.
-    pub(crate) fn with_auth_runtime(mut self, runtime: &AuthRuntime) -> Self {
+    pub(crate) fn with_auth_runtime(
+        mut self,
+        runtime: &AuthRuntime,
+        coordinator: Arc<crate::auth::coordinator::AuthCoordinator>,
+    ) -> Self {
         self.auth_provider = Some(runtime.provider());
+        self.auth_coordinator = Some(coordinator);
         self.auth_catalog_ready = runtime.catalog_ready();
         self
     }

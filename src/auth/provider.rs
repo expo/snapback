@@ -32,6 +32,7 @@ use super::crypto::{
 use super::keyring::AuthKeyringStore;
 use super::lifecycle::KeyringGcResult;
 use super::mailbox::{CaptureMailbox, CaptureMailboxEntry};
+use super::session_projection::ProjectedSessionInsert;
 use super::session_projection::{RevocationReason, TokenDigest};
 use super::wire::{
     CredentialResponse, FamilyAlarmResponse, MailboxResponse, RequestCodeResponse, SessionResponse,
@@ -252,6 +253,7 @@ impl ProviderError {
         }
     }
 
+    #[cfg(test)]
     fn with_committed_revocation(
         error: SnapbackError,
         committed_revocation: SessionRevocation,
@@ -330,6 +332,7 @@ impl fmt::Debug for SessionCandidate {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug)]
 enum ExchangeOutcome {
     Invalid,
@@ -338,6 +341,13 @@ enum ExchangeOutcome {
         session: SessionResponse,
         committed_revocation: Option<SessionRevocation>,
     },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RejectedExchangeOutcome {
+    Invalid,
+    Locked,
+    PredecessorChanged,
 }
 
 struct BearerCandidate {
@@ -351,6 +361,7 @@ impl fmt::Debug for BearerCandidate {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug)]
 enum RefreshOutcome {
     AuthRequired,
@@ -360,6 +371,7 @@ enum RefreshOutcome {
     Refreshed(SessionResponse),
 }
 
+#[cfg(test)]
 #[derive(Debug)]
 enum LogoutOutcome {
     AuthRequired,
@@ -430,6 +442,15 @@ pub(crate) struct ProviderTokenRotationPlan {
     successor: BearerCandidate,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProviderTokenRotationCommitPlan {
+    session_id: String,
+    expected_generation: u64,
+    predecessor_digest: TokenDigest,
+    successor_digest: TokenDigest,
+    superseded_at_ms: u64,
+}
+
 impl ProviderTokenRotationPlan {
     pub(crate) fn session_id(&self) -> &str {
         &self.session_id
@@ -449,6 +470,16 @@ impl ProviderTokenRotationPlan {
 
     pub(crate) fn superseded_at_ms(&self) -> u64 {
         self.superseded_at_ms
+    }
+
+    pub(crate) fn commit_plan(&self) -> ProviderTokenRotationCommitPlan {
+        ProviderTokenRotationCommitPlan {
+            session_id: self.session_id.clone(),
+            expected_generation: self.expected_generation,
+            predecessor_digest: self.predecessor_digest,
+            successor_digest: self.successor_digest,
+            superseded_at_ms: self.superseded_at_ms,
+        }
     }
 
     pub(crate) fn into_issue(mut self, session: SessionResponse) -> CredentialIssue {
@@ -531,6 +562,7 @@ pub(crate) struct ProviderFamilyAlarmPlan {
     superseded_at_ms: u64,
     observed_at_ms: u64,
     actionable: bool,
+    publish_not_before: Instant,
 }
 
 impl ProviderFamilyAlarmPlan {
@@ -544,6 +576,10 @@ impl ProviderFamilyAlarmPlan {
             },
             reason: RevocationReason::FamilyAlarm,
         })
+    }
+
+    pub(crate) fn publish_not_before(&self) -> Instant {
+        self.publish_not_before
     }
 }
 
@@ -564,6 +600,130 @@ pub(crate) enum PlannedRevocationCommit {
 pub(crate) enum PlannedRotationCommit {
     Committed { session: SessionResponse },
     PredecessorChanged,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum PlannedIdentityState {
+    Existing {
+        identity_id: String,
+        user_id: String,
+    },
+    Create {
+        identity_id: String,
+        user_id: String,
+    },
+}
+
+pub(crate) struct ProviderSessionIssuancePlan {
+    address: CanonicalAddress,
+    now_ms: u64,
+    identity: PlannedIdentityState,
+    candidate: SessionCandidate,
+    projected: ProjectedSessionInsert,
+    eviction: Option<ProviderRevocationPlan>,
+    challenge: Option<PlannedChallengeConsumption>,
+}
+
+impl fmt::Debug for ProviderSessionIssuancePlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ProviderSessionIssuancePlan([REDACTED])")
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct ProviderSessionIssuanceCommitPlan {
+    address: CanonicalAddress,
+    now_ms: u64,
+    identity: PlannedIdentityState,
+    projected: ProjectedSessionInsert,
+    eviction: Option<ProviderRevocationPlan>,
+    challenge: Option<PlannedChallengeConsumption>,
+}
+
+impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ProviderSessionIssuanceCommitPlan([REDACTED])")
+    }
+}
+
+impl ProviderSessionIssuancePlan {
+    pub(crate) fn projected_insert(&self) -> ProjectedSessionInsert {
+        self.projected.clone()
+    }
+
+    pub(crate) fn eviction(&self) -> Option<&ProviderRevocationPlan> {
+        self.eviction.as_ref()
+    }
+
+    pub(crate) fn commit_plan(&self) -> ProviderSessionIssuanceCommitPlan {
+        ProviderSessionIssuanceCommitPlan {
+            address: self.address.clone(),
+            now_ms: self.now_ms,
+            identity: self.identity.clone(),
+            projected: self.projected.clone(),
+            eviction: self.eviction.clone(),
+            challenge: self.challenge.clone(),
+        }
+    }
+
+    pub(crate) fn into_issue(
+        mut self,
+        session: SessionResponse,
+        committed_revocation: Option<SessionRevocation>,
+    ) -> CredentialIssue {
+        let bearer = self
+            .candidate
+            .bearer
+            .take()
+            .expect("planned issuance retains plaintext until projection finalize");
+        let refresh_after = self
+            .now_ms
+            .checked_add(AUTH_SESSION_REFRESH_CADENCE_MS)
+            .unwrap_or(MAX_SAFE_TIMESTAMP)
+            .min(session.expires_at)
+            .min(session.absolute_expires_at);
+        CredentialIssue::new(
+            CredentialResponse::new(bearer, refresh_after, session),
+            committed_revocation,
+        )
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum PlannedIssuanceCommit {
+    Committed {
+        session: SessionResponse,
+        committed_revocation: Option<SessionRevocation>,
+    },
+    CodeInvalid,
+    CodeLocked,
+    PredecessorChanged,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RejectedExchangeCommit {
+    PredecessorChanged,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct PlannedChallengeConsumption {
+    challenge_id: String,
+    key_id: String,
+    code_digest: [u8; 32],
+    expected_attempts: u32,
+    max_attempts: u32,
+    expires_at_ms: u64,
+}
+
+impl fmt::Debug for PlannedChallengeConsumption {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PlannedChallengeConsumption([REDACTED])")
+    }
+}
+
+pub(crate) enum PlannedExchange {
+    Reject,
+    Issue(ProviderSessionIssuancePlan),
 }
 
 pub struct AuthProvider {
@@ -643,6 +803,10 @@ impl AuthProvider {
 
     pub fn now_ms(&self) -> u64 {
         self.clock.epoch_ms()
+    }
+
+    pub(crate) fn monotonic_now(&self) -> Instant {
+        self.clock.monotonic_now()
     }
 
     /// Closed, non-secret health fact. Session-digest resolution deliberately
@@ -934,6 +1098,9 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<ProviderFamilyAlarmPlan> {
         validate_now(now_ms)?;
+        let started_at = self.provider.clock.monotonic_now();
+        let jitter_ms = uniform_alarm_jitter(self.provider.random.as_ref())?;
+        let publish_not_before = minimum_alarm_deadline(started_at, jitter_ms)?;
         let parsed = SessionBearer::parse(bearer).ok();
         let token_hash = parsed
             .as_ref()
@@ -954,6 +1121,7 @@ impl AuthAdmission {
                 superseded_at_ms,
                 observed_at_ms: now_ms,
                 actionable: true,
+                publish_not_before,
             },
             _ => ProviderFamilyAlarmPlan {
                 // This canonical value is process-independent but cannot be a
@@ -965,6 +1133,7 @@ impl AuthAdmission {
                 superseded_at_ms: 0,
                 observed_at_ms: now_ms,
                 actionable: false,
+                publish_not_before,
             },
         })
     }
@@ -1042,19 +1211,14 @@ impl AuthAdmission {
     pub(crate) fn commit_planned_rotation(
         &self,
         database: &mut LocalDatabase,
-        plan: &ProviderTokenRotationPlan,
+        plan: &ProviderTokenRotationCommitPlan,
     ) -> AuthTransactionAttempt<PlannedRotationCommit> {
         if let Err(error) = validate_now(plan.superseded_at_ms) {
             return AuthTransactionAttempt::RolledBack(error.into_snapback_error());
         }
-        match database.attempt_auth_transaction(|transaction| {
-            planned_rotation_transaction(
-                transaction,
-                plan,
-                &plan.successor.token_hash,
-                plan.superseded_at_ms,
-            )
-        }) {
+        match database
+            .attempt_auth_transaction(|transaction| planned_rotation_transaction(transaction, plan))
+        {
             AuthTransactionAttempt::Committed(PlannedRotationTransaction::PredecessorChanged) => {
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged)
             }
@@ -1086,6 +1250,7 @@ impl AuthAdmission {
     /// Rotate a current bearer, or apply the exact predecessor-reuse matrix.
     /// A reuse revocation is returned inside `ProviderError` because its
     /// `SESSION_EXPIRED` response follows a committed family mutation.
+    #[cfg(test)]
     pub fn refresh(
         &self,
         database: &mut LocalDatabase,
@@ -1137,6 +1302,7 @@ impl AuthAdmission {
     }
 
     /// Revoke the family resolved by the presented current or in-grace bearer.
+    #[cfg(test)]
     pub fn logout(
         &self,
         database: &mut LocalDatabase,
@@ -1161,6 +1327,7 @@ impl AuthAdmission {
 
     /// Opaque revoke-only family alarm. Malformed inputs use the process-local
     /// dummy digest but execute the same transaction and SQL statement shape.
+    #[cfg(test)]
     pub fn family_alarm(
         &self,
         database: &mut LocalDatabase,
@@ -1267,9 +1434,105 @@ impl fmt::Debug for ExchangeAdmission {
 }
 
 impl ExchangeAdmission {
+    pub(crate) fn plan_exchange(
+        &self,
+        database: &LocalDatabase,
+        code: &str,
+        now_ms: u64,
+    ) -> ProviderResult<PlannedExchange> {
+        validate_now(now_ms)?;
+        let code = VerificationCode::parse(code).map_err(|_| request_invalid())?;
+        let provider = &self.admission.provider;
+        provider
+            .keyring
+            .with_key(&self.coordination.key_id, |key| {
+                database.with_auth_read(|connection| {
+                    plan_exchange_read(connection, provider, &self.coordination, key, &code, now_ms)
+                })
+            })
+            .map_err(|_| provider_unavailable())?
+            .map_err(|_| provider_unavailable())
+    }
+
+    pub(crate) fn commit_planned_issuance(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderSessionIssuanceCommitPlan,
+        code: &str,
+    ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
+        let code = match VerificationCode::parse(code) {
+            Ok(code) => code,
+            Err(_) => {
+                return AuthTransactionAttempt::RolledBack(request_invalid().into_snapback_error());
+            }
+        };
+        let Some(challenge) = &plan.challenge else {
+            return AuthTransactionAttempt::RolledBack(internal_state_snapback());
+        };
+        if challenge.challenge_id != self.coordination.challenge_id.as_str()
+            || challenge.key_id != self.coordination.key_id.as_str()
+        {
+            return AuthTransactionAttempt::RolledBack(internal_state_snapback());
+        }
+        self.admission
+            .provider
+            .keyring
+            .with_key(&self.coordination.key_id, |key| {
+                attempt_planned_session_issuance(database, plan, Some((key, &code)))
+            })
+            .unwrap_or_else(|_| {
+                AuthTransactionAttempt::RolledBack(provider_unavailable().into_snapback_error())
+            })
+    }
+
+    /// Recheck a read-planned rejection under `BEGIN IMMEDIATE` without any
+    /// code path that can create a session. If the predecessor became a live,
+    /// correct challenge, the caller replans and enters coordinated issuance.
+    pub(crate) fn commit_planned_rejection(
+        &self,
+        database: &mut LocalDatabase,
+        code: &str,
+        now_ms: u64,
+    ) -> ProviderResult<RejectedExchangeCommit> {
+        validate_now(now_ms)?;
+        let code = VerificationCode::parse(code).map_err(|_| request_invalid())?;
+        let provider = &self.admission.provider;
+        let outcome = provider
+            .keyring
+            .with_key(&self.coordination.key_id, |key| {
+                database.with_auth_transaction(|transaction| {
+                    rejected_exchange_transaction(
+                        transaction,
+                        provider,
+                        &self.coordination,
+                        key,
+                        &code,
+                        now_ms,
+                    )
+                })
+            })
+            .map_err(|_| provider_unavailable())?
+            .map_err(|_| provider_unavailable())?;
+        match outcome {
+            RejectedExchangeOutcome::Invalid => Err(code_invalid()),
+            RejectedExchangeOutcome::Locked => Err(code_locked()),
+            RejectedExchangeOutcome::PredecessorChanged => {
+                Ok(RejectedExchangeCommit::PredecessorChanged)
+            }
+        }
+    }
+
+    pub(crate) fn finish_exchange_cleanup(&self) {
+        self.admission
+            .provider
+            .mailbox
+            .erase(&self.coordination.challenge_id);
+    }
+
     /// Exchange a known preliminary row. Key material is selected before the
     /// writer and retained through the transaction; all preliminary facts are
     /// then rechecked under `BEGIN IMMEDIATE`.
+    #[cfg(test)]
     pub fn exchange(
         &self,
         database: &mut LocalDatabase,
@@ -1480,9 +1743,66 @@ impl AddressAdmission {
         Err(provider_unavailable())
     }
 
+    /// Plan the exact new authority and, when the live cap is full, the exact
+    /// oldest session generation/digest to evict. Plaintext remains owned by
+    /// the returned redacted plan until projection finalization succeeds.
+    pub(crate) fn plan_mint_session(
+        &self,
+        database: &LocalDatabase,
+        now_ms: u64,
+    ) -> ProviderResult<ProviderSessionIssuancePlan> {
+        validate_now(now_ms)?;
+        if !self.provider().profile.permits_capture() {
+            return Err(provider_unavailable());
+        }
+        let candidate = SessionCandidate::generate(self.provider(), now_ms)?;
+        let (identity, eviction) = database
+            .with_auth_read(|connection| {
+                plan_session_issuance_read(connection, &self.address, &candidate, now_ms)
+            })
+            .map_err(|_| provider_unavailable())?;
+        let (user_id, provider) = match &identity {
+            PlannedIdentityState::Existing { user_id, .. }
+            | PlannedIdentityState::Create { user_id, .. } => {
+                (user_id.clone(), "email-code".to_owned())
+            }
+        };
+        let expires_at_ms = checked_time_add(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?;
+        let absolute_expires_at_ms = checked_time_add(now_ms, AUTH_SESSION_ABSOLUTE_WINDOW_MS)?;
+        let projected = ProjectedSessionInsert {
+            session_id: candidate.session_id.clone(),
+            user_id,
+            provider,
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+            created_at_ms: now_ms,
+            expires_at_ms,
+            absolute_expires_at_ms,
+        };
+        Ok(ProviderSessionIssuancePlan {
+            address: self.address.clone(),
+            now_ms,
+            identity,
+            candidate,
+            projected,
+            eviction,
+            challenge: None,
+        })
+    }
+
+    pub(crate) fn commit_planned_issuance(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderSessionIssuanceCommitPlan,
+    ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
+        attempt_planned_session_issuance(database, plan, None)
+    }
+
     /// Reusable host-operation core. Item 4 owns the AdminWrite and
     /// ImpersonationCapability gates; this method owns the identical durable
     /// provisioning, cap, and session issuance semantics used by exchange.
+    #[cfg(test)]
     pub fn mint_session(
         &self,
         database: &mut LocalDatabase,
@@ -1825,6 +2145,7 @@ fn checked_stored_time(value: i64) -> SnapbackResult<u64> {
 struct DurableSessionSnapshot {
     record: SessionRecord,
     current_digest: TokenDigest,
+    last_used_at_ms: u64,
     revoked_at_ms: Option<u64>,
 }
 
@@ -1850,11 +2171,13 @@ fn lookup_session_snapshot(
         .optional()?;
     raw.map(|(raw, token_hash)| {
         let revoked_at_ms = raw.revoked_at_ms.map(checked_stored_time).transpose()?;
+        let last_used_at_ms = checked_stored_time(raw.last_used_at_ms)?;
         let current_digest =
             TokenDigest::from_slice(&token_hash).map_err(|_| internal_state_snapback())?;
         Ok(DurableSessionSnapshot {
             record: checked_session_record(raw)?,
             current_digest,
+            last_used_at_ms,
             revoked_at_ms,
         })
     })
@@ -2081,7 +2404,7 @@ enum DurableRotationReconcile {
 
 fn reconcile_planned_rotation(
     connection: &Connection,
-    plan: &ProviderTokenRotationPlan,
+    plan: &ProviderTokenRotationCommitPlan,
 ) -> SnapbackResult<DurableRotationReconcile> {
     let Some(snapshot) = lookup_session_snapshot(connection, &plan.session_id)? else {
         return Ok(DurableRotationReconcile::DifferentValid);
@@ -2112,10 +2435,9 @@ fn reconcile_planned_rotation(
 
 fn planned_rotation_transaction(
     transaction: &Transaction<'_>,
-    plan: &ProviderTokenRotationPlan,
-    successor_hash: &TokenHash,
-    now_ms: u64,
+    plan: &ProviderTokenRotationCommitPlan,
 ) -> SnapbackResult<PlannedRotationTransaction> {
+    let now_ms = plan.superseded_at_ms;
     let predecessor = TokenHash::from_bytes(*plan.predecessor_digest.as_bytes());
     let Some(current) = lookup_current_session(transaction, &predecessor)? else {
         return Ok(PlannedRotationTransaction::PredecessorChanged);
@@ -2129,7 +2451,7 @@ fn planned_rotation_transaction(
     let successor_exists: bool = transaction.query_row(
         "SELECT EXISTS(SELECT 1 FROM _auth_sessions WHERE token_hash = ?1)
                 OR EXISTS(SELECT 1 FROM _auth_session_tokens WHERE token_hash = ?1)",
-        params![successor_hash.as_bytes().as_slice()],
+        params![plan.successor_digest.as_bytes().as_slice()],
         |row| row.get(0),
     )?;
     if successor_exists {
@@ -2151,7 +2473,7 @@ fn planned_rotation_transaction(
          WHERE id = ?2 AND generation = ?3 AND token_hash = ?4
            AND revoked_at_ms IS NULL AND ?5 < expires_at_ms",
         params![
-            successor_hash.as_bytes().as_slice(),
+            plan.successor_digest.as_bytes().as_slice(),
             plan.session_id,
             plan.expected_generation as i64,
             plan.predecessor_digest.as_bytes().as_slice(),
@@ -2164,6 +2486,7 @@ fn planned_rotation_transaction(
     Ok(PlannedRotationTransaction::Refreshed(current.response()))
 }
 
+#[cfg(test)]
 fn refresh_transaction(
     transaction: &Transaction<'_>,
     predecessor_hash: &TokenHash,
@@ -2229,6 +2552,7 @@ fn refresh_transaction(
     Ok(RefreshOutcome::ReuseRevoked(revocation))
 }
 
+#[cfg(test)]
 fn logout_transaction(
     transaction: &Transaction<'_>,
     token_hash: &TokenHash,
@@ -2262,6 +2586,7 @@ fn logout_transaction(
     }
 }
 
+#[cfg(test)]
 fn revoke_live_session(
     transaction: &Transaction<'_>,
     session: &SessionRecord,
@@ -2293,6 +2618,7 @@ fn revoke_live_session(
     })
 }
 
+#[cfg(test)]
 fn family_alarm_transaction(
     transaction: &Transaction<'_>,
     token_hash: &TokenHash,
@@ -2417,6 +2743,196 @@ fn record_authenticated_use_transaction(
 }
 
 #[allow(clippy::too_many_arguments)]
+fn plan_exchange_read(
+    connection: &Connection,
+    provider: &AuthProvider,
+    coordination: &ExchangeCoordination,
+    _key: &AuthKeyMaterial,
+    _code: &VerificationCode,
+    now_ms: u64,
+) -> SnapbackResult<PlannedExchange> {
+    let row = connection
+        .query_row(
+            "SELECT canonical_address, code_digest, key_id, attempts,
+                    max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
+                    superseded_by IS NOT NULL
+             FROM _auth_verification_codes
+             WHERE challenge_id = ?1",
+            params![coordination.challenge_id.as_str()],
+            |row| {
+                Ok(ChallengeTransactionRow {
+                    address: row.get(0)?,
+                    code_digest: Zeroizing::new(row.get(1)?),
+                    key_id: row.get(2)?,
+                    attempts: row.get(3)?,
+                    max_attempts: row.get(4)?,
+                    expires_at_ms: row.get(5)?,
+                    consumed: row.get(6)?,
+                    superseded: row.get(7)?,
+                })
+            },
+        )
+        .optional()?;
+    let Some(row) = row else {
+        return Ok(PlannedExchange::Reject);
+    };
+    let address = CanonicalAddress::parse(&row.address).map_err(|_| internal_state_snapback())?;
+    if address != coordination.address || row.key_id != coordination.key_id.as_str() {
+        return Err(internal_state_snapback());
+    }
+    let code_digest: [u8; 32] = row
+        .code_digest
+        .as_slice()
+        .try_into()
+        .map_err(|_| internal_state_snapback())?;
+    let expected_attempts = u32::try_from(row.attempts).map_err(|_| internal_state_snapback())?;
+    let max_attempts = u32::try_from(row.max_attempts).map_err(|_| internal_state_snapback())?;
+    let expires_at_ms = checked_stored_time(row.expires_at_ms)?;
+    if max_attempts != AUTH_MAXIMUM_ATTEMPTS || expected_attempts > max_attempts {
+        return Err(internal_state_snapback());
+    }
+    if row.consumed
+        || row.superseded
+        || now_ms >= expires_at_ms
+        || expected_attempts == max_attempts
+    {
+        return Ok(PlannedExchange::Reject);
+    }
+
+    let candidate =
+        SessionCandidate::generate(provider, now_ms).map_err(ProviderError::into_snapback_error)?;
+    let (identity, eviction) =
+        plan_session_issuance_read(connection, &address, &candidate, now_ms)?;
+    let user_id = match &identity {
+        PlannedIdentityState::Existing { user_id, .. }
+        | PlannedIdentityState::Create { user_id, .. } => user_id.clone(),
+    };
+    let expires_at_ms = checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?;
+    let absolute_expires_at_ms =
+        checked_time_add_snapback(now_ms, AUTH_SESSION_ABSOLUTE_WINDOW_MS)?;
+    let projected = ProjectedSessionInsert {
+        session_id: candidate.session_id.clone(),
+        user_id,
+        provider: "email-code".to_owned(),
+        authority_instance_id: candidate.authority_instance_id.clone(),
+        generation: 1,
+        token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+        created_at_ms: now_ms,
+        expires_at_ms,
+        absolute_expires_at_ms,
+    };
+    Ok(PlannedExchange::Issue(ProviderSessionIssuancePlan {
+        address,
+        now_ms,
+        identity,
+        candidate,
+        projected,
+        eviction,
+        challenge: Some(PlannedChallengeConsumption {
+            challenge_id: coordination.challenge_id.as_str().to_owned(),
+            key_id: coordination.key_id.as_str().to_owned(),
+            code_digest,
+            expected_attempts,
+            max_attempts,
+            expires_at_ms: checked_stored_time(row.expires_at_ms)?,
+        }),
+    }))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn rejected_exchange_transaction(
+    transaction: &Transaction<'_>,
+    provider: &AuthProvider,
+    coordination: &ExchangeCoordination,
+    key: &AuthKeyMaterial,
+    code: &VerificationCode,
+    now_ms: u64,
+) -> SnapbackResult<RejectedExchangeOutcome> {
+    let row = transaction
+        .query_row(
+            "SELECT canonical_address, code_digest, key_id, attempts,
+                    max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
+                    superseded_by IS NOT NULL
+             FROM _auth_verification_codes
+             WHERE challenge_id = ?1",
+            params![coordination.challenge_id.as_str()],
+            |row| {
+                Ok(ChallengeTransactionRow {
+                    address: row.get(0)?,
+                    code_digest: Zeroizing::new(row.get(1)?),
+                    key_id: row.get(2)?,
+                    attempts: row.get(3)?,
+                    max_attempts: row.get(4)?,
+                    expires_at_ms: row.get(5)?,
+                    consumed: row.get(6)?,
+                    superseded: row.get(7)?,
+                })
+            },
+        )
+        .optional()?;
+    let Some(row) = row else {
+        perform_dummy_hmac(provider, &coordination.challenge_id, code);
+        return Ok(RejectedExchangeOutcome::Invalid);
+    };
+    let address = CanonicalAddress::parse(&row.address).map_err(|_| internal_state_snapback())?;
+    if address != coordination.address || row.key_id != coordination.key_id.as_str() {
+        return Err(internal_state_snapback());
+    }
+    let stored: [u8; 32] = row
+        .code_digest
+        .as_slice()
+        .try_into()
+        .map_err(|_| internal_state_snapback())?;
+    let attempts = u32::try_from(row.attempts).map_err(|_| internal_state_snapback())?;
+    let max_attempts = u32::try_from(row.max_attempts).map_err(|_| internal_state_snapback())?;
+    let expires_at_ms = checked_stored_time(row.expires_at_ms)?;
+    if max_attempts != AUTH_MAXIMUM_ATTEMPTS || attempts > max_attempts {
+        return Err(internal_state_snapback());
+    }
+    if row.consumed || row.superseded || now_ms >= expires_at_ms {
+        perform_dummy_hmac(provider, &coordination.challenge_id, code);
+        return Ok(RejectedExchangeOutcome::Invalid);
+    }
+    if attempts == max_attempts {
+        perform_dummy_hmac(provider, &coordination.challenge_id, code);
+        return Ok(RejectedExchangeOutcome::Locked);
+    }
+
+    let submitted = CodeDigest::compute(key, &coordination.challenge_id, &address, code);
+    if submitted.verify(&stored) {
+        return Ok(RejectedExchangeOutcome::PredecessorChanged);
+    }
+    let next_attempts = attempts
+        .checked_add(1)
+        .ok_or_else(internal_state_snapback)?;
+    let changed = transaction.execute(
+        "UPDATE _auth_verification_codes
+         SET attempts = ?1
+         WHERE challenge_id = ?2 AND attempts = ?3
+           AND code_digest = ?4 AND key_id = ?5
+           AND expires_at_ms = ?6
+           AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+        params![
+            next_attempts as i64,
+            coordination.challenge_id.as_str(),
+            attempts as i64,
+            stored.as_slice(),
+            coordination.key_id.as_str(),
+            expires_at_ms as i64,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(internal_state_snapback());
+    }
+    Ok(if next_attempts == max_attempts {
+        RejectedExchangeOutcome::Locked
+    } else {
+        RejectedExchangeOutcome::Invalid
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 fn exchange_transaction(
     transaction: &Transaction<'_>,
     provider: &AuthProvider,
@@ -2589,6 +3105,7 @@ fn exchange_transaction(
     })
 }
 
+#[cfg(test)]
 fn mint_session_transaction(
     transaction: &Transaction<'_>,
     address: &CanonicalAddress,
@@ -2661,6 +3178,717 @@ fn mint_session_transaction(
     ))
 }
 
+fn plan_session_issuance_read(
+    connection: &Connection,
+    address: &CanonicalAddress,
+    candidate: &SessionCandidate,
+    now_ms: u64,
+) -> SnapbackResult<(PlannedIdentityState, Option<ProviderRevocationPlan>)> {
+    let existing_identity: Option<(String, String)> = connection
+        .query_row(
+            "SELECT id, user_id FROM _auth_identities
+             WHERE provider = 'email-code' AND subject = ?1",
+            params![address.as_str()],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let identity = match existing_identity {
+        Some((identity_id, user_id)) => PlannedIdentityState::Existing {
+            identity_id,
+            user_id,
+        },
+        None => PlannedIdentityState::Create {
+            identity_id: candidate.identity_id.clone(),
+            user_id: candidate.user_id.clone(),
+        },
+    };
+    let user_id = match &identity {
+        PlannedIdentityState::Existing { user_id, .. }
+        | PlannedIdentityState::Create { user_id, .. } => user_id,
+    };
+    let count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM _auth_sessions
+         WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms",
+        params![user_id, now_ms as i64],
+        |row| row.get(0),
+    )?;
+    if count > AUTH_SESSION_LIVE_LIMIT as i64 {
+        return Err(internal_state_snapback());
+    }
+    let eviction = if count == AUTH_SESSION_LIVE_LIMIT as i64 {
+        let (session_id, generation, token_hash): (String, i64, Vec<u8>) = connection.query_row(
+            "SELECT id, generation, token_hash FROM _auth_sessions
+             WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
+             ORDER BY created_at_ms, id LIMIT 1",
+            params![user_id, now_ms as i64],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        let expected_generation = u64::try_from(generation)
+            .ok()
+            .filter(|generation| *generation != 0 && *generation < MAX_SAFE_TIMESTAMP)
+            .ok_or_else(internal_state_snapback)?;
+        Some(ProviderRevocationPlan {
+            session_id,
+            expected_generation,
+            presented_digest: TokenDigest::from_slice(&token_hash)
+                .map_err(|_| internal_state_snapback())?,
+            source: PlannedTokenSource::Current,
+            reason: RevocationReason::CapEviction,
+        })
+    } else {
+        None
+    };
+    Ok((identity, eviction))
+}
+
+fn attempt_planned_session_issuance(
+    database: &mut LocalDatabase,
+    plan: &ProviderSessionIssuanceCommitPlan,
+    exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
+) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
+    let mut body_outcome = None;
+    let attempt = database.attempt_auth_transaction(|transaction| {
+        let outcome = planned_session_issuance_transaction(transaction, plan, exchange_proof)?;
+        body_outcome = Some(outcome.clone());
+        Ok(outcome)
+    });
+    let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
+        return attempt;
+    };
+    let Some(body_outcome) = body_outcome else {
+        return AuthTransactionAttempt::CommitUncertain(commit_error);
+    };
+    match body_outcome {
+        PlannedIssuanceCommit::PredecessorChanged => {
+            // The transaction performs no write before this outcome. Authority
+            // therefore remained at the projection predecessor even if the
+            // final COMMIT acknowledgement was lost.
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged)
+        }
+        rejected @ (PlannedIssuanceCommit::CodeInvalid | PlannedIssuanceCommit::CodeLocked) => {
+            match database
+                .with_auth_read(|connection| reconcile_rejected_issuance(connection, plan))
+            {
+                Ok(DurableRejectedIssuanceReconcile::ExactSuccessor) => {
+                    AuthTransactionAttempt::Committed(rejected)
+                }
+                Ok(DurableRejectedIssuanceReconcile::ExactPredecessor) => {
+                    AuthTransactionAttempt::RolledBack(commit_error)
+                }
+                Ok(DurableRejectedIssuanceReconcile::DifferentValid) => {
+                    AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged)
+                }
+                Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+            }
+        }
+        PlannedIssuanceCommit::Committed { .. } => {
+            match database.with_auth_read(|connection| reconcile_planned_issuance(connection, plan))
+            {
+                Ok(DurableIssuanceReconcile::ExactSuccessor {
+                    session,
+                    committed_revocation,
+                }) => AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                    session,
+                    committed_revocation,
+                }),
+                Ok(DurableIssuanceReconcile::ExactPredecessor) => {
+                    AuthTransactionAttempt::RolledBack(commit_error)
+                }
+                Ok(DurableIssuanceReconcile::DifferentValid) => {
+                    AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged)
+                }
+                Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+            }
+        }
+    }
+}
+
+fn planned_session_issuance_transaction(
+    transaction: &Transaction<'_>,
+    plan: &ProviderSessionIssuanceCommitPlan,
+    exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
+) -> SnapbackResult<PlannedIssuanceCommit> {
+    if let Some(challenge) = &plan.challenge {
+        let Some((key, submitted_code)) = exchange_proof else {
+            return Err(internal_state_snapback());
+        };
+        let durable: Option<(String, Vec<u8>, String, i64, i64, i64, bool, bool)> = transaction
+            .query_row(
+                "SELECT canonical_address, code_digest, key_id, attempts,
+                        max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
+                        superseded_by IS NOT NULL
+                 FROM _auth_verification_codes WHERE challenge_id = ?1",
+                params![challenge.challenge_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let Some((address, digest, key_id, attempts, max_attempts, expires, consumed, superseded)) =
+            durable
+        else {
+            return Ok(PlannedIssuanceCommit::PredecessorChanged);
+        };
+        if address != plan.address.as_str()
+            || digest.as_slice() != challenge.code_digest
+            || key_id != challenge.key_id
+            || u32::try_from(attempts).ok() != Some(challenge.expected_attempts)
+            || u32::try_from(max_attempts).ok() != Some(challenge.max_attempts)
+            || u64::try_from(expires).ok() != Some(challenge.expires_at_ms)
+            || consumed
+            || superseded
+            || plan.now_ms >= challenge.expires_at_ms
+            || challenge.expected_attempts >= challenge.max_attempts
+        {
+            return Ok(PlannedIssuanceCommit::PredecessorChanged);
+        }
+        let challenge_id =
+            ChallengeId::parse(&challenge.challenge_id).map_err(|_| internal_state_snapback())?;
+        let submitted = CodeDigest::compute(key, &challenge_id, &plan.address, submitted_code);
+        if !submitted.verify(&challenge.code_digest) {
+            let next_attempts = challenge
+                .expected_attempts
+                .checked_add(1)
+                .ok_or_else(internal_state_snapback)?;
+            let changed = transaction.execute(
+                "UPDATE _auth_verification_codes
+                 SET attempts = ?1
+                 WHERE challenge_id = ?2 AND attempts = ?3
+                   AND code_digest = ?4 AND key_id = ?5
+                   AND expires_at_ms = ?6
+                   AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+                params![
+                    next_attempts as i64,
+                    challenge.challenge_id,
+                    challenge.expected_attempts as i64,
+                    challenge.code_digest.as_slice(),
+                    challenge.key_id,
+                    challenge.expires_at_ms as i64,
+                ],
+            )?;
+            if changed != 1 {
+                return Err(internal_state_snapback());
+            }
+            return Ok(if next_attempts == challenge.max_attempts {
+                PlannedIssuanceCommit::CodeLocked
+            } else {
+                PlannedIssuanceCommit::CodeInvalid
+            });
+        }
+    } else if exchange_proof.is_some() {
+        return Err(internal_state_snapback());
+    }
+    let durable_identity: Option<(String, String)> = transaction
+        .query_row(
+            "SELECT id, user_id FROM _auth_identities
+             WHERE provider = 'email-code' AND subject = ?1",
+            params![plan.address.as_str()],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let (identity_id, user_id, create_identity) = match (&plan.identity, durable_identity) {
+        (
+            PlannedIdentityState::Existing {
+                identity_id,
+                user_id,
+            },
+            Some((durable_identity_id, durable_user_id)),
+        ) if identity_id == &durable_identity_id && user_id == &durable_user_id => {
+            (identity_id.clone(), user_id.clone(), false)
+        }
+        (
+            PlannedIdentityState::Create {
+                identity_id,
+                user_id,
+            },
+            None,
+        ) => (identity_id.clone(), user_id.clone(), true),
+        _ => return Ok(PlannedIssuanceCommit::PredecessorChanged),
+    };
+    if plan.projected.user_id != user_id || plan.projected.generation != 1 {
+        return Err(internal_state_snapback());
+    }
+    let live_count: i64 = transaction.query_row(
+        "SELECT COUNT(*) FROM _auth_sessions
+         WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms",
+        params![user_id, plan.now_ms as i64],
+        |row| row.get(0),
+    )?;
+    match &plan.eviction {
+        None if live_count < AUTH_SESSION_LIVE_LIMIT as i64 => {}
+        Some(eviction) if live_count == AUTH_SESSION_LIVE_LIMIT as i64 => {
+            let oldest: Option<(String, i64, Vec<u8>)> = transaction
+                .query_row(
+                    "SELECT id, generation, token_hash FROM _auth_sessions
+                     WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
+                     ORDER BY created_at_ms, id LIMIT 1",
+                    params![user_id, plan.now_ms as i64],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            let Some((session_id, generation, token_hash)) = oldest else {
+                return Ok(PlannedIssuanceCommit::PredecessorChanged);
+            };
+            if session_id != eviction.session_id
+                || u64::try_from(generation).ok() != Some(eviction.expected_generation)
+                || token_hash.as_slice() != eviction.presented_digest.as_bytes().as_slice()
+            {
+                return Ok(PlannedIssuanceCommit::PredecessorChanged);
+            }
+        }
+        _ => return Ok(PlannedIssuanceCommit::PredecessorChanged),
+    }
+
+    if create_identity {
+        execute_candidate(
+            transaction,
+            "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
+            params![user_id, plan.now_ms as i64],
+        )?;
+        execute_candidate(
+            transaction,
+            "INSERT INTO _auth_identities(
+               id, user_id, provider, subject, verified_at_ms
+             ) VALUES(?1, ?2, 'email-code', ?3, ?4)",
+            params![
+                identity_id,
+                user_id,
+                plan.address.as_str(),
+                plan.now_ms as i64,
+            ],
+        )?;
+    }
+
+    let committed_revocation = match &plan.eviction {
+        Some(eviction) => {
+            let generation = eviction.committed_generation()?;
+            let changed = transaction.execute(
+                "UPDATE _auth_sessions
+                 SET revoked_at_ms = ?1, generation = ?2
+                 WHERE id = ?3 AND generation = ?4 AND token_hash = ?5
+                   AND revoked_at_ms IS NULL AND ?1 < expires_at_ms",
+                params![
+                    plan.now_ms as i64,
+                    generation as i64,
+                    eviction.session_id,
+                    eviction.expected_generation as i64,
+                    eviction.presented_digest.as_bytes().as_slice(),
+                ],
+            )?;
+            if changed != 1 {
+                return Err(internal_state_snapback());
+            }
+            Some(SessionRevocation {
+                session_id: eviction.session_id.clone(),
+                generation,
+            })
+        }
+        None => None,
+    };
+
+    execute_candidate(
+        transaction,
+        "INSERT INTO _auth_sessions(
+           id, user_id, identity_id, authority_instance_id, token_hash,
+           generation, created_at_ms, last_used_at_ms, expires_at_ms,
+           absolute_expires_at_ms, revoked_at_ms
+         ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
+        params![
+            plan.projected.session_id,
+            user_id,
+            identity_id,
+            plan.projected.authority_instance_id,
+            plan.projected.token_digest.as_bytes().as_slice(),
+            plan.now_ms as i64,
+            plan.projected.expires_at_ms as i64,
+            plan.projected.absolute_expires_at_ms as i64,
+        ],
+    )?;
+    if let Some(challenge) = &plan.challenge {
+        let next_attempts = challenge
+            .expected_attempts
+            .checked_add(1)
+            .ok_or_else(internal_state_snapback)?;
+        let changed = transaction.execute(
+            "UPDATE _auth_verification_codes
+             SET attempts = ?1, consumed_at_ms = ?2
+             WHERE challenge_id = ?3 AND attempts = ?4
+               AND code_digest = ?5 AND key_id = ?6
+               AND expires_at_ms = ?7
+               AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+            params![
+                next_attempts as i64,
+                plan.now_ms as i64,
+                challenge.challenge_id,
+                challenge.expected_attempts as i64,
+                challenge.code_digest.as_slice(),
+                challenge.key_id,
+                challenge.expires_at_ms as i64,
+            ],
+        )?;
+        if changed != 1 {
+            return Err(internal_state_snapback());
+        }
+    }
+    Ok(PlannedIssuanceCommit::Committed {
+        session: SessionResponse {
+            id: plan.projected.session_id.clone(),
+            user_id,
+            provider: plan.projected.provider.clone(),
+            created_at: plan.projected.created_at_ms,
+            expires_at: plan.projected.expires_at_ms,
+            absolute_expires_at: plan.projected.absolute_expires_at_ms,
+        },
+        committed_revocation,
+    })
+}
+
+enum DurableIssuanceReconcile {
+    ExactPredecessor,
+    ExactSuccessor {
+        session: SessionResponse,
+        committed_revocation: Option<SessionRevocation>,
+    },
+    DifferentValid,
+}
+
+enum DurableRejectedIssuanceReconcile {
+    ExactPredecessor,
+    ExactSuccessor,
+    DifferentValid,
+}
+
+struct DurableChallengeSnapshot {
+    address: String,
+    code_digest: Vec<u8>,
+    key_id: String,
+    attempts: u32,
+    max_attempts: u32,
+    expires_at_ms: u64,
+    consumed_at_ms: Option<u64>,
+    superseded: bool,
+}
+
+fn lookup_planned_challenge(
+    connection: &Connection,
+    challenge: &PlannedChallengeConsumption,
+) -> SnapbackResult<Option<DurableChallengeSnapshot>> {
+    connection
+        .query_row(
+            "SELECT canonical_address, code_digest, key_id, attempts,
+                    max_attempts, expires_at_ms, consumed_at_ms, superseded_by IS NOT NULL
+             FROM _auth_verification_codes WHERE challenge_id = ?1",
+            params![challenge.challenge_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, Option<i64>>(6)?,
+                    row.get::<_, bool>(7)?,
+                ))
+            },
+        )
+        .optional()?
+        .map(
+            |(
+                address,
+                code_digest,
+                key_id,
+                attempts,
+                max_attempts,
+                expires,
+                consumed,
+                superseded,
+            )| {
+                Ok(DurableChallengeSnapshot {
+                    address,
+                    code_digest,
+                    key_id,
+                    attempts: u32::try_from(attempts).map_err(|_| internal_state_snapback())?,
+                    max_attempts: u32::try_from(max_attempts)
+                        .map_err(|_| internal_state_snapback())?,
+                    expires_at_ms: checked_stored_time(expires)?,
+                    consumed_at_ms: consumed.map(checked_stored_time).transpose()?,
+                    superseded,
+                })
+            },
+        )
+        .transpose()
+}
+
+fn challenge_base_matches(
+    durable: &DurableChallengeSnapshot,
+    plan: &ProviderSessionIssuanceCommitPlan,
+    challenge: &PlannedChallengeConsumption,
+) -> bool {
+    durable.address == plan.address.as_str()
+        && durable.code_digest.as_slice() == challenge.code_digest
+        && durable.key_id == challenge.key_id
+        && durable.max_attempts == challenge.max_attempts
+        && durable.expires_at_ms == challenge.expires_at_ms
+        && !durable.superseded
+}
+
+fn challenge_is_exact_predecessor(
+    connection: &Connection,
+    plan: &ProviderSessionIssuanceCommitPlan,
+) -> SnapbackResult<bool> {
+    let Some(challenge) = &plan.challenge else {
+        return Ok(true);
+    };
+    let Some(durable) = lookup_planned_challenge(connection, challenge)? else {
+        return Ok(false);
+    };
+    Ok(challenge_base_matches(&durable, plan, challenge)
+        && durable.attempts == challenge.expected_attempts
+        && durable.consumed_at_ms.is_none())
+}
+
+fn challenge_is_exact_successor(
+    connection: &Connection,
+    plan: &ProviderSessionIssuanceCommitPlan,
+    consumed: bool,
+) -> SnapbackResult<bool> {
+    let Some(challenge) = &plan.challenge else {
+        return Ok(true);
+    };
+    let Some(durable) = lookup_planned_challenge(connection, challenge)? else {
+        return Ok(false);
+    };
+    let next_attempts = challenge
+        .expected_attempts
+        .checked_add(1)
+        .ok_or_else(internal_state_snapback)?;
+    Ok(challenge_base_matches(&durable, plan, challenge)
+        && durable.attempts == next_attempts
+        && durable.consumed_at_ms == consumed.then_some(plan.now_ms))
+}
+
+fn issuance_identity_is_exact_predecessor(
+    connection: &Connection,
+    plan: &ProviderSessionIssuanceCommitPlan,
+) -> SnapbackResult<bool> {
+    let by_address: Option<(String, String)> = connection
+        .query_row(
+            "SELECT id, user_id FROM _auth_identities
+             WHERE provider = 'email-code' AND subject = ?1",
+            params![plan.address.as_str()],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    Ok(match &plan.identity {
+        PlannedIdentityState::Existing {
+            identity_id,
+            user_id,
+        } => by_address.as_ref() == Some(&(identity_id.clone(), user_id.clone())),
+        PlannedIdentityState::Create {
+            identity_id,
+            user_id,
+        } => {
+            if by_address.is_some() {
+                return Ok(false);
+            }
+            let collisions: bool = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_users WHERE id = ?1)
+                     OR EXISTS(SELECT 1 FROM _auth_identities WHERE id = ?2)",
+                params![user_id, identity_id],
+                |row| row.get(0),
+            )?;
+            !collisions
+        }
+    })
+}
+
+fn issuance_identity_is_exact_successor(
+    connection: &Connection,
+    plan: &ProviderSessionIssuanceCommitPlan,
+) -> SnapbackResult<bool> {
+    let durable: Option<(String, String, String, String, i64, i64)> = connection
+        .query_row(
+            "SELECT identity.id, identity.user_id, identity.provider,
+                    identity.subject, identity.verified_at_ms, user.created_at_ms
+             FROM _auth_identities AS identity
+             JOIN _auth_users AS user ON user.id = identity.user_id
+             WHERE identity.provider = 'email-code' AND identity.subject = ?1",
+            params![plan.address.as_str()],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((identity_id, user_id, provider, subject, verified_at, user_created_at)) = durable
+    else {
+        return Ok(false);
+    };
+    let _ = checked_stored_time(verified_at)?;
+    let _ = checked_stored_time(user_created_at)?;
+    let ids_match = match &plan.identity {
+        PlannedIdentityState::Existing {
+            identity_id: expected_identity,
+            user_id: expected_user,
+        } => identity_id == *expected_identity && user_id == *expected_user,
+        PlannedIdentityState::Create {
+            identity_id: expected_identity,
+            user_id: expected_user,
+        } => {
+            identity_id == *expected_identity
+                && user_id == *expected_user
+                && u64::try_from(verified_at).ok() == Some(plan.now_ms)
+                && u64::try_from(user_created_at).ok() == Some(plan.now_ms)
+        }
+    };
+    Ok(ids_match && provider == "email-code" && subject == plan.address.as_str())
+}
+
+fn issuance_cap_is_exact_predecessor(
+    connection: &Connection,
+    plan: &ProviderSessionIssuanceCommitPlan,
+) -> SnapbackResult<bool> {
+    let user_id = &plan.projected.user_id;
+    let count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM _auth_sessions
+         WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms",
+        params![user_id, plan.now_ms as i64],
+        |row| row.get(0),
+    )?;
+    Ok(match &plan.eviction {
+        None => count < AUTH_SESSION_LIVE_LIMIT as i64,
+        Some(eviction) if count == AUTH_SESSION_LIVE_LIMIT as i64 => {
+            let oldest: Option<(String, i64, Vec<u8>)> = connection
+                .query_row(
+                    "SELECT id, generation, token_hash FROM _auth_sessions
+                     WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
+                     ORDER BY created_at_ms, id LIMIT 1",
+                    params![user_id, plan.now_ms as i64],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            oldest.is_some_and(|(session_id, generation, digest)| {
+                session_id == eviction.session_id
+                    && u64::try_from(generation).ok() == Some(eviction.expected_generation)
+                    && digest.as_slice() == eviction.presented_digest.as_bytes().as_slice()
+            })
+        }
+        Some(_) => false,
+    })
+}
+
+fn issuance_eviction_is_exact_successor(
+    connection: &Connection,
+    plan: &ProviderSessionIssuanceCommitPlan,
+) -> SnapbackResult<Option<SessionRevocation>> {
+    let Some(eviction) = &plan.eviction else {
+        return Ok(None);
+    };
+    let Some(snapshot) = lookup_session_snapshot(connection, &eviction.session_id)? else {
+        return Err(internal_state_snapback());
+    };
+    let generation = eviction.committed_generation()?;
+    if snapshot.record.session.generation != generation
+        || !snapshot.record.revoked
+        || snapshot.revoked_at_ms != Some(plan.now_ms)
+        || snapshot.current_digest != eviction.presented_digest
+    {
+        return Err(internal_state_snapback());
+    }
+    Ok(Some(SessionRevocation {
+        session_id: eviction.session_id.clone(),
+        generation,
+    }))
+}
+
+fn reconcile_rejected_issuance(
+    connection: &Connection,
+    plan: &ProviderSessionIssuanceCommitPlan,
+) -> SnapbackResult<DurableRejectedIssuanceReconcile> {
+    if lookup_session_snapshot(connection, &plan.projected.session_id)?.is_some() {
+        return Err(internal_state_snapback());
+    }
+    if challenge_is_exact_successor(connection, plan, false)? {
+        return Ok(DurableRejectedIssuanceReconcile::ExactSuccessor);
+    }
+    if challenge_is_exact_predecessor(connection, plan)? {
+        return Ok(DurableRejectedIssuanceReconcile::ExactPredecessor);
+    }
+    Ok(DurableRejectedIssuanceReconcile::DifferentValid)
+}
+
+fn reconcile_planned_issuance(
+    connection: &Connection,
+    plan: &ProviderSessionIssuanceCommitPlan,
+) -> SnapbackResult<DurableIssuanceReconcile> {
+    if let Some(snapshot) = lookup_session_snapshot(connection, &plan.projected.session_id)? {
+        let expected_identity_id = match &plan.identity {
+            PlannedIdentityState::Existing { identity_id, .. }
+            | PlannedIdentityState::Create { identity_id, .. } => identity_id,
+        };
+        let session = &snapshot.record.session;
+        if session.session_id != plan.projected.session_id
+            || session.user_id != plan.projected.user_id
+            || session.identity_id != *expected_identity_id
+            || session.provider != plan.projected.provider
+            || session.generation != plan.projected.generation
+            || session.authority_instance_id != plan.projected.authority_instance_id
+            || session.created_at_ms != plan.projected.created_at_ms
+            || snapshot.last_used_at_ms != plan.projected.created_at_ms
+            || session.expires_at_ms != plan.projected.expires_at_ms
+            || session.absolute_expires_at_ms != plan.projected.absolute_expires_at_ms
+            || snapshot.record.revoked
+            || snapshot.revoked_at_ms.is_some()
+            || snapshot.current_digest != plan.projected.token_digest
+            || !issuance_identity_is_exact_successor(connection, plan)?
+            || !challenge_is_exact_successor(connection, plan, true)?
+        {
+            return Err(internal_state_snapback());
+        }
+        let committed_revocation = issuance_eviction_is_exact_successor(connection, plan)?;
+        return Ok(DurableIssuanceReconcile::ExactSuccessor {
+            session: SessionResponse {
+                id: session.session_id.clone(),
+                user_id: session.user_id.clone(),
+                provider: session.provider.clone(),
+                created_at: session.created_at_ms,
+                expires_at: session.expires_at_ms,
+                absolute_expires_at: session.absolute_expires_at_ms,
+            },
+            committed_revocation,
+        });
+    }
+
+    let identity_predecessor = issuance_identity_is_exact_predecessor(connection, plan)?;
+    let cap_predecessor = issuance_cap_is_exact_predecessor(connection, plan)?;
+    let challenge_predecessor = challenge_is_exact_predecessor(connection, plan)?;
+    if identity_predecessor && cap_predecessor && challenge_predecessor {
+        return Ok(DurableIssuanceReconcile::ExactPredecessor);
+    }
+    if plan.eviction.is_some() && !cap_predecessor {
+        // This carrier owns an existing authority leaf. It is unsafe to unmark
+        // unless that leaf is still exactly the planned predecessor.
+        return Err(internal_state_snapback());
+    }
+    Ok(DurableIssuanceReconcile::DifferentValid)
+}
+
 struct ChallengeTransactionRow {
     address: String,
     code_digest: Zeroizing<Vec<u8>>,
@@ -2672,6 +3900,7 @@ struct ChallengeTransactionRow {
     superseded: bool,
 }
 
+#[cfg(test)]
 fn enforce_session_cap(
     transaction: &Transaction<'_>,
     user_id: &str,
@@ -2796,7 +4025,7 @@ fn provider_unavailable() -> ProviderError {
     ))
 }
 
-fn code_invalid() -> ProviderError {
+pub(crate) fn code_invalid() -> ProviderError {
     ProviderError::new(SnapbackError::error(
         "SNAPBACK_AUTH_CODE_INVALID",
         "auth",
@@ -2804,7 +4033,7 @@ fn code_invalid() -> ProviderError {
     ))
 }
 
-fn code_locked() -> ProviderError {
+pub(crate) fn code_locked() -> ProviderError {
     ProviderError::new(SnapbackError::error(
         "SNAPBACK_AUTH_CODE_LOCKED",
         "auth",
@@ -2812,7 +4041,7 @@ fn code_locked() -> ProviderError {
     ))
 }
 
-fn auth_required() -> ProviderError {
+pub(crate) fn auth_required() -> ProviderError {
     ProviderError::new(SnapbackError::error(
         "SNAPBACK_AUTH_REQUIRED",
         "auth",
@@ -2820,7 +4049,7 @@ fn auth_required() -> ProviderError {
     ))
 }
 
-fn session_expired() -> ProviderError {
+pub(crate) fn session_expired() -> ProviderError {
     ProviderError::new(SnapbackError::error(
         "SNAPBACK_AUTH_SESSION_EXPIRED",
         "auth",
@@ -2828,7 +4057,7 @@ fn session_expired() -> ProviderError {
     ))
 }
 
-fn credential_superseded() -> ProviderError {
+pub(crate) fn credential_superseded() -> ProviderError {
     ProviderError::new(SnapbackError::error(
         "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED",
         "auth",
@@ -2836,7 +4065,7 @@ fn credential_superseded() -> ProviderError {
     ))
 }
 
-fn refresh_superseded() -> ProviderError {
+pub(crate) fn refresh_superseded() -> ProviderError {
     ProviderError::new(SnapbackError::error(
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
         "auth",
@@ -4303,7 +5532,7 @@ mod tests {
         };
         let successor_digest = plan.successor_digest();
         let superseded_at_ms = plan.superseded_at_ms();
-        let attempt = admission.commit_planned_rotation(&mut database, &plan);
+        let attempt = admission.commit_planned_rotation(&mut database, &plan.commit_plan());
         let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
             attempt
         else {
@@ -4356,7 +5585,7 @@ mod tests {
             panic!("current bearer must rotate");
         };
         let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
-            admission.commit_planned_rotation(&mut database, &rotation)
+            admission.commit_planned_rotation(&mut database, &rotation.commit_plan())
         else {
             panic!("rotation commit");
         };
@@ -4372,5 +5601,177 @@ mod tests {
                 SessionRevocation { generation: 2, .. }
             ))
         ));
+    }
+
+    #[tokio::test]
+    async fn planned_issuance_reconciles_exact_predecessor_and_successor() {
+        let now_ms = 40_000;
+        let (provider, mut database) = provider_database(now_ms);
+        let admission = provider
+            .admit_email("planned-issuance@example.com")
+            .await
+            .expect("issuance admission");
+        let plan = admission
+            .plan_mint_session(&database, now_ms)
+            .expect("issuance plan");
+        let commit_plan = plan.commit_plan();
+        assert!(matches!(
+            database
+                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .expect("predecessor reconciliation"),
+            DurableIssuanceReconcile::ExactPredecessor
+        ));
+        assert!(matches!(
+            admission.commit_planned_issuance(&mut database, &commit_plan),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                committed_revocation: None,
+                ..
+            })
+        ));
+        assert!(matches!(
+            database
+                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .expect("successor reconciliation"),
+            DurableIssuanceReconcile::ExactSuccessor {
+                committed_revocation: None,
+                ..
+            }
+        ));
+    }
+
+    #[tokio::test]
+    async fn planned_exchange_verifies_and_accounts_inside_the_issuance_transaction() {
+        let now_ms = 50_000;
+        let (provider, mut database) = provider_database(now_ms);
+        let (request, code) = request_and_code(
+            &provider,
+            &mut database,
+            "planned-exchange@example.com",
+            now_ms,
+        )
+        .await;
+        let wrong = different_code(&code);
+        let admission = provider.admit().await;
+        let coordination = admission
+            .exchange_coordination(&database, &request.challenge_id)
+            .expect("coordination")
+            .expect("known challenge");
+        let exchange = admission
+            .for_exchange(coordination)
+            .await
+            .expect("exchange admission");
+        let PlannedExchange::Issue(plan) = exchange
+            .plan_exchange(&database, &wrong, now_ms + 1)
+            .expect("live challenge plans a coordinated attempt")
+        else {
+            panic!("a wrong code is not authorized by the read-only planning pass");
+        };
+        let commit_plan = plan.commit_plan();
+        assert!(matches!(
+            exchange.commit_planned_issuance(&mut database, &commit_plan, &wrong),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeInvalid)
+        ));
+        assert!(matches!(
+            database
+                .with_auth_read(|connection| reconcile_rejected_issuance(connection, &commit_plan))
+                .expect("rejected successor reconciliation"),
+            DurableRejectedIssuanceReconcile::ExactSuccessor
+        ));
+        let facts: (i64, i64) = database
+            .with_auth_read(|connection| {
+                Ok((
+                    connection.query_row(
+                        "SELECT attempts FROM _auth_verification_codes WHERE challenge_id = ?1",
+                        params![request.challenge_id],
+                        |row| row.get(0),
+                    )?,
+                    connection
+                        .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?,
+                ))
+            })
+            .expect("rejected exchange facts");
+        assert_eq!(facts, (1, 0));
+
+        let PlannedExchange::Issue(retry) = exchange
+            .plan_exchange(&database, &code, now_ms + 2)
+            .expect("correct retry plan")
+        else {
+            panic!("live correct retry plans issuance");
+        };
+        assert!(matches!(
+            exchange.commit_planned_issuance(&mut database, &retry.commit_plan(), &code),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn planned_twenty_first_session_revokes_the_exact_oldest_predecessor() {
+        let start_ms = 60_000;
+        let (provider, mut database) = provider_database(start_ms);
+        for offset in 0..AUTH_SESSION_LIVE_LIMIT {
+            drop(
+                mint(
+                    &provider,
+                    &mut database,
+                    "planned-cap@example.com",
+                    start_ms + offset as u64,
+                )
+                .await,
+            );
+        }
+        let oldest: String = database
+            .with_auth_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT id FROM _auth_sessions
+                         WHERE revoked_at_ms IS NULL ORDER BY created_at_ms, id LIMIT 1",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .map_err(SnapbackError::from)
+            })
+            .expect("oldest session");
+        let admission = provider
+            .admit_email("planned-cap@example.com")
+            .await
+            .expect("cap admission");
+        let plan = admission
+            .plan_mint_session(&database, start_ms + AUTH_SESSION_LIVE_LIMIT as u64)
+            .expect("cap issuance plan");
+        assert_eq!(
+            plan.eviction().map(ProviderRevocationPlan::session_id),
+            Some(oldest.as_str())
+        );
+        let commit_plan = plan.commit_plan();
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+            committed_revocation: Some(revocation),
+            ..
+        }) = admission.commit_planned_issuance(&mut database, &commit_plan)
+        else {
+            panic!("twenty-first issuance must commit exact cap eviction");
+        };
+        assert_eq!(revocation.session_id, oldest);
+        assert_eq!(revocation.generation, 2);
+        assert!(matches!(
+            database
+                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .expect("cap successor reconciliation"),
+            DurableIssuanceReconcile::ExactSuccessor {
+                committed_revocation: Some(SessionRevocation { generation: 2, .. }),
+                ..
+            }
+        ));
+        let live: i64 = database
+            .with_auth_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT COUNT(*) FROM _auth_sessions WHERE revoked_at_ms IS NULL",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .map_err(SnapbackError::from)
+            })
+            .expect("live session count");
+        assert_eq!(live, AUTH_SESSION_LIVE_LIMIT as i64);
     }
 }

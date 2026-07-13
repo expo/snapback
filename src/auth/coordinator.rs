@@ -10,12 +10,13 @@ use super::crypto::SessionBearer;
 use super::invocation::ResolvedAppAuthority;
 use super::provider::{
     AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS, AuthenticatedUse,
-    CredentialIssue, PlannedRevocationCommit, PlannedRotationCommit, ProviderRevocationPlan,
-    ProviderTokenRotationPlan, SessionRevocation,
+    CredentialIssue, PlannedIssuanceCommit, PlannedRevocationCommit, PlannedRotationCommit,
+    ProviderRevocationPlan, ProviderSessionIssuancePlan, ProviderTokenRotationPlan,
+    SessionRevocation,
 };
 use super::session_projection::{
     ExpiredSession, FencedPublication, MutationTicket, PendingMutationKind,
-    ProjectedTokenResolution, SessionProjection, TokenDigest,
+    ProjectedTokenResolution, RevocationReason, SessionProjection, TokenDigest,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -71,6 +72,24 @@ pub(crate) struct PremarkedRotation {
     ticket: MutationTicket,
 }
 
+pub(crate) struct PremarkedIssuance {
+    plan: ProviderSessionIssuancePlan,
+    issuance_ticket: MutationTicket,
+    eviction_ticket: Option<MutationTicket>,
+}
+
+impl PremarkedIssuance {
+    pub(crate) fn plan(&self) -> &ProviderSessionIssuancePlan {
+        &self.plan
+    }
+}
+
+impl std::fmt::Debug for PremarkedIssuance {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("PremarkedIssuance([REDACTED])")
+    }
+}
+
 impl PremarkedRotation {
     pub(crate) fn plan(&self) -> &ProviderTokenRotationPlan {
         &self.plan
@@ -98,6 +117,14 @@ pub(crate) enum RevocationFinish {
 #[derive(Debug)]
 pub(crate) enum RotationFinish {
     Committed(CredentialIssue),
+    PredecessorChanged,
+}
+
+#[derive(Debug)]
+pub(crate) enum IssuanceFinish {
+    Committed(CredentialIssue),
+    CodeInvalid,
+    CodeLocked,
     PredecessorChanged,
 }
 
@@ -172,6 +199,45 @@ impl AuthCoordinator {
             },
         )?;
         Ok(PremarkedRotation { plan, ticket })
+    }
+
+    pub(crate) fn premark_issuance(
+        &self,
+        plan: ProviderSessionIssuancePlan,
+    ) -> SnapbackResult<PremarkedIssuance> {
+        let mut topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        if let Some(eviction) = plan.eviction() {
+            topology.require_session_available(eviction.session_id())?;
+        }
+        let insert = plan.projected_insert();
+        let issuance_ticket = topology.projection.begin_issuance(insert)?;
+        let eviction_ticket = match plan.eviction() {
+            Some(eviction) => match topology.projection.begin_session_mutation(
+                eviction.session_id(),
+                eviction.expected_generation(),
+                PendingMutationKind::Revoke {
+                    reason: RevocationReason::CapEviction,
+                },
+            ) {
+                Ok(ticket) => Some(ticket),
+                Err(error) => {
+                    let _ = topology.projection.compare_unmark_issuance(
+                        &issuance_ticket,
+                        &plan.projected_insert().session_id,
+                    );
+                    return Err(error);
+                }
+            },
+            None => None,
+        };
+        Ok(PremarkedIssuance {
+            plan,
+            issuance_ticket,
+            eviction_ticket,
+        })
     }
 
     pub(crate) fn finish_revocation(
@@ -291,6 +357,87 @@ impl AuthCoordinator {
         }
     }
 
+    pub(crate) fn finish_issuance(
+        &self,
+        carrier: PremarkedIssuance,
+        attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<IssuanceFinish> {
+        let mut topology = self.lock_topology()?;
+        let session_id = carrier.plan.projected_insert().session_id;
+        match attempt {
+            AuthTransactionAttempt::RolledBack(error) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Err(error)
+            }
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                fail_issuance_closed(&mut topology, &carrier);
+                Err(revocation_uncertain())
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::PredecessorChanged)
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeInvalid) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::CodeInvalid)
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeLocked) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::CodeLocked)
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                session,
+                committed_revocation,
+            }) => {
+                if session.id != session_id
+                    || committed_revocation
+                        .as_ref()
+                        .map(|value| (value.session_id.as_str(), value.generation))
+                        != carrier.plan.eviction().map(|eviction| {
+                            (
+                                eviction.session_id(),
+                                eviction.expected_generation().saturating_add(1),
+                            )
+                        })
+                {
+                    fail_issuance_closed(&mut topology, &carrier);
+                    return Err(projection_unavailable());
+                }
+                if let (Some(ticket), Some(revocation)) =
+                    (&carrier.eviction_ticket, committed_revocation.as_ref())
+                {
+                    if topology
+                        .projection
+                        .finalize_revocation(ticket, &revocation.session_id, revocation.generation)
+                        .is_err()
+                    {
+                        fail_issuance_closed(&mut topology, &carrier);
+                        return Err(projection_unavailable());
+                    }
+                }
+                if self.take_finalize_failpoint()
+                    || topology
+                        .projection
+                        .finalize_issuance(
+                            &carrier.issuance_ticket,
+                            &session_id,
+                            epoch_now_ms,
+                            monotonic_now,
+                        )
+                        .is_err()
+                {
+                    fail_issuance_closed(&mut topology, &carrier);
+                    return Err(projection_unavailable());
+                }
+                Ok(IssuanceFinish::Committed(
+                    carrier.plan.into_issue(session, committed_revocation),
+                ))
+            }
+        }
+    }
+
     /// Required-session bearer resolution is memory-only. It never enters
     /// `LocalDatabase`, and it retains authority-instance identity for item 7
     /// while exposing neither digest nor fence to application code.
@@ -404,6 +551,11 @@ impl AuthCoordinator {
         self.lock_topology()?.projection.check_invariants()
     }
 
+    pub(crate) fn fail_global_closed(&self) -> SnapbackResult<()> {
+        self.lock_topology()?.global_rebuild_required = true;
+        Ok(())
+    }
+
     fn lock_topology(&self) -> SnapbackResult<MutexGuard<'_, CoordinatorTopology>> {
         self.topology.lock().map_err(|_| projection_unavailable())
     }
@@ -464,6 +616,47 @@ fn exact_unmark_rotation(
         topology.global_rebuild_required = true;
         Err(projection_unavailable())
     }
+}
+
+fn exact_unmark_issuance(
+    topology: &mut CoordinatorTopology,
+    carrier: &PremarkedIssuance,
+) -> SnapbackResult<()> {
+    if let (Some(ticket), Some(eviction)) = (&carrier.eviction_ticket, carrier.plan.eviction()) {
+        if !topology
+            .projection
+            .compare_unmark_session(ticket, eviction.session_id())?
+        {
+            topology.global_rebuild_required = true;
+            return Err(projection_unavailable());
+        }
+    }
+    let session_id = carrier.plan.projected_insert().session_id;
+    if topology
+        .projection
+        .compare_unmark_issuance(&carrier.issuance_ticket, &session_id)?
+    {
+        Ok(())
+    } else {
+        topology.global_rebuild_required = true;
+        Err(projection_unavailable())
+    }
+}
+
+fn fail_issuance_closed(topology: &mut CoordinatorTopology, carrier: &PremarkedIssuance) {
+    if let (Some(ticket), Some(eviction)) = (&carrier.eviction_ticket, carrier.plan.eviction()) {
+        fail_session_closed(
+            topology,
+            ticket,
+            eviction.session_id(),
+            eviction.expected_generation().checked_add(1),
+        );
+    }
+    let session_id = carrier.plan.projected_insert().session_id;
+    let _ = topology
+        .projection
+        .compare_unmark_issuance(&carrier.issuance_ticket, &session_id);
+    topology.global_rebuild_required = true;
 }
 
 fn fail_session_closed(
