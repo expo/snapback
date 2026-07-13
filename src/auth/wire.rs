@@ -1,0 +1,296 @@
+//! Closed wire types for the local v1 authentication provider.
+//!
+//! Secret-bearing inputs deliberately do not derive `Debug` or `Serialize`.
+//! Secret-bearing outputs serialize only through explicit field serializers,
+//! so the underlying credential wrappers remain non-serializable and cannot
+//! accidentally enter a generic log or diagnostic envelope.
+//!
+//! @ref LLP 0054#routes-operations-and-dtos — Rust serde + schemars types are
+//! the wire authority, and every provider object is closed.
+
+use crate::auth::crypto::{SessionBearer, VerificationCode};
+use schemars::JsonSchema;
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize, Serializer};
+use std::fmt;
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RequestCodeRequest {
+    pub email: String,
+}
+
+impl fmt::Debug for RequestCodeRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RequestCodeRequest")
+            .field("email", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RequestCodeResponse {
+    pub challenge_id: String,
+    pub expires_at: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExchangeRequest {
+    pub challenge_id: String,
+    pub code: String,
+}
+
+impl fmt::Debug for ExchangeRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ExchangeRequest")
+            .field("challenge_id", &self.challenge_id)
+            .field("code", &"[REDACTED]")
+            .finish()
+    }
+}
+
+/// The exact `{}` body used by refresh, logout, and family-alarm.
+#[derive(Clone, Debug, Default, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct EmptyAuthRequest {}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionResponse {
+    pub id: String,
+    pub user_id: String,
+    pub provider: String,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub absolute_expires_at: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, JsonSchema, PartialEq, Serialize)]
+pub enum AuthTokenType {
+    Bearer,
+}
+
+/// A freshly issued session credential. The token is intentionally private:
+/// callers may return the complete response, but cannot pluck the bearer into
+/// an arbitrary serializable structure.
+#[derive(JsonSchema)]
+#[schemars(rename = "AuthCredentialResponse")]
+#[schemars(rename_all = "camelCase")]
+#[schemars(deny_unknown_fields)]
+pub struct CredentialResponse {
+    #[schemars(with = "String")]
+    token: SessionBearer,
+    token_type: AuthTokenType,
+    pub refresh_after: u64,
+    pub session: SessionResponse,
+}
+
+impl CredentialResponse {
+    pub(crate) fn new(token: SessionBearer, refresh_after: u64, session: SessionResponse) -> Self {
+        Self {
+            token,
+            token_type: AuthTokenType::Bearer,
+            refresh_after,
+            session,
+        }
+    }
+
+    pub(crate) fn token(&self) -> &SessionBearer {
+        &self.token
+    }
+}
+
+impl fmt::Debug for CredentialResponse {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("CredentialResponse")
+            .field("token_type", &self.token_type)
+            .field("token", &"[REDACTED]")
+            .field("refresh_after", &self.refresh_after)
+            .field("session", &self.session)
+            .finish()
+    }
+}
+
+impl Serialize for CredentialResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut output = serializer.serialize_struct("AuthCredentialResponse", 4)?;
+        output.serialize_field("tokenType", &self.token_type)?;
+        output.serialize_field("token", self.token.expose_secret())?;
+        output.serialize_field("refreshAfter", &self.refresh_after)?;
+        output.serialize_field("session", &self.session)?;
+        output.end()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FamilyAlarmResponse {
+    pub accepted: bool,
+}
+
+impl Default for FamilyAlarmResponse {
+    fn default() -> Self {
+        Self { accepted: true }
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MailboxQuery {
+    pub challenge_id: String,
+}
+
+impl fmt::Debug for MailboxQuery {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MailboxQuery")
+            .field("challenge_id", &self.challenge_id)
+            .finish()
+    }
+}
+
+#[derive(JsonSchema)]
+#[schemars(rename_all = "camelCase")]
+#[schemars(deny_unknown_fields)]
+pub struct MailboxResponse {
+    pub challenge_id: String,
+    #[schemars(with = "String")]
+    canonical_address: String,
+    #[schemars(with = "String")]
+    code: VerificationCode,
+    pub expires_at: u64,
+}
+
+impl MailboxResponse {
+    pub(crate) fn new(
+        challenge_id: String,
+        canonical_address: String,
+        code: VerificationCode,
+        expires_at: u64,
+    ) -> Self {
+        Self {
+            challenge_id,
+            canonical_address,
+            code,
+            expires_at,
+        }
+    }
+}
+
+impl fmt::Debug for MailboxResponse {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MailboxResponse")
+            .field("challenge_id", &self.challenge_id)
+            .field("canonical_address", &"[REDACTED]")
+            .field("code", &"[REDACTED]")
+            .field("expires_at", &self.expires_at)
+            .finish()
+    }
+}
+
+impl Serialize for MailboxResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut output = serializer.serialize_struct("MailboxResponse", 4)?;
+        output.serialize_field("challengeId", &self.challenge_id)?;
+        output.serialize_field("canonicalAddress", &self.canonical_address)?;
+        output.serialize_field("code", self.code.expose_secret())?;
+        output.serialize_field("expiresAt", &self.expires_at)?;
+        output.end()
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MintSessionRequest {
+    pub email: String,
+}
+
+impl fmt::Debug for MintSessionRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MintSessionRequest")
+            .field("email", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RescueCollidingTableRequest {
+    pub source_table: String,
+    pub target_table: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::auth::crypto::{CryptoError, RandomSource};
+
+    struct FixedRandom;
+
+    impl RandomSource for FixedRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            destination.fill(7);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn closed_requests_reject_unknown_fields() {
+        assert!(
+            serde_json::from_str::<RequestCodeRequest>(r#"{"email":"a@b","extra":1}"#).is_err()
+        );
+        assert!(
+            serde_json::from_str::<ExchangeRequest>(
+                r#"{"challengeId":"sbc_x","code":"123456","auth":{}}"#
+            )
+            .is_err()
+        );
+        assert!(serde_json::from_str::<EmptyAuthRequest>(r#"{"token":"body-alias"}"#).is_err());
+    }
+
+    #[test]
+    fn secret_request_debug_is_redacted() {
+        let request: ExchangeRequest =
+            serde_json::from_str(r#"{"challengeId":"sbc_public","code":"987654"}"#).unwrap();
+        let debug = format!("{request:?}");
+        assert!(debug.contains("sbc_public"));
+        assert!(!debug.contains("987654"));
+    }
+
+    #[test]
+    fn credential_serialization_is_explicit_and_debug_redacted() {
+        let token = SessionBearer::generate(&FixedRandom).unwrap();
+        let planted = token.expose_secret().to_owned();
+        let response = CredentialResponse::new(
+            token,
+            7,
+            SessionResponse {
+                id: "session".to_owned(),
+                user_id: "user".to_owned(),
+                provider: "email-code".to_owned(),
+                created_at: 1,
+                expires_at: 2,
+                absolute_expires_at: 3,
+            },
+        );
+        let value = serde_json::to_value(&response).unwrap();
+        assert_eq!(value["tokenType"], "Bearer");
+        assert_eq!(value["token"], planted);
+        assert_eq!(value["refreshAfter"], 7);
+        assert_eq!(value["session"]["userId"], "user");
+        assert!(!format!("{response:?}").contains(&planted));
+    }
+}

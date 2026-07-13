@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.family-alarm.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "accepted": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "accepted"
+  ],
+  "title": "FamilyAlarmResponse",
+  "type": "object"
+}

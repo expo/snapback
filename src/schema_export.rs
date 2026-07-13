@@ -18,6 +18,11 @@
 use serde_json::Value;
 
 use crate::admin::AdminInspect;
+use crate::auth::wire::{
+    CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
+    MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
+    RescueCollidingTableRequest,
+};
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
 use crate::diagnostic::Diagnostic;
 use crate::ephemeral::RealtimeEnvelope;
@@ -133,6 +138,46 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "connection.open.input.schema.json",
             schemars::schema_for!(OpenConnectionRequest),
+        ),
+        finish(
+            "auth.request-code.input.schema.json",
+            schemars::schema_for!(RequestCodeRequest),
+        ),
+        finish(
+            "auth.request-code.output.schema.json",
+            schemars::schema_for!(RequestCodeResponse),
+        ),
+        finish(
+            "auth.exchange.input.schema.json",
+            schemars::schema_for!(ExchangeRequest),
+        ),
+        finish(
+            "auth.credential.output.schema.json",
+            schemars::schema_for!(CredentialResponse),
+        ),
+        finish(
+            "auth.empty.input.schema.json",
+            schemars::schema_for!(EmptyAuthRequest),
+        ),
+        finish(
+            "auth.family-alarm.output.schema.json",
+            schemars::schema_for!(FamilyAlarmResponse),
+        ),
+        finish(
+            "auth.mailbox.query.schema.json",
+            schemars::schema_for!(MailboxQuery),
+        ),
+        finish(
+            "auth.mailbox.output.schema.json",
+            schemars::schema_for!(MailboxResponse),
+        ),
+        finish(
+            "auth.mint-session.input.schema.json",
+            schemars::schema_for!(MintSessionRequest),
+        ),
+        finish(
+            "auth.rescue-colliding-table.input.schema.json",
+            schemars::schema_for!(RescueCollidingTableRequest),
         ),
         finish(
             "app.ensure.input.schema.json",

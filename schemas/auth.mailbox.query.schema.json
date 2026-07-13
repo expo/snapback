@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.mailbox.query.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "challengeId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "challengeId"
+  ],
+  "title": "MailboxQuery",
+  "type": "object"
+}

@@ -1,0 +1,29 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.mailbox.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "canonicalAddress": {
+      "type": "string"
+    },
+    "challengeId": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string"
+    },
+    "expiresAt": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "challengeId",
+    "canonicalAddress",
+    "code",
+    "expiresAt"
+  ],
+  "title": "MailboxResponse",
+  "type": "object"
+}
