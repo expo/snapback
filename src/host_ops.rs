@@ -82,6 +82,12 @@ pub struct HostOpsResult {
     #[serde(skip)]
     #[schemars(skip)]
     pub(crate) secret_read_query: bool,
+    /// False when an invocation failed on a path whose error type cannot yet
+    /// carry the complete ctx.db dependency witness. HTTP session mode uses
+    /// this only to replace the response with a fixed fail-closed diagnostic.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) secret_read_provenance_complete: bool,
 }
 
 impl HostOpsResult {
@@ -171,6 +177,15 @@ pub struct HostReadyDescriptor {
         skip_serializing_if = "Option::is_none"
     )]
     pub admin_token_file: Option<String>,
+    /// Owner-only root used exclusively by ready-file CLI tooling to produce
+    /// one-shot secret-read mint proofs. The descriptor carries only this
+    /// mechanically validated sibling path, never the root bytes.
+    #[serde(
+        rename = "secretReadRootFile",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub secret_read_root_file: Option<String>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -345,6 +360,7 @@ pub fn execute_host_op_with_profile(
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
+        secret_read_provenance_complete: true,
     };
 
     let profile_requirement =
@@ -608,6 +624,7 @@ fn run_function(
                     );
                     response.secret_read_tables = declared_reads;
                     response.secret_read_query = true;
+                    response.secret_read_provenance_complete = false;
                     response
                 }
             }
@@ -878,6 +895,7 @@ fn explain_function(
     let declared_secret_reads = snapback.function_declared_read_tables(&function);
     match snapback.dry_run_mutation(&function, input) {
         Ok(outcome) => {
+            let secret_read_provenance_complete = outcome.failure.is_none();
             let secret_read_rows = outcome
                 .read_dependencies
                 .iter()
@@ -950,6 +968,7 @@ fn explain_function(
             let mut result = envelope(snapback, true, authority, data, Vec::new());
             result.secret_read_tables = secret_read_tables.into_iter().collect();
             result.secret_read_rows = secret_read_rows;
+            result.secret_read_provenance_complete = secret_read_provenance_complete;
             if report.would_commit {
                 // propose → simulate → inspect writes → commit (LLP 0051 D8).
                 result.next.push(json!({
@@ -969,6 +988,7 @@ fn explain_function(
                 vec![error.diagnostic],
             );
             result.secret_read_tables = declared_secret_reads;
+            result.secret_read_provenance_complete = false;
             result
         }
     }

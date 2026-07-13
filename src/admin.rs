@@ -7,7 +7,8 @@
 //! state rather than forking a parallel schema; the console is one consumer.
 
 use crate::admin_secret_read::{
-    SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadOperator, SecretReadScope,
+    SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintBridge, SecretReadOperator,
+    SecretReadScope, VerifiedSecretReadMint,
 };
 use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
@@ -20,7 +21,7 @@ use crate::server::{
 };
 use anyhow::Context as _;
 use axum::Json;
-use axum::extract::{FromRef, Path, Query, State};
+use axum::extract::{Extension, FromRef, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -591,8 +592,14 @@ pub struct AppState {
     /// field lets pre-effect gates prove the pending posture now.
     pub desired_policy_auth_mode: PolicyAuthMode,
     /// Digest-only registry for reset-bounded administrative data leases.
-    /// Minting authority is deliberately not stored in HTTP state.
     pub secret_reads: SecretReadLeaseRegistry,
+    /// Present only for a serve process with a validated ready-file sibling.
+    /// Middleware admits a mint only after AdminWrite and a one-shot HMAC
+    /// proof; the root itself is never an HTTP credential or response value.
+    /// This v0 bridge is intentionally ready-file-only; staged mode activation
+    /// must refuse sessions when it is absent rather than enabling decorative,
+    /// unmintable secret-read authority (owned by item 4).
+    pub(crate) secret_read_mint: Option<Arc<SecretReadMintBridge>>,
 }
 
 impl AppState {
@@ -625,9 +632,15 @@ impl AppState {
                 policy_auth_mode: PolicyAuthMode::Dev,
                 desired_policy_auth_mode: PolicyAuthMode::Dev,
                 secret_reads,
+                secret_read_mint: None,
             },
             operator,
         )
+    }
+
+    pub(crate) fn with_secret_read_mint_bridge(mut self, bridge: SecretReadMintBridge) -> Self {
+        self.secret_read_mint = Some(Arc::new(bridge));
+        self
     }
 
     /// Select an auth-policy mode for an embedded runtime. Production callers
@@ -1010,6 +1023,18 @@ pub(crate) fn reserve_secret_read_json<T: Serialize>(
     Ok(())
 }
 
+pub(crate) fn preflight_secret_read(
+    secret_reads: &SecretReadLeaseRegistry,
+    headers: &HeaderMap,
+    scopes: BTreeSet<SecretReadScope>,
+) -> Result<(), ApiError> {
+    let bearer = headers
+        .get(SECRET_READ_LEASE_HEADER)
+        .and_then(|value| value.to_str().ok());
+    secret_reads.authorize_scopes(bearer, &scopes)?;
+    Ok(())
+}
+
 fn function_run_secret_scopes(
     result: &crate::local::FunctionRunResult,
 ) -> BTreeSet<SecretReadScope> {
@@ -1176,6 +1201,15 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::CredentialSecret,
             ),
             post(mint_console_credential),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/admin-secret-read/mint",
+                ResponseSensitivity::CredentialSecret,
+            )
+            .with_effect(EffectPolicy::SecretReadMintProof),
+            post(mint_secret_read_lease),
         ),
         RegisteredRoute::new(
             write(
@@ -1523,6 +1557,26 @@ async fn mint_console_credential(
     Ok(Json(ctx.console_credentials.mint()))
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SecretReadMintResponse {
+    lease: String,
+}
+
+async fn mint_secret_read_lease(
+    State(state): State<AppState>,
+    Extension(verified): Extension<VerifiedSecretReadMint>,
+) -> Result<Json<SecretReadMintResponse>, ApiError> {
+    let bridge = state
+        .secret_read_mint
+        .as_ref()
+        .ok_or_else(crate::admin_secret_read::mint_proof_required)?;
+    let lease = bridge.mint(verified)?;
+    Ok(Json(SecretReadMintResponse {
+        lease: lease.into_bearer(),
+    }))
+}
+
 async fn admin_inspect(
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
@@ -1537,6 +1591,12 @@ async fn admin_inspect(
     // typed root `/inspect` projection instead.
     if policy_mode == PolicyAuthMode::Dev {
         authorize(&ctx, &headers, true)?;
+    } else {
+        preflight_secret_read(
+            &secret_reads,
+            &headers,
+            BTreeSet::from([SecretReadScope::AdminInspect]),
+        )?;
     }
     let inspect = crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
     let response = AdminInspect::assemble(inspect, &ctx);
@@ -1573,6 +1633,12 @@ async fn admin_receipts(
 ) -> Result<Json<serde_json::Value>, crate::server::ApiError> {
     if policy_mode == PolicyAuthMode::Dev {
         authorize(&ctx, &headers, false)?;
+    } else {
+        preflight_secret_read(
+            &secret_reads,
+            &headers,
+            BTreeSet::from([SecretReadScope::Receipts]),
+        )?;
     }
     // L7 shape: the rings and gauges are pure in-memory reads, but the guard
     // discipline is one pattern for every handler that takes the global lock.
@@ -1619,6 +1685,13 @@ async fn admin_data(
     let limit = params.limit.unwrap_or(50).clamp(1, 500);
     let offset = params.offset.unwrap_or(0);
     let table_scope = table.clone();
+    if policy_mode == PolicyAuthMode::Sessions {
+        preflight_secret_read(
+            &secret_reads,
+            &headers,
+            BTreeSet::from([SecretReadScope::Table(table_scope.clone())]),
+        )?;
+    }
     let scan = crate::server::with_snapback(&snapback, move |snapback| {
         snapback.scan_table(&table, limit, offset)
     })
@@ -1671,6 +1744,21 @@ async fn admin_run_function(
                 policy_mode,
                 &secret_reads,
             )?;
+            if policy_mode == PolicyAuthMode::Sessions
+                && matches!(
+                    function_kind,
+                    Some(FunctionKind::Query | FunctionKind::LiveQuery)
+                )
+            {
+                let mut scopes = BTreeSet::from([SecretReadScope::FunctionRun(name.clone())]);
+                scopes.extend(
+                    snapback
+                        .function_declared_read_tables(&name)
+                        .into_iter()
+                        .map(SecretReadScope::Table),
+                );
+                preflight_secret_read(&secret_reads, &gate_headers, scopes)?;
+            }
             // A caller-supplied app user is the `devUser` authority mode, not
             // hosted authentication. Apply the same centralized profile rule
             // as the multiplexed host-ops alias before invoking app code.
@@ -1682,6 +1770,10 @@ async fn admin_run_function(
                     crate::local::StagedAppAction::Done(result) => Routed::Done(result),
                     crate::local::StagedAppAction::Ready(stage) => Routed::Action(stage),
                 });
+            }
+            #[cfg(test)]
+            if name == "preflightExecutionSentinel" {
+                SECRET_READ_TEST_QUERY_EXECUTIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             }
             Ok(Routed::Done(Box::new(snapback.run_function(&name, input))))
         })
@@ -1699,12 +1791,31 @@ async fn admin_run_function(
             result.kind,
             Some(FunctionKind::Query | FunctionKind::LiveQuery)
         ) {
+            // Ibex can report an error after one or more ctx.db reads without
+            // returning the complete dependency witness. Until the runtime
+            // carries provenance on its error type, fail closed with fixed
+            // server text and never forward handler-controlled diagnostics.
+            if !result.ok {
+                return Err(secret_read_provenance_unavailable().into());
+            }
             let scopes = function_run_secret_scopes(&result);
             let rows = result.rows.as_ref().map_or(0, Vec::len);
             reserve_secret_read_json(&secret_reads, &headers, scopes, rows, &result)?;
         }
     }
     Ok(Json(result))
+}
+
+#[cfg(test)]
+static SECRET_READ_TEST_QUERY_EXECUTIONS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+pub(crate) fn secret_read_provenance_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ADMIN_SECRET_READ_PROVENANCE_UNAVAILABLE",
+        "admin-secret-read",
+        "the failed invocation did not provide a complete secret-read provenance witness",
+    )
 }
 
 async fn admin_cron_tick(
@@ -1763,6 +1874,79 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn declared_scope_preflight_stops_before_the_query_execution_sentinel() {
+        use crate::admin_secret_read::{SecretReadLeaseRequest, SecretReadScope};
+        use crate::manifest::{
+            FieldManifest, FieldType, FunctionDefinition, FunctionManifest, FunctionRuntime,
+            HandlerPlan, QueryPlan, SchemaManifest, TableManifest,
+        };
+        use axum::body::Body;
+        use axum::http::Request;
+        use std::sync::atomic::Ordering;
+        use tower::ServiceExt as _;
+
+        let mut snapback = LocalSnapback::memory().unwrap();
+        snapback
+            .apply_schema(SchemaManifest {
+                tables: vec![TableManifest {
+                    name: "sentinelRows".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: false,
+                }],
+                ..SchemaManifest::default()
+            })
+            .unwrap();
+        snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "preflightExecutionSentinel",
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "sentinelRows".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )],
+            ..FunctionManifest::default()
+        });
+        let mut context = ServerContext::detached();
+        context.admin_token = Some("ordinary-admin".to_owned());
+        let (state, operator) =
+            AppState::from_snapback_with_secret_read_operator(snapback, context);
+        let lease = operator
+            .mint(SecretReadLeaseRequest {
+                scopes: BTreeSet::from([SecretReadScope::FunctionRun(
+                    "preflightExecutionSentinel".to_owned(),
+                )]),
+                ttl: Duration::from_secs(60),
+                row_budget: 10,
+                byte_budget: 1_000_000,
+            })
+            .unwrap();
+        SECRET_READ_TEST_QUERY_EXECUTIONS.store(0, Ordering::SeqCst);
+        let response = crate::server::app(state.with_policy_auth_mode(PolicyAuthMode::Sessions))
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/functions/preflightExecutionSentinel/run")
+                    .header("content-type", "application/json")
+                    .header(SECRET_READ_LEASE_HEADER, lease.bearer())
+                    .body(Body::from(r#"{"args":{}}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert_eq!(SECRET_READ_TEST_QUERY_EXECUTIONS.load(Ordering::SeqCst), 0);
+    }
 
     #[test]
     fn profile_resolution_fails_closed_on_unrecognized_values() {

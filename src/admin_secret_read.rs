@@ -1,22 +1,27 @@
 //! Reset-bounded, least-privilege leases for administrative reads that can
 //! return application data.
 //!
-//! The minting root is an in-process capability, not a bearer string. It can
-//! therefore be handed to trusted operator tooling without creating an HTTP
-//! credential that app-origin code could replay. Only the derived lease token
-//! is carried on requests, and the registry retains only its SHA-256 digest.
+//! The registry minting root remains an in-process capability, never an HTTP
+//! bearer. Ready-file operator tooling reaches it through a separate owner-only
+//! proof root: a startup-bound, fresh, one-shot HMAC authorizes exactly one
+//! canonical bounded request. Only that proof and the derived lease cross HTTP;
+//! the root never does, and the lease registry retains only token digests.
 //!
 //! @ref LLP 0039#protocol-obligations-deferred-to-implementation — the lease
 //!   root stays operator-plane-only; derived authority is opaque, scoped,
 //!   short-lived, reset-bounded, and atomically row/byte-budgeted.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use anyhow::Context as _;
+use hmac::{Hmac, Mac};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeSet, HashMap};
 use std::fmt;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 /// The only HTTP carrier accepted for a derived secret-read lease.
@@ -28,10 +33,16 @@ const MAX_SCOPE_NAME_BYTES: usize = 256;
 const MAX_LEASE_ROWS: u64 = 100_000;
 const MAX_LEASE_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_ACTIVE_LEASES: usize = 4_096;
+const MAX_MINT_PROOF_AGE_MS: u64 = 30_000;
+const MAX_MINT_PROOF_FUTURE_SKEW_MS: u64 = 5_000;
+const MAX_MINT_PROOF_NONCE_BYTES: usize = 96;
+const MAX_MINT_PROOF_REPLAYS: usize = 4_096;
+const MINT_PROOF_DOMAIN: &[u8] = b"snapback/admin-secret-read/mint-proof/v1\0";
 
 /// A response namespace a lease may reveal. There is intentionally no
 /// wildcard variant: every table, function, or fixed surface is named.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum SecretReadScope {
     AdminInspect,
     Receipts,
@@ -106,6 +117,239 @@ impl SecretReadLease {
     pub fn bearer(&self) -> &str {
         &self.bearer
     }
+
+    pub(crate) fn into_bearer(self) -> String {
+        self.bearer
+    }
+}
+
+/// Canonical bounded lease request carried inside a mint proof. Unlike the
+/// process-local request type, this shape has an unambiguous JSON encoding for
+/// signing across the CLI/server process boundary.
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SecretReadMintSpec {
+    pub scopes: BTreeSet<SecretReadScope>,
+    pub ttl_ms: u64,
+    pub row_budget: u64,
+    pub byte_budget: u64,
+}
+
+impl SecretReadMintSpec {
+    fn lease_request(&self) -> SnapbackResult<SecretReadLeaseRequest> {
+        let request = SecretReadLeaseRequest {
+            scopes: self.scopes.clone(),
+            ttl: Duration::from_millis(self.ttl_ms),
+            row_budget: self.row_budget,
+            byte_budget: self.byte_budget,
+        };
+        request.validate()?;
+        Ok(request)
+    }
+}
+
+/// One-shot proof that the caller read the ready-file sibling root. The root
+/// itself is never an HTTP field; only this operation-specific HMAC crosses
+/// the network boundary.
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SecretReadMintProof {
+    pub startup_nonce: String,
+    pub nonce: String,
+    pub issued_at_ms: u64,
+    pub mac: String,
+}
+
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SecretReadMintEnvelope {
+    pub lease: SecretReadMintSpec,
+    pub proof: SecretReadMintProof,
+}
+
+/// Owner-only, ready-file-relative signing root. It is deliberately neither
+/// cloneable, debug-printable, nor serializable.
+pub(crate) struct SecretReadProofRoot {
+    secret: [u8; 32],
+}
+
+impl Drop for SecretReadProofRoot {
+    fn drop(&mut self) {
+        self.secret.fill(0);
+    }
+}
+
+/// The only value a handler may use to mint. Middleware creates it after the
+/// ordinary AdminWrite floor and the distinct proof/replay gate both pass.
+#[derive(Clone)]
+pub(crate) struct VerifiedSecretReadMint {
+    request: SecretReadLeaseRequest,
+}
+
+/// HTTP bridge retained only by a serve process that successfully resolved an
+/// owner-only root next to its ready descriptor.
+pub(crate) struct SecretReadMintBridge {
+    operator: SecretReadOperator,
+    proof_root: SecretReadProofRoot,
+    startup_nonce: String,
+    replayed: Mutex<HashMap<[u8; 32], u64>>,
+    wall_clock_ms: Arc<dyn Fn() -> u64 + Send + Sync>,
+}
+
+impl SecretReadMintBridge {
+    pub(crate) fn new(
+        operator: SecretReadOperator,
+        proof_root: SecretReadProofRoot,
+        startup_nonce: String,
+    ) -> Self {
+        Self::new_with_clock(operator, proof_root, startup_nonce, Arc::new(unix_time_ms))
+    }
+
+    fn new_with_clock(
+        operator: SecretReadOperator,
+        proof_root: SecretReadProofRoot,
+        startup_nonce: String,
+        wall_clock_ms: Arc<dyn Fn() -> u64 + Send + Sync>,
+    ) -> Self {
+        Self {
+            operator,
+            proof_root,
+            startup_nonce,
+            replayed: Mutex::new(HashMap::new()),
+            wall_clock_ms,
+        }
+    }
+
+    pub(crate) fn verify_and_claim(
+        &self,
+        envelope: &SecretReadMintEnvelope,
+    ) -> SnapbackResult<VerifiedSecretReadMint> {
+        let request = envelope.lease.lease_request()?;
+        let proof = &envelope.proof;
+        if proof.startup_nonce != self.startup_nonce {
+            return Err(mint_proof_error(
+                "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH",
+                "the mint proof is not bound to this server startup",
+            ));
+        }
+        if !proof.nonce.starts_with("sbrp_")
+            || proof.nonce.len() > MAX_MINT_PROOF_NONCE_BYTES
+            || !proof.nonce.is_ascii()
+        {
+            return Err(mint_proof_invalid());
+        }
+        let now = (self.wall_clock_ms)();
+        if proof.issued_at_ms > now.saturating_add(MAX_MINT_PROOF_FUTURE_SKEW_MS)
+            || now.saturating_sub(proof.issued_at_ms) > MAX_MINT_PROOF_AGE_MS
+        {
+            return Err(mint_proof_error(
+                "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE",
+                "the mint proof is outside the accepted freshness window",
+            ));
+        }
+        let supplied = decode_mac(&proof.mac).ok_or_else(mint_proof_invalid)?;
+        let message = canonical_mint_message(&envelope.lease, proof)?;
+        let mut mac = Hmac::<Sha256>::new_from_slice(&self.proof_root.secret)
+            .expect("HMAC accepts a 32-byte key");
+        mac.update(&message);
+        mac.verify_slice(&supplied)
+            .map_err(|_| mint_proof_invalid())?;
+
+        let nonce_digest = digest(proof.nonce.as_bytes());
+        let mut replayed = self
+            .replayed
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        replayed.retain(|_, expires_at| *expires_at > now);
+        if replayed.contains_key(&nonce_digest) {
+            return Err(mint_proof_error(
+                "SNAPBACK_ADMIN_SECRET_READ_PROOF_REPLAYED",
+                "the one-shot mint proof has already been used",
+            ));
+        }
+        if replayed.len() >= MAX_MINT_PROOF_REPLAYS {
+            return Err(mint_proof_error(
+                "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
+                "the mint proof replay fence is at capacity",
+            ));
+        }
+        replayed.insert(
+            nonce_digest,
+            proof
+                .issued_at_ms
+                .saturating_add(MAX_MINT_PROOF_AGE_MS)
+                .saturating_add(MAX_MINT_PROOF_FUTURE_SKEW_MS),
+        );
+        Ok(VerifiedSecretReadMint { request })
+    }
+
+    pub(crate) fn mint(&self, verified: VerifiedSecretReadMint) -> SnapbackResult<SecretReadLease> {
+        self.operator.mint(verified.request)
+    }
+}
+
+/// Mechanical sibling used by both serve and CLI validation. A URL-only CLI
+/// path has no descriptor and therefore no way to derive or read this file.
+pub fn secret_read_root_sibling(path: &Path) -> PathBuf {
+    let mut name = path
+        .file_name()
+        .map(|name| name.to_os_string())
+        .unwrap_or_default();
+    name.push(".secret-read-root");
+    path.with_file_name(name)
+}
+
+pub(crate) fn resolve_secret_read_proof_root_with_io<ReadFile, WriteFile>(
+    path: &Path,
+    read_file: ReadFile,
+    write_file: WriteFile,
+) -> anyhow::Result<SecretReadProofRoot>
+where
+    ReadFile: Fn(&Path) -> std::io::Result<Vec<u8>>,
+    WriteFile: Fn(&Path, &[u8]) -> std::io::Result<()>,
+{
+    match read_file(path) {
+        Ok(bytes) => parse_secret_read_proof_root(&bytes)
+            .with_context(|| format!("invalid secret-read root file {}", path.display())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let root = SecretReadProofRoot {
+                secret: random_secret(),
+            };
+            write_file(path, format_secret_read_proof_root(&root).as_bytes())
+                .with_context(|| format!("failed to write secret-read root {}", path.display()))?;
+            Ok(root)
+        }
+        Err(error) => Err(error)
+            .with_context(|| format!("failed to read secret-read root {}", path.display())),
+    }
+}
+
+pub(crate) fn read_secret_read_proof_root(path: &Path) -> anyhow::Result<SecretReadProofRoot> {
+    let bytes = crate::secure_file::read_owner_only(path)
+        .with_context(|| format!("failed to read secret-read root {}", path.display()))?;
+    parse_secret_read_proof_root(&bytes)
+        .with_context(|| format!("invalid secret-read root file {}", path.display()))
+}
+
+pub(crate) fn sign_secret_read_mint(
+    root: &SecretReadProofRoot,
+    lease: SecretReadMintSpec,
+    startup_nonce: String,
+    issued_at_ms: u64,
+    nonce: String,
+) -> SnapbackResult<SecretReadMintEnvelope> {
+    lease.lease_request()?;
+    let mut proof = SecretReadMintProof {
+        startup_nonce,
+        nonce,
+        issued_at_ms,
+        mac: String::new(),
+    };
+    let message = canonical_mint_message(&lease, &proof)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(&root.secret).expect("HMAC accepts a 32-byte key");
+    mac.update(&message);
+    proof.mac = format!("sbrm_{}", encode_hex(&mac.finalize().into_bytes()));
+    Ok(SecretReadMintEnvelope { lease, proof })
 }
 
 impl fmt::Debug for SecretReadLease {
@@ -212,6 +456,38 @@ impl SecretReadLeaseRegistry {
             digest: token_digest,
             reset_generation,
         })
+    }
+
+    /// Pre-effect admission for every scope known before handler execution.
+    /// This deliberately consumes no budget; the complete captured scope set
+    /// and serialized response are still revalidated and charged atomically
+    /// after successful work.
+    pub fn authorize_scopes(
+        &self,
+        bearer: Option<&str>,
+        required_scopes: &BTreeSet<SecretReadScope>,
+    ) -> SnapbackResult<SecretReadPermit> {
+        if required_scopes.is_empty() {
+            return Err(scope_denied());
+        }
+        let permit = self.authorize(bearer)?;
+        let current_generation = self.reset_generation.load(Ordering::Acquire);
+        let now = (self.clock)();
+        let mut state = self.lock_state();
+        let Some(record) = state.leases.get(&permit.digest) else {
+            return Err(secret_read_required());
+        };
+        if permit.reset_generation != current_generation
+            || record.reset_generation != current_generation
+            || now >= record.expires_at
+        {
+            state.leases.remove(&permit.digest);
+            return Err(secret_read_required());
+        }
+        if !required_scopes.is_subset(&record.scopes) {
+            return Err(scope_denied());
+        }
+        Ok(permit)
     }
 
     /// Atomically validate scope and reserve both budgets for a complete
@@ -327,6 +603,80 @@ fn constant_time_eq(left: &[u8; 32], right: &[u8; 32]) -> bool {
         == 0
 }
 
+fn unix_time_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
+        .unwrap_or(0)
+}
+
+fn canonical_mint_message(
+    lease: &SecretReadMintSpec,
+    proof: &SecretReadMintProof,
+) -> SnapbackResult<Vec<u8>> {
+    let lease = serde_json::to_vec(lease).map_err(|_| mint_proof_invalid())?;
+    let mut message = Vec::with_capacity(
+        MINT_PROOF_DOMAIN.len() + proof.startup_nonce.len() + proof.nonce.len() + lease.len() + 32,
+    );
+    message.extend_from_slice(MINT_PROOF_DOMAIN);
+    append_proof_field(&mut message, proof.startup_nonce.as_bytes());
+    append_proof_field(&mut message, proof.nonce.as_bytes());
+    message.extend_from_slice(&proof.issued_at_ms.to_be_bytes());
+    append_proof_field(&mut message, &lease);
+    Ok(message)
+}
+
+fn append_proof_field(message: &mut Vec<u8>, value: &[u8]) {
+    message.extend_from_slice(&u64::try_from(value.len()).unwrap_or(u64::MAX).to_be_bytes());
+    message.extend_from_slice(value);
+}
+
+fn format_secret_read_proof_root(root: &SecretReadProofRoot) -> String {
+    format!("sbrk_{}\n", encode_hex(&root.secret))
+}
+
+fn parse_secret_read_proof_root(bytes: &[u8]) -> anyhow::Result<SecretReadProofRoot> {
+    let value = std::str::from_utf8(bytes)?.trim();
+    let encoded = value
+        .strip_prefix("sbrk_")
+        .context("secret-read root has the wrong prefix")?;
+    let decoded = decode_hex_32(encoded).context("secret-read root must contain 32 bytes")?;
+    Ok(SecretReadProofRoot { secret: decoded })
+}
+
+fn encode_hex(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+    }
+    encoded
+}
+
+fn decode_mac(value: &str) -> Option<[u8; 32]> {
+    decode_hex_32(value.strip_prefix("sbrm_")?)
+}
+
+fn decode_hex_32(value: &str) -> Option<[u8; 32]> {
+    if value.len() != 64 {
+        return None;
+    }
+    let mut decoded = [0_u8; 32];
+    for (index, pair) in value.as_bytes().chunks_exact(2).enumerate() {
+        decoded[index] = (hex_nibble(pair[0])? << 4) | hex_nibble(pair[1])?;
+    }
+    Some(decoded)
+}
+
+fn hex_nibble(value: u8) -> Option<u8> {
+    match value {
+        b'0'..=b'9' => Some(value - b'0'),
+        b'a'..=b'f' => Some(value - b'a' + 10),
+        _ => None,
+    }
+}
+
 fn invalid_lease(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
@@ -359,6 +709,24 @@ fn budget_exhausted() -> SnapbackError {
     )
 }
 
+pub(crate) fn mint_proof_invalid() -> SnapbackError {
+    mint_proof_error(
+        "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID",
+        "the secret-read mint proof is invalid",
+    )
+}
+
+fn mint_proof_error(code: &'static str, message: &'static str) -> SnapbackError {
+    SnapbackError::error(code, "admin-secret-read", message)
+}
+
+pub(crate) fn mint_proof_required() -> SnapbackError {
+    mint_proof_error(
+        "SNAPBACK_ADMIN_SECRET_READ_PROOF_REQUIRED",
+        "a ready-file operator mint proof is required",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -375,6 +743,253 @@ mod tests {
             row_budget: 5,
             byte_budget: 10,
         }
+    }
+
+    fn mint_spec() -> SecretReadMintSpec {
+        SecretReadMintSpec {
+            scopes: BTreeSet::from([SecretReadScope::AdminInspect]),
+            ttl_ms: 60_000,
+            row_budget: 5,
+            byte_budget: 1_000,
+        }
+    }
+
+    fn proof_root(secret: [u8; 32]) -> SecretReadProofRoot {
+        SecretReadProofRoot { secret }
+    }
+
+    #[test]
+    fn mint_proof_is_startup_bound_fresh_one_shot_and_root_authenticated() {
+        let generation = Arc::new(AtomicU64::new(1));
+        let (_registry, operator) = SecretReadLeaseRegistry::new(generation);
+        let now = Arc::new(AtomicU64::new(1_000_000));
+        let clock = now.clone();
+        let bridge = SecretReadMintBridge::new_with_clock(
+            operator,
+            proof_root([7; 32]),
+            "startup-a".to_owned(),
+            Arc::new(move || clock.load(Ordering::Acquire)),
+        );
+        let signed = sign_secret_read_mint(
+            &proof_root([7; 32]),
+            mint_spec(),
+            "startup-a".to_owned(),
+            1_000_000,
+            "sbrp_nonce-a".to_owned(),
+        )
+        .unwrap();
+        let verified = bridge.verify_and_claim(&signed).unwrap();
+        assert!(bridge.mint(verified).unwrap().bearer().starts_with("sbrl_"));
+        assert_eq!(
+            bridge
+                .verify_and_claim(&signed)
+                .err()
+                .unwrap()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_SECRET_READ_PROOF_REPLAYED"
+        );
+
+        let wrong_root = sign_secret_read_mint(
+            &proof_root([8; 32]),
+            mint_spec(),
+            "startup-a".to_owned(),
+            1_000_000,
+            "sbrp_nonce-b".to_owned(),
+        )
+        .unwrap();
+        assert_eq!(
+            bridge
+                .verify_and_claim(&wrong_root)
+                .err()
+                .unwrap()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID"
+        );
+
+        let startup_mismatch = sign_secret_read_mint(
+            &proof_root([7; 32]),
+            mint_spec(),
+            "startup-b".to_owned(),
+            1_000_000,
+            "sbrp_nonce-c".to_owned(),
+        )
+        .unwrap();
+        assert_eq!(
+            bridge
+                .verify_and_claim(&startup_mismatch)
+                .err()
+                .unwrap()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH"
+        );
+
+        now.store(1_100_000, Ordering::Release);
+        let stale = sign_secret_read_mint(
+            &proof_root([7; 32]),
+            mint_spec(),
+            "startup-a".to_owned(),
+            1_000_000,
+            "sbrp_nonce-d".to_owned(),
+        )
+        .unwrap();
+        assert_eq!(
+            bridge
+                .verify_and_claim(&stale)
+                .err()
+                .unwrap()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE"
+        );
+    }
+
+    #[tokio::test]
+    async fn mint_route_composes_admin_floor_with_distinct_one_shot_proof() {
+        use axum::body::{Body, to_bytes};
+        use axum::http::{Request, StatusCode, header};
+        use tower::ServiceExt as _;
+
+        let mut context = crate::admin::ServerContext::detached();
+        context.admin_token = Some("ordinary-admin".to_owned());
+        let (state, operator) = crate::admin::AppState::from_snapback_with_secret_read_operator(
+            LocalSnapback::memory().unwrap(),
+            context,
+        );
+        let bridge = SecretReadMintBridge::new_with_clock(
+            operator,
+            proof_root([19; 32]),
+            "startup-a".to_owned(),
+            Arc::new(|| 1_000_000),
+        );
+        let app = crate::server::app(state.with_secret_read_mint_bridge(bridge));
+        let mint_request = |body: serde_json::Value, admin: Option<&str>, console: Option<&str>| {
+            let mut request = Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/admin-secret-read/mint")
+                .header(header::CONTENT_TYPE, "application/json");
+            if let Some(admin) = admin {
+                request = request.header("x-snapback-admin-token", admin);
+            }
+            if let Some(console) = console {
+                request = request.header("x-snapback-console-credential", console);
+            }
+            request.body(Body::from(body.to_string())).unwrap()
+        };
+        let diagnostic =
+            |value: &serde_json::Value| value["diagnostic"]["code"].as_str().unwrap().to_owned();
+        async fn json(response: axum::response::Response) -> serde_json::Value {
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+                .unwrap()
+        }
+
+        let admin_only = app
+            .clone()
+            .oneshot(mint_request(
+                serde_json::json!({}),
+                Some("ordinary-admin"),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(admin_only.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            diagnostic(&json(admin_only).await),
+            "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID"
+        );
+
+        let console_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/console/credential")
+                    .header("x-snapback-admin-token", "ordinary-admin")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let console = json(console_response).await["credential"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let console_only = app
+            .clone()
+            .oneshot(mint_request(serde_json::json!({}), None, Some(&console)))
+            .await
+            .unwrap();
+        assert_eq!(console_only.status(), StatusCode::FORBIDDEN);
+
+        let signed = |root: [u8; 32], startup: &str, issued: u64, nonce: &str| {
+            serde_json::to_value(
+                sign_secret_read_mint(
+                    &proof_root(root),
+                    mint_spec(),
+                    startup.to_owned(),
+                    issued,
+                    nonce.to_owned(),
+                )
+                .unwrap(),
+            )
+            .unwrap()
+        };
+        for (body, code) in [
+            (
+                signed([20; 32], "startup-a", 1_000_000, "sbrp_wrong"),
+                "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID",
+            ),
+            (
+                signed([19; 32], "startup-b", 1_000_000, "sbrp_startup"),
+                "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH",
+            ),
+            (
+                signed([19; 32], "startup-a", 900_000, "sbrp_stale"),
+                "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE",
+            ),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(mint_request(body, Some("ordinary-admin"), None))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+            assert_eq!(diagnostic(&json(response).await), code);
+        }
+
+        let valid = signed([19; 32], "startup-a", 1_000_000, "sbrp_valid");
+        let no_admin = app
+            .clone()
+            .oneshot(mint_request(valid.clone(), None, None))
+            .await
+            .unwrap();
+        assert_eq!(no_admin.status(), StatusCode::UNAUTHORIZED);
+
+        let success = app
+            .clone()
+            .oneshot(mint_request(valid.clone(), Some("ordinary-admin"), None))
+            .await
+            .unwrap();
+        assert_eq!(success.status(), StatusCode::OK);
+        assert_eq!(
+            success.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let success_body = json(success).await;
+        assert_eq!(success_body.as_object().unwrap().len(), 1);
+        assert!(success_body["lease"].as_str().unwrap().starts_with("sbrl_"));
+
+        let replay = app
+            .oneshot(mint_request(valid, Some("ordinary-admin"), None))
+            .await
+            .unwrap();
+        assert_eq!(replay.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            diagnostic(&json(replay).await),
+            "SNAPBACK_ADMIN_SECRET_READ_PROOF_REPLAYED"
+        );
     }
 
     #[test]

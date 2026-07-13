@@ -11,8 +11,8 @@ use snapback::admin_secret_read::{
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
-    FunctionManifest, FunctionRuntime, HandlerPlan, QueryPlan, SchemaManifest, SeedData,
-    TableManifest, ValueExpr,
+    FunctionManifest, FunctionRuntime, HandlerPlan, IbexModule, QueryPlan, SchemaManifest,
+    SeedData, TableManifest, ValueExpr,
 };
 use snapback::server::PolicyAuthMode;
 use std::collections::{BTreeMap, BTreeSet};
@@ -106,7 +106,34 @@ async fn raw_rows_require_the_derived_table_scope_and_complete_budget() {
         ))
         .unwrap();
     let response = app
+        .clone()
         .oneshot(get_with_lease("/_snapback/api/data/items", &allowed))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        json_body(response).await["rows"].as_array().unwrap().len(),
+        2
+    );
+
+    let reusable = operator
+        .mint(lease_request(
+            [SecretReadScope::Table("items".to_owned())],
+            2,
+            1_000_000,
+        ))
+        .unwrap();
+    assert_diagnostic(
+        app.clone()
+            .oneshot(get_with_lease("/_snapback/api/data/notItems", &reusable))
+            .await
+            .unwrap(),
+        StatusCode::FORBIDDEN,
+        "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED",
+    )
+    .await;
+    let response = app
+        .oneshot(get_with_lease("/_snapback/api/data/items", &reusable))
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -172,9 +199,7 @@ async fn direct_and_host_queries_charge_function_plus_declared_and_captured_tabl
             .any(|dependency| dependency["table"] == "items")
     );
 
-    // The handler-level scope check must replace the failing query's
-    // diagnostic too; a valid but under-scoped lease cannot use errors as an
-    // application-data oracle.
+    // Statically declared scopes are admitted before invocation.
     let failing_function_only = operator
         .mint(lease_request(
             [SecretReadScope::FunctionRun("failingItems".to_owned())],
@@ -214,11 +239,110 @@ async fn direct_and_host_queries_charge_function_plus_declared_and_captured_tabl
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     let body = json_body(response).await;
-    assert_eq!(body["ok"], false);
-    assert_eq!(body["authority"]["adminBypass"], true);
-    assert_eq!(body["diagnostics"][0]["code"], "SNAPBACK_ARG_MISSING");
+    assert_eq!(
+        body["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_SECRET_READ_PROVENANCE_UNAVAILABLE"
+    );
+    assert!(!body.to_string().contains("SNAPBACK_ARG_MISSING"));
+}
+
+#[tokio::test]
+async fn under_scoped_function_names_do_not_reveal_existence_before_lookup() {
+    let (app, operator) = sessions_app(ServerProfile::Dev);
+    let lease = operator
+        .mint(lease_request(
+            [SecretReadScope::FunctionRun("anotherFunction".to_owned())],
+            10,
+            1_000_000,
+        ))
+        .unwrap();
+    for name in ["listItems", "doesNotExist"] {
+        let mut request = post_with_lease(
+            &format!("/_snapback/api/functions/{name}/run"),
+            json!({ "args": {} }),
+            &lease,
+        );
+        request.headers_mut().insert(
+            axum::http::header::AUTHORIZATION,
+            "Bearer ordinary-admin".parse().unwrap(),
+        );
+        assert_diagnostic(
+            app.clone().oneshot(request).await.unwrap(),
+            StatusCode::FORBIDDEN,
+            "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED",
+        )
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn ibex_read_then_throw_never_returns_handler_text_without_complete_provenance() {
+    let (app, operator) = sessions_app(ServerProfile::Dev);
+    for uri_body in [
+        (
+            "/_snapback/api/functions/readThenThrow/run",
+            json!({ "args": {} }),
+        ),
+        (
+            "/_snapback/api/host-ops",
+            json!({ "operation": "function.run", "function": "readThenThrow" }),
+        ),
+    ] {
+        let lease = operator
+            .mint(lease_request(
+                [
+                    SecretReadScope::FunctionRun("readThenThrow".to_owned()),
+                    SecretReadScope::Table("items".to_owned()),
+                ],
+                10,
+                1_000_000,
+            ))
+            .unwrap();
+        let response = app
+            .clone()
+            .oneshot(post_with_lease(uri_body.0, uri_body.1, &lease))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body = json_body(response).await;
+        assert_eq!(
+            body["diagnostic"]["code"],
+            "SNAPBACK_ADMIN_SECRET_READ_PROVENANCE_UNAVAILABLE"
+        );
+        assert!(!body.to_string().contains("HANDLER_SECRET_SENTINEL"));
+    }
+
+    let explain_lease = operator
+        .mint(lease_request(
+            [
+                SecretReadScope::FunctionExplain("mutationReadThenThrow".to_owned()),
+                SecretReadScope::Table("items".to_owned()),
+            ],
+            10,
+            1_000_000,
+        ))
+        .unwrap();
+    let response = app
+        .oneshot(post_with_lease(
+            "/_snapback/api/host-ops",
+            json!({
+                "operation": "function.explain",
+                "kind": "mutationDryRun",
+                "function": "mutationReadThenThrow"
+            }),
+            &explain_lease,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let body = json_body(response).await;
+    assert_eq!(
+        body["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_SECRET_READ_PROVENANCE_UNAVAILABLE"
+    );
+    assert!(!body.to_string().contains("EXPLAIN_HANDLER_SECRET_SENTINEL"));
 }
 
 #[tokio::test]
@@ -378,6 +502,34 @@ fn seeded_snapback() -> LocalSnapback {
                     limit: None,
                     indexed_by: None,
                 })),
+            ),
+            FunctionDefinition::new(
+                "readThenThrow",
+                FunctionKind::Query,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: r#"
+export async function readThenThrow(ctx, args) {
+  await ctx.db.query('items').collect();
+  throw new Error('HANDLER_SECRET_SENTINEL');
+}
+"#
+                    .to_owned(),
+                    export: "readThenThrow".to_owned(),
+                }),
+            ),
+            FunctionDefinition::new(
+                "mutationReadThenThrow",
+                FunctionKind::Mutation,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: r#"
+export async function mutationReadThenThrow(ctx, args) {
+  await ctx.db.query('items').collect();
+  throw new Error('EXPLAIN_HANDLER_SECRET_SENTINEL');
+}
+"#
+                    .to_owned(),
+                    export: "mutationReadThenThrow".to_owned(),
+                }),
             ),
         ],
         ..FunctionManifest::default()

@@ -1,4 +1,8 @@
 use crate::admin::{AppState, ServerContext};
+use crate::admin_secret_read::{
+    SecretReadMintBridge, SecretReadMintSpec, SecretReadScope, secret_read_root_sibling,
+    sign_secret_read_mint,
+};
 use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
 use crate::instance_lock::DatabaseInstanceLock;
 use crate::local::LocalSnapback;
@@ -11,6 +15,7 @@ use std::ffi::OsString;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -107,6 +112,32 @@ pub enum HostCommand {
         #[arg(long)]
         user: Option<String>,
     },
+    /// Mint one short-lived, scoped administrative data-read lease. This is a
+    /// ready-file-only operation because the proof root is local operator
+    /// authority and can never be discovered from a URL.
+    #[command(name = "secret-read-mint")]
+    SecretReadMint {
+        #[arg(long)]
+        ready_file: PathBuf,
+        #[arg(long)]
+        token: Option<String>,
+        #[arg(long)]
+        admin_inspect: bool,
+        #[arg(long)]
+        receipts: bool,
+        #[arg(long)]
+        table: Vec<String>,
+        #[arg(long)]
+        function: Vec<String>,
+        #[arg(long)]
+        explain_function: Vec<String>,
+        #[arg(long, default_value_t = 60)]
+        ttl_seconds: u64,
+        #[arg(long, default_value_t = 500)]
+        row_budget: u64,
+        #[arg(long, default_value_t = 1_048_576)]
+        byte_budget: u64,
+    },
 }
 
 #[derive(Debug, clap::Args)]
@@ -183,6 +214,48 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                     "userId": user,
                 }),
             )
+        }
+        Some(HostCommand::SecretReadMint {
+            ready_file,
+            token,
+            admin_inspect,
+            receipts,
+            table,
+            function,
+            explain_function,
+            ttl_seconds,
+            row_budget,
+            byte_budget,
+        }) => {
+            let mut scopes = std::collections::BTreeSet::new();
+            if admin_inspect {
+                scopes.insert(SecretReadScope::AdminInspect);
+            }
+            if receipts {
+                scopes.insert(SecretReadScope::Receipts);
+            }
+            scopes.extend(table.into_iter().map(SecretReadScope::Table));
+            scopes.extend(function.into_iter().map(SecretReadScope::FunctionRun));
+            scopes.extend(
+                explain_function
+                    .into_iter()
+                    .map(SecretReadScope::FunctionExplain),
+            );
+            let ttl_ms = ttl_seconds
+                .checked_mul(1_000)
+                .context("--ttl-seconds is too large")?;
+            let response = mint_secret_read_via_http(
+                &ready_file,
+                token,
+                SecretReadMintSpec {
+                    scopes,
+                    ttl_ms,
+                    row_budget,
+                    byte_budget,
+                },
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
         }
     }
 }
@@ -310,6 +383,86 @@ fn discover_minted_token(ready_file: &Path, descriptor: &HostReadyDescriptor) ->
     (!token.is_empty()).then(|| token.to_owned())
 }
 
+fn mint_secret_read_via_http(
+    ready_file: &Path,
+    explicit_token: Option<String>,
+    lease: SecretReadMintSpec,
+) -> anyhow::Result<Value> {
+    // Resolve and validate one owner-only descriptor snapshot before reading
+    // either sibling capability. URL-only targeting has no code path here.
+    let value = read_trusted_json_file(ready_file)?;
+    let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            ready_file.display(),
+            problems.join("; ")
+        )
+    })?;
+    let health = fetch_health(&descriptor.server_url);
+    verify_live_descriptor_identity(&descriptor, &health, "admin-secret-read.mint")
+        .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+    let canonical_ready = std::fs::canonicalize(ready_file)
+        .with_context(|| format!("failed to resolve ready file {}", ready_file.display()))?;
+    let declared_root = validated_secret_read_root_path(&canonical_ready, &descriptor)?;
+    let root = crate::admin_secret_read::read_secret_read_proof_root(&declared_root)?;
+
+    let startup_nonce = descriptor
+        .startup_nonce
+        .clone()
+        .context("readiness descriptor has no startupNonce")?;
+    let issued_at_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
+        .unwrap_or(0);
+    let proof = sign_secret_read_mint(
+        &root,
+        lease,
+        startup_nonce,
+        issued_at_ms,
+        format!("sbrp_{}", Uuid::new_v4().simple()),
+    )?;
+    let token = explicit_token
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or_else(|| discover_minted_token(&canonical_ready, &descriptor));
+    let mut request = ureq::post(&format!(
+        "{}/_snapback/api/admin-secret-read/mint",
+        descriptor.server_url.trim_end_matches('/')
+    ));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(serde_json::to_value(proof)?) {
+        Ok(response) => response
+            .into_json()
+            .context("secret-read mint response was not JSON"),
+        Err(ureq::Error::Status(status, response)) => {
+            let body: Value = response
+                .into_json()
+                .context("secret-read mint error response was not JSON")?;
+            anyhow::bail!("secret-read mint failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context("secret-read mint request failed"),
+    }
+}
+
+fn validated_secret_read_root_path(
+    canonical_ready: &Path,
+    descriptor: &HostReadyDescriptor,
+) -> anyhow::Result<PathBuf> {
+    let expected_root = secret_read_root_sibling(canonical_ready);
+    let declared_root = descriptor
+        .secret_read_root_file
+        .as_deref()
+        .map(PathBuf::from)
+        .context("readiness descriptor has no secretReadRootFile")?;
+    anyhow::ensure!(
+        declared_root == expected_root,
+        "SNAPBACK_ADMIN_SECRET_READ_ROOT_PATH_INVALID: secretReadRootFile is not the mechanical ready-file sibling"
+    );
+    Ok(declared_root)
+}
+
 /// Print the envelope; returns envelope `ok` (missing/false → false).
 fn print_envelope(envelope: &Value) -> bool {
     println!(
@@ -353,6 +506,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             secret_read_tables: Vec::new(),
             secret_read_rows: 0,
             secret_read_query: false,
+            secret_read_provenance_complete: true,
         };
     if let Err(diagnostic) = verify_stop_target(&descriptor, &health) {
         let refused = envelope(
@@ -416,9 +570,20 @@ fn verify_stop_target(
     descriptor: &HostReadyDescriptor,
     health: &Result<Value, String>,
 ) -> Result<(), crate::diagnostic::Diagnostic> {
+    verify_live_descriptor_identity(descriptor, health, "host.stop")
+}
+
+/// Verify that a trusted descriptor still names the process answering its
+/// URL. Capability-bearing ready-file operations call this before reading any
+/// sibling secret or attaching any administrator credential to a request.
+fn verify_live_descriptor_identity(
+    descriptor: &HostReadyDescriptor,
+    health: &Result<Value, String>,
+    operation: &str,
+) -> Result<(), crate::diagnostic::Diagnostic> {
     let details = |reason: &str| {
         json!({
-            "operation": "host.stop",
+            "operation": operation,
             "pid": descriptor.pid,
             "serverUrl": descriptor.server_url,
             "reason": reason,
@@ -428,9 +593,7 @@ fn verify_stop_target(
         return Err(crate::diagnostic::Diagnostic::error(
             "SNAPBACK_HOST_STOP_UNVERIFIABLE",
             "host-ops",
-            "the readiness descriptor has no startupNonce (written by an older snapback), so the \
-             pid cannot be verified as the server; stop the process manually and remove the \
-             ready file",
+            "the readiness descriptor has no startupNonce, so the target process cannot be verified; the capability-bearing operation was refused",
         )
         .with_details(details("descriptor predates startupNonce identity")));
     };
@@ -442,8 +605,7 @@ fn verify_stop_target(
                 "host-ops",
                 format!(
                     "the descriptor's server no longer answers ({reason}); the ready file is \
-                     stale and pid {} may belong to an unrelated process — nothing was \
-                     signaled; remove the ready file if the server is gone",
+                     stale and pid {} may belong to an unrelated process — the operation was refused",
                     descriptor.pid
                 ),
             )
@@ -460,15 +622,15 @@ fn verify_stop_target(
             "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
             "host-ops",
             "the server answering the descriptor's URL is a different process than the one that \
-             wrote the descriptor (startupNonce mismatch); nothing was signaled — remove the \
-             stale ready file and target the live server's own ready file",
+             wrote the descriptor (startupNonce mismatch); the operation was refused — remove \
+             the stale ready file and target the live server's own ready file",
         )
         .with_details(details("startupNonce mismatch"))),
         None => Err(crate::diagnostic::Diagnostic::error(
             "SNAPBACK_HOST_STOP_UNVERIFIABLE",
             "host-ops",
             "the process answering the descriptor's URL does not report a Snapback identity \
-             (/health has no binary.startupNonce); nothing was signaled",
+             (/health has no binary.startupNonce); the operation was refused",
         )
         .with_details(details("no binary.startupNonce on /health"))),
     }
@@ -589,9 +751,31 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .admin_token_file
         .as_ref()
         .map(|path| path.display().to_string());
+    let startup_nonce = crate::identity::binary_identity().startup_nonce;
+    let secret_read_root_file = ready_path.map(secret_read_root_sibling);
+    let secret_read_proof_root = match (ready_target.as_ref(), secret_read_root_file.as_ref()) {
+        (Some(target), Some(path)) => Some(
+            crate::admin_secret_read::resolve_secret_read_proof_root_with_io(
+                path,
+                |path| target.read_owner_only_sibling(path),
+                |path, bytes| target.write_owner_only_sibling(path, bytes),
+            )?,
+        ),
+        _ => None,
+    };
     let cron_scheduler = server::spawn_cron_scheduler(state.clone());
     let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral.clone());
-    let app = server::app(AppState::new(state, read_lane, ephemeral, server_context));
+    let (app_state, secret_read_operator) =
+        AppState::new_with_secret_read_operator(state, read_lane, ephemeral, server_context);
+    let app_state = match secret_read_proof_root {
+        Some(root) => app_state.with_secret_read_mint_bridge(SecretReadMintBridge::new(
+            secret_read_operator,
+            root,
+            startup_nonce.clone(),
+        )),
+        None => app_state,
+    };
+    let app = server::app(app_state);
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
     }
@@ -612,7 +796,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             pid: std::process::id(),
             // The identity handshake `snapback stop` verifies before it
             // signals this pid: the same per-process nonce /health reports.
-            startup_nonce: Some(crate::identity::binary_identity().startup_nonce),
+            startup_nonce: Some(startup_nonce.clone()),
             target: crate::host_ops::HostOpsTarget {
                 app_id: loaded_app_id.clone(),
                 app_root: None,
@@ -631,6 +815,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                 .unwrap_or(0),
             admin_gated: token_configured || !loopback,
             admin_token_file: admin_token_file_display.clone(),
+            secret_read_root_file: secret_read_root_file
+                .as_ref()
+                .map(|path| path.display().to_string()),
             diagnostics: Vec::new(),
         };
         target
@@ -788,6 +975,10 @@ fn managed_startup_paths(
                 path: crate::admin::admin_token_sibling(ready_file),
             });
         }
+        paths.push(ManagedPath {
+            label: "secret-read root",
+            path: secret_read_root_sibling(ready_file),
+        });
     }
     Ok(paths)
 }
@@ -1430,9 +1621,10 @@ fn describe_ports(ports: &[u16]) -> String {
 mod tests {
     use super::{
         Args, Cli, HostCommand, ManagedPath, ReadyFileTarget, TargetArgs, bind_first_available,
-        bind_listener, managed_startup_paths, parse_run_args, path_with_filename_suffix,
-        prepare_database_path, reject_misdirected_serve_flags, resolve_http_target,
-        validate_path_disjointness, write_ready_file_atomic, write_ready_file_atomic_protected,
+        bind_listener, managed_startup_paths, mint_secret_read_via_http, parse_run_args,
+        path_with_filename_suffix, prepare_database_path, reject_misdirected_serve_flags,
+        resolve_http_target, validate_path_disjointness, validated_secret_read_root_path,
+        write_ready_file_atomic, write_ready_file_atomic_protected,
     };
     use clap::Parser;
     use serde_json::json;
@@ -1463,6 +1655,7 @@ mod tests {
             started_at_ms: 0,
             admin_gated: false,
             admin_token_file: None,
+            secret_read_root_file: None,
             diagnostics: Vec::new(),
         }
     }
@@ -1565,11 +1758,224 @@ mod tests {
     }
 
     #[test]
+    fn secret_read_mint_is_structurally_ready_file_only() {
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "secret-read-mint",
+                "--url",
+                "http://127.0.0.1:4287",
+                "--admin-inspect",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "secret-read-mint",
+                "--ready-file",
+                "ready.json",
+                "--admin-inspect",
+            ])
+            .is_ok()
+        );
+    }
+
+    #[test]
     fn run_args_must_be_json_object() {
         assert!(parse_run_args(Some(r#"{"title":"hello"}"#.to_owned())).is_ok());
 
         let error = parse_run_args(Some(r#"["hello"]"#.to_owned())).unwrap_err();
         assert!(error.to_string().contains("--args must be a JSON object"));
+    }
+
+    #[test]
+    fn secret_read_root_path_substitution_is_refused_before_file_or_network_access() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("server.json");
+        let attacker_root = dir.path().join("attacker-root");
+        crate::secure_file::write_owner_only(&attacker_root, b"sbrk_deadbeef\n").unwrap();
+        let mut descriptor = stop_descriptor(Some("startup-a"));
+        descriptor.secret_read_root_file = Some(attacker_root.display().to_string());
+        let error = validated_secret_read_root_path(&ready, &descriptor).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_ADMIN_SECRET_READ_ROOT_PATH_INVALID")
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn ready_file_cli_mints_a_derived_lease_without_exposing_the_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("server.json");
+        let root_path = crate::admin_secret_read::secret_read_root_sibling(&ready);
+        let server_root = crate::admin_secret_read::resolve_secret_read_proof_root_with_io(
+            &root_path,
+            crate::secure_file::read_owner_only,
+            crate::secure_file::write_owner_only,
+        )
+        .unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut context =
+            crate::admin::ServerContext::new(address.ip().to_string(), address.port(), true);
+        context.admin_token = Some("ordinary-admin".to_owned());
+        let (state, operator) = crate::admin::AppState::from_snapback_with_secret_read_operator(
+            crate::local::LocalSnapback::memory().unwrap(),
+            context,
+        );
+        let startup_nonce = crate::identity::binary_identity().startup_nonce;
+        let app = crate::server::app(state.with_secret_read_mint_bridge(
+            crate::admin_secret_read::SecretReadMintBridge::new(
+                operator,
+                server_root,
+                startup_nonce.clone(),
+            ),
+        ));
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let mut descriptor = stop_descriptor(Some(&startup_nonce));
+        descriptor.server_url = format!("http://{address}");
+        descriptor.host = address.ip().to_string();
+        descriptor.port = address.port();
+        descriptor.secret_read_root_file = Some(root_path.display().to_string());
+        crate::secure_file::write_owner_only(
+            &ready,
+            serde_json::to_string(&descriptor).unwrap().as_bytes(),
+        )
+        .unwrap();
+        let response = tokio::task::spawn_blocking(move || {
+            mint_secret_read_via_http(
+                &ready,
+                Some("ordinary-admin".to_owned()),
+                crate::admin_secret_read::SecretReadMintSpec {
+                    scopes: std::collections::BTreeSet::from([
+                        crate::admin_secret_read::SecretReadScope::AdminInspect,
+                    ]),
+                    ttl_ms: 60_000,
+                    row_budget: 10,
+                    byte_budget: 1_000,
+                },
+            )
+        })
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(response.as_object().unwrap().len(), 1);
+        assert!(response["lease"].as_str().unwrap().starts_with("sbrl_"));
+        assert!(!serde_json::to_string(&response).unwrap().contains("sbrk_"));
+        server.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn stale_ready_descriptor_sends_adversarial_server_no_admin_or_proof_material() {
+        use axum::body::Bytes;
+        use axum::http::HeaderMap;
+        use axum::routing::{get, post};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::{Arc, Mutex as StdMutex};
+
+        let observed = Arc::new(StdMutex::new(Vec::<u8>::new()));
+        let mint_calls = Arc::new(AtomicUsize::new(0));
+        let health_observed = observed.clone();
+        let mint_observed = observed.clone();
+        let mint_calls_handler = mint_calls.clone();
+        let attacker = axum::Router::new()
+            .route(
+                "/health",
+                get(move |headers: HeaderMap| {
+                    let observed = health_observed.clone();
+                    async move {
+                        let mut observed = observed.lock().unwrap();
+                        for (name, value) in &headers {
+                            observed.extend_from_slice(name.as_str().as_bytes());
+                            observed.extend_from_slice(value.as_bytes());
+                        }
+                        axum::Json(json!({
+                            "ok": true,
+                            "binary": { "startupNonce": "attacker-startup" }
+                        }))
+                    }
+                }),
+            )
+            .route(
+                "/_snapback/api/admin-secret-read/mint",
+                post(move |headers: HeaderMap, body: Bytes| {
+                    let observed = mint_observed.clone();
+                    let mint_calls = mint_calls_handler.clone();
+                    async move {
+                        mint_calls.fetch_add(1, Ordering::SeqCst);
+                        let mut observed = observed.lock().unwrap();
+                        for (name, value) in &headers {
+                            observed.extend_from_slice(name.as_str().as_bytes());
+                            observed.extend_from_slice(value.as_bytes());
+                        }
+                        observed.extend_from_slice(&body);
+                        axum::Json(json!({ "lease": "attacker" }))
+                    }
+                }),
+            );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, attacker).await.unwrap();
+        });
+
+        let dir = tempfile::tempdir().unwrap();
+        let ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("server.json");
+        let root_path = crate::admin_secret_read::secret_read_root_sibling(&ready);
+        // If the CLI tries to read the root before checking /health this
+        // non-regular path fails with a different error, making ordering part
+        // of the acceptance rather than an unobservable implementation detail.
+        std::fs::create_dir(&root_path).unwrap();
+        let mut descriptor = stop_descriptor(Some("trusted-startup"));
+        descriptor.server_url = format!("http://{address}");
+        descriptor.host = address.ip().to_string();
+        descriptor.port = address.port();
+        descriptor.secret_read_root_file = Some(root_path.display().to_string());
+        crate::secure_file::write_owner_only(
+            &ready,
+            serde_json::to_string(&descriptor).unwrap().as_bytes(),
+        )
+        .unwrap();
+        let error = tokio::task::spawn_blocking(move || {
+            mint_secret_read_via_http(
+                &ready,
+                Some("DURABLE_ADMIN_SENTINEL".to_owned()),
+                crate::admin_secret_read::SecretReadMintSpec {
+                    scopes: std::collections::BTreeSet::from([
+                        crate::admin_secret_read::SecretReadScope::AdminInspect,
+                    ]),
+                    ttl_ms: 60_000,
+                    row_budget: 10,
+                    byte_budget: 1_000,
+                },
+            )
+        })
+        .await
+        .unwrap()
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_HOST_STOP_STALE_DESCRIPTOR"),
+            "{error:#}"
+        );
+        assert_eq!(mint_calls.load(Ordering::SeqCst), 0);
+        let observed = String::from_utf8_lossy(&observed.lock().unwrap()).into_owned();
+        assert!(!observed.contains("DURABLE_ADMIN_SENTINEL"));
+        assert!(!observed.contains("sbrk_"));
+        assert!(!observed.contains("\"proof\""));
+        server.abort();
     }
 
     #[test]
@@ -1623,6 +2029,18 @@ mod tests {
         let distinct = dir.path().join("server.ready.json");
         validate_path_disjointness(&managed_startup_paths(Some(&db), Some(&distinct)).unwrap())
             .unwrap();
+
+        let colliding_db = dir.path().join("operator.ready.secret-read-root");
+        let colliding_ready = dir.path().join("operator.ready");
+        let error = validate_path_disjointness(
+            &managed_startup_paths(Some(&colliding_db), Some(&colliding_ready)).unwrap(),
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_READY_FILE_PATH_COLLISION")
+        );
     }
 
     #[test]

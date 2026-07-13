@@ -1,5 +1,7 @@
 use crate::admin::{AppState, ServerContext};
-use crate::admin_secret_read::{SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry};
+use crate::admin_secret_read::{
+    SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
+};
 use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
@@ -1347,6 +1349,7 @@ pub enum EffectPolicy {
     Provisioning,
     FunctionKind,
     OperationSpecific,
+    SecretReadMintProof,
     ImpersonationCapability,
     Unavailable,
 }
@@ -1685,6 +1688,14 @@ impl RouteSpec {
             && self.path_policy != RoutePolicy::AdminWrite
         {
             return fail("impersonation capability must compose with AdminWrite");
+        }
+        if self.effect_policy == EffectPolicy::SecretReadMintProof
+            && (self.path_policy != RoutePolicy::AdminWrite
+                || self.response_sensitivity != ResponseSensitivity::CredentialSecret)
+        {
+            return fail(
+                "secret-read mint proof must compose with AdminWrite and CredentialSecret",
+            );
         }
 
         // A wholly anonymous public route may issue a freshly minted
@@ -2396,6 +2407,30 @@ async fn select_http_operation(
     }
 }
 
+fn deferred_secret_read_scope(
+    spec: RouteSpec,
+    request_path: &str,
+    body: Option<&Value>,
+) -> Option<SecretReadScope> {
+    match spec.effect_policy {
+        EffectPolicy::FunctionKind => request_path
+            .strip_prefix("/_snapback/api/functions/")
+            .and_then(|path| path.strip_suffix("/run"))
+            .map(|name| SecretReadScope::FunctionRun(name.to_owned())),
+        EffectPolicy::OperationSpecific if spec.path == "/_snapback/api/host-ops" => {
+            let fields = body?.as_object()?;
+            let operation = fields.get("operation")?.as_str()?;
+            let function = fields.get("function")?.as_str()?.to_owned();
+            match operation {
+                "function.run" => Some(SecretReadScope::FunctionRun(function)),
+                "function.explain" => Some(SecretReadScope::FunctionExplain(function)),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
 async fn enforce_registered_route_policy(
     spec: RouteSpec,
     runtime: AppState,
@@ -2421,7 +2456,8 @@ async fn enforce_registered_route_policy(
         .is_none();
     let inspect_body = effective.legacy_body_policy == LegacyBodyPolicy::Rejected
         || (effective.path_policy == RoutePolicy::ConnectionAuth && body_connection_id_in_path)
-        || operation_deferred;
+        || operation_deferred
+        || effective.effect_policy == EffectPolicy::SecretReadMintProof;
     let mut policy_body = None;
     if inspect_body {
         match peek_policy_json_body(request).await {
@@ -2454,6 +2490,30 @@ async fn enforce_registered_route_policy(
             ))
             .into_response(),
         );
+    }
+
+    // A lease-only caller must prove the statically named function scope
+    // before kind lookup. This makes an existing and an unknown function
+    // indistinguishable to an under-scoped lease while preserving the normal
+    // AdminWrite path for mutation/action callers.
+    if operation_deferred
+        && runtime.policy_auth_mode == PolicyAuthMode::Sessions
+        && crate::admin::authorize_for_mode(
+            &runtime.server,
+            request.headers(),
+            true,
+            runtime.policy_auth_mode,
+        )
+        .is_err()
+        && let Some(scope) =
+            deferred_secret_read_scope(spec, request.uri().path(), policy_body.as_ref())
+        && let Err(error) = crate::admin::preflight_secret_read(
+            &runtime.secret_reads,
+            request.headers(),
+            std::collections::BTreeSet::from([scope]),
+        )
+    {
+        return apply_registered_response_controls(effective, error.into_response());
     }
 
     let mut selected_operation = None;
@@ -2576,6 +2636,32 @@ async fn enforce_registered_route_policy(
     };
     if let Err(error) = authorization {
         return apply_registered_response_controls(response_policy, error.into_response());
+    }
+    if effective.effect_policy == EffectPolicy::SecretReadMintProof {
+        let Some(bridge) = runtime.secret_read_mint.as_ref() else {
+            return apply_registered_response_controls(
+                response_policy,
+                ApiError::from(crate::admin_secret_read::mint_proof_required()).into_response(),
+            );
+        };
+        let envelope = policy_body
+            .as_ref()
+            .cloned()
+            .ok_or_else(crate::admin_secret_read::mint_proof_invalid)
+            .and_then(|body| {
+                serde_json::from_value::<SecretReadMintEnvelope>(body)
+                    .map_err(|_| crate::admin_secret_read::mint_proof_invalid())
+            });
+        let verified = match envelope.and_then(|envelope| bridge.verify_and_claim(&envelope)) {
+            Ok(verified) => verified,
+            Err(error) => {
+                return apply_registered_response_controls(
+                    response_policy,
+                    ApiError::from(error).into_response(),
+                );
+            }
+        };
+        request.extensions_mut().insert(verified);
     }
     if effective.path_policy == RoutePolicy::ConnectionAuth {
         let presented = match effective.credential_resolution {
@@ -4411,6 +4497,47 @@ async fn host_ops_handler(
             &secret_reads_for_gate,
         )?;
         if policy_mode == PolicyAuthMode::Sessions {
+            let mut scopes = std::collections::BTreeSet::new();
+            match request.operation.as_str() {
+                "app.inspect" => {
+                    scopes.insert(crate::admin_secret_read::SecretReadScope::AdminInspect);
+                }
+                "function.run"
+                    if matches!(
+                        function_kind,
+                        Some(FunctionKind::Query | FunctionKind::LiveQuery)
+                    ) =>
+                {
+                    if let Some(function) = request.function.as_ref() {
+                        scopes.insert(crate::admin_secret_read::SecretReadScope::FunctionRun(
+                            function.clone(),
+                        ));
+                        scopes.extend(
+                            snapback
+                                .function_declared_read_tables(function)
+                                .into_iter()
+                                .map(crate::admin_secret_read::SecretReadScope::Table),
+                        );
+                    }
+                }
+                "function.explain" => {
+                    if let Some(function) = request.function.as_ref() {
+                        scopes.insert(crate::admin_secret_read::SecretReadScope::FunctionExplain(
+                            function.clone(),
+                        ));
+                        scopes.extend(
+                            snapback
+                                .function_declared_read_tables(function)
+                                .into_iter()
+                                .map(crate::admin_secret_read::SecretReadScope::Table),
+                        );
+                    }
+                }
+                _ => {}
+            }
+            if !scopes.is_empty() {
+                crate::admin::preflight_secret_read(&secret_reads_for_gate, &gate_headers, scopes)?;
+            }
             request.user_id = None;
         }
         let mut result =
@@ -4427,6 +4554,14 @@ async fn host_ops_handler(
     })
     .await?;
     if policy_mode == PolicyAuthMode::Sessions {
+        if (result.secret_read_query || requested_operation == "function.explain")
+            && (!result.ok || !result.secret_read_provenance_complete)
+        {
+            // Query/explain failures can currently discard ctx.db dependency
+            // capture. Never forward handler-controlled diagnostics when the
+            // server cannot prove the complete secret namespace they depend on.
+            return Err(crate::admin::secret_read_provenance_unavailable().into());
+        }
         let mut scopes = std::collections::BTreeSet::new();
         match requested_operation.as_str() {
             "app.inspect" => {
@@ -5505,6 +5640,11 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_ADMIN_DISABLED"
         | "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED"
         | "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED"
+        | "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID"
+        | "SNAPBACK_ADMIN_SECRET_READ_PROOF_REQUIRED"
+        | "SNAPBACK_ADMIN_SECRET_READ_PROOF_REPLAYED"
+        | "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE"
+        | "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH"
         | "SNAPBACK_LIVE_RESUME_OWNERSHIP"
         | "SNAPBACK_CONNECTION_TOKEN_INVALID"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
@@ -5514,6 +5654,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED"
         | "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED"
+        | "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
         | "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
@@ -5910,6 +6051,10 @@ mod tests {
             "environment variable naming the built admin snapshot",
         ),
         (
+            "SNAPBACK_ADMIN_SECRET_READ_ROOT_PATH_INVALID",
+            "CLI-local readiness path validation code; never emitted as an HTTP diagnostic",
+        ),
+        (
             "SNAPBACK_ADMIN_TOKEN",
             "environment variable carrying the admin bearer token",
         ),
@@ -6146,6 +6291,11 @@ mod tests {
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
         "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED",
+        "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID",
+        "SNAPBACK_ADMIN_SECRET_READ_PROOF_REQUIRED",
+        "SNAPBACK_ADMIN_SECRET_READ_PROOF_REPLAYED",
+        "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE",
+        "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH",
         "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED",
         "SNAPBACK_CONNECTION_TOKEN_INVALID",
         "SNAPBACK_LIVE_RESUME_OWNERSHIP",
@@ -6182,6 +6332,7 @@ mod tests {
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
+        "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED",
         "SNAPBACK_EPHEMERAL_RATE_LIMITED",
         "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
@@ -6224,6 +6375,7 @@ mod tests {
         "SNAPBACK_ACTION_TIMEOUT_INVALID",
         "SNAPBACK_ACTION_TIMEOUT_SETUP_FAILED",
         "SNAPBACK_ADMIN_SECRET_READ_SERIALIZATION_FAILED",
+        "SNAPBACK_ADMIN_SECRET_READ_PROVENANCE_UNAVAILABLE",
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_TEMPDIR",
         "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
