@@ -578,7 +578,12 @@ ENG-24597 adds LLP 0055's item-4 classes. `SNAPBACK_AUTH_MODE_PENDING`,
 `SNAPBACK_CAPABILITY_UNSUPPORTED`, and
 `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` are HTTP 503 when they are the
 top-level served refusal. `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` remains the 400
-presence error registered above. The following are pre-bind startup/CLI
+presence error registered above; `SNAPBACK_AUTHORITY_INDEPENDENT_INVALID` is
+also 400 because the submitted function declaration does not satisfy the
+closed authority-independent profile. The reserved
+`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` negotiation refusal is 503 when
+item 6 makes it reachable: upgrading the client capability, rather than
+changing request data or authority, is the recovery. The following are pre-bind startup/CLI
 diagnostics and imply no HTTP response:
 `SNAPBACK_AUTH_MODE_DOWNGRADE`, `SNAPBACK_AUTH_MODE_STATE_CORRUPT`,
 `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED`,

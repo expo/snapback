@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Revised:** 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0054
 
 ## Summary
@@ -577,8 +577,9 @@ generations.
 
 The CLI opens the path once without following a final symlink, requires a
 regular file owned by the effective user and not writable by group or other,
-rejects an extended ACL that grants another principal write access, rejects a
-changing inode/size, reads at most 32 MiB, and parses from those exact bytes. The
+rejects every extended access ACL (a deliberately conservative executable-
+authority rule), rejects a changing inode/size, reads at most 32 MiB, and parses
+from those exact bytes. The
 file contains no credential, but it contains executable authority, so an
 untrusted writable carrier is refused. All artifact validation and handler
 preparation completes before any durable transition commit.
