@@ -3686,6 +3686,9 @@ async fn auth_session(
         AuthSessionFacts {
             server_startup_nonce: runtime.server_startup_nonce().to_owned(),
             transition_generation: state.transition_generation,
+            authorization_stream_incarnation: installed_auth_coordinator(&runtime)?
+                .authorization_stream_incarnation()
+                .map_err(ApiError::from)?,
             active_mode: state.active,
             desired_mode: state.desired,
             mode_state: state.mode_state,

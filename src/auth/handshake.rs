@@ -147,6 +147,7 @@ pub struct AuthSessionAvailability {
 pub struct AuthSessionResponse {
     pub protocol_version: u64,
     pub server_startup_nonce: String,
+    pub authorization_stream_incarnation: String,
     pub transition_generation: u64,
     pub active_mode: AuthMode,
     pub desired_mode: AuthMode,
@@ -163,6 +164,7 @@ pub struct AuthSessionResponse {
 #[derive(Clone, Debug)]
 pub struct AuthSessionFacts {
     pub server_startup_nonce: String,
+    pub authorization_stream_incarnation: String,
     pub transition_generation: u64,
     pub active_mode: AuthMode,
     pub desired_mode: AuthMode,
@@ -187,6 +189,7 @@ impl AuthSessionResponse {
         Self {
             protocol_version: AUTH_PROTOCOL_V1,
             server_startup_nonce: facts.server_startup_nonce,
+            authorization_stream_incarnation: facts.authorization_stream_incarnation,
             transition_generation: facts.transition_generation,
             active_mode: facts.active_mode,
             desired_mode: facts.desired_mode,
@@ -335,6 +338,7 @@ mod tests {
     fn facts(mode: AuthMode, readiness: AuthProgramReadiness) -> AuthSessionFacts {
         AuthSessionFacts {
             server_startup_nonce: "startup-1".to_owned(),
+            authorization_stream_incarnation: "01890f3c-9d5b-7000-8000-000000000001".to_owned(),
             transition_generation: 7,
             active_mode: mode,
             desired_mode: mode,

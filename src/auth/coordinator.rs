@@ -551,6 +551,16 @@ impl AuthCoordinator {
         self.lock_topology()?.projection.check_invariants()
     }
 
+    /// Exact process authority identity advertised by the bootstrap
+    /// handshake and captured by clients for every retained/queued scope.
+    pub(crate) fn authorization_stream_incarnation(&self) -> SnapbackResult<String> {
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        Ok(topology.projection.incarnation().as_str().to_owned())
+    }
+
     pub(crate) fn fail_global_closed(&self) -> SnapbackResult<()> {
         self.lock_topology()?.global_rebuild_required = true;
         Ok(())
