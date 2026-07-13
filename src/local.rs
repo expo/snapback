@@ -1,3 +1,8 @@
+use crate::admin::ServerProfile;
+use crate::auth::invocation::{
+    InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
+    WireAuthorityFields,
+};
 use crate::config::{ConfigStore, VerificationRecord};
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
@@ -20,7 +25,7 @@ use crate::live_wire::{
     Receipt, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
-    ActionPlan, ActionReturnValue, ActionStep, AuthInput, CTX_ANSWER_LEDGER_MAX_IDS,
+    ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthMode, CTX_ANSWER_LEDGER_MAX_IDS,
     CapabilityManifest, CtxAnswerLedger, FunctionDefinition, FunctionKind, FunctionManifest,
     FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr,
     PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION,
@@ -963,7 +968,7 @@ fn bool_is_false(value: &bool) -> bool {
 pub(crate) enum StagedAction {
     /// Host-plan actions run bounded mutation steps with no egress; they
     /// execute under the lock exactly as before.
-    InLock,
+    InLock(PreparedInvocation),
     /// Ibex-module actions may perform egress; everything the runtime needs
     /// is cloned out so the run can proceed without borrowing the instance.
     Detached(Box<DetachedIbexAction>),
@@ -974,6 +979,9 @@ pub(crate) struct DetachedIbexAction {
     pub grants: Value,
     pub redactor: crate::config::SecretRedactor,
     pub runtime: RuntimeManager,
+    /// Exact function authority prepared before the action leaves the
+    /// instance lock. Nested mutations inherit from this value.
+    pub invocation: PreparedInvocation,
     /// Generation of the code/schema/reset boundary that authorized this
     /// action. Every later host call and final successful completion must still
     /// observe this exact generation.
@@ -982,7 +990,7 @@ pub(crate) struct DetachedIbexAction {
 }
 
 pub(crate) enum StagedNestedMutation {
-    InLock,
+    InLock(PreparedInvocation),
     Detached(Box<DetachedIbexMutation>),
 }
 
@@ -993,6 +1001,7 @@ pub(crate) struct DetachedIbexMutation {
 
 pub(crate) struct DetachedMutationBinding {
     pub function: FunctionDefinition,
+    pub invocation: PreparedInvocation,
     pub schema: SchemaManifest,
     pub app_generation: u64,
     pub epoch_scopes: BTreeSet<String>,
@@ -1481,6 +1490,7 @@ struct LocalIbexActionHost<'a> {
     // a JS action can call back into an Ibex mutation and then make a second host
     // call after the nested invocation returns without losing or aliasing context.
     snapback: *mut LocalSnapback,
+    authority: PreparedAuthority,
     _marker: PhantomData<&'a mut LocalSnapback>,
 }
 
@@ -1494,9 +1504,14 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
         // @ref LLP 0028#execution-the-action-class — actions commit durable
         // writes by invoking ordinary mutations, preserving the commit/fan-out path.
+        // @ref LLP 0055#complete-gate-coverage — nested mutations inherit the
+        // already-resolved outer authority and apply the target requirement.
         // The embedded runtime calls host functions synchronously on the same
         // thread; this pointer is valid only for the duration of one action run.
-        unsafe { (&mut *self.snapback).invoke_mutation(name, input) }
+        let authority = self
+            .authority
+            .inherit_for(InvocationSource::NestedMutation)?;
+        unsafe { (&mut *self.snapback).invoke_mutation_with_authority(name, input, authority) }
     }
 }
 
@@ -1986,21 +2001,37 @@ impl LocalSnapback {
     }
 
     pub fn invoke_query(&self, name: &str, input: HandlerInput) -> SnapbackResult<QueryOutput> {
-        Ok(self.invoke_query_with_dependencies(name, input)?.output)
+        Ok(self
+            .invoke_query_with_dependencies_from_source(name, input, InvocationSource::LocalQuery)?
+            .output)
     }
 
-    pub(crate) fn invoke_query_with_dependencies(
+    pub(crate) fn invoke_query_with_dependencies_from_source(
         &self,
         name: &str,
         input: HandlerInput,
+        source: InvocationSource,
+    ) -> SnapbackResult<QueryInvocation> {
+        let authority = InvocationGate::prepare_dev_input(source, ServerProfile::Dev, &input)?;
+        self.invoke_query_with_dependencies_prepared(name, input, authority)
+    }
+
+    pub(crate) fn invoke_query_with_dependencies_prepared(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
     ) -> SnapbackResult<QueryInvocation> {
         let function = self.function(name)?;
+        let prepared = InvocationGate::prepare_function(authority, function)?;
+        let input = prepared.canonicalize_input(input);
         execute_query_invocation(
             function,
             name,
             DbRead::Live(&self.db),
             &self.permission_epochs,
             input,
+            &prepared,
             Some(&self.warm_vms),
         )
     }
@@ -2010,7 +2041,18 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> SnapbackResult<MutationOutput> {
-        self.invoke_mutation_recording(name, input).0
+        self.invoke_mutation_recording_from_source(name, input, InvocationSource::LocalMutation)
+            .0
+    }
+
+    pub(crate) fn invoke_mutation_with_authority(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<MutationOutput> {
+        self.invoke_mutation_recording_with_authority(name, input, None, "local", authority)
+            .0
     }
 
     /// The mutation choke point with receipt emission (LLP 0034 §3.2,
@@ -2024,7 +2066,16 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
-        self.invoke_mutation_recording_with_transport(name, input, "local")
+        self.invoke_mutation_recording_from_source(name, input, InvocationSource::LocalMutation)
+    }
+
+    fn invoke_mutation_recording_from_source(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        source: InvocationSource,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        self.invoke_mutation_recording_with_id_from_source(name, input, None, "local", source)
     }
 
     pub fn invoke_mutation_recording_with_transport(
@@ -2033,7 +2084,13 @@ impl LocalSnapback {
         input: HandlerInput,
         transport: &str,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
-        self.invoke_mutation_recording_with_id(name, input, None, transport)
+        self.invoke_mutation_recording_with_id_from_source(
+            name,
+            input,
+            None,
+            transport,
+            InvocationSource::LocalMutation,
+        )
     }
 
     pub fn invoke_mutation_recording_with_id(
@@ -2043,11 +2100,65 @@ impl LocalSnapback {
         client_mutation_id: Option<String>,
         transport: &str,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        self.invoke_mutation_recording_with_id_from_source(
+            name,
+            input,
+            client_mutation_id,
+            transport,
+            InvocationSource::LocalMutation,
+        )
+    }
+
+    pub(crate) fn invoke_mutation_recording_with_id_from_source(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        transport: &str,
+        source: InvocationSource,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        let authority = InvocationGate::prepare_dev_input(source, ServerProfile::Dev, &input);
+        match authority {
+            Ok(authority) => self.invoke_mutation_recording_with_authority(
+                name,
+                input,
+                client_mutation_id,
+                transport,
+                authority,
+            ),
+            Err(error) => {
+                let correlation = capped_correlation(input.correlation.clone());
+                let receipt_mutation_id = client_mutation_id
+                    .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+                self.record_mutation_commit(
+                    name,
+                    transport,
+                    correlation,
+                    receipt_mutation_id,
+                    Err(error),
+                )
+            }
+        }
+    }
+
+    pub(crate) fn invoke_mutation_recording_with_authority(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        transport: &str,
+        authority: PreparedAuthority,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = client_mutation_id
             .clone()
             .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
-        let result = self.invoke_mutation_commit_with_id(name, input, client_mutation_id);
+        let result = self.invoke_mutation_commit_with_id_and_authority(
+            name,
+            input,
+            client_mutation_id,
+            authority,
+        );
         self.record_mutation_commit(name, transport, correlation, receipt_mutation_id, result)
     }
 
@@ -2103,6 +2214,7 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
+        prepared: PreparedInvocation,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationOutput>
@@ -2110,6 +2222,7 @@ impl LocalSnapback {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        let input = prepared.canonicalize_input(input);
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = format!("mut_{}", Uuid::now_v7().simple());
         let result =
@@ -2125,20 +2238,18 @@ impl LocalSnapback {
         self.receipts.snapshot(connection_id)
     }
 
-    fn invoke_mutation_commit(
-        &mut self,
-        name: &str,
-        input: HandlerInput,
-    ) -> SnapbackResult<MutationCommit> {
-        self.invoke_mutation_commit_with_id(name, input, None)
-    }
-
-    fn invoke_mutation_commit_with_id(
+    fn invoke_mutation_commit_with_id_and_authority(
         &mut self,
         name: &str,
         input: HandlerInput,
         client_mutation_id: Option<String>,
+        authority: PreparedAuthority,
     ) -> SnapbackResult<MutationCommit> {
+        // @ref LLP 0055#gate-algorithm — function lookup and requirement
+        // enforcement precede replay-settlement lookup and every effect.
+        let function = self.function(name)?.clone();
+        let prepared = InvocationGate::prepare_function(authority, &function)?;
+        let input = prepared.canonicalize_input(input);
         let identity =
             client_mutation_id.map(|id| ClientMutationIdentity::new(id, name.to_owned(), &input));
         if let Some(identity) = identity.as_ref()
@@ -2150,14 +2261,6 @@ impl LocalSnapback {
                 read_dependencies: Vec::new(),
                 write_dependencies: Vec::new(),
             });
-        }
-        let function = self.function(name)?.clone();
-        if function.kind != FunctionKind::Mutation {
-            return Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not a mutation"),
-            ));
         }
         // Permission-epoch scopes are evaluated BEFORE the mutation executes
         // (ENG-23329): scope evaluation can fail (missing auth user, missing
@@ -2174,9 +2277,10 @@ impl LocalSnapback {
                     .execute_mutation_idempotent(plan, &input, identity)?,
                 None => self.db.execute_mutation(plan, &input)?,
             },
-            FunctionRuntime::IbexModule(module) => self.runtime.invoke_ibex_mutation(
+            FunctionRuntime::IbexModule(module) => self.runtime.invoke_ibex_mutation_prepared(
                 module,
                 input.clone(),
+                &prepared,
                 &mut self.db,
                 Some(&self.warm_vms),
                 identity.as_ref(),
@@ -2270,6 +2374,7 @@ impl LocalSnapback {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         check_live()?;
+        let input = binding.invocation.canonicalize_input(input);
         let function = self.function(name)?.clone();
         if function != binding.function
             || self.db.schema() != &binding.schema
@@ -2317,14 +2422,23 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> SnapbackResult<MutationDryRunOutcome> {
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Dev,
+            &input,
+        )?;
+        self.dry_run_mutation_with_authority(name, input, authority)
+    }
+
+    pub(crate) fn dry_run_mutation_with_authority(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<MutationDryRunOutcome> {
         let function = self.function(name)?.clone();
-        if function.kind != FunctionKind::Mutation {
-            return Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not a mutation"),
-            ));
-        }
+        let prepared = InvocationGate::prepare_function(authority, &function)?;
+        let input = prepared.canonicalize_input(input);
         let snapshot_version = self.db.current_version().unwrap_or(0);
         let read_set_checked = !input.read_set.is_empty();
         let tier = match &function.runtime {
@@ -2389,7 +2503,13 @@ impl LocalSnapback {
             }
             FunctionRuntime::IbexModule(module) => self
                 .runtime
-                .dry_run_ibex_mutation(module, input.clone(), &mut self.db, Some(&self.warm_vms))
+                .dry_run_ibex_mutation_prepared(
+                    module,
+                    input.clone(),
+                    &prepared,
+                    &mut self.db,
+                    Some(&self.warm_vms),
+                )
                 .map(|mut commit| {
                     let ledger = commit.output.ctx_ledger.take();
                     (commit, ledger, Vec::new())
@@ -2508,7 +2628,11 @@ impl LocalSnapback {
             })));
         }
 
-        let query = self.invoke_query_with_dependencies(name, subscription_input.clone())?;
+        let query = self.invoke_query_with_dependencies_from_source(
+            name,
+            subscription_input.clone(),
+            InvocationSource::LiveInitialQuery,
+        )?;
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
         // subscription ids are unguessable bearer capabilities, not enumerable
@@ -2708,9 +2832,10 @@ impl LocalSnapback {
         }
 
         if self.resume_requires_resnapshot(&subscription, &input.recorded_permission_epochs) {
-            let query = self.invoke_query_with_dependencies(
+            let query = self.invoke_query_with_dependencies_from_source(
                 &subscription.function,
                 subscription.input.clone(),
+                InvocationSource::LiveRerun,
             )?;
             let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
@@ -2764,6 +2889,21 @@ impl LocalSnapback {
     /// @ref LLP 0017#function-runner-and-code-runner — generated-function runner
     /// over the normal invocation path; not an arbitrary-JavaScript eval.
     pub fn run_function(&mut self, name: &str, input: HandlerInput) -> FunctionRunResult {
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::DirectAdminRunner,
+            ServerProfile::Dev,
+            &input,
+        )
+        .expect("dev direct-runner authority preparation is infallible");
+        self.run_function_with_authority(name, input, authority)
+    }
+
+    pub(crate) fn run_function_with_authority(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+    ) -> FunctionRunResult {
         let started = Instant::now();
         let Some(definition) = self.functions.function(name).cloned() else {
             return FunctionRunResult {
@@ -2790,6 +2930,28 @@ impl LocalSnapback {
                 ),
             };
         };
+        let prepared = match InvocationGate::prepare_function(authority, &definition) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                return FunctionRunResult {
+                    ok: false,
+                    function: name.to_owned(),
+                    kind: Some(definition.kind.clone()),
+                    reads: Vec::new(),
+                    writes: Vec::new(),
+                    captured_reads: Vec::new(),
+                    captured_writes: Vec::new(),
+                    admin_bypass: false,
+                    elapsed_ms: elapsed_ms(started),
+                    version: None,
+                    changed_count: None,
+                    rows: None,
+                    result: None,
+                    diagnostic: Some(error.diagnostic),
+                };
+            }
+        };
+        let input = prepared.canonicalize_input(input);
 
         let (reads, writes) = plan_io(&definition);
         let kind = definition.kind.clone();
@@ -2812,7 +2974,11 @@ impl LocalSnapback {
 
         match kind {
             FunctionKind::Query | FunctionKind::LiveQuery => {
-                match self.invoke_query_with_dependencies(name, input) {
+                match self.invoke_query_with_dependencies_prepared(
+                    name,
+                    input,
+                    prepared.authority().clone(),
+                ) {
                     Ok(invocation) => FunctionRunResult {
                         elapsed_ms: elapsed_ms(started),
                         version: Some(invocation.output.version),
@@ -2828,7 +2994,12 @@ impl LocalSnapback {
                     },
                 }
             }
-            FunctionKind::Mutation => match self.invoke_mutation_commit(name, input) {
+            FunctionKind::Mutation => match self.invoke_mutation_commit_with_id_and_authority(
+                name,
+                input,
+                None,
+                prepared.authority().clone(),
+            ) {
                 Ok(commit) => FunctionRunResult {
                     elapsed_ms: elapsed_ms(started),
                     version: Some(commit.output.version),
@@ -2847,7 +3018,7 @@ impl LocalSnapback {
             },
             FunctionKind::Action => {
                 let metadata = manual_action_metadata("admin", name);
-                match self.invoke_action(name, input, metadata) {
+                match self.invoke_action_prepared(name, input, metadata, prepared) {
                     Ok(result) => FunctionRunResult {
                         elapsed_ms: elapsed_ms(started),
                         result: Some(result),
@@ -2879,12 +3050,25 @@ impl LocalSnapback {
     /// for app-triggered egress, not only scheduled cron runs.
     pub fn run_app_action(&mut self, name: &str, input: HandlerInput) -> FunctionRunResult {
         let started = Instant::now();
-        let stage = match self.stage_app_action(name) {
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalAction,
+            ServerProfile::Dev,
+            &input,
+        )
+        .expect("dev action authority preparation is infallible");
+        let stage = match self.stage_app_action_with_authority(name, authority) {
             StagedAppAction::Done(result) => return *result,
             StagedAppAction::Ready(stage) => stage,
         };
         let metadata = manual_action_metadata("action", name);
-        let result = self.invoke_action(name, input, metadata);
+        let result = match stage.mode {
+            StagedAction::InLock(prepared) => {
+                self.invoke_action_prepared(name, input, metadata, prepared)
+            }
+            StagedAction::Detached(action) => {
+                self.invoke_action_prepared(name, input, metadata, action.invocation.clone())
+            }
+        };
         action_run_result(name, stage.reads, stage.writes, elapsed_ms(started), result)
     }
 
@@ -2892,7 +3076,11 @@ impl LocalSnapback {
     /// a ready envelope, and clone out what a detached execution needs. Runs
     /// under the global mutex; the returned stage does not borrow the
     /// instance (ENG-23324).
-    pub(crate) fn stage_app_action(&mut self, name: &str) -> StagedAppAction {
+    pub(crate) fn stage_app_action_with_authority(
+        &mut self,
+        name: &str,
+        authority: PreparedAuthority,
+    ) -> StagedAppAction {
         let started = Instant::now();
         let Some(definition) = self.functions.function(name).cloned() else {
             return StagedAppAction::Done(Box::new(FunctionRunResult {
@@ -2921,6 +3109,27 @@ impl LocalSnapback {
         };
 
         let (reads, writes) = plan_io(&definition);
+        let prepared = match InvocationGate::prepare_function(authority, &definition) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                return StagedAppAction::Done(Box::new(FunctionRunResult {
+                    ok: false,
+                    function: name.to_owned(),
+                    kind: Some(definition.kind.clone()),
+                    reads,
+                    writes,
+                    captured_reads: Vec::new(),
+                    captured_writes: Vec::new(),
+                    admin_bypass: false,
+                    elapsed_ms: elapsed_ms(started),
+                    version: None,
+                    changed_count: None,
+                    rows: None,
+                    result: None,
+                    diagnostic: Some(error.diagnostic),
+                }));
+            }
+        };
         if !matches!(definition.kind, FunctionKind::Action) {
             return StagedAppAction::Done(Box::new(FunctionRunResult {
                 ok: false,
@@ -2947,7 +3156,7 @@ impl LocalSnapback {
             }));
         }
 
-        let mode = self.staged_mode(&definition);
+        let mode = self.staged_mode(&definition, prepared);
         StagedAppAction::Ready(AppActionStage {
             reads,
             writes,
@@ -2960,17 +3169,24 @@ impl LocalSnapback {
     /// `invoke_action` would report them (ENG-23324).
     pub(crate) fn stage_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
         let function = self.function(name)?.clone();
-        if !matches!(function.kind, FunctionKind::Action) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not an action"),
-            ));
-        }
-        Ok(self.staged_mode(&function))
+        let authority = InvocationGate::prepare_authority(
+            InvocationSource::Cron,
+            AuthMode::Dev,
+            ServerProfile::Dev,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::System,
+        )?;
+        let prepared = InvocationGate::prepare_function(authority, &function)?;
+        Ok(self.staged_mode(&function, prepared))
     }
 
-    fn staged_mode(&mut self, definition: &FunctionDefinition) -> StagedAction {
+    fn staged_mode(
+        &mut self,
+        definition: &FunctionDefinition,
+        invocation: PreparedInvocation,
+    ) -> StagedAction {
         match &definition.runtime {
             FunctionRuntime::IbexModule(module) => {
                 StagedAction::Detached(Box::new(DetachedIbexAction {
@@ -2984,11 +3200,12 @@ impl LocalSnapback {
                     // this detached invocation is running.
                     redactor: self.config.secret_redactor_for(&definition.uses),
                     runtime: self.runtime.clone(),
+                    invocation,
                     app_generation: self.app_generation,
                     app_generation_fence: self.app_generation_fence.clone(),
                 }))
             }
-            _ => StagedAction::InLock,
+            _ => StagedAction::InLock(invocation),
         }
     }
 
@@ -2996,23 +3213,21 @@ impl LocalSnapback {
         &self,
         name: &str,
         input: &HandlerInput,
+        authority: PreparedAuthority,
     ) -> SnapbackResult<StagedNestedMutation> {
         let function = self.function(name)?.clone();
-        if function.kind != FunctionKind::Mutation {
-            return Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not a mutation"),
-            ));
-        }
+        let invocation = InvocationGate::prepare_function(authority, &function)?;
+        let canonical_input = invocation.canonicalize_input(input.clone());
         match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => Ok(StagedNestedMutation::InLock),
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => {
+                Ok(StagedNestedMutation::InLock(invocation))
+            }
             FunctionRuntime::IbexModule(_) => {
                 // Preserve the ordinary mutation contract: resolve and
                 // validate permission-epoch scopes before any handler code
                 // executes. The resolved set rides the detached effect to its
                 // bounded commit window.
-                let epoch_scopes = evaluate_permission_epoch_scopes(&function, input)?;
+                let epoch_scopes = evaluate_permission_epoch_scopes(&function, &canonical_input)?;
                 let read = if self.db.reader_pool().is_some() {
                     DetachedMutationRead::Lane(self.read_lane())
                 } else {
@@ -3022,6 +3237,7 @@ impl LocalSnapback {
                     DetachedIbexMutation {
                         binding: DetachedMutationBinding {
                             function,
+                            invocation,
                             schema: self.db.schema().clone(),
                             app_generation: self.app_generation,
                             epoch_scopes,
@@ -3430,7 +3646,20 @@ impl LocalSnapback {
         match self.stage_config_verify(name)? {
             StagedConfigVerify::Done(outcome) => Ok(*outcome),
             StagedConfigVerify::Ready(stage) => {
-                let result = self.invoke_action(&stage.probe, stage.input, stage.metadata);
+                let result = match stage.mode {
+                    StagedAction::InLock(prepared) => self.invoke_action_prepared(
+                        &stage.probe,
+                        stage.input,
+                        stage.metadata,
+                        prepared,
+                    ),
+                    StagedAction::Detached(action) => self.invoke_action_prepared(
+                        &stage.probe,
+                        stage.input,
+                        stage.metadata,
+                        action.invocation,
+                    ),
+                };
                 self.finish_config_verify(name, stage.entry_revision, stage.started_ms, result)
             }
         }
@@ -4080,11 +4309,23 @@ impl LocalSnapback {
         let mut records = Vec::new();
         for claim in claims {
             let started_wall_ms = now_millis();
+            let function = self.function(&claim.job.action)?.clone();
+            let authority = InvocationGate::prepare_authority(
+                InvocationSource::Cron,
+                AuthMode::Dev,
+                ServerProfile::Dev,
+                0,
+                0,
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::System,
+            )?;
+            let prepared = InvocationGate::prepare_function(authority, &function)?;
             let result = self
-                .invoke_action(
+                .invoke_action_prepared(
                     &claim.job.action,
                     cron_claim_input(&claim),
                     claim.metadata.clone(),
+                    prepared,
                 )
                 .map_err(|error| error.diagnostic);
             records.push(self.finish_cron_claim(claim, started_wall_ms, result)?);
@@ -4122,17 +4363,32 @@ impl LocalSnapback {
         Ok(record)
     }
 
-    pub(crate) fn invoke_action(
+    pub(crate) fn invoke_action_prepared(
         &mut self,
         name: &str,
         input: HandlerInput,
         metadata: CronRunMetadata,
+        prepared: PreparedInvocation,
     ) -> SnapbackResult<Value> {
         let function = self.function(name)?.clone();
+        if prepared.function_id()
+            != function
+                .id
+                .as_deref()
+                .unwrap_or_else(|| function.name.as_str())
+            && prepared.function_id() != format!("fn:{}", function.name)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_FUNCTION_MISMATCH",
+                "auth",
+                "prepared invocation does not match the action target",
+            ));
+        }
+        let input = prepared.canonicalize_input(input);
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
         let result = match (&function.kind, &function.runtime) {
             (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
-                self.invoke_action_plan(plan, input, metadata)
+                self.invoke_action_plan(plan, input, metadata, &prepared)
             }
             (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
                 let runtime = self.runtime.clone();
@@ -4147,9 +4403,12 @@ impl LocalSnapback {
                 let snapback = self as *mut LocalSnapback;
                 let mut host = LocalIbexActionHost {
                     snapback,
+                    authority: prepared.authority().clone(),
                     _marker: PhantomData,
                 };
-                runtime.invoke_ibex_action(module, input, metadata, &mut host, grants, None)
+                runtime.invoke_ibex_action_prepared(
+                    module, input, &prepared, metadata, &mut host, grants, None,
+                )
             }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_KIND_MISMATCH",
@@ -4170,6 +4429,7 @@ impl LocalSnapback {
         plan: &ActionPlan,
         input: HandlerInput,
         metadata: CronRunMetadata,
+        prepared: &PreparedInvocation,
     ) -> SnapbackResult<Value> {
         let mut bindings = BTreeMap::new();
         let mut last_result = Value::Null;
@@ -4182,7 +4442,9 @@ impl LocalSnapback {
                     bind_result_as,
                 } => {
                     let mutation_args = eval_action_args(args, &input, &bindings, &metadata, self)?;
-                    let output = self.invoke_mutation(
+                    let authority =
+                        prepared.inherit_authority_for(InvocationSource::NestedMutation)?;
+                    let output = self.invoke_mutation_with_authority(
                         name,
                         HandlerInput {
                             args: Value::Object(mutation_args),
@@ -4191,6 +4453,7 @@ impl LocalSnapback {
                             correlation: None,
                             ctx_ledger: None,
                         },
+                        authority,
                     )?;
                     changed_count += output.changed_count;
                     last_result = output.result;
@@ -4371,9 +4634,11 @@ impl LocalSnapback {
                 }
             }
 
-            let query = match self
-                .invoke_query_with_dependencies(&subscription.function, subscription.input.clone())
-            {
+            let query = match self.invoke_query_with_dependencies_from_source(
+                &subscription.function,
+                subscription.input.clone(),
+                InvocationSource::LiveRerun,
+            ) {
                 Ok(query) => query,
                 Err(error) => {
                     self.fail_subscription_fanout(&subscription, "live_refresh_failed", error);
@@ -4552,9 +4817,11 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         query_dep_index: usize,
     ) {
-        let Ok(fresh) =
-            self.invoke_query_with_dependencies(&subscription.function, subscription.input.clone())
-        else {
+        let Ok(fresh) = self.invoke_query_with_dependencies_from_source(
+            &subscription.function,
+            subscription.input.clone(),
+            InvocationSource::LiveRerun,
+        ) else {
             return;
         };
         let fresh_ids: BTreeSet<&str> = fresh
@@ -4842,6 +5109,25 @@ impl ReadLane {
     /// whole invocation — every `ctx.db` host call and the reported version —
     /// runs inside one pinned WAL read transaction.
     pub fn invoke_query(&self, name: &str, input: HandlerInput) -> SnapbackResult<QueryOutput> {
+        self.invoke_query_from_source(name, input, InvocationSource::LocalQuery)
+    }
+
+    pub(crate) fn invoke_query_from_source(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        source: InvocationSource,
+    ) -> SnapbackResult<QueryOutput> {
+        let authority = InvocationGate::prepare_dev_input(source, ServerProfile::Dev, &input)?;
+        self.invoke_query_prepared(name, input, authority)
+    }
+
+    pub(crate) fn invoke_query_prepared(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<QueryOutput> {
         let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
         let manifests = self.manifests();
         let epochs = self
@@ -4856,6 +5142,8 @@ impl ReadLane {
                 format!("unknown function {name}"),
             )
         })?;
+        let prepared = InvocationGate::prepare_function(authority, function)?;
+        let input = prepared.canonicalize_input(input);
 
         let reader = pool.checkout()?;
         let tx = reader.conn().unchecked_transaction()?;
@@ -4872,6 +5160,7 @@ impl ReadLane {
             },
             epochs.as_ref(),
             input,
+            &prepared,
             Some(&self.warm_vms),
         )?;
         Ok(invocation.output)
@@ -4881,6 +5170,7 @@ impl ReadLane {
         &self,
         module: &crate::manifest::IbexModule,
         input: HandlerInput,
+        prepared: &PreparedInvocation,
         schema: &SchemaManifest,
         deadline: Instant,
     ) -> SnapbackResult<ExecutedIbexMutation> {
@@ -4888,9 +5178,10 @@ impl ReadLane {
         let reader = pool.checkout()?;
         let tx = reader.conn().unchecked_transaction()?;
         crate::storage::current_version_on(&tx)?;
-        crate::runtime::execute_ibex_mutation(
+        crate::runtime::execute_ibex_mutation_prepared(
             module,
             input,
+            prepared,
             DbRead::Pinned { conn: &tx, schema },
             None,
             Some(deadline),
@@ -5062,6 +5353,7 @@ fn execute_query_invocation(
     db: DbRead<'_>,
     permission_epochs: &BTreeMap<String, u64>,
     input: HandlerInput,
+    prepared: &PreparedInvocation,
     warm_vms: Option<&crate::warm_vm::WarmVmPool>,
 ) -> SnapbackResult<QueryInvocation> {
     match (&function.kind, &function.runtime) {
@@ -5078,8 +5370,13 @@ fn execute_query_invocation(
             })
         }
         (FunctionKind::Query | FunctionKind::LiveQuery, FunctionRuntime::IbexModule(module)) => {
-            let run =
-                crate::runtime::run_ibex_query_with_reads(module, input.clone(), db, warm_vms)?;
+            let run = crate::runtime::run_ibex_query_with_reads_prepared(
+                module,
+                input.clone(),
+                prepared,
+                db,
+                warm_vms,
+            )?;
             let mut read_dependencies = run.read_dependencies;
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
             Ok(QueryInvocation {
@@ -5359,6 +5656,10 @@ mod tests {
         BEFORE_MUTATION_POSTCOMMIT_HOOK, DetachedIbexMutation, DetachedMutationRead,
         LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, StagedNestedMutation,
+    };
+    use crate::admin::ServerProfile;
+    use crate::auth::invocation::{
+        InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
     };
     use crate::manifest::{
         CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition,
@@ -5786,13 +6087,30 @@ globalThis.__snapbackHandlers = {
         }
     }
 
+    fn nested_authority() -> PreparedAuthority {
+        InvocationGate::prepare_dev_input(
+            InvocationSource::NestedMutation,
+            ServerProfile::Test,
+            &input(),
+        )
+        .expect("prepare nested test authority")
+    }
+
+    fn prepared_mutation(snapback: &LocalSnapback, name: &str) -> PreparedInvocation {
+        InvocationGate::prepare_function(
+            nested_authority(),
+            snapback.function(name).expect("test mutation exists"),
+        )
+        .expect("prepare test mutation")
+    }
+
     fn detached(snapback: &LocalSnapback, name: &str) -> Box<DetachedIbexMutation> {
         match snapback
-            .stage_nested_mutation(name, &input())
+            .stage_nested_mutation(name, &input(), nested_authority())
             .expect("stage nested mutation")
         {
             StagedNestedMutation::Detached(staged) => staged,
-            StagedNestedMutation::InLock => panic!("Ibex mutation must detach"),
+            StagedNestedMutation::InLock(_) => panic!("Ibex mutation must detach"),
         }
     }
 
@@ -5823,6 +6141,7 @@ globalThis.__snapbackHandlers = {
             .invoke_host_plan_mutation_guarded(
                 "hostInsert",
                 input(),
+                prepared_mutation(&cancelled_snapback, "hostInsert"),
                 || Ok(()),
                 || -> crate::diagnostic::SnapbackResult<()> { Err(cancelled()) },
             )
@@ -5849,13 +6168,19 @@ globalThis.__snapbackHandlers = {
         let observed = Arc::new(AtomicBool::new(false));
         install_postcommit_gate_assertion(active.clone(), observed.clone());
         committed
-            .invoke_host_plan_mutation_guarded("hostInsert", input(), || Ok(()), {
-                let active = active.clone();
-                move || {
-                    active.store(true, Ordering::SeqCst);
-                    Ok(GateScopeProbe { active })
-                }
-            })
+            .invoke_host_plan_mutation_guarded(
+                "hostInsert",
+                input(),
+                prepared_mutation(&committed, "hostInsert"),
+                || Ok(()),
+                {
+                    let active = active.clone();
+                    move || {
+                        active.store(true, Ordering::SeqCst);
+                        Ok(GateScopeProbe { active })
+                    }
+                },
+            )
             .expect("guarded host-plan commit");
         assert!(observed.load(Ordering::SeqCst));
         assert!(!active.load(Ordering::SeqCst));
@@ -5945,11 +6270,16 @@ globalThis.__snapbackHandlers = {
             DetachedMutationRead::Lane(read) => read,
             DetachedMutationRead::Snapshot(_) => panic!("file database must use WAL read lane"),
         };
-        let error =
-            match read.execute_detached_ibex_mutation(module, input(), &binding.schema, deadline) {
-                Ok(_) => panic!("staged v1 execution must not see v2's new table"),
-                Err(error) => error,
-            };
+        let error = match read.execute_detached_ibex_mutation(
+            module,
+            input(),
+            &binding.invocation,
+            &binding.schema,
+            deadline,
+        ) {
+            Ok(_) => panic!("staged v1 execution must not see v2's new table"),
+            Err(error) => error,
+        };
         let diagnostic = serde_json::to_string(&error.diagnostic).expect("diagnostic json");
         assert!(
             diagnostic.contains("SNAPBACK_UNKNOWN_TABLE") || diagnostic.contains("new_items"),
@@ -5966,7 +6296,13 @@ globalThis.__snapbackHandlers = {
             DetachedMutationRead::Snapshot(_) => panic!("file database must use WAL read lane"),
         };
         let executed = read
-            .execute_detached_ibex_mutation(module, input(), &binding.schema, deadline)
+            .execute_detached_ibex_mutation(
+                module,
+                input(),
+                &binding.invocation,
+                &binding.schema,
+                deadline,
+            )
             .expect("old-schema-compatible handler executes against staged schema");
         let error = snapback
             .commit_detached_ibex_mutation_guarded(

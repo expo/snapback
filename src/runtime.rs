@@ -1,3 +1,6 @@
+#[cfg(test)]
+use crate::auth::invocation::ResolvedAppAuthority;
+use crate::auth::invocation::{HandlerAuthProjection, PreparedInvocation};
 use crate::cron::CronRunMetadata;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::live_matcher::{
@@ -144,35 +147,23 @@ impl RuntimeManager {
         diagnostics
     }
 
-    /// Fresh-path query invocation (no warm pool). The pooled paths run
-    /// through `LocalSnapback`/`ReadLane`, which own the per-instance pool.
-    pub fn invoke_ibex_query(
+    pub(crate) fn invoke_ibex_mutation_prepared(
         &self,
         module: &IbexModule,
         input: HandlerInput,
-        db: &LocalDatabase,
-    ) -> SnapbackResult<QueryOutput> {
-        Ok(self.invoke_ibex_query_with_reads(module, input, db)?.output)
-    }
-
-    pub fn invoke_ibex_query_with_reads(
-        &self,
-        module: &IbexModule,
-        input: HandlerInput,
-        db: &LocalDatabase,
-    ) -> SnapbackResult<IbexQueryRun> {
-        run_ibex_query_with_reads(module, input, DbRead::Live(db), None)
-    }
-
-    pub(crate) fn invoke_ibex_mutation(
-        &self,
-        module: &IbexModule,
-        input: HandlerInput,
+        prepared: &PreparedInvocation,
         db: &mut LocalDatabase,
         pool: Option<&WarmVmPool>,
         identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<MutationCommit> {
-        let executed = execute_ibex_mutation(module, input.clone(), DbRead::Live(db), pool, None)?;
+        let executed = execute_ibex_mutation_prepared(
+            module,
+            input.clone(),
+            prepared,
+            DbRead::Live(db),
+            pool,
+            None,
+        )?;
         db.commit_buffered_writes_idempotent(
             &input,
             executed.writes,
@@ -187,46 +178,59 @@ impl RuntimeManager {
     /// real against the buffered ctx — recording its ctx-answer ledger —
     /// and the buffered writes are validated and applied through the same
     /// path as a commit, then rolled back. Same fidelity, no durable effect.
-    pub(crate) fn dry_run_ibex_mutation(
+    pub(crate) fn dry_run_ibex_mutation_prepared(
         &self,
         module: &IbexModule,
         input: HandlerInput,
+        prepared: &PreparedInvocation,
         db: &mut LocalDatabase,
         pool: Option<&WarmVmPool>,
     ) -> SnapbackResult<MutationCommit> {
-        let mut invocation = IbexHostContext::new(DbRead::Live(db), input.clone(), true)?;
+        let mut invocation = IbexHostContext::new_with_projection(
+            DbRead::Live(db),
+            input.clone(),
+            prepared.projection().clone(),
+            true,
+        )?;
         let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
         let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext { writes, reads, .. } = invocation;
         db.dry_run_buffered_writes(&input, writes, reads, result, ctx_ledger)
     }
 
-    pub fn invoke_ibex_action(
+    pub(crate) fn invoke_ibex_action_prepared(
         &self,
         module: &IbexModule,
         input: HandlerInput,
+        prepared: &PreparedInvocation,
         run: CronRunMetadata,
         host: &mut dyn IbexActionHost,
         grants: Value,
         deadline: Option<Instant>,
     ) -> SnapbackResult<Value> {
-        let mut invocation = IbexHostContext::new_action(input, run, host, grants);
-        // Actions always run fresh — no pool, by the DK-4 scope fence. That
-        // fence is also what keeps per-invocation config grants (LLP 0036)
-        // out of any reused VM: granted values ride the composed source of a
-        // fresh runtime, never a pooled one.
+        let mut invocation = IbexHostContext::new_action_with_projection(
+            input,
+            prepared.projection().clone(),
+            run,
+            host,
+            grants,
+        );
+        // Actions always run fresh by the DK-4 scope fence. Per-invocation
+        // config grants therefore cannot leak through a pooled VM.
         run_ibex_handler_with_context_until(module, &mut invocation, None, deadline)
     }
 }
 
-pub(crate) fn execute_ibex_mutation(
+pub(crate) fn execute_ibex_mutation_prepared(
     module: &IbexModule,
     input: HandlerInput,
+    prepared: &PreparedInvocation,
     db: DbRead<'_>,
     pool: Option<&WarmVmPool>,
     deadline: Option<Instant>,
 ) -> SnapbackResult<ExecutedIbexMutation> {
-    let mut invocation = IbexHostContext::new(db, input, true)?;
+    let mut invocation =
+        IbexHostContext::new_with_projection(db, input, prepared.projection().clone(), true)?;
     let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline)?;
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
@@ -240,22 +244,22 @@ pub(crate) fn execute_ibex_mutation(
     })
 }
 
-/// Run an Ibex query handler against any read view — the write lane passes the
-/// live connection; the read lane passes a pinned reader so the eval's every
-/// `ctx.db` host call and the reported version come from one WAL snapshot.
+/// Run a prepared query against one pinned read view, so all `ctx.db` calls
+/// and the reported version observe the same WAL snapshot.
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
-pub(crate) fn run_ibex_query_with_reads(
+pub(crate) fn run_ibex_query_with_reads_prepared(
     module: &IbexModule,
     input: HandlerInput,
+    prepared: &PreparedInvocation,
     db: DbRead<'_>,
     pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<IbexQueryRun> {
-    let mut invocation = IbexHostContext::new(db, input, false)?;
+    let mut invocation =
+        IbexHostContext::new_with_projection(db, input, prepared.projection().clone(), false)?;
     let value = run_ibex_handler_with_context(module, &mut invocation, pool)?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
-    // query handler that returns a non-array is a fail-closed error, not a
-    // silently-empty result set (the corpus's cardinal no-silent-drop rule).
+    // query handler that returns a non-array fails closed.
     let rows = value.as_array().cloned().ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_HANDLER_RESULT_INVALID",
@@ -263,12 +267,11 @@ pub(crate) fn run_ibex_query_with_reads(
             "live query handler must return an array of rows",
         )
     })?;
-    let output = QueryOutput {
-        version: invocation.db().current_version()?,
-        rows,
-    };
     Ok(IbexQueryRun {
-        output,
+        output: QueryOutput {
+            rows,
+            version: invocation.db().current_version()?,
+        },
         read_dependencies: invocation.reads,
     })
 }
@@ -447,6 +450,7 @@ pub(crate) struct IbexHostContext<'a> {
     /// implementation chooses the locking policy (ENG-23324).
     db: Option<DbRead<'a>>,
     input: HandlerInput,
+    handler_auth: HandlerAuthProjection,
     mode: IbexInvocationMode,
     writes: Vec<BufferedWrite>,
     reads: Vec<CapturedReadDependency>,
@@ -478,7 +482,12 @@ struct ReplayLedger {
 }
 
 impl<'a> IbexHostContext<'a> {
-    pub(crate) fn new(db: DbRead<'a>, input: HandlerInput, writable: bool) -> SnapbackResult<Self> {
+    pub(crate) fn new_with_projection(
+        db: DbRead<'a>,
+        input: HandlerInput,
+        handler_auth: HandlerAuthProjection,
+        writable: bool,
+    ) -> SnapbackResult<Self> {
         let replay = validate_replay_ledger(&input)?;
         let now_ms = input
             .ctx_ledger
@@ -491,6 +500,7 @@ impl<'a> IbexHostContext<'a> {
         Ok(Self {
             db: Some(db),
             input,
+            handler_auth,
             mode: if writable {
                 IbexInvocationMode::Mutation
             } else {
@@ -509,8 +519,22 @@ impl<'a> IbexHostContext<'a> {
         })
     }
 
+    #[cfg(test)]
     fn new_action(
         input: HandlerInput,
+        run: CronRunMetadata,
+        host: &'a mut dyn IbexActionHost,
+        grants: Value,
+    ) -> Self {
+        let projection = HandlerAuthProjection::from_authority(
+            &ResolvedAppAuthority::dev_from_auth(&input.auth),
+        );
+        Self::new_action_with_projection(input, projection, run, host, grants)
+    }
+
+    fn new_action_with_projection(
+        input: HandlerInput,
+        handler_auth: HandlerAuthProjection,
         run: CronRunMetadata,
         host: &'a mut dyn IbexActionHost,
         grants: Value,
@@ -520,6 +544,7 @@ impl<'a> IbexHostContext<'a> {
         Self {
             db: None,
             input,
+            handler_auth,
             mode: IbexInvocationMode::Action,
             writes: Vec::new(),
             reads,
@@ -1593,7 +1618,8 @@ fn invocation_iife_source(
 ) -> SnapbackResult<String> {
     let input = &invocation.input;
     let args_json = serde_json::to_string(&input.args).map_err(handler_serialize_error)?;
-    let auth_json = serde_json::to_string(&input.auth).map_err(handler_serialize_error)?;
+    let auth_json =
+        serde_json::to_string(&invocation.handler_auth).map_err(handler_serialize_error)?;
     let export_json = serde_json::to_string(&module.export).map_err(handler_serialize_error)?;
     let args_literal = serde_json::to_string(&args_json).map_err(handler_serialize_error)?;
     let auth_literal = serde_json::to_string(&auth_json).map_err(handler_serialize_error)?;
@@ -1948,6 +1974,10 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_HANDLER_STALE_CONTINUATION"
         | "SNAPBACK_CONFIG_UNDECLARED"
         | "SNAPBACK_CONFIG_MISSING"
+        // @ref LLP 0055#complete-gate-coverage — an action's nested
+        // runMutation requirement failure keeps its typed auth code inside
+        // the ordinary FunctionRunResult envelope.
+        | "SNAPBACK_AUTH_REQUIRED"
         | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_ACTION_TIMEOUT"

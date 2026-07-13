@@ -11,11 +11,14 @@ use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintBridge, SecretReadOperator,
     SecretReadScope, VerifiedSecretReadMint,
 };
+use crate::auth::invocation::{
+    InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
+};
 use crate::auth::provider::AuthProvider;
 use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
 use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
-use crate::manifest::{FunctionKind, HandlerInput};
+use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{
     ApiError, ConnectionRegistry, EffectPolicy, HealthResponse, InvocationAuthority,
@@ -1861,6 +1864,26 @@ async fn admin_run_function(
                 policy_mode,
                 &secret_reads,
             )?;
+            let resolved = if policy_mode == PolicyAuthMode::Sessions {
+                ResolvedAppAuthority::AdminBypass {
+                    reason: "direct admin function runner".to_owned(),
+                }
+            } else {
+                ResolvedAppAuthority::dev_from_auth(&input.auth)
+            };
+            let authority = InvocationGate::prepare_authority(
+                InvocationSource::DirectAdminRunner,
+                if policy_mode == PolicyAuthMode::Sessions {
+                    AuthMode::Sessions
+                } else {
+                    AuthMode::Dev
+                },
+                ctx.profile,
+                0,
+                0,
+                &WireAuthorityFields::default(),
+                resolved,
+            )?;
             if policy_mode == PolicyAuthMode::Sessions
                 && matches!(
                     function_kind,
@@ -1883,16 +1906,20 @@ async fn admin_run_function(
             // @ref LLP 0024#authority-tuple — devUser is local/dev only.
             require_operation_profile(&ctx, "function.run", input.auth.user_id.is_some())?;
             if matches!(snapback.function_kind(&name), Some(FunctionKind::Action)) {
-                return Ok(match snapback.stage_app_action(&name) {
-                    crate::local::StagedAppAction::Done(result) => Routed::Done(result),
-                    crate::local::StagedAppAction::Ready(stage) => Routed::Action(stage),
-                });
+                return Ok(
+                    match snapback.stage_app_action_with_authority(&name, authority) {
+                        crate::local::StagedAppAction::Done(result) => Routed::Done(result),
+                        crate::local::StagedAppAction::Ready(stage) => Routed::Action(stage),
+                    },
+                );
             }
             #[cfg(test)]
             if name == "preflightExecutionSentinel" {
                 SECRET_READ_TEST_QUERY_EXECUTIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             }
-            Ok(Routed::Done(Box::new(snapback.run_function(&name, input))))
+            Ok(Routed::Done(Box::new(
+                snapback.run_function_with_authority(&name, input, authority),
+            )))
         })
         .await?
     };

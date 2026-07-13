@@ -1,7 +1,8 @@
-use crate::admin::{AppState, ServerContext};
+use crate::admin::{AppState, ServerContext, ServerProfile};
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
+use crate::auth::invocation::{InvocationGate, InvocationSource, PreparedAuthority};
 use crate::auth::provider::{AuthProvider, ProviderError};
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
@@ -313,6 +314,7 @@ struct DetachedActionHost {
     deadline: Instant,
     app_generation: u64,
     app_generation_fence: Arc<AtomicU64>,
+    authority: PreparedAuthority,
 }
 
 impl DetachedActionHost {
@@ -396,14 +398,19 @@ impl IbexActionHost for DetachedActionHost {
 
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
         let mut snapback = self.lock_live("runMutation")?;
-        match snapback.stage_nested_mutation(name, &input)? {
-            StagedNestedMutation::InLock => snapback.invoke_host_plan_mutation_guarded(
+        let authority = self
+            .authority
+            .inherit_for(InvocationSource::NestedMutation)?;
+        match snapback.stage_nested_mutation(name, &input, authority)? {
+            StagedNestedMutation::InLock(prepared) => snapback.invoke_host_plan_mutation_guarded(
                 name,
                 input,
+                prepared,
                 || self.validate_live("runMutation"),
                 || self.lock_commit_live("runMutation"),
             ),
             StagedNestedMutation::Detached(staged) => {
+                let input = staged.binding.invocation.canonicalize_input(input);
                 drop(snapback);
                 let module = match &staged.binding.function.runtime {
                     FunctionRuntime::IbexModule(module) => module,
@@ -413,16 +420,20 @@ impl IbexActionHost for DetachedActionHost {
                     DetachedMutationRead::Lane(read) => read.execute_detached_ibex_mutation(
                         module,
                         input.clone(),
+                        &staged.binding.invocation,
                         &staged.binding.schema,
                         self.deadline,
                     )?,
-                    DetachedMutationRead::Snapshot(db) => crate::runtime::execute_ibex_mutation(
-                        module,
-                        input.clone(),
-                        crate::storage::DbRead::Live(db.as_ref()),
-                        None,
-                        Some(self.deadline),
-                    )?,
+                    DetachedMutationRead::Snapshot(db) => {
+                        crate::runtime::execute_ibex_mutation_prepared(
+                            module,
+                            input.clone(),
+                            &staged.binding.invocation,
+                            crate::storage::DbRead::Live(db.as_ref()),
+                            None,
+                            Some(self.deadline),
+                        )?
+                    }
                 };
 
                 // Acquire the instance before the independent commit gate. A
@@ -575,6 +586,7 @@ async fn run_detached_ibex_action_with_admission_and_counters(
                     grants,
                     redactor,
                     runtime,
+                    invocation,
                     app_generation,
                     app_generation_fence,
                 } = *action;
@@ -585,10 +597,13 @@ async fn run_detached_ibex_action_with_admission_and_counters(
                     deadline: execution_deadline,
                     app_generation,
                     app_generation_fence,
+                    authority: invocation.authority().clone(),
                 };
-                let result = runtime.invoke_ibex_action(
+                let input = invocation.canonicalize_input(input);
+                let result = runtime.invoke_ibex_action_prepared(
                     &module,
                     input,
+                    &invocation,
                     metadata,
                     &mut host,
                     grants,
@@ -705,10 +720,10 @@ pub(crate) async fn run_staged_app_action(
     let started = Instant::now();
     let metadata = crate::local::manual_action_metadata(metadata_prefix, name);
     let result = match stage.mode {
-        StagedAction::InLock => {
+        StagedAction::InLock(prepared) => {
             let name = name.to_owned();
             with_snapback(state, move |snapback| {
-                snapback.invoke_action(&name, input, metadata)
+                snapback.invoke_action_prepared(&name, input, metadata, prepared)
             })
             .await
         }
@@ -836,9 +851,9 @@ pub(crate) async fn execute_cron_claim_detached(
         Ok(StagedAction::Detached(action)) => {
             run_detached_ibex_action(state, action, input, metadata).await
         }
-        Ok(StagedAction::InLock) => {
+        Ok(StagedAction::InLock(prepared)) => {
             with_snapback(state, move |snapback| {
-                snapback.invoke_action(&action, input, metadata)
+                snapback.invoke_action_prepared(&action, input, metadata, prepared)
             })
             .await
         }
@@ -5046,9 +5061,9 @@ async fn config_verify(
                 StagedAction::Detached(action) => {
                     run_detached_ibex_action(&state, action, input, metadata).await
                 }
-                StagedAction::InLock => {
+                StagedAction::InLock(prepared) => {
                     with_snapback(&state, move |snapback| {
-                        snapback.invoke_action(&probe, input, metadata)
+                        snapback.invoke_action_prepared(&probe, input, metadata, prepared)
                     })
                     .await
                 }
@@ -5555,9 +5570,21 @@ async fn invoke_query(
 ) -> Result<Json<crate::manifest::QueryOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let output = if read.available() {
-        with_read_lane(&read, move |lane| lane.invoke_query(&name, input)).await?
+        with_read_lane(&read, move |lane| {
+            lane.invoke_query_from_source(&name, input, InvocationSource::HttpQuery)
+        })
+        .await?
     } else {
-        with_snapback(&state, move |snapback| snapback.invoke_query(&name, input)).await?
+        with_snapback(&state, move |snapback| {
+            snapback
+                .invoke_query_with_dependencies_from_source(
+                    &name,
+                    input,
+                    InvocationSource::HttpQuery,
+                )
+                .map(|invocation| invocation.output)
+        })
+        .await?
     };
     Ok(Json(output))
 }
@@ -5613,11 +5640,12 @@ async fn invoke_mutation(
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
     // assembled from its (result, receipt) pair back on the async side.
     let (result, receipt) = with_snapback(&state, move |snapback| {
-        snapback.invoke_mutation_recording_with_id(
+        snapback.invoke_mutation_recording_with_id_from_source(
             &name,
             request.input,
             request.client_mutation_id,
             "http",
+            InvocationSource::HttpMutation,
         )
     })
     .await;
@@ -5644,9 +5672,17 @@ async fn invoke_action(
     input: Result<Json<HandlerInput>, JsonRejection>,
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let authority = InvocationGate::prepare_dev_input(
+        InvocationSource::HttpAction,
+        ServerProfile::Dev,
+        &input,
+    )?;
     let staged = {
         let name = name.clone();
-        with_snapback(&state, move |snapback| snapback.stage_app_action(&name)).await
+        with_snapback(&state, move |snapback| {
+            snapback.stage_app_action_with_authority(&name, authority)
+        })
+        .await
     };
     let result = match staged {
         StagedAppAction::Done(result) => *result,
@@ -6552,6 +6588,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CONFIG_VERIFY_COOLDOWN"
         | "SNAPBACK_CRON_ACTION_KIND_MISMATCH"
         | "SNAPBACK_CRON_ACTION_MISSING"
+        | "SNAPBACK_CRON_AUTH_REQUIREMENT_INVALID"
         | "SNAPBACK_CRON_DUPLICATE_JOB"
         | "SNAPBACK_CRON_INVALID_EXPRESSION"
         | "SNAPBACK_CRON_INVALID_INTERVAL"
@@ -8180,6 +8217,7 @@ mod tests {
         "SNAPBACK_CONFIG_VERIFY_COOLDOWN",
         "SNAPBACK_CRON_ACTION_KIND_MISMATCH",
         "SNAPBACK_CRON_ACTION_MISSING",
+        "SNAPBACK_CRON_AUTH_REQUIREMENT_INVALID",
         "SNAPBACK_CRON_DUPLICATE_JOB",
         "SNAPBACK_CRON_INVALID_EXPRESSION",
         "SNAPBACK_CRON_INVALID_INTERVAL",
@@ -8423,6 +8461,8 @@ mod tests {
         "SNAPBACK_IBEX_CLI_UNAVAILABLE",
         "SNAPBACK_IBEX_FUNCTIONS_LOADED",
         "SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE",
+        "SNAPBACK_INVOCATION_FUNCTION_MISMATCH",
+        "SNAPBACK_INVOCATION_SOURCE_INVALID",
         "SNAPBACK_JSON_PARSE_FAILED",
         "SNAPBACK_JSON_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
@@ -8987,7 +9027,7 @@ globalThis.__snapbackHandlers = {
             .expect("stage detached action")
         {
             StagedAction::Detached(action) => action,
-            StagedAction::InLock => panic!("Ibex action must detach"),
+            StagedAction::InLock(_) => panic!("Ibex action must detach"),
         }
     }
 
@@ -9002,6 +9042,7 @@ globalThis.__snapbackHandlers = {
             deadline: Instant::now() + Duration::from_secs(5),
             app_generation: action.app_generation,
             app_generation_fence: action.app_generation_fence.clone(),
+            authority: action.invocation.authority().clone(),
         }
     }
 

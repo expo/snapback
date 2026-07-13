@@ -1,7 +1,7 @@
 use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::manifest::{
-    CronActivationKind, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode,
-    CronSchedule, FunctionKind, FunctionManifest, SNAPBACK_SCHEMA_VERSION,
+    AuthRequirement, CronActivationKind, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
+    CronRetryMode, CronSchedule, FunctionKind, FunctionManifest, SNAPBACK_SCHEMA_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -951,6 +951,22 @@ pub fn validate_cron_manifest(manifest: &FunctionManifest) -> Vec<Diagnostic> {
         }
 
         match manifest.function(&job.action) {
+            Some(function)
+                if function.kind == FunctionKind::Action
+                    && function.effective_auth_requirement() == AuthRequirement::Authenticated =>
+            {
+                // @ref LLP 0055#closed-function-requirement — cron executes as
+                // `System`, which carries no app user; reject an impossible
+                // authenticated target before the scheduler can admit it.
+                diagnostics.push(cron_error(
+                    "SNAPBACK_CRON_AUTH_REQUIREMENT_INVALID",
+                    job,
+                    format!(
+                        "cron job {} targets authenticated action {}, but system authority has no user",
+                        job.name, job.action
+                    ),
+                ));
+            }
             Some(function) if function.kind == FunctionKind::Action => {}
             Some(_) => diagnostics.push(cron_error(
                 "SNAPBACK_CRON_ACTION_KIND_MISMATCH",

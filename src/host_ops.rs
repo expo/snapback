@@ -10,11 +10,15 @@
 //!   source of truth for `hostOpsResult`; the committed schema in `schemas/`
 //!   is generated from them (tests/artifact_schemas_v0.rs).
 
+use crate::admin::ServerProfile;
+use crate::auth::invocation::{
+    InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
+};
 use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::local::LocalSnapback;
 use crate::manifest::{
-    CtxAnswerLedger, FunctionKind, FunctionManifest, HandlerInput, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, HandlerInput,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use serde::de::{Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
@@ -845,9 +849,20 @@ fn run_function(
         correlation: None,
         ctx_ledger: None,
     };
+    let prepared_authority = InvocationGate::prepare_authority(
+        InvocationSource::HostOperationFunctionRun,
+        AuthMode::Dev,
+        ServerProfile::Dev,
+        0,
+        0,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::dev_from_auth(&input.auth),
+    )
+    .expect("registered dev host-op authority preparation is infallible");
     match kind {
         FunctionKind::Query | FunctionKind::LiveQuery => {
-            match snapback.invoke_query_with_dependencies(&name, input) {
+            match snapback.invoke_query_with_dependencies_prepared(&name, input, prepared_authority)
+            {
                 Ok(invocation) => {
                     let rows = invocation.output.rows.len();
                     let mut tables: BTreeSet<String> = declared_reads.into_iter().collect();
@@ -886,26 +901,28 @@ fn run_function(
                 }
             }
         }
-        FunctionKind::Mutation => match snapback.invoke_mutation(&name, input) {
-            Ok(output) => {
-                let commit = serde_json::to_value(&output)
-                    .unwrap_or_else(|_| Value::Object(Default::default()));
-                envelope(
+        FunctionKind::Mutation => {
+            match snapback.invoke_mutation_with_authority(&name, input, prepared_authority) {
+                Ok(output) => {
+                    let commit = serde_json::to_value(&output)
+                        .unwrap_or_else(|_| Value::Object(Default::default()));
+                    envelope(
+                        snapback,
+                        true,
+                        authority,
+                        json!({ "mutationCommit": commit }),
+                        Vec::new(),
+                    )
+                }
+                Err(error) => envelope(
                     snapback,
-                    true,
+                    false,
                     authority,
-                    json!({ "mutationCommit": commit }),
-                    Vec::new(),
-                )
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
             }
-            Err(error) => envelope(
-                snapback,
-                false,
-                authority,
-                Value::Object(Default::default()),
-                vec![error.diagnostic],
-            ),
-        },
+        }
         FunctionKind::Action => envelope(
             snapback,
             false,
@@ -1152,8 +1169,18 @@ fn explain_function(
         correlation: None,
         ctx_ledger: None,
     };
+    let prepared_authority = InvocationGate::prepare_authority(
+        InvocationSource::HostOperationMutationDryRun,
+        AuthMode::Dev,
+        ServerProfile::Dev,
+        0,
+        0,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::dev_from_auth(&input.auth),
+    )
+    .expect("registered dev host-op authority preparation is infallible");
     let declared_secret_reads = snapback.function_declared_read_tables(&function);
-    match snapback.dry_run_mutation(&function, input) {
+    match snapback.dry_run_mutation_with_authority(&function, input, prepared_authority) {
         Ok(outcome) => {
             let secret_read_provenance_complete = outcome.failure.is_none();
             let secret_read_rows = outcome

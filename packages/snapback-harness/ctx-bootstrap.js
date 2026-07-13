@@ -7,9 +7,12 @@
   var TrustedMap = Map;
   var TrustedWeakSet = WeakSet;
   var trustedString = String;
+  var trustedJsonParse = JSON.parse;
   var trustedJsonStringify = JSON.stringify;
+  var trustedCreate = Object.create;
   var trustedDefineProperty = Object.defineProperty;
   var trustedGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+  var trustedHasOwnProperty = Object.prototype.hasOwnProperty;
   var trustedFreeze = Object.freeze;
   var trustedReflectApply = Reflect.apply;
   var trustedMapSet = TrustedMap && TrustedMap.prototype.set;
@@ -18,6 +21,7 @@
   var trustedWeakSetAdd = TrustedWeakSet && TrustedWeakSet.prototype.add;
   var trustedWeakSetHas = TrustedWeakSet && TrustedWeakSet.prototype.has;
   var trustedArrayJoin = Array.prototype.join;
+  var trustedArraySlice = Array.prototype.slice;
   var trustedStringCharCodeAt = String.prototype.charCodeAt;
   var trustedStringCharAt = String.prototype.charAt;
   function snapbackError(code, message) {
@@ -472,10 +476,31 @@
         } catch (_) {}
       };
     } catch (_) {}
-    var args = JSON.parse(argsJson || "{}");
-    var auth = JSON.parse(authJson || "{}");
-    var run = runJson ? JSON.parse(runJson) : null;
-    if (auth.user_id && !auth.userId) auth.userId = auth.user_id;
+    var args = trustedJsonParse(argsJson || "{}");
+    // @ref LLP 0055#handlerauthprojection — authority is copied from the
+    // closed Rust projection into an own-property-only null-prototype object.
+    // Freeze nested roles before freezing the projection, so application code
+    // cannot mutate authority in place or inherit polluted Object.prototype
+    // members.
+    var parsedAuth = trustedJsonParse(authJson || "{}");
+    var auth = trustedReflectApply(trustedCreate, Object, [null]);
+    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles"];
+    for (var authIndex = 0; authIndex < authKeys.length; authIndex++) {
+      var authKey = authKeys[authIndex];
+      if (!trustedReflectApply(trustedHasOwnProperty, parsedAuth, [authKey])) continue;
+      var authValue = parsedAuth[authKey];
+      if (authKey === "roles") {
+        authValue = trustedFreeze(trustedReflectApply(trustedArraySlice, authValue || [], []));
+      }
+      trustedDefineProperty(auth, authKey, {
+        value: authValue,
+        enumerable: true,
+        writable: false,
+        configurable: false
+      });
+    }
+    trustedFreeze(auth);
+    var run = runJson ? trustedJsonParse(runJson) : null;
     var db = {
       get: function(table, id) { return host("db.get", { table: table, id: id }); },
       query: makeBuilder,
@@ -503,7 +528,7 @@
     if (mode === "action") {
       ctx.run = run || host("action.metadata", {});
       ctx.cron = ctx.run;
-      ctx.secrets = makeSecrets(secretsJson ? JSON.parse(secretsJson) : null);
+      ctx.secrets = makeSecrets(secretsJson ? trustedJsonParse(secretsJson) : null);
       ctx.runMutation = function(mutationName, mutationArgs) {
         return host("action.runMutation", { name: mutationName, args: mutationArgs || {} });
       };
