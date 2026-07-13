@@ -1343,6 +1343,103 @@ try {
       manager.close();
     }
   });
+
+  await suite.check('eng_24566: pre-snapshot overflow best-effort unsubscribes the abandoned room', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    const connectionId = 'conn_ephemeral_snapshot_overflow';
+    let subscribeStarted = false;
+    let releaseSubscribe;
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/connection/open') {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({
+            connectionId,
+            connectionToken: 'sct_snapshot_overflow',
+          }),
+        };
+      }
+      if (path === '/ephemeral/subscribe') {
+        subscribeStarted = true;
+        return new Promise((resolve) => {
+          releaseSubscribe = (body) => resolve({
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify(body),
+          });
+        });
+      }
+      throw new Error(`unexpected request in snapshot overflow test: ${url}`);
+    };
+
+    const db = new SnapbackClient('http://stub');
+    const manager = db.liveStreamManager(connectionId, {
+      heartbeatIntervalMs: 5_000,
+      freshnessBudgetMs: 20_000,
+    });
+    const before = FakeWebSocket.instances.length;
+    const stopDemand = manager.onState(() => {});
+    try {
+      const ws = await nextSocket(before);
+      ws.dispatch('open', {});
+      const subscribing = db.subscribeEphemeral('presence', {
+        connectionId,
+        scope: { room: 'a' },
+      });
+      await waitFor(() => subscribeStarted, 'overflow subscribe request');
+
+      for (let version = 1; version <= 1_025; version += 1) {
+        ws.dispatch('message', {
+          data: JSON.stringify({
+            kind: 'ephemeral',
+            message: {
+              Upsert: {
+                room: overlayRoom,
+                entry: {
+                  key: `cursor_${version}`,
+                  value: encodedValue({ version }),
+                  received_at_ms: 100 + version,
+                  expires_at_ms: 10_000,
+                  scope_epoch: 2,
+                  entry_version: version,
+                },
+              },
+            },
+          }),
+        });
+      }
+      releaseSubscribe(snapshot(2, [], 0));
+      await assertThrows(
+        () => subscribing,
+        'SNAPBACK_EPHEMERAL_SUBSCRIBE_BUFFER_OVERFLOW',
+        'overflow must fail closed instead of returning a partial overlay',
+      );
+
+      await waitFor(
+        () => ws.sent.some((message) => JSON.parse(message).type === 'ephemeral_unsubscribe'),
+        'overflow cleanup unsubscribe',
+      );
+      const unsubscribe = ws.sent
+        .map((message) => JSON.parse(message))
+        .find((message) => message.type === 'ephemeral_unsubscribe');
+      assertEqual(unsubscribe.request.collection, 'presence', 'cleanup keeps collection identity');
+      assertEqual(unsubscribe.request.scope, { room: 'a' }, 'cleanup keeps room scope');
+      ws.dispatch('message', {
+        data: JSON.stringify({
+          kind: 'ephemeral_ack',
+          requestId: unsubscribe.requestId,
+          operation: 'unsubscribe',
+          removed: true,
+        }),
+      });
+      return { cleanup: unsubscribe.type };
+    } finally {
+      stopDemand();
+      manager.close();
+    }
+  });
 } finally {
   globalThis.fetch = originalFetch;
   if (originalWebSocket === undefined) delete globalThis.WebSocket;

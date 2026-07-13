@@ -464,6 +464,20 @@ export class SnapbackClient {
       return overlay;
     } catch (error) {
       overlay?.dispose();
+      if (overlay) {
+        // The HTTP subscribe may already have registered the room before a
+        // post-response failure (notably a bounded pre-snapshot buffer
+        // overflow). Detach locally first, then best-effort the authenticated
+        // socket unsubscribe so the abandoned server registration does not
+        // linger until connection reap. Cleanup must never mask or delay the
+        // original subscribe diagnostic.
+        void this.unsubscribeEphemeral(ref, {
+          connectionId,
+          scope,
+          userId,
+          permissions,
+        }).catch(() => {});
+      }
       throw error;
     }
   }
