@@ -124,6 +124,38 @@
         }
       ]
     },
+    "ActionWorkerStats": {
+      "description": "Process-wide detached-action admission facts. These stay on the gated\nadmin inspect surface: operators can distinguish handler latency from\nnative-worker saturation without exposing process capacity anonymously.",
+      "properties": {
+        "activeWorkers": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "admittedWorkers": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rejectedAdmissions": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "workerLimit": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "activeWorkers",
+        "admittedWorkers",
+        "workerLimit",
+        "rejectedAdmissions"
+      ],
+      "type": "object"
+    },
     "AdminCapabilities": {
       "description": "Which admin capabilities this target offers, and how writes are gated.\n\n@ref LLP 0017#headless-admin-contract — admin-write capability is a reported\ncapability field, not a private flag, and unimplemented surfaces are honest\ngaps rather than placeholder controls.",
       "properties": {
@@ -2671,6 +2703,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "The canonical admin inspect payload: the existing `InspectState` extended in\nplace with `server` and `admin` blocks.\n\n@ref LLP 0017#headless-admin-contract — extend the runtime-state facts rather\nthan inventing a parallel schema.",
   "properties": {
+    "actionWorkers": {
+      "$ref": "#/$defs/ActionWorkerStats"
+    },
     "activeConnections": {
       "format": "uint",
       "minimum": 0,
@@ -2761,7 +2796,8 @@
     "recentDiagnostics",
     "capabilityGaps",
     "server",
-    "admin"
+    "admin",
+    "actionWorkers"
   ],
   "title": "AdminInspect",
   "type": "object"

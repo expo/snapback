@@ -617,7 +617,9 @@ async fn non_loopback_with_token_allows_admin_reads() {
         .oneshot(get("/_snapback/api/inspect"))
         .await
         .unwrap();
-    assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+    assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+    let body = json(denied).await;
+    assert_eq!(body["diagnostic"]["code"], "SNAPBACK_ADMIN_TOKEN_REQUIRED");
 
     let allowed = app
         .oneshot(
