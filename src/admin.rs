@@ -11,6 +11,7 @@ use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintBridge, SecretReadOperator,
     SecretReadScope, VerifiedSecretReadMint,
 };
+use crate::auth::provider::AuthProvider;
 use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
@@ -607,6 +608,10 @@ pub struct AppState {
     /// capability. The non-cloneable raw operator half never enters router
     /// state and is consumed by readiness/terminal publication.
     pub(crate) impersonation_capabilities: Option<ImpersonationCapabilityRegistry>,
+    /// Optional email-code provider projection. Startup activation is owned by
+    /// the staged-mode composition lane; embeddings and tests may install an
+    /// already-activated provider through the builder below.
+    pub(crate) auth_provider: Option<Arc<AuthProvider>>,
 }
 
 impl AppState {
@@ -641,6 +646,7 @@ impl AppState {
                 secret_reads,
                 secret_read_mint: None,
                 impersonation_capabilities: None,
+                auth_provider: None,
             },
             operator,
         )
@@ -658,6 +664,13 @@ impl AppState {
         registry: ImpersonationCapabilityRegistry,
     ) -> Self {
         self.impersonation_capabilities = Some(registry);
+        self
+    }
+
+    /// Install an already-constructed provider without changing auth-mode
+    /// posture or performing catalog activation.
+    pub fn with_auth_provider(mut self, provider: Arc<AuthProvider>) -> Self {
+        self.auth_provider = Some(provider);
         self
     }
 

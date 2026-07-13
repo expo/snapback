@@ -162,6 +162,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/ephemeral/subscribe"),
         ("POST", "/ephemeral/delete"),
         ("POST", "/_snapback/api/schema/load"),
+        ("GET", "/_snapback/api/auth/mailbox"),
         ("POST", "/_snapback/api/functions/load"),
         ("POST", "/_snapback/api/app/reset"),
         ("POST", "/_snapback/api/client-mutations/purge"),
@@ -296,6 +297,24 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
     assert_eq!(
         alarm.response_sensitivity,
         ResponseSensitivity::PublicNoStore
+    );
+
+    let mailbox = registry
+        .iter()
+        .find(|route| route.path == "/_snapback/api/auth/mailbox")
+        .expect("registered capture mailbox route");
+    assert_eq!(mailbox.method, "GET");
+    assert_eq!(mailbox.class, RouteClass::SystemApi);
+    assert_eq!(mailbox.path_policy, RoutePolicy::AdminWrite);
+    assert_eq!(
+        mailbox.credential_resolution,
+        CredentialResolution::AdminCredential
+    );
+    assert_eq!(mailbox.invocation_authority, InvocationAuthority::Operator);
+    assert_eq!(mailbox.effect_policy, EffectPolicy::ImpersonationCapability);
+    assert_eq!(
+        mailbox.response_sensitivity,
+        ResponseSensitivity::CredentialSecret
     );
 
     let router = app(AppState::detached(

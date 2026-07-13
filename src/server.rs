@@ -2,6 +2,11 @@ use crate::admin::{AppState, ServerContext};
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
+use crate::auth::provider::{AuthProvider, ProviderError};
+use crate::auth::wire::{
+    CredentialResponse, ExchangeRequest, MailboxQuery, MailboxResponse, RequestCodeRequest,
+    RequestCodeResponse,
+};
 use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
@@ -22,9 +27,9 @@ use crate::manifest::{
     MutationRequest, SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
-use axum::extract::rejection::{BytesRejection, JsonRejection};
+use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Extension, Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -2065,7 +2070,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 LegacyBodyPolicy::NotApplicable,
                 ResponseSensitivity::PublicNoStore,
             ),
-            post(auth_provider_pending),
+            post(auth_request_code).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -2078,7 +2083,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 LegacyBodyPolicy::NotApplicable,
                 ResponseSensitivity::CredentialSecret,
             ),
-            post(auth_provider_pending),
+            post(auth_exchange).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -2277,6 +2282,19 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
     let write =
         |path, sensitivity| system_api_route("POST", path, RoutePolicy::AdminWrite, sensitivity);
     vec![
+        // @ref LLP 0054#routes-operations-and-dtos — capture plaintext is an
+        // exact operator-only projection requiring both AdminWrite and the
+        // independent, process-bound impersonation capability.
+        RegisteredRoute::new(
+            system_api_route(
+                "GET",
+                "/_snapback/api/auth/mailbox",
+                RoutePolicy::AdminWrite,
+                ResponseSensitivity::CredentialSecret,
+            )
+            .with_effect(EffectPolicy::ImpersonationCapability),
+            get(auth_mailbox),
+        ),
         RegisteredRoute::new(
             write(
                 "/_snapback/api/schema/load",
@@ -2978,10 +2996,9 @@ async fn enforce_registered_route_policy(
     apply_registered_response_controls(response_policy, next.run(request).await)
 }
 
-/// Temporary consume-side fence. Item 3 replaces each registration with its
-/// concrete provider handler in the same landing; keeping a stable handler
-/// during composition lets the registry and dev-mode refusal land and test
-/// independently of the storage/crypto worktrees.
+/// Consume-side fence retained for refresh, logout, and family-alarm until the
+/// item-5 session coordinator exposes their revocation/projection services.
+/// Request-code and exchange use their concrete item-3 handlers above.
 async fn auth_provider_pending() -> Result<Json<Value>, ApiError> {
     Err(SnapbackError::error(
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
@@ -2989,6 +3006,165 @@ async fn auth_provider_pending() -> Result<Json<Value>, ApiError> {
         "the auth provider catalog is not active",
     )
     .into())
+}
+
+const AUTH_REQUEST_BODY_LIMIT: usize = 4 * 1024;
+
+fn auth_request_invalid() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_REQUEST_INVALID",
+        "auth",
+        "authentication request is invalid",
+    )
+    .into()
+}
+
+fn auth_provider_unavailable() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        "auth",
+        "authentication provider is unavailable",
+    )
+    .into()
+}
+
+fn map_provider_error(error: ProviderError) -> ApiError {
+    error.into_snapback_error().into()
+}
+
+fn installed_auth_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiError> {
+    runtime
+        .auth_provider
+        .clone()
+        .ok_or_else(auth_provider_unavailable)
+}
+
+/// Parse one exact provider DTO without leaking parser details. The raw-byte
+/// bound is checked before serde, and deserializing the original bytes keeps
+/// duplicate-field rejection observable by the typed visitor.
+///
+/// @ref LLP 0054#routes-operations-and-dtos — provider requests are closed,
+/// camelCase DTOs with a 4 KiB request-body ceiling.
+fn parse_auth_json<T: serde::de::DeserializeOwned>(
+    headers: &HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<T, ApiError> {
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if body.is_empty() || body.len() > AUTH_REQUEST_BODY_LIMIT {
+        return Err(auth_request_invalid());
+    }
+    let is_json = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"));
+    if !is_json {
+        return Err(auth_request_invalid());
+    }
+    serde_json::from_slice(&body).map_err(|_| auth_request_invalid())
+}
+
+/// Request-code admission (maintenance + address stripe) is acquired before
+/// entering the outer app-instance lock and moved into the blocking closure.
+///
+/// @ref LLP 0054#email-code-provider — challenge creation commits before the
+/// capture response is published and never enters the app event stream.
+async fn auth_request_code(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<RequestCodeResponse>, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    let request = parse_auth_json::<RequestCodeRequest>(&headers, body)?;
+    let admission = provider
+        .admit_email(&request.email)
+        .await
+        .map_err(map_provider_error)?;
+    let now_ms = provider.now_ms();
+    let response = with_snapback(&runtime.snapback, move |snapback| {
+        admission.request_code(snapback.auth_database_mut(), now_ms)
+    })
+    .await
+    .map_err(map_provider_error)?;
+    Ok(Json(response))
+}
+
+/// Exchange uses the required two-pass choreography: a preliminary read under
+/// shared maintenance, then the canonical-address stripe, then a fresh writer
+/// transaction. Missing rows still take the uniform writer+HMAC path.
+///
+/// @ref LLP 0054#email-code-provider — preliminary lookup selects locks and
+/// key material only; authorization comes from the rechecked transaction.
+async fn auth_exchange(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<CredentialResponse>, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    let request = parse_auth_json::<ExchangeRequest>(&headers, body)?;
+    let admission = provider.admit().await;
+    let challenge_id = request.challenge_id;
+    let preliminary_challenge_id = challenge_id.clone();
+    let code = request.code;
+    let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
+        let coordination = admission.exchange_coordination(
+            snapback.auth_database_mut(),
+            preliminary_challenge_id.as_str(),
+        );
+        (admission, coordination)
+    })
+    .await;
+    let coordination = coordination.map_err(map_provider_error)?;
+    let issue = match coordination {
+        Some(coordination) => {
+            let exchange = admission
+                .for_exchange(coordination)
+                .await
+                .map_err(map_provider_error)?;
+            let now_ms = provider.now_ms();
+            with_snapback(&runtime.snapback, move |snapback| {
+                exchange.exchange(snapback.auth_database_mut(), code.as_str(), now_ms)
+            })
+            .await
+        }
+        None => {
+            let now_ms = provider.now_ms();
+            with_snapback(&runtime.snapback, move |snapback| {
+                admission.exchange_unknown(
+                    snapback.auth_database_mut(),
+                    challenge_id.as_str(),
+                    code.as_str(),
+                    now_ms,
+                )
+            })
+            .await
+        }
+    }
+    .map_err(map_provider_error)?;
+    // Item 5 installs the in-memory connection/session projection that
+    // consumes committed evictions. No such projection exists in this slice.
+    let (response, _committed_revocation) = issue.into_parts();
+    Ok(Json(response))
+}
+
+/// Exact capture-mailbox projection. The handler requires the middleware-
+/// installed proof as a structural backstop; the registered route is what
+/// authenticates both independent authority axes before query parsing.
+///
+/// @ref LLP 0054#capture-mailbox — mailbox lookup performs shared
+/// maintenance, peek, address-stripe acquisition, and an exact re-read.
+async fn auth_mailbox(
+    State(runtime): State<AppState>,
+    Extension(_verified): Extension<crate::admin_impersonation::VerifiedImpersonationCapability>,
+    query: Result<Query<MailboxQuery>, QueryRejection>,
+) -> Result<Json<MailboxResponse>, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    let Query(query) = query.map_err(|_| auth_request_invalid())?;
+    let response = provider
+        .mailbox_entry(&query.challenge_id)
+        .await
+        .map_err(map_provider_error)?;
+    Ok(Json(response))
 }
 
 pub(crate) fn router_from_registrations(
@@ -6185,13 +6361,21 @@ mod tests {
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
         ACTION_WORKER_LIMIT_MAX, CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX,
         ConnectionGrant, ConnectionTokenQuery, DetachedActionHost, DetachedActionWorkerCounters,
-        OpenConnectionRequest, SharedSnapback, configured_action_worker_limit,
+        OpenConnectionRequest, PolicyAuthMode, SharedSnapback, app, configured_action_worker_limit,
         configured_cron_dispatch_concurrency, dispatch_cron_tick_background,
         parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
         reserve_detached_action_worker_with_counters,
         run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
         status_for_diagnostic_code,
     };
+    use crate::admin::{AppState, ServerContext, ServerProfile};
+    use crate::admin_impersonation::{
+        IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
+    };
+    use crate::auth::crypto::OsRandom;
+    use crate::auth::keyring::AuthKeyringStore;
+    use crate::auth::lifecycle::activate_catalog;
+    use crate::auth::provider::{AuthProvider, AuthProviderProfile};
     use crate::cron::CronRunOutcome;
     use crate::local::{LocalSnapback, StagedAction};
     use crate::manifest::{
@@ -6201,8 +6385,8 @@ mod tests {
         SchemaManifest,
     };
     use crate::runtime::IbexActionHost;
-    use axum::body::Bytes;
-    use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+    use axum::body::{Body, Bytes, to_bytes};
+    use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
     use futures_util::StreamExt as _;
     use std::collections::BTreeSet;
     use std::fs;
@@ -6213,6 +6397,68 @@ mod tests {
     use syn::visit::Visit;
     use tokio::net::TcpListener;
     use tokio::sync::{Mutex, Semaphore};
+    use tower::ServiceExt as _;
+
+    fn auth_http_fixture(mode: PolicyAuthMode) -> (axum::Router, String) {
+        let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            super::now_millis(),
+            &OsRandom,
+        )
+        .expect("activate auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring).expect("construct auth provider"),
+        );
+        let (registry, operator) =
+            ImpersonationCapabilityRegistry::generate("auth-http-fixture".to_owned(), &OsRandom)
+                .expect("generate impersonation capability");
+        let mut capability = None;
+        operator
+            .emit_once_to_terminal(|value| {
+                capability = Some(value.to_owned());
+                Ok(())
+            })
+            .expect("capture test impersonation capability");
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        context.admin_token = Some("auth-http-admin".to_owned());
+        let state = AppState::from_snapback(snapback, context)
+            .with_policy_auth_mode(mode)
+            .with_impersonation_capabilities(registry)
+            .with_auth_provider(provider);
+        (app(state), capability.expect("captured capability"))
+    }
+
+    fn auth_http_request(
+        method: &str,
+        uri: &str,
+        body: Vec<u8>,
+        content_type: bool,
+        admin: Option<&str>,
+        impersonation: Option<&str>,
+    ) -> Request<Body> {
+        let mut builder = Request::builder().method(method).uri(uri);
+        if content_type {
+            builder = builder.header(header::CONTENT_TYPE, "application/json");
+        }
+        if let Some(admin) = admin {
+            builder = builder.header("x-snapback-admin-token", admin);
+        }
+        if let Some(impersonation) = impersonation {
+            builder = builder.header(IMPERSONATION_CAPABILITY_HEADER, impersonation);
+        }
+        builder.body(Body::from(body)).expect("auth HTTP request")
+    }
+
+    async fn response_json(response: axum::response::Response) -> serde_json::Value {
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read auth HTTP response");
+        serde_json::from_slice(&bytes).expect("auth HTTP JSON response")
+    }
 
     #[test]
     fn optional_json_rejects_non_objects_and_duplicate_struct_fields() {
@@ -6250,6 +6496,263 @@ mod tests {
                 .is_some_and(|message| message.contains("duplicate field")),
             "typed serde visitor should preserve the duplicate-field diagnostic: {}",
             duplicate.0.diagnostic.details["error"]
+        );
+    }
+
+    /// LLP 0054#routes-operations-and-dtos — the HTTP projection enforces the
+    /// exact 4 KiB ceiling and collapses every closed-DTO parse failure to the
+    /// non-reflective auth diagnostic.
+    #[tokio::test]
+    async fn auth_http_json_is_closed_and_bounded_at_exactly_four_kibibytes() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
+        let mut exact = br#"{"email":"four-kib@example.com"}"#.to_vec();
+        exact.resize(super::AUTH_REQUEST_BODY_LIMIT, b' ');
+        let accepted = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/auth/request-code",
+                exact.clone(),
+                true,
+                None,
+                None,
+            ))
+            .await
+            .expect("exact-limit provider request");
+        assert_eq!(accepted.status(), StatusCode::OK);
+        assert_eq!(
+            accepted.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+
+        let mut oversized = exact;
+        oversized.push(b' ');
+        let invalid_bodies = [
+            (oversized, true),
+            (br#"{"email":"a@example.com","extra":true}"#.to_vec(), true),
+            (
+                br#"{"email":"a@example.com","email":"b@example.com"}"#.to_vec(),
+                true,
+            ),
+            (br#"{"email":}"#.to_vec(), true),
+            (br#"{"email":"a@example.com"}"#.to_vec(), false),
+        ];
+        for (body, content_type) in invalid_bodies {
+            let response = router
+                .clone()
+                .oneshot(auth_http_request(
+                    "POST",
+                    "/auth/request-code",
+                    body,
+                    content_type,
+                    None,
+                    None,
+                ))
+                .await
+                .expect("invalid provider request");
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+            assert_eq!(
+                response.headers()[header::CACHE_CONTROL],
+                "no-store, private"
+            );
+            let body = response_json(response).await;
+            assert_eq!(body["diagnostic"]["code"], "SNAPBACK_AUTH_REQUEST_INVALID");
+            assert_eq!(
+                body["diagnostic"]["details"],
+                serde_json::json!({}),
+                "parser internals must not be reflected"
+            );
+        }
+    }
+
+    /// LLP 0054#email-code-provider — exercise the real request transaction,
+    /// exact gated mailbox projection, and known/unknown two-pass exchange
+    /// paths through the registered router.
+    #[tokio::test]
+    async fn auth_http_request_mailbox_exchange_flow_and_carriers_are_exact() {
+        let (router, impersonation) = auth_http_fixture(PolicyAuthMode::Sessions);
+        let request_code = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/auth/request-code",
+                serde_json::to_vec(&serde_json::json!({"email": "Person@Example.com"})).unwrap(),
+                true,
+                None,
+                None,
+            ))
+            .await
+            .expect("request verification code");
+        assert_eq!(request_code.status(), StatusCode::OK);
+        assert_eq!(
+            request_code.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let requested = response_json(request_code).await;
+        assert_eq!(
+            requested
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from(["challengeId".to_owned(), "expiresAt".to_owned()])
+        );
+        let challenge_id = requested["challengeId"].as_str().unwrap().to_owned();
+        let mailbox_uri = format!("/_snapback/api/auth/mailbox?challengeId={challenge_id}");
+
+        let effect_without_admin = router
+            .clone()
+            .oneshot(auth_http_request(
+                "GET",
+                &mailbox_uri,
+                Vec::new(),
+                false,
+                None,
+                Some(&impersonation),
+            ))
+            .await
+            .expect("effect-only mailbox request");
+        assert_ne!(effect_without_admin.status(), StatusCode::OK);
+        assert_ne!(
+            response_json(effect_without_admin).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
+            "the effect carrier cannot substitute for AdminWrite"
+        );
+
+        for presented_effect in [None, Some("sbs_not-an-impersonation-capability")] {
+            let admin_without_effect = router
+                .clone()
+                .oneshot(auth_http_request(
+                    "GET",
+                    &mailbox_uri,
+                    Vec::new(),
+                    false,
+                    Some("auth-http-admin"),
+                    presented_effect,
+                ))
+                .await
+                .expect("admin-only mailbox request");
+            assert_eq!(admin_without_effect.status(), StatusCode::FORBIDDEN);
+            assert_eq!(
+                response_json(admin_without_effect).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
+            );
+        }
+
+        let mailbox = router
+            .clone()
+            .oneshot(auth_http_request(
+                "GET",
+                &mailbox_uri,
+                Vec::new(),
+                false,
+                Some("auth-http-admin"),
+                Some(&impersonation),
+            ))
+            .await
+            .expect("fully authorized mailbox request");
+        assert_eq!(mailbox.status(), StatusCode::OK);
+        assert_eq!(
+            mailbox.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let mailbox = response_json(mailbox).await;
+        assert_eq!(mailbox["challengeId"], challenge_id);
+        assert_eq!(mailbox["canonicalAddress"], "person@example.com");
+        let code = mailbox["code"].as_str().unwrap().to_owned();
+
+        let exchange = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/auth/exchange",
+                serde_json::to_vec(&serde_json::json!({
+                    "challengeId": challenge_id,
+                    "code": code,
+                }))
+                .unwrap(),
+                true,
+                None,
+                None,
+            ))
+            .await
+            .expect("exchange verification code");
+        assert_eq!(exchange.status(), StatusCode::OK);
+        assert_eq!(
+            exchange.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let credential = response_json(exchange).await;
+        assert_eq!(credential["tokenType"], "Bearer");
+        assert!(credential["token"].as_str().unwrap().starts_with("sbs_"));
+        assert_eq!(credential["session"]["provider"], "email-code");
+
+        let consumed_mailbox = router
+            .clone()
+            .oneshot(auth_http_request(
+                "GET",
+                &mailbox_uri,
+                Vec::new(),
+                false,
+                Some("auth-http-admin"),
+                Some(&impersonation),
+            ))
+            .await
+            .expect("consumed mailbox request");
+        assert_eq!(consumed_mailbox.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            response_json(consumed_mailbox).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND"
+        );
+
+        let unknown = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/auth/exchange",
+                serde_json::to_vec(&serde_json::json!({
+                    "challengeId": "sbc_AAAAAAAAAAAAAAAAAAAAAA",
+                    "code": "000000",
+                }))
+                .unwrap(),
+                true,
+                None,
+                None,
+            ))
+            .await
+            .expect("unknown exchange request");
+        assert_eq!(unknown.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(unknown).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CODE_INVALID"
+        );
+    }
+
+    /// LLP 0054#routes-operations-and-dtos — active dev refusal precedes the
+    /// installed provider, bearer, and even an over-limit malformed body.
+    #[tokio::test]
+    async fn auth_http_dev_refusal_precedes_provider_and_body_handling() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
+        let response = router
+            .oneshot(auth_http_request(
+                "POST",
+                "/auth/request-code",
+                vec![b'x'; super::AUTH_REQUEST_BODY_LIMIT + 1],
+                false,
+                None,
+                None,
+            ))
+            .await
+            .expect("dev-mode provider refusal");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_MODE_DEV"
         );
     }
 
@@ -6804,6 +7307,11 @@ mod tests {
         "SNAPBACK_IBEX_CLI_UNAVAILABLE",
         "SNAPBACK_IBEX_FUNCTIONS_LOADED",
         "SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE",
+        // Provider transaction sentinels are collapsed to a public provider
+        // failure before crossing HTTP. If one ever escapes, retain the
+        // fail-safe 500 class rather than presenting it as caller error.
+        "SNAPBACK_INTERNAL_AUTH_COLLISION",
+        "SNAPBACK_INTERNAL_AUTH_STATE",
         "SNAPBACK_JSON_PARSE_FAILED",
         "SNAPBACK_JSON_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",

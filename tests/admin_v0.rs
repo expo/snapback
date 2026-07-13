@@ -997,7 +997,6 @@ async fn provisioning_writes_are_profile_forbidden_under_prod() {
         json!({ "operation": "schema.load", "schema": todo_schema() }),
         json!({ "operation": "functions.load", "functions": todo_functions() }),
         json!({ "operation": "app.reset" }),
-        json!({ "operation": "function.run", "function": "listTodos", "userId": "chosen-user" }),
         json!({ "operation": "function.explain", "function": "createTodo", "kind": "mutationDryRun", "userId": "chosen-user" }),
     ] {
         let response = app
@@ -1011,6 +1010,25 @@ async fn provisioning_writes_are_profile_forbidden_under_prod() {
         assert_eq!(body["diagnostics"][0]["code"], "SNAPBACK_PROFILE_FORBIDS");
         assert_eq!(body["target"]["targetProfile"], "local-prod-sqlite-ibex");
     }
+
+    // ENG-24595 moved impersonated function.run into the selected-operation
+    // gate. Prod now refuses its independent impersonation effect before the
+    // host-op handler can build the legacy 200 result envelope.
+    let impersonated_run = app
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/host-ops",
+            json!({
+                "operation": "function.run",
+                "function": "listTodos",
+                "userId": "chosen-user"
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(impersonated_run.status(), StatusCode::FORBIDDEN);
+    let body = json(impersonated_run).await;
+    assert_eq!(body["diagnostic"]["code"], "SNAPBACK_PROFILE_FORBIDS");
 
     let dedicated_dev_user = app
         .oneshot(post(
