@@ -992,16 +992,24 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .as_deref()
         .map(ReadyFileTarget::open)
         .transpose()?;
-    let ready_path = ready_target.as_ref().map(ReadyFileTarget::pinned_path);
-    let ready_temp_path = ready_path.map(ready_file_temp_path).transpose()?;
+    let ready_path = ready_target
+        .as_ref()
+        .map(ReadyFileTarget::pinned_path)
+        .map(Path::to_path_buf);
+    let ready_temp_path = ready_path
+        .as_deref()
+        .map(ready_file_temp_path)
+        .transpose()?;
     let impersonation_capability_file = ready_path
+        .as_deref()
         .map(crate::admin_impersonation::impersonation_capability_sibling)
         .transpose()?;
     let impersonation_temp_path = impersonation_capability_file
         .as_deref()
         .map(ready_file_temp_path)
         .transpose()?;
-    let mut managed_paths = managed_startup_paths(prepared_database_path.as_deref(), ready_path)?;
+    let mut managed_paths =
+        managed_startup_paths(prepared_database_path.as_deref(), ready_path.as_deref())?;
     if let Some(path) = &ready_temp_path {
         managed_paths.push(ManagedPath {
             label: "ready-file temporary artifact",
@@ -1024,9 +1032,28 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             // @ref LLP 0003#decision — one local server process owns the SQLite
             // database and process-local runtime state for this app instance.
             let lock = DatabaseInstanceLock::acquire(db_path)?;
-            let snapback = LocalSnapback::open(db_path)?;
-            database_lock = Some(lock);
-            snapback
+            match LocalSnapback::open(db_path) {
+                Ok(snapback) => {
+                    database_lock = Some(lock);
+                    snapback
+                }
+                Err(open_error) => {
+                    if !crate::auth::recovery::eligible(db_path, &open_error)? {
+                        return Err(anyhow::Error::new(open_error));
+                    }
+                    return run_auth_collision_recovery(
+                        &args,
+                        db_path.clone(),
+                        lock,
+                        ready_target,
+                        managed_paths,
+                        ready_temp_path,
+                        impersonation_capability_file,
+                        impersonation_temp_path,
+                    )
+                    .await;
+                }
+            }
         }
     };
 
@@ -1118,7 +1145,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if loopback && server_context.admin_token.is_none() {
         let token_file = database_path
             .as_deref()
-            .or(ready_path)
+            .or(ready_path.as_deref())
             .map(crate::admin::admin_token_sibling);
         let resolved = if database_path.is_none() {
             if let (Some(target), Some(token_file)) = (ready_target.as_ref(), token_file.as_ref()) {
@@ -1165,7 +1192,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         } else {
             (None, None)
         };
-    let secret_read_root_file = ready_path.map(secret_read_root_sibling);
+    let secret_read_root_file = ready_path.as_deref().map(secret_read_root_sibling);
     let secret_read_proof_root = match (ready_target.as_ref(), secret_read_root_file.as_ref()) {
         (Some(target), Some(path)) => Some(
             crate::admin_secret_read::resolve_secret_read_proof_root_with_io(
@@ -1347,6 +1374,200 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ready_sibling_token_identity,
     ) {
         let _ = target.remove_sibling_if_identity(path, identity);
+    }
+    server_result?;
+    Ok(())
+}
+
+/// Serve the closed collision-recovery posture after ordinary manifest
+/// admission has failed and the read-only catalog probe classified that exact
+/// failure. Every eligibility/authority input is settled before listener bind;
+/// this function never constructs `LocalSnapback` or the ordinary app router.
+// @ref LLP 0054#reachability — recovery startup exposes only health and the selected, AdminWrite+sbic-gated rescue carrier, and remains restart-required after success.
+#[allow(clippy::too_many_arguments)]
+async fn run_auth_collision_recovery(
+    args: &Args,
+    database_path: PathBuf,
+    mut database_lock: DatabaseInstanceLock,
+    mut ready_target: Option<ReadyFileTarget>,
+    managed_paths: Vec<ManagedPath>,
+    ready_temp_path: Option<PathBuf>,
+    impersonation_capability_file: Option<PathBuf>,
+    impersonation_temp_path: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    let bind_ip = crate::auth::recovery::resolve_loopback_host(&args.host).await?;
+    let mut server_context = ServerContext::new(bind_ip.to_string(), 0, true);
+
+    // Profiles that can never expose recovery fail before token minting or any
+    // other startup publication.
+    if matches!(
+        server_context.profile,
+        crate::admin::ServerProfile::Demo | crate::admin::ServerProfile::Prod
+    ) {
+        crate::auth::recovery::validate_startup_context(&server_context)?;
+    }
+
+    // Tokenless loopback is explicitly not authority in recovery posture.
+    // Resolve or mint the same owner-only database sibling before binding.
+    let mut minted_token = None;
+    if server_context.admin_token.is_none() {
+        let resolved = crate::admin::resolve_serve_admin_token(
+            None,
+            Some(crate::admin::admin_token_sibling(&database_path)),
+        )?;
+        server_context.install_minted_token(&resolved);
+        minted_token = Some(resolved);
+    }
+    crate::auth::recovery::validate_startup_context(&server_context)?;
+
+    let startup_nonce = crate::identity::binary_identity().startup_nonce;
+    let (impersonation_registry, impersonation_operator) =
+        crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+            startup_nonce.clone(),
+            &crate::auth::crypto::OsRandom,
+        )
+        .context("failed to generate the auth-recovery impersonation capability")?;
+    crate::auth::recovery::validate_impersonation_registry(&impersonation_registry)?;
+
+    // Bind the concrete address returned by the pre-bind loopback resolver;
+    // never re-resolve the caller's hostname after validating it.
+    let listener = bind_listener(&bind_ip.to_string(), args.port).await?;
+    let local_addr = listener.local_addr()?;
+    anyhow::ensure!(
+        local_addr.ip().is_loopback(),
+        "SNAPBACK_AUTH_TABLE_COLLISION: auth collision recovery refused a non-loopback listener"
+    );
+    server_context.host = local_addr.ip().to_string();
+    server_context.port = local_addr.port();
+    server_context.loopback = true;
+    let profile = server_context.profile;
+    let admin_token_file_display = server_context
+        .admin_token_file
+        .as_ref()
+        .map(|path| path.display().to_string());
+    let runtime = crate::auth::recovery::CollisionRecoveryRuntime::new(
+        database_path.clone(),
+        server_context,
+        impersonation_registry,
+    )?;
+    let app = crate::auth::recovery::router(runtime);
+    database_lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
+
+    // Publish the validated process capability only after bind and runtime
+    // construction succeed. ReadyFileTarget's drop guard removes a sidecar if
+    // the later ready-descriptor publication fails.
+    let mut impersonation_capability_file_display = None;
+    if let Some(target) = ready_target.as_mut() {
+        let ready_file = target.pinned_path().to_path_buf();
+        let temporary = impersonation_temp_path
+            .as_deref()
+            .context("auth-recovery impersonation sidecar temporary path was not allocated")?;
+        let path = impersonation_operator
+            .publish_with(&ready_file, |path, bytes| {
+                target.publish_owner_only_sibling_atomic(path, temporary, bytes)
+            })
+            .with_context(|| {
+                format!(
+                    "failed to publish owner-only auth-recovery impersonation capability for {}",
+                    ready_file.display()
+                )
+            })?;
+        anyhow::ensure!(
+            impersonation_capability_file.as_deref() == Some(path.as_path()),
+            "auth-recovery impersonation publisher returned a non-mechanical sidecar path"
+        );
+        impersonation_capability_file_display = Some(path.display().to_string());
+    } else {
+        emit_impersonation_capability_to_controlling_terminal(impersonation_operator)
+            .context("failed to emit the auth-recovery capability to the controlling terminal")?;
+    }
+
+    if let Some(target) = ready_target.as_mut() {
+        let path = target.pinned_path().to_path_buf();
+        let descriptor = HostReadyDescriptor {
+            schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+            descriptor_kind: crate::host_ops::HOST_READY_DESCRIPTOR_KIND.to_owned(),
+            startup_id: format!("srt_{}", Uuid::now_v7().simple()),
+            ready: true,
+            server_url: format!("http://{local_addr}"),
+            host: local_addr.ip().to_string(),
+            port: local_addr.port(),
+            pid: std::process::id(),
+            startup_nonce: Some(startup_nonce),
+            target: crate::host_ops::HostOpsTarget {
+                // The recovery process never accepts the stored manifest just
+                // to populate descriptor identity.
+                app_id: String::new(),
+                app_root: None,
+                target_profile: match profile {
+                    crate::admin::ServerProfile::Dev => {
+                        crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+                    }
+                    crate::admin::ServerProfile::Test => "local-test-sqlite-ibex".to_owned(),
+                    crate::admin::ServerProfile::Demo | crate::admin::ServerProfile::Prod => {
+                        unreachable!("recovery context rejected this profile before bind")
+                    }
+                },
+                server_url: Some(format!("http://{local_addr}")),
+            },
+            database: crate::host_ops::HostReadyDatabase {
+                mode: "file".to_owned(),
+                path: Some(database_path.display().to_string()),
+            },
+            started_at_ms: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|elapsed| elapsed.as_millis() as u64)
+                .unwrap_or(0),
+            admin_gated: true,
+            admin_token_file: admin_token_file_display,
+            secret_read_root_file: None,
+            impersonation_capability_file: impersonation_capability_file_display,
+            diagnostics: Vec::new(),
+        };
+        target
+            .write_atomic_protected(
+                &format!("{}\n", serde_json::to_string_pretty(&descriptor)?),
+                &managed_paths,
+                ready_temp_path
+                    .as_deref()
+                    .context("auth-recovery ready-file temporary path was not allocated")?,
+            )
+            .with_context(|| {
+                format!(
+                    "failed to write auth-recovery ready file {}",
+                    path.display()
+                )
+            })?;
+        println!(
+            "ready file: {}",
+            args.ready_file.as_deref().unwrap_or(&path).display()
+        );
+    }
+
+    println!("snapback auth recovery listening on http://{local_addr}");
+    println!(
+        "auth recovery: table collision; application service is unavailable and restart is required after rescue"
+    );
+    println!("sqlite database: {}", database_path.display());
+    if let Some(minted) = &minted_token {
+        println!("admin: auth recovery requires the minted local admin token");
+        if minted.fresh {
+            println!("admin token: {}", minted.token);
+        }
+        if let Some(file) = &minted.file {
+            println!("admin token file: {}", file.display());
+        }
+    } else {
+        println!("admin: auth recovery requires SNAPBACK_ADMIN_TOKEN");
+    }
+
+    let server_result = axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await;
+    drop(database_lock);
+    if let Some(target) = ready_target.as_ref() {
+        let _ = target.remove_impersonation_capability();
+        let _ = target.remove_published();
     }
     server_result?;
     Ok(())

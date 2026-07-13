@@ -79,6 +79,93 @@ struct RescueCompletion {
 }
 
 impl LocalDatabase {
+    /// Determine whether an ordinary open failure is the one startup case that
+    /// may enter the closed collision-recovery posture. The probe opens SQLite
+    /// read-only, accepts no stored manifest, and performs no infra migration.
+    ///
+    /// @ref LLP 0054#reachability — recovery startup is available only when
+    /// stored-manifest admission failed solely because one or more declared,
+    /// physically present tables occupy the protected auth namespace.
+    pub(crate) fn auth_collision_recovery_eligible(
+        path: &Path,
+        ordinary_open_error: &crate::diagnostic::SnapbackError,
+    ) -> SnapbackResult<bool> {
+        if ordinary_open_error.diagnostic.code != "SNAPBACK_INVALID_IDENTIFIER"
+            || ordinary_open_error.diagnostic.subsystem != "schema"
+        {
+            return Ok(false);
+        }
+
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        connection.busy_timeout(std::time::Duration::from_secs(5))?;
+        connection.pragma_update(None, "query_only", "ON")?;
+
+        // An exact v1 index name is never table-copy recovery, including when
+        // a declared reserved table would otherwise make the catalog inspector
+        // report the table first.
+        reject_exact_auth_catalog_object_collision(&connection)?;
+
+        let Some(manifest) = load_schema_manifest_from_connection(&connection)? else {
+            return Ok(false);
+        };
+        let reserved_tables = manifest
+            .tables
+            .iter()
+            .enumerate()
+            .filter(|(_, table)| is_auth_reserved_identifier(&table.name))
+            .map(|(index, table)| (index, table.name.clone()))
+            .collect::<Vec<_>>();
+        if reserved_tables.is_empty() {
+            return Ok(false);
+        }
+
+        // Every invalid reserved declaration must name an actual physical
+        // table. A reserved field/index or an absent declaration cannot be
+        // repaired by the selected table-copy operation, so startup stays
+        // offline rather than advertising a dead-end recovery lane.
+        for (_, source) in &reserved_tables {
+            let matches: i64 = connection.query_row(
+                "SELECT COUNT(*) FROM sqlite_schema
+                 WHERE type = 'table' AND name = ?1 COLLATE NOCASE",
+                params![source],
+                |row| row.get(0),
+            )?;
+            if matches != 1 {
+                return Ok(false);
+            }
+        }
+
+        let mut admissible = manifest.clone();
+        for (ordinal, (table_index, _)) in reserved_tables.iter().enumerate() {
+            let mut suffix = 0_u64;
+            loop {
+                let candidate = format!("auth_recovery_probe_{ordinal}_{suffix}");
+                if !admissible.tables.iter().enumerate().any(|(index, table)| {
+                    index != *table_index && table.name.eq_ignore_ascii_case(&candidate)
+                }) {
+                    admissible.tables[*table_index].name = candidate;
+                    break;
+                }
+                suffix = suffix.saturating_add(1);
+            }
+        }
+        if validate_schema(&admissible).is_err() {
+            return Ok(false);
+        }
+
+        match inspect_auth_catalog_on(&connection) {
+            Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_TABLE_COLLISION" => Ok(true),
+            // Unknown/corrupt/owned catalogs and exact-object collisions are
+            // not ambiguous `false` results: preserve their stronger offline
+            // diagnostic for the startup caller.
+            Err(error) => Err(error),
+            Ok(_) => Ok(false),
+        }
+    }
+
     pub(crate) fn rescue_auth_collision(
         &mut self,
         source: &str,
