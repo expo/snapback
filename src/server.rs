@@ -49,7 +49,8 @@ static DETACHED_ACTION_LIMITER: OnceLock<DetachedActionLimiter> = OnceLock::new(
 
 const ACTION_WORKER_LIMIT_DEFAULT: usize = 32;
 const ACTION_WORKER_LIMIT_MAX: usize = 1_024;
-const CRON_DISPATCH_CONCURRENCY: usize = 8;
+const CRON_DISPATCH_CONCURRENCY_DEFAULT: usize = 8;
+const CRON_DISPATCH_CONCURRENCY_MAX: usize = 1_024;
 
 struct DetachedActionLimiter {
     semaphore: Arc<Semaphore>,
@@ -73,6 +74,16 @@ pub fn detached_action_worker_limit() -> usize {
     detached_action_limiter().limit
 }
 
+/// Workers admitted by the process-wide semaphore, including a worker that
+/// has reserved capacity but has not entered its native execution thread yet.
+#[doc(hidden)]
+pub fn detached_action_admitted_count() -> usize {
+    let limiter = detached_action_limiter();
+    limiter
+        .limit
+        .saturating_sub(limiter.semaphore.available_permits())
+}
+
 #[doc(hidden)]
 pub fn detached_action_rejection_count() -> u64 {
     DETACHED_ACTION_REJECTIONS.load(Ordering::SeqCst)
@@ -85,19 +96,25 @@ fn configured_action_worker_limit(raw: Option<&str>) -> usize {
         .unwrap_or(ACTION_WORKER_LIMIT_DEFAULT)
 }
 
+fn configured_cron_dispatch_concurrency(raw: Option<&str>) -> usize {
+    raw.and_then(|value| value.parse::<usize>().ok())
+        .filter(|limit| *limit > 0)
+        .map(|limit| limit.min(CRON_DISPATCH_CONCURRENCY_MAX))
+        .unwrap_or(CRON_DISPATCH_CONCURRENCY_DEFAULT)
+}
+
 fn detached_action_limiter() -> &'static DetachedActionLimiter {
-    DETACHED_ACTION_LIMITER
-        .get_or_init(|| {
-            let limit = configured_action_worker_limit(
-                std::env::var("SNAPBACK_ACTION_MAX_CONCURRENCY")
-                    .ok()
-                    .as_deref(),
-            );
-            DetachedActionLimiter {
-                semaphore: Arc::new(Semaphore::new(limit)),
-                limit,
-            }
-        })
+    DETACHED_ACTION_LIMITER.get_or_init(|| {
+        let limit = configured_action_worker_limit(
+            std::env::var("SNAPBACK_ACTION_MAX_CONCURRENCY")
+                .ok()
+                .as_deref(),
+        );
+        DetachedActionLimiter {
+            semaphore: Arc::new(Semaphore::new(limit)),
+            limit,
+        }
+    })
 }
 
 fn reserve_detached_action_worker(
@@ -410,8 +427,7 @@ async fn run_detached_ibex_action(
     // its permit until it actually exits, but it can never cause unbounded
     // thread growth.
     let limiter = detached_action_limiter();
-    let worker_permit =
-        reserve_detached_action_worker(limiter.semaphore.clone(), limiter.limit)?;
+    let worker_permit = reserve_detached_action_worker(limiter.semaphore.clone(), limiter.limit)?;
     let timeout_ms = action_watchdog_timeout_ms();
     let started = Instant::now();
     let deadline = started
@@ -608,7 +624,11 @@ pub(crate) async fn cron_tick_detached(
             let state = state.clone();
             async move { (index, execute_cron_claim_detached(&state, claim).await) }
         }))
-        .buffer_unordered(CRON_DISPATCH_CONCURRENCY)
+        .buffer_unordered(configured_cron_dispatch_concurrency(
+            std::env::var("SNAPBACK_CRON_DISPATCH_CONCURRENCY")
+                .ok()
+                .as_deref(),
+        ))
         .collect::<Vec<_>>()
         .await;
     completed.sort_by_key(|(index, _)| *index);
@@ -3236,8 +3256,9 @@ fn now_millis() -> u64 {
 mod tests {
     use super::{
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
-        ACTION_WORKER_LIMIT_MAX, DetachedActionHost, OpenConnectionRequest, SharedSnapback,
-        configured_action_worker_limit, parse_action_watchdog_timeout, parse_optional_json,
+        ACTION_WORKER_LIMIT_MAX, CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX,
+        DetachedActionHost, OpenConnectionRequest, SharedSnapback, configured_action_worker_limit,
+        configured_cron_dispatch_concurrency, parse_action_watchdog_timeout, parse_optional_json,
         reserve_detached_action_worker, status_for_diagnostic_code,
     };
     use crate::local::{LocalSnapback, StagedAction};
@@ -3459,6 +3480,10 @@ mod tests {
         (
             "SNAPBACK_BUILD_GIT_DIRTY",
             "compile-time environment variable carrying build provenance",
+        ),
+        (
+            "SNAPBACK_CRON_DISPATCH_CONCURRENCY",
+            "environment variable configuring bounded cron dispatch",
         ),
         (
             "SNAPBACK_EPOCH__",
@@ -3944,6 +3969,24 @@ mod tests {
         assert_eq!(
             configured_action_worker_limit(Some(&usize::MAX.to_string())),
             ACTION_WORKER_LIMIT_MAX
+        );
+
+        assert_eq!(
+            configured_cron_dispatch_concurrency(None),
+            CRON_DISPATCH_CONCURRENCY_DEFAULT
+        );
+        assert_eq!(
+            configured_cron_dispatch_concurrency(Some("not-a-number")),
+            CRON_DISPATCH_CONCURRENCY_DEFAULT
+        );
+        assert_eq!(
+            configured_cron_dispatch_concurrency(Some("0")),
+            CRON_DISPATCH_CONCURRENCY_DEFAULT
+        );
+        assert_eq!(configured_cron_dispatch_concurrency(Some("1")), 1);
+        assert_eq!(
+            configured_cron_dispatch_concurrency(Some(&usize::MAX.to_string())),
+            CRON_DISPATCH_CONCURRENCY_MAX
         );
     }
 

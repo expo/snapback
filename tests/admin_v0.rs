@@ -313,6 +313,10 @@ async fn missing_console_dist_is_explicit_and_inspect_still_serves() {
     assert_eq!(inspect["admin"]["cronControls"], true);
     assert_eq!(inspect["admin"]["directDataEdit"], false);
     assert_eq!(inspect["admin"]["rawSql"], false);
+    assert!(inspect["actionWorkers"]["activeWorkers"].is_number());
+    assert!(inspect["actionWorkers"]["admittedWorkers"].is_number());
+    assert!(inspect["actionWorkers"]["workerLimit"].is_number());
+    assert!(inspect["actionWorkers"]["rejectedAdmissions"].is_number());
     assert_eq!(inspect["cron"]["artifactKind"], "cronRuntimeState");
     assert!(inspect["cron"]["jobs"].is_array());
 }

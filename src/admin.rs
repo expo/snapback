@@ -518,6 +518,20 @@ pub struct AdminInspect {
     pub inspect: InspectState,
     pub server: ServerInfo,
     pub admin: AdminCapabilities,
+    #[serde(rename = "actionWorkers")]
+    pub action_workers: ActionWorkerStats,
+}
+
+/// Process-wide detached-action admission facts. These stay on the gated
+/// admin inspect surface: operators can distinguish handler latency from
+/// native-worker saturation without exposing process capacity anonymously.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionWorkerStats {
+    pub active_workers: usize,
+    pub admitted_workers: usize,
+    pub worker_limit: usize,
+    pub rejected_admissions: u64,
 }
 
 impl AdminInspect {
@@ -550,10 +564,17 @@ impl AdminInspect {
                 .as_ref()
                 .map(|path| path.display().to_string()),
         };
+        let action_workers = ActionWorkerStats {
+            active_workers: crate::server::detached_action_worker_count(),
+            admitted_workers: crate::server::detached_action_admitted_count(),
+            worker_limit: crate::server::detached_action_worker_limit(),
+            rejected_admissions: crate::server::detached_action_rejection_count(),
+        };
         Self {
             inspect,
             server,
             admin,
+            action_workers,
         }
     }
 }

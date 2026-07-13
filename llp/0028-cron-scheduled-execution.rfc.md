@@ -445,10 +445,13 @@ ceiling (32 by default, configurable with
 `SNAPBACK_ACTION_MAX_CONCURRENCY`, clamped to 1,024). Saturation fails fast with
 `SNAPBACK_ACTION_CAPACITY_EXCEEDED`; a stuck native call retains its permit
 until it actually exits, bounding OS-thread growth instead of transferring it
-to an unbounded queue. The active-worker and rejected-admission counters are
-test/diagnostic facts. A cron tick dispatches independent claims concurrently
-up to a separate bound of eight, preserving claim order in the returned
-envelope; the process-wide action ceiling remains the final admission gate.
+to an unbounded queue. Active, admitted, limit, and rejected-admission counters
+are reported on the gated admin inspect surface. A cron tick dispatches
+independent claims concurrently
+up to a separate bound of eight by default (configurable with
+`SNAPBACK_CRON_DISPATCH_CONCURRENCY`, clamped to 1,024), preserving claim order
+in the returned envelope; the process-wide action ceiling remains the final
+admission gate.
 
 The local scheduler also consumes a nominal slot atomically when it creates a
 claim, rather than waiting for completion. `overlap: allow` owns a set of active
