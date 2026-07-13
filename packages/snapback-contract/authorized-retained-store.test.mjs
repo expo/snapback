@@ -131,7 +131,7 @@ const initialized = await store.initializeAuthorizedRetainedQuery(QUERY_KEY, {
 assert.equal(initialized.namespace.queryInstanceId, 1);
 assert.equal((await store.snapshot()).version, SNAPBACK_CLIENT_STORE_VERSION);
 
-const firstRequest = await store.beginAuthorizedLeaseRequest(QUERY_KEY, {
+let firstRequest = await store.beginAuthorizedLeaseRequest(QUERY_KEY, {
   fence: initialized.fence,
   leaseRequestId: 'request_100',
   clientNowMs: 1_000,
@@ -153,6 +153,13 @@ await assert.rejects(
   }, EXPECTED),
   { code: 'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH' },
 );
+assert.equal((await store.snapshot()).retained[QUERY_KEY], undefined);
+const afterRejectedLease = await store.captureAuthorizedRetainedQuery(QUERY_KEY, EXPECTED);
+firstRequest = await store.beginAuthorizedLeaseRequest(QUERY_KEY, {
+  fence: afterRejectedLease.fence,
+  leaseRequestId: 'request_100_retry',
+  clientNowMs: 1_002,
+}, EXPECTED);
 const firstSnapshot = await store.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
   fence: firstRequest.fence,
   lease: lease({
@@ -162,7 +169,7 @@ const firstSnapshot = await store.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
     version: 100,
   }),
   record: record(100),
-  clientNowMs: 1_001,
+  clientNowMs: 1_003,
 }, EXPECTED);
 assert.deepEqual(
   (await store.getAuthorizedRetainedQuery(QUERY_KEY, {

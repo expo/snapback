@@ -2145,10 +2145,13 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       return transact((state, commit) => {
         assertExpectedAuthority(state, expected, 'authorized retained snapshot');
         const query = requireQuery(state, key, fence, 'authorized retained snapshot');
-        if (!queryArtifactContextMatches(state, query)) {
+        const failDelete = (code, message) => {
           deleteAuthorizedPayload(state, key, query);
           commit(state);
-          throw clientStoreStateError(
+          throw clientStoreStateError(code, message);
+        };
+        if (!queryArtifactContextMatches(state, query)) {
+          failDelete(
             'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH',
             'authorized snapshot belongs to another app, target, or version stream',
           );
@@ -2163,17 +2166,25 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           || query.leaseRequest.queryGeneration !== query.queryGeneration
           || Object.keys(query.pendingByScope).length > 0
         ) {
-          throw clientStoreStateError(
+          failDelete(
             'SNAPBACK_AUTHORIZED_LEASE_STALE',
             'authorized snapshot does not own the current empty-obligation lease reservation',
           );
         }
-        const derived = deriveAuthorizedLeaseCommit({
-          lease: leaseValue,
-          request: query.leaseRequest,
-          expected: leaseExpectation(state, key, query),
-          clientNowMs,
-        });
+        let derived;
+        try {
+          derived = deriveAuthorizedLeaseCommit({
+            lease: leaseValue,
+            request: query.leaseRequest,
+            expected: leaseExpectation(state, key, query),
+            clientNowMs,
+          });
+        } catch (error) {
+          failDelete(
+            error?.code ?? 'SNAPBACK_AUTHORIZED_LEASE_INVALID',
+            'authorized lease response was malformed, expired, or bound to another proof',
+          );
+        }
         if (
           !isRecord(record)
           || !Array.isArray(record.rows)
@@ -2182,7 +2193,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           || record.version !== derived.lease.data.snapshotCommitVersion
           || record.cursor?.version !== derived.lease.data.snapshotCommitVersion
         ) {
-          throw clientStoreStateError(
+          failDelete(
             'SNAPBACK_AUTHORIZED_LEASE_SNAPSHOT_MISMATCH',
             'lease-bearing snapshot does not match the authorized data witness',
           );
