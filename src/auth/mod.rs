@@ -2,4 +2,5 @@
 
 pub mod crypto;
 pub mod keyring;
+pub mod mailbox;
 pub mod wire;

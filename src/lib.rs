@@ -6,6 +6,7 @@
 #![allow(clippy::result_large_err)]
 
 pub mod admin;
+pub mod admin_impersonation;
 pub mod admin_secret_read;
 pub mod auth;
 pub mod bench;
