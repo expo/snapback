@@ -5,15 +5,25 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-07-13 (final audit hardening: the local durable-live registry now enforces the hosted proof's 2,048-global/64-per-connection ceilings before initial query execution, with net-zero supersession and typed 429 diagnostics); 2026-07-12 (ENG-24560/ENG-24571: the typed public-inspect projection now removes per-room ephemeral identities/scopes and client-mutation retention internals, exposing aggregate ephemeral health only); 2026-07-12 (ENG-24566: local connection grants are fixed-cap, prefer unused eviction, refuse while all used leases are current, and retire idle used grants only with stale-socket termination plus permanent minted-id fallback); 2026-07-12 (ENG-24347/ENG-24354/ENG-24358 review follow-up: hosted subscription rows, canonical args, and accepted sockets now have hard advertised ceilings, including the legacy proof socket; persisted over-limit state fails recoverably through health/reset; ENG-24347/ENG-24352/ENG-24354/ENG-24358: optional request bodies fail closed, WebSocket query-token transport is retired, hosted subscriptions and frames are bound to the current socket session so an obsolete socket cannot act for its replacement, and hosted durable connection grants are bounded and reaped; earlier: 2026-07-01 status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands. 2026-07-07 (ENG-23441): D3 tightened — the public `functions` manifest is now itself a typed projection (`PublicFunctionManifest`) that drops executable handler bodies (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan`; full handler source lives only on the gated twin, and the field-level trim test gains a whole-payload source-sentinel assertion. Same-family Claude pass; the cross-family review debt stands. 2026-07-07 (ENG-23365): §Server-binary identity — the build.rs stamp now tracks the binary's real inputs (src/, Cargo.toml, Cargo.lock, refs/heads, packed-refs) so incremental rebuilds and ref-only moves re-stamp instead of replaying a stale commit/dirty pair. 2026-07-07 (ENG-23419): §Server-binary identity — the dirty probe now maps `git status --porcelain` success-with-empty-output to `gitDirty: false` instead of conflating it with command failure, so a clean checkout can actually earn binary-provenance reuse. 2026-07-07 (ENG-23442): added §Connection capability grants and the `connection-auth` registry policy — connection ids are no longer caller-chosen bearerless capabilities; `POST /connection/open` mints a per-connection token (idempotent re-open under the current token; suggested ids adopted only in non-prod), and `/live/*`, `/outbox/{id}`, and the ephemeral publish/subscribe/delete routes require it, with `/outbox/{id}` reclassified from Public. Same-family Claude pass; review debt stands.)
-**Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030
+**Revised:** 2026-07-13 (ENG-24594: made the route registry the enforceable router source; added independent path, credential-resolution, invocation-authority, legacy-body, effect, response-sensitivity, and session-overlay axes; re-scoped `AppAuth` to dev-mode client assertion; and pinned the complete existing-route × auth-mode matrix and metadata-driven acceptance sweep); 2026-07-13 (final audit hardening: the local durable-live registry now enforces the hosted proof's 2,048-global/64-per-connection ceilings before initial query execution, with net-zero supersession and typed 429 diagnostics); 2026-07-12 (ENG-24560/ENG-24571: the typed public-inspect projection now removes per-room ephemeral identities/scopes and client-mutation retention internals, exposing aggregate ephemeral health only); 2026-07-12 (ENG-24566: local connection grants are fixed-cap, prefer unused eviction, refuse while all used leases are current, and retire idle used grants only with stale-socket termination plus permanent minted-id fallback); 2026-07-12 (ENG-24347/ENG-24354/ENG-24358 review follow-up: hosted subscription rows, canonical args, and accepted sockets now have hard advertised ceilings, including the legacy proof socket; persisted over-limit state fails recoverably through health/reset; ENG-24347/ENG-24352/ENG-24354/ENG-24358: optional request bodies fail closed, WebSocket query-token transport is retired, hosted subscriptions and frames are bound to the current socket session so an obsolete socket cannot act for its replacement, and hosted durable connection grants are bounded and reaped; earlier: 2026-07-01 status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands. 2026-07-07 (ENG-23441): D3 tightened — the public `functions` manifest is now itself a typed projection (`PublicFunctionManifest`) that drops executable handler bodies (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan`; full handler source lives only on the gated twin, and the field-level trim test gains a whole-payload source-sentinel assertion. Same-family Claude pass; the cross-family review debt stands. 2026-07-07 (ENG-23365): §Server-binary identity — the build.rs stamp now tracks the binary's real inputs (src/, Cargo.toml, Cargo.lock, refs/heads, packed-refs) so incremental rebuilds and ref-only moves re-stamp instead of replaying a stale commit/dirty pair. 2026-07-07 (ENG-23419): §Server-binary identity — the dirty probe now maps `git status --porcelain` success-with-empty-output to `gitDirty: false` instead of conflating it with command failure, so a clean checkout can actually earn binary-provenance reuse. 2026-07-07 (ENG-23442): added §Connection capability grants and the `connection-auth` registry policy — connection ids are no longer caller-chosen bearerless capabilities; `POST /connection/open` mints a per-connection token (idempotent re-open under the current token; suggested ids adopted only in non-prod), and `/live/*`, `/outbox/{id}`, and the ephemeral publish/subscribe/delete routes require it, with `/outbox/{id}` reclassified from Public. Same-family Claude pass; review debt stands.)
+**Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030, LLP 0039, LLP 0051
+
+ENG-24594's implementation hardening makes the sessions overlay executable
+through the real router and socket dispatcher in embedded acceptance state,
+without selecting sessions in production before the staged resolver lands. It
+also closes invalid policy tuples, method/preflight drift, body-carried
+connection-token ordering, multiplexed-operation dispatch and 401/403 parity,
+raw legacy-authority field rejection, selected-operation extension propagation,
+and conservative response-control inheritance.
 
 ## Summary
 
-The Snapback HTTP server should draw one clean boundary between **app-data
-routes** and **system routes**, and enforce it in code. App-data routes — the
-operations an ordinary app client is meant to call — live at the server root and
-carry app-level auth or are explicitly public. System routes — schema/function
+The Snapback HTTP server draws one clean boundary between **app-data routes**
+and **system routes**, and enforces both placement and authority from the same
+registry that constructs the router. App-data routes — the operations an
+ordinary app client is meant to call — live at the server root and either resolve
+app authority according to the active auth mode or are explicitly public.
+System routes — schema/function
 loading, reset, seed, cron control, data explorer, connection control, the admin
 API, and the admin console shell — live under the reserved `/_snapback/*`
 namespace. Privileged system API routes carry the admin authorization model; the
@@ -61,14 +71,20 @@ a one-line rule that the server guarantees.
   defers the meaning of those operations to 0013.
 - [LLP 0030](./0030-managed-snapback-vite-dev.rfc.md) is the primary consumer:
   its dev-proxy allowlist becomes a single reserved-prefix rule once this holds.
+- [LLP 0039](./0039-auth-vertical-slice.rfc.md) defines server-resolved session
+  authority. This spec owns the route-policy vocabulary and complete existing
+  route matrix that makes 0039's authority boundary mechanically enumerable.
 
 ## The invariant
 
 > Every route the server exposes is either an **app-data route** or a **system
 > route**. App-data routes live at the server root; they are the operations an app
-> client may call, and their identity — when they carry one — is the app-supplied
-> `ctx.auth` context, not an admin credential. (Several, like `/health` and `/`,
-> are simply public.) System routes live under `/_snapback/*`. System API routes
+> client may call. In `dev` auth mode only, `AppAuth` permits client-supplied
+> `ctx.auth` as local-development impersonation. In `sessions` mode, authority is
+> resolved by the server from the session bearer or the bound connection grant;
+> client-auth-bearing body fields are rejected, never trusted or silently
+> ignored. (Several routes, like `/health` and `/`, are simply public.) System
+> routes live under `/_snapback/*`. System API routes
 > that read or mutate instance state are gated by the admin authorization model
 > (`authorize()`); static console shell/assets under `/_snapback/admin*` may be
 > public only because they do not themselves reveal instance state or perform
@@ -90,9 +106,9 @@ orthogonal: this boundary governs *authority*, not *origin*.
 
 Two clarifications. App-data is **not** "read-only": `/mutation/*` and
 `/ephemeral/publish` are writes an app client legitimately makes. And app-data is
-**not** "authenticated at the transport": in local v0 the app routes trust the
-`ctx.auth` the client supplies rather than enforcing a server-side credential
-(see LLP 0003). The split is therefore about *what the operation is for* —
+not synonymous with transport-authenticated: dev mode deliberately permits the
+client-asserted identity inherited from local v0, while session mode resolves
+authority at the transport boundary. The split is therefore about *what the operation is for* —
 app-scoped data an app client should call vs instance-level control an operator,
 agent, or dev tool should call — not read vs write, and not authenticated vs not.
 
@@ -125,60 +141,254 @@ and its target home:
 | `/_snapback/admin*` | none | system presentation | keep under reserved namespace; must not expose instance data/control without `/_snapback/api/*` |
 | `/_snapback/api/*` | admin authz | system API | already correct |
 
-Note the gated system operations for schema-load, functions-load, and reset
-(the last carrying an optional seed argument) **do not exist yet** under
-`/_snapback/api/*` — only the ungated root aliases do. So the migration must add
-them before it can retire the root ones.
+Historical note: at this spec's first draft, the gated schema-load,
+functions-load, and reset operations did not yet exist under `/_snapback/api/*`.
+The LLP 0032 S1 migration added them and retired the ungated root aliases; the
+matrix below describes the post-migration surface.
 
 ## Enforcement
 
-The invariant is only durable if it is tested, not just documented. Axum's
-`Router` exposes no way to enumerate its registered routes at runtime, so the
-test has two viable shapes:
+The invariant is durable only when the registry has runtime teeth. Axum's
+`Router` cannot enumerate its routes, so two separately maintained literal
+lists — one that constructs the router and one that describes it — cannot prove
+parity. The old `core_routes()` / `system_routes()` / `admin_routes()` builders
+plus a descriptive `route_registry()` were therefore insufficient: a new
+`.route(...)` could bypass the registry, and a policy label could have no effect.
 
-- **Registry-driven (preferred):** build the router from a single declared route
-  registry that tags each entry with its path class (`app-data`, `system-static`,
-  or `system-api`) and auth policy (`public`, `app-auth`, `connection-auth`,
-  `admin-read`, `admin-write`). Here `app-auth` means the handler may enforce the
-  app's own `ctx.auth`, not that the transport authenticates the caller — in
-  local v0 it does not (see the invariant); `connection-auth` (ENG-23442) means
-  the transport additionally requires the server-issued per-connection token
-  from `POST /connection/open` (§Connection capability grants). The test then
-  asserts every `app-data` entry is a root path,
-  every `system-*` entry is under `/_snapback/*`, every `system-api` entry carries
-  an admin auth policy, and the router is built from that registry and nothing
-  else. Static console routes (`/_snapback/admin*`) are allowed to be public only
-  if they serve shell/assets and cannot share handlers with stateful admin API
-  operations. The classification is stated exactly once, and a new privileged root
-  route fails CI instead of silently widening the boundary.
-- **Black-box (fallback):** drive HTTP requests at the known privileged paths
-  (`/admin/reset`, `/admin/schema`, …) and assert they are absent from the root
-  after migration. This catches regressions of the specific retired aliases but
-  cannot stop a brand-new privileged root route, so it is strictly weaker.
+### Independent policy axes
 
-The registry is the mechanical guarantee proxies rely on; because axum offers no
-route introspection, it is effectively required rather than merely tidy.
-The registry must also cover non-HTTP operations carried over upgraded routes
-when those operations have authority implications. For example, classifying
-`/ephemeral/delete` as system while leaving the WebSocket `ephemeral_delete`
-message on `/live/{id}/stream` would not actually remove the operation from the
-app-data surface; either both transports are app-scoped, or the system variant
-must move behind admin authority in every transport that exposes it.
+Each registered HTTP route is a `RegisteredRoute { spec, method_router }`.
+`RouteSpec` retains method, path, and `RouteClass`, and records these independent
+closed axes. They are independent because a policy names what must be proven,
+not which carrier happens to prove it, and because response safety cannot be
+inferred from request authority:
 
-Two enforcement gaps the route registry cannot close on its own, both surfaced
-while settling the decisions below:
+| Axis / type | Required cases and meaning |
+| --- | --- |
+| `RoutePolicy` (path policy) | `Public`; `AppAuth` (**dev mode only**, client-asserted local impersonation); `ConnectionAuth` (valid server-minted connection capability); `SessionAuth` (a live user session is required); `AdminRead`; `AdminWrite`; `AdminSecretRead` (an operator-plane-derived, scoped secret-read lease is required even on loopback; neither the ordinary admin bearer nor a persisted console credential satisfies it) |
+| `CredentialResolution` | `None`; `LegacyBodyAuth`; the distinct HTTP connection carriers `ConnectionGrantHeader`, `ConnectionGrantHeaderOrWebSocketSubprotocol`, and dev-only `ConnectionGrantHeaderOrDevQuery`; `BoundConnectionGrant` for an operation already inside an authenticated connection; `AdminCredential`; `OptionalSessionBearer` (a presented bearer is always validated); `RequiredSessionBearer`; `AdminSecretReadLease`; or `OperationSpecific`. Distinct carriers are never substitutable merely because they are all bearer strings. The provider item must add a closed challenge-proof case rather than overload `None` |
+| `InvocationAuthority` | `None`; `ClientAsserted` (dev only); `ResolvedCaller`; `ConnectionBound`; `Operator`; `AnonymousAdminBypass`; `System`; and `DevImpersonation` for host-ops identity selection. This is the authority projected into the invocation, not the path credential; `DevImpersonation` never aliases `ResolvedCaller` |
+| `LegacyBodyPolicy` | `NotApplicable`; `Allowed` (dev only); or `Rejected`. Presence must survive deserialization so explicit `null`, a defaulted object, `ctx_ledger.auth_fingerprint`, and sibling ephemeral/live owner fields cannot collapse into absence |
+| `EffectPolicy` | `None`; `Provisioning`; `FunctionKind`; `OperationSpecific`; `ImpersonationCapability`; or `Unavailable` for a branch that exists in dev but is categorically refused in sessions. `ImpersonationCapability` is composable with `AdminWrite`: the browser-held console/admin credential and `AdminSecretRead` lease satisfy neither it nor each other |
+| `ResponseSensitivity` | `StaticPublic`; `PublicProjection`; caller-scoped `ApplicationData`; `ConnectionSecret`; `OperatorMetadata`; raw/open `SensitiveApplicationData`; or `CredentialSecret`. `SensitiveApplicationData` includes both app-derived and identity-derived values: rows, subjects, handler results/errors, executable source, query arguments, receipt correlation/scope, addresses, sessions, and config values. `ConnectionSecret` and `CredentialSecret` are always `no-store` |
+| `SessionModeOverlay` | optional overrides for `path_policy`, `credential_resolution`, `invocation_authority`, `legacy_body_policy`, `effect_policy`, and `response_sensitivity`. `NONE` means every axis is invariant. `RouteSpec::effective_for(PolicyAuthMode::{Dev,Sessions})` applies the overlay exactly once; an unknown mode or incomplete required overlay fails closed |
 
-- **WebSocket message kinds are invisible to the router.** The registry is built
-  into the axum `Router`, but the `/live/{id}/stream` socket dispatches through a
-  serde-tagged `match` (`src/server.rs` `handle_live_socket_text`) the router
-  never sees. Under D1 all three current socket operations (`ephemeral_publish`,
-  `ephemeral_subscribe`, `ephemeral_delete`) are app-data, so the invariant holds
-  today — but nothing mechanical stops a future system-authority message kind from
-  being added to that `match`. The enforcement test must assert the socket's
-  message kinds against the registry directly: enumerate the accepted
-  `LiveSocketClientMessage` variants and fail CI if any is not a registered
-  app-data operation (or is registered `system-*`).
-- **Content trims are invisible to a route-level registry.** D3 keeps `/inspect`
+`RouteSpec::effective_for(dev | sessions)` materializes one
+`EffectiveRoutePolicy`; the middleware consumes that value rather than
+re-interpreting the axes. `AppAuth` has no sessions meaning by itself. A route
+that accepts client-asserted `ctx.auth` in dev must carry an overlay that selects
+server-resolved caller or bound-connection authority and rejects the complete
+auth-bearing field family in sessions. `SessionAuth` means a user-bearing live
+session is mandatory; an optional-user app invocation uses optional session
+resolution instead and then applies the function's `authRequirement` at the
+shared invocation gate.
+
+Response sensitivity is enforceable structurally, not by scanning serialized
+JSON after a handler runs. Registry validation rejects a Public or tokenless
+`AdminRead` entry whose response can carry app-derived or identity-derived
+content unless the entry names an exhaustive typed projection. Credential and
+capability responses set `Cache-Control: no-store` and are excluded from logs,
+diagnostics, and receipts. Raw/open response types require `AdminSecretRead`
+under sessions when they can reveal data or identity. Exhaustive projection and
+secret-sentinel tests remain necessary because no route middleware can prove a
+field was omitted.
+
+### Router↔registry parity and the centralized gate
+
+The registered-route collection is the **only** source used to construct
+`app()`. Folding its `method_router` values into an axum router installs the
+corresponding `RouteSpec` and centralized policy middleware on every entry.
+`route_registry()` is a read-only projection of those same registered objects,
+not a second declaration. Production code must not call `.route(...)` outside
+that construction seam; grouping helpers may return registered entries but may
+not return an already-populated router. Thus an unregistered HTTP handler is
+unreachable, and a registered handler cannot run without its effective policy
+being resolved first.
+
+Each registered path also receives one fixed, no-effect `OPTIONS` preflight
+inside that same fold; GET carries axum's standard HEAD projection. The CORS
+middleware adds headers but cannot manufacture a method for an unknown path.
+The method-parity sweep probes the full standard method family, so an opaque
+`MethodRouter` cannot hide an undeclared second handler.
+
+The central middleware rejects a missing/invalid required carrier before the
+handler, preserves the distinction between 401 authentication failure and 403
+effect/authorization failure, installs only the resolved authority selected by
+the entry, applies mode/profile refusal, and attaches response controls. A
+handler may enforce finer domain authorization, but handler-local checks do not
+substitute for the registered transport/effect policy. The staged auth-mode
+state and shared function-invocation gate land later in the 0039 order. Item 1
+supplies the closed policy representation and an embedded `AppState` mode seam
+which executes the sessions overlay through the actual middleware and socket
+dispatcher for acceptance; every production constructor still selects `dev`
+until item 4 installs the staged resolver.
+
+For body-carried connection ids, the central gate authenticates the presented
+bearer before JSON extraction, then verifies the exact id/token pair from one
+bounded raw-body peek before rebuilding the body for the typed handler. The
+same peek preserves explicit `null` and rejects only authority-bearing wrapper
+locations (`request`, `input`, and the context-ledger auth fingerprint), not
+identity-looking application keys inside args, values, scopes, correlation, or
+permission maps.
+
+Before item 4 supplies that runtime-mode resolver, attempting to install a
+route whose base policy is `SessionAuth` or `AdminSecretRead` fails closed as
+HTTP 503 `SNAPBACK_AUTH_POLICY_UNAVAILABLE`. This is an implementation-order
+backstop, not a third auth mode and not a credential verdict: item 1 installs no
+such route, and item 4 replaces the backstop with the real active-mode
+credential resolver before session routes become reachable.
+
+HTTP is not the only registry. `operation_registry()` exhaustively enumerates
+the three `/app/ensure` intent branches, WebSocket message kinds, the direct
+runner's query/mutation/unknown split, and each multiplexed host-op whose
+credential, authority, effect, or response policy differs. Dispatch matches
+must be exhaustive over the same closed operation types. The outer HTTP entry
+may select `operation-specific` or `function-kind` resolution, but an unknown
+operation fails at the stronger policy and never inherits the weakest known
+branch. For example, leaving WebSocket
+`ephemeral_delete` or host-ops `function.run --as-user` outside the operation
+registry would be a policy bypass even if the carrier route were registered.
+The selected `OperationSpec` and its effective policy are installed into the
+request extensions after authorization; downstream invocation code never sees
+the weaker outer carrier row as the selected authority. Response controls use
+the stricter of the carrier and selected-operation sensitivity.
+
+### Complete existing-route × auth-mode matrix
+
+This matrix is normative for every route and multiplexed operation that exists
+when ENG-24594 lands. `Dev` means the non-production, loopback development
+posture; it does not waive an existing connection or admin credential. `Sessions`
+is the effective target policy after the later 0039 items supply session
+resolution. `MODE_PENDING` is the staged-mode overlay owned by LLP 0039/0012:
+ordinary app data and Public attestation refuse with
+`SNAPBACK_AUTH_MODE_PENDING`, while public health/identity, the bootstrap auth
+handshake, and operator recovery remain reachable. A `prod` profile paired with
+`dev` auth serves health/identity but refuses all ordinary app-data operations;
+sessions are the only production app-data posture.
+
+Response labels below are part of `ResponseSensitivity`: **public metadata** is
+a fixed server fact; **typed public projection** may expose app identity and
+aggregates only through exhaustive projection; **admin metadata** excludes app
+and identity values; **app-derived** may carry rows, arguments, results, source,
+or handler-controlled text; **identity-derived** may carry a subject or session;
+and **credential** includes any token, code, or delegated capability. A row that
+names more than one sensitivity carries the strongest applicable controls.
+
+#### App-data HTTP and WebSocket surface
+
+| Existing route / operation | Dev effective policy | Sessions effective policy | `MODE_PENDING` | Response sensitivity |
+| --- | --- | --- | --- | --- |
+| `GET /`, `GET /inspect` | `Public`; no caller authority | unchanged | serve | typed public projection; exhaustive public-vs-gated sentinel |
+| `GET /health` | `Public`; no caller authority | unchanged | serve | public metadata only |
+| `POST /query/{name}` | `AppAuth`; client body auth becomes dev authority | optional session bearer; server-resolved caller; reject every body auth field; function `authRequirement` decides whether anonymous is allowed | refuse | app-derived result, scoped to resolved caller |
+| `POST /mutation/{name}` | `AppAuth`; client body auth becomes dev authority | optional session bearer; server-resolved caller; reject every body auth field; shared invocation/write gate applies | refuse | app-derived result/receipt, scoped to resolved caller |
+| `POST /action/{name}` | same `AppAuth` dev authority | same optional session resolution and body rejection before detached execution | refuse | app-derived `FunctionRunResult` envelope |
+| `POST /client-mutations/acknowledge` | `AppAuth`; client body auth supplies dev ownership | optional session bearer; resolved caller plus the later authority-descriptor check; reject body auth and public `ctx_ledger.auth_fingerprint` | refuse | typed settlement metadata; any echoed app value is forbidden |
+| `POST /app/ensure` legacy/untagged dev form | `Public`; exact LLP 0012 `snapback.v0` + `dev` compatibility only | reject; sessions requires an explicit branch | refuse | typed identity/provisioning result; never a manifest echo |
+| `POST /app/ensure { intent: "attest" }` | accepted only where LLP 0012 permits the explicit compatibility form; compare-only | `Public`; exact identity-only pair, no manifests/seed/mode material/unknown fields, and no mutation | refuse | typed public identity/hash projection |
+| `POST /app/ensure { intent: "provision" }` | provisioning authority/profile gate; legacy dev startup remains compatible | `AdminWrite` or pre-bind startup authority; branch gate runs before hashes or effects | **sole app-schema recovery exception**; same privileged gate | admin metadata/effect result; no secret/config value echo |
+| `POST /connection/open` | `Public`; closed DTO; no caller identity; `previousToken` proves only grant ownership | optional current session bearer; bind resolved anonymous/session authority; body identity fields forbidden; per-source throttle | refuse | secret delegated connection capability; `no-store`, never logged/retained |
+| `POST /live/{name}/subscribe`, `/resume`, `/unsubscribe` | `ConnectionAuth`; connection token plus client body auth as dev authority | connection token resolves its bound authority; reject live owner/body auth; auth-scoped registration remains refused until 0039 item 6, while explicitly authority-independent live may proceed | refuse | app-derived live snapshot/metadata, scoped to bound authority |
+| `GET /live/{connection_id}/stream` | `ConnectionAuth`; header or WebSocket subprotocol token; no URL credential | bound connection authority; header/subprotocol only; revoked/expired authority closes the stream | refuse | app-derived delegated stream; never cache |
+| `GET /outbox/{connection_id}` | `ConnectionAuth`; header token, with the documented dev-only query fallback | bound connection authority; **reject** `?connection_token=` and require the header | refuse | app-derived delegated queue; never cache |
+| `POST /ephemeral/collections/ensure` | `Public`; validate-only compatibility check | unchanged closed, identity-free DTO | refuse | typed definition compatibility metadata, no values |
+| `POST /ephemeral/publish`, `/subscribe`, `/delete` | `ConnectionAuth`; body auth is dev authority in addition to the connection token | bound connection authority; operation-specific closed DTO rejects all legacy identity/auth siblings; protected auth-scoped rooms remain admission-refused until item 6, and custom-key authorization remains refused until separately designed | refuse | app-derived ephemeral result/metadata, scoped to bound authority |
+| WS `ephemeral_publish`, `ephemeral_subscribe`, `ephemeral_delete`, `ephemeral_unsubscribe` | same connection and dev-body authority as the HTTP twin | same bound authority and closed body-auth rejection as the HTTP twin | refuse/close | app-derived frames, never cache |
+| WS `live_ping` | authenticated connection capability; no app identity field | authenticated bound connection; no client authority field | refuse/close | public transport metadata only |
+
+The sessions body rejection in this table is a **family**, not a check for one
+field spelling: nested `HandlerInput.auth`; live resume/unsubscribe owner auth;
+ephemeral `auth`, `principal`, `user_id`, `session_id`, and equivalent sibling
+identity fields; and `ctx_ledger.auth_fingerprint` are all rejected when present,
+including explicit `null`. The replacement authority always comes from the
+resolved session or bound connection grant.
+
+#### System HTTP and multiplexed operation surface
+
+| Existing route / operation | Dev effective policy | Sessions effective policy | `MODE_PENDING` | Response sensitivity |
+| --- | --- | --- | --- | --- |
+| `GET /_snapback/admin`, `/`, `/setup`, `/{*path}` under that prefix | `Public` system-static presentation only | unchanged; the shell gains no data/control authority | serve | fixed static assets only; app/client-page XSS contract is separate |
+| `GET /_snapback/api/health` | `AdminRead` (tokenless loopback remains the LLP 0017 compatibility posture) | unchanged | serve | typed admin metadata only |
+| `GET /_snapback/api/inspect` and host-op `app.inspect` | write-grade admin bearer under the shipped sensitive-read compatibility rule | `AdminSecretRead`; ordinary admin/console credentials are insufficient | serve if the stronger gate succeeds | app-derived and operator-secret full projection |
+| `GET /_snapback/api/receipts` | `AdminRead` | `AdminSecretRead`; the raw receipt shape can carry correlation and scope | serve if the stronger gate succeeds | app-derived raw receipt data |
+| `GET /_snapback/api/data/{table}` | `AdminRead`, row/byte caps still apply | `AdminSecretRead`; live lease must name the table, have no wildcard, and retain row/byte budget | serve if the stronger gate succeeds | raw app- and possibly identity-derived rows |
+| `POST /_snapback/api/functions/{name}/run` — query | operation/function-kind `AdminRead`; optional body user is dev impersonation | `AdminSecretRead` covering every table/response exposed; anonymous handler projection plus `adminBypass`; reject body auth; refuse on `prod` | serve if the stronger gate succeeds | app-derived handler result |
+| same direct runner — mutation | operation/function-kind `AdminWrite`; optional body user is dev impersonation | `AdminWrite`; anonymous handler projection plus `adminBypass`; reject body auth; refuse on `prod` | serve if the stronger gate succeeds | app-derived result behind an explicit write credential |
+| same direct runner — action | operation/function-kind `AdminWrite`; optional body user is dev impersonation | `AdminWrite`; anonymous handler projection plus `adminBypass`; reject body auth; refuse on `prod` | serve if the stronger gate succeeds | app-derived action envelope behind explicit write credential |
+| same direct runner — unknown kind | stronger outer gate, then handler/profile validation | no implicit query fallback; refuse without a registered function-kind branch | refuse branch | unclassified response is not emitted |
+| `POST /_snapback/api/schema/load`, `/functions/load`, `/app/reset`, `/client-mutations/purge`, `/connections/{connection_id}/disconnect`, `/cron/tick`, `/cron/{name}/run`, `/ephemeral/cleanup` | `AdminWrite`; existing non-prod/profile restrictions still apply; cron invokes as `system` | unchanged path credential and system/no-user authority; client auth is never accepted | serve if admin/profile gate succeeds | effect/admin metadata; cron/function outputs are app-derived behind `AdminWrite` |
+| `GET /_snapback/api/config/status`, `/config/plan` | `AdminRead` | unchanged **only because** closed projections expose declarations/status and never config values | serve | typed admin metadata; value sentinel required |
+| `POST /_snapback/api/config/set`, `/unset`, `/verify` | `AdminWrite` | unchanged; no session/admin credential substitution | serve | effect/admin metadata; config values never echo |
+| outer `POST /_snapback/api/host-ops` | operation-specific; unknown/unbuilt operations take the stronger gate | operation-specific; outer route is not authority for a weaker inner branch | serve only for a permitted operation | operation-specific |
+| host-ops `app.reset`, `schema.load`, `functions.load` | `AdminWrite`, non-prod | unchanged; no caller identity | serve if gates succeed | effect/admin metadata |
+| host-ops `function.explain` | `AdminRead`; an optional user selector is dev-only client assertion | `AdminSecretRead`; anonymous projection; reject the user selector because the frozen 0039 impersonation surface names `function.run`, not explain | serve if stronger gate succeeds | app-derived dry-run report |
+| host-ops `function.run` query without identity selector | `AdminRead` | `AdminSecretRead`; anonymous projection plus `adminBypass`; refuse on `prod` | serve if stronger gate succeeds | app-derived handler result |
+| host-ops `function.run` mutation without identity selector | `AdminWrite` | `AdminWrite`; anonymous projection plus `adminBypass`; refuse on `prod` | serve if gate succeeds | app-derived result behind explicit write credential |
+| host-ops `function.run --as-user/--as-role` | `AdminWrite`; resolves `devImpersonation`, never a real session; non-prod only | `AdminWrite` **plus `ImpersonationCapability`**; still resolves `devImpersonation`, never real session authority; refuse on `prod` | serve only if both gates succeed | identity- and app-derived; audit-marked |
+
+The secret-adjacent choice left open by LLP 0039 is settled here: full admin
+inspect, raw receipts, raw table scans, query runner output, and dry-run/explain
+output become `AdminSecretRead` under sessions. Admin health and config
+status/plan stay `AdminRead` only through closed typed projections that cannot
+contain rows, handler-controlled text, identity subjects, or config values. An
+ordinary admin bearer is not a secret-read fallback, even on loopback.
+
+The new policies also have reserved witnesses in later landing items:
+`POST /auth/refresh` and `/auth/logout` use `SessionAuth`; the operator mailbox
+uses `AdminWrite` plus `ImpersonationCapability`; and session-mint/rescue and
+host-op identity selection use the same non-substitutable effect capability.
+Provider-route construction, keyring semantics, and mode activation remain
+owned by their ordered LLP 0039 items rather than this routing item.
+
+### Acceptance for the enforceable registry
+
+The route-policy suite is derived from registry metadata and proves all of the
+following:
+
+1. The router is folded from `RegisteredRoute` values only; `route_registry()`
+   projects those exact values. A test-only route cannot be made reachable
+   without a complete `RouteSpec`, and deleting a registry entry makes its HTTP
+   path unreachable. Retired root aliases remain absent.
+2. Every entry satisfies path/class invariants, has a complete effective policy
+   in both `dev` and `sessions`, and rejects unknown modes, incomplete overlays,
+   invalid policy/credential combinations, and a Public/tokenless response
+   classified as raw app- or identity-derived.
+3. A denial happens before a sentinel handler side effect. Missing/invalid
+   session, connection, admin, secret-read, and impersonation carriers exercise
+   the registered 401/403 outcome; credential classes have a non-substitutability
+   matrix rather than a generic "some bearer" positive.
+4. An exhaustive expected-route set equals the HTTP registry's method/path set.
+   The closed `/app/ensure` intent family, WebSocket message enum, direct-runner
+   function-kind branches, and host-op operation names likewise equal
+   `operation_registry()`; unknown operations take the strongest refusal.
+5. A registry-metadata-driven sessions sweep sends every client-auth-bearing
+   field spelling, both populated and explicit `null`, through every
+   `AppAuth`/`ConnectionAuth` HTTP route, every WebSocket operation, and every
+   registered direct-runner branch. Each returns
+   `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED`, and the handler/operation sentinel is
+   untouched. The same valid dev fixtures retain their declared compatibility.
+6. The matrix is exercised in `dev`, `sessions`, `MODE_PENDING`, and the
+   `prod`+`dev` refusal posture. In pending mode ordinary app-data and Public
+   attest fail, privileged provision remains the sole schema-apply recovery
+   branch, and public health/identity plus operator surfaces keep their stated
+   reachability.
+7. Typed public/admin projections carry app-value, identity, source, path,
+   diagnostic-text, receipt-correlation/scope, config-value, token, and code
+   sentinels. Each sentinel appears only on a route whose sensitivity and
+   credential allow it; credential/capability responses are `no-store` and no
+   secret appears in logs, diagnostics, receipts, or public output.
+
+Two seams require exhaustive companion checks because an HTTP router cannot see
+inside a multiplexed dispatch or a serialized response:
+
+- **WebSocket message kinds are invisible to the HTTP router.**
+  `operation_registry()` therefore enumerates all five current
+  `LiveSocketClientMessage` variants (`ephemeral_publish`,
+  `ephemeral_subscribe`, `ephemeral_delete`, `ephemeral_unsubscribe`, and
+  `live_ping`), and the dispatch-name match is exhaustive over that enum. A new
+  variant without operation metadata fails CI rather than inheriting the
+  carrier route's policy.
+- **Content trims are invisible to route middleware.** D3 keeps `/inspect`
   app-data but trims it by *content*: the public payload omits the `subscriptions`
   connection-id list and the on-disk DB path that the gated twin retains. Because
   the registry classifies routes, not fields, the "boundary cannot silently drift"
@@ -219,10 +429,11 @@ while settling the decisions below:
    posture facts to the gated twin.
 4. Delete the ungated root `/admin/*` aliases and the retired
    `/ephemeral/collections` register route once no caller depends on them.
-5. Add the enforcement test and the declared route registry, including auth policy
-   (`public`, `app-auth`, `admin-read`, `admin-write`), the WebSocket message-kind
-   assertion, and the field-level public-inspect/`/` snapshot test (see
-   Enforcement).
+5. Build the router from `RegisteredRoute` entries and enforce the independent
+   policy axes, sessions overlay, operation registry, WebSocket/direct-runner/
+   host-op exhaustiveness, and field-level public-inspect/`/` projection tests
+   described in Enforcement. This ENG-24594 revision supersedes the earlier
+   descriptive-only four-policy registry sketch.
 6. Update LLP 0017's serving-model note to point here as the completion of its
    v0-alias retirement, and update LLP 0030's proxy allowlist and validation text
    per Impact on LLP 0030 so the reserved-prefix rule holds once this ships.
@@ -265,10 +476,13 @@ deltas:
 
 ## Security posture
 
-This spec does not change the admin authorization model, loopback defaults, or
-CORS behavior in LLP 0017 — it extends the gated surface to cover the operations
-that currently escape it as root aliases, and makes the boundary testable. The
-static console lane (`/_snapback/admin*`) remains only a presentation surface:
+This spec does not change the **active dev-mode** admin authorization model,
+loopback defaults, or CORS behavior in LLP 0017. It does specify the sessions
+overlay later landing items activate: secret-bearing reads require
+`AdminSecretRead`, and impersonation effects require their separate capability.
+The earlier migration extended the gated surface to cover operations that
+escaped it as root aliases; ENG-24594 makes every current boundary enforceable
+from router metadata. The static console lane (`/_snapback/admin*`) remains only a presentation surface:
 instance reads and writes still belong behind the `/_snapback/api/*` auth policy.
 The enforcement test is the load-bearing artifact: it converts "we drew the
 boundary" into "the boundary cannot silently drift."
@@ -404,12 +618,14 @@ so the root `/admin/seed` alias is retired without a standalone replacement; if
 additive seed-without-reset is later needed, add an `app.seed` noun to LLP 0024
 (which owns the host-ops contract) first.
 
-**Registry mechanism (settled: yes).** The single compile-time route registry the
-Enforcement section describes is adopted, not merely suggested: because axum
-exposes no route introspection, it is the only mechanical guarantee proxies can
-rely on, and it now also carries the WebSocket message-kind assertion. The
-field-level inspect trim (D3) rides alongside it as a separate typed-projection
-test.
+**Registry mechanism (settled: router-owned entries).** The compile-time route
+registry is adopted, not merely suggested: because axum exposes no route
+introspection, metadata and `MethodRouter` travel in the same `RegisteredRoute`,
+and `app()` and `route_registry()` are projections of that one collection. The
+independent authority axes and sessions overlay are enforced through the
+per-entry middleware; multiplexed operations have their own exhaustive registry.
+The field-level inspect trim (D3) still rides alongside it as a separate typed-
+projection test.
 
 ## Server-binary identity on /health
 
@@ -632,6 +848,13 @@ tests (registry-invariant, retired-root-absent, WebSocket message-kind, and the
 field-level public-inspect trim), verified against a running server. The
 own-entry-delete-vs-proxy sequencing (Open questions) and a cross-family review
 of the revised spec remain outstanding but do not block the implementation.
+
+ENG-24594 extends that active contract from a descriptive registry to
+router-owned `RegisteredRoute` entries, centralized per-entry middleware, the
+independent policy axes, exhaustive operation metadata, and the full auth-mode
+matrix above. This extension is implemented only when its metadata-derived
+acceptance suite passes; it does not by itself enable session mode, whose staged
+runtime activation remains later in LLP 0039's landing order.
 
 The five ambiguous classifications are settled (see Resolved
 decisions), and the spec drove the route-registry implementation —

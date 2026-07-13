@@ -5,7 +5,10 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (ENG-24593 post-review bounded corrections: closed the
+**Revised:** 2026-07-13 (ENG-24594: registered the adapter-visible
+`SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` refusal and the temporary pre-staged-mode
+`SNAPBACK_AUTH_POLICY_UNAVAILABLE` backstop in the shared diagnostic contract);
+2026-07-13 (ENG-24593 post-review bounded corrections: closed the
 artifact/auth tuple to exactly v0-dev and v1-sessions, pinned the predecessor
 diagnostic proof, and made privileged provisioning the sole `MODE_PENDING`
 recovery branch; focused exact confirmation completed READY by both reviewer
@@ -16,7 +19,7 @@ versions are per-app-stream opaque `(stream, version)` resume tokens, no
 cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail
 added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked
 LLP 0030 for Contract/Exact preview server lifecycle)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0039
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039
 
 ## Summary
 
@@ -531,6 +534,17 @@ The host-ops result envelope in
 [LLP 0024](./0024-agent-operating-surface.spec.md) reuses this diagnostic schema
 and its code families. CLI, HTTP, and MCP projections must not add another
 diagnostic dialect for operation failures.
+
+Auth-boundary refusals use the same adapter-visible dialect. In particular,
+`SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` is a 400 request error when any legacy
+client-authority field is present under the sessions overlay, including an
+explicit `null`; a valid bearer never makes that body shape acceptable.
+`SNAPBACK_AUTH_POLICY_UNAVAILABLE` is a 503 implementation-order backstop used
+only before the staged mode/provider resolver exists: a route or operation
+whose effective policy requires `SessionAuth`, `AdminSecretRead`, or an
+uninstalled effect gate refuses instead of falling through to a weaker
+credential. LLP 0031 owns the policy matrix and LLP 0039 replaces this temporary
+backstop with the real resolvers before sessions can become active.
 
 ## Runtime State
 

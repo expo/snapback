@@ -10,13 +10,17 @@ use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
-use crate::server::{ApiError, ConnectionRegistry, HealthResponse, SharedSnapback};
+use crate::server::{
+    ApiError, ConnectionRegistry, EffectPolicy, HealthResponse, InvocationAuthority,
+    PolicyAuthMode, RegisteredRoute, ResponseSensitivity, RoutePolicy, SessionModeOverlay,
+    SharedSnapback, system_api_route, system_static_route,
+};
 use anyhow::Context as _;
+use axum::Json;
 use axum::extract::{FromRef, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::path::{Component, Path as FsPath, PathBuf};
@@ -131,18 +135,12 @@ pub(crate) fn operation_authority_requirement(
     operation: &str,
     function_kind: Option<&FunctionKind>,
 ) -> OperationAuthorityRequirement {
-    match operation {
-        "function.explain" => OperationAuthorityRequirement::AdminRead,
-        "function.run"
-            if !matches!(
-                function_kind,
-                Some(FunctionKind::Mutation | FunctionKind::Action)
-            ) =>
-        {
-            OperationAuthorityRequirement::AdminRead
-        }
-        // Unknown/unbuilt operations fail closed at the stronger endpoint
-        // gate even though their eventual envelope contains only an error.
+    match crate::server::host_ops_operation_spec(operation, function_kind, false)
+        .map(|spec| spec.path_policy)
+    {
+        Some(RoutePolicy::AdminRead) => OperationAuthorityRequirement::AdminRead,
+        // Unknown/unbuilt operations and any policy this dev gate cannot
+        // satisfy fail closed at the stronger endpoint gate.
         _ => OperationAuthorityRequirement::AdminWrite,
     }
 }
@@ -156,7 +154,11 @@ pub(crate) fn operation_profile_requirement(
 ) -> OperationProfileRequirement {
     match operation {
         "app.reset" | "schema.load" | "functions.load" => OperationProfileRequirement::NonProd,
-        "function.run" | "function.explain" if has_dev_user => OperationProfileRequirement::NonProd,
+        // The direct and multiplexed runners are developer/operator bypass
+        // surfaces even when they project an anonymous handler input. Hosted
+        // production invocation goes through the ordinary app-data gate.
+        "function.run" => OperationProfileRequirement::NonProd,
+        "function.explain" if has_dev_user => OperationProfileRequirement::NonProd,
         _ => OperationProfileRequirement::Any,
     }
 }
@@ -443,6 +445,12 @@ pub struct AppState {
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
+    /// The policy evaluator input. Item 1 keeps production construction at
+    /// `Dev`; item 4 replaces that default with the persisted staged-mode
+    /// resolver. Keeping the value in runtime state now lets the registry's
+    /// sessions overlay be exercised through the real centralized gate rather
+    /// than through a metadata-only test double.
+    pub policy_auth_mode: PolicyAuthMode,
 }
 
 impl AppState {
@@ -458,7 +466,17 @@ impl AppState {
             ephemeral,
             server: Arc::new(server),
             connections: ConnectionRegistry::default(),
+            policy_auth_mode: PolicyAuthMode::Dev,
         }
+    }
+
+    /// Select an auth-policy mode for an embedded runtime. Production callers
+    /// keep the `Dev` constructor default until the staged resolver lands;
+    /// registry acceptance uses this seam to execute the closed sessions
+    /// overlay against the actual router.
+    pub fn with_policy_auth_mode(mut self, mode: PolicyAuthMode) -> Self {
+        self.policy_auth_mode = mode;
+        self
     }
 
     /// Wrap a fresh instance: the read and ephemeral lanes are extracted
@@ -501,6 +519,12 @@ impl FromRef<AppState> for Arc<ServerContext> {
 impl FromRef<AppState> for ConnectionRegistry {
     fn from_ref(state: &AppState) -> Self {
         state.connections.clone()
+    }
+}
+
+impl FromRef<AppState> for PolicyAuthMode {
+    fn from_ref(state: &AppState) -> Self {
+        state.policy_auth_mode
     }
 }
 
@@ -710,6 +734,39 @@ pub(crate) fn authorize_operation(
     authorize(ctx, headers, write)
 }
 
+pub(crate) fn authorize_host_operation(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    operation: &str,
+    function_kind: Option<&FunctionKind>,
+    impersonated: bool,
+    mode: PolicyAuthMode,
+) -> Result<(), crate::server::ApiError> {
+    let Some(spec) = crate::server::host_ops_operation_spec(operation, function_kind, impersonated)
+    else {
+        // Authenticate at the stronger legacy floor before revealing that an
+        // operation name is unknown, then refuse before the string dispatcher.
+        authorize(ctx, headers, true)?;
+        return Err(SnapbackError::error(
+            "SNAPBACK_HOST_OP_UNKNOWN",
+            "host-ops",
+            format!("unknown or unregistered host operation {operation}"),
+        )
+        .into());
+    };
+    crate::server::authorize_operation_spec(ctx, headers, spec, mode)
+}
+
+pub(crate) fn authorize_direct_runner(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    function_kind: Option<&FunctionKind>,
+    mode: PolicyAuthMode,
+) -> Result<(), crate::server::ApiError> {
+    let spec = crate::server::direct_runner_operation_spec(function_kind);
+    crate::server::authorize_operation_spec(ctx, headers, spec, mode)
+}
+
 pub(crate) fn authorize(
     ctx: &ServerContext,
     headers: &HeaderMap,
@@ -760,29 +817,111 @@ fn provided_token(headers: &HeaderMap) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-/// The Snapback-owned admin namespace. Merged into the core router.
+/// The Snapback-owned admin namespace. Metadata and handlers are paired in the
+/// same values consumed by both `server::app()` and `route_registry()`.
 ///
 /// @ref LLP 0017#serving-model — `/_snapback/*` is the reserved admin namespace.
-pub fn admin_routes() -> Router<AppState> {
-    Router::new()
-        .route("/_snapback/admin", get(console))
-        .route("/_snapback/admin/", get(console))
-        .route("/_snapback/admin/setup", get(setup))
-        .route("/_snapback/admin/{*path}", get(console_asset))
-        .route("/_snapback/api/health", get(admin_health))
-        .route("/_snapback/api/inspect", get(admin_inspect))
-        .route("/_snapback/api/receipts", get(admin_receipts))
-        .route("/_snapback/api/data/{table}", get(admin_data))
-        .route(
-            "/_snapback/api/functions/{name}/run",
+/// @ref LLP 0031#enforcement — admin, static, and config routes share the same
+/// router↔registry construction as root app-data routes.
+pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
+    let read =
+        |path, sensitivity| system_api_route("GET", path, RoutePolicy::AdminRead, sensitivity);
+    let write = |method, path, sensitivity| {
+        system_api_route(method, path, RoutePolicy::AdminWrite, sensitivity)
+    };
+    vec![
+        RegisteredRoute::new(system_static_route("GET", "/_snapback/admin"), get(console)),
+        RegisteredRoute::new(
+            system_static_route("GET", "/_snapback/admin/"),
+            get(console),
+        ),
+        RegisteredRoute::new(
+            system_static_route("GET", "/_snapback/admin/setup"),
+            get(setup),
+        ),
+        RegisteredRoute::new(
+            system_static_route("GET", "/_snapback/admin/{*path}"),
+            get(console_asset),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/health",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_health),
+        ),
+        RegisteredRoute::new(
+            write(
+                "GET",
+                "/_snapback/api/inspect",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::secret_read()),
+            get(admin_inspect),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/receipts",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::secret_read()),
+            get(admin_receipts),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/data/{table}",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::secret_read()),
+            get(admin_data),
+        ),
+        // The route has an AdminRead floor. Query versus mutation/action is an
+        // operation-level split retained by the handler and operation registry.
+        RegisteredRoute::new(
+            system_api_route(
+                "POST",
+                "/_snapback/api/functions/{name}/run",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_effect(EffectPolicy::FunctionKind)
+            .with_session_overlay(SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: None,
+                legacy_body_policy: Some(crate::server::LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            }),
             post(admin_run_function),
-        )
-        .route("/_snapback/api/cron/tick", post(admin_cron_tick))
-        .route("/_snapback/api/cron/{name}/run", post(admin_run_cron_job))
-        .route(
-            "/_snapback/api/ephemeral/cleanup",
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/cron/tick",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_invocation_authority(InvocationAuthority::System),
+            post(admin_cron_tick),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/cron/{name}/run",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_invocation_authority(InvocationAuthority::System),
+            post(admin_run_cron_job),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/ephemeral/cleanup",
+                ResponseSensitivity::OperatorMetadata,
+            ),
             post(admin_ephemeral_cleanup),
-        )
+        ),
+    ]
 }
 
 /// Serve the console page: the built Contract bundle's `index.html`.
@@ -1119,6 +1258,7 @@ async fn admin_data(
 async fn admin_run_function(
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
     headers: HeaderMap,
     Path(name): Path<String>,
     Json(input): Json<HandlerInput>,
@@ -1135,7 +1275,7 @@ async fn admin_run_function(
         crate::server::with_snapback(&snapback, move |snapback| -> Result<Routed, ApiError> {
             // A mutation is a write; a query (or unknown function) is a read.
             let function_kind = snapback.function_kind(&name);
-            authorize_operation(&ctx, &headers, "function.run", function_kind.as_ref())?;
+            authorize_direct_runner(&ctx, &headers, function_kind.as_ref(), policy_mode)?;
             // A caller-supplied app user is the `devUser` authority mode, not
             // hosted authentication. Apply the same centralized profile rule
             // as the multiplexed host-ops alias before invoking app code.

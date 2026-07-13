@@ -13,7 +13,7 @@ use crate::local::{
     StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
 };
 use crate::manifest::{
-    AuthInput, CtxAnswerLedger, FunctionManifest, FunctionRuntime, HandlerInput,
+    AuthInput, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
     MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
     MutationRequest, SchemaManifest, SeedData,
 };
@@ -24,10 +24,10 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{MethodRouter, get, post};
 use axum::{
     Json, Router,
-    body::{Body, Bytes},
+    body::{Body, Bytes, to_bytes},
 };
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -1053,6 +1053,33 @@ impl ConnectionRegistry {
         }
     }
 
+    /// Authenticate a bearer before a body-carried connection id is decoded.
+    /// The exact id↔token pair is still checked after the bounded JSON peek,
+    /// but an invalid bearer cannot reach JSON extraction or a handler side
+    /// effect merely because this transport places its id in the body.
+    fn verify_presented_bearer(&self, presented: Option<&str>) -> Result<(), ApiError> {
+        let Some(presented) = presented else {
+            return Err(connection_auth_error(
+                "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
+                "connection-scoped operations require the connection token issued by POST /connection/open",
+                "",
+            ));
+        };
+        let grants = self.lock();
+        let valid = grants.grants.values().fold(false, |valid, record| {
+            constant_time_str_eq(&record.token, presented) || valid
+        });
+        if valid {
+            Ok(())
+        } else {
+            Err(connection_auth_error(
+                "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                "connection token is not open on this server",
+                "",
+            ))
+        }
+    }
+
     /// Renew an already-authenticated WebSocket lease on frame traffic. The
     /// upgrade verified the bearer once; subsequent frames do not carry it,
     /// but they are still proof that this exact authorized socket is active.
@@ -1228,83 +1255,6 @@ impl MutationResponse {
     }
 }
 
-/// The app-data routes: the operations an ordinary app client calls. Every one
-/// lives at the server root, carries app-supplied `ctx.auth` or is explicitly
-/// public, and never performs instance-level control.
-///
-/// @ref LLP 0003#agent-and-test-surface — the local core exposes inspect, query, mutation, live, and ephemeral endpoints.
-/// @ref LLP 0031#the-invariant — app-data routes live at the root; system routes live under `/_snapback/*`. The classification is declared once in `route_registry`.
-fn core_routes() -> Router<AppState> {
-    Router::new()
-        .route("/", get(instance_home))
-        .route("/health", get(health))
-        .route("/inspect", get(inspect))
-        .route("/query/{name}", post(invoke_query))
-        .route("/client-mutations/acknowledge", post(acknowledge_mutations))
-        .route("/mutation/{name}", post(invoke_mutation))
-        .route("/action/{name}", post(invoke_action))
-        .route("/app/ensure", post(ensure_app))
-        .route("/connection/open", post(open_connection))
-        .route("/live/{name}/subscribe", post(subscribe_live))
-        .route("/live/{name}/resume", post(resume_live))
-        .route("/live/{name}/unsubscribe", post(unsubscribe_live))
-        .route("/live/{connection_id}/stream", get(stream_live))
-        .route("/outbox/{connection_id}", get(drain_outbox))
-        .route(
-            "/ephemeral/collections/ensure",
-            post(ensure_ephemeral_collections),
-        )
-        .route("/ephemeral/publish", post(publish_ephemeral))
-        .route("/ephemeral/subscribe", post(subscribe_ephemeral))
-        .route("/ephemeral/delete", post(delete_ephemeral))
-}
-
-/// The migrated system routes that used to hide at the root as ungated
-/// `/admin/*` aliases (schema/functions/reset load, connection teardown). They
-/// now live under `/_snapback/api/*` behind the admin write policy, projecting
-/// the LLP 0024 host-ops nouns (`schema.load`, `functions.load`, `app.reset`).
-///
-/// @ref LLP 0031#migration-plan — D5 flat `subsystem/verb` writes and the D2 disconnect move.
-fn system_routes() -> Router<AppState> {
-    Router::new()
-        .route("/_snapback/api/schema/load", post(apply_schema))
-        .route("/_snapback/api/functions/load", post(load_functions))
-        .route("/_snapback/api/app/reset", post(app_reset))
-        .route(
-            "/_snapback/api/client-mutations/purge",
-            post(purge_client_mutation_settlements),
-        )
-        // @ref LLP 0024#result-envelope — the host-ops first slice (LLP 0032
-        // P6): one operation endpoint, one hostOpsResult envelope per call;
-        // the legacy per-noun routes above stay as documented aliases.
-        .route("/_snapback/api/host-ops", post(host_ops_handler))
-        .route(
-            "/_snapback/api/connections/{connection_id}/disconnect",
-            post(disconnect),
-        )
-        // @ref LLP 0036#operations-and-projections-llp-0024 — the config ops:
-        // status/plan read-gated, set/unset/verify write-gated; the wizard is
-        // a projection of these, not a second implementation.
-        .route("/_snapback/api/config/status", get(config_status))
-        .route("/_snapback/api/config/plan", get(config_plan))
-        .route("/_snapback/api/config/set", post(config_set))
-        .route("/_snapback/api/config/unset", post(config_unset))
-        .route("/_snapback/api/config/verify", post(config_verify))
-}
-
-/// The full Snapback HTTP surface: app-data root routes, the migrated
-/// `/_snapback/api/*` system writes, and the admin console/API — one server,
-/// one declared boundary (`route_registry`).
-///
-/// @ref LLP 0031#the-invariant — no system operation lives at the root; the enforcement test guards it.
-pub fn app(state: AppState) -> Router {
-    core_routes()
-        .merge(system_routes())
-        .merge(crate::admin::admin_routes())
-        .with_state(state)
-        .layer(middleware::from_fn(local_dev_cors))
-}
-
 /// The path class of a route or a multiplexed operation.
 ///
 /// @ref LLP 0031#route-classification — every operation is app-data or system.
@@ -1332,131 +1282,1802 @@ pub enum RoutePolicy {
     Public,
     AppAuth,
     ConnectionAuth,
+    SessionAuth,
     AdminRead,
     AdminWrite,
+    AdminSecretRead,
 }
 
-/// A declared route in the registry.
-#[derive(Clone, Copy, Debug)]
+/// The credential carrier a route resolves. This is deliberately independent
+/// from [`RoutePolicy`]: an `AdminWrite` path plus an
+/// `ImpersonationCapability` effect, for example, needs two distinct carriers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CredentialResolution {
+    None,
+    LegacyBodyAuth,
+    ConnectionGrantHeader,
+    ConnectionGrantHeaderOrWebSocketSubprotocol,
+    ConnectionGrantHeaderOrDevQuery,
+    BoundConnectionGrant,
+    AdminCredential,
+    OptionalSessionBearer,
+    RequiredSessionBearer,
+    AdminSecretReadLease,
+    OperationSpecific,
+}
+
+/// The server-side authority installed for an invocation after credential
+/// resolution. No client-provided structure is a `ResolvedCaller`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InvocationAuthority {
+    None,
+    ClientAsserted,
+    ResolvedCaller,
+    ConnectionBound,
+    DevImpersonation,
+    Operator,
+    AnonymousAdminBypass,
+    System,
+}
+
+/// Whether an ingress accepts the legacy body `auth` shape. Session-mode
+/// overlays turn every applicable `Allowed` entry into `Rejected`; omission is
+/// different from a body that was accepted and ignored.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LegacyBodyPolicy {
+    NotApplicable,
+    Allowed,
+    Rejected,
+}
+
+/// An additional effect gate composed with the path policy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EffectPolicy {
+    None,
+    Provisioning,
+    FunctionKind,
+    OperationSpecific,
+    ImpersonationCapability,
+    Unavailable,
+}
+
+/// What a successful response is allowed to carry. The middleware applies
+/// no-store to every non-public class; field-level typed projections remain the
+/// stronger protection for public payloads.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ResponseSensitivity {
+    StaticPublic,
+    PublicProjection,
+    ApplicationData,
+    ConnectionSecret,
+    OperatorMetadata,
+    SensitiveApplicationData,
+    CredentialSecret,
+}
+
+/// Auth mode used only to evaluate route metadata. Item 4 owns the persisted,
+/// staged runtime mode and will feed it into this already-closed evaluator.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PolicyAuthMode {
+    Dev,
+    Sessions,
+}
+
+/// Per-axis changes that become effective in session mode. `None` means the
+/// dev value remains in force; this makes mode-dependent behavior explicit
+/// without multiplying route literals.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SessionModeOverlay {
+    pub path_policy: Option<RoutePolicy>,
+    pub credential_resolution: Option<CredentialResolution>,
+    pub invocation_authority: Option<InvocationAuthority>,
+    pub legacy_body_policy: Option<LegacyBodyPolicy>,
+    pub effect_policy: Option<EffectPolicy>,
+    pub response_sensitivity: Option<ResponseSensitivity>,
+}
+
+impl SessionModeOverlay {
+    pub const NONE: Self = Self {
+        path_policy: None,
+        credential_resolution: None,
+        invocation_authority: None,
+        legacy_body_policy: None,
+        effect_policy: None,
+        response_sensitivity: None,
+    };
+
+    pub const fn app_session() -> Self {
+        Self {
+            // Ordinary app invocation paths are optional-user at the route
+            // boundary. A function's closed authRequirement may strengthen
+            // that to required at the shared invocation gate (item 4).
+            path_policy: Some(RoutePolicy::Public),
+            credential_resolution: Some(CredentialResolution::OptionalSessionBearer),
+            invocation_authority: Some(InvocationAuthority::ResolvedCaller),
+            legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+            effect_policy: None,
+            response_sensitivity: None,
+        }
+    }
+
+    pub const fn connection_bound() -> Self {
+        Self {
+            path_policy: None,
+            credential_resolution: None,
+            invocation_authority: Some(InvocationAuthority::ConnectionBound),
+            legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+            effect_policy: None,
+            response_sensitivity: None,
+        }
+    }
+
+    pub const fn secret_read() -> Self {
+        Self {
+            path_policy: Some(RoutePolicy::AdminSecretRead),
+            credential_resolution: Some(CredentialResolution::AdminSecretReadLease),
+            invocation_authority: None,
+            legacy_body_policy: None,
+            effect_policy: None,
+            response_sensitivity: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EffectiveRoutePolicy {
+    pub path_policy: RoutePolicy,
+    pub credential_resolution: CredentialResolution,
+    pub invocation_authority: InvocationAuthority,
+    pub legacy_body_policy: LegacyBodyPolicy,
+    pub effect_policy: EffectPolicy,
+    pub response_sensitivity: ResponseSensitivity,
+}
+
+/// A declared route in the registry. `policy` is retained as a source
+/// compatible spelling of `path_policy`; constructors set both and the router
+/// refuses registrations where they differ.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RouteSpec {
     pub method: &'static str,
     pub path: &'static str,
     pub class: RouteClass,
+    pub path_policy: RoutePolicy,
     pub policy: RoutePolicy,
+    pub credential_resolution: CredentialResolution,
+    pub invocation_authority: InvocationAuthority,
+    pub legacy_body_policy: LegacyBodyPolicy,
+    pub effect_policy: EffectPolicy,
+    pub response_sensitivity: ResponseSensitivity,
+    pub session_overlay: SessionModeOverlay,
 }
 
-/// The declared route registry — the single source of truth for the
-/// app-data/system boundary. `app()` builds the router from these exact paths;
-/// because axum's `Router` cannot be introspected at runtime, this declaration
-/// is the mechanical guarantee a proxy relies on, and the enforcement test
-/// (`route_registry_matches_the_invariant`) asserts the invariant over it. Keep
-/// this list in lockstep with `core_routes`/`system_routes`/`admin_routes`.
+impl RouteSpec {
+    // Keeping the independent policy axes explicit is the point of this
+    // constructor; hiding them in an untyped options bag would recreate the
+    // registry drift ENG-24594 closes.
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        method: &'static str,
+        path: &'static str,
+        class: RouteClass,
+        path_policy: RoutePolicy,
+        credential_resolution: CredentialResolution,
+        invocation_authority: InvocationAuthority,
+        legacy_body_policy: LegacyBodyPolicy,
+        response_sensitivity: ResponseSensitivity,
+    ) -> Self {
+        Self {
+            method,
+            path,
+            class,
+            path_policy,
+            policy: path_policy,
+            credential_resolution,
+            invocation_authority,
+            legacy_body_policy,
+            effect_policy: EffectPolicy::None,
+            response_sensitivity,
+            session_overlay: SessionModeOverlay::NONE,
+        }
+    }
+
+    pub const fn with_effect(mut self, effect_policy: EffectPolicy) -> Self {
+        self.effect_policy = effect_policy;
+        self
+    }
+
+    pub const fn with_invocation_authority(
+        mut self,
+        invocation_authority: InvocationAuthority,
+    ) -> Self {
+        self.invocation_authority = invocation_authority;
+        self
+    }
+
+    pub const fn with_session_overlay(mut self, session_overlay: SessionModeOverlay) -> Self {
+        self.session_overlay = session_overlay;
+        self
+    }
+
+    /// Methods structurally installed for this path. Axum's `get` includes
+    /// HEAD, and the registry builder attaches one inert CORS preflight to
+    /// every known path; no middleware manufactures methods for unknown paths.
+    pub fn accepts_http_method(&self, method: &str) -> bool {
+        method == self.method || method == "OPTIONS" || (self.method == "GET" && method == "HEAD")
+    }
+
+    pub fn effective_for(self, mode: PolicyAuthMode) -> EffectiveRoutePolicy {
+        let mut effective = EffectiveRoutePolicy {
+            path_policy: self.path_policy,
+            credential_resolution: self.credential_resolution,
+            invocation_authority: self.invocation_authority,
+            legacy_body_policy: self.legacy_body_policy,
+            effect_policy: self.effect_policy,
+            response_sensitivity: self.response_sensitivity,
+        };
+        if matches!(mode, PolicyAuthMode::Sessions) {
+            let overlay = self.session_overlay;
+            effective.path_policy = overlay.path_policy.unwrap_or(effective.path_policy);
+            effective.credential_resolution = overlay
+                .credential_resolution
+                .unwrap_or(effective.credential_resolution);
+            effective.invocation_authority = overlay
+                .invocation_authority
+                .unwrap_or(effective.invocation_authority);
+            effective.legacy_body_policy = overlay
+                .legacy_body_policy
+                .unwrap_or(effective.legacy_body_policy);
+            effective.effect_policy = overlay.effect_policy.unwrap_or(effective.effect_policy);
+            effective.response_sensitivity = overlay
+                .response_sensitivity
+                .unwrap_or(effective.response_sensitivity);
+        }
+        effective
+    }
+
+    /// Validate the complete route-policy tuple in both modes. Registration
+    /// turns an error into a startup panic; exposing the result lets the
+    /// acceptance suite prove malformed tuples are rejected without building
+    /// a deliberately broken router.
+    pub fn validate(&self) -> Result<(), String> {
+        let fail = |message: &str| {
+            Err(format!(
+                "invalid policy for {} {}: {message}",
+                self.method, self.path
+            ))
+        };
+        if self.path_policy != self.policy {
+            return fail("path-policy aliases diverged");
+        }
+        match self.class {
+            RouteClass::AppData if self.path.starts_with("/_snapback/") => {
+                return fail("app-data route escaped the root namespace");
+            }
+            RouteClass::SystemStatic => {
+                if !self.path.starts_with("/_snapback/admin")
+                    || self.path_policy != RoutePolicy::Public
+                    || self.credential_resolution != CredentialResolution::None
+                    || self.invocation_authority != InvocationAuthority::None
+                    || self.legacy_body_policy != LegacyBodyPolicy::NotApplicable
+                    || self.effect_policy != EffectPolicy::None
+                    || self.response_sensitivity != ResponseSensitivity::StaticPublic
+                    || self.session_overlay != SessionModeOverlay::NONE
+                {
+                    return fail("system-static entries must be inert public assets");
+                }
+            }
+            RouteClass::SystemApi => {
+                if !self.path.starts_with("/_snapback/api/") {
+                    return fail("system API escaped the reserved namespace");
+                }
+                if !matches!(
+                    self.path_policy,
+                    RoutePolicy::AdminRead
+                        | RoutePolicy::AdminWrite
+                        | RoutePolicy::AdminSecretRead
+                        | RoutePolicy::SessionAuth
+                ) {
+                    return fail("system API has a non-system path policy");
+                }
+            }
+            RouteClass::AppData => {}
+        }
+
+        let valid_base_carrier = match self.path_policy {
+            RoutePolicy::Public => matches!(
+                self.credential_resolution,
+                CredentialResolution::None | CredentialResolution::OperationSpecific
+            ),
+            RoutePolicy::AppAuth => {
+                self.credential_resolution == CredentialResolution::LegacyBodyAuth
+            }
+            RoutePolicy::ConnectionAuth => matches!(
+                self.credential_resolution,
+                CredentialResolution::ConnectionGrantHeader
+                    | CredentialResolution::ConnectionGrantHeaderOrWebSocketSubprotocol
+                    | CredentialResolution::ConnectionGrantHeaderOrDevQuery
+                    | CredentialResolution::BoundConnectionGrant
+            ),
+            RoutePolicy::SessionAuth => {
+                self.credential_resolution == CredentialResolution::RequiredSessionBearer
+            }
+            RoutePolicy::AdminRead | RoutePolicy::AdminWrite => {
+                self.credential_resolution == CredentialResolution::AdminCredential
+            }
+            RoutePolicy::AdminSecretRead => {
+                self.credential_resolution == CredentialResolution::AdminSecretReadLease
+            }
+        };
+        if !valid_base_carrier {
+            return fail("path policy and credential carrier are incompatible");
+        }
+
+        if self.path_policy == RoutePolicy::AppAuth
+            && (self.invocation_authority != InvocationAuthority::ClientAsserted
+                || self.legacy_body_policy != LegacyBodyPolicy::Allowed)
+        {
+            return fail("AppAuth must explicitly resolve allowed dev body authority");
+        }
+        if self.legacy_body_policy == LegacyBodyPolicy::Allowed
+            && self.invocation_authority != InvocationAuthority::ClientAsserted
+        {
+            return fail("allowed legacy body auth must install client-asserted authority");
+        }
+        if self.legacy_body_policy == LegacyBodyPolicy::Rejected
+            && self.invocation_authority == InvocationAuthority::ClientAsserted
+        {
+            return fail("rejected legacy body auth cannot install client authority");
+        }
+        if self.path_policy == RoutePolicy::SessionAuth
+            && self.invocation_authority != InvocationAuthority::ResolvedCaller
+        {
+            return fail("SessionAuth must install a server-resolved caller");
+        }
+        if self.method != "OPERATION"
+            && self.credential_resolution == CredentialResolution::OperationSpecific
+            && self.effect_policy != EffectPolicy::OperationSpecific
+        {
+            return fail("operation-specific credentials require an operation-specific gate");
+        }
+        if self.effect_policy == EffectPolicy::ImpersonationCapability
+            && self.path_policy != RoutePolicy::AdminWrite
+        {
+            return fail("impersonation capability must compose with AdminWrite");
+        }
+
+        // A wholly anonymous public route may issue a freshly minted
+        // connection capability, but it may not expose app/identity rows or a
+        // general credential response without a typed proof/resolution seam.
+        if self.path_policy == RoutePolicy::Public
+            && self.credential_resolution == CredentialResolution::None
+            && self.invocation_authority == InvocationAuthority::None
+            && matches!(
+                self.response_sensitivity,
+                ResponseSensitivity::ApplicationData
+                    | ResponseSensitivity::SensitiveApplicationData
+                    | ResponseSensitivity::CredentialSecret
+            )
+        {
+            return fail("anonymous public route has an unsafe response classification");
+        }
+
+        let sessions = self.effective_for(PolicyAuthMode::Sessions);
+        if self.path_policy == RoutePolicy::AppAuth
+            && (sessions.path_policy != RoutePolicy::Public
+                || sessions.credential_resolution != CredentialResolution::OptionalSessionBearer
+                || sessions.invocation_authority != InvocationAuthority::ResolvedCaller
+                || sessions.legacy_body_policy != LegacyBodyPolicy::Rejected)
+        {
+            return fail("AppAuth has an incomplete sessions overlay");
+        }
+        if self.legacy_body_policy == LegacyBodyPolicy::Allowed
+            && (sessions.legacy_body_policy != LegacyBodyPolicy::Rejected
+                || sessions.invocation_authority == InvocationAuthority::ClientAsserted)
+        {
+            return fail("client-asserted body authority remains live in sessions");
+        }
+        if self.credential_resolution == CredentialResolution::ConnectionGrantHeaderOrDevQuery
+            && sessions.credential_resolution != CredentialResolution::ConnectionGrantHeader
+        {
+            return fail("dev query credential fallback remains live in sessions");
+        }
+        if self.path_policy == RoutePolicy::ConnectionAuth
+            && sessions.invocation_authority != InvocationAuthority::ConnectionBound
+        {
+            return fail("ConnectionAuth lacks bound authority in sessions");
+        }
+        if sessions.path_policy == RoutePolicy::SessionAuth
+            && (sessions.invocation_authority != InvocationAuthority::ResolvedCaller
+                || sessions.legacy_body_policy == LegacyBodyPolicy::Allowed)
+        {
+            return fail("SessionAuth effective policy is incomplete");
+        }
+        if sessions.effect_policy == EffectPolicy::ImpersonationCapability
+            && sessions.path_policy != RoutePolicy::AdminWrite
+        {
+            return fail("sessions impersonation capability lost its AdminWrite gate");
+        }
+        if self.path_policy == RoutePolicy::AdminRead
+            && self.response_sensitivity == ResponseSensitivity::SensitiveApplicationData
+            && !matches!(
+                self.effect_policy,
+                EffectPolicy::FunctionKind | EffectPolicy::OperationSpecific
+            )
+            && (sessions.path_policy != RoutePolicy::AdminSecretRead
+                || sessions.credential_resolution != CredentialResolution::AdminSecretReadLease)
+        {
+            return fail("sensitive AdminRead route lacks its sessions secret-read gate");
+        }
+        let valid_sessions_carrier = match sessions.path_policy {
+            RoutePolicy::Public => matches!(
+                sessions.credential_resolution,
+                CredentialResolution::None
+                    | CredentialResolution::OptionalSessionBearer
+                    | CredentialResolution::OperationSpecific
+            ),
+            RoutePolicy::AppAuth => false,
+            RoutePolicy::ConnectionAuth => matches!(
+                sessions.credential_resolution,
+                CredentialResolution::ConnectionGrantHeader
+                    | CredentialResolution::ConnectionGrantHeaderOrWebSocketSubprotocol
+                    | CredentialResolution::BoundConnectionGrant
+            ),
+            RoutePolicy::SessionAuth => {
+                sessions.credential_resolution == CredentialResolution::RequiredSessionBearer
+            }
+            RoutePolicy::AdminRead | RoutePolicy::AdminWrite => {
+                sessions.credential_resolution == CredentialResolution::AdminCredential
+            }
+            RoutePolicy::AdminSecretRead => {
+                sessions.credential_resolution == CredentialResolution::AdminSecretReadLease
+            }
+        };
+        if !valid_sessions_carrier {
+            return fail("sessions path policy and credential carrier are incompatible");
+        }
+        if sessions.legacy_body_policy == LegacyBodyPolicy::Allowed
+            || sessions.invocation_authority == InvocationAuthority::ClientAsserted
+        {
+            return fail("sessions effective policy retains client-asserted authority");
+        }
+        Ok(())
+    }
+
+    fn assert_valid(self) {
+        if let Err(error) = self.validate() {
+            panic!("{error}");
+        }
+    }
+}
+
+/// One installed route: metadata and its axum handler travel together. The
+/// application router and the public registry are both projections of these
+/// values, so a runtime route cannot exist without policy metadata.
+pub(crate) struct RegisteredRoute {
+    pub spec: RouteSpec,
+    pub method_router: MethodRouter<AppState>,
+}
+
+impl RegisteredRoute {
+    pub(crate) fn new(spec: RouteSpec, method_router: MethodRouter<AppState>) -> Self {
+        spec.assert_valid();
+        Self {
+            spec,
+            method_router,
+        }
+    }
+}
+
+const fn public_route(
+    method: &'static str,
+    path: &'static str,
+    sensitivity: ResponseSensitivity,
+) -> RouteSpec {
+    RouteSpec::new(
+        method,
+        path,
+        RouteClass::AppData,
+        RoutePolicy::Public,
+        CredentialResolution::None,
+        InvocationAuthority::None,
+        LegacyBodyPolicy::NotApplicable,
+        sensitivity,
+    )
+}
+
+const fn app_auth_route(method: &'static str, path: &'static str) -> RouteSpec {
+    RouteSpec::new(
+        method,
+        path,
+        RouteClass::AppData,
+        RoutePolicy::AppAuth,
+        CredentialResolution::LegacyBodyAuth,
+        InvocationAuthority::ClientAsserted,
+        LegacyBodyPolicy::Allowed,
+        ResponseSensitivity::ApplicationData,
+    )
+    .with_session_overlay(SessionModeOverlay::app_session())
+}
+
+const fn connection_route(
+    method: &'static str,
+    path: &'static str,
+    credential_resolution: CredentialResolution,
+    body_auth: bool,
+    sensitivity: ResponseSensitivity,
+) -> RouteSpec {
+    let overlay = if body_auth {
+        SessionModeOverlay::connection_bound()
+    } else {
+        SessionModeOverlay {
+            path_policy: None,
+            credential_resolution: None,
+            invocation_authority: Some(InvocationAuthority::ConnectionBound),
+            legacy_body_policy: None,
+            effect_policy: None,
+            response_sensitivity: None,
+        }
+    };
+    RouteSpec::new(
+        method,
+        path,
+        RouteClass::AppData,
+        RoutePolicy::ConnectionAuth,
+        credential_resolution,
+        if body_auth {
+            InvocationAuthority::ClientAsserted
+        } else {
+            InvocationAuthority::None
+        },
+        if body_auth {
+            LegacyBodyPolicy::Allowed
+        } else {
+            LegacyBodyPolicy::NotApplicable
+        },
+        sensitivity,
+    )
+    .with_session_overlay(overlay)
+}
+
+pub(crate) const fn system_api_route(
+    method: &'static str,
+    path: &'static str,
+    policy: RoutePolicy,
+    sensitivity: ResponseSensitivity,
+) -> RouteSpec {
+    RouteSpec::new(
+        method,
+        path,
+        RouteClass::SystemApi,
+        policy,
+        CredentialResolution::AdminCredential,
+        InvocationAuthority::Operator,
+        LegacyBodyPolicy::NotApplicable,
+        sensitivity,
+    )
+}
+
+pub(crate) const fn system_static_route(method: &'static str, path: &'static str) -> RouteSpec {
+    RouteSpec::new(
+        method,
+        path,
+        RouteClass::SystemStatic,
+        RoutePolicy::Public,
+        CredentialResolution::None,
+        InvocationAuthority::None,
+        LegacyBodyPolicy::NotApplicable,
+        ResponseSensitivity::StaticPublic,
+    )
+}
+
+/// The app-data route registrations. Each handler literal appears only here;
+/// `app()` installs these entries and `route_registry()` projects their specs.
+///
+/// @ref LLP 0003#agent-and-test-surface — the local core exposes inspect, query, mutation, live, and ephemeral endpoints.
+/// @ref LLP 0031#the-invariant — app-data routes live at the root; system routes live under `/_snapback/*`.
+fn core_route_registrations() -> Vec<RegisteredRoute> {
+    vec![
+        RegisteredRoute::new(
+            public_route("GET", "/", ResponseSensitivity::PublicProjection),
+            get(instance_home),
+        ),
+        RegisteredRoute::new(
+            public_route("GET", "/health", ResponseSensitivity::PublicProjection),
+            get(health),
+        ),
+        RegisteredRoute::new(
+            public_route("GET", "/inspect", ResponseSensitivity::PublicProjection),
+            get(inspect),
+        ),
+        RegisteredRoute::new(app_auth_route("POST", "/query/{name}"), post(invoke_query)),
+        RegisteredRoute::new(
+            app_auth_route("POST", "/client-mutations/acknowledge"),
+            post(acknowledge_mutations),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("POST", "/mutation/{name}"),
+            post(invoke_mutation),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("POST", "/action/{name}"),
+            post(invoke_action),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/app/ensure",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::OperationSpecific,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                // The carrier is conservatively no-store; the selected
+                // operation row distinguishes public attest from privileged
+                // provisioning without risking a cacheable provision result.
+                ResponseSensitivity::OperatorMetadata,
+            )
+            .with_effect(EffectPolicy::OperationSpecific),
+            post(ensure_app),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/connection/open",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::None,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::ConnectionSecret,
+            )
+            .with_session_overlay(SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: Some(CredentialResolution::OptionalSessionBearer),
+                invocation_authority: Some(InvocationAuthority::ResolvedCaller),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            }),
+            post(open_connection),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "POST",
+                "/live/{name}/subscribe",
+                CredentialResolution::ConnectionGrantHeader,
+                true,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(subscribe_live),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "POST",
+                "/live/{name}/resume",
+                CredentialResolution::ConnectionGrantHeader,
+                true,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(resume_live),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "POST",
+                "/live/{name}/unsubscribe",
+                CredentialResolution::ConnectionGrantHeader,
+                true,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(unsubscribe_live),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "GET",
+                "/live/{connection_id}/stream",
+                CredentialResolution::ConnectionGrantHeaderOrWebSocketSubprotocol,
+                false,
+                ResponseSensitivity::ApplicationData,
+            ),
+            get(stream_live),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "GET",
+                "/outbox/{connection_id}",
+                CredentialResolution::ConnectionGrantHeaderOrDevQuery,
+                false,
+                ResponseSensitivity::ApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: Some(CredentialResolution::ConnectionGrantHeader),
+                invocation_authority: Some(InvocationAuthority::ConnectionBound),
+                legacy_body_policy: None,
+                effect_policy: None,
+                response_sensitivity: None,
+            }),
+            get(drain_outbox),
+        ),
+        RegisteredRoute::new(
+            public_route(
+                "POST",
+                "/ephemeral/collections/ensure",
+                ResponseSensitivity::PublicProjection,
+            ),
+            post(ensure_ephemeral_collections),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "POST",
+                "/ephemeral/publish",
+                CredentialResolution::ConnectionGrantHeader,
+                true,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(publish_ephemeral),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "POST",
+                "/ephemeral/subscribe",
+                CredentialResolution::ConnectionGrantHeader,
+                true,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(subscribe_ephemeral),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "POST",
+                "/ephemeral/delete",
+                CredentialResolution::ConnectionGrantHeader,
+                true,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(delete_ephemeral),
+        ),
+    ]
+}
+
+/// The system routes owned by the server module. Admin/static routes are
+/// registered by `admin_route_registrations()` through the same type.
+///
+/// @ref LLP 0031#migration-plan — D5 flat `subsystem/verb` writes and the D2 disconnect move.
+fn system_route_registrations() -> Vec<RegisteredRoute> {
+    let write =
+        |path, sensitivity| system_api_route("POST", path, RoutePolicy::AdminWrite, sensitivity);
+    vec![
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/schema/load",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(apply_schema),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/functions/load",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(load_functions),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/app/reset",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(app_reset),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/client-mutations/purge",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(purge_client_mutation_settlements),
+        ),
+        // @ref LLP 0024#result-envelope — host ops resolve their per-operation
+        // authority after the shared route-level AdminRead floor.
+        RegisteredRoute::new(
+            system_api_route(
+                "POST",
+                "/_snapback/api/host-ops",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_effect(EffectPolicy::OperationSpecific),
+            post(host_ops_handler),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/connections/{connection_id}/disconnect",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(disconnect),
+        ),
+        // @ref LLP 0036#operations-and-projections-llp-0024 — config reads
+        // exclude values; set/unset/verify remain write-gated.
+        RegisteredRoute::new(
+            system_api_route(
+                "GET",
+                "/_snapback/api/config/status",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(config_status),
+        ),
+        RegisteredRoute::new(
+            system_api_route(
+                "GET",
+                "/_snapback/api/config/plan",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(config_plan),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/config/set",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(config_set),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/config/unset",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(config_unset),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/config/verify",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(config_verify),
+        ),
+    ]
+}
+
+fn all_route_registrations() -> Vec<RegisteredRoute> {
+    core_route_registrations()
+        .into_iter()
+        .chain(system_route_registrations())
+        .chain(crate::admin::admin_route_registrations())
+        .collect()
+}
+
+fn apply_registered_response_controls(
+    effective: EffectiveRoutePolicy,
+    mut response: Response,
+) -> Response {
+    if !matches!(
+        effective.response_sensitivity,
+        ResponseSensitivity::StaticPublic | ResponseSensitivity::PublicProjection
+    ) {
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("no-store, private"),
+        );
+    }
+    response
+}
+
+const POLICY_BODY_PEEK_LIMIT: usize = 2 * 1024 * 1024;
+
+/// Find a legacy authority field without mistaking ordinary app arguments
+/// (which may legitimately contain columns named `user_id`) for transport
+/// authority. `auth` is forbidden wherever a legacy wrapper placed it;
+/// sibling owner fields are forbidden only on the transport object itself.
+pub fn legacy_body_auth_field(value: &Value) -> Option<&str> {
+    const FORBIDDEN: &[&str] = &[
+        "auth",
+        "principal",
+        "user_id",
+        "userId",
+        "session_id",
+        "sessionId",
+        "custom_key",
+        "customKey",
+        "auth_fingerprint",
+        "authFingerprint",
+    ];
+    fn envelope_auth(value: &Value) -> Option<&str> {
+        let fields = value.as_object()?;
+        for name in FORBIDDEN.iter().copied() {
+            if fields.contains_key(name) {
+                return Some(name);
+            }
+        }
+        // Recurse only through the closed legacy transport wrappers. App
+        // values in args/scope/value/correlation and permission-epoch maps
+        // are opaque domain data even when a key happens to be `user_id`.
+        ["request", "input", "ctx_ledger", "ctxLedger"]
+            .into_iter()
+            .filter_map(|name| fields.get(name))
+            .find_map(envelope_auth)
+    }
+
+    envelope_auth(value)
+}
+
+fn body_auth_unsupported(field: &str) -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
+        "auth",
+        "client-provided identity fields are not accepted when session authority is server-resolved",
+    )
+    .with_details(json!({ "field": field }))
+    .into()
+}
+
+async fn peek_policy_json_body(
+    request: Request<Body>,
+) -> Result<(Request<Body>, Option<Value>), ApiError> {
+    let (parts, body) = request.into_parts();
+    let bytes = to_bytes(body, POLICY_BODY_PEEK_LIMIT)
+        .await
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_VALUE_TOO_LARGE",
+                "server",
+                "request body exceeded the policy-gate inspection limit",
+            )
+            .with_details(json!({
+                "limitBytes": POLICY_BODY_PEEK_LIMIT,
+                "error": error.to_string(),
+            }))
+        })?;
+    let value = if bytes.is_empty() {
+        None
+    } else {
+        serde_json::from_slice(&bytes).ok()
+    };
+    Ok((Request::from_parts(parts, Body::from(bytes)), value))
+}
+
+enum HttpOperationSelection {
+    Selected(OperationSpec),
+    UnknownHost(String),
+    Indeterminate,
+}
+
+async fn select_http_operation(
+    spec: RouteSpec,
+    runtime: &AppState,
+    request_path: &str,
+    body: Option<&Value>,
+) -> HttpOperationSelection {
+    match spec.effect_policy {
+        EffectPolicy::FunctionKind => {
+            let Some(name) = request_path
+                .strip_prefix("/_snapback/api/functions/")
+                .and_then(|path| path.strip_suffix("/run"))
+            else {
+                return HttpOperationSelection::Indeterminate;
+            };
+            let name = name.to_owned();
+            let kind = with_snapback(&runtime.snapback, move |snapback| {
+                snapback.function_kind(&name)
+            })
+            .await;
+            HttpOperationSelection::Selected(direct_runner_operation_spec(kind.as_ref()))
+        }
+        EffectPolicy::OperationSpecific if spec.path == "/app/ensure" => {
+            // The current input type is the untagged legacy branch. Item 2
+            // replaces this selector with the closed intent enum.
+            HttpOperationSelection::Selected(
+                operation_by_name("app.ensure.legacy")
+                    .expect("legacy app.ensure operation must be registered"),
+            )
+        }
+        EffectPolicy::OperationSpecific if spec.path == "/_snapback/api/host-ops" => {
+            let Some(fields) = body.and_then(Value::as_object) else {
+                return HttpOperationSelection::Indeterminate;
+            };
+            let Some(operation) = fields.get("operation").and_then(Value::as_str) else {
+                return HttpOperationSelection::Indeterminate;
+            };
+            let function = fields.get("function").and_then(Value::as_str);
+            let kind = if let Some(function) = function {
+                let function = function.to_owned();
+                with_snapback(&runtime.snapback, move |snapback| {
+                    snapback.function_kind(&function)
+                })
+                .await
+            } else {
+                None
+            };
+            let impersonated = fields
+                .get("userId")
+                .or_else(|| fields.get("user_id"))
+                .is_some_and(|value| !value.is_null());
+            match host_ops_operation_spec(operation, kind.as_ref(), impersonated) {
+                Some(spec) => HttpOperationSelection::Selected(spec),
+                None => HttpOperationSelection::UnknownHost(operation.to_owned()),
+            }
+        }
+        _ => HttpOperationSelection::Indeterminate,
+    }
+}
+
+async fn enforce_registered_route_policy(
+    spec: RouteSpec,
+    runtime: AppState,
+    mut request: Request<Body>,
+    next: Next,
+) -> Response {
+    let effective = spec.effective_for(runtime.policy_auth_mode);
+    if request.method() == Method::OPTIONS {
+        request.extensions_mut().insert(spec);
+        request.extensions_mut().insert(effective);
+        return apply_registered_response_controls(effective, next.run(request).await);
+    }
+    let operation_deferred = matches!(
+        effective.effect_policy,
+        EffectPolicy::FunctionKind | EffectPolicy::OperationSpecific
+    );
+    let body_connection_id_in_path = request
+        .uri()
+        .path()
+        .strip_prefix("/live/")
+        .and_then(|path| path.strip_suffix("/stream"))
+        .or_else(|| request.uri().path().strip_prefix("/outbox/"))
+        .is_none();
+    let inspect_body = effective.legacy_body_policy == LegacyBodyPolicy::Rejected
+        || (effective.path_policy == RoutePolicy::ConnectionAuth && body_connection_id_in_path)
+        || operation_deferred;
+    let mut policy_body = None;
+    if inspect_body {
+        match peek_policy_json_body(request).await {
+            Ok((rebuilt, body)) => {
+                request = rebuilt;
+                policy_body = body;
+            }
+            Err(error) => {
+                return apply_registered_response_controls(effective, error.into_response());
+            }
+        }
+    }
+    if effective.legacy_body_policy == LegacyBodyPolicy::Rejected
+        && let Some(field) = policy_body.as_ref().and_then(legacy_body_auth_field)
+    {
+        return apply_registered_response_controls(
+            effective,
+            body_auth_unsupported(field).into_response(),
+        );
+    }
+    if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
+        && request.headers().contains_key(header::AUTHORIZATION)
+    {
+        return apply_registered_response_controls(
+            effective,
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "a presented session bearer cannot be accepted before the session resolver is installed",
+            ))
+            .into_response(),
+        );
+    }
+
+    let mut selected_operation = None;
+    let operation_authorization = if operation_deferred {
+        match select_http_operation(spec, &runtime, request.uri().path(), policy_body.as_ref())
+            .await
+        {
+            HttpOperationSelection::Selected(operation) => {
+                let operation_policy = operation.effective_for(runtime.policy_auth_mode);
+                selected_operation = Some((operation, operation_policy));
+                if operation_policy.legacy_body_policy == LegacyBodyPolicy::Rejected
+                    && let Some(field) = policy_body.as_ref().and_then(legacy_body_auth_field)
+                {
+                    Err(body_auth_unsupported(field))
+                } else {
+                    authorize_operation_spec(
+                        &runtime.server,
+                        request.headers(),
+                        operation,
+                        runtime.policy_auth_mode,
+                    )
+                }
+            }
+            HttpOperationSelection::UnknownHost(operation) => {
+                match crate::admin::authorize(&runtime.server, request.headers(), true) {
+                    Ok(()) => Err(SnapbackError::error(
+                        "SNAPBACK_HOST_OP_UNKNOWN",
+                        "host-ops",
+                        format!("unknown or unregistered host operation {operation}"),
+                    )
+                    .into()),
+                    Err(error) => Err(error),
+                }
+            }
+            // A malformed/partial operation body is still authenticated at
+            // the strongest possible branch before the typed extractor emits
+            // its shape diagnostic.
+            HttpOperationSelection::Indeterminate => {
+                crate::admin::authorize(&runtime.server, request.headers(), true)
+            }
+        }
+    } else {
+        Ok(())
+    };
+    let response_policy = selected_operation
+        .map(|(_, operation_policy)| {
+            if matches!(
+                effective.response_sensitivity,
+                ResponseSensitivity::StaticPublic | ResponseSensitivity::PublicProjection
+            ) {
+                operation_policy
+            } else {
+                EffectiveRoutePolicy {
+                    response_sensitivity: effective.response_sensitivity,
+                    ..operation_policy
+                }
+            }
+        })
+        .unwrap_or(effective);
+    let authorization = if matches!(
+        effective.effect_policy,
+        EffectPolicy::Unavailable | EffectPolicy::ImpersonationCapability
+    ) {
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "this operation is unavailable under the active auth policy",
+        )
+        .into())
+    } else if operation_deferred {
+        operation_authorization
+    } else {
+        match effective.path_policy {
+            RoutePolicy::AdminRead => {
+                crate::admin::authorize(&runtime.server, request.headers(), false)
+            }
+            RoutePolicy::AdminWrite => {
+                crate::admin::authorize(&runtime.server, request.headers(), true)
+            }
+            RoutePolicy::AdminSecretRead | RoutePolicy::SessionAuth => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "session policy cannot become active before staged auth-mode enforcement lands",
+            )
+            .into()),
+            RoutePolicy::Public | RoutePolicy::AppAuth | RoutePolicy::ConnectionAuth => Ok(()),
+        }
+    };
+    if let Err(error) = authorization {
+        return apply_registered_response_controls(response_policy, error.into_response());
+    }
+    if effective.path_policy == RoutePolicy::ConnectionAuth {
+        let presented = match effective.credential_resolution {
+            CredentialResolution::ConnectionGrantHeader => {
+                header_connection_token(request.headers())
+            }
+            CredentialResolution::ConnectionGrantHeaderOrWebSocketSubprotocol => {
+                header_connection_token(request.headers())
+                    .or_else(|| subprotocol_connection_token(request.headers()))
+            }
+            CredentialResolution::ConnectionGrantHeaderOrDevQuery => {
+                header_connection_token(request.headers()).or_else(|| {
+                    request.uri().query().and_then(|query| {
+                        query.split('&').find_map(|pair| {
+                            pair.strip_prefix("connection_token=")
+                                .filter(|value| !value.is_empty())
+                                .map(ToOwned::to_owned)
+                        })
+                    })
+                })
+            }
+            // The route invariant below rejects a ConnectionAuth entry whose
+            // credential axis does not name an HTTP connection carrier.
+            _ => None,
+        };
+        let connection_id = request
+            .uri()
+            .path()
+            .strip_prefix("/live/")
+            .and_then(|path| path.strip_suffix("/stream"))
+            .or_else(|| request.uri().path().strip_prefix("/outbox/"));
+        let verified = match connection_id {
+            Some(connection_id) => runtime
+                .connections
+                .verify(connection_id, presented.as_deref()),
+            None => runtime
+                .connections
+                .verify_presented_bearer(presented.as_deref())
+                .and_then(|()| {
+                    let body_connection_id = policy_body
+                        .as_ref()
+                        .and_then(Value::as_object)
+                        .and_then(|body| {
+                            body.get("connection_id")
+                                .or_else(|| body.get("connectionId"))
+                        })
+                        .and_then(Value::as_str);
+                    match body_connection_id {
+                        Some(connection_id) => runtime
+                            .connections
+                            .verify(connection_id, presented.as_deref()),
+                        // Invalid JSON/missing fields are left to the closed
+                        // typed extractor, but only after the bearer itself
+                        // has been authenticated above.
+                        None => Ok(()),
+                    }
+                }),
+        };
+        if let Err(error) = verified {
+            return apply_registered_response_controls(response_policy, error.into_response());
+        }
+    }
+    request.extensions_mut().insert(spec);
+    if let Some((operation, operation_policy)) = selected_operation {
+        request.extensions_mut().insert(operation);
+        request.extensions_mut().insert(operation_policy);
+    } else {
+        request.extensions_mut().insert(effective);
+    }
+    apply_registered_response_controls(response_policy, next.run(request).await)
+}
+
+pub(crate) fn router_from_registrations(
+    registrations: Vec<RegisteredRoute>,
+    runtime: AppState,
+) -> Router<AppState> {
+    registrations
+        .into_iter()
+        .fold(Router::new(), |router, registration| {
+            let spec = registration.spec;
+            let runtime = runtime.clone();
+            let method_router = registration
+                .method_router
+                .options(|| async { StatusCode::NO_CONTENT })
+                .route_layer(middleware::from_fn(
+                    move |request: Request<Body>, next: Next| {
+                        let runtime = runtime.clone();
+                        async move {
+                            enforce_registered_route_policy(spec, runtime, request, next).await
+                        }
+                    },
+                ));
+            router.route(spec.path, method_router)
+        })
+}
+
+/// The full Snapback HTTP surface is installed only from registered entries;
+/// there is no second route-literal list that can drift outside policy.
+///
+/// @ref LLP 0031#enforcement — router↔registry parity is structural.
+pub fn app(state: AppState) -> Router {
+    router_from_registrations(all_route_registrations(), state.clone())
+        .with_state(state)
+        .layer(middleware::from_fn(local_dev_cors))
+}
+
+/// The registry is the metadata projection of the exact entries `app()`
+/// installs. Axum has no route-introspection API, so sharing registrations is
+/// the mechanical parity guarantee.
 ///
 /// @ref LLP 0031#enforcement — registry-driven enforcement; the classified unit is the operation.
 pub fn route_registry() -> Vec<RouteSpec> {
-    use RouteClass::{AppData, SystemApi, SystemStatic};
-    use RoutePolicy::{AdminRead, AdminWrite, AppAuth, ConnectionAuth, Public};
-    let spec = |method, path, class, policy| RouteSpec {
-        method,
-        path,
+    all_route_registrations()
+        .into_iter()
+        .map(|registration| registration.spec)
+        .collect()
+}
+
+/// Transport for an authority-bearing operation multiplexed inside one HTTP
+/// route. These entries close the gap a path-only router cannot see.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OperationTransport {
+    EnsureApp,
+    LiveSocket,
+    DirectFunctionRunner,
+    HostOps,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OperationSpec {
+    pub operation: &'static str,
+    pub parent_path: &'static str,
+    pub transport: OperationTransport,
+    pub class: RouteClass,
+    pub path_policy: RoutePolicy,
+    pub credential_resolution: CredentialResolution,
+    pub invocation_authority: InvocationAuthority,
+    pub legacy_body_policy: LegacyBodyPolicy,
+    pub effect_policy: EffectPolicy,
+    pub response_sensitivity: ResponseSensitivity,
+    pub session_overlay: SessionModeOverlay,
+}
+
+impl OperationSpec {
+    pub fn effective_for(self, mode: PolicyAuthMode) -> EffectiveRoutePolicy {
+        RouteSpec {
+            method: "OPERATION",
+            path: self.parent_path,
+            class: self.class,
+            path_policy: self.path_policy,
+            policy: self.path_policy,
+            credential_resolution: self.credential_resolution,
+            invocation_authority: self.invocation_authority,
+            legacy_body_policy: self.legacy_body_policy,
+            effect_policy: self.effect_policy,
+            response_sensitivity: self.response_sensitivity,
+            session_overlay: self.session_overlay,
+        }
+        .effective_for(mode)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        RouteSpec {
+            method: "OPERATION",
+            path: self.parent_path,
+            class: self.class,
+            path_policy: self.path_policy,
+            policy: self.path_policy,
+            credential_resolution: self.credential_resolution,
+            invocation_authority: self.invocation_authority,
+            legacy_body_policy: self.legacy_body_policy,
+            effect_policy: self.effect_policy,
+            response_sensitivity: self.response_sensitivity,
+            session_overlay: self.session_overlay,
+        }
+        .validate()
+        .map_err(|error| format!("operation {}: {error}", self.operation))
+    }
+}
+
+// Operation entries carry the same independent axes as HTTP entries plus
+// their multiplexed transport identity. Spell every axis at the call site so
+// a new branch cannot inherit an accidental default.
+#[allow(clippy::too_many_arguments)]
+const fn operation(
+    operation: &'static str,
+    parent_path: &'static str,
+    transport: OperationTransport,
+    class: RouteClass,
+    path_policy: RoutePolicy,
+    credential_resolution: CredentialResolution,
+    invocation_authority: InvocationAuthority,
+    legacy_body_policy: LegacyBodyPolicy,
+    effect_policy: EffectPolicy,
+    response_sensitivity: ResponseSensitivity,
+    session_overlay: SessionModeOverlay,
+) -> OperationSpec {
+    OperationSpec {
+        operation,
+        parent_path,
+        transport,
         class,
-        policy,
-    };
-    vec![
-        // App-data — root.
-        spec("GET", "/", AppData, Public),
-        spec("GET", "/health", AppData, Public),
-        spec("GET", "/inspect", AppData, Public),
-        spec("POST", "/query/{name}", AppData, AppAuth),
-        spec("POST", "/client-mutations/acknowledge", AppData, AppAuth),
-        spec("POST", "/mutation/{name}", AppData, AppAuth),
-        spec("POST", "/action/{name}", AppData, AppAuth),
-        spec("POST", "/app/ensure", AppData, Public),
-        // Grants the connection capability (like /app/ensure grants app
-        // provisioning): public entry, everything it guards is ConnectionAuth.
-        spec("POST", "/connection/open", AppData, Public),
-        spec("POST", "/live/{name}/subscribe", AppData, ConnectionAuth),
-        spec("POST", "/live/{name}/resume", AppData, ConnectionAuth),
-        spec("POST", "/live/{name}/unsubscribe", AppData, ConnectionAuth),
-        spec(
-            "GET",
+        path_policy,
+        credential_resolution,
+        invocation_authority,
+        legacy_body_policy,
+        effect_policy,
+        response_sensitivity,
+        session_overlay,
+    }
+}
+
+/// Multiplexed operations whose authority cannot be represented by one HTTP
+/// path row. Names are stable audit identifiers, not handler display strings.
+///
+/// @ref LLP 0031#enforcement — WebSocket kinds and dynamic admin operations
+/// are classified explicitly rather than smuggled through a registered path.
+pub fn operation_registry() -> Vec<OperationSpec> {
+    use OperationTransport::{DirectFunctionRunner, EnsureApp, HostOps, LiveSocket};
+    let live = |name| {
+        operation(
+            name,
             "/live/{connection_id}/stream",
-            AppData,
-            ConnectionAuth,
-        ),
-        spec("GET", "/outbox/{connection_id}", AppData, ConnectionAuth),
-        spec("POST", "/ephemeral/collections/ensure", AppData, Public),
-        spec("POST", "/ephemeral/publish", AppData, ConnectionAuth),
-        spec("POST", "/ephemeral/subscribe", AppData, ConnectionAuth),
-        spec("POST", "/ephemeral/delete", AppData, ConnectionAuth),
-        // System API — migrated gated writes (LLP 0031 D5/D2).
-        spec("POST", "/_snapback/api/schema/load", SystemApi, AdminWrite),
-        spec(
-            "POST",
-            "/_snapback/api/functions/load",
-            SystemApi,
-            AdminWrite,
-        ),
-        spec("POST", "/_snapback/api/app/reset", SystemApi, AdminWrite),
-        spec(
-            "POST",
-            "/_snapback/api/client-mutations/purge",
-            SystemApi,
-            AdminWrite,
-        ),
-        spec("POST", "/_snapback/api/host-ops", SystemApi, AdminWrite),
-        spec(
-            "POST",
-            "/_snapback/api/connections/{connection_id}/disconnect",
-            SystemApi,
-            AdminWrite,
-        ),
-        // System API — existing admin surface.
-        spec("GET", "/_snapback/api/health", SystemApi, AdminRead),
-        // Full inspect carries raw operational text/source/path facts; unlike
-        // health and the typed root projection it requires the configured
-        // admin bearer even though the HTTP method is GET.
-        spec("GET", "/_snapback/api/inspect", SystemApi, AdminWrite),
-        spec("GET", "/_snapback/api/receipts", SystemApi, AdminRead),
-        spec("GET", "/_snapback/api/data/{table}", SystemApi, AdminRead),
-        // Function runner gates dynamically (read for queries, write for
-        // mutations); declared as the stronger write policy.
-        spec(
-            "POST",
+            LiveSocket,
+            RouteClass::AppData,
+            RoutePolicy::ConnectionAuth,
+            CredentialResolution::BoundConnectionGrant,
+            InvocationAuthority::ClientAsserted,
+            LegacyBodyPolicy::Allowed,
+            EffectPolicy::None,
+            ResponseSensitivity::ApplicationData,
+            SessionModeOverlay::connection_bound(),
+        )
+    };
+    let direct = |name, path_policy, effect_policy, session_overlay| {
+        operation(
+            name,
             "/_snapback/api/functions/{name}/run",
-            SystemApi,
-            AdminWrite,
+            DirectFunctionRunner,
+            RouteClass::SystemApi,
+            path_policy,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::ClientAsserted,
+            LegacyBodyPolicy::Allowed,
+            effect_policy,
+            ResponseSensitivity::SensitiveApplicationData,
+            session_overlay,
+        )
+    };
+    let host = |name, path_policy, effect_policy, session_overlay| {
+        operation(
+            name,
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            path_policy,
+            CredentialResolution::AdminCredential,
+            // The admin credential authorizes the transport; ordinary host
+            // operations do not install an app caller. Identity selection is
+            // represented only by the explicit DevImpersonation branches.
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+            effect_policy,
+            ResponseSensitivity::SensitiveApplicationData,
+            session_overlay,
+        )
+    };
+    let operations = vec![
+        operation(
+            "app.ensure.legacy",
+            "/app/ensure",
+            EnsureApp,
+            RouteClass::AppData,
+            RoutePolicy::Public,
+            CredentialResolution::OperationSpecific,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::Provisioning,
+            ResponseSensitivity::PublicProjection,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: None,
+                legacy_body_policy: None,
+                effect_policy: Some(EffectPolicy::Unavailable),
+                response_sensitivity: None,
+            },
         ),
-        spec("POST", "/_snapback/api/cron/tick", SystemApi, AdminWrite),
-        spec(
-            "POST",
-            "/_snapback/api/cron/{name}/run",
-            SystemApi,
-            AdminWrite,
+        operation(
+            "app.ensure.attest",
+            "/app/ensure",
+            EnsureApp,
+            RouteClass::AppData,
+            RoutePolicy::Public,
+            CredentialResolution::None,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::PublicProjection,
+            SessionModeOverlay::NONE,
         ),
-        spec(
-            "POST",
-            "/_snapback/api/ephemeral/cleanup",
-            SystemApi,
-            AdminWrite,
+        operation(
+            "app.ensure.provision",
+            "/app/ensure",
+            EnsureApp,
+            RouteClass::AppData,
+            RoutePolicy::Public,
+            CredentialResolution::OperationSpecific,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::Provisioning,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay {
+                path_policy: Some(RoutePolicy::AdminWrite),
+                credential_resolution: Some(CredentialResolution::AdminCredential),
+                invocation_authority: Some(InvocationAuthority::Operator),
+                legacy_body_policy: None,
+                effect_policy: None,
+                response_sensitivity: Some(ResponseSensitivity::OperatorMetadata),
+            },
         ),
-        // System API — app config ops (LLP 0036 §Route placement).
-        spec("GET", "/_snapback/api/config/status", SystemApi, AdminRead),
-        spec("GET", "/_snapback/api/config/plan", SystemApi, AdminRead),
-        spec("POST", "/_snapback/api/config/set", SystemApi, AdminWrite),
-        spec("POST", "/_snapback/api/config/unset", SystemApi, AdminWrite),
-        spec(
-            "POST",
-            "/_snapback/api/config/verify",
-            SystemApi,
-            AdminWrite,
+        live("ephemeral_subscribe"),
+        live("ephemeral_publish"),
+        live("ephemeral_delete"),
+        live("ephemeral_unsubscribe"),
+        operation(
+            "live_ping",
+            "/live/{connection_id}/stream",
+            LiveSocket,
+            RouteClass::AppData,
+            RoutePolicy::ConnectionAuth,
+            CredentialResolution::BoundConnectionGrant,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::PublicProjection,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::ConnectionBound),
+                // The typed ping has no identity field, but serde otherwise
+                // ignores unknown siblings. Sessions therefore records an
+                // explicit rejection policy and the raw-frame gate enforces it.
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
         ),
-        // System static — console shell/assets (public presentation only).
-        spec("GET", "/_snapback/admin", SystemStatic, Public),
-        spec("GET", "/_snapback/admin/", SystemStatic, Public),
-        spec("GET", "/_snapback/admin/setup", SystemStatic, Public),
-        spec("GET", "/_snapback/admin/{*path}", SystemStatic, Public),
-    ]
+        direct(
+            "direct_runner.query",
+            RoutePolicy::AdminRead,
+            EffectPolicy::FunctionKind,
+            SessionModeOverlay {
+                path_policy: Some(RoutePolicy::AdminSecretRead),
+                credential_resolution: Some(CredentialResolution::AdminSecretReadLease),
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        direct(
+            "direct_runner.mutation",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::FunctionKind,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        direct(
+            "direct_runner.action",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::FunctionKind,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        direct(
+            "direct_runner.unknown",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::FunctionKind,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: Some(EffectPolicy::Unavailable),
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.app.inspect",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::secret_read(),
+        ),
+        host(
+            "host_ops.function.explain",
+            RoutePolicy::AdminRead,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: Some(RoutePolicy::AdminSecretRead),
+                credential_resolution: Some(CredentialResolution::AdminSecretReadLease),
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: None,
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        operation(
+            "host_ops.function.explain.impersonated",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminRead,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::DevImpersonation,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::SensitiveApplicationData,
+            SessionModeOverlay {
+                path_policy: Some(RoutePolicy::AdminSecretRead),
+                credential_resolution: Some(CredentialResolution::AdminSecretReadLease),
+                invocation_authority: None,
+                legacy_body_policy: None,
+                effect_policy: Some(EffectPolicy::Unavailable),
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.app.reset",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.schema.load",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.functions.load",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.function.run.query",
+            RoutePolicy::AdminRead,
+            EffectPolicy::FunctionKind,
+            SessionModeOverlay {
+                path_policy: Some(RoutePolicy::AdminSecretRead),
+                credential_resolution: Some(CredentialResolution::AdminSecretReadLease),
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.function.run.mutation",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::FunctionKind,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.function.run.action",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::FunctionKind,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.function.run.unknown",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::FunctionKind,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: Some(EffectPolicy::Unavailable),
+                response_sensitivity: None,
+            },
+        ),
+        operation(
+            "host_ops.function.run.impersonated",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::DevImpersonation,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::SensitiveApplicationData,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: None,
+                legacy_body_policy: None,
+                effect_policy: Some(EffectPolicy::ImpersonationCapability),
+                response_sensitivity: None,
+            },
+        ),
+    ];
+    for entry in &operations {
+        if let Err(error) = entry.validate() {
+            panic!("{error}");
+        }
+        let carrier = route_registry()
+            .into_iter()
+            .find(|route| route.path == entry.parent_path)
+            .unwrap_or_else(|| {
+                panic!(
+                    "operation {} names unregistered carrier {}",
+                    entry.operation, entry.parent_path
+                )
+            });
+        assert_eq!(
+            carrier.class, entry.class,
+            "operation {} class differs from carrier {}",
+            entry.operation, entry.parent_path
+        );
+    }
+    operations
+}
+
+fn operation_by_name(name: &str) -> Option<OperationSpec> {
+    operation_registry()
+        .into_iter()
+        .find(|entry| entry.operation == name)
+}
+
+/// Consume an operation row at the runtime authorization boundary. Outer
+/// FunctionKind/OperationSpecific HTTP rows deliberately defer here so the
+/// selected branch, rather than the weakest outer floor, decides 401/403.
+pub(crate) fn authorize_operation_spec(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    spec: OperationSpec,
+    mode: PolicyAuthMode,
+) -> Result<(), ApiError> {
+    let effective = spec.effective_for(mode);
+    if matches!(
+        effective.effect_policy,
+        EffectPolicy::Unavailable | EffectPolicy::ImpersonationCapability
+    ) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "this operation requires auth enforcement that is not installed yet",
+        )
+        .into());
+    }
+    match effective.path_policy {
+        RoutePolicy::AdminRead => crate::admin::authorize(ctx, headers, false),
+        RoutePolicy::AdminWrite => crate::admin::authorize(ctx, headers, true),
+        RoutePolicy::AdminSecretRead | RoutePolicy::SessionAuth => Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "session credential resolution is not installed yet",
+        )
+        .into()),
+        RoutePolicy::Public | RoutePolicy::AppAuth | RoutePolicy::ConnectionAuth => Ok(()),
+    }
+}
+
+/// Exhaustive function-kind mapping used by the direct runner's actual
+/// authorization gate. Unknown functions take the stronger outer gate and
+/// remain unavailable under sessions; they never inherit the query branch.
+pub(crate) fn direct_runner_operation_spec(kind: Option<&FunctionKind>) -> OperationSpec {
+    let name = match kind {
+        Some(FunctionKind::Mutation) => "direct_runner.mutation",
+        Some(FunctionKind::Action) => "direct_runner.action",
+        Some(FunctionKind::Query | FunctionKind::LiveQuery) => "direct_runner.query",
+        None => "direct_runner.unknown",
+    };
+    operation_by_name(name).expect("direct-runner operation must be registered")
+}
+
+/// Resolve a served host operation to its registered policy. Returning `None`
+/// is intentional fail-closed input to the admin gate for unknown/unbuilt
+/// operation strings.
+pub(crate) fn host_ops_operation_spec(
+    operation: &str,
+    kind: Option<&FunctionKind>,
+    impersonated: bool,
+) -> Option<OperationSpec> {
+    let name = match operation {
+        "app.inspect" => "host_ops.app.inspect",
+        "app.reset" => "host_ops.app.reset",
+        "schema.load" => "host_ops.schema.load",
+        "functions.load" => "host_ops.functions.load",
+        "function.explain" if impersonated => "host_ops.function.explain.impersonated",
+        "function.explain" => "host_ops.function.explain",
+        "function.run" if impersonated => "host_ops.function.run.impersonated",
+        "function.run" => match kind {
+            Some(FunctionKind::Mutation) => "host_ops.function.run.mutation",
+            Some(FunctionKind::Action) => "host_ops.function.run.action",
+            Some(FunctionKind::Query | FunctionKind::LiveQuery) => "host_ops.function.run.query",
+            None => "host_ops.function.run.unknown",
+        },
+        _ => return None,
+    };
+    operation_by_name(name)
 }
 
 /// The operations multiplexed over the `/live/{id}/stream` socket. Per LLP 0031
@@ -1468,13 +3089,11 @@ pub fn route_registry() -> Vec<RouteSpec> {
 ///
 /// @ref LLP 0031#enforcement — WebSocket message kinds are asserted against the registry directly.
 pub fn live_socket_operations() -> Vec<(&'static str, RouteClass)> {
-    vec![
-        ("ephemeral_subscribe", RouteClass::AppData),
-        ("ephemeral_publish", RouteClass::AppData),
-        ("ephemeral_delete", RouteClass::AppData),
-        ("ephemeral_unsubscribe", RouteClass::AppData),
-        ("live_ping", RouteClass::AppData),
-    ]
+    operation_registry()
+        .into_iter()
+        .filter(|entry| matches!(entry.transport, OperationTransport::LiveSocket))
+        .map(|entry| (entry.operation, entry.class))
+        .collect()
 }
 
 /// Browser-friendly default route for a running Snapback instance.
@@ -2297,9 +3916,6 @@ async fn local_dev_cors(request: Request<Body>, next: Next) -> Response {
     // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
     // static/Vite origin while talking to the local Snapback server.
     let allowed_origin = loopback_origin(request.headers().get(header::ORIGIN));
-    if request.method() == Method::OPTIONS {
-        return with_cors_headers(StatusCode::NO_CONTENT.into_response(), allowed_origin);
-    }
     with_cors_headers(next.run(request).await, allowed_origin)
 }
 
@@ -2610,6 +4226,7 @@ async fn config_verify(
 async fn host_ops_handler(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
     headers: HeaderMap,
     Json(request): Json<crate::host_ops::HostOpsRequest>,
 ) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
@@ -2620,11 +4237,13 @@ async fn host_ops_handler(
             .function
             .as_deref()
             .and_then(|name| snapback.function_kind(name));
-        crate::admin::authorize_operation(
+        crate::admin::authorize_host_operation(
             &ctx,
             &headers,
             &request.operation,
             function_kind.as_ref(),
+            request.user_id.is_some(),
+            policy_mode,
         )?;
         Ok(crate::host_ops::execute_host_op_with_profile(
             snapback, request, server_url, profile,
@@ -2867,9 +4486,17 @@ async fn invoke_action(
 async fn ensure_app(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
     input: Result<Json<crate::local::EnsureAppInput>, JsonRejection>,
 ) -> Result<Json<crate::local::EnsureAppOutcome>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    // The shipped untagged DTO is exactly the legacy branch. Item 2 replaces
+    // this selection with the closed attest/provision intent enum; resolving
+    // the row here already makes omission from the operation registry fatal.
+    let operation = operation_by_name("app.ensure.legacy")
+        .expect("the shipped ensure DTO must have a registered legacy branch");
+    authorize_operation_spec(&ctx, &headers, operation, policy_mode)?;
     let provisioning_allowed = ctx.profile.allows_provisioning();
     let profile = ctx.profile.as_str().to_owned();
     let outcome = with_snapback(&state, move |snapback| {
@@ -2939,6 +4566,7 @@ async fn stream_live(
     State(state): State<SharedSnapback>,
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
+    State(policy_mode): State<PolicyAuthMode>,
     Path(connection_id): Path<String>,
     headers: HeaderMap,
     ws: WebSocketUpgrade,
@@ -2959,7 +4587,16 @@ async fn stream_live(
     ws.max_message_size(MAX_LIVE_SOCKET_FRAME_BYTES)
         .max_frame_size(MAX_LIVE_SOCKET_FRAME_BYTES)
         .protocols([LIVE_STREAM_SUBPROTOCOL])
-        .on_upgrade(move |socket| live_stream(socket, state, ephemeral, connections, connection_id))
+        .on_upgrade(move |socket| {
+            live_stream(
+                socket,
+                state,
+                ephemeral,
+                connections,
+                connection_id,
+                policy_mode,
+            )
+        })
 }
 
 async fn live_stream(
@@ -2968,6 +4605,7 @@ async fn live_stream(
     ephemeral: EphemeralApi,
     connections: ConnectionRegistry,
     connection_id: String,
+    policy_mode: PolicyAuthMode,
 ) {
     let (mut sender, mut receiver) = socket.split();
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: an enqueue
@@ -3008,7 +4646,12 @@ async fn live_stream(
                         if !connections.touch_verified_socket(&connection_id) {
                             break 'stream;
                         }
-                        let response = handle_live_socket_text(&ephemeral, &connection_id, &text);
+                        let response = handle_live_socket_text(
+                            &ephemeral,
+                            &connection_id,
+                            &text,
+                            policy_mode,
+                        );
                         if sender.send(Message::Text(response.into())).await.is_err() {
                             break 'stream;
                         }
@@ -3148,7 +4791,6 @@ async fn drain_and_send(
 /// app-data `/live/*` socket.
 ///
 /// @ref LLP 0031#enforcement — enumerate the accepted socket variants; fail if any is not app-data.
-#[cfg(test)]
 fn live_socket_operation_name(message: &LiveSocketClientMessage) -> &'static str {
     match message {
         LiveSocketClientMessage::EphemeralSubscribe { .. } => "ephemeral_subscribe",
@@ -3159,10 +4801,25 @@ fn live_socket_operation_name(message: &LiveSocketClientMessage) -> &'static str
     }
 }
 
+fn live_socket_request_id(message: &LiveSocketClientMessage) -> Option<String> {
+    match message {
+        LiveSocketClientMessage::EphemeralSubscribe { request_id, .. }
+        | LiveSocketClientMessage::EphemeralPublish { request_id, .. }
+        | LiveSocketClientMessage::EphemeralDelete { request_id, .. }
+        | LiveSocketClientMessage::EphemeralUnsubscribe { request_id, .. }
+        | LiveSocketClientMessage::Ping { request_id } => request_id.clone(),
+    }
+}
+
 /// Handle a socket-text operation. Ephemeral operations reach the room
 /// authority directly — a busy mutation holding the global write mutex cannot
 /// delay a cursor publish on this socket (LLP 0032 L9).
-fn handle_live_socket_text(ephemeral: &EphemeralApi, connection_id: &str, text: &str) -> String {
+fn handle_live_socket_text(
+    ephemeral: &EphemeralApi,
+    connection_id: &str,
+    text: &str,
+    policy_mode: PolicyAuthMode,
+) -> String {
     if text.len() > MAX_LIVE_SOCKET_FRAME_BYTES {
         return socket_error(
             None,
@@ -3178,7 +4835,37 @@ fn handle_live_socket_text(ephemeral: &EphemeralApi, connection_id: &str, text: 
             })),
         );
     }
-    let message = match serde_json::from_str::<LiveSocketClientMessage>(text) {
+    let raw = match serde_json::from_str::<Value>(text) {
+        Ok(value) => value,
+        Err(error) => {
+            return socket_error(
+                None,
+                "decode",
+                Diagnostic::error(
+                    "SNAPBACK_WEBSOCKET_MESSAGE_INVALID",
+                    "realtime",
+                    "WebSocket message could not be decoded",
+                )
+                .with_details(json!({ "error": error.to_string() })),
+            );
+        }
+    };
+    if matches!(policy_mode, PolicyAuthMode::Sessions)
+        && let Some(field) = legacy_body_auth_field(&raw)
+    {
+        let request_id = raw
+            .get("requestId")
+            .or_else(|| raw.get("request_id"))
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned);
+        let operation = raw.get("type").and_then(Value::as_str).unwrap_or("decode");
+        return socket_error(
+            request_id,
+            operation,
+            body_auth_unsupported(field).0.diagnostic,
+        );
+    }
+    let message = match serde_json::from_value::<LiveSocketClientMessage>(raw.clone()) {
         Ok(message) => message,
         Err(error) => {
             return socket_error(
@@ -3193,6 +4880,22 @@ fn handle_live_socket_text(ephemeral: &EphemeralApi, connection_id: &str, text: 
             );
         }
     };
+    let operation_name = live_socket_operation_name(&message);
+    let operation = operation_by_name(operation_name)
+        .expect("every decoded live-socket variant must have registered policy");
+    assert_eq!(operation.transport, OperationTransport::LiveSocket);
+    let effective = operation.effective_for(policy_mode);
+    if effective.effect_policy == EffectPolicy::Unavailable {
+        return socket_error(
+            live_socket_request_id(&message),
+            operation_name,
+            Diagnostic::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "this socket operation is unavailable under the active auth policy",
+            ),
+        );
+    }
 
     // Liveness probe: answered immediately and statelessly (no lock, no
     // connection binding to check — the probe carries no connection_id and
@@ -3571,6 +5274,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING"
         | "SNAPBACK_CAPABILITY_MINIFLARE_MISSING"
         | "SNAPBACK_CAPABILITY_WORKERD_MISSING"
+        | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -3582,6 +5286,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP"
         | "SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID"
+        | "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED"
         | "SNAPBACK_AUTH_STALE_RESULT"
         | "SNAPBACK_AUTH_USER_MISSING"
         | "SNAPBACK_BINDING_MISSING"
@@ -4044,6 +5749,7 @@ mod tests {
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
         "SNAPBACK_ARG_MISSING",
+        "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
         "SNAPBACK_AUTH_STALE_RESULT",
         "SNAPBACK_AUTH_USER_MISSING",
         "SNAPBACK_BINDING_MISSING",
@@ -4218,6 +5924,7 @@ mod tests {
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING",
@@ -5352,9 +7059,13 @@ globalThis.__snapbackHandlers = {
         let snapback = LocalSnapback::memory().expect("memory instance");
         let ephemeral = snapback.ephemeral_api();
         let frame = "x".repeat(super::MAX_LIVE_SOCKET_FRAME_BYTES + 1);
-        let response: serde_json::Value =
-            serde_json::from_str(&super::handle_live_socket_text(&ephemeral, "conn", &frame))
-                .expect("typed socket error");
+        let response: serde_json::Value = serde_json::from_str(&super::handle_live_socket_text(
+            &ephemeral,
+            "conn",
+            &frame,
+            super::PolicyAuthMode::Dev,
+        ))
+        .expect("typed socket error");
         assert_eq!(
             response["diagnostic"]["code"],
             "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE"

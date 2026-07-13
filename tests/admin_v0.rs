@@ -891,15 +891,17 @@ async fn provisioning_writes_are_profile_forbidden_under_prod() {
     assert_eq!(body["diagnostic"]["code"], "SNAPBACK_PROFILE_FORBIDS");
 }
 
-/// ENG-24561 — the multiplexed host-ops transport and its dedicated aliases
-/// resolve the same per-operation AdminRead/AdminWrite requirement. A minted
-/// loopback token protects writes but must not accidentally close reads.
+/// ENG-24561 / ENG-24594 — the multiplexed host-ops transport and its
+/// dedicated aliases resolve the same per-operation AdminRead/AdminWrite
+/// requirement. Query/explain reads remain open on loopback; selecting a dev
+/// identity for `function.run` is the impersonation effect that takes the
+/// stronger gate (the legacy explain selector remains dev-only metadata).
 #[tokio::test]
 async fn host_ops_and_dedicated_aliases_have_authority_parity() {
     let app = app_with_context(seeded_snapback(), loopback_context(Some("sekrit")));
 
     for request in [
-        json!({ "operation": "function.run", "function": "listTodos", "userId": "user_1" }),
+        json!({ "operation": "function.run", "function": "listTodos" }),
         json!({ "operation": "function.explain", "function": "createTodo", "kind": "mutationDryRun", "userId": "user_1" }),
     ] {
         let response = app
@@ -925,6 +927,7 @@ async fn host_ops_and_dedicated_aliases_have_authority_parity() {
         json!({ "operation": "app.reset" }),
         json!({ "operation": "schema.load", "schema": todo_schema() }),
         json!({ "operation": "functions.load", "functions": todo_functions() }),
+        json!({ "operation": "function.run", "function": "listTodos", "userId": "user_1" }),
         json!({ "operation": "function.run", "function": "createTodo", "args": { "title": "blocked" }, "userId": "user_1" }),
     ] {
         let response = app
