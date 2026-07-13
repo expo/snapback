@@ -19,6 +19,7 @@
 //! @ref LLP 0032#decision-docket — DK-7 / P3(c): schemars-derived schemas + Rust drift gate.
 
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
 
@@ -46,6 +47,11 @@ use snapback::runtime::{
     CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
 };
 use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
+use snapback::service_profile::{
+    PublishedArtifactRef, RemoteAuthCapabilityManifest, RemoteCredentialPolicy,
+    RemoteDataCapabilityManifest, RemoteEndpointPolicy, RemoteServiceDataTierIdentity,
+    RemoteServiceGitPublication, RemoteServiceOperation, RemoteServiceProfile,
+};
 use snapback::storage::{ClientMutationRetentionInfo, StorageInfo};
 
 fn retention_info() -> ClientMutationRetentionInfo {
@@ -837,6 +843,105 @@ fn dk7_representative_values_validate_against_committed_schemas() {
         "capability.manifest.schema.json",
         &serde_json::to_value(CapabilityManifest::local_v0(vec!["postgres".to_owned()])).unwrap(),
     );
+    let artifact_ref = PublishedArtifactRef {
+        path: "schemas/example.json".to_owned(),
+        sha256: format!("sha256:{}", "0".repeat(64)),
+    };
+    let auth_manifest = RemoteAuthCapabilityManifest {
+        artifact_kind: "remoteAuthCapabilityManifest".to_owned(),
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        manifest_version: 1,
+        capability_id: "snapback.auth.todo-v2".to_owned(),
+        app_id: "todo-v2".to_owned(),
+        target_profile_id: "remote-service-sqlite-ibex".to_owned(),
+        credential_policy: RemoteCredentialPolicy {
+            presentation: "authorization-bearer".to_owned(),
+            authority: "host-private".to_owned(),
+            value_in_artifacts: false,
+            value_in_arguments: false,
+            value_in_environment: false,
+            value_in_info_plist: false,
+            supports_rotation: true,
+        },
+    };
+    assert_validates(
+        "remote-service.auth-capability.manifest.schema.json",
+        &serde_json::to_value(&auth_manifest).unwrap(),
+    );
+    let operation = RemoteServiceOperation {
+        name: "createTodo".to_owned(),
+        function_id: "todo-v2:createTodo".to_owned(),
+        kind: "Mutation".to_owned(),
+        auth_requirement: "optional-user".to_owned(),
+        arguments_schema: artifact_ref.clone(),
+        request_schema: artifact_ref.clone(),
+        response_schema: artifact_ref.clone(),
+        receipt_schema: artifact_ref.clone(),
+        error_schema: artifact_ref.clone(),
+    };
+    let data_manifest = RemoteDataCapabilityManifest {
+        artifact_kind: "remoteDataCapabilityManifest".to_owned(),
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        manifest_version: 1,
+        capability_id: "snapback.data.todo-v2".to_owned(),
+        app_id: "todo-v2".to_owned(),
+        target_profile_id: "remote-service-sqlite-ibex".to_owned(),
+        schema_manifest: artifact_ref.clone(),
+        function_manifest: artifact_ref.clone(),
+        capability_manifest: artifact_ref.clone(),
+        wire_schemas: std::collections::BTreeMap::from([(
+            "mutationInput".to_owned(),
+            artifact_ref.clone(),
+        )]),
+        operations: vec![operation],
+    };
+    assert_validates(
+        "remote-service.data-capability.manifest.schema.json",
+        &serde_json::to_value(&data_manifest).unwrap(),
+    );
+    let profile = RemoteServiceProfile {
+        artifact_kind: "remoteServiceProfile".to_owned(),
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        profile_version: 1,
+        profile_id: "remote-service-sqlite-ibex".to_owned(),
+        app_id: "todo-v2".to_owned(),
+        target_profile_id: "remote-service-sqlite-ibex".to_owned(),
+        local_server_lifecycle: false,
+        publication: RemoteServiceGitPublication {
+            kind: "gitPinnedCheckout".to_owned(),
+            addressing: "commitSha".to_owned(),
+            repository: "https://github.com/ccheever/snapback.git".to_owned(),
+            profile_path:
+                "demos/todo-v2/snapback/generated-remote-service/remote-service.profile.json"
+                    .to_owned(),
+        },
+        endpoint_policy: RemoteEndpointPolicy {
+            scheme: "https".to_owned(),
+            authority: "host-private".to_owned(),
+            value_in_artifacts: false,
+            value_in_arguments: false,
+            value_in_environment: false,
+            value_in_info_plist: false,
+            allow_redirects: false,
+            allow_ambient_proxy: false,
+        },
+        server_capability_manifest: artifact_ref.clone(),
+        auth_capability_manifest: artifact_ref.clone(),
+        data_capability_manifest: artifact_ref.clone(),
+        data_tier: RemoteServiceDataTierIdentity {
+            corpus: DATA_TIER_CORPUS_NAME.to_owned(),
+            profile_version: 1,
+            corpus_format_version: 1,
+            ledger_version: 1,
+            case_count: 29,
+            profile: artifact_ref.clone(),
+            corpus_manifest: artifact_ref,
+        },
+    };
+    assert_validates(
+        "remote-service.profile.schema.json",
+        &serde_json::to_value(&profile).unwrap(),
+    );
     assert_validates(
         "auth.hosted-capabilities.schema.json",
         &serde_json::to_value(HostedAuthCapabilities::local_target()).unwrap(),
@@ -1008,6 +1113,98 @@ fn data_tier_publication_validates_against_committed_schemas() {
             .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
         assert_validates("data-tier.case.schema.json", &case);
     }
+}
+
+#[test]
+fn remote_service_publication_is_closed_digest_bound_and_host_private() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let generated = root.join("demos/todo-v2/snapback/generated-remote-service");
+    let read_json = |path: &std::path::Path| -> Value {
+        serde_json::from_str(
+            &fs::read_to_string(path)
+                .unwrap_or_else(|_| panic!("missing remote publication {}", path.display())),
+        )
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()))
+    };
+    let profile_value = read_json(&generated.join("remote-service.profile.json"));
+    let auth_value = read_json(&generated.join("remote-auth-capability.manifest.json"));
+    let data_value = read_json(&generated.join("remote-data-capability.manifest.json"));
+    assert_validates("remote-service.profile.schema.json", &profile_value);
+    assert_validates(
+        "remote-service.auth-capability.manifest.schema.json",
+        &auth_value,
+    );
+    assert_validates(
+        "remote-service.data-capability.manifest.schema.json",
+        &data_value,
+    );
+
+    let profile: RemoteServiceProfile =
+        serde_json::from_value(profile_value).expect("parse remote service profile type");
+    let auth: RemoteAuthCapabilityManifest =
+        serde_json::from_value(auth_value).expect("parse remote auth manifest type");
+    let data: RemoteDataCapabilityManifest =
+        serde_json::from_value(data_value).expect("parse remote data manifest type");
+    assert!(!profile.local_server_lifecycle);
+    assert_eq!(profile.endpoint_policy.scheme, "https");
+    assert_eq!(profile.endpoint_policy.authority, "host-private");
+    assert!(!profile.endpoint_policy.value_in_artifacts);
+    assert!(!profile.endpoint_policy.value_in_arguments);
+    assert!(!profile.endpoint_policy.value_in_environment);
+    assert!(!profile.endpoint_policy.value_in_info_plist);
+    assert!(!profile.endpoint_policy.allow_redirects);
+    assert!(!profile.endpoint_policy.allow_ambient_proxy);
+    assert_eq!(auth.credential_policy.authority, "host-private");
+    assert!(auth.credential_policy.supports_rotation);
+    assert!(!auth.credential_policy.value_in_artifacts);
+    assert!(!auth.credential_policy.value_in_arguments);
+    assert!(!auth.credential_policy.value_in_environment);
+    assert!(!auth.credential_policy.value_in_info_plist);
+
+    let verify_ref = |reference: &PublishedArtifactRef| {
+        let bytes = fs::read(root.join(&reference.path))
+            .unwrap_or_else(|_| panic!("missing published ref {}", reference.path));
+        let actual = format!("sha256:{:x}", Sha256::digest(bytes));
+        assert_eq!(
+            reference.sha256, actual,
+            "digest mismatch for {}",
+            reference.path
+        );
+    };
+    verify_ref(&profile.server_capability_manifest);
+    verify_ref(&profile.auth_capability_manifest);
+    verify_ref(&profile.data_capability_manifest);
+    verify_ref(&profile.data_tier.profile);
+    verify_ref(&profile.data_tier.corpus_manifest);
+    verify_ref(&data.schema_manifest);
+    verify_ref(&data.function_manifest);
+    verify_ref(&data.capability_manifest);
+    for reference in data.wire_schemas.values() {
+        verify_ref(reference);
+    }
+    for operation in &data.operations {
+        verify_ref(&operation.arguments_schema);
+        verify_ref(&operation.request_schema);
+        verify_ref(&operation.response_schema);
+        verify_ref(&operation.receipt_schema);
+        verify_ref(&operation.error_schema);
+    }
+
+    let operation_names = data
+        .operations
+        .iter()
+        .map(|operation| operation.name.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        operation_names,
+        ["createTodo", "setCompleted", "deleteTodo"]
+    );
+    let corpus = read_json(&root.join(&profile.data_tier.corpus_manifest.path));
+    assert_eq!(
+        profile.data_tier.case_count,
+        corpus["cases"].as_array().expect("corpus cases").len()
+    );
+    assert!(profile.data_tier.case_count >= 29);
 }
 
 /// Live-wire round trips (LLP 0051 D4 / ENG-23891): a representative value of

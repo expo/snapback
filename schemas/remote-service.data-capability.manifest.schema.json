@@ -1,0 +1,125 @@
+{
+  "$defs": {
+    "PublishedArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "RemoteServiceOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentsSchema": {
+          "$ref": "#/$defs/PublishedArtifactRef"
+        },
+        "authRequirement": {
+          "type": "string"
+        },
+        "errorSchema": {
+          "$ref": "#/$defs/PublishedArtifactRef"
+        },
+        "functionId": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "receiptSchema": {
+          "$ref": "#/$defs/PublishedArtifactRef"
+        },
+        "requestSchema": {
+          "$ref": "#/$defs/PublishedArtifactRef"
+        },
+        "responseSchema": {
+          "$ref": "#/$defs/PublishedArtifactRef"
+        }
+      },
+      "required": [
+        "name",
+        "functionId",
+        "kind",
+        "authRequirement",
+        "argumentsSchema",
+        "requestSchema",
+        "responseSchema",
+        "receiptSchema",
+        "errorSchema"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/remote-service.data-capability.manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "artifactKind": {
+      "type": "string"
+    },
+    "capabilityId": {
+      "type": "string"
+    },
+    "capabilityManifest": {
+      "$ref": "#/$defs/PublishedArtifactRef"
+    },
+    "functionManifest": {
+      "$ref": "#/$defs/PublishedArtifactRef"
+    },
+    "manifestVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "operations": {
+      "items": {
+        "$ref": "#/$defs/RemoteServiceOperation"
+      },
+      "type": "array"
+    },
+    "schemaManifest": {
+      "$ref": "#/$defs/PublishedArtifactRef"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "targetProfileId": {
+      "type": "string"
+    },
+    "wireSchemas": {
+      "additionalProperties": {
+        "$ref": "#/$defs/PublishedArtifactRef"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "schemaVersion",
+    "manifestVersion",
+    "capabilityId",
+    "appId",
+    "targetProfileId",
+    "schemaManifest",
+    "functionManifest",
+    "capabilityManifest",
+    "wireSchemas",
+    "operations"
+  ],
+  "title": "RemoteDataCapabilityManifest",
+  "type": "object"
+}

@@ -3,9 +3,16 @@ import { generateInProcess } from './index.mjs';
 // @ref LLP 0010#generated-artifacts — cache busting runs in a minimal worker before capability-denied definition evaluation.
 
 const backendDir = process.argv[2];
+let options = {};
 
 try {
-  const result = await generateInProcess(backendDir);
+  options = JSON.parse(process.argv[3] ?? '{}');
+} catch {
+  options = { invalidWorkerOptions: true };
+}
+
+try {
+  const result = await generateInProcess(backendDir, options);
   process.send?.(result);
 } catch (error) {
   process.send?.({

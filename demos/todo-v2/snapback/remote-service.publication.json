@@ -1,0 +1,7 @@
+{
+  "profileId": "remote-service-sqlite-ibex",
+  "targetProfileId": "remote-service-sqlite-ibex",
+  "authCapabilityId": "snapback.auth.todo-v2",
+  "dataCapabilityId": "snapback.data.todo-v2",
+  "operations": ["createTodo", "setCompleted", "deleteTodo"]
+}

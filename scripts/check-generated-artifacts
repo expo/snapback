@@ -19,6 +19,7 @@ run() {
 
 run node packages/snapback-codegen/index.mjs demos/todo/snapback
 run node packages/snapback-codegen/index.mjs demos/todo-v2/snapback
+run node packages/snapback-codegen/index.mjs demos/todo-v2/snapback --target-profile remote-service-sqlite-ibex
 # All Aboard's committed backend uses real data actions (outbound seam).
 run env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/snapback
 run env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/tests/egress-probe
@@ -30,6 +31,7 @@ run node admin-ui/generate-contract-bindings.mjs
 GENERATED_PATHS=(
     demos/todo/snapback/generated
     demos/todo-v2/snapback/generated
+    demos/todo-v2/snapback/generated-remote-service
     demos/all-aboard/snapback/generated
     demos/all-aboard/tests/egress-probe/generated
     demos/cursors-web/snapback/generated

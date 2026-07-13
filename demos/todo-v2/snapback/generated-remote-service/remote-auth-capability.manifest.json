@@ -1,0 +1,17 @@
+{
+  "appId": "todo-v2",
+  "artifactKind": "remoteAuthCapabilityManifest",
+  "capabilityId": "snapback.auth.todo-v2",
+  "credentialPolicy": {
+    "authority": "host-private",
+    "presentation": "authorization-bearer",
+    "supportsRotation": true,
+    "valueInArguments": false,
+    "valueInArtifacts": false,
+    "valueInEnvironment": false,
+    "valueInInfoPlist": false
+  },
+  "manifestVersion": 1,
+  "schemaVersion": "snapback.v0",
+  "targetProfileId": "remote-service-sqlite-ibex"
+}

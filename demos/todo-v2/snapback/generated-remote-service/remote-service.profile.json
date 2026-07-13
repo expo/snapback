@@ -1,0 +1,52 @@
+{
+  "appId": "todo-v2",
+  "artifactKind": "remoteServiceProfile",
+  "authCapabilityManifest": {
+    "path": "demos/todo-v2/snapback/generated-remote-service/remote-auth-capability.manifest.json",
+    "sha256": "sha256:75cd0cdc2861400332e4a726d4eadf535d84d2cfca684bfd23fa9c7f63e973b6"
+  },
+  "dataCapabilityManifest": {
+    "path": "demos/todo-v2/snapback/generated-remote-service/remote-data-capability.manifest.json",
+    "sha256": "sha256:716708acf6cdace9afe6759c383722cde21b332ff7719a896266821764a2bee8"
+  },
+  "dataTier": {
+    "caseCount": 37,
+    "corpus": "snapback-data-tier",
+    "corpusFormatVersion": 1,
+    "corpusManifest": {
+      "path": "tests/conformance/data-tier/corpus.manifest.json",
+      "sha256": "sha256:99952d627b5a6ad3aadac4e6f1c761452bbb6311901244eb52150a2f31bf4054"
+    },
+    "ledgerVersion": 1,
+    "profile": {
+      "path": "schemas/data-tier.profile.json",
+      "sha256": "sha256:1edfd7fc7a67766cf5071b87b716aba92f5c1f7e06ece1f4e96a391c3a5349d1"
+    },
+    "profileVersion": 1
+  },
+  "endpointPolicy": {
+    "allowAmbientProxy": false,
+    "allowRedirects": false,
+    "authority": "host-private",
+    "scheme": "https",
+    "valueInArguments": false,
+    "valueInArtifacts": false,
+    "valueInEnvironment": false,
+    "valueInInfoPlist": false
+  },
+  "localServerLifecycle": false,
+  "profileId": "remote-service-sqlite-ibex",
+  "profileVersion": 1,
+  "publication": {
+    "addressing": "commitSha",
+    "kind": "gitPinnedCheckout",
+    "profilePath": "demos/todo-v2/snapback/generated-remote-service/remote-service.profile.json",
+    "repository": "https://github.com/ccheever/snapback.git"
+  },
+  "schemaVersion": "snapback.v0",
+  "serverCapabilityManifest": {
+    "path": "demos/todo-v2/snapback/generated-remote-service/capability.manifest.json",
+    "sha256": "sha256:3d69db01aa73a154515306291a173bbb0c9d621f4e9bf7221b4203ce95935efa"
+  },
+  "targetProfileId": "remote-service-sqlite-ibex"
+}

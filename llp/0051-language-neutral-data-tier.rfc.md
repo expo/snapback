@@ -2,10 +2,10 @@
 
 **Type:** RFC
 **Status:** Draft
-**Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
+**Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Client integration, Conformance, Packaging, Security, Contract/Exact, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-13 (ENG-24605 corrects D1's authority boundary: handler identity is always the current server-prepared credential projection, never a replay-ledger answer; queued mutations carry a dedicated opaque authority descriptor checked before first or duplicate settlement, and the descriptor remains outside the ledger). 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
+**Revised:** 2026-07-15 (integrates ENG-24556's independently managed `remote-service-sqlite-ibex` target: Rust-owned capability/profile schemas, generated todo-v2 operation schemas, host-private-only HTTPS/credential policy, and commit-addressed data-tier/corpus identity; this is authority publication, not live-service evidence). 2026-07-13 (ENG-24605 corrects D1's authority boundary: handler identity is always the current server-prepared credential projection, never a replay-ledger answer; queued mutations carry a dedicated opaque authority descriptor checked before first or duplicate settlement, and the descriptor remains outside the ledger). 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
 the connection re-open bearer is request-only and structurally absent from
 responses, receipts, and retained state. Earlier: 2026-07-09 — ENG-23965 ships Increment 5's retained-query store,
@@ -698,6 +698,28 @@ already ships the executor-swap harness. D5 joins them:
   arithmetic, and the recursive JSON transport boundary; these are v1
   corrections to the already-declared portable semantics, not a new
   expression form.
+
+**Remote-service publication (ENG-24556).** The standard SQLite + Ibex server
+now has a second, explicit target profile,
+`remote-service-sqlite-ibex`. Its server capability declaration is derived
+from the same Rust authority as `local-dev-sqlite-ibex` and differs in exactly
+the lifecycle fact: `localServerLifecycle: false`. Target-specific codegen
+publishes todo-v2 schema/function/capability manifests, argument schemas
+projected from the source validators, the complete client wire-schema set,
+closed auth/data capability manifests, and a remote-service profile under
+`demos/todo-v2/snapback/generated-remote-service/`. Every reference carries a
+SHA-256 digest; the publication channel is `gitPinnedCheckout` addressed by
+consumer-selected commit SHA and binds the current data-tier profile and
+corpus manifest (currently 37 cases, satisfying consumers whose admitted
+floor is 29).
+
+The publication contains neither an origin nor a credential. Both authorities
+are `host-private`; package artifacts, process arguments, environment,
+Info.plist, redirects, and ambient proxy discovery are explicitly refused.
+The credential policy admits runtime rotation but never a value. This closes
+the upstream authority gap for Exact Native M4; it does **not** claim a remote
+service was deployed, exercised, or accepted by Exact. Those live composition,
+reload, trace, and capsule proofs remain consumer delivery evidence.
 
 ### D6. Clients by class: Online fallback, Parity by construction
 

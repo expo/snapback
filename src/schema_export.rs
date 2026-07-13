@@ -46,6 +46,9 @@ use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
     MutationResponse, OpenConnectionRequest,
 };
+use crate::service_profile::{
+    RemoteAuthCapabilityManifest, RemoteDataCapabilityManifest, RemoteServiceProfile,
+};
 use crate::storage::StorageInfo;
 
 /// A generated schema artifact: the committed file name (relative to the
@@ -91,6 +94,18 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "auth.hosted-capabilities.schema.json",
             schemars::schema_for!(HostedAuthCapabilities),
+        ),
+        finish(
+            "remote-service.profile.schema.json",
+            schemars::schema_for!(RemoteServiceProfile),
+        ),
+        finish(
+            "remote-service.auth-capability.manifest.schema.json",
+            schemars::schema_for!(RemoteAuthCapabilityManifest),
+        ),
+        finish(
+            "remote-service.data-capability.manifest.schema.json",
+            schemars::schema_for!(RemoteDataCapabilityManifest),
         ),
         finish("diagnostic.schema.json", schemars::schema_for!(Diagnostic)),
         finish("inspect.schema.json", schemars::schema_for!(InspectState)),
