@@ -2,8 +2,8 @@
   "format": 2,
   "app": "notes",
   "schemaHash": "sha256:07e39b0520178a0ccd7d3cae3437e61898588c4dab1c01cf25baaee4998ae709",
-  "bundleHash": "sha256:bab736853c60dd37fb4b8ef6c7af102904bedac825364a498b5156d82edc9d5e",
-  "inputsHash": "sha256:7dc1e5b593e6a9099e6085ae6831fa2e6e25ff35bca7a2d939669f2fa516d590",
+  "bundleHash": "sha256:87c7cb85a0a58ed7edf012ac9550ea22ddddbfdc3c5dca7798a344df7e0bddcf",
+  "inputsHash": "sha256:610489bd2091472a0abe0f37cf4ffdea46aa3affe6780b09e5290045c87a91f1",
   "inputs": [
     "cloudflare/app/notes.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
