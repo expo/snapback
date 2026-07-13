@@ -825,7 +825,7 @@ mod tests {
     }
 
     #[test]
-    fn destructive_reset_clears_all_server_lease_reservations() {
+    fn destructive_reset_and_restore_clear_all_server_lease_reservations() {
         let mut db = sessions_database(None);
         let lease = current_lease(&mut db, "request_reset", NOW);
         db.reserve_authorized_lease(
@@ -838,6 +838,21 @@ mod tests {
         .unwrap();
         assert_eq!(db.authorized_lease_reservation_count().unwrap(), 1);
         db.reset().unwrap();
+        assert_eq!(db.authorized_lease_reservation_count().unwrap(), 0);
+
+        let mut db = sessions_database(None);
+        let lease = current_lease(&mut db, "request_restore", NOW);
+        db.reserve_authorized_lease(
+            &lease,
+            AuthorizedLeaseConfig::default(),
+            NOW,
+            true,
+            &lease.issuer_id,
+        )
+        .unwrap();
+        assert_eq!(db.authorized_lease_reservation_count().unwrap(), 1);
+        db.apply_auth_restore_declaration("01890f3c-9d5b-7000-8000-000000000005", NOW + 1)
+            .unwrap();
         assert_eq!(db.authorized_lease_reservation_count().unwrap(), 0);
     }
 
