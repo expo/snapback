@@ -8,9 +8,10 @@ use crate::live_wire::{
     LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
-    AppActionStage, ConfigVerifyStage, DetachedMutationRead, EphemeralApi, FunctionRunResult,
-    InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
-    StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
+    AppActionStage, ConfigVerifyStage, DetachedMutationRead, EnsureAppExplicitInput,
+    EnsureAppInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
+    FunctionRunResult, InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
+    LocalSnapback, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
 };
 use crate::manifest::{
     AuthInput, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
@@ -1363,6 +1364,38 @@ pub enum PolicyAuthMode {
     Sessions,
 }
 
+impl From<EnsureAppMode> for PolicyAuthMode {
+    fn from(mode: EnsureAppMode) -> Self {
+        match mode {
+            EnsureAppMode::Dev => Self::Dev,
+            EnsureAppMode::Sessions => Self::Sessions,
+        }
+    }
+}
+
+/// Active and desired auth-policy facts consumed by pre-effect gates. Item 2
+/// supplies this explicit seam so an active-dev server cannot treat a request
+/// or already-staged desired-sessions posture as Public provisioning. Item 4
+/// replaces the constructor default with persisted pre-bind resolution.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PolicyAuthPosture {
+    pub active: PolicyAuthMode,
+    pub desired: PolicyAuthMode,
+}
+
+impl PolicyAuthPosture {
+    pub const fn settled(mode: PolicyAuthMode) -> Self {
+        Self {
+            active: mode,
+            desired: mode,
+        }
+    }
+
+    fn settled_at(self, mode: PolicyAuthMode) -> bool {
+        self.active == mode && self.desired == mode
+    }
+}
+
 /// Per-axis changes that become effective in session mode. `None` means the
 /// dev value remains in force; this makes mode-dependent behavior explicit
 /// without multiplying route literals.
@@ -2241,6 +2274,63 @@ enum HttpOperationSelection {
     Indeterminate,
 }
 
+fn ensure_operation_from_body(body: Option<&Value>) -> Option<OperationSpec> {
+    let fields = body?.as_object()?;
+    let operation = match fields.get("intent") {
+        None => "app.ensure.legacy",
+        Some(Value::String(intent)) if intent == "attest" => "app.ensure.attest",
+        Some(Value::String(intent)) if intent == "provision" => "app.ensure.provision",
+        Some(_) => return None,
+    };
+    operation_by_name(operation)
+}
+
+fn ensure_requested_mode(body: Option<&Value>) -> Option<PolicyAuthMode> {
+    match body?.as_object()?.get("requestedMode")?.as_str()? {
+        "dev" => Some(PolicyAuthMode::Dev),
+        "sessions" => Some(PolicyAuthMode::Sessions),
+        _ => None,
+    }
+}
+
+/// Evaluate the ensure branch against all three mode facts before a loaded
+/// artifact hash is inspected. Explicit provisioning is always AdminWrite, so
+/// it remains the correction/re-stage branch for any posture. Legacy is only
+/// the settled v0-dev compatibility form; Public attestation requires a
+/// settled posture matching its requested mode.
+fn authorize_ensure_posture(
+    operation: OperationSpec,
+    body: Option<&Value>,
+    posture: PolicyAuthPosture,
+) -> Result<(), ApiError> {
+    if operation.operation != "app.ensure.provision" && posture.active != posture.desired {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_MODE_PENDING",
+            "auth",
+            "app.ensure intent is unavailable while desired auth mode differs from active auth mode",
+        )
+        .into());
+    }
+    let allowed = match operation.operation {
+        "app.ensure.provision" => true,
+        "app.ensure.legacy" => posture.settled_at(PolicyAuthMode::Dev),
+        "app.ensure.attest" => {
+            posture.active == posture.desired
+                && ensure_requested_mode(body).is_none_or(|requested| posture.settled_at(requested))
+        }
+        _ => true,
+    };
+    if allowed {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        "auth",
+        "app.ensure intent is unavailable for the requested, active, and desired auth-mode posture",
+    )
+    .into())
+}
+
 async fn select_http_operation(
     spec: RouteSpec,
     runtime: &AppState,
@@ -2263,12 +2353,9 @@ async fn select_http_operation(
             HttpOperationSelection::Selected(direct_runner_operation_spec(kind.as_ref()))
         }
         EffectPolicy::OperationSpecific if spec.path == "/app/ensure" => {
-            // The current input type is the untagged legacy branch. Item 2
-            // replaces this selector with the closed intent enum.
-            HttpOperationSelection::Selected(
-                operation_by_name("app.ensure.legacy")
-                    .expect("legacy app.ensure operation must be registered"),
-            )
+            ensure_operation_from_body(body)
+                .map(HttpOperationSelection::Selected)
+                .unwrap_or(HttpOperationSelection::Indeterminate)
         }
         EffectPolicy::OperationSpecific if spec.path == "/_snapback/api/host-ops" => {
             let Some(fields) = body.and_then(Value::as_object) else {
@@ -2372,6 +2459,20 @@ async fn enforce_registered_route_policy(
                     && let Some(field) = policy_body.as_ref().and_then(legacy_body_auth_field)
                 {
                     Err(body_auth_unsupported(field))
+                } else if operation.transport == OperationTransport::EnsureApp {
+                    authorize_ensure_posture(
+                        operation,
+                        policy_body.as_ref(),
+                        runtime.policy_auth_posture(),
+                    )
+                    .and_then(|()| {
+                        authorize_operation_spec(
+                            &runtime.server,
+                            request.headers(),
+                            operation,
+                            runtime.policy_auth_mode,
+                        )
+                    })
                 } else {
                     authorize_operation_spec(
                         &runtime.server,
@@ -2754,20 +2855,13 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             "/app/ensure",
             EnsureApp,
             RouteClass::AppData,
-            RoutePolicy::Public,
-            CredentialResolution::OperationSpecific,
-            InvocationAuthority::None,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
             LegacyBodyPolicy::NotApplicable,
             EffectPolicy::Provisioning,
             ResponseSensitivity::OperatorMetadata,
-            SessionModeOverlay {
-                path_policy: Some(RoutePolicy::AdminWrite),
-                credential_resolution: Some(CredentialResolution::AdminCredential),
-                invocation_authority: Some(InvocationAuthority::Operator),
-                legacy_body_policy: None,
-                effect_policy: None,
-                response_sensitivity: Some(ResponseSensitivity::OperatorMetadata),
-            },
+            SessionModeOverlay::NONE,
         ),
         live("ephemeral_subscribe"),
         live("ephemeral_publish"),
@@ -4479,31 +4573,68 @@ async fn invoke_action(
     Ok(Json(result))
 }
 
-/// The mount-lifecycle ensure-everything operation (LLP 0034 §5 / ENG-22527):
-/// app-data at the root like the ephemeral ensure it generalizes — idempotent
-/// and non-destructive by construction; the PROVISIONING half is gated by the
-/// server profile (prod inspects and reports 'gated' instead of writing).
+/// The closed mount-lifecycle ensure family (LLP 0012 / LLP 0034): legacy
+/// v0-dev compatibility remains idempotent; explicit attestation is
+/// observational; explicit provisioning is centrally AdminWrite and then
+/// profile-gated before entering the local core.
 async fn ensure_app(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
-    State(policy_mode): State<PolicyAuthMode>,
-    headers: HeaderMap,
-    input: Result<Json<crate::local::EnsureAppInput>, JsonRejection>,
-) -> Result<Json<crate::local::EnsureAppOutcome>, ApiError> {
+    input: Result<Json<EnsureAppRequest>, JsonRejection>,
+) -> Result<Json<EnsureAppResponse>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    // The shipped untagged DTO is exactly the legacy branch. Item 2 replaces
-    // this selection with the closed attest/provision intent enum; resolving
-    // the row here already makes omission from the operation registry fatal.
-    let operation = operation_by_name("app.ensure.legacy")
-        .expect("the shipped ensure DTO must have a registered legacy branch");
-    authorize_operation_spec(&ctx, &headers, operation, policy_mode)?;
-    let provisioning_allowed = ctx.profile.allows_provisioning();
-    let profile = ctx.profile.as_str().to_owned();
-    let outcome = with_snapback(&state, move |snapback| {
-        snapback.ensure_app(input, provisioning_allowed, &profile)
-    })
-    .await?;
-    Ok(Json(outcome))
+    match input {
+        EnsureAppRequest::Legacy(input) => {
+            let provisioning_allowed = ctx.profile.allows_provisioning();
+            let profile = ctx.profile.as_str().to_owned();
+            let outcome = with_snapback(&state, move |snapback| {
+                snapback.ensure_app(*input, provisioning_allowed, &profile)
+            })
+            .await?;
+            Ok(Json(EnsureAppResponse::Legacy(outcome)))
+        }
+        EnsureAppRequest::Explicit(explicit) => {
+            explicit.validate()?;
+            match explicit {
+                EnsureAppExplicitInput::Attest {
+                    requested_mode,
+                    pair,
+                } => {
+                    let outcome = with_snapback(&state, move |snapback| {
+                        snapback.attest_app(requested_mode, *pair)
+                    })
+                    .await?;
+                    Ok(Json(EnsureAppResponse::Attest(outcome)))
+                }
+                EnsureAppExplicitInput::Provision {
+                    requested_mode: _,
+                    schema,
+                    functions,
+                    seed,
+                } => {
+                    // HTTP provisioning always needs both AdminWrite (already
+                    // consumed by the centralized operation gate) and the
+                    // positive non-production profile capability. The latter
+                    // runs before the core can inspect hashes or take effects.
+                    crate::admin::require_operation_profile(&ctx, "app.ensure.provision", false)?;
+                    let profile = ctx.profile.as_str().to_owned();
+                    let outcome = with_snapback(&state, move |snapback| {
+                        snapback.ensure_app(
+                            EnsureAppInput {
+                                schema: schema.map(|manifest| *manifest),
+                                functions: functions.map(|manifest| *manifest),
+                                seed: seed.map(|seed| *seed),
+                            },
+                            true,
+                            &profile,
+                        )
+                    })
+                    .await?;
+                    Ok(Json(EnsureAppResponse::Provision(outcome.into())))
+                }
+            }
+        }
+    }
 }
 
 async fn subscribe_live(
@@ -5274,6 +5405,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING"
         | "SNAPBACK_CAPABILITY_MINIFLARE_MISSING"
         | "SNAPBACK_CAPABILITY_WORKERD_MISSING"
+        | "SNAPBACK_AUTH_MODE_PENDING"
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
@@ -5924,6 +6056,7 @@ mod tests {
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_AUTH_MODE_PENDING",
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",

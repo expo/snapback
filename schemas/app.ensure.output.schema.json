@@ -1,0 +1,130 @@
+{
+  "$defs": {
+    "EnsureAppActiveIdentity": {
+      "additionalProperties": false,
+      "description": "The coherent loaded identity projected by Public attestation.",
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "bundleHash": {
+          "type": "string"
+        },
+        "inputsHash": {
+          "type": "string"
+        },
+        "schemaHash": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
+    "EnsureAppAttestOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "$ref": "#/$defs/EnsureAppActiveIdentity"
+        },
+        "intent": {
+          "$ref": "#/$defs/EnsureAppIntent"
+        },
+        "matched": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "intent",
+        "matched",
+        "active"
+      ],
+      "type": "object"
+    },
+    "EnsureAppIntent": {
+      "enum": [
+        "attest",
+        "provision"
+      ],
+      "type": "string"
+    },
+    "EnsureAppOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "functions": {
+          "description": "'matched' | 'provisioned' | 'gated' | 'skipped-absent'",
+          "type": "string"
+        },
+        "profile": {
+          "description": "The server profile the decision ran under.",
+          "type": "string"
+        },
+        "schema": {
+          "description": "'matched' | 'provisioned' | 'gated' | 'skipped-absent'",
+          "type": "string"
+        },
+        "seed": {
+          "description": "'seeded' | 'skipped-nonempty' | 'gated' | 'skipped-absent'",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "functions",
+        "seed",
+        "profile"
+      ],
+      "type": "object"
+    },
+    "EnsureAppProvisionOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "functions": {
+          "type": "string"
+        },
+        "intent": {
+          "$ref": "#/$defs/EnsureAppIntent"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent",
+        "schema",
+        "functions",
+        "seed",
+        "profile"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/app.ensure.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/EnsureAppAttestOutcome"
+    },
+    {
+      "$ref": "#/$defs/EnsureAppProvisionOutcome"
+    },
+    {
+      "$ref": "#/$defs/EnsureAppOutcome"
+    }
+  ],
+  "title": "EnsureAppResponse"
+}

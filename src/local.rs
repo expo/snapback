@@ -576,13 +576,17 @@ pub struct LiveUnsubscribeOutput {
     pub receipt: Option<Value>,
 }
 
-/// The single idempotent ensure-everything operation (LLP 0034 §5 D4
-/// residual, ENG-22527): "is this backend provisioned for this manifest?" as
-/// ONE call that inspects, provisions only what is missing/mismatched, and
-/// seeds only-if-empty — never reset-then-seed, never replace-clearing live
-/// rooms beyond the identity-guarded collection replace apply_schema already
-/// performs.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+/// The legacy v0-dev compatibility form of the single idempotent
+/// ensure-everything operation. The HTTP boundary wraps this in the closed
+/// [`EnsureAppRequest`] family; keeping the effect payload as its own type lets
+/// the local provisioning core remain shared by legacy dev startup and the
+/// explicitly privileged `provision` branch.
+///
+/// @ref LLP 0034#103-operational-follow-ups-2026-07-02-eng-22527 — inspect
+/// first, provision only missing halves, and seed only if every target is
+/// empty.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EnsureAppInput {
     #[serde(default)]
     pub schema: Option<SchemaManifest>,
@@ -592,7 +596,115 @@ pub struct EnsureAppInput {
     pub seed: Option<SeedData>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+/// Auth mode explicitly named by an ensure intent. This is a wire fact, not
+/// the persisted staged-mode state; item 4 wires the latter into the server's
+/// [`crate::server::PolicyAuthPosture`] seam.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum EnsureAppMode {
+    Dev,
+    Sessions,
+}
+
+impl EnsureAppMode {
+    fn artifact_version(self) -> &'static str {
+        match self {
+            Self::Dev => SNAPBACK_SCHEMA_VERSION,
+            Self::Sessions => "snapback.v1",
+        }
+    }
+}
+
+/// Identity-only schema half accepted by the Public `attest` branch.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EnsureAppSchemaIdentity {
+    pub artifact_kind: String,
+    pub schema_version: String,
+    pub app_id: String,
+    pub schema_hash: String,
+    pub inputs_hash: String,
+}
+
+/// Identity-only function half accepted by the Public `attest` branch.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EnsureAppFunctionIdentity {
+    pub artifact_kind: String,
+    pub schema_version: String,
+    pub app_id: String,
+    pub bundle_hash: String,
+    pub inputs_hash: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EnsureAppPairIdentity {
+    pub schema: EnsureAppSchemaIdentity,
+    pub functions: EnsureAppFunctionIdentity,
+}
+
+/// Explicit ensure intents. `deny_unknown_fields` is load-bearing: an attest
+/// request cannot smuggle a manifest or seed, and a future mode-stage field
+/// cannot silently fall through to the legacy compatibility branch.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "intent", rename_all = "lowercase", deny_unknown_fields)]
+pub enum EnsureAppExplicitInput {
+    Attest {
+        #[serde(rename = "requestedMode")]
+        requested_mode: EnsureAppMode,
+        pair: Box<EnsureAppPairIdentity>,
+    },
+    Provision {
+        #[serde(rename = "requestedMode")]
+        requested_mode: EnsureAppMode,
+        #[serde(default)]
+        schema: Option<Box<SchemaManifest>>,
+        #[serde(default)]
+        functions: Option<Box<FunctionManifest>>,
+        #[serde(default)]
+        seed: Option<Box<SeedData>>,
+    },
+}
+
+/// Closed `/app/ensure` request family. Explicit variants are attempted first;
+/// because the legacy object also denies unknown fields, the presence of an
+/// invalid or unknown `intent` can never fall back to legacy provisioning.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum EnsureAppRequest {
+    Explicit(EnsureAppExplicitInput),
+    Legacy(Box<EnsureAppInput>),
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum EnsureAppIntent {
+    Attest,
+    Provision,
+}
+
+/// The coherent loaded identity projected by Public attestation.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EnsureAppActiveIdentity {
+    pub schema_version: String,
+    pub app_id: String,
+    pub schema_hash: String,
+    pub bundle_hash: String,
+    pub inputs_hash: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EnsureAppAttestOutcome {
+    pub intent: EnsureAppIntent,
+    pub matched: bool,
+    pub active: EnsureAppActiveIdentity,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EnsureAppOutcome {
     /// 'matched' | 'provisioned' | 'gated' | 'skipped-absent'
     pub schema: String,
@@ -602,6 +714,181 @@ pub struct EnsureAppOutcome {
     pub seed: String,
     /// The server profile the decision ran under.
     pub profile: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EnsureAppProvisionOutcome {
+    pub intent: EnsureAppIntent,
+    pub schema: String,
+    pub functions: String,
+    pub seed: String,
+    pub profile: String,
+}
+
+impl From<EnsureAppOutcome> for EnsureAppProvisionOutcome {
+    fn from(outcome: EnsureAppOutcome) -> Self {
+        Self {
+            intent: EnsureAppIntent::Provision,
+            schema: outcome.schema,
+            functions: outcome.functions,
+            seed: outcome.seed,
+            profile: outcome.profile,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum EnsureAppResponse {
+    Attest(EnsureAppAttestOutcome),
+    Provision(EnsureAppProvisionOutcome),
+    Legacy(EnsureAppOutcome),
+}
+
+fn ensure_request_invalid(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_REQUEST_JSON_INVALID",
+        "server",
+        "request body was not valid JSON for this operation",
+    )
+    .with_details(json!({ "error": message.into() }))
+}
+
+fn require_nonempty_ensure_identity(value: &str, field: &str) -> SnapbackResult<()> {
+    if value.is_empty() {
+        return Err(ensure_request_invalid(format!(
+            "app.ensure identity field {field} must not be empty"
+        )));
+    }
+    Ok(())
+}
+
+impl EnsureAppPairIdentity {
+    fn normalized(&self, requested_mode: EnsureAppMode) -> SnapbackResult<EnsureAppActiveIdentity> {
+        if self.schema.artifact_kind != "schemaManifest" {
+            return Err(ensure_request_invalid(
+                "app.ensure attest schema.artifactKind must be schemaManifest",
+            ));
+        }
+        if self.functions.artifact_kind != "functionManifest" {
+            return Err(ensure_request_invalid(
+                "app.ensure attest functions.artifactKind must be functionManifest",
+            ));
+        }
+        for (value, field) in [
+            (&self.schema.schema_version, "pair.schema.schemaVersion"),
+            (&self.schema.app_id, "pair.schema.appId"),
+            (&self.schema.schema_hash, "pair.schema.schemaHash"),
+            (&self.schema.inputs_hash, "pair.schema.inputsHash"),
+            (
+                &self.functions.schema_version,
+                "pair.functions.schemaVersion",
+            ),
+            (&self.functions.app_id, "pair.functions.appId"),
+            (&self.functions.bundle_hash, "pair.functions.bundleHash"),
+            (&self.functions.inputs_hash, "pair.functions.inputsHash"),
+        ] {
+            require_nonempty_ensure_identity(value, field)?;
+        }
+        if self.schema.schema_version != requested_mode.artifact_version()
+            || self.functions.schema_version != requested_mode.artifact_version()
+        {
+            return Err(ensure_request_invalid(format!(
+                "app.ensure {:?} attestation requires {} artifacts",
+                requested_mode,
+                requested_mode.artifact_version()
+            )));
+        }
+        if self.schema.schema_version != self.functions.schema_version
+            || self.schema.app_id != self.functions.app_id
+            || self.schema.inputs_hash != self.functions.inputs_hash
+        {
+            return Err(ensure_request_invalid(
+                "app.ensure attestation requires a coherent schema/function identity pair",
+            ));
+        }
+        Ok(EnsureAppActiveIdentity {
+            schema_version: self.schema.schema_version.clone(),
+            app_id: self.schema.app_id.clone(),
+            schema_hash: self.schema.schema_hash.clone(),
+            bundle_hash: self.functions.bundle_hash.clone(),
+            inputs_hash: self.schema.inputs_hash.clone(),
+        })
+    }
+}
+
+impl EnsureAppExplicitInput {
+    /// Validate intent-local shape before the provisioning core can inspect a
+    /// loaded hash or take an effect. Complete persisted candidate-pair and
+    /// target-capability preflight remains item 4's staged-mode work.
+    pub fn validate(&self) -> SnapbackResult<()> {
+        match self {
+            Self::Attest {
+                requested_mode,
+                pair,
+            } => {
+                if *requested_mode != EnsureAppMode::Sessions {
+                    return Err(ensure_request_invalid(
+                        "explicit app.ensure attest is defined only for requestedMode sessions; v0-dev uses the legacy compatibility form",
+                    ));
+                }
+                pair.normalized(*requested_mode)?;
+                Ok(())
+            }
+            Self::Provision {
+                requested_mode,
+                schema,
+                functions,
+                seed,
+            } => {
+                if schema.is_none() && functions.is_none() && seed.is_none() {
+                    return Err(ensure_request_invalid(
+                        "app.ensure provision requires at least one of schema, functions, or seed",
+                    ));
+                }
+                let expected = requested_mode.artifact_version();
+                if let Some(schema) = schema
+                    && schema.schema_version != expected
+                {
+                    return Err(ensure_request_invalid(format!(
+                        "app.ensure {:?} provision requires schemaVersion {expected}",
+                        requested_mode
+                    )));
+                }
+                if let Some(functions) = functions
+                    && functions.schema_version != expected
+                {
+                    return Err(ensure_request_invalid(format!(
+                        "app.ensure {:?} provision requires function schemaVersion {expected}",
+                        requested_mode
+                    )));
+                }
+                if let (Some(schema), Some(functions)) = (schema, functions)
+                    && (schema.schema_version != functions.schema_version
+                        || schema.app_id != functions.app_id
+                        || schema.inputs_hash != functions.inputs_hash)
+                {
+                    return Err(ensure_request_invalid(
+                        "app.ensure provision requires a coherent schema/function artifact pair",
+                    ));
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+impl EnsureAppInput {
+    fn validate_artifacts(&self) -> SnapbackResult<()> {
+        if let Some(schema) = &self.schema {
+            schema.validate_artifact()?;
+        }
+        if let Some(functions) = &self.functions {
+            functions.validate_artifact()?;
+        }
+        Ok(())
+    }
 }
 
 // The live fan-out envelope types (`live_replace` / `live_delta` /
@@ -1392,6 +1679,19 @@ impl LocalSnapback {
         provisioning_allowed: bool,
         profile: &str,
     ) -> SnapbackResult<EnsureAppOutcome> {
+        // Validate every posted artifact before the first hash comparison or
+        // effect. In particular, a matching hash is attestation evidence, not
+        // permission to bypass an unsupported artifact version; validating
+        // both halves up front also prevents a valid schema from applying
+        // before an invalid function artifact is rejected.
+        if let Err(error) = input.validate_artifacts() {
+            // Preserve load_functions' diagnostic trail while moving the
+            // validation itself ahead of every hash comparison and effect.
+            // Schema-header failures gain the same rejected-artifact record.
+            self.record_diagnostics(vec![error.diagnostic.clone()]);
+            return Err(error);
+        }
+
         let schema_outcome = match input.schema {
             None => "skipped-absent",
             Some(manifest) => {
@@ -1468,6 +1768,51 @@ impl LocalSnapback {
             functions: functions_outcome.to_owned(),
             seed: seed_outcome.to_owned(),
             profile: profile.to_owned(),
+        })
+    }
+
+    /// Compare an identity-only pair against the currently loaded artifacts.
+    /// This path is observational by construction: it has no manifest or seed
+    /// input and takes `&self`, so Public attestation cannot stage or mutate.
+    pub fn attest_app(
+        &self,
+        requested_mode: EnsureAppMode,
+        pair: EnsureAppPairIdentity,
+    ) -> SnapbackResult<EnsureAppAttestOutcome> {
+        let requested = pair.normalized(requested_mode)?;
+        let schema = self.db.schema();
+        let active = match (
+            schema.schema_hash.as_ref(),
+            schema.inputs_hash.as_ref(),
+            self.functions.bundle_hash.as_ref(),
+            self.functions.inputs_hash.as_ref(),
+        ) {
+            (Some(schema_hash), Some(schema_inputs), Some(bundle_hash), Some(function_inputs))
+                if schema.schema_version == self.functions.schema_version
+                    && schema.app_id == self.functions.app_id
+                    && schema_inputs == function_inputs =>
+            {
+                Some(EnsureAppActiveIdentity {
+                    schema_version: schema.schema_version.clone(),
+                    app_id: schema.app_id.clone(),
+                    schema_hash: schema_hash.clone(),
+                    bundle_hash: bundle_hash.clone(),
+                    inputs_hash: schema_inputs.clone(),
+                })
+            }
+            _ => None,
+        }
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "app.ensure attestation requires a complete coherent active artifact pair",
+            )
+        })?;
+        Ok(EnsureAppAttestOutcome {
+            intent: EnsureAppIntent::Attest,
+            matched: active == requested,
+            active,
         })
     }
 

@@ -12,8 +12,8 @@ use crate::manifest::{FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{
     ApiError, ConnectionRegistry, EffectPolicy, HealthResponse, InvocationAuthority,
-    PolicyAuthMode, RegisteredRoute, ResponseSensitivity, RoutePolicy, SessionModeOverlay,
-    SharedSnapback, system_api_route, system_static_route,
+    PolicyAuthMode, PolicyAuthPosture, RegisteredRoute, ResponseSensitivity, RoutePolicy,
+    SessionModeOverlay, SharedSnapback, system_api_route, system_static_route,
 };
 use anyhow::Context as _;
 use axum::Json;
@@ -155,7 +155,9 @@ pub(crate) fn operation_profile_requirement(
     has_dev_user: bool,
 ) -> OperationProfileRequirement {
     match operation {
-        "app.reset" | "schema.load" | "functions.load" => OperationProfileRequirement::NonProd,
+        "app.reset" | "app.ensure.provision" | "schema.load" | "functions.load" => {
+            OperationProfileRequirement::NonProd
+        }
         // The direct and multiplexed runners are developer/operator bypass
         // surfaces even when they project an anonymous handler input. Hosted
         // production invocation goes through the ordinary app-data gate.
@@ -522,6 +524,10 @@ pub struct AppState {
     /// sessions overlay be exercised through the real centralized gate rather
     /// than through a metadata-only test double.
     pub policy_auth_mode: PolicyAuthMode,
+    /// Desired auth-policy mode. It equals `policy_auth_mode` in production
+    /// until item 4 installs persisted staged-mode resolution; the separate
+    /// field lets pre-effect gates prove the pending posture now.
+    pub desired_policy_auth_mode: PolicyAuthMode,
 }
 
 impl AppState {
@@ -538,6 +544,7 @@ impl AppState {
             server: Arc::new(server),
             connections: ConnectionRegistry::default(),
             policy_auth_mode: PolicyAuthMode::Dev,
+            desired_policy_auth_mode: PolicyAuthMode::Dev,
         }
     }
 
@@ -547,7 +554,27 @@ impl AppState {
     /// overlay against the actual router.
     pub fn with_policy_auth_mode(mut self, mode: PolicyAuthMode) -> Self {
         self.policy_auth_mode = mode;
+        self.desired_policy_auth_mode = mode;
         self
+    }
+
+    /// Install an explicit active/desired posture for embedded acceptance.
+    /// Item 4 owns replacing this injection seam with persisted startup state.
+    pub fn with_policy_auth_posture(
+        mut self,
+        active: PolicyAuthMode,
+        desired: PolicyAuthMode,
+    ) -> Self {
+        self.policy_auth_mode = active;
+        self.desired_policy_auth_mode = desired;
+        self
+    }
+
+    pub fn policy_auth_posture(&self) -> PolicyAuthPosture {
+        PolicyAuthPosture {
+            active: self.policy_auth_mode,
+            desired: self.desired_policy_auth_mode,
+        }
     }
 
     /// Wrap a fresh instance: the read and ephemeral lanes are extracted
@@ -596,6 +623,12 @@ impl FromRef<AppState> for ConnectionRegistry {
 impl FromRef<AppState> for PolicyAuthMode {
     fn from_ref(state: &AppState) -> Self {
         state.policy_auth_mode
+    }
+}
+
+impl FromRef<AppState> for PolicyAuthPosture {
+    fn from_ref(state: &AppState) -> Self {
+        state.policy_auth_posture()
     }
 }
 
